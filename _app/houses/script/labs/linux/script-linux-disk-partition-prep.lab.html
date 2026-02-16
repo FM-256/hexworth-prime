@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Disk Partition Prep - Script House</title>
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/LinuxTerminal.js"></script>
+    <script src="../../../../components/ProgressiveHints.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', system-ui, sans-serif; background: linear-gradient(135deg, #0f0f1a 0%, #1a1a2e 50%, #16213e 100%); color: #e0e0e0; min-height: 100vh; display: flex; flex-direction: column; }
+        .header { background: linear-gradient(135deg, rgba(34,197,94,0.1), rgba(34,197,94,0.05)); border-bottom: 1px solid rgba(34,197,94,0.3); padding: 15px 25px; display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; }
+        .header-left { display: flex; align-items: center; gap: 20px; }
+        .back-link { color: #888; text-decoration: none; font-size: 0.9rem; transition: color 0.3s; }
+        .back-link:hover { color: #22c55e; }
+        .header-badge { background: rgba(251,191,36,0.2); color: #fbbf24; padding: 4px 12px; border-radius: 20px; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.1em; }
+        .header h1 { font-size: 1.2rem; color: #22c55e; }
+        .header-right { display: flex; align-items: center; gap: 15px; }
+        .main-container { display: grid; grid-template-columns: 1fr 360px; flex: 1; overflow: hidden; }
+        .terminal-panel { display: flex; flex-direction: column; border-right: 1px solid rgba(34,197,94,0.2); overflow: hidden; }
+        .task-prompt { background: rgba(0,0,0,0.3); padding: 20px 25px; border-bottom: 1px solid rgba(34,197,94,0.2); flex-shrink: 0; }
+        .task-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+        .task-number { background: #22c55e; color: #000; width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 0.85rem; }
+        .task-number.completed { background: #4ade80; }
+        .task-number.skipped { background: #fbbf24; }
+        .task-question { font-size: 1.1rem; color: #fff; line-height: 1.5; }
+        .task-question code { background: rgba(34,197,94,0.2); padding: 2px 8px; border-radius: 4px; font-family: 'Courier New', monospace; color: #86efac; }
+        .task-context { font-size: 0.85rem; color: #9ca3af; margin-top: 8px; line-height: 1.5; padding: 8px 12px; background: rgba(59,130,246,0.08); border-left: 2px solid #3b82f6; border-radius: 0 4px 4px 0; }
+        .hint-area { margin-top: 10px; }
+        .terminal-container { flex: 1; min-height: 0; }
+        .feedback-bar { background: rgba(0,0,0,0.4); padding: 12px 25px; border-top: 1px solid rgba(34,197,94,0.2); display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; }
+        .feedback-message { font-size: 0.9rem; color: #888; }
+        .feedback-message.success { color: #4ade80; }
+        .skip-btn { background: transparent; color: #666; border: 1px solid rgba(255,255,255,0.1); padding: 8px 16px; border-radius: 6px; font-size: 0.85rem; cursor: pointer; transition: all 0.2s; }
+        .skip-btn:hover { background: rgba(251,191,36,0.1); border-color: rgba(251,191,36,0.3); color: #fbbf24; }
+        .skip-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .progress-panel { background: rgba(13,17,23,0.95); padding: 20px; overflow-y: auto; }
+        .progress-panel h2 { color: #22c55e; font-size: 1.1rem; margin-bottom: 20px; padding-bottom: 10px; border-bottom: 1px solid rgba(34,197,94,0.3); }
+        .progress-bar { background: rgba(255,255,255,0.1); border-radius: 8px; height: 8px; overflow: hidden; margin-bottom: 15px; }
+        .progress-fill { height: 100%; background: linear-gradient(90deg, #22c55e, #4ade80); border-radius: 8px; transition: width 0.5s ease; width: 0%; }
+        .progress-text { display: flex; justify-content: space-between; color: #888; font-size: 0.85rem; margin-bottom: 25px; }
+        .task-list { list-style: none; }
+        .task-item { padding: 10px 12px; margin: 6px 0; background: rgba(255,255,255,0.02); border-radius: 8px; border-left: 3px solid #30363d; font-size: 0.85rem; color: #8b949e; display: flex; align-items: center; gap: 10px; transition: all 0.3s; }
+        .task-item.active { border-left-color: #22c55e; background: rgba(34,197,94,0.1); color: #fff; }
+        .task-item.completed { border-left-color: #4ade80; color: #4ade80; }
+        .task-item.skipped { border-left-color: #fbbf24; color: #fbbf24; opacity: 0.7; }
+        .task-item .check { width: 20px; height: 20px; border: 2px solid #30363d; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.65rem; flex-shrink: 0; }
+        .task-item.active .check { border-color: #22c55e; }
+        .task-item.completed .check { border-color: #4ade80; background: #4ade80; color: #000; }
+        .task-item.skipped .check { border-color: #fbbf24; background: #fbbf24; color: #000; }
+        .context-callout { background: rgba(34,197,94,0.08); border-left: 3px solid #22c55e; padding: 12px 16px; margin: 15px 0; border-radius: 0 8px 8px 0; }
+        .context-callout-label { font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: #22c55e; margin-bottom: 4px; }
+        .context-callout-text { font-size: 0.85rem; color: #9ca3af; line-height: 1.5; }
+        .insight-box { background: rgba(251,191,36,0.08); border-left: 3px solid #fbbf24; padding: 12px 16px; margin: 15px 0; border-radius: 0 8px 8px 0; }
+        .insight-box-label { font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: #fbbf24; margin-bottom: 4px; }
+        .insight-box-text { font-size: 0.85rem; color: #9ca3af; line-height: 1.5; }
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.9); justify-content: center; align-items: center; z-index: 1000; }
+        .modal-overlay.show { display: flex; }
+        .modal { background: linear-gradient(135deg, #0d1117, #161b22); border: 2px solid #22c55e; border-radius: 16px; padding: 40px; text-align: center; max-width: 500px; animation: modalIn 0.3s ease; }
+        @keyframes modalIn { from { transform: scale(0.9); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+        .modal .trophy { font-size: 4rem; margin-bottom: 15px; }
+        .modal h2 { color: #22c55e; font-size: 1.6rem; margin-bottom: 10px; }
+        .modal.perfect h2 { color: #4ade80; }
+        .modal p { color: #8b949e; margin-bottom: 20px; line-height: 1.6; }
+        .modal .stats { display: flex; justify-content: center; gap: 30px; margin-bottom: 25px; }
+        .modal .stat { text-align: center; }
+        .modal .stat-value { font-size: 2rem; font-weight: bold; color: #fff; }
+        .modal .stat-value.correct { color: #4ade80; }
+        .modal .stat-value.skipped { color: #fbbf24; }
+        .modal .stat-label { font-size: 0.85rem; color: #888; margin-top: 5px; }
+        .modal-buttons { display: flex; gap: 15px; justify-content: center; }
+        .modal-btn { padding: 12px 24px; border: none; border-radius: 8px; cursor: pointer; font-family: inherit; font-size: 0.9rem; transition: all 0.3s; text-decoration: none; }
+        .modal-btn.primary { background: linear-gradient(135deg, #22c55e, #4ade80); color: #000; font-weight: 600; }
+        .modal-btn.primary:hover { box-shadow: 0 0 20px rgba(34,197,94,0.5); }
+        .modal-btn.secondary { background: rgba(255,255,255,0.1); color: #e0e0e0; border: 1px solid rgba(255,255,255,0.2); }
+        .celebration { position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 1001; display: none; }
+        .celebration.active { display: block; }
+        .confetti { position: absolute; width: 10px; height: 10px; background: #22c55e; animation: confetti-fall 3s ease-out forwards; }
+        @keyframes confetti-fall { 0% { transform: translateY(-100vh) rotate(0deg); opacity: 1; } 100% { transform: translateY(100vh) rotate(720deg); opacity: 0; } }
+        @media (max-width: 900px) { .main-container { grid-template-columns: 1fr; } .progress-panel { display: none; } }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="header-left">
+            <a href="../../index.html" class="back-link">&larr; Script House</a>
+            <span class="header-badge">Prep Lab</span>
+            <h1>Disk Partition & Mount Prep</h1>
+        </div>
+        <div class="header-right">
+            <span style="color:#888;font-size:0.85rem;">Guided Walkthrough</span>
+        </div>
+    </div>
+    <div class="main-container">
+        <div class="terminal-panel">
+            <div class="task-prompt">
+                <div class="task-header">
+                    <div class="task-number" id="taskNumber">1</div>
+                    <span style="color:#888;font-size:0.85rem;">Step <span id="currentTaskNum">1</span> of <span id="totalTasks">7</span></span>
+                </div>
+                <div class="task-question" id="taskQuestion">Loading...</div>
+                <div class="task-context" id="taskContext"></div>
+                <div class="hint-area" id="hintArea"></div>
+            </div>
+            <div class="terminal-container" id="terminal"></div>
+            <div class="feedback-bar">
+                <div class="feedback-message" id="feedbackMessage">Type your command above...</div>
+                <button class="skip-btn" id="skipBtn" onclick="skipTask()">Skip Step</button>
+            </div>
+        </div>
+        <div class="progress-panel">
+            <h2>DISK PARTITION & MOUNT</h2>
+            <div class="context-callout">
+                <div class="context-callout-label">Scenario</div>
+                <div class="context-callout-text">A new 500GB drive (/dev/sdb) was just installed in the hexworth-storage server. Walk through the complete workflow: survey disks, partition, format, mount, and make it persistent.</div>
+            </div>
+            <div class="insight-box">
+                <div class="insight-box-label">Why This Matters</div>
+                <div class="insight-box-text">Adding storage is one of the most common sysadmin tasks. Get the workflow wrong and you lose data. Get it right and you have reliable, persistent storage that survives reboots.</div>
+            </div>
+            <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+            <div class="progress-text">
+                <span><span id="completedCount">0</span> completed</span>
+                <span id="progressPercent">0%</span>
+            </div>
+            <ul class="task-list" id="taskList"></ul>
+        </div>
+    </div>
+    <div class="modal-overlay" id="resultsModal">
+        <div class="modal" id="modalContent">
+            <div class="trophy" id="resultsIcon">&#127942;</div>
+            <h2 id="resultsTitle">Prep Complete!</h2>
+            <p id="resultsMessage">Good disk management work.</p>
+            <div class="stats">
+                <div class="stat"><div class="stat-value correct" id="correctCount">0</div><div class="stat-label">Completed</div></div>
+                <div class="stat"><div class="stat-value skipped" id="skippedCount">0</div><div class="stat-label">Skipped</div></div>
+            </div>
+            <div class="modal-buttons">
+                <button class="modal-btn primary" onclick="restartLab()">Try Again</button>
+                <a href="script-linux-disk-mgmt.lab.html" class="modal-btn secondary">Full Mission Lab</a>
+                <a href="../../index.html" class="modal-btn secondary">Back to Script House</a>
+            </div>
+        </div>
+    </div>
+    <div class="celebration" id="celebration"></div>
+
+    <script>
+    const TASKS = [
+        {
+            id: 1,
+            question: 'Survey existing disks and partitions with <code>lsblk</code>',
+            context: 'lsblk (list block devices) shows all drives and their partition layout in a tree view. It is your first command when working with disks -- you need to know what you are working with before making changes.',
+            validate: (cmdLine) => /^lsblk/.test(cmdLine.trim()),
+            hints: [
+                { level: 1, text: 'You need a command that shows block device information' },
+                { level: 2, text: 'The command starts with "ls" but for block devices' },
+                { level: 3, text: 'lsblk -- list block devices' },
+                { level: 4, text: 'lsblk', isSolution: true }
+            ],
+            solution: 'lsblk',
+            successMessage: 'Block devices listed. You can see sda (100G, partitioned) and sdb (500G, no partitions yet).'
+        },
+        {
+            id: 2,
+            question: 'Check current filesystem usage with <code>df -h</code> to see what is already mounted',
+            context: 'df (disk free) shows mounted filesystems and their usage. The -h flag makes sizes human-readable (GB/MB instead of raw bytes). Always check what is mounted before making changes.',
+            validate: (cmdLine) => /^df\s+-h/.test(cmdLine.trim()),
+            hints: [
+                { level: 1, text: 'A command that shows filesystem space usage' },
+                { level: 2, text: 'df reports filesystem disk space' },
+                { level: 3, text: 'Add -h for human-readable sizes' },
+                { level: 4, text: 'df -h', isSolution: true }
+            ],
+            solution: 'df -h',
+            successMessage: 'Current mounts visible. sdb is not mounted anywhere yet -- as expected.'
+        },
+        {
+            id: 3,
+            question: 'Partition the new disk: <code>sudo fdisk /dev/sdb</code>',
+            context: 'fdisk is the classic Linux partition editor. It works interactively (n=new, d=delete, p=print, w=write). In this simulation, running fdisk creates a single partition automatically. In real life, you would use the interactive menu.',
+            validate: (cmdLine) => /sudo\s+fdisk\s+\/dev\/sdb/.test(cmdLine.trim()) || /fdisk\s+\/dev\/sdb/.test(cmdLine.trim()),
+            hints: [
+                { level: 1, text: 'You need a disk partitioning tool with sudo' },
+                { level: 2, text: 'fdisk is the traditional partition editor' },
+                { level: 3, text: 'sudo fdisk /dev/sdb' },
+                { level: 4, text: 'sudo fdisk /dev/sdb', isSolution: true }
+            ],
+            solution: 'sudo fdisk /dev/sdb',
+            successMessage: 'Partition table created. /dev/sdb1 is now a 500G Linux partition.'
+        },
+        {
+            id: 4,
+            question: 'Format the new partition with ext4: <code>sudo mkfs.ext4 /dev/sdb1</code>',
+            context: 'mkfs (make filesystem) writes a filesystem structure to a partition. ext4 is the default Linux filesystem -- it has journaling, supports files up to 16TB, and handles volumes up to 1EB. Other options: xfs (for large files), btrfs (snapshots).',
+            validate: (cmdLine) => /sudo\s+mkfs\.ext4\s+\/dev\/sdb1/.test(cmdLine.trim()) || /mkfs\.ext4\s+\/dev\/sdb1/.test(cmdLine.trim()) || /sudo\s+mkfs\s+-t\s+ext4\s+\/dev\/sdb1/.test(cmdLine.trim()),
+            hints: [
+                { level: 1, text: 'You need to create a filesystem on the new partition' },
+                { level: 2, text: 'mkfs creates filesystems -- specify the type with a dot suffix' },
+                { level: 3, text: 'sudo mkfs.ext4 /dev/sdb1' },
+                { level: 4, text: 'sudo mkfs.ext4 /dev/sdb1', isSolution: true }
+            ],
+            solution: 'sudo mkfs.ext4 /dev/sdb1',
+            successMessage: 'ext4 filesystem created on /dev/sdb1. The partition is now ready to mount.'
+        },
+        {
+            id: 5,
+            question: 'Create a mount point directory: <code>sudo mkdir /mnt/data</code>',
+            context: 'In Linux, you cannot access a filesystem until it is mounted to a directory. The mount point is just an empty directory that acts as the "entrance" to the filesystem. /mnt is the conventional location for temporary mounts.',
+            validate: (cmdLine) => /sudo\s+mkdir\s+(\/mnt\/data|-p\s+\/mnt\/data)/.test(cmdLine.trim()) || /mkdir\s+(\/mnt\/data|-p\s+\/mnt\/data)/.test(cmdLine.trim()),
+            hints: [
+                { level: 1, text: 'Create a directory where the filesystem will be accessed' },
+                { level: 2, text: 'mkdir creates directories -- put it under /mnt' },
+                { level: 3, text: 'sudo mkdir /mnt/data' },
+                { level: 4, text: 'sudo mkdir /mnt/data', isSolution: true }
+            ],
+            solution: 'sudo mkdir /mnt/data',
+            successMessage: 'Mount point /mnt/data created. Ready to attach the filesystem.'
+        },
+        {
+            id: 6,
+            question: 'Mount the filesystem: <code>sudo mount /dev/sdb1 /mnt/data</code>',
+            context: 'The mount command attaches a filesystem to the directory tree. After mounting, accessing /mnt/data reads/writes the sdb1 partition. Without fstab, this mount is temporary -- it disappears on reboot.',
+            validate: (cmdLine) => /sudo\s+mount\s+\/dev\/sdb1\s+\/mnt\/data/.test(cmdLine.trim()) || /mount\s+\/dev\/sdb1\s+\/mnt\/data/.test(cmdLine.trim()),
+            hints: [
+                { level: 1, text: 'Attach the filesystem to the mount point' },
+                { level: 2, text: 'mount takes device and directory arguments' },
+                { level: 3, text: 'sudo mount /dev/sdb1 /mnt/data' },
+                { level: 4, text: 'sudo mount /dev/sdb1 /mnt/data', isSolution: true }
+            ],
+            solution: 'sudo mount /dev/sdb1 /mnt/data',
+            successMessage: '/dev/sdb1 mounted at /mnt/data. 500GB of storage now accessible.'
+        },
+        {
+            id: 7,
+            question: 'Verify the mount with <code>df -h</code> -- you should see /dev/sdb1 in the list',
+            context: 'Always verify after mounting. df -h should now show /dev/sdb1 mounted at /mnt/data. To make this permanent across reboots, you would add a line to /etc/fstab -- that is covered in the full mission lab.',
+            validate: (cmdLine) => /^df\s+-h/.test(cmdLine.trim()) || /^mount$/.test(cmdLine.trim()) || /^lsblk/.test(cmdLine.trim()),
+            hints: [
+                { level: 1, text: 'Verify the mount appeared in filesystem listing' },
+                { level: 2, text: 'Use the same command from step 2' },
+                { level: 3, text: 'df -h shows mounted filesystems' },
+                { level: 4, text: 'df -h', isSolution: true }
+            ],
+            solution: 'df -h',
+            successMessage: 'Verified: /dev/sdb1 on /mnt/data -- 500G available. Disk partition workflow complete.'
+        }
+    ];
+
+    const labState = { currentTask: 0, results: {}, attempts: {}, startTime: null };
+
+    function init() {
+        LinuxTerminal.init('LIN-PREP-DISK', '#terminal', {
+            user: 'student',
+            hostname: 'hexworth-storage',
+            startDir: '/home/student',
+            height: '100%',
+            onCommand: handleCommand
+        });
+        LinuxTerminal.addFilesystem({
+            '/mnt': { type: 'dir', perms: 'drwxr-xr-x', owner: 'root', group: 'root', children: [] },
+            '/dev/sda': { type: 'file', perms: 'brw-rw----', owner: 'root', group: 'disk', size: 0, content: '[block device: 100GB SSD]' },
+            '/dev/sda1': { type: 'file', perms: 'brw-rw----', owner: 'root', group: 'disk', size: 0, content: '[partition: 50GB, ext4, mounted /]' },
+            '/dev/sda2': { type: 'file', perms: 'brw-rw----', owner: 'root', group: 'disk', size: 0, content: '[partition: 50GB, ext4, mounted /home]' },
+            '/dev/sdb': { type: 'file', perms: 'brw-rw----', owner: 'root', group: 'disk', size: 0, content: '[block device: 500GB HDD - unpartitioned]' },
+            '/etc/fstab': { type: 'file', perms: '-rw-r--r--', owner: 'root', group: 'root', size: 512, content: '# /etc/fstab: static file system information.\n# <device>    <mount>  <type>  <options>       <dump>  <pass>\nUUID=abc-123  /        ext4    errors=remount-ro 0       1\nUUID=def-456  /home    ext4    defaults          0       2\n# Add new mounts below this line:\n' }
+        });
+        buildTaskList();
+        showTask(0);
+    }
+
+    function buildTaskList() {
+        const list = document.getElementById('taskList');
+        list.innerHTML = TASKS.map((task, i) => `<li class="task-item${i === 0 ? ' active' : ''}" data-task="${i}"><div class="check">${i + 1}</div><span>${task.question.replace(/<[^>]+>/g, '')}</span></li>`).join('');
+        document.getElementById('totalTasks').textContent = TASKS.length;
+    }
+
+    function showTask(index) {
+        const task = TASKS[index]; labState.currentTask = index; labState.attempts[index] = 0;
+        document.getElementById('taskNumber').textContent = index + 1;
+        document.getElementById('taskNumber').className = 'task-number';
+        document.getElementById('currentTaskNum').textContent = index + 1;
+        document.getElementById('taskQuestion').innerHTML = task.question;
+        document.getElementById('taskContext').textContent = task.context;
+        document.getElementById('feedbackMessage').textContent = 'Type your command above...';
+        document.getElementById('feedbackMessage').className = 'feedback-message';
+        document.getElementById('skipBtn').disabled = false;
+        document.querySelectorAll('.task-item').forEach((el, i) => { el.classList.remove('active'); if (i === index && !labState.results[i]) el.classList.add('active'); });
+        const hintArea = document.getElementById('hintArea');
+        hintArea.innerHTML = '';
+        ProgressiveHints.init('hintArea', task.hints, { labId: 'disk-prep-' + task.id });
+        LinuxTerminal.print(`\n<span style="color:#22c55e;">--- Step ${index + 1}: ${task.question.replace(/<[^>]+>/g, '')} ---</span>`);
+    }
+
+    function handleCommand(cmdLine, output, cmd, args) {
+        const task = TASKS[labState.currentTask];
+        labState.attempts[labState.currentTask] = (labState.attempts[labState.currentTask] || 0) + 1;
+        if (!labState.startTime) labState.startTime = Date.now();
+        if (task.validate(cmdLine)) {
+            document.getElementById('feedbackMessage').textContent = task.successMessage;
+            document.getElementById('feedbackMessage').className = 'feedback-message success';
+            labState.results[labState.currentTask] = 'correct';
+            updateTaskItem(labState.currentTask, 'completed');
+            document.getElementById('taskNumber').classList.add('completed');
+            document.getElementById('skipBtn').disabled = true;
+            LinuxTerminal.print('>>> Step completed! <<<', 'lt-success');
+            updateProgress();
+            setTimeout(() => advanceTask(), 1200);
+        }
+    }
+
+    function updateTaskItem(index, status) { const item = document.querySelector(`.task-item[data-task="${index}"]`); if (item) { item.classList.remove('active', 'completed', 'skipped'); item.classList.add(status); const check = item.querySelector('.check'); if (status === 'completed') check.innerHTML = '&#10003;'; else if (status === 'skipped') check.innerHTML = '&#8212;'; } }
+
+    function skipTask() {
+        labState.results[labState.currentTask] = 'skipped';
+        updateTaskItem(labState.currentTask, 'skipped');
+        document.getElementById('taskNumber').classList.add('skipped');
+        document.getElementById('skipBtn').disabled = true;
+        const task = TASKS[labState.currentTask];
+        document.getElementById('feedbackMessage').innerHTML = `<strong>Skipped.</strong> Solution: <code style="background:rgba(251,191,36,0.2);padding:2px 6px;border-radius:4px;">${task.solution}</code>`;
+        document.getElementById('feedbackMessage').className = 'feedback-message';
+        updateProgress();
+        setTimeout(() => advanceTask(), 800);
+    }
+
+    function advanceTask() { if (labState.currentTask >= TASKS.length - 1) { showResults(); return; } showTask(labState.currentTask + 1); }
+    function updateProgress() { const completed = Object.keys(labState.results).length; const correct = Object.values(labState.results).filter(r => r === 'correct').length; const percent = Math.round((completed / TASKS.length) * 100); document.getElementById('progressFill').style.width = percent + '%'; document.getElementById('completedCount').textContent = correct; document.getElementById('progressPercent').textContent = percent + '%'; }
+
+    function showResults() {
+        const correct = Object.values(labState.results).filter(r => r === 'correct').length;
+        const skipped = Object.values(labState.results).filter(r => r === 'skipped').length;
+        document.getElementById('correctCount').textContent = correct;
+        document.getElementById('skippedCount').textContent = skipped;
+        const modal = document.getElementById('modalContent'); modal.classList.remove('perfect');
+        if (correct === TASKS.length) { modal.classList.add('perfect'); document.getElementById('resultsIcon').textContent = String.fromCodePoint(0x1F389); document.getElementById('resultsTitle').textContent = 'Perfect Walkthrough!'; document.getElementById('resultsMessage').textContent = 'Complete disk workflow mastered: lsblk, fdisk, mkfs, mount, verify. Ready for the full mission.'; triggerCelebration(); }
+        else { document.getElementById('resultsIcon').textContent = String.fromCodePoint(0x1F4DA); document.getElementById('resultsTitle').textContent = 'Prep Complete'; document.getElementById('resultsMessage').textContent = 'You have walked through the disk partition workflow. Try the full mission lab for deeper practice.'; }
+        document.getElementById('resultsModal').classList.add('show');
+        try { if (typeof GameTracker !== 'undefined') GameTracker.record('prep_linux_disk', correct * 14, { correct, skipped }); } catch(e) {}
+    }
+
+    function restartLab() { document.getElementById('resultsModal').classList.remove('show'); labState.currentTask = 0; labState.results = {}; labState.attempts = {}; labState.startTime = null; LinuxTerminal.destroy(); init(); }
+    function triggerCelebration() { const container = document.getElementById('celebration'); container.classList.add('active'); const colors = ['#22c55e', '#4ade80', '#86efac', '#fbbf24', '#60a5fa']; for (let i = 0; i < 60; i++) { setTimeout(() => { const c = document.createElement('div'); c.className = 'confetti'; c.style.left = Math.random() * 100 + 'vw'; c.style.background = colors[Math.floor(Math.random() * colors.length)]; c.style.animationDuration = (2 + Math.random() * 2) + 's'; c.style.width = (5 + Math.random() * 10) + 'px'; c.style.height = c.style.width; container.appendChild(c); setTimeout(() => c.remove(), 3000); }, i * 30); } setTimeout(() => container.classList.remove('active'), 4000); }
+
+    document.addEventListener('DOMContentLoaded', init);
+    </script>
+    <script src="../../../../components/GameTracker.js"></script>
+    <script src="../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>

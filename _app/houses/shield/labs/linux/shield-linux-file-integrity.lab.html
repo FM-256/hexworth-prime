@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mission: File Integrity Monitoring - Shield House</title>
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <link rel="stylesheet" href="../../../../components/LinuxTerminal.css">
+    <script src="../../../../components/LinuxTerminal.js"></script>
+    <script src="../../../../components/ProgressiveHints.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 100%); min-height: 100vh; color: #e0e0e0; }
+        .container { max-width: 1400px; margin: 0 auto; display: grid; grid-template-columns: 1fr 380px; height: 100vh; overflow: hidden; }
+        .main-panel { display: flex; flex-direction: column; border-right: 2px solid #a855f7; height: 100vh; overflow: hidden; }
+        .header { background: linear-gradient(135deg, #0d1117 0%, #161b22 100%); padding: 12px 20px; border-bottom: 2px solid #a855f7; flex-shrink: 0; }
+        .header-content { display: flex; justify-content: space-between; align-items: center; }
+        .header-left { display: flex; align-items: center; gap: 15px; }
+        .mission-badge { background: rgba(168,85,247,0.2); padding: 4px 12px; border-radius: 15px; font-size: 0.75em; color: #c084fc; border: 1px solid #a855f7; font-family: 'Cascadia Code', 'Fira Code', monospace; }
+        .header h1 { color: #a855f7; font-size: 1.1em; margin: 0; font-weight: 600; }
+        .back-link { color: #a855f7; text-decoration: none; padding: 6px 12px; background: rgba(168,85,247,0.1); border: 1px solid #a855f7; border-radius: 6px; font-size: 0.85em; transition: all 0.3s; }
+        .back-link:hover { background: rgba(168,85,247,0.25); }
+        .terminal-container { flex: 1; display: flex; flex-direction: column; background: #0a0a0a; min-height: 0; overflow: hidden; }
+        .mission-panel { background: rgba(13,17,23,0.95); border-top: 2px solid #a855f7; padding: 15px 20px; flex-shrink: 0; max-height: 220px; overflow-y: auto; }
+        .mission-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+        .mission-header h3 { color: #a855f7; font-size: 1em; margin: 0; }
+        .mission-header h3::before { content: '>'; animation: blink 1s infinite; margin-right: 8px; }
+        @keyframes blink { 0%,100% { opacity:1; } 50% { opacity:0; } }
+        .progress-bar { width: 100%; height: 8px; background: rgba(255,255,255,0.1); border-radius: 4px; overflow: hidden; margin-bottom: 15px; }
+        .progress-fill { height: 100%; background: linear-gradient(90deg, #a855f7, #c084fc); border-radius: 4px; transition: width 0.5s ease; }
+        .objective-list { list-style: none; }
+        .objective-item { padding: 8px 12px; margin: 4px 0; background: rgba(255,255,255,0.02); border-radius: 6px; border-left: 3px solid #30363d; font-size: 0.85em; color: #8b949e; display: flex; align-items: center; gap: 10px; }
+        .objective-item.active { border-left-color: #ffa657; background: rgba(255,166,87,0.1); color: #c9d1d9; }
+        .objective-item.completed { border-left-color: #3fb950; color: #3fb950; }
+        .objective-item .check { width: 18px; height: 18px; border: 2px solid #30363d; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.7em; }
+        .objective-item.completed .check { border-color: #3fb950; background: #3fb950; color: #0d1117; }
+        .objective-item.active .check { border-color: #ffa657; }
+        .intel-panel { background: rgba(13,17,23,0.95); padding: 20px; overflow-y: auto; height: 100vh; }
+        .intel-panel h2 { color: #a855f7; font-size: 1.2em; margin-bottom: 20px; padding-bottom: 10px; border-bottom: 2px solid #a855f7; }
+        .cmd-ref { margin-bottom: 20px; }
+        .cmd-ref h3 { color: #c084fc; font-size: 0.95em; margin-bottom: 12px; }
+        .cmd-box { background: #0a0a0a; border: 1px solid #30363d; border-radius: 6px; padding: 10px 12px; margin: 8px 0; font-family: 'Cascadia Code', monospace; font-size: 0.8em; }
+        .cmd-box .cmd { color: #00ff41; }
+        .cmd-box .desc { color: #8b949e; margin-top: 4px; font-size: 0.9em; }
+        .tip-box { background: rgba(168,85,247,0.1); border-left: 3px solid #a855f7; padding: 12px 15px; margin: 15px 0; border-radius: 0 8px 8px 0; }
+        .tip-box strong { color: #a855f7; }
+        .tip-box p { color: #c9d1d9; margin: 5px 0 0 0; font-size: 0.9em; }
+        .context-callout { background: rgba(168,85,247,0.08); border-left: 3px solid #a855f7; padding: 12px 16px; margin: 12px 0; border-radius: 0 6px 6px 0; }
+        .context-callout-label { font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: #a855f7; margin-bottom: 4px; }
+        .context-callout-text { font-size: 0.85rem; color: #9ca3af; line-height: 1.5; }
+        .hint-container { margin-top: 10px; }
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.9); justify-content: center; align-items: center; z-index: 1000; }
+        .modal-overlay.show { display: flex; }
+        .modal { background: linear-gradient(135deg, #0d1117, #161b22); border: 2px solid #a855f7; border-radius: 16px; padding: 40px; text-align: center; max-width: 500px; animation: modalIn 0.3s ease; }
+        @keyframes modalIn { from { transform: scale(0.9); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+        .modal .trophy { font-size: 4em; margin-bottom: 15px; }
+        .modal h2 { color: #a855f7; font-size: 1.6em; margin-bottom: 10px; }
+        .modal p { color: #8b949e; margin-bottom: 20px; line-height: 1.6; }
+        .modal .stats { display: flex; justify-content: center; gap: 30px; margin-bottom: 25px; }
+        .modal .stat { text-align: center; }
+        .modal .stat-value { color: #3fb950; font-size: 1.5em; font-weight: bold; }
+        .modal .stat-label { color: #8b949e; font-size: 0.8em; }
+        .modal-buttons { display: flex; gap: 15px; justify-content: center; }
+        .modal-btn { padding: 12px 24px; border: none; border-radius: 8px; cursor: pointer; font-family: 'Cascadia Code', monospace; font-size: 0.9em; transition: all 0.3s; }
+        .modal-btn.primary { background: #a855f7; color: #0d1117; }
+        .modal-btn.primary:hover { box-shadow: 0 0 20px rgba(168,85,247,0.5); }
+        .modal-btn.secondary { background: transparent; color: #a855f7; border: 2px solid #a855f7; }
+        ::-webkit-scrollbar { width: 8px; } ::-webkit-scrollbar-track { background: #0d1117; } ::-webkit-scrollbar-thumb { background: #30363d; border-radius: 4px; }
+        @media (max-width: 1024px) { .container { grid-template-columns: 1fr; } .intel-panel { height: auto; max-height: 40vh; border-top: 2px solid #a855f7; } }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="main-panel">
+            <div class="header"><div class="header-content"><div class="header-left"><span class="mission-badge">MISSION LAB</span><h1>File Integrity Monitoring</h1></div><a href="../../index.html" class="back-link">< Shield House</a></div></div>
+            <div class="terminal-container" id="terminal"></div>
+            <div class="mission-panel">
+                <div class="mission-header"><h3>MISSION OBJECTIVES</h3><span id="progressText" style="color:#8b949e;font-size:0.85em;">0/8 Complete</span></div>
+                <div class="progress-bar"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
+                <ul class="objective-list" id="objectiveList"></ul>
+            </div>
+        </div>
+        <div class="intel-panel">
+            <h2>FILE INTEGRITY INTEL</h2>
+            <div class="tip-box"><strong>MISSION BRIEFING</strong><p>After a suspected breach, your IR team needs to verify which files were modified. Set up AIDE (Advanced Intrusion Detection Environment), create baselines, and identify tampered files before the forensic window closes.</p></div>
+            <div class="cmd-ref">
+                <h3>Integrity Commands</h3>
+                <div class="cmd-box"><div class="cmd">sha256sum file</div><div class="desc">Generate SHA-256 hash of a file</div></div>
+                <div class="cmd-box"><div class="cmd">sha256sum -c checksums.txt</div><div class="desc">Verify files against saved checksums</div></div>
+                <div class="cmd-box"><div class="cmd">aide --init</div><div class="desc">Initialize AIDE database</div></div>
+                <div class="cmd-box"><div class="cmd">aide --check</div><div class="desc">Check files against AIDE database</div></div>
+                <div class="cmd-box"><div class="cmd">aide --update</div><div class="desc">Update AIDE database after changes</div></div>
+                <div class="cmd-box"><div class="cmd">cat /etc/aide/aide.conf</div><div class="desc">View AIDE configuration</div></div>
+                <div class="cmd-box"><div class="cmd">md5sum file</div><div class="desc">MD5 hash (weaker, use SHA-256)</div></div>
+            </div>
+            <div class="context-callout"><div class="context-callout-label">Why This Matters</div><div class="context-callout-text">File integrity monitoring (FIM) detects unauthorized changes to critical system files. PCI DSS Requirement 11.5 mandates FIM. If an attacker modifies /etc/passwd, replaces a binary, or plants a backdoor, FIM catches it.</div></div>
+            <div class="hint-container" id="hintContainer"></div>
+        </div>
+    </div>
+    <div class="modal-overlay" id="completionModal"><div class="modal"><div class="trophy">&#128737;</div><h2>Integrity Verified!</h2><p>AIDE baseline established. Tampered files identified and flagged. The forensic evidence is preserved. You now have a known-good baseline for ongoing monitoring.</p><div class="stats"><div class="stat"><div class="stat-value" id="commandCount">0</div><div class="stat-label">Commands</div></div><div class="stat"><div class="stat-value" id="timeElapsed">0:00</div><div class="stat-label">Time</div></div></div><div class="modal-buttons"><button class="modal-btn secondary" onclick="resetMission()">Retry</button><button class="modal-btn primary" onclick="window.location.href='../../index.html'">Shield House</button></div></div></div>
+
+    <script>
+    const state = { completed: new Set(), commandCount: 0, startTime: Date.now(), currentObjective: 0, hintsRevealed: 0 };
+
+    const OBJECTIVES = [
+        { id: 'hash-passwd', task: '1. Generate SHA-256 hash of /etc/passwd', validate: (cmd) => /sha256sum\s+\/etc\/passwd/.test(cmd.trim()),
+          hints: [{ level: 1, text: 'Start by fingerprinting critical system files.' }, { level: 2, text: 'SHA-256 produces a unique hash for file contents.' }, { level: 3, text: 'sha256sum /etc/passwd' }, { level: 4, text: 'sha256sum /etc/passwd', isSolution: true }] },
+        { id: 'hash-shadow', task: '2. Hash /etc/shadow for comparison', validate: (cmd) => /sha256sum\s+\/etc\/shadow/.test(cmd.trim()),
+          hints: [{ level: 1, text: 'The shadow file contains password hashes -- a prime target.' }, { level: 2, text: 'sha256sum /etc/shadow' }, { level: 3, text: 'sha256sum /etc/shadow' }, { level: 4, text: 'sha256sum /etc/shadow', isSolution: true }] },
+        { id: 'create-baseline', task: '3. Create a baseline checksum file for /etc', validate: (cmd) => /sha256sum\s+\/etc\/\*\s*>\s*.*checksums/.test(cmd.trim()) || /sha256sum\s+\/etc\/(passwd|shadow|group|hosts)\s+.*>\s*checksums/.test(cmd.trim()),
+          hints: [{ level: 1, text: 'Save multiple checksums to a file for later verification.' }, { level: 2, text: 'Redirect sha256sum output to create a baseline file.' }, { level: 3, text: 'sha256sum /etc/passwd /etc/shadow /etc/group > /root/checksums.txt' }, { level: 4, text: 'sha256sum /etc/passwd /etc/shadow /etc/group > /root/checksums.txt', isSolution: true }] },
+        { id: 'aide-conf', task: '4. Review the AIDE configuration', validate: (cmd) => /cat\s+\/etc\/aide\/(aide\.conf|aide\.config)/.test(cmd.trim()),
+          hints: [{ level: 1, text: 'AIDE needs to know which directories to monitor.' }, { level: 2, text: 'The config file specifies paths and check types.' }, { level: 3, text: 'cat /etc/aide/aide.conf' }, { level: 4, text: 'cat /etc/aide/aide.conf', isSolution: true }] },
+        { id: 'aide-init', task: '5. Initialize the AIDE database', validate: (cmd) => /aide\s+--init/.test(cmd.trim()),
+          hints: [{ level: 1, text: 'The first step is creating the initial database.' }, { level: 2, text: 'aide --init scans all monitored paths.' }, { level: 3, text: 'aide --init' }, { level: 4, text: 'aide --init', isSolution: true }] },
+        { id: 'aide-check', task: '6. Run an AIDE integrity check', validate: (cmd) => /aide\s+--check/.test(cmd.trim()),
+          hints: [{ level: 1, text: 'Compare current files against the stored database.' }, { level: 2, text: 'aide --check reports any differences.' }, { level: 3, text: 'aide --check' }, { level: 4, text: 'aide --check', isSolution: true }] },
+        { id: 'verify-checksums', task: '7. Verify checksums against the baseline file', validate: (cmd) => /sha256sum\s+-c\s+.*checksums/.test(cmd.trim()),
+          hints: [{ level: 1, text: 'The -c flag checks files against stored hashes.' }, { level: 2, text: 'sha256sum -c reads the checksum file and verifies each entry.' }, { level: 3, text: 'sha256sum -c /root/checksums.txt' }, { level: 4, text: 'sha256sum -c /root/checksums.txt', isSolution: true }] },
+        { id: 'aide-update', task: '8. Update the AIDE database after remediation', validate: (cmd) => /aide\s+--update/.test(cmd.trim()),
+          hints: [{ level: 1, text: 'After fixing issues, update the baseline.' }, { level: 2, text: 'aide --update creates a new database reflecting current state.' }, { level: 3, text: 'aide --update' }, { level: 4, text: 'aide --update', isSolution: true }] }
+    ];
+
+    function init() {
+        LinuxTerminal.init('SHIELD-MISSION-FIM', '#terminal', { user: 'root', hostname: 'shield-fim', startDir: '/root', height: '100%', onCommand: handleCommand });
+        LinuxTerminal.addFilesystem({
+            '/root': { type: 'dir', perms: 'drwx------', owner: 'root', group: 'root', children: ['ir-notes.txt'] },
+            '/root/ir-notes.txt': { type: 'file', perms: '-rw-------', owner: 'root', group: 'root', size: 512, content: 'INCIDENT RESPONSE NOTES\n=======================\nDate: 2026-02-16\nSuspected: File tampering on production server\nEvidence: Unauthorized SSH login at 03:22 UTC\nAction: Verify file integrity, establish baselines\nPriority: /etc/passwd, /etc/shadow, /etc/group, /usr/bin/*\n' },
+            '/etc/aide': { type: 'dir', perms: 'drwxr-xr-x', owner: 'root', group: 'root', children: ['aide.conf'] },
+            '/etc/aide/aide.conf': { type: 'file', perms: '-rw-r--r--', owner: 'root', group: 'root', size: 1024, content: '# AIDE Configuration File\n#\n# Monitoring rules:\n# p = permissions\n# i = inode\n# n = number of links\n# u = user\n# g = group\n# s = size\n# sha256 = SHA-256 hash\n\n# Directories to monitor\n/etc p+i+n+u+g+s+sha256\n/usr/bin p+i+n+u+g+s+sha256\n/usr/sbin p+i+n+u+g+s+sha256\n/boot p+i+n+u+g+s+sha256\n\n# Directories to exclude\n!/var/log\n!/tmp\n!/var/tmp\n\n# Database locations\ndatabase=file:/var/lib/aide/aide.db\ndatabase_out=file:/var/lib/aide/aide.db.new\n' },
+            '/var/lib/aide': { type: 'dir', perms: 'drwx------', owner: 'root', group: 'root', children: [] }
+        });
+        printBriefing(); updateObjectiveList(); updateProgress(); updateHintPanel();
+    }
+
+    function handleCommand(cmdLine, output, cmd, args) { state.commandCount++; checkObjectives(cmdLine); }
+
+    function checkObjectives(cmdLine) {
+        let n = false;
+        for (const obj of OBJECTIVES) { if (state.completed.has(obj.id)) continue; if (obj.validate && obj.validate(cmdLine)) { state.completed.add(obj.id); n = true; LinuxTerminal.print('[OBJECTIVE] ' + obj.task + ' - COMPLETE', 'lt-success'); } }
+        if (n) { for (let i = 0; i < OBJECTIVES.length; i++) { if (!state.completed.has(OBJECTIVES[i].id)) { state.currentObjective = i; break; } } updateObjectiveList(); updateProgress(); updateHintPanel(); if (state.completed.size === OBJECTIVES.length) setTimeout(showCompletionModal, 1000); }
+    }
+
+    function updateHintPanel() { const o = OBJECTIVES[state.currentObjective]; if (!o||!o.hints) return; ProgressiveHints.init('hintContainer', o.hints, { labId: `fim-${o.id}`, onReveal: () => { state.hintsRevealed++; } }); }
+    function updateObjectiveList() { const l = document.getElementById('objectiveList'); l.innerHTML = ''; OBJECTIVES.forEach((o,i) => { const li = document.createElement('li'); li.className = 'objective-item'; const d = state.completed.has(o.id); const p = i===0||state.completed.has(OBJECTIVES[i-1].id); if(d) li.classList.add('completed'); else if(p) li.classList.add('active'); li.innerHTML = `<div class="check">${d?'&#10003;':i+1}</div><span>${o.task}</span>`; l.appendChild(li); }); }
+    function updateProgress() { const p = (state.completed.size/OBJECTIVES.length)*100; document.getElementById('progressFill').style.width = p+'%'; document.getElementById('progressText').textContent = `${state.completed.size}/${OBJECTIVES.length} Complete`; }
+    function showCompletionModal() { const e = Math.floor((Date.now()-state.startTime)/1000); document.getElementById('commandCount').textContent = state.commandCount; document.getElementById('timeElapsed').textContent = `${Math.floor(e/60)}:${(e%60).toString().padStart(2,'0')}`; document.getElementById('completionModal').classList.add('show'); saveProgress(); }
+    function resetMission() { document.getElementById('completionModal').classList.remove('show'); state.completed.clear(); state.commandCount=0; state.startTime=Date.now(); state.currentObjective=0; state.hintsRevealed=0; LinuxTerminal.destroy(); init(); }
+    function saveProgress() { const p = JSON.parse(localStorage.getItem('hexworth_progress')||'{}'); if(!p.shield) p.shield={}; p.shield['mission-file-integrity']={completed:true,completedAt:new Date().toISOString(),commandCount:state.commandCount,timeElapsed:Math.floor((Date.now()-state.startTime)/1000)}; localStorage.setItem('hexworth_progress',JSON.stringify(p)); try{if(typeof GameTracker!=='undefined') GameTracker.record('shield_mission_fim',state.completed.size*12,{commands:state.commandCount});}catch(e){} }
+    function printBriefing() {
+        LinuxTerminal.print('<span style="color:#f87171;">MISSION: FILE INTEGRITY MONITORING</span>');
+        LinuxTerminal.print('');
+        LinuxTerminal.print('<span style="color:#8b949e;">[INCIDENT] Unauthorized SSH login detected at 03:22 UTC.</span>');
+        LinuxTerminal.print('<span style="color:#8b949e;">[INCIDENT] Suspected file tampering on production server.</span>');
+        LinuxTerminal.print('<span style="color:#ffa657;">Establish baselines, verify integrity, deploy AIDE monitoring.</span>');
+        LinuxTerminal.print('');
+        LinuxTerminal.print('Read <span style="color:#ffa657;">ir-notes.txt</span> for incident details.');
+        LinuxTerminal.print('');
+    }
+    document.addEventListener('DOMContentLoaded', init);
+    </script>
+    <script src="../../../../components/GameTracker.js"></script>
+    <script src="../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>

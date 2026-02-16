@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Prep: Log Analysis - Script House</title>
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script src="../../../../components/LinuxTerminal.js"></script>
+    <script src="../../../../components/ProgressiveHints.js"></script>
+    <style id="access-guard-preload">body { visibility: hidden; }</style>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', system-ui, sans-serif; background: linear-gradient(135deg, #0f0f1a 0%, #1a1a2e 50%, #16213e 100%); color: #e0e0e0; min-height: 100vh; }
+        .mission-layout { display: grid; grid-template-columns: 300px 1fr; min-height: 100vh; }
+        .sidebar { background: rgba(0,0,0,0.4); border-right: 1px solid rgba(34,197,94,0.2); padding: 20px; overflow-y: auto; max-height: 100vh; position: sticky; top: 0; }
+        .back-link { display: inline-flex; align-items: center; gap: 8px; color: #888; text-decoration: none; font-size: 0.85rem; margin-bottom: 20px; } .back-link:hover { color: #22c55e; }
+        .mission-badge { display: inline-block; background: linear-gradient(135deg, rgba(34,197,94,0.3), rgba(34,197,94,0.1)); color: #86efac; padding: 6px 14px; border-radius: 20px; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 12px; border: 1px solid rgba(34,197,94,0.3); }
+        .sidebar h1 { font-size: 1.4rem; color: #22c55e; margin-bottom: 8px; }
+        .mission-desc { color: #a0a0a0; font-size: 0.9rem; line-height: 1.5; margin-bottom: 20px; padding-bottom: 20px; border-bottom: 1px solid rgba(255,255,255,0.1); }
+        .context-callout { background: rgba(34,197,94,0.08); border-left: 3px solid #22c55e; padding: 12px 16px; margin: 12px 0; border-radius: 0 6px 6px 0; }
+        .context-callout-label { font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: #22c55e; margin-bottom: 4px; }
+        .context-callout-text { font-size: 0.85rem; color: #9ca3af; line-height: 1.5; }
+        .progress-section { margin-bottom: 20px; }
+        .progress-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+        .progress-label { font-size: 0.85rem; color: #888; } .progress-value { font-size: 0.85rem; color: #22c55e; font-weight: 600; }
+        .progress-bar { background: rgba(255,255,255,0.1); border-radius: 10px; height: 8px; overflow: hidden; }
+        .progress-fill { height: 100%; background: linear-gradient(90deg, #22c55e, #4ade80); border-radius: 10px; transition: width 0.5s ease; width: 0%; }
+        .objectives-title { font-size: 0.9rem; color: #22c55e; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 15px; }
+        .objective-list { list-style: none; }
+        .objective-item { display: flex; align-items: flex-start; gap: 12px; padding: 12px; margin-bottom: 8px; background: rgba(255,255,255,0.03); border-radius: 8px; border: 1px solid rgba(255,255,255,0.05); cursor: pointer; transition: all 0.3s; }
+        .objective-item:hover { background: rgba(34,197,94,0.1); border-color: rgba(34,197,94,0.2); }
+        .objective-item.active { background: rgba(34,197,94,0.15); border-color: rgba(34,197,94,0.4); }
+        .objective-item.completed { background: rgba(74,222,128,0.1); border-color: rgba(74,222,128,0.3); }
+        .objective-number { width: 24px; height: 24px; border-radius: 50%; background: rgba(34,197,94,0.2); color: #22c55e; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: bold; flex-shrink: 0; }
+        .objective-item.completed .objective-number { background: #4ade80; color: #000; }
+        .objective-item.completed .objective-number::after { content: '\2713'; }
+        .objective-item.completed .objective-number span { display: none; }
+        .objective-text { font-size: 0.85rem; color: #ccc; line-height: 1.4; }
+        .objective-item.completed .objective-text { color: #4ade80; text-decoration: line-through; opacity: 0.7; }
+        .main-content { display: flex; flex-direction: column; height: 100vh; }
+        .objective-panel { background: rgba(34,197,94,0.05); border-bottom: 1px solid rgba(34,197,94,0.2); padding: 20px 25px; }
+        .objective-panel-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+        .current-objective-badge { font-size: 0.75rem; color: #22c55e; text-transform: uppercase; letter-spacing: 0.1em; }
+        .objective-panel h2 { font-size: 1.2rem; color: #fff; margin-bottom: 10px; }
+        .objective-detail { color: #a0a0a0; font-size: 0.95rem; line-height: 1.6; }
+        .objective-detail code { background: rgba(0,0,0,0.3); padding: 2px 8px; border-radius: 4px; font-family: 'Courier New', monospace; color: #7ee787; }
+        .hint-container { margin-top: 15px; }
+        .terminal-wrapper { flex: 1; display: flex; flex-direction: column; padding: 20px; min-height: 0; }
+        #terminal { flex: 1; min-height: 400px; }
+        .completion-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.8); z-index: 1000; justify-content: center; align-items: center; }
+        .completion-overlay.show { display: flex; animation: fadeIn 0.5s ease; }
+        .completion-modal { background: linear-gradient(135deg, #1a1a2e 0%, #0f0f1a 100%); border: 2px solid rgba(74,222,128,0.5); border-radius: 20px; padding: 40px 50px; text-align: center; max-width: 500px; animation: slideUp 0.5s ease; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes slideUp { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
+        .completion-icon { font-size: 4rem; margin-bottom: 20px; }
+        .completion-modal h2 { color: #4ade80; font-size: 1.8rem; margin-bottom: 10px; }
+        .completion-modal p { color: #a0a0a0; font-size: 1.1rem; margin-bottom: 25px; }
+        .completion-stats { display: flex; justify-content: center; gap: 30px; margin-bottom: 30px; }
+        .stat-item { text-align: center; } .stat-value { font-size: 2rem; font-weight: bold; color: #22c55e; } .stat-label { font-size: 0.85rem; color: #888; }
+        .completion-actions { display: flex; gap: 15px; justify-content: center; }
+        .completion-btn { padding: 12px 25px; border-radius: 8px; font-size: 1rem; font-weight: 600; text-decoration: none; cursor: pointer; transition: all 0.3s; border: none; }
+        .completion-btn.primary { background: linear-gradient(135deg, #22c55e, #4ade80); color: #000; }
+        .completion-btn.secondary { background: rgba(255,255,255,0.1); color: #e0e0e0; border: 1px solid rgba(255,255,255,0.2); }
+        .completion-btn:hover { transform: translateY(-2px); }
+        .reset-btn { background: rgba(248,113,113,0.2); color: #f87171; border: 1px solid rgba(248,113,113,0.3); padding: 8px 16px; border-radius: 6px; font-size: 0.8rem; cursor: pointer; margin-top: 20px; }
+        @media (max-width: 900px) { .mission-layout { grid-template-columns: 1fr; } .sidebar { position: relative; max-height: none; } }
+    </style>
+</head>
+<body>
+    <script>AccessGuard.require('sorted');</script>
+    <div class="mission-layout">
+        <aside class="sidebar">
+            <a href="../../index.html" class="back-link">&larr; Back to Script House</a>
+            <div class="mission-badge">Prep Lab</div>
+            <h1>Log Analysis</h1>
+            <p class="mission-desc"><strong>Guided Walkthrough:</strong> Learn to analyze server logs using grep, permissions checks, and file viewing. A routine morning check reveals something unusual.</p>
+            <div class="context-callout">
+                <div class="context-callout-label">Why This Matters</div>
+                <div class="context-callout-text">Log analysis is one of the most critical skills for sysadmins and security analysts. Identifying anomalies in auth.log, syslog, and application logs can mean the difference between catching a breach and missing it entirely.</div>
+            </div>
+            <div class="progress-section">
+                <div class="progress-header">
+                    <span class="progress-label">Progress</span>
+                    <span class="progress-value"><span id="completedCount">0</span>/6</span>
+                </div>
+                <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+            </div>
+            <div class="objectives-title">Steps</div>
+            <ul class="objective-list" id="objectiveList"></ul>
+            <button class="reset-btn" onclick="resetLab()">Reset Lab</button>
+        </aside>
+        <main class="main-content">
+            <div class="objective-panel">
+                <div class="objective-panel-header">
+                    <span class="current-objective-badge">Current Step</span>
+                </div>
+                <h2 id="objectiveTitle">Loading...</h2>
+                <p class="objective-detail" id="objectiveDetail"></p>
+                <div class="hint-container" id="hintContainer"></div>
+            </div>
+            <div class="terminal-wrapper"><div id="terminal"></div></div>
+        </main>
+    </div>
+    <div class="completion-overlay" id="completionOverlay">
+        <div class="completion-modal">
+            <div class="completion-icon">&#128373;</div>
+            <h2>Log Analysis Complete!</h2>
+            <p>Excellent investigative work. You identified the suspicious activity and secured the log files.</p>
+            <div class="completion-stats">
+                <div class="stat-item"><div class="stat-value" id="commandsUsed">0</div><div class="stat-label">Commands Used</div></div>
+                <div class="stat-item"><div class="stat-value" id="hintsUsed">0</div><div class="stat-label">Hints Used</div></div>
+            </div>
+            <div class="completion-actions">
+                <button class="completion-btn primary" onclick="resetLab()">Try Again</button>
+                <a href="../../index.html" class="completion-btn secondary">Back to Script House</a>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    const CONFIG = {
+        storageKey: 'prep_log_analysis_v1',
+        objectives: [
+            {
+                id: 1, title: 'Check Log Directory',
+                detail: 'First, navigate to <code>/var/log</code> and list its contents. Check what log files are available on this system.',
+                hints: [
+                    { level: 1, text: 'You need to go to the log directory and see what is there.' },
+                    { level: 2, text: 'Use cd to navigate, then ls to list.' },
+                    { level: 3, text: 'cd /var/log && ls -la' },
+                    { level: 4, text: 'cd /var/log\nls -la', isSolution: true }
+                ],
+                validate: () => LinuxTerminal.getCwd() === '/var/log' && LinuxTerminal.getHistory().some(c => c.includes('ls'))
+            },
+            {
+                id: 2, title: 'Review Auth Log',
+                detail: 'Display the contents of <code>auth.log</code> to see recent authentication events. Look for anything unusual.',
+                hints: [
+                    { level: 1, text: 'Use a command that displays file contents.' },
+                    { level: 2, text: 'cat is the simplest way to view a file.' },
+                    { level: 3, text: 'cat auth.log (if you are already in /var/log)' },
+                    { level: 4, text: 'cat /var/log/auth.log', isSolution: true }
+                ],
+                validate: () => LinuxTerminal.getHistory().some(c => c.includes('cat') && c.includes('auth'))
+            },
+            {
+                id: 3, title: 'Search for Failed Logins',
+                detail: 'Use <code>grep</code> to search for "Failed" in <code>auth.log</code>. Failed login attempts could indicate a brute-force attack.',
+                hints: [
+                    { level: 1, text: 'grep searches for patterns in files.' },
+                    { level: 2, text: 'Syntax: grep "pattern" filename' },
+                    { level: 3, text: 'grep "Failed" /var/log/auth.log' },
+                    { level: 4, text: 'grep "Failed" /var/log/auth.log', isSolution: true }
+                ],
+                validate: () => LinuxTerminal.getHistory().some(c => c.includes('grep') && c.toLowerCase().includes('fail') && c.includes('auth'))
+            },
+            {
+                id: 4, title: 'Check Syslog for Blocks',
+                detail: 'Search <code>syslog</code> for "BLOCK" entries. These are firewall-blocked connection attempts.',
+                hints: [
+                    { level: 1, text: 'Use grep again, but on a different file.' },
+                    { level: 2, text: 'grep "BLOCK" /var/log/syslog' },
+                    { level: 3, text: 'Case matters in grep. Use "BLOCK" exactly.' },
+                    { level: 4, text: 'grep "BLOCK" /var/log/syslog', isSolution: true }
+                ],
+                validate: () => LinuxTerminal.getHistory().some(c => c.includes('grep') && c.includes('BLOCK') && c.includes('syslog'))
+            },
+            {
+                id: 5, title: 'Check Log Permissions',
+                detail: 'List the permissions on <code>auth.log</code> using <code>ls -l</code>. Logs should be readable only by root and the adm group. Verify this.',
+                hints: [
+                    { level: 1, text: 'ls -l shows file permissions.' },
+                    { level: 2, text: 'ls -l /var/log/auth.log' },
+                    { level: 3, text: 'Look at the permission string: -rw-r----- means owner read/write, group read.' },
+                    { level: 4, text: 'ls -l /var/log/auth.log', isSolution: true }
+                ],
+                validate: () => LinuxTerminal.getHistory().some(c => c.includes('ls') && c.includes('-l') && c.includes('auth'))
+            },
+            {
+                id: 6, title: 'Secure the Evidence',
+                detail: 'Create a backup directory <code>~/incident-001</code> and copy <code>auth.log</code> there for the incident report.',
+                hints: [
+                    { level: 1, text: 'You need to create a directory, then copy a file into it.' },
+                    { level: 2, text: 'mkdir ~/incident-001 then cp /var/log/auth.log ~/incident-001/' },
+                    { level: 3, text: 'mkdir ~/incident-001 && cp /var/log/auth.log ~/incident-001/' },
+                    { level: 4, text: 'mkdir ~/incident-001 && cp /var/log/auth.log ~/incident-001/', isSolution: true }
+                ],
+                validate: () => {
+                    const fs = LinuxTerminal.getFs();
+                    return fs['/home/student/incident-001'] && fs['/home/student/incident-001/auth.log'];
+                }
+            }
+        ]
+    };
+
+    let state = { currentObjective: 0, completedObjectives: new Set(), commandCount: 0, hintsRevealed: 0 };
+
+    function initTerminal() {
+        LinuxTerminal.init('LIN-PREP-LOG', '#terminal', { user: 'student', hostname: 'hexworth-srv', startDir: '/home/student', height: '100%', onCommand: handleCommand });
+        // Add enriched log data for this lab
+        LinuxTerminal.addFilesystem({
+            '/var/log/auth.log': { type: 'file', perms: '-rw-r-----', owner: 'root', group: 'adm', size: 4096,
+                content: 'Feb 16 02:14:33 hexworth sshd[4521]: Failed password for root from 203.0.113.42 port 22\nFeb 16 02:14:35 hexworth sshd[4521]: Failed password for root from 203.0.113.42 port 22\nFeb 16 02:14:38 hexworth sshd[4521]: Failed password for admin from 203.0.113.42 port 22\nFeb 16 06:30:00 hexworth sshd[5678]: Accepted publickey for student from 10.0.0.5 port 54321\nFeb 16 06:30:00 hexworth systemd-logind[890]: New session 1 of user student.\nFeb 16 06:45:12 hexworth sudo: student : TTY=pts/0 ; PWD=/home/student ; USER=root ; COMMAND=/bin/apt update\n' },
+            '/var/log/syslog': { type: 'file', perms: '-rw-r-----', owner: 'root', group: 'adm', size: 8192,
+                content: 'Feb 16 01:00:01 hexworth CRON[1234]: (root) CMD (test -x /usr/sbin/anacron)\nFeb 16 02:14:30 hexworth kernel: [UFW BLOCK] IN=eth0 OUT= SRC=203.0.113.42 DST=10.0.0.1 PROTO=TCP DPT=22\nFeb 16 02:14:31 hexworth kernel: [UFW BLOCK] IN=eth0 OUT= SRC=203.0.113.42 DST=10.0.0.1 PROTO=TCP DPT=22\nFeb 16 02:14:32 hexworth kernel: [UFW BLOCK] IN=eth0 OUT= SRC=203.0.113.42 DST=10.0.0.1 PROTO=TCP DPT=3389\nFeb 16 09:15:22 hexworth systemd[1]: Started Daily apt download activities.\nFeb 16 09:30:45 hexworth kernel: [UFW ALLOW] IN=eth0 OUT= SRC=10.0.0.5 DST=10.0.0.1 PROTO=TCP DPT=22\n' }
+        });
+        LinuxTerminal.print('Welcome to the Log Analysis Prep Lab.', 'lt-success');
+        LinuxTerminal.print('A routine morning check. Something might be off...');
+        LinuxTerminal.print('Follow the guided steps in the sidebar.');
+    }
+
+    function handleCommand(cmdLine, output, cmd, args) {
+        state.commandCount++;
+        checkObjectives();
+    }
+
+    function checkObjectives() {
+        const obj = CONFIG.objectives[state.currentObjective];
+        if (!obj || state.completedObjectives.has(obj.id)) return;
+        if (obj.validate()) {
+            state.completedObjectives.add(obj.id);
+            LinuxTerminal.print(`[STEP ${obj.id} COMPLETE] ${obj.title}`, 'lt-success');
+            if (state.currentObjective < CONFIG.objectives.length - 1) state.currentObjective++;
+            renderObjectiveList(); updateObjectivePanel(); updateProgress();
+            if (state.completedObjectives.size === CONFIG.objectives.length) setTimeout(showCompletion, 500);
+            saveState();
+        }
+    }
+
+    function renderObjectiveList() {
+        const list = document.getElementById('objectiveList');
+        list.innerHTML = '';
+        CONFIG.objectives.forEach((obj, i) => {
+            const done = state.completedObjectives.has(obj.id);
+            const active = state.currentObjective === i && !done;
+            const li = document.createElement('li');
+            li.className = 'objective-item' + (done ? ' completed' : '') + (active ? ' active' : '');
+            li.innerHTML = `<div class="objective-number"><span>${obj.id}</span></div><div class="objective-text">${obj.title}</div>`;
+            li.addEventListener('click', () => { if (!done) { state.currentObjective = i; renderObjectiveList(); updateObjectivePanel(); } });
+            list.appendChild(li);
+        });
+    }
+
+    function updateObjectivePanel() {
+        const obj = CONFIG.objectives[state.currentObjective];
+        if (!obj) return;
+        document.getElementById('objectiveTitle').textContent = `${obj.id}. ${obj.title}`;
+        document.getElementById('objectiveDetail').innerHTML = obj.detail;
+        if (obj.hints) ProgressiveHints.init('hintContainer', obj.hints, { labId: `log-prep-${obj.id}`, onReveal: () => { state.hintsRevealed++; } });
+    }
+
+    function updateProgress() {
+        const n = state.completedObjectives.size, total = CONFIG.objectives.length;
+        document.getElementById('completedCount').textContent = n;
+        document.getElementById('progressFill').style.width = (n / total * 100) + '%';
+    }
+
+    function showCompletion() {
+        document.getElementById('commandsUsed').textContent = state.commandCount;
+        document.getElementById('hintsUsed').textContent = state.hintsRevealed;
+        document.getElementById('completionOverlay').classList.add('show');
+        saveState();
+    }
+
+    function resetLab() { localStorage.removeItem(CONFIG.storageKey); location.reload(); }
+    function saveState() { localStorage.setItem(CONFIG.storageKey, JSON.stringify({ completedObjectives: [...state.completedObjectives], currentObjective: state.currentObjective, commandCount: state.commandCount, hintsRevealed: state.hintsRevealed, timestamp: Date.now() })); }
+    function loadState() { try { const s = localStorage.getItem(CONFIG.storageKey); if (s) { const d = JSON.parse(s); state.completedObjectives = new Set(d.completedObjectives || []); state.currentObjective = d.currentObjective || 0; state.commandCount = d.commandCount || 0; state.hintsRevealed = d.hintsRevealed || 0; } } catch(e) {} }
+
+    document.addEventListener('DOMContentLoaded', () => { loadState(); initTerminal(); renderObjectiveList(); updateObjectivePanel(); updateProgress(); });
+    </script>
+    <script src="../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>

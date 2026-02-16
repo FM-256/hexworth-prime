@@ -1,0 +1,568 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../components/AchievementManager.js"></script>
+    <script src="../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VLAN Configuration Lab | Web House</title>
+    <style>
+        :root {
+            --web-primary: #60a5fa;
+            --web-secondary: #3b82f6;
+            --web-dark: #1e3a5f;
+            --web-glow: rgba(96, 165, 250, 0.3);
+            --bg-primary: #0a0a0f;
+            --bg-secondary: #12121a;
+            --bg-tertiary: #1a1a24;
+            --text-primary: #e2e8f0;
+            --text-secondary: #94a3b8;
+            --success: #22c55e;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --cisco-blue: #049fd9;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg-primary); color: var(--text-primary); min-height: 100vh; line-height: 1.6; }
+        .lab-container { max-width: 1000px; margin: 0 auto; padding: 2rem; }
+        .back-link { display: inline-flex; align-items: center; gap: 0.5rem; color: var(--web-primary); text-decoration: none; margin-bottom: 1rem; transition: all 0.3s ease; }
+        .back-link:hover { color: #93c5fd; transform: translateX(-5px); }
+        .lab-header { text-align: center; margin-bottom: 2rem; padding: 2rem; background: linear-gradient(135deg, var(--bg-secondary), var(--bg-tertiary)); border-radius: 16px; border: 1px solid var(--web-primary); box-shadow: 0 0 30px var(--web-glow); }
+        .lab-header h1 { font-size: 2.2rem; margin-bottom: 0.5rem; background: linear-gradient(135deg, var(--web-primary), var(--cisco-blue)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+        .lab-header .subtitle { color: var(--text-secondary); font-size: 1rem; margin-bottom: 1rem; }
+        .lab-meta { display: flex; justify-content: center; gap: 2rem; flex-wrap: wrap; }
+        .meta-item { color: var(--text-secondary); }
+        .progress-section { background: var(--bg-secondary); border-radius: 12px; padding: 1.5rem; margin-bottom: 2rem; border: 1px solid rgba(96, 165, 250, 0.2); }
+        .progress-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
+        .progress-bar { height: 12px; background: var(--bg-tertiary); border-radius: 6px; overflow: hidden; }
+        .progress-fill { height: 100%; background: linear-gradient(90deg, var(--web-primary), var(--success)); border-radius: 6px; transition: width 0.5s ease; }
+        .section { background: var(--bg-secondary); border-radius: 16px; padding: 2rem; margin-bottom: 2rem; border: 1px solid rgba(96, 165, 250, 0.2); transition: all 0.3s ease; }
+        .section:hover { border-color: var(--web-primary); box-shadow: 0 0 20px var(--web-glow); }
+        .section.completed { border-color: var(--success); background: linear-gradient(135deg, var(--bg-secondary), rgba(34, 197, 94, 0.1)); }
+        .section-header { display: flex; align-items: center; gap: 1rem; margin-bottom: 1.5rem; }
+        .section-number { width: 50px; height: 50px; background: linear-gradient(135deg, var(--web-primary), var(--web-secondary)); border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; font-weight: bold; }
+        .section-title h2 { font-size: 1.3rem; }
+        .section-title .time { color: var(--text-secondary); font-size: 0.85rem; }
+        .objective { background: var(--bg-tertiary); padding: 1rem 1.5rem; border-radius: 8px; margin-bottom: 1.5rem; border-left: 4px solid var(--web-primary); }
+        .objective strong { color: var(--web-primary); }
+        .topology { background: #000; padding: 1.5rem; border-radius: 8px; font-family: 'Courier New', monospace; font-size: 0.78rem; overflow-x: auto; white-space: pre; color: var(--web-primary); border: 1px solid var(--web-dark); margin-bottom: 1rem; line-height: 1.5; }
+        .cisco-cmd { background: #1a1a2e; border-radius: 8px; padding: 1rem; font-family: 'Courier New', monospace; font-size: 0.85rem; overflow-x: auto; margin: 1rem 0; border-left: 3px solid var(--cisco-blue); white-space: pre; }
+        .cisco-cmd .prompt { color: var(--success); }
+        .cisco-cmd .command { color: var(--web-primary); }
+        .cisco-cmd .comment { color: #6b7280; }
+        .vlan-table { width: 100%; border-collapse: collapse; margin: 1rem 0; font-size: 0.85rem; }
+        .vlan-table th, .vlan-table td { padding: 0.7rem; text-align: left; border: 1px solid rgba(96, 165, 250, 0.2); }
+        .vlan-table th { background: var(--web-dark); color: var(--web-primary); }
+        .vlan-table tr:nth-child(even) { background: var(--bg-tertiary); }
+        .vlan-table code { background: rgba(96, 165, 250, 0.1); padding: 0.15rem 0.4rem; border-radius: 3px; font-family: 'Courier New', monospace; }
+        .question-block { background: var(--bg-tertiary); border: 1px solid rgba(96, 165, 250, 0.2); border-radius: 10px; padding: 1.5rem; margin-bottom: 1rem; }
+        .question-block label { display: block; color: var(--web-primary); font-weight: 600; margin-bottom: 0.5rem; }
+        .question-block input, .question-block select { width: 100%; padding: 10px 14px; background: rgba(0, 0, 0, 0.3); border: 1px solid rgba(96, 165, 250, 0.3); border-radius: 8px; color: var(--text-primary); font-size: 0.9rem; font-family: 'Courier New', monospace; }
+        .question-block input:focus { outline: none; border-color: var(--web-primary); box-shadow: 0 0 10px var(--web-glow); }
+        .check-btn { padding: 10px 24px; background: linear-gradient(135deg, var(--web-primary), var(--web-secondary)); color: white; border: none; border-radius: 8px; font-size: 0.9rem; font-weight: 600; cursor: pointer; transition: all 0.3s; margin-top: 0.5rem; }
+        .check-btn:hover { transform: translateY(-2px); box-shadow: 0 5px 20px var(--web-glow); }
+        .feedback { padding: 10px 16px; border-radius: 8px; margin-top: 10px; font-size: 0.9rem; display: none; }
+        .feedback.correct { display: block; background: rgba(34, 197, 94, 0.15); border: 1px solid var(--success); color: var(--success); }
+        .feedback.incorrect { display: block; background: rgba(239, 68, 68, 0.15); border: 1px solid var(--danger); color: var(--danger); }
+        .tip-box { background: rgba(245, 158, 11, 0.1); border: 1px solid var(--warning); border-radius: 8px; padding: 1rem; margin: 1rem 0; font-size: 0.9rem; }
+        .tip-box strong { color: var(--warning); }
+        .task-list { list-style: none; }
+        .task-list li { display: flex; align-items: flex-start; gap: 0.75rem; padding: 0.75rem 0; border-bottom: 1px solid rgba(255, 255, 255, 0.05); }
+        .task-list li:last-child { border-bottom: none; }
+        .task-cb { width: 22px; height: 22px; border: 2px solid var(--web-primary); border-radius: 4px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.3s; flex-shrink: 0; margin-top: 2px; }
+        .task-cb.checked { background: var(--success); border-color: var(--success); }
+        .task-cb.checked::after { content: '\2713'; color: white; font-weight: bold; font-size: 0.75rem; }
+        .completion-btn { width: 100%; padding: 1rem 2rem; background: linear-gradient(135deg, var(--web-primary), var(--web-secondary)); color: white; border: none; border-radius: 8px; font-size: 1.1rem; font-weight: 600; cursor: pointer; transition: all 0.3s ease; display: flex; align-items: center; justify-content: center; gap: 0.5rem; }
+        .completion-btn:hover { transform: translateY(-2px); box-shadow: 0 10px 30px var(--web-glow); }
+        .completion-btn.completed { background: var(--success); }
+        .content-section { margin-bottom: 1.5rem; }
+        .content-section h3 { color: var(--web-primary); margin-bottom: 1rem; }
+        @media (max-width: 768px) { .lab-container { padding: 1rem; } .lab-header h1 { font-size: 1.8rem; } .topology { font-size: 0.65rem; } }
+    </style>
+</head>
+<body>
+    <div class="lab-container">
+        <a href="../index.html" class="back-link">&larr; Back to Web House</a>
+
+        <header class="lab-header">
+            <h1>VLAN Configuration Lab</h1>
+            <p class="subtitle">Create VLANs, assign ports, configure trunks, and verify inter-VLAN connectivity</p>
+            <div class="lab-meta">
+                <span class="meta-item">75 minutes</span>
+                <span class="meta-item">Intermediate</span>
+                <span class="meta-item">6 Sections</span>
+            </div>
+        </header>
+
+        <div class="progress-section">
+            <div class="progress-header">
+                <span>Lab Progress</span>
+                <span id="progressText">0 / 6 sections</span>
+            </div>
+            <div class="progress-bar">
+                <div class="progress-fill" id="progressFill" style="width: 0%"></div>
+            </div>
+        </div>
+
+        <!-- Section 1: Topology & Planning -->
+        <div class="section" id="section1">
+            <div class="section-header">
+                <div class="section-number">1</div>
+                <div class="section-title">
+                    <h2>Topology &amp; VLAN Planning</h2>
+                    <span class="time">10 minutes</span>
+                </div>
+            </div>
+
+            <div class="objective">
+                <strong>Scenario:</strong> You are configuring VLANs for a small office with 3 departments. Each department needs network isolation for security, but all departments must reach a central server.
+            </div>
+
+            <div class="topology">
+                              [Router-on-a-Stick]
+                                     |
+                             (Trunk: Gi0/1)
+                                     |
+                              [Core-Switch]
+                           /       |        \
+                     Fa0/1-8    Fa0/9-16   Fa0/17-24
+                        |          |           |
+                    [Sales]   [Engineering]  [Servers]
+                    VLAN 10     VLAN 20      VLAN 30</div>
+
+            <div class="content-section">
+                <h3>VLAN Assignment Table</h3>
+                <table class="vlan-table">
+                    <tr><th>VLAN ID</th><th>Name</th><th>Ports</th><th>Subnet</th><th>Gateway</th></tr>
+                    <tr><td><code>10</code></td><td>SALES</td><td>Fa0/1 - Fa0/8</td><td>192.168.10.0/24</td><td>192.168.10.1</td></tr>
+                    <tr><td><code>20</code></td><td>ENGINEERING</td><td>Fa0/9 - Fa0/16</td><td>192.168.20.0/24</td><td>192.168.20.1</td></tr>
+                    <tr><td><code>30</code></td><td>SERVERS</td><td>Fa0/17 - Fa0/24</td><td>192.168.30.0/24</td><td>192.168.30.1</td></tr>
+                    <tr><td><code>1</code></td><td>default</td><td>None assigned</td><td>Management</td><td>-</td></tr>
+                </table>
+            </div>
+
+            <div class="content-section">
+                <h3>Tasks</h3>
+                <ul class="task-list">
+                    <li><div class="task-cb" onclick="this.classList.toggle('checked')"></div><span>Review the VLAN assignment table above</span></li>
+                    <li><div class="task-cb" onclick="this.classList.toggle('checked')"></div><span>Identify which ports belong to each VLAN</span></li>
+                    <li><div class="task-cb" onclick="this.classList.toggle('checked')"></div><span>Understand why the trunk link connects to the router</span></li>
+                </ul>
+            </div>
+
+            <div class="question-block">
+                <label>Q: Why do we use separate VLANs for each department instead of one flat network?</label>
+                <input type="text" id="q1_1" placeholder="Security benefit...">
+                <button class="check-btn" onclick="checkAnswer('q1_1', 'segment', 'fb1_1', true)">Check</button>
+                <div class="feedback" id="fb1_1"></div>
+            </div>
+
+            <button class="completion-btn" onclick="completeSection(1)">Mark Section Complete</button>
+        </div>
+
+        <!-- Section 2: Create VLANs -->
+        <div class="section" id="section2">
+            <div class="section-header">
+                <div class="section-number">2</div>
+                <div class="section-title">
+                    <h2>Create VLANs on the Switch</h2>
+                    <span class="time">10 minutes</span>
+                </div>
+            </div>
+
+            <div class="content-section">
+                <h3>VLAN Creation Commands</h3>
+                <div class="cisco-cmd"><span class="prompt">Switch></span> <span class="command">enable</span>
+<span class="prompt">Switch#</span> <span class="command">configure terminal</span>
+<span class="prompt">Switch(config)#</span> <span class="command">hostname Core-Switch</span>
+
+<span class="comment">! Create VLAN 10 for Sales</span>
+<span class="prompt">Core-Switch(config)#</span> <span class="command">vlan 10</span>
+<span class="prompt">Core-Switch(config-vlan)#</span> <span class="command">name SALES</span>
+<span class="prompt">Core-Switch(config-vlan)#</span> <span class="command">exit</span>
+
+<span class="comment">! Create VLAN 20 for Engineering</span>
+<span class="prompt">Core-Switch(config)#</span> <span class="command">vlan 20</span>
+<span class="prompt">Core-Switch(config-vlan)#</span> <span class="command">name ENGINEERING</span>
+<span class="prompt">Core-Switch(config-vlan)#</span> <span class="command">exit</span>
+
+<span class="comment">! Create VLAN 30 for Servers</span>
+<span class="prompt">Core-Switch(config)#</span> <span class="command">vlan 30</span>
+<span class="prompt">Core-Switch(config-vlan)#</span> <span class="command">name SERVERS</span>
+<span class="prompt">Core-Switch(config-vlan)#</span> <span class="command">exit</span></div>
+            </div>
+
+            <div class="content-section">
+                <h3>Verify VLANs</h3>
+                <div class="cisco-cmd"><span class="prompt">Core-Switch#</span> <span class="command">show vlan brief</span>
+
+VLAN  Name                 Status    Ports
+----  ----                 ------    -----
+1     default              active    Fa0/1-24, Gi0/1
+10    SALES                active
+20    ENGINEERING          active
+30    SERVERS              active
+1002  fddi-default         act/unsup
+1003  trcrf-default        act/unsup
+1004  fddinet-default      act/unsup
+1005  trbrf-default        act/unsup</div>
+            </div>
+
+            <div class="question-block">
+                <label>Q: After creating VLANs, do any ports belong to VLAN 10 yet?</label>
+                <input type="text" id="q2_1" placeholder="yes or no">
+                <button class="check-btn" onclick="checkAnswer('q2_1', 'no', 'fb2_1')">Check</button>
+                <div class="feedback" id="fb2_1"></div>
+            </div>
+
+            <div class="tip-box">
+                <strong>Key Insight:</strong> Creating a VLAN does not automatically assign ports to it. All ports start in VLAN 1 (default). You must explicitly assign each port to the correct VLAN.
+            </div>
+
+            <button class="completion-btn" onclick="completeSection(2)">Mark Section Complete</button>
+        </div>
+
+        <!-- Section 3: Assign Access Ports -->
+        <div class="section" id="section3">
+            <div class="section-header">
+                <div class="section-number">3</div>
+                <div class="section-title">
+                    <h2>Assign Access Ports to VLANs</h2>
+                    <span class="time">15 minutes</span>
+                </div>
+            </div>
+
+            <div class="content-section">
+                <h3>Port Assignment Commands</h3>
+                <div class="cisco-cmd"><span class="comment">! Assign Fa0/1-8 to VLAN 10 (Sales)</span>
+<span class="prompt">Core-Switch(config)#</span> <span class="command">interface range FastEthernet0/1-8</span>
+<span class="prompt">Core-Switch(config-if-range)#</span> <span class="command">switchport mode access</span>
+<span class="prompt">Core-Switch(config-if-range)#</span> <span class="command">switchport access vlan 10</span>
+<span class="prompt">Core-Switch(config-if-range)#</span> <span class="command">exit</span>
+
+<span class="comment">! Assign Fa0/9-16 to VLAN 20 (Engineering)</span>
+<span class="prompt">Core-Switch(config)#</span> <span class="command">interface range FastEthernet0/9-16</span>
+<span class="prompt">Core-Switch(config-if-range)#</span> <span class="command">switchport mode access</span>
+<span class="prompt">Core-Switch(config-if-range)#</span> <span class="command">switchport access vlan 20</span>
+<span class="prompt">Core-Switch(config-if-range)#</span> <span class="command">exit</span>
+
+<span class="comment">! Assign Fa0/17-24 to VLAN 30 (Servers)</span>
+<span class="prompt">Core-Switch(config)#</span> <span class="command">interface range FastEthernet0/17-24</span>
+<span class="prompt">Core-Switch(config-if-range)#</span> <span class="command">switchport mode access</span>
+<span class="prompt">Core-Switch(config-if-range)#</span> <span class="command">switchport access vlan 30</span>
+<span class="prompt">Core-Switch(config-if-range)#</span> <span class="command">exit</span></div>
+            </div>
+
+            <div class="content-section">
+                <h3>Verify Port Assignments</h3>
+                <div class="cisco-cmd"><span class="prompt">Core-Switch#</span> <span class="command">show vlan brief</span>
+
+VLAN  Name                 Status    Ports
+----  ----                 ------    -----
+1     default              active    Gi0/1
+10    SALES                active    Fa0/1-8
+20    ENGINEERING          active    Fa0/9-16
+30    SERVERS              active    Fa0/17-24</div>
+            </div>
+
+            <div class="question-block">
+                <label>Q1: What mode should access ports be set to?</label>
+                <input type="text" id="q3_1" placeholder="switchport mode ___">
+                <button class="check-btn" onclick="checkAnswer('q3_1', 'access', 'fb3_1', true)">Check</button>
+                <div class="feedback" id="fb3_1"></div>
+            </div>
+
+            <div class="question-block">
+                <label>Q2: Can a Sales PC on Fa0/1 (VLAN 10) ping an Engineering PC on Fa0/9 (VLAN 20) right now?</label>
+                <input type="text" id="q3_2" placeholder="yes or no">
+                <button class="check-btn" onclick="checkAnswer('q3_2', 'no', 'fb3_2')">Check</button>
+                <div class="feedback" id="fb3_2"></div>
+            </div>
+
+            <div class="tip-box">
+                <strong>Why No Connectivity?</strong> VLANs create separate broadcast domains. For traffic to cross VLANs, you need a Layer 3 device (router or L3 switch) to route between them. This is called inter-VLAN routing.
+            </div>
+
+            <button class="completion-btn" onclick="completeSection(3)">Mark Section Complete</button>
+        </div>
+
+        <!-- Section 4: Configure Trunk -->
+        <div class="section" id="section4">
+            <div class="section-header">
+                <div class="section-number">4</div>
+                <div class="section-title">
+                    <h2>Configure Trunk Link</h2>
+                    <span class="time">10 minutes</span>
+                </div>
+            </div>
+
+            <div class="objective">
+                <strong>Key Concept:</strong> A trunk port carries traffic from multiple VLANs using 802.1Q tagging. Each frame is tagged with its VLAN ID so the receiving device knows which VLAN it belongs to.
+            </div>
+
+            <div class="content-section">
+                <h3>Trunk Configuration (Switch Side)</h3>
+                <div class="cisco-cmd"><span class="comment">! Configure Gi0/1 as a trunk to the router</span>
+<span class="prompt">Core-Switch(config)#</span> <span class="command">interface GigabitEthernet0/1</span>
+<span class="prompt">Core-Switch(config-if)#</span> <span class="command">switchport mode trunk</span>
+<span class="prompt">Core-Switch(config-if)#</span> <span class="command">switchport trunk allowed vlan 10,20,30</span>
+<span class="prompt">Core-Switch(config-if)#</span> <span class="command">switchport trunk native vlan 99</span>
+<span class="prompt">Core-Switch(config-if)#</span> <span class="command">exit</span>
+
+<span class="comment">! Create the native VLAN (security best practice)</span>
+<span class="prompt">Core-Switch(config)#</span> <span class="command">vlan 99</span>
+<span class="prompt">Core-Switch(config-vlan)#</span> <span class="command">name NATIVE</span></div>
+            </div>
+
+            <div class="content-section">
+                <h3>Verify Trunk</h3>
+                <div class="cisco-cmd"><span class="prompt">Core-Switch#</span> <span class="command">show interfaces trunk</span>
+
+Port      Mode    Encapsulation  Status   Native vlan
+Gi0/1     on      802.1q         trunking 99
+
+Port      Vlans allowed on trunk
+Gi0/1     10,20,30
+
+Port      Vlans allowed and active in management domain
+Gi0/1     10,20,30</div>
+            </div>
+
+            <div class="question-block">
+                <label>Q1: What encapsulation protocol tags VLAN frames on trunk links?</label>
+                <input type="text" id="q4_1" placeholder="Protocol name">
+                <button class="check-btn" onclick="checkAnswer('q4_1', '802.1q', 'fb4_1', true)">Check</button>
+                <div class="feedback" id="fb4_1"></div>
+            </div>
+
+            <div class="question-block">
+                <label>Q2: Why should the native VLAN NOT be VLAN 1?</label>
+                <input type="text" id="q4_2" placeholder="Security reason...">
+                <button class="check-btn" onclick="checkAnswer('q4_2', 'vlan hopping', 'fb4_2', true)">Check</button>
+                <div class="feedback" id="fb4_2"></div>
+            </div>
+
+            <div class="tip-box">
+                <strong>Security Best Practice:</strong> Change the native VLAN from the default (VLAN 1) to an unused VLAN (like 99). This prevents VLAN hopping attacks where an attacker double-tags frames to escape their VLAN. Also, avoid putting any hosts on the native VLAN.
+            </div>
+
+            <button class="completion-btn" onclick="completeSection(4)">Mark Section Complete</button>
+        </div>
+
+        <!-- Section 5: Router-on-a-Stick -->
+        <div class="section" id="section5">
+            <div class="section-header">
+                <div class="section-number">5</div>
+                <div class="section-title">
+                    <h2>Router-on-a-Stick (Inter-VLAN Routing)</h2>
+                    <span class="time">15 minutes</span>
+                </div>
+            </div>
+
+            <div class="objective">
+                <strong>Key Concept:</strong> Router-on-a-stick uses a single physical interface with sub-interfaces, one per VLAN. Each sub-interface has its own IP address serving as the default gateway for that VLAN.
+            </div>
+
+            <div class="content-section">
+                <h3>Router Sub-interface Configuration</h3>
+                <div class="cisco-cmd"><span class="prompt">Router></span> <span class="command">enable</span>
+<span class="prompt">Router#</span> <span class="command">configure terminal</span>
+<span class="prompt">Router(config)#</span> <span class="command">hostname GW-Router</span>
+
+<span class="comment">! Enable the physical interface (no IP on it)</span>
+<span class="prompt">GW-Router(config)#</span> <span class="command">interface GigabitEthernet0/1</span>
+<span class="prompt">GW-Router(config-if)#</span> <span class="command">no shutdown</span>
+<span class="prompt">GW-Router(config-if)#</span> <span class="command">exit</span>
+
+<span class="comment">! Sub-interface for VLAN 10 (Sales)</span>
+<span class="prompt">GW-Router(config)#</span> <span class="command">interface GigabitEthernet0/1.10</span>
+<span class="prompt">GW-Router(config-subif)#</span> <span class="command">encapsulation dot1Q 10</span>
+<span class="prompt">GW-Router(config-subif)#</span> <span class="command">ip address 192.168.10.1 255.255.255.0</span>
+<span class="prompt">GW-Router(config-subif)#</span> <span class="command">exit</span>
+
+<span class="comment">! Sub-interface for VLAN 20 (Engineering)</span>
+<span class="prompt">GW-Router(config)#</span> <span class="command">interface GigabitEthernet0/1.20</span>
+<span class="prompt">GW-Router(config-subif)#</span> <span class="command">encapsulation dot1Q 20</span>
+<span class="prompt">GW-Router(config-subif)#</span> <span class="command">ip address 192.168.20.1 255.255.255.0</span>
+<span class="prompt">GW-Router(config-subif)#</span> <span class="command">exit</span>
+
+<span class="comment">! Sub-interface for VLAN 30 (Servers)</span>
+<span class="prompt">GW-Router(config)#</span> <span class="command">interface GigabitEthernet0/1.30</span>
+<span class="prompt">GW-Router(config-subif)#</span> <span class="command">encapsulation dot1Q 30</span>
+<span class="prompt">GW-Router(config-subif)#</span> <span class="command">ip address 192.168.30.1 255.255.255.0</span>
+<span class="prompt">GW-Router(config-subif)#</span> <span class="command">exit</span></div>
+            </div>
+
+            <div class="question-block">
+                <label>Q1: What command associates a sub-interface with a specific VLAN?</label>
+                <input type="text" id="q5_1" placeholder="encapsulation ___">
+                <button class="check-btn" onclick="checkAnswer('q5_1', 'dot1q', 'fb5_1', true)">Check</button>
+                <div class="feedback" id="fb5_1"></div>
+            </div>
+
+            <div class="question-block">
+                <label>Q2: If a Sales PC (192.168.10.50) wants to reach a Server (192.168.30.10), what is the traffic path?</label>
+                <input type="text" id="q5_2" placeholder="PC -> ??? -> Server">
+                <button class="check-btn" onclick="checkAnswer('q5_2', 'router', 'fb5_2', true)">Check</button>
+                <div class="feedback" id="fb5_2"></div>
+            </div>
+
+            <div class="question-block">
+                <label>Q3: What IP address should Sales PCs use as their default gateway?</label>
+                <input type="text" id="q5_3" placeholder="x.x.x.x">
+                <button class="check-btn" onclick="checkAnswer('q5_3', '192.168.10.1', 'fb5_3')">Check</button>
+                <div class="feedback" id="fb5_3"></div>
+            </div>
+
+            <button class="completion-btn" onclick="completeSection(5)">Mark Section Complete</button>
+        </div>
+
+        <!-- Section 6: Verification -->
+        <div class="section" id="section6">
+            <div class="section-header">
+                <div class="section-number">6</div>
+                <div class="section-title">
+                    <h2>Verification &amp; Troubleshooting</h2>
+                    <span class="time">15 minutes</span>
+                </div>
+            </div>
+
+            <div class="content-section">
+                <h3>Connectivity Tests</h3>
+                <table class="vlan-table">
+                    <tr><th>From</th><th>To</th><th>Expected</th><th>Why</th></tr>
+                    <tr><td>Sales PC (VLAN 10)</td><td>Sales PC (VLAN 10)</td><td>Success</td><td>Same VLAN, switched locally</td></tr>
+                    <tr><td>Sales PC (VLAN 10)</td><td>Engineering PC (VLAN 20)</td><td>Success</td><td>Inter-VLAN via router sub-interfaces</td></tr>
+                    <tr><td>Sales PC (VLAN 10)</td><td>Server (VLAN 30)</td><td>Success</td><td>Inter-VLAN via router sub-interfaces</td></tr>
+                    <tr><td>Sales PC (VLAN 10)</td><td>Gateway 192.168.10.1</td><td>Success</td><td>Router sub-interface Gi0/1.10</td></tr>
+                </table>
+            </div>
+
+            <div class="content-section">
+                <h3>Troubleshooting Commands</h3>
+                <div class="cisco-cmd"><span class="comment">! Check VLAN assignments</span>
+<span class="prompt">Core-Switch#</span> <span class="command">show vlan brief</span>
+
+<span class="comment">! Check trunk status</span>
+<span class="prompt">Core-Switch#</span> <span class="command">show interfaces trunk</span>
+
+<span class="comment">! Check specific port VLAN membership</span>
+<span class="prompt">Core-Switch#</span> <span class="command">show interfaces Fa0/1 switchport</span>
+
+<span class="comment">! Check router sub-interfaces</span>
+<span class="prompt">GW-Router#</span> <span class="command">show ip interface brief</span>
+
+<span class="comment">! Verify routing table</span>
+<span class="prompt">GW-Router#</span> <span class="command">show ip route</span></div>
+            </div>
+
+            <div class="content-section">
+                <h3>Common Problems</h3>
+                <div class="question-block">
+                    <label>Q1: PCs in VLAN 10 cannot reach PCs in VLAN 20. Same-VLAN pings work. What should you check?</label>
+                    <input type="text" id="q6_1" placeholder="What to check...">
+                    <button class="check-btn" onclick="checkAnswer('q6_1', 'trunk', 'fb6_1', true)">Check</button>
+                    <div class="feedback" id="fb6_1"></div>
+                </div>
+
+                <div class="question-block">
+                    <label>Q2: A PC on Fa0/5 cannot reach anything. show vlan brief shows it in VLAN 1 instead of VLAN 10. What command fixes this?</label>
+                    <input type="text" id="q6_2" placeholder="The fix command...">
+                    <button class="check-btn" onclick="checkAnswer('q6_2', 'switchport access vlan 10', 'fb6_2', true)">Check</button>
+                    <div class="feedback" id="fb6_2"></div>
+                </div>
+
+                <div class="question-block">
+                    <label>Q3: The trunk link shows "not-trunking" status. What is likely wrong?</label>
+                    <input type="text" id="q6_3" placeholder="Likely cause...">
+                    <button class="check-btn" onclick="checkAnswer('q6_3', 'switchport mode trunk', 'fb6_3', true)">Check</button>
+                    <div class="feedback" id="fb6_3"></div>
+                </div>
+            </div>
+
+            <div class="tip-box">
+                <strong>Troubleshooting Checklist:</strong> (1) VLANs created? (2) Ports assigned to correct VLANs? (3) Trunk link up and allowing correct VLANs? (4) Router sub-interfaces configured with correct encapsulation and IPs? (5) PCs have correct gateway addresses?
+            </div>
+
+            <button class="completion-btn" onclick="completeSection(6)">Mark Lab Complete</button>
+        </div>
+    </div>
+
+    <script>
+        var STORAGE_KEY = 'web_vlan_config_lab_progress';
+        var TOTAL = 6;
+        var completedSections = [];
+
+        function loadProgress() {
+            var saved = localStorage.getItem(STORAGE_KEY);
+            if (saved) {
+                completedSections = JSON.parse(saved);
+                completedSections.forEach(function(num) {
+                    var section = document.getElementById('section' + num);
+                    if (section) {
+                        section.classList.add('completed');
+                        var btn = section.querySelector('.completion-btn');
+                        btn.classList.add('completed');
+                        btn.textContent = 'Completed';
+                    }
+                });
+            }
+            updateProgress();
+        }
+
+        function saveProgress() {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(completedSections));
+        }
+
+        function updateProgress() {
+            var completed = completedSections.length;
+            var percent = (completed / TOTAL) * 100;
+            document.getElementById('progressFill').style.width = percent + '%';
+            document.getElementById('progressText').textContent = completed + ' / ' + TOTAL + ' sections';
+        }
+
+        function checkAnswer(inputId, correctAnswer, feedbackId, fuzzy) {
+            var input = document.getElementById(inputId);
+            var feedback = document.getElementById(feedbackId);
+            var userAnswer = input.value.trim().toLowerCase();
+            var correct = correctAnswer.toLowerCase();
+            feedback.className = 'feedback';
+            if (fuzzy ? (userAnswer.indexOf(correct) !== -1 || correct.indexOf(userAnswer) !== -1) : userAnswer === correct) {
+                feedback.className = 'feedback correct';
+                feedback.textContent = 'Correct!';
+            } else {
+                feedback.className = 'feedback incorrect';
+                feedback.textContent = 'Not quite. Expected answer includes: ' + correctAnswer;
+            }
+        }
+
+        function completeSection(num) {
+            if (completedSections.indexOf(num) === -1) {
+                completedSections.push(num);
+                var section = document.getElementById('section' + num);
+                section.classList.add('completed');
+                var btn = section.querySelector('.completion-btn');
+                btn.classList.add('completed');
+                btn.textContent = 'Completed';
+                saveProgress();
+                updateProgress();
+                if (completedSections.length === TOTAL) {
+                    if (typeof ModuleProgress !== 'undefined') {
+                        ModuleProgress.complete('web', 'web-vlan-config', { returnToDashboard: false });
+                    }
+                    setTimeout(function() {
+                        alert('Congratulations! You have completed the VLAN Configuration Lab.\n\nYou now understand how to create VLANs, assign access ports, configure trunks, and set up inter-VLAN routing with router-on-a-stick.');
+                    }, 500);
+                }
+            }
+        }
+
+        loadProgress();
+    </script>
+
+    <script src="../../../components/TrailHunter.js"></script>
+    <script src="../../../components/FluxCapacitor.js"></script>
+</body>
+</html>

@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Process Management Mission - Script House</title>
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/LinuxTerminal.js"></script>
+    <script src="../../../../components/ProgressiveHints.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', system-ui, sans-serif; background: linear-gradient(135deg, #0f0f1a 0%, #1a1a2e 50%, #16213e 100%); color: #e0e0e0; min-height: 100vh; display: flex; flex-direction: column; }
+        .header { background: linear-gradient(135deg, rgba(34,197,94,0.1), rgba(34,197,94,0.05)); border-bottom: 1px solid rgba(34,197,94,0.3); padding: 15px 25px; display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; }
+        .header-left { display: flex; align-items: center; gap: 20px; }
+        .back-link { color: #888; text-decoration: none; font-size: 0.9rem; transition: color 0.3s; }
+        .back-link:hover { color: #22c55e; }
+        .header-badge { background: rgba(239,68,68,0.2); color: #fca5a5; padding: 4px 12px; border-radius: 20px; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.1em; }
+        .header h1 { font-size: 1.2rem; color: #22c55e; }
+        .main-container { display: grid; grid-template-columns: 1fr 360px; flex: 1; overflow: hidden; }
+        .terminal-panel { display: flex; flex-direction: column; border-right: 1px solid rgba(34,197,94,0.2); overflow: hidden; }
+        .task-prompt { background: rgba(0,0,0,0.3); padding: 20px 25px; border-bottom: 1px solid rgba(34,197,94,0.2); flex-shrink: 0; }
+        .task-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+        .task-number { background: #22c55e; color: #000; width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 0.85rem; }
+        .task-number.completed { background: #4ade80; }
+        .task-number.skipped { background: #fbbf24; }
+        .task-question { font-size: 1.1rem; color: #fff; line-height: 1.5; }
+        .task-question code { background: rgba(34,197,94,0.2); padding: 2px 8px; border-radius: 4px; font-family: 'Courier New', monospace; color: #86efac; }
+        .task-context { font-size: 0.85rem; color: #9ca3af; margin-top: 8px; line-height: 1.5; padding: 8px 12px; background: rgba(59,130,246,0.08); border-left: 2px solid #3b82f6; border-radius: 0 4px 4px 0; }
+        .hint-area { margin-top: 10px; }
+        .terminal-container { flex: 1; min-height: 0; }
+        .feedback-bar { background: rgba(0,0,0,0.4); padding: 12px 25px; border-top: 1px solid rgba(34,197,94,0.2); display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; }
+        .feedback-message { font-size: 0.9rem; color: #888; }
+        .feedback-message.success { color: #4ade80; }
+        .skip-btn { background: transparent; color: #666; border: 1px solid rgba(255,255,255,0.1); padding: 8px 16px; border-radius: 6px; font-size: 0.85rem; cursor: pointer; transition: all 0.2s; }
+        .skip-btn:hover { background: rgba(251,191,36,0.1); border-color: rgba(251,191,36,0.3); color: #fbbf24; }
+        .skip-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .progress-panel { background: rgba(13,17,23,0.95); padding: 20px; overflow-y: auto; }
+        .progress-panel h2 { color: #22c55e; font-size: 1.1rem; margin-bottom: 15px; padding-bottom: 10px; border-bottom: 1px solid rgba(34,197,94,0.3); }
+        .progress-bar { background: rgba(255,255,255,0.1); border-radius: 8px; height: 8px; overflow: hidden; margin-bottom: 15px; }
+        .progress-fill { height: 100%; background: linear-gradient(90deg, #22c55e, #4ade80); border-radius: 8px; transition: width 0.5s ease; width: 0%; }
+        .progress-text { display: flex; justify-content: space-between; color: #888; font-size: 0.85rem; margin-bottom: 20px; }
+        .task-list { list-style: none; }
+        .task-item { padding: 8px 10px; margin: 4px 0; background: rgba(255,255,255,0.02); border-radius: 6px; border-left: 3px solid #30363d; font-size: 0.8rem; color: #8b949e; display: flex; align-items: center; gap: 8px; transition: all 0.3s; }
+        .task-item.active { border-left-color: #22c55e; background: rgba(34,197,94,0.1); color: #fff; }
+        .task-item.completed { border-left-color: #4ade80; color: #4ade80; }
+        .task-item.skipped { border-left-color: #fbbf24; color: #fbbf24; opacity: 0.7; }
+        .task-item .check { width: 18px; height: 18px; border: 2px solid #30363d; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.6rem; flex-shrink: 0; }
+        .task-item.active .check { border-color: #22c55e; }
+        .task-item.completed .check { border-color: #4ade80; background: #4ade80; color: #000; }
+        .task-item.skipped .check { border-color: #fbbf24; background: #fbbf24; color: #000; }
+        .context-callout { background: rgba(34,197,94,0.08); border-left: 3px solid #22c55e; padding: 12px 16px; margin: 15px 0; border-radius: 0 8px 8px 0; }
+        .context-callout-label { font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: #22c55e; margin-bottom: 4px; }
+        .context-callout-text { font-size: 0.85rem; color: #9ca3af; line-height: 1.5; }
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.9); justify-content: center; align-items: center; z-index: 1000; }
+        .modal-overlay.show { display: flex; }
+        .modal { background: linear-gradient(135deg, #0d1117, #161b22); border: 2px solid #22c55e; border-radius: 16px; padding: 40px; text-align: center; max-width: 520px; animation: modalIn 0.3s ease; }
+        @keyframes modalIn { from { transform: scale(0.9); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+        .modal .trophy { font-size: 4rem; margin-bottom: 15px; }
+        .modal h2 { color: #22c55e; font-size: 1.5rem; margin-bottom: 10px; }
+        .modal.perfect h2 { color: #4ade80; }
+        .modal p { color: #8b949e; margin-bottom: 20px; line-height: 1.6; }
+        .modal .stats { display: flex; justify-content: center; gap: 25px; margin-bottom: 25px; }
+        .modal .stat { text-align: center; }
+        .modal .stat-value { font-size: 1.8rem; font-weight: bold; color: #fff; }
+        .modal .stat-value.correct { color: #4ade80; }
+        .modal .stat-value.skipped { color: #fbbf24; }
+        .modal .stat-label { font-size: 0.8rem; color: #888; margin-top: 5px; }
+        .modal-buttons { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+        .modal-btn { padding: 10px 20px; border: none; border-radius: 8px; cursor: pointer; font-family: inherit; font-size: 0.85rem; transition: all 0.3s; text-decoration: none; }
+        .modal-btn.primary { background: linear-gradient(135deg, #22c55e, #4ade80); color: #000; font-weight: 600; }
+        .modal-btn.primary:hover { box-shadow: 0 0 20px rgba(34,197,94,0.5); }
+        .modal-btn.secondary { background: rgba(255,255,255,0.1); color: #e0e0e0; border: 1px solid rgba(255,255,255,0.2); }
+        .celebration { position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 1001; display: none; }
+        .celebration.active { display: block; }
+        .confetti { position: absolute; width: 10px; height: 10px; background: #22c55e; animation: confetti-fall 3s ease-out forwards; }
+        @keyframes confetti-fall { 0% { transform: translateY(-100vh) rotate(0deg); opacity: 1; } 100% { transform: translateY(100vh) rotate(720deg); opacity: 0; } }
+        @media (max-width: 900px) { .main-container { grid-template-columns: 1fr; } .progress-panel { display: none; } }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="header-left">
+            <a href="../../index.html" class="back-link">&larr; Script House</a>
+            <span class="header-badge">Mission Lab</span>
+            <h1>Process Management</h1>
+        </div>
+    </div>
+    <div class="main-container">
+        <div class="terminal-panel">
+            <div class="task-prompt">
+                <div class="task-header">
+                    <div class="task-number" id="taskNumber">1</div>
+                    <span style="color:#888;font-size:0.85rem;">Objective <span id="currentTaskNum">1</span> of <span id="totalTasks">9</span></span>
+                </div>
+                <div class="task-question" id="taskQuestion">Loading...</div>
+                <div class="task-context" id="taskContext"></div>
+                <div class="hint-area" id="hintArea"></div>
+            </div>
+            <div class="terminal-container" id="terminal"></div>
+            <div class="feedback-bar">
+                <div class="feedback-message" id="feedbackMessage">Type your command above...</div>
+                <button class="skip-btn" id="skipBtn" onclick="skipTask()">Skip</button>
+            </div>
+        </div>
+        <div class="progress-panel">
+            <h2>MISSION: PROCESS CONTROL</h2>
+            <div class="context-callout">
+                <div class="context-callout-label">Mission Briefing</div>
+                <div class="context-callout-text">The hexworth-app server is hosting a critical web application. Multiple processes are misbehaving: a runaway backup script, a stuck deployment, and a suspicious crypto-miner. Master process management to restore order.</div>
+            </div>
+            <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+            <div class="progress-text">
+                <span><span id="completedCount">0</span> / <span id="totalTasksBar">9</span></span>
+                <span id="progressPercent">0%</span>
+            </div>
+            <ul class="task-list" id="taskList"></ul>
+        </div>
+    </div>
+    <div class="modal-overlay" id="resultsModal">
+        <div class="modal" id="modalContent">
+            <div class="trophy" id="resultsIcon">&#127942;</div>
+            <h2 id="resultsTitle">Mission Complete!</h2>
+            <p id="resultsMessage">Process management mission finished.</p>
+            <div class="stats">
+                <div class="stat"><div class="stat-value correct" id="correctCount">0</div><div class="stat-label">Completed</div></div>
+                <div class="stat"><div class="stat-value skipped" id="skippedCount">0</div><div class="stat-label">Skipped</div></div>
+            </div>
+            <div class="modal-buttons">
+                <button class="modal-btn primary" onclick="restartLab()">Retry Mission</button>
+                <a href="../../index.html" class="modal-btn secondary">Script House</a>
+            </div>
+        </div>
+    </div>
+    <div class="celebration" id="celebration"></div>
+
+    <script>
+    const TASKS = [
+        {
+            id: 1,
+            question: 'Get a full snapshot of all running processes: <code>ps aux</code>',
+            context: 'ps aux shows every process on the system. a=all users, u=user-oriented format, x=processes without a terminal. This is your first move in any process investigation.',
+            validate: (cmdLine) => /^ps\s+(aux|-aux)/.test(cmdLine.trim()),
+            hints: [
+                { level: 1, text: 'List all running processes with detailed output' },
+                { level: 2, text: 'ps with aux flags shows everything' },
+                { level: 3, text: 'ps aux' },
+                { level: 4, text: 'ps aux', isSolution: true }
+            ],
+            solution: 'ps aux',
+            successMessage: 'Process snapshot captured. Multiple suspicious entries visible.'
+        },
+        {
+            id: 2,
+            question: 'Find the runaway backup script: <code>ps aux | grep backup</code>',
+            context: 'Piping ps output to grep filters for specific processes. This is the most common pattern for finding a specific process on a busy system.',
+            validate: (cmdLine) => /ps\s+(aux|-aux|-ef)\s*\|\s*grep\s+backup/.test(cmdLine.trim()),
+            hints: [
+                { level: 1, text: 'Combine ps with grep to filter process output' },
+                { level: 2, text: 'Use the pipe | to send ps output to grep' },
+                { level: 3, text: 'ps aux | grep backup' },
+                { level: 4, text: 'ps aux | grep backup', isSolution: true }
+            ],
+            solution: 'ps aux | grep backup',
+            successMessage: 'Found: PID 3456 -- backup.sh eating 45% CPU. It is stuck in a loop.'
+        },
+        {
+            id: 3,
+            question: 'Send SIGTERM to the stuck backup (PID 3456): <code>kill 3456</code>',
+            context: 'kill without a signal flag sends SIGTERM (signal 15), which asks a process to shut down gracefully. Always try SIGTERM before SIGKILL -- it gives the process a chance to clean up.',
+            validate: (cmdLine) => /^kill\s+(3456|-15\s+3456|-TERM\s+3456)$/.test(cmdLine.trim()),
+            hints: [
+                { level: 1, text: 'Terminate a process by its PID' },
+                { level: 2, text: 'kill sends a termination signal' },
+                { level: 3, text: 'kill 3456 (SIGTERM is the default)' },
+                { level: 4, text: 'kill 3456', isSolution: true }
+            ],
+            solution: 'kill 3456',
+            successMessage: 'SIGTERM sent to backup script. Process should exit gracefully.'
+        },
+        {
+            id: 4,
+            question: 'The backup ignored SIGTERM. Force-kill it: <code>kill -9 3456</code>',
+            context: 'SIGKILL (signal 9) cannot be caught or ignored -- the kernel terminates the process immediately. Use it as a last resort because the process cannot clean up (temp files, locks, etc.).',
+            validate: (cmdLine) => /^kill\s+(-9\s+3456|-KILL\s+3456|-SIGKILL\s+3456)$/.test(cmdLine.trim()),
+            hints: [
+                { level: 1, text: 'Use a stronger signal that cannot be ignored' },
+                { level: 2, text: 'Signal 9 (SIGKILL) is the nuclear option' },
+                { level: 3, text: 'kill -9 3456' },
+                { level: 4, text: 'kill -9 3456', isSolution: true }
+            ],
+            solution: 'kill -9 3456',
+            successMessage: 'SIGKILL delivered. PID 3456 terminated immediately.'
+        },
+        {
+            id: 5,
+            question: 'Check real-time system load with <code>top</code>',
+            context: 'top is an interactive process viewer showing CPU, memory, and load average in real time. Load average shows system demand over 1, 5, and 15 minutes. A load > number of CPU cores means the system is overloaded.',
+            validate: (cmdLine) => /^top/.test(cmdLine.trim()),
+            hints: [
+                { level: 1, text: 'View processes in real time with system stats' },
+                { level: 2, text: 'An interactive process monitor' },
+                { level: 3, text: 'top' },
+                { level: 4, text: 'top', isSolution: true }
+            ],
+            solution: 'top',
+            successMessage: 'System load visible. CPU still high -- more cleanup needed.'
+        },
+        {
+            id: 6,
+            question: 'List background jobs in this shell session: <code>jobs</code>',
+            context: 'jobs shows processes started from your current shell that are running in the background (&) or stopped (Ctrl+Z). Each job has a number you can use with fg/bg.',
+            validate: (cmdLine) => /^jobs/.test(cmdLine.trim()),
+            hints: [
+                { level: 1, text: 'Check for background/stopped jobs in your shell' },
+                { level: 2, text: 'A built-in shell command for job control' },
+                { level: 3, text: 'jobs' },
+                { level: 4, text: 'jobs', isSolution: true }
+            ],
+            solution: 'jobs',
+            successMessage: 'Job list shown. Any stopped jobs need attention -- they hold resources.'
+        },
+        {
+            id: 7,
+            question: 'Find the crypto-miner process and note its PID: <code>ps aux | grep miner</code>',
+            context: 'Crypto-miners are common malware on compromised servers. They typically show very high CPU usage and run as unexpected users. Finding and killing them is a standard incident response task.',
+            validate: (cmdLine) => /ps\s+(aux|-aux|-ef)\s*\|\s*grep\s+miner/.test(cmdLine.trim()),
+            hints: [
+                { level: 1, text: 'Search processes for the suspicious miner' },
+                { level: 2, text: 'Use ps piped to grep with the keyword' },
+                { level: 3, text: 'ps aux | grep miner' },
+                { level: 4, text: 'ps aux | grep miner', isSolution: true }
+            ],
+            solution: 'ps aux | grep miner',
+            successMessage: 'PID 6789 -- xmrig crypto-miner running as user nobody. Kill it immediately.'
+        },
+        {
+            id: 8,
+            question: 'Force-kill the miner: <code>kill -9 6789</code>',
+            context: 'Crypto-miners often trap SIGTERM to restart themselves. Go straight to SIGKILL for malicious processes. After killing, you should investigate how it got there (check crontab, systemd timers, etc.).',
+            validate: (cmdLine) => /^kill\s+(-9\s+6789|-KILL\s+6789)$/.test(cmdLine.trim()),
+            hints: [
+                { level: 1, text: 'Forcefully terminate the malicious process' },
+                { level: 2, text: 'Use signal 9 for malware -- do not give it a chance to respawn' },
+                { level: 3, text: 'kill -9 6789' },
+                { level: 4, text: 'kill -9 6789', isSolution: true }
+            ],
+            solution: 'kill -9 6789',
+            successMessage: 'Crypto-miner eliminated. CPU usage dropping to normal levels.'
+        },
+        {
+            id: 9,
+            question: 'Start a long-running task that survives logout: <code>nohup ./scripts/monitor.sh &</code>',
+            context: 'nohup (no hang up) prevents a process from being killed when you close your terminal. The & sends it to the background. Output goes to nohup.out. This is how sysadmins start persistent monitoring scripts.',
+            validate: (cmdLine) => /^nohup\s+.+\s*&$/.test(cmdLine.trim()),
+            hints: [
+                { level: 1, text: 'Run a command that persists after you log out' },
+                { level: 2, text: 'nohup makes commands immune to hangup signals' },
+                { level: 3, text: 'nohup command & (the & backgrounds it)' },
+                { level: 4, text: 'nohup ./scripts/monitor.sh &', isSolution: true }
+            ],
+            solution: 'nohup ./scripts/monitor.sh &',
+            successMessage: 'Monitor script running in background, immune to terminal hangup. Mission complete.'
+        }
+    ];
+
+    const labState = { currentTask: 0, results: {}, attempts: {} };
+
+    function init() {
+        LinuxTerminal.init('LIN-M-PROC', '#terminal', {
+            user: 'student',
+            hostname: 'hexworth-app',
+            startDir: '/home/student',
+            height: '100%',
+            onCommand: handleCommand
+        });
+        LinuxTerminal.addFilesystem({
+            '/proc/3456': { type: 'dir', perms: 'dr-xr-xr-x', owner: 'student', group: 'student', children: ['status'] },
+            '/proc/3456/status': { type: 'file', perms: '-r--r--r--', owner: 'student', group: 'student', size: 128, content: 'Name:\tbash\nState:\tR (running)\nPid:\t3456\nPPid:\t890\nUid:\t1000\nVmRSS:\t262144 kB\n' },
+            '/proc/6789': { type: 'dir', perms: 'dr-xr-xr-x', owner: 'nobody', group: 'nogroup', children: ['status'] },
+            '/proc/6789/status': { type: 'file', perms: '-r--r--r--', owner: 'nobody', group: 'nogroup', size: 128, content: 'Name:\txmrig\nState:\tR (running)\nPid:\t6789\nPPid:\t1\nUid:\t65534\nVmRSS:\t1048576 kB\nThreads:\t16\n' },
+            '/tmp/xmrig.conf': { type: 'file', perms: '-rw-r--r--', owner: 'nobody', group: 'nogroup', size: 256, content: '{\n  "url": "stratum+tcp://pool.malware.example:3333",\n  "user": "wallet_address_here",\n  "algo": "randomx"\n}\n' }
+        });
+        buildTaskList();
+        showTask(0);
+    }
+
+    function buildTaskList() {
+        const list = document.getElementById('taskList');
+        list.innerHTML = TASKS.map((task, i) => `<li class="task-item${i === 0 ? ' active' : ''}" data-task="${i}"><div class="check">${i + 1}</div><span>${task.question.replace(/<[^>]+>/g, '').substring(0, 55)}...</span></li>`).join('');
+        document.getElementById('totalTasks').textContent = TASKS.length;
+        document.getElementById('totalTasksBar').textContent = TASKS.length;
+    }
+
+    function showTask(index) {
+        const task = TASKS[index]; labState.currentTask = index; labState.attempts[index] = 0;
+        document.getElementById('taskNumber').textContent = index + 1;
+        document.getElementById('taskNumber').className = 'task-number';
+        document.getElementById('currentTaskNum').textContent = index + 1;
+        document.getElementById('taskQuestion').innerHTML = task.question;
+        document.getElementById('taskContext').textContent = task.context;
+        document.getElementById('feedbackMessage').textContent = 'Type your command above...';
+        document.getElementById('feedbackMessage').className = 'feedback-message';
+        document.getElementById('skipBtn').disabled = false;
+        document.querySelectorAll('.task-item').forEach((el, i) => { el.classList.remove('active'); if (i === index && !labState.results[i]) el.classList.add('active'); });
+        const hintArea = document.getElementById('hintArea'); hintArea.innerHTML = '';
+        ProgressiveHints.init('hintArea', task.hints, { labId: 'proc-mgmt-' + task.id });
+        LinuxTerminal.print(`\n<span style="color:#22c55e;">--- Objective ${index + 1}: ${task.question.replace(/<[^>]+>/g, '')} ---</span>`);
+    }
+
+    function handleCommand(cmdLine, output, cmd, args) {
+        const task = TASKS[labState.currentTask];
+        labState.attempts[labState.currentTask] = (labState.attempts[labState.currentTask] || 0) + 1;
+        if (task.validate(cmdLine)) {
+            document.getElementById('feedbackMessage').textContent = task.successMessage;
+            document.getElementById('feedbackMessage').className = 'feedback-message success';
+            labState.results[labState.currentTask] = 'correct';
+            updateTaskItem(labState.currentTask, 'completed');
+            document.getElementById('taskNumber').classList.add('completed');
+            document.getElementById('skipBtn').disabled = true;
+            LinuxTerminal.print('>>> Objective completed! <<<', 'lt-success');
+            updateProgress();
+            setTimeout(() => advanceTask(), 1200);
+        }
+    }
+
+    function updateTaskItem(index, status) { const item = document.querySelector(`.task-item[data-task="${index}"]`); if (item) { item.classList.remove('active', 'completed', 'skipped'); item.classList.add(status); const check = item.querySelector('.check'); if (status === 'completed') check.innerHTML = '&#10003;'; else if (status === 'skipped') check.innerHTML = '&#8212;'; } }
+    function skipTask() { labState.results[labState.currentTask] = 'skipped'; updateTaskItem(labState.currentTask, 'skipped'); document.getElementById('taskNumber').classList.add('skipped'); document.getElementById('skipBtn').disabled = true; const task = TASKS[labState.currentTask]; document.getElementById('feedbackMessage').innerHTML = `<strong>Skipped.</strong> Solution: <code style="background:rgba(251,191,36,0.2);padding:2px 6px;border-radius:4px;">${task.solution}</code>`; updateProgress(); setTimeout(() => advanceTask(), 800); }
+    function advanceTask() { if (labState.currentTask >= TASKS.length - 1) { showResults(); return; } showTask(labState.currentTask + 1); }
+    function updateProgress() { const completed = Object.keys(labState.results).length; const correct = Object.values(labState.results).filter(r => r === 'correct').length; const percent = Math.round((completed / TASKS.length) * 100); document.getElementById('progressFill').style.width = percent + '%'; document.getElementById('completedCount').textContent = correct; document.getElementById('progressPercent').textContent = percent + '%'; }
+
+    function showResults() {
+        const correct = Object.values(labState.results).filter(r => r === 'correct').length;
+        const skipped = Object.values(labState.results).filter(r => r === 'skipped').length;
+        document.getElementById('correctCount').textContent = correct; document.getElementById('skippedCount').textContent = skipped;
+        const modal = document.getElementById('modalContent'); modal.classList.remove('perfect');
+        if (correct === TASKS.length) { modal.classList.add('perfect'); document.getElementById('resultsIcon').textContent = String.fromCodePoint(0x1F389); document.getElementById('resultsTitle').textContent = 'Mission Accomplished!'; document.getElementById('resultsMessage').textContent = 'All processes under control. Server restored to healthy state.'; triggerCelebration(); }
+        else if (correct >= TASKS.length * 0.7) { document.getElementById('resultsIcon').textContent = String.fromCodePoint(0x1F31F); document.getElementById('resultsTitle').textContent = 'Mission Successful'; document.getElementById('resultsMessage').textContent = 'Most objectives achieved. Solid process management.'; }
+        else { document.getElementById('resultsIcon').textContent = String.fromCodePoint(0x1F4DA); document.getElementById('resultsTitle').textContent = 'Mission Incomplete'; document.getElementById('resultsMessage').textContent = 'Review ps, kill signals, and job control. Try the drill first.'; }
+        document.getElementById('resultsModal').classList.add('show');
+        try { if (typeof GameTracker !== 'undefined') GameTracker.record('lab_linux_process_mgmt', correct * 11, { correct, skipped, total: TASKS.length }); } catch(e) {}
+    }
+
+    function restartLab() { document.getElementById('resultsModal').classList.remove('show'); labState.currentTask = 0; labState.results = {}; labState.attempts = {}; LinuxTerminal.destroy(); init(); }
+    function triggerCelebration() { const container = document.getElementById('celebration'); container.classList.add('active'); const colors = ['#22c55e', '#4ade80', '#86efac', '#fbbf24', '#60a5fa', '#f472b6']; for (let i = 0; i < 80; i++) { setTimeout(() => { const c = document.createElement('div'); c.className = 'confetti'; c.style.left = Math.random() * 100 + 'vw'; c.style.background = colors[Math.floor(Math.random() * colors.length)]; c.style.animationDuration = (2 + Math.random() * 2) + 's'; c.style.width = (5 + Math.random() * 10) + 'px'; c.style.height = c.style.width; container.appendChild(c); setTimeout(() => c.remove(), 3000); }, i * 30); } setTimeout(() => container.classList.remove('active'), 4000); }
+
+    document.addEventListener('DOMContentLoaded', init);
+    </script>
+    <script src="../../../../components/GameTracker.js"></script>
+    <script src="../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>

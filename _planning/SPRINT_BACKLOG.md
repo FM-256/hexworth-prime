@@ -20,6 +20,7 @@
 | **HD-** | Handler Dashboard | Instructor class management system |
 | **R-** | Registration & Rebuild | Content catalog coverage + Hype applet native rebuilds |
 | **CLH-** | CLH Course | Command Line Heroes course (Script House) |
+| **AR-** | Arena | CTF Arena engine, box builds, and Instructional Design Packets |
 
 ---
 
@@ -29,7 +30,7 @@
 **Status:** ✅ Complete (February 14, 2026)
 **See:** EduScan section below for full task list
 
-**Next up:** HED-1 (Host Error Detector) or HD-6 (Persistent Classroom Progress)
+**Next up:** AR-2 (A1 IDP complete, Gemini drafting A2–A20), HED-1, or HD-6
 
 ---
 
@@ -586,6 +587,187 @@ CLH certification path card on Script House now launches a 3-option modal (Cours
 - Duration computed as `Math.round((completedAt - startedAt) / 1000)` seconds
 - Graceful degradation: pre-existing completions without duration show as `null`, chart shows "No time data yet" until new data arrives
 - No new files created — 7 existing files modified
+
+---
+
+## CTF Arena & Instructional Design (AR-Series)
+
+**Location:** `_app/arena/`, `_planning/_CTF/`, `_planning/_IDP/`
+**Status:** 🟢 Engine v1 shipped, A1 box live, IDP pipeline active
+**Priority:** High — **Product-defining feature** (160 boxes across 8 series)
+**Started:** February 2026
+**Planning Docs:** `_planning/_CTF/CTF_ARENA_VISION.md` (v1.3), `_planning/INSTRUCTIONAL_DESIGN_TEMPLATE.md`, `_planning/COMMERCIALIZATION_STRATEGY.md`
+
+> **Philosophy:** Every box starts from a POWERED-OFF DEVICE. Boot sequence → desktop → discover target → enumerate → exploit → flags.
+> The BoxEngine is extracted from Gate 8's proven patterns (1,227-line shared.js).
+> Every box requires an IDP (Instructional Design Packet) — without IDPs, Hexworth is a hobby; with IDPs, Hexworth is a product.
+> Box inventory: 160 boxes across 8 series (A–H), defined in CTF_ARENA_VISION.md.
+
+### Sprint AR-1: BoxEngine v1 + Box A1
+**Status:** ✅ Complete (February 15, 2026)
+**Priority:** Critical — Foundation for all Arena content
+**Commit:** `32fc848`
+
+Built the Arena engine from scratch and shipped the first box (A1 — The Ancient Ledger).
+
+| Deliverable | File | Lines | Details |
+|-------------|------|:-----:|---------|
+| **NEW** BoxEngine.js | `arena/engine/BoxEngine.js` | ~600 | Boot sequence, desktop shell, window manager, state, scoring, hints, flags, notifications, god mode |
+| **NEW** Terminal.js | `arena/engine/Terminal.js` | ~400 | Terminal emulator, virtual filesystem, command history, box-defined commands |
+| **NEW** Browser.js | `arena/engine/Browser.js` | ~300 | Web browser sim, URL bar, page registry, form handling |
+| **NEW** arena.css | `arena/engine/arena.css` | ~400 | Boot, desktop, windows, taskbar, terminal, browser, modals, notifications |
+| **NEW** A1 config.js | `arena/boxes/a1-ancient-ledger/config.js` | ~500 | Database (3 tables), SQL injection engine (13 patterns), filesystem, flags, hints, lore |
+| **NEW** A1 index.html | `arena/boxes/a1-ancient-ledger/index.html` | ~60 | Thin consumer, loads engine + config |
+| **UPDATED** Workshop | `workshop/index.html` | — | A1 moved from prototype to Arena build, status: testing |
+
+**Engine Capabilities (v1):**
+- Boot sequence: BIOS → GRUB → login → desktop (skippable, skip on reload)
+- Desktop: icon grid, taskbar, clock, score badge, window manager with z-stacking
+- Terminal: ls, cd, pwd, cat, find, whoami, id, file, head, tail, clear, help, history + box-defined commands (nmap, curl, sqlmap)
+- Browser: address bar, page registry, form handlers, navigation history
+- Scoring: base 1000, hint penalties, wrong flag penalties, flag bonuses, speed bonus
+- Flags: submission modal, completion celebration, score breakdown
+- Hints: 4-tier slide-out panel (Nudge → Direction → Partial → Solution)
+- State: localStorage persistence, cross-tab sync, god mode (Ctrl+Shift+G)
+- Notifications: queued slide-in from top-right, auto-dismiss
+
+**SQL Injection Engine (A1-specific):**
+13/13 injection patterns verified: tautology bypass, ORDER BY enumeration, UNION SELECT, version/user/database extraction, information_schema tables/columns, data dumps from 3 tables, LOAD_FILE filesystem access, realistic MySQL error messages.
+
+**Workshop Status:** A1 moved to "Behind the Barricade" shelf, pointing to Arena build.
+**Deployed:** Firebase hosting (February 15, 2026).
+
+---
+
+### Sprint AR-2: Instructional Design Packets — Template + A1 IDP
+**Status:** ✅ Complete (February 15, 2026)
+**Priority:** Critical — IDPs are what make institutional sales possible
+
+Created the IDP template and completed the A1 IDP as the gold standard. Gemini is drafting A2–A20.
+
+| Deliverable | File | Details |
+|-------------|------|---------|
+| **NEW** IDP Template | `_planning/INSTRUCTIONAL_DESIGN_TEMPLATE.md` | 8-section template with Bloom's taxonomy guide, cert mapping table, job role reference, grading scale, A1 gold-standard example |
+| **NEW** A1 IDP (Gemini draft) | `_planning/_IDP/Box_A1_IDP.md` | Gemini's draft, evaluated 3 times (5.1 → 6.75 → 7.25/8), used to calibrate quality bar |
+| **NEW** Gemini Drafting Prompt | `_planning/_IDP/GEMINI_IDP_DRAFTING_PROMPT.md` | Concise prompt pointing Gemini at template file + box schematics, 7 critical rules |
+| **UPDATED** CTF Arena Vision | `_planning/_CTF/CTF_ARENA_VISION.md` | v1.2 → v1.3: added IDP requirement section, updated to 160 boxes / 8 series (A–H), added F/G/H inventory tables |
+| **UPDATED** Commercialization Strategy | `_planning/COMMERCIALIZATION_STRATEGY.md` | Phase 2 now includes IDP completion as prerequisite |
+| **UPDATED** Lessons Learned | `_planning/LESSONS_LEARNED.md` | IDP gap analysis, Gate 8 proves 5 capabilities, PhD alignment insight |
+
+**IDP Template Sections:**
+1. Box Overview (scenario, difficulty, prerequisites)
+2. Learning Objectives (Bloom's verbs, measurable skills)
+3. Skills Mapping (tool → job role → cert objective code)
+4. Assessment Criteria (rubric, 100 pts, Documentation always 25 pts)
+5. Instructor Notes (mistakes, 4-tier hints, talking points, when to assign)
+6. Real-World Connection (real CVE case study, discussion prompts)
+7. Research Metrics (ECER/CERBI framework, IRB note)
+8. Curriculum Placement (target course, week, prerequisites, follow-up, cross-series)
+
+**Quality Standards Established:**
+- Documentation category: 25 pts (highest), non-negotiable
+- Exactly 4 hints per box (Nudge → Direction → Partial → Solution)
+- Every Skills Mapping row needs specific cert objective codes
+- Real CVEs only — no fabricated case studies
+- Cross-series connections from lore only
+
+**Gemini IDP Pipeline:**
+- Batch 1 (A2–A20): In progress — Gemini drafting from schematics
+- Batches 2–8 (B through H): Queued — 140 remaining boxes
+- Review process: Grade each IDP against template, iterate until 7+/8
+
+---
+
+### Sprint AR-3: Box A2–A5 Builds
+**Status:** ⬜ Backlog
+**Priority:** High — Validation requires 5 working boxes
+**Depends on:** AR-1 (engine), AR-2 (IDPs for reference)
+
+Build the next 4 boxes to reach the critical 5-box validation threshold (per Commercialization Strategy Phase 1).
+
+| Task | Box | Theme | Status |
+|------|-----|-------|--------|
+| A2 config.js — The Shadow Encoder | A2 | Command Injection + Client-Side Bypass | ⬜ |
+| A3 config.js — {title from schematic} | A3 | XSS | ⬜ |
+| A4 config.js — {title from schematic} | A4 | {from schematic} | ⬜ |
+| A5 config.js — {title from schematic} | A5 | {from schematic} | ⬜ |
+| Update Workshop with A2–A5 entries | — | — | ⬜ |
+| Run EduScan after each box | — | — | ⬜ |
+
+**Architecture note:** Each box is a thin consumer (~60 lines index.html + ~500 lines config.js). The engine handles everything else. Box builds are primarily content work, not engineering.
+
+---
+
+### Sprint AR-4: IDP Review & Finalization (Series A)
+**Status:** ⬜ Backlog
+**Priority:** High — Required before classroom use or sales
+**Depends on:** AR-2 (Gemini drafts complete)
+
+Review, grade, and finalize Gemini's IDP drafts for Series A (A2–A20).
+
+| Task | Status |
+|------|--------|
+| Grade each Gemini IDP against template (target: 7+/8) | ⬜ |
+| Fix Documentation weighting (must be 25 pts in every rubric) | ⬜ |
+| Verify cert objective codes are real and specific | ⬜ |
+| Verify case studies are real CVEs with correct details | ⬜ |
+| Ensure hints follow 4-tier Nudge → Direction → Partial → Solution | ⬜ |
+| Ensure cross-series connections match actual schematic lore | ⬜ |
+| Finalize 19 IDPs (A2–A20) | ⬜ |
+
+---
+
+### Sprint AR-5: IDP Drafting — Series B–H
+**Status:** ⬜ Backlog
+**Priority:** Medium — Follows Series A validation
+**Depends on:** AR-4 (Series A IDPs finalized, quality bar proven)
+
+Draft and review IDPs for remaining 7 series (140 boxes).
+
+| Batch | Series | Boxes | Status |
+|-------|--------|:-----:|--------|
+| 2 | B — Defensive / Blue Team | 20 | ⬜ |
+| 3 | C — Multi-Stage Campaigns | 20 | ⬜ |
+| 4 | D — Future-State Threats | 20 | ⬜ |
+| 5 | E — Ecosystem & Infrastructure | 20 | ⬜ |
+| 6 | F — Theoretical AI Warfare | 20 | ⬜ |
+| 7 | G — Existential Cybersecurity | 20 | ⬜ |
+| 8 | H — Architectural Metamorphosis | 20 | ⬜ |
+
+---
+
+### Sprint AR-6: BoxEngine v2 — Blue Team Extensions
+**Status:** ⬜ Backlog
+**Priority:** Medium — Required for Series B boxes
+**Depends on:** AR-3 (v1 validated with 5 boxes)
+
+Extend the engine for defensive/blue team scenarios (Series B requires different mechanics than Series A offensive boxes).
+
+| Task | Status |
+|------|--------|
+| SSH terminal mode (connect to remote host, not local Kali desktop) | ⬜ |
+| Log viewer component (simulated /var/log, journalctl, Event Viewer) | ⬜ |
+| Service status panel (systemctl-style service monitoring) | ⬜ |
+| Configuration file editor (edit configs, restart services, observe results) | ⬜ |
+| Diagnostic mode (students fix broken systems rather than exploit them) | ⬜ |
+
+---
+
+### Sprint AR-7: Assessment Mode + Instructor Integration
+**Status:** ⬜ Backlog
+**Priority:** Medium — Required for accreditation play
+**Depends on:** AR-3 (5 boxes), existing instructor pipeline (HD-series)
+
+Wire Arena boxes into the existing instructor analytics pipeline and add assessment mode reporting.
+
+| Task | Status |
+|------|--------|
+| BoxEngine calls ProgressManager.completeModule() on box completion | ⬜ |
+| BoxEngine calls AssignmentManager.logActivity() for key events (flag found, hint used) | ⬜ |
+| BoxEngine calls GameTracker.record() for score persistence | ⬜ |
+| Assessment mode: certObjectives mapping per box (from IDP Skills Mapping) | ⬜ |
+| Assessment mode report: CSV export with cert objective completion evidence | ⬜ |
+| Instructor dashboard: Arena panel showing per-student box progress | ⬜ |
 
 ---
 
@@ -1732,8 +1914,10 @@ Capstone gate tying together all previous skills. Full incident response scenari
 | HD-7 | 7 | 7 | Time-on-task analytics: start recording, duration compute, Firestore storage, chart (Feb 9, 2026) |
 | L-0 | 10 | 10 | Linux infrastructure: 2 new visualizers, 2 new components, 5 lab fixes, LinuxTerminal API extension, context callouts (Feb 9, 2026) |
 | F-15 | 20 | 20 | CMMC: 4 engines, 17 consumer pages, 16 old wrappers deleted, registry + index updated, level guide (Feb 13, 2026) |
+| AR-1 | 8 | 8 | BoxEngine v1 + A1 Ancient Ledger: engine (4 files), box config, index, workshop update, deploy (Feb 15, 2026) |
+| AR-2 | 7 | 7 | IDP Template + A1 IDP + Gemini prompt + CTF Vision v1.3 + Commercialization update + Lessons Learned (Feb 15, 2026) |
 
-**Total: ~251 tasks completed**
+**Total: ~266 tasks completed**
 
 ---
 

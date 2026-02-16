@@ -361,6 +361,9 @@ class EduScan {
         if (syntax.summary.heuristicErrors > 0) {
             console.log(`    ${c('Heuristic:', 'magenta')}  ${syntax.summary.heuristicErrors} suspect patterns (needs review)`);
         }
+        if (syntax.summary.dependencyErrors > 0) {
+            console.log(`    ${c('Deps:', 'red')}     ${syntax.summary.dependencyErrors} missing script dependencies`);
+        }
 
         if (syntax.summary.totalIssues === 0) {
             console.log(`    ${c('None!', 'green')} All syntax checks passed.`);

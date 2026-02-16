@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sudo Policy Prep - Shield House</title>
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <link rel="stylesheet" href="../../../../components/LinuxTerminal.css">
+    <script src="../../../../components/LinuxTerminal.js"></script>
+    <script src="../../../../components/ProgressiveHints.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 100%); min-height: 100vh; color: #e0e0e0; }
+        .container { max-width: 1400px; margin: 0 auto; display: grid; grid-template-columns: 1fr 380px; height: 100vh; overflow: hidden; }
+        .main-panel { display: flex; flex-direction: column; border-right: 2px solid #a855f7; height: 100vh; overflow: hidden; }
+        .header { background: linear-gradient(135deg, #0d1117 0%, #161b22 100%); padding: 12px 20px; border-bottom: 2px solid #a855f7; flex-shrink: 0; }
+        .header-content { display: flex; justify-content: space-between; align-items: center; }
+        .header-left { display: flex; align-items: center; gap: 15px; }
+        .mission-badge { background: rgba(168,85,247,0.2); padding: 4px 12px; border-radius: 15px; font-size: 0.75em; color: #c084fc; border: 1px solid #a855f7; font-family: 'Cascadia Code', 'Fira Code', monospace; }
+        .header h1 { color: #a855f7; font-size: 1.1em; margin: 0; font-weight: 600; }
+        .back-link { color: #a855f7; text-decoration: none; padding: 6px 12px; background: rgba(168,85,247,0.1); border: 1px solid #a855f7; border-radius: 6px; font-size: 0.85em; transition: all 0.3s; }
+        .back-link:hover { background: rgba(168,85,247,0.25); }
+        .terminal-container { flex: 1; display: flex; flex-direction: column; background: #0a0a0a; min-height: 0; overflow: hidden; }
+        .mission-panel { background: rgba(13,17,23,0.95); border-top: 2px solid #a855f7; padding: 15px 20px; flex-shrink: 0; max-height: 200px; overflow-y: auto; }
+        .mission-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+        .mission-header h3 { color: #a855f7; font-size: 1em; margin: 0; }
+        .mission-header h3::before { content: '>'; animation: blink 1s infinite; margin-right: 8px; }
+        @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
+        .progress-bar { width: 100%; height: 8px; background: rgba(255,255,255,0.1); border-radius: 4px; overflow: hidden; margin-bottom: 15px; }
+        .progress-fill { height: 100%; background: linear-gradient(90deg, #a855f7, #c084fc); border-radius: 4px; transition: width 0.5s ease; }
+        .objective-list { list-style: none; }
+        .objective-item { padding: 8px 12px; margin: 4px 0; background: rgba(255,255,255,0.02); border-radius: 6px; border-left: 3px solid #30363d; font-size: 0.85em; color: #8b949e; display: flex; align-items: center; gap: 10px; }
+        .objective-item.active { border-left-color: #ffa657; background: rgba(255,166,87,0.1); color: #c9d1d9; }
+        .objective-item.completed { border-left-color: #3fb950; color: #3fb950; }
+        .objective-item .check { width: 18px; height: 18px; border: 2px solid #30363d; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.7em; }
+        .objective-item.completed .check { border-color: #3fb950; background: #3fb950; color: #0d1117; }
+        .objective-item.active .check { border-color: #ffa657; }
+        .intel-panel { background: rgba(13,17,23,0.95); padding: 20px; overflow-y: auto; height: 100vh; }
+        .intel-panel h2 { color: #a855f7; font-size: 1.2em; margin-bottom: 20px; padding-bottom: 10px; border-bottom: 2px solid #a855f7; }
+        .cmd-ref { margin-bottom: 20px; }
+        .cmd-ref h3 { color: #c084fc; font-size: 0.95em; margin-bottom: 12px; }
+        .cmd-box { background: #0a0a0a; border: 1px solid #30363d; border-radius: 6px; padding: 10px 12px; margin: 8px 0; font-family: 'Cascadia Code', monospace; font-size: 0.8em; }
+        .cmd-box .cmd { color: #00ff41; }
+        .cmd-box .desc { color: #8b949e; margin-top: 4px; font-size: 0.9em; }
+        .tip-box { background: rgba(168,85,247,0.1); border-left: 3px solid #a855f7; padding: 12px 15px; margin: 15px 0; border-radius: 0 8px 8px 0; }
+        .tip-box strong { color: #a855f7; }
+        .tip-box p { color: #c9d1d9; margin: 5px 0 0 0; font-size: 0.9em; }
+        .context-callout { background: rgba(168,85,247,0.08); border-left: 3px solid #a855f7; padding: 12px 16px; margin: 12px 0; border-radius: 0 6px 6px 0; }
+        .context-callout-label { font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: #a855f7; margin-bottom: 4px; }
+        .context-callout-text { font-size: 0.85rem; color: #9ca3af; line-height: 1.5; }
+        .hint-container { margin-top: 10px; }
+        .sudoers-preview { background: #0a0a0a; border: 1px solid #30363d; border-radius: 8px; padding: 12px; margin: 10px 0; font-family: 'Cascadia Code', monospace; font-size: 0.75em; line-height: 1.6; }
+        .sudoers-preview .bad { color: #f87171; }
+        .sudoers-preview .good { color: #4ade80; }
+        .sudoers-preview .comment { color: #6b7280; }
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.9); justify-content: center; align-items: center; z-index: 1000; }
+        .modal-overlay.show { display: flex; }
+        .modal { background: linear-gradient(135deg, #0d1117, #161b22); border: 2px solid #a855f7; border-radius: 16px; padding: 40px; text-align: center; max-width: 500px; animation: modalIn 0.3s ease; }
+        @keyframes modalIn { from { transform: scale(0.9); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+        .modal .trophy { font-size: 4em; margin-bottom: 15px; }
+        .modal h2 { color: #a855f7; font-size: 1.6em; margin-bottom: 10px; }
+        .modal p { color: #8b949e; margin-bottom: 20px; line-height: 1.6; }
+        .modal .stats { display: flex; justify-content: center; gap: 30px; margin-bottom: 25px; }
+        .modal .stat { text-align: center; }
+        .modal .stat-value { color: #3fb950; font-size: 1.5em; font-weight: bold; }
+        .modal .stat-label { color: #8b949e; font-size: 0.8em; }
+        .modal-buttons { display: flex; gap: 15px; justify-content: center; }
+        .modal-btn { padding: 12px 24px; border: none; border-radius: 8px; cursor: pointer; font-family: 'Cascadia Code', monospace; font-size: 0.9em; transition: all 0.3s; }
+        .modal-btn.primary { background: #a855f7; color: #0d1117; }
+        .modal-btn.primary:hover { box-shadow: 0 0 20px rgba(168,85,247,0.5); }
+        .modal-btn.secondary { background: transparent; color: #a855f7; border: 2px solid #a855f7; }
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #0d1117; }
+        ::-webkit-scrollbar-thumb { background: #30363d; border-radius: 4px; }
+        @media (max-width: 1024px) { .container { grid-template-columns: 1fr; } .intel-panel { height: auto; max-height: 40vh; border-top: 2px solid #a855f7; } }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="main-panel">
+            <div class="header">
+                <div class="header-content">
+                    <div class="header-left">
+                        <span class="mission-badge">PREP LAB</span>
+                        <h1>Guided Sudo/Sudoers Configuration</h1>
+                    </div>
+                    <a href="../../index.html" class="back-link">< Shield House</a>
+                </div>
+            </div>
+            <div class="terminal-container" id="terminal"></div>
+            <div class="mission-panel">
+                <div class="mission-header">
+                    <h3>OBJECTIVES</h3>
+                    <span id="progressText" style="color:#8b949e;font-size:0.85em;">0/8 Complete</span>
+                </div>
+                <div class="progress-bar"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
+                <ul class="objective-list" id="objectiveList"></ul>
+            </div>
+        </div>
+        <div class="intel-panel">
+            <h2>SUDO POLICY INTEL</h2>
+            <div class="tip-box">
+                <strong>MISSION BRIEFING</strong>
+                <p>A departing sysadmin left the sudoers file in a mess. Wide-open NOPASSWD rules and no command restrictions. Walk through each fix to implement proper least-privilege sudo policies.</p>
+            </div>
+            <div class="sudoers-preview">
+                <div class="comment"># Current /etc/sudoers (DANGEROUS)</div>
+                <div class="bad">ALL ALL=(ALL) NOPASSWD: ALL</div>
+                <div class="comment"># No group restrictions</div>
+                <div class="comment"># No command allow-lists</div>
+                <div class="comment"># No logging configured</div>
+            </div>
+            <div class="cmd-ref">
+                <h3>Key Commands</h3>
+                <div class="cmd-box"><div class="cmd">cat /etc/sudoers</div><div class="desc">View sudoers file</div></div>
+                <div class="cmd-box"><div class="cmd">visudo</div><div class="desc">Safely edit sudoers (syntax check)</div></div>
+                <div class="cmd-box"><div class="cmd">sudo -l -U username</div><div class="desc">List user's sudo privileges</div></div>
+                <div class="cmd-box"><div class="cmd">groups username</div><div class="desc">Show user's group memberships</div></div>
+                <div class="cmd-box"><div class="cmd">usermod -aG group user</div><div class="desc">Add user to group</div></div>
+            </div>
+            <div class="context-callout">
+                <div class="context-callout-label">Why This Matters</div>
+                <div class="context-callout-text">Principle of Least Privilege: users should have only the minimum sudo access they need. An open sudoers file is equivalent to giving everyone the root password. CIS Benchmark 5.3 requires sudo to be configured properly.</div>
+            </div>
+            <div class="hint-container" id="hintContainer"></div>
+        </div>
+    </div>
+    <div class="modal-overlay" id="completionModal">
+        <div class="modal">
+            <div class="trophy">&#128737;</div>
+            <h2>Sudo Policies Secured!</h2>
+            <p>The sudoers file now enforces least privilege. Group-based access, command restrictions, and proper logging are in place. No more wild-west root access.</p>
+            <div class="stats">
+                <div class="stat"><div class="stat-value" id="commandCount">0</div><div class="stat-label">Commands Used</div></div>
+                <div class="stat"><div class="stat-value" id="timeElapsed">0:00</div><div class="stat-label">Time Elapsed</div></div>
+            </div>
+            <div class="modal-buttons">
+                <button class="modal-btn secondary" onclick="resetMission()">Retry</button>
+                <button class="modal-btn primary" onclick="window.location.href='../../index.html'">Back to Shield House</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    const state = { completed: new Set(), commandCount: 0, startTime: Date.now(), currentObjective: 0, hintsRevealed: 0 };
+
+    const OBJECTIVES = [
+        {
+            id: 'inspect-sudoers',
+            task: '1. Inspect the current sudoers file',
+            validate: (cmd) => /^(cat|less|more)\s+(\/etc\/)?sudoers/.test(cmd.trim()),
+            hints: [
+                { level: 1, text: 'Start by reading the current sudoers configuration.' },
+                { level: 2, text: 'The sudoers file is at /etc/sudoers.' },
+                { level: 3, text: 'cat /etc/sudoers' },
+                { level: 4, text: 'cat /etc/sudoers', isSolution: true }
+            ]
+        },
+        {
+            id: 'remove-nopasswd',
+            task: '2. Remove the dangerous NOPASSWD ALL rule',
+            validateState: () => {
+                const n = LinuxTerminal.getFs()['/etc/sudoers'];
+                return n && n.content && !/ALL\s+ALL.*NOPASSWD:\s*ALL/.test(n.content);
+            },
+            hints: [
+                { level: 1, text: 'The line "ALL ALL=(ALL) NOPASSWD: ALL" gives everyone root with no password.' },
+                { level: 2, text: 'Use sed to remove or comment out this dangerous line.' },
+                { level: 3, text: 'sed -i \'s/ALL ALL=(ALL) NOPASSWD: ALL/# REMOVED - insecure/\' /etc/sudoers' },
+                { level: 4, text: 'sed -i \'s/ALL ALL=(ALL) NOPASSWD: ALL/# REMOVED - insecure/\' /etc/sudoers', isSolution: true }
+            ]
+        },
+        {
+            id: 'add-wheel',
+            task: '3. Grant sudo to the %wheel group (with password)',
+            validateState: () => {
+                const n = LinuxTerminal.getFs()['/etc/sudoers'];
+                return n && n.content && /%wheel\s+ALL=\(ALL\)\s+ALL/.test(n.content);
+            },
+            hints: [
+                { level: 1, text: 'Group-based sudo is the proper approach.' },
+                { level: 2, text: 'Add a line granting %wheel group full sudo with password.' },
+                { level: 3, text: 'Use echo to append the rule to /etc/sudoers.' },
+                { level: 4, text: 'echo "%wheel ALL=(ALL) ALL" >> /etc/sudoers', isSolution: true }
+            ]
+        },
+        {
+            id: 'add-webadmin',
+            task: '4. Create a restricted webadmin rule (only restart apache2)',
+            validateState: () => {
+                const n = LinuxTerminal.getFs()['/etc/sudoers'];
+                return n && n.content && /%webadmin.*systemctl\s+restart\s+apache2/.test(n.content);
+            },
+            hints: [
+                { level: 1, text: 'Least privilege: webadmins only need to restart the web server.' },
+                { level: 2, text: 'Restrict the %webadmin group to a specific command.' },
+                { level: 3, text: 'echo "%webadmin ALL=(ALL) /usr/bin/systemctl restart apache2" >> /etc/sudoers' },
+                { level: 4, text: 'echo "%webadmin ALL=(ALL) /usr/bin/systemctl restart apache2" >> /etc/sudoers', isSolution: true }
+            ]
+        },
+        {
+            id: 'add-dbadmin',
+            task: '5. Create a restricted dbadmin rule (only manage mysql service)',
+            validateState: () => {
+                const n = LinuxTerminal.getFs()['/etc/sudoers'];
+                return n && n.content && /%dbadmin.*systemctl\s+(start|stop|restart)\s+mysql/.test(n.content);
+            },
+            hints: [
+                { level: 1, text: 'DBAs should only control the database service, not the whole system.' },
+                { level: 2, text: 'Add a rule for %dbadmin with mysql service commands.' },
+                { level: 3, text: 'echo "%dbadmin ALL=(ALL) /usr/bin/systemctl start mysql, /usr/bin/systemctl stop mysql, /usr/bin/systemctl restart mysql" >> /etc/sudoers' },
+                { level: 4, text: 'echo "%dbadmin ALL=(ALL) /usr/bin/systemctl start mysql, /usr/bin/systemctl stop mysql, /usr/bin/systemctl restart mysql" >> /etc/sudoers', isSolution: true }
+            ]
+        },
+        {
+            id: 'add-user-wheel',
+            task: '6. Add user sysadmin to the wheel group',
+            validate: (cmd) => /usermod\s+(-aG|--append\s+--groups)\s+wheel\s+sysadmin/.test(cmd.trim()),
+            hints: [
+                { level: 1, text: 'The sysadmin user needs full sudo via the wheel group.' },
+                { level: 2, text: 'Use usermod with -aG to append a group.' },
+                { level: 3, text: 'usermod -aG wheel sysadmin' },
+                { level: 4, text: 'usermod -aG wheel sysadmin', isSolution: true }
+            ]
+        },
+        {
+            id: 'enable-logging',
+            task: '7. Enable sudo logging (add Defaults logfile)',
+            validateState: () => {
+                const n = LinuxTerminal.getFs()['/etc/sudoers'];
+                return n && n.content && /Defaults\s+logfile/.test(n.content);
+            },
+            hints: [
+                { level: 1, text: 'Sudo actions should be logged for audit trails.' },
+                { level: 2, text: 'Add a Defaults line specifying a logfile path.' },
+                { level: 3, text: 'echo "Defaults logfile=/var/log/sudo.log" >> /etc/sudoers' },
+                { level: 4, text: 'echo "Defaults logfile=/var/log/sudo.log" >> /etc/sudoers', isSolution: true }
+            ]
+        },
+        {
+            id: 'verify',
+            task: '8. Verify the final sudoers configuration',
+            validate: (cmd) => {
+                const allDone = OBJECTIVES.slice(0, 7).every(o => state.completed.has(o.id));
+                return allDone && /^(cat|less|more)\s+(\/etc\/)?sudoers/.test(cmd.trim());
+            },
+            hints: [
+                { level: 1, text: 'Review the final state of the sudoers file.' },
+                { level: 2, text: 'Complete all previous objectives first, then cat the file.' },
+                { level: 3, text: 'cat /etc/sudoers' },
+                { level: 4, text: 'cat /etc/sudoers', isSolution: true }
+            ]
+        }
+    ];
+
+    function init() {
+        LinuxTerminal.init('SHIELD-PREP-SUDO', '#terminal', {
+            user: 'root',
+            hostname: 'shield-sudo',
+            startDir: '/etc',
+            height: '100%',
+            onCommand: handleCommand
+        });
+        LinuxTerminal.addFilesystem({
+            '/etc/sudoers': { type: 'file', perms: '-r--r-----', owner: 'root', group: 'root', size: 1024, content: '# /etc/sudoers - Sudoers Configuration\n# WARNING: This file has DANGEROUS permissions\n\n# Host alias specification\n\n# User alias specification\n\n# Cmnd alias specification\n\n# User privilege specification\nroot ALL=(ALL:ALL) ALL\n\n# DANGEROUS: Everyone gets root with no password\nALL ALL=(ALL) NOPASSWD: ALL\n\n# Members of the admin group may gain root privileges\n# %admin ALL=(ALL) ALL\n\n# No group restrictions configured\n# No command restrictions configured\n# No logging configured\n' },
+            '/etc/group': { type: 'file', perms: '-rw-r--r--', owner: 'root', group: 'root', size: 512, content: 'root:x:0:\nwheel:x:10:\nwebadmin:x:1001:\ndbadmin:x:1002:\nusers:x:100:sysadmin,webdev,dbguy\nsysadmin:x:1000:\n' },
+            '/etc/passwd': { type: 'file', perms: '-rw-r--r--', owner: 'root', group: 'root', size: 512, content: 'root:x:0:0:root:/root:/bin/bash\nsysadmin:x:1000:1000:System Admin:/home/sysadmin:/bin/bash\nwebdev:x:1001:1001:Web Developer:/home/webdev:/bin/bash\ndbguy:x:1002:1002:Database Admin:/home/dbguy:/bin/bash\n' },
+            '/var/log/sudo.log': { type: 'file', perms: '-rw-------', owner: 'root', group: 'root', size: 0, content: '' }
+        });
+        printBriefing();
+        updateObjectiveList();
+        updateProgress();
+        updateHintPanel();
+    }
+
+    function handleCommand(cmdLine, output, cmd, args) {
+        state.commandCount++;
+        checkObjectives(cmdLine);
+    }
+
+    function checkObjectives(cmdLine) {
+        let newlyCompleted = false;
+        for (const obj of OBJECTIVES) {
+            if (state.completed.has(obj.id)) continue;
+            let completed = false;
+            if (obj.validate && obj.validate(cmdLine)) completed = true;
+            if (obj.validateState && obj.validateState()) completed = true;
+            if (completed) {
+                state.completed.add(obj.id);
+                newlyCompleted = true;
+                LinuxTerminal.print('[OBJECTIVE] ' + obj.task + ' - COMPLETE', 'lt-success');
+            }
+        }
+        if (newlyCompleted) {
+            for (let i = 0; i < OBJECTIVES.length; i++) {
+                if (!state.completed.has(OBJECTIVES[i].id)) { state.currentObjective = i; break; }
+            }
+            updateObjectiveList(); updateProgress(); updateHintPanel();
+            if (state.completed.size === OBJECTIVES.length) setTimeout(showCompletionModal, 1000);
+        }
+    }
+
+    function updateHintPanel() {
+        const obj = OBJECTIVES[state.currentObjective];
+        if (!obj || !obj.hints) return;
+        ProgressiveHints.init('hintContainer', obj.hints, { labId: `sudo-prep-${obj.id}`, onReveal: () => { state.hintsRevealed++; } });
+    }
+
+    function updateObjectiveList() {
+        const list = document.getElementById('objectiveList'); list.innerHTML = '';
+        OBJECTIVES.forEach((obj, i) => {
+            const li = document.createElement('li'); li.className = 'objective-item';
+            const done = state.completed.has(obj.id);
+            const prev = i === 0 || state.completed.has(OBJECTIVES[i-1].id);
+            if (done) li.classList.add('completed'); else if (prev) li.classList.add('active');
+            li.innerHTML = `<div class="check">${done ? '&#10003;' : i+1}</div><span>${obj.task}</span>`;
+            list.appendChild(li);
+        });
+    }
+
+    function updateProgress() {
+        const pct = (state.completed.size / OBJECTIVES.length) * 100;
+        document.getElementById('progressFill').style.width = pct + '%';
+        document.getElementById('progressText').textContent = `${state.completed.size}/${OBJECTIVES.length} Complete`;
+    }
+
+    function showCompletionModal() {
+        const elapsed = Math.floor((Date.now() - state.startTime) / 1000);
+        document.getElementById('commandCount').textContent = state.commandCount;
+        document.getElementById('timeElapsed').textContent = `${Math.floor(elapsed/60)}:${(elapsed%60).toString().padStart(2,'0')}`;
+        document.getElementById('completionModal').classList.add('show');
+        saveProgress();
+    }
+
+    function resetMission() {
+        document.getElementById('completionModal').classList.remove('show');
+        state.completed.clear(); state.commandCount = 0; state.startTime = Date.now();
+        state.currentObjective = 0; state.hintsRevealed = 0;
+        LinuxTerminal.destroy(); init();
+    }
+
+    function saveProgress() {
+        const p = JSON.parse(localStorage.getItem('hexworth_progress') || '{}');
+        if (!p.shield) p.shield = {};
+        p.shield['prep-sudo-policy'] = { completed: true, completedAt: new Date().toISOString(), commandCount: state.commandCount, timeElapsed: Math.floor((Date.now() - state.startTime) / 1000) };
+        localStorage.setItem('hexworth_progress', JSON.stringify(p));
+        try { if (typeof GameTracker !== 'undefined') GameTracker.record('shield_prep_sudo', state.completed.size * 12, { commands: state.commandCount }); } catch(e) {}
+    }
+
+    function printBriefing() {
+        LinuxTerminal.print('<span style="color:#a855f7;">PREP LAB: SUDO/SUDOERS CONFIGURATION</span>');
+        LinuxTerminal.print('');
+        LinuxTerminal.print('<span style="color:#8b949e;">[BRIEFING] The previous admin left the sudoers file wide open.</span>');
+        LinuxTerminal.print('<span style="color:#f87171;">[BRIEFING] Current state: ALL ALL=(ALL) NOPASSWD: ALL</span>');
+        LinuxTerminal.print('<span style="color:#8b949e;">[BRIEFING] That means EVERY user has passwordless root access.</span>');
+        LinuxTerminal.print('<span style="color:#8b949e;">[BRIEFING] Fix it: group-based access, command restrictions, logging.</span>');
+        LinuxTerminal.print('');
+        LinuxTerminal.print('Start by inspecting <span style="color:#ffa657;">/etc/sudoers</span>');
+        LinuxTerminal.print('');
+    }
+
+    document.addEventListener('DOMContentLoaded', init);
+    </script>
+    <script src="../../../../components/GameTracker.js"></script>
+    <script src="../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>

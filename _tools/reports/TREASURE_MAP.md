@@ -1,7 +1,7 @@
 ══════════════════════════════════════════════════════════════════════
                          EDUSCAN REPORT
                     Hexworth Prime Content Map
-                    Scanned: 2026-02-15 3:30:53 AM
+                    Scanned: 2026-02-16 10:10:20 AM
 ══════════════════════════════════════════════════════════════════════
 
 
@@ -10,29 +10,29 @@
 
 | Metric | Value |
 |--------|-------|
-| Files Scanned | 1294 |
-| Directories | 482 |
-| Content Files | 1294 |
-| Scan Duration | 217ms |
+| Files Scanned | 1440 |
+| Directories | 529 |
+| Content Files | 1440 |
+| Scan Duration | 197ms |
 
 ### Content by Type
 
 | Type | Count |
 |------|-------|
-| html | 516 |
-| presentation | 419 |
-| applet | 187 |
-| lab | 158 |
-| quiz | 14 |
+| html | 594 |
+| presentation | 403 |
+| lab | 237 |
+| applet | 191 |
+| quiz | 15 |
 
 ### ContentCatalog Validation
 
 | Metric | Value |
 |--------|-------|
-| Total Modules | 765 |
-| Available | 759 |
+| Total Modules | 1032 |
+| Available | 1027 |
 | Missing Hrefs (CAT-001) | 0 |
-| Undeclared Files (CAT-002) | 444 |
+| Undeclared Files (CAT-002) | 342 |
 | Empty Hrefs (CAT-003) | 0 |
 
 
@@ -41,18 +41,18 @@
 | Severity | Count |
 |----------|-------|
 | Critical | 0 |
-| Suspect | 122 |
-| Warning | 874 |
-| Info | 401 |
-| **Total** | **2348** |
+| Suspect | 126 |
+| Warning | 981 |
+| Info | 406 |
+| **Total** | **2439** |
 
 ### Sync Status
 
 | Status | Count |
 |--------|-------|
-| Ready | 562 |
-| Not Ready | 216 |
-| Unknown | 516 |
+| Ready | 632 |
+| Not Ready | 214 |
+| Unknown | 594 |
 
 
 ## FILE HIERARCHY
@@ -66,6 +66,11 @@
 │   └── 📁 scripts
 ├── 📁 arctic
 │   └── 📍 index.html
+├── 📁 arena
+│   ├── 📁 boxes
+│   │   └── 📁 a1-ancient-ledger
+│   │       └── 📍 index.html
+│   └── 📁 engine
 ├── 📁 components
 │   └── 📁 styles [styles]
 ├── 📁 config
@@ -117,6 +122,21 @@
 │       ├── 📍 index.html
 │       ├── 🔬 iot-security-lab.html
 │       ├── 🔬 jwt-attack-lab.html
+│       ├── 📁 labs [labs]
+│       │   └── 📁 linux [labs]
+│       │       ├── 🔬 da-linux-enumeration-prep.lab.html
+│       │       ├── 🔬 da-linux-enumscripts.lab.html
+│       │       ├── 🔬 da-linux-exploitation-prep.lab.html
+│       │       ├── 🔬 da-linux-hash-drill.lab.html
+│       │       ├── 🔬 da-linux-hashcat.lab.html
+│       │       ├── 🔬 da-linux-hydra.lab.html
+│       │       ├── 🔬 da-linux-metasploit.lab.html
+│       │       ├── 🔬 da-linux-nmap-advanced.lab.html
+│       │       ├── 🔬 da-linux-nmap-drill.lab.html
+│       │       ├── 🔬 da-linux-post-exploitation.lab.html
+│       │       ├── 🔬 da-linux-privesc.lab.html
+│       │       ├── 🔬 da-linux-recon-drill.lab.html
+│       │       └── 🔬 da-linux-reverse-shells.lab.html
 │       ├── 🔬 malware-analysis-lab.html
 │       ├── 🔬 mobile-security-lab.html
 │       ├── 📁 modules [modules]
@@ -391,6 +411,7 @@
 │   │   │   ├── 📄 code-pipeline-builder.applet.html
 │   │   │   └── 📁 config_management [applets]
 │   │   │       ├── 📁 ConfigMgmt.hyperesources [applets]
+│   │   │       ├── 📄 code-config-management.applet.html
 │   │   │       └── 📄 code-config-mgmt.applet.html
 │   │   ├── 📁 docs
 │   │   ├── 📁 games
@@ -812,6 +833,7 @@
 │   │   │       ├── 📄 forge-backup-strategy-planner.applet.html
 │   │   │       ├── 📄 forge-hardware-trainer.applet.html
 │   │   │       ├── 📁 hard_drive_geometry [applets]
+│   │   │       │   ├── 📄 forge-hard-drive-geometry.applet.html
 │   │   │       │   ├── 📄 forge-hard-drive-geometry1.applet.html
 │   │   │       │   └── 📁 hard_drive_geometry1.hyperesources [applets]
 │   │   │       ├── 📁 laptop_hardware [applets]
@@ -822,6 +844,7 @@
 │   │   │       │   └── 📄 forge-motherboards.applet.html
 │   │   │       ├── 📁 multimeter [applets]
 │   │   │       │   ├── 📄 forge-multimeter-jedit-v1.applet.html
+│   │   │       │   ├── 📄 forge-multimeter.applet.html
 │   │   │       │   └── 📁 multimeter_jedit_v1.hyperesources [applets]
 │   │   │       ├── 📁 network_cables [applets]
 │   │   │       │   └── 📄 forge-network-cables.applet.html
@@ -922,7 +945,8 @@
 │   │   │   ├── 📊 key-encryption-basics.presentation.html
 │   │   │   ├── 📊 key-management.presentation.html
 │   │   │   ├── 📊 key-message-authentication.presentation.html
-│   │   │   └── 📊 key-post-quantum.presentation.html
+│   │   │   ├── 📊 key-post-quantum.presentation.html
+│   │   │   └── 📊 key-tls-ssl.presentation.html
 │   │   ├── 📁 quizzes [quizzes]
 │   │   │   ├── ❓ key-cert.quiz.html
 │   │   │   ├── ❓ key-cryptanalysis.quiz.html
@@ -1205,6 +1229,54 @@
 │   │   ├── 📍 index.html
 │   │   ├── 📁 labs [labs]
 │   │   │   ├── 📄 cron-builder.html
+│   │   │   ├── 📁 linux [labs]
+│   │   │   │   ├── 🔬 script-bash-arrays.lab.html
+│   │   │   │   ├── 🔬 script-bash-basics.lab.html
+│   │   │   │   ├── 🔬 script-bash-conditionals.lab.html
+│   │   │   │   ├── 🔬 script-bash-conditions-drill.lab.html
+│   │   │   │   ├── 🔬 script-bash-cron-setup-prep.lab.html
+│   │   │   │   ├── 🔬 script-bash-cron.lab.html
+│   │   │   │   ├── 🔬 script-bash-functions.lab.html
+│   │   │   │   ├── 🔬 script-bash-io-redirect.lab.html
+│   │   │   │   ├── 🔬 script-bash-log-processor-prep.lab.html
+│   │   │   │   ├── 🔬 script-bash-loops-drill.lab.html
+│   │   │   │   ├── 🔬 script-bash-loops.lab.html
+│   │   │   │   ├── 🔬 script-bash-pipes.lab.html
+│   │   │   │   ├── 🔬 script-bash-redirect-drill.lab.html
+│   │   │   │   ├── 🔬 script-bash-variables-drill.lab.html
+│   │   │   │   ├── 🔬 script-linux-compression.lab.html
+│   │   │   │   ├── 🔬 script-linux-disk-drill.lab.html
+│   │   │   │   ├── 🔬 script-linux-disk-mgmt.lab.html
+│   │   │   │   ├── 🔬 script-linux-disk-partition-prep.lab.html
+│   │   │   │   ├── 🔬 script-linux-env-vars.lab.html
+│   │   │   │   ├── 🔬 script-linux-file-mgmt-prep.lab.html
+│   │   │   │   ├── 🔬 script-linux-file-ops.lab.html
+│   │   │   │   ├── 🔬 script-linux-file-search.lab.html
+│   │   │   │   ├── 🔬 script-linux-find-drill.lab.html
+│   │   │   │   ├── 🔬 script-linux-links.lab.html
+│   │   │   │   ├── 🔬 script-linux-log-analysis-mission.lab.html
+│   │   │   │   ├── 🔬 script-linux-log-analysis-prep.lab.html
+│   │   │   │   ├── 🔬 script-linux-log-analysis.lab.html
+│   │   │   │   ├── 🔬 script-linux-log-investigation-prep.lab.html
+│   │   │   │   ├── 🔬 script-linux-mkdir-drill.lab.html
+│   │   │   │   ├── 🔬 script-linux-nav-drill.lab.html
+│   │   │   │   ├── 🔬 script-linux-network-config.lab.html
+│   │   │   │   ├── 🔬 script-linux-network-drill.lab.html
+│   │   │   │   ├── 🔬 script-linux-package-mgmt.lab.html
+│   │   │   │   ├── 🔬 script-linux-permissions-drill.lab.html
+│   │   │   │   ├── 🔬 script-linux-permissions.lab.html
+│   │   │   │   ├── 🔬 script-linux-process-drill.lab.html
+│   │   │   │   ├── 🔬 script-linux-process-lifecycle.lab.html
+│   │   │   │   ├── 🔬 script-linux-process-mgmt.lab.html
+│   │   │   │   ├── 🔬 script-linux-service-drill.lab.html
+│   │   │   │   ├── 🔬 script-linux-service-mgmt.lab.html
+│   │   │   │   ├── 🔬 script-linux-ssh.lab.html
+│   │   │   │   ├── 🔬 script-linux-sysadmin-reference.lab.html
+│   │   │   │   ├── 🔬 script-linux-systemctl.lab.html
+│   │   │   │   ├── 🔬 script-linux-text-viewing.lab.html
+│   │   │   │   ├── 🔬 script-linux-users.lab.html
+│   │   │   │   ├── 🔬 script-linux-viewing-drill.lab.html
+│   │   │   │   └── 🔬 script-linux-wildcards.lab.html
 │   │   │   ├── 📄 patch-tuesday.html
 │   │   │   ├── 🔬 script-lab.lab.html
 │   │   │   ├── 🔬 script-linux-bash.lab.html
@@ -1356,6 +1428,7 @@
 │   │   │   │   │   └── 📄 shield-cui-2.applet.html
 │   │   │   │   ├── 📁 cmmc_framework [applets]
 │   │   │   │   │   ├── 📁 CMMCFrameworkv2.hyperesources [applets]
+│   │   │   │   │   ├── 📄 shield-cmmc-framework.applet.html
 │   │   │   │   │   └── 📄 shield-cmmc-frameworkv2.applet.html
 │   │   │   │   ├── 📁 cmmc_identification_auth [applets]
 │   │   │   │   │   └── 📄 shield-cmmc-ia.applet.html
@@ -1371,6 +1444,8 @@
 │   │   │   │   │   └── 📄 shield-cmmc-pe.applet.html
 │   │   │   │   ├── 📁 cmmc_quiz [applets]
 │   │   │   │   │   ├── 📁 CMMCTestKnowledge2.hyperesources [applets]
+│   │   │   │   │   ├── ❓ shield-cmmc-comprehensive.quiz.html
+│   │   │   │   │   ├── ❓ shield-cmmc-quiz.applet.html
 │   │   │   │   │   └── 📄 shield-cmmc-test-knowledge2.applet.html
 │   │   │   │   ├── 📁 cmmc_risk_assessment [applets]
 │   │   │   │   │   └── 📄 shield-cmmc-ra.applet.html
@@ -1381,15 +1456,25 @@
 │   │   │   │   ├── 📁 cmmc_system_info_integrity [applets]
 │   │   │   │   │   └── 📄 shield-cmmc-si.applet.html
 │   │   │   │   ├── 📁 cui [applets]
+│   │   │   │   ├── 📁 cui_overview [applets]
+│   │   │   │   │   └── 📄 shield-cui-overview.applet.html
 │   │   │   │   ├── 📄 shield-framework-selector.applet.html
 │   │   │   │   └── 📄 shield-laws-regulations.applet.html
 │   │   │   ├── 📁 crypto [applets]
+│   │   │   │   ├── 📁 aes [applets]
+│   │   │   │   │   └── 📄 shield-crypto-aes.applet.html
+│   │   │   │   ├── 📁 block_ciphers [applets]
+│   │   │   │   │   └── 📄 shield-crypto-block-ciphers.applet.html
 │   │   │   │   ├── 📁 block_mode [applets]
 │   │   │   │   │   ├── 📁 Block.hyperesources [applets]
 │   │   │   │   │   └── 📄 shield-block.applet.html
 │   │   │   │   ├── 📁 blockchain [applets]
 │   │   │   │   │   ├── 📁 blockchain.hyperesources [applets]
 │   │   │   │   │   └── 📄 shield-blockchain.applet.html
+│   │   │   │   ├── 📁 caesar [applets]
+│   │   │   │   │   └── 📄 shield-crypto-caesar.applet.html
+│   │   │   │   ├── 📁 crypto_protocols [applets]
+│   │   │   │   │   └── 📄 shield-crypto-crypto-protocols.applet.html
 │   │   │   │   ├── 📁 cryptography [applets]
 │   │   │   │   │   ├── 📁 cryptography.hyperesources [applets]
 │   │   │   │   │   └── 📄 shield-cryptography.applet.html
@@ -1398,9 +1483,11 @@
 │   │   │   │   │   └── 📄 shield-crypto-match.applet.html
 │   │   │   │   ├── 📁 diffie_hellman [applets]
 │   │   │   │   │   ├── 📁 diffie_hellman.hyperesources [applets]
+│   │   │   │   │   ├── 📄 shield-crypto-diffie-hellman.applet.html
 │   │   │   │   │   └── 📄 shield-diffie-hellman.applet.html
 │   │   │   │   ├── 📁 digital_signatures [applets]
 │   │   │   │   │   ├── 📁 DigitalSignature.hyperesources [applets]
+│   │   │   │   │   ├── 📄 shield-crypto-digital-signatures.applet.html
 │   │   │   │   │   └── 📄 shield-digital-signature.applet.html
 │   │   │   │   ├── 📁 encrypt_data [applets]
 │   │   │   │   │   ├── 📁 EncryptData.hyperesources [applets]
@@ -1413,6 +1500,7 @@
 │   │   │   │   │   └── 📄 shield-factor-prime.applet.html
 │   │   │   │   ├── 📁 hashing [applets]
 │   │   │   │   │   ├── 📁 Hashing.hyperesources [applets]
+│   │   │   │   │   ├── 📄 shield-crypto-hashing.applet.html
 │   │   │   │   │   └── 📄 shield-hashing.applet.html
 │   │   │   │   ├── 📁 hashing_narrated [applets]
 │   │   │   │   │   ├── 📁 Hashing_vo.hyperesources [applets]
@@ -1422,13 +1510,39 @@
 │   │   │   │   │   ├── 📄 shield-encryption-task.applet.html
 │   │   │   │   │   ├── 📄 shield-hash-v3.applet.html
 │   │   │   │   │   └── 📄 shield-stego.applet.html
+│   │   │   │   ├── 📁 hmac [applets]
+│   │   │   │   │   └── 📄 shield-crypto-hmac.applet.html
+│   │   │   │   ├── 📁 key_exchange [applets]
+│   │   │   │   │   └── 📄 shield-crypto-key-exchange.applet.html
 │   │   │   │   ├── 📁 pki [applets]
 │   │   │   │   │   ├── 📁 pki.hyperesources [applets]
+│   │   │   │   │   ├── 📄 shield-crypto-pki.applet.html
 │   │   │   │   │   └── 📄 shield-pki.applet.html
 │   │   │   │   ├── 📁 rsa [applets]
 │   │   │   │   │   ├── 📁 RSA.hyperesources [applets]
+│   │   │   │   │   ├── 📄 shield-crypto-rsa.applet.html
 │   │   │   │   │   └── 📄 shield-rsa.applet.html
-│   │   │   │   └── 📄 shield-checksum-verifier.applet.html
+│   │   │   │   ├── 📄 shield-checksum-verifier.applet.html
+│   │   │   │   ├── 📄 shield-crypto-aes.applet.html
+│   │   │   │   ├── 📄 shield-crypto-block-ciphers.applet.html
+│   │   │   │   ├── 📄 shield-crypto-caesar.applet.html
+│   │   │   │   ├── 📄 shield-crypto-diffie-hellman.applet.html
+│   │   │   │   ├── 📄 shield-crypto-digital-signatures.applet.html
+│   │   │   │   ├── 📄 shield-crypto-hashing.applet.html
+│   │   │   │   ├── 📄 shield-crypto-hmac.applet.html
+│   │   │   │   ├── 📄 shield-crypto-key-exchange.applet.html
+│   │   │   │   ├── 📄 shield-crypto-pki.applet.html
+│   │   │   │   ├── 📄 shield-crypto-protocols.applet.html
+│   │   │   │   ├── 📄 shield-crypto-rsa.applet.html
+│   │   │   │   ├── 📄 shield-crypto-steganography.applet.html
+│   │   │   │   ├── 📄 shield-crypto-stream-ciphers.applet.html
+│   │   │   │   ├── 📄 shield-crypto-symmetric-asymmetric.applet.html
+│   │   │   │   ├── 📁 steganography [applets]
+│   │   │   │   │   └── 📄 shield-crypto-steganography.applet.html
+│   │   │   │   ├── 📁 stream_ciphers [applets]
+│   │   │   │   │   └── 📄 shield-crypto-stream-ciphers.applet.html
+│   │   │   │   └── 📁 symmetric_vs_asymmetric [applets]
+│   │   │   │       └── 📄 shield-crypto-symmetric-vs-asymmetric.applet.html
 │   │   │   ├── 📁 fundamentals [applets]
 │   │   │   │   ├── 📁 career_exploration [applets]
 │   │   │   │   │   └── 📄 shield-career-explorer.applet.html
@@ -1537,27 +1651,45 @@
 │   │   │   │   ├── 📄 shield-business-continuity-planner.applet.html
 │   │   │   │   └── 📄 shield-change-management.applet.html
 │   │   │   └── 📁 threats [applets]
+│   │   │       ├── 📁 apt [applets]
+│   │   │       │   └── 📄 shield-threat-apt.applet.html
 │   │   │       ├── 📁 attacks_malware [applets]
 │   │   │       │   ├── 📁 attacks.hyperesources [applets]
 │   │   │       │   └── 📄 shield-attacks.applet.html
+│   │   │       ├── 📁 botnets [applets]
+│   │   │       │   └── 📄 shield-threat-botnets.applet.html
 │   │   │       ├── 📁 buffer_overflow [applets]
 │   │   │       │   ├── 📁 bufferoverflow.hyperesources [applets]
 │   │   │       │   └── 📄 shield-bufferoverflow.applet.html
+│   │   │       ├── 📁 buffer_overflow_attack [applets]
+│   │   │       │   └── 📄 shield-threat-buffer-overflow.applet.html
 │   │   │       ├── 📁 code_injection [applets]
 │   │   │       │   ├── 📁 codeinjection.hyperesources [applets]
 │   │   │       │   └── 📄 shield-codeinjection.applet.html
 │   │   │       ├── 📁 cross_site_scripting [applets]
 │   │   │       │   ├── 📁 crosssitescripting.hyperesources [applets]
 │   │   │       │   └── 📄 shield-crosssitescripting.applet.html
+│   │   │       ├── 📁 cryptojacking [applets]
+│   │   │       │   └── 📄 shield-threat-cryptojacking.applet.html
+│   │   │       ├── 📁 ddos [applets]
+│   │   │       │   └── 📄 shield-threat-ddos.applet.html
+│   │   │       ├── 📁 dns_attacks [applets]
+│   │   │       │   └── 📄 shield-threat-dns-attacks.applet.html
 │   │   │       ├── 📁 google_hacking [applets]
 │   │   │       │   ├── 📁 googlehacking.hyperesources [applets]
 │   │   │       │   └── 📄 shield-googlehacking.applet.html
 │   │   │       ├── 📁 heartbleed [applets]
 │   │   │       │   ├── 📁 heartbleed.hyperesources [applets]
 │   │   │       │   └── 📄 shield-heartbleed.applet.html
+│   │   │       ├── 📁 insider_threats [applets]
+│   │   │       │   └── 📄 shield-threat-insider-threats.applet.html
+│   │   │       ├── 📁 iot_threats [applets]
+│   │   │       │   └── 📄 shield-threat-iot-threats.applet.html
 │   │   │       ├── 📁 meltdown_spectre [applets]
 │   │   │       │   ├── 📁 meltdown_spectre.hyperesources [applets]
 │   │   │       │   └── 📄 shield-meltdown-spectre.applet.html
+│   │   │       ├── 📁 mitm [applets]
+│   │   │       │   └── 📄 shield-threat-mitm.applet.html
 │   │   │       ├── 📁 os_command_injection [applets]
 │   │   │       │   ├── 📁 oscommandinjection.hyperesources [applets]
 │   │   │       │   └── 📄 shield-oscommandinjection.applet.html
@@ -1569,16 +1701,26 @@
 │   │   │       ├── 📁 pen_testing [applets]
 │   │   │       │   ├── 📁 pen_testing.hyperesources [applets]
 │   │   │       │   └── 📄 shield-pen-testing.applet.html
+│   │   │       ├── 📁 phishing [applets]
+│   │   │       │   └── 📄 shield-threat-phishing.applet.html
 │   │   │       ├── 📁 phishing_mystery [applets]
 │   │   │       │   ├── 📁 phishing.hyperesources [applets]
 │   │   │       │   └── 📄 shield-phishing.applet.html
+│   │   │       ├── 📁 privilege_escalation [applets]
+│   │   │       │   └── 📄 shield-threat-privilege-escalation.applet.html
 │   │   │       ├── 📁 ransomware [applets]
 │   │   │       │   ├── 📁 RansomwareAttack.hyperesources [applets]
 │   │   │       │   └── 📄 shield-ransomware-attack.applet.html
+│   │   │       ├── 📁 ransomware_attack [applets]
+│   │   │       │   └── 📄 shield-threat-ransomware.applet.html
+│   │   │       ├── 📁 rootkits [applets]
+│   │   │       │   └── 📄 shield-threat-rootkits.applet.html
 │   │   │       ├── 📄 shield-malware-types.applet.html
 │   │   │       ├── 📁 social_engineering [applets]
 │   │   │       │   ├── 📄 shield-social-engineering.applet.html
 │   │   │       │   └── 📁 social_engineering.hyperesources [applets]
+│   │   │       ├── 📁 social_engineering_attack [applets]
+│   │   │       │   └── 📄 shield-threat-social-engineering.applet.html
 │   │   │       ├── 📁 social_engineering_tactics [applets]
 │   │   │       │   ├── 📁 SocialEngineeringTactics.hyperesources [applets]
 │   │   │       │   └── 📄 shield-social-engineering-tactics.applet.html
@@ -1591,9 +1733,13 @@
 │   │   │       ├── 📁 stuxnet [applets]
 │   │   │       │   ├── 📄 shield-stuxnet.applet.html
 │   │   │       │   └── 📁 stuxnet.hyperesources [applets]
-│   │   │       └── 📁 threat_actors [applets]
-│   │   │           ├── 📁 ThreatActors.hyperesources [applets]
-│   │   │           └── 📄 shield-threat-actors.applet.html
+│   │   │       ├── 📁 supply_chain [applets]
+│   │   │       │   └── 📄 shield-threat-supply-chain.applet.html
+│   │   │       ├── 📁 threat_actors [applets]
+│   │   │       │   ├── 📁 ThreatActors.hyperesources [applets]
+│   │   │       │   └── 📄 shield-threat-actors.applet.html
+│   │   │       └── 📁 zero_day [applets]
+│   │   │           └── 📄 shield-threat-zero-day.applet.html
 │   │   ├── 📁 challenges
 │   │   │   └── 📄 shield-attack-vector-challenge.applet.html
 │   │   ├── 📁 exams
@@ -1612,6 +1758,21 @@
 │   │   │   └── 📄 tor-darkweb.html
 │   │   ├── 📍 index.html
 │   │   ├── 📁 labs [labs]
+│   │   │   ├── 📁 linux [labs]
+│   │   │   │   ├── 🔬 shield-linux-audit-drill.lab.html
+│   │   │   │   ├── 🔬 shield-linux-audit.lab.html
+│   │   │   │   ├── 🔬 shield-linux-file-integrity.lab.html
+│   │   │   │   ├── 🔬 shield-linux-firewall-drill.lab.html
+│   │   │   │   ├── 🔬 shield-linux-firewall.lab.html
+│   │   │   │   ├── 🔬 shield-linux-hardening.lab.html
+│   │   │   │   ├── 🔬 shield-linux-password-policy.lab.html
+│   │   │   │   ├── 🔬 shield-linux-perms-drill.lab.html
+│   │   │   │   ├── 🔬 shield-linux-selinux.lab.html
+│   │   │   │   ├── 🔬 shield-linux-ssh-drill.lab.html
+│   │   │   │   ├── 🔬 shield-linux-ssh-hardening-prep.lab.html
+│   │   │   │   ├── 🔬 shield-linux-ssh-security.lab.html
+│   │   │   │   ├── 🔬 shield-linux-sudo-policy-prep.lab.html
+│   │   │   │   └── 🔬 shield-linux-sudo.lab.html
 │   │   │   ├── 🔬 shield-access-control.lab.html
 │   │   │   ├── 🔬 shield-compliance.lab.html
 │   │   │   ├── 🔬 shield-cryptography.lab.html
@@ -1676,9 +1837,13 @@
 │       │   │   ├── 📁 VLSM_challenge [applets]
 │       │   │   │   ├── 📁 VLSM_challenge.hyperesources [applets]
 │       │   │   │   └── 📄 web-vlsm-challenge.applet.html
+│       │   │   ├── 📁 binary-ip [applets]
+│       │   │   │   └── 📄 web-ip-binary-ip.applet.html
 │       │   │   ├── 📁 binaryIP [applets]
 │       │   │   │   ├── 📁 binaryIP.hyperesources [applets]
 │       │   │   │   └── 📄 web-binary-ip.applet.html
+│       │   │   ├── 📁 cidr-notation [applets]
+│       │   │   │   └── 📄 web-ip-cidr-notation.applet.html
 │       │   │   ├── 📁 classA [applets]
 │       │   │   │   ├── 📁 classA.hyperesources [applets]
 │       │   │   │   └── 📄 web-class-a.applet.html
@@ -1688,19 +1853,41 @@
 │       │   │   ├── 📁 intro_subnetting [applets]
 │       │   │   │   ├── 📁 intro_subnetting.hyperesources [applets]
 │       │   │   │   └── 📄 web-intro-subnetting.applet.html
+│       │   │   ├── 📁 ipv4-classes [applets]
+│       │   │   │   └── 📄 web-ip-ipv4-classes.applet.html
+│       │   │   ├── 📁 ipv6-addressing [applets]
+│       │   │   │   └── 📄 web-ip-ipv6-addressing.applet.html
 │       │   │   ├── 📁 macaddressing [applets]
 │       │   │   │   ├── 📁 EMate_pizzaparty_exercise_102918.hyperesources [applets]
 │       │   │   │   └── 📄 web-emate-pizzaparty-exercise-102918.applet.html
+│       │   │   ├── 📁 nat-pat [applets]
+│       │   │   │   └── 📄 web-ip-nat-pat.applet.html
+│       │   │   ├── 📁 network-classes [applets]
+│       │   │   │   └── 📄 web-ip-network-classes.applet.html
 │       │   │   ├── 📁 network_classes2 [applets]
 │       │   │   │   ├── 📁 network_classes2.hyperesources [applets]
 │       │   │   │   └── 📄 web-network-classes2.applet.html
 │       │   │   ├── 📁 networkaddressing [applets]
 │       │   │   │   ├── 📁 EMate_understanding_addresses.hyperesources [applets]
 │       │   │   │   └── 📄 web-emate-understanding-addresses.applet.html
+│       │   │   ├── 📁 private-public-ip [applets]
+│       │   │   │   └── 📄 web-ip-private-public-ip.applet.html
+│       │   │   ├── 📁 subnet-calculator [applets]
+│       │   │   │   └── 📄 web-ip-subnet-calculator.applet.html
+│       │   │   ├── 📁 subnet-masks [applets]
+│       │   │   │   └── 📄 web-ip-subnet-masks.applet.html
 │       │   │   ├── 📁 subnetting [applets]
 │       │   │   │   ├── 📁 subnetting.hyperesources [applets]
 │       │   │   │   └── 📄 web-subnetting.applet.html
-│       │   │   └── 📄 web-binary-decimal-converter.applet.html
+│       │   │   ├── 📁 subnetting-practice [applets]
+│       │   │   │   └── 📄 web-ip-subnetting-practice.applet.html
+│       │   │   ├── 📁 supernetting [applets]
+│       │   │   │   └── 📄 web-ip-supernetting.applet.html
+│       │   │   ├── 📁 vlsm [applets]
+│       │   │   │   └── 📄 web-ip-vlsm.applet.html
+│       │   │   ├── 📄 web-binary-decimal-converter.applet.html
+│       │   │   └── 📁 wildcard-masks [applets]
+│       │   │       └── 📄 web-ip-wildcard-masks.applet.html
 │       │   ├── 📁 services [applets]
 │       │   │   ├── 📄 web-http-status-codes.applet.html
 │       │   │   ├── 📄 web-server-comparison.applet.html
@@ -1721,8 +1908,14 @@
 │       ├── 📁 handouts
 │       ├── 📍 index.html
 │       ├── 📁 labs [labs]
+│       │   ├── 🔬 web-dns-troubleshooting.lab.html
+│       │   ├── 🔬 web-firewall-rules.lab.html
 │       │   ├── 🔬 web-networking-fundamentals.lab.html
-│       │   └── 🔬 web-static-routes.lab.html
+│       │   ├── 🔬 web-packet-analysis.lab.html
+│       │   ├── 🔬 web-static-routes.lab.html
+│       │   ├── 🔬 web-subnetting-practice.lab.html
+│       │   ├── 🔬 web-troubleshooting.lab.html
+│       │   └── 🔬 web-vlan-config.lab.html
 │       ├── 📁 modules [modules]
 │       │   ├── 📄 web-ip-addressing-ch7-10.module.html
 │       │   └── 📄 web-networking-flashcards.module.html
@@ -1940,9 +2133,9 @@
 | cse-04-network | quiz | ✓ | 0 |
 | cse-05-appsec | quiz | ✓ | 1 |
 | cloud-cse-module04.quiz | presentation | ✓ | 0 |
-| cloud-cse-module05.quiz | presentation | ✓ | 1 |
+| cloud-cse-module05.quiz | presentation | ✓ | 0 |
 | cloud-cse-module06.quiz | presentation | ✓ | 0 |
-| cloud-cse-module08.quiz | applet | ✓ | 1 |
+| cloud-cse-module08.quiz | applet | ✓ | 0 |
 | cloud-aws-service.tool | presentation | ✓ | 1 |
 | cloud-ch01-cloud-models.tool | presentation | ✓ | 1 |
 | cloud-ch02-aws-account.tool | presentation | ✓ | 1 |
@@ -1966,6 +2159,7 @@
 |---------|------|------|--------|
 | code-docker-playground.applet | applet | ✓ | 1 |
 | code-kubernetes-cluster-sim.applet | applet | ✓ | 1 |
+| code-config-management.applet | applet | ✓ | 1 |
 | git-blame | applet | ✓ | 1 |
 | kubernetes-rescue | presentation | ✓ | 0 |
 | code-cicd.lab | presentation | ✓ | 0 |
@@ -2168,6 +2362,8 @@
 | forge-settings.tool | presentation | ✓ | 0 |
 | forge-system-tools-sim.applet | presentation | ✓ | 1 |
 | forge-windows-edition-selector.applet | presentation | ✓ | 0 |
+| forge-hard-drive-geometry.applet | applet | ✓ | 1 |
+| forge-multimeter.applet | applet | ✓ | 1 |
 | forge-peripheral-devices.applet | applet | ✓ | 1 |
 | forge-admin-tools.lab | lab | ✓ | 2 |
 | forge-control-panel.lab | lab | ✓ | 2 |
@@ -2219,6 +2415,7 @@
 | key-management.presentation | presentation | ✓ | 1 |
 | key-message-authentication.presentation | applet | ✓ | 1 |
 | key-post-quantum.presentation | applet | ✓ | 1 |
+| key-tls-ssl.presentation | presentation | ✓ | 2 |
 | key-cert.quiz | presentation | ✓ | 0 |
 | key-cryptanalysis.quiz | presentation | ✓ | 0 |
 | key-ecc.quiz | presentation | ✓ | 0 |
@@ -2353,6 +2550,52 @@
 | index | applet | ✓ | 1 |
 | dont-kill-the-server | applet | ✓ | 1 |
 | index | applet | ✓ | 1 |
+| script-bash-arrays.lab | lab | ✓ | 1 |
+| script-bash-basics.lab | lab | ✓ | 1 |
+| script-bash-conditionals.lab | lab | ✓ | 1 |
+| script-bash-conditions-drill.lab | lab | ✓ | 1 |
+| script-bash-cron-setup-prep.lab | lab | ✓ | 1 |
+| script-bash-cron.lab | lab | ✓ | 1 |
+| script-bash-functions.lab | lab | ✓ | 1 |
+| script-bash-io-redirect.lab | lab | ✓ | 1 |
+| script-bash-log-processor-prep.lab | lab | ✓ | 1 |
+| script-bash-loops-drill.lab | lab | ✓ | 1 |
+| script-bash-loops.lab | lab | ✓ | 1 |
+| script-bash-pipes.lab | lab | ✓ | 1 |
+| script-bash-redirect-drill.lab | lab | ✓ | 1 |
+| script-bash-variables-drill.lab | lab | ✓ | 1 |
+| script-linux-compression.lab | lab | ✓ | 1 |
+| script-linux-disk-drill.lab | lab | ✓ | 0 |
+| disk-mgmt- | lab | ✓ | 2 |
+| disk-prep- | lab | ✓ | 2 |
+| env- | lab | ✓ | 2 |
+| script-linux-file-mgmt-prep.lab | lab | ✓ | 1 |
+| script-linux-file-ops.lab | lab | ✓ | 1 |
+| script-linux-file-search.lab | lab | ✓ | 1 |
+| script-linux-find-drill.lab | lab | ✓ | 0 |
+| script-linux-links.lab | lab | ✓ | 1 |
+| script-linux-log-analysis-mission.lab | lab | ✓ | 0 |
+| script-linux-log-analysis-prep.lab | lab | ✓ | 1 |
+| log- | lab | ✓ | 1 |
+| log-prep- | lab | ✓ | 1 |
+| script-linux-mkdir-drill.lab | lab | ✓ | 1 |
+| script-linux-nav-drill.lab | lab | ✓ | 0 |
+| net- | lab | ✓ | 1 |
+| script-linux-network-drill.lab | lab | ✓ | 0 |
+| pkg-mgmt- | lab | ✓ | 1 |
+| script-linux-permissions-drill.lab | lab | ✓ | 1 |
+| script-linux-permissions.lab | lab | ✓ | 1 |
+| script-linux-process-drill.lab | lab | ✓ | 0 |
+| proc-mgmt- | lab | ✓ | 2 |
+| script-linux-service-drill.lab | lab | ✓ | 0 |
+| svc-mgmt- | lab | ✓ | 1 |
+| ssh- | lab | ✓ | 1 |
+| script-linux-sysadmin-reference.lab | lab | ✓ | 1 |
+| script-linux-systemctl.lab | lab | ✓ | 0 |
+| script-linux-text-viewing.lab | lab | ✓ | 1 |
+| script-linux-users.lab | lab | ✓ | 1 |
+| script-linux-viewing-drill.lab | lab | ✓ | 1 |
+| script-linux-wildcards.lab | lab | ✓ | 1 |
 | script-lab.lab | lab | ✓ | 0 |
 | script-linux-bash.lab | presentation | ✓ | 1 |
 | script-powershell.lab | lab | ✓ | 1 |
@@ -2444,13 +2687,12 @@
 
 | ID/Name | Type | Sync | Issues |
 |---------|------|------|--------|
-| shield-access-control.applet | presentation | ✓ | 0 |
-| shield-biometrics.applet | presentation | ✓ | 0 |
-| shield-kerberos.applet | presentation | ✓ | 0 |
 | shield-access-control-models.applet | presentation | ✓ | 1 |
 | shield-cui-2.applet | presentation | ✓ | 0 |
 | shield-cmmc-frameworkv2.applet | presentation | ✓ | 0 |
+| cmmc-comprehensive | quiz | ✓ | 0 |
 | shield-cmmc-test-knowledge2.applet | presentation | ✓ | 0 |
+| shield-cui-overview.applet | applet | ✓ | 1 |
 | shield-laws-regulations.applet | presentation | ✓ | 0 |
 | shield-block.applet | presentation | ✓ | 0 |
 | shield-blockchain.applet | presentation | ✓ | 0 |
@@ -2470,18 +2712,9 @@
 | shield-pki.applet | presentation | ✓ | 0 |
 | shield-rsa.applet | presentation | ✓ | 0 |
 | shield-checksum-verifier.applet | presentation | ✓ | 0 |
-| shield-cybersecurity-controls.applet | presentation | ✓ | 0 |
-| shield-dataroles.applet | presentation | ✓ | 0 |
-| shield-cybersecuritydesignprinciples.applet | presentation | ✓ | 0 |
-| shield-ethics-challenge.applet | presentation | ✓ | 0 |
-| shield-ethics-prof-conduct.applet | presentation | ✓ | 0 |
-| shield-five-pillars.applet | presentation | ✓ | 0 |
-| shield-physical-environmental.applet | presentation | ✓ | 0 |
-| shield-privacy.applet | presentation | ✓ | 0 |
 | shield-secure-sdlc-framework.applet | presentation | ✓ | 1 |
 | shield-security-best-practices.applet | presentation | ✓ | 1 |
 | shield-security-governance-dashboard.applet | presentation | ✓ | 0 |
-| shield-cube.applet | presentation | ✓ | 0 |
 | shield-cookies.applet | presentation | ✓ | 1 |
 | shield-hatmatch.applet | presentation | ✓ | 0 |
 | shield-cyberscramble.applet | presentation | ✓ | 0 |
@@ -2494,25 +2727,34 @@
 | shield-cyber-arts-bootcamp.applet | lab | ✓ | 1 |
 | shield-cysa-analyst-toolkit.applet | applet | ✓ | 1 |
 | shield-ics-scada-security.applet | applet | ✓ | 1 |
-| shield-config-mgmt.applet | presentation | ✓ | 0 |
-| shield-cyber-scenario.applet | presentation | ✓ | 0 |
-| shield-pspg.applet | presentation | ✓ | 0 |
-| shield-risk-analysis.applet | presentation | ✓ | 0 |
-| shield-risk-management.applet | presentation | ✓ | 0 |
 | shield-business-continuity-planner.applet | presentation | ✓ | 0 |
 | shield-change-management.applet | presentation | ✓ | 1 |
 | shield-malware-types.applet | applet | ✓ | 1 |
 | shield-eh-exam-1-a.exam | presentation | ✓ | 0 |
 | malware-zoo | lab | ✓ | 1 |
+| shield-linux-audit-drill.lab | lab | ✓ | 0 |
+| shield-linux-audit.lab | lab | ✓ | 0 |
+| shield-linux-file-integrity.lab | lab | ✓ | 0 |
+| shield-linux-firewall-drill.lab | lab | ✓ | 0 |
+| shield-linux-firewall.lab | lab | ✓ | 0 |
+| shield-linux-hardening.lab | lab | ✓ | 0 |
+| shield-linux-password-policy.lab | lab | ✓ | 0 |
+| shield-linux-perms-drill.lab | lab | ✓ | 0 |
+| shield-linux-selinux.lab | lab | ✓ | 0 |
+| shield-linux-ssh-drill.lab | lab | ✓ | 0 |
+| shield-linux-ssh-hardening-prep.lab | lab | ✓ | 0 |
+| shield-linux-ssh-security.lab | lab | ✓ | 0 |
+| shield-linux-sudo-policy-prep.lab | lab | ✓ | 0 |
+| shield-linux-sudo.lab | lab | ✓ | 0 |
 | shield-access-control.lab | presentation | ✓ | 0 |
 | shield-compliance.lab | presentation | ✓ | 0 |
 | shield-cryptography.lab | presentation | ✓ | 0 |
 | shield-gpg-encryption.lab | presentation | ✓ | 1 |
-| shield-hash.lab | presentation | ✓ | 1 |
+| shield-hash.lab | presentation | ✓ | 0 |
 | shield-hashing.lab | presentation | ✓ | 1 |
-| shield-network-security.lab | presentation | ✓ | 1 |
+| shield-network-security.lab | presentation | ✓ | 0 |
 | shield-osint-google-dorking.lab | applet | ✓ | 1 |
-| shield-security-fundamentals.lab | applet | ✓ | 1 |
+| shield-security-fundamentals.lab | applet | ✓ | 0 |
 | shield-threats.lab | presentation | ✓ | 0 |
 | shield-cia-triad.presentation | presentation | ✓ | 0 |
 | shield-hash-steg.presentation | presentation | ✓ | 1 |
@@ -2555,6 +2797,19 @@
 | index | applet | ✓ | 1 |
 | iot-security-lab | applet | ✓ | 1 |
 | jwt-attack-lab | applet | ✓ | 1 |
+| da-linux-enumeration-prep.lab | lab | ✓ | 0 |
+| da-linux-enumscripts.lab | lab | ✓ | 0 |
+| da-linux-exploitation-prep.lab | lab | ✓ | 0 |
+| da-linux-hash-drill.lab | lab | ✓ | 0 |
+| da-linux-hashcat.lab | lab | ✓ | 0 |
+| da-linux-hydra.lab | lab | ✓ | 0 |
+| da-linux-metasploit.lab | lab | ✓ | 0 |
+| da-linux-nmap-advanced.lab | lab | ✓ | 0 |
+| da-linux-nmap-drill.lab | lab | ✓ | 0 |
+| da-linux-post-exploitation.lab | lab | ✓ | 0 |
+| da-linux-privesc.lab | lab | ✓ | 0 |
+| da-linux-recon-drill.lab | lab | ✓ | 0 |
+| da-linux-reverse-shells.lab | lab | ✓ | 0 |
 | malware-analysis-lab | presentation | ✓ | 1 |
 | mobile-security-lab | lab | ✓ | 1 |
 | behavioral-analysis.module | applet | ✓ | 1 |
@@ -2610,8 +2865,14 @@
 | web-networking-midterm.exam | applet | ✓ | 1 |
 | packet-sniffer | presentation | ✓ | 1 |
 | index | applet | ✓ | 1 |
+| web-dns-troubleshooting.lab | lab | ✓ | 0 |
+| web-firewall-rules.lab | lab | ✓ | 1 |
 | web-networking-fundamentals.lab | lab | ✓ | 0 |
+| web-packet-analysis.lab | lab | ✓ | 0 |
 | web-static-routes.lab | lab | ✓ | 0 |
+| web-subnetting-practice.lab | lab | ✓ | 0 |
+| web-troubleshooting.lab | lab | ✓ | 1 |
+| web-vlan-config.lab | lab | ✓ | 0 |
 | web-ip-addressing-ch7-10.module | applet | ✓ | 1 |
 | web-arp.presentation | presentation | ✓ | 2 |
 | web-cables.presentation | presentation | ✓ | 1 |
@@ -2638,7 +2899,7 @@
 | web-vlan.presentation | presentation | ✓ | 1 |
 | web-wireless-architecture.presentation | presentation | ✓ | 1 |
 | web-wireless.presentation | presentation | ✓ | 1 |
-| web-networking-ch7-10.quiz | applet | ✓ | 1 |
+| web-networking-ch7-10.quiz | applet | ✓ | 0 |
 | web-networking-ch7-20.quiz | applet | ✓ | 1 |
 | subnetting | quiz | ✓ | 0 |
 | dns-resolver-race | presentation | ✓ | 0 |
@@ -2677,7 +2938,7 @@
 ## ISSUES DETECTED
 ══════════════════════════════════════════════════════════════════════
 
-### SUSPECT (122) — heuristic, needs review
+### SUSPECT (126) — heuristic, needs review
 
 **[HEUR-004]** console.log() in inline script (production hygiene)
   File: `admin/audit-tool.html`
@@ -2855,6 +3116,18 @@
   File: `houses/cloud/presentations/cloud-concepts.presentation.html`
   Fix: Remove console.log or replace with proper logging
 
+**[HEUR-005]** Duplicate script include: "../../../components/ModuleProgress.js" loaded 2 times (lines 12, 699)
+  File: `houses/cloud/quizzes/cloud-ch01-cloud-fundamentals.quiz.html`
+  Fix: Remove duplicate <script src="../../../components/ModuleProgress.js"> tag
+
+**[HEUR-005]** Duplicate script include: "../../../components/FluxCapacitor.js" loaded 2 times (lines 445, 911)
+  File: `houses/cloud/quizzes/cloud-cse-module02.quiz.html`
+  Fix: Remove duplicate <script src="../../../components/FluxCapacitor.js"> tag
+
+**[HEUR-005]** Duplicate script include: "../../../components/FluxCapacitor.js" loaded 2 times (lines 97, 178)
+  File: `houses/cloud/quizzes/cloud-cse-module03.quiz.html`
+  Fix: Remove duplicate <script src="../../../components/FluxCapacitor.js"> tag
+
 **[HEUR-004]** console.log() in inline script (production hygiene)
   File: `houses/cloud/tools/cloud-ch01-cloud-models.tool.html`
   Fix: Remove console.log or replace with proper logging
@@ -2902,6 +3175,10 @@
 **[HEUR-003]** TODO marker in script: continueBtn.href = '#'; // TODO: Certificate page
   File: `houses/eye/modules/cyberops/index.html`
   Fix: Resolve or remove TODO comment
+
+**[HEUR-005]** Duplicate script include: "../../../components/ModuleProgress.js" loaded 2 times (lines 776, 928)
+  File: `houses/eye/quizzes/eye-hunting.quiz.html`
+  Fix: Remove duplicate <script src="../../../components/ModuleProgress.js"> tag
 
 **[HEUR-004]** console.log() in inline script (production hygiene)
   File: `houses/eye/reviews/cyberops-review.html`
@@ -3167,7 +3444,7 @@
   File: `test-rare-only.html`
   Fix: Remove console.log or replace with proper logging
 
-### WARNING (874)
+### WARNING (981)
 
 **[REG-001]** Content file is not registered in content-registry.js
   File: `admin/audit-tool.html`
@@ -3255,6 +3532,58 @@
 
 **[REG-001]** Content file is not registered in content-registry.js
   File: `dark-arts/vault/jwt-attack-lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `dark-arts/vault/labs/linux/da-linux-enumeration-prep.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `dark-arts/vault/labs/linux/da-linux-enumscripts.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `dark-arts/vault/labs/linux/da-linux-exploitation-prep.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `dark-arts/vault/labs/linux/da-linux-hash-drill.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `dark-arts/vault/labs/linux/da-linux-hashcat.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `dark-arts/vault/labs/linux/da-linux-hydra.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `dark-arts/vault/labs/linux/da-linux-metasploit.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `dark-arts/vault/labs/linux/da-linux-nmap-advanced.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `dark-arts/vault/labs/linux/da-linux-nmap-drill.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `dark-arts/vault/labs/linux/da-linux-post-exploitation.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `dark-arts/vault/labs/linux/da-linux-privesc.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `dark-arts/vault/labs/linux/da-linux-recon-drill.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `dark-arts/vault/labs/linux/da-linux-reverse-shells.lab.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
@@ -4063,6 +4392,10 @@
 
 **[REG-001]** Content file is not registered in content-registry.js
   File: `houses/code/applets/code-kubernetes-cluster-sim.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/applets/config_management/code-config-management.applet.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
@@ -4878,6 +5211,14 @@
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/forge/applets/hardware/hard_drive_geometry/forge-hard-drive-geometry.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/forge/applets/hardware/multimeter/forge-multimeter.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
   File: `houses/forge/applets/hardware/peripheral_devices/forge-peripheral-devices.applet.html`
   Fix: Add entry to content-registry.js
 
@@ -5095,6 +5436,14 @@
 
 **[REG-001]** Content file is not registered in content-registry.js
   File: `houses/key/presentations/key-post-quantum.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[TRACK-002]** Presentation has slides but no progress tracking
+  File: `houses/key/presentations/key-tls-ssl.presentation.html`
+  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/key/presentations/key-tls-ssl.presentation.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
@@ -5605,6 +5954,342 @@
   File: `houses/script/games/dont-kill-the-server.html`
   Fix: Add entry to content-registry.js
 
+**[TRACK-003]** Lab has no visible progress tracking mechanism
+  File: `houses/script/labs/linux/script-bash-arrays.lab.html`
+  Fix: Add ProgressManager.completeModule() call to track lab completion
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/labs/linux/script-bash-arrays.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[TRACK-003]** Lab has no visible progress tracking mechanism
+  File: `houses/script/labs/linux/script-bash-basics.lab.html`
+  Fix: Add ProgressManager.completeModule() call to track lab completion
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/labs/linux/script-bash-basics.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[TRACK-003]** Lab has no visible progress tracking mechanism
+  File: `houses/script/labs/linux/script-bash-conditionals.lab.html`
+  Fix: Add ProgressManager.completeModule() call to track lab completion
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/labs/linux/script-bash-conditionals.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[TRACK-003]** Lab has no visible progress tracking mechanism
+  File: `houses/script/labs/linux/script-bash-conditions-drill.lab.html`
+  Fix: Add ProgressManager.completeModule() call to track lab completion
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/labs/linux/script-bash-conditions-drill.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[TRACK-003]** Lab has no visible progress tracking mechanism
+  File: `houses/script/labs/linux/script-bash-cron-setup-prep.lab.html`
+  Fix: Add ProgressManager.completeModule() call to track lab completion
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/labs/linux/script-bash-cron-setup-prep.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[TRACK-003]** Lab has no visible progress tracking mechanism
+  File: `houses/script/labs/linux/script-bash-cron.lab.html`
+  Fix: Add ProgressManager.completeModule() call to track lab completion
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/labs/linux/script-bash-cron.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[TRACK-003]** Lab has no visible progress tracking mechanism
+  File: `houses/script/labs/linux/script-bash-functions.lab.html`
+  Fix: Add ProgressManager.completeModule() call to track lab completion
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/labs/linux/script-bash-functions.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[TRACK-003]** Lab has no visible progress tracking mechanism
+  File: `houses/script/labs/linux/script-bash-io-redirect.lab.html`
+  Fix: Add ProgressManager.completeModule() call to track lab completion
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/labs/linux/script-bash-io-redirect.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[TRACK-003]** Lab has no visible progress tracking mechanism
+  File: `houses/script/labs/linux/script-bash-log-processor-prep.lab.html`
+  Fix: Add ProgressManager.completeModule() call to track lab completion
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/labs/linux/script-bash-log-processor-prep.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[TRACK-003]** Lab has no visible progress tracking mechanism
+  File: `houses/script/labs/linux/script-bash-loops-drill.lab.html`
+  Fix: Add ProgressManager.completeModule() call to track lab completion
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/labs/linux/script-bash-loops-drill.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[TRACK-003]** Lab has no visible progress tracking mechanism
+  File: `houses/script/labs/linux/script-bash-loops.lab.html`
+  Fix: Add ProgressManager.completeModule() call to track lab completion
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/labs/linux/script-bash-loops.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[TRACK-003]** Lab has no visible progress tracking mechanism
+  File: `houses/script/labs/linux/script-bash-pipes.lab.html`
+  Fix: Add ProgressManager.completeModule() call to track lab completion
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/labs/linux/script-bash-pipes.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[TRACK-003]** Lab has no visible progress tracking mechanism
+  File: `houses/script/labs/linux/script-bash-redirect-drill.lab.html`
+  Fix: Add ProgressManager.completeModule() call to track lab completion
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/labs/linux/script-bash-redirect-drill.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[TRACK-003]** Lab has no visible progress tracking mechanism
+  File: `houses/script/labs/linux/script-bash-variables-drill.lab.html`
+  Fix: Add ProgressManager.completeModule() call to track lab completion
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/labs/linux/script-bash-variables-drill.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[TRACK-003]** Lab has no visible progress tracking mechanism
+  File: `houses/script/labs/linux/script-linux-compression.lab.html`
+  Fix: Add ProgressManager.completeModule() call to track lab completion
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/labs/linux/script-linux-compression.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/labs/linux/script-linux-disk-drill.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[TRACK-003]** Lab has no visible progress tracking mechanism
+  File: `houses/script/labs/linux/script-linux-disk-mgmt.lab.html`
+  Fix: Add ProgressManager.completeModule() call to track lab completion
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/labs/linux/script-linux-disk-mgmt.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[TRACK-003]** Lab has no visible progress tracking mechanism
+  File: `houses/script/labs/linux/script-linux-disk-partition-prep.lab.html`
+  Fix: Add ProgressManager.completeModule() call to track lab completion
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/labs/linux/script-linux-disk-partition-prep.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[TRACK-003]** Lab has no visible progress tracking mechanism
+  File: `houses/script/labs/linux/script-linux-env-vars.lab.html`
+  Fix: Add ProgressManager.completeModule() call to track lab completion
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/labs/linux/script-linux-env-vars.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[TRACK-003]** Lab has no visible progress tracking mechanism
+  File: `houses/script/labs/linux/script-linux-file-mgmt-prep.lab.html`
+  Fix: Add ProgressManager.completeModule() call to track lab completion
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/labs/linux/script-linux-file-mgmt-prep.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[TRACK-003]** Lab has no visible progress tracking mechanism
+  File: `houses/script/labs/linux/script-linux-file-ops.lab.html`
+  Fix: Add ProgressManager.completeModule() call to track lab completion
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/labs/linux/script-linux-file-ops.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[TRACK-003]** Lab has no visible progress tracking mechanism
+  File: `houses/script/labs/linux/script-linux-file-search.lab.html`
+  Fix: Add ProgressManager.completeModule() call to track lab completion
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/labs/linux/script-linux-file-search.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/labs/linux/script-linux-find-drill.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[TRACK-003]** Lab has no visible progress tracking mechanism
+  File: `houses/script/labs/linux/script-linux-links.lab.html`
+  Fix: Add ProgressManager.completeModule() call to track lab completion
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/labs/linux/script-linux-links.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/labs/linux/script-linux-log-analysis-mission.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[TRACK-003]** Lab has no visible progress tracking mechanism
+  File: `houses/script/labs/linux/script-linux-log-analysis-prep.lab.html`
+  Fix: Add ProgressManager.completeModule() call to track lab completion
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/labs/linux/script-linux-log-analysis-prep.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[TRACK-003]** Lab has no visible progress tracking mechanism
+  File: `houses/script/labs/linux/script-linux-log-analysis.lab.html`
+  Fix: Add ProgressManager.completeModule() call to track lab completion
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/labs/linux/script-linux-log-analysis.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[TRACK-003]** Lab has no visible progress tracking mechanism
+  File: `houses/script/labs/linux/script-linux-log-investigation-prep.lab.html`
+  Fix: Add ProgressManager.completeModule() call to track lab completion
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/labs/linux/script-linux-log-investigation-prep.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[TRACK-003]** Lab has no visible progress tracking mechanism
+  File: `houses/script/labs/linux/script-linux-mkdir-drill.lab.html`
+  Fix: Add ProgressManager.completeModule() call to track lab completion
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/labs/linux/script-linux-mkdir-drill.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/labs/linux/script-linux-nav-drill.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[TRACK-003]** Lab has no visible progress tracking mechanism
+  File: `houses/script/labs/linux/script-linux-network-config.lab.html`
+  Fix: Add ProgressManager.completeModule() call to track lab completion
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/labs/linux/script-linux-network-config.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/labs/linux/script-linux-network-drill.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[TRACK-003]** Lab has no visible progress tracking mechanism
+  File: `houses/script/labs/linux/script-linux-package-mgmt.lab.html`
+  Fix: Add ProgressManager.completeModule() call to track lab completion
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/labs/linux/script-linux-package-mgmt.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[TRACK-003]** Lab has no visible progress tracking mechanism
+  File: `houses/script/labs/linux/script-linux-permissions-drill.lab.html`
+  Fix: Add ProgressManager.completeModule() call to track lab completion
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/labs/linux/script-linux-permissions-drill.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[TRACK-003]** Lab has no visible progress tracking mechanism
+  File: `houses/script/labs/linux/script-linux-permissions.lab.html`
+  Fix: Add ProgressManager.completeModule() call to track lab completion
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/labs/linux/script-linux-permissions.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/labs/linux/script-linux-process-drill.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[TRACK-003]** Lab has no visible progress tracking mechanism
+  File: `houses/script/labs/linux/script-linux-process-mgmt.lab.html`
+  Fix: Add ProgressManager.completeModule() call to track lab completion
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/labs/linux/script-linux-process-mgmt.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/labs/linux/script-linux-service-drill.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[TRACK-003]** Lab has no visible progress tracking mechanism
+  File: `houses/script/labs/linux/script-linux-service-mgmt.lab.html`
+  Fix: Add ProgressManager.completeModule() call to track lab completion
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/labs/linux/script-linux-service-mgmt.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[TRACK-003]** Lab has no visible progress tracking mechanism
+  File: `houses/script/labs/linux/script-linux-ssh.lab.html`
+  Fix: Add ProgressManager.completeModule() call to track lab completion
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/labs/linux/script-linux-ssh.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[TRACK-003]** Lab has no visible progress tracking mechanism
+  File: `houses/script/labs/linux/script-linux-sysadmin-reference.lab.html`
+  Fix: Add ProgressManager.completeModule() call to track lab completion
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/labs/linux/script-linux-sysadmin-reference.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/labs/linux/script-linux-systemctl.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[TRACK-003]** Lab has no visible progress tracking mechanism
+  File: `houses/script/labs/linux/script-linux-text-viewing.lab.html`
+  Fix: Add ProgressManager.completeModule() call to track lab completion
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/labs/linux/script-linux-text-viewing.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[TRACK-003]** Lab has no visible progress tracking mechanism
+  File: `houses/script/labs/linux/script-linux-users.lab.html`
+  Fix: Add ProgressManager.completeModule() call to track lab completion
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/labs/linux/script-linux-users.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[TRACK-003]** Lab has no visible progress tracking mechanism
+  File: `houses/script/labs/linux/script-linux-viewing-drill.lab.html`
+  Fix: Add ProgressManager.completeModule() call to track lab completion
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/labs/linux/script-linux-viewing-drill.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[TRACK-003]** Lab has no visible progress tracking mechanism
+  File: `houses/script/labs/linux/script-linux-wildcards.lab.html`
+  Fix: Add ProgressManager.completeModule() call to track lab completion
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/labs/linux/script-linux-wildcards.lab.html`
+  Fix: Add entry to content-registry.js
+
 **[REG-001]** Content file is not registered in content-registry.js
   File: `houses/script/labs/script-lab.lab.html`
   Fix: Add entry to content-registry.js
@@ -5946,18 +6631,6 @@
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/applets/access/access_control/shield-access-control.applet.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/applets/access/biometrics/shield-biometrics.applet.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/applets/access/kerberos/shield-kerberos.applet.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
   File: `houses/shield/applets/access/shield-access-control-models.applet.html`
   Fix: Add entry to content-registry.js
 
@@ -5970,7 +6643,15 @@
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/applets/compliance/cmmc_quiz/shield-cmmc-comprehensive.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
   File: `houses/shield/applets/compliance/cmmc_quiz/shield-cmmc-test-knowledge2.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/applets/compliance/cui_overview/shield-cui-overview.applet.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
@@ -6050,38 +6731,6 @@
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/applets/fundamentals/cybersecurity_controls/shield-cybersecurity-controls.applet.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/applets/fundamentals/data_roles/shield-dataroles.applet.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/applets/fundamentals/design_principles/shield-cybersecuritydesignprinciples.applet.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/applets/fundamentals/ethics_challenge/shield-ethics-challenge.applet.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/applets/fundamentals/ethics_conduct/shield-ethics-prof-conduct.applet.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/applets/fundamentals/five_pillars/shield-five-pillars.applet.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/applets/fundamentals/physical_protection/shield-physical-environmental.applet.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/applets/fundamentals/privacy/shield-privacy.applet.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
   File: `houses/shield/applets/fundamentals/shield-secure-sdlc-framework.applet.html`
   Fix: Add entry to content-registry.js
 
@@ -6091,10 +6740,6 @@
 
 **[REG-001]** Content file is not registered in content-registry.js
   File: `houses/shield/applets/fundamentals/shield-security-governance-dashboard.applet.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/applets/fundamentals/the_cube/shield-cube.applet.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
@@ -6146,26 +6791,6 @@
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/applets/risk/config_management/shield-config-mgmt.applet.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/applets/risk/cybersecurity_scenario/shield-cyber-scenario.applet.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/applets/risk/pspg/shield-pspg.applet.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/applets/risk/risk_analysis/shield-risk-analysis.applet.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/applets/risk/risk_management/shield-risk-management.applet.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
   File: `houses/shield/applets/risk/shield-business-continuity-planner.applet.html`
   Fix: Add entry to content-registry.js
 
@@ -6187,6 +6812,62 @@
 
 **[REG-001]** Content file is not registered in content-registry.js
   File: `houses/shield/games/malware-zoo.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/labs/linux/shield-linux-audit-drill.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/labs/linux/shield-linux-audit.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/labs/linux/shield-linux-file-integrity.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/labs/linux/shield-linux-firewall-drill.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/labs/linux/shield-linux-firewall.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/labs/linux/shield-linux-hardening.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/labs/linux/shield-linux-password-policy.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/labs/linux/shield-linux-perms-drill.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/labs/linux/shield-linux-selinux.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/labs/linux/shield-linux-ssh-drill.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/labs/linux/shield-linux-ssh-hardening-prep.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/labs/linux/shield-linux-ssh-security.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/labs/linux/shield-linux-sudo-policy-prep.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/labs/linux/shield-linux-sudo.lab.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
@@ -6310,11 +6991,35 @@
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/labs/web-dns-troubleshooting.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/labs/web-firewall-rules.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
   File: `houses/web/labs/web-networking-fundamentals.lab.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/labs/web-packet-analysis.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
   File: `houses/web/labs/web-static-routes.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/labs/web-subnetting-practice.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/labs/web-troubleshooting.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/labs/web-vlan-config.lab.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
@@ -6665,7 +7370,7 @@
   File: `workshop/a2-shadow-encoder/current.html`
   Fix: Add entry to content-registry.js
 
-### INFO (401)
+### INFO (406)
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `admin/audit-tool.html`
@@ -6940,14 +7645,6 @@
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/cloud/quizzes/cloud-cse-module05.quiz.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/cloud/quizzes/cloud-cse-module08.quiz.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `houses/cloud/tools/cloud-aws-service.tool.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
@@ -6989,6 +7686,10 @@
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `houses/code/applets/code-kubernetes-cluster-sim.applet.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/code/applets/config_management/code-config-management.applet.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
@@ -7424,6 +8125,14 @@
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/forge/applets/hardware/hard_drive_geometry/forge-hard-drive-geometry.applet.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/forge/applets/hardware/multimeter/forge-multimeter.applet.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `houses/forge/applets/hardware/peripheral_devices/forge-peripheral-devices.applet.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
@@ -7545,6 +8254,10 @@
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `houses/key/presentations/key-post-quantum.presentation.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/key/presentations/key-tls-ssl.presentation.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
@@ -7780,6 +8493,22 @@
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/script/labs/linux/script-linux-disk-mgmt.lab.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/script/labs/linux/script-linux-disk-partition-prep.lab.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/script/labs/linux/script-linux-env-vars.lab.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/script/labs/linux/script-linux-process-mgmt.lab.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `houses/script/labs/script-linux-bash.lab.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
@@ -7924,6 +8653,10 @@
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/shield/applets/compliance/cui_overview/shield-cui-overview.applet.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `houses/shield/applets/crypto/hashing_steganography/shield-encryption-ii.applet.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
@@ -7984,23 +8717,11 @@
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/shield/labs/shield-hash.lab.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `houses/shield/labs/shield-hashing.lab.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/shield/labs/shield-network-security.lab.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `houses/shield/labs/shield-osint-google-dorking.lab.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/shield/labs/shield-security-fundamentals.lab.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
@@ -8064,6 +8785,14 @@
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/web/labs/web-firewall-rules.lab.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/web/labs/web-troubleshooting.lab.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `houses/web/modules/web-ip-addressing-ch7-10.module.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
@@ -8109,10 +8838,6 @@
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `houses/web/presentations/web-topologies.presentation.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/web/quizzes/web-networking-ch7-10.quiz.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
@@ -8267,7 +8992,7 @@
 ## REGISTRY GAPS
 ══════════════════════════════════════════════════════════════════════
 
-### Unregistered Content (729)
+### Unregistered Content (797)
 
 | Path | Type | House |
 |------|------|-------|
@@ -8289,6 +9014,19 @@
 | dark-arts/vault/ids-evasion-lab.html | applet | - |
 | dark-arts/vault/iot-security-lab.html | applet | - |
 | dark-arts/vault/jwt-attack-lab.html | applet | - |
+| dark-arts/vault/labs/linux/da-linux-enumeration-prep.lab.html | lab | - |
+| dark-arts/vault/labs/linux/da-linux-enumscripts.lab.html | lab | - |
+| dark-arts/vault/labs/linux/da-linux-exploitation-prep.lab.html | lab | - |
+| dark-arts/vault/labs/linux/da-linux-hash-drill.lab.html | lab | - |
+| dark-arts/vault/labs/linux/da-linux-hashcat.lab.html | lab | - |
+| dark-arts/vault/labs/linux/da-linux-hydra.lab.html | lab | - |
+| dark-arts/vault/labs/linux/da-linux-metasploit.lab.html | lab | - |
+| dark-arts/vault/labs/linux/da-linux-nmap-advanced.lab.html | lab | - |
+| dark-arts/vault/labs/linux/da-linux-nmap-drill.lab.html | lab | - |
+| dark-arts/vault/labs/linux/da-linux-post-exploitation.lab.html | lab | - |
+| dark-arts/vault/labs/linux/da-linux-privesc.lab.html | lab | - |
+| dark-arts/vault/labs/linux/da-linux-recon-drill.lab.html | lab | - |
+| dark-arts/vault/labs/linux/da-linux-reverse-shells.lab.html | lab | - |
 | dark-arts/vault/malware-analysis-lab.html | presentation | - |
 | dark-arts/vault/mobile-security-lab.html | lab | - |
 | dark-arts/vault/modules/behavioral-analysis.module.html | applet | - |
@@ -8424,6 +9162,7 @@
 | houses/cloud/tools/cloud-cloud.tool.html | presentation | cloud |
 | houses/code/applets/code-docker-playground.applet.html | applet | code |
 | houses/code/applets/code-kubernetes-cluster-sim.applet.html | applet | code |
+| houses/code/applets/config_management/code-config-management.applet.html | applet | code |
 | houses/code/games/git-blame.html | applet | code |
 | houses/code/games/kubernetes-rescue.html | presentation | code |
 | houses/code/labs/code-cicd.lab.html | presentation | code |
@@ -8597,6 +9336,8 @@
 | houses/forge/applets/forge-settings.tool.html | presentation | forge |
 | houses/forge/applets/forge-system-tools-sim.applet.html | presentation | forge |
 | houses/forge/applets/forge-windows-edition-selector.applet.html | presentation | forge |
+| houses/forge/applets/hardware/hard_drive_geometry/forge-hard-drive-geometry.applet.html | applet | forge |
+| houses/forge/applets/hardware/multimeter/forge-multimeter.applet.html | applet | forge |
 | houses/forge/applets/hardware/peripheral_devices/forge-peripheral-devices.applet.html | applet | forge |
 | houses/forge/labs/forge-admin-tools.lab.html | lab | forge |
 | houses/forge/labs/forge-control-panel.lab.html | lab | forge |
@@ -8641,6 +9382,7 @@
 | houses/key/presentations/key-management.presentation.html | presentation | key |
 | houses/key/presentations/key-message-authentication.presentation.html | applet | key |
 | houses/key/presentations/key-post-quantum.presentation.html | applet | key |
+| houses/key/presentations/key-tls-ssl.presentation.html | presentation | key |
 | houses/key/quizzes/key-cert.quiz.html | presentation | key |
 | houses/key/quizzes/key-cryptanalysis.quiz.html | presentation | key |
 | houses/key/quizzes/key-ecc.quiz.html | presentation | key |
@@ -8767,6 +9509,52 @@
 | houses/script/courses/clh/modules/clh-030/script-lab.lab.html | lab | script |
 | houses/script/courses/clh/modules/clh-031/script-lab.lab.html | lab | script |
 | houses/script/games/dont-kill-the-server.html | applet | script |
+| houses/script/labs/linux/script-bash-arrays.lab.html | lab | script |
+| houses/script/labs/linux/script-bash-basics.lab.html | lab | script |
+| houses/script/labs/linux/script-bash-conditionals.lab.html | lab | script |
+| houses/script/labs/linux/script-bash-conditions-drill.lab.html | lab | script |
+| houses/script/labs/linux/script-bash-cron-setup-prep.lab.html | lab | script |
+| houses/script/labs/linux/script-bash-cron.lab.html | lab | script |
+| houses/script/labs/linux/script-bash-functions.lab.html | lab | script |
+| houses/script/labs/linux/script-bash-io-redirect.lab.html | lab | script |
+| houses/script/labs/linux/script-bash-log-processor-prep.lab.html | lab | script |
+| houses/script/labs/linux/script-bash-loops-drill.lab.html | lab | script |
+| houses/script/labs/linux/script-bash-loops.lab.html | lab | script |
+| houses/script/labs/linux/script-bash-pipes.lab.html | lab | script |
+| houses/script/labs/linux/script-bash-redirect-drill.lab.html | lab | script |
+| houses/script/labs/linux/script-bash-variables-drill.lab.html | lab | script |
+| houses/script/labs/linux/script-linux-compression.lab.html | lab | script |
+| houses/script/labs/linux/script-linux-disk-drill.lab.html | lab | script |
+| houses/script/labs/linux/script-linux-disk-mgmt.lab.html | lab | script |
+| houses/script/labs/linux/script-linux-disk-partition-prep.lab.html | lab | script |
+| houses/script/labs/linux/script-linux-env-vars.lab.html | lab | script |
+| houses/script/labs/linux/script-linux-file-mgmt-prep.lab.html | lab | script |
+| houses/script/labs/linux/script-linux-file-ops.lab.html | lab | script |
+| houses/script/labs/linux/script-linux-file-search.lab.html | lab | script |
+| houses/script/labs/linux/script-linux-find-drill.lab.html | lab | script |
+| houses/script/labs/linux/script-linux-links.lab.html | lab | script |
+| houses/script/labs/linux/script-linux-log-analysis-mission.lab.html | lab | script |
+| houses/script/labs/linux/script-linux-log-analysis-prep.lab.html | lab | script |
+| houses/script/labs/linux/script-linux-log-analysis.lab.html | lab | script |
+| houses/script/labs/linux/script-linux-log-investigation-prep.lab.html | lab | script |
+| houses/script/labs/linux/script-linux-mkdir-drill.lab.html | lab | script |
+| houses/script/labs/linux/script-linux-nav-drill.lab.html | lab | script |
+| houses/script/labs/linux/script-linux-network-config.lab.html | lab | script |
+| houses/script/labs/linux/script-linux-network-drill.lab.html | lab | script |
+| houses/script/labs/linux/script-linux-package-mgmt.lab.html | lab | script |
+| houses/script/labs/linux/script-linux-permissions-drill.lab.html | lab | script |
+| houses/script/labs/linux/script-linux-permissions.lab.html | lab | script |
+| houses/script/labs/linux/script-linux-process-drill.lab.html | lab | script |
+| houses/script/labs/linux/script-linux-process-mgmt.lab.html | lab | script |
+| houses/script/labs/linux/script-linux-service-drill.lab.html | lab | script |
+| houses/script/labs/linux/script-linux-service-mgmt.lab.html | lab | script |
+| houses/script/labs/linux/script-linux-ssh.lab.html | lab | script |
+| houses/script/labs/linux/script-linux-sysadmin-reference.lab.html | lab | script |
+| houses/script/labs/linux/script-linux-systemctl.lab.html | lab | script |
+| houses/script/labs/linux/script-linux-text-viewing.lab.html | lab | script |
+| houses/script/labs/linux/script-linux-users.lab.html | lab | script |
+| houses/script/labs/linux/script-linux-viewing-drill.lab.html | lab | script |
+| houses/script/labs/linux/script-linux-wildcards.lab.html | lab | script |
 | houses/script/labs/script-lab.lab.html | lab | script |
 | houses/script/labs/script-linux-bash.lab.html | presentation | script |
 | houses/script/labs/script-powershell.lab.html | lab | script |
@@ -8850,13 +9638,12 @@
 | houses/script/tools/script-package-manager.tool.html | applet | script |
 | houses/script/tools/script-process-management.tool.html | presentation | script |
 | houses/script/tools/script-windows-registry.tool.html | applet | script |
-| houses/shield/applets/access/access_control/shield-access-control.applet.html | presentation | shield |
-| houses/shield/applets/access/biometrics/shield-biometrics.applet.html | presentation | shield |
-| houses/shield/applets/access/kerberos/shield-kerberos.applet.html | presentation | shield |
 | houses/shield/applets/access/shield-access-control-models.applet.html | presentation | shield |
 | houses/shield/applets/compliance/cmmc_cui/shield-cui-2.applet.html | presentation | shield |
 | houses/shield/applets/compliance/cmmc_framework/shield-cmmc-frameworkv2.applet.html | presentation | shield |
+| houses/shield/applets/compliance/cmmc_quiz/shield-cmmc-comprehensive.quiz.html | quiz | shield |
 | houses/shield/applets/compliance/cmmc_quiz/shield-cmmc-test-knowledge2.applet.html | presentation | shield |
+| houses/shield/applets/compliance/cui_overview/shield-cui-overview.applet.html | applet | shield |
 | houses/shield/applets/compliance/shield-laws-regulations.applet.html | presentation | shield |
 | houses/shield/applets/crypto/block_mode/shield-block.applet.html | presentation | shield |
 | houses/shield/applets/crypto/blockchain/shield-blockchain.applet.html | presentation | shield |
@@ -8876,18 +9663,9 @@
 | houses/shield/applets/crypto/pki/shield-pki.applet.html | presentation | shield |
 | houses/shield/applets/crypto/rsa/shield-rsa.applet.html | presentation | shield |
 | houses/shield/applets/crypto/shield-checksum-verifier.applet.html | presentation | shield |
-| houses/shield/applets/fundamentals/cybersecurity_controls/shield-cybersecurity-controls.applet.html | presentation | shield |
-| houses/shield/applets/fundamentals/data_roles/shield-dataroles.applet.html | presentation | shield |
-| houses/shield/applets/fundamentals/design_principles/shield-cybersecuritydesignprinciples.applet.html | presentation | shield |
-| houses/shield/applets/fundamentals/ethics_challenge/shield-ethics-challenge.applet.html | presentation | shield |
-| houses/shield/applets/fundamentals/ethics_conduct/shield-ethics-prof-conduct.applet.html | presentation | shield |
-| houses/shield/applets/fundamentals/five_pillars/shield-five-pillars.applet.html | presentation | shield |
-| houses/shield/applets/fundamentals/physical_protection/shield-physical-environmental.applet.html | presentation | shield |
-| houses/shield/applets/fundamentals/privacy/shield-privacy.applet.html | presentation | shield |
 | houses/shield/applets/fundamentals/shield-secure-sdlc-framework.applet.html | presentation | shield |
 | houses/shield/applets/fundamentals/shield-security-best-practices.applet.html | presentation | shield |
 | houses/shield/applets/fundamentals/shield-security-governance-dashboard.applet.html | presentation | shield |
-| houses/shield/applets/fundamentals/the_cube/shield-cube.applet.html | presentation | shield |
 | houses/shield/applets/games/cookie_caper/shield-cookies.applet.html | presentation | shield |
 | houses/shield/applets/games/cyber_hat_match/shield-hatmatch.applet.html | presentation | shield |
 | houses/shield/applets/games/cyber_scramble/shield-cyberscramble.applet.html | presentation | shield |
@@ -8899,16 +9677,25 @@
 | houses/shield/applets/operations/shield-cyber-arts-bootcamp.applet.html | lab | shield |
 | houses/shield/applets/operations/shield-cysa-analyst-toolkit.applet.html | applet | shield |
 | houses/shield/applets/operations/shield-ics-scada-security.applet.html | applet | shield |
-| houses/shield/applets/risk/config_management/shield-config-mgmt.applet.html | presentation | shield |
-| houses/shield/applets/risk/cybersecurity_scenario/shield-cyber-scenario.applet.html | presentation | shield |
-| houses/shield/applets/risk/pspg/shield-pspg.applet.html | presentation | shield |
-| houses/shield/applets/risk/risk_analysis/shield-risk-analysis.applet.html | presentation | shield |
-| houses/shield/applets/risk/risk_management/shield-risk-management.applet.html | presentation | shield |
 | houses/shield/applets/risk/shield-business-continuity-planner.applet.html | presentation | shield |
 | houses/shield/applets/risk/shield-change-management.applet.html | presentation | shield |
 | houses/shield/applets/threats/shield-malware-types.applet.html | applet | shield |
 | houses/shield/exams/shield-eh-exam-1-a.exam.html | presentation | shield |
 | houses/shield/games/malware-zoo.html | lab | shield |
+| houses/shield/labs/linux/shield-linux-audit-drill.lab.html | lab | shield |
+| houses/shield/labs/linux/shield-linux-audit.lab.html | lab | shield |
+| houses/shield/labs/linux/shield-linux-file-integrity.lab.html | lab | shield |
+| houses/shield/labs/linux/shield-linux-firewall-drill.lab.html | lab | shield |
+| houses/shield/labs/linux/shield-linux-firewall.lab.html | lab | shield |
+| houses/shield/labs/linux/shield-linux-hardening.lab.html | lab | shield |
+| houses/shield/labs/linux/shield-linux-password-policy.lab.html | lab | shield |
+| houses/shield/labs/linux/shield-linux-perms-drill.lab.html | lab | shield |
+| houses/shield/labs/linux/shield-linux-selinux.lab.html | lab | shield |
+| houses/shield/labs/linux/shield-linux-ssh-drill.lab.html | lab | shield |
+| houses/shield/labs/linux/shield-linux-ssh-hardening-prep.lab.html | lab | shield |
+| houses/shield/labs/linux/shield-linux-ssh-security.lab.html | lab | shield |
+| houses/shield/labs/linux/shield-linux-sudo-policy-prep.lab.html | lab | shield |
+| houses/shield/labs/linux/shield-linux-sudo.lab.html | lab | shield |
 | houses/shield/labs/shield-access-control.lab.html | presentation | shield |
 | houses/shield/labs/shield-compliance.lab.html | presentation | shield |
 | houses/shield/labs/shield-cryptography.lab.html | presentation | shield |
@@ -8936,8 +9723,14 @@
 | houses/web/applets/web-networking-interactive.applet.html | applet | web |
 | houses/web/exams/web-networking-midterm.exam.html | applet | web |
 | houses/web/games/packet-sniffer.html | presentation | web |
+| houses/web/labs/web-dns-troubleshooting.lab.html | lab | web |
+| houses/web/labs/web-firewall-rules.lab.html | lab | web |
 | houses/web/labs/web-networking-fundamentals.lab.html | lab | web |
+| houses/web/labs/web-packet-analysis.lab.html | lab | web |
 | houses/web/labs/web-static-routes.lab.html | lab | web |
+| houses/web/labs/web-subnetting-practice.lab.html | lab | web |
+| houses/web/labs/web-troubleshooting.lab.html | lab | web |
+| houses/web/labs/web-vlan-config.lab.html | lab | web |
 | houses/web/modules/web-ip-addressing-ch7-10.module.html | applet | web |
 | houses/web/presentations/web-arp.presentation.html | presentation | web |
 | houses/web/presentations/web-cables.presentation.html | presentation | web |

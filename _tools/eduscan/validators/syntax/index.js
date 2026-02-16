@@ -16,6 +16,7 @@ const AssignmentLinkValidator = require('./assignment-links');
 const NamingValidator = require('./naming');
 const HeuristicsValidator = require('./heuristics');
 const ContentCatalogValidator = require('./content-catalog');
+const DependencyCheckValidator = require('./dependency-check');
 
 class SyntaxValidator {
     constructor(options = {}) {
@@ -63,6 +64,10 @@ class SyntaxValidator {
             verbose: this.verbose,
             rootPath: this.rootPath
         });
+        this.dependencyCheckValidator = new DependencyCheckValidator({
+            verbose: this.verbose,
+            profile: this.profile
+        });
     }
 
     /**
@@ -87,6 +92,7 @@ class SyntaxValidator {
                 namingErrors: 0,
                 heuristicErrors: 0,
                 contentCatalogErrors: 0,
+                dependencyErrors: 0,
                 // Severity counts (populated at end)
                 bySeverity: {
                     critical: 0,
@@ -152,6 +158,7 @@ class SyntaxValidator {
             const pathIssues = this.pathValidator.validate(fileWithContent);
             const namingIssues = this.namingValidator.validate(fileWithContent);
             const heuristicIssues = this.heuristicsValidator.validate(fileWithContent);
+            const dependencyIssues = this.dependencyCheckValidator.validate(fileWithContent);
 
             // Collect issues
             results.issues.push(...htmlIssues);
@@ -160,6 +167,7 @@ class SyntaxValidator {
             results.issues.push(...pathIssues);
             results.issues.push(...namingIssues);
             results.issues.push(...heuristicIssues);
+            results.issues.push(...dependencyIssues);
 
             // Update counts
             results.summary.htmlErrors += htmlIssues.length;
@@ -168,6 +176,7 @@ class SyntaxValidator {
             results.summary.pathErrors += pathIssues.length;
             results.summary.namingErrors += namingIssues.length;
             results.summary.heuristicErrors += heuristicIssues.length;
+            results.summary.dependencyErrors += dependencyIssues.length;
         }
 
         // Post-scan: check for content directories missing index.html

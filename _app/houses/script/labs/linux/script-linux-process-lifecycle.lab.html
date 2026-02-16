@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Process Lifecycle Visualizer - Script House</title>
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', system-ui, sans-serif; background: linear-gradient(135deg, #0f0f1a 0%, #1a1a2e 50%, #16213e 100%); color: #e0e0e0; min-height: 100vh; display: flex; flex-direction: column; }
+        .header { background: linear-gradient(135deg, rgba(34,197,94,0.1), rgba(34,197,94,0.05)); border-bottom: 1px solid rgba(34,197,94,0.3); padding: 15px 25px; display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; }
+        .header-left { display: flex; align-items: center; gap: 20px; }
+        .back-link { color: #888; text-decoration: none; font-size: 0.9rem; transition: color 0.3s; } .back-link:hover { color: #22c55e; }
+        .header-badge { background: rgba(34,197,94,0.2); color: #86efac; padding: 4px 12px; border-radius: 20px; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.1em; }
+        .header h1 { font-size: 1.2rem; color: #22c55e; }
+        .main-content { flex: 1; padding: 30px; overflow-y: auto; display: flex; flex-direction: column; align-items: center; }
+        .diagram-container { width: 100%; max-width: 900px; margin: 0 auto; }
+        .step-controls { display: flex; gap: 10px; justify-content: center; margin: 25px 0; flex-wrap: wrap; }
+        .step-btn { background: rgba(34,197,94,0.15); color: #86efac; border: 1px solid rgba(34,197,94,0.3); padding: 8px 18px; border-radius: 8px; cursor: pointer; font-family: inherit; font-size: 0.85rem; transition: all 0.2s; }
+        .step-btn:hover { background: rgba(34,197,94,0.3); }
+        .step-btn.active { background: #22c55e; color: #000; font-weight: 600; }
+        .svg-diagram { width: 100%; background: rgba(0,0,0,0.3); border-radius: 12px; border: 1px solid rgba(34,197,94,0.2); padding: 20px; }
+        .explanation { max-width: 900px; margin: 25px auto; background: rgba(0,0,0,0.3); border: 1px solid rgba(34,197,94,0.2); border-radius: 12px; padding: 25px; }
+        .explanation h3 { color: #22c55e; font-size: 1rem; margin-bottom: 10px; }
+        .explanation p { color: #9ca3af; font-size: 0.9rem; line-height: 1.7; }
+        .explanation code { background: rgba(34,197,94,0.2); padding: 2px 6px; border-radius: 4px; font-family: 'Courier New', monospace; color: #86efac; font-size: 0.85rem; }
+        .legend { display: flex; gap: 20px; justify-content: center; margin: 15px 0; flex-wrap: wrap; }
+        .legend-item { display: flex; align-items: center; gap: 8px; font-size: 0.8rem; color: #9ca3af; }
+        .legend-dot { width: 12px; height: 12px; border-radius: 50%; }
+        .state-table { width: 100%; max-width: 900px; margin: 20px auto; border-collapse: collapse; }
+        .state-table th { background: rgba(34,197,94,0.15); color: #22c55e; padding: 10px 15px; text-align: left; font-size: 0.85rem; border-bottom: 2px solid rgba(34,197,94,0.3); }
+        .state-table td { padding: 10px 15px; border-bottom: 1px solid rgba(255,255,255,0.05); font-size: 0.85rem; color: #9ca3af; }
+        .state-table td code { background: rgba(34,197,94,0.2); padding: 2px 6px; border-radius: 4px; font-family: 'Courier New', monospace; color: #86efac; }
+        .state-table tr:hover td { background: rgba(34,197,94,0.05); }
+        @media (max-width: 900px) { .main-content { padding: 15px; } }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="header-left">
+            <a href="../../index.html" class="back-link">&larr; Script House</a>
+            <span class="header-badge">Visualizer</span>
+            <h1>Process Lifecycle: fork / exec / exit</h1>
+        </div>
+    </div>
+    <div class="main-content">
+        <div class="step-controls">
+            <button class="step-btn active" onclick="showStep(0)">Overview</button>
+            <button class="step-btn" onclick="showStep(1)">1. fork()</button>
+            <button class="step-btn" onclick="showStep(2)">2. exec()</button>
+            <button class="step-btn" onclick="showStep(3)">3. Running</button>
+            <button class="step-btn" onclick="showStep(4)">4. exit()</button>
+            <button class="step-btn" onclick="showStep(5)">5. wait() / Zombie</button>
+        </div>
+
+        <div class="diagram-container">
+            <svg class="svg-diagram" viewBox="0 0 800 300" id="lifecycleSvg">
+                <!-- Background grid -->
+                <defs>
+                    <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+                        <polygon points="0 0, 10 3.5, 0 7" fill="#22c55e"/>
+                    </marker>
+                    <marker id="arrowhead-red" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+                        <polygon points="0 0, 10 3.5, 0 7" fill="#f87171"/>
+                    </marker>
+                    <marker id="arrowhead-yellow" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+                        <polygon points="0 0, 10 3.5, 0 7" fill="#fbbf24"/>
+                    </marker>
+                </defs>
+
+                <!-- States -->
+                <g id="state-new" class="state" opacity="0.3">
+                    <rect x="30" y="120" width="110" height="60" rx="10" fill="rgba(34,197,94,0.2)" stroke="#22c55e" stroke-width="2"/>
+                    <text x="85" y="148" text-anchor="middle" fill="#22c55e" font-size="13" font-weight="600">NEW</text>
+                    <text x="85" y="168" text-anchor="middle" fill="#9ca3af" font-size="10">Created</text>
+                </g>
+
+                <g id="state-ready" class="state" opacity="0.3">
+                    <rect x="200" y="120" width="110" height="60" rx="10" fill="rgba(96,165,250,0.2)" stroke="#60a5fa" stroke-width="2"/>
+                    <text x="255" y="148" text-anchor="middle" fill="#60a5fa" font-size="13" font-weight="600">READY</text>
+                    <text x="255" y="168" text-anchor="middle" fill="#9ca3af" font-size="10">In run queue</text>
+                </g>
+
+                <g id="state-running" class="state" opacity="0.3">
+                    <rect x="370" y="120" width="110" height="60" rx="10" fill="rgba(74,222,128,0.2)" stroke="#4ade80" stroke-width="2"/>
+                    <text x="425" y="148" text-anchor="middle" fill="#4ade80" font-size="13" font-weight="600">RUNNING</text>
+                    <text x="425" y="168" text-anchor="middle" fill="#9ca3af" font-size="10">On CPU</text>
+                </g>
+
+                <g id="state-sleeping" class="state" opacity="0.3">
+                    <rect x="370" y="220" width="110" height="60" rx="10" fill="rgba(251,191,36,0.2)" stroke="#fbbf24" stroke-width="2"/>
+                    <text x="425" y="248" text-anchor="middle" fill="#fbbf24" font-size="13" font-weight="600">SLEEPING</text>
+                    <text x="425" y="268" text-anchor="middle" fill="#9ca3af" font-size="10">Waiting I/O</text>
+                </g>
+
+                <g id="state-stopped" class="state" opacity="0.3">
+                    <rect x="370" y="20" width="110" height="60" rx="10" fill="rgba(168,85,247,0.2)" stroke="#a855f7" stroke-width="2"/>
+                    <text x="425" y="48" text-anchor="middle" fill="#a855f7" font-size="13" font-weight="600">STOPPED</text>
+                    <text x="425" y="68" text-anchor="middle" fill="#9ca3af" font-size="10">SIGSTOP/SIGTSTP</text>
+                </g>
+
+                <g id="state-zombie" class="state" opacity="0.3">
+                    <rect x="540" y="120" width="110" height="60" rx="10" fill="rgba(248,113,113,0.2)" stroke="#f87171" stroke-width="2"/>
+                    <text x="595" y="148" text-anchor="middle" fill="#f87171" font-size="13" font-weight="600">ZOMBIE</text>
+                    <text x="595" y="168" text-anchor="middle" fill="#9ca3af" font-size="10">exit() called</text>
+                </g>
+
+                <g id="state-terminated" class="state" opacity="0.3">
+                    <rect x="700" y="120" width="80" height="60" rx="10" fill="rgba(107,114,128,0.2)" stroke="#6b7280" stroke-width="2"/>
+                    <text x="740" y="148" text-anchor="middle" fill="#6b7280" font-size="13" font-weight="600">DEAD</text>
+                    <text x="740" y="168" text-anchor="middle" fill="#9ca3af" font-size="10">Reaped</text>
+                </g>
+
+                <!-- Arrows -->
+                <g id="arrows" opacity="0.3">
+                    <line x1="140" y1="150" x2="195" y2="150" stroke="#22c55e" stroke-width="2" marker-end="url(#arrowhead)"/>
+                    <text x="167" y="140" text-anchor="middle" fill="#22c55e" font-size="9">fork()</text>
+
+                    <line x1="310" y1="150" x2="365" y2="150" stroke="#22c55e" stroke-width="2" marker-end="url(#arrowhead)"/>
+                    <text x="337" y="140" text-anchor="middle" fill="#22c55e" font-size="9">scheduled</text>
+
+                    <path d="M425 180 L425 215" stroke="#fbbf24" stroke-width="2" marker-end="url(#arrowhead-yellow)" fill="none"/>
+                    <text x="445" y="200" fill="#fbbf24" font-size="9">I/O wait</text>
+
+                    <path d="M370 250 Q300 250 300 180 Q300 150 365 150" stroke="#fbbf24" stroke-width="2" marker-end="url(#arrowhead-yellow)" fill="none" stroke-dasharray="4,3"/>
+                    <text x="290" y="210" fill="#fbbf24" font-size="9">wakeup</text>
+
+                    <path d="M425 120 L425 85" stroke="#a855f7" stroke-width="2" marker-end="url(#arrowhead)" fill="none"/>
+                    <text x="445" y="105" fill="#a855f7" font-size="9">SIGSTOP</text>
+
+                    <path d="M370 50 Q330 50 330 100 Q330 150 365 150" stroke="#a855f7" stroke-width="2" marker-end="url(#arrowhead)" fill="none" stroke-dasharray="4,3"/>
+                    <text x="310" y="80" fill="#a855f7" font-size="9">SIGCONT</text>
+
+                    <line x1="480" y1="150" x2="535" y2="150" stroke="#f87171" stroke-width="2" marker-end="url(#arrowhead-red)"/>
+                    <text x="507" y="140" text-anchor="middle" fill="#f87171" font-size="9">exit()</text>
+
+                    <line x1="650" y1="150" x2="695" y2="150" stroke="#6b7280" stroke-width="2" marker-end="url(#arrowhead)"/>
+                    <text x="672" y="140" text-anchor="middle" fill="#6b7280" font-size="9">wait()</text>
+                </g>
+            </svg>
+        </div>
+
+        <div class="legend">
+            <div class="legend-item"><div class="legend-dot" style="background:#22c55e;"></div>Created / Scheduled</div>
+            <div class="legend-item"><div class="legend-dot" style="background:#4ade80;"></div>Running on CPU</div>
+            <div class="legend-item"><div class="legend-dot" style="background:#fbbf24;"></div>Sleeping (I/O wait)</div>
+            <div class="legend-item"><div class="legend-dot" style="background:#a855f7;"></div>Stopped (signal)</div>
+            <div class="legend-item"><div class="legend-dot" style="background:#f87171;"></div>Zombie (exited, not reaped)</div>
+            <div class="legend-item"><div class="legend-dot" style="background:#6b7280;"></div>Dead (fully cleaned up)</div>
+        </div>
+
+        <div class="explanation" id="explanation">
+            <h3>How a Linux Process Lives and Dies</h3>
+            <p>Every process in Linux follows the same lifecycle: it is <strong>created</strong> by a parent process using <code>fork()</code>, optionally <strong>replaced</strong> with a new program via <code>exec()</code>, runs until it calls <code>exit()</code>, and becomes a <strong>zombie</strong> until the parent reads its exit status with <code>wait()</code>. Click the steps above to explore each stage.</p>
+        </div>
+
+        <table class="state-table">
+            <thead>
+                <tr><th>State</th><th>ps STAT</th><th>Description</th><th>Key Syscall</th></tr>
+            </thead>
+            <tbody>
+                <tr><td>Running</td><td><code>R</code></td><td>Actively using CPU or in the run queue</td><td><code>exec()</code></td></tr>
+                <tr><td>Sleeping (Interruptible)</td><td><code>S</code></td><td>Waiting for I/O, timer, or signal</td><td><code>read()</code>, <code>sleep()</code></td></tr>
+                <tr><td>Sleeping (Uninterruptible)</td><td><code>D</code></td><td>Waiting for disk I/O (cannot be killed)</td><td>Kernel I/O</td></tr>
+                <tr><td>Stopped</td><td><code>T</code></td><td>Paused by SIGSTOP or SIGTSTP (Ctrl+Z)</td><td><code>kill -STOP</code></td></tr>
+                <tr><td>Zombie</td><td><code>Z</code></td><td>Exited but parent has not called wait()</td><td><code>exit()</code></td></tr>
+                <tr><td>Dead</td><td><code>X</code></td><td>Fully removed from process table</td><td><code>wait()</code></td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <script>
+    const STEPS = [
+        {
+            highlight: ['state-new', 'state-ready', 'state-running', 'state-sleeping', 'state-stopped', 'state-zombie', 'state-terminated', 'arrows'],
+            title: 'How a Linux Process Lives and Dies',
+            text: 'Every process in Linux follows the same lifecycle: it is <strong>created</strong> by a parent process using <code>fork()</code>, optionally <strong>replaced</strong> with a new program via <code>exec()</code>, runs until it calls <code>exit()</code>, and becomes a <strong>zombie</strong> until the parent reads its exit status with <code>wait()</code>. Click the steps above to explore each stage.'
+        },
+        {
+            highlight: ['state-new', 'state-ready'],
+            title: 'Step 1: fork() -- Creating a New Process',
+            text: 'When you run a command like <code>ls</code>, the shell (bash) calls <code>fork()</code> to create a <strong>copy of itself</strong>. The new process (child) gets a unique PID and is placed in the <strong>READY</strong> queue. At this point, both parent and child are running the same code -- the return value of fork() tells them apart. Parent gets child PID; child gets 0.'
+        },
+        {
+            highlight: ['state-ready', 'state-running'],
+            title: 'Step 2: exec() -- Replacing the Program',
+            text: 'The child process calls <code>exec()</code> to replace its memory with the new program (e.g., <code>/usr/bin/ls</code>). The PID stays the same, but the code, stack, and heap are completely replaced. This is why "fork + exec" is the standard Unix pattern: fork creates the container, exec fills it with the desired program.'
+        },
+        {
+            highlight: ['state-running', 'state-sleeping', 'state-stopped'],
+            title: 'Step 3: Running -- On the CPU',
+            text: 'The process is now <strong>RUNNING</strong> (R state in <code>ps</code>). The kernel scheduler gives it CPU time slices. If it needs to wait for disk I/O or network data, it enters <strong>SLEEPING</strong> state (S or D). If you press <strong>Ctrl+Z</strong>, it receives SIGTSTP and enters <strong>STOPPED</strong> state (T). Use <code>fg</code> or <code>kill -CONT PID</code> to resume it.'
+        },
+        {
+            highlight: ['state-running', 'state-zombie'],
+            title: 'Step 4: exit() -- Process Terminates',
+            text: 'When the process finishes (or is killed), it calls <code>exit()</code>. This releases most resources (memory, file descriptors) but the process <strong>does not fully disappear</strong>. It becomes a <strong>ZOMBIE</strong> (Z state) -- a small entry in the process table holding its exit status. The kernel keeps it around so the parent can read how it died.'
+        },
+        {
+            highlight: ['state-zombie', 'state-terminated'],
+            title: 'Step 5: wait() -- Parent Reaps the Zombie',
+            text: 'The parent process calls <code>wait()</code> or <code>waitpid()</code> to read the child\'s exit status. This <strong>reaps</strong> the zombie, fully removing it from the process table. If the parent never calls wait(), zombies accumulate. If the parent dies first, init (PID 1) adopts the orphan and reaps it. Many zombie processes = buggy parent that is not calling wait().'
+        }
+    ];
+
+    let currentStep = 0;
+
+    function showStep(index) {
+        currentStep = index;
+        document.querySelectorAll('.step-btn').forEach((btn, i) => btn.classList.toggle('active', i === index));
+
+        const step = STEPS[index];
+        // Reset all elements to dim
+        document.querySelectorAll('.state, #arrows').forEach(el => el.setAttribute('opacity', '0.15'));
+        // Highlight active elements
+        step.highlight.forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.setAttribute('opacity', '1');
+        });
+
+        const expl = document.getElementById('explanation');
+        expl.innerHTML = `<h3>${step.title}</h3><p>${step.text}</p>`;
+    }
+
+    document.addEventListener('DOMContentLoaded', () => showStep(0));
+    </script>
+    <script src="../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>

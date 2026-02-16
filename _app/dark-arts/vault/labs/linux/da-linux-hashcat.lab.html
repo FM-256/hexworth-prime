@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hashcat Password Cracking - Dark Arts Vault | Hexworth Prime</title>
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('dark-arts');</script>
+    <script src="../../../../components/LinuxTerminal.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', system-ui, sans-serif; background: linear-gradient(135deg, #0a0a0a 0%, #1a0a0a 50%, #0d0d0d 100%); color: #e0e0e0; min-height: 100vh; display: flex; flex-direction: column; }
+        .header { background: linear-gradient(135deg, rgba(220,38,38,0.1), rgba(153,27,27,0.05)); border-bottom: 1px solid rgba(220,38,38,0.3); padding: 15px 25px; display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; }
+        .header-left { display: flex; align-items: center; gap: 20px; }
+        .back-link { color: #888; text-decoration: none; font-size: 0.9rem; }
+        .back-link:hover { color: #dc2626; }
+        .header-badge { background: rgba(220,38,38,0.2); color: #fca5a5; padding: 4px 12px; border-radius: 20px; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.1em; }
+        .header h1 { font-size: 1.2rem; color: #dc2626; }
+        .main-container { display: grid; grid-template-columns: 1fr 360px; flex: 1; overflow: hidden; }
+        .terminal-panel { display: flex; flex-direction: column; border-right: 1px solid rgba(220,38,38,0.2); overflow: hidden; }
+        .task-prompt { background: rgba(0,0,0,0.3); padding: 18px 25px; border-bottom: 1px solid rgba(220,38,38,0.2); flex-shrink: 0; }
+        .task-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+        .task-number { background: #dc2626; color: #000; width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 0.85rem; }
+        .task-number.completed { background: #f87171; }
+        .task-number.skipped { background: #fbbf24; }
+        .task-question { font-size: 1rem; color: #fff; line-height: 1.5; }
+        .task-question code { background: rgba(220,38,38,0.2); padding: 2px 8px; border-radius: 4px; font-family: 'Courier New', monospace; color: #fca5a5; }
+        .task-hint { font-size: 0.85rem; color: #666; margin-top: 8px; font-style: italic; display: none; }
+        .task-hint.show { display: block; color: #fbbf24; }
+        .terminal-container { flex: 1; min-height: 0; }
+        .feedback-bar { background: rgba(0,0,0,0.4); padding: 12px 25px; border-top: 1px solid rgba(220,38,38,0.2); display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; }
+        .feedback-message { font-size: 0.9rem; color: #888; }
+        .feedback-message.success { color: #f87171; }
+        .skip-btn { background: transparent; color: #666; border: 1px solid rgba(255,255,255,0.1); padding: 8px 16px; border-radius: 6px; font-size: 0.85rem; cursor: pointer; }
+        .skip-btn:hover { background: rgba(251,191,36,0.1); color: #fbbf24; }
+        .skip-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .progress-panel { background: rgba(10,5,5,0.95); padding: 20px; overflow-y: auto; }
+        .progress-panel h2 { color: #dc2626; font-size: 1rem; margin-bottom: 15px; padding-bottom: 10px; border-bottom: 1px solid rgba(220,38,38,0.3); }
+        .ethical-warning { background: linear-gradient(135deg, rgba(220,38,38,0.15), rgba(153,27,27,0.1)); border: 1px solid rgba(220,38,38,0.4); border-radius: 8px; padding: 12px 16px; margin-bottom: 15px; }
+        .ethical-warning-label { font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: #dc2626; margin-bottom: 4px; }
+        .ethical-warning-text { font-size: 0.78rem; color: #fca5a5; line-height: 1.4; }
+        .context-callout { background: rgba(220,38,38,0.08); border-left: 3px solid #dc2626; padding: 10px 14px; margin: 10px 0 15px; border-radius: 0 8px 8px 0; }
+        .context-callout-label { font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: #dc2626; margin-bottom: 4px; }
+        .context-callout-text { font-size: 0.82rem; color: #9ca3af; line-height: 1.5; }
+        .progress-bar { background: rgba(255,255,255,0.1); border-radius: 8px; height: 8px; overflow: hidden; margin: 12px 0; }
+        .progress-fill { height: 100%; background: linear-gradient(90deg, #dc2626, #f87171); border-radius: 8px; transition: width 0.5s ease; width: 0%; }
+        .progress-text { display: flex; justify-content: space-between; color: #888; font-size: 0.85rem; margin-bottom: 15px; }
+        .task-list { list-style: none; }
+        .task-item { padding: 8px 10px; margin: 4px 0; background: rgba(255,255,255,0.02); border-radius: 6px; border-left: 3px solid #30363d; font-size: 0.78rem; color: #8b949e; display: flex; align-items: center; gap: 8px; }
+        .task-item.active { border-left-color: #dc2626; background: rgba(220,38,38,0.1); color: #fff; }
+        .task-item.completed { border-left-color: #f87171; color: #f87171; }
+        .task-item.skipped { border-left-color: #fbbf24; color: #fbbf24; opacity: 0.7; }
+        .task-item .check { width: 18px; height: 18px; border: 2px solid #30363d; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.6rem; flex-shrink: 0; }
+        .task-item.active .check { border-color: #dc2626; }
+        .task-item.completed .check { border-color: #f87171; background: #f87171; color: #000; }
+        .task-item.skipped .check { border-color: #fbbf24; background: #fbbf24; color: #000; }
+        .defender-box { background: rgba(59,130,246,0.08); border: 1px solid rgba(59,130,246,0.3); border-radius: 8px; padding: 10px 12px; margin-top: 12px; }
+        .defender-box-title { font-size: 0.65rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: #3b82f6; margin-bottom: 3px; }
+        .defender-box-text { font-size: 0.75rem; color: #93c5fd; line-height: 1.4; }
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.9); justify-content: center; align-items: center; z-index: 1000; }
+        .modal-overlay.show { display: flex; }
+        .modal { background: linear-gradient(135deg, #0d0d0d, #1a0a0a); border: 2px solid #dc2626; border-radius: 16px; padding: 40px; text-align: center; max-width: 500px; }
+        .modal .trophy { font-size: 4rem; margin-bottom: 15px; }
+        .modal h2 { color: #dc2626; font-size: 1.6rem; margin-bottom: 10px; }
+        .modal.perfect h2 { color: #f87171; }
+        .modal p { color: #8b949e; margin-bottom: 20px; }
+        .modal .stats { display: flex; justify-content: center; gap: 30px; margin-bottom: 25px; }
+        .modal .stat { text-align: center; }
+        .modal .stat-value { font-size: 2rem; font-weight: bold; color: #fff; }
+        .modal .stat-value.correct { color: #f87171; }
+        .modal .stat-value.skipped { color: #fbbf24; }
+        .modal .stat-label { font-size: 0.85rem; color: #888; margin-top: 5px; }
+        .modal-buttons { display: flex; gap: 15px; justify-content: center; }
+        .modal-btn { padding: 12px 24px; border: none; border-radius: 8px; cursor: pointer; font-size: 0.9rem; text-decoration: none; }
+        .modal-btn.primary { background: linear-gradient(135deg, #dc2626, #f87171); color: #fff; font-weight: 600; }
+        .modal-btn.secondary { background: rgba(255,255,255,0.1); color: #e0e0e0; border: 1px solid rgba(255,255,255,0.2); }
+        @media (max-width: 900px) { .main-container { grid-template-columns: 1fr; } .progress-panel { display: none; } }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="header-left">
+            <a href="../../index.html" class="back-link">&larr; Dark Arts Vault</a>
+            <span class="header-badge">Mission Lab</span>
+            <h1>Hashcat Password Cracking</h1>
+        </div>
+    </div>
+    <div class="main-container">
+        <div class="terminal-panel">
+            <div class="task-prompt">
+                <div class="task-header">
+                    <div class="task-number" id="taskNumber">1</div>
+                    <span style="color:#888;font-size:0.85rem;">Objective <span id="currentTaskNum">1</span> of <span id="totalTasks">10</span></span>
+                </div>
+                <div class="task-question" id="taskQuestion">Loading...</div>
+                <div class="task-hint" id="taskHint"></div>
+            </div>
+            <div class="terminal-container" id="terminal"></div>
+            <div class="feedback-bar">
+                <div class="feedback-message" id="feedbackMessage">Enter your hashcat command...</div>
+                <button class="skip-btn" id="skipBtn" onclick="skipTask()">Skip</button>
+            </div>
+        </div>
+        <div class="progress-panel">
+            <h2>PASSWORD CRACKING OPS</h2>
+            <div class="ethical-warning">
+                <div class="ethical-warning-label">Legal Warning</div>
+                <div class="ethical-warning-text">Password cracking is only legal against hashes you own or have written authorization to test. Cracking stolen credentials is a federal crime.</div>
+            </div>
+            <div class="context-callout">
+                <div class="context-callout-label">Mission Brief</div>
+                <div class="context-callout-text">During a pentest engagement, you extracted password hashes from a compromised database. Crack them using hashcat to demonstrate the risk of weak hashing to the client. All hashes are from the engagement scope.</div>
+            </div>
+            <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+            <div class="progress-text">
+                <span><span id="completedCount">0</span> / 10 objectives</span>
+                <span id="progressPercent">0%</span>
+            </div>
+            <ul class="task-list" id="taskList"></ul>
+            <div class="defender-box" id="defenderBox" style="display:none;">
+                <div class="defender-box-title">Defender's Perspective</div>
+                <div class="defender-box-text" id="defenderText"></div>
+            </div>
+        </div>
+    </div>
+    <div class="modal-overlay" id="resultsModal">
+        <div class="modal" id="modalContent">
+            <div class="trophy" id="resultsIcon">&#127942;</div>
+            <h2 id="resultsTitle">Mission Complete!</h2>
+            <p id="resultsMessage">Hashcat mastered.</p>
+            <div class="stats">
+                <div class="stat"><div class="stat-value correct" id="correctCount">0</div><div class="stat-label">Completed</div></div>
+                <div class="stat"><div class="stat-value skipped" id="skippedCount">0</div><div class="stat-label">Skipped</div></div>
+            </div>
+            <div class="modal-buttons">
+                <button class="modal-btn primary" onclick="restartLab()">Restart</button>
+                <a href="../../index.html" class="modal-btn secondary">Back to Vault</a>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    const TASKS = [
+        { id:1, question:'Crack an MD5 hash using a <code>dictionary attack</code> (mode 0) with rockyou.txt', validate:(c)=>c.includes('hashcat')&&c.includes('-m 0')&&c.includes('rockyou'), hint:'hashcat -m 0 hashes.txt /usr/share/wordlists/rockyou.txt', response:'hashcat (v6.2.6) starting...\nSession: hashcat\nHash.Mode: 0 (MD5)\nSpeed.#1: 14523.4 MH/s (GPU)\n\n5d41402abc4b2a76b9719d911017c592:hello\ne99a18c428cb38d5f260853678922e03:abc123\nd8578edf8458ce06fbc5bb76a58c5ca4:qwerty\n\nSession..........: hashcat\nStatus...........: Cracked\nProgress.........: 3/3 (100.00%)\nTime.Started.....: 0 secs', successMessage:'MD5 (mode 0) cracked at 14.5 BILLION hashes/sec on GPU. Three passwords cracked instantly from rockyou.txt -- the most common wordlist (14M passwords).', defender:'MD5 passwords crack in seconds. Mandate bcrypt/Argon2 for all password storage. Run hashcat against your own DB hashes to find weak passwords before attackers do.' },
+        { id:2, question:'Crack NTLM hashes (mode <code>1000</code>) with a wordlist attack', validate:(c)=>c.includes('hashcat')&&c.includes('-m 1000'), hint:'hashcat -m 1000 ntlm_hashes.txt /usr/share/wordlists/rockyou.txt', response:'Hash.Mode: 1000 (NTLM)\nSpeed.#1: 48291.3 MH/s (GPU)\n\na4f49c406510bdcab6824ee7c30fd852:Password1\n31d6cfe0d16ae931b73c59d7e0c089c0: (empty password)\nfc525c9683e8fe067095ba2ddc971889:Summer2025!\n\nStatus: Cracked (3/3)', successMessage:'NTLM cracks at 48 BILLION/sec. Empty password hash is always 31d6cfe0d16ae931b73c59d7e0c089c0. NTLM has no salt -- identical passwords = identical hashes.', defender:'NTLM is the weakest enterprise hash. Enable Credential Guard, enforce 15+ char passwords, disable NTLMv1. An empty NTLM hash in your domain = instant compromise.' },
+        { id:3, question:'Use a <code>mask attack</code> (-a 3) to crack a hash with pattern: 1 uppercase + 5 lowercase + 2 digits', validate:(c)=>c.includes('hashcat')&&c.includes('-a 3')&&(c.includes('?u')&&c.includes('?l')&&c.includes('?d')), hint:'hashcat -m 0 hash.txt -a 3 ?u?l?l?l?l?l?d?d', response:'Hash.Mode: 0 (MD5)\nAttack.Mode: 3 (Brute-force/Mask)\nMask: ?u?l?l?l?l?l?d?d\nKeyspace: 26*26^5*10^2 = 30,891,577,600\n\nCandidate.Mask: ?u?l?l?l?l?l?d?d [8]\nProgress: 30891577600/30891577600 (100.00%)\n\n8743b52063cd84097a65d1633f5c74f5:Monkey42\n\nStatus: Cracked\nTime: 2.13 seconds', successMessage:'Mask attack defines exact character patterns. ?u=uppercase, ?l=lowercase, ?d=digit, ?s=special. 30.8B keyspace cracked in 2 seconds. Know your target password policy.', defender:'Complex passwords with predictable patterns (Capital+lower+digits) are vulnerable to mask attacks. Use passphrases (4+ random words) instead. Length beats complexity.' },
+        { id:4, question:'Crack a SHA-256 hash (mode <code>1400</code>) using a <code>rule-based attack</code> with best64.rule', validate:(c)=>c.includes('hashcat')&&c.includes('-m 1400')&&c.includes('-r')&&c.includes('best64'), hint:'hashcat -m 1400 sha256.txt wordlist.txt -r /usr/share/hashcat/rules/best64.rule', response:'Hash.Mode: 1400 (SHA-256)\nRules: /usr/share/hashcat/rules/best64.rule (77 rules)\nSpeed.#1: 2341.8 MH/s\n\nApplied rules: append 1, append 123, capitalize, l33t, reverse...\n\n127e6fbfe24a750e72930c220a8e138275656b8e5d8f48a98c3c92df2caba935:johndoe123\n\nStatus: Cracked', successMessage:'Rules mutate each wordlist word: append numbers, capitalize, l33t speak, reverse, etc. best64.rule has 77 transformations. Rules turn 14M words into 1B+ candidates.', defender:'Rules crack "clever" mutations like P@ssw0rd. Users think they are being smart -- hashcat knows every trick. Enforce minimum 12 characters and check against breached password lists.' },
+        { id:5, question:'Use <code>combinator attack</code> (-a 1) to combine two wordlists for longer passwords', validate:(c)=>c.includes('hashcat')&&c.includes('-a 1'), hint:'hashcat -m 0 hash.txt wordlist1.txt wordlist2.txt -a 1', response:'Hash.Mode: 0 (MD5)\nAttack.Mode: 1 (Combinator)\nWordlist 1: colors.txt (10 words)\nWordlist 2: animals.txt (10 words)\nKeyspace: 100 combinations\n\nab56b4d92b40713acc5af89985d4b786:redpanda\nfd2cc2d4ea05fa7c5faa53a53a1c6050:bluewhale\n\nStatus: Cracked (2/3)', successMessage:'Combinator joins every word from list1 with every word from list2. Great for compound passwords like "sunflower" or "bluesky". Custom wordlists beat brute force.', defender:'Passphrases combining two dictionary words are vulnerable to combinator attacks. Use 4+ random words with spaces or separators: "correct horse battery staple" is far stronger than "bluewhale".' },
+        { id:6, question:'Extract hashes from a Linux <code>/etc/shadow</code> file using hashcat format', validate:(c)=>c.includes('hashcat')&&c.includes('-m 1800'), hint:'hashcat -m 1800 shadow_hashes.txt /usr/share/wordlists/rockyou.txt', response:'Hash.Mode: 1800 (sha512crypt $6$, SHA512 (Unix))\nSpeed.#1: 152.3 kH/s (GPU)\n\n$6$saltsalt$IxDD3jeSOb...:password123\n\nStatus: Cracked (1/3)\nNote: SHA-512 crypt is MUCH slower than MD5/NTLM', successMessage:'Mode 1800 = Linux shadow hashes ($6$). Only 152K/sec vs 14B for MD5. The salt + 5000 rounds makes cracking 100,000x slower. This is why salting matters.', defender:'Linux SHA-512 crypt is decent but bcrypt ($2y$) is better. Edit /etc/pam.d/common-password to use bcrypt. The 100,000x speed difference is your defense margin.' },
+        { id:7, question:'Crack a bcrypt hash (mode <code>3200</code>) -- observe the speed difference', validate:(c)=>c.includes('hashcat')&&c.includes('-m 3200'), hint:'hashcat -m 3200 bcrypt_hash.txt /usr/share/wordlists/rockyou.txt', response:'Hash.Mode: 3200 (bcrypt $2*$, Blowfish (Unix))\nSpeed.#1: 28.5 kH/s (GPU)\n\n$2b$12$LJ3m4ys3Lg2PiwE...:password\n\nStatus: Cracked (only because "password" is #1 in rockyou)\nTime: 45 minutes for a common password\n\nNote: At 28.5 kH/s, exhausting rockyou.txt takes ~8 minutes.\nA mask attack on 8-char passwords would take ~127 YEARS.', successMessage:'bcrypt at 28.5K/sec vs MD5 at 14.5B/sec. That is a 500,000x speed reduction. Only the weakest passwords (literal "password") get cracked. bcrypt is doing its job.', defender:'bcrypt is the gold standard. Even with a $50K GPU rig, complex bcrypt passwords are practically uncrackable. Enforce minimum 10 characters WITH bcrypt and attackers hit a wall.' },
+        { id:8, question:'Show hashcat <code>benchmark</code> to compare hash cracking speeds across all modes', validate:(c)=>c.includes('hashcat')&&(c.includes('-b')||c.includes('--benchmark')), hint:'hashcat -b', response:'Hashcat Benchmark (RTX 4090)\n===========================\nMode 0    (MD5):           164.3 GH/s\nMode 100  (SHA-1):          52.8 GH/s\nMode 1000 (NTLM):         185.2 GH/s\nMode 1400 (SHA-256):        10.4 GH/s\nMode 1700 (SHA-512):         3.5 GH/s\nMode 1800 (sha512crypt):   620.1 kH/s\nMode 3200 (bcrypt):         90.4 kH/s\nMode 13100(Kerberoast):      1.2 GH/s\n\nConclusion: Fast hashes (MD5, NTLM) = instant crack.\n            Slow hashes (bcrypt, scrypt) = years to crack.', successMessage:'Benchmark reveals the truth: NTLM at 185 BILLION/sec vs bcrypt at 90K/sec. 2-million-to-one speed difference. Hash algorithm choice is THE most important password defense.', defender:'Share these benchmarks with developers. When they see MD5 at 164 GH/s vs bcrypt at 90 kH/s, the argument for proper hashing writes itself. One GPU can test every 8-char MD5 password in minutes.' },
+        { id:9, question:'Use <code>--show</code> to display previously cracked passwords from the potfile', validate:(c)=>c.includes('hashcat')&&c.includes('--show'), hint:'hashcat -m 0 hashes.txt --show', response:'5d41402abc4b2a76b9719d911017c592:hello\ne99a18c428cb38d5f260853678922e03:abc123\nd8578edf8458ce06fbc5bb76a58c5ca4:qwerty\na4f49c406510bdcab6824ee7c30fd852:Password1\n\n4 hashes shown from potfile (~/.hashcat/hashcat.potfile)', successMessage:'The potfile stores all cracked hashes permanently. --show retrieves them without re-cracking. Potfiles are forensic gold -- they prove what was cracked during the engagement.', defender:'Pentest reports should include cracked password statistics (% cracked, time-to-crack, pattern analysis) to demonstrate risk to management. Real numbers drive policy changes.' },
+        { id:10, question:'Crack a hash using <code>prince attack</code> mode (-a 0 with --prince) for passphrase cracking', validate:(c)=>c.includes('hashcat')&&(c.includes('prince')||c.includes('pp3')||c.includes('princeprocessor')), hint:'pp64.bin wordlist.txt | hashcat -m 0 hash.txt', response:'Using PRINCE (PRobability INfinite Chained Elements)\nGenerating passphrases from word combinations...\n\nKeyspace: ~2.8 billion passphrase candidates\nCandidates: "the quick", "quick brown", "the quick brown"...\n\n482c811da5d5b4bc6d497ffa98491e38:sunflowergarden2025\n\nStatus: Cracked\nTime: 12 minutes\n\nNote: PRINCE chains dictionary words into natural passphrases.', successMessage:'PRINCE processor generates multi-word combinations probabilistically. It targets passphrases that users think are safe. Even "sunflowergarden2025" falls to targeted cracking.', defender:'True security: randomly generated passphrases (diceware method) with 5+ words OR 20+ random characters. User-chosen "clever" passphrases follow patterns that PRINCE exploits.' }
+    ];
+
+    const state = { currentTask: 0, results: {}, attempts: {} };
+
+    function init() {
+        LinuxTerminal.init('DA-HASHCAT', '#terminal', {
+            user: 'pentester', hostname: 'kali-ops', startDir: '/home/pentester', height: '100%',
+            onCommand: handleCommand,
+            objectives: TASKS.map(t => ({ id: `obj${t.id}`, desc: t.question.replace(/<[^>]+>/g, '').substring(0, 50) }))
+        });
+        LinuxTerminal.addFilesystem({
+            '/home/pentester': { type: 'dir', perms: 'drwxr-xr-x', owner: 'pentester', group: 'pentester', children: ['loot', 'wordlists', '.bashrc'] },
+            '/home/pentester/loot': { type: 'dir', perms: 'drwxr-xr-x', owner: 'pentester', group: 'pentester', children: ['hashes.txt', 'ntlm_hashes.txt', 'sha256.txt', 'shadow_hashes.txt', 'bcrypt_hash.txt'] },
+            '/home/pentester/loot/hashes.txt': { type: 'file', perms: '-rw-r--r--', owner: 'pentester', group: 'pentester', size: 256, content: '5d41402abc4b2a76b9719d911017c592\ne99a18c428cb38d5f260853678922e03\nd8578edf8458ce06fbc5bb76a58c5ca4\n' },
+            '/home/pentester/wordlists': { type: 'dir', perms: 'drwxr-xr-x', owner: 'pentester', group: 'pentester', children: ['rockyou.txt', 'colors.txt', 'animals.txt'] }
+        });
+        buildTaskList(); showTask(0);
+        document.getElementById('totalTasks').textContent = TASKS.length;
+    }
+
+    function buildTaskList() { document.getElementById('taskList').innerHTML = TASKS.map((t,i) => `<li class="task-item${i===0?' active':''}" data-task="${i}"><div class="check">${i+1}</div><span>${t.question.replace(/<[^>]+>/g,'').substring(0,42)}...</span></li>`).join(''); }
+
+    function showTask(i) {
+        const t = TASKS[i]; state.currentTask = i; state.attempts[i] = 0;
+        document.getElementById('taskNumber').textContent = i+1; document.getElementById('taskNumber').className = 'task-number';
+        document.getElementById('currentTaskNum').textContent = i+1;
+        document.getElementById('taskQuestion').innerHTML = t.question;
+        document.getElementById('taskHint').textContent = 'Hint: ' + t.hint; document.getElementById('taskHint').classList.remove('show');
+        document.getElementById('feedbackMessage').textContent = 'Enter your hashcat command...'; document.getElementById('feedbackMessage').className = 'feedback-message';
+        document.getElementById('skipBtn').disabled = false;
+        document.querySelectorAll('.task-item').forEach((el,j) => { el.classList.remove('active'); if (j===i && !state.results[j]) el.classList.add('active'); });
+        LinuxTerminal.print(`\n<span style="color:#dc2626;">--- Objective ${i+1}: ${t.question.replace(/<[^>]+>/g,'').substring(0,70)} ---</span>`);
+    }
+
+    function handleCommand(cmdLine, output, cmd, args) {
+        const t = TASKS[state.currentTask]; state.attempts[state.currentTask] = (state.attempts[state.currentTask]||0)+1;
+        const c = cmdLine.trim();
+        if (t.validate(c)) {
+            LinuxTerminal.print(`<span style="color:#aaa;">${t.response}</span>`);
+            LinuxTerminal.print(`\n<span style="color:#f87171;">${t.successMessage}</span>`);
+            LinuxTerminal.print(`<span style="color:#3b82f6;">[DEFENDER] ${t.defender}</span>`);
+            LinuxTerminal.completeObjective(`obj${t.id}`);
+            document.getElementById('feedbackMessage').textContent = t.successMessage.substring(0,70)+'...'; document.getElementById('feedbackMessage').className = 'feedback-message success';
+            state.results[state.currentTask] = 'correct';
+            updateTaskItem(state.currentTask, 'completed'); document.getElementById('taskNumber').classList.add('completed');
+            document.getElementById('skipBtn').disabled = true;
+            document.getElementById('defenderBox').style.display = 'block'; document.getElementById('defenderText').textContent = t.defender;
+            updateProgress(); setTimeout(() => advanceTask(), 2000);
+        } else if (c && !['clear','help','ls','cat','cd','pwd'].includes(cmd)) {
+            LinuxTerminal.print('<span class="lt-error">Check your hashcat flags, mode, and attack type.</span>');
+            if (state.attempts[state.currentTask] >= 3) document.getElementById('taskHint').classList.add('show');
+        }
+    }
+
+    function updateTaskItem(i,s) { const el=document.querySelector(`.task-item[data-task="${i}"]`); if(el){el.classList.remove('active','completed','skipped');el.classList.add(s);el.querySelector('.check').innerHTML=s==='completed'?'&#10003;':'&#8212;';} }
+    function skipTask() { state.results[state.currentTask]='skipped'; updateTaskItem(state.currentTask,'skipped'); document.getElementById('taskNumber').classList.add('skipped'); document.getElementById('skipBtn').disabled=true; document.getElementById('feedbackMessage').innerHTML=`<strong>Skipped.</strong> <code style="background:rgba(251,191,36,0.2);padding:2px 6px;border-radius:4px;">${TASKS[state.currentTask].hint}</code>`; updateProgress(); setTimeout(()=>advanceTask(),800); }
+    function advanceTask() { if(state.currentTask>=TASKS.length-1){showResults();return;} showTask(state.currentTask+1); }
+    function updateProgress() { const c=Object.values(state.results).filter(r=>r==='correct').length; const p=Math.round((Object.keys(state.results).length/TASKS.length)*100); document.getElementById('progressFill').style.width=p+'%'; document.getElementById('completedCount').textContent=c; document.getElementById('progressPercent').textContent=p+'%'; }
+
+    function showResults() {
+        const correct=Object.values(state.results).filter(r=>r==='correct').length, skipped=Object.values(state.results).filter(r=>r==='skipped').length;
+        document.getElementById('correctCount').textContent=correct; document.getElementById('skippedCount').textContent=skipped;
+        const m=document.getElementById('modalContent'); m.classList.remove('perfect');
+        if(correct===TASKS.length){m.classList.add('perfect');document.getElementById('resultsIcon').textContent=String.fromCodePoint(0x1F480);document.getElementById('resultsTitle').textContent='Password Cracker';document.getElementById('resultsMessage').textContent='Every mode mastered. Hashes fear you.';}
+        else{document.getElementById('resultsIcon').textContent=String.fromCodePoint(0x1F525);document.getElementById('resultsTitle').textContent='Progress Made';document.getElementById('resultsMessage').textContent=`${correct}/${TASKS.length} objectives. Keep cracking.`;}
+        document.getElementById('resultsModal').classList.add('show');
+        try{if(typeof GameTracker!=='undefined')GameTracker.record('da_hashcat',correct*10,{correct,skipped,total:TASKS.length});}catch(e){}
+        try{if(typeof ProgressManager!=='undefined')ProgressManager.completeModule('da-linux-hashcat','dark-arts','lab',{score:Math.round((correct/TASKS.length)*100)});}catch(e){}
+    }
+
+    function restartLab() { document.getElementById('resultsModal').classList.remove('show'); state.currentTask=0;state.results={};state.attempts={}; document.getElementById('defenderBox').style.display='none'; LinuxTerminal.destroy(); init(); }
+
+    document.addEventListener('DOMContentLoaded', init);
+    </script>
+    <script src="../../../../components/ProgressiveHints.js"></script>
+    <script src="../../../../components/GameTracker.js"></script>
+    <script src="../../../../components/FluxCapacitor.js"></script>
+    <script src="../../../../components/ProgressManager.js"></script>
+</body>
+</html>

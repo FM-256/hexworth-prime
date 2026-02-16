@@ -1,0 +1,800 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nmap Scan Types Drill - Dark Arts Vault | Hexworth Prime</title>
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('dark-arts');</script>
+    <script src="../../../../components/LinuxTerminal.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: linear-gradient(135deg, #0a0a0a 0%, #1a0a0a 50%, #0d0d0d 100%);
+            color: #e0e0e0;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        .header {
+            background: linear-gradient(135deg, rgba(220,38,38,0.1), rgba(153,27,27,0.05));
+            border-bottom: 1px solid rgba(220,38,38,0.3);
+            padding: 15px 25px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-shrink: 0;
+        }
+        .header-left { display: flex; align-items: center; gap: 20px; }
+        .back-link {
+            color: #888;
+            text-decoration: none;
+            font-size: 0.9rem;
+            transition: color 0.3s;
+        }
+        .back-link:hover { color: #dc2626; }
+        .header-badge {
+            background: rgba(220,38,38,0.2);
+            color: #fca5a5;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+        }
+        .header h1 { font-size: 1.2rem; color: #dc2626; }
+        .header-right { display: flex; align-items: center; gap: 15px; }
+        .timer {
+            font-family: 'Courier New', monospace;
+            font-size: 1.3rem;
+            color: #dc2626;
+            background: rgba(0,0,0,0.3);
+            padding: 6px 14px;
+            border-radius: 8px;
+            border: 1px solid rgba(220,38,38,0.3);
+        }
+        .timer.warning { color: #fbbf24; border-color: rgba(251,191,36,0.5); }
+        .timer.expired { color: #f87171; border-color: rgba(248,113,113,0.5); }
+        .timer-btn {
+            background: rgba(220,38,38,0.2);
+            color: #dc2626;
+            border: 1px solid rgba(220,38,38,0.3);
+            padding: 6px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.8rem;
+            transition: all 0.3s;
+        }
+        .timer-btn:hover { background: rgba(220,38,38,0.3); }
+        .timer-btn.disabled { opacity: 0.3; cursor: not-allowed; }
+        .main-container {
+            display: grid;
+            grid-template-columns: 1fr 340px;
+            flex: 1;
+            overflow: hidden;
+        }
+        .terminal-panel {
+            display: flex;
+            flex-direction: column;
+            border-right: 1px solid rgba(220,38,38,0.2);
+            overflow: hidden;
+        }
+        .task-prompt {
+            background: rgba(0,0,0,0.3);
+            padding: 20px 25px;
+            border-bottom: 1px solid rgba(220,38,38,0.2);
+            flex-shrink: 0;
+        }
+        .task-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+        .task-number {
+            background: #dc2626;
+            color: #000;
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 0.85rem;
+        }
+        .task-number.completed { background: #f87171; }
+        .task-number.skipped { background: #fbbf24; }
+        .task-question {
+            font-size: 1.05rem;
+            color: #fff;
+            line-height: 1.5;
+        }
+        .task-question code {
+            background: rgba(220,38,38,0.2);
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            color: #fca5a5;
+        }
+        .task-hint {
+            font-size: 0.85rem;
+            color: #666;
+            margin-top: 10px;
+            font-style: italic;
+            display: none;
+        }
+        .task-hint.show { display: block; color: #fbbf24; }
+        .terminal-container { flex: 1; min-height: 0; }
+        .feedback-bar {
+            background: rgba(0,0,0,0.4);
+            padding: 12px 25px;
+            border-top: 1px solid rgba(220,38,38,0.2);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-shrink: 0;
+        }
+        .feedback-message { font-size: 0.9rem; color: #888; }
+        .feedback-message.success { color: #f87171; }
+        .feedback-message.error { color: #ef4444; }
+        .skip-btn {
+            background: transparent;
+            color: #666;
+            border: 1px solid rgba(255,255,255,0.1);
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .skip-btn:hover {
+            background: rgba(251,191,36,0.1);
+            border-color: rgba(251,191,36,0.3);
+            color: #fbbf24;
+        }
+        .skip-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .progress-panel {
+            background: rgba(10,5,5,0.95);
+            padding: 20px;
+            overflow-y: auto;
+        }
+        .progress-panel h2 {
+            color: #dc2626;
+            font-size: 1.1rem;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid rgba(220,38,38,0.3);
+        }
+        .progress-bar {
+            background: rgba(255,255,255,0.1);
+            border-radius: 8px;
+            height: 8px;
+            overflow: hidden;
+            margin-bottom: 15px;
+        }
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #dc2626, #f87171);
+            border-radius: 8px;
+            transition: width 0.5s ease;
+            width: 0%;
+        }
+        .progress-text {
+            display: flex;
+            justify-content: space-between;
+            color: #888;
+            font-size: 0.85rem;
+            margin-bottom: 25px;
+        }
+        .task-list { list-style: none; }
+        .task-item {
+            padding: 10px 12px;
+            margin: 6px 0;
+            background: rgba(255,255,255,0.02);
+            border-radius: 8px;
+            border-left: 3px solid #30363d;
+            font-size: 0.82rem;
+            color: #8b949e;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            transition: all 0.3s;
+        }
+        .task-item.active { border-left-color: #dc2626; background: rgba(220,38,38,0.1); color: #fff; }
+        .task-item.completed { border-left-color: #f87171; color: #f87171; }
+        .task-item.skipped { border-left-color: #fbbf24; color: #fbbf24; opacity: 0.7; }
+        .task-item .check {
+            width: 20px; height: 20px;
+            border: 2px solid #30363d;
+            border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 0.65rem; flex-shrink: 0;
+        }
+        .task-item.active .check { border-color: #dc2626; }
+        .task-item.completed .check { border-color: #f87171; background: #f87171; color: #000; }
+        .task-item.skipped .check { border-color: #fbbf24; background: #fbbf24; color: #000; }
+        .ethical-warning {
+            background: linear-gradient(135deg, rgba(220,38,38,0.15), rgba(153,27,27,0.1));
+            border: 1px solid rgba(220,38,38,0.4);
+            border-radius: 8px;
+            padding: 12px 16px;
+            margin-bottom: 15px;
+        }
+        .ethical-warning-label { font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: #dc2626; margin-bottom: 4px; }
+        .ethical-warning-text { font-size: 0.8rem; color: #fca5a5; line-height: 1.4; }
+        .context-callout {
+            background: rgba(220,38,38,0.08);
+            border-left: 3px solid #dc2626;
+            padding: 12px 16px;
+            margin: 15px 0;
+            border-radius: 0 8px 8px 0;
+        }
+        .context-callout-label { font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: #dc2626; margin-bottom: 4px; }
+        .context-callout-text { font-size: 0.85rem; color: #9ca3af; line-height: 1.5; }
+        .defender-callout {
+            background: rgba(59,130,246,0.08);
+            border-left: 3px solid #3b82f6;
+            padding: 10px 14px;
+            margin: 10px 0;
+            border-radius: 0 8px 8px 0;
+        }
+        .defender-callout-label { font-size: 0.65rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: #3b82f6; margin-bottom: 3px; }
+        .defender-callout-text { font-size: 0.78rem; color: #93c5fd; line-height: 1.4; }
+        .modal-overlay {
+            display: none; position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.9);
+            justify-content: center; align-items: center;
+            z-index: 1000;
+        }
+        .modal-overlay.show { display: flex; }
+        .modal {
+            background: linear-gradient(135deg, #0d0d0d, #1a0a0a);
+            border: 2px solid #dc2626;
+            border-radius: 16px;
+            padding: 40px;
+            text-align: center;
+            max-width: 500px;
+            animation: modalIn 0.3s ease;
+        }
+        @keyframes modalIn { from { transform: scale(0.9); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+        .modal .trophy { font-size: 4rem; margin-bottom: 15px; }
+        .modal h2 { color: #dc2626; font-size: 1.6rem; margin-bottom: 10px; }
+        .modal.perfect h2 { color: #f87171; }
+        .modal p { color: #8b949e; margin-bottom: 20px; line-height: 1.6; }
+        .modal .stats { display: flex; justify-content: center; gap: 30px; margin-bottom: 25px; }
+        .modal .stat { text-align: center; }
+        .modal .stat-value { font-size: 2rem; font-weight: bold; color: #fff; }
+        .modal .stat-value.correct { color: #f87171; }
+        .modal .stat-value.skipped { color: #fbbf24; }
+        .modal .stat-value.time { color: #60a5fa; }
+        .modal .stat-label { font-size: 0.85rem; color: #888; margin-top: 5px; }
+        .modal-buttons { display: flex; gap: 15px; justify-content: center; }
+        .modal-btn {
+            padding: 12px 24px; border: none; border-radius: 8px;
+            cursor: pointer; font-family: inherit; font-size: 0.9rem; transition: all 0.3s;
+            text-decoration: none;
+        }
+        .modal-btn.primary { background: linear-gradient(135deg, #dc2626, #f87171); color: #fff; font-weight: 600; }
+        .modal-btn.primary:hover { box-shadow: 0 0 20px rgba(220,38,38,0.5); }
+        .modal-btn.secondary { background: rgba(255,255,255,0.1); color: #e0e0e0; border: 1px solid rgba(255,255,255,0.2); }
+        .celebration { position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 1001; display: none; }
+        .celebration.active { display: block; }
+        .confetti { position: absolute; width: 10px; height: 10px; background: #dc2626; animation: confetti-fall 3s ease-out forwards; }
+        @keyframes confetti-fall { 0% { transform: translateY(-100vh) rotate(0deg); opacity: 1; } 100% { transform: translateY(100vh) rotate(720deg); opacity: 0; } }
+        @media (max-width: 900px) { .main-container { grid-template-columns: 1fr; } .progress-panel { display: none; } }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="header-left">
+            <a href="../../index.html" class="back-link">&larr; Dark Arts Vault</a>
+            <span class="header-badge">Warmup Drill</span>
+            <h1>Nmap Scan Types Drill</h1>
+        </div>
+        <div class="header-right">
+            <div class="timer" id="timer">8:00</div>
+            <button class="timer-btn" id="startBtn" onclick="startTimer()">Start</button>
+            <button class="timer-btn disabled" id="pauseBtn" onclick="pauseTimer()">Pause</button>
+        </div>
+    </div>
+    <div class="main-container">
+        <div class="terminal-panel">
+            <div class="task-prompt">
+                <div class="task-header">
+                    <div class="task-number" id="taskNumber">1</div>
+                    <span style="color:#888;font-size:0.85rem;">Task <span id="currentTaskNum">1</span> of <span id="totalTasks">8</span></span>
+                </div>
+                <div class="task-question" id="taskQuestion">Loading...</div>
+                <div class="task-hint" id="taskHint"></div>
+            </div>
+            <div class="terminal-container" id="terminal"></div>
+            <div class="feedback-bar">
+                <div class="feedback-message" id="feedbackMessage">Type your nmap command above...</div>
+                <button class="skip-btn" id="skipBtn" onclick="skipTask()">Skip Task</button>
+            </div>
+        </div>
+        <div class="progress-panel">
+            <h2>NMAP SCAN TYPES</h2>
+            <div class="ethical-warning">
+                <div class="ethical-warning-label">Authorized Testing Only</div>
+                <div class="ethical-warning-text">Never scan networks without explicit written authorization. Unauthorized scanning is illegal under the CFAA and equivalent laws worldwide.</div>
+            </div>
+            <div class="context-callout">
+                <div class="context-callout-label">Scenario</div>
+                <div class="context-callout-text">You have been engaged for an authorized penetration test of Initech Corp (10.10.10.0/24). Your Rules of Engagement specify the target range. Execute the required scan types against the approved targets.</div>
+            </div>
+            <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+            <div class="progress-text">
+                <span><span id="completedCount">0</span> completed</span>
+                <span id="progressPercent">0%</span>
+            </div>
+            <ul class="task-list" id="taskList"></ul>
+        </div>
+    </div>
+    <div class="modal-overlay" id="resultsModal">
+        <div class="modal" id="modalContent">
+            <div class="trophy" id="resultsIcon">&#127942;</div>
+            <h2 id="resultsTitle">Drill Complete!</h2>
+            <p id="resultsMessage">Scan knowledge verified.</p>
+            <div class="stats">
+                <div class="stat"><div class="stat-value correct" id="correctCount">0</div><div class="stat-label">Correct</div></div>
+                <div class="stat"><div class="stat-value skipped" id="skippedCount">0</div><div class="stat-label">Skipped</div></div>
+                <div class="stat"><div class="stat-value time" id="timeSpent">0:00</div><div class="stat-label">Time</div></div>
+            </div>
+            <div class="modal-buttons">
+                <button class="modal-btn primary" onclick="restartDrill()">Try Again</button>
+                <a href="../../index.html" class="modal-btn secondary">Back to Vault</a>
+            </div>
+        </div>
+    </div>
+    <div class="celebration" id="celebration"></div>
+
+    <script>
+    // ================================================================
+    // NMAP SCAN TYPES DRILL
+    // Warmup: Learn the basic nmap scan types
+    // ================================================================
+
+    const TARGET = '10.10.10.50';
+    const SUBNET = '10.10.10.0/24';
+
+    const NMAP_RESPONSES = {
+        'tcp-connect': `Starting Nmap 7.94 ( https://nmap.org ) at 2026-02-16 09:00 EST
+Nmap scan report for ${TARGET}
+Host is up (0.0034s latency).
+Not shown: 993 closed tcp ports (conn-refused)
+PORT     STATE SERVICE
+22/tcp   open  ssh
+80/tcp   open  http
+135/tcp  open  msrpc
+139/tcp  open  netbios-ssn
+443/tcp  open  https
+445/tcp  open  microsoft-ds
+3389/tcp open  ms-wrd-diag
+
+Nmap done: 1 IP address (1 host up) scanned in 4.23 seconds`,
+        'syn': `Starting Nmap 7.94 ( https://nmap.org ) at 2026-02-16 09:01 EST
+Nmap scan report for ${TARGET}
+Host is up (0.0028s latency).
+Not shown: 993 closed tcp ports (reset)
+PORT     STATE SERVICE
+22/tcp   open  ssh
+80/tcp   open  http
+135/tcp  open  msrpc
+139/tcp  open  netbios-ssn
+443/tcp  open  https
+445/tcp  open  microsoft-ds
+3389/tcp open  ms-wrd-diag
+
+Nmap done: 1 IP address (1 host up) scanned in 1.87 seconds`,
+        'udp': `Starting Nmap 7.94 ( https://nmap.org ) at 2026-02-16 09:02 EST
+Nmap scan report for ${TARGET}
+Host is up (0.0031s latency).
+Not shown: 996 closed udp ports (port-unreach)
+PORT     STATE         SERVICE
+53/udp   open          domain
+67/udp   open|filtered dhcps
+123/udp  open          ntp
+161/udp  open|filtered snmp
+
+Nmap done: 1 IP address (1 host up) scanned in 42.15 seconds`,
+        'version': `Starting Nmap 7.94 ( https://nmap.org ) at 2026-02-16 09:03 EST
+Nmap scan report for ${TARGET}
+Host is up (0.0029s latency).
+Not shown: 993 closed tcp ports (reset)
+PORT     STATE SERVICE       VERSION
+22/tcp   open  ssh           OpenSSH 8.9p1 Ubuntu 3ubuntu0.6
+80/tcp   open  http          Apache httpd 2.4.52
+135/tcp  open  msrpc         Microsoft Windows RPC
+139/tcp  open  netbios-ssn   Samba smbd 4.6.2
+443/tcp  open  ssl/http      Apache httpd 2.4.52
+445/tcp  open  microsoft-ds  Samba smbd 4.6.2
+3389/tcp open  ms-wrd-diag   xrdp 0.9.21
+
+Service detection performed. Nmap done: 1 IP address (1 host up) scanned in 11.45 seconds`,
+        'os': `Starting Nmap 7.94 ( https://nmap.org ) at 2026-02-16 09:04 EST
+Nmap scan report for ${TARGET}
+Host is up (0.0025s latency).
+Not shown: 993 closed tcp ports (reset)
+PORT     STATE SERVICE
+22/tcp   open  ssh
+80/tcp   open  http
+...
+OS CPE: cpe:/o:canonical:ubuntu_linux:22.04
+OS details: Linux 5.15 - 6.1 (Ubuntu 22.04 LTS)
+Network Distance: 1 hop
+
+OS detection performed. Nmap done: 1 IP address (1 host up) scanned in 8.76 seconds`,
+        'ping-sweep': `Starting Nmap 7.94 ( https://nmap.org ) at 2026-02-16 09:05 EST
+Nmap scan report for 10.10.10.1
+Host is up (0.0012s latency).
+Nmap scan report for 10.10.10.10
+Host is up (0.0028s latency).
+Nmap scan report for 10.10.10.50
+Host is up (0.0031s latency).
+Nmap scan report for 10.10.10.100
+Host is up (0.0045s latency).
+Nmap scan report for 10.10.10.200
+Host is up (0.0052s latency).
+Nmap done: 256 IP addresses (5 hosts up) scanned in 2.34 seconds`,
+        'aggressive': `Starting Nmap 7.94 ( https://nmap.org ) at 2026-02-16 09:06 EST
+Nmap scan report for ${TARGET}
+Host is up (0.0029s latency).
+Not shown: 993 closed tcp ports (reset)
+PORT     STATE SERVICE       VERSION
+22/tcp   open  ssh           OpenSSH 8.9p1 Ubuntu 3ubuntu0.6
+|   ssh-hostkey: 3072 aa:bb:cc:dd:ee:ff (RSA)
+80/tcp   open  http          Apache httpd 2.4.52
+|_http-title: Initech Internal Portal
+|_http-server-header: Apache/2.4.52 (Ubuntu)
+443/tcp  open  ssl/http      Apache httpd 2.4.52
+| ssl-cert: Subject: commonName=initech.local
+445/tcp  open  microsoft-ds  Samba smbd 4.6.2
+OS CPE: cpe:/o:canonical:ubuntu_linux:22.04
+TRACEROUTE: HOP  RTT     ADDRESS
+1    2.9 ms  10.10.10.50
+
+Nmap done: 1 IP address (1 host up) scanned in 18.92 seconds`,
+        'specific-ports': `Starting Nmap 7.94 ( https://nmap.org ) at 2026-02-16 09:07 EST
+Nmap scan report for ${TARGET}
+Host is up (0.0025s latency).
+PORT    STATE SERVICE
+22/tcp  open  ssh
+80/tcp  open  http
+443/tcp open  https
+
+Nmap done: 1 IP address (1 host up) scanned in 0.87 seconds`
+    };
+
+    const TASKS = [
+        {
+            id: 1,
+            question: `Run a <code>TCP Connect scan</code> (-sT) against the target ${TARGET}`,
+            validate: (cmd) => cmd.includes('nmap') && cmd.includes('-sT') && cmd.includes(TARGET),
+            hint: `nmap -sT ${TARGET}`,
+            response: NMAP_RESPONSES['tcp-connect'],
+            successMessage: 'TCP Connect scan complete. This completes the full 3-way handshake -- easy to detect in logs.',
+            defender: 'TCP Connect scans are the noisiest. Every connection attempt is logged by the target. Monitor connection logs and firewall state tables.'
+        },
+        {
+            id: 2,
+            question: `Run a <code>SYN scan</code> (-sS) -- the stealthy "half-open" scan against ${TARGET}`,
+            validate: (cmd) => cmd.includes('nmap') && cmd.includes('-sS') && cmd.includes(TARGET),
+            hint: `nmap -sS ${TARGET} (requires root/sudo)`,
+            response: NMAP_RESPONSES['syn'],
+            successMessage: 'SYN scan complete. Notice the faster time -- no full handshake needed. Sends RST after SYN/ACK.',
+            defender: 'SYN scans leave half-open connections. IDS/IPS can detect many SYN packets without completing handshakes. Watch for SYN flood patterns.'
+        },
+        {
+            id: 3,
+            question: `Run a <code>UDP scan</code> (-sU) against ${TARGET} to find UDP services`,
+            validate: (cmd) => cmd.includes('nmap') && cmd.includes('-sU') && cmd.includes(TARGET),
+            hint: `nmap -sU ${TARGET}`,
+            response: NMAP_RESPONSES['udp'],
+            successMessage: 'UDP scan done. Notice "open|filtered" -- UDP has no handshake so open ports may not respond.',
+            defender: 'UDP scans are slow and unreliable. Defenders should close unnecessary UDP ports. SNMP (161) and DNS (53) are common attack vectors.'
+        },
+        {
+            id: 4,
+            question: `Run a <code>version detection</code> scan (-sV) to identify running services on ${TARGET}`,
+            validate: (cmd) => cmd.includes('nmap') && cmd.includes('-sV') && cmd.includes(TARGET),
+            hint: `nmap -sV ${TARGET}`,
+            response: NMAP_RESPONSES['version'],
+            successMessage: 'Version detection reveals exact service versions -- critical for finding CVEs and known exploits.',
+            defender: 'Version probes send service-specific queries. Change default banners, use port knocking, and keep services patched to limit exposure.'
+        },
+        {
+            id: 5,
+            question: `Run an <code>OS detection</code> scan (-O) to fingerprint the operating system on ${TARGET}`,
+            validate: (cmd) => cmd.includes('nmap') && cmd.includes('-O') && cmd.includes(TARGET),
+            hint: `nmap -O ${TARGET}`,
+            response: NMAP_RESPONSES['os'],
+            successMessage: 'OS fingerprinting uses TCP/IP stack behavior to identify the OS. Not always 100% accurate.',
+            defender: 'OS fingerprinting relies on TCP/IP quirks. Tools like OSfuscate can alter stack behavior. Keep firewall rules tight to limit probe responses.'
+        },
+        {
+            id: 6,
+            question: `Execute a <code>ping sweep</code> (-sn) across the entire subnet ${SUBNET} to discover live hosts`,
+            validate: (cmd) => cmd.includes('nmap') && cmd.includes('-sn') && cmd.includes(SUBNET),
+            hint: `nmap -sn ${SUBNET}`,
+            response: NMAP_RESPONSES['ping-sweep'],
+            successMessage: 'Ping sweep found 5 live hosts. This is recon step #1 -- know your targets before deep scanning.',
+            defender: 'Block ICMP echo at the perimeter. Use network segmentation. Monitor for ARP sweeps on internal networks.'
+        },
+        {
+            id: 7,
+            question: `Run an <code>aggressive scan</code> (-A) combining OS, version, script, and traceroute against ${TARGET}`,
+            validate: (cmd) => cmd.includes('nmap') && cmd.includes('-A') && cmd.includes(TARGET),
+            hint: `nmap -A ${TARGET}`,
+            response: NMAP_RESPONSES['aggressive'],
+            successMessage: 'Aggressive scan = OS + version + scripts + traceroute. Extremely noisy but very thorough.',
+            defender: 'Aggressive scans trigger many IDS signatures at once. This is the easiest scan type to detect. Alert on combined probe patterns.'
+        },
+        {
+            id: 8,
+            question: `Scan only <code>ports 22, 80, and 443</code> (-p) on ${TARGET}`,
+            validate: (cmd) => cmd.includes('nmap') && cmd.includes('-p') && (cmd.includes('22,80,443') || cmd.includes('22, 80, 443')) && cmd.includes(TARGET),
+            hint: `nmap -p 22,80,443 ${TARGET}`,
+            response: NMAP_RESPONSES['specific-ports'],
+            successMessage: 'Targeted port scans are faster and less noisy. Always know what you are looking for.',
+            defender: 'Even targeted scans hit multiple ports. Rate-limiting connections per source IP helps. Log all connection attempts to monitored services.'
+        }
+    ];
+
+    const state = {
+        currentTask: 0,
+        results: {},
+        attempts: {},
+        timerSeconds: 480,
+        timerRunning: false,
+        timerInterval: null,
+        startTime: null,
+        endTime: null
+    };
+
+    function init() {
+        LinuxTerminal.init('DA-DRILL-NMAP', '#terminal', {
+            user: 'pentester',
+            hostname: 'kali-ops',
+            startDir: '/home/pentester',
+            height: '100%',
+            onCommand: handleCommand
+        });
+        // Add pentest filesystem overlay
+        LinuxTerminal.addFilesystem({
+            '/home/pentester': { type: 'dir', perms: 'drwxr-xr-x', owner: 'pentester', group: 'pentester', children: ['engagement', 'tools', 'wordlists', '.bashrc'] },
+            '/home/pentester/engagement': { type: 'dir', perms: 'drwxr-xr-x', owner: 'pentester', group: 'pentester', children: ['scope.txt', 'rules-of-engagement.pdf'] },
+            '/home/pentester/engagement/scope.txt': { type: 'file', perms: '-rw-r--r--', owner: 'pentester', group: 'pentester', size: 256, content: 'Initech Corp Penetration Test\nScope: 10.10.10.0/24\nDates: Feb 15-28, 2026\nType: Full External + Internal\nContact: security@initech.local\n' },
+            '/home/pentester/tools': { type: 'dir', perms: 'drwxr-xr-x', owner: 'pentester', group: 'pentester', children: ['nmap', 'masscan', 'rustscan'] },
+            '/home/pentester/wordlists': { type: 'dir', perms: 'drwxr-xr-x', owner: 'pentester', group: 'pentester', children: ['rockyou.txt', 'dirb-common.txt'] }
+        });
+        buildTaskList();
+        showTask(0);
+    }
+
+    function buildTaskList() {
+        const list = document.getElementById('taskList');
+        list.innerHTML = TASKS.map((task, i) => `
+            <li class="task-item${i === 0 ? ' active' : ''}" data-task="${i}">
+                <div class="check">${i + 1}</div>
+                <span>${task.question.replace(/<[^>]+>/g, '')}</span>
+            </li>
+        `).join('');
+        document.getElementById('totalTasks').textContent = TASKS.length;
+    }
+
+    function showTask(index) {
+        const task = TASKS[index];
+        state.currentTask = index;
+        state.attempts[index] = 0;
+        document.getElementById('taskNumber').textContent = index + 1;
+        document.getElementById('taskNumber').className = 'task-number';
+        document.getElementById('currentTaskNum').textContent = index + 1;
+        document.getElementById('taskQuestion').innerHTML = task.question;
+        document.getElementById('taskHint').textContent = 'Hint: ' + task.hint;
+        document.getElementById('taskHint').classList.remove('show');
+        const feedback = document.getElementById('feedbackMessage');
+        feedback.textContent = 'Type your nmap command above...';
+        feedback.className = 'feedback-message';
+        document.getElementById('skipBtn').disabled = false;
+        document.querySelectorAll('.task-item').forEach((el, i) => {
+            el.classList.remove('active');
+            if (i === index && !state.results[i]) el.classList.add('active');
+        });
+        LinuxTerminal.print(`\n<span style="color:#dc2626;">--- Task ${index + 1}: ${task.question.replace(/<[^>]+>/g, '')} ---</span>`);
+    }
+
+    function handleCommand(cmdLine, output, cmd, args) {
+        const task = TASKS[state.currentTask];
+        state.attempts[state.currentTask] = (state.attempts[state.currentTask] || 0) + 1;
+        if (!state.startTime) state.startTime = Date.now();
+
+        if (cmd === 'nmap' || cmdLine.trim().startsWith('nmap') || cmdLine.trim().startsWith('sudo nmap')) {
+            const cleanCmd = cmdLine.trim().replace(/^sudo\s+/, '');
+            if (task.validate(cleanCmd)) {
+                // Print simulated nmap output
+                LinuxTerminal.print(`<span style="color:#aaa;">${task.response}</span>`);
+                LinuxTerminal.print(`\n<span style="color:#3b82f6;">[DEFENDER'S PERSPECTIVE] ${task.defender}</span>`);
+                const feedback = document.getElementById('feedbackMessage');
+                feedback.textContent = task.successMessage;
+                feedback.className = 'feedback-message success';
+                state.results[state.currentTask] = 'correct';
+                updateTaskItem(state.currentTask, 'completed');
+                document.getElementById('taskNumber').classList.add('completed');
+                document.getElementById('skipBtn').disabled = true;
+                updateProgress();
+                setTimeout(() => advanceTask(), 1500);
+            } else {
+                LinuxTerminal.print('<span class="lt-error">Wrong scan type or target. Check the task requirements.</span>');
+                if (state.attempts[state.currentTask] >= 3) {
+                    document.getElementById('taskHint').classList.add('show');
+                }
+            }
+        } else if (cmdLine.trim() && cmd !== 'clear' && cmd !== 'help' && cmd !== 'ls' && cmd !== 'cat' && cmd !== 'cd' && cmd !== 'pwd') {
+            LinuxTerminal.print('<span class="lt-error">This drill focuses on nmap. Use nmap commands.</span>');
+        }
+    }
+
+    function updateTaskItem(index, status) {
+        const item = document.querySelector(`.task-item[data-task="${index}"]`);
+        if (item) {
+            item.classList.remove('active', 'completed', 'skipped');
+            item.classList.add(status);
+            const check = item.querySelector('.check');
+            if (status === 'completed') check.innerHTML = '&#10003;';
+            else if (status === 'skipped') check.innerHTML = '&#8212;';
+        }
+    }
+
+    function skipTask() {
+        const task = TASKS[state.currentTask];
+        state.results[state.currentTask] = 'skipped';
+        updateTaskItem(state.currentTask, 'skipped');
+        document.getElementById('taskNumber').classList.add('skipped');
+        document.getElementById('skipBtn').disabled = true;
+        const feedback = document.getElementById('feedbackMessage');
+        feedback.innerHTML = `<strong>Skipped.</strong> Solution: <code style="background:rgba(251,191,36,0.2);padding:2px 6px;border-radius:4px;">${task.hint}</code>`;
+        feedback.className = 'feedback-message';
+        updateProgress();
+        setTimeout(() => advanceTask(), 800);
+    }
+
+    function advanceTask() {
+        if (state.currentTask >= TASKS.length - 1) { showResults(); return; }
+        LinuxTerminal.clear();
+        showTask(state.currentTask + 1);
+    }
+
+    function updateProgress() {
+        const completed = Object.keys(state.results).length;
+        const correct = Object.values(state.results).filter(r => r === 'correct').length;
+        const percent = Math.round((completed / TASKS.length) * 100);
+        document.getElementById('progressFill').style.width = percent + '%';
+        document.getElementById('completedCount').textContent = correct;
+        document.getElementById('progressPercent').textContent = percent + '%';
+    }
+
+    function startTimer() {
+        if (state.timerRunning) return;
+        state.timerRunning = true;
+        if (!state.startTime) state.startTime = Date.now();
+        document.getElementById('startBtn').classList.add('disabled');
+        document.getElementById('pauseBtn').classList.remove('disabled');
+        state.timerInterval = setInterval(() => {
+            state.timerSeconds--;
+            updateTimerDisplay();
+            if (state.timerSeconds <= 0) {
+                pauseTimer();
+                for (let i = state.currentTask; i < TASKS.length; i++) {
+                    if (!state.results[i]) { state.results[i] = 'skipped'; updateTaskItem(i, 'skipped'); }
+                }
+                showResults();
+            }
+        }, 1000);
+    }
+
+    function pauseTimer() {
+        state.timerRunning = false;
+        clearInterval(state.timerInterval);
+        document.getElementById('startBtn').classList.remove('disabled');
+        document.getElementById('pauseBtn').classList.add('disabled');
+    }
+
+    function updateTimerDisplay() {
+        const m = Math.floor(state.timerSeconds / 60);
+        const s = state.timerSeconds % 60;
+        const timerEl = document.getElementById('timer');
+        timerEl.textContent = `${m}:${s.toString().padStart(2, '0')}`;
+        timerEl.classList.remove('warning', 'expired');
+        if (state.timerSeconds <= 0) timerEl.classList.add('expired');
+        else if (state.timerSeconds <= 60) timerEl.classList.add('warning');
+    }
+
+    function showResults() {
+        pauseTimer();
+        state.endTime = Date.now();
+        const correct = Object.values(state.results).filter(r => r === 'correct').length;
+        const skipped = Object.values(state.results).filter(r => r === 'skipped').length;
+        const timeMs = state.endTime - (state.startTime || state.endTime);
+        const timeSec = Math.floor(timeMs / 1000);
+        const timeDisplay = `${Math.floor(timeSec / 60)}:${(timeSec % 60).toString().padStart(2, '0')}`;
+        document.getElementById('correctCount').textContent = correct;
+        document.getElementById('skippedCount').textContent = skipped;
+        document.getElementById('timeSpent').textContent = timeDisplay;
+        const modal = document.getElementById('modalContent');
+        const icon = document.getElementById('resultsIcon');
+        const title = document.getElementById('resultsTitle');
+        const msg = document.getElementById('resultsMessage');
+        modal.classList.remove('perfect');
+        if (correct === TASKS.length) {
+            modal.classList.add('perfect');
+            icon.textContent = String.fromCodePoint(0x1F480);
+            title.textContent = 'Full Scan Arsenal Mastered';
+            msg.textContent = 'You know every scan type. Now learn when NOT to use them.';
+            triggerCelebration();
+        } else if (correct >= TASKS.length * 0.75) {
+            icon.textContent = String.fromCodePoint(0x1F525);
+            title.textContent = 'Solid Recon Skills';
+            msg.textContent = 'Most scan types down. Review the ones you missed.';
+        } else {
+            icon.textContent = String.fromCodePoint(0x1F4DA);
+            title.textContent = 'Keep Studying';
+            msg.textContent = 'Nmap has many scan types. Practice makes lethal.';
+        }
+        document.getElementById('resultsModal').classList.add('show');
+        saveProgress(correct, skipped, timeSec);
+    }
+
+    function restartDrill() {
+        document.getElementById('resultsModal').classList.remove('show');
+        state.currentTask = 0; state.results = {}; state.attempts = {};
+        state.timerSeconds = 480; state.startTime = null; state.endTime = null;
+        updateTimerDisplay();
+        document.getElementById('startBtn').classList.remove('disabled');
+        document.getElementById('pauseBtn').classList.add('disabled');
+        LinuxTerminal.destroy();
+        init();
+    }
+
+    function triggerCelebration() {
+        const container = document.getElementById('celebration');
+        container.classList.add('active');
+        const colors = ['#dc2626', '#f87171', '#991b1b', '#fca5a5', '#7f1d1d', '#450a0a'];
+        for (let i = 0; i < 60; i++) {
+            setTimeout(() => {
+                const c = document.createElement('div');
+                c.className = 'confetti';
+                c.style.left = Math.random() * 100 + 'vw';
+                c.style.background = colors[Math.floor(Math.random() * colors.length)];
+                c.style.animationDuration = (2 + Math.random() * 2) + 's';
+                c.style.width = (5 + Math.random() * 10) + 'px';
+                c.style.height = c.style.width;
+                container.appendChild(c);
+                setTimeout(() => c.remove(), 3000);
+            }, i * 30);
+        }
+        setTimeout(() => container.classList.remove('active'), 4000);
+    }
+
+    function saveProgress(correct, skipped, timeSec) {
+        const key = 'drill_da_nmap_types';
+        const data = { timestamp: Date.now(), correct, skipped, total: TASKS.length, timeSeconds: timeSec, percentage: Math.round((correct / TASKS.length) * 100) };
+        const history = JSON.parse(localStorage.getItem(key + '_history') || '[]');
+        history.push(data);
+        if (history.length > 10) history.shift();
+        localStorage.setItem(key + '_history', JSON.stringify(history));
+        try { if (typeof GameTracker !== 'undefined') GameTracker.record('da_nmap_drill', correct * 12, { correct, skipped, time: timeSec }); } catch(e) {}
+        try { if (typeof ProgressManager !== 'undefined') ProgressManager.completeModule('da-linux-nmap-drill', 'dark-arts', 'lab', { score: Math.round((correct / TASKS.length) * 100) }); } catch(e) {}
+    }
+
+    document.addEventListener('DOMContentLoaded', init);
+    </script>
+    <script src="../../../../components/ProgressiveHints.js"></script>
+    <script src="../../../../components/GameTracker.js"></script>
+    <script src="../../../../components/FluxCapacitor.js"></script>
+    <script src="../../../../components/ProgressManager.js"></script>
+</body>
+</html>

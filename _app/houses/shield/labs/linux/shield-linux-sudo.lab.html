@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mission: Privilege Management - Shield House</title>
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <link rel="stylesheet" href="../../../../components/LinuxTerminal.css">
+    <script src="../../../../components/LinuxTerminal.js"></script>
+    <script src="../../../../components/ProgressiveHints.js"></script>
+    <style>
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body { font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif; background:linear-gradient(135deg,#0a0a0a 0%,#1a1a2e 100%); min-height:100vh; color:#e0e0e0; }
+        .container { max-width:1400px; margin:0 auto; display:grid; grid-template-columns:1fr 380px; height:100vh; overflow:hidden; }
+        .main-panel { display:flex; flex-direction:column; border-right:2px solid #a855f7; height:100vh; overflow:hidden; }
+        .header { background:linear-gradient(135deg,#0d1117 0%,#161b22 100%); padding:12px 20px; border-bottom:2px solid #a855f7; flex-shrink:0; }
+        .header-content { display:flex; justify-content:space-between; align-items:center; }
+        .header-left { display:flex; align-items:center; gap:15px; }
+        .mission-badge { background:rgba(168,85,247,0.2); padding:4px 12px; border-radius:15px; font-size:0.75em; color:#c084fc; border:1px solid #a855f7; font-family:'Cascadia Code','Fira Code',monospace; }
+        .header h1 { color:#a855f7; font-size:1.1em; margin:0; font-weight:600; }
+        .back-link { color:#a855f7; text-decoration:none; padding:6px 12px; background:rgba(168,85,247,0.1); border:1px solid #a855f7; border-radius:6px; font-size:0.85em; transition:all 0.3s; }
+        .back-link:hover { background:rgba(168,85,247,0.25); }
+        .terminal-container { flex:1; display:flex; flex-direction:column; background:#0a0a0a; min-height:0; overflow:hidden; }
+        .mission-panel { background:rgba(13,17,23,0.95); border-top:2px solid #a855f7; padding:15px 20px; flex-shrink:0; max-height:220px; overflow-y:auto; }
+        .mission-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; }
+        .mission-header h3 { color:#a855f7; font-size:1em; margin:0; }
+        .mission-header h3::before { content:'>'; animation:blink 1s infinite; margin-right:8px; }
+        @keyframes blink{0%,100%{opacity:1;}50%{opacity:0;}}
+        .progress-bar{width:100%;height:8px;background:rgba(255,255,255,0.1);border-radius:4px;overflow:hidden;margin-bottom:15px;}
+        .progress-fill{height:100%;background:linear-gradient(90deg,#a855f7,#c084fc);border-radius:4px;transition:width 0.5s ease;}
+        .objective-list{list-style:none;}
+        .objective-item{padding:8px 12px;margin:4px 0;background:rgba(255,255,255,0.02);border-radius:6px;border-left:3px solid #30363d;font-size:0.85em;color:#8b949e;display:flex;align-items:center;gap:10px;}
+        .objective-item.active{border-left-color:#ffa657;background:rgba(255,166,87,0.1);color:#c9d1d9;}
+        .objective-item.completed{border-left-color:#3fb950;color:#3fb950;}
+        .objective-item .check{width:18px;height:18px;border:2px solid #30363d;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:0.7em;}
+        .objective-item.completed .check{border-color:#3fb950;background:#3fb950;color:#0d1117;}
+        .objective-item.active .check{border-color:#ffa657;}
+        .intel-panel{background:rgba(13,17,23,0.95);padding:20px;overflow-y:auto;height:100vh;}
+        .intel-panel h2{color:#a855f7;font-size:1.2em;margin-bottom:20px;padding-bottom:10px;border-bottom:2px solid #a855f7;}
+        .cmd-ref{margin-bottom:20px;}.cmd-ref h3{color:#c084fc;font-size:0.95em;margin-bottom:12px;}
+        .cmd-box{background:#0a0a0a;border:1px solid #30363d;border-radius:6px;padding:10px 12px;margin:8px 0;font-family:'Cascadia Code',monospace;font-size:0.8em;}
+        .cmd-box .cmd{color:#00ff41;}.cmd-box .desc{color:#8b949e;margin-top:4px;font-size:0.9em;}
+        .tip-box{background:rgba(168,85,247,0.1);border-left:3px solid #a855f7;padding:12px 15px;margin:15px 0;border-radius:0 8px 8px 0;}
+        .tip-box strong{color:#a855f7;}.tip-box p{color:#c9d1d9;margin:5px 0 0 0;font-size:0.9em;}
+        .context-callout{background:rgba(168,85,247,0.08);border-left:3px solid #a855f7;padding:12px 16px;margin:12px 0;border-radius:0 6px 6px 0;}
+        .context-callout-label{font-size:0.7rem;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#a855f7;margin-bottom:4px;}
+        .context-callout-text{font-size:0.85rem;color:#9ca3af;line-height:1.5;}
+        .hint-container{margin-top:10px;}
+        .modal-overlay{display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.9);justify-content:center;align-items:center;z-index:1000;}
+        .modal-overlay.show{display:flex;}
+        .modal{background:linear-gradient(135deg,#0d1117,#161b22);border:2px solid #a855f7;border-radius:16px;padding:40px;text-align:center;max-width:500px;animation:modalIn 0.3s ease;}
+        @keyframes modalIn{from{transform:scale(0.9);opacity:0;}to{transform:scale(1);opacity:1;}}
+        .modal .trophy{font-size:4em;margin-bottom:15px;}.modal h2{color:#a855f7;font-size:1.6em;margin-bottom:10px;}
+        .modal p{color:#8b949e;margin-bottom:20px;line-height:1.6;}
+        .modal .stats{display:flex;justify-content:center;gap:30px;margin-bottom:25px;}.modal .stat{text-align:center;}
+        .modal .stat-value{color:#3fb950;font-size:1.5em;font-weight:bold;}.modal .stat-label{color:#8b949e;font-size:0.8em;}
+        .modal-buttons{display:flex;gap:15px;justify-content:center;}
+        .modal-btn{padding:12px 24px;border:none;border-radius:8px;cursor:pointer;font-family:'Cascadia Code',monospace;font-size:0.9em;transition:all 0.3s;}
+        .modal-btn.primary{background:#a855f7;color:#0d1117;}.modal-btn.primary:hover{box-shadow:0 0 20px rgba(168,85,247,0.5);}
+        .modal-btn.secondary{background:transparent;color:#a855f7;border:2px solid #a855f7;}
+        ::-webkit-scrollbar{width:8px;}::-webkit-scrollbar-track{background:#0d1117;}::-webkit-scrollbar-thumb{background:#30363d;border-radius:4px;}
+        @media(max-width:1024px){.container{grid-template-columns:1fr;}.intel-panel{height:auto;max-height:40vh;border-top:2px solid #a855f7;}}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="main-panel">
+            <div class="header"><div class="header-content"><div class="header-left"><span class="mission-badge">MISSION LAB</span><h1>Privilege Management (sudo/su)</h1></div><a href="../../index.html" class="back-link">< Shield House</a></div></div>
+            <div class="terminal-container" id="terminal"></div>
+            <div class="mission-panel">
+                <div class="mission-header"><h3>MISSION OBJECTIVES</h3><span id="progressText" style="color:#8b949e;font-size:0.85em;">0/8 Complete</span></div>
+                <div class="progress-bar"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
+                <ul class="objective-list" id="objectiveList"></ul>
+            </div>
+        </div>
+        <div class="intel-panel">
+            <h2>PRIVILEGE MGMT INTEL</h2>
+            <div class="tip-box"><strong>MISSION BRIEFING</strong><p>A junior admin accidentally ran <code style="background:rgba(168,85,247,0.2);padding:2px 6px;border-radius:4px;color:#c084fc;">sudo rm -rf /var/log/*</code> and wiped all logs. The sudoers file gives everyone unrestricted root. Implement proper RBAC with least-privilege sudo policies before more damage is done.</p></div>
+            <div class="cmd-ref">
+                <h3>Privilege Commands</h3>
+                <div class="cmd-box"><div class="cmd">cat /etc/sudoers</div><div class="desc">View sudoers rules</div></div>
+                <div class="cmd-box"><div class="cmd">sudo -l -U user</div><div class="desc">List user's sudo privs</div></div>
+                <div class="cmd-box"><div class="cmd">visudo</div><div class="desc">Safely edit sudoers</div></div>
+                <div class="cmd-box"><div class="cmd">usermod -aG group user</div><div class="desc">Add user to group</div></div>
+                <div class="cmd-box"><div class="cmd">groups user</div><div class="desc">Show group memberships</div></div>
+                <div class="cmd-box"><div class="cmd">su - user</div><div class="desc">Switch to user (full login)</div></div>
+            </div>
+            <div class="context-callout"><div class="context-callout-label">Why This Matters</div><div class="context-callout-text">The Principle of Least Privilege is foundational. If a user only needs to restart Apache, they should not be able to delete /var/log. RBAC (Role-Based Access Control) via sudoers groups is how enterprise Linux environments enforce this. CIS Benchmark 5.3.</div></div>
+            <div class="hint-container" id="hintContainer"></div>
+        </div>
+    </div>
+    <div class="modal-overlay" id="completionModal"><div class="modal"><div class="trophy">&#128737;</div><h2>Privileges Locked Down!</h2><p>RBAC implemented: sysadmins have full sudo, developers can only restart services, and the dangerous ALL NOPASSWD rule is gone. Least privilege enforced.</p><div class="stats"><div class="stat"><div class="stat-value" id="commandCount">0</div><div class="stat-label">Commands</div></div><div class="stat"><div class="stat-value" id="timeElapsed">0:00</div><div class="stat-label">Time</div></div></div><div class="modal-buttons"><button class="modal-btn secondary" onclick="resetMission()">Retry</button><button class="modal-btn primary" onclick="window.location.href='../../index.html'">Shield House</button></div></div></div>
+
+    <script>
+    const state = { completed: new Set(), commandCount: 0, startTime: Date.now(), currentObjective: 0, hintsRevealed: 0 };
+
+    const OBJECTIVES = [
+        { id: 'inspect', task: '1. Review the current sudoers file', validate: (cmd) => /^(cat|less|more)\s+(\/etc\/)?sudoers/.test(cmd.trim()),
+          hints: [{ level: 1, text: 'See the damage first.' }, { level: 2, text: 'cat /etc/sudoers' }, { level: 3, text: 'cat /etc/sudoers' }, { level: 4, text: 'cat /etc/sudoers', isSolution: true }] },
+        { id: 'remove-all', task: '2. Remove the dangerous ALL NOPASSWD: ALL rule', validateState: () => { const n = LinuxTerminal.getFs()['/etc/sudoers']; return n && n.content && !/ALL\s+ALL.*NOPASSWD:\s*ALL/.test(n.content); },
+          hints: [{ level: 1, text: 'This rule gives everyone passwordless root -- catastrophic.' }, { level: 2, text: 'Use sed to comment it out or replace it.' }, { level: 3, text: 'sed -i \'s/ALL ALL=(ALL) NOPASSWD: ALL/# REMOVED/\' /etc/sudoers' }, { level: 4, text: 'sed -i \'s/ALL ALL=(ALL) NOPASSWD: ALL/# REMOVED/\' /etc/sudoers', isSolution: true }] },
+        { id: 'wheel-rule', task: '3. Add %wheel group with full sudo (password required)', validateState: () => { const n = LinuxTerminal.getFs()['/etc/sudoers']; return n && n.content && /%wheel\s+ALL=\(ALL\)\s+ALL/.test(n.content); },
+          hints: [{ level: 1, text: 'Group-based sudo is the enterprise standard.' }, { level: 2, text: 'echo "%wheel ALL=(ALL) ALL" >> /etc/sudoers' }, { level: 3, text: 'echo "%wheel ALL=(ALL) ALL" >> /etc/sudoers' }, { level: 4, text: 'echo "%wheel ALL=(ALL) ALL" >> /etc/sudoers', isSolution: true }] },
+        { id: 'dev-rule', task: '4. Create restricted rule: %developers can restart apache2 only', validateState: () => { const n = LinuxTerminal.getFs()['/etc/sudoers']; return n && n.content && /%developers.*systemctl\s+restart\s+apache2/.test(n.content); },
+          hints: [{ level: 1, text: 'Developers need to deploy but not do arbitrary root things.' }, { level: 2, text: 'Restrict to: /usr/bin/systemctl restart apache2' }, { level: 3, text: 'echo "%developers ALL=(ALL) /usr/bin/systemctl restart apache2" >> /etc/sudoers' }, { level: 4, text: 'echo "%developers ALL=(ALL) /usr/bin/systemctl restart apache2" >> /etc/sudoers', isSolution: true }] },
+        { id: 'add-admin', task: '5. Add user sysadmin to the wheel group', validate: (cmd) => /usermod\s+(-aG|--append\s+--groups)\s+wheel\s+sysadmin/.test(cmd.trim()),
+          hints: [{ level: 1, text: 'sysadmin is the only user who should have full sudo.' }, { level: 2, text: 'usermod -aG wheel sysadmin' }, { level: 3, text: 'usermod -aG wheel sysadmin' }, { level: 4, text: 'usermod -aG wheel sysadmin', isSolution: true }] },
+        { id: 'add-dev', task: '6. Add user webdev to the developers group', validate: (cmd) => /usermod\s+(-aG|--append\s+--groups)\s+developers\s+webdev/.test(cmd.trim()),
+          hints: [{ level: 1, text: 'webdev is the junior admin who wiped the logs.' }, { level: 2, text: 'usermod -aG developers webdev' }, { level: 3, text: 'usermod -aG developers webdev' }, { level: 4, text: 'usermod -aG developers webdev', isSolution: true }] },
+        { id: 'enable-logging', task: '7. Enable sudo logging (Defaults logfile)', validateState: () => { const n = LinuxTerminal.getFs()['/etc/sudoers']; return n && n.content && /Defaults\s+logfile/.test(n.content); },
+          hints: [{ level: 1, text: 'Every sudo action should be logged for accountability.' }, { level: 2, text: 'echo "Defaults logfile=/var/log/sudo.log" >> /etc/sudoers' }, { level: 3, text: 'echo "Defaults logfile=/var/log/sudo.log" >> /etc/sudoers' }, { level: 4, text: 'echo "Defaults logfile=/var/log/sudo.log" >> /etc/sudoers', isSolution: true }] },
+        { id: 'verify', task: '8. Verify the final sudoers configuration', validate: (cmd) => { const all = OBJECTIVES.slice(0,7).every(o => state.completed.has(o.id)); return all && /^(cat|less|more)\s+(\/etc\/)?sudoers/.test(cmd.trim()); },
+          hints: [{ level: 1, text: 'Review the final state after all changes.' }, { level: 2, text: 'All previous objectives must be complete first.' }, { level: 3, text: 'cat /etc/sudoers' }, { level: 4, text: 'cat /etc/sudoers', isSolution: true }] }
+    ];
+
+    function init() {
+        LinuxTerminal.init('SHIELD-MISSION-SUDO', '#terminal', { user: 'root', hostname: 'shield-rbac', startDir: '/etc', height: '100%', onCommand: handleCommand });
+        LinuxTerminal.addFilesystem({
+            '/etc/sudoers': { type: 'file', perms: '-r--r-----', owner: 'root', group: 'root', size: 512, content: '# /etc/sudoers\n# WARNING: Dangerously permissive\n\nroot ALL=(ALL:ALL) ALL\n\n# DANGEROUS: Everyone has passwordless root\nALL ALL=(ALL) NOPASSWD: ALL\n\n# No group-based rules\n# No command restrictions\n# No logging\n' },
+            '/etc/group': { type: 'file', perms: '-rw-r--r--', owner: 'root', group: 'root', size: 512, content: 'root:x:0:\nwheel:x:10:\ndevelopers:x:1001:\nusers:x:100:sysadmin,webdev,dbadmin\nsysadmin:x:1000:\nwebdev:x:1002:\ndbadmin:x:1003:\n' },
+            '/etc/passwd': { type: 'file', perms: '-rw-r--r--', owner: 'root', group: 'root', size: 512, content: 'root:x:0:0:root:/root:/bin/bash\nsysadmin:x:1000:1000:System Admin:/home/sysadmin:/bin/bash\nwebdev:x:1002:1002:Web Developer:/home/webdev:/bin/bash\ndbadmin:x:1003:1003:Database Admin:/home/dbadmin:/bin/bash\n' },
+            '/var/log/sudo.log': { type: 'file', perms: '-rw-------', owner: 'root', group: 'root', size: 0, content: '' }
+        });
+        printBriefing(); updateObjectiveList(); updateProgress(); updateHintPanel();
+    }
+
+    function handleCommand(cmdLine, output, cmd, args) { state.commandCount++; checkObjectives(cmdLine); }
+    function checkObjectives(cmdLine) { let n = false; for (const obj of OBJECTIVES) { if (state.completed.has(obj.id)) continue; let c = false; if (obj.validate && obj.validate(cmdLine)) c = true; if (obj.validateState && obj.validateState()) c = true; if (c) { state.completed.add(obj.id); n = true; LinuxTerminal.print('[OBJECTIVE] ' + obj.task + ' - COMPLETE', 'lt-success'); } } if (n) { for (let i = 0; i < OBJECTIVES.length; i++) { if (!state.completed.has(OBJECTIVES[i].id)) { state.currentObjective = i; break; } } updateObjectiveList(); updateProgress(); updateHintPanel(); if (state.completed.size === OBJECTIVES.length) setTimeout(showCompletionModal, 1000); } }
+    function updateHintPanel() { const o = OBJECTIVES[state.currentObjective]; if (!o||!o.hints) return; ProgressiveHints.init('hintContainer', o.hints, { labId: `sudo-${o.id}`, onReveal: () => { state.hintsRevealed++; } }); }
+    function updateObjectiveList() { const l = document.getElementById('objectiveList'); l.innerHTML = ''; OBJECTIVES.forEach((o,i) => { const li = document.createElement('li'); li.className = 'objective-item'; const d = state.completed.has(o.id); const p = i===0||state.completed.has(OBJECTIVES[i-1].id); if(d) li.classList.add('completed'); else if(p) li.classList.add('active'); li.innerHTML = `<div class="check">${d?'&#10003;':i+1}</div><span>${o.task}</span>`; l.appendChild(li); }); }
+    function updateProgress() { const p = (state.completed.size/OBJECTIVES.length)*100; document.getElementById('progressFill').style.width = p+'%'; document.getElementById('progressText').textContent = `${state.completed.size}/${OBJECTIVES.length} Complete`; }
+    function showCompletionModal() { const e = Math.floor((Date.now()-state.startTime)/1000); document.getElementById('commandCount').textContent = state.commandCount; document.getElementById('timeElapsed').textContent = `${Math.floor(e/60)}:${(e%60).toString().padStart(2,'0')}`; document.getElementById('completionModal').classList.add('show'); saveProgress(); }
+    function resetMission() { document.getElementById('completionModal').classList.remove('show'); state.completed.clear(); state.commandCount=0; state.startTime=Date.now(); state.currentObjective=0; state.hintsRevealed=0; LinuxTerminal.destroy(); init(); }
+    function saveProgress() { const p = JSON.parse(localStorage.getItem('hexworth_progress')||'{}'); if(!p.shield) p.shield={}; p.shield['mission-sudo']={completed:true,completedAt:new Date().toISOString(),commandCount:state.commandCount,timeElapsed:Math.floor((Date.now()-state.startTime)/1000)}; localStorage.setItem('hexworth_progress',JSON.stringify(p)); try{if(typeof GameTracker!=='undefined') GameTracker.record('shield_mission_sudo',state.completed.size*12,{commands:state.commandCount});}catch(e){} }
+    function printBriefing() {
+        LinuxTerminal.print('<span style="color:#f87171;">MISSION: PRIVILEGE MANAGEMENT (sudo/su)</span>');
+        LinuxTerminal.print('');
+        LinuxTerminal.print('<span style="color:#f87171;">[INCIDENT] Junior admin ran: sudo rm -rf /var/log/*</span>');
+        LinuxTerminal.print('<span style="color:#8b949e;">[ROOT CAUSE] ALL ALL=(ALL) NOPASSWD: ALL in sudoers</span>');
+        LinuxTerminal.print('<span style="color:#ffa657;">Implement RBAC: wheel for admins, restricted rules for devs.</span>');
+        LinuxTerminal.print('');
+    }
+    document.addEventListener('DOMContentLoaded', init);
+    </script>
+    <script src="../../../../components/GameTracker.js"></script>
+    <script src="../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>

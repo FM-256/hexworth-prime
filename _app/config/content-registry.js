@@ -2900,7 +2900,7 @@ const ContentRegistry = {
             topics: ['risk-management', 'security'],
             paths: ['comptia-security', 'security-fundamentals', 'comptia-aplus', 'security-operations'],
             components: {
-                applet: 'houses/shield/applets/compliance/cmmc_cui/shield-cui-2.applet.html'
+                applet: 'houses/shield/applets/compliance/cui_overview/shield-cui-overview.applet.html'
             },
             prerequisites: [],
             objectives: []
@@ -2916,7 +2916,7 @@ const ContentRegistry = {
             topics: ['risk-management', 'security'],
             paths: ['comptia-security', 'security-fundamentals', 'comptia-aplus', 'comptia-network', 'security-operations'],
             components: {
-                applet: 'houses/shield/applets/compliance/cmmc_framework/shield-cmmc-frameworkv2.applet.html'
+                applet: 'houses/shield/applets/compliance/cmmc_framework/shield-cmmc-framework.applet.html'
             },
             prerequisites: [],
             objectives: []
@@ -3028,7 +3028,7 @@ const ContentRegistry = {
             topics: ['risk-management', 'security'],
             paths: ['comptia-security', 'security-fundamentals', 'comptia-aplus', 'security-operations'],
             components: {
-                quiz: 'houses/shield/applets/compliance/cmmc_quiz/shield-cmmc-test-knowledge2.applet.html'
+                quiz: 'houses/shield/applets/compliance/cmmc_quiz/shield-cmmc-comprehensive.quiz.html'
             },
             prerequisites: [],
             objectives: []
@@ -10255,6 +10255,224 @@ const ContentRegistry = {
             },
             prerequisites: ['dark-arts-feh-09'],
             objectives: ['Classify malware types', 'Perform basic static and dynamic analysis']
+        },
+
+        // ─────────────────────────────────────────────────────────────
+        // DARK ARTS VAULT - Offensive Linux Terminal Labs (Sprint L-5)
+        // ─────────────────────────────────────────────────────────────
+
+        // Warmup Drills
+        'da-linux-nmap-drill': {
+            id: 'da-linux-nmap-drill',
+            title: 'Nmap Scanning Drill',
+            description: 'Practice nmap scan types: TCP connect, SYN, UDP, version, OS detection, and aggressive scans',
+            house: 'dark-arts',
+            type: 'lab',
+            difficulty: 'beginner',
+            duration: 15,
+            topics: ['nmap', 'scanning', 'reconnaissance'],
+            paths: [],
+            components: {
+                lab: 'dark-arts/vault/labs/linux/da-linux-nmap-drill.lab.html'
+            },
+            prerequisites: [],
+            objectives: ['Execute 8 different nmap scan types', 'Understand scan flag differences']
+        },
+        'da-linux-hash-drill': {
+            id: 'da-linux-hash-drill',
+            title: 'Hash Identification Drill',
+            description: 'Identify hash types: MD5, SHA-1, SHA-256, NTLM, bcrypt, SHA-512, MySQL, Linux crypt',
+            house: 'dark-arts',
+            type: 'lab',
+            difficulty: 'beginner',
+            duration: 15,
+            topics: ['hashing', 'hash-identification', 'password-cracking'],
+            paths: [],
+            components: {
+                lab: 'dark-arts/vault/labs/linux/da-linux-hash-drill.lab.html'
+            },
+            prerequisites: [],
+            objectives: ['Identify 8 common hash formats', 'Match hashes to hashcat modes']
+        },
+        'da-linux-recon-drill': {
+            id: 'da-linux-recon-drill',
+            title: 'Reconnaissance Drill',
+            description: 'DNS and OSINT recon: whois, dig, nslookup, host, dnsrecon, and reverse DNS',
+            house: 'dark-arts',
+            type: 'lab',
+            difficulty: 'beginner',
+            duration: 15,
+            topics: ['reconnaissance', 'dns', 'osint'],
+            paths: [],
+            components: {
+                lab: 'dark-arts/vault/labs/linux/da-linux-recon-drill.lab.html'
+            },
+            prerequisites: [],
+            objectives: ['Use 8 reconnaissance tools', 'Extract DNS records and domain information']
+        },
+
+        // Prep Labs
+        'da-linux-enumeration': {
+            id: 'da-linux-enumeration',
+            title: 'Enumeration Preparation',
+            description: 'Guided 8-phase enumeration workflow: host discovery through vulnerability scanning',
+            house: 'dark-arts',
+            type: 'lab',
+            difficulty: 'intermediate',
+            duration: 25,
+            topics: ['enumeration', 'scanning', 'methodology'],
+            paths: [],
+            components: {
+                lab: 'dark-arts/vault/labs/linux/da-linux-enumeration-prep.lab.html'
+            },
+            prerequisites: ['da-linux-nmap-drill'],
+            objectives: ['Complete full enumeration workflow', 'Document findings systematically']
+        },
+        'da-linux-exploitation': {
+            id: 'da-linux-exploitation',
+            title: 'Exploitation Preparation',
+            description: 'Guided 8-phase exploitation workflow: vulnerability research through documentation',
+            house: 'dark-arts',
+            type: 'lab',
+            difficulty: 'intermediate',
+            duration: 25,
+            topics: ['exploitation', 'metasploit', 'methodology'],
+            paths: [],
+            components: {
+                lab: 'dark-arts/vault/labs/linux/da-linux-exploitation-prep.lab.html'
+            },
+            prerequisites: ['da-linux-enumeration'],
+            objectives: ['Complete full exploitation workflow', 'Document exploitation steps']
+        },
+
+        // Mission Labs
+        'da-linux-nmap-advanced': {
+            id: 'da-linux-nmap-advanced',
+            title: 'Advanced Nmap Techniques',
+            description: 'NSE scripts, vulnerability scanning, evasion techniques, idle scan, and output formats',
+            house: 'dark-arts',
+            type: 'lab',
+            difficulty: 'advanced',
+            duration: 30,
+            topics: ['nmap', 'nse', 'evasion', 'scanning'],
+            paths: [],
+            components: {
+                lab: 'dark-arts/vault/labs/linux/da-linux-nmap-advanced.lab.html'
+            },
+            prerequisites: ['da-linux-nmap-drill'],
+            objectives: ['Use NSE script categories', 'Apply 10 advanced scanning techniques']
+        },
+        'da-linux-hashcat': {
+            id: 'da-linux-hashcat',
+            title: 'Hashcat Training Lab',
+            description: 'GPU-accelerated cracking: dictionary, mask, rule-based, combinator, and PRINCE attacks',
+            house: 'dark-arts',
+            type: 'lab',
+            difficulty: 'advanced',
+            duration: 30,
+            topics: ['hashcat', 'password-cracking', 'hash-attacks'],
+            paths: [],
+            components: {
+                lab: 'dark-arts/vault/labs/linux/da-linux-hashcat.lab.html'
+            },
+            prerequisites: ['da-linux-hash-drill'],
+            objectives: ['Execute 10 different hashcat attack modes', 'Crack various hash types']
+        },
+        'da-linux-hydra': {
+            id: 'da-linux-hydra',
+            title: 'Hydra Password Attack Lab',
+            description: 'Network service brute-forcing with THC-Hydra across SSH, FTP, HTTP, and SMB',
+            house: 'dark-arts',
+            type: 'lab',
+            difficulty: 'advanced',
+            duration: 25,
+            topics: ['hydra', 'brute-force', 'password-attacks'],
+            paths: [],
+            components: {
+                lab: 'dark-arts/vault/labs/linux/da-linux-hydra.lab.html'
+            },
+            prerequisites: ['da-linux-hash-drill'],
+            objectives: ['Brute-force 8 different service types', 'Apply rate limiting and evasion']
+        },
+        'da-linux-metasploit': {
+            id: 'da-linux-metasploit',
+            title: 'Metasploit Framework Lab',
+            description: 'Full Metasploit workflow: search, configure, exploit, and post-exploitation with meterpreter',
+            house: 'dark-arts',
+            type: 'lab',
+            difficulty: 'advanced',
+            duration: 35,
+            topics: ['metasploit', 'msfconsole', 'exploitation'],
+            paths: [],
+            components: {
+                lab: 'dark-arts/vault/labs/linux/da-linux-metasploit.lab.html'
+            },
+            prerequisites: ['da-linux-exploitation'],
+            objectives: ['Complete 10-step Metasploit attack chain', 'Manage sessions and extract data']
+        },
+        'da-linux-privesc': {
+            id: 'da-linux-privesc',
+            title: 'Linux Privilege Escalation Lab',
+            description: 'Escalate from www-data to root via SUID, sudo, cron, capabilities, kernel exploits, and GTFOBins',
+            house: 'dark-arts',
+            type: 'lab',
+            difficulty: 'advanced',
+            duration: 35,
+            topics: ['privilege-escalation', 'suid', 'sudo', 'kernel-exploits'],
+            paths: [],
+            components: {
+                lab: 'dark-arts/vault/labs/linux/da-linux-privesc.lab.html'
+            },
+            prerequisites: ['da-linux-enumeration'],
+            objectives: ['Discover 10 privilege escalation vectors', 'Achieve root access']
+        },
+        'da-linux-enumscripts': {
+            id: 'da-linux-enumscripts',
+            title: 'Enumeration Scripts Lab',
+            description: 'Automated enumeration with LinPEAS, LinEnum, pspy, and linux-exploit-suggester',
+            house: 'dark-arts',
+            type: 'lab',
+            difficulty: 'intermediate',
+            duration: 25,
+            topics: ['linpeas', 'linenum', 'pspy', 'automation'],
+            paths: [],
+            components: {
+                lab: 'dark-arts/vault/labs/linux/da-linux-enumscripts.lab.html'
+            },
+            prerequisites: ['da-linux-enumeration'],
+            objectives: ['Run 8 automated enumeration tools', 'Interpret enumeration output']
+        },
+        'da-linux-reverse-shells': {
+            id: 'da-linux-reverse-shells',
+            title: 'Reverse Shell Lab',
+            description: 'Establish and stabilize reverse shells: bash, python, netcat, socat SSL, and PHP payloads',
+            house: 'dark-arts',
+            type: 'lab',
+            difficulty: 'advanced',
+            duration: 30,
+            topics: ['reverse-shells', 'netcat', 'socat', 'payloads'],
+            paths: [],
+            components: {
+                lab: 'dark-arts/vault/labs/linux/da-linux-reverse-shells.lab.html'
+            },
+            prerequisites: ['da-linux-exploitation'],
+            objectives: ['Generate 8 reverse shell types', 'Stabilize and upgrade shell access']
+        },
+        'da-linux-post-exploitation': {
+            id: 'da-linux-post-exploitation',
+            title: 'Post-Exploitation Lab',
+            description: 'Persistence, lateral movement, data exfiltration, pivoting, and operational security',
+            house: 'dark-arts',
+            type: 'lab',
+            difficulty: 'advanced',
+            duration: 40,
+            topics: ['post-exploitation', 'persistence', 'lateral-movement', 'pivoting'],
+            paths: [],
+            components: {
+                lab: 'dark-arts/vault/labs/linux/da-linux-post-exploitation.lab.html'
+            },
+            prerequisites: ['da-linux-privesc'],
+            objectives: ['Complete 10 post-exploitation objectives', 'Generate final pentest report']
         }
     },
 

@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mission: Secure SSH - Shield House</title>
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <link rel="stylesheet" href="../../../../components/LinuxTerminal.css">
+    <script src="../../../../components/LinuxTerminal.js"></script>
+    <script src="../../../../components/ProgressiveHints.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 100%); min-height: 100vh; color: #e0e0e0; }
+        .container { max-width: 1400px; margin: 0 auto; display: grid; grid-template-columns: 1fr 380px; height: 100vh; overflow: hidden; }
+        .main-panel { display: flex; flex-direction: column; border-right: 2px solid #a855f7; height: 100vh; overflow: hidden; }
+        .header { background: linear-gradient(135deg, #0d1117 0%, #161b22 100%); padding: 12px 20px; border-bottom: 2px solid #a855f7; flex-shrink: 0; }
+        .header-content { display: flex; justify-content: space-between; align-items: center; }
+        .header-left { display: flex; align-items: center; gap: 15px; }
+        .mission-badge { background: rgba(168,85,247,0.2); padding: 4px 12px; border-radius: 15px; font-size: 0.75em; color: #c084fc; border: 1px solid #a855f7; font-family: 'Cascadia Code', 'Fira Code', monospace; }
+        .header h1 { color: #a855f7; font-size: 1.1em; margin: 0; font-weight: 600; }
+        .back-link { color: #a855f7; text-decoration: none; padding: 6px 12px; background: rgba(168,85,247,0.1); border: 1px solid #a855f7; border-radius: 6px; font-size: 0.85em; transition: all 0.3s; }
+        .back-link:hover { background: rgba(168,85,247,0.25); }
+        .terminal-container { flex: 1; display: flex; flex-direction: column; background: #0a0a0a; min-height: 0; overflow: hidden; }
+        .mission-panel { background: rgba(13,17,23,0.95); border-top: 2px solid #a855f7; padding: 15px 20px; flex-shrink: 0; max-height: 220px; overflow-y: auto; }
+        .mission-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+        .mission-header h3 { color: #a855f7; font-size: 1em; margin: 0; }
+        .mission-header h3::before { content: '>'; animation: blink 1s infinite; margin-right: 8px; }
+        @keyframes blink { 0%,100%{opacity:1;}50%{opacity:0;} }
+        .progress-bar { width:100%; height:8px; background:rgba(255,255,255,0.1); border-radius:4px; overflow:hidden; margin-bottom:15px; }
+        .progress-fill { height:100%; background:linear-gradient(90deg,#a855f7,#c084fc); border-radius:4px; transition:width 0.5s ease; }
+        .objective-list { list-style:none; }
+        .objective-item { padding:8px 12px; margin:4px 0; background:rgba(255,255,255,0.02); border-radius:6px; border-left:3px solid #30363d; font-size:0.85em; color:#8b949e; display:flex; align-items:center; gap:10px; }
+        .objective-item.active { border-left-color:#ffa657; background:rgba(255,166,87,0.1); color:#c9d1d9; }
+        .objective-item.completed { border-left-color:#3fb950; color:#3fb950; }
+        .objective-item .check { width:18px; height:18px; border:2px solid #30363d; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:0.7em; }
+        .objective-item.completed .check { border-color:#3fb950; background:#3fb950; color:#0d1117; }
+        .objective-item.active .check { border-color:#ffa657; }
+        .intel-panel { background:rgba(13,17,23,0.95); padding:20px; overflow-y:auto; height:100vh; }
+        .intel-panel h2 { color:#a855f7; font-size:1.2em; margin-bottom:20px; padding-bottom:10px; border-bottom:2px solid #a855f7; }
+        .cmd-ref { margin-bottom:20px; } .cmd-ref h3 { color:#c084fc; font-size:0.95em; margin-bottom:12px; }
+        .cmd-box { background:#0a0a0a; border:1px solid #30363d; border-radius:6px; padding:10px 12px; margin:8px 0; font-family:'Cascadia Code',monospace; font-size:0.8em; }
+        .cmd-box .cmd { color:#00ff41; } .cmd-box .desc { color:#8b949e; margin-top:4px; font-size:0.9em; }
+        .tip-box { background:rgba(168,85,247,0.1); border-left:3px solid #a855f7; padding:12px 15px; margin:15px 0; border-radius:0 8px 8px 0; }
+        .tip-box strong { color:#a855f7; } .tip-box p { color:#c9d1d9; margin:5px 0 0 0; font-size:0.9em; }
+        .context-callout { background:rgba(168,85,247,0.08); border-left:3px solid #a855f7; padding:12px 16px; margin:12px 0; border-radius:0 6px 6px 0; }
+        .context-callout-label { font-size:0.7rem; font-weight:700; text-transform:uppercase; letter-spacing:1px; color:#a855f7; margin-bottom:4px; }
+        .context-callout-text { font-size:0.85rem; color:#9ca3af; line-height:1.5; }
+        .hint-container { margin-top:10px; }
+        .modal-overlay { display:none; position:fixed; top:0;left:0;right:0;bottom:0; background:rgba(0,0,0,0.9); justify-content:center; align-items:center; z-index:1000; }
+        .modal-overlay.show { display:flex; }
+        .modal { background:linear-gradient(135deg,#0d1117,#161b22); border:2px solid #a855f7; border-radius:16px; padding:40px; text-align:center; max-width:500px; animation:modalIn 0.3s ease; }
+        @keyframes modalIn { from{transform:scale(0.9);opacity:0;}to{transform:scale(1);opacity:1;} }
+        .modal .trophy { font-size:4em; margin-bottom:15px; } .modal h2 { color:#a855f7; font-size:1.6em; margin-bottom:10px; }
+        .modal p { color:#8b949e; margin-bottom:20px; line-height:1.6; }
+        .modal .stats { display:flex; justify-content:center; gap:30px; margin-bottom:25px; } .modal .stat { text-align:center; }
+        .modal .stat-value { color:#3fb950; font-size:1.5em; font-weight:bold; } .modal .stat-label { color:#8b949e; font-size:0.8em; }
+        .modal-buttons { display:flex; gap:15px; justify-content:center; }
+        .modal-btn { padding:12px 24px; border:none; border-radius:8px; cursor:pointer; font-family:'Cascadia Code',monospace; font-size:0.9em; transition:all 0.3s; }
+        .modal-btn.primary { background:#a855f7; color:#0d1117; } .modal-btn.primary:hover { box-shadow:0 0 20px rgba(168,85,247,0.5); }
+        .modal-btn.secondary { background:transparent; color:#a855f7; border:2px solid #a855f7; }
+        ::-webkit-scrollbar{width:8px;}::-webkit-scrollbar-track{background:#0d1117;}::-webkit-scrollbar-thumb{background:#30363d;border-radius:4px;}
+        @media(max-width:1024px){.container{grid-template-columns:1fr;}.intel-panel{height:auto;max-height:40vh;border-top:2px solid #a855f7;}}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="main-panel">
+            <div class="header"><div class="header-content"><div class="header-left"><span class="mission-badge">MISSION LAB</span><h1>Secure SSH Configuration</h1></div><a href="../../index.html" class="back-link">< Shield House</a></div></div>
+            <div class="terminal-container" id="terminal"></div>
+            <div class="mission-panel">
+                <div class="mission-header"><h3>MISSION OBJECTIVES</h3><span id="progressText" style="color:#8b949e;font-size:0.85em;">0/10 Complete</span></div>
+                <div class="progress-bar"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
+                <ul class="objective-list" id="objectiveList"></ul>
+            </div>
+        </div>
+        <div class="intel-panel">
+            <h2>SSH SECURITY INTEL</h2>
+            <div class="tip-box"><strong>MISSION BRIEFING</strong><p>The SOC flagged 15,000+ failed SSH attempts in 24 hours. Your job: harden sshd_config, generate strong keys, set up fail2ban, configure session timeouts, and verify everything. This is a full SSH security overhaul.</p></div>
+            <div class="cmd-ref">
+                <h3>SSH Security Commands</h3>
+                <div class="cmd-box"><div class="cmd">ssh-keygen -t ed25519 -C "comment"</div><div class="desc">Generate modern key pair</div></div>
+                <div class="cmd-box"><div class="cmd">ssh-copy-id user@host</div><div class="desc">Copy public key to remote</div></div>
+                <div class="cmd-box"><div class="cmd">fail2ban-client status sshd</div><div class="desc">Check fail2ban SSH jail</div></div>
+                <div class="cmd-box"><div class="cmd">fail2ban-client set sshd banip IP</div><div class="desc">Manually ban an IP</div></div>
+                <div class="cmd-box"><div class="cmd">ss -tlnp | grep ssh</div><div class="desc">Check SSH listening port</div></div>
+            </div>
+            <div class="context-callout"><div class="context-callout-label">Why This Matters</div><div class="context-callout-text">SSH is the #1 remote access vector for Linux servers. CIS Benchmark section 5.2 dedicates 20+ controls to SSH hardening. Every misconfiguration is a potential entry point. This lab covers: key management, sshd_config hardening, fail2ban, and session security.</div></div>
+            <div class="hint-container" id="hintContainer"></div>
+        </div>
+    </div>
+    <div class="modal-overlay" id="completionModal"><div class="modal"><div class="trophy">&#128737;</div><h2>SSH Fortress Complete!</h2><p>Root login disabled, key-only auth enforced, fail2ban active, idle sessions killed. The 15,000 daily brute-force attempts will now hit a wall of steel.</p><div class="stats"><div class="stat"><div class="stat-value" id="commandCount">0</div><div class="stat-label">Commands</div></div><div class="stat"><div class="stat-value" id="timeElapsed">0:00</div><div class="stat-label">Time</div></div></div><div class="modal-buttons"><button class="modal-btn secondary" onclick="resetMission()">Retry</button><button class="modal-btn primary" onclick="window.location.href='../../index.html'">Shield House</button></div></div></div>
+
+    <script>
+    const state = { completed: new Set(), commandCount: 0, startTime: Date.now(), currentObjective: 0, hintsRevealed: 0 };
+
+    const OBJECTIVES = [
+        { id: 'inspect', task: '1. Review current sshd_config', validate: (cmd) => /(cat|less|more|grep\s+.*)\s*(\/etc\/ssh\/)?sshd_config/.test(cmd.trim()),
+          hints: [{ level: 1, text: 'Read the config first to understand the current state.' }, { level: 2, text: 'cat /etc/ssh/sshd_config' }, { level: 3, text: 'cat /etc/ssh/sshd_config' }, { level: 4, text: 'cat /etc/ssh/sshd_config', isSolution: true }] },
+        { id: 'disable-root', task: '2. Disable root login', validateState: () => { const n = LinuxTerminal.getFs()['/etc/ssh/sshd_config']; return n && n.content && /PermitRootLogin\s+no/i.test(n.content); },
+          hints: [{ level: 1, text: 'Root should never login directly via SSH.' }, { level: 2, text: 'Change PermitRootLogin to no.' }, { level: 3, text: 'sed -i \'s/PermitRootLogin yes/PermitRootLogin no/\' /etc/ssh/sshd_config' }, { level: 4, text: 'sed -i \'s/PermitRootLogin yes/PermitRootLogin no/\' /etc/ssh/sshd_config', isSolution: true }] },
+        { id: 'key-only', task: '3. Disable password authentication (key-only)', validateState: () => { const n = LinuxTerminal.getFs()['/etc/ssh/sshd_config']; return n && n.content && /PasswordAuthentication\s+no/i.test(n.content); },
+          hints: [{ level: 1, text: 'Keys are orders of magnitude harder to brute-force.' }, { level: 2, text: 'Set PasswordAuthentication to no.' }, { level: 3, text: 'sed -i \'s/PasswordAuthentication yes/PasswordAuthentication no/\' /etc/ssh/sshd_config' }, { level: 4, text: 'sed -i \'s/PasswordAuthentication yes/PasswordAuthentication no/\' /etc/ssh/sshd_config', isSolution: true }] },
+        { id: 'change-port', task: '4. Change SSH port to 2222', validateState: () => { const n = LinuxTerminal.getFs()['/etc/ssh/sshd_config']; return n && n.content && /Port\s+2222/.test(n.content); },
+          hints: [{ level: 1, text: 'Non-standard ports reduce automated scans by 90%+.' }, { level: 2, text: 'Change Port 22 to Port 2222.' }, { level: 3, text: 'sed -i \'s/Port 22/Port 2222/\' /etc/ssh/sshd_config' }, { level: 4, text: 'sed -i \'s/Port 22/Port 2222/\' /etc/ssh/sshd_config', isSolution: true }] },
+        { id: 'max-auth', task: '5. Set MaxAuthTries to 3', validateState: () => { const n = LinuxTerminal.getFs()['/etc/ssh/sshd_config']; return n && n.content && /MaxAuthTries\s+3/.test(n.content); },
+          hints: [{ level: 1, text: 'Fewer attempts = less window for brute-force.' }, { level: 2, text: 'Change MaxAuthTries to 3.' }, { level: 3, text: 'sed -i \'s/MaxAuthTries 6/MaxAuthTries 3/\' /etc/ssh/sshd_config' }, { level: 4, text: 'sed -i \'s/MaxAuthTries 6/MaxAuthTries 3/\' /etc/ssh/sshd_config', isSolution: true }] },
+        { id: 'idle-timeout', task: '6. Set idle timeout (ClientAliveInterval 300)', validateState: () => { const n = LinuxTerminal.getFs()['/etc/ssh/sshd_config']; return n && n.content && /ClientAliveInterval\s+300/.test(n.content); },
+          hints: [{ level: 1, text: 'Idle sessions are a hijacking risk.' }, { level: 2, text: 'Set ClientAliveInterval to 300 (5 minutes).' }, { level: 3, text: 'sed -i \'s/ClientAliveInterval 0/ClientAliveInterval 300/\' /etc/ssh/sshd_config' }, { level: 4, text: 'sed -i \'s/ClientAliveInterval 0/ClientAliveInterval 300/\' /etc/ssh/sshd_config', isSolution: true }] },
+        { id: 'keygen', task: '7. Generate an Ed25519 SSH key pair', validate: (cmd) => /ssh-keygen\s+.*-t\s+ed25519/.test(cmd.trim()),
+          hints: [{ level: 1, text: 'Ed25519 is the modern, recommended key type.' }, { level: 2, text: 'ssh-keygen -t ed25519' }, { level: 3, text: 'ssh-keygen -t ed25519' }, { level: 4, text: 'ssh-keygen -t ed25519', isSolution: true }] },
+        { id: 'fail2ban-status', task: '8. Check fail2ban SSH jail status', validate: (cmd) => /fail2ban-client\s+status\s+sshd/.test(cmd.trim()),
+          hints: [{ level: 1, text: 'fail2ban automatically bans IPs after failed attempts.' }, { level: 2, text: 'fail2ban-client status sshd' }, { level: 3, text: 'fail2ban-client status sshd' }, { level: 4, text: 'fail2ban-client status sshd', isSolution: true }] },
+        { id: 'fail2ban-ban', task: '9. Manually ban the top attacker IP 203.0.113.42', validate: (cmd) => /fail2ban-client\s+set\s+sshd\s+banip\s+203\.0\.113\.42/.test(cmd.trim()),
+          hints: [{ level: 1, text: 'Sometimes you need to ban an IP immediately.' }, { level: 2, text: 'fail2ban-client set sshd banip <IP>' }, { level: 3, text: 'fail2ban-client set sshd banip 203.0.113.42' }, { level: 4, text: 'fail2ban-client set sshd banip 203.0.113.42', isSolution: true }] },
+        { id: 'restart', task: '10. Restart sshd to apply all changes', validate: (cmd) => /systemctl\s+restart\s+sshd/.test(cmd.trim()),
+          hints: [{ level: 1, text: 'Config changes do not take effect until restart.' }, { level: 2, text: 'systemctl restart sshd' }, { level: 3, text: 'systemctl restart sshd' }, { level: 4, text: 'systemctl restart sshd', isSolution: true }] }
+    ];
+
+    function init() {
+        LinuxTerminal.init('SHIELD-MISSION-SSH', '#terminal', { user: 'sysadmin', hostname: 'shield-bastion', startDir: '/etc/ssh', height: '100%', onCommand: handleCommand });
+        LinuxTerminal.addFilesystem({
+            '/etc/ssh': { type: 'dir', perms: 'drwxr-xr-x', owner: 'root', group: 'root', children: ['sshd_config', 'ssh_host_ed25519_key', 'ssh_host_ed25519_key.pub'] },
+            '/etc/ssh/sshd_config': { type: 'file', perms: '-rw-r--r--', owner: 'root', group: 'root', size: 2048, content: '# OpenSSH Server Configuration\n# INSECURE - Multiple issues detected by SOC\n\nPort 22\nListenAddress 0.0.0.0\nProtocol 2\n\nHostKey /etc/ssh/ssh_host_ed25519_key\n\n# Authentication\nPermitRootLogin yes\nMaxAuthTries 6\nMaxSessions 10\n\nPubkeyAuthentication yes\nPasswordAuthentication yes\nPermitEmptyPasswords no\n\n# Session\nClientAliveInterval 0\nClientAliveCountMax 3\n\n# Logging\nSyslogFacility AUTH\nLogLevel INFO\n\n# Other\nX11Forwarding no\nPrintMotd no\nBanner /etc/ssh/banner\n\nAcceptEnv LANG LC_*\nSubsystem sftp /usr/lib/openssh/sftp-server\nUsePAM yes\n' },
+            '/etc/ssh/ssh_host_ed25519_key': { type: 'file', perms: '-rw-------', owner: 'root', group: 'root', size: 512, content: '[ED25519 HOST KEY]\n' },
+            '/etc/ssh/ssh_host_ed25519_key.pub': { type: 'file', perms: '-rw-r--r--', owner: 'root', group: 'root', size: 128, content: 'ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAA... root@shield-bastion\n' },
+            '/etc/fail2ban': { type: 'dir', perms: 'drwxr-xr-x', owner: 'root', group: 'root', children: ['jail.local'] },
+            '/etc/fail2ban/jail.local': { type: 'file', perms: '-rw-r--r--', owner: 'root', group: 'root', size: 512, content: '[sshd]\nenabled = true\nport = ssh\nfilter = sshd\nlogpath = /var/log/auth.log\nmaxretry = 3\nbantime = 3600\nfindtime = 600\n' },
+            '/var/log/auth.log': { type: 'file', perms: '-rw-r-----', owner: 'root', group: 'adm', size: 8192, content: 'Feb 16 03:14:01 shield-bastion sshd[8901]: Failed password for root from 203.0.113.42 port 54321 ssh2\nFeb 16 03:14:02 shield-bastion sshd[8902]: Failed password for root from 203.0.113.42 port 54322 ssh2\nFeb 16 03:14:03 shield-bastion sshd[8903]: Failed password for admin from 198.51.100.7 port 12345 ssh2\nFeb 16 03:14:04 shield-bastion sshd[8904]: Failed password for root from 203.0.113.42 port 54323 ssh2\nFeb 16 03:15:00 shield-bastion sshd[8905]: Accepted publickey for sysadmin from 10.0.1.5 port 49876 ssh2\n' }
+        });
+        LinuxTerminal.addServices({ 'sshd': { status: 'active', enabled: true }, 'fail2ban': { status: 'active', enabled: true } });
+        printBriefing(); updateObjectiveList(); updateProgress(); updateHintPanel();
+    }
+
+    function handleCommand(cmdLine, output, cmd, args) { state.commandCount++; checkObjectives(cmdLine); }
+    function checkObjectives(cmdLine) { let n = false; for (const obj of OBJECTIVES) { if (state.completed.has(obj.id)) continue; let c = false; if (obj.validate && obj.validate(cmdLine)) c = true; if (obj.validateState && obj.validateState()) c = true; if (c) { state.completed.add(obj.id); n = true; LinuxTerminal.print('[OBJECTIVE] ' + obj.task + ' - COMPLETE', 'lt-success'); } } if (n) { for (let i = 0; i < OBJECTIVES.length; i++) { if (!state.completed.has(OBJECTIVES[i].id)) { state.currentObjective = i; break; } } updateObjectiveList(); updateProgress(); updateHintPanel(); if (state.completed.size === OBJECTIVES.length) setTimeout(showCompletionModal, 1000); } }
+    function updateHintPanel() { const o = OBJECTIVES[state.currentObjective]; if (!o||!o.hints) return; ProgressiveHints.init('hintContainer', o.hints, { labId: `ssh-sec-${o.id}`, onReveal: () => { state.hintsRevealed++; } }); }
+    function updateObjectiveList() { const l = document.getElementById('objectiveList'); l.innerHTML = ''; OBJECTIVES.forEach((o,i) => { const li = document.createElement('li'); li.className = 'objective-item'; const d = state.completed.has(o.id); const p = i===0||state.completed.has(OBJECTIVES[i-1].id); if(d) li.classList.add('completed'); else if(p) li.classList.add('active'); li.innerHTML = `<div class="check">${d?'&#10003;':i+1}</div><span>${o.task}</span>`; l.appendChild(li); }); }
+    function updateProgress() { const p = (state.completed.size/OBJECTIVES.length)*100; document.getElementById('progressFill').style.width = p+'%'; document.getElementById('progressText').textContent = `${state.completed.size}/${OBJECTIVES.length} Complete`; }
+    function showCompletionModal() { const e = Math.floor((Date.now()-state.startTime)/1000); document.getElementById('commandCount').textContent = state.commandCount; document.getElementById('timeElapsed').textContent = `${Math.floor(e/60)}:${(e%60).toString().padStart(2,'0')}`; document.getElementById('completionModal').classList.add('show'); saveProgress(); }
+    function resetMission() { document.getElementById('completionModal').classList.remove('show'); state.completed.clear(); state.commandCount=0; state.startTime=Date.now(); state.currentObjective=0; state.hintsRevealed=0; LinuxTerminal.destroy(); init(); }
+    function saveProgress() { const p = JSON.parse(localStorage.getItem('hexworth_progress')||'{}'); if(!p.shield) p.shield={}; p.shield['mission-ssh-security']={completed:true,completedAt:new Date().toISOString(),commandCount:state.commandCount,timeElapsed:Math.floor((Date.now()-state.startTime)/1000)}; localStorage.setItem('hexworth_progress',JSON.stringify(p)); try{if(typeof GameTracker!=='undefined') GameTracker.record('shield_mission_ssh',state.completed.size*10,{commands:state.commandCount});}catch(e){} }
+    function printBriefing() {
+        LinuxTerminal.print('<span style="color:#f87171;">MISSION: SECURE SSH CONFIGURATION</span>');
+        LinuxTerminal.print('');
+        LinuxTerminal.print('<span style="color:#8b949e;">[SOC ALERT] 15,000+ failed SSH attempts in the last 24 hours.</span>');
+        LinuxTerminal.print('<span style="color:#8b949e;">[SOC ALERT] Top attacker: 203.0.113.42 (8,000+ attempts)</span>');
+        LinuxTerminal.print('<span style="color:#ffa657;">Full SSH security overhaul required:</span>');
+        LinuxTerminal.print('<span style="color:#8b949e;">  - Harden sshd_config (root, passwords, port, timeouts)</span>');
+        LinuxTerminal.print('<span style="color:#8b949e;">  - Generate strong keys, configure fail2ban</span>');
+        LinuxTerminal.print('<span style="color:#8b949e;">  - Ban active attackers, restart service</span>');
+        LinuxTerminal.print('');
+    }
+    document.addEventListener('DOMContentLoaded', init);
+    </script>
+    <script src="../../../../components/GameTracker.js"></script>
+    <script src="../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>

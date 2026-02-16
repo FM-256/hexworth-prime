@@ -2888,6 +2888,1600 @@ class LearningPaths {
                     prerequisites: ['spc-key-management']
                 }
             ]
+        },
+
+        // CompTIA CySA+ CS0-003 — Shield + Eye Houses
+        'cysa-plus': {
+            name: 'CompTIA CySA+ (CS0-003)',
+            description: 'Security analyst certification prep covering threat detection, analysis, vulnerability management, incident response, and security operations',
+            icon: '🔍',
+            color: '#a855f7',
+            modules: [
+                // Domain 1: Security Operations
+                {
+                    id: 'cysa-soc-operations',
+                    title: 'SOC Operations',
+                    type: 'presentation',
+                    difficulty: 'intermediate',
+                    duration: '30 min',
+                    href: 'houses/eye/presentations/eye-soc-operations.presentation.html',
+                    prerequisites: []
+                },
+                {
+                    id: 'cysa-soc-simulator',
+                    title: 'SOC Simulator',
+                    type: 'tool',
+                    difficulty: 'intermediate',
+                    duration: '45 min',
+                    href: 'houses/eye/tools/eye-soc.tool.html',
+                    prerequisites: ['cysa-soc-operations']
+                },
+                {
+                    id: 'cysa-soc-overview',
+                    title: 'SOC Overview',
+                    type: 'applet',
+                    difficulty: 'intermediate',
+                    duration: '20 min',
+                    href: 'houses/eye/applets/cyberops/eye-soc-overview.applet.html',
+                    prerequisites: ['cysa-soc-simulator']
+                },
+                {
+                    id: 'cysa-soc-metrics',
+                    title: 'SOC Metrics',
+                    type: 'applet',
+                    difficulty: 'intermediate',
+                    duration: '20 min',
+                    href: 'houses/eye/applets/cyberops/eye-soc-metrics.applet.html',
+                    prerequisites: ['cysa-soc-overview']
+                },
+                {
+                    id: 'cysa-soc-quiz',
+                    title: 'SOC Operations Quiz',
+                    type: 'quiz',
+                    difficulty: 'intermediate',
+                    duration: '15 min',
+                    href: 'houses/eye/quizzes/eye-soc.quiz.html',
+                    prerequisites: ['cysa-soc-metrics']
+                },
+                {
+                    id: 'cysa-soc-lab',
+                    title: 'SOC Operations Lab',
+                    type: 'lab',
+                    difficulty: 'intermediate',
+                    duration: '40 min',
+                    href: 'houses/eye/labs/eye-soc.lab.html',
+                    prerequisites: ['cysa-soc-quiz']
+                },
+                // Domain 2: Vulnerability Management
+                {
+                    id: 'cysa-risk-management',
+                    title: 'Risk Management',
+                    type: 'applet',
+                    difficulty: 'intermediate',
+                    duration: '30 min',
+                    href: 'houses/shield/applets/risk/risk_management/shield-risk-management.applet.html',
+                    prerequisites: ['cysa-soc-lab']
+                },
+                {
+                    id: 'cysa-risk-analysis',
+                    title: 'Risk Analysis',
+                    type: 'applet',
+                    difficulty: 'intermediate',
+                    duration: '25 min',
+                    href: 'houses/shield/applets/risk/risk_analysis/shield-risk-analysis.applet.html',
+                    prerequisites: ['cysa-risk-management']
+                },
+                {
+                    id: 'cysa-risk-rating',
+                    title: 'Risk Rating & CVSS',
+                    type: 'applet',
+                    difficulty: 'intermediate',
+                    duration: '20 min',
+                    href: 'houses/eye/applets/cyberops/eye-risk-rating.applet.html',
+                    prerequisites: ['cysa-risk-analysis']
+                },
+                {
+                    id: 'cysa-cvss',
+                    title: 'CVSS Terminology',
+                    type: 'applet',
+                    difficulty: 'intermediate',
+                    duration: '20 min',
+                    href: 'houses/eye/applets/cyberops/eye-cvss-terminology.applet.html',
+                    prerequisites: ['cysa-risk-rating']
+                },
+                {
+                    id: 'cysa-attack-surface',
+                    title: 'Attack Surface & Vulnerabilities',
+                    type: 'applet',
+                    difficulty: 'intermediate',
+                    duration: '25 min',
+                    href: 'houses/eye/applets/cyberops/eye-attack-surface-vuln.applet.html',
+                    prerequisites: ['cysa-cvss']
+                },
+                {
+                    id: 'cysa-cve-lookup',
+                    title: 'CVE Lookup Tool',
+                    type: 'tool',
+                    difficulty: 'intermediate',
+                    duration: '20 min',
+                    href: 'houses/shield/tools/shield-cve-lookup.tool.html',
+                    prerequisites: ['cysa-attack-surface']
+                },
+                // Domain 3: Incident Response & Management
+                {
+                    id: 'cysa-incident-response',
+                    title: 'Incident Response',
+                    type: 'tool',
+                    difficulty: 'intermediate',
+                    duration: '30 min',
+                    href: 'houses/shield/tools/shield-incident-response.tool.html',
+                    prerequisites: ['cysa-cve-lookup']
+                },
+                {
+                    id: 'cysa-irp-elements',
+                    title: 'Incident Response Plan Elements',
+                    type: 'applet',
+                    difficulty: 'intermediate',
+                    duration: '20 min',
+                    href: 'houses/eye/applets/cyberops/eye-irp-elements.applet.html',
+                    prerequisites: ['cysa-incident-response']
+                },
+                {
+                    id: 'cysa-ir-forensics',
+                    title: 'IR & Forensics Lab',
+                    type: 'lab',
+                    difficulty: 'advanced',
+                    duration: '45 min',
+                    href: 'houses/shield/labs/shield-ir-forensics.lab.html',
+                    prerequisites: ['cysa-irp-elements']
+                },
+                {
+                    id: 'cysa-nist-forensics',
+                    title: 'NIST 800-86 Forensics',
+                    type: 'applet',
+                    difficulty: 'advanced',
+                    duration: '20 min',
+                    href: 'houses/eye/applets/cyberops/eye-nist-800-86.applet.html',
+                    prerequisites: ['cysa-ir-forensics']
+                },
+                {
+                    id: 'cysa-evidence-types',
+                    title: 'Evidence Types',
+                    type: 'applet',
+                    difficulty: 'advanced',
+                    duration: '20 min',
+                    href: 'houses/eye/applets/cyberops/eye-evidence-types.applet.html',
+                    prerequisites: ['cysa-nist-forensics']
+                },
+                // Domain 4: Reporting & Communication
+                {
+                    id: 'cysa-monitoring',
+                    title: 'Security Monitoring & Incident Response',
+                    type: 'presentation',
+                    difficulty: 'intermediate',
+                    duration: '30 min',
+                    href: 'houses/shield/presentations/shield-cse-06-security-monitoring-incident-response.presentation.html',
+                    prerequisites: ['cysa-evidence-types']
+                },
+                {
+                    id: 'cysa-risk-assessment',
+                    title: 'Risk Assessment & Management',
+                    type: 'presentation',
+                    difficulty: 'intermediate',
+                    duration: '30 min',
+                    href: 'houses/shield/presentations/shield-cse-07-risk-assessment-management.presentation.html',
+                    prerequisites: ['cysa-monitoring']
+                },
+                {
+                    id: 'cysa-compliance',
+                    title: 'Compliance & Governance',
+                    type: 'presentation',
+                    difficulty: 'intermediate',
+                    duration: '30 min',
+                    href: 'houses/shield/presentations/shield-cse-08-compliance-governance.presentation.html',
+                    prerequisites: ['cysa-risk-assessment']
+                },
+                {
+                    id: 'cysa-analyst-toolkit',
+                    title: 'CySA+ Analyst Toolkit',
+                    type: 'applet',
+                    difficulty: 'advanced',
+                    duration: '45 min',
+                    href: 'houses/shield/applets/operations/shield-cysa-analyst-toolkit.applet.html',
+                    prerequisites: ['cysa-compliance']
+                }
+            ]
+        },
+
+        // CompTIA CASP+ CAS-004 — Shield House (Advanced)
+        'casp-plus': {
+            name: 'CompTIA CASP+ (CAS-004)',
+            description: 'Advanced security practitioner certification covering security architecture, operations, engineering, cryptography, and governance at the enterprise level',
+            icon: '🏛️',
+            color: '#dc2626',
+            modules: [
+                // Domain 1: Security Architecture
+                {
+                    id: 'casp-security-fundamentals',
+                    title: 'Security Fundamentals',
+                    type: 'presentation',
+                    difficulty: 'intermediate',
+                    duration: '30 min',
+                    href: 'houses/shield/presentations/shield-security.presentation.html',
+                    prerequisites: []
+                },
+                {
+                    id: 'casp-design-principles',
+                    title: 'Security Design Principles',
+                    type: 'applet',
+                    difficulty: 'intermediate',
+                    duration: '25 min',
+                    href: 'houses/shield/applets/fundamentals/design_principles/shield-cybersecuritydesignprinciples.applet.html',
+                    prerequisites: ['casp-security-fundamentals']
+                },
+                {
+                    id: 'casp-zero-trust',
+                    title: 'Zero Trust Architecture',
+                    type: 'tool',
+                    difficulty: 'advanced',
+                    duration: '35 min',
+                    href: 'houses/shield/tools/shield-zero-trust.tool.html',
+                    prerequisites: ['casp-design-principles']
+                },
+                {
+                    id: 'casp-security-models',
+                    title: 'Security Models',
+                    type: 'tool',
+                    difficulty: 'advanced',
+                    duration: '30 min',
+                    href: 'houses/shield/tools/shield-security-models.tool.html',
+                    prerequisites: ['casp-zero-trust']
+                },
+                {
+                    id: 'casp-governance',
+                    title: 'Security Governance Dashboard',
+                    type: 'applet',
+                    difficulty: 'advanced',
+                    duration: '30 min',
+                    href: 'houses/shield/applets/fundamentals/shield-security-governance-dashboard.applet.html',
+                    prerequisites: ['casp-security-models']
+                },
+                // Domain 2: Security Operations
+                {
+                    id: 'casp-firewalls',
+                    title: 'Enterprise Firewalls',
+                    type: 'applet',
+                    difficulty: 'advanced',
+                    duration: '30 min',
+                    href: 'houses/shield/applets/network/firewalls/shield-firewalls.applet.html',
+                    prerequisites: ['casp-governance']
+                },
+                {
+                    id: 'casp-ids-ips',
+                    title: 'IDS/IPS Systems',
+                    type: 'applet',
+                    difficulty: 'advanced',
+                    duration: '25 min',
+                    href: 'houses/shield/applets/network/ids_ips/shield-ids-ips.applet.html',
+                    prerequisites: ['casp-firewalls']
+                },
+                {
+                    id: 'casp-vpn',
+                    title: 'Enterprise VPN',
+                    type: 'applet',
+                    difficulty: 'advanced',
+                    duration: '25 min',
+                    href: 'houses/shield/applets/network/vpn/shield-vpn.applet.html',
+                    prerequisites: ['casp-ids-ips']
+                },
+                {
+                    id: 'casp-linux-firewall',
+                    title: 'Linux Firewall Builder',
+                    type: 'applet',
+                    difficulty: 'advanced',
+                    duration: '35 min',
+                    href: 'houses/shield/applets/network/shield-linux-firewall-builder.applet.html',
+                    prerequisites: ['casp-vpn']
+                },
+                {
+                    id: 'casp-incident-response',
+                    title: 'Incident Response',
+                    type: 'tool',
+                    difficulty: 'advanced',
+                    duration: '30 min',
+                    href: 'houses/shield/tools/shield-incident-response.tool.html',
+                    prerequisites: ['casp-linux-firewall']
+                },
+                {
+                    id: 'casp-ir-forensics',
+                    title: 'IR & Forensics Lab',
+                    type: 'lab',
+                    difficulty: 'advanced',
+                    duration: '45 min',
+                    href: 'houses/shield/labs/shield-ir-forensics.lab.html',
+                    prerequisites: ['casp-incident-response']
+                },
+                // Domain 3: Security Engineering & Cryptography
+                {
+                    id: 'casp-cryptography',
+                    title: 'Cryptography Essentials',
+                    type: 'applet',
+                    difficulty: 'advanced',
+                    duration: '35 min',
+                    href: 'houses/shield/applets/crypto/cryptography/shield-cryptography.applet.html',
+                    prerequisites: ['casp-ir-forensics']
+                },
+                {
+                    id: 'casp-pki',
+                    title: 'PKI Infrastructure',
+                    type: 'applet',
+                    difficulty: 'advanced',
+                    duration: '30 min',
+                    href: 'houses/shield/applets/crypto/pki/shield-pki.applet.html',
+                    prerequisites: ['casp-cryptography']
+                },
+                {
+                    id: 'casp-blockchain',
+                    title: 'Blockchain Security',
+                    type: 'applet',
+                    difficulty: 'advanced',
+                    duration: '25 min',
+                    href: 'houses/shield/applets/crypto/blockchain/shield-blockchain.applet.html',
+                    prerequisites: ['casp-pki']
+                },
+                {
+                    id: 'casp-crypto-lab',
+                    title: 'Cryptography Lab',
+                    type: 'lab',
+                    difficulty: 'advanced',
+                    duration: '40 min',
+                    href: 'houses/shield/labs/shield-cryptography.lab.html',
+                    prerequisites: ['casp-blockchain']
+                },
+                // Domain 4: Governance, Risk, and Compliance
+                {
+                    id: 'casp-risk-management',
+                    title: 'Enterprise Risk Management',
+                    type: 'applet',
+                    difficulty: 'advanced',
+                    duration: '30 min',
+                    href: 'houses/shield/applets/risk/risk_management/shield-risk-management.applet.html',
+                    prerequisites: ['casp-crypto-lab']
+                },
+                {
+                    id: 'casp-risk-analysis',
+                    title: 'Risk Analysis',
+                    type: 'applet',
+                    difficulty: 'advanced',
+                    duration: '25 min',
+                    href: 'houses/shield/applets/risk/risk_analysis/shield-risk-analysis.applet.html',
+                    prerequisites: ['casp-risk-management']
+                },
+                {
+                    id: 'casp-bcp',
+                    title: 'Business Continuity Planning',
+                    type: 'applet',
+                    difficulty: 'advanced',
+                    duration: '30 min',
+                    href: 'houses/shield/applets/risk/shield-business-continuity-planner.applet.html',
+                    prerequisites: ['casp-risk-analysis']
+                },
+                {
+                    id: 'casp-bia',
+                    title: 'Business Impact Analysis',
+                    type: 'tool',
+                    difficulty: 'advanced',
+                    duration: '25 min',
+                    href: 'houses/shield/tools/shield-bia.tool.html',
+                    prerequisites: ['casp-bcp']
+                },
+                {
+                    id: 'casp-frameworks',
+                    title: 'Security Frameworks',
+                    type: 'applet',
+                    difficulty: 'advanced',
+                    duration: '25 min',
+                    href: 'houses/shield/applets/compliance/shield-framework-selector.applet.html',
+                    prerequisites: ['casp-bia']
+                },
+                {
+                    id: 'casp-laws',
+                    title: 'Laws & Regulations',
+                    type: 'applet',
+                    difficulty: 'advanced',
+                    duration: '25 min',
+                    href: 'houses/shield/applets/compliance/shield-laws-regulations.applet.html',
+                    prerequisites: ['casp-frameworks']
+                },
+                {
+                    id: 'casp-cism',
+                    title: 'CISM Management Dashboard',
+                    type: 'applet',
+                    difficulty: 'advanced',
+                    duration: '30 min',
+                    href: 'houses/shield/applets/governance/shield-cism-management-dashboard.applet.html',
+                    prerequisites: ['casp-laws']
+                },
+                {
+                    id: 'casp-compliance-lab',
+                    title: 'Compliance Lab',
+                    type: 'lab',
+                    difficulty: 'advanced',
+                    duration: '30 min',
+                    href: 'houses/shield/labs/shield-compliance.lab.html',
+                    prerequisites: ['casp-cism']
+                }
+            ]
+        },
+
+        // Cisco CCNA 200-301 — Web House
+        'ccna': {
+            name: 'Cisco CCNA (200-301)',
+            description: 'CCNA certification prep covering network fundamentals, network access, IP connectivity, IP services, security fundamentals, and automation',
+            icon: '🔧',
+            color: '#3b82f6',
+            modules: [
+                // Domain 1: Network Fundamentals
+                {
+                    id: 'ccna-osi-model',
+                    title: 'OSI Model Fundamentals',
+                    type: 'presentation',
+                    difficulty: 'beginner',
+                    duration: '25 min',
+                    href: 'houses/web/presentations/web-osi-model.presentation.html',
+                    prerequisites: []
+                },
+                {
+                    id: 'ccna-osi-deep-dive',
+                    title: 'OSI Model Deep Dive',
+                    type: 'presentation',
+                    difficulty: 'intermediate',
+                    duration: '30 min',
+                    href: 'houses/web/presentations/web-osi-deep-dive.presentation.html',
+                    prerequisites: ['ccna-osi-model']
+                },
+                {
+                    id: 'ccna-tcp',
+                    title: 'TCP/IP Fundamentals',
+                    type: 'presentation',
+                    difficulty: 'beginner',
+                    duration: '30 min',
+                    href: 'houses/web/presentations/web-tcp.presentation.html',
+                    prerequisites: ['ccna-osi-deep-dive']
+                },
+                {
+                    id: 'ccna-ip-addressing',
+                    title: 'IP Addressing',
+                    type: 'applet',
+                    difficulty: 'beginner',
+                    duration: '30 min',
+                    href: 'houses/web/applets/ip-addressing/binaryIP/web-binary-ip.applet.html',
+                    prerequisites: ['ccna-tcp']
+                },
+                {
+                    id: 'ccna-subnetting',
+                    title: 'Subnetting Fundamentals',
+                    type: 'presentation',
+                    difficulty: 'intermediate',
+                    duration: '40 min',
+                    href: 'houses/web/presentations/web-subnetting.presentation.html',
+                    prerequisites: ['ccna-ip-addressing']
+                },
+                {
+                    id: 'ccna-vlsm',
+                    title: 'VLSM Challenge',
+                    type: 'applet',
+                    difficulty: 'intermediate',
+                    duration: '30 min',
+                    href: 'houses/web/applets/ip-addressing/VLSM_challenge/web-vlsm-challenge.applet.html',
+                    prerequisites: ['ccna-subnetting']
+                },
+                {
+                    id: 'ccna-ipv6',
+                    title: 'IPv6 Addressing',
+                    type: 'presentation',
+                    difficulty: 'intermediate',
+                    duration: '30 min',
+                    href: 'houses/web/presentations/web-ipv6.presentation.html',
+                    prerequisites: ['ccna-vlsm']
+                },
+                {
+                    id: 'ccna-cables',
+                    title: 'Network Cabling',
+                    type: 'presentation',
+                    difficulty: 'beginner',
+                    duration: '20 min',
+                    href: 'houses/web/presentations/web-cables.presentation.html',
+                    prerequisites: ['ccna-ipv6']
+                },
+                {
+                    id: 'ccna-devices',
+                    title: 'Network Devices',
+                    type: 'presentation',
+                    difficulty: 'beginner',
+                    duration: '25 min',
+                    href: 'houses/web/presentations/web-devices.presentation.html',
+                    prerequisites: ['ccna-cables']
+                },
+                // Domain 2: Network Access
+                {
+                    id: 'ccna-switching',
+                    title: 'Switch Operations',
+                    type: 'presentation',
+                    difficulty: 'intermediate',
+                    duration: '30 min',
+                    href: 'houses/web/presentations/web-switch-operations.presentation.html',
+                    prerequisites: ['ccna-devices']
+                },
+                {
+                    id: 'ccna-vlan',
+                    title: 'VLAN Configuration',
+                    type: 'presentation',
+                    difficulty: 'intermediate',
+                    duration: '35 min',
+                    href: 'houses/web/presentations/web-vlan.presentation.html',
+                    prerequisites: ['ccna-switching']
+                },
+                {
+                    id: 'ccna-stp',
+                    title: 'Spanning Tree Protocol',
+                    type: 'presentation',
+                    difficulty: 'intermediate',
+                    duration: '30 min',
+                    href: 'houses/web/presentations/web-stp.presentation.html',
+                    prerequisites: ['ccna-vlan']
+                },
+                {
+                    id: 'ccna-etherchannel',
+                    title: 'EtherChannel',
+                    type: 'presentation',
+                    difficulty: 'intermediate',
+                    duration: '25 min',
+                    href: 'houses/web/presentations/web-etherchannel.presentation.html',
+                    prerequisites: ['ccna-stp']
+                },
+                {
+                    id: 'ccna-wireless',
+                    title: 'Wireless Networking',
+                    type: 'presentation',
+                    difficulty: 'intermediate',
+                    duration: '30 min',
+                    href: 'houses/web/presentations/web-wireless.presentation.html',
+                    prerequisites: ['ccna-etherchannel']
+                },
+                {
+                    id: 'ccna-wireless-arch',
+                    title: 'Wireless Architecture',
+                    type: 'presentation',
+                    difficulty: 'intermediate',
+                    duration: '25 min',
+                    href: 'houses/web/presentations/web-wireless-architecture.presentation.html',
+                    prerequisites: ['ccna-wireless']
+                },
+                // Domain 3: IP Connectivity
+                {
+                    id: 'ccna-routing',
+                    title: 'Routing Fundamentals',
+                    type: 'presentation',
+                    difficulty: 'intermediate',
+                    duration: '35 min',
+                    href: 'houses/web/presentations/web-topologies.presentation.html',
+                    prerequisites: ['ccna-wireless-arch']
+                },
+                {
+                    id: 'ccna-ospf',
+                    title: 'OSPF Protocol',
+                    type: 'presentation',
+                    difficulty: 'advanced',
+                    duration: '40 min',
+                    href: 'houses/web/presentations/web-ospf.presentation.html',
+                    prerequisites: ['ccna-routing']
+                },
+                {
+                    id: 'ccna-eigrp',
+                    title: 'EIGRP Protocol',
+                    type: 'presentation',
+                    difficulty: 'advanced',
+                    duration: '35 min',
+                    href: 'houses/web/presentations/web-eigrp.presentation.html',
+                    prerequisites: ['ccna-ospf']
+                },
+                {
+                    id: 'ccna-fhrp',
+                    title: 'First Hop Redundancy Protocols',
+                    type: 'presentation',
+                    difficulty: 'advanced',
+                    duration: '30 min',
+                    href: 'houses/web/presentations/web-fhrp.presentation.html',
+                    prerequisites: ['ccna-eigrp']
+                },
+                {
+                    id: 'ccna-static-routes',
+                    title: 'Static Routes Lab',
+                    type: 'lab',
+                    difficulty: 'intermediate',
+                    duration: '30 min',
+                    href: 'houses/web/labs/web-static-routes.lab.html',
+                    prerequisites: ['ccna-fhrp']
+                },
+                // Domain 4: IP Services
+                {
+                    id: 'ccna-dns',
+                    title: 'DNS Services',
+                    type: 'presentation',
+                    difficulty: 'intermediate',
+                    duration: '25 min',
+                    href: 'houses/web/presentations/web-dns.presentation.html',
+                    prerequisites: ['ccna-static-routes']
+                },
+                {
+                    id: 'ccna-dhcp',
+                    title: 'DHCP Services',
+                    type: 'presentation',
+                    difficulty: 'intermediate',
+                    duration: '20 min',
+                    href: 'houses/web/presentations/web-dhcp.presentation.html',
+                    prerequisites: ['ccna-dns']
+                },
+                {
+                    id: 'ccna-nat',
+                    title: 'NAT & PAT',
+                    type: 'presentation',
+                    difficulty: 'intermediate',
+                    duration: '25 min',
+                    href: 'houses/web/presentations/web-nat.presentation.html',
+                    prerequisites: ['ccna-dhcp']
+                },
+                {
+                    id: 'ccna-ntp',
+                    title: 'NTP Services',
+                    type: 'presentation',
+                    difficulty: 'intermediate',
+                    duration: '20 min',
+                    href: 'houses/web/presentations/web-ntp.presentation.html',
+                    prerequisites: ['ccna-nat']
+                },
+                {
+                    id: 'ccna-arp',
+                    title: 'ARP Protocol',
+                    type: 'presentation',
+                    difficulty: 'intermediate',
+                    duration: '20 min',
+                    href: 'houses/web/presentations/web-arp.presentation.html',
+                    prerequisites: ['ccna-ntp']
+                },
+                {
+                    id: 'ccna-qos',
+                    title: 'QoS Fundamentals',
+                    type: 'tool',
+                    difficulty: 'intermediate',
+                    duration: '25 min',
+                    href: 'houses/web/tools/web-qos.tool.html',
+                    prerequisites: ['ccna-arp']
+                },
+                // Domain 5: Security Fundamentals
+                {
+                    id: 'ccna-security',
+                    title: 'Network Security Tools',
+                    type: 'tool',
+                    difficulty: 'intermediate',
+                    duration: '30 min',
+                    href: 'houses/web/tools/web-security.tool.html',
+                    prerequisites: ['ccna-qos']
+                },
+                {
+                    id: 'ccna-acl',
+                    title: 'Access Control Lists',
+                    type: 'tool',
+                    difficulty: 'intermediate',
+                    duration: '25 min',
+                    href: 'houses/web/tools/web-acl.tool.html',
+                    prerequisites: ['ccna-security']
+                },
+                // Domain 6: Automation & Programmability
+                {
+                    id: 'ccna-troubleshooting',
+                    title: 'Network Troubleshooting',
+                    type: 'presentation',
+                    difficulty: 'intermediate',
+                    duration: '35 min',
+                    href: 'houses/web/presentations/web-troubleshooting.presentation.html',
+                    prerequisites: ['ccna-acl']
+                },
+                {
+                    id: 'ccna-network-simulator',
+                    title: 'Network Simulator Lab',
+                    type: 'lab',
+                    difficulty: 'advanced',
+                    duration: '60 min',
+                    href: 'houses/web/simulators/web-interactive-network-simulatorv2.simulator.html',
+                    prerequisites: ['ccna-troubleshooting']
+                },
+                {
+                    id: 'ccna-packet-tracer',
+                    title: 'Packet Tracer Lite',
+                    type: 'lab',
+                    difficulty: 'advanced',
+                    duration: '60 min',
+                    href: 'houses/web/simulators/web-packet-tracer-lite-v3.simulator.html',
+                    prerequisites: ['ccna-network-simulator']
+                },
+                {
+                    id: 'ccna-final-review',
+                    title: 'CCNA Final Review',
+                    type: 'quiz',
+                    difficulty: 'advanced',
+                    duration: '30 min',
+                    href: 'houses/web/quizzes/web-networking-final-review.quiz.html',
+                    prerequisites: ['ccna-packet-tracer']
+                }
+            ]
+        },
+
+        // AWS Cloud Practitioner (CLF-C02) — Cloud House
+        'aws-ccp': {
+            name: 'AWS Cloud Practitioner (CLF-C02)',
+            description: 'AWS Certified Cloud Practitioner prep covering cloud concepts, AWS services, security, architecture, pricing, and support',
+            icon: '🟧',
+            color: '#f97316',
+            modules: [
+                // Domain 1: Cloud Concepts
+                {
+                    id: 'awsccp-cloud-concepts',
+                    title: 'Cloud Computing Concepts',
+                    type: 'presentation',
+                    difficulty: 'beginner',
+                    duration: '25 min',
+                    href: 'houses/cloud/presentations/cloud-concepts.presentation.html',
+                    prerequisites: []
+                },
+                {
+                    id: 'awsccp-cloud-models',
+                    title: 'Cloud Service & Deployment Models',
+                    type: 'tool',
+                    difficulty: 'beginner',
+                    duration: '20 min',
+                    href: 'houses/cloud/tools/cloud-ch01-cloud-models.tool.html',
+                    prerequisites: ['awsccp-cloud-concepts']
+                },
+                {
+                    id: 'awsccp-cloud-fundamentals-quiz',
+                    title: 'Cloud Fundamentals Quiz',
+                    type: 'quiz',
+                    difficulty: 'beginner',
+                    duration: '15 min',
+                    href: 'houses/cloud/quizzes/cloud-ch01-cloud-fundamentals.quiz.html',
+                    prerequisites: ['awsccp-cloud-models']
+                },
+                {
+                    id: 'awsccp-provider-comparison',
+                    title: 'Cloud Provider Comparison',
+                    type: 'applet',
+                    difficulty: 'beginner',
+                    duration: '20 min',
+                    href: 'houses/cloud/applets/fundamentals/cloud-provider-comparison.applet.html',
+                    prerequisites: ['awsccp-cloud-fundamentals-quiz']
+                },
+                // Domain 2: Security & Compliance
+                {
+                    id: 'awsccp-aws-fundamentals',
+                    title: 'AWS Fundamentals',
+                    type: 'presentation',
+                    difficulty: 'beginner',
+                    duration: '30 min',
+                    href: 'houses/cloud/presentations/cloud-aws-fundamentals.presentation.html',
+                    prerequisites: ['awsccp-provider-comparison']
+                },
+                {
+                    id: 'awsccp-aws-account',
+                    title: 'AWS Account & Setup',
+                    type: 'tool',
+                    difficulty: 'beginner',
+                    duration: '25 min',
+                    href: 'houses/cloud/tools/cloud-ch02-aws-account.tool.html',
+                    prerequisites: ['awsccp-aws-fundamentals']
+                },
+                {
+                    id: 'awsccp-support-plans',
+                    title: 'AWS Support Plans',
+                    type: 'tool',
+                    difficulty: 'beginner',
+                    duration: '15 min',
+                    href: 'houses/cloud/tools/cloud-ch03-support-plans.tool.html',
+                    prerequisites: ['awsccp-aws-account']
+                },
+                {
+                    id: 'awsccp-regions',
+                    title: 'AWS Global Infrastructure',
+                    type: 'tool',
+                    difficulty: 'intermediate',
+                    duration: '20 min',
+                    href: 'houses/cloud/tools/cloud-ch04-aws-regions.tool.html',
+                    prerequisites: ['awsccp-support-plans']
+                },
+                {
+                    id: 'awsccp-iam-security',
+                    title: 'IAM & Security',
+                    type: 'tool',
+                    difficulty: 'intermediate',
+                    duration: '35 min',
+                    href: 'houses/cloud/tools/cloud-ch05-security.tool.html',
+                    prerequisites: ['awsccp-regions']
+                },
+                {
+                    id: 'awsccp-iam-quiz',
+                    title: 'IAM Security Quiz',
+                    type: 'quiz',
+                    difficulty: 'intermediate',
+                    duration: '15 min',
+                    href: 'houses/cloud/quizzes/cloud-ch05-iam-security.quiz.html',
+                    prerequisites: ['awsccp-iam-security']
+                },
+                // Domain 3: Cloud Technology & Services
+                {
+                    id: 'awsccp-aws-tools',
+                    title: 'AWS Management Tools',
+                    type: 'tool',
+                    difficulty: 'intermediate',
+                    duration: '20 min',
+                    href: 'houses/cloud/tools/cloud-ch06-aws-tools.tool.html',
+                    prerequisites: ['awsccp-iam-quiz']
+                },
+                {
+                    id: 'awsccp-compute',
+                    title: 'AWS Compute Services',
+                    type: 'tool',
+                    difficulty: 'intermediate',
+                    duration: '40 min',
+                    href: 'houses/cloud/tools/cloud-ch07-compute-services.tool.html',
+                    prerequisites: ['awsccp-aws-tools']
+                },
+                {
+                    id: 'awsccp-ec2',
+                    title: 'EC2 Instance Explorer',
+                    type: 'tool',
+                    difficulty: 'intermediate',
+                    duration: '25 min',
+                    href: 'houses/cloud/tools/cloud-ch07-ec2-instance.tool.html',
+                    prerequisites: ['awsccp-compute']
+                },
+                {
+                    id: 'awsccp-storage',
+                    title: 'AWS Storage Services',
+                    type: 'tool',
+                    difficulty: 'intermediate',
+                    duration: '30 min',
+                    href: 'houses/cloud/tools/cloud-ch08-storage-services.tool.html',
+                    prerequisites: ['awsccp-ec2']
+                },
+                {
+                    id: 'awsccp-storage-quiz',
+                    title: 'Storage Services Quiz',
+                    type: 'quiz',
+                    difficulty: 'intermediate',
+                    duration: '15 min',
+                    href: 'houses/cloud/quizzes/cloud-ch08-storage.quiz.html',
+                    prerequisites: ['awsccp-storage']
+                },
+                {
+                    id: 'awsccp-database',
+                    title: 'AWS Database Services',
+                    type: 'tool',
+                    difficulty: 'intermediate',
+                    duration: '30 min',
+                    href: 'houses/cloud/tools/cloud-ch09-database-services.tool.html',
+                    prerequisites: ['awsccp-storage-quiz']
+                },
+                {
+                    id: 'awsccp-database-quiz',
+                    title: 'Database Services Quiz',
+                    type: 'quiz',
+                    difficulty: 'intermediate',
+                    duration: '15 min',
+                    href: 'houses/cloud/quizzes/cloud-ch09-database.quiz.html',
+                    prerequisites: ['awsccp-database']
+                },
+                {
+                    id: 'awsccp-networking',
+                    title: 'VPC & Networking',
+                    type: 'tool',
+                    difficulty: 'intermediate',
+                    duration: '30 min',
+                    href: 'houses/cloud/tools/cloud-ch10-vpc-networking.tool.html',
+                    prerequisites: ['awsccp-database-quiz']
+                },
+                {
+                    id: 'awsccp-networking-quiz',
+                    title: 'Networking Quiz',
+                    type: 'quiz',
+                    difficulty: 'intermediate',
+                    duration: '15 min',
+                    href: 'houses/cloud/quizzes/cloud-ch10-networking.quiz.html',
+                    prerequisites: ['awsccp-networking']
+                },
+                // Domain 4: Billing, Pricing & Support
+                {
+                    id: 'awsccp-automation',
+                    title: 'Automation & Infrastructure',
+                    type: 'tool',
+                    difficulty: 'intermediate',
+                    duration: '25 min',
+                    href: 'houses/cloud/tools/cloud-ch11-automation.tool.html',
+                    prerequisites: ['awsccp-networking-quiz']
+                },
+                {
+                    id: 'awsccp-use-cases',
+                    title: 'AWS Use Cases & Architecture',
+                    type: 'tool',
+                    difficulty: 'intermediate',
+                    duration: '25 min',
+                    href: 'houses/cloud/tools/cloud-ch12-use-cases.tool.html',
+                    prerequisites: ['awsccp-automation']
+                },
+                {
+                    id: 'awsccp-architecture',
+                    title: 'Cloud Architecture Designer',
+                    type: 'applet',
+                    difficulty: 'intermediate',
+                    duration: '45 min',
+                    href: 'houses/cloud/applets/architecture/cloud-architecture-designer.applet.html',
+                    prerequisites: ['awsccp-use-cases']
+                },
+                {
+                    id: 'awsccp-final-exam',
+                    title: 'AWS CCP Practice Exam',
+                    type: 'quiz',
+                    difficulty: 'intermediate',
+                    duration: '30 min',
+                    href: 'houses/cloud/quizzes/cloud-ch12-aws-practitioner-final.quiz.html',
+                    prerequisites: ['awsccp-architecture']
+                }
+            ]
+        },
+
+        // Microsoft Azure Fundamentals (AZ-900) — Cloud House
+        'azure-fundamentals': {
+            name: 'Azure Fundamentals (AZ-900)',
+            description: 'Microsoft Azure Fundamentals certification prep covering cloud concepts, Azure services, security, privacy, compliance, and pricing',
+            icon: '🔷',
+            color: '#0ea5e9',
+            modules: [
+                // Cloud Concepts
+                {
+                    id: 'az900-cloud-concepts',
+                    title: 'Cloud Computing Concepts',
+                    type: 'presentation',
+                    difficulty: 'beginner',
+                    duration: '25 min',
+                    href: 'houses/cloud/presentations/cloud-concepts.presentation.html',
+                    prerequisites: []
+                },
+                {
+                    id: 'az900-cloud-models',
+                    title: 'Cloud Models & Deployment',
+                    type: 'tool',
+                    difficulty: 'beginner',
+                    duration: '20 min',
+                    href: 'houses/cloud/tools/cloud-ch01-cloud-models.tool.html',
+                    prerequisites: ['az900-cloud-concepts']
+                },
+                {
+                    id: 'az900-provider-comparison',
+                    title: 'Cloud Provider Comparison',
+                    type: 'applet',
+                    difficulty: 'beginner',
+                    duration: '20 min',
+                    href: 'houses/cloud/applets/fundamentals/cloud-provider-comparison.applet.html',
+                    prerequisites: ['az900-cloud-models']
+                },
+                // Azure Core Services
+                {
+                    id: 'az900-azure-fundamentals',
+                    title: 'Azure Fundamentals',
+                    type: 'presentation',
+                    difficulty: 'beginner',
+                    duration: '30 min',
+                    href: 'houses/cloud/presentations/cloud-azure-fundamentals.presentation.html',
+                    prerequisites: ['az900-provider-comparison']
+                },
+                {
+                    id: 'az900-azure-quiz',
+                    title: 'Azure Fundamentals Quiz',
+                    type: 'quiz',
+                    difficulty: 'beginner',
+                    duration: '20 min',
+                    href: 'houses/cloud/quizzes/cloud-aws-fundamentals.quiz.html',
+                    prerequisites: ['az900-azure-fundamentals']
+                },
+                // Cloud Security
+                {
+                    id: 'az900-cloud-security',
+                    title: 'Cloud Security Fundamentals',
+                    type: 'presentation',
+                    difficulty: 'intermediate',
+                    duration: '30 min',
+                    href: 'houses/cloud/presentations/cloud-cse-01-cloud-fundamentals.presentation.html',
+                    prerequisites: ['az900-azure-quiz']
+                },
+                {
+                    id: 'az900-iam',
+                    title: 'Identity & Access Management',
+                    type: 'presentation',
+                    difficulty: 'intermediate',
+                    duration: '30 min',
+                    href: 'houses/cloud/presentations/cloud-cse-02-identity-access-management.presentation.html',
+                    prerequisites: ['az900-cloud-security']
+                },
+                {
+                    id: 'az900-iam-quiz',
+                    title: 'IAM Quiz',
+                    type: 'quiz',
+                    difficulty: 'intermediate',
+                    duration: '15 min',
+                    href: 'houses/cloud/quizzes/cloud-cse-02.quiz.html',
+                    prerequisites: ['az900-iam']
+                },
+                {
+                    id: 'az900-data-protection',
+                    title: 'Data Protection & Encryption',
+                    type: 'presentation',
+                    difficulty: 'intermediate',
+                    duration: '30 min',
+                    href: 'houses/cloud/presentations/cloud-cse-03-data-protection-encryption.presentation.html',
+                    prerequisites: ['az900-iam-quiz']
+                },
+                {
+                    id: 'az900-data-quiz',
+                    title: 'Data Protection Quiz',
+                    type: 'quiz',
+                    difficulty: 'intermediate',
+                    duration: '15 min',
+                    href: 'houses/cloud/quizzes/cloud-cse-03.quiz.html',
+                    prerequisites: ['az900-data-protection']
+                },
+                // Compliance & Pricing
+                {
+                    id: 'az900-network-security',
+                    title: 'Cloud Network Security',
+                    type: 'presentation',
+                    difficulty: 'intermediate',
+                    duration: '30 min',
+                    href: 'houses/cloud/presentations/cloud-cse-04-network-security.presentation.html',
+                    prerequisites: ['az900-data-quiz']
+                },
+                {
+                    id: 'az900-network-quiz',
+                    title: 'Network Security Quiz',
+                    type: 'quiz',
+                    difficulty: 'intermediate',
+                    duration: '15 min',
+                    href: 'houses/cloud/quizzes/cloud-cse-04.quiz.html',
+                    prerequisites: ['az900-network-security']
+                },
+                {
+                    id: 'az900-compliance',
+                    title: 'Cloud Compliance & Governance',
+                    type: 'presentation',
+                    difficulty: 'intermediate',
+                    duration: '30 min',
+                    href: 'houses/cloud/presentations/cloud-cse-08-compliance-governance.presentation.html',
+                    prerequisites: ['az900-network-quiz']
+                },
+                {
+                    id: 'az900-compliance-quiz',
+                    title: 'Compliance Quiz',
+                    type: 'quiz',
+                    difficulty: 'intermediate',
+                    duration: '15 min',
+                    href: 'houses/cloud/quizzes/cloud-cse-08.quiz.html',
+                    prerequisites: ['az900-compliance']
+                },
+                {
+                    id: 'az900-architecture',
+                    title: 'Cloud Architecture Designer',
+                    type: 'applet',
+                    difficulty: 'intermediate',
+                    duration: '45 min',
+                    href: 'houses/cloud/applets/architecture/cloud-architecture-designer.applet.html',
+                    prerequisites: ['az900-compliance-quiz']
+                }
+            ]
+        },
+
+        // AWS Developer Associate (DVA-C02) — Code House
+        'aws-developer': {
+            name: 'AWS Developer Associate (DVA-C02)',
+            description: 'AWS Developer Associate certification prep covering development with AWS services, deployment, security, troubleshooting, and refactoring',
+            icon: '☁️',
+            color: '#ec4899',
+            modules: [
+                // Domain 1: Development with AWS Services
+                {
+                    id: 'awsdev-git-basics',
+                    title: 'Git Basics',
+                    type: 'presentation',
+                    difficulty: 'beginner',
+                    duration: '25 min',
+                    href: 'houses/code/presentations/code-git-basics.presentation.html',
+                    prerequisites: []
+                },
+                {
+                    id: 'awsdev-agile',
+                    title: 'Agile & SDLC',
+                    type: 'presentation',
+                    difficulty: 'beginner',
+                    duration: '30 min',
+                    href: 'houses/code/presentations/code-agile-sdlc.presentation.html',
+                    prerequisites: ['awsdev-git-basics']
+                },
+                {
+                    id: 'awsdev-unit-testing',
+                    title: 'Unit Testing',
+                    type: 'presentation',
+                    difficulty: 'intermediate',
+                    duration: '30 min',
+                    href: 'houses/code/presentations/code-unit-testing.presentation.html',
+                    prerequisites: ['awsdev-agile']
+                },
+                {
+                    id: 'awsdev-unit-testing-lab',
+                    title: 'Unit Testing Lab',
+                    type: 'lab',
+                    difficulty: 'intermediate',
+                    duration: '40 min',
+                    href: 'houses/code/labs/code-unit-testing.lab.html',
+                    prerequisites: ['awsdev-unit-testing']
+                },
+                {
+                    id: 'awsdev-api',
+                    title: 'API Development',
+                    type: 'tool',
+                    difficulty: 'intermediate',
+                    duration: '35 min',
+                    href: 'houses/code/tools/code-api.tool.html',
+                    prerequisites: ['awsdev-unit-testing-lab']
+                },
+                // Domain 2: Deployment
+                {
+                    id: 'awsdev-cicd',
+                    title: 'CI/CD Fundamentals',
+                    type: 'presentation',
+                    difficulty: 'intermediate',
+                    duration: '35 min',
+                    href: 'houses/code/presentations/code-cicd-fundamentals.presentation.html',
+                    prerequisites: ['awsdev-api']
+                },
+                {
+                    id: 'awsdev-pipeline',
+                    title: 'Pipeline Builder',
+                    type: 'applet',
+                    difficulty: 'intermediate',
+                    duration: '40 min',
+                    href: 'houses/code/applets/code-pipeline-builder.applet.html',
+                    prerequisites: ['awsdev-cicd']
+                },
+                {
+                    id: 'awsdev-cicd-lab',
+                    title: 'CI/CD Lab',
+                    type: 'lab',
+                    difficulty: 'intermediate',
+                    duration: '45 min',
+                    href: 'houses/code/labs/code-cicd.lab.html',
+                    prerequisites: ['awsdev-pipeline']
+                },
+                {
+                    id: 'awsdev-docker',
+                    title: 'Docker Fundamentals',
+                    type: 'presentation',
+                    difficulty: 'intermediate',
+                    duration: '35 min',
+                    href: 'houses/code/presentations/code-docker-fundamentals.presentation.html',
+                    prerequisites: ['awsdev-cicd-lab']
+                },
+                {
+                    id: 'awsdev-docker-playground',
+                    title: 'Docker Playground',
+                    type: 'applet',
+                    difficulty: 'intermediate',
+                    duration: '45 min',
+                    href: 'houses/code/applets/code-docker-playground.applet.html',
+                    prerequisites: ['awsdev-docker']
+                },
+                {
+                    id: 'awsdev-docker-lab',
+                    title: 'Docker Lab',
+                    type: 'lab',
+                    difficulty: 'intermediate',
+                    duration: '40 min',
+                    href: 'houses/code/labs/code-docker.lab.html',
+                    prerequisites: ['awsdev-docker-playground']
+                },
+                // Domain 3: Security
+                {
+                    id: 'awsdev-iam-security',
+                    title: 'AWS IAM Security',
+                    type: 'tool',
+                    difficulty: 'intermediate',
+                    duration: '35 min',
+                    href: 'houses/cloud/tools/cloud-ch05-security.tool.html',
+                    prerequisites: ['awsdev-docker-lab']
+                },
+                // Domain 4: Troubleshooting & Optimization
+                {
+                    id: 'awsdev-automation',
+                    title: 'Automation & DevOps',
+                    type: 'presentation',
+                    difficulty: 'intermediate',
+                    duration: '30 min',
+                    href: 'houses/code/presentations/code-automation.presentation.html',
+                    prerequisites: ['awsdev-iam-security']
+                },
+                {
+                    id: 'awsdev-cloudformation',
+                    title: 'CloudFormation Fundamentals',
+                    type: 'presentation',
+                    difficulty: 'advanced',
+                    duration: '35 min',
+                    href: 'houses/code/presentations/code-cloudformation-fundamentals.presentation.html',
+                    prerequisites: ['awsdev-automation']
+                },
+                {
+                    id: 'awsdev-cloudformation-designer',
+                    title: 'CloudFormation Designer',
+                    type: 'applet',
+                    difficulty: 'advanced',
+                    duration: '40 min',
+                    href: 'houses/code/applets/code-cloudformation-designer.applet.html',
+                    prerequisites: ['awsdev-cloudformation']
+                },
+                {
+                    id: 'awsdev-cloudformation-lab',
+                    title: 'CloudFormation Lab',
+                    type: 'lab',
+                    difficulty: 'advanced',
+                    duration: '45 min',
+                    href: 'houses/code/labs/code-cloudformation.lab.html',
+                    prerequisites: ['awsdev-cloudformation-designer']
+                },
+                {
+                    id: 'awsdev-kubernetes',
+                    title: 'Kubernetes (EKS)',
+                    type: 'presentation',
+                    difficulty: 'advanced',
+                    duration: '40 min',
+                    href: 'houses/code/presentations/code-kubernetes-fundamentals.presentation.html',
+                    prerequisites: ['awsdev-cloudformation-lab']
+                },
+                {
+                    id: 'awsdev-kubernetes-sim',
+                    title: 'Kubernetes Cluster Simulator',
+                    type: 'applet',
+                    difficulty: 'advanced',
+                    duration: '45 min',
+                    href: 'houses/code/applets/code-kubernetes-cluster-sim.applet.html',
+                    prerequisites: ['awsdev-kubernetes']
+                },
+                {
+                    id: 'awsdev-kubernetes-lab',
+                    title: 'Kubernetes Lab',
+                    type: 'lab',
+                    difficulty: 'advanced',
+                    duration: '45 min',
+                    href: 'houses/code/labs/code-kubernetes.lab.html',
+                    prerequisites: ['awsdev-kubernetes-sim']
+                },
+                {
+                    id: 'awsdev-terraform',
+                    title: 'Terraform & IaC',
+                    type: 'presentation',
+                    difficulty: 'advanced',
+                    duration: '40 min',
+                    href: 'houses/code/presentations/code-terraform-fundamentals.presentation.html',
+                    prerequisites: ['awsdev-kubernetes-lab']
+                },
+                {
+                    id: 'awsdev-terraform-lab',
+                    title: 'Terraform Lab',
+                    type: 'lab',
+                    difficulty: 'advanced',
+                    duration: '45 min',
+                    href: 'houses/code/labs/code-terraform.lab.html',
+                    prerequisites: ['awsdev-terraform']
+                }
+            ]
+        },
+
+        // Security Operations / SOC Analyst — Eye House
+        'security-operations': {
+            name: 'Security Operations (SOC Analyst)',
+            description: 'SOC analyst career path covering log analysis, SIEM operations, threat detection, incident investigation, network traffic analysis, and threat hunting',
+            icon: '🛡️',
+            color: '#6366f1',
+            modules: [
+                // Tier 1: Log Analysis & Triage
+                {
+                    id: 'secops-log-basics',
+                    title: 'Log Analysis Basics',
+                    type: 'presentation',
+                    difficulty: 'beginner',
+                    duration: '25 min',
+                    href: 'houses/eye/presentations/eye-log-basics.presentation.html',
+                    prerequisites: []
+                },
+                {
+                    id: 'secops-soc-operations',
+                    title: 'SOC Operations',
+                    type: 'presentation',
+                    difficulty: 'beginner',
+                    duration: '30 min',
+                    href: 'houses/eye/presentations/eye-soc-operations.presentation.html',
+                    prerequisites: ['secops-log-basics']
+                },
+                {
+                    id: 'secops-soc-overview',
+                    title: 'SOC Overview',
+                    type: 'applet',
+                    difficulty: 'beginner',
+                    duration: '20 min',
+                    href: 'houses/eye/applets/cyberops/eye-soc-overview.applet.html',
+                    prerequisites: ['secops-soc-operations']
+                },
+                {
+                    id: 'secops-security-approaches',
+                    title: 'Security Approaches',
+                    type: 'applet',
+                    difficulty: 'intermediate',
+                    duration: '20 min',
+                    href: 'houses/eye/applets/cyberops/eye-security-approaches.applet.html',
+                    prerequisites: ['secops-soc-overview']
+                },
+                {
+                    id: 'secops-security-policy',
+                    title: 'Security Policy',
+                    type: 'applet',
+                    difficulty: 'intermediate',
+                    duration: '20 min',
+                    href: 'houses/eye/applets/cyberops/eye-security-policy.applet.html',
+                    prerequisites: ['secops-security-approaches']
+                },
+                {
+                    id: 'secops-soc-simulator',
+                    title: 'SOC Simulator',
+                    type: 'tool',
+                    difficulty: 'intermediate',
+                    duration: '45 min',
+                    href: 'houses/eye/tools/eye-soc.tool.html',
+                    prerequisites: ['secops-security-policy']
+                },
+                {
+                    id: 'secops-soc-quiz',
+                    title: 'SOC Operations Quiz',
+                    type: 'quiz',
+                    difficulty: 'intermediate',
+                    duration: '15 min',
+                    href: 'houses/eye/quizzes/eye-soc.quiz.html',
+                    prerequisites: ['secops-soc-simulator']
+                },
+                {
+                    id: 'secops-soc-lab',
+                    title: 'SOC Operations Lab',
+                    type: 'lab',
+                    difficulty: 'intermediate',
+                    duration: '40 min',
+                    href: 'houses/eye/labs/eye-soc.lab.html',
+                    prerequisites: ['secops-soc-quiz']
+                },
+                // Tier 2: SIEM & Correlation
+                {
+                    id: 'secops-siem',
+                    title: 'SIEM Fundamentals',
+                    type: 'presentation',
+                    difficulty: 'intermediate',
+                    duration: '35 min',
+                    href: 'houses/eye/presentations/eye-siem-fundamentals.presentation.html',
+                    prerequisites: ['secops-soc-lab']
+                },
+                {
+                    id: 'secops-siem-overview',
+                    title: 'SIEM Overview',
+                    type: 'applet',
+                    difficulty: 'intermediate',
+                    duration: '20 min',
+                    href: 'houses/eye/applets/cyberops/eye-siem-overview.applet.html',
+                    prerequisites: ['secops-siem']
+                },
+                {
+                    id: 'secops-siem-tool',
+                    title: 'SIEM Tool',
+                    type: 'tool',
+                    difficulty: 'intermediate',
+                    duration: '40 min',
+                    href: 'houses/eye/tools/eye-siem.tool.html',
+                    prerequisites: ['secops-siem-overview']
+                },
+                {
+                    id: 'secops-siem-quiz',
+                    title: 'SIEM Quiz',
+                    type: 'quiz',
+                    difficulty: 'intermediate',
+                    duration: '15 min',
+                    href: 'houses/eye/quizzes/eye-siem.quiz.html',
+                    prerequisites: ['secops-siem-tool']
+                },
+                {
+                    id: 'secops-siem-lab',
+                    title: 'SIEM Lab',
+                    type: 'lab',
+                    difficulty: 'intermediate',
+                    duration: '45 min',
+                    href: 'houses/eye/labs/eye-siem.lab.html',
+                    prerequisites: ['secops-siem-quiz']
+                },
+                {
+                    id: 'secops-log-correlation',
+                    title: 'Log Correlation',
+                    type: 'presentation',
+                    difficulty: 'intermediate',
+                    duration: '30 min',
+                    href: 'houses/eye/presentations/eye-log-correlation.presentation.html',
+                    prerequisites: ['secops-siem-lab']
+                },
+                {
+                    id: 'secops-correlation-engine',
+                    title: 'Correlation Engine',
+                    type: 'tool',
+                    difficulty: 'advanced',
+                    duration: '40 min',
+                    href: 'houses/eye/tools/eye-correlation.tool.html',
+                    prerequisites: ['secops-log-correlation']
+                },
+                {
+                    id: 'secops-correlation-quiz',
+                    title: 'Correlation Quiz',
+                    type: 'quiz',
+                    difficulty: 'advanced',
+                    duration: '15 min',
+                    href: 'houses/eye/quizzes/eye-correlation.quiz.html',
+                    prerequisites: ['secops-correlation-engine']
+                },
+                {
+                    id: 'secops-correlation-lab',
+                    title: 'Correlation Lab',
+                    type: 'lab',
+                    difficulty: 'advanced',
+                    duration: '40 min',
+                    href: 'houses/eye/labs/eye-correlation.lab.html',
+                    prerequisites: ['secops-correlation-quiz']
+                },
+                // Tier 3: Network Traffic & Threat Detection
+                {
+                    id: 'secops-traffic-analysis',
+                    title: 'Network Traffic Analysis',
+                    type: 'presentation',
+                    difficulty: 'advanced',
+                    duration: '40 min',
+                    href: 'houses/eye/presentations/eye-network-traffic-analysis.presentation.html',
+                    prerequisites: ['secops-correlation-lab']
+                },
+                {
+                    id: 'secops-nsm-data',
+                    title: 'NSM Data Types',
+                    type: 'applet',
+                    difficulty: 'advanced',
+                    duration: '20 min',
+                    href: 'houses/eye/applets/cyberops/eye-nsm-data-types.applet.html',
+                    prerequisites: ['secops-traffic-analysis']
+                },
+                {
+                    id: 'secops-5tuple',
+                    title: '5-Tuple Approach',
+                    type: 'applet',
+                    difficulty: 'advanced',
+                    duration: '20 min',
+                    href: 'houses/eye/applets/cyberops/eye-5-tuple-approach.applet.html',
+                    prerequisites: ['secops-nsm-data']
+                },
+                {
+                    id: 'secops-tcpdump',
+                    title: 'tcpdump & NetFlow',
+                    type: 'applet',
+                    difficulty: 'advanced',
+                    duration: '25 min',
+                    href: 'houses/eye/applets/cyberops/eye-tcpdump-netflow.applet.html',
+                    prerequisites: ['secops-5tuple']
+                },
+                {
+                    id: 'secops-wireshark',
+                    title: 'Wireshark Analysis',
+                    type: 'tool',
+                    difficulty: 'advanced',
+                    duration: '40 min',
+                    href: 'houses/eye/tools/eye-wireshark.tool.html',
+                    prerequisites: ['secops-tcpdump']
+                },
+                {
+                    id: 'secops-packet-tool',
+                    title: 'Packet Inspector',
+                    type: 'tool',
+                    difficulty: 'advanced',
+                    duration: '30 min',
+                    href: 'houses/eye/tools/eye-packet.tool.html',
+                    prerequisites: ['secops-wireshark']
+                },
+                {
+                    id: 'secops-traffic-quiz',
+                    title: 'Traffic Analysis Quiz',
+                    type: 'quiz',
+                    difficulty: 'advanced',
+                    duration: '15 min',
+                    href: 'houses/eye/quizzes/eye-traffic.quiz.html',
+                    prerequisites: ['secops-packet-tool']
+                },
+                {
+                    id: 'secops-traffic-lab',
+                    title: 'Traffic Analysis Lab',
+                    type: 'lab',
+                    difficulty: 'advanced',
+                    duration: '45 min',
+                    href: 'houses/eye/labs/eye-traffic.lab.html',
+                    prerequisites: ['secops-traffic-quiz']
+                },
+                // Tier 4: Threat Hunting
+                {
+                    id: 'secops-threat-hunting',
+                    title: 'Threat Hunting',
+                    type: 'presentation',
+                    difficulty: 'advanced',
+                    duration: '35 min',
+                    href: 'houses/eye/presentations/eye-threat-hunting.presentation.html',
+                    prerequisites: ['secops-traffic-lab']
+                },
+                {
+                    id: 'secops-detection-methods',
+                    title: 'Detection Methods',
+                    type: 'applet',
+                    difficulty: 'advanced',
+                    duration: '20 min',
+                    href: 'houses/eye/applets/cyberops/eye-detection-methods.applet.html',
+                    prerequisites: ['secops-threat-hunting']
+                },
+                {
+                    id: 'secops-evasion',
+                    title: 'Evasion & Obfuscation',
+                    type: 'applet',
+                    difficulty: 'advanced',
+                    duration: '20 min',
+                    href: 'houses/eye/applets/cyberops/eye-evasion-obfuscation.applet.html',
+                    prerequisites: ['secops-detection-methods']
+                },
+                {
+                    id: 'secops-hunt-workbench',
+                    title: 'Hunt Workbench',
+                    type: 'tool',
+                    difficulty: 'advanced',
+                    duration: '50 min',
+                    href: 'houses/eye/tools/eye-hunt.tool.html',
+                    prerequisites: ['secops-evasion']
+                },
+                {
+                    id: 'secops-hunting-quiz',
+                    title: 'Threat Hunting Quiz',
+                    type: 'quiz',
+                    difficulty: 'advanced',
+                    duration: '15 min',
+                    href: 'houses/eye/quizzes/eye-hunting.quiz.html',
+                    prerequisites: ['secops-hunt-workbench']
+                },
+                {
+                    id: 'secops-hunting-lab',
+                    title: 'Threat Hunting Lab',
+                    type: 'lab',
+                    difficulty: 'advanced',
+                    duration: '45 min',
+                    href: 'houses/eye/labs/eye-hunting.lab.html',
+                    prerequisites: ['secops-hunting-quiz']
+                }
+            ]
         }
     };
 

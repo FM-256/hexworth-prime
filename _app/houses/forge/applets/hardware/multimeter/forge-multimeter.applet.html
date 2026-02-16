@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Multimeter Simulator - House of Forge</title>
+    <style>
+        :root {
+            --forge-accent: #ff6b35;
+            --forge-accent2: #f59e0b;
+            --forge-bg: #0a0805;
+            --forge-panel: #1a1408;
+            --forge-border: #2d2510;
+            --text: #f5f0e6;
+            --muted: #b8a888;
+            --success: #22c55e;
+            --danger: #ef4444;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { background: var(--forge-bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; min-height: 100vh; }
+
+        .header {
+            background: linear-gradient(135deg, #1c1208, #78350f, #b45309);
+            padding: 12px 20px; display: flex; align-items: center; justify-content: space-between;
+            box-shadow: 0 4px 20px rgba(255, 107, 53, 0.3);
+        }
+        .header a { display: flex; align-items: center; gap: 12px; color: white; text-decoration: none; font-size: 18px; font-weight: 600; }
+        .header-badge {
+            background: linear-gradient(135deg, #1a1a1a, #333); color: var(--forge-accent);
+            padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 600;
+            border: 1px solid var(--forge-accent);
+        }
+
+        .container { max-width: 900px; margin: 0 auto; padding: 24px; }
+
+        h1 { font-size: 1.8rem; margin-bottom: 8px; color: var(--text); }
+        .subtitle { color: var(--muted); margin-bottom: 24px; }
+
+        .sim-layout { display: grid; grid-template-columns: 1fr 300px; gap: 24px; }
+
+        @media (max-width: 768px) { .sim-layout { grid-template-columns: 1fr; } }
+
+        /* Multimeter */
+        .multimeter {
+            background: #222; border: 3px solid #444; border-radius: 16px;
+            padding: 20px; max-width: 320px; margin: 0 auto;
+        }
+        .mm-display {
+            background: #1a2e1a; border: 2px solid #333; border-radius: 8px;
+            padding: 15px; text-align: right; margin-bottom: 16px;
+            font-family: 'Courier New', monospace;
+        }
+        .mm-value { font-size: 2.5rem; color: #4ade80; letter-spacing: 2px; }
+        .mm-unit { font-size: 1rem; color: #86efac; margin-left: 8px; }
+        .mm-mode-label { font-size: 0.75rem; color: #6ee7b7; text-align: left; margin-bottom: 4px; }
+
+        .dial-section { text-align: center; margin: 16px 0; }
+        .dial-label { font-size: 0.7rem; color: var(--muted); text-transform: uppercase; margin-bottom: 8px; }
+
+        .dial-options {
+            display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px;
+        }
+        .dial-btn {
+            padding: 8px 4px; background: #333; border: 2px solid #555;
+            border-radius: 8px; color: var(--text); font-size: 0.75rem;
+            cursor: pointer; transition: all 0.2s; font-weight: 600;
+        }
+        .dial-btn:hover { border-color: var(--forge-accent); background: #3a3a3a; }
+        .dial-btn.active { border-color: var(--forge-accent); background: rgba(255,107,53,0.2); color: var(--forge-accent); }
+        .dial-btn.off { grid-column: span 3; background: #1a1a1a; border-color: #666; }
+        .dial-btn.off.active { border-color: var(--danger); color: var(--danger); }
+
+        .probe-section { display: flex; justify-content: center; gap: 20px; margin-top: 16px; }
+        .probe { width: 20px; height: 60px; border-radius: 4px 4px 10px 10px; }
+        .probe.red { background: linear-gradient(to bottom, #ef4444, #991b1b); }
+        .probe.black { background: linear-gradient(to bottom, #333, #111); }
+        .probe-label { font-size: 0.65rem; color: var(--muted); text-align: center; margin-top: 4px; }
+
+        /* Right Panel */
+        .control-panel { display: flex; flex-direction: column; gap: 16px; }
+
+        .panel-card {
+            background: var(--forge-panel); border: 1px solid var(--forge-border);
+            border-radius: 12px; padding: 16px;
+        }
+        .panel-card h3 { color: var(--forge-accent); font-size: 0.9rem; margin-bottom: 10px; }
+
+        .component-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+        .component-btn {
+            padding: 10px; background: rgba(0,0,0,0.3); border: 1px solid var(--forge-border);
+            border-radius: 8px; color: var(--text); font-size: 0.8rem; cursor: pointer;
+            transition: all 0.2s; text-align: center;
+        }
+        .component-btn:hover { border-color: var(--forge-accent); }
+        .component-btn.active { border-color: var(--forge-accent); background: rgba(255,107,53,0.15); }
+        .component-icon { font-size: 1.5rem; display: block; margin-bottom: 4px; }
+
+        .reading-log {
+            max-height: 200px; overflow-y: auto; font-family: 'Courier New', monospace;
+            font-size: 0.78rem; color: var(--muted); background: rgba(0,0,0,0.3);
+            border-radius: 8px; padding: 10px;
+        }
+        .reading-log .entry { padding: 3px 0; border-bottom: 1px solid rgba(255,255,255,0.05); }
+        .reading-log .entry:last-child { border-bottom: none; }
+
+        .info-box {
+            background: rgba(255,107,53,0.08); border: 1px solid rgba(255,107,53,0.2);
+            border-radius: 8px; padding: 12px; font-size: 0.82rem; color: var(--muted); line-height: 1.5;
+        }
+        .info-box strong { color: var(--forge-accent); }
+
+        /* Progress */
+        .task-list { list-style: none; }
+        .task-list li {
+            display: flex; align-items: center; gap: 8px; padding: 6px 0;
+            font-size: 0.82rem; color: var(--muted);
+        }
+        .task-check {
+            width: 18px; height: 18px; border: 2px solid var(--forge-accent);
+            border-radius: 4px; display: flex; align-items: center; justify-content: center;
+            font-size: 0.7rem; flex-shrink: 0;
+        }
+        .task-check.done { background: var(--success); border-color: var(--success); color: white; }
+
+        footer { text-align: center; padding: 20px; color: var(--muted); font-size: 0.75rem; margin-top: 30px; }
+        footer a { color: var(--forge-accent); text-decoration: none; }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <a href="../../../index.html">
+            <span style="font-size: 28px;">&#127984;</span>
+            <span>Hexworth Prime</span>
+        </a>
+        <span class="header-badge">&#128296; House of Forge</span>
+    </header>
+
+    <div class="container">
+        <h1>&#9889; Multimeter Simulator</h1>
+        <p class="subtitle">CompTIA A+ Core 1 (220-1101) &bull; Domain 3.0 Hardware</p>
+
+        <div class="sim-layout">
+            <!-- Left: Multimeter -->
+            <div>
+                <div class="multimeter">
+                    <div class="mm-display">
+                        <div class="mm-mode-label" id="modeLabel">OFF</div>
+                        <div>
+                            <span class="mm-value" id="mmValue">---</span>
+                            <span class="mm-unit" id="mmUnit"></span>
+                        </div>
+                    </div>
+
+                    <div class="dial-section">
+                        <div class="dial-label">Measurement Dial</div>
+                        <div class="dial-options">
+                            <button class="dial-btn off active" onclick="setMode('off')" id="dial-off">OFF</button>
+                            <button class="dial-btn" onclick="setMode('dcv-600')" id="dial-dcv-600">DCV 600</button>
+                            <button class="dial-btn" onclick="setMode('dcv-200')" id="dial-dcv-200">DCV 200</button>
+                            <button class="dial-btn" onclick="setMode('dcv-20')" id="dial-dcv-20">DCV 20</button>
+                            <button class="dial-btn" onclick="setMode('dcv-2')" id="dial-dcv-2">DCV 2</button>
+                            <button class="dial-btn" onclick="setMode('acv-600')" id="dial-acv-600">ACV 600</button>
+                            <button class="dial-btn" onclick="setMode('ohm-2M')" id="dial-ohm-2M">&#8486; 2M</button>
+                            <button class="dial-btn" onclick="setMode('ohm-200k')" id="dial-ohm-200k">&#8486; 200k</button>
+                            <button class="dial-btn" onclick="setMode('ohm-20k')" id="dial-ohm-20k">&#8486; 20k</button>
+                            <button class="dial-btn" onclick="setMode('ohm-2k')" id="dial-ohm-2k">&#8486; 2k</button>
+                            <button class="dial-btn" onclick="setMode('cont')" id="dial-cont">CONT</button>
+                            <button class="dial-btn" onclick="setMode('mA')" id="dial-mA">mA 200</button>
+                        </div>
+                    </div>
+
+                    <div class="probe-section">
+                        <div>
+                            <div class="probe black"></div>
+                            <div class="probe-label">COM</div>
+                        </div>
+                        <div>
+                            <div class="probe red"></div>
+                            <div class="probe-label" id="probeLabel">V/&#8486;</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="info-box" id="infoBox" style="margin-top: 16px;">
+                    <strong>Welcome!</strong> A digital multimeter measures voltage, current, and resistance. Select a dial setting, then choose a component to test.
+                </div>
+            </div>
+
+            <!-- Right: Controls -->
+            <div class="control-panel">
+                <div class="panel-card">
+                    <h3>Test Components</h3>
+                    <div class="component-grid">
+                        <button class="component-btn" onclick="selectComponent('9v')" id="comp-9v">
+                            <span class="component-icon">&#128267;</span>9V Battery
+                        </button>
+                        <button class="component-btn" onclick="selectComponent('aaa')" id="comp-aaa">
+                            <span class="component-icon">&#128267;</span>AAA Battery
+                        </button>
+                        <button class="component-btn" onclick="selectComponent('outlet')" id="comp-outlet">
+                            <span class="component-icon">&#128268;</span>AC Outlet
+                        </button>
+                        <button class="component-btn" onclick="selectComponent('resistor1k')" id="comp-resistor1k">
+                            <span class="component-icon">&#9107;</span>1k&#8486; Resistor
+                        </button>
+                        <button class="component-btn" onclick="selectComponent('resistor50k')" id="comp-resistor50k">
+                            <span class="component-icon">&#9107;</span>50k&#8486; Resistor
+                        </button>
+                        <button class="component-btn" onclick="selectComponent('fuse-good')" id="comp-fuse-good">
+                            <span class="component-icon">&#9889;</span>Good Fuse
+                        </button>
+                        <button class="component-btn" onclick="selectComponent('fuse-blown')" id="comp-fuse-blown">
+                            <span class="component-icon">&#10060;</span>Blown Fuse
+                        </button>
+                        <button class="component-btn" onclick="selectComponent('led-circuit')" id="comp-led-circuit">
+                            <span class="component-icon">&#128161;</span>LED Circuit
+                        </button>
+                    </div>
+                </div>
+
+                <div class="panel-card">
+                    <h3>Reading Log</h3>
+                    <div class="reading-log" id="readingLog">
+                        <div class="entry" style="color: #666;">No readings yet.</div>
+                    </div>
+                </div>
+
+                <div class="panel-card">
+                    <h3>Tasks</h3>
+                    <ul class="task-list">
+                        <li><div class="task-check" id="task1"></div> Measure DC voltage of 9V battery</li>
+                        <li><div class="task-check" id="task2"></div> Measure DC voltage of AAA battery</li>
+                        <li><div class="task-check" id="task3"></div> Measure AC voltage of outlet</li>
+                        <li><div class="task-check" id="task4"></div> Measure resistance of 1k resistor</li>
+                        <li><div class="task-check" id="task5"></div> Test continuity of good fuse</li>
+                        <li><div class="task-check" id="task6"></div> Test continuity of blown fuse</li>
+                        <li><div class="task-check" id="task7"></div> Cause an overload reading</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <footer>
+        <p>Educational content inspired by NSF-funded myEMATES |
+        <a href="../../../index.html">&larr; Back to House</a></p>
+    </footer>
+
+    <script>
+        var currentMode = 'off';
+        var currentComponent = null;
+        var readings = [];
+        var tasksCompleted = {};
+
+        var COMPONENTS = {
+            '9v':          { type: 'dcv', voltage: 9.0,   name: '9V Battery' },
+            'aaa':         { type: 'dcv', voltage: 1.5,   name: 'AAA Battery' },
+            'outlet':      { type: 'acv', voltage: 120.0, name: 'AC Outlet' },
+            'resistor1k':  { type: 'ohm', resistance: 1000, name: '1k Resistor' },
+            'resistor50k': { type: 'ohm', resistance: 50000, name: '50k Resistor' },
+            'fuse-good':   { type: 'cont', continuity: true, resistance: 0.5, name: 'Good Fuse' },
+            'fuse-blown':  { type: 'cont', continuity: false, resistance: Infinity, name: 'Blown Fuse' },
+            'led-circuit': { type: 'mA', current: 25, name: 'LED Circuit (25mA)' }
+        };
+
+        var MODE_RANGES = {
+            'dcv-600': { type: 'dcv', max: 600, unit: 'V', decimals: 1 },
+            'dcv-200': { type: 'dcv', max: 200, unit: 'V', decimals: 1 },
+            'dcv-20':  { type: 'dcv', max: 20,  unit: 'V', decimals: 2 },
+            'dcv-2':   { type: 'dcv', max: 2,   unit: 'V', decimals: 3 },
+            'acv-600': { type: 'acv', max: 600, unit: 'V', decimals: 1 },
+            'ohm-2M':  { type: 'ohm', max: 2000000, unit: 'M\u2126', divisor: 1000000, decimals: 3 },
+            'ohm-200k':{ type: 'ohm', max: 200000,  unit: 'k\u2126', divisor: 1000, decimals: 1 },
+            'ohm-20k': { type: 'ohm', max: 20000,   unit: 'k\u2126', divisor: 1000, decimals: 2 },
+            'ohm-2k':  { type: 'ohm', max: 2000,    unit: '\u2126',  divisor: 1, decimals: 0 },
+            'cont':    { type: 'cont', max: 0, unit: '', decimals: 0 },
+            'mA':      { type: 'mA', max: 200, unit: 'mA', decimals: 1 }
+        };
+
+        function setMode(mode) {
+            currentMode = mode;
+            document.querySelectorAll('.dial-btn').forEach(function(b) { b.classList.remove('active'); });
+            var btn = document.getElementById('dial-' + mode);
+            if (btn) btn.classList.add('active');
+
+            if (mode === 'mA') {
+                document.getElementById('probeLabel').textContent = 'mA';
+            } else {
+                document.getElementById('probeLabel').textContent = 'V/\u2126';
+            }
+
+            if (mode === 'off') {
+                document.getElementById('modeLabel').textContent = 'OFF';
+                document.getElementById('mmValue').textContent = '---';
+                document.getElementById('mmUnit').textContent = '';
+                document.getElementById('infoBox').innerHTML = '<strong>Multimeter is OFF.</strong> Select a dial setting to begin.';
+            } else {
+                var range = MODE_RANGES[mode];
+                document.getElementById('modeLabel').textContent = mode.toUpperCase().replace('-', ' ');
+                updateReading();
+            }
+        }
+
+        function selectComponent(comp) {
+            currentComponent = comp;
+            document.querySelectorAll('.component-btn').forEach(function(b) { b.classList.remove('active'); });
+            var btn = document.getElementById('comp-' + comp);
+            if (btn) btn.classList.add('active');
+
+            var c = COMPONENTS[comp];
+            document.getElementById('infoBox').innerHTML = '<strong>Selected: ' + c.name + '</strong><br>Now set the dial to the appropriate measurement mode.';
+
+            updateReading();
+        }
+
+        function updateReading() {
+            if (currentMode === 'off' || !currentComponent) {
+                if (currentMode !== 'off' && !currentComponent) {
+                    document.getElementById('mmValue').textContent = '0.0';
+                    document.getElementById('mmUnit').textContent = MODE_RANGES[currentMode].unit;
+                    document.getElementById('infoBox').innerHTML = '<strong>Ready.</strong> Select a component to test.';
+                }
+                return;
+            }
+
+            var range = MODE_RANGES[currentMode];
+            var comp = COMPONENTS[currentComponent];
+            var value = '---';
+            var unit = range.unit;
+            var overload = false;
+            var wrongMode = false;
+            var info = '';
+
+            if (range.type === 'dcv' && comp.type === 'dcv') {
+                if (comp.voltage > range.max) {
+                    value = '1';
+                    unit = '';
+                    overload = true;
+                    info = '<strong style="color:#ef4444;">OVERLOAD!</strong> The voltage (' + comp.voltage + 'V) exceeds the dial range (' + range.max + 'V). Always start with the highest range setting.';
+                    completeTask('task7');
+                } else {
+                    var noise = (Math.random() - 0.5) * 0.02;
+                    value = (comp.voltage + noise).toFixed(range.decimals);
+                    info = '<strong style="color:#22c55e;">Reading: ' + value + ' ' + unit + '</strong><br>DC voltage measured from ' + comp.name + '.';
+                    if (currentComponent === '9v') completeTask('task1');
+                    if (currentComponent === 'aaa') completeTask('task2');
+                }
+            } else if (range.type === 'acv' && comp.type === 'acv') {
+                var noise = (Math.random() - 0.5) * 2;
+                value = (comp.voltage + noise).toFixed(range.decimals);
+                info = '<strong style="color:#22c55e;">Reading: ' + value + ' ' + unit + '</strong><br>AC voltage measured from ' + comp.name + '.';
+                completeTask('task3');
+            } else if (range.type === 'ohm' && (comp.type === 'ohm' || comp.type === 'cont')) {
+                var r = comp.resistance;
+                if (r === Infinity || r > range.max) {
+                    value = 'OL';
+                    unit = '';
+                    info = '<strong>Open/Over-range.</strong> The resistance exceeds the dial range or the circuit is open.';
+                } else {
+                    var noise = (Math.random() - 0.5) * (r * 0.02);
+                    var displayR = (r + noise) / (range.divisor || 1);
+                    value = displayR.toFixed(range.decimals);
+                    info = '<strong style="color:#22c55e;">Reading: ' + value + ' ' + unit + '</strong><br>Resistance of ' + comp.name + '.';
+                    if (currentComponent === 'resistor1k') completeTask('task4');
+                }
+            } else if (range.type === 'cont') {
+                if (comp.type === 'cont' || comp.type === 'ohm') {
+                    if (comp.continuity || (comp.resistance && comp.resistance < 50)) {
+                        value = 'BEEP';
+                        unit = '';
+                        info = '<strong style="color:#22c55e;">CONTINUITY!</strong> Low resistance detected. Circuit is complete. ' + comp.name + ' is good.';
+                        if (currentComponent === 'fuse-good') completeTask('task5');
+                    } else {
+                        value = 'OL';
+                        unit = '';
+                        info = '<strong style="color:#ef4444;">NO CONTINUITY.</strong> Open circuit. ' + comp.name + (currentComponent === 'fuse-blown' ? ' is blown.' : '.');
+                        if (currentComponent === 'fuse-blown') completeTask('task6');
+                    }
+                } else {
+                    wrongMode = true;
+                }
+            } else if (range.type === 'mA' && comp.type === 'mA') {
+                var noise = (Math.random() - 0.5) * 0.5;
+                value = (comp.current + noise).toFixed(range.decimals);
+                info = '<strong style="color:#22c55e;">Reading: ' + value + ' ' + unit + '</strong><br>Current draw of ' + comp.name + '.';
+            } else {
+                wrongMode = true;
+            }
+
+            if (wrongMode) {
+                value = '0.0';
+                info = '<strong style="color:#f59e0b;">Wrong mode.</strong> The ' + comp.name + ' requires a different measurement type. Check what you are measuring (voltage, resistance, or continuity).';
+            }
+
+            document.getElementById('mmValue').textContent = value;
+            document.getElementById('mmUnit').textContent = unit;
+            document.getElementById('infoBox').innerHTML = info;
+
+            if (!wrongMode) {
+                addReading(comp.name, value + ' ' + unit, currentMode);
+            }
+        }
+
+        function addReading(component, reading, mode) {
+            var log = document.getElementById('readingLog');
+            var time = new Date().toLocaleTimeString();
+            var entry = document.createElement('div');
+            entry.className = 'entry';
+            entry.textContent = time + ' | ' + mode.toUpperCase() + ' | ' + component + ': ' + reading;
+
+            if (log.firstChild && log.firstChild.textContent === 'No readings yet.') {
+                log.innerHTML = '';
+            }
+            log.insertBefore(entry, log.firstChild);
+        }
+
+        function completeTask(taskId) {
+            if (!tasksCompleted[taskId]) {
+                tasksCompleted[taskId] = true;
+                var el = document.getElementById(taskId);
+                el.classList.add('done');
+                el.textContent = '\u2713';
+            }
+        }
+    </script>
+    <script src="../../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>

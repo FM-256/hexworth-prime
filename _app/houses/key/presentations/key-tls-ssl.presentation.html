@@ -1,0 +1,2341 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../components/AccessGuard.js"></script>
+    <script>
+        AccessGuard.require('sorted');
+    </script>
+    <!-- Achievement & Progress Integration -->
+    <script src="../../../components/AchievementManager.js"></script>
+    <script src="../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TLS/SSL Explained - House of the Key</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --house-color: #f472b6;
+            --house-glow: rgba(244, 114, 182, 0.4);
+            --house-dim: rgba(244, 114, 182, 0.15);
+            --bg-dark: #0a0a12;
+            --bg-card: rgba(15, 15, 25, 0.8);
+            --text-primary: #e8e8f0;
+            --text-secondary: #8888aa;
+            --danger: #ef4444;
+            --success: #22c55e;
+            --info: #3b82f6;
+            --warning: #f59e0b;
+        }
+
+        body {
+            min-height: 100vh;
+            background: var(--bg-dark);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: var(--text-primary);
+            overflow-x: hidden;
+        }
+
+        /* Header */
+        .module-header {
+            padding: 20px 30px;
+            background: rgba(10, 10, 18, 0.95);
+            border-bottom: 1px solid rgba(244, 114, 182, 0.2);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .back-btn {
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
+            border: 1px solid rgba(244, 114, 182, 0.3);
+            background: transparent;
+            color: var(--house-color);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+        }
+
+        .back-btn:hover {
+            background: rgba(244, 114, 182, 0.1);
+        }
+
+        .module-title {
+            font-size: 1rem;
+            font-weight: 500;
+            color: var(--text-primary);
+        }
+
+        .house-badge {
+            font-size: 0.7rem;
+            padding: 4px 12px;
+            background: rgba(244, 114, 182, 0.15);
+            border: 1px solid rgba(244, 114, 182, 0.3);
+            border-radius: 20px;
+            color: var(--house-color);
+            letter-spacing: 0.1em;
+        }
+
+        /* Slide navigation */
+        .slide-nav {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .slide-counter {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            min-width: 60px;
+            text-align: center;
+        }
+
+        .nav-btn {
+            width: 32px;
+            height: 32px;
+            border-radius: 6px;
+            border: 1px solid rgba(244, 114, 182, 0.3);
+            background: transparent;
+            color: var(--house-color);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+            font-size: 0.9rem;
+        }
+
+        .nav-btn:hover { background: rgba(244, 114, 182, 0.1); }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+
+        /* Main Content */
+        .module-content {
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 40px 30px;
+        }
+
+        .intro-section {
+            text-align: center;
+            margin-bottom: 50px;
+        }
+
+        .intro-icon {
+            font-size: 4rem;
+            margin-bottom: 20px;
+        }
+
+        .intro-title {
+            font-size: 2.2rem;
+            font-weight: 300;
+            margin-bottom: 15px;
+            background: linear-gradient(135deg, #fff, var(--house-color));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .intro-subtitle {
+            font-size: 1rem;
+            color: var(--text-secondary);
+            max-width: 650px;
+            margin: 0 auto;
+            line-height: 1.6;
+        }
+
+        /* Slide system */
+        .slide {
+            display: none;
+        }
+
+        .slide.active {
+            display: block;
+        }
+
+        /* Section Styles */
+        .content-section {
+            background: var(--bg-card);
+            border: 1px solid rgba(244, 114, 182, 0.2);
+            border-radius: 12px;
+            padding: 30px;
+            margin-bottom: 30px;
+        }
+
+        .section-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .section-icon {
+            font-size: 1.8rem;
+        }
+
+        .section-title {
+            font-size: 1.4rem;
+            font-weight: 500;
+        }
+
+        .section-content p {
+            font-size: 0.95rem;
+            line-height: 1.7;
+            color: var(--text-secondary);
+            margin-bottom: 15px;
+        }
+
+        .section-content ul {
+            list-style: none;
+            padding: 0;
+            margin-bottom: 15px;
+        }
+
+        .section-content li {
+            padding: 8px 0;
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+        }
+
+        .section-content li::before {
+            content: '\25B8';
+            color: var(--house-color);
+            font-weight: bold;
+            margin-top: 2px;
+        }
+
+        /* Timeline */
+        .timeline {
+            position: relative;
+            padding-left: 30px;
+            margin: 20px 0;
+        }
+
+        .timeline::before {
+            content: '';
+            position: absolute;
+            left: 10px;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            background: linear-gradient(to bottom, var(--danger), var(--house-color), var(--success));
+        }
+
+        .timeline-entry {
+            position: relative;
+            margin-bottom: 20px;
+            padding: 15px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 8px;
+            border: 1px solid rgba(244, 114, 182, 0.15);
+        }
+
+        .timeline-entry::before {
+            content: '';
+            position: absolute;
+            left: -24px;
+            top: 20px;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: var(--house-color);
+            border: 2px solid var(--bg-dark);
+        }
+
+        .timeline-entry.deprecated::before { background: var(--danger); }
+
+        .timeline-entry.current::before {
+            background: var(--success);
+            box-shadow: 0 0 8px rgba(34, 197, 94, 0.6);
+        }
+
+        .timeline-year {
+            font-size: 0.75rem;
+            color: var(--house-color);
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            margin-bottom: 4px;
+        }
+
+        .timeline-name {
+            font-size: 1rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 6px;
+        }
+
+        .timeline-desc {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            line-height: 1.5;
+        }
+
+        .status-badge {
+            display: inline-block;
+            font-size: 0.65rem;
+            padding: 2px 8px;
+            border-radius: 10px;
+            margin-left: 8px;
+            vertical-align: middle;
+        }
+
+        .status-badge.deprecated {
+            background: rgba(239, 68, 68, 0.2);
+            color: #ef4444;
+            border: 1px solid rgba(239, 68, 68, 0.3);
+        }
+
+        .status-badge.active {
+            background: rgba(34, 197, 94, 0.2);
+            color: #22c55e;
+            border: 1px solid rgba(34, 197, 94, 0.3);
+        }
+
+        /* Handshake steps */
+        .handshake-step {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 15px;
+            margin-bottom: 8px;
+            background: rgba(244, 114, 182, 0.05);
+            border-radius: 8px;
+            border-left: 3px solid var(--house-color);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .handshake-step:hover { background: rgba(244, 114, 182, 0.12); }
+
+        .handshake-step.active {
+            background: rgba(244, 114, 182, 0.15);
+            border-left-color: var(--success);
+        }
+
+        .step-number {
+            width: 28px;
+            height: 28px;
+            background: var(--house-color);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #000;
+            font-weight: bold;
+            font-size: 0.8rem;
+            flex-shrink: 0;
+        }
+
+        .step-label {
+            font-weight: 600;
+            color: var(--text-primary);
+            font-size: 0.9rem;
+        }
+
+        .step-detail {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            margin-top: 2px;
+        }
+
+        .handshake-visual {
+            background: #000;
+            border-radius: 8px;
+            padding: 20px;
+            margin-top: 15px;
+            white-space: pre;
+            line-height: 1.4;
+            color: var(--house-color);
+            overflow-x: auto;
+            font-size: 0.78rem;
+            font-family: 'Courier New', monospace;
+        }
+
+        /* Certificate Chain */
+        .cert-chain {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+            margin: 20px 0;
+        }
+
+        .cert-node {
+            background: rgba(0, 0, 0, 0.3);
+            border: 2px solid rgba(244, 114, 182, 0.3);
+            border-radius: 12px;
+            padding: 18px 30px;
+            text-align: center;
+            transition: all 0.3s;
+            cursor: pointer;
+            width: 100%;
+            max-width: 400px;
+        }
+
+        .cert-node:hover {
+            border-color: var(--house-color);
+            box-shadow: 0 4px 20px var(--house-glow);
+            transform: translateY(-2px);
+        }
+
+        .cert-node.root { border-color: #f59e0b; background: rgba(245, 158, 11, 0.08); }
+        .cert-node.intermediate { border-color: #8b5cf6; background: rgba(139, 92, 246, 0.08); }
+        .cert-node.server { border-color: #06b6d4; background: rgba(6, 182, 212, 0.08); }
+
+        .cert-level {
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            margin-bottom: 4px;
+        }
+
+        .cert-node.root .cert-level { color: #f59e0b; }
+        .cert-node.intermediate .cert-level { color: #8b5cf6; }
+        .cert-node.server .cert-level { color: #06b6d4; }
+
+        .cert-name { font-size: 1.1rem; font-weight: 600; margin-bottom: 4px; }
+        .cert-desc { font-size: 0.8rem; color: var(--text-secondary); }
+
+        .chain-arrow {
+            font-size: 1.5rem;
+            color: var(--house-color);
+            transform: rotate(90deg);
+        }
+
+        .cert-detail-panel {
+            display: none;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(244, 114, 182, 0.2);
+            border-radius: 10px;
+            padding: 20px;
+            margin-top: 15px;
+            font-size: 0.85rem;
+        }
+
+        .cert-detail-panel.visible { display: block; }
+
+        .cert-detail-panel h4 {
+            color: var(--house-color);
+            margin-bottom: 10px;
+        }
+
+        .cert-detail-panel code {
+            display: block;
+            background: rgba(0, 0, 0, 0.4);
+            padding: 12px;
+            border-radius: 6px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.78rem;
+            color: var(--house-color);
+            overflow-x: auto;
+            white-space: pre;
+            margin-top: 8px;
+        }
+
+        /* Cipher Suite Grid */
+        .cipher-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+
+        .cipher-card {
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(244, 114, 182, 0.2);
+            border-radius: 10px;
+            padding: 18px;
+            text-align: center;
+            transition: all 0.3s;
+        }
+
+        .cipher-card:hover {
+            border-color: var(--house-color);
+            transform: translateY(-3px);
+        }
+
+        .cipher-card .cipher-role {
+            font-size: 0.65rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: var(--house-color);
+            margin-bottom: 8px;
+        }
+
+        .cipher-card .cipher-name { font-size: 1rem; font-weight: 600; margin-bottom: 6px; }
+
+        .cipher-card .cipher-desc {
+            font-size: 0.78rem;
+            color: var(--text-secondary);
+            line-height: 1.4;
+        }
+
+        .cipher-card .cipher-examples {
+            margin-top: 10px;
+            display: flex;
+            gap: 5px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .cipher-tag {
+            font-size: 0.65rem;
+            padding: 3px 8px;
+            background: var(--house-dim);
+            border: 1px solid rgba(244, 114, 182, 0.2);
+            border-radius: 4px;
+            color: var(--house-color);
+        }
+
+        /* Attack Cards */
+        .attack-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+            margin: 20px 0;
+        }
+
+        .attack-card {
+            background: rgba(239, 68, 68, 0.05);
+            border: 1px solid rgba(239, 68, 68, 0.2);
+            border-radius: 12px;
+            padding: 20px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .attack-card:hover {
+            border-color: #ef4444;
+            box-shadow: 0 4px 20px rgba(239, 68, 68, 0.15);
+            transform: translateY(-3px);
+        }
+
+        .attack-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+
+        .attack-icon { font-size: 1.5rem; }
+
+        .attack-name { font-size: 1.1rem; font-weight: 600; color: #ef4444; }
+
+        .attack-year { font-size: 0.7rem; color: var(--text-secondary); }
+
+        .attack-desc {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            line-height: 1.5;
+            margin-bottom: 10px;
+        }
+
+        .attack-impact {
+            font-size: 0.78rem;
+            padding: 8px 12px;
+            background: rgba(239, 68, 68, 0.1);
+            border-radius: 6px;
+            color: #fca5a5;
+        }
+
+        .attack-impact strong { color: #ef4444; }
+
+        .attack-detail {
+            display: none;
+            margin-top: 12px;
+            padding-top: 12px;
+            border-top: 1px solid rgba(239, 68, 68, 0.2);
+            font-size: 0.82rem;
+            color: var(--text-secondary);
+            line-height: 1.5;
+        }
+
+        .attack-card.expanded .attack-detail { display: block; }
+
+        /* Best Practice Cards */
+        .bp-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+
+        .bp-card {
+            background: rgba(34, 197, 94, 0.05);
+            border: 1px solid rgba(34, 197, 94, 0.2);
+            border-radius: 10px;
+            padding: 18px;
+            transition: all 0.3s;
+        }
+
+        .bp-card:hover {
+            border-color: #22c55e;
+            transform: translateY(-3px);
+        }
+
+        .bp-card h4 {
+            color: #22c55e;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .bp-card p {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            line-height: 1.5;
+        }
+
+        .bp-card .bp-config {
+            margin-top: 10px;
+            padding: 8px 12px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 6px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.75rem;
+            color: #22c55e;
+            overflow-x: auto;
+            white-space: pre;
+        }
+
+        /* Interactive Cipher Suite Builder */
+        .cipher-builder {
+            background: linear-gradient(135deg, rgba(244, 114, 182, 0.1), rgba(244, 114, 182, 0.05));
+            border: 1px solid rgba(244, 114, 182, 0.3);
+            border-radius: 12px;
+            padding: 30px;
+            margin: 30px 0;
+        }
+
+        .builder-header {
+            text-align: center;
+            margin-bottom: 25px;
+        }
+
+        .builder-header h3 { font-size: 1.3rem; margin-bottom: 8px; }
+        .builder-header p { font-size: 0.85rem; color: var(--text-secondary); }
+
+        .builder-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+
+        .builder-group label {
+            display: block;
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: var(--house-color);
+            margin-bottom: 6px;
+        }
+
+        .builder-group select {
+            width: 100%;
+            padding: 10px 12px;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(244, 114, 182, 0.3);
+            border-radius: 8px;
+            color: var(--text-primary);
+            font-size: 0.9rem;
+            cursor: pointer;
+        }
+
+        .builder-group select:focus {
+            outline: none;
+            border-color: var(--house-color);
+            box-shadow: 0 0 10px var(--house-glow);
+        }
+
+        .builder-output {
+            background: rgba(0, 0, 0, 0.5);
+            border: 1px solid rgba(244, 114, 182, 0.3);
+            border-radius: 8px;
+            padding: 15px;
+            margin-top: 15px;
+            text-align: center;
+        }
+
+        .builder-output .output-label {
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: var(--house-color);
+            margin-bottom: 8px;
+        }
+
+        .builder-output .output-suite {
+            font-family: 'Courier New', monospace;
+            font-size: 1rem;
+            color: var(--house-color);
+            word-break: break-all;
+        }
+
+        .builder-output .output-rating {
+            margin-top: 10px;
+            padding: 6px 16px;
+            border-radius: 20px;
+            display: inline-block;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+
+        .rating-strong { background: rgba(34, 197, 94, 0.2); color: #22c55e; border: 1px solid rgba(34, 197, 94, 0.3); }
+        .rating-moderate { background: rgba(245, 158, 11, 0.2); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.3); }
+        .rating-weak { background: rgba(239, 68, 68, 0.2); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.3); }
+
+        /* Comparison Table */
+        .tls-table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+            border-radius: 10px;
+            overflow: hidden;
+            border: 1px solid rgba(244, 114, 182, 0.2);
+            margin: 15px 0;
+        }
+
+        .tls-table th, .tls-table td {
+            padding: 12px 15px;
+            text-align: left;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            font-size: 0.85rem;
+        }
+
+        .tls-table th {
+            background: rgba(244, 114, 182, 0.15);
+            color: var(--house-color);
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .tls-table tr:nth-child(even) td { background: rgba(0, 0, 0, 0.15); }
+        .tls-table tr:last-child td { border-bottom: none; }
+
+        /* Quiz Section */
+        .quiz-container {
+            margin-top: 30px;
+        }
+
+        .quiz-question {
+            background: var(--bg-card);
+            border: 1px solid rgba(244, 114, 182, 0.2);
+            border-radius: 12px;
+            padding: 25px;
+            margin-bottom: 20px;
+            transition: all 0.3s;
+        }
+
+        .quiz-question.correct {
+            border-color: var(--success);
+            background: rgba(34, 197, 94, 0.05);
+        }
+
+        .quiz-question.incorrect {
+            border-color: var(--danger);
+            background: rgba(239, 68, 68, 0.05);
+        }
+
+        .q-number {
+            font-size: 0.7rem;
+            color: var(--house-color);
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            margin-bottom: 8px;
+        }
+
+        .q-text {
+            font-size: 1rem;
+            font-weight: 500;
+            margin-bottom: 15px;
+            line-height: 1.5;
+        }
+
+        .q-options {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .q-option {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 12px 15px;
+            background: rgba(0, 0, 0, 0.2);
+            border: 1px solid rgba(244, 114, 182, 0.15);
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 0.9rem;
+        }
+
+        .q-option:hover { border-color: var(--house-color); background: rgba(244, 114, 182, 0.08); }
+
+        .q-option.selected {
+            border-color: var(--house-color);
+            background: rgba(244, 114, 182, 0.12);
+        }
+
+        .q-option.correct-answer {
+            border-color: var(--success);
+            background: rgba(34, 197, 94, 0.12);
+        }
+
+        .q-option.wrong-answer {
+            border-color: var(--danger);
+            background: rgba(239, 68, 68, 0.08);
+            opacity: 0.7;
+        }
+
+        .q-option .radio {
+            width: 18px;
+            height: 18px;
+            border: 2px solid rgba(244, 114, 182, 0.4);
+            border-radius: 50%;
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .q-option.selected .radio {
+            border-color: var(--house-color);
+        }
+
+        .q-option.selected .radio::after {
+            content: '';
+            width: 8px;
+            height: 8px;
+            background: var(--house-color);
+            border-radius: 50%;
+        }
+
+        .q-option.correct-answer .radio {
+            border-color: var(--success);
+            background: var(--success);
+        }
+
+        .q-option.correct-answer .radio::after {
+            content: '\2713';
+            color: #fff;
+            font-size: 0.7rem;
+            font-weight: bold;
+        }
+
+        .q-explanation {
+            display: none;
+            margin-top: 12px;
+            padding: 12px;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 8px;
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            line-height: 1.5;
+            border-left: 3px solid var(--house-color);
+        }
+
+        .q-explanation.visible { display: block; }
+
+        .quiz-score {
+            text-align: center;
+            padding: 25px;
+            background: var(--bg-card);
+            border: 1px solid rgba(244, 114, 182, 0.3);
+            border-radius: 12px;
+            margin-top: 20px;
+        }
+
+        .quiz-score .score-number {
+            font-size: 2.5rem;
+            font-weight: 300;
+            color: var(--house-color);
+        }
+
+        .quiz-submit-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 14px 40px;
+            background: linear-gradient(135deg, var(--house-color), #ec4899);
+            border: none;
+            border-radius: 8px;
+            color: #fff;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            margin-top: 20px;
+        }
+
+        .quiz-submit-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px var(--house-glow);
+        }
+
+        /* Action buttons */
+        .action-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 12px 30px;
+            background: linear-gradient(135deg, var(--house-color), #ec4899);
+            border: none;
+            border-radius: 8px;
+            color: #fff;
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .action-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px var(--house-glow);
+        }
+
+        .action-btn.complete-btn {
+            background: linear-gradient(135deg, #10b981, #059669);
+        }
+
+        /* Feature comparison grid */
+        .feature-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin: 20px 0;
+        }
+
+        .feature-box {
+            background: rgba(0, 0, 0, 0.2);
+            border: 1px solid rgba(244, 114, 182, 0.15);
+            border-radius: 10px;
+            padding: 18px;
+        }
+
+        .feature-box h4 {
+            color: var(--house-color);
+            margin-bottom: 8px;
+            font-size: 0.9rem;
+        }
+
+        .feature-box p {
+            font-size: 0.82rem;
+            color: var(--text-secondary);
+            line-height: 1.5;
+        }
+
+        /* Info callout */
+        .info-callout {
+            background: rgba(59, 130, 246, 0.08);
+            border: 1px solid rgba(59, 130, 246, 0.25);
+            border-radius: 10px;
+            padding: 18px;
+            margin: 15px 0;
+        }
+
+        .info-callout strong {
+            color: var(--info);
+        }
+
+        .info-callout p {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            line-height: 1.5;
+        }
+
+        /* Warning callout */
+        .warning-callout {
+            background: rgba(245, 158, 11, 0.08);
+            border: 1px solid rgba(245, 158, 11, 0.25);
+            border-radius: 10px;
+            padding: 18px;
+            margin: 15px 0;
+        }
+
+        .warning-callout strong {
+            color: var(--warning);
+        }
+
+        .warning-callout p {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            line-height: 1.5;
+        }
+
+        /* Quiz teaser / completion */
+        .quiz-teaser {
+            background: var(--bg-card);
+            border: 1px solid rgba(244, 114, 182, 0.2);
+            border-radius: 12px;
+            padding: 30px;
+            text-align: center;
+            margin-top: 40px;
+        }
+
+        .quiz-teaser h3 { font-size: 1.1rem; margin-bottom: 10px; }
+        .quiz-teaser p { font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 20px; }
+
+        /* Footer */
+        .module-footer {
+            text-align: center;
+            padding: 30px;
+            border-top: 1px solid rgba(244, 114, 182, 0.1);
+            margin-top: 50px;
+        }
+
+        .footer-text {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            letter-spacing: 0.1em;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .intro-title { font-size: 1.8rem; }
+            .cipher-grid { grid-template-columns: 1fr; }
+            .attack-grid { grid-template-columns: 1fr; }
+            .bp-grid { grid-template-columns: 1fr; }
+            .builder-row { grid-template-columns: 1fr; }
+            .feature-grid { grid-template-columns: 1fr; }
+            .slide-nav { display: none; }
+        }
+    </style>
+</head>
+<body>
+    <header class="module-header">
+        <div class="header-left">
+            <button class="back-btn" onclick="goBack()">&#8592;</button>
+            <span class="module-title">TLS/SSL Explained</span>
+        </div>
+        <div class="slide-nav">
+            <button class="nav-btn" id="prevBtn" onclick="changeSlide(-1)" disabled>&#8249;</button>
+            <span class="slide-counter" id="slideCounter">1 / 22</span>
+            <button class="nav-btn" id="nextBtn" onclick="changeSlide(1)">&#8250;</button>
+        </div>
+        <span class="house-badge">HOUSE OF THE KEY</span>
+    </header>
+
+    <main class="module-content">
+        <!-- Slide 1: Introduction -->
+        <div class="slide active" data-slide="1">
+            <section class="intro-section">
+                <div class="intro-icon">&#128274;</div>
+                <h1 class="intro-title">TLS/SSL Explained</h1>
+                <p class="intro-subtitle">
+                    Understand the protocols that secure virtually every connection on the modern internet.
+                    From the original SSL to today's TLS 1.3, learn how encrypted communication actually works.
+                </p>
+            </section>
+        </div>
+
+        <!-- Slide 2: What is TLS -->
+        <div class="slide" data-slide="2">
+            <section class="content-section">
+                <div class="section-header">
+                    <span class="section-icon">&#128272;</span>
+                    <h2 class="section-title">What is TLS?</h2>
+                </div>
+                <div class="section-content">
+                    <p>Transport Layer Security (TLS) is a cryptographic protocol that provides three critical security properties for network communication:</p>
+                    <ul>
+                        <li><strong>Confidentiality:</strong> Data is encrypted so eavesdroppers cannot read it. Even if someone captures every packet, the content remains unintelligible without the session keys.</li>
+                        <li><strong>Integrity:</strong> Messages include a Message Authentication Code (MAC) that detects any tampering. If a single bit is altered in transit, the recipient will know.</li>
+                        <li><strong>Authentication:</strong> Digital certificates prove the server is who it claims to be. This prevents man-in-the-middle attacks where an attacker impersonates a legitimate server.</li>
+                    </ul>
+                    <p>TLS operates at the transport layer (Layer 4-5 in the OSI model), sitting between TCP and the application protocol. When you see HTTPS, SMTPS, IMAPS, or FTPS, you are seeing application protocols wrapped in TLS.</p>
+
+                    <div class="info-callout">
+                        <strong>Key Insight:</strong>
+                        <p>TLS does not encrypt the destination IP address or port -- those remain visible to network operators. It protects the payload (your data) and, with the Encrypted Client Hello (ECH) extension in modern TLS 1.3, even the Server Name Indication (SNI) can be hidden.</p>
+                    </div>
+                </div>
+            </section>
+        </div>
+
+        <!-- Slide 3: SSL/TLS History Timeline -->
+        <div class="slide" data-slide="3">
+            <section class="content-section">
+                <div class="section-header">
+                    <span class="section-icon">&#128218;</span>
+                    <h2 class="section-title">The Evolution of TLS/SSL</h2>
+                </div>
+                <div class="section-content">
+                    <p>The protocol has evolved significantly since Netscape first developed SSL in the mid-1990s. Each version addressed flaws discovered in its predecessor.</p>
+                    <div class="timeline">
+                        <div class="timeline-entry deprecated">
+                            <div class="timeline-year">1994</div>
+                            <div class="timeline-name">SSL 1.0 <span class="status-badge deprecated">NEVER RELEASED</span></div>
+                            <div class="timeline-desc">Developed internally at Netscape but never released due to serious security flaws discovered during internal review.</div>
+                        </div>
+                        <div class="timeline-entry deprecated">
+                            <div class="timeline-year">1995</div>
+                            <div class="timeline-name">SSL 2.0 <span class="status-badge deprecated">DEPRECATED</span></div>
+                            <div class="timeline-desc">First publicly released version. Contained serious security flaws: weak MAC construction, vulnerability to man-in-the-middle attacks, and truncation attacks. Deprecated by RFC 6176 (2011).</div>
+                        </div>
+                        <div class="timeline-entry deprecated">
+                            <div class="timeline-year">1996</div>
+                            <div class="timeline-name">SSL 3.0 <span class="status-badge deprecated">DEPRECATED</span></div>
+                            <div class="timeline-desc">Complete redesign by Netscape (Paul Kocher). Fixed SSL 2.0 flaws but later found vulnerable to POODLE attack (2014). Deprecated by RFC 7568 (2015).</div>
+                        </div>
+                        <div class="timeline-entry deprecated">
+                            <div class="timeline-year">1999</div>
+                            <div class="timeline-name">TLS 1.0 <span class="status-badge deprecated">DEPRECATED</span></div>
+                            <div class="timeline-desc">IETF standardized upgrade of SSL 3.0 (RFC 2246). Not dramatically different but not interoperable. Vulnerable to BEAST attack. Deprecated by RFC 8996 (2021).</div>
+                        </div>
+                        <div class="timeline-entry deprecated">
+                            <div class="timeline-year">2006</div>
+                            <div class="timeline-name">TLS 1.1 <span class="status-badge deprecated">DEPRECATED</span></div>
+                            <div class="timeline-desc">Added explicit IV to prevent CBC attacks (RFC 4346). Still lacked modern cipher suites and AEAD modes. Deprecated by RFC 8996 (2021).</div>
+                        </div>
+                        <div class="timeline-entry">
+                            <div class="timeline-year">2008</div>
+                            <div class="timeline-name">TLS 1.2 <span class="status-badge active">ACTIVE</span></div>
+                            <div class="timeline-desc">Major update (RFC 5246). Added SHA-256, AEAD cipher suites (GCM), and flexible hash/signature algorithms. Still widely used and secure with proper configuration.</div>
+                        </div>
+                        <div class="timeline-entry current">
+                            <div class="timeline-year">2018</div>
+                            <div class="timeline-name">TLS 1.3 <span class="status-badge active">RECOMMENDED</span></div>
+                            <div class="timeline-desc">Current standard (RFC 8446). Removed all insecure algorithms, reduced handshake to 1-RTT (0-RTT resumption), mandatory forward secrecy. 10 years of development, 28 drafts.</div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </div>
+
+        <!-- Slide 4: TLS 1.2 vs 1.3 Comparison -->
+        <div class="slide" data-slide="4">
+            <section class="content-section">
+                <div class="section-header">
+                    <span class="section-icon">&#128200;</span>
+                    <h2 class="section-title">TLS 1.2 vs TLS 1.3</h2>
+                </div>
+                <div class="section-content">
+                    <p>TLS 1.3 is not just an incremental update -- it is a fundamental redesign that removes decades of accumulated technical debt.</p>
+                    <table class="tls-table">
+                        <thead>
+                            <tr>
+                                <th>Feature</th>
+                                <th>TLS 1.2</th>
+                                <th>TLS 1.3</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>Handshake Round-Trips</td>
+                                <td>2-RTT</td>
+                                <td>1-RTT (0-RTT resumption)</td>
+                            </tr>
+                            <tr>
+                                <td>Key Exchange</td>
+                                <td>RSA, DHE, ECDHE</td>
+                                <td>ECDHE, DHE only (forward secrecy mandatory)</td>
+                            </tr>
+                            <tr>
+                                <td>Cipher Modes</td>
+                                <td>CBC, GCM, CCM</td>
+                                <td>AEAD only (GCM, CCM, ChaCha20-Poly1305)</td>
+                            </tr>
+                            <tr>
+                                <td>Hash Functions</td>
+                                <td>MD5, SHA-1, SHA-256, SHA-384</td>
+                                <td>SHA-256, SHA-384 only</td>
+                            </tr>
+                            <tr>
+                                <td>RSA Key Transport</td>
+                                <td>Supported (no forward secrecy)</td>
+                                <td>Removed entirely</td>
+                            </tr>
+                            <tr>
+                                <td>Compression</td>
+                                <td>Optional (vulnerable to CRIME)</td>
+                                <td>Removed</td>
+                            </tr>
+                            <tr>
+                                <td>Renegotiation</td>
+                                <td>Supported (attack surface)</td>
+                                <td>Removed</td>
+                            </tr>
+                            <tr>
+                                <td>Cipher Suites Available</td>
+                                <td>~37 suites</td>
+                                <td>5 suites</td>
+                            </tr>
+                            <tr>
+                                <td>Server Hello Encrypted</td>
+                                <td>No</td>
+                                <td>Yes (after ServerHello)</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </div>
+
+        <!-- Slide 5: TLS 1.2 Handshake -->
+        <div class="slide" data-slide="5">
+            <section class="content-section">
+                <div class="section-header">
+                    <span class="section-icon">&#129309;</span>
+                    <h2 class="section-title">The TLS 1.2 Handshake (2-RTT)</h2>
+                </div>
+                <div class="section-content">
+                    <p>TLS 1.2 requires two full round trips before application data can flow. Every message is sent in the clear until the ChangeCipherSpec message.</p>
+
+                    <div class="handshake-visual">
+    Client                                          Server
+      |                                                |
+      |------ ClientHello -------------------------&gt;   |  RTT 1
+      |   + protocol version (TLS 1.2)                 |
+      |   + client random (32 bytes)                   |
+      |   + session ID                                 |
+      |   + cipher suites list                         |
+      |                                                |
+      |   &lt;----- ServerHello -------------------------- |
+      |   &lt;----- Certificate -------------------------- |
+      |   &lt;----- ServerKeyExchange (if DHE/ECDHE) ----- |
+      |   &lt;----- ServerHelloDone ---------------------- |
+      |                                                |
+      |------ ClientKeyExchange -------------------&gt;   |  RTT 2
+      |------ ChangeCipherSpec --------------------&gt;   |
+      |------ Finished (encrypted) ----------------&gt;   |
+      |                                                |
+      |   &lt;----- ChangeCipherSpec --------------------- |
+      |   &lt;----- Finished (encrypted) ---------------- |
+      |                                                |
+      |&lt;=========== Application Data =================&gt;|</div>
+
+                    <div class="warning-callout">
+                        <strong>Why 2-RTT is a Problem:</strong>
+                        <p>On a 100ms latency connection, the TLS 1.2 handshake adds 200ms before any data can be sent. For mobile users on high-latency networks, this delay is noticeable on every new connection.</p>
+                    </div>
+                </div>
+            </section>
+        </div>
+
+        <!-- Slide 6: TLS 1.3 Handshake -->
+        <div class="slide" data-slide="6">
+            <section class="content-section">
+                <div class="section-header">
+                    <span class="section-icon">&#9889;</span>
+                    <h2 class="section-title">The TLS 1.3 Handshake (1-RTT)</h2>
+                </div>
+                <div class="section-content">
+                    <p>TLS 1.3 dramatically simplified the handshake, completing in just one round trip. The client sends its key share immediately, allowing the server to encrypt most of its response.</p>
+
+                    <div id="handshakeSteps">
+                        <div class="handshake-step" onclick="showHandshakeDetail(0)">
+                            <span class="step-number">1</span>
+                            <div>
+                                <div class="step-label">Client Hello</div>
+                                <div class="step-detail">Client sends supported cipher suites, key shares (guesses which groups), and random nonce. Key share means the server can derive keys immediately.</div>
+                            </div>
+                        </div>
+                        <div class="handshake-step" onclick="showHandshakeDetail(1)">
+                            <span class="step-number">2</span>
+                            <div>
+                                <div class="step-label">Server Hello + Encrypted Extensions</div>
+                                <div class="step-detail">Server selects cipher suite, provides its key share, then sends certificate and finished message -- all encrypted after the ServerHello.</div>
+                            </div>
+                        </div>
+                        <div class="handshake-step" onclick="showHandshakeDetail(2)">
+                            <span class="step-number">3</span>
+                            <div>
+                                <div class="step-label">Client Finished</div>
+                                <div class="step-detail">Client verifies certificate chain, computes session keys, sends its Finished message. Both sides now have symmetric keys.</div>
+                            </div>
+                        </div>
+                        <div class="handshake-step" onclick="showHandshakeDetail(3)">
+                            <span class="step-number">4</span>
+                            <div>
+                                <div class="step-label">Application Data</div>
+                                <div class="step-detail">Encrypted communication begins. The client can actually send application data alongside its Finished message (early data).</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="handshake-visual">
+    Client                                          Server
+      |                                                |
+      |------ ClientHello -------------------------&gt;   |  1-RTT
+      |   + supported_versions (TLS 1.3)               |
+      |   + key_share (ECDHE public key)               |
+      |   + cipher_suites                              |
+      |                                                |
+      |   &lt;----- ServerHello -------------------------- |
+      |   &lt;----- {EncryptedExtensions} ---------------- |
+      |   &lt;----- {Certificate} ------------------------ |
+      |   &lt;----- {CertificateVerify} ------------------ |
+      |   &lt;----- {Finished} --------------------------- |
+      |                                                |
+      |------ {Finished} -------------------------&gt;    |
+      |                                                |
+      |&lt;=========== Application Data =================&gt;|
+      |             (encrypted with AES-GCM)           |
+
+    { } = encrypted with handshake keys</div>
+                </div>
+            </section>
+        </div>
+
+        <!-- Slide 7: 0-RTT Resumption -->
+        <div class="slide" data-slide="7">
+            <section class="content-section">
+                <div class="section-header">
+                    <span class="section-icon">&#128640;</span>
+                    <h2 class="section-title">0-RTT Resumption (Early Data)</h2>
+                </div>
+                <div class="section-content">
+                    <p>TLS 1.3 introduces 0-RTT resumption: if a client has connected to a server before, it can send encrypted application data in the very first message, alongside the ClientHello. This eliminates the handshake latency entirely for returning visitors.</p>
+
+                    <div class="handshake-visual">
+    Client (returning)                              Server
+      |                                                |
+      |------ ClientHello -------------------------&gt;   |  0-RTT!
+      |   + pre_shared_key (from previous session)     |
+      |   + early_data_indication                      |
+      |   + {Application Data} (encrypted with PSK)    |
+      |                                                |
+      |   &lt;----- ServerHello + Finished --------------- |
+      |                                                |
+      |&lt;=========== Application Data =================&gt;|</div>
+
+                    <div class="warning-callout">
+                        <strong>0-RTT Security Trade-off:</strong>
+                        <p>0-RTT data is vulnerable to replay attacks. An attacker who captures the first flight can replay it to the server. For this reason, 0-RTT should only be used for idempotent requests (GET, not POST). Servers must implement anti-replay mechanisms such as single-use session tickets or time-window checks.</p>
+                    </div>
+
+                    <div class="feature-grid">
+                        <div class="feature-box">
+                            <h4>When to Use 0-RTT</h4>
+                            <p>Safe for: loading page resources, fetching static content, reading API endpoints. Any request where replaying it has no side effects.</p>
+                        </div>
+                        <div class="feature-box">
+                            <h4>When NOT to Use 0-RTT</h4>
+                            <p>Dangerous for: payment processing, form submissions, database writes, state-changing API calls. A replayed request could charge twice or create duplicates.</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </div>
+
+        <!-- Slide 8: Certificate Chain of Trust -->
+        <div class="slide" data-slide="8">
+            <section class="content-section">
+                <div class="section-header">
+                    <span class="section-icon">&#127970;</span>
+                    <h2 class="section-title">Certificate Chain of Trust</h2>
+                </div>
+                <div class="section-content">
+                    <p>Digital certificates create a chain of trust from a trusted Root CA down to the server's certificate. Your browser trusts approximately 150 Root CAs, which delegate trust to Intermediate CAs, which issue certificates to websites.</p>
+
+                    <div class="cert-chain">
+                        <div class="cert-node root" onclick="showCertDetail('root')">
+                            <div class="cert-level">Root Certificate Authority</div>
+                            <div class="cert-name">DigiCert Global Root G2</div>
+                            <div class="cert-desc">Self-signed. Pre-installed in OS/browser trust stores. Heavily protected, stored offline in HSMs.</div>
+                        </div>
+                        <span class="chain-arrow">&rarr;</span>
+                        <div class="cert-node intermediate" onclick="showCertDetail('intermediate')">
+                            <div class="cert-level">Intermediate Certificate Authority</div>
+                            <div class="cert-name">DigiCert TLS RSA SHA256 2020 CA1</div>
+                            <div class="cert-desc">Signed by Root CA. Issues end-entity certificates. Provides a security buffer if compromised.</div>
+                        </div>
+                        <span class="chain-arrow">&rarr;</span>
+                        <div class="cert-node server" onclick="showCertDetail('server')">
+                            <div class="cert-level">Server (End-Entity) Certificate</div>
+                            <div class="cert-name">*.example.com</div>
+                            <div class="cert-desc">Signed by Intermediate CA. Proves server identity. Contains public key for key exchange.</div>
+                        </div>
+                    </div>
+
+                    <div class="cert-detail-panel" id="certDetailRoot">
+                        <h4>Root CA Certificate Details</h4>
+                        <p style="color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 8px;">Root CAs are the trust anchors. They are self-signed certificates that come pre-installed in your OS and browser. They rarely issue certificates directly -- they sign intermediate CAs instead, so the root private key can remain offline in Hardware Security Modules (HSMs).</p>
+                        <code>Subject:   CN=DigiCert Global Root G2, O=DigiCert Inc
+Issuer:    CN=DigiCert Global Root G2 (self-signed)
+Validity:  2013-08-01 to 2038-01-15
+Key:       RSA 2048-bit
+Signature: sha256WithRSAEncryption
+Basic Constraints: CA:TRUE (no path length)</code>
+                    </div>
+
+                    <div class="cert-detail-panel" id="certDetailIntermediate">
+                        <h4>Intermediate CA Certificate Details</h4>
+                        <p style="color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 8px;">Intermediate CAs provide a security buffer. If compromised, only that CA's certificates need revocation, not the root. The server MUST send intermediate certificates during the TLS handshake so the client can build the full chain.</p>
+                        <code>Subject:   CN=DigiCert TLS RSA SHA256 2020 CA1
+Issuer:    CN=DigiCert Global Root G2
+Validity:  2020-09-24 to 2030-09-23
+Key:       RSA 2048-bit
+Basic Constraints: CA:TRUE, pathlen:0
+Key Usage: Digital Signature, Certificate Sign, CRL Sign</code>
+                    </div>
+
+                    <div class="cert-detail-panel" id="certDetailServer">
+                        <h4>Server (End-Entity) Certificate Details</h4>
+                        <p style="color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 8px;">The browser validates: (1) the certificate is signed by a trusted CA, (2) the domain matches the SAN field, (3) the certificate is not expired, and (4) the certificate has not been revoked (via CRL or OCSP).</p>
+                        <code>Subject:   CN=*.example.com
+Issuer:    CN=DigiCert TLS RSA SHA256 2020 CA1
+Validity:  2025-01-15 to 2026-02-14
+Key:       EC 256-bit (prime256v1)
+SAN:       *.example.com, example.com
+Key Usage: Digital Signature
+Extended Key Usage: TLS Web Server Authentication</code>
+                    </div>
+                </div>
+            </section>
+        </div>
+
+        <!-- Slide 9: Certificate Validation Process -->
+        <div class="slide" data-slide="9">
+            <section class="content-section">
+                <div class="section-header">
+                    <span class="section-icon">&#128269;</span>
+                    <h2 class="section-title">Certificate Validation Process</h2>
+                </div>
+                <div class="section-content">
+                    <p>When your browser receives a server certificate during the TLS handshake, it performs a rigorous multi-step validation before trusting the connection.</p>
+                    <ul>
+                        <li><strong>Chain Building:</strong> The browser constructs the certificate chain from the server cert up to a trusted root, checking each signature along the way.</li>
+                        <li><strong>Signature Verification:</strong> Each certificate's digital signature is verified using the issuer's public key, confirming it was actually signed by that CA.</li>
+                        <li><strong>Validity Period:</strong> Both notBefore and notAfter dates are checked. Expired or not-yet-valid certificates are rejected.</li>
+                        <li><strong>Domain Matching:</strong> The Subject Alternative Name (SAN) field must match the domain being accessed. Wildcard certs (*.example.com) match one subdomain level.</li>
+                        <li><strong>Revocation Check:</strong> The browser checks if the certificate has been revoked via CRL (Certificate Revocation List) or OCSP (Online Certificate Status Protocol).</li>
+                        <li><strong>Key Usage:</strong> The Extended Key Usage must include "TLS Web Server Authentication" (OID 1.3.6.1.5.5.7.3.1).</li>
+                        <li><strong>Certificate Transparency:</strong> Since 2018, Chrome requires certificates to include SCTs (Signed Certificate Timestamps) proving they were logged in CT logs.</li>
+                    </ul>
+
+                    <div class="info-callout">
+                        <strong>What Happens on Failure:</strong>
+                        <p>If any check fails, the browser shows a certificate warning (e.g., NET::ERR_CERT_AUTHORITY_INVALID). Some failures are hard blocks (revoked certificates), while others allow the user to proceed at their own risk (expired certificates).</p>
+                    </div>
+                </div>
+            </section>
+        </div>
+
+        <!-- Slide 10: Cipher Suites Explained -->
+        <div class="slide" data-slide="10">
+            <section class="content-section">
+                <div class="section-header">
+                    <span class="section-icon">&#128272;</span>
+                    <h2 class="section-title">Cipher Suites</h2>
+                </div>
+                <div class="section-content">
+                    <p>A cipher suite is a combination of algorithms used to negotiate the security of a TLS connection. Each component handles a specific cryptographic function.</p>
+
+                    <div class="cipher-grid">
+                        <div class="cipher-card">
+                            <div class="cipher-role">Key Exchange</div>
+                            <div class="cipher-name">How to share secrets</div>
+                            <div class="cipher-desc">Establishes a shared secret between client and server over an insecure channel using Diffie-Hellman math.</div>
+                            <div class="cipher-examples">
+                                <span class="cipher-tag">ECDHE</span>
+                                <span class="cipher-tag">DHE</span>
+                                <span class="cipher-tag">RSA*</span>
+                            </div>
+                        </div>
+                        <div class="cipher-card">
+                            <div class="cipher-role">Authentication</div>
+                            <div class="cipher-name">Who am I talking to</div>
+                            <div class="cipher-desc">Verifies the server (and optionally client) identity using digital signatures on the certificate.</div>
+                            <div class="cipher-examples">
+                                <span class="cipher-tag">RSA</span>
+                                <span class="cipher-tag">ECDSA</span>
+                                <span class="cipher-tag">Ed25519</span>
+                            </div>
+                        </div>
+                        <div class="cipher-card">
+                            <div class="cipher-role">Bulk Encryption</div>
+                            <div class="cipher-name">Protecting the data</div>
+                            <div class="cipher-desc">Symmetric encryption of application data. AEAD modes (providing both encryption + integrity) are required in TLS 1.3.</div>
+                            <div class="cipher-examples">
+                                <span class="cipher-tag">AES-128-GCM</span>
+                                <span class="cipher-tag">AES-256-GCM</span>
+                                <span class="cipher-tag">ChaCha20-Poly1305</span>
+                            </div>
+                        </div>
+                        <div class="cipher-card">
+                            <div class="cipher-role">MAC / Hash (PRF)</div>
+                            <div class="cipher-name">Data integrity check</div>
+                            <div class="cipher-desc">Ensures data has not been tampered with. In TLS 1.3, the AEAD cipher handles integrity, so this field specifies the PRF hash.</div>
+                            <div class="cipher-examples">
+                                <span class="cipher-tag">SHA-256</span>
+                                <span class="cipher-tag">SHA-384</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <p>Example cipher suite string: <code style="background: rgba(0,0,0,0.3); padding: 4px 10px; border-radius: 4px; font-family: 'Courier New', monospace; color: var(--house-color); font-size: 0.85rem;">TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384</code></p>
+                    <p style="font-size: 0.82rem;">Read as: Key exchange = ECDHE, Authentication = RSA, Encryption = AES-256-GCM, Hash = SHA-384</p>
+                </div>
+            </section>
+        </div>
+
+        <!-- Slide 11: TLS 1.3 Simplified Cipher Suites -->
+        <div class="slide" data-slide="11">
+            <section class="content-section">
+                <div class="section-header">
+                    <span class="section-icon">&#10024;</span>
+                    <h2 class="section-title">TLS 1.3 Simplified Cipher Suites</h2>
+                </div>
+                <div class="section-content">
+                    <p>TLS 1.3 dramatically simplified cipher suites. Key exchange and authentication are negotiated separately, so the cipher suite only specifies the AEAD algorithm and hash. Only 5 suites exist:</p>
+
+                    <table class="tls-table">
+                        <thead>
+                            <tr>
+                                <th>Cipher Suite</th>
+                                <th>AEAD Algorithm</th>
+                                <th>Hash</th>
+                                <th>Key Size</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>TLS_AES_128_GCM_SHA256</td>
+                                <td>AES-128-GCM</td>
+                                <td>SHA-256</td>
+                                <td>128-bit</td>
+                            </tr>
+                            <tr>
+                                <td>TLS_AES_256_GCM_SHA384</td>
+                                <td>AES-256-GCM</td>
+                                <td>SHA-384</td>
+                                <td>256-bit</td>
+                            </tr>
+                            <tr>
+                                <td>TLS_CHACHA20_POLY1305_SHA256</td>
+                                <td>ChaCha20-Poly1305</td>
+                                <td>SHA-256</td>
+                                <td>256-bit</td>
+                            </tr>
+                            <tr>
+                                <td>TLS_AES_128_CCM_SHA256</td>
+                                <td>AES-128-CCM</td>
+                                <td>SHA-256</td>
+                                <td>128-bit</td>
+                            </tr>
+                            <tr>
+                                <td>TLS_AES_128_CCM_8_SHA256</td>
+                                <td>AES-128-CCM-8</td>
+                                <td>SHA-256</td>
+                                <td>128-bit (IoT)</td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    <div class="info-callout">
+                        <strong>Why ChaCha20-Poly1305?</strong>
+                        <p>ChaCha20-Poly1305 is a software-friendly cipher that performs well on devices without hardware AES acceleration (e.g., older mobile phones, ARM processors). Google developed it as an alternative to AES-GCM for Android devices, and it is now an IETF standard (RFC 8439).</p>
+                    </div>
+                </div>
+            </section>
+        </div>
+
+        <!-- Slide 12: Cipher Suite Builder (Interactive) -->
+        <div class="slide" data-slide="12">
+            <section class="cipher-builder">
+                <div class="builder-header">
+                    <h3>Build a Cipher Suite</h3>
+                    <p>Select components to construct a TLS 1.2 cipher suite and see its security rating</p>
+                </div>
+
+                <div class="builder-row">
+                    <div class="builder-group">
+                        <label>Key Exchange</label>
+                        <select id="kxSelect" onchange="updateCipherSuite()">
+                            <option value="ECDHE" data-score="3">ECDHE (Elliptic Curve Diffie-Hellman)</option>
+                            <option value="DHE" data-score="2">DHE (Diffie-Hellman Ephemeral)</option>
+                            <option value="RSA" data-score="0">RSA (Static - No Forward Secrecy)</option>
+                        </select>
+                    </div>
+                    <div class="builder-group">
+                        <label>Authentication</label>
+                        <select id="authSelect" onchange="updateCipherSuite()">
+                            <option value="ECDSA" data-score="3">ECDSA (Elliptic Curve)</option>
+                            <option value="RSA" data-score="2">RSA</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="builder-row">
+                    <div class="builder-group">
+                        <label>Bulk Encryption</label>
+                        <select id="encSelect" onchange="updateCipherSuite()">
+                            <option value="AES_256_GCM" data-score="3">AES-256-GCM (AEAD)</option>
+                            <option value="AES_128_GCM" data-score="3">AES-128-GCM (AEAD)</option>
+                            <option value="CHACHA20_POLY1305" data-score="3">ChaCha20-Poly1305 (AEAD)</option>
+                            <option value="AES_256_CBC" data-score="1">AES-256-CBC (Legacy)</option>
+                            <option value="3DES_EDE_CBC" data-score="0">3DES-EDE-CBC (Weak)</option>
+                            <option value="RC4" data-score="0">RC4 (Broken)</option>
+                        </select>
+                    </div>
+                    <div class="builder-group">
+                        <label>Hash / PRF</label>
+                        <select id="hashSelect" onchange="updateCipherSuite()">
+                            <option value="SHA384" data-score="3">SHA-384</option>
+                            <option value="SHA256" data-score="3">SHA-256</option>
+                            <option value="SHA1" data-score="0">SHA-1 (Deprecated)</option>
+                            <option value="MD5" data-score="0">MD5 (Broken)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="builder-output">
+                    <div class="output-label">Your Cipher Suite</div>
+                    <div class="output-suite" id="suiteOutput">TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384</div>
+                    <div id="suiteRating" class="output-rating rating-strong">Strong</div>
+                </div>
+            </section>
+        </div>
+
+        <!-- Slide 13: Forward Secrecy -->
+        <div class="slide" data-slide="13">
+            <section class="content-section">
+                <div class="section-header">
+                    <span class="section-icon">&#128260;</span>
+                    <h2 class="section-title">Forward Secrecy (PFS)</h2>
+                </div>
+                <div class="section-content">
+                    <p>Perfect Forward Secrecy (PFS) ensures that even if a server's long-term private key is compromised in the future, previously recorded encrypted sessions cannot be decrypted. This is the single most important property to understand in modern TLS.</p>
+
+                    <div class="feature-grid">
+                        <div class="feature-box">
+                            <h4>Without Forward Secrecy (RSA Key Exchange)</h4>
+                            <p>The client encrypts the pre-master secret with the server's RSA public key. If an attacker records the traffic and later obtains the server's private key, they can decrypt ALL past sessions retroactively.</p>
+                        </div>
+                        <div class="feature-box">
+                            <h4>With Forward Secrecy (ECDHE)</h4>
+                            <p>Each session generates unique ephemeral keys via Diffie-Hellman. These keys are discarded after the session. Even if the server's private key leaks, past sessions remain secure because the session keys are gone forever.</p>
+                        </div>
+                    </div>
+
+                    <div class="warning-callout">
+                        <strong>NSA Relevance:</strong>
+                        <p>Intelligence agencies are known to record encrypted traffic for later decryption (the "harvest now, decrypt later" strategy). Forward secrecy is the direct countermeasure. This is why TLS 1.3 mandates ephemeral key exchange -- RSA key transport was removed entirely.</p>
+                    </div>
+                </div>
+            </section>
+        </div>
+
+        <!-- Slide 14: BEAST Attack -->
+        <div class="slide" data-slide="14">
+            <section class="content-section">
+                <div class="section-header">
+                    <span class="section-icon">&#9888;&#65039;</span>
+                    <h2 class="section-title">Notable TLS/SSL Attacks (Part 1)</h2>
+                </div>
+                <div class="section-content">
+                    <p>Understanding historic attacks helps you appreciate why modern TLS configurations are important. Click each card to learn more.</p>
+
+                    <div class="attack-grid">
+                        <div class="attack-card" onclick="toggleAttack(this)">
+                            <div class="attack-header">
+                                <span class="attack-icon">&#128027;</span>
+                                <div>
+                                    <div class="attack-name">BEAST</div>
+                                    <div class="attack-year">2011 - Browser Exploit Against SSL/TLS</div>
+                                </div>
+                            </div>
+                            <div class="attack-desc">Exploited a vulnerability in CBC mode cipher suites in TLS 1.0 and earlier to decrypt HTTPS cookies.</div>
+                            <div class="attack-impact"><strong>Affected:</strong> TLS 1.0 with CBC ciphers</div>
+                            <div class="attack-detail">
+                                <p>BEAST used a chosen-plaintext attack against the predictable IV in CBC mode of TLS 1.0. The attacker needed to inject content into the same TCP connection (e.g., via JavaScript in the browser). The attack allowed byte-by-byte decryption of encrypted cookies.</p>
+                                <p style="margin-top: 8px;"><strong>Mitigation:</strong> Upgrade to TLS 1.1+ (which uses random IVs) or switch to GCM/stream ciphers.</p>
+                            </div>
+                        </div>
+
+                        <div class="attack-card" onclick="toggleAttack(this)">
+                            <div class="attack-header">
+                                <span class="attack-icon">&#128169;</span>
+                                <div>
+                                    <div class="attack-name">POODLE</div>
+                                    <div class="attack-year">2014 - Padding Oracle On Downgraded Legacy Encryption</div>
+                                </div>
+                            </div>
+                            <div class="attack-desc">Forced browsers to downgrade to SSL 3.0, then exploited CBC padding oracle to decrypt data one byte at a time.</div>
+                            <div class="attack-impact"><strong>Affected:</strong> SSL 3.0 (and variants in TLS CBC)</div>
+                            <div class="attack-detail">
+                                <p>POODLE exploited SSL 3.0's non-deterministic CBC padding. An attacker performing a man-in-the-middle could force a protocol downgrade (by interfering with handshakes), then use ~256 requests per byte to decrypt cookies or session tokens.</p>
+                                <p style="margin-top: 8px;"><strong>Mitigation:</strong> Disable SSL 3.0 entirely. Use TLS_FALLBACK_SCSV to prevent downgrade attacks.</p>
+                            </div>
+                        </div>
+
+                        <div class="attack-card" onclick="toggleAttack(this)">
+                            <div class="attack-header">
+                                <span class="attack-icon">&#128148;</span>
+                                <div>
+                                    <div class="attack-name">Heartbleed</div>
+                                    <div class="attack-year">2014 - CVE-2014-0160</div>
+                                </div>
+                            </div>
+                            <div class="attack-desc">Buffer over-read in OpenSSL's heartbeat extension leaked up to 64KB of server memory per request, potentially exposing private keys.</div>
+                            <div class="attack-impact"><strong>Affected:</strong> OpenSSL 1.0.1 through 1.0.1f</div>
+                            <div class="attack-detail">
+                                <p>The TLS heartbeat extension allows keep-alive messages. A malformed heartbeat request could trick OpenSSL into returning up to 64KB of adjacent memory. This memory could contain private keys, session cookies, passwords, and other sensitive data. No logs were generated, so exploitation was undetectable.</p>
+                                <p style="margin-top: 8px;"><strong>Mitigation:</strong> Patch OpenSSL to 1.0.1g+. Regenerate private keys and reissue certificates. Revoke old certificates.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </div>
+
+        <!-- Slide 15: More Attacks -->
+        <div class="slide" data-slide="15">
+            <section class="content-section">
+                <div class="section-header">
+                    <span class="section-icon">&#9888;&#65039;</span>
+                    <h2 class="section-title">Notable TLS/SSL Attacks (Part 2)</h2>
+                </div>
+                <div class="section-content">
+                    <div class="attack-grid">
+                        <div class="attack-card" onclick="toggleAttack(this)">
+                            <div class="attack-header">
+                                <span class="attack-icon">&#127754;</span>
+                                <div>
+                                    <div class="attack-name">DROWN</div>
+                                    <div class="attack-year">2016 - Decrypting RSA with Obsolete and Weakened eNcryption</div>
+                                </div>
+                            </div>
+                            <div class="attack-desc">Used SSLv2 support on any server sharing an RSA key to decrypt modern TLS connections to that key.</div>
+                            <div class="attack-impact"><strong>Affected:</strong> Any server sharing RSA key with SSLv2-enabled server</div>
+                            <div class="attack-detail">
+                                <p>DROWN was a cross-protocol attack. If any server using the same RSA private key supported SSLv2 (even a mail server), an attacker could use SSLv2's weak export ciphers to derive the RSA key and then decrypt TLS sessions on the web server. At disclosure, 33% of all HTTPS servers were vulnerable.</p>
+                                <p style="margin-top: 8px;"><strong>Mitigation:</strong> Disable SSLv2 everywhere. Ensure no server sharing the same private key supports SSLv2. Use ECDHE for forward secrecy.</p>
+                            </div>
+                        </div>
+
+                        <div class="attack-card" onclick="toggleAttack(this)">
+                            <div class="attack-header">
+                                <span class="attack-icon">&#127922;</span>
+                                <div>
+                                    <div class="attack-name">Lucky 13</div>
+                                    <div class="attack-year">2013 - Timing Attack on CBC-mode MAC</div>
+                                </div>
+                            </div>
+                            <div class="attack-desc">Exploited timing differences in CBC-mode MAC verification to recover plaintext through a padding oracle attack.</div>
+                            <div class="attack-impact"><strong>Affected:</strong> All TLS/DTLS versions using CBC mode</div>
+                            <div class="attack-detail">
+                                <p>Named "Lucky 13" because the TLS MAC computation processes 13 bytes of header data. The attack exploited the fact that invalid padding causes a different number of hash compression function calls than valid padding, creating measurable timing differences (~20 microseconds). By measuring response times across thousands of requests, an attacker could distinguish correct from incorrect padding guesses.</p>
+                                <p style="margin-top: 8px;"><strong>Mitigation:</strong> Use AEAD ciphers (GCM, ChaCha20-Poly1305) which are not vulnerable to padding oracle attacks. TLS 1.3 removed CBC entirely.</p>
+                            </div>
+                        </div>
+
+                        <div class="attack-card" onclick="toggleAttack(this)">
+                            <div class="attack-header">
+                                <span class="attack-icon">&#128275;</span>
+                                <div>
+                                    <div class="attack-name">CRIME / BREACH</div>
+                                    <div class="attack-year">2012 / 2013 - Compression Ratio Info-leak</div>
+                                </div>
+                            </div>
+                            <div class="attack-desc">Exploited TLS-level compression (CRIME) and HTTP-level compression (BREACH) to extract secrets via compressed size changes.</div>
+                            <div class="attack-impact"><strong>Affected:</strong> Any TLS with compression enabled</div>
+                            <div class="attack-detail">
+                                <p>If an attacker-controlled string matches a secret in the response, the compressed output is smaller. By iterating through guesses, the attacker can extract secrets like CSRF tokens one character at a time.</p>
+                                <p style="margin-top: 8px;"><strong>Mitigation:</strong> Disable TLS-level compression (removed in TLS 1.3). For BREACH, use per-request CSRF tokens or add random padding.</p>
+                            </div>
+                        </div>
+
+                        <div class="attack-card" onclick="toggleAttack(this)">
+                            <div class="attack-header">
+                                <span class="attack-icon">&#128683;</span>
+                                <div>
+                                    <div class="attack-name">Downgrade Attacks</div>
+                                    <div class="attack-year">Ongoing - Protocol Version Rollback</div>
+                                </div>
+                            </div>
+                            <div class="attack-desc">Man-in-the-middle modifies handshake to force older, weaker protocol versions or cipher suites.</div>
+                            <div class="attack-impact"><strong>Affected:</strong> Servers supporting legacy protocols</div>
+                            <div class="attack-detail">
+                                <p>An attacker intercepts the Client Hello and modifies the supported versions list, or causes the handshake to fail so the client retries with a weaker protocol.</p>
+                                <p style="margin-top: 8px;"><strong>Mitigation:</strong> TLS_FALLBACK_SCSV (RFC 7507) prevents downgrades. TLS 1.3 has built-in downgrade protection via server random value sentinel. Disable all legacy protocols.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </div>
+
+        <!-- Slide 16: TLS 1.3 Improvements Summary -->
+        <div class="slide" data-slide="16">
+            <section class="content-section">
+                <div class="section-header">
+                    <span class="section-icon">&#128170;</span>
+                    <h2 class="section-title">What TLS 1.3 Removed (and Why)</h2>
+                </div>
+                <div class="section-content">
+                    <p>TLS 1.3 took the aggressive approach of removing everything that had ever caused a vulnerability, rather than patching individual issues.</p>
+
+                    <table class="tls-table">
+                        <thead>
+                            <tr>
+                                <th>Removed Feature</th>
+                                <th>Attack It Enabled</th>
+                                <th>Replacement</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>RSA key transport</td>
+                                <td>No forward secrecy (harvest-now-decrypt-later)</td>
+                                <td>Mandatory ECDHE/DHE</td>
+                            </tr>
+                            <tr>
+                                <td>CBC cipher mode</td>
+                                <td>BEAST, Lucky 13, POODLE</td>
+                                <td>AEAD-only (GCM, ChaCha20-Poly1305)</td>
+                            </tr>
+                            <tr>
+                                <td>RC4 stream cipher</td>
+                                <td>Statistical biases allow plaintext recovery</td>
+                                <td>AES-GCM, ChaCha20-Poly1305</td>
+                            </tr>
+                            <tr>
+                                <td>SHA-1 / MD5 hashes</td>
+                                <td>Collision attacks (SHAttered, 2017)</td>
+                                <td>SHA-256 / SHA-384 only</td>
+                            </tr>
+                            <tr>
+                                <td>TLS compression</td>
+                                <td>CRIME attack</td>
+                                <td>None (compression removed)</td>
+                            </tr>
+                            <tr>
+                                <td>Renegotiation</td>
+                                <td>Renegotiation attacks, complexity</td>
+                                <td>Post-handshake authentication</td>
+                            </tr>
+                            <tr>
+                                <td>Custom DHE parameters</td>
+                                <td>Weak/backdoored parameters (LogJam)</td>
+                                <td>Named groups only (FFDHE, ECDHE)</td>
+                            </tr>
+                            <tr>
+                                <td>Static RSA/DH</td>
+                                <td>Key reuse across sessions</td>
+                                <td>Ephemeral-only exchange</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </div>
+
+        <!-- Slide 17: Best Practices -->
+        <div class="slide" data-slide="17">
+            <section class="content-section">
+                <div class="section-header">
+                    <span class="section-icon">&#9989;</span>
+                    <h2 class="section-title">Modern TLS Best Practices</h2>
+                </div>
+                <div class="section-content">
+                    <div class="bp-grid">
+                        <div class="bp-card">
+                            <h4>&#128737; HSTS (HTTP Strict Transport Security)</h4>
+                            <p>Tells browsers to only connect via HTTPS. Prevents SSL stripping attacks and accidental HTTP connections. Include subdomains and use HSTS preload lists.</p>
+                            <div class="bp-config">Strict-Transport-Security: max-age=31536000; includeSubDomains; preload</div>
+                        </div>
+                        <div class="bp-card">
+                            <h4>&#128205; Certificate Pinning</h4>
+                            <p>Binds a specific public key to a host, preventing certificate impersonation even if a CA is compromised. HPKP is deprecated; use in mobile apps or via Expect-CT.</p>
+                            <div class="bp-config">Expect-CT: max-age=86400, enforce, report-uri="https://example.com/ct-report"</div>
+                        </div>
+                        <div class="bp-card">
+                            <h4>&#128683; Disable Legacy Protocols</h4>
+                            <p>Disable SSL 2.0, SSL 3.0, TLS 1.0, and TLS 1.1. Only allow TLS 1.2 (with strong ciphers) and TLS 1.3.</p>
+                            <div class="bp-config">ssl_protocols TLSv1.2 TLSv1.3;</div>
+                        </div>
+                        <div class="bp-card">
+                            <h4>&#128206; OCSP Stapling</h4>
+                            <p>Server fetches its own revocation status from the CA and staples it to the handshake. Faster and more private than client-side CRL/OCSP checks.</p>
+                            <div class="bp-config">ssl_stapling on;
+ssl_stapling_verify on;
+resolver 8.8.8.8 valid=60s;</div>
+                        </div>
+                        <div class="bp-card">
+                            <h4>&#128220; Certificate Transparency (CT)</h4>
+                            <p>CAs must log all issued certificates publicly. Allows domain owners to detect unauthorized certificates. Enforced in Chrome since April 2018.</p>
+                            <div class="bp-config">SCTs (Signed Certificate Timestamps) embedded in certificate or OCSP response</div>
+                        </div>
+                        <div class="bp-card">
+                            <h4>&#128260; Forward Secrecy (PFS)</h4>
+                            <p>Use ephemeral key exchange (ECDHE) so that compromising the server's private key does not compromise past sessions.</p>
+                            <div class="bp-config">ssl_ciphers 'ECDHE-ECDSA-AES256-GCM-SHA384:
+ECDHE-RSA-AES256-GCM-SHA384';</div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </div>
+
+        <!-- Slide 18: Server Configuration Examples -->
+        <div class="slide" data-slide="18">
+            <section class="content-section">
+                <div class="section-header">
+                    <span class="section-icon">&#128736;</span>
+                    <h2 class="section-title">Server Configuration Examples</h2>
+                </div>
+                <div class="section-content">
+                    <p>Here are secure TLS configurations for common web servers. These represent current best practices.</p>
+
+                    <div class="feature-grid">
+                        <div class="feature-box">
+                            <h4>Nginx Configuration</h4>
+                            <div style="background: rgba(0,0,0,0.3); padding: 12px; border-radius: 6px; font-family: 'Courier New', monospace; font-size: 0.75rem; color: var(--house-color); white-space: pre; overflow-x: auto; margin-top: 8px;">ssl_protocols TLSv1.2 TLSv1.3;
+ssl_prefer_server_ciphers on;
+ssl_ciphers ECDHE-ECDSA-AES128-GCM-SHA256:
+  ECDHE-RSA-AES128-GCM-SHA256:
+  ECDHE-ECDSA-AES256-GCM-SHA384:
+  ECDHE-RSA-AES256-GCM-SHA384;
+ssl_session_timeout 1d;
+ssl_session_cache shared:SSL:10m;
+ssl_stapling on;
+ssl_stapling_verify on;
+add_header Strict-Transport-Security
+  "max-age=63072000" always;</div>
+                        </div>
+                        <div class="feature-box">
+                            <h4>Apache Configuration</h4>
+                            <div style="background: rgba(0,0,0,0.3); padding: 12px; border-radius: 6px; font-family: 'Courier New', monospace; font-size: 0.75rem; color: var(--house-color); white-space: pre; overflow-x: auto; margin-top: 8px;">SSLProtocol -all +TLSv1.2 +TLSv1.3
+SSLCipherSuite ECDHE-ECDSA-AES128-GCM-SHA256:
+  ECDHE-RSA-AES128-GCM-SHA256:
+  ECDHE-ECDSA-AES256-GCM-SHA384:
+  ECDHE-RSA-AES256-GCM-SHA384
+SSLHonorCipherOrder on
+SSLUseStapling On
+SSLStaplingCache
+  shmcb:/var/run/ocsp(128000)
+Header always set
+  Strict-Transport-Security
+  "max-age=63072000"</div>
+                        </div>
+                    </div>
+
+                    <div class="info-callout">
+                        <strong>Testing Your Configuration:</strong>
+                        <p>Use <code style="color: var(--house-color);">ssllabs.com/ssltest</code> (Qualys SSL Labs) to grade your server's TLS configuration. Aim for an A+ rating. Also use <code style="color: var(--house-color);">testssl.sh</code> for command-line testing.</p>
+                    </div>
+                </div>
+            </section>
+        </div>
+
+        <!-- Slide 19: Encrypted Client Hello (ECH) -->
+        <div class="slide" data-slide="19">
+            <section class="content-section">
+                <div class="section-header">
+                    <span class="section-icon">&#128065;</span>
+                    <h2 class="section-title">Encrypted Client Hello (ECH)</h2>
+                </div>
+                <div class="section-content">
+                    <p>Even with TLS 1.3, the Server Name Indication (SNI) in the Client Hello is sent in plaintext. This reveals which website a user is visiting, even though the content is encrypted. Encrypted Client Hello (ECH) addresses this privacy gap.</p>
+
+                    <div class="feature-grid">
+                        <div class="feature-box">
+                            <h4>Without ECH</h4>
+                            <p>An ISP or network observer can see: the destination IP (always visible), the SNI field showing "bank.example.com" (plaintext in Client Hello), and the DNS query for that domain. They know exactly which site you are visiting.</p>
+                        </div>
+                        <div class="feature-box">
+                            <h4>With ECH</h4>
+                            <p>The real SNI is encrypted inside the Client Hello using a public key published in DNS (HTTPS record). The outer SNI shows a generic "client-facing server" name. Combined with DNS-over-HTTPS, the specific site is hidden.</p>
+                        </div>
+                    </div>
+
+                    <div class="warning-callout">
+                        <strong>Current Status:</strong>
+                        <p>ECH is supported in Chrome, Firefox, and Cloudflare as of 2024. However, some countries and corporate networks block ECH because it prevents them from monitoring SNI for content filtering. ECH requires the server to publish HTTPS DNS records with its ECH configuration.</p>
+                    </div>
+                </div>
+            </section>
+        </div>
+
+        <!-- Slide 20: Key Takeaways -->
+        <div class="slide" data-slide="20">
+            <section class="content-section">
+                <div class="section-header">
+                    <span class="section-icon">&#128161;</span>
+                    <h2 class="section-title">Key Takeaways</h2>
+                </div>
+                <div class="section-content">
+                    <ul>
+                        <li><strong>TLS 1.3 is the standard:</strong> Faster (1-RTT), simpler (5 cipher suites), and removes all weak algorithms. Deploy it everywhere.</li>
+                        <li><strong>Forward secrecy is non-negotiable:</strong> Use ECDHE key exchange so past sessions stay safe even if keys leak later.</li>
+                        <li><strong>The certificate chain must be complete:</strong> Server sends its cert + intermediate. Browser validates up to the trusted root.</li>
+                        <li><strong>Cipher suite order matters:</strong> Prefer AEAD ciphers (GCM, ChaCha20-Poly1305) and disable CBC in TLS 1.2.</li>
+                        <li><strong>Historic attacks drove improvements:</strong> BEAST, POODLE, Heartbleed, Lucky 13, and DROWN each led to concrete protocol changes.</li>
+                        <li><strong>Defense in depth:</strong> HSTS + CT + OCSP Stapling + PFS + strong ciphers = a properly hardened TLS configuration.</li>
+                        <li><strong>0-RTT has trade-offs:</strong> Eliminates latency for returning visitors but is vulnerable to replay attacks for non-idempotent requests.</li>
+                        <li><strong>Test your configuration:</strong> Use SSL Labs, testssl.sh, or Mozilla's SSL Configuration Generator to verify your setup.</li>
+                    </ul>
+                </div>
+            </section>
+        </div>
+
+        <!-- Slide 21: Quiz -->
+        <div class="slide" data-slide="21">
+            <section class="content-section">
+                <div class="section-header">
+                    <span class="section-icon">&#128221;</span>
+                    <h2 class="section-title">Knowledge Check: TLS/SSL Quiz</h2>
+                </div>
+                <div class="section-content">
+                    <p>Test your understanding of TLS/SSL concepts. Select the best answer for each question.</p>
+                </div>
+            </section>
+
+            <div class="quiz-container" id="quizContainer">
+                <div class="quiz-question" id="qq1">
+                    <div class="q-number">Question 1 of 10</div>
+                    <div class="q-text">Which TLS version introduced mandatory forward secrecy by removing RSA key transport?</div>
+                    <div class="q-options">
+                        <div class="q-option" onclick="selectAnswer(1, 0)"><span class="radio"></span>TLS 1.1</div>
+                        <div class="q-option" onclick="selectAnswer(1, 1)"><span class="radio"></span>TLS 1.2</div>
+                        <div class="q-option" onclick="selectAnswer(1, 2)"><span class="radio"></span>TLS 1.3</div>
+                        <div class="q-option" onclick="selectAnswer(1, 3)"><span class="radio"></span>SSL 3.0</div>
+                    </div>
+                    <div class="q-explanation" id="qe1">TLS 1.3 (RFC 8446, 2018) removed RSA key transport entirely, making ephemeral Diffie-Hellman key exchange (ECDHE/DHE) mandatory. This ensures forward secrecy for all connections.</div>
+                </div>
+
+                <div class="quiz-question" id="qq2">
+                    <div class="q-number">Question 2 of 10</div>
+                    <div class="q-text">What does the Heartbleed vulnerability (CVE-2014-0160) exploit?</div>
+                    <div class="q-options">
+                        <div class="q-option" onclick="selectAnswer(2, 0)"><span class="radio"></span>CBC padding oracle in SSL 3.0</div>
+                        <div class="q-option" onclick="selectAnswer(2, 1)"><span class="radio"></span>Buffer over-read in OpenSSL's heartbeat extension</div>
+                        <div class="q-option" onclick="selectAnswer(2, 2)"><span class="radio"></span>Timing differences in MAC verification</div>
+                        <div class="q-option" onclick="selectAnswer(2, 3)"><span class="radio"></span>Weak export cipher negotiation</div>
+                    </div>
+                    <div class="q-explanation" id="qe2">Heartbleed exploited a buffer over-read in OpenSSL's heartbeat extension, allowing an attacker to read up to 64KB of server memory per request. This could leak private keys, session cookies, and passwords.</div>
+                </div>
+
+                <div class="quiz-question" id="qq3">
+                    <div class="q-number">Question 3 of 10</div>
+                    <div class="q-text">How many round trips does a TLS 1.3 handshake require for a new connection?</div>
+                    <div class="q-options">
+                        <div class="q-option" onclick="selectAnswer(3, 0)"><span class="radio"></span>0-RTT</div>
+                        <div class="q-option" onclick="selectAnswer(3, 1)"><span class="radio"></span>1-RTT</div>
+                        <div class="q-option" onclick="selectAnswer(3, 2)"><span class="radio"></span>2-RTT</div>
+                        <div class="q-option" onclick="selectAnswer(3, 3)"><span class="radio"></span>3-RTT</div>
+                    </div>
+                    <div class="q-explanation" id="qe3">TLS 1.3 completes a new handshake in 1-RTT (one round trip). The client sends its key share in the first message, allowing the server to derive keys immediately. 0-RTT is only available for session resumption.</div>
+                </div>
+
+                <div class="quiz-question" id="qq4">
+                    <div class="q-number">Question 4 of 10</div>
+                    <div class="q-text">In the certificate chain of trust, which entity signs the server's end-entity certificate?</div>
+                    <div class="q-options">
+                        <div class="q-option" onclick="selectAnswer(4, 0)"><span class="radio"></span>The Root CA directly</div>
+                        <div class="q-option" onclick="selectAnswer(4, 1)"><span class="radio"></span>The Intermediate CA</div>
+                        <div class="q-option" onclick="selectAnswer(4, 2)"><span class="radio"></span>The server itself (self-signed)</div>
+                        <div class="q-option" onclick="selectAnswer(4, 3)"><span class="radio"></span>The client's browser</div>
+                    </div>
+                    <div class="q-explanation" id="qe4">The Intermediate CA signs the server's certificate. Root CAs rarely sign end-entity certificates directly -- they sign Intermediate CAs instead, so the root key can remain offline in secure hardware (HSMs).</div>
+                </div>
+
+                <div class="quiz-question" id="qq5">
+                    <div class="q-number">Question 5 of 10</div>
+                    <div class="q-text">What is the primary security risk of TLS 0-RTT (early data)?</div>
+                    <div class="q-options">
+                        <div class="q-option" onclick="selectAnswer(5, 0)"><span class="radio"></span>The data is not encrypted</div>
+                        <div class="q-option" onclick="selectAnswer(5, 1)"><span class="radio"></span>It uses weak cipher suites</div>
+                        <div class="q-option" onclick="selectAnswer(5, 2)"><span class="radio"></span>It is vulnerable to replay attacks</div>
+                        <div class="q-option" onclick="selectAnswer(5, 3)"><span class="radio"></span>It does not verify the server certificate</div>
+                    </div>
+                    <div class="q-explanation" id="qe5">0-RTT data is vulnerable to replay attacks. An attacker who captures the first flight can replay it to the server. This is why 0-RTT should only be used for idempotent requests (GET) and never for state-changing operations (POST, payment processing).</div>
+                </div>
+
+                <div class="quiz-question" id="qq6">
+                    <div class="q-number">Question 6 of 10</div>
+                    <div class="q-text">Which cipher mode was NOT removed in TLS 1.3?</div>
+                    <div class="q-options">
+                        <div class="q-option" onclick="selectAnswer(6, 0)"><span class="radio"></span>CBC (Cipher Block Chaining)</div>
+                        <div class="q-option" onclick="selectAnswer(6, 1)"><span class="radio"></span>GCM (Galois/Counter Mode)</div>
+                        <div class="q-option" onclick="selectAnswer(6, 2)"><span class="radio"></span>RC4 (stream cipher)</div>
+                        <div class="q-option" onclick="selectAnswer(6, 3)"><span class="radio"></span>3DES (Triple DES)</div>
+                    </div>
+                    <div class="q-explanation" id="qe6">GCM (Galois/Counter Mode) is an AEAD cipher mode retained in TLS 1.3. CBC was removed due to padding oracle attacks (BEAST, Lucky 13, POODLE). RC4 was removed for statistical biases. 3DES was removed for its small 64-bit block size.</div>
+                </div>
+
+                <div class="quiz-question" id="qq7">
+                    <div class="q-number">Question 7 of 10</div>
+                    <div class="q-text">What does HSTS (HTTP Strict Transport Security) protect against?</div>
+                    <div class="q-options">
+                        <div class="q-option" onclick="selectAnswer(7, 0)"><span class="radio"></span>SQL injection attacks</div>
+                        <div class="q-option" onclick="selectAnswer(7, 1)"><span class="radio"></span>SSL stripping and accidental HTTP connections</div>
+                        <div class="q-option" onclick="selectAnswer(7, 2)"><span class="radio"></span>Cross-site scripting (XSS)</div>
+                        <div class="q-option" onclick="selectAnswer(7, 3)"><span class="radio"></span>DDoS attacks</div>
+                    </div>
+                    <div class="q-explanation" id="qe7">HSTS tells browsers to only connect via HTTPS, never HTTP. This prevents SSL stripping attacks (where a MITM downgrades HTTPS to HTTP) and ensures users cannot accidentally visit the HTTP version of a site.</div>
+                </div>
+
+                <div class="quiz-question" id="qq8">
+                    <div class="q-number">Question 8 of 10</div>
+                    <div class="q-text">What is the Lucky 13 attack?</div>
+                    <div class="q-options">
+                        <div class="q-option" onclick="selectAnswer(8, 0)"><span class="radio"></span>A brute-force attack on 13-character passwords</div>
+                        <div class="q-option" onclick="selectAnswer(8, 1)"><span class="radio"></span>A timing attack on CBC-mode MAC verification using 13 bytes of header</div>
+                        <div class="q-option" onclick="selectAnswer(8, 2)"><span class="radio"></span>An attack that requires exactly 13 compromised certificates</div>
+                        <div class="q-option" onclick="selectAnswer(8, 3)"><span class="radio"></span>A vulnerability in the 13th version of OpenSSL</div>
+                    </div>
+                    <div class="q-explanation" id="qe8">Lucky 13 is a timing attack that exploits the fact that TLS MAC computation processes 13 bytes of header data. Invalid padding causes a different number of hash compression function calls than valid padding, creating measurable timing differences that reveal plaintext.</div>
+                </div>
+
+                <div class="quiz-question" id="qq9">
+                    <div class="q-number">Question 9 of 10</div>
+                    <div class="q-text">What does OCSP stapling achieve?</div>
+                    <div class="q-options">
+                        <div class="q-option" onclick="selectAnswer(9, 0)"><span class="radio"></span>Pins a specific certificate to a domain</div>
+                        <div class="q-option" onclick="selectAnswer(9, 1)"><span class="radio"></span>Encrypts the SNI field in the Client Hello</div>
+                        <div class="q-option" onclick="selectAnswer(9, 2)"><span class="radio"></span>Server provides its own certificate revocation status during the handshake</div>
+                        <div class="q-option" onclick="selectAnswer(9, 3)"><span class="radio"></span>Forces browsers to use TLS 1.3 only</div>
+                    </div>
+                    <div class="q-explanation" id="qe9">OCSP stapling allows the server to fetch its own revocation status from the CA (signed by the CA so it is trusted) and include it in the TLS handshake. This is faster (no extra round trip to the CA) and more private (the CA does not learn which clients visit the server).</div>
+                </div>
+
+                <div class="quiz-question" id="qq10">
+                    <div class="q-number">Question 10 of 10</div>
+                    <div class="q-text">In a TLS 1.2 cipher suite string like TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384, what does "ECDHE" specify?</div>
+                    <div class="q-options">
+                        <div class="q-option" onclick="selectAnswer(10, 0)"><span class="radio"></span>The bulk encryption algorithm</div>
+                        <div class="q-option" onclick="selectAnswer(10, 1)"><span class="radio"></span>The authentication method</div>
+                        <div class="q-option" onclick="selectAnswer(10, 2)"><span class="radio"></span>The key exchange mechanism</div>
+                        <div class="q-option" onclick="selectAnswer(10, 3)"><span class="radio"></span>The hash function</div>
+                    </div>
+                    <div class="q-explanation" id="qe10">ECDHE (Elliptic Curve Diffie-Hellman Ephemeral) specifies the key exchange mechanism. It is followed by the authentication method (RSA), then the bulk encryption (AES-256-GCM), and finally the PRF hash (SHA-384).</div>
+                </div>
+
+                <div style="text-align: center;">
+                    <button class="quiz-submit-btn" id="quizSubmitBtn" onclick="gradeQuiz()">Submit Quiz</button>
+                </div>
+
+                <div class="quiz-score" id="quizScore" style="display: none;">
+                    <div class="score-number" id="scoreDisplay">0 / 10</div>
+                    <p style="color: var(--text-secondary); margin-top: 8px;" id="scoreMessage"></p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 22: Module Completion -->
+        <div class="slide" data-slide="22">
+            <section class="content-section" style="text-align: center;">
+                <div class="section-header" style="justify-content: center;">
+                    <span class="section-icon">&#127942;</span>
+                    <h2 class="section-title">Module Complete</h2>
+                </div>
+                <div class="section-content">
+                    <p style="text-align: center; max-width: 600px; margin: 0 auto 30px;">You have completed the TLS/SSL Explained module. You now understand how TLS secures internet communication, the evolution from SSL to TLS 1.3, the handshake process, certificate validation, cipher suites, historic attacks, and modern best practices.</p>
+
+                    <button class="action-btn complete-btn" onclick="completeModule()">
+                        Mark as Complete
+                    </button>
+                </div>
+            </section>
+        </div>
+    </main>
+
+    <footer class="module-footer">
+        <div class="footer-text">HOUSE OF THE KEY &bull; HEXWORTH PRIME</div>
+    </footer>
+
+    <script>
+        // ========== Slide Navigation ==========
+        let currentSlide = 1;
+        const totalSlides = 22;
+
+        function changeSlide(direction) {
+            const newSlide = currentSlide + direction;
+            if (newSlide < 1 || newSlide > totalSlides) return;
+            document.querySelector('.slide.active').classList.remove('active');
+            currentSlide = newSlide;
+            document.querySelector('[data-slide="' + currentSlide + '"]').classList.add('active');
+            updateSlideNav();
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        function updateSlideNav() {
+            document.getElementById('slideCounter').textContent = currentSlide + ' / ' + totalSlides;
+            document.getElementById('prevBtn').disabled = currentSlide === 1;
+            document.getElementById('nextBtn').disabled = currentSlide === totalSlides;
+        }
+
+        // Keyboard navigation
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'ArrowRight' || e.key === 'ArrowDown') { e.preventDefault(); changeSlide(1); }
+            if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') { e.preventDefault(); changeSlide(-1); }
+        });
+
+        // ========== Handshake Step Highlight ==========
+        function showHandshakeDetail(index) {
+            document.querySelectorAll('.handshake-step').forEach(function(step, i) {
+                step.classList.toggle('active', i <= index);
+            });
+        }
+
+        // ========== Certificate Detail Toggle ==========
+        function showCertDetail(type) {
+            var panels = ['certDetailRoot', 'certDetailIntermediate', 'certDetailServer'];
+            var targetId = 'certDetail' + type.charAt(0).toUpperCase() + type.slice(1);
+            panels.forEach(function(id) {
+                var el = document.getElementById(id);
+                if (el) {
+                    el.classList.toggle('visible', id === targetId && !el.classList.contains('visible'));
+                }
+            });
+        }
+
+        // ========== Attack Card Toggle ==========
+        function toggleAttack(card) {
+            card.classList.toggle('expanded');
+        }
+
+        // ========== Cipher Suite Builder ==========
+        function updateCipherSuite() {
+            var kx = document.getElementById('kxSelect');
+            var auth = document.getElementById('authSelect');
+            var enc = document.getElementById('encSelect');
+            var hash = document.getElementById('hashSelect');
+
+            var suite = 'TLS_' + kx.value + '_' + auth.value + '_WITH_' + enc.value + '_' + hash.value;
+            document.getElementById('suiteOutput').textContent = suite;
+
+            var scores = [
+                parseInt(kx.selectedOptions[0].dataset.score),
+                parseInt(auth.selectedOptions[0].dataset.score),
+                parseInt(enc.selectedOptions[0].dataset.score),
+                parseInt(hash.selectedOptions[0].dataset.score)
+            ];
+            var minScore = Math.min.apply(null, scores);
+            var totalScore = scores.reduce(function(a, b) { return a + b; }, 0);
+
+            var ratingEl = document.getElementById('suiteRating');
+            ratingEl.className = 'output-rating';
+
+            if (minScore === 0) {
+                ratingEl.textContent = 'Weak / Insecure';
+                ratingEl.classList.add('rating-weak');
+            } else if (totalScore >= 10) {
+                ratingEl.textContent = 'Strong';
+                ratingEl.classList.add('rating-strong');
+            } else {
+                ratingEl.textContent = 'Moderate';
+                ratingEl.classList.add('rating-moderate');
+            }
+        }
+
+        // ========== Quiz ==========
+        var quizAnswers = { 1: 2, 2: 1, 3: 1, 4: 1, 5: 2, 6: 1, 7: 1, 8: 1, 9: 2, 10: 2 };
+        var userAnswers = {};
+        var quizGraded = false;
+
+        function selectAnswer(qNum, optIdx) {
+            if (quizGraded) return;
+            userAnswers[qNum] = optIdx;
+
+            var question = document.getElementById('qq' + qNum);
+            var options = question.querySelectorAll('.q-option');
+            options.forEach(function(opt, i) {
+                opt.classList.toggle('selected', i === optIdx);
+            });
+        }
+
+        function gradeQuiz() {
+            if (quizGraded) return;
+            quizGraded = true;
+
+            var score = 0;
+            for (var q = 1; q <= 10; q++) {
+                var question = document.getElementById('qq' + q);
+                var options = question.querySelectorAll('.q-option');
+                var correct = quizAnswers[q];
+                var userAnswer = userAnswers[q];
+
+                // Show correct answer
+                options[correct].classList.add('correct-answer');
+
+                if (userAnswer !== undefined && userAnswer !== correct) {
+                    options[userAnswer].classList.add('wrong-answer');
+                    question.classList.add('incorrect');
+                } else if (userAnswer === correct) {
+                    score++;
+                    question.classList.add('correct');
+                } else {
+                    question.classList.add('incorrect');
+                }
+
+                // Show explanation
+                document.getElementById('qe' + q).classList.add('visible');
+            }
+
+            var scoreEl = document.getElementById('quizScore');
+            scoreEl.style.display = 'block';
+            document.getElementById('scoreDisplay').textContent = score + ' / 10';
+
+            var msg = '';
+            if (score === 10) msg = 'Perfect score! You have mastered TLS/SSL concepts.';
+            else if (score >= 8) msg = 'Excellent! Strong understanding of TLS/SSL.';
+            else if (score >= 6) msg = 'Good work. Review the explanations for questions you missed.';
+            else msg = 'Review the material and try again. Focus on the explanations below each question.';
+            document.getElementById('scoreMessage').textContent = msg;
+
+            document.getElementById('quizSubmitBtn').style.display = 'none';
+
+            // Save quiz score
+            try {
+                localStorage.setItem('hexworth_quiz_key_tls_ssl', JSON.stringify({ score: score, total: 10, date: new Date().toISOString() }));
+            } catch(e) {}
+        }
+
+        // ========== Navigation ==========
+        function goBack() {
+            if (window.history.length > 1) {
+                window.history.back();
+            } else {
+                window.location.href = '../../../dashboard.html';
+            }
+        }
+
+        function completeModule() {
+            if (typeof ModuleProgress !== 'undefined') {
+                ModuleProgress.complete('key', 'key-tls-ssl', {
+                    returnToDashboard: true
+                });
+            }
+        }
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            updateCipherSuite();
+            updateSlideNav();
+        });
+    </script>
+
+    <!-- Trail Hunter - Patronus Guide System -->
+    <script src="../../../components/TrailHunter.js"></script>
+    <script src="../../../components/FluxCapacitor.js"></script>
+</body>
+</html>

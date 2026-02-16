@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mission: Audit Logging - Shield House</title>
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <link rel="stylesheet" href="../../../../components/LinuxTerminal.css">
+    <script src="../../../../components/LinuxTerminal.js"></script>
+    <script src="../../../../components/ProgressiveHints.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 100%); min-height: 100vh; color: #e0e0e0; }
+        .container { max-width: 1400px; margin: 0 auto; display: grid; grid-template-columns: 1fr 380px; height: 100vh; overflow: hidden; }
+        .main-panel { display: flex; flex-direction: column; border-right: 2px solid #a855f7; height: 100vh; overflow: hidden; }
+        .header { background: linear-gradient(135deg, #0d1117 0%, #161b22 100%); padding: 12px 20px; border-bottom: 2px solid #a855f7; flex-shrink: 0; }
+        .header-content { display: flex; justify-content: space-between; align-items: center; }
+        .header-left { display: flex; align-items: center; gap: 15px; }
+        .mission-badge { background: rgba(168,85,247,0.2); padding: 4px 12px; border-radius: 15px; font-size: 0.75em; color: #c084fc; border: 1px solid #a855f7; font-family: 'Cascadia Code', 'Fira Code', monospace; }
+        .header h1 { color: #a855f7; font-size: 1.1em; margin: 0; font-weight: 600; }
+        .back-link { color: #a855f7; text-decoration: none; padding: 6px 12px; background: rgba(168,85,247,0.1); border: 1px solid #a855f7; border-radius: 6px; font-size: 0.85em; transition: all 0.3s; }
+        .back-link:hover { background: rgba(168,85,247,0.25); }
+        .terminal-container { flex: 1; display: flex; flex-direction: column; background: #0a0a0a; min-height: 0; overflow: hidden; }
+        .mission-panel { background: rgba(13,17,23,0.95); border-top: 2px solid #a855f7; padding: 15px 20px; flex-shrink: 0; max-height: 220px; overflow-y: auto; }
+        .mission-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+        .mission-header h3 { color: #a855f7; font-size: 1em; margin: 0; }
+        .mission-header h3::before { content: '>'; animation: blink 1s infinite; margin-right: 8px; }
+        @keyframes blink { 0%,100% { opacity:1; } 50% { opacity:0; } }
+        .progress-bar { width: 100%; height: 8px; background: rgba(255,255,255,0.1); border-radius: 4px; overflow: hidden; margin-bottom: 15px; }
+        .progress-fill { height: 100%; background: linear-gradient(90deg, #a855f7, #c084fc); border-radius: 4px; transition: width 0.5s ease; }
+        .objective-list { list-style: none; }
+        .objective-item { padding: 8px 12px; margin: 4px 0; background: rgba(255,255,255,0.02); border-radius: 6px; border-left: 3px solid #30363d; font-size: 0.85em; color: #8b949e; display: flex; align-items: center; gap: 10px; }
+        .objective-item.active { border-left-color: #ffa657; background: rgba(255,166,87,0.1); color: #c9d1d9; }
+        .objective-item.completed { border-left-color: #3fb950; color: #3fb950; }
+        .objective-item .check { width: 18px; height: 18px; border: 2px solid #30363d; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.7em; }
+        .objective-item.completed .check { border-color: #3fb950; background: #3fb950; color: #0d1117; }
+        .objective-item.active .check { border-color: #ffa657; }
+        .intel-panel { background: rgba(13,17,23,0.95); padding: 20px; overflow-y: auto; height: 100vh; }
+        .intel-panel h2 { color: #a855f7; font-size: 1.2em; margin-bottom: 20px; padding-bottom: 10px; border-bottom: 2px solid #a855f7; }
+        .cmd-ref { margin-bottom: 20px; }
+        .cmd-ref h3 { color: #c084fc; font-size: 0.95em; margin-bottom: 12px; }
+        .cmd-box { background: #0a0a0a; border: 1px solid #30363d; border-radius: 6px; padding: 10px 12px; margin: 8px 0; font-family: 'Cascadia Code', monospace; font-size: 0.8em; }
+        .cmd-box .cmd { color: #00ff41; } .cmd-box .desc { color: #8b949e; margin-top: 4px; font-size: 0.9em; }
+        .tip-box { background: rgba(168,85,247,0.1); border-left: 3px solid #a855f7; padding: 12px 15px; margin: 15px 0; border-radius: 0 8px 8px 0; }
+        .tip-box strong { color: #a855f7; } .tip-box p { color: #c9d1d9; margin: 5px 0 0 0; font-size: 0.9em; }
+        .context-callout { background: rgba(168,85,247,0.08); border-left: 3px solid #a855f7; padding: 12px 16px; margin: 12px 0; border-radius: 0 6px 6px 0; }
+        .context-callout-label { font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: #a855f7; margin-bottom: 4px; }
+        .context-callout-text { font-size: 0.85rem; color: #9ca3af; line-height: 1.5; }
+        .hint-container { margin-top: 10px; }
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.9); justify-content: center; align-items: center; z-index: 1000; }
+        .modal-overlay.show { display: flex; }
+        .modal { background: linear-gradient(135deg, #0d1117, #161b22); border: 2px solid #a855f7; border-radius: 16px; padding: 40px; text-align: center; max-width: 500px; animation: modalIn 0.3s ease; }
+        @keyframes modalIn { from { transform: scale(0.9); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+        .modal .trophy { font-size: 4em; margin-bottom: 15px; } .modal h2 { color: #a855f7; font-size: 1.6em; margin-bottom: 10px; }
+        .modal p { color: #8b949e; margin-bottom: 20px; line-height: 1.6; }
+        .modal .stats { display: flex; justify-content: center; gap: 30px; margin-bottom: 25px; } .modal .stat { text-align: center; }
+        .modal .stat-value { color: #3fb950; font-size: 1.5em; font-weight: bold; } .modal .stat-label { color: #8b949e; font-size: 0.8em; }
+        .modal-buttons { display: flex; gap: 15px; justify-content: center; }
+        .modal-btn { padding: 12px 24px; border: none; border-radius: 8px; cursor: pointer; font-family: 'Cascadia Code', monospace; font-size: 0.9em; transition: all 0.3s; }
+        .modal-btn.primary { background: #a855f7; color: #0d1117; } .modal-btn.primary:hover { box-shadow: 0 0 20px rgba(168,85,247,0.5); }
+        .modal-btn.secondary { background: transparent; color: #a855f7; border: 2px solid #a855f7; }
+        ::-webkit-scrollbar { width: 8px; } ::-webkit-scrollbar-track { background: #0d1117; } ::-webkit-scrollbar-thumb { background: #30363d; border-radius: 4px; }
+        @media (max-width: 1024px) { .container { grid-template-columns: 1fr; } .intel-panel { height: auto; max-height: 40vh; border-top: 2px solid #a855f7; } }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="main-panel">
+            <div class="header"><div class="header-content"><div class="header-left"><span class="mission-badge">MISSION LAB</span><h1>Audit Logging &amp; Monitoring</h1></div><a href="../../index.html" class="back-link">< Shield House</a></div></div>
+            <div class="terminal-container" id="terminal"></div>
+            <div class="mission-panel">
+                <div class="mission-header"><h3>MISSION OBJECTIVES</h3><span id="progressText" style="color:#8b949e;font-size:0.85em;">0/8 Complete</span></div>
+                <div class="progress-bar"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
+                <ul class="objective-list" id="objectiveList"></ul>
+            </div>
+        </div>
+        <div class="intel-panel">
+            <h2>AUDIT LOGGING INTEL</h2>
+            <div class="tip-box"><strong>MISSION BRIEFING</strong><p>A SOC 2 audit is scheduled for next week. The auditors will check that your Linux systems have proper audit logging: who accessed what, when, and whether critical files are monitored. Configure auditd to pass the compliance check.</p></div>
+            <div class="cmd-ref">
+                <h3>Audit Commands</h3>
+                <div class="cmd-box"><div class="cmd">auditctl -l</div><div class="desc">List current audit rules</div></div>
+                <div class="cmd-box"><div class="cmd">auditctl -w /path -p rwxa -k keyname</div><div class="desc">Watch a file/dir for access</div></div>
+                <div class="cmd-box"><div class="cmd">ausearch -k keyname</div><div class="desc">Search by key tag</div></div>
+                <div class="cmd-box"><div class="cmd">ausearch -m USER_AUTH</div><div class="desc">Search by message type</div></div>
+                <div class="cmd-box"><div class="cmd">aureport --auth</div><div class="desc">Authentication report</div></div>
+                <div class="cmd-box"><div class="cmd">aureport --summary</div><div class="desc">Overall audit summary</div></div>
+                <div class="cmd-box"><div class="cmd">systemctl status auditd</div><div class="desc">Check audit daemon status</div></div>
+            </div>
+            <div class="context-callout"><div class="context-callout-label">Why This Matters</div><div class="context-callout-text">The Linux audit framework (auditd) provides kernel-level event logging. It records syscalls, file access, user actions, and security events. SOC 2 Type II, HIPAA, and PCI DSS all require comprehensive audit logging. Without it, you cannot prove who did what.</div></div>
+            <div class="hint-container" id="hintContainer"></div>
+        </div>
+    </div>
+    <div class="modal-overlay" id="completionModal"><div class="modal"><div class="trophy">&#128737;</div><h2>Audit System Deployed!</h2><p>auditd is configured with comprehensive rules. File watches, authentication monitoring, and compliance reports are all in place. The SOC 2 auditors will be satisfied.</p><div class="stats"><div class="stat"><div class="stat-value" id="commandCount">0</div><div class="stat-label">Commands</div></div><div class="stat"><div class="stat-value" id="timeElapsed">0:00</div><div class="stat-label">Time</div></div></div><div class="modal-buttons"><button class="modal-btn secondary" onclick="resetMission()">Retry</button><button class="modal-btn primary" onclick="window.location.href='../../index.html'">Shield House</button></div></div></div>
+
+    <script>
+    const state = { completed: new Set(), commandCount: 0, startTime: Date.now(), currentObjective: 0, hintsRevealed: 0 };
+
+    const OBJECTIVES = [
+        { id: 'status', task: '1. Check auditd service status', validate: (cmd) => /systemctl\s+status\s+auditd/.test(cmd.trim()),
+          hints: [{ level: 1, text: 'Verify the audit daemon is running.' }, { level: 2, text: 'Use systemctl to check service status.' }, { level: 3, text: 'systemctl status auditd' }, { level: 4, text: 'systemctl status auditd', isSolution: true }] },
+        { id: 'list-rules', task: '2. List current audit rules', validate: (cmd) => /auditctl\s+-l/.test(cmd.trim()),
+          hints: [{ level: 1, text: 'See what is already being audited.' }, { level: 2, text: 'auditctl -l lists all active rules.' }, { level: 3, text: 'auditctl -l' }, { level: 4, text: 'auditctl -l', isSolution: true }] },
+        { id: 'watch-passwd', task: '3. Add a watch on /etc/passwd for any access', validate: (cmd) => /auditctl\s+-w\s+\/etc\/passwd\s+-p\s+\w+\s+-k\s+\w+/.test(cmd.trim()),
+          hints: [{ level: 1, text: 'Monitor the passwd file for reads, writes, and attribute changes.' }, { level: 2, text: 'Use -w for watch, -p for permissions (rwxa), -k for key tag.' }, { level: 3, text: 'auditctl -w /etc/passwd -p rwxa -k passwd_access' }, { level: 4, text: 'auditctl -w /etc/passwd -p rwxa -k passwd_access', isSolution: true }] },
+        { id: 'watch-shadow', task: '4. Add a watch on /etc/shadow', validate: (cmd) => /auditctl\s+-w\s+\/etc\/shadow\s+-p\s+\w+\s+-k\s+\w+/.test(cmd.trim()),
+          hints: [{ level: 1, text: 'The shadow file is the most sensitive file on the system.' }, { level: 2, text: 'Same syntax as the passwd watch.' }, { level: 3, text: 'auditctl -w /etc/shadow -p rwxa -k shadow_access' }, { level: 4, text: 'auditctl -w /etc/shadow -p rwxa -k shadow_access', isSolution: true }] },
+        { id: 'watch-sudoers', task: '5. Add a watch on /etc/sudoers', validate: (cmd) => /auditctl\s+-w\s+\/etc\/sudoers\s+-p\s+\w+\s+-k\s+\w+/.test(cmd.trim()),
+          hints: [{ level: 1, text: 'Sudoers changes could indicate privilege escalation.' }, { level: 2, text: 'Watch for write and attribute changes.' }, { level: 3, text: 'auditctl -w /etc/sudoers -p wa -k sudoers_changes' }, { level: 4, text: 'auditctl -w /etc/sudoers -p wa -k sudoers_changes', isSolution: true }] },
+        { id: 'search-auth', task: '6. Search for authentication events', validate: (cmd) => /ausearch\s+(-m\s+USER_AUTH|--message\s+USER_AUTH)/.test(cmd.trim()),
+          hints: [{ level: 1, text: 'Find all login attempts in the audit log.' }, { level: 2, text: 'Use ausearch with the USER_AUTH message type.' }, { level: 3, text: 'ausearch -m USER_AUTH' }, { level: 4, text: 'ausearch -m USER_AUTH', isSolution: true }] },
+        { id: 'report-auth', task: '7. Generate an authentication summary report', validate: (cmd) => /aureport\s+(--auth|-au)/.test(cmd.trim()),
+          hints: [{ level: 1, text: 'Auditors want summary reports, not raw logs.' }, { level: 2, text: 'aureport formats audit data into readable reports.' }, { level: 3, text: 'aureport --auth' }, { level: 4, text: 'aureport --auth', isSolution: true }] },
+        { id: 'report-summary', task: '8. Generate an overall audit summary', validate: (cmd) => /aureport\s+--summary/.test(cmd.trim()),
+          hints: [{ level: 1, text: 'The summary gives a high-level view of all audit events.' }, { level: 2, text: 'aureport --summary' }, { level: 3, text: 'aureport --summary' }, { level: 4, text: 'aureport --summary', isSolution: true }] }
+    ];
+
+    function init() {
+        LinuxTerminal.init('SHIELD-MISSION-AUDIT', '#terminal', { user: 'root', hostname: 'shield-audit', startDir: '/root', height: '100%', onCommand: handleCommand });
+        LinuxTerminal.addFilesystem({
+            '/root': { type: 'dir', perms: 'drwx------', owner: 'root', group: 'root', children: ['audit-checklist.txt'] },
+            '/root/audit-checklist.txt': { type: 'file', perms: '-rw-------', owner: 'root', group: 'root', size: 512, content: 'SOC 2 AUDIT CHECKLIST\n=====================\n[ ] Audit daemon running\n[ ] File watches on /etc/passwd, /etc/shadow, /etc/sudoers\n[ ] Authentication event logging\n[ ] Summary reports generated\n[ ] Rules persistent across reboot\n\nAuditor arrives: Monday 09:00\n' },
+            '/etc/audit': { type: 'dir', perms: 'drwxr-x---', owner: 'root', group: 'root', children: ['auditd.conf', 'audit.rules'] },
+            '/etc/audit/auditd.conf': { type: 'file', perms: '-rw-r-----', owner: 'root', group: 'root', size: 512, content: '# auditd.conf\nlog_file = /var/log/audit/audit.log\nlog_format = RAW\nmax_log_file = 8\nmax_log_file_action = ROTATE\nnum_logs = 5\nspace_left = 75\nspace_left_action = SYSLOG\nadmin_space_left_action = SUSPEND\n' },
+            '/etc/audit/audit.rules': { type: 'file', perms: '-rw-r-----', owner: 'root', group: 'root', size: 128, content: '# Audit rules\n# Currently empty - no watches configured\n-D\n-b 8192\n' },
+            '/var/log/audit/audit.log': { type: 'file', perms: '-rw-r-----', owner: 'root', group: 'root', size: 8192, content: 'type=USER_AUTH msg=audit(1708041600.100:200): pid=5678 uid=0 auid=1000 ses=1 msg=\'op=PAM:authentication grantors=pam_unix acct="admin" exe="/usr/sbin/sshd" hostname=10.0.1.5 addr=10.0.1.5 terminal=ssh res=success\'\ntype=USER_AUTH msg=audit(1708041700.200:201): pid=5679 uid=0 auid=4294967295 ses=4294967295 msg=\'op=PAM:authentication grantors=? acct="root" exe="/usr/sbin/sshd" hostname=203.0.113.42 addr=203.0.113.42 terminal=ssh res=failed\'\ntype=USER_AUTH msg=audit(1708041701.300:202): pid=5680 uid=0 auid=4294967295 ses=4294967295 msg=\'op=PAM:authentication grantors=? acct="root" exe="/usr/sbin/sshd" hostname=203.0.113.42 addr=203.0.113.42 terminal=ssh res=failed\'\ntype=EXECVE msg=audit(1708041800.400:203): argc=2 a0="/usr/bin/sudo" a1="cat /etc/shadow"\n' }
+        });
+        LinuxTerminal.addServices({ 'auditd': { status: 'active', enabled: true } });
+        printBriefing(); updateObjectiveList(); updateProgress(); updateHintPanel();
+    }
+
+    function handleCommand(cmdLine, output, cmd, args) { state.commandCount++; checkObjectives(cmdLine); }
+    function checkObjectives(cmdLine) { let n = false; for (const obj of OBJECTIVES) { if (state.completed.has(obj.id)) continue; if (obj.validate && obj.validate(cmdLine)) { state.completed.add(obj.id); n = true; LinuxTerminal.print('[OBJECTIVE] ' + obj.task + ' - COMPLETE', 'lt-success'); } } if (n) { for (let i = 0; i < OBJECTIVES.length; i++) { if (!state.completed.has(OBJECTIVES[i].id)) { state.currentObjective = i; break; } } updateObjectiveList(); updateProgress(); updateHintPanel(); if (state.completed.size === OBJECTIVES.length) setTimeout(showCompletionModal, 1000); } }
+    function updateHintPanel() { const o = OBJECTIVES[state.currentObjective]; if (!o||!o.hints) return; ProgressiveHints.init('hintContainer', o.hints, { labId: `audit-${o.id}`, onReveal: () => { state.hintsRevealed++; } }); }
+    function updateObjectiveList() { const l = document.getElementById('objectiveList'); l.innerHTML = ''; OBJECTIVES.forEach((o,i) => { const li = document.createElement('li'); li.className = 'objective-item'; const d = state.completed.has(o.id); const p = i===0||state.completed.has(OBJECTIVES[i-1].id); if(d) li.classList.add('completed'); else if(p) li.classList.add('active'); li.innerHTML = `<div class="check">${d?'&#10003;':i+1}</div><span>${o.task}</span>`; l.appendChild(li); }); }
+    function updateProgress() { const p = (state.completed.size/OBJECTIVES.length)*100; document.getElementById('progressFill').style.width = p+'%'; document.getElementById('progressText').textContent = `${state.completed.size}/${OBJECTIVES.length} Complete`; }
+    function showCompletionModal() { const e = Math.floor((Date.now()-state.startTime)/1000); document.getElementById('commandCount').textContent = state.commandCount; document.getElementById('timeElapsed').textContent = `${Math.floor(e/60)}:${(e%60).toString().padStart(2,'0')}`; document.getElementById('completionModal').classList.add('show'); saveProgress(); }
+    function resetMission() { document.getElementById('completionModal').classList.remove('show'); state.completed.clear(); state.commandCount=0; state.startTime=Date.now(); state.currentObjective=0; state.hintsRevealed=0; LinuxTerminal.destroy(); init(); }
+    function saveProgress() { const p = JSON.parse(localStorage.getItem('hexworth_progress')||'{}'); if(!p.shield) p.shield={}; p.shield['mission-audit']={completed:true,completedAt:new Date().toISOString(),commandCount:state.commandCount,timeElapsed:Math.floor((Date.now()-state.startTime)/1000)}; localStorage.setItem('hexworth_progress',JSON.stringify(p)); try{if(typeof GameTracker!=='undefined') GameTracker.record('shield_mission_audit',state.completed.size*12,{commands:state.commandCount});}catch(e){} }
+    function printBriefing() {
+        LinuxTerminal.print('<span style="color:#f87171;">MISSION: AUDIT LOGGING & MONITORING</span>');
+        LinuxTerminal.print('');
+        LinuxTerminal.print('<span style="color:#8b949e;">[SOC 2] Compliance audit scheduled for Monday.</span>');
+        LinuxTerminal.print('<span style="color:#8b949e;">[SOC 2] Auditors will verify: file watches, auth logging, reports.</span>');
+        LinuxTerminal.print('<span style="color:#ffa657;">Configure auditd to pass the compliance review.</span>');
+        LinuxTerminal.print('');
+        LinuxTerminal.print('Read <span style="color:#ffa657;">audit-checklist.txt</span> for requirements.');
+        LinuxTerminal.print('');
+    }
+    document.addEventListener('DOMContentLoaded', init);
+    </script>
+    <script src="../../../../components/GameTracker.js"></script>
+    <script src="../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>

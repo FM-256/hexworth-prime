@@ -203,7 +203,7 @@ const MIGRATED_ENTRIES = {
             topics: ['risk-management', 'security'],
             paths: [],
             components: {
-                applet: 'houses/shield/applets/compliance/cmmc_cui/shield-cui-2.applet.html'
+                applet: 'houses/shield/applets/compliance/cui_overview/shield-cui-overview.applet.html'
             },
             prerequisites: [],
             objectives: []
@@ -219,7 +219,7 @@ const MIGRATED_ENTRIES = {
             topics: ['risk-management', 'security'],
             paths: [],
             components: {
-                applet: 'houses/shield/applets/compliance/cmmc_framework/shield-cmmc-frameworkv2.applet.html'
+                applet: 'houses/shield/applets/compliance/cmmc_framework/shield-cmmc-framework.applet.html'
             },
             prerequisites: [],
             objectives: []
@@ -331,7 +331,7 @@ const MIGRATED_ENTRIES = {
             topics: ['risk-management', 'security'],
             paths: [],
             components: {
-                quiz: 'houses/shield/applets/compliance/cmmc_quiz/shield-cmmc-test-knowledge2.applet.html'
+                quiz: 'houses/shield/applets/compliance/cmmc_quiz/shield-cmmc-comprehensive.quiz.html'
             },
             prerequisites: [],
             objectives: []

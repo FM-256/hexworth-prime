@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Capstone: Full Server Hardening - Shield House</title>
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <link rel="stylesheet" href="../../../../components/LinuxTerminal.css">
+    <script src="../../../../components/LinuxTerminal.js"></script>
+    <script src="../../../../components/ProgressiveHints.js"></script>
+    <style>
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body { font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif; background:linear-gradient(135deg,#0a0a0a 0%,#1a1a2e 100%); min-height:100vh; color:#e0e0e0; }
+        .container { max-width:1400px; margin:0 auto; display:grid; grid-template-columns:1fr 380px; height:100vh; overflow:hidden; }
+        .main-panel { display:flex; flex-direction:column; border-right:2px solid #a855f7; height:100vh; overflow:hidden; }
+        .header { background:linear-gradient(135deg,#0d1117 0%,#161b22 100%); padding:12px 20px; border-bottom:2px solid #a855f7; flex-shrink:0; }
+        .header-content { display:flex; justify-content:space-between; align-items:center; }
+        .header-left { display:flex; align-items:center; gap:15px; }
+        .mission-badge { background:rgba(248,113,113,0.2); padding:4px 12px; border-radius:15px; font-size:0.75em; color:#fca5a5; border:1px solid #f87171; font-family:'Cascadia Code','Fira Code',monospace; }
+        .header h1 { color:#a855f7; font-size:1.1em; margin:0; font-weight:600; }
+        .back-link { color:#a855f7; text-decoration:none; padding:6px 12px; background:rgba(168,85,247,0.1); border:1px solid #a855f7; border-radius:6px; font-size:0.85em; transition:all 0.3s; }
+        .back-link:hover { background:rgba(168,85,247,0.25); }
+        .terminal-container { flex:1; display:flex; flex-direction:column; background:#0a0a0a; min-height:0; overflow:hidden; }
+        .mission-panel { background:rgba(13,17,23,0.95); border-top:2px solid #a855f7; padding:15px 20px; flex-shrink:0; max-height:250px; overflow-y:auto; }
+        .mission-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; }
+        .mission-header h3 { color:#a855f7; font-size:1em; margin:0; }
+        .mission-header h3::before { content:'>'; animation:blink 1s infinite; margin-right:8px; }
+        @keyframes blink{0%,100%{opacity:1;}50%{opacity:0;}}
+        .progress-bar{width:100%;height:8px;background:rgba(255,255,255,0.1);border-radius:4px;overflow:hidden;margin-bottom:15px;}
+        .progress-fill{height:100%;background:linear-gradient(90deg,#a855f7,#c084fc);border-radius:4px;transition:width 0.5s ease;}
+        .objective-list{list-style:none;}
+        .objective-item{padding:8px 12px;margin:4px 0;background:rgba(255,255,255,0.02);border-radius:6px;border-left:3px solid #30363d;font-size:0.85em;color:#8b949e;display:flex;align-items:center;gap:10px;}
+        .objective-item.active{border-left-color:#ffa657;background:rgba(255,166,87,0.1);color:#c9d1d9;}
+        .objective-item.completed{border-left-color:#3fb950;color:#3fb950;}
+        .objective-item .check{width:18px;height:18px;border:2px solid #30363d;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:0.7em;}
+        .objective-item.completed .check{border-color:#3fb950;background:#3fb950;color:#0d1117;}
+        .objective-item.active .check{border-color:#ffa657;}
+        .intel-panel{background:rgba(13,17,23,0.95);padding:20px;overflow-y:auto;height:100vh;}
+        .intel-panel h2{color:#a855f7;font-size:1.2em;margin-bottom:20px;padding-bottom:10px;border-bottom:2px solid #a855f7;}
+        .cmd-ref{margin-bottom:20px;}.cmd-ref h3{color:#c084fc;font-size:0.95em;margin-bottom:12px;}
+        .cmd-box{background:#0a0a0a;border:1px solid #30363d;border-radius:6px;padding:10px 12px;margin:8px 0;font-family:'Cascadia Code',monospace;font-size:0.8em;}
+        .cmd-box .cmd{color:#00ff41;}.cmd-box .desc{color:#8b949e;margin-top:4px;font-size:0.9em;}
+        .tip-box{background:rgba(168,85,247,0.1);border-left:3px solid #a855f7;padding:12px 15px;margin:15px 0;border-radius:0 8px 8px 0;}
+        .tip-box strong{color:#a855f7;}.tip-box p{color:#c9d1d9;margin:5px 0 0 0;font-size:0.9em;}
+        .context-callout{background:rgba(168,85,247,0.08);border-left:3px solid #a855f7;padding:12px 16px;margin:12px 0;border-radius:0 6px 6px 0;}
+        .context-callout-label{font-size:0.7rem;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#a855f7;margin-bottom:4px;}
+        .context-callout-text{font-size:0.85rem;color:#9ca3af;line-height:1.5;}
+        .hint-container{margin-top:10px;}
+        .checklist{background:#0a0a0a;border:1px solid #30363d;border-radius:8px;padding:12px;margin:10px 0;font-family:'Cascadia Code',monospace;font-size:0.75em;line-height:1.8;}
+        .checklist .done{color:#4ade80;}.checklist .pending{color:#f87171;}
+        .modal-overlay{display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.9);justify-content:center;align-items:center;z-index:1000;}
+        .modal-overlay.show{display:flex;}
+        .modal{background:linear-gradient(135deg,#0d1117,#161b22);border:2px solid #a855f7;border-radius:16px;padding:40px;text-align:center;max-width:500px;animation:modalIn 0.3s ease;}
+        @keyframes modalIn{from{transform:scale(0.9);opacity:0;}to{transform:scale(1);opacity:1;}}
+        .modal .trophy{font-size:4em;margin-bottom:15px;}.modal h2{color:#a855f7;font-size:1.6em;margin-bottom:10px;}
+        .modal p{color:#8b949e;margin-bottom:20px;line-height:1.6;}
+        .modal .stats{display:flex;justify-content:center;gap:30px;margin-bottom:25px;}.modal .stat{text-align:center;}
+        .modal .stat-value{color:#3fb950;font-size:1.5em;font-weight:bold;}.modal .stat-label{color:#8b949e;font-size:0.8em;}
+        .modal-buttons{display:flex;gap:15px;justify-content:center;}
+        .modal-btn{padding:12px 24px;border:none;border-radius:8px;cursor:pointer;font-family:'Cascadia Code',monospace;font-size:0.9em;transition:all 0.3s;}
+        .modal-btn.primary{background:#a855f7;color:#0d1117;}.modal-btn.primary:hover{box-shadow:0 0 20px rgba(168,85,247,0.5);}
+        .modal-btn.secondary{background:transparent;color:#a855f7;border:2px solid #a855f7;}
+        ::-webkit-scrollbar{width:8px;}::-webkit-scrollbar-track{background:#0d1117;}::-webkit-scrollbar-thumb{background:#30363d;border-radius:4px;}
+        @media(max-width:1024px){.container{grid-template-columns:1fr;}.intel-panel{height:auto;max-height:40vh;border-top:2px solid #a855f7;}}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="main-panel">
+            <div class="header"><div class="header-content"><div class="header-left"><span class="mission-badge">CAPSTONE</span><h1>Full Server Hardening Checklist</h1></div><a href="../../index.html" class="back-link">< Shield House</a></div></div>
+            <div class="terminal-container" id="terminal"></div>
+            <div class="mission-panel">
+                <div class="mission-header"><h3>HARDENING OBJECTIVES</h3><span id="progressText" style="color:#8b949e;font-size:0.85em;">0/10 Complete</span></div>
+                <div class="progress-bar"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
+                <ul class="objective-list" id="objectiveList"></ul>
+            </div>
+        </div>
+        <div class="intel-panel">
+            <h2>CIS HARDENING INTEL</h2>
+            <div class="tip-box"><strong>CAPSTONE MISSION</strong><p>This server just went through a pen test and failed spectacularly. Apply every hardening technique from the previous 7 labs: firewall, SSH, SELinux, audit logging, file integrity, sudo policies, and password rules. This is your final exam.</p></div>
+            <div class="checklist">
+                <div class="pending">[  ] Firewall: iptables default deny</div>
+                <div class="pending">[  ] SSH: root disabled, key-only, port changed</div>
+                <div class="pending">[  ] Sudo: RBAC, no NOPASSWD ALL</div>
+                <div class="pending">[  ] Audit: watches on /etc/passwd, /etc/shadow</div>
+                <div class="pending">[  ] Passwords: complexity, aging, lockout</div>
+                <div class="pending">[  ] Services: disable unnecessary daemons</div>
+                <div class="pending">[  ] Permissions: fix world-writable files</div>
+                <div class="pending">[  ] Kernel: harden network parameters</div>
+                <div class="pending">[  ] Integrity: establish AIDE baseline</div>
+                <div class="pending">[  ] Verification: full audit</div>
+            </div>
+            <div class="cmd-ref">
+                <h3>Key Commands (All Labs)</h3>
+                <div class="cmd-box"><div class="cmd">iptables -P INPUT DROP</div><div class="desc">Default deny firewall</div></div>
+                <div class="cmd-box"><div class="cmd">sed -i 's/old/new/' /etc/ssh/sshd_config</div><div class="desc">Edit SSH config</div></div>
+                <div class="cmd-box"><div class="cmd">auditctl -w /path -p rwxa -k key</div><div class="desc">Add audit watch</div></div>
+                <div class="cmd-box"><div class="cmd">systemctl disable service</div><div class="desc">Disable unnecessary service</div></div>
+                <div class="cmd-box"><div class="cmd">sysctl -w net.param=value</div><div class="desc">Set kernel parameter</div></div>
+            </div>
+            <div class="context-callout"><div class="context-callout-label">Why This Matters</div><div class="context-callout-text">CIS Benchmarks provide hardening checklists for every major OS. This capstone mirrors a real CIS Level 1 Server assessment. In the field, you will be expected to harden servers to these standards before they touch production. Everything from the previous 7 labs comes together here.</div></div>
+            <div class="hint-container" id="hintContainer"></div>
+        </div>
+    </div>
+    <div class="modal-overlay" id="completionModal"><div class="modal"><div class="trophy">&#128737;</div><h2>Server Hardened - CIS Level 1!</h2><p>Firewall locked, SSH hardened, sudo restricted, auditing active, passwords enforced, unnecessary services disabled, kernel parameters secured, integrity baseline established. This server is production-ready. You have mastered Linux security hardening.</p><div class="stats"><div class="stat"><div class="stat-value" id="commandCount">0</div><div class="stat-label">Commands</div></div><div class="stat"><div class="stat-value" id="timeElapsed">0:00</div><div class="stat-label">Time</div></div></div><div class="modal-buttons"><button class="modal-btn secondary" onclick="resetMission()">Retry</button><button class="modal-btn primary" onclick="window.location.href='../../index.html'">Shield House</button></div></div></div>
+
+    <script>
+    const state = { completed: new Set(), commandCount: 0, startTime: Date.now(), currentObjective: 0, hintsRevealed: 0 };
+
+    const OBJECTIVES = [
+        { id: 'fw-default', task: '1. FIREWALL: Set default INPUT policy to DROP', validate: (cmd) => /iptables\s+-P\s+INPUT\s+DROP/.test(cmd.trim()),
+          hints: [{ level: 1, text: 'Default deny is the foundation of firewall security.' }, { level: 2, text: 'iptables -P INPUT DROP' }, { level: 3, text: 'iptables -P INPUT DROP' }, { level: 4, text: 'iptables -P INPUT DROP', isSolution: true }] },
+        { id: 'fw-ssh', task: '2. FIREWALL: Allow SSH on port 2222 from 10.0.1.0/24', validate: (cmd) => /iptables\s+-A\s+INPUT\s+-p\s+tcp\s+-s\s+10\.0\.1\.0\/24\s+--dport\s+2222\s+-j\s+ACCEPT/.test(cmd.trim()),
+          hints: [{ level: 1, text: 'SSH on non-standard port, restricted to management subnet.' }, { level: 2, text: 'Combine source restriction with custom port.' }, { level: 3, text: 'iptables -A INPUT -p tcp -s 10.0.1.0/24 --dport 2222 -j ACCEPT' }, { level: 4, text: 'iptables -A INPUT -p tcp -s 10.0.1.0/24 --dport 2222 -j ACCEPT', isSolution: true }] },
+        { id: 'ssh-harden', task: '3. SSH: Disable root login and password auth', validateState: () => { const n = LinuxTerminal.getFs()['/etc/ssh/sshd_config']; return n && n.content && /PermitRootLogin\s+no/i.test(n.content) && /PasswordAuthentication\s+no/i.test(n.content); },
+          hints: [{ level: 1, text: 'Two critical settings: PermitRootLogin and PasswordAuthentication.' }, { level: 2, text: 'Use sed to change both to no.' }, { level: 3, text: 'sed -i \'s/PermitRootLogin yes/PermitRootLogin no/; s/PasswordAuthentication yes/PasswordAuthentication no/\' /etc/ssh/sshd_config' }, { level: 4, text: 'sed -i \'s/PermitRootLogin yes/PermitRootLogin no/; s/PasswordAuthentication yes/PasswordAuthentication no/\' /etc/ssh/sshd_config', isSolution: true }] },
+        { id: 'sudo-fix', task: '4. SUDO: Remove NOPASSWD ALL, add %wheel with password', validateState: () => { const n = LinuxTerminal.getFs()['/etc/sudoers']; return n && n.content && !/ALL\s+ALL.*NOPASSWD:\s*ALL/.test(n.content) && /%wheel\s+ALL=\(ALL\)\s+ALL/.test(n.content); },
+          hints: [{ level: 1, text: 'Remove the dangerous rule and add a proper group-based one.' }, { level: 2, text: 'Two commands: sed to remove, echo to add %wheel.' }, { level: 3, text: 'sed -i \'s/ALL ALL=(ALL) NOPASSWD: ALL/# REMOVED/\' /etc/sudoers && echo "%wheel ALL=(ALL) ALL" >> /etc/sudoers' }, { level: 4, text: 'sed -i \'s/ALL ALL=(ALL) NOPASSWD: ALL/# REMOVED/\' /etc/sudoers && echo "%wheel ALL=(ALL) ALL" >> /etc/sudoers', isSolution: true }] },
+        { id: 'audit-watch', task: '5. AUDIT: Add watches on /etc/passwd and /etc/shadow', validate: (cmd) => /auditctl\s+-w\s+\/etc\/(passwd|shadow)\s+-p\s+\w+\s+-k\s+\w+/.test(cmd.trim()),
+          hints: [{ level: 1, text: 'These are the two most critical files to monitor.' }, { level: 2, text: 'auditctl -w /etc/passwd -p rwxa -k identity' }, { level: 3, text: 'auditctl -w /etc/passwd -p rwxa -k identity' }, { level: 4, text: 'auditctl -w /etc/passwd -p rwxa -k identity (then repeat for shadow)', isSolution: true }] },
+        { id: 'passwd-policy', task: '6. PASSWORD: Set minlen=12 in pwquality', validateState: () => { const n = LinuxTerminal.getFs()['/etc/security/pwquality.conf']; return n && n.content && /minlen\s*=\s*12/.test(n.content); },
+          hints: [{ level: 1, text: '12 characters minimum is the modern standard.' }, { level: 2, text: 'sed -i \'s/# minlen = 8/minlen = 12/\' /etc/security/pwquality.conf' }, { level: 3, text: 'sed -i \'s/# minlen = 8/minlen = 12/\' /etc/security/pwquality.conf' }, { level: 4, text: 'sed -i \'s/# minlen = 8/minlen = 12/\' /etc/security/pwquality.conf', isSolution: true }] },
+        { id: 'disable-service', task: '7. SERVICES: Disable the unnecessary telnet service', validate: (cmd) => /systemctl\s+(disable|stop)\s+telnet/.test(cmd.trim()),
+          hints: [{ level: 1, text: 'Telnet sends everything in plaintext -- it should never be running.' }, { level: 2, text: 'Use systemctl disable to prevent it from starting.' }, { level: 3, text: 'systemctl disable telnet' }, { level: 4, text: 'systemctl disable telnet', isSolution: true }] },
+        { id: 'fix-perms', task: '8. PERMISSIONS: Fix world-writable /tmp/db-creds.txt (600)', validateState: () => { const n = LinuxTerminal.getFs()['/tmp/db-creds.txt']; return n && n.perms === '-rw-------'; },
+          hints: [{ level: 1, text: 'Credential files must never be world-readable.' }, { level: 2, text: 'chmod 600 /tmp/db-creds.txt' }, { level: 3, text: 'chmod 600 /tmp/db-creds.txt' }, { level: 4, text: 'chmod 600 /tmp/db-creds.txt', isSolution: true }] },
+        { id: 'kernel-harden', task: '9. KERNEL: Disable IP forwarding (net.ipv4.ip_forward=0)', validate: (cmd) => /sysctl\s+-w\s+net\.ipv4\.ip_forward\s*=\s*0/.test(cmd.trim()),
+          hints: [{ level: 1, text: 'Servers should not forward packets -- that is a router\'s job.' }, { level: 2, text: 'Use sysctl -w to set kernel parameters.' }, { level: 3, text: 'sysctl -w net.ipv4.ip_forward=0' }, { level: 4, text: 'sysctl -w net.ipv4.ip_forward=0', isSolution: true }] },
+        { id: 'aide-init', task: '10. INTEGRITY: Initialize AIDE baseline database', validate: (cmd) => /aide\s+--init/.test(cmd.trim()),
+          hints: [{ level: 1, text: 'The final step: establish a known-good baseline.' }, { level: 2, text: 'aide --init creates the initial database.' }, { level: 3, text: 'aide --init' }, { level: 4, text: 'aide --init', isSolution: true }] }
+    ];
+
+    function init() {
+        LinuxTerminal.init('SHIELD-CAPSTONE-HARDEN', '#terminal', { user: 'root', hostname: 'shield-prod', startDir: '/root', height: '100%', onCommand: handleCommand });
+        LinuxTerminal.addFilesystem({
+            '/root': { type: 'dir', perms: 'drwx------', owner: 'root', group: 'root', children: ['pentest-report.txt', 'hardening-checklist.txt'] },
+            '/root/pentest-report.txt': { type: 'file', perms: '-rw-------', owner: 'root', group: 'root', size: 2048, content: 'PENETRATION TEST REPORT\n========================\nClient: Shield Corp\nDate: 2026-02-15\nResult: FAIL (Critical findings)\n\nCRITICAL FINDINGS:\n1. No firewall rules -- all ports exposed\n2. SSH allows root login with password\n3. sudoers: ALL ALL=(ALL) NOPASSWD: ALL\n4. No audit logging configured\n5. No password complexity requirements\n6. Telnet service running (port 23)\n7. World-writable credential files\n8. IP forwarding enabled (not a router)\n9. No file integrity monitoring\n10. SELinux disabled\n\nREMEDIATION DEADLINE: 24 hours\n' },
+            '/root/hardening-checklist.txt': { type: 'file', perms: '-rw-------', owner: 'root', group: 'root', size: 1024, content: 'CIS BENCHMARK LEVEL 1 - SERVER HARDENING\n==========================================\n[ ] 1.1 Firewall default deny\n[ ] 1.2 SSH hardening (root, passwords, port)\n[ ] 1.3 Privilege management (sudoers)\n[ ] 1.4 Audit logging (auditd rules)\n[ ] 1.5 Password policy (pwquality)\n[ ] 1.6 Disable unnecessary services\n[ ] 1.7 File permissions remediation\n[ ] 1.8 Kernel parameter hardening\n[ ] 1.9 File integrity monitoring\n[ ] 1.10 Final verification\n' },
+            '/etc/ssh/sshd_config': { type: 'file', perms: '-rw-r--r--', owner: 'root', group: 'root', size: 1024, content: '# sshd_config - INSECURE\nPort 22\nPermitRootLogin yes\nPasswordAuthentication yes\nMaxAuthTries 6\nClientAliveInterval 0\nX11Forwarding yes\nUsePAM yes\n' },
+            '/etc/sudoers': { type: 'file', perms: '-r--r-----', owner: 'root', group: 'root', size: 256, content: '# sudoers - INSECURE\nroot ALL=(ALL:ALL) ALL\nALL ALL=(ALL) NOPASSWD: ALL\n' },
+            '/etc/security/pwquality.conf': { type: 'file', perms: '-rw-r--r--', owner: 'root', group: 'root', size: 256, content: '# pwquality - ALL DEFAULTS (no enforcement)\n# minlen = 8\n# dcredit = 0\n# ucredit = 0\n' },
+            '/tmp/db-creds.txt': { type: 'file', perms: '-rw-rw-rw-', owner: 'root', group: 'root', size: 128, content: 'DB_HOST=prod-db.internal\nDB_USER=admin\nDB_PASS=Pr0dP@ss2026!\n' },
+            '/etc/sysctl.conf': { type: 'file', perms: '-rw-r--r--', owner: 'root', group: 'root', size: 256, content: '# Kernel parameters\nnet.ipv4.ip_forward = 1\nnet.ipv4.conf.all.accept_redirects = 1\nnet.ipv4.conf.all.send_redirects = 1\n' },
+            '/etc/aide': { type: 'dir', perms: 'drwxr-xr-x', owner: 'root', group: 'root', children: ['aide.conf'] },
+            '/etc/aide/aide.conf': { type: 'file', perms: '-rw-r--r--', owner: 'root', group: 'root', size: 512, content: '# AIDE config\n/etc p+i+n+u+g+s+sha256\n/usr/bin p+i+n+u+g+s+sha256\n/usr/sbin p+i+n+u+g+s+sha256\ndatabase=file:/var/lib/aide/aide.db\ndatabase_out=file:/var/lib/aide/aide.db.new\n' }
+        });
+        LinuxTerminal.addServices({
+            'sshd': { status: 'active', enabled: true },
+            'telnet': { status: 'active', enabled: true },
+            'auditd': { status: 'active', enabled: true },
+            'fail2ban': { status: 'active', enabled: true }
+        });
+        printBriefing(); updateObjectiveList(); updateProgress(); updateHintPanel();
+    }
+
+    function handleCommand(cmdLine, output, cmd, args) { state.commandCount++; checkObjectives(cmdLine); }
+    function checkObjectives(cmdLine) { let n = false; for (const obj of OBJECTIVES) { if (state.completed.has(obj.id)) continue; let c = false; if (obj.validate && obj.validate(cmdLine)) c = true; if (obj.validateState && obj.validateState()) c = true; if (c) { state.completed.add(obj.id); n = true; LinuxTerminal.print('[HARDENED] ' + obj.task + ' - COMPLETE', 'lt-success'); updateChecklist(obj.id); } } if (n) { for (let i = 0; i < OBJECTIVES.length; i++) { if (!state.completed.has(OBJECTIVES[i].id)) { state.currentObjective = i; break; } } updateObjectiveList(); updateProgress(); updateHintPanel(); if (state.completed.size === OBJECTIVES.length) setTimeout(showCompletionModal, 1000); } }
+
+    function updateChecklist(id) {
+        const map = { 'fw-default': 0, 'fw-ssh': 0, 'ssh-harden': 1, 'sudo-fix': 2, 'audit-watch': 3, 'passwd-policy': 4, 'disable-service': 5, 'fix-perms': 6, 'kernel-harden': 7, 'aide-init': 8 };
+        const items = document.querySelectorAll('.checklist div');
+        const idx = map[id];
+        if (idx !== undefined && items[idx]) { items[idx].className = 'done'; items[idx].textContent = items[idx].textContent.replace('[  ]', '[OK]'); }
+    }
+
+    function updateHintPanel() { const o = OBJECTIVES[state.currentObjective]; if (!o||!o.hints) return; ProgressiveHints.init('hintContainer', o.hints, { labId: `capstone-${o.id}`, onReveal: () => { state.hintsRevealed++; } }); }
+    function updateObjectiveList() { const l = document.getElementById('objectiveList'); l.innerHTML = ''; OBJECTIVES.forEach((o,i) => { const li = document.createElement('li'); li.className = 'objective-item'; const d = state.completed.has(o.id); const p = i===0||state.completed.has(OBJECTIVES[i-1].id); if(d) li.classList.add('completed'); else if(p) li.classList.add('active'); li.innerHTML = `<div class="check">${d?'&#10003;':i+1}</div><span>${o.task}</span>`; l.appendChild(li); }); }
+    function updateProgress() { const p = (state.completed.size/OBJECTIVES.length)*100; document.getElementById('progressFill').style.width = p+'%'; document.getElementById('progressText').textContent = `${state.completed.size}/${OBJECTIVES.length} Complete`; }
+    function showCompletionModal() { const e = Math.floor((Date.now()-state.startTime)/1000); document.getElementById('commandCount').textContent = state.commandCount; document.getElementById('timeElapsed').textContent = `${Math.floor(e/60)}:${(e%60).toString().padStart(2,'0')}`; document.getElementById('completionModal').classList.add('show'); saveProgress(); }
+    function resetMission() { document.getElementById('completionModal').classList.remove('show'); state.completed.clear(); state.commandCount=0; state.startTime=Date.now(); state.currentObjective=0; state.hintsRevealed=0; LinuxTerminal.destroy(); init(); }
+    function saveProgress() { const p = JSON.parse(localStorage.getItem('hexworth_progress')||'{}'); if(!p.shield) p.shield={}; p.shield['capstone-hardening']={completed:true,completedAt:new Date().toISOString(),commandCount:state.commandCount,timeElapsed:Math.floor((Date.now()-state.startTime)/1000)}; localStorage.setItem('hexworth_progress',JSON.stringify(p)); try{if(typeof GameTracker!=='undefined') GameTracker.record('shield_capstone_hardening',state.completed.size*10,{commands:state.commandCount});}catch(e){} }
+    function printBriefing() {
+        LinuxTerminal.print('<span style="color:#f87171;">===================================</span>');
+        LinuxTerminal.print('<span style="color:#f87171;">  CAPSTONE: FULL SERVER HARDENING</span>');
+        LinuxTerminal.print('<span style="color:#f87171;">===================================</span>');
+        LinuxTerminal.print('');
+        LinuxTerminal.print('<span style="color:#8b949e;">[PEN TEST] This server failed its security assessment.</span>');
+        LinuxTerminal.print('<span style="color:#8b949e;">[PEN TEST] 10 critical findings. 24 hours to remediate.</span>');
+        LinuxTerminal.print('');
+        LinuxTerminal.print('<span style="color:#ffa657;">Apply EVERYTHING you learned in Labs 1-7:</span>');
+        LinuxTerminal.print('<span style="color:#8b949e;">  Firewall | SSH | Sudo | Audit | Passwords</span>');
+        LinuxTerminal.print('<span style="color:#8b949e;">  Services | Permissions | Kernel | Integrity</span>');
+        LinuxTerminal.print('');
+        LinuxTerminal.print('Read <span style="color:#ffa657;">pentest-report.txt</span> for the full findings.');
+        LinuxTerminal.print('Read <span style="color:#ffa657;">hardening-checklist.txt</span> for the CIS checklist.');
+        LinuxTerminal.print('');
+    }
+    document.addEventListener('DOMContentLoaded', init);
+    </script>
+    <script src="../../../../components/GameTracker.js"></script>
+    <script src="../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>

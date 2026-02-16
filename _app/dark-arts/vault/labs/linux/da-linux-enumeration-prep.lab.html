@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Enumeration Workflow - Dark Arts Vault | Hexworth Prime</title>
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('dark-arts');</script>
+    <script src="../../../../components/LinuxTerminal.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', system-ui, sans-serif; background: linear-gradient(135deg, #0a0a0a 0%, #1a0a0a 50%, #0d0d0d 100%); color: #e0e0e0; min-height: 100vh; display: flex; flex-direction: column; }
+        .header { background: linear-gradient(135deg, rgba(220,38,38,0.1), rgba(153,27,27,0.05)); border-bottom: 1px solid rgba(220,38,38,0.3); padding: 15px 25px; display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; }
+        .header-left { display: flex; align-items: center; gap: 20px; }
+        .back-link { color: #888; text-decoration: none; font-size: 0.9rem; transition: color 0.3s; }
+        .back-link:hover { color: #dc2626; }
+        .header-badge { background: rgba(220,38,38,0.2); color: #fca5a5; padding: 4px 12px; border-radius: 20px; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.1em; }
+        .header h1 { font-size: 1.2rem; color: #dc2626; }
+        .main-container { display: grid; grid-template-columns: 1fr 360px; flex: 1; overflow: hidden; }
+        .terminal-panel { display: flex; flex-direction: column; border-right: 1px solid rgba(220,38,38,0.2); overflow: hidden; }
+        .task-prompt { background: rgba(0,0,0,0.3); padding: 20px 25px; border-bottom: 1px solid rgba(220,38,38,0.2); flex-shrink: 0; }
+        .task-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+        .task-number { background: #dc2626; color: #000; width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 0.85rem; }
+        .task-number.completed { background: #f87171; }
+        .task-number.skipped { background: #fbbf24; }
+        .task-question { font-size: 1.05rem; color: #fff; line-height: 1.5; }
+        .task-question code { background: rgba(220,38,38,0.2); padding: 2px 8px; border-radius: 4px; font-family: 'Courier New', monospace; color: #fca5a5; }
+        .task-hint { font-size: 0.85rem; color: #666; margin-top: 10px; font-style: italic; display: none; }
+        .task-hint.show { display: block; color: #fbbf24; }
+        .terminal-container { flex: 1; min-height: 0; }
+        .feedback-bar { background: rgba(0,0,0,0.4); padding: 12px 25px; border-top: 1px solid rgba(220,38,38,0.2); display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; }
+        .feedback-message { font-size: 0.9rem; color: #888; }
+        .feedback-message.success { color: #f87171; }
+        .skip-btn { background: transparent; color: #666; border: 1px solid rgba(255,255,255,0.1); padding: 8px 16px; border-radius: 6px; font-size: 0.85rem; cursor: pointer; transition: all 0.2s; }
+        .skip-btn:hover { background: rgba(251,191,36,0.1); border-color: rgba(251,191,36,0.3); color: #fbbf24; }
+        .skip-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .progress-panel { background: rgba(10,5,5,0.95); padding: 20px; overflow-y: auto; }
+        .progress-panel h2 { color: #dc2626; font-size: 1.1rem; margin-bottom: 15px; padding-bottom: 10px; border-bottom: 1px solid rgba(220,38,38,0.3); }
+        .ethical-warning { background: linear-gradient(135deg, rgba(220,38,38,0.15), rgba(153,27,27,0.1)); border: 1px solid rgba(220,38,38,0.4); border-radius: 8px; padding: 12px 16px; margin-bottom: 15px; }
+        .ethical-warning-label { font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: #dc2626; margin-bottom: 4px; }
+        .ethical-warning-text { font-size: 0.8rem; color: #fca5a5; line-height: 1.4; }
+        .context-callout { background: rgba(220,38,38,0.08); border-left: 3px solid #dc2626; padding: 12px 16px; margin: 10px 0 15px; border-radius: 0 8px 8px 0; }
+        .context-callout-label { font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: #dc2626; margin-bottom: 4px; }
+        .context-callout-text { font-size: 0.85rem; color: #9ca3af; line-height: 1.5; }
+        .workflow-phase { background: rgba(220,38,38,0.05); border: 1px solid rgba(220,38,38,0.2); border-radius: 8px; padding: 12px; margin-bottom: 10px; }
+        .workflow-phase-title { font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: #dc2626; margin-bottom: 6px; }
+        .workflow-phase-desc { font-size: 0.8rem; color: #888; line-height: 1.4; }
+        .workflow-phase.active { border-color: #dc2626; background: rgba(220,38,38,0.1); }
+        .workflow-phase.active .workflow-phase-desc { color: #e0e0e0; }
+        .workflow-phase.completed { border-color: #f87171; }
+        .workflow-phase.completed .workflow-phase-title { color: #f87171; }
+        .defender-box { background: rgba(59,130,246,0.08); border: 1px solid rgba(59,130,246,0.3); border-radius: 8px; padding: 12px; margin-top: 15px; }
+        .defender-box-title { font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: #3b82f6; margin-bottom: 4px; }
+        .defender-box-text { font-size: 0.78rem; color: #93c5fd; line-height: 1.4; }
+        .progress-bar { background: rgba(255,255,255,0.1); border-radius: 8px; height: 8px; overflow: hidden; margin: 15px 0; }
+        .progress-fill { height: 100%; background: linear-gradient(90deg, #dc2626, #f87171); border-radius: 8px; transition: width 0.5s ease; width: 0%; }
+        .progress-text { display: flex; justify-content: space-between; color: #888; font-size: 0.85rem; margin-bottom: 15px; }
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.9); justify-content: center; align-items: center; z-index: 1000; }
+        .modal-overlay.show { display: flex; }
+        .modal { background: linear-gradient(135deg, #0d0d0d, #1a0a0a); border: 2px solid #dc2626; border-radius: 16px; padding: 40px; text-align: center; max-width: 500px; animation: modalIn 0.3s ease; }
+        @keyframes modalIn { from { transform: scale(0.9); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+        .modal .trophy { font-size: 4rem; margin-bottom: 15px; }
+        .modal h2 { color: #dc2626; font-size: 1.6rem; margin-bottom: 10px; }
+        .modal.perfect h2 { color: #f87171; }
+        .modal p { color: #8b949e; margin-bottom: 20px; line-height: 1.6; }
+        .modal .stats { display: flex; justify-content: center; gap: 30px; margin-bottom: 25px; }
+        .modal .stat { text-align: center; }
+        .modal .stat-value { font-size: 2rem; font-weight: bold; color: #fff; }
+        .modal .stat-value.correct { color: #f87171; }
+        .modal .stat-value.skipped { color: #fbbf24; }
+        .modal .stat-label { font-size: 0.85rem; color: #888; margin-top: 5px; }
+        .modal-buttons { display: flex; gap: 15px; justify-content: center; }
+        .modal-btn { padding: 12px 24px; border: none; border-radius: 8px; cursor: pointer; font-family: inherit; font-size: 0.9rem; transition: all 0.3s; text-decoration: none; }
+        .modal-btn.primary { background: linear-gradient(135deg, #dc2626, #f87171); color: #fff; font-weight: 600; }
+        .modal-btn.primary:hover { box-shadow: 0 0 20px rgba(220,38,38,0.5); }
+        .modal-btn.secondary { background: rgba(255,255,255,0.1); color: #e0e0e0; border: 1px solid rgba(255,255,255,0.2); }
+        @media (max-width: 900px) { .main-container { grid-template-columns: 1fr; } .progress-panel { display: none; } }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="header-left">
+            <a href="../../index.html" class="back-link">&larr; Dark Arts Vault</a>
+            <span class="header-badge">Prep Lab</span>
+            <h1>Enumeration Workflow</h1>
+        </div>
+    </div>
+    <div class="main-container">
+        <div class="terminal-panel">
+            <div class="task-prompt">
+                <div class="task-header">
+                    <div class="task-number" id="taskNumber">1</div>
+                    <span style="color:#888;font-size:0.85rem;">Phase <span id="currentTaskNum">1</span> of <span id="totalTasks">8</span></span>
+                </div>
+                <div class="task-question" id="taskQuestion">Loading...</div>
+                <div class="task-hint" id="taskHint"></div>
+            </div>
+            <div class="terminal-container" id="terminal"></div>
+            <div class="feedback-bar">
+                <div class="feedback-message" id="feedbackMessage">Follow the enumeration workflow...</div>
+                <button class="skip-btn" id="skipBtn" onclick="skipTask()">Skip Phase</button>
+            </div>
+        </div>
+        <div class="progress-panel">
+            <h2>ENUMERATION METHODOLOGY</h2>
+            <div class="ethical-warning">
+                <div class="ethical-warning-label">Authorized Pentest Only</div>
+                <div class="ethical-warning-text">This workflow simulates an authorized penetration test. Never enumerate targets without written permission.</div>
+            </div>
+            <div class="context-callout">
+                <div class="context-callout-label">Mission Briefing</div>
+                <div class="context-callout-text">Initech Corp has engaged you for a full internal pentest. Target: 10.10.10.50. Follow the standard enumeration methodology from discovery through vulnerability identification.</div>
+            </div>
+            <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+            <div class="progress-text">
+                <span><span id="completedCount">0</span> / <span id="totalPhases">8</span> phases</span>
+                <span id="progressPercent">0%</span>
+            </div>
+            <div id="workflowPhases"></div>
+            <div class="defender-box" id="defenderBox" style="display:none;">
+                <div class="defender-box-title">Defender's Perspective</div>
+                <div class="defender-box-text" id="defenderText"></div>
+            </div>
+        </div>
+    </div>
+    <div class="modal-overlay" id="resultsModal">
+        <div class="modal" id="modalContent">
+            <div class="trophy" id="resultsIcon">&#127942;</div>
+            <h2 id="resultsTitle">Enumeration Complete!</h2>
+            <p id="resultsMessage">Target fully mapped.</p>
+            <div class="stats">
+                <div class="stat"><div class="stat-value correct" id="correctCount">0</div><div class="stat-label">Completed</div></div>
+                <div class="stat"><div class="stat-value skipped" id="skippedCount">0</div><div class="stat-label">Skipped</div></div>
+            </div>
+            <div class="modal-buttons">
+                <button class="modal-btn primary" onclick="restartLab()">Restart</button>
+                <a href="../../index.html" class="modal-btn secondary">Back to Vault</a>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    // ================================================================
+    // ENUMERATION WORKFLOW PREP LAB
+    // Guided: Target -> Scan -> Services -> Versions -> Vulns
+    // ================================================================
+
+    const TARGET = '10.10.10.50';
+
+    const RESPONSES = {
+        ping: `PING 10.10.10.50 (10.10.10.50) 56(84) bytes of data.\n64 bytes from 10.10.10.50: icmp_seq=1 ttl=64 time=2.3 ms\n64 bytes from 10.10.10.50: icmp_seq=2 ttl=64 time=1.8 ms\n64 bytes from 10.10.10.50: icmp_seq=3 ttl=64 time=2.1 ms\n--- 10.10.10.50 ping statistics ---\n3 packets transmitted, 3 received, 0% packet loss`,
+        portscan: `Starting Nmap 7.94\nNmap scan report for 10.10.10.50\nHost is up (0.0028s latency).\nNot shown: 993 closed tcp ports\nPORT     STATE SERVICE\n21/tcp   open  ftp\n22/tcp   open  ssh\n80/tcp   open  http\n139/tcp  open  netbios-ssn\n443/tcp  open  https\n445/tcp  open  microsoft-ds\n3306/tcp open  mysql\n\nNmap done: 1 IP address (1 host up) scanned in 3.45 seconds`,
+        version: `Starting Nmap 7.94\nPORT     STATE SERVICE       VERSION\n21/tcp   open  ftp           vsftpd 2.3.4\n22/tcp   open  ssh           OpenSSH 7.2p2 Ubuntu 4ubuntu2.8\n80/tcp   open  http          Apache httpd 2.4.18 ((Ubuntu))\n139/tcp  open  netbios-ssn   Samba smbd 3.X - 4.X\n443/tcp  open  ssl/http      Apache httpd 2.4.18\n445/tcp  open  microsoft-ds  Samba smbd 4.3.11-Ubuntu\n3306/tcp open  mysql         MySQL 5.7.25\n\nService detection performed.`,
+        scripts: `Starting Nmap 7.94 (NSE)\nPORT     STATE SERVICE\n21/tcp   open  ftp\n| ftp-anon: Anonymous FTP login allowed (FTP code 230)\n|_drwxr-xr-x  2 0 0  4096 Feb 10 backup\n22/tcp   open  ssh\n| ssh-hostkey: 2048 aa:bb:cc:dd (RSA)\n80/tcp   open  http\n|_http-title: Initech Employee Portal\n| http-methods: GET, POST, OPTIONS\n445/tcp  open  microsoft-ds\n| smb-os-discovery: OS: Ubuntu 16.04 (Samba 4.3.11)\n| smb-security-mode: account_used: guest, message_signing: disabled\n3306/tcp open  mysql\n| mysql-info: Protocol: 10, Version: 5.7.25\n|_  Salt: <redacted>`,
+        smbenum: `[+] Finding open SMB ports on 10.10.10.50\n[+] 445/tcp open  microsoft-ds\n[+] Enumerating Shares:\n    ADMIN$ - Remote Admin (requires auth)\n    C$ - Default share (requires auth)\n    IPC$ - Remote IPC\n    public - Public Files (READ)\n    backup - Backup Share (READ/WRITE)\n[+] Enumerating Users:\n    administrator, jsmith, bkumar, sthompson\n[+] Enumerating Groups:\n    Domain Admins, IT Staff, HR, Finance`,
+        dirscan: `[09:15:00] Starting: http://10.10.10.50/\n[09:15:01] 200 - 2KB  - /index.html\n[09:15:01] 301 - 0B   - /admin -> /admin/\n[09:15:02] 200 - 1KB  - /admin/login.php\n[09:15:03] 200 - 15KB - /uploads/\n[09:15:04] 200 - 3KB  - /api/v1/\n[09:15:05] 200 - 0B   - /robots.txt\n[09:15:06] 403 - 0B   - /server-status\n[09:15:07] 200 - 5KB  - /phpmyadmin/\n\nFound: 8 paths (5 accessible, 1 redirect, 1 forbidden, 1 empty)`,
+        vulnscan: `Starting Nmap 7.94 -- vuln scripts\nPORT     STATE SERVICE\n21/tcp   open  ftp\n| VULNERABLE:\n|   vsFTPd version 2.3.4 backdoor\n|     State: VULNERABLE (Exploitable)\n|     IDs: CVE-2011-2523\n|     Risk: CRITICAL\n80/tcp   open  http\n|   Apache 2.4.18 - mod_cgi path traversal\n|     State: LIKELY VULNERABLE\n|     IDs: CVE-2021-41773\n|     Risk: HIGH\n445/tcp  open  microsoft-ds\n|   Samba 4.3.11 - RCE via writable share\n|     State: VULNERABLE\n|     IDs: CVE-2017-7494 (SambaCry)\n|     Risk: CRITICAL`,
+        summary: `=== ENUMERATION SUMMARY ===\nTarget: 10.10.10.50\nOS: Ubuntu 16.04 LTS\nServices: 7 (FTP, SSH, HTTP, HTTPS, SMB, MySQL)\n\nCRITICAL FINDINGS:\n  [!] vsftpd 2.3.4 backdoor (CVE-2011-2523)\n  [!] SambaCry RCE (CVE-2017-7494)\n  [!] Anonymous FTP with backup directory\n  [!] SMB guest access with writable share\n\nHIGH FINDINGS:\n  [!] Apache path traversal (CVE-2021-41773)\n  [!] phpMyAdmin exposed on port 80\n  [!] SMB signing disabled\n\nRECOMMENDED ATTACK PATH:\n  1. vsftpd backdoor -> shell\n  2. SambaCry -> shell\n  3. Anonymous FTP -> data exfil\n  4. phpMyAdmin -> DB access`
+    };
+
+    const TASKS = [
+        {
+            id: 1, phase: 'Host Discovery',
+            question: `Phase 1: Verify the target is alive. <code>ping</code> the target ${TARGET} to confirm connectivity.`,
+            validate: (cmd) => cmd.includes('ping') && cmd.includes(TARGET),
+            hint: `ping -c 3 ${TARGET}`,
+            response: RESPONSES.ping,
+            successMessage: 'Target is alive. TTL=64 suggests Linux. 3/3 packets = reliable connection.',
+            defender: 'Block ICMP at the perimeter to prevent ping sweeps. Use host-based firewalls to limit who can reach each server.'
+        },
+        {
+            id: 2, phase: 'Port Scanning',
+            question: `Phase 2: Scan for open ports. Run a <code>SYN scan</code> (-sS) against ${TARGET} to find open services.`,
+            validate: (cmd) => cmd.includes('nmap') && cmd.includes('-sS') && cmd.includes(TARGET),
+            hint: `nmap -sS ${TARGET}`,
+            response: RESPONSES.portscan,
+            successMessage: '7 open ports found: FTP, SSH, HTTP, HTTPS, SMB, MySQL. Large attack surface.',
+            defender: 'Minimize open ports. Each open port is an attack vector. Use firewall rules to restrict access to only required services.'
+        },
+        {
+            id: 3, phase: 'Service Detection',
+            question: `Phase 3: Identify service versions. Run <code>version detection</code> (-sV) on ${TARGET}.`,
+            validate: (cmd) => cmd.includes('nmap') && cmd.includes('-sV') && cmd.includes(TARGET),
+            hint: `nmap -sV ${TARGET}`,
+            response: RESPONSES.version,
+            successMessage: 'Exact versions revealed: vsftpd 2.3.4, OpenSSH 7.2p2, Apache 2.4.18, Samba 4.3.11, MySQL 5.7.25. All outdated.',
+            defender: 'Keep all services updated. Change default banners. Version info helps attackers find exact CVEs to exploit.'
+        },
+        {
+            id: 4, phase: 'Script Scanning',
+            question: `Phase 4: Run NSE default scripts (-sC) for deeper enumeration on ${TARGET}.`,
+            validate: (cmd) => cmd.includes('nmap') && (cmd.includes('-sC') || cmd.includes('--script')) && cmd.includes(TARGET),
+            hint: `nmap -sC ${TARGET}`,
+            response: RESPONSES.scripts,
+            successMessage: 'NSE scripts found: anonymous FTP, SSH keys, HTTP title, SMB guest access, MySQL protocol info. Treasure trove.',
+            defender: 'Disable anonymous FTP. Require SMB signing. Remove default pages. Restrict MySQL to localhost only.'
+        },
+        {
+            id: 5, phase: 'SMB Enumeration',
+            question: `Phase 5: Enumerate SMB shares and users. Run <code>enum4linux</code> against ${TARGET}.`,
+            validate: (cmd) => cmd.includes('enum4linux') && cmd.includes(TARGET),
+            hint: `enum4linux ${TARGET}`,
+            response: RESPONSES.smbenum,
+            successMessage: 'SMB enum found: 2 readable shares, 4 usernames, group info. Attackers now have usernames for brute force.',
+            defender: 'Disable null sessions. Require authentication for share enumeration. Use unique passwords per service account.'
+        },
+        {
+            id: 6, phase: 'Web Directory Scan',
+            question: `Phase 6: Enumerate web directories. Run <code>gobuster</code> or <code>dirb</code> against http://${TARGET}/`,
+            validate: (cmd) => (cmd.includes('gobuster') || cmd.includes('dirb') || cmd.includes('dirsearch') || cmd.includes('ffuf')) && cmd.includes(TARGET),
+            hint: `gobuster dir -u http://${TARGET}/ -w /usr/share/wordlists/dirb/common.txt`,
+            response: RESPONSES.dirscan,
+            successMessage: 'Web enum found: admin panel, upload dir, API endpoint, phpMyAdmin. Multiple attack vectors on port 80.',
+            defender: 'Remove admin panels from public access. Use WAF to detect directory brute forcing. Return 404 instead of 403 for hidden paths.'
+        },
+        {
+            id: 7, phase: 'Vulnerability Scanning',
+            question: `Phase 7: Scan for known vulnerabilities. Run nmap vuln scripts against ${TARGET}.`,
+            validate: (cmd) => cmd.includes('nmap') && cmd.includes('vuln') && cmd.includes(TARGET),
+            hint: `nmap --script vuln ${TARGET}`,
+            response: RESPONSES.vulnscan,
+            successMessage: '2 CRITICAL vulns (vsftpd backdoor, SambaCry), 1 HIGH (Apache path traversal). Multiple exploit paths available.',
+            defender: 'Run your own vulnerability scans regularly. Patch critical CVEs within 24 hours. The vsftpd backdoor has been known since 2011.'
+        },
+        {
+            id: 8, phase: 'Summary Report',
+            question: `Phase 8: Generate an enumeration summary. Type <code>cat report.txt</code> to review findings.`,
+            validate: (cmd) => cmd.includes('cat') && cmd.includes('report'),
+            hint: 'cat report.txt',
+            response: RESPONSES.summary,
+            successMessage: 'Enumeration complete. Full target profile built: OS, services, vulns, and recommended attack paths.',
+            defender: 'This is what attackers build about YOUR network. Run red team exercises. If a pentester finds this much, so will a real attacker.'
+        }
+    ];
+
+    const state = { currentTask: 0, results: {}, attempts: {} };
+
+    function init() {
+        LinuxTerminal.init('DA-PREP-ENUM', '#terminal', {
+            user: 'pentester', hostname: 'kali-ops', startDir: '/home/pentester', height: '100%',
+            onCommand: handleCommand
+        });
+        LinuxTerminal.addFilesystem({
+            '/home/pentester': { type: 'dir', perms: 'drwxr-xr-x', owner: 'pentester', group: 'pentester', children: ['engagement', 'report.txt', '.bashrc'] },
+            '/home/pentester/engagement': { type: 'dir', perms: 'drwxr-xr-x', owner: 'pentester', group: 'pentester', children: ['scope.txt', 'roe.pdf'] },
+            '/home/pentester/engagement/scope.txt': { type: 'file', perms: '-rw-r--r--', owner: 'pentester', group: 'pentester', size: 128, content: 'Target: 10.10.10.50\nScope: Internal Pentest\nPhase: Enumeration\n' },
+            '/home/pentester/report.txt': { type: 'file', perms: '-rw-r--r--', owner: 'pentester', group: 'pentester', size: 1024, content: RESPONSES.summary }
+        });
+        buildWorkflowPhases();
+        showTask(0);
+        document.getElementById('totalPhases').textContent = TASKS.length;
+        document.getElementById('totalTasks').textContent = TASKS.length;
+    }
+
+    function buildWorkflowPhases() {
+        const container = document.getElementById('workflowPhases');
+        container.innerHTML = TASKS.map((t, i) => `
+            <div class="workflow-phase${i === 0 ? ' active' : ''}" data-phase="${i}">
+                <div class="workflow-phase-title">${i + 1}. ${t.phase}</div>
+                <div class="workflow-phase-desc">${t.question.replace(/<[^>]+>/g, '').substring(0, 60)}...</div>
+            </div>
+        `).join('');
+    }
+
+    function showTask(index) {
+        const task = TASKS[index];
+        state.currentTask = index;
+        state.attempts[index] = 0;
+        document.getElementById('taskNumber').textContent = index + 1;
+        document.getElementById('taskNumber').className = 'task-number';
+        document.getElementById('currentTaskNum').textContent = index + 1;
+        document.getElementById('taskQuestion').innerHTML = task.question;
+        document.getElementById('taskHint').textContent = 'Hint: ' + task.hint;
+        document.getElementById('taskHint').classList.remove('show');
+        document.getElementById('feedbackMessage').textContent = 'Execute the enumeration phase...';
+        document.getElementById('feedbackMessage').className = 'feedback-message';
+        document.getElementById('skipBtn').disabled = false;
+        document.querySelectorAll('.workflow-phase').forEach((el, i) => {
+            el.classList.remove('active');
+            if (i === index && !state.results[i]) el.classList.add('active');
+        });
+        LinuxTerminal.print(`\n<span style="color:#dc2626;">--- Phase ${index + 1}: ${task.phase} ---</span>`);
+    }
+
+    function handleCommand(cmdLine, output, cmd, args) {
+        const task = TASKS[state.currentTask];
+        state.attempts[state.currentTask] = (state.attempts[state.currentTask] || 0) + 1;
+        const cleanCmd = cmdLine.trim().replace(/^sudo\s+/, '');
+
+        if (task.validate(cleanCmd)) {
+            LinuxTerminal.print(`<span style="color:#aaa;">${task.response}</span>`);
+            LinuxTerminal.print(`\n<span style="color:#f87171;">${task.successMessage}</span>`);
+            document.getElementById('feedbackMessage').textContent = task.successMessage;
+            document.getElementById('feedbackMessage').className = 'feedback-message success';
+            state.results[state.currentTask] = 'correct';
+            document.querySelector(`.workflow-phase[data-phase="${state.currentTask}"]`).classList.add('completed');
+            document.querySelector(`.workflow-phase[data-phase="${state.currentTask}"]`).classList.remove('active');
+            document.getElementById('taskNumber').classList.add('completed');
+            document.getElementById('skipBtn').disabled = true;
+            // Show defender perspective
+            document.getElementById('defenderBox').style.display = 'block';
+            document.getElementById('defenderText').textContent = task.defender;
+            updateProgress();
+            setTimeout(() => advanceTask(), 2000);
+        } else if (cleanCmd && !['clear','help','ls','cat','cd','pwd'].includes(cmd) && !(task.id === 8 && cmd === 'cat')) {
+            LinuxTerminal.print('<span class="lt-error">Not the right command for this phase. Read the task carefully.</span>');
+            if (state.attempts[state.currentTask] >= 3) document.getElementById('taskHint').classList.add('show');
+        }
+    }
+
+    function skipTask() {
+        state.results[state.currentTask] = 'skipped';
+        const phase = document.querySelector(`.workflow-phase[data-phase="${state.currentTask}"]`);
+        phase.classList.remove('active');
+        phase.style.opacity = '0.5';
+        document.getElementById('taskNumber').classList.add('skipped');
+        document.getElementById('skipBtn').disabled = true;
+        document.getElementById('feedbackMessage').innerHTML = `<strong>Skipped.</strong> Command: <code style="background:rgba(251,191,36,0.2);padding:2px 6px;border-radius:4px;">${TASKS[state.currentTask].hint}</code>`;
+        updateProgress();
+        setTimeout(() => advanceTask(), 800);
+    }
+
+    function advanceTask() { if (state.currentTask >= TASKS.length - 1) { showResults(); return; } showTask(state.currentTask + 1); }
+
+    function updateProgress() {
+        const completed = Object.keys(state.results).length;
+        const correct = Object.values(state.results).filter(r => r === 'correct').length;
+        const percent = Math.round((completed / TASKS.length) * 100);
+        document.getElementById('progressFill').style.width = percent + '%';
+        document.getElementById('completedCount').textContent = correct;
+        document.getElementById('progressPercent').textContent = percent + '%';
+    }
+
+    function showResults() {
+        const correct = Object.values(state.results).filter(r => r === 'correct').length;
+        const skipped = Object.values(state.results).filter(r => r === 'skipped').length;
+        document.getElementById('correctCount').textContent = correct;
+        document.getElementById('skippedCount').textContent = skipped;
+        const modal = document.getElementById('modalContent'); modal.classList.remove('perfect');
+        if (correct === TASKS.length) { modal.classList.add('perfect'); document.getElementById('resultsIcon').textContent = String.fromCodePoint(0x1F480); document.getElementById('resultsTitle').textContent = 'Full Enumeration'; document.getElementById('resultsMessage').textContent = 'Every phase executed. You own the methodology.'; }
+        else { document.getElementById('resultsIcon').textContent = String.fromCodePoint(0x1F525); document.getElementById('resultsTitle').textContent = 'Workflow Practiced'; document.getElementById('resultsMessage').textContent = `${correct}/${TASKS.length} phases completed. Redo to build muscle memory.`; }
+        document.getElementById('resultsModal').classList.add('show');
+        try { if (typeof GameTracker !== 'undefined') GameTracker.record('da_enum_prep', correct * 12, { correct, skipped, total: TASKS.length }); } catch(e) {}
+        try { if (typeof ProgressManager !== 'undefined') ProgressManager.completeModule('da-linux-enumeration', 'dark-arts', 'lab', { score: Math.round((correct / TASKS.length) * 100) }); } catch(e) {}
+    }
+
+    function restartLab() {
+        document.getElementById('resultsModal').classList.remove('show');
+        state.currentTask = 0; state.results = {}; state.attempts = {};
+        document.getElementById('defenderBox').style.display = 'none';
+        LinuxTerminal.destroy(); init();
+    }
+
+    document.addEventListener('DOMContentLoaded', init);
+    </script>
+    <script src="../../../../components/ProgressiveHints.js"></script>
+    <script src="../../../../components/GameTracker.js"></script>
+    <script src="../../../../components/FluxCapacitor.js"></script>
+    <script src="../../../../components/ProgressManager.js"></script>
+</body>
+</html>
