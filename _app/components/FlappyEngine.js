@@ -187,6 +187,7 @@ window.FlappyEngine = (function () {
             gapSize: gapSize,
             width: 52,
             scored: false,
+            wasOverlapping: false,
             // Random decoration text for themed pipes
             label: config.pipes.labels ? config.pipes.labels[Math.floor(Math.random() * config.pipes.labels.length)] : ''
         });
@@ -215,23 +216,39 @@ window.FlappyEngine = (function () {
         const bh = config.character.height;
         const bx = bird.x - bw / 2;
         const by = bird.y - bh / 2;
-        const groundY = H - GROUND_H - bh / 2;
 
-        // On the ground = safe (bottom pipes extend to ground, so skip check)
-        if (bird.y >= groundY) return false;
-
-        // Pipes — crashing into obstacles is what kills you
         for (let i = 0; i < pipes.length; i++) {
             const p = pipes[i];
             const pLeft = p.x;
             const pRight = p.x + p.width;
+            const isOverlapping = (bx + bw > pLeft && bx < pRight);
 
-            if (bx + bw > pLeft && bx < pRight) {
-                // Top pipe
-                if (by < p.gapY) return true;
-                // Bottom pipe
-                if (by + bh > p.gapY + p.gapSize) return true;
+            if (isOverlapping) {
+                const inTopPipe = (by < p.gapY);
+                const inBottomPipe = (by + bh > p.gapY + p.gapSize);
+
+                if (!p.wasOverlapping && (inTopPipe || inBottomPipe)) {
+                    // Just entered pipe's x-range while in pipe zone = side crash
+                    p.wasOverlapping = true;
+                    return true;
+                }
+
+                if (p.wasOverlapping || (!inTopPipe && !inBottomPipe)) {
+                    // Already inside pipe's x-range — treat as surfaces
+                    if (inBottomPipe) {
+                        // Land on top of bottom pipe
+                        bird.y = p.gapY + p.gapSize - bh / 2;
+                        bird.vy = 0;
+                    }
+                    if (inTopPipe) {
+                        // Bonk off bottom of top pipe
+                        bird.y = p.gapY + bh / 2;
+                        if (bird.vy < 0) bird.vy = 0;
+                    }
+                }
             }
+
+            p.wasOverlapping = isOverlapping;
         }
         return false;
     }
