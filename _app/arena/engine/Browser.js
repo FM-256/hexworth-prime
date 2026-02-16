@@ -1,0 +1,298 @@
+/* ============================================================
+   CTF ARENA — Browser.js
+   Web browser simulator with URL bar, navigation, form handling
+   ============================================================ */
+
+const ArenaBrowser = {
+    _instances: [],
+
+    init(container, config, engine) {
+        const browser = new BrowserInstance(container, config, engine);
+        this._instances.push(browser);
+        return browser;
+    }
+};
+
+class BrowserInstance {
+    constructor(container, config, engine) {
+        this.config = config;
+        this.engine = engine;
+        this.webApp = config.webApp || {};
+        this.historyStack = [];
+        this.historyIndex = -1;
+
+        this._build(container);
+
+        // Navigate to start URL
+        const startUrl = this.webApp.startUrl || Object.keys(this.webApp.pages || {})[0] || '/';
+        this.navigate(startUrl);
+    }
+
+    // ────────────────────────────────────────────────
+    // BUILD UI
+    // ────────────────────────────────────────────────
+
+    _build(container) {
+        // Toolbar
+        const toolbar = document.createElement('div');
+        toolbar.className = 'browser-toolbar';
+
+        // Nav buttons
+        const navBtns = document.createElement('div');
+        navBtns.className = 'browser-nav-btns';
+
+        this.backBtn = document.createElement('button');
+        this.backBtn.className = 'browser-nav-btn';
+        this.backBtn.innerHTML = '&#9664;';
+        this.backBtn.title = 'Back';
+        this.backBtn.disabled = true;
+        this.backBtn.addEventListener('click', () => this.goBack());
+
+        this.fwdBtn = document.createElement('button');
+        this.fwdBtn.className = 'browser-nav-btn';
+        this.fwdBtn.innerHTML = '&#9654;';
+        this.fwdBtn.title = 'Forward';
+        this.fwdBtn.disabled = true;
+        this.fwdBtn.addEventListener('click', () => this.goForward());
+
+        navBtns.appendChild(this.backBtn);
+        navBtns.appendChild(this.fwdBtn);
+
+        // URL bar
+        const urlBar = document.createElement('div');
+        urlBar.className = 'browser-url-bar';
+
+        const urlIcon = document.createElement('span');
+        urlIcon.className = 'url-icon';
+        urlIcon.textContent = '\uD83D\uDD12';
+
+        this.urlInput = document.createElement('input');
+        this.urlInput.type = 'text';
+        this.urlInput.value = '';
+        this.urlInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') this.navigate(this.urlInput.value);
+        });
+
+        urlBar.appendChild(urlIcon);
+        urlBar.appendChild(this.urlInput);
+
+        // Go button
+        const goBtn = document.createElement('button');
+        goBtn.className = 'browser-go-btn';
+        goBtn.textContent = 'Go';
+        goBtn.addEventListener('click', () => this.navigate(this.urlInput.value));
+
+        toolbar.appendChild(navBtns);
+        toolbar.appendChild(urlBar);
+        toolbar.appendChild(goBtn);
+
+        // Page area
+        this.pageEl = document.createElement('div');
+        this.pageEl.className = 'browser-page';
+
+        // Loading indicator
+        this.loadingEl = document.createElement('div');
+        this.loadingEl.className = 'browser-loading';
+        this.loadingEl.textContent = 'Loading...';
+
+        container.appendChild(toolbar);
+        container.appendChild(this.loadingEl);
+        container.appendChild(this.pageEl);
+    }
+
+    // ────────────────────────────────────────────────
+    // NAVIGATION
+    // ────────────────────────────────────────────────
+
+    navigate(url, pushHistory = true) {
+        url = url.trim();
+        // Normalize URL — strip protocol+host for matching
+        const pathMatch = url.match(/^(?:https?:\/\/[^/]+)?(\/.*)$/);
+        const path = pathMatch ? pathMatch[1] : url;
+
+        this.urlInput.value = url;
+
+        // Show loading briefly
+        this.loadingEl.classList.add('active');
+        this.pageEl.style.opacity = '0.3';
+
+        setTimeout(() => {
+            this.loadingEl.classList.remove('active');
+            this.pageEl.style.opacity = '1';
+            this._renderPage(path, url);
+        }, 200 + Math.random() * 200);
+
+        // History management
+        if (pushHistory) {
+            // Truncate forward history
+            if (this.historyIndex < this.historyStack.length - 1) {
+                this.historyStack = this.historyStack.slice(0, this.historyIndex + 1);
+            }
+            this.historyStack.push(url);
+            this.historyIndex = this.historyStack.length - 1;
+        }
+
+        this._updateNavButtons();
+    }
+
+    goBack() {
+        if (this.historyIndex > 0) {
+            this.historyIndex--;
+            this.navigate(this.historyStack[this.historyIndex], false);
+        }
+    }
+
+    goForward() {
+        if (this.historyIndex < this.historyStack.length - 1) {
+            this.historyIndex++;
+            this.navigate(this.historyStack[this.historyIndex], false);
+        }
+    }
+
+    _updateNavButtons() {
+        this.backBtn.disabled = this.historyIndex <= 0;
+        this.fwdBtn.disabled = this.historyIndex >= this.historyStack.length - 1;
+    }
+
+    // ────────────────────────────────────────────────
+    // PAGE RENDERING
+    // ────────────────────────────────────────────────
+
+    _renderPage(path, fullUrl) {
+        const pages = this.webApp.pages || {};
+
+        // Try exact match first, then strip query string
+        let pageDef = pages[path];
+        let queryString = '';
+
+        if (!pageDef) {
+            const qIdx = path.indexOf('?');
+            if (qIdx !== -1) {
+                queryString = path.slice(qIdx + 1);
+                const basePath = path.slice(0, qIdx);
+                pageDef = pages[basePath];
+            }
+        }
+
+        if (!pageDef) {
+            this._render404(path);
+            return;
+        }
+
+        // Set page title
+        if (pageDef.title) {
+            // Could update window title
+        }
+
+        // Render HTML content
+        this.pageEl.innerHTML = '';
+        const wrapper = document.createElement('div');
+        wrapper.className = 'webapp';
+
+        if (typeof pageDef.html === 'function') {
+            wrapper.innerHTML = pageDef.html(queryString, this);
+        } else {
+            wrapper.innerHTML = pageDef.html || '';
+        }
+
+        this.pageEl.appendChild(wrapper);
+
+        // Wire up forms
+        this._wireFormHandlers(wrapper, pageDef);
+
+        // Wire up links
+        this._wireLinks(wrapper);
+
+        // Auto-process query string if there's a formHandler
+        if (queryString && pageDef.formHandler) {
+            const params = this._parseQueryString(queryString);
+            this._handleFormSubmission(pageDef, params, wrapper);
+        }
+    }
+
+    _render404(path) {
+        this.pageEl.innerHTML = `
+            <div class="webapp" style="text-align:center; padding:60px; color:#888;">
+                <h2 style="color:#e74c3c; margin-bottom:8px;">404 Not Found</h2>
+                <p>The requested URL <code>${this._escHtml(path)}</code> was not found on this server.</p>
+            </div>
+        `;
+    }
+
+    _wireFormHandlers(wrapper, pageDef) {
+        const forms = wrapper.querySelectorAll('form');
+        forms.forEach(form => {
+            form.addEventListener('submit', (e) => {
+                e.preventDefault();
+                const formData = {};
+                const inputs = form.querySelectorAll('input, select, textarea');
+                inputs.forEach(input => {
+                    if (input.name) formData[input.name] = input.value;
+                });
+
+                if (pageDef.formHandler) {
+                    this._handleFormSubmission(pageDef, formData, wrapper);
+                }
+            });
+        });
+
+        // Also wire up buttons with data-action="search" or similar
+        const searchBtns = wrapper.querySelectorAll('[data-action="search"]');
+        searchBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                const input = wrapper.querySelector('[data-field="search"]');
+                if (input && pageDef.formHandler) {
+                    this._handleFormSubmission(pageDef, { q: input.value }, wrapper);
+                }
+            });
+        });
+
+        // Wire up search input enter key
+        const searchInputs = wrapper.querySelectorAll('[data-field="search"]');
+        searchInputs.forEach(input => {
+            input.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' && pageDef.formHandler) {
+                    this._handleFormSubmission(pageDef, { q: input.value }, wrapper);
+                }
+            });
+            // Auto-focus
+            setTimeout(() => input.focus(), 100);
+        });
+    }
+
+    _handleFormSubmission(pageDef, formData, wrapper) {
+        const resultHtml = pageDef.formHandler(formData, this.engine);
+        const resultsArea = wrapper.querySelector('[data-results]');
+        if (resultsArea) {
+            resultsArea.innerHTML = resultHtml;
+        }
+    }
+
+    _wireLinks(wrapper) {
+        const links = wrapper.querySelectorAll('a[href]');
+        links.forEach(link => {
+            link.addEventListener('click', (e) => {
+                const href = link.getAttribute('href');
+                if (href && !href.startsWith('#') && !href.startsWith('javascript:')) {
+                    e.preventDefault();
+                    this.navigate(href);
+                }
+            });
+        });
+    }
+
+    _parseQueryString(qs) {
+        const params = {};
+        qs.split('&').forEach(pair => {
+            const [key, value] = pair.split('=');
+            if (key) params[decodeURIComponent(key)] = decodeURIComponent(value || '');
+        });
+        return params;
+    }
+
+    _escHtml(str) {
+        const div = document.createElement('div');
+        div.textContent = str;
+        return div.innerHTML;
+    }
+}

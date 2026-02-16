@@ -431,4 +431,101 @@ Sometimes simple is better.
 
 ---
 
+## 2026-02-15: Codex External Review — The IDP Gap
+
+### Discovery
+
+Codex reviewed Box A1 and the full CTF Arena vision. The honest assessment was positive on architecture, narrative, and simulation-first strategy. But it identified a **critical structural gap**: boxes have no Instructional Design Packets.
+
+### The Problem
+
+A1 has objectives like "Discover the vulnerable parameter" and "Exploit SQL injection." These are descriptions, not measurable learning outcomes. In academia and enterprise, you need:
+
+- **Measurable skills**: "Use UNION-based SQL injection to enumerate database schema" (specific, Bloom's Apply level)
+- **Skills mapping table**: Skill → Tool → Job Role → Certification objective code
+- **Assessment rubric**: Point breakdown per category with pass threshold
+- **Instructor notes**: Common mistakes, when to assign, talking points
+- **Research metrics**: Data collection fields for PhD research
+
+### Why This Matters
+
+**"Without this, Hexworth is a hobby. With this, Hexworth is a product."**
+
+Because:
+- Universities need measurable outcomes for accreditation (ABET, SACSCOC, HLC)
+- Companies need skill verification evidence for compliance
+- GI Bill reviewers need documented learning objectives
+- The IDP is what makes institutional sales ($1k-75k/year) possible
+
+Without IDPs, Hexworth is free content. With IDPs, Hexworth is courseware.
+
+### Gate 8: What It Actually Proves
+
+Codex identified 5 specific capabilities Gate 8 demonstrates:
+
+1. **Can build realistic simulations** — Multi-device investigation (desktop, laptop, phone) is closer to real DFIR work than static questions
+2. **Can build reusable engines** — shared.js (1,227 lines) is a framework, not one-off HTML
+3. **Students engage** — Real student review showed learning process evidence (enumeration, mistakes, log analysis)
+4. **Narrative model works** — Investigation feeling vs puzzle feeling = Hexworth's differentiator
+5. **Can finish complex projects** — 14K lines across 25 files = execution capability
+
+Gate 8 does NOT yet prove: long-term content pipeline, community adoption, enterprise scalability, automated grading, or real VM integration. Those are next.
+
+### What Hexworth Does That Nobody Else Does
+
+| Element | THM/HTB | Hexworth |
+|---------|---------|----------|
+| Narrative depth | Light/none | Deep universe (Citadel Confederacy) |
+| Classroom integration | Bolt-on product | Built from day one |
+| Offline capability | None (requires VMs) | Full offline (zip deployment) |
+| Instructor observability | Basic analytics | Real-time: see who's stuck, push targeted hints |
+| Simulation permanence | None | Tutorial mode persists after real VMs added |
+
+### Action Taken
+
+Created `_planning/INSTRUCTIONAL_DESIGN_TEMPLATE.md` — full IDP template with 8 sections, Bloom's taxonomy guidance, skills mapping reference, and complete A1 example. Every box going forward should have an IDP.
+
+### Lesson
+
+Technical architecture was ahead of instructional architecture. The engine was built. The narrative was built. The missing piece was the **documentation layer that makes it sellable**. Build the IDP alongside the box, not after.
+
+---
+
+## 2026-02-15: Codex Review — PhD Alignment Insight
+
+### Discovery
+
+Codex identified an unusually powerful alignment:
+- Professor → teaches with the platform daily
+- PhD candidate → researches with the platform's data
+- Builder → creates the platform
+- Business owner (Neon Technology Academy) → sells the platform
+
+Most PhD students dream of this alignment. Most never achieve it.
+
+### Research Frame
+
+Potential dissertation topic: *"Effectiveness of Narrative-Driven Cybersecurity Training Environments on Skill Retention and Executive Risk Awareness"*
+
+Every box interaction generates research data:
+- Time-to-completion (difficulty calibration)
+- Hint usage patterns (learning progression analysis)
+- Command sequences (problem-solving strategy analysis)
+- Score distributions (assessment validity)
+- Confidence surveys (ego-risk indicators for ECER/CERBI)
+- Mode replay rates (Tutorial → Guided → Exam retention measurement)
+
+### Publication Path
+
+1. Conference paper: "Narrative-Driven CTF as Cybersecurity Pedagogy" (SIGCSE, NICE, IEEE S&P Education)
+2. Journal article: Student outcome data from classroom use
+3. Dissertation chapter: Arena as ECER/CERBI framework case study
+4. White paper: "Simulated-First CTF: A New Category in Cybersecurity Education" (marketing + credibility)
+
+### Lesson
+
+The platform IS the research instrument. Design data collection into boxes from day one (IDP Section 7), enable with IRB approval later. The data is both commercially valuable AND academically publishable.
+
+---
+
 *Add new lessons above this line*
