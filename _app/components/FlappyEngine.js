@@ -193,21 +193,32 @@ window.FlappyEngine = (function () {
     }
 
     // ── Collision Detection ─────────────────────────────────────────────
+    function clampToSurfaces() {
+        const bh = config.character.height;
+        const groundY = H - GROUND_H - bh / 2;
+        const ceilingY = bh / 2;
+
+        // Ground — land on it, don't die
+        if (bird.y >= groundY) {
+            bird.y = groundY;
+            bird.vy = 0;
+        }
+        // Ceiling — bonk off it, don't die
+        if (bird.y <= ceilingY) {
+            bird.y = ceilingY;
+            if (bird.vy < 0) bird.vy = 0;
+        }
+    }
+
     function checkCollision() {
         const bw = config.character.width;
         const bh = config.character.height;
         const bx = bird.x - bw / 2;
         const by = bird.y - bh / 2;
 
-        // Ground
-        if (bird.y + bh / 2 >= H - GROUND_H) return true;
-        // Ceiling
-        if (bird.y - bh / 2 <= 0) return true;
-
-        // Pipes
+        // Pipes only — crashing into obstacles is what kills you
         for (let i = 0; i < pipes.length; i++) {
             const p = pipes[i];
-            // Pipe rects
             const pLeft = p.x;
             const pRight = p.x + p.width;
 
@@ -520,6 +531,9 @@ window.FlappyEngine = (function () {
             bird.vy += GRAVITY;
             if (bird.vy > TERMINAL_VEL) bird.vy = TERMINAL_VEL;
             bird.y += bird.vy;
+
+            // Clamp to ground/ceiling (solid surfaces, not death)
+            clampToSurfaces();
 
             // Flap frame decay
             if (bird.flapFrame > 0) bird.flapFrame -= dt * 5;
