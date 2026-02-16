@@ -215,8 +215,12 @@ window.FlappyEngine = (function () {
         const bh = config.character.height;
         const bx = bird.x - bw / 2;
         const by = bird.y - bh / 2;
+        const groundY = H - GROUND_H - bh / 2;
 
-        // Pipes only — crashing into obstacles is what kills you
+        // On the ground = safe (bottom pipes extend to ground, so skip check)
+        if (bird.y >= groundY) return false;
+
+        // Pipes — crashing into obstacles is what kills you
         for (let i = 0; i < pipes.length; i++) {
             const p = pipes[i];
             const pLeft = p.x;
