@@ -371,6 +371,8 @@ const BoxEngine = {
     },
 
     _showVsResult(won, winnerId, teams) {
+        // Report assessment on VS completion
+        if (won) this._reportCompletion();
         const overlay = document.getElementById('vsResultOverlay');
         if (!overlay) return;
 
@@ -859,9 +861,11 @@ const BoxEngine = {
                     this.notify(result.message, 'success');
                     this._syncFlagBadges();
                     this._updateScoreBadge();
+                    this._reportFlagCapture(matchedFlag?.id, result.points);
                     input.value = '';
                     if (result.completed) {
                         this._completionShown = true;
+                        this._reportCompletion();
                         setTimeout(() => this._showCompletion(0), 800);
                     }
                 } else {
@@ -890,6 +894,7 @@ const BoxEngine = {
                 this.addScore(flag.points, `${flag.id}.txt captured`);
                 msg.innerHTML = `<span style="color:#2ecc71;">&#10003; ${flag.id}.txt captured! +${flag.points} points</span>`;
                 this.notify(`${flag.id}.txt captured! +${flag.points} points`, 'success');
+                this._reportFlagCapture(flag.id, flag.points);
 
                 // Update badge
                 const badge = document.getElementById('flagBadge_' + flag.id);
@@ -925,6 +930,7 @@ const BoxEngine = {
             }
 
             this.save();
+            this._reportCompletion();
 
             // Show completion modal
             setTimeout(() => this._showCompletion(speedBonus), 800);
@@ -1011,6 +1017,7 @@ const BoxEngine = {
                     this.state = { ...this._defaults(), ...result.newState };
                     this._updateScoreBadge();
                     this._renderHints();
+                    this._reportHintReveal(hint.id, hint.penalty);
                     this.notify(`Hint revealed. ${this.state.godMode ? 'No penalty (God Mode)' : hint.penalty + ' points'}`, 'warning');
                 }
                 // If already used, silently re-render (idempotent)
@@ -1029,6 +1036,7 @@ const BoxEngine = {
         }
 
         this.save();
+        this._reportHintReveal(hint.id, hint.penalty);
         this.notify(`Hint revealed. ${this.state.godMode ? 'No penalty (God Mode)' : hint.penalty + ' points'}`, 'warning');
     },
 
@@ -1144,5 +1152,89 @@ const BoxEngine = {
         const div = document.createElement('div');
         div.textContent = str;
         return div.innerHTML;
+    },
+
+    // ────────────────────────────────────────────────
+    // ASSESSMENT / INSTRUCTOR INTEGRATION
+    // ────────────────────────────────────────────────
+
+    /**
+     * Report box completion to instructor analytics pipeline.
+     * Safe — all calls wrapped in try/catch and existence checks.
+     */
+    _reportCompletion() {
+        const trackerKey = this.config.trackerKey;
+        const boxId = this.config.storageKey || 'unknown';
+        const s = this.state;
+        const elapsed = Math.round((Date.now() - s.startTime) / 1000);
+
+        // ProgressManager — marks module complete, awards XP
+        try {
+            if (typeof ProgressManager !== 'undefined' && trackerKey) {
+                ProgressManager.completeModule(trackerKey, 'arena', 'lab', {
+                    score: s.score,
+                    flags: s.flagsFound.length,
+                    hints: s.hintsUsed.length,
+                    time: elapsed
+                });
+            }
+        } catch (e) { console.error('[ARENA] ProgressManager error:', e); }
+
+        // GameTracker — records game session stats
+        try {
+            if (typeof GameTracker !== 'undefined' && trackerKey) {
+                GameTracker.record(trackerKey, {
+                    result: 'win',
+                    timeElapsed: elapsed,
+                    commandsUsed: s.flagsFound.length,
+                    achievementsEarned: s.flagsFound.length,
+                    achievementsTotal: (this.config.flags || []).length
+                });
+            }
+        } catch (e) { console.error('[ARENA] GameTracker error:', e); }
+
+        // AssignmentManager — logs activity to Firestore for instructor dashboard
+        try {
+            if (typeof AssignmentManager !== 'undefined') {
+                AssignmentManager.logActivity(null, 'arena_complete', boxId, this.config.title || boxId, {
+                    score: s.score,
+                    flags: s.flagsFound.length,
+                    totalFlags: (this.config.flags || []).length,
+                    hints: s.hintsUsed.length,
+                    time: elapsed,
+                    mode: this._vsMode ? 'vs' : this._coOpMode ? 'coop' : 'solo'
+                });
+            }
+        } catch (e) { console.error('[ARENA] AssignmentManager error:', e); }
+
+        console.log(`%c[ARENA] Assessment reported: ${boxId} (${s.score} pts, ${elapsed}s)`, 'color: #9b59b6');
+    },
+
+    /**
+     * Report a flag capture to instructor analytics.
+     */
+    _reportFlagCapture(flagId, points) {
+        try {
+            if (typeof AssignmentManager !== 'undefined') {
+                const boxId = this.config.storageKey || 'unknown';
+                AssignmentManager.logActivity(null, 'arena_flag', boxId, this.config.title || boxId, {
+                    flagId, points
+                });
+            }
+        } catch (e) { /* silent */ }
+    },
+
+    /**
+     * Report a hint reveal to instructor analytics.
+     */
+    _reportHintReveal(hintId, penalty) {
+        try {
+            if (typeof AssignmentManager !== 'undefined') {
+                const boxId = this.config.storageKey || 'unknown';
+                AssignmentManager.logActivity(null, 'arena_hint', boxId, this.config.title || boxId, {
+                    hintId, penalty
+                });
+            }
+        } catch (e) { /* silent */ }
     }
 };
