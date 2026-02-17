@@ -1,7 +1,7 @@
 ══════════════════════════════════════════════════════════════════════
                          EDUSCAN REPORT
                     Hexworth Prime Content Map
-                    Scanned: 2026-02-16 10:10:20 AM
+                    Scanned: 2026-02-17 1:01:56 PM
 ══════════════════════════════════════════════════════════════════════
 
 
@@ -10,16 +10,16 @@
 
 | Metric | Value |
 |--------|-------|
-| Files Scanned | 1440 |
-| Directories | 529 |
-| Content Files | 1440 |
-| Scan Duration | 197ms |
+| Files Scanned | 1450 |
+| Directories | 538 |
+| Content Files | 1450 |
+| Scan Duration | 170ms |
 
 ### Content by Type
 
 | Type | Count |
 |------|-------|
-| html | 594 |
+| html | 604 |
 | presentation | 403 |
 | lab | 237 |
 | applet | 191 |
@@ -41,10 +41,10 @@
 | Severity | Count |
 |----------|-------|
 | Critical | 0 |
-| Suspect | 126 |
+| Suspect | 125 |
 | Warning | 981 |
 | Info | 406 |
-| **Total** | **2439** |
+| **Total** | **2438** |
 
 ### Sync Status
 
@@ -52,7 +52,7 @@
 |--------|-------|
 | Ready | 632 |
 | Not Ready | 214 |
-| Unknown | 594 |
+| Unknown | 604 |
 
 
 ## FILE HIERARCHY
@@ -68,9 +68,28 @@
 │   └── 📍 index.html
 ├── 📁 arena
 │   ├── 📁 boxes
-│   │   └── 📁 a1-ancient-ledger
+│   │   ├── 📁 a1-ancient-ledger
+│   │   │   └── 📍 index.html
+│   │   ├── 📁 a10-glass-tunnel
+│   │   │   └── 📍 index.html
+│   │   ├── 📁 a2-whispering-wall
+│   │   │   └── 📍 index.html
+│   │   ├── 📁 a3-phantom-shell
+│   │   │   └── 📍 index.html
+│   │   ├── 📁 a4-lost-root
+│   │   │   └── 📍 index.html
+│   │   ├── 📁 a5-custodians-key
+│   │   │   └── 📍 index.html
+│   │   ├── 📁 a6-broken-cipher
+│   │   │   └── 📍 index.html
+│   │   ├── 📁 a7-hollow-database
+│   │   │   └── 📍 index.html
+│   │   ├── 📁 a8-forgotten-upload
+│   │   │   └── 📍 index.html
+│   │   └── 📁 a9-rusted-lock
 │   │       └── 📍 index.html
-│   └── 📁 engine
+│   ├── 📁 engine
+│   └── 📍 index.html
 ├── 📁 components
 │   └── 📁 styles [styles]
 ├── 📁 config
@@ -2938,7 +2957,7 @@
 ## ISSUES DETECTED
 ══════════════════════════════════════════════════════════════════════
 
-### SUSPECT (126) — heuristic, needs review
+### SUSPECT (125) — heuristic, needs review
 
 **[HEUR-004]** console.log() in inline script (production hygiene)
   File: `admin/audit-tool.html`
@@ -3102,10 +3121,6 @@
 
 **[HEUR-004]** console.log() in inline script (production hygiene)
   File: `houses/cloud/modules/wsa/m17-firewall-security/cloud-pslab.module.html`
-  Fix: Remove console.log or replace with proper logging
-
-**[HEUR-004]** console.log() in inline script (production hygiene)
-  File: `houses/cloud/modules/wsa/midterm-outpost/cloud-simulation.module.html`
   Fix: Remove console.log or replace with proper logging
 
 **[HEUR-004]** console.log() in inline script (production hygiene)

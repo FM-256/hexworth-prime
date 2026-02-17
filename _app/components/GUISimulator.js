@@ -3036,7 +3036,7 @@ const GUISimulator = (function() {
                 // Dispatch to WSAState if available
                 if (typeof WSAState !== 'undefined') {
                     WSAState.dispatch({
-                        type: 'DISK_INITIALIZE',
+                        type: 'STORAGE_INIT_DISK',
                         payload: {
                             DiskNumber: disk.Number,
                             PartitionStyle: values.partitionStyle,
@@ -3186,13 +3186,21 @@ const GUISimulator = (function() {
                 // Dispatch to WSAState if available
                 if (typeof WSAState !== 'undefined') {
                     WSAState.dispatch({
-                        type: 'STORAGE_CREATE_VOLUME',
+                        type: 'STORAGE_CREATE_PARTITION',
                         payload: {
                             DiskNumber: disk.Number,
                             Size: newPartition.Size,
-                            FileSystem: values.fileSystem,
                             DriveLetter: values.driveLetter,
-                            Label: values.label,
+                        },
+                        source: 'gui',
+                    });
+                    WSAState.dispatch({
+                        type: 'STORAGE_FORMAT_VOLUME',
+                        payload: {
+                            DriveLetter: values.driveLetter,
+                            FileSystem: values.fileSystem,
+                            FileSystemLabel: values.label || 'New Volume',
+                            Size: newPartition.Size,
                         },
                         source: 'gui',
                     });
@@ -4139,13 +4147,102 @@ const GUISimulator = (function() {
                     </tbody>
                 </table>
                 <div style="padding: 15px;">
-                    <button class="gui-btn primary" onclick="document.querySelector('#${windowId}-new-switch-btn')?.click()">
+                    <button class="gui-btn primary" id="${windowId}-create-switch-btn">
                         Create Virtual Switch
                     </button>
                 </div>
             `;
 
             container.innerHTML = html;
+
+            const createBtn = document.getElementById(`${windowId}-create-switch-btn`);
+            if (createBtn) createBtn.addEventListener('click', showNewSwitchDialog);
+        }
+
+        // Create virtual switch dialog
+        function showNewSwitchDialog() {
+            const modal = showModal({
+                id: 'new-switch-dialog',
+                title: 'Virtual Switch Manager',
+                icon: '🔌',
+                width: 450,
+                content: `
+                    <div class="gui-wizard-header gui-mb-4">
+                        <h3>Create Virtual Switch</h3>
+                        <p>Create a new virtual switch for your virtual machines.</p>
+                    </div>
+                    <div id="new-switch-form"></div>
+                    <div id="new-switch-success" class="gui-alert success gui-hidden">
+                        <span class="gui-alert-icon">✓</span>
+                        <div class="gui-alert-content">Virtual switch created successfully!</div>
+                    </div>
+                `,
+                actions: [
+                    { label: 'Create', primary: true, onClick: doCreateSwitch },
+                    { label: 'Cancel' },
+                ],
+            });
+
+            const form = buildForm({
+                container: '#new-switch-form',
+                fields: [
+                    {
+                        id: 'name',
+                        type: 'text',
+                        label: 'Name:',
+                        required: true,
+                        placeholder: 'BranchExternal',
+                    },
+                    {
+                        id: 'switchType',
+                        type: 'select',
+                        label: 'Connection type:',
+                        options: [
+                            { value: 'External', label: 'External network' },
+                            { value: 'Internal', label: 'Internal network' },
+                            { value: 'Private', label: 'Private network' },
+                        ],
+                        defaultValue: 'External',
+                    },
+                ],
+            });
+
+            function doCreateSwitch() {
+                if (!form.validate()) return false;
+
+                const values = form.getValues();
+
+                const newSwitch = {
+                    Name: values.name,
+                    SwitchType: values.switchType,
+                    NetAdapterInterfaceDescription: values.switchType === 'External' ? 'Intel(R) Ethernet Controller I225-V' : '',
+                    AllowManagementOS: values.switchType !== 'Private',
+                };
+
+                hvState.switches.push(newSwitch);
+
+                if (typeof WSAState !== 'undefined') {
+                    WSAState.dispatch({
+                        type: 'VMSWITCH_CREATE',
+                        payload: newSwitch,
+                        source: 'gui',
+                    });
+                }
+
+                document.getElementById('new-switch-form').classList.add('gui-hidden');
+                document.getElementById('new-switch-success').classList.remove('gui-hidden');
+
+                if (options.onObjectiveComplete) {
+                    options.onObjectiveComplete('create-switch');
+                }
+
+                setTimeout(() => {
+                    modal.close();
+                    renderSwitchList();
+                }, 1500);
+
+                return false;
+            }
         }
 
         // Render checkpoint list

@@ -646,7 +646,7 @@ const WSAState = (function() {
             }
 
             case ActionTypes.STORAGE_FORMAT_VOLUME: {
-                const { DriveLetter, FileSystem, FileSystemLabel } = payload;
+                const { DriveLetter, FileSystem, FileSystemLabel, Size } = payload;
                 const existing = state.volumes[DriveLetter] || {};
                 return {
                     ...state,
@@ -657,6 +657,7 @@ const WSAState = (function() {
                             DriveLetter,
                             FileSystem: FileSystem || 'NTFS',
                             FileSystemLabel: FileSystemLabel || 'New Volume',
+                            Size: Size || existing.Size || 0,
                             HealthStatus: 'Healthy',
                             DriveType: 'Fixed',
                         },
@@ -704,6 +705,7 @@ const WSAState = (function() {
         switch (type) {
             case ActionTypes.VM_CREATE: {
                 const key = payload.Name || payload.name;
+                const memStartup = payload.MemoryStartup || payload.MemoryStartupBytes || 1073741824;
                 return {
                     ...state,
                     vms: {
@@ -712,7 +714,8 @@ const WSAState = (function() {
                             Name: key,
                             State: 'Off',
                             CPUUsage: 0,
-                            MemoryAssigned: payload.MemoryStartupBytes || 1073741824,
+                            MemoryAssigned: memStartup,
+                            MemoryStartup: memStartup,
                             MemoryDemand: 0,
                             MemoryStatus: 'OK',
                             Uptime: '0.00:00:00',
