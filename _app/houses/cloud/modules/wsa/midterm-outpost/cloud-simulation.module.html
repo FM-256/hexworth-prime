@@ -852,7 +852,12 @@
             requestAnimationFrame(() => {
                 _renderPending = false;
                 checkObjectives();
-                renderCurrentTool();
+                // Surgical update for ADUC to avoid full innerHTML rebuild
+                if (currentTool === 'aduc' && document.getElementById('aduc-tree')) {
+                    refreshADUC();
+                } else {
+                    renderCurrentTool();
+                }
             });
         }
     }
@@ -1138,13 +1143,6 @@
             `;
         }
 
-        const ous = state.ad.ous;
-        const allUsers = state.ad.users;
-        const allGroups = state.ad.groups;
-        const users = selectedOU ? allUsers.filter(u => (u.ou || '') === selectedOU) : allUsers;
-        const groups = allGroups;
-        const filterLabel = selectedOU ? ` — filtered to <strong>${selectedOU}</strong> <button class="small-btn" onclick="selectOU(null)" style="margin-left:6px">Show All</button>` : '';
-
         return `
             <div class="tool-header">
                 <h3><span>👥</span> Active Directory Users and Computers</h3>
@@ -1152,66 +1150,93 @@
                     <button class="action-btn" onclick="showModal('createOU')">New OU</button>
                     <button class="action-btn" onclick="showModal('createUser')">New User</button>
                     <button class="action-btn" onclick="showModal('createGroup')">New Group</button>
+                    <button class="action-btn" onclick="refreshADUC()" title="Refresh view">↻ Refresh</button>
                 </div>
             </div>
             <div style="display:grid;grid-template-columns:250px 1fr;gap:15px;height:calc(100vh - 220px)">
                 <div class="panel-section" style="margin:0;overflow-y:auto">
                     <h4>🗂️ Directory Tree</h4>
-                    <div class="tree-view">
-                        <div class="tree-node">
-                            <div class="tree-node-content${selectedOU === null ? ' selected' : ''}" onclick="selectOU(null)">
-                                <span class="tree-icon">🌐</span>
-                                <span>hexworth.local</span>
-                            </div>
-                            <div class="tree-children">
-                                ${ous.filter(ou => !ou.parent).map(ou => renderOUTree(ou, ous)).join('')}
-                                ${ous.length === 0 ? '<div style="color:#666;font-size:0.8rem;padding:8px">No OUs created yet</div>' : ''}
-                            </div>
-                        </div>
-                    </div>
+                    <div id="aduc-tree" class="tree-view">${renderADUCTree()}</div>
                 </div>
                 <div style="display:flex;flex-direction:column;gap:15px;overflow-y:auto">
-                    <div class="panel-section" style="margin:0">
-                        <h4>👤 Users (${users.length}${selectedOU ? ' / ' + allUsers.length + ' total' : ''})${filterLabel}</h4>
-                        ${users.length === 0 ? '<p style="color:#666;font-size:0.85rem">No users' + (selectedOU ? ' in this OU' : ' created yet') + '</p>' : `
-                            <table class="data-table">
-                                <tr><th>Name</th><th>Username</th><th>OU</th><th>Actions</th></tr>
-                                ${users.map(u => `
-                                    <tr>
-                                        <td>${u.firstName} ${u.lastName}</td>
-                                        <td>${u.username}</td>
-                                        <td>${u.ou || 'Users'}</td>
-                                        <td>
-                                            <button class="small-btn" onclick="showModal('moveUser', '${u.username}')">Move</button>
-                                            <button class="small-btn" onclick="deleteUser('${u.username}')">Delete</button>
-                                        </td>
-                                    </tr>
-                                `).join('')}
-                            </table>
-                        `}
-                    </div>
-                    <div class="panel-section" style="margin:0">
-                        <h4>👥 Groups (${groups.length})</h4>
-                        ${groups.length === 0 ? '<p style="color:#666;font-size:0.85rem">No groups created yet</p>' : `
-                            <table class="data-table">
-                                <tr><th>Name</th><th>Type</th><th>Members</th><th>Actions</th></tr>
-                                ${groups.map(g => `
-                                    <tr>
-                                        <td>${g.name}</td>
-                                        <td>${g.type || 'Security'}</td>
-                                        <td>${g.members?.length || 0}</td>
-                                        <td>
-                                            <button class="small-btn" onclick="showModal('manageMembers', '${g.name}')">Members</button>
-                                            <button class="small-btn" onclick="deleteGroup('${g.name}')">Delete</button>
-                                        </td>
-                                    </tr>
-                                `).join('')}
-                            </table>
-                        `}
-                    </div>
+                    <div id="aduc-users" class="panel-section" style="margin:0">${renderADUCUsers()}</div>
+                    <div id="aduc-groups" class="panel-section" style="margin:0">${renderADUCGroups()}</div>
                 </div>
             </div>
         `;
+    }
+
+    function renderADUCTree() {
+        const ous = state.ad.ous;
+        return `
+            <div class="tree-node">
+                <div class="tree-node-content${selectedOU === null ? ' selected' : ''}" onclick="selectOU(null)">
+                    <span class="tree-icon">🌐</span>
+                    <span>hexworth.local</span>
+                </div>
+                <div class="tree-children">
+                    ${ous.filter(ou => !ou.parent).map(ou => renderOUTree(ou, ous)).join('')}
+                    ${ous.length === 0 ? '<div style="color:#666;font-size:0.8rem;padding:8px">No OUs created yet</div>' : ''}
+                </div>
+            </div>
+        `;
+    }
+
+    function renderADUCUsers() {
+        const allUsers = state.ad.users;
+        const users = selectedOU ? allUsers.filter(u => (u.ou || '') === selectedOU) : allUsers;
+        const filterLabel = selectedOU ? ` — filtered to <strong>${selectedOU}</strong> <button class="small-btn" onclick="selectOU(null)" style="margin-left:6px">Show All</button>` : '';
+        return `
+            <h4>👤 Users (${users.length}${selectedOU ? ' / ' + allUsers.length + ' total' : ''})${filterLabel}</h4>
+            ${users.length === 0 ? '<p style="color:#666;font-size:0.85rem">No users' + (selectedOU ? ' in this OU' : ' created yet') + '</p>' : `
+                <table class="data-table">
+                    <tr><th>Name</th><th>Username</th><th>OU</th><th>Actions</th></tr>
+                    ${users.map(u => `
+                        <tr>
+                            <td>${u.firstName} ${u.lastName}</td>
+                            <td>${u.username}</td>
+                            <td>${u.ou || 'Users'}</td>
+                            <td>
+                                <button class="small-btn" onclick="showModal('moveUser', '${u.username}')">Move</button>
+                                <button class="small-btn" onclick="deleteUser('${u.username}')">Delete</button>
+                            </td>
+                        </tr>
+                    `).join('')}
+                </table>
+            `}
+        `;
+    }
+
+    function renderADUCGroups() {
+        const groups = state.ad.groups;
+        return `
+            <h4>👥 Groups (${groups.length})</h4>
+            ${groups.length === 0 ? '<p style="color:#666;font-size:0.85rem">No groups created yet</p>' : `
+                <table class="data-table">
+                    <tr><th>Name</th><th>Type</th><th>Members</th><th>Actions</th></tr>
+                    ${groups.map(g => `
+                        <tr>
+                            <td>${g.name}</td>
+                            <td>${g.type || 'Security'}</td>
+                            <td>${g.members?.length || 0}</td>
+                            <td>
+                                <button class="small-btn" onclick="showModal('manageMembers', '${g.name}')">Members</button>
+                                <button class="small-btn" onclick="deleteGroup('${g.name}')">Delete</button>
+                            </td>
+                        </tr>
+                    `).join('')}
+                </table>
+            `}
+        `;
+    }
+
+    function refreshADUC() {
+        const tree = document.getElementById('aduc-tree');
+        const users = document.getElementById('aduc-users');
+        const groups = document.getElementById('aduc-groups');
+        if (tree) tree.innerHTML = renderADUCTree();
+        if (users) users.innerHTML = renderADUCUsers();
+        if (groups) groups.innerHTML = renderADUCGroups();
     }
 
     function renderOUTree(ou, allOUs) {
@@ -2114,7 +2139,7 @@
 
     function selectOU(ouName) {
         selectedOU = ouName;
-        renderCurrentTool();
+        refreshADUC();
     }
 
     function createForwardZone() {
