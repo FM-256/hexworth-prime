@@ -22,18 +22,22 @@ const BoxEngine = {
     init(config) {
         this.config = config;
         this._coOpMode = false;
+        this._vsMode = false;
 
         // Check if co-op mode is available
         if (typeof CoOpLobby !== 'undefined') {
-            // Show lobby to choose Solo or Co-Op
+            // Show lobby to choose Solo, Co-Op, or VS
             CoOpLobby.show(config, (result) => {
                 if (result.mode === 'coop') {
                     this._coOpMode = true;
                     this.config.coOpMode = true;
-                    this._initWithMode();
-                } else {
-                    this._initWithMode();
+                } else if (result.mode === 'vs') {
+                    this._coOpMode = true; // VS uses co-op infra
+                    this._vsMode = true;
+                    this.config.coOpMode = true;
+                    this.config.vsMode = true;
                 }
+                this._initWithMode();
             });
         } else {
             // No co-op scripts loaded — solo mode directly
@@ -56,7 +60,7 @@ const BoxEngine = {
         this._setupKeys();
 
         if (this._coOpMode) {
-            // Co-op: sync state via Firestore
+            // Co-op/VS: sync state via Firestore
             CoOpSync.subscribeToState((state) => {
                 this.state = { ...this._defaults(), ...state };
                 this._updateScoreBadge();
@@ -64,12 +68,28 @@ const BoxEngine = {
                 this._renderHints();
                 if (state.completed && !this._completionShown) {
                     this._completionShown = true;
-                    this._showCompletion(0);
+                    if (this._vsMode) {
+                        // VS: wait for winner determination via onVsWinner
+                    } else {
+                        this._showCompletion(0);
+                    }
                 }
             });
-            // Init co-op UI panel
+
+            // VS: listen for winner
+            if (this._vsMode) {
+                CoOpSync.onVsWinner((winnerId, teams) => {
+                    if (this._vsWinnerShown) return;
+                    this._vsWinnerShown = true;
+                    const myTeam = CoOpSync.teamId;
+                    const won = winnerId === myTeam;
+                    this._showVsResult(won, winnerId, teams);
+                });
+            }
+
+            // Init co-op/vs UI panel
             if (typeof CoOpUI !== 'undefined') {
-                CoOpUI.init();
+                CoOpUI.init(this._vsMode);
             }
         } else {
             // Solo: cross-tab sync via localStorage
@@ -90,7 +110,8 @@ const BoxEngine = {
             this._startBoot();
         }
 
-        console.log(`%c[ARENA] BoxEngine initialized: ${config.title} ${this._coOpMode ? '(CO-OP)' : '(SOLO)'}`, 'color: #3498db');
+        const modeLabel = this._vsMode ? '(VS)' : this._coOpMode ? '(CO-OP)' : '(SOLO)';
+        console.log(`%c[ARENA] BoxEngine initialized: ${config.title} ${modeLabel}`, 'color: #3498db');
     },
 
     // ────────────────────────────────────────────────
@@ -328,6 +349,62 @@ const BoxEngine = {
         document.getElementById('completionClose').addEventListener('click', () => {
             overlay.classList.remove('active');
         });
+
+        // VS result overlay (hidden by default, shown when VS match ends)
+        const vsOverlay = document.createElement('div');
+        vsOverlay.className = 'vs-result-overlay';
+        vsOverlay.id = 'vsResultOverlay';
+        vsOverlay.innerHTML = `
+            <div class="vs-result-card">
+                <div class="vs-result-banner" id="vsResultBanner"></div>
+                <div class="vs-result-title" id="vsResultTitle"></div>
+                <div class="vs-result-subtitle" id="vsResultSubtitle"></div>
+                <div class="vs-result-scores" id="vsResultScores"></div>
+                <button id="vsResultClose">Continue</button>
+            </div>
+        `;
+        parent.appendChild(vsOverlay);
+
+        document.getElementById('vsResultClose').addEventListener('click', () => {
+            vsOverlay.classList.remove('active');
+        });
+    },
+
+    _showVsResult(won, winnerId, teams) {
+        const overlay = document.getElementById('vsResultOverlay');
+        if (!overlay) return;
+
+        const myTeam = CoOpSync.teamId;
+        const opponentTeam = CoOpSync.getOpponentTeam();
+        const myState = teams[myTeam]?.state || {};
+        const opState = teams[opponentTeam]?.state || {};
+
+        document.getElementById('vsResultBanner').textContent = won ? 'VICTORY' : 'DEFEATED';
+        document.getElementById('vsResultBanner').className = 'vs-result-banner ' + (won ? 'victory' : 'defeat');
+        document.getElementById('vsResultTitle').textContent = this.config.title || '';
+        document.getElementById('vsResultSubtitle').textContent = won
+            ? `${teams[myTeam]?.name || 'Your team'} captured all flags first!`
+            : `${teams[winnerId]?.name || 'Opponent'} captured all flags first.`;
+
+        const myFlags = (myState.flagsFound || []).length;
+        const opFlags = (opState.flagsFound || []).length;
+        const totalFlags = (this.config.flags || []).length;
+
+        document.getElementById('vsResultScores').innerHTML = `
+            <div class="vs-score-row your-team">
+                <span class="vs-score-team">${this._escHtml(teams[myTeam]?.name || 'Your Team')}</span>
+                <span class="vs-score-flags">${myFlags}/${totalFlags} flags</span>
+                <span class="vs-score-points">${myState.score || 0}</span>
+            </div>
+            <div class="vs-score-row opponent-team">
+                <span class="vs-score-team">${this._escHtml(teams[opponentTeam]?.name || 'Opponent')}</span>
+                <span class="vs-score-flags">${opFlags}/${totalFlags} flags</span>
+                <span class="vs-score-points">${opState.score || 0}</span>
+            </div>
+        `;
+
+        this._closeFlagModal();
+        overlay.classList.add('active');
     },
 
     // ────────────────────────────────────────────────

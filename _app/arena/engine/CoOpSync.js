@@ -1,9 +1,10 @@
 /* ============================================================
    CTF ARENA — CoOpSync.js
-   Firestore sync layer for cooperative mode (2-5 players).
+   Firestore sync layer for cooperative and VS modes.
    Handles room creation, joining, real-time state sync,
    atomic flag submissions, hint reveals, activity log,
-   session persistence, auto-rejoin, and host migration.
+   session persistence, auto-rejoin, host migration,
+   and VS team-based competitive state management.
    ============================================================ */
 
 const CoOpSync = (function() {
@@ -21,11 +22,17 @@ const CoOpSync = (function() {
     let _playerId = null;
     let _playerName = null;
     let _isHost = false;
+    let _mode = 'coop';       // 'coop' | 'vs'
+    let _teamId = null;        // 'alpha' | 'bravo' (VS only)
     let _onStateChange = null;
     let _onActivityChange = null;
     let _onPlayersChange = null;
+    let _onTeamsChange = null;
     let _onDisband = null;
+    let _onVsWinner = null;
     let _beforeUnloadHandler = null;
+    let _teamsUnsubscribe = null;
+    let _timerInterval = null;
 
     const SESSION_KEY = 'hexworth_coop_active_session';
 
@@ -105,31 +112,75 @@ const CoOpSync = (function() {
     // ────────────────────────────────────────────────
 
     /**
-     * Create a new co-op session. Returns room code.
+     * Create a new session. Returns room code.
+     * @param {string} boxId
+     * @param {object} config - Box config
+     * @param {number} maxPlayers - Max players (co-op) or max per team (vs)
+     * @param {object} opts - { mode: 'coop'|'vs', timeLimit: number|null }
      */
-    async function createSession(boxId, config, maxPlayers) {
+    async function createSession(boxId, config, maxPlayers, opts) {
         if (!initialized) await init();
         if (!db) throw new Error('Firestore not available');
 
-        const { doc, setDoc, serverTimestamp } = window.firebaseFirestore;
+        const { doc, setDoc } = window.firebaseFirestore;
 
         _roomCode = _generateRoomCode();
         _isHost = true;
+        _mode = opts?.mode || 'coop';
+
+        const baseState = {
+            score: config.scoring?.base || 1000,
+            flagsFound: [],
+            hintsUsed: [],
+            wrongFlags: 0,
+            startTime: Date.now(),
+            elapsed: 0,
+            completed: false,
+            godMode: false,
+            booted: false
+        };
 
         const sessionData = {
             boxId: boxId,
-            state: {
-                score: config.scoring?.base || 1000,
-                flagsFound: [],
-                hintsUsed: [],
-                wrongFlags: 0,
-                startTime: Date.now(),
-                elapsed: 0,
-                completed: false,
-                godMode: false,
-                booted: false
+            mode: _mode,
+            config: {
+                maxPlayers: maxPlayers || 2,
+                boxTitle: config.title || 'CTF Arena',
+                boxAccent: config.accent || '#3498db',
+                timeLimit: opts?.timeLimit || null
             },
-            players: {
+            status: 'waiting',
+            createdAt: Date.now()
+        };
+
+        if (_mode === 'vs') {
+            // VS: per-team state, player assigned to alpha as host
+            _teamId = 'alpha';
+            sessionData.teams = {
+                alpha: {
+                    name: 'Team Alpha',
+                    players: {
+                        [_playerId]: {
+                            name: _playerName,
+                            joinedAt: Date.now(),
+                            online: true,
+                            isHost: true,
+                            lastSeen: Date.now()
+                        }
+                    },
+                    state: { ...baseState }
+                },
+                bravo: {
+                    name: 'Team Bravo',
+                    players: {},
+                    state: { ...baseState }
+                }
+            };
+            sessionData.winner = null;
+        } else {
+            // Co-op: shared state
+            sessionData.state = baseState;
+            sessionData.players = {
                 [_playerId]: {
                     name: _playerName,
                     joinedAt: Date.now(),
@@ -137,24 +188,17 @@ const CoOpSync = (function() {
                     isHost: true,
                     lastSeen: Date.now()
                 }
-            },
-            config: {
-                maxPlayers: maxPlayers || 2,
-                boxTitle: config.title || 'CTF Arena',
-                boxAccent: config.accent || '#3498db'
-            },
-            status: 'waiting', // waiting | active | completed
-            createdAt: Date.now()
-        };
+            };
+        }
 
         sessionRef = doc(db, 'arena_sessions', _roomCode);
         await setDoc(sessionRef, sessionData);
 
-        // Persist session for auto-rejoin
         _persistSession();
         _installRefreshGuard();
 
-        console.log(`%c[CO-OP] Session created: ${_roomCode}`, 'color: #2ecc71');
+        const label = _mode === 'vs' ? 'VS' : 'CO-OP';
+        console.log(`%c[${label}] Session created: ${_roomCode}`, 'color: #2ecc71');
         return _roomCode;
     }
 
@@ -179,43 +223,85 @@ const CoOpSync = (function() {
         }
 
         const data = snap.data();
+        _mode = data.mode || 'coop';
 
         // Check room status
         if (data.status === 'completed') {
             throw new Error('This session has already ended');
         }
 
-        // Check player count
-        const playerCount = Object.keys(data.players || {}).length;
-        if (playerCount >= (data.config?.maxPlayers || 2)) {
-            // Check if we're reconnecting as an existing player
-            if (!data.players[_playerId]) {
-                throw new Error('Room is full');
+        if (_mode === 'vs') {
+            // VS: assign to team with fewer players (auto-balance)
+            const alphaPlayers = Object.keys(data.teams?.alpha?.players || {});
+            const bravoPlayers = Object.keys(data.teams?.bravo?.players || {});
+            const maxPerTeam = data.config?.maxPlayers || 1;
+
+            // Check if reconnecting as existing player
+            const inAlpha = alphaPlayers.includes(_playerId);
+            const inBravo = bravoPlayers.includes(_playerId);
+
+            if (inAlpha) {
+                _teamId = 'alpha';
+                const existing = data.teams.alpha.players[_playerId];
+                if (existing?.isHost) _isHost = true;
+            } else if (inBravo) {
+                _teamId = 'bravo';
+                const existing = data.teams.bravo.players[_playerId];
+                if (existing?.isHost) _isHost = true;
+            } else {
+                // New player — auto-balance
+                if (bravoPlayers.length < alphaPlayers.length && bravoPlayers.length < maxPerTeam) {
+                    _teamId = 'bravo';
+                } else if (alphaPlayers.length < maxPerTeam) {
+                    _teamId = 'alpha';
+                } else if (bravoPlayers.length < maxPerTeam) {
+                    _teamId = 'bravo';
+                } else {
+                    throw new Error('Both teams are full');
+                }
             }
+
+            await updateDoc(sessionRef, {
+                [`teams.${_teamId}.players.${_playerId}`]: {
+                    name: _playerName,
+                    joinedAt: (inAlpha || inBravo) ?
+                        (data.teams[_teamId]?.players[_playerId]?.joinedAt || Date.now()) :
+                        Date.now(),
+                    online: true,
+                    isHost: _isHost,
+                    lastSeen: Date.now()
+                }
+            });
+        } else {
+            // Co-op: original logic
+            const playerCount = Object.keys(data.players || {}).length;
+            if (playerCount >= (data.config?.maxPlayers || 2)) {
+                if (!data.players[_playerId]) {
+                    throw new Error('Room is full');
+                }
+            }
+
+            const existingPlayer = data.players[_playerId];
+            if (existingPlayer?.isHost) {
+                _isHost = true;
+            }
+
+            await updateDoc(sessionRef, {
+                [`players.${_playerId}`]: {
+                    name: _playerName,
+                    joinedAt: existingPlayer?.joinedAt || Date.now(),
+                    online: true,
+                    isHost: _isHost,
+                    lastSeen: Date.now()
+                }
+            });
         }
 
-        // Restore host status if reconnecting as the original host
-        const existingPlayer = data.players[_playerId];
-        if (existingPlayer?.isHost) {
-            _isHost = true;
-        }
-
-        // Add/update ourselves in the session
-        await updateDoc(sessionRef, {
-            [`players.${_playerId}`]: {
-                name: _playerName,
-                joinedAt: existingPlayer?.joinedAt || Date.now(),
-                online: true,
-                isHost: _isHost,
-                lastSeen: Date.now()
-            }
-        });
-
-        // Persist session for auto-rejoin
         _persistSession();
         _installRefreshGuard();
 
-        console.log(`%c[CO-OP] Joined session: ${_roomCode}${_isHost ? ' (host restored)' : ''}`, 'color: #2ecc71');
+        const label = _mode === 'vs' ? 'VS' : 'CO-OP';
+        console.log(`%c[${label}] Joined session: ${_roomCode}${_teamId ? ' (team ' + _teamId + ')' : ''}${_isHost ? ' (host)' : ''}`, 'color: #2ecc71');
         return data;
     }
 
@@ -235,6 +321,7 @@ const CoOpSync = (function() {
 
     /**
      * Subscribe to state changes. Callback receives full state object.
+     * In VS mode, receives the local team's state.
      */
     function subscribeToState(callback) {
         if (!sessionRef) return;
@@ -253,14 +340,41 @@ const CoOpSync = (function() {
                 return;
             }
 
-            // Dispatch state update
-            if (_onStateChange) {
-                _onStateChange(data.state);
-            }
-
-            // Dispatch player updates
-            if (_onPlayersChange) {
-                _onPlayersChange(data.players, data.status);
+            if (_mode === 'vs' && _teamId) {
+                // VS: dispatch local team's state
+                const teamState = data.teams?.[_teamId]?.state;
+                if (_onStateChange && teamState) {
+                    _onStateChange(teamState);
+                }
+                // Dispatch team changes
+                if (_onTeamsChange) {
+                    _onTeamsChange(data.teams, data.status);
+                }
+                // Dispatch player changes (flatten for compatibility)
+                if (_onPlayersChange) {
+                    const allPlayers = {};
+                    for (const tid of ['alpha', 'bravo']) {
+                        const team = data.teams?.[tid];
+                        if (team?.players) {
+                            Object.entries(team.players).forEach(([pid, p]) => {
+                                allPlayers[pid] = { ...p, teamId: tid };
+                            });
+                        }
+                    }
+                    _onPlayersChange(allPlayers, data.status);
+                }
+                // Check for winner
+                if (data.winner && _onVsWinner) {
+                    _onVsWinner(data.winner, data.teams);
+                }
+            } else {
+                // Co-op: original dispatch
+                if (_onStateChange) {
+                    _onStateChange(data.state);
+                }
+                if (_onPlayersChange) {
+                    _onPlayersChange(data.players, data.status);
+                }
             }
         });
     }
@@ -295,27 +409,34 @@ const CoOpSync = (function() {
 
     /**
      * Write state to Firestore (replaces localStorage save).
+     * In VS mode, writes to the local team's state path.
      */
     async function updateState(state) {
         if (!sessionRef) return;
         const { updateDoc } = window.firebaseFirestore;
 
+        const stateObj = {
+            score: state.score,
+            flagsFound: state.flagsFound || [],
+            hintsUsed: state.hintsUsed || [],
+            wrongFlags: state.wrongFlags || 0,
+            startTime: state.startTime,
+            elapsed: state.elapsed || 0,
+            completed: state.completed || false,
+            godMode: state.godMode || false,
+            booted: state.booted || false
+        };
+
         try {
-            await updateDoc(sessionRef, {
-                'state': {
-                    score: state.score,
-                    flagsFound: state.flagsFound || [],
-                    hintsUsed: state.hintsUsed || [],
-                    wrongFlags: state.wrongFlags || 0,
-                    startTime: state.startTime,
-                    elapsed: state.elapsed || 0,
-                    completed: state.completed || false,
-                    godMode: state.godMode || false,
-                    booted: state.booted || false
-                }
-            });
+            if (_mode === 'vs' && _teamId) {
+                await updateDoc(sessionRef, {
+                    [`teams.${_teamId}.state`]: stateObj
+                });
+            } else {
+                await updateDoc(sessionRef, { 'state': stateObj });
+            }
         } catch (error) {
-            console.error('[CO-OP] State update failed:', error);
+            console.error(`[${_mode === 'vs' ? 'VS' : 'CO-OP'}] State update failed:`, error);
         }
     }
 
@@ -325,12 +446,14 @@ const CoOpSync = (function() {
 
     /**
      * Atomically submit a flag. Uses Firestore transaction.
+     * In VS mode, operates on the team's state.
      * Returns { success, newState, message }
      */
     async function submitFlagAtomically(flagId, flagValue, flags, scoring) {
         if (!sessionRef || !db) return { success: false, message: 'Not connected' };
 
         const { runTransaction } = window.firebaseFirestore;
+        const isVs = _mode === 'vs' && _teamId;
 
         try {
             const result = await runTransaction(db, async (transaction) => {
@@ -338,7 +461,7 @@ const CoOpSync = (function() {
                 if (!snap.exists()) throw new Error('Session lost');
 
                 const data = snap.data();
-                const state = data.state;
+                const state = isVs ? data.teams[_teamId].state : data.state;
 
                 // Already found?
                 if (state.flagsFound.includes(flagId)) {
@@ -348,10 +471,13 @@ const CoOpSync = (function() {
                 // Verify flag value
                 const flag = flags.find(f => f.id === flagId && f.value.toLowerCase() === flagValue.toLowerCase());
                 if (!flag) {
-                    // Wrong flag
                     state.wrongFlags = (state.wrongFlags || 0) + 1;
                     state.score = Math.max(0, state.score + (scoring?.wrongFlagPenalty || -25));
-                    transaction.update(sessionRef, { state });
+                    if (isVs) {
+                        transaction.update(sessionRef, { [`teams.${_teamId}.state`]: state });
+                    } else {
+                        transaction.update(sessionRef, { state });
+                    }
                     return { success: false, message: 'Incorrect flag', newState: state, penalty: scoring?.wrongFlagPenalty || -25 };
                 }
 
@@ -363,7 +489,6 @@ const CoOpSync = (function() {
                 const allFound = flags.every(f => state.flagsFound.includes(f.id));
                 if (allFound && !state.completed) {
                     state.completed = true;
-                    // Speed bonus
                     const elapsed = Date.now() - state.startTime;
                     if (scoring?.speedBonus && elapsed < scoring.speedBonus.threshold) {
                         state.score += scoring.speedBonus.points;
@@ -371,12 +496,22 @@ const CoOpSync = (function() {
                 }
 
                 state.elapsed = Date.now() - state.startTime;
-                transaction.update(sessionRef, { state, status: state.completed ? 'completed' : 'active' });
+
+                if (isVs) {
+                    const updates = { [`teams.${_teamId}.state`]: state };
+                    // VS: set winner if this team completed
+                    if (state.completed && !data.winner) {
+                        updates.winner = _teamId;
+                        updates.status = 'completed';
+                    }
+                    transaction.update(sessionRef, updates);
+                } else {
+                    transaction.update(sessionRef, { state, status: state.completed ? 'completed' : 'active' });
+                }
 
                 return { success: true, message: `${flagId}.txt captured! +${flag.points}`, newState: state, points: flag.points, completed: state.completed };
             });
 
-            // Log activity on success
             if (result.success) {
                 await logActivity('flag_captured', `${flagId}.txt captured (+${result.points})`);
             } else if (result.penalty) {
@@ -385,19 +520,21 @@ const CoOpSync = (function() {
 
             return result;
         } catch (error) {
-            console.error('[CO-OP] Flag submission failed:', error);
+            console.error(`[${isVs ? 'VS' : 'CO-OP'}] Flag submission failed:`, error);
             return { success: false, message: 'Transaction failed' };
         }
     }
 
     /**
      * Atomically reveal a hint. Prevents double-penalty.
+     * In VS mode, operates on the team's state.
      * Returns { success, newState }
      */
     async function revealHintAtomically(hintId, hintPenalty, isGodMode) {
         if (!sessionRef || !db) return { success: false };
 
         const { runTransaction } = window.firebaseFirestore;
+        const isVs = _mode === 'vs' && _teamId;
 
         try {
             const result = await runTransaction(db, async (transaction) => {
@@ -405,9 +542,8 @@ const CoOpSync = (function() {
                 if (!snap.exists()) throw new Error('Session lost');
 
                 const data = snap.data();
-                const state = data.state;
+                const state = isVs ? data.teams[_teamId].state : data.state;
 
-                // Already revealed? (idempotent — no double penalty)
                 if (state.hintsUsed.includes(hintId)) {
                     return { success: false, alreadyUsed: true, newState: state };
                 }
@@ -417,7 +553,11 @@ const CoOpSync = (function() {
                     state.score = Math.max(0, state.score + hintPenalty);
                 }
 
-                transaction.update(sessionRef, { state });
+                if (isVs) {
+                    transaction.update(sessionRef, { [`teams.${_teamId}.state`]: state });
+                } else {
+                    transaction.update(sessionRef, { state });
+                }
                 return { success: true, newState: state };
             });
 
@@ -427,7 +567,7 @@ const CoOpSync = (function() {
 
             return result;
         } catch (error) {
-            console.error('[CO-OP] Hint reveal failed:', error);
+            console.error(`[${isVs ? 'VS' : 'CO-OP'}] Hint reveal failed:`, error);
             return { success: false };
         }
     }
@@ -445,15 +585,20 @@ const CoOpSync = (function() {
             if (!activityRef) {
                 activityRef = collection(sessionRef, 'activity');
             }
-            await addDoc(activityRef, {
+            const entry = {
                 player: _playerName,
                 playerId: _playerId,
                 action: action,
                 detail: detail,
                 timestamp: Date.now()
-            });
+            };
+            // VS: tag activity with team for cross-team display
+            if (_mode === 'vs' && _teamId) {
+                entry.teamId = _teamId;
+            }
+            await addDoc(activityRef, entry);
         } catch (error) {
-            console.error('[CO-OP] Activity log failed:', error);
+            console.error(`[${_mode === 'vs' ? 'VS' : 'CO-OP'}] Activity log failed:`, error);
         }
     }
 
@@ -493,13 +638,18 @@ const CoOpSync = (function() {
 
     function _persistSession() {
         try {
-            localStorage.setItem(SESSION_KEY, JSON.stringify({
+            const data = {
                 roomCode: _roomCode,
                 playerId: _playerId,
                 isHost: _isHost,
+                mode: _mode,
                 url: window.location.pathname,
                 timestamp: Date.now()
-            }));
+            };
+            if (_mode === 'vs' && _teamId) {
+                data.teamId = _teamId;
+            }
+            localStorage.setItem(SESSION_KEY, JSON.stringify(data));
         } catch { /* localStorage may be full */ }
     }
 
@@ -646,15 +796,21 @@ const CoOpSync = (function() {
     // ────────────────────────────────────────────────
 
     function startPresence() {
-        // Update lastSeen every 15 seconds
         presenceInterval = setInterval(async () => {
             if (!sessionRef) return;
             const { updateDoc } = window.firebaseFirestore;
             try {
-                await updateDoc(sessionRef, {
-                    [`players.${_playerId}.lastSeen`]: Date.now(),
-                    [`players.${_playerId}.online`]: true
-                });
+                if (_mode === 'vs' && _teamId) {
+                    await updateDoc(sessionRef, {
+                        [`teams.${_teamId}.players.${_playerId}.lastSeen`]: Date.now(),
+                        [`teams.${_teamId}.players.${_playerId}.online`]: true
+                    });
+                } else {
+                    await updateDoc(sessionRef, {
+                        [`players.${_playerId}.lastSeen`]: Date.now(),
+                        [`players.${_playerId}.online`]: true
+                    });
+                }
             } catch { /* ignore presence errors */ }
         }, 15000);
     }
@@ -675,20 +831,93 @@ const CoOpSync = (function() {
             activityUnsubscribe = null;
         }
 
+        if (_teamsUnsubscribe) {
+            _teamsUnsubscribe();
+            _teamsUnsubscribe = null;
+        }
+
+        if (_timerInterval) {
+            clearInterval(_timerInterval);
+            _timerInterval = null;
+        }
+
         _removeRefreshGuard();
 
         if (sessionRef) {
             try {
                 const { updateDoc } = window.firebaseFirestore;
-                await updateDoc(sessionRef, {
-                    [`players.${_playerId}.online`]: false
-                });
+                if (_mode === 'vs' && _teamId) {
+                    await updateDoc(sessionRef, {
+                        [`teams.${_teamId}.players.${_playerId}.online`]: false
+                    });
+                } else {
+                    await updateDoc(sessionRef, {
+                        [`players.${_playerId}.online`]: false
+                    });
+                }
                 await logActivity('player_left', `${_playerName} disconnected`);
             } catch { /* page may be unloading */ }
         }
 
         sessionRef = null;
         _roomCode = null;
+        _teamId = null;
+    }
+
+    // ────────────────────────────────────────────────
+    // VS MODE — TEAM-SPECIFIC METHODS
+    // ────────────────────────────────────────────────
+
+    /**
+     * Subscribe to all teams data changes (VS mode).
+     * Callback receives { alpha: {...}, bravo: {...} } teams object.
+     */
+    function onTeamsChange(callback) {
+        _onTeamsChange = callback;
+    }
+
+    /**
+     * Subscribe to VS winner event.
+     * Callback receives (winnerId, teams).
+     */
+    function onVsWinner(callback) {
+        _onVsWinner = callback;
+    }
+
+    /**
+     * Get all teams snapshot (VS mode). Returns teams object or null.
+     */
+    async function getTeams() {
+        if (!sessionRef || !db) return null;
+        const { getDoc } = window.firebaseFirestore;
+        try {
+            const snap = await getDoc(sessionRef);
+            if (!snap.exists()) return null;
+            return snap.data().teams || null;
+        } catch { return null; }
+    }
+
+    /**
+     * Get the opponent team's ID.
+     */
+    function getOpponentTeam() {
+        if (!_teamId) return null;
+        return _teamId === 'alpha' ? 'bravo' : 'alpha';
+    }
+
+    /**
+     * Surrender in VS mode. Sets the other team as winner.
+     */
+    async function surrender() {
+        if (!sessionRef || !db || _mode !== 'vs' || !_teamId) return;
+        const { updateDoc } = window.firebaseFirestore;
+        const winner = getOpponentTeam();
+        try {
+            await updateDoc(sessionRef, { winner, status: 'completed' });
+            await logActivity('surrender', `${_playerName}'s team surrendered`);
+        } catch (error) {
+            console.error('[VS] Surrender failed:', error);
+        }
     }
 
     // ────────────────────────────────────────────────
@@ -757,6 +986,13 @@ const CoOpSync = (function() {
         disconnect,
         migrateHost,
 
+        // VS Mode
+        onTeamsChange,
+        onVsWinner,
+        getTeams,
+        getOpponentTeam,
+        surrender,
+
         // Session persistence
         getPersistedSession,
         validatePersistedSession,
@@ -767,6 +1003,8 @@ const CoOpSync = (function() {
         get playerId() { return _playerId; },
         get playerName() { return _playerName; },
         get isHost() { return _isHost; },
-        get isActive() { return sessionRef !== null; }
+        get isActive() { return sessionRef !== null; },
+        get mode() { return _mode; },
+        get teamId() { return _teamId; }
     };
 })();

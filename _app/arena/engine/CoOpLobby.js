@@ -1,8 +1,8 @@
 /* ============================================================
    CTF ARENA — CoOpLobby.js
-   Pre-game lobby UI for co-op mode.
-   Shows mode selection (Solo/Co-Op), room creation, joining,
-   player list, and game start controls.
+   Pre-game lobby UI for co-op and VS modes.
+   Shows mode selection (Solo/Co-Op/VS), room creation, joining,
+   player list, team assignment, and game start controls.
    ============================================================ */
 
 const CoOpLobby = (function() {
@@ -14,6 +14,8 @@ const CoOpLobby = (function() {
     let _pollInterval = null;
     let _hostMigrationInterval = null;
     let _squadSize = 2;   // Selected squad size (2=Duo, 3=Trio, 5=Squad)
+    let _gameMode = 'solo'; // 'solo' | 'coop' | 'vs'
+    let _timeLimit = null;  // VS time limit in minutes (null = unlimited)
 
     // ────────────────────────────────────────────────
     // SHOW LOBBY
@@ -60,6 +62,11 @@ const CoOpLobby = (function() {
                         <span class="coop-mode-label">Co-Op</span>
                         <span class="coop-mode-desc">Team up. Shared mission.</span>
                     </button>
+                    <button class="coop-mode-btn coop-mode-vs" id="coopBtnVs">
+                        <span class="coop-mode-icon">&#9760;</span>
+                        <span class="coop-mode-label">VS Battle</span>
+                        <span class="coop-mode-desc">Team vs team. Race to pwn.</span>
+                    </button>
                 </div>
                 <div class="coop-lobby-stage" id="coopLobbyStage"></div>
             </div>
@@ -68,12 +75,19 @@ const CoOpLobby = (function() {
         document.body.appendChild(_overlayEl);
 
         document.getElementById('coopBtnSolo').addEventListener('click', () => {
+            _gameMode = 'solo';
             _close();
             _onStart({ mode: 'solo' });
         });
 
         document.getElementById('coopBtnCoop').addEventListener('click', () => {
+            _gameMode = 'coop';
             _showSquadSelect();
+        });
+
+        document.getElementById('coopBtnVs').addEventListener('click', () => {
+            _gameMode = 'vs';
+            _showVsFormatSelect();
         });
     }
 
@@ -83,9 +97,22 @@ const CoOpLobby = (function() {
 
     function _showRejoinPrompt(persisted, sessionData) {
         const max = sessionData.config?.maxPlayers || 2;
-        const sLabel = max === 2 ? 'DUO' : max === 3 ? 'TRIO' : 'SQUAD';
-        const playerCount = Object.keys(sessionData.players || {}).length;
-        const isHost = sessionData.players?.[persisted.playerId]?.isHost;
+        const isVs = sessionData.mode === 'vs';
+        const sLabel = isVs ? 'VS' : (max === 2 ? 'DUO' : max === 3 ? 'TRIO' : 'SQUAD');
+        let playerCount, isHost;
+        if (isVs) {
+            const allPlayers = [
+                ...Object.keys(sessionData.teams?.alpha?.players || {}),
+                ...Object.keys(sessionData.teams?.bravo?.players || {})
+            ];
+            playerCount = allPlayers.length;
+            const teamId = persisted.teamId || 'alpha';
+            isHost = sessionData.teams?.[teamId]?.players?.[persisted.playerId]?.isHost;
+        } else {
+            playerCount = Object.keys(sessionData.players || {}).length;
+            isHost = sessionData.players?.[persisted.playerId]?.isHost;
+        }
+        _gameMode = sessionData.mode || 'coop';
 
         _overlayEl = document.createElement('div');
         _overlayEl.className = 'coop-lobby-overlay';
@@ -131,7 +158,7 @@ const CoOpLobby = (function() {
             // If game is already active, skip lobby and go straight in
             if (data.status === 'active') {
                 _close();
-                _onStart({ mode: 'coop', state: data.state, rejoin: true });
+                _onStart({ mode: _gameMode, state: _gameMode === 'vs' ? null : data.state, rejoin: true });
                 return;
             }
 
@@ -234,6 +261,214 @@ const CoOpLobby = (function() {
     }
 
     // ────────────────────────────────────────────────
+    // VS FORMAT SELECTION
+    // ────────────────────────────────────────────────
+
+    function _showVsFormatSelect() {
+        document.querySelector('.coop-lobby-modes').style.display = 'none';
+        document.querySelector('.coop-lobby-subtitle').textContent = 'Select battle format';
+
+        const stage = document.getElementById('coopLobbyStage');
+        stage.innerHTML = `
+            <div class="coop-squad-select vs-format-select">
+                <button class="coop-squad-btn vs-format-btn" data-size="1">
+                    <span class="coop-squad-count">1v1</span>
+                    <span class="coop-squad-label">DUEL</span>
+                </button>
+                <button class="coop-squad-btn vs-format-btn" data-size="2">
+                    <span class="coop-squad-count">2v2</span>
+                    <span class="coop-squad-label">DUO</span>
+                </button>
+                <button class="coop-squad-btn vs-format-btn" data-size="3">
+                    <span class="coop-squad-count">3v3</span>
+                    <span class="coop-squad-label">TRIO</span>
+                </button>
+                <button class="coop-squad-btn vs-format-btn" data-size="5">
+                    <span class="coop-squad-count">5v5</span>
+                    <span class="coop-squad-label">SQUAD</span>
+                </button>
+            </div>
+        `;
+
+        stage.querySelectorAll('.vs-format-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                _squadSize = parseInt(btn.dataset.size);
+                _showVsOptions();
+            });
+        });
+    }
+
+    function _showVsOptions() {
+        const formatLabel = _squadSize === 1 ? '1v1 DUEL' : _squadSize === 2 ? '2v2 DUO' : _squadSize === 3 ? '3v3 TRIO' : '5v5 SQUAD';
+        document.querySelector('.coop-lobby-subtitle').textContent = `${formatLabel} — Set up your battle`;
+
+        const stage = document.getElementById('coopLobbyStage');
+        stage.innerHTML = `
+            <div class="vs-time-select">
+                <div class="vs-time-label">Time Limit</div>
+                <div class="vs-time-options">
+                    <button class="vs-time-btn active" data-time="0">Unlimited</button>
+                    <button class="vs-time-btn" data-time="10">10 min</button>
+                    <button class="vs-time-btn" data-time="15">15 min</button>
+                    <button class="vs-time-btn" data-time="20">20 min</button>
+                    <button class="vs-time-btn" data-time="30">30 min</button>
+                </div>
+            </div>
+            <div class="coop-options">
+                <button class="coop-option-btn vs-option-btn" id="vsCreate">
+                    <span class="coop-option-icon">+</span>
+                    Create Battle
+                </button>
+                <button class="coop-option-btn vs-option-btn" id="vsJoin">
+                    <span class="coop-option-icon">&#8594;</span>
+                    Join Battle
+                </button>
+            </div>
+        `;
+
+        // Time limit selection
+        _timeLimit = null;
+        stage.querySelectorAll('.vs-time-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                stage.querySelectorAll('.vs-time-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                const t = parseInt(btn.dataset.time);
+                _timeLimit = t > 0 ? t : null;
+            });
+        });
+
+        document.getElementById('vsCreate').addEventListener('click', _createVsRoom);
+        document.getElementById('vsJoin').addEventListener('click', _showJoinInput);
+    }
+
+    async function _createVsRoom() {
+        const stage = document.getElementById('coopLobbyStage');
+        stage.innerHTML = `<div class="coop-loading">Initializing battle arena...</div>`;
+
+        try {
+            await CoOpSync.init();
+            const boxId = _config.storageKey || 'unknown';
+            const roomCode = await CoOpSync.createSession(boxId, _config, _squadSize, {
+                mode: 'vs',
+                timeLimit: _timeLimit
+            });
+            _installDisbandListener();
+            _showVsHostLobby(roomCode);
+        } catch (error) {
+            stage.innerHTML = `<div class="coop-error">Failed to create battle: ${_escHtml(error.message)}</div>`;
+        }
+    }
+
+    function _showVsHostLobby(roomCode) {
+        const formatLabel = _squadSize === 1 ? '1v1' : _squadSize === 2 ? '2v2' : _squadSize === 3 ? '3v3' : '5v5';
+        const timeLabel = _timeLimit ? `${_timeLimit} min` : 'Unlimited';
+
+        const stage = document.getElementById('coopLobbyStage');
+        stage.innerHTML = `
+            <div class="coop-room-created vs-room-created">
+                <div class="coop-room-label">Battle Room</div>
+                <div class="coop-room-code" id="coopRoomCode">${roomCode} <span class="coop-squad-badge vs-badge">${formatLabel} VS</span></div>
+                <div class="coop-room-hint">Share this code with opponents &bull; ${timeLabel}</div>
+                <div class="vs-teams-container" id="vsTeamsContainer">
+                    <div class="vs-team-col" id="vsTeamAlpha">
+                        <div class="vs-team-header alpha">TEAM ALPHA</div>
+                        <div class="vs-team-players" id="vsAlphaPlayers"></div>
+                    </div>
+                    <div class="vs-divider">VS</div>
+                    <div class="vs-team-col" id="vsTeamBravo">
+                        <div class="vs-team-header bravo">TEAM BRAVO</div>
+                        <div class="vs-team-players" id="vsBravoPlayers"></div>
+                    </div>
+                </div>
+                <button class="coop-start-btn vs-start-btn disabled" id="vsStartBtn" disabled>Waiting for opponents</button>
+                <button class="coop-disband-btn" id="coopDisbandBtn">Disband Battle</button>
+            </div>
+        `;
+
+        // Subscribe to team changes via the state subscription
+        CoOpSync.subscribeToState(() => {}); // Need this to trigger snapshot listener
+        CoOpSync.onPlayersChange((players, status) => {
+            _updateVsTeamLists(players);
+        });
+        // Also subscribe to teams directly via onTeamsChange
+        CoOpSync.onTeamsChange((teams, status) => {
+            _updateVsTeamListsFromTeams(teams);
+        });
+
+        document.getElementById('vsStartBtn').addEventListener('click', async () => {
+            await CoOpSync.startGame();
+            await CoOpSync.logActivity('battle_started', `${CoOpSync.playerName} started the battle`);
+            CoOpSync.startPresence();
+            _close();
+            _onStart({ mode: 'vs' });
+        });
+
+        document.getElementById('coopDisbandBtn').addEventListener('click', _confirmDisband);
+    }
+
+    function _updateVsTeamListsFromTeams(teams) {
+        if (!teams) return;
+
+        for (const tid of ['alpha', 'bravo']) {
+            const container = document.getElementById(`vs${tid.charAt(0).toUpperCase() + tid.slice(1)}Players`);
+            if (!container) continue;
+
+            const teamPlayers = teams[tid]?.players || {};
+            const entries = Object.entries(teamPlayers);
+            let html = '';
+
+            entries.forEach(([pid, p]) => {
+                const isYou = pid === CoOpSync.playerId;
+                const stale = (Date.now() - (p.lastSeen || 0)) > 30000;
+                const online = p.online && !stale;
+                html += `
+                    <div class="coop-player ${isYou ? 'you' : ''} ${online ? '' : 'offline'}">
+                        <span class="coop-player-dot ${online ? 'online' : ''}"></span>
+                        <span class="coop-player-name">${_escHtml(p.name || 'Unknown')}</span>
+                        ${p.isHost ? '<span class="coop-player-role">HOST</span>' : ''}
+                        ${isYou ? '<span class="coop-player-you">YOU</span>' : ''}
+                    </div>
+                `;
+            });
+
+            // Empty slots
+            const max = _squadSize;
+            for (let i = entries.length; i < max; i++) {
+                html += `
+                    <div class="coop-player waiting">
+                        <span class="coop-player-dot"></span>
+                        <span class="coop-player-name">Waiting...</span>
+                    </div>
+                `;
+            }
+
+            container.innerHTML = html;
+        }
+
+        // Enable start button when both teams have at least 1 player
+        const alphaCount = Object.keys(teams.alpha?.players || {}).length;
+        const bravoCount = Object.keys(teams.bravo?.players || {}).length;
+        const startBtn = document.getElementById('vsStartBtn');
+        if (startBtn && alphaCount >= 1 && bravoCount >= 1) {
+            startBtn.disabled = false;
+            startBtn.classList.remove('disabled');
+            const total = alphaCount + bravoCount;
+            const max = _squadSize * 2;
+            startBtn.textContent = total >= max ? 'Start Battle' : `Start Battle (${total}/${max})`;
+        }
+    }
+
+    function _updateVsTeamLists(players) {
+        // Reconstruct teams from flattened players with teamId
+        const teams = { alpha: { players: {} }, bravo: { players: {} } };
+        Object.entries(players || {}).forEach(([pid, p]) => {
+            const tid = p.teamId || 'alpha';
+            teams[tid].players[pid] = p;
+        });
+        _updateVsTeamListsFromTeams(teams);
+    }
+
+    // ────────────────────────────────────────────────
     // CREATE ROOM
     // ────────────────────────────────────────────────
 
@@ -244,7 +479,7 @@ const CoOpLobby = (function() {
         try {
             await CoOpSync.init();
             const boxId = _config.storageKey || 'unknown';
-            const roomCode = await CoOpSync.createSession(boxId, _config, _squadSize);
+            const roomCode = await CoOpSync.createSession(boxId, _config, _squadSize, { mode: 'coop' });
             _installDisbandListener();
             _showHostLobby(roomCode, _squadSize);
         } catch (error) {
@@ -354,7 +589,14 @@ const CoOpLobby = (function() {
         try {
             await CoOpSync.init();
             const sessionData = await CoOpSync.joinSession(code);
-            await CoOpSync.logActivity('player_joined', `${CoOpSync.playerName} joined the room`);
+
+            // Detect mode from session
+            if (sessionData.mode === 'vs') {
+                _gameMode = 'vs';
+            }
+
+            const label = _gameMode === 'vs' ? 'battle' : 'room';
+            await CoOpSync.logActivity('player_joined', `${CoOpSync.playerName} joined the ${label}`);
             CoOpSync.startPresence();
 
             const max = sessionData.config?.maxPlayers || 2;
@@ -370,6 +612,13 @@ const CoOpLobby = (function() {
      * Shared joiner lobby view — used by both joinRoom and rejoin.
      */
     function _showJoinerLobby(code, sessionData, max) {
+        const isVs = _gameMode === 'vs' || sessionData.mode === 'vs';
+
+        if (isVs) {
+            _gameMode = 'vs';
+            return _showVsJoinerLobby(code, sessionData, max);
+        }
+
         const sLabel = max === 2 ? 'DUO' : max === 3 ? 'TRIO' : 'SQUAD';
 
         const stage = document.getElementById('coopLobbyStage');
@@ -386,11 +635,9 @@ const CoOpLobby = (function() {
 
         CoOpSync.subscribeToState(() => {});
 
-        // Listen for player changes, game start, and host migration
         CoOpSync.onPlayersChange((players, status) => {
             _updatePlayerList(players, max);
 
-            // If we got promoted to host, switch to host view
             if (CoOpSync.isHost && !document.getElementById('coopStartBtn')) {
                 _overlayEl.remove();
                 _overlayEl = null;
@@ -407,7 +654,54 @@ const CoOpLobby = (function() {
             }
         });
 
-        // Start host migration checks (if host goes stale, try to promote)
+        _startHostMigrationPolling();
+    }
+
+    function _showVsJoinerLobby(code, sessionData, max) {
+        const formatLabel = max === 1 ? '1v1' : max === 2 ? '2v2' : max === 3 ? '3v3' : '5v5';
+        const myTeam = CoOpSync.teamId;
+
+        const stage = document.getElementById('coopLobbyStage');
+        stage.innerHTML = `
+            <div class="coop-room-created vs-room-created">
+                <div class="coop-room-label">Joined Battle</div>
+                <div class="coop-room-code">${code} <span class="coop-squad-badge vs-badge">${formatLabel} VS</span></div>
+                <div class="vs-team-assignment">You are on <strong>Team ${myTeam ? myTeam.charAt(0).toUpperCase() + myTeam.slice(1) : '?'}</strong></div>
+                <div class="vs-teams-container" id="vsTeamsContainer">
+                    <div class="vs-team-col" id="vsTeamAlpha">
+                        <div class="vs-team-header alpha">TEAM ALPHA</div>
+                        <div class="vs-team-players" id="vsAlphaPlayers"></div>
+                    </div>
+                    <div class="vs-divider">VS</div>
+                    <div class="vs-team-col" id="vsTeamBravo">
+                        <div class="vs-team-header bravo">TEAM BRAVO</div>
+                        <div class="vs-team-players" id="vsBravoPlayers"></div>
+                    </div>
+                </div>
+                <div class="coop-join-status" id="coopJoinStatus">Waiting for host to start battle...</div>
+            </div>
+        `;
+
+        _squadSize = max;
+
+        // Initial render
+        if (sessionData.teams) {
+            _updateVsTeamListsFromTeams(sessionData.teams);
+        }
+
+        CoOpSync.subscribeToState(() => {});
+
+        CoOpSync.onTeamsChange((teams, status) => {
+            _updateVsTeamListsFromTeams(teams);
+        });
+
+        CoOpSync.onPlayersChange((players, status) => {
+            if (status === 'active') {
+                _close();
+                _onStart({ mode: 'vs', state: null });
+            }
+        });
+
         _startHostMigrationPolling();
     }
 
