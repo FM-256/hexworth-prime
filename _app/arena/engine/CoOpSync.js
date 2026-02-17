@@ -93,8 +93,8 @@ const CoOpSync = (function() {
                 }
             }
         } catch (authError) {
-            console.warn('[CO-OP] Auth setup failed:', authError.message);
-            console.warn('[CO-OP] Firestore calls may fail with permission errors');
+            console.error('[CO-OP] Auth setup failed:', authError.message);
+            console.error('[CO-OP] If "auth/operation-not-allowed" — enable Anonymous auth in Firebase Console');
         }
 
         return true;
