@@ -1393,9 +1393,92 @@
                 };
             });
 
-            // Use STATE_MERGE to update without triggering full reset
-            WSAState.dispatch({ type: 'STATE_MERGE', payload: { adOUs: ouObj, adUsers: userObj, adGroups: groupObj }, source: 'gauntlet-sync' });
-        } catch(e) { /* non-critical */ }
+            // Sync disk initialization state
+            const wsState = WSAState.getState();
+            const diskUpdates = {};
+            state.storage.disks.forEach(d => {
+                const wsDisk = wsState.disks[d.id];
+                if (wsDisk) {
+                    diskUpdates[d.id] = {
+                        ...wsDisk,
+                        PartitionStyle: d.initialized ? (d.format || 'GPT') : 'RAW',
+                        OperationalStatus: d.initialized ? 'Online' : 'Offline',
+                    };
+                }
+            });
+
+            // Sync partitions from gauntlet volumes
+            const partObj = {};
+            state.storage.volumes.forEach(v => {
+                if (v.letter === 'C') return; // skip system
+                const key = `${v.disk}-${v.letter}`;
+                partObj[key] = {
+                    DiskNumber: v.disk,
+                    PartitionNumber: Object.keys(partObj).filter(k => k.startsWith(`${v.disk}-`)).length + 1,
+                    Size: (v.size || 0) * 1024 * 1024 * 1024,
+                    DriveLetter: v.letter,
+                    Type: 'Basic',
+                };
+            });
+
+            // Sync volumes
+            const volObj = { 'C': wsState.volumes?.['C'] || { DriveLetter: 'C', FileSystemLabel: 'System', FileSystem: 'NTFS', Size: 126*1024*1024*1024 } };
+            state.storage.volumes.forEach(v => {
+                if (v.letter === 'C') return;
+                volObj[v.letter] = {
+                    DriveLetter: v.letter,
+                    FileSystem: v.fs || 'NTFS',
+                    FileSystemLabel: v.label || 'New Volume',
+                    Size: (v.size || 0) * 1024 * 1024 * 1024,
+                    HealthStatus: 'Healthy',
+                    DriveType: 'Fixed',
+                };
+            });
+
+            // Sync shares
+            const shareObj = {};
+            state.storage.shares.forEach(s => {
+                shareObj[s.name] = { Name: s.name, Path: s.path || '' };
+            });
+
+            // Sync Hyper-V VMs
+            const vmObj = {};
+            state.hyperv.vms.forEach(v => {
+                vmObj[v.Name] = {
+                    Name: v.Name,
+                    Generation: v.Generation || 2,
+                    MemoryStartup: (v.MemoryGB || 4) * 1024 * 1024 * 1024,
+                    MemoryAssigned: (v.MemoryGB || 4) * 1024 * 1024 * 1024,
+                    State: v.State || 'Off',
+                    ProcessorCount: 2,
+                };
+            });
+
+            // Sync VM switches
+            const switchObj = {};
+            state.hyperv.switches.forEach(s => {
+                switchObj[s.name] = { Name: s.name, SwitchType: s.type || 'Internal' };
+            });
+
+            // Sync checkpoints
+            const cpObj = {};
+            Object.entries(state.hyperv.checkpoints).forEach(([vmName, cps]) => {
+                cps.forEach((cp, i) => {
+                    cpObj[`${vmName}-${i}`] = { VMName: vmName, CreationTime: cp.time || new Date().toLocaleString() };
+                });
+            });
+
+            // Sync domain if promoted
+            const domainName = state.ad.domain || wsState.domain || 'hexworth.local';
+            const hostName = state.server.hostname || wsState.hostname || 'WIN-SERVER';
+
+            WSAState.dispatch({ type: 'STATE_MERGE', payload: {
+                adOUs: ouObj, adUsers: userObj, adGroups: groupObj,
+                disks: diskUpdates, partitions: partObj, volumes: volObj,
+                shares: shareObj, vms: vmObj, vmSwitches: switchObj, vmCheckpoints: cpObj,
+                domain: domainName, hostname: hostName,
+            }, source: 'gauntlet-sync' });
+        } catch(e) { console.warn('Gauntlet→WSAState sync error:', e); }
     }
 
     // ── Briefing Modal ──
@@ -1522,6 +1605,8 @@
         // Initialize GUISimulator for AD, Disk, Hyper-V consoles
         try {
             initGUISimulator();
+            // Restore saved gauntlet state into WSAState (critical for resume)
+            syncGauntletToWSAState();
             // Subscribe to WSAState changes to keep gauntlet state in sync
             WSAState.subscribe(() => syncWSAStateToGauntlet());
         } catch(e) {
