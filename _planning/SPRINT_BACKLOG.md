@@ -26,11 +26,24 @@
 
 ## Current Sprint
 
-### Sprint ES-10: ContentCatalog Href Validation
-**Status:** ✅ Complete (February 14, 2026)
-**See:** EduScan section below for full task list
+### Overnight Marathon (February 17, 2026)
+**Status:** ✅ Complete
+**Scope:** 4 tasks in a single autonomous session
 
-**Next up:** AR-2 (A1 IDP complete, Gemini drafting A2–A20), HED-1, or HD-6
+| Task | Sprint | Deliverable | Status |
+|------|--------|-------------|--------|
+| Arena VS Mode | AR-8 | Team-based competitive CTF battles (CoOpSync + CoOpLobby + CoOpUI + BoxEngine + arena.css) | ✅ |
+| Assessment Mode | AR-7 | Wire BoxEngine into ProgressManager + AssignmentManager + GameTracker (6 hook points) | ✅ |
+| Host Error Detector | HED-1 | Floating diagnostic panel upgrade — admin-gated indicator dot + error list + Copy Log | ✅ |
+| Boxes A6–A10 | AR-9 | 5 new boxes: Crypto, NoSQL, File Upload, Deserialization, SSRF (5,269 lines, bench/QC) | ✅ |
+
+**Commits:**
+- `e08e5069` — Arena VS Mode: team-based competitive CTF battles
+- `202ecd30` — Arena assessment mode: wire boxes into instructor analytics pipeline
+- `60002bc5` — HED-1: Floating diagnostic panel — live runtime error overlay (admin-gated)
+- `d2fd3dd7` — Arena Boxes A6-A10: Crypto, NoSQL, File Upload, Deserialization, SSRF
+
+**Next up:** AR-2 (A1 IDP complete, Gemini drafting A2–A20), HD-6, or OB-1
 
 ---
 
@@ -679,7 +692,7 @@ Created the IDP template and completed the A1 IDP as the gold standard. Gemini i
 ---
 
 ### Sprint AR-3: Box A2–A5 Builds
-**Status:** ⬜ Backlog
+**Status:** ✅ Complete (February 17, 2026) — On bench for QC/QA
 **Priority:** High — Validation requires 5 working boxes
 **Depends on:** AR-1 (engine), AR-2 (IDPs for reference)
 
@@ -754,7 +767,7 @@ Extend the engine for defensive/blue team scenarios (Series B requires different
 ---
 
 ### Sprint AR-7: Assessment Mode + Instructor Integration
-**Status:** ⬜ Backlog
+**Status:** 🟡 Partially Complete (February 17, 2026)
 **Priority:** Medium — Required for accreditation play
 **Depends on:** AR-3 (5 boxes), existing instructor pipeline (HD-series)
 
@@ -762,12 +775,50 @@ Wire Arena boxes into the existing instructor analytics pipeline and add assessm
 
 | Task | Status |
 |------|--------|
-| BoxEngine calls ProgressManager.completeModule() on box completion | ⬜ |
-| BoxEngine calls AssignmentManager.logActivity() for key events (flag found, hint used) | ⬜ |
-| BoxEngine calls GameTracker.record() for score persistence | ⬜ |
+| BoxEngine calls ProgressManager.completeModule() on box completion | ✅ |
+| BoxEngine calls AssignmentManager.logActivity() for key events (flag found, hint used) | ✅ |
+| BoxEngine calls GameTracker.record() for score persistence | ✅ |
 | Assessment mode: certObjectives mapping per box (from IDP Skills Mapping) | ⬜ |
 | Assessment mode report: CSV export with cert objective completion evidence | ⬜ |
 | Instructor dashboard: Arena panel showing per-student box progress | ⬜ |
+
+**Completed (Feb 17):** 3 new methods in BoxEngine.js (`_reportCompletion`, `_reportFlagCapture`, `_reportHintReveal`) hooked into 6 code paths: solo flag capture, co-op flag capture, solo/VS completion, solo/co-op hint reveal. All calls are try/catch wrapped with `typeof` existence checks for graceful degradation.
+
+---
+
+### Sprint AR-8: Arena VS Mode — Competitive CTF
+**Status:** ✅ Complete (February 17, 2026)
+**Priority:** Medium — Multiplayer engagement differentiator
+**Depends on:** AR-1 (engine), Co-op mode (CoOpSync/CoOpLobby/CoOpUI)
+
+Team-based competitive CTF battles. Teams race each other with separate scores, live scoreboard, and cross-team psychological pressure notifications.
+
+| Task | Status |
+|------|--------|
+| CoOpSync.js — VS mode branching: per-team state, team auto-balance, atomic flag/hint ops | ✅ |
+| CoOpLobby.js — VS lobby flow: format select (1v1–5v5), time limit, dual team columns | ✅ |
+| CoOpUI.js — VS scoreboard, team-grouped players, cross-team activity tags | ✅ |
+| BoxEngine.js — VS mode init, winner detection, victory/defeat overlay | ✅ |
+| arena.css — Full VS visual theme: lobby, scoreboard, team colors, result overlay | ✅ |
+
+**Architecture:** Per-team Firestore state at `teams.alpha.state` / `teams.bravo.state`. Shared activity subcollection with `teamId` field. Winner set atomically inside `submitFlagAtomically()` transaction. Auto-balance assigns new players to smaller team.
+
+---
+
+### Sprint AR-9: Arena Boxes A6–A10
+**Status:** ✅ Complete (February 17, 2026) — On bench for QC/QA
+**Priority:** Medium — Expands the box library to 10 offensive scenarios
+**Depends on:** AR-1 (engine)
+
+| Box | Title | Theme | Faction | Lines | Status |
+|-----|-------|-------|---------|:-----:|--------|
+| A6 | The Broken Cipher | Weak Cryptography | Silent Cipher Order | 931 | ✅ bench |
+| A7 | The Hollow Database | NoSQL Injection | Void Collective | 1,027 | ✅ bench |
+| A8 | The Forgotten Upload | File Upload Vuln | Ashen Archive | 1,018 | ✅ bench |
+| A9 | The Rusted Lock | Insecure Deserialization | Forge Remnants | 1,087 | ✅ bench |
+| A10 | The Glass Tunnel | SSRF | Glass Corridor | 1,021 | ✅ bench |
+
+**Total:** 5,084 lines of config across 5 boxes + 5 index.html consumers. All registered in arena index.html as `coming-soon`.
 
 ---
 
@@ -1234,7 +1285,7 @@ Wire Arena boxes into the existing instructor analytics pipeline and add assessm
 **Baseline after:** CRITICAL:0, HIGH:0, MED:676, LOW:242, SUSPECT:114, WARN:869
 
 ### Sprint HED-1: Host Error Detector — Live Runtime Immune System
-**Status:** 📋 Queued (after ES-10)
+**Status:** 🟡 Partially Complete (February 17, 2026)
 **Priority:** High — Closes the post-deploy blind spot
 **Inspiration:** Biological immune system — lightweight sentinels always on patrol, signal heavier response when threats detected
 **Prefix:** HED (new series — live monitoring, distinct from batch scanning)
@@ -1281,10 +1332,12 @@ EduScan catches issues **before** deploy. The functional validator catches runti
 
 | Task | Status |
 |------|--------|
-| HED.js core agent — error listeners, benign filtering, ring buffer | ⬜ |
-| Inject HED.js into shared page template (single script tag, all pages) | ⬜ |
-| Dashboard footer "Health" tab — surfaces local HED buffer | ⬜ |
-| HED issue codes (HED-001 through HED-005) mapping to EduScan FUNC-* codes | ⬜ |
+| HED.js core agent — error listeners, benign filtering, ring buffer | ✅ (v1.1.0) |
+| Inject HED.js into shared page template (single script tag, all pages) | ✅ (via FluxCapacitor.js auto-load) |
+| Dashboard footer "Health" tab — surfaces local HED buffer | ✅ (HealthPanel.js) |
+| HED issue codes (HED-001 through HED-004) mapping to EduScan FUNC-* codes | ✅ |
+| Cloud reporting — Firestore `hed_reports` collection, dedup + batch flush | ✅ (v1.1.0) |
+| **Floating diagnostic panel** — admin-gated indicator dot + error list + Copy Log | ✅ (v1.2.0, Feb 17) |
 | Firebase Cloud Function endpoint for connected student reporting (optional Phase 2) | ⬜ |
 | Instructor dashboard aggregation — error heatmap by page/house (optional Phase 2) | ⬜ |
 | EduScan integration — `npm run scan:hed` ingests HED reports as issue source | ⬜ |
@@ -1314,6 +1367,56 @@ The pod-crossing.html 404 scenario: a student clicks a dead catalog link → HED
 | Login/signup flow | ⬜ |
 | Profile management | ⬜ |
 | Cloud progress sync | ⬜ |
+
+---
+
+### Sprint F-38: Advanced Career Sorting Quiz
+**Status:** ⬜ Backlog
+**Priority:** Medium
+**Prerequisite:** Current sorting quiz (F-31/V2 merge) stable and deployed
+
+**Concept:** An optional, deeper sorting experience that goes beyond house assignment to identify career aptitude. The current quiz answers "who are you?" — this quiz answers "where are you going?"
+
+**Design Principles:**
+- **Optional, not a replacement** — unlockable from dashboard or offered after initial house sort
+- **Knowledge-free questions** — strictly personality/behavioral/scenario-based, no tech terminology required
+- **Longer format** — 30-40 questions with richer scenario-based prompts (incident response situations, team dynamics, work environment preferences, problem-solving style)
+- **Career output** — top 3 career matches with fit percentages, mapped to real IT/cyber roles
+
+**Target Career Tracks:**
+| Career | Description |
+|--------|-------------|
+| Network Engineer | Connectivity, infrastructure, routing/switching |
+| Software Engineer | Application development, coding, system design |
+| Systems Administrator | Server management, maintenance, uptime |
+| Systems/Cloud Architect | Large-scale design, cloud strategy, scalability |
+| Data Center Technician | Hardware, cabling, physical infrastructure |
+| Security Analyst (SOC) | Monitoring, alert triage, incident detection |
+| Penetration Tester | Offensive security, vulnerability discovery |
+| Digital Forensics Analyst | Evidence collection, investigation, chain of custody |
+| GRC Analyst | Governance, risk, compliance, policy, audit |
+| DevOps/SRE Engineer | CI/CD, automation, reliability, deployment |
+| Cybersecurity Engineer | Security architecture, hardening, defense design |
+| IT Project Manager | Planning, coordination, stakeholder communication |
+
+**Integration Points:**
+- Results persist alongside house assignment (separate localStorage key)
+- Career results feed into LearningPaths — recommended cert tracks per career match
+- Links to relevant house content and CareerExplorerEngine (already built in F-15)
+- Instructor dashboard visibility — career distribution across class roster
+- Commercialization value — schools want career aptitude tools for student advising
+
+**Deliverables:**
+
+| Task | Status |
+|------|--------|
+| Question bank design (30-40 scenario-based questions) | ⬜ |
+| Career scoring algorithm (weighted multi-factor) | ⬜ |
+| Results page with top 3 careers + fit percentages | ⬜ |
+| Career detail cards (role description, day-in-the-life, salary range, cert path) | ⬜ |
+| LearningPaths integration (career → recommended cert track) | ⬜ |
+| Dashboard unlock trigger (badge, XP threshold, or manual opt-in) | ⬜ |
+| Instructor dashboard: class career distribution panel | ⬜ |
 
 ---
 
@@ -1363,7 +1466,7 @@ The pod-crossing.html 404 scenario: a student clicks a dead catalog link → HED
 - Added context callouts to 4 mission labs
 
 ### Sprint L-1: Linux Fundamentals
-**Status:** ⬜ Backlog
+**Status:** ✅ Complete (February 16, 2026 — Marathon)
 **Est. Labs:** 40-50
 **Destination:** Script House
 
@@ -1400,7 +1503,7 @@ The pod-crossing.html 404 scenario: a student clicks a dead catalog link → HED
 | Compression mission (tar, gzip, zip, unzip) | ⬜ |
 
 ### Sprint L-2: Shell Scripting & Automation
-**Status:** ⬜ Backlog
+**Status:** ✅ Complete (February 16, 2026 — Marathon)
 **Est. Labs:** 30-40
 **Destination:** Script House
 
@@ -1436,7 +1539,7 @@ The pod-crossing.html 404 scenario: a student clicks a dead catalog link → HED
 | Cron jobs and scheduling mission | ⬜ |
 
 ### Sprint L-3: System Administration
-**Status:** ⬜ Backlog
+**Status:** ✅ Complete (February 16, 2026 — Marathon)
 **Est. Labs:** 40-50
 **Destination:** Script House + Forge House
 
@@ -1473,7 +1576,7 @@ The pod-crossing.html 404 scenario: a student clicks a dead catalog link → HED
 | Environment variables and profiles mission | ⬜ |
 
 ### Sprint L-4: Security Hardening
-**Status:** ⬜ Backlog
+**Status:** ✅ Complete (February 16, 2026 — Marathon)
 **Est. Labs:** 25-30
 **Destination:** Shield House
 
@@ -1509,7 +1612,7 @@ The pod-crossing.html 404 scenario: a student clicks a dead catalog link → HED
 | System hardening checklist mission (full server lockdown) | ⬜ |
 
 ### Sprint L-5: Dark Arts - Offensive Linux Tools
-**Status:** ⬜ Backlog
+**Status:** ✅ Complete (February 16, 2026 — Marathon)
 **Est. Labs:** 15-20
 **Destination:** Dark Arts Vault (Behind Five Gates)
 **Access:** Restricted - requires CTF completion
@@ -2277,7 +2380,7 @@ Phase 1 (component upgrade) and Phase 2 (wire into pages) can be done together �
 - **Tier 3 (Functional, legacy Hype format):** Shield (55), Web IP suite (13), Forge (2), Code (1)
 
 ### Sprint R-1: Content Registration Wave 1 — Code, Key, Forge
-**Status:** ⬜ Backlog
+**Status:** ✅ Complete (February 16, 2026 — Marathon)
 **Priority:** High — Quick wins, highest ROI per effort
 **Estimated Scope:** ~80 files to register
 
@@ -2296,7 +2399,7 @@ Register all unregistered content in the three smallest/cleanest houses into Con
 ---
 
 ### Sprint R-2: Content Registration Wave 2 — Cloud, Eye, Web, Dark Arts
-**Status:** ⬜ Backlog
+**Status:** ✅ Complete (February 16, 2026 — Marathon)
 **Priority:** High — Makes the biggest hidden content libraries visible
 **Estimated Scope:** ~400+ files to register
 **Depends on:** R-1 (establish registration patterns)
@@ -2320,7 +2423,7 @@ Register all unregistered content in the three smallest/cleanest houses into Con
 ---
 
 ### Sprint R-3: Progress Tracking Pass
-**Status:** ⬜ Backlog
+**Status:** ✅ Complete (February 16, 2026 — Marathon)
 **Priority:** Medium — Enables instructor visibility into student activity
 **Estimated Scope:** ~50 highest-priority files
 **Depends on:** R-1, R-2 (content must be registered first)
@@ -2342,7 +2445,7 @@ Add ProgressManager integration to the most impactful untracked content. Focus o
 ---
 
 ### Sprint R-4: Shield Hype Rebuild — Crypto Applets (14)
-**Status:** ⬜ Backlog
+**Status:** ✅ Complete (February 16, 2026 — Marathon)
 **Priority:** Medium — Largest single batch in Shield
 **Estimated Scope:** 14 applets → 1 shared engine + 14 consumer pages
 **Depends on:** R-1 (registration patterns established)
@@ -2364,7 +2467,7 @@ Rebuild Shield house's 14 Tumult Hype crypto applets as native HTML/JS using the
 ---
 
 ### Sprint R-5: Shield Hype Rebuild — Threat Applets (16)
-**Status:** ⬜ Backlog
+**Status:** ✅ Complete (February 16, 2026 — Marathon)
 **Priority:** Medium
 **Estimated Scope:** 16 applets → 1 shared engine + 16 consumer pages
 **Depends on:** R-4 (refine the rebuild pattern)
@@ -2384,7 +2487,7 @@ Rebuild Shield house's 14 Tumult Hype crypto applets as native HTML/JS using the
 ---
 
 ### Sprint R-6: Shield Hype Rebuild — Fundamentals + Network + Remaining (18+)
-**Status:** ⬜ Backlog
+**Status:** ✅ Complete (February 16, 2026 — Marathon)
 **Priority:** Medium
 **Estimated Scope:** ~18 applets → shared engines + consumer pages
 **Depends on:** R-4, R-5
@@ -2403,7 +2506,7 @@ Rebuild remaining Shield Hype applets: fundamentals (~10), network (~8), access 
 ---
 
 ### Sprint R-7: Web Hype Rebuild — IP Addressing Suite (13)
-**Status:** ⬜ Backlog
+**Status:** ✅ Complete (February 16, 2026 — Marathon)
 **Priority:** Medium — Core networking tools used across courses
 **Estimated Scope:** 13 applets → 1 shared engine + 13 consumer pages
 **Depends on:** R-4 (shared renderer pattern refined)
@@ -2425,7 +2528,7 @@ Rebuild the entire IP addressing/subnetting Hype applet collection as native int
 ---
 
 ### Sprint R-8: Shield Remaining 3 — CUI, Framework, Quiz
-**Status:** ⬜ Backlog
+**Status:** ✅ Complete (February 16, 2026 — Marathon)
 **Priority:** Medium — Last 3 broken Articulate wrappers from F-15
 **Estimated Scope:** 3 new applets (small)
 
@@ -2443,7 +2546,7 @@ Build native interactive content for the 3 non-domain Shield applets that still 
 ---
 
 ### Sprint R-9: Gap Fill — TLS/SSL Module, Web Labs, Eye Nav
-**Status:** ⬜ Backlog
+**Status:** ✅ Complete (February 16, 2026 — Marathon)
 **Priority:** Low-Medium — New content to fill identified gaps
 **Depends on:** R-1 through R-3 (registration complete)
 
@@ -2458,7 +2561,7 @@ Build native interactive content for the 3 non-domain Shield applets that still 
 ---
 
 ### Sprint R-10: Polish + Verify — 100% Catalog Coverage
-**Status:** ⬜ Backlog
+**Status:** ✅ Complete (February 16, 2026 — Marathon)
 **Priority:** Low — Final cleanup pass
 **Depends on:** R-1 through R-9
 
