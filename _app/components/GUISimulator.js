@@ -2381,67 +2381,129 @@ const GUISimulator = (function() {
             volumes: [],
         };
 
-        // Get disks from WSAState or use defaults
+        // Get disks from WSAState or use defaults, merging partition/volume stores
         function getDisks() {
             const state = typeof WSAState !== 'undefined' ? WSAState.getState() : {};
 
-            // If WSAState has disk data, use it
+            let disks;
             if (state.disks && Object.keys(state.disks).length > 0) {
-                return Object.values(state.disks);
+                disks = Object.values(state.disks).map(d => ({ ...d, partitions: [...(d.partitions || [])] }));
+            } else {
+                disks = options.disks || [
+                    {
+                        Number: 0,
+                        FriendlyName: 'Samsung SSD 980 PRO 500GB',
+                        SerialNumber: 'S5GXNF0R123456',
+                        Size: 500107862016,
+                        PartitionStyle: 'GPT',
+                        OperationalStatus: 'Online',
+                        HealthStatus: 'Healthy',
+                        BusType: 'NVMe',
+                        IsSystem: true,
+                        IsBoot: true,
+                        partitions: [
+                            { Number: 1, Type: 'System', Size: 104857600, FileSystem: 'FAT32', DriveLetter: null, Label: 'EFI System Partition', IsSystem: true },
+                            { Number: 2, Type: 'Reserved', Size: 16777216, FileSystem: null, DriveLetter: null, Label: 'Microsoft reserved partition' },
+                            { Number: 3, Type: 'Primary', Size: 254942945280, FileSystem: 'NTFS', DriveLetter: 'C', Label: 'Windows', IsBoot: true },
+                            { Number: 4, Type: 'Recovery', Size: 524288000, FileSystem: 'NTFS', DriveLetter: null, Label: 'Recovery' },
+                        ],
+                    },
+                    {
+                        Number: 1,
+                        FriendlyName: 'WDC WD10EZEX-00WN4A0',
+                        SerialNumber: 'WD-WMC3T0123456',
+                        Size: 1000204886016,
+                        PartitionStyle: 'GPT',
+                        OperationalStatus: 'Online',
+                        HealthStatus: 'Healthy',
+                        BusType: 'SATA',
+                        IsSystem: false,
+                        IsBoot: false,
+                        partitions: [
+                            { Number: 1, Type: 'Primary', Size: 500107862016, FileSystem: 'NTFS', DriveLetter: 'D', Label: 'Data' },
+                            { Number: 2, Type: 'Unallocated', Size: 500097024000, FileSystem: null, DriveLetter: null, Label: null },
+                        ],
+                    },
+                    {
+                        Number: 2,
+                        FriendlyName: 'Seagate Barracuda 2TB',
+                        SerialNumber: 'Z8A00001',
+                        Size: 2000398934016,
+                        PartitionStyle: 'RAW',
+                        OperationalStatus: 'Offline',
+                        HealthStatus: 'Healthy',
+                        BusType: 'SATA',
+                        IsSystem: false,
+                        IsBoot: false,
+                        IsOffline: true,
+                        NeedsInitialization: true,
+                        partitions: [],
+                    },
+                ];
             }
 
-            // Default server disk configuration
-            return options.disks || [
-                {
-                    Number: 0,
-                    FriendlyName: 'Samsung SSD 980 PRO 500GB',
-                    SerialNumber: 'S5GXNF0R123456',
-                    Size: 500107862016,  // 500 GB
-                    PartitionStyle: 'GPT',
-                    OperationalStatus: 'Online',
-                    HealthStatus: 'Healthy',
-                    BusType: 'NVMe',
-                    IsSystem: true,
-                    IsBoot: true,
-                    partitions: [
-                        { Number: 1, Type: 'System', Size: 104857600, FileSystem: 'FAT32', DriveLetter: null, Label: 'EFI System Partition', IsSystem: true },
-                        { Number: 2, Type: 'Reserved', Size: 16777216, FileSystem: null, DriveLetter: null, Label: 'Microsoft reserved partition' },
-                        { Number: 3, Type: 'Primary', Size: 254942945280, FileSystem: 'NTFS', DriveLetter: 'C', Label: 'Windows', IsBoot: true },
-                        { Number: 4, Type: 'Recovery', Size: 524288000, FileSystem: 'NTFS', DriveLetter: null, Label: 'Recovery' },
-                    ],
-                },
-                {
-                    Number: 1,
-                    FriendlyName: 'WDC WD10EZEX-00WN4A0',
-                    SerialNumber: 'WD-WMC3T0123456',
-                    Size: 1000204886016,  // 1 TB
-                    PartitionStyle: 'GPT',
-                    OperationalStatus: 'Online',
-                    HealthStatus: 'Healthy',
-                    BusType: 'SATA',
-                    IsSystem: false,
-                    IsBoot: false,
-                    partitions: [
-                        { Number: 1, Type: 'Primary', Size: 500107862016, FileSystem: 'NTFS', DriveLetter: 'D', Label: 'Data' },
-                        { Number: 2, Type: 'Unallocated', Size: 500097024000, FileSystem: null, DriveLetter: null, Label: null },
-                    ],
-                },
-                {
-                    Number: 2,
-                    FriendlyName: 'Seagate Barracuda 2TB',
-                    SerialNumber: 'Z8A00001',
-                    Size: 2000398934016,  // 2 TB
-                    PartitionStyle: 'RAW',
-                    OperationalStatus: 'Offline',
-                    HealthStatus: 'Healthy',
-                    BusType: 'SATA',
-                    IsSystem: false,
-                    IsBoot: false,
-                    IsOffline: true,
-                    NeedsInitialization: true,
-                    partitions: [],
-                },
-            ];
+            // Merge partitions from state.partitions store (created by STORAGE_CREATE_PARTITION)
+            const storePartitions = state.partitions || {};
+            Object.values(storePartitions).forEach(sp => {
+                const disk = disks.find(d => d.Number === sp.DiskNumber);
+                if (!disk) return;
+                // Skip if this partition already exists in the disk's array (by DriveLetter or PartitionNumber)
+                const exists = disk.partitions.some(p =>
+                    (sp.DriveLetter && p.DriveLetter === sp.DriveLetter) ||
+                    (p.Number === sp.PartitionNumber || p.PartitionNumber === sp.PartitionNumber)
+                );
+                if (!exists) {
+                    disk.partitions.push({
+                        Number: sp.PartitionNumber,
+                        PartitionNumber: sp.PartitionNumber,
+                        Type: sp.Type || 'Primary',
+                        Size: sp.Size || 0,
+                        DriveLetter: sp.DriveLetter,
+                        FileSystem: null,
+                        Label: null,
+                    });
+                }
+            });
+
+            // Enrich partition data from state.volumes store (created by STORAGE_FORMAT_VOLUME)
+            const storeVolumes = state.volumes || {};
+            disks.forEach(disk => {
+                disk.partitions.forEach(part => {
+                    if (part.DriveLetter && storeVolumes[part.DriveLetter]) {
+                        const vol = storeVolumes[part.DriveLetter];
+                        part.FileSystem = vol.FileSystem || part.FileSystem;
+                        part.Label = vol.FileSystemLabel || part.Label;
+                        if (vol.Size && !part.Size) part.Size = vol.Size;
+                    }
+                });
+            });
+
+            // Remove old Unallocated entries and compute actual unallocated space
+            disks.forEach(disk => {
+                const needsInit = disk.NeedsInitialization || disk.PartitionStyle === 'RAW';
+                if (needsInit) return; // Don't compute partitions for uninitialized disks
+
+                // Remove any existing Unallocated placeholder entries
+                disk.partitions = disk.partitions.filter(p => (p.Type || '').toLowerCase() !== 'unallocated');
+
+                // Calculate allocated space
+                const allocated = disk.partitions.reduce((sum, p) => sum + (p.Size || 0), 0);
+                const unallocated = disk.Size - allocated;
+
+                // Add unallocated block if there's meaningful remaining space (>1MB)
+                if (unallocated > 1048576) {
+                    disk.partitions.push({
+                        Number: null,
+                        Type: 'Unallocated',
+                        Size: unallocated,
+                        FileSystem: null,
+                        DriveLetter: null,
+                        Label: null,
+                    });
+                }
+            });
+
+            return disks;
         }
 
         // Get volumes from disks
@@ -2462,7 +2524,7 @@ const GUISimulator = (function() {
                                 Type: part.Type,
                                 Status: 'Healthy',
                                 DiskNumber: disk.Number,
-                                PartitionNumber: part.Number,
+                                PartitionNumber: part.Number || part.PartitionNumber,
                             });
                         }
                     });
@@ -2749,7 +2811,7 @@ const GUISimulator = (function() {
                             <div class="gui-dm-partition${isUnalloc ? ' unallocated' : ''}"
                                  style="flex: ${widthPct}; background-color: ${color};"
                                  data-disk="${disk.Number}"
-                                 data-partition="${part.Number}"
+                                 data-partition="${isUnalloc ? 'unallocated' : (part.Number || part.PartitionNumber)}"
                                  title="${part.Label || part.Type || 'Partition'} - ${formatSize(part.Size)}">
                                 <div class="gui-dm-partition-label">
                                     ${part.DriveLetter ? `<span class="gui-dm-partition-drive">${part.Label || ''} (${part.DriveLetter}:)</span>` :
@@ -2820,7 +2882,8 @@ const GUISimulator = (function() {
                         dmState.selectedDisk = disk;
                         dmState.selectedVolume = { Type: 'Unallocated', DiskNumber: diskNum };
                     } else {
-                        const partition = disk.partitions?.find(p => p.Number === parseInt(partNum));
+                        const pn = parseInt(partNum);
+                        const partition = disk.partitions?.find(p => (p.Number || p.PartitionNumber) === pn);
                         dmState.selectedDisk = disk;
                         dmState.selectedVolume = partition ? { ...partition, DiskNumber: diskNum } : null;
                     }
@@ -2837,7 +2900,8 @@ const GUISimulator = (function() {
                     if (isUnallocated) {
                         showUnallocatedContextMenu(disk, e);
                     } else {
-                        const partition = disk.partitions?.find(p => p.Number === parseInt(partNum));
+                        const pn2 = parseInt(partNum);
+                        const partition = disk.partitions?.find(p => (p.Number || p.PartitionNumber) === pn2);
                         if (partition) {
                             showPartitionContextMenu(disk, partition, e);
                         }
