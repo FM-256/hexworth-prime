@@ -631,6 +631,39 @@
             cursor: pointer;
         }
 
+        /* Toast Notifications */
+        .toast-container {
+            position: fixed;
+            top: 60px;
+            right: 20px;
+            z-index: 10000;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            pointer-events: none;
+        }
+
+        .toast {
+            background: rgba(16, 185, 129, 0.95);
+            color: #fff;
+            padding: 10px 18px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+            animation: toastIn 0.3s ease, toastOut 0.3s ease 2.7s forwards;
+            pointer-events: auto;
+        }
+
+        @keyframes toastIn {
+            from { opacity: 0; transform: translateX(40px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+
+        @keyframes toastOut {
+            from { opacity: 1; transform: translateX(0); }
+            to { opacity: 0; transform: translateX(40px); }
+        }
+
         /* Scrollbar */
         ::-webkit-scrollbar { width: 8px; height: 8px; }
         ::-webkit-scrollbar-track { background: #1a1a1a; }
@@ -656,7 +689,7 @@
         </div>
         <div class="header-controls">
             <div class="progress-tracker">
-                <span class="progress-text"><span id="completedCount">0</span>/24 Objectives</span>
+                <span class="progress-text"><span id="completedCount">0</span>/25 Objectives</span>
                 <div class="progress-bar-mini">
                     <div class="progress-fill-mini" id="progressFill" style="width: 0%"></div>
                 </div>
@@ -714,6 +747,9 @@
             </div>
         </div>
     </div>
+
+    <!-- Toast Notifications -->
+    <div class="toast-container" id="toastContainer"></div>
 
     <!-- Modals -->
     <div class="modal-overlay" id="modalOverlay">
@@ -783,21 +819,42 @@
         try {
             const saved = localStorage.getItem(STORAGE_KEY);
             if (saved) {
-                state = JSON.parse(saved);
+                const parsed = JSON.parse(saved);
+                // Deep merge with defaults to handle schema additions
+                state = JSON.parse(JSON.stringify(defaultState));
+                for (const key of Object.keys(parsed)) {
+                    if (typeof parsed[key] === 'object' && parsed[key] !== null && !Array.isArray(parsed[key]) && state[key]) {
+                        Object.assign(state[key], parsed[key]);
+                    } else {
+                        state[key] = parsed[key];
+                    }
+                }
+                // Ensure arrays exist
+                if (!state.storage.shares) state.storage.shares = [];
+                if (!state.ad.groups) state.ad.groups = [];
+                // Ensure group members arrays exist
+                state.ad.groups.forEach(g => { if (!g.members) g.members = []; });
             }
         } catch (e) {
             console.error('Error loading state:', e);
         }
     }
 
+    let _renderPending = false;
     function saveState() {
         try {
             localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
         } catch (e) {
             console.error('Error saving state:', e);
         }
-        checkObjectives();
-        renderCurrentTool();
+        if (!_renderPending) {
+            _renderPending = true;
+            requestAnimationFrame(() => {
+                _renderPending = false;
+                checkObjectives();
+                renderCurrentTool();
+            });
+        }
     }
 
     function resetSimulation() {
@@ -821,9 +878,10 @@
 
         // Phase 2: Identity
         { id: 'i1', phase: 'Identity', text: 'Create Seattle OU', check: () => state.ad.ous.some(ou => ou.name.toLowerCase() === 'seattle') },
-        { id: 'i2', phase: 'Identity', text: 'Create Users sub-OU', check: () => state.ad.ous.some(ou => ou.name.toLowerCase() === 'users' && ou.parent?.toLowerCase().includes('seattle')) },
+        { id: 'i2', phase: 'Identity', text: 'Create Users sub-OU', check: () => state.ad.ous.some(ou => ou.name.toLowerCase() === 'users' && (ou.parent || '').toLowerCase().includes('seattle')) },
         { id: 'i3', phase: 'Identity', text: 'Create 10+ user accounts', check: () => state.ad.users.length >= 10 },
         { id: 'i4', phase: 'Identity', text: 'Create 3+ security groups', check: () => state.ad.groups.length >= 3 },
+        { id: 'i5', phase: 'Identity', text: 'Add users to security groups', check: () => state.ad.groups.some(g => g.members?.length >= 2) },
 
         // Phase 3: Networking
         { id: 'n1', phase: 'Networking', text: 'Create seattle.hexworth.local DNS zone', check: () => state.dns.forwardZones.some(z => z.name.toLowerCase().includes('seattle')) },
@@ -834,7 +892,7 @@
         // Phase 4: Storage
         { id: 's1', phase: 'Storage', text: 'Initialize Disk 1', check: () => state.storage.disks[1]?.status === 'Online' },
         { id: 's2', phase: 'Storage', text: 'Create volume on Disk 1', check: () => state.storage.disks[1]?.volumes?.length > 0 },
-        { id: 's3', phase: 'Storage', text: 'Create department file shares', check: () => state.storage.shares.length >= 2 },
+        { id: 's3', phase: 'Storage', text: 'Create department file shares', check: () => (state.storage.shares || []).length >= 2 },
         { id: 's4', phase: 'Storage', text: 'Enable shadow copies', check: () => state.shadowCopies },
 
         // Phase 5: Security
@@ -855,7 +913,7 @@
         const phases = {};
 
         objectives.forEach(obj => {
-            obj.completed = obj.check();
+            try { obj.completed = obj.check(); } catch(e) { obj.completed = false; }
             if (obj.completed) completed++;
 
             if (!phases[obj.phase]) phases[obj.phase] = { total: 0, completed: 0 };
@@ -944,6 +1002,7 @@
     // GUI TOOLS
     // ============================================
     let currentTool = 'dashboard';
+    let selectedOU = null;
 
     function openTool(tool) {
         currentTool = tool;
@@ -1080,8 +1139,11 @@
         }
 
         const ous = state.ad.ous;
-        const users = state.ad.users;
-        const groups = state.ad.groups;
+        const allUsers = state.ad.users;
+        const allGroups = state.ad.groups;
+        const users = selectedOU ? allUsers.filter(u => (u.ou || '') === selectedOU) : allUsers;
+        const groups = allGroups;
+        const filterLabel = selectedOU ? ` — filtered to <strong>${selectedOU}</strong> <button class="small-btn" onclick="selectOU(null)" style="margin-left:6px">Show All</button>` : '';
 
         return `
             <div class="tool-header">
@@ -1097,7 +1159,7 @@
                     <h4>🗂️ Directory Tree</h4>
                     <div class="tree-view">
                         <div class="tree-node">
-                            <div class="tree-node-content">
+                            <div class="tree-node-content${selectedOU === null ? ' selected' : ''}" onclick="selectOU(null)">
                                 <span class="tree-icon">🌐</span>
                                 <span>hexworth.local</span>
                             </div>
@@ -1110,8 +1172,8 @@
                 </div>
                 <div style="display:flex;flex-direction:column;gap:15px;overflow-y:auto">
                     <div class="panel-section" style="margin:0">
-                        <h4>👤 Users (${users.length})</h4>
-                        ${users.length === 0 ? '<p style="color:#666;font-size:0.85rem">No users created yet</p>' : `
+                        <h4>👤 Users (${users.length}${selectedOU ? ' / ' + allUsers.length + ' total' : ''})${filterLabel}</h4>
+                        ${users.length === 0 ? '<p style="color:#666;font-size:0.85rem">No users' + (selectedOU ? ' in this OU' : ' created yet') + '</p>' : `
                             <table class="data-table">
                                 <tr><th>Name</th><th>Username</th><th>OU</th><th>Actions</th></tr>
                                 ${users.map(u => `
@@ -1119,7 +1181,10 @@
                                         <td>${u.firstName} ${u.lastName}</td>
                                         <td>${u.username}</td>
                                         <td>${u.ou || 'Users'}</td>
-                                        <td><button class="small-btn" onclick="deleteUser('${u.username}')">Delete</button></td>
+                                        <td>
+                                            <button class="small-btn" onclick="showModal('moveUser', '${u.username}')">Move</button>
+                                            <button class="small-btn" onclick="deleteUser('${u.username}')">Delete</button>
+                                        </td>
                                     </tr>
                                 `).join('')}
                             </table>
@@ -1135,7 +1200,10 @@
                                         <td>${g.name}</td>
                                         <td>${g.type || 'Security'}</td>
                                         <td>${g.members?.length || 0}</td>
-                                        <td><button class="small-btn" onclick="deleteGroup('${g.name}')">Delete</button></td>
+                                        <td>
+                                            <button class="small-btn" onclick="showModal('manageMembers', '${g.name}')">Members</button>
+                                            <button class="small-btn" onclick="deleteGroup('${g.name}')">Delete</button>
+                                        </td>
                                     </tr>
                                 `).join('')}
                             </table>
@@ -1150,7 +1218,7 @@
         const children = allOUs.filter(o => o.parent === ou.name);
         return `
             <div class="tree-node">
-                <div class="tree-node-content">
+                <div class="tree-node-content${selectedOU === ou.name ? ' selected' : ''}" onclick="selectOU('${ou.name}')">
                     <span class="tree-icon">📁</span>
                     <span>${ou.name}</span>
                 </div>
@@ -1625,6 +1693,60 @@
                 `;
                 break;
 
+            case 'moveUser':
+                html = `
+                    <h3>📦 Move User: ${param}</h3>
+                    <div class="form-group">
+                        <label>Target OU</label>
+                        <select id="moveTargetOU">
+                            <option value="">Users (default)</option>
+                            ${state.ad.ous.map(ou => `<option value="${ou.name}">${ou.name}</option>`).join('')}
+                        </select>
+                    </div>
+                    <div class="modal-actions">
+                        <button class="action-btn" onclick="hideModal()">Cancel</button>
+                        <button class="action-btn primary" onclick="moveUserToOU('${param}', document.getElementById('moveTargetOU').value)">Move</button>
+                    </div>
+                `;
+                break;
+
+            case 'manageMembers':
+                const group = state.ad.groups.find(g => g.name === param);
+                const members = group?.members || [];
+                const available = state.ad.users.filter(u => !members.includes(u.username));
+                html = `
+                    <h3>👥 Members: ${param}</h3>
+                    <div class="panel-section" style="margin:0 0 15px 0">
+                        <h4 style="margin-bottom:8px">Current Members (${members.length})</h4>
+                        ${members.length === 0 ? '<p style="color:#666;font-size:0.85rem">No members</p>' : `
+                            <table class="data-table">
+                                <tr><th>Username</th><th>Action</th></tr>
+                                ${members.map(m => `
+                                    <tr>
+                                        <td>${m}</td>
+                                        <td><button class="small-btn" onclick="removeUserFromGroup('${param}', '${m}')">Remove</button></td>
+                                    </tr>
+                                `).join('')}
+                            </table>
+                        `}
+                    </div>
+                    ${available.length > 0 ? `
+                        <div class="form-group">
+                            <label>Add User</label>
+                            <div style="display:flex;gap:8px">
+                                <select id="addMemberSelect" style="flex:1">
+                                    ${available.map(u => `<option value="${u.username}">${u.firstName} ${u.lastName} (${u.username})</option>`).join('')}
+                                </select>
+                                <button class="action-btn primary" onclick="addUserToGroup('${param}', document.getElementById('addMemberSelect').value)">Add</button>
+                            </div>
+                        </div>
+                    ` : '<p style="color:#666;font-size:0.85rem">All users already in this group</p>'}
+                    <div class="modal-actions" style="margin-top:15px">
+                        <button class="action-btn" onclick="hideModal()">Done</button>
+                    </div>
+                `;
+                break;
+
             case 'createForwardZone':
                 html = `
                     <h3>➡️ Create Forward Lookup Zone</h3>
@@ -1936,6 +2058,7 @@
 
     function deleteUser(username) {
         state.ad.users = state.ad.users.filter(u => u.username !== username);
+        state.ad.groups.forEach(g => { if (g.members) g.members = g.members.filter(m => m !== username); });
         saveState();
     }
 
@@ -1954,6 +2077,44 @@
     function deleteGroup(name) {
         state.ad.groups = state.ad.groups.filter(g => g.name !== name);
         saveState();
+    }
+
+    function moveUserToOU(username, targetOU) {
+        const user = state.ad.users.find(u => u.username === username);
+        if (user) {
+            user.ou = targetOU || '';
+            saveState();
+            hideModal();
+            showNotification(`User "${username}" moved to ${targetOU || 'Users (default)'}`);
+        }
+    }
+
+    function addUserToGroup(groupName, username) {
+        const group = state.ad.groups.find(g => g.name === groupName);
+        if (group && username) {
+            if (!group.members) group.members = [];
+            if (!group.members.includes(username)) {
+                group.members.push(username);
+                saveState();
+                showNotification(`Added "${username}" to group "${groupName}"`);
+                showModal('manageMembers', groupName);
+            }
+        }
+    }
+
+    function removeUserFromGroup(groupName, username) {
+        const group = state.ad.groups.find(g => g.name === groupName);
+        if (group) {
+            group.members = (group.members || []).filter(m => m !== username);
+            saveState();
+            showNotification(`Removed "${username}" from group "${groupName}"`);
+            showModal('manageMembers', groupName);
+        }
+    }
+
+    function selectOU(ouName) {
+        selectedOU = ouName;
+        renderCurrentTool();
     }
 
     function createForwardZone() {
@@ -2611,6 +2772,10 @@ SHADOW COPIES:
         line.className = `terminal-line ${type}`;
         line.textContent = text;
         terminalOutput.appendChild(line);
+        // Cap terminal buffer at 500 lines to prevent DOM bloat
+        while (terminalOutput.children.length > 500) {
+            terminalOutput.removeChild(terminalOutput.firstChild);
+        }
         terminalOutput.scrollTop = terminalOutput.scrollHeight;
     }
 
@@ -2675,10 +2840,14 @@ SHADOW COPIES:
                     'Get-DnsServerZone', 'Get-DhcpServerv4Scope', 'Get-SmbShare',
                     'Get-VM', 'Get-VMSwitch', 'Get-GPO',
                     'New-ADUser', 'New-ADGroup', 'New-ADOrganizationalUnit',
+                    'Add-ADGroupMember', 'Get-ADGroupMember', 'Remove-ADGroupMember', 'Move-ADObject',
+                    'Remove-ADUser', 'Remove-ADGroup', 'Remove-ADOrganizationalUnit',
                     'Install-WindowsFeature', 'Add-DnsServerPrimaryZone', 'Add-DnsServerResourceRecordA',
-                    'Add-DhcpServerv4Scope', 'Initialize-Disk', 'New-Partition', 'Format-Volume',
-                    'New-SmbShare', 'New-GPO', 'New-GPLink',
-                    'Install-ADDSForest', 'New-VMSwitch', 'New-VM', 'Checkpoint-VM'
+                    'Add-DhcpServerv4Scope', 'Set-DhcpServerv4OptionValue',
+                    'Initialize-Disk', 'New-Volume', 'New-Partition', 'Format-Volume',
+                    'New-SmbShare', 'New-GPO', 'New-GPLink', 'Set-GPRegistryValue',
+                    'Install-ADDSForest', 'New-VMSwitch', 'New-VM', 'Checkpoint-VM',
+                    'vssadmin'
                 ];
                 const matches = commands.filter(c => c.toLowerCase().startsWith(lastWord.toLowerCase()));
                 if (matches.length === 1) {
@@ -2851,6 +3020,94 @@ SHADOW COPIES:
                     'New-ADGroup -Name "All Users" -GroupScope Universal'
                 ]
             },
+            'add-adgroupmember': {
+                name: 'Add-ADGroupMember',
+                aliases: [],
+                synopsis: 'Adds members to an Active Directory group.',
+                syntax: 'Add-ADGroupMember -Identity <Group> -Members <User1,User2>',
+                parameters: [
+                    { name: '-Identity', desc: 'The name of the group (required).' },
+                    { name: '-Members', desc: 'Comma-separated usernames to add (required).' }
+                ],
+                examples: [
+                    'Add-ADGroupMember -Identity "IT Staff" -Members "jsmith"',
+                    'Add-ADGroupMember -Identity "IT Staff" -Members "jsmith,jdoe"'
+                ]
+            },
+            'get-adgroupmember': {
+                name: 'Get-ADGroupMember',
+                aliases: [],
+                synopsis: 'Lists members of an Active Directory group.',
+                syntax: 'Get-ADGroupMember -Identity <Group>',
+                parameters: [
+                    { name: '-Identity', desc: 'The name of the group (required).' }
+                ],
+                examples: [
+                    'Get-ADGroupMember -Identity "IT Staff"'
+                ]
+            },
+            'remove-adgroupmember': {
+                name: 'Remove-ADGroupMember',
+                aliases: [],
+                synopsis: 'Removes members from an Active Directory group.',
+                syntax: 'Remove-ADGroupMember -Identity <Group> -Members <User>',
+                parameters: [
+                    { name: '-Identity', desc: 'The name of the group (required).' },
+                    { name: '-Members', desc: 'Comma-separated usernames to remove (required).' }
+                ],
+                examples: [
+                    'Remove-ADGroupMember -Identity "IT Staff" -Members "jsmith"'
+                ]
+            },
+            'remove-aduser': {
+                name: 'Remove-ADUser',
+                aliases: [],
+                synopsis: 'Deletes an Active Directory user account.',
+                syntax: 'Remove-ADUser -Identity <SamAccountName>',
+                parameters: [
+                    { name: '-Identity', desc: 'The username (SAMAccountName) of the user to remove (required).' }
+                ],
+                examples: [
+                    'Remove-ADUser -Identity "jsmith"'
+                ]
+            },
+            'remove-adgroup': {
+                name: 'Remove-ADGroup',
+                aliases: [],
+                synopsis: 'Deletes an Active Directory group.',
+                syntax: 'Remove-ADGroup -Identity <GroupName>',
+                parameters: [
+                    { name: '-Identity', desc: 'The name of the group to remove (required).' }
+                ],
+                examples: [
+                    'Remove-ADGroup -Identity "SEA-Finance"'
+                ]
+            },
+            'remove-adorganizationalunit': {
+                name: 'Remove-ADOrganizationalUnit',
+                aliases: [],
+                synopsis: 'Deletes an Active Directory OU. Fails if the OU has child OUs.',
+                syntax: 'Remove-ADOrganizationalUnit -Identity <OUName>',
+                parameters: [
+                    { name: '-Identity', desc: 'The name of the OU to remove (required).' }
+                ],
+                examples: [
+                    'Remove-ADOrganizationalUnit -Identity "Contractors"'
+                ]
+            },
+            'move-adobject': {
+                name: 'Move-ADObject',
+                aliases: [],
+                synopsis: 'Moves an AD object to a different OU.',
+                syntax: 'Move-ADObject -Identity <User> -TargetPath "OU=<OU>,DC=..."',
+                parameters: [
+                    { name: '-Identity', desc: 'The username of the object to move (required).' },
+                    { name: '-TargetPath', desc: 'The target OU path (required).' }
+                ],
+                examples: [
+                    'Move-ADObject -Identity "jsmith" -TargetPath "OU=IT,DC=hexworth,DC=local"'
+                ]
+            },
             'new-adorganizationalunit': {
                 name: 'New-ADOrganizationalUnit',
                 aliases: [],
@@ -2921,6 +3178,129 @@ SHADOW COPIES:
                 examples: [
                     'New-GPO -Name "Password Policy"',
                     'New-GPO -Name "Desktop Lockdown"'
+                ]
+            },
+            'new-gplink': {
+                name: 'New-GPLink',
+                aliases: [],
+                synopsis: 'Links a GPO to an OU.',
+                syntax: 'New-GPLink -Name <GPO> -Target "OU=<OU>,DC=..."',
+                parameters: [
+                    { name: '-Name', desc: 'Name of the GPO to link (required).' },
+                    { name: '-Target', desc: 'Target OU path (required).' }
+                ],
+                examples: [
+                    'New-GPLink -Name "SEC-Seattle-Baseline" -Target "OU=Seattle,DC=hexworth,DC=local"'
+                ]
+            },
+            'set-gpregistryvalue': {
+                name: 'Set-GPRegistryValue',
+                aliases: [],
+                synopsis: 'Configures GPO policy settings (password policy, audit policy).',
+                syntax: 'Set-GPRegistryValue -Name <GPO> -Key <RegPath> -ValueName <Name> -Value <V>',
+                parameters: [
+                    { name: '-Name', desc: 'Name of the GPO (required).' },
+                    { name: '-Key', desc: 'Registry key path. Include "Password" for password policy or "Audit" for audit policy.' },
+                    { name: '-ValueName', desc: 'Name of the registry value.' },
+                    { name: '-Value', desc: 'Value to set.' }
+                ],
+                examples: [
+                    'Set-GPRegistryValue -Name "SEC-Seattle-Baseline" -Key "HKLM\\Software\\Policies\\Password" -ValueName "MinLength" -Value 12',
+                    'Set-GPRegistryValue -Name "SEC-Seattle-Baseline" -Key "HKLM\\Software\\Policies\\Audit" -ValueName "AuditLogon" -Value 1'
+                ]
+            },
+            'set-dhcpserverv4optionvalue': {
+                name: 'Set-DhcpServerv4OptionValue',
+                aliases: [],
+                synopsis: 'Configures DHCP scope options (gateway, DNS).',
+                syntax: 'Set-DhcpServerv4OptionValue -Router <Gateway> -DnsServer <DNS>',
+                parameters: [
+                    { name: '-Router', desc: 'Default gateway IP for DHCP clients.' },
+                    { name: '-DnsServer', desc: 'DNS server IP for DHCP clients.' }
+                ],
+                examples: [
+                    'Set-DhcpServerv4OptionValue -Router 192.168.50.1 -DnsServer 192.168.50.10'
+                ]
+            },
+            'initialize-disk': {
+                name: 'Initialize-Disk',
+                aliases: [],
+                synopsis: 'Initializes a raw disk for use.',
+                syntax: 'Initialize-Disk -Number <DiskNumber>',
+                parameters: [
+                    { name: '-Number', desc: 'Disk number to initialize (required).' }
+                ],
+                examples: [
+                    'Initialize-Disk -Number 1'
+                ]
+            },
+            'new-volume': {
+                name: 'New-Volume',
+                aliases: [],
+                synopsis: 'Creates a new volume on a disk.',
+                syntax: 'New-Volume -DiskNumber <N> -DriveLetter <L> -FileSystem <FS>',
+                parameters: [
+                    { name: '-DiskNumber', desc: 'Disk to create the volume on (required).' },
+                    { name: '-DriveLetter', desc: 'Drive letter to assign (required).' },
+                    { name: '-FileSystem', desc: 'NTFS or ReFS. Default: NTFS.' },
+                    { name: '-FileSystemLabel', desc: 'Volume label.' }
+                ],
+                examples: [
+                    'New-Volume -DiskNumber 1 -DriveLetter D -FileSystem NTFS',
+                    'New-Volume -DiskNumber 1 -DriveLetter D -FileSystemLabel "Data" -FileSystem NTFS'
+                ]
+            },
+            'new-smbshare': {
+                name: 'New-SmbShare',
+                aliases: [],
+                synopsis: 'Creates a file share.',
+                syntax: 'New-SmbShare -Name <ShareName> -Path <FolderPath>',
+                parameters: [
+                    { name: '-Name', desc: 'Share name (required). Append $ for hidden share.' },
+                    { name: '-Path', desc: 'Local folder path to share (required).' },
+                    { name: '-FullAccess', desc: 'Groups or users with full access.' }
+                ],
+                examples: [
+                    'New-SmbShare -Name "Finance$" -Path "D:\\Shares\\Finance"',
+                    'New-SmbShare -Name "Public" -Path "D:\\Shares\\Public" -FullAccess "Everyone"'
+                ]
+            },
+            'new-vmswitch': {
+                name: 'New-VMSwitch',
+                aliases: [],
+                synopsis: 'Creates a Hyper-V virtual switch.',
+                syntax: 'New-VMSwitch -Name <String> -SwitchType <Internal|Private|External>',
+                parameters: [
+                    { name: '-Name', desc: 'Name of the virtual switch (required).' },
+                    { name: '-SwitchType', desc: 'Internal, Private, or External. Default: Internal.' }
+                ],
+                examples: [
+                    'New-VMSwitch -Name "Seattle-LAN" -SwitchType Internal'
+                ]
+            },
+            'checkpoint-vm': {
+                name: 'Checkpoint-VM',
+                aliases: [],
+                synopsis: 'Creates a checkpoint (snapshot) of a virtual machine.',
+                syntax: 'Checkpoint-VM -Name <VMName>',
+                parameters: [
+                    { name: '-Name', desc: 'Name of the VM to checkpoint (required).' }
+                ],
+                examples: [
+                    'Checkpoint-VM -Name "SEA-APP01"'
+                ]
+            },
+            'vssadmin': {
+                name: 'vssadmin',
+                aliases: ['enable-shadowcopy'],
+                synopsis: 'Manages Volume Shadow Copies (enables shadow copies).',
+                syntax: 'vssadmin create shadow /for=<Drive>',
+                parameters: [
+                    { name: '/for', desc: 'Drive letter to enable shadow copies on.' }
+                ],
+                examples: [
+                    'vssadmin create shadow /for=D:',
+                    'vssadmin add shadowstorage /for=D: /on=D: /maxsize=10%'
                 ]
             }
         };
@@ -3049,6 +3429,13 @@ SHADOW COPIES:
             addLine('  New-ADOrganizationalUnit -Name <name> [-Path <parent>]');
             addLine('  New-ADUser -Name <name> -SamAccountName <sam>');
             addLine('  New-ADGroup -Name <name> -GroupScope <scope>');
+            addLine('  Add-ADGroupMember -Identity <group> -Members <user1,user2>');
+            addLine('  Get-ADGroupMember -Identity <group>');
+            addLine('  Remove-ADGroupMember -Identity <group> -Members <user>');
+            addLine('  Remove-ADUser -Identity <username>');
+            addLine('  Remove-ADGroup -Identity <groupname>');
+            addLine('  Remove-ADOrganizationalUnit -Identity <ouname>');
+            addLine('  Move-ADObject -Identity <user> -TargetPath "OU=<ou>,DC=..."');
             addLine('  Get-ADUser -Filter *');
             addLine('  Get-ADGroup -Filter *');
             addLine('DNS/DHCP:', 'info');
@@ -3060,9 +3447,13 @@ SHADOW COPIES:
             addLine('  Initialize-Disk -Number <n>');
             addLine('  New-Volume -DiskNumber <n> -DriveLetter <l> -FileSystem NTFS');
             addLine('  New-SmbShare -Name <n> -Path <p>');
+            addLine('Storage (cont.):', 'info');
+            addLine('  vssadmin create shadow /for=D:');
             addLine('GPO:', 'info');
             addLine('  New-GPO -Name <name>');
             addLine('  New-GPLink -Name <gpo> -Target <ou>');
+            addLine('  Set-GPRegistryValue -Name <gpo> -Key <path> -ValueName <n> -Value <v>');
+            addLine('    (include "password" or "audit" in key path to set those policies)');
             addLine('Hyper-V:', 'info');
             addLine('  Install-WindowsFeature -Name Hyper-V');
             addLine('  New-VMSwitch -Name <n> -SwitchType <type>');
@@ -3630,6 +4021,160 @@ SHADOW COPIES:
             return;
         }
 
+        // Remove-ADUser
+        if (cmdName === 'remove-aduser') {
+            const identity = extractParam(cmd, '-identity');
+            if (identity) {
+                const idx = state.ad.users.findIndex(u => u.username.toLowerCase() === identity.toLowerCase());
+                if (idx !== -1) {
+                    state.ad.users.splice(idx, 1);
+                    state.ad.groups.forEach(g => { if (g.members) g.members = g.members.filter(m => m.toLowerCase() !== identity.toLowerCase()); });
+                    saveState();
+                    addLine(`User "${identity}" removed.`, 'success');
+                } else {
+                    addLine(`Error: User "${identity}" not found.`, 'error');
+                }
+            } else {
+                addLine('Usage: Remove-ADUser -Identity <username>', 'error');
+            }
+            return;
+        }
+
+        // Remove-ADOrganizationalUnit
+        if (cmdName === 'remove-adorganizationalunit') {
+            const identity = extractParam(cmd, '-identity');
+            if (identity) {
+                const idx = state.ad.ous.findIndex(ou => ou.name.toLowerCase() === identity.toLowerCase());
+                if (idx !== -1) {
+                    const children = state.ad.ous.filter(ou => (ou.parent || '').toLowerCase() === identity.toLowerCase());
+                    if (children.length > 0) {
+                        addLine(`Error: OU "${identity}" has ${children.length} child OU(s). Remove children first.`, 'error');
+                    } else {
+                        state.ad.ous.splice(idx, 1);
+                        saveState();
+                        addLine(`OU "${identity}" removed.`, 'success');
+                    }
+                } else {
+                    addLine(`Error: OU "${identity}" not found.`, 'error');
+                }
+            } else {
+                addLine('Usage: Remove-ADOrganizationalUnit -Identity <name>', 'error');
+            }
+            return;
+        }
+
+        // Remove-ADGroup
+        if (cmdName === 'remove-adgroup') {
+            const identity = extractParam(cmd, '-identity');
+            if (identity) {
+                const idx = state.ad.groups.findIndex(g => g.name.toLowerCase() === identity.toLowerCase());
+                if (idx !== -1) {
+                    state.ad.groups.splice(idx, 1);
+                    saveState();
+                    addLine(`Group "${identity}" removed.`, 'success');
+                } else {
+                    addLine(`Error: Group "${identity}" not found.`, 'error');
+                }
+            } else {
+                addLine('Usage: Remove-ADGroup -Identity <name>', 'error');
+            }
+            return;
+        }
+
+        // Add-ADGroupMember
+        if (cmdName === 'add-adgroupmember') {
+            const identity = extractParam(cmd, '-identity');
+            const members = extractParam(cmd, '-members');
+            if (identity && members) {
+                const group = state.ad.groups.find(g => g.name.toLowerCase() === identity.toLowerCase());
+                if (group) {
+                    if (!group.members) group.members = [];
+                    const usernames = members.split(',').map(m => m.trim());
+                    let added = 0;
+                    usernames.forEach(uname => {
+                        if (!group.members.includes(uname)) {
+                            group.members.push(uname);
+                            added++;
+                        }
+                    });
+                    saveState();
+                    addLine(`Added ${added} member(s) to group "${identity}". Total: ${group.members.length}`, 'success');
+                } else {
+                    addLine(`Error: Group "${identity}" not found.`, 'error');
+                }
+            } else {
+                addLine('Usage: Add-ADGroupMember -Identity <group> -Members <user1,user2>', 'error');
+            }
+            return;
+        }
+
+        // Get-ADGroupMember
+        if (cmdName === 'get-adgroupmember') {
+            const identity = extractParam(cmd, '-identity');
+            if (identity) {
+                const group = state.ad.groups.find(g => g.name.toLowerCase() === identity.toLowerCase());
+                if (group) {
+                    const members = group.members || [];
+                    if (members.length === 0) {
+                        addLine(`Group "${identity}" has no members.`, 'info');
+                    } else {
+                        addLine(`Members of "${identity}" (${members.length}):`, 'info');
+                        members.forEach(m => addLine(`  ${m}`));
+                    }
+                } else {
+                    addLine(`Error: Group "${identity}" not found.`, 'error');
+                }
+            } else {
+                addLine('Usage: Get-ADGroupMember -Identity <group>', 'error');
+            }
+            return;
+        }
+
+        // Remove-ADGroupMember
+        if (cmdName === 'remove-adgroupmember') {
+            const identity = extractParam(cmd, '-identity');
+            const members = extractParam(cmd, '-members');
+            if (identity && members) {
+                const group = state.ad.groups.find(g => g.name.toLowerCase() === identity.toLowerCase());
+                if (group) {
+                    const toRemove = members.split(',').map(m => m.trim());
+                    let removed = 0;
+                    toRemove.forEach(uname => {
+                        const idx = (group.members || []).indexOf(uname);
+                        if (idx !== -1) { group.members.splice(idx, 1); removed++; }
+                    });
+                    saveState();
+                    addLine(`Removed ${removed} member(s) from group "${identity}".`, 'success');
+                } else {
+                    addLine(`Error: Group "${identity}" not found.`, 'error');
+                }
+            } else {
+                addLine('Usage: Remove-ADGroupMember -Identity <group> -Members <user>', 'error');
+            }
+            return;
+        }
+
+        // Move-ADObject
+        if (cmdName === 'move-adobject') {
+            const identity = extractParam(cmd, '-identity');
+            const targetPath = extractParam(cmd, '-targetpath');
+            if (identity && targetPath) {
+                const user = state.ad.users.find(u => u.username.toLowerCase() === identity.toLowerCase());
+                if (user) {
+                    const ouMatch = targetPath.match(/OU=([^,]+)/i);
+                    const targetOU = ouMatch ? ouMatch[1] : '';
+                    user.ou = targetOU;
+                    saveState();
+                    addLine(`Moved "${identity}" to ${targetOU || 'Users (default)'}.`, 'success');
+                } else {
+                    addLine(`Error: Object "${identity}" not found.`, 'error');
+                }
+            } else {
+                addLine('Usage: Move-ADObject -Identity <user> -TargetPath "OU=<ou>,DC=hexworth,DC=local"', 'error');
+            }
+            return;
+        }
+
         // Add-DnsServerPrimaryZone
         if (cmdName === 'add-dnsserverprimaryzone') {
             const name = extractParam(cmd, '-name');
@@ -3805,17 +4350,29 @@ SHADOW COPIES:
             return;
         }
 
-        // Set-GPRegistryValue (simplified - just sets policy flags)
+        // Set-GPRegistryValue (simplified - sets policy flags based on key path keywords)
         if (cmdName === 'set-gpregistryvalue') {
             const name = extractParam(cmd, '-name');
             if (name) {
                 const gpo = state.ad.gpos.find(g => g.name.toLowerCase() === name.toLowerCase());
                 if (gpo) {
-                    if (lower.includes('password')) gpo.settings.passwordPolicy = true;
-                    if (lower.includes('audit')) gpo.settings.auditPolicy = true;
-                    saveState();
-                    addLine(`GPO "${name}" settings updated.`, 'success');
+                    let set = false;
+                    if (lower.includes('password')) { gpo.settings.passwordPolicy = true; set = true; }
+                    if (lower.includes('audit')) { gpo.settings.auditPolicy = true; set = true; }
+                    if (lower.includes('software') || lower.includes('restriction')) { gpo.settings.softwareRestriction = true; set = true; }
+                    if (set) {
+                        saveState();
+                        addLine(`GPO "${name}" settings updated.`, 'success');
+                    } else {
+                        addLine(`Set-GPRegistryValue: No recognized policy keyword found.`, 'warning');
+                        addLine(`Hint: Include "Password" or "Audit" in the -Key path.`, 'info');
+                        addLine(`Example: Set-GPRegistryValue -Name "${name}" -Key "HKLM\\...\\Password" -ValueName "MinLength" -Value 12`, 'dim');
+                    }
+                } else {
+                    addLine(`Error: GPO "${name}" not found. Create it first with New-GPO.`, 'error');
                 }
+            } else {
+                addLine('Usage: Set-GPRegistryValue -Name <GPO> -Key <RegistryPath> -ValueName <Name> -Value <V>', 'error');
             }
             return;
         }
@@ -3891,9 +4448,12 @@ SHADOW COPIES:
     // UTILITIES
     // ============================================
     function showNotification(message) {
-        // Simple console for now - could add toast notifications
-        console.log('Notification:', message);
-        addLine(message, 'success');
+        const container = document.getElementById('toastContainer');
+        const toast = document.createElement('div');
+        toast.className = 'toast';
+        toast.textContent = message;
+        container.appendChild(toast);
+        setTimeout(() => toast.remove(), 3000);
     }
 
     function saveDocs() {
