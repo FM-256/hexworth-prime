@@ -326,6 +326,12 @@ ledger_app:x:1001:1001::/home/ledger_app:/bin/bash</td></tr>
             return A1Config._handleLoadFile(fullInput);
         }
 
+        // Combined version, user, database (check BEFORE individual — otherwise version() catches first)
+        if (/version/.test(joined) && /user/.test(joined) && /database/.test(joined)) {
+            return A1Config._tableHtml(['version()', 'user()', 'database()', 'col4'],
+                [['MySQL 8.0.35', 'ledger_app@localhost', 'ancient_ledger_db', '—']]);
+        }
+
         // version() / @@version
         if (/version|@@version/.test(joined)) {
             return A1Config._tableHtml(['col1', 'col2', 'col3', 'col4'],
@@ -344,12 +350,6 @@ ledger_app:x:1001:1001::/home/ledger_app:/bin/bash</td></tr>
         if (/user\(\)|current_user/.test(joined)) {
             return A1Config._tableHtml(['col1', 'col2', 'col3', 'col4'],
                 [['—', 'ledger_app@localhost', '—', '—']]);
-        }
-
-        // Combined version, user, database
-        if (/version/.test(joined) && /user/.test(joined) && /database/.test(joined)) {
-            return A1Config._tableHtml(['version()', 'user()', 'database()', 'col4'],
-                [['MySQL 8.0.35', 'ledger_app@localhost', 'ancient_ledger_db', '—']]);
         }
 
         // information_schema.columns (check BEFORE tables — both can have table_name in the query)

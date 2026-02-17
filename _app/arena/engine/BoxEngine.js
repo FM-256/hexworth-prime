@@ -21,6 +21,28 @@ const BoxEngine = {
 
     init(config) {
         this.config = config;
+        this._coOpMode = false;
+
+        // Check if co-op mode is available
+        if (typeof CoOpLobby !== 'undefined') {
+            // Show lobby to choose Solo or Co-Op
+            CoOpLobby.show(config, (result) => {
+                if (result.mode === 'coop') {
+                    this._coOpMode = true;
+                    this.config.coOpMode = true;
+                    this._initWithMode();
+                } else {
+                    this._initWithMode();
+                }
+            });
+        } else {
+            // No co-op scripts loaded — solo mode directly
+            this._initWithMode();
+        }
+    },
+
+    _initWithMode() {
+        const config = this.config;
         this.load();
 
         // Set accent color
@@ -33,13 +55,32 @@ const BoxEngine = {
         this._setupGodMode();
         this._setupKeys();
 
-        // Cross-tab sync
-        window.addEventListener('storage', (e) => {
-            if (e.key === config.storageKey) {
-                this.state = JSON.parse(e.newValue) || this._defaults();
+        if (this._coOpMode) {
+            // Co-op: sync state via Firestore
+            CoOpSync.subscribeToState((state) => {
+                this.state = { ...this._defaults(), ...state };
                 this._updateScoreBadge();
+                this._syncFlagBadges();
+                this._renderHints();
+                if (state.completed && !this._completionShown) {
+                    this._completionShown = true;
+                    this._showCompletion(0);
+                }
+            });
+            // Init co-op UI panel
+            if (typeof CoOpUI !== 'undefined') {
+                CoOpUI.init();
             }
-        });
+        } else {
+            // Solo: cross-tab sync via localStorage
+            window.addEventListener('storage', (e) => {
+                if (e.key === config.storageKey) {
+                    this.state = JSON.parse(e.newValue) || this._defaults();
+                    this._updateScoreBadge();
+                }
+            });
+        }
+
         window.addEventListener('beforeunload', () => this.save());
 
         // If state was previously saved (returning user), skip boot and go to desktop
@@ -49,7 +90,7 @@ const BoxEngine = {
             this._startBoot();
         }
 
-        console.log(`%c[ARENA] BoxEngine initialized: ${config.title}`, 'color: #3498db');
+        console.log(`%c[ARENA] BoxEngine initialized: ${config.title} ${this._coOpMode ? '(CO-OP)' : '(SOLO)'}`, 'color: #3498db');
     },
 
     // ────────────────────────────────────────────────
@@ -72,6 +113,13 @@ const BoxEngine = {
     },
 
     load() {
+        if (this._coOpMode) {
+            // Co-op: state comes from Firestore via subscription
+            // Use defaults until first snapshot arrives
+            this.state = this._defaults();
+            return;
+        }
+
         try {
             const saved = localStorage.getItem(this.config.storageKey);
             if (saved) {
@@ -87,7 +135,13 @@ const BoxEngine = {
     save() {
         if (!this.state) return;
         this.state.elapsed = Date.now() - this.state.startTime;
-        localStorage.setItem(this.config.storageKey, JSON.stringify(this.state));
+
+        if (this._coOpMode) {
+            // Co-op: push state to Firestore
+            CoOpSync.updateState(this.state);
+        } else {
+            localStorage.setItem(this.config.storageKey, JSON.stringify(this.state));
+        }
     },
 
     reset() {
@@ -707,8 +761,46 @@ const BoxEngine = {
             return;
         }
 
-        const normalized = raw.toLowerCase().trim();
         const flags = this.config.flags || [];
+
+        if (this._coOpMode) {
+            // Co-op: atomic Firestore transaction
+            const normalized = raw.toLowerCase().trim();
+            const matchedFlag = flags.find(f => f.value.toLowerCase() === normalized);
+
+            msg.innerHTML = '<span style="color:#3498db;">Submitting...</span>';
+
+            CoOpSync.submitFlagAtomically(
+                matchedFlag?.id || '__wrong__',
+                raw,
+                flags,
+                this.config.scoring
+            ).then(result => {
+                if (result.success) {
+                    this.state = { ...this._defaults(), ...result.newState };
+                    msg.innerHTML = `<span style="color:#2ecc71;">&#10003; ${result.message}</span>`;
+                    this.notify(result.message, 'success');
+                    this._syncFlagBadges();
+                    this._updateScoreBadge();
+                    input.value = '';
+                    if (result.completed) {
+                        this._completionShown = true;
+                        setTimeout(() => this._showCompletion(0), 800);
+                    }
+                } else {
+                    if (result.penalty) {
+                        this.state = { ...this._defaults(), ...result.newState };
+                        this._updateScoreBadge();
+                    }
+                    const color = result.message === 'Flag already submitted' ? '#3498db' : '#e74c3c';
+                    msg.innerHTML = `<span style="color:${color};">${result.message}${result.penalty ? '. ' + result.penalty + ' points' : ''}</span>`;
+                }
+            });
+            return;
+        }
+
+        // Solo mode: original logic
+        const normalized = raw.toLowerCase().trim();
 
         for (const flag of flags) {
             if (normalized === flag.value.toLowerCase()) {
@@ -834,6 +926,25 @@ const BoxEngine = {
 
     _useHint(hint) {
         if (this.state.hintsUsed.includes(hint.id)) return;
+
+        if (this._coOpMode) {
+            // Co-op: atomic Firestore transaction
+            CoOpSync.revealHintAtomically(hint.id, hint.penalty, this.state.godMode).then(result => {
+                if (result.success) {
+                    this.state = { ...this._defaults(), ...result.newState };
+                    this._updateScoreBadge();
+                    this._renderHints();
+                    this.notify(`Hint revealed. ${this.state.godMode ? 'No penalty (God Mode)' : hint.penalty + ' points'}`, 'warning');
+                }
+                // If already used, silently re-render (idempotent)
+                if (result.alreadyUsed) {
+                    this._renderHints();
+                }
+            });
+            return;
+        }
+
+        // Solo mode: original logic
         this.state.hintsUsed.push(hint.id);
 
         if (!this.state.godMode) {
@@ -939,6 +1050,18 @@ const BoxEngine = {
     // ────────────────────────────────────────────────
     // UTILITY
     // ────────────────────────────────────────────────
+
+    /**
+     * Sync flag badge UI to match current state (for co-op remote updates).
+     */
+    _syncFlagBadges() {
+        (this.config.flags || []).forEach(f => {
+            const badge = document.getElementById('flagBadge_' + f.id);
+            if (badge) {
+                badge.classList.toggle('found', this.state.flagsFound.includes(f.id));
+            }
+        });
+    },
 
     _escHtml(str) {
         const div = document.createElement('div');
