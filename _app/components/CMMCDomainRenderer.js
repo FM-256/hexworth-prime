@@ -224,7 +224,7 @@ body{background:#0a0a0f;color:#e2e8f0;font-family:'Segoe UI',system-ui,-apple-sy
 }
 </style>
 
-<a class="cmmc-back" href="../../../index.html">‹ Back to Shield House</a>
+<a class="cmmc-back" href="/houses/shield/index.html">‹ Back to Shield House</a>
 
 <div class="cmmc-header">
     <div class="cmmc-header-top">

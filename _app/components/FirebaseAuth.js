@@ -36,6 +36,9 @@ const FirebaseAuth = (function() {
     // Current user state
     let currentUser = null;
     let isAdmin = false;
+    let _authReady = false;
+    let _authReadyResolve = null;
+    const _authReadyPromise = new Promise(resolve => { _authReadyResolve = resolve; });
 
     /**
      * Load Firebase SDK dynamically
@@ -104,6 +107,17 @@ const FirebaseAuth = (function() {
     }
 
     /**
+     * Wait for auth state to be resolved (first onAuthStateChanged callback).
+     * Returns the current user or null.
+     */
+    async function waitForAuth() {
+        if (!initialized) await init();
+        if (_authReady) return currentUser;
+        await _authReadyPromise;
+        return currentUser;
+    }
+
+    /**
      * Handle auth state changes
      */
     async function handleAuthStateChange(user) {
@@ -157,6 +171,12 @@ const FirebaseAuth = (function() {
             window.dispatchEvent(new CustomEvent('firebaseAuthStateChanged', {
                 detail: { user: null, isAdmin: false }
             }));
+        }
+
+        // Mark auth as ready (resolves waitForAuth promise)
+        if (!_authReady) {
+            _authReady = true;
+            _authReadyResolve();
         }
     }
 
@@ -375,6 +395,7 @@ const FirebaseAuth = (function() {
     // Public API
     return {
         init,
+        waitForAuth,
         signInWithGoogle,
         signInAnonymously,
         linkWithGoogle,

@@ -690,7 +690,7 @@ const HouseRenderer = (function() {
         header.className = 'house-header';
         header.innerHTML = `
             <div class="header-left">
-                <a href="../../dashboard.html" class="back-btn">
+                <a href="/dashboard.html" class="back-btn">
                     <span>&larr;</span>
                     <span>Dashboard</span>
                 </a>

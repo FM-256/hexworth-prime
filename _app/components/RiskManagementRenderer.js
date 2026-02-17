@@ -101,7 +101,7 @@ body{background:#0a0a0f;color:#e2e8f0;font-family:'Segoe UI',system-ui,-apple-sy
 @media(max-width:640px){#rm-root{padding:.75rem}.rm-header{padding:1rem 1.25rem}.rm-title{font-size:1.2rem}.rm-tab{min-width:0;font-size:.78rem;padding:.5rem .75rem}}
 </style>
 
-<a class="rm-back" href="../../index.html">\\u2039 Back to Shield House</a>
+<a class="rm-back" href="/houses/shield/index.html">\\u2039 Back to Shield House</a>
 <div class="rm-header">
     <div class="rm-header-top">
         <span class="rm-icon">${topic.icon}</span>

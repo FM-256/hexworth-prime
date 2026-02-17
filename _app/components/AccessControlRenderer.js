@@ -105,7 +105,7 @@ body{background:#0a0a0f;color:#e2e8f0;font-family:'Segoe UI',system-ui,-apple-sy
 @media(max-width:640px){#ac-root{padding:.75rem}.ac-header{padding:1rem 1.25rem}.ac-title{font-size:1.2rem}.ac-tab{min-width:0;font-size:.78rem;padding:.5rem .75rem}}
 </style>
 
-<a class="ac-back" href="../../index.html">\\u2039 Back to Shield House</a>
+<a class="ac-back" href="/houses/shield/index.html">\\u2039 Back to Shield House</a>
 <div class="ac-header">
     <div class="ac-header-top">
         <span class="ac-icon">${topic.icon}</span>

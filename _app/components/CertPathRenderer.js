@@ -141,7 +141,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
         document.body.innerHTML = `
 <div class="hdr">
   <div class="hdr-l">
-    <a href="../../dashboard.html" class="back">\u2190 Dashboard</a>
+    <a href="/dashboard.html" class="back">\u2190 Dashboard</a>
     <div class="pbadge">
       <span class="pbadge-icon">${pathData.icon}</span>
       <span class="pbadge-text">${pathData.name}</span>

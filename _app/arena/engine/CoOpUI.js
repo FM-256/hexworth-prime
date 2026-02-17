@@ -56,11 +56,36 @@ const CoOpUI = (function() {
                     <div class="coop-activity-empty">No activity yet...</div>
                 </div>
             </div>
+            ${CoOpSync.isHost ? `
+            <div class="coop-panel-section coop-panel-host-controls">
+                <button class="coop-panel-disband" id="coopPanelDisband">Disband Squad</button>
+            </div>` : ''}
         `;
 
         document.querySelector('.arena-desktop').appendChild(_panelEl);
 
         document.getElementById('coopPanelClose').addEventListener('click', () => toggle(false));
+
+        // Disband button (host only)
+        const disbandBtn = document.getElementById('coopPanelDisband');
+        if (disbandBtn) {
+            disbandBtn.addEventListener('click', () => {
+                if (disbandBtn.dataset.confirm === 'true') {
+                    CoOpSync.disbandSession();
+                    return;
+                }
+                disbandBtn.dataset.confirm = 'true';
+                disbandBtn.textContent = 'Confirm Disband';
+                disbandBtn.classList.add('confirm');
+                setTimeout(() => {
+                    if (disbandBtn.dataset.confirm === 'true') {
+                        disbandBtn.dataset.confirm = '';
+                        disbandBtn.textContent = 'Disband Squad';
+                        disbandBtn.classList.remove('confirm');
+                    }
+                }, 3000);
+            });
+        }
     }
 
     function _buildToggleButton() {
@@ -179,12 +204,9 @@ const CoOpUI = (function() {
 
         const entries = Object.entries(players || {});
         const online = entries.filter(([_, p]) => p.online && (Date.now() - (p.lastSeen || 0)) < 30000);
+        const allOnline = online.length === entries.length && entries.length >= 2;
 
-        const dot = indicator.querySelector('.coop-dot');
-        if (dot) {
-            dot.className = 'coop-dot ' + (online.length >= 2 ? 'online' : 'partial');
-        }
-        indicator.innerHTML = `<span class="coop-dot ${online.length >= 2 ? 'online' : 'partial'}"></span> CO-OP (${online.length}/${entries.length})`;
+        indicator.innerHTML = `<span class="coop-dot ${allOnline ? 'online' : 'partial'}"></span> CO-OP (${online.length}/${entries.length})`;
     }
 
     // ────────────────────────────────────────────────

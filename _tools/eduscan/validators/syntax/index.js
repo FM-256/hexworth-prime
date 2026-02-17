@@ -135,6 +135,16 @@ class SyntaxValidator {
         }
         results.summary.contentCatalog = catResults.summary;
 
+        // Run Heuristic renderer link validation (global, scans .js files)
+        const rendererLinkResults = this.heuristicsValidator.validateRendererLinks();
+        if (rendererLinkResults.length > 0) {
+            results.issues.push(...rendererLinkResults);
+            results.summary.heuristicErrors += rendererLinkResults.length;
+            if (this.verbose) {
+                console.log(`[SYNTAX] RendererLinks: ${rendererLinkResults.length} issues`);
+            }
+        }
+
         for (const file of contentFiles) {
             // Only validate HTML files
             if (!file.path.endsWith('.html')) {

@@ -119,7 +119,7 @@ body{background:#0a0a0f;color:#e2e8f0;font-family:'Segoe UI',system-ui,-apple-sy
 }
 </style>
 
-<a class="ns-back" href="../../index.html">\\u2039 Back to Shield House</a>
+<a class="ns-back" href="/houses/shield/index.html">\\u2039 Back to Shield House</a>
 
 <div class="ns-header">
     <div class="ns-header-top">

@@ -1,8 +1,9 @@
 /* ============================================================
    CTF ARENA — CoOpSync.js
-   Firestore sync layer for 2-player cooperative mode.
+   Firestore sync layer for cooperative mode (2-5 players).
    Handles room creation, joining, real-time state sync,
-   atomic flag submissions, hint reveals, and activity log.
+   atomic flag submissions, hint reveals, activity log,
+   session persistence, auto-rejoin, and host migration.
    ============================================================ */
 
 const CoOpSync = (function() {
@@ -23,6 +24,10 @@ const CoOpSync = (function() {
     let _onStateChange = null;
     let _onActivityChange = null;
     let _onPlayersChange = null;
+    let _onDisband = null;
+    let _beforeUnloadHandler = null;
+
+    const SESSION_KEY = 'hexworth_coop_active_session';
 
     // ────────────────────────────────────────────────
     // INITIALIZATION
@@ -32,7 +37,7 @@ const CoOpSync = (function() {
         if (initialized) return true;
 
         try {
-            // Load Firebase SDK if not already loaded
+            // Load Firebase SDK if not already loaded (FirebaseAuth may have done this)
             if (!window.firebaseApp) {
                 const appModule = await import('https://www.gstatic.com/firebasejs/12.7.0/firebase-app.js');
                 window.firebaseApp = appModule;
@@ -62,16 +67,37 @@ const CoOpSync = (function() {
             db = getFirestore(getApps()[0]);
             initialized = true;
 
-            // Get player identity
+            // Get player identity (may update after auth resolves)
             _playerId = _getPlayerId();
             _playerName = _getPlayerName();
 
             console.log('%c[CO-OP] Sync layer initialized', 'color: #9b59b6');
-            return true;
         } catch (error) {
             console.error('[CO-OP] Initialization failed:', error);
             return false;
         }
+
+        // Auth setup — separate from Firestore init so auth errors don't kill db
+        try {
+            if (typeof FirebaseAuth !== 'undefined') {
+                await FirebaseAuth.waitForAuth();
+                if (!FirebaseAuth.isSignedIn()) {
+                    console.log('%c[CO-OP] No auth session — signing in anonymously', 'color: #e67e22');
+                    await FirebaseAuth.signInAnonymously();
+                    // Wait for auth state to propagate to Firestore
+                    await new Promise(resolve => setTimeout(resolve, 800));
+                    // Re-fetch identity with authenticated user
+                    _playerId = _getPlayerId();
+                    _playerName = _getPlayerName();
+                    console.log('%c[CO-OP] Anonymous auth ready: ' + _playerId, 'color: #2ecc71');
+                }
+            }
+        } catch (authError) {
+            console.warn('[CO-OP] Auth setup failed:', authError.message);
+            console.warn('[CO-OP] Firestore calls may fail with permission errors');
+        }
+
+        return true;
     }
 
     // ────────────────────────────────────────────────
@@ -81,7 +107,7 @@ const CoOpSync = (function() {
     /**
      * Create a new co-op session. Returns room code.
      */
-    async function createSession(boxId, config) {
+    async function createSession(boxId, config, maxPlayers) {
         if (!initialized) await init();
         if (!db) throw new Error('Firestore not available');
 
@@ -113,7 +139,7 @@ const CoOpSync = (function() {
                 }
             },
             config: {
-                maxPlayers: 2,
+                maxPlayers: maxPlayers || 2,
                 boxTitle: config.title || 'CTF Arena',
                 boxAccent: config.accent || '#3498db'
             },
@@ -123,6 +149,10 @@ const CoOpSync = (function() {
 
         sessionRef = doc(db, 'arena_sessions', _roomCode);
         await setDoc(sessionRef, sessionData);
+
+        // Persist session for auto-rejoin
+        _persistSession();
+        _installRefreshGuard();
 
         console.log(`%c[CO-OP] Session created: ${_roomCode}`, 'color: #2ecc71');
         return _roomCode;
@@ -164,18 +194,28 @@ const CoOpSync = (function() {
             }
         }
 
-        // Add ourselves to the session
+        // Restore host status if reconnecting as the original host
+        const existingPlayer = data.players[_playerId];
+        if (existingPlayer?.isHost) {
+            _isHost = true;
+        }
+
+        // Add/update ourselves in the session
         await updateDoc(sessionRef, {
             [`players.${_playerId}`]: {
                 name: _playerName,
-                joinedAt: Date.now(),
+                joinedAt: existingPlayer?.joinedAt || Date.now(),
                 online: true,
-                isHost: false,
+                isHost: _isHost,
                 lastSeen: Date.now()
             }
         });
 
-        console.log(`%c[CO-OP] Joined session: ${_roomCode}`, 'color: #2ecc71');
+        // Persist session for auto-rejoin
+        _persistSession();
+        _installRefreshGuard();
+
+        console.log(`%c[CO-OP] Joined session: ${_roomCode}${_isHost ? ' (host restored)' : ''}`, 'color: #2ecc71');
         return data;
     }
 
@@ -205,6 +245,13 @@ const CoOpSync = (function() {
         stateUnsubscribe = onSnapshot(sessionRef, (snap) => {
             if (!snap.exists()) return;
             const data = snap.data();
+
+            // Session disbanded — notify and clean up
+            if (data.status === 'disbanded') {
+                if (_onDisband) _onDisband(data);
+                _clearPersistedSession();
+                return;
+            }
 
             // Dispatch state update
             if (_onStateChange) {
@@ -411,6 +458,190 @@ const CoOpSync = (function() {
     }
 
     // ────────────────────────────────────────────────
+    // DISBAND (Host Only)
+    // ────────────────────────────────────────────────
+
+    /**
+     * Disband the session. Sets status to 'disbanded'.
+     * All connected players will be notified via snapshot.
+     */
+    async function disbandSession() {
+        if (!sessionRef || !_isHost) return;
+        const { updateDoc } = window.firebaseFirestore;
+
+        try {
+            await logActivity('session_disbanded', `${_playerName} disbanded the squad`);
+            await updateDoc(sessionRef, { status: 'disbanded' });
+            _clearPersistedSession();
+            await disconnect();
+            console.log('%c[CO-OP] Session disbanded', 'color: #e74c3c');
+        } catch (error) {
+            console.error('[CO-OP] Disband failed:', error);
+        }
+    }
+
+    /**
+     * Set callback for when session is disbanded.
+     */
+    function onDisband(callback) {
+        _onDisband = callback;
+    }
+
+    // ────────────────────────────────────────────────
+    // SESSION PERSISTENCE & AUTO-REJOIN
+    // ────────────────────────────────────────────────
+
+    function _persistSession() {
+        try {
+            localStorage.setItem(SESSION_KEY, JSON.stringify({
+                roomCode: _roomCode,
+                playerId: _playerId,
+                isHost: _isHost,
+                url: window.location.pathname,
+                timestamp: Date.now()
+            }));
+        } catch { /* localStorage may be full */ }
+    }
+
+    function _clearPersistedSession() {
+        try { localStorage.removeItem(SESSION_KEY); } catch {}
+    }
+
+    /**
+     * Check for an active session that can be rejoined.
+     * Returns { roomCode, playerId, isHost, url } or null.
+     */
+    function getPersistedSession() {
+        try {
+            const raw = localStorage.getItem(SESSION_KEY);
+            if (!raw) return null;
+            const data = JSON.parse(raw);
+            // Expire after 2 hours
+            if (Date.now() - data.timestamp > 2 * 60 * 60 * 1000) {
+                _clearPersistedSession();
+                return null;
+            }
+            return data;
+        } catch {
+            return null;
+        }
+    }
+
+    /**
+     * Validate that a persisted session still exists and is joinable.
+     * Returns session data or null.
+     */
+    async function validatePersistedSession(roomCode) {
+        if (!initialized) await init();
+        if (!db) return null;
+
+        const { doc, getDoc } = window.firebaseFirestore;
+        try {
+            const ref = doc(db, 'arena_sessions', roomCode);
+            const snap = await getDoc(ref);
+            if (!snap.exists()) return null;
+
+            const data = snap.data();
+            if (data.status === 'disbanded' || data.status === 'completed') {
+                _clearPersistedSession();
+                return null;
+            }
+            return data;
+        } catch {
+            return null;
+        }
+    }
+
+    // ────────────────────────────────────────────────
+    // REFRESH GUARD
+    // ────────────────────────────────────────────────
+
+    function _installRefreshGuard() {
+        if (_beforeUnloadHandler) return; // Already installed
+        _beforeUnloadHandler = (e) => {
+            if (sessionRef) {
+                e.preventDefault();
+                // Modern browsers ignore custom messages but still show the dialog
+                return '';
+            }
+        };
+        window.addEventListener('beforeunload', _beforeUnloadHandler);
+    }
+
+    function _removeRefreshGuard() {
+        if (_beforeUnloadHandler) {
+            window.removeEventListener('beforeunload', _beforeUnloadHandler);
+            _beforeUnloadHandler = null;
+        }
+    }
+
+    // ────────────────────────────────────────────────
+    // HOST MIGRATION (Lobby Only)
+    // ────────────────────────────────────────────────
+
+    /**
+     * Promote a new host if current host is offline.
+     * Called from lobby when host staleness is detected.
+     * Uses transaction to prevent race conditions.
+     */
+    async function migrateHost() {
+        if (!sessionRef || !db) return false;
+
+        const { runTransaction } = window.firebaseFirestore;
+
+        try {
+            const result = await runTransaction(db, async (transaction) => {
+                const snap = await transaction.get(sessionRef);
+                if (!snap.exists()) return false;
+
+                const data = snap.data();
+                const players = data.players || {};
+
+                // Find current host
+                const hostEntry = Object.entries(players).find(([_, p]) => p.isHost);
+                if (!hostEntry) return false;
+
+                const [hostId, hostData] = hostEntry;
+                const hostStale = (Date.now() - (hostData.lastSeen || 0)) > 60000; // 60s
+
+                if (!hostStale || hostData.online) return false; // Host is fine
+
+                // Find first online non-host player to promote
+                const candidate = Object.entries(players).find(([pid, p]) =>
+                    pid !== hostId && p.online && (Date.now() - (p.lastSeen || 0)) < 30000
+                );
+
+                if (!candidate) return false; // No one to promote
+
+                const [newHostId, newHostData] = candidate;
+
+                // Demote old host, promote new
+                const updates = {};
+                updates[`players.${hostId}.isHost`] = false;
+                updates[`players.${newHostId}.isHost`] = true;
+                transaction.update(sessionRef, updates);
+
+                return { newHostId, newHostName: newHostData.name };
+            });
+
+            if (result && result.newHostId) {
+                // If we're the new host, update local state
+                if (result.newHostId === _playerId) {
+                    _isHost = true;
+                    _persistSession();
+                }
+                await logActivity('host_migrated', `${result.newHostName} is now the host`);
+                console.log(`%c[CO-OP] Host migrated to ${result.newHostName}`, 'color: #f39c12');
+                return true;
+            }
+            return false;
+        } catch (error) {
+            console.error('[CO-OP] Host migration failed:', error);
+            return false;
+        }
+    }
+
+    // ────────────────────────────────────────────────
     // PRESENCE / DISCONNECT
     // ────────────────────────────────────────────────
 
@@ -426,9 +657,6 @@ const CoOpSync = (function() {
                 });
             } catch { /* ignore presence errors */ }
         }, 15000);
-
-        // Mark offline on page unload
-        window.addEventListener('beforeunload', () => disconnect());
     }
 
     async function disconnect() {
@@ -446,6 +674,8 @@ const CoOpSync = (function() {
             activityUnsubscribe();
             activityUnsubscribe = null;
         }
+
+        _removeRefreshGuard();
 
         if (sessionRef) {
             try {
@@ -514,6 +744,8 @@ const CoOpSync = (function() {
         createSession,
         joinSession,
         startGame,
+        disbandSession,
+        onDisband,
         subscribeToState,
         subscribeToActivity,
         onPlayersChange,
@@ -523,6 +755,12 @@ const CoOpSync = (function() {
         logActivity,
         startPresence,
         disconnect,
+        migrateHost,
+
+        // Session persistence
+        getPersistedSession,
+        validatePersistedSession,
+        clearPersistedSession: _clearPersistedSession,
 
         // Getters
         get roomCode() { return _roomCode; },

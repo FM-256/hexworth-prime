@@ -225,7 +225,7 @@ body{background:#0a0a0f;color:#e2e8f0;font-family:'Segoe UI',system-ui,-apple-sy
 }
 </style>
 
-<a class="th-back" href="../../../index.html">\u2039 Back to Shield House</a>
+<a class="th-back" href="/houses/shield/index.html">\u2039 Back to Shield House</a>
 
 <div class="th-header">
     <div class="th-header-top">

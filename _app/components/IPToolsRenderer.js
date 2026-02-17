@@ -130,7 +130,7 @@ const IPToolsRenderer = (() => {
         root.id = 'ip-root';
         root.innerHTML = `
 ${getStyles(c)}
-<a class="ip-back" href="../../../index.html">&lsaquo; Back to Web House</a>
+<a class="ip-back" href="/houses/web/index.html">&lsaquo; Back to Web House</a>
 <div class="ip-header">
     <div class="ip-header-top">
         <span class="ip-icon">${topic.icon}</span>

@@ -214,7 +214,7 @@ body{background:#0a0a0f;color:#e2e8f0;font-family:'Segoe UI',system-ui,-apple-sy
        ================================================================ */
     function buildHeader(progress, stepsViewed, totalSteps, answered, totalQ) {
         return `
-<a class="cr-back" href="../../../index.html">&lsaquo; Back to Shield House</a>
+<a class="cr-back" href="/houses/shield/index.html">&lsaquo; Back to Shield House</a>
 <div class="cr-header">
     <div class="cr-header-top">
         <span class="cr-icon">${topic.icon}</span>
