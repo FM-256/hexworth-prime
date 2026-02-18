@@ -18,6 +18,18 @@ const A6Config = {
     trackerKey: 'ctf_a6',
 
     // ═══════════════════════════════════════════════════════
+    // CERT OBJECTIVES (Assessment Mode — AR-7)
+    // ═══════════════════════════════════════════════════════
+
+    certObjectives: {
+        certPath: 'SY0-701',
+        mappings: [
+            { flagId: 'user', objective: '1.4', description: 'Given a scenario, analyze indicators of malicious activity', skill: 'Weak Cipher Identification' },
+            { flagId: 'root', objective: '1.4', description: 'Given a scenario, analyze indicators of malicious activity', skill: 'Cryptographic Key Recovery' }
+        ]
+    },
+
+    // ═══════════════════════════════════════════════════════
     // BOOT SEQUENCE
     // ═══════════════════════════════════════════════════════
 

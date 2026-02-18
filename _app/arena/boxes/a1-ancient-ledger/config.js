@@ -18,6 +18,62 @@ const A1Config = {
     trackerKey: 'ctf_a1',
 
     // ═══════════════════════════════════════════════════════
+    // TUTORIAL MODE (Sprint AR-12)
+    // ═══════════════════════════════════════════════════════
+
+    tutorialMode: true,
+
+    tutorial: {
+        steps: [
+            {
+                title: 'Scan the target with nmap',
+                tip: 'Open the Terminal and run: nmap 10.10.14.5',
+                trigger: { event: 'command', match: { cmd: 'contains:nmap' } }
+            },
+            {
+                title: 'Open the web application',
+                tip: 'Open Firefox and browse to the target IP address.',
+                trigger: { event: 'navigate' }
+            },
+            {
+                title: 'Test the login form for vulnerabilities',
+                tip: 'Try SQL injection in the search form, or use sqlmap from the terminal.',
+                trigger: {
+                    event: 'command',
+                    match: { phase: 'EXPLOIT' },
+                    alt: [
+                        { event: 'command', match: { cmd: 'contains:sql' } },
+                        { event: 'command', match: { cmd: "contains:' OR" } },
+                        { event: 'command', match: { cmd: 'contains:union' } }
+                    ]
+                }
+            },
+            {
+                title: 'Extract sensitive data',
+                tip: 'Use SQL injection to dump the database tables. Look for flag values.',
+                trigger: { event: 'flag_correct', match: { flagId: 'user' } }
+            },
+            {
+                title: 'Escalate to root-level access',
+                tip: 'Find the admin password hash and use it to access privileged data.',
+                trigger: { event: 'flag_correct', match: { flagId: 'root' } }
+            }
+        ]
+    },
+
+    // ═══════════════════════════════════════════════════════
+    // CERT OBJECTIVES (Assessment Mode — AR-7)
+    // ═══════════════════════════════════════════════════════
+
+    certObjectives: {
+        certPath: 'SY0-701',
+        mappings: [
+            { flagId: 'user', objective: '1.4', description: 'Given a scenario, analyze indicators of malicious activity', skill: 'SQL Injection Discovery' },
+            { flagId: 'root', objective: '1.4', description: 'Given a scenario, analyze indicators of malicious activity', skill: 'SQL Injection Data Extraction' }
+        ]
+    },
+
+    // ═══════════════════════════════════════════════════════
     // BOOT SEQUENCE
     // ═══════════════════════════════════════════════════════
 

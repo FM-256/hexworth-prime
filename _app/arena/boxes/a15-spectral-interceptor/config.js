@@ -19,6 +19,18 @@ const A15Config = {
     trackerKey: 'ctf_a15',
 
     // ═══════════════════════════════════════════════════════
+    // CERT OBJECTIVES (Assessment Mode — AR-7)
+    // ═══════════════════════════════════════════════════════
+
+    certObjectives: {
+        certPath: 'CS0-003',
+        mappings: [
+            { flagId: 'user', objective: '1.4', description: 'Given a scenario, analyze indicators of compromise', skill: 'Signal Interception & Protocol Decoding' },
+            { flagId: 'root', objective: '1.4', description: 'Given a scenario, analyze indicators of compromise', skill: 'Covert Channel Manifest Extraction' }
+        ]
+    },
+
+    // ═══════════════════════════════════════════════════════
     // BOOT SEQUENCE
     // ═══════════════════════════════════════════════════════
 

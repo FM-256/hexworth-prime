@@ -18,6 +18,18 @@ const A9Config = {
     trackerKey: 'ctf_a9',
 
     // ═══════════════════════════════════════════════════════
+    // CERT OBJECTIVES (Assessment Mode — AR-7)
+    // ═══════════════════════════════════════════════════════
+
+    certObjectives: {
+        certPath: 'SY0-701',
+        mappings: [
+            { flagId: 'user', objective: '2.4', description: 'Given a scenario, analyze indicators associated with authentication attacks', skill: 'Insecure Deserialization Discovery' },
+            { flagId: 'root', objective: '2.4', description: 'Given a scenario, analyze indicators associated with authentication attacks', skill: 'Session Token Forgery via Serialization' }
+        ]
+    },
+
+    // ═══════════════════════════════════════════════════════
     // BOOT SEQUENCE
     // ═══════════════════════════════════════════════════════
 

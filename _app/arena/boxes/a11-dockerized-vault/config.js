@@ -19,6 +19,18 @@ const A11Config = {
     trackerKey: 'ctf_a11',
 
     // ===============================================================
+    // CERT OBJECTIVES (Assessment Mode — AR-7)
+    // ===============================================================
+
+    certObjectives: {
+        certPath: 'CS0-003',
+        mappings: [
+            { flagId: 'user', objective: '4.1', description: 'Given a scenario, apply common security techniques to computing resources', skill: 'Docker Socket Exploitation' },
+            { flagId: 'root', objective: '4.1', description: 'Given a scenario, apply common security techniques to computing resources', skill: 'Container Escape to Host' }
+        ]
+    },
+
+    // ===============================================================
     // BOOT SEQUENCE
     // ===============================================================
 

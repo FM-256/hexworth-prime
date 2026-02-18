@@ -21,6 +21,18 @@ const A20Config = {
     trackerKey: 'ctf_a20',
 
     // ═══════════════════════════════════════════════════════
+    // CERT OBJECTIVES (Assessment Mode — AR-7)
+    // ═══════════════════════════════════════════════════════
+
+    certObjectives: {
+        certPath: 'PT0-002',
+        mappings: [
+            { flagId: 'user', objective: '3.1', description: 'Given a scenario, apply attacks and exploits', skill: 'Supply Chain Backdoor Discovery' },
+            { flagId: 'root', objective: '3.7', description: 'Given a scenario, perform post-exploitation techniques', skill: 'APT Simulation & Full Kill Chain Execution' }
+        ]
+    },
+
+    // ═══════════════════════════════════════════════════════
     // BOOT SEQUENCE
     // ═══════════════════════════════════════════════════════
 

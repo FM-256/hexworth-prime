@@ -49,6 +49,33 @@ const BoxEngine = {
         const config = this.config;
         this.load();
 
+        // Generate or restore session seed for flag salting (AR-11)
+        if (!this.state._sessionSeed) {
+            this.state._sessionSeed = crypto.getRandomValues(new Uint32Array(1))[0].toString(36);
+            this.save();
+        }
+
+        // Pre-compute hashed flag values for secure comparison
+        this._flagHashes = [];
+        this._computeFlagHashes().catch(e => console.error('[ARENA] Flag hash computation failed:', e));
+
+        // DevTools detection — research instrumentation only, does NOT block (AR-11)
+        this._devToolsOpen = false;
+        this._devToolsInterval = setInterval(() => {
+            const threshold = 200;
+            const widthDiff = window.outerWidth - window.innerWidth > threshold;
+            const heightDiff = window.outerHeight - window.innerHeight > threshold;
+            const isOpen = widthDiff || heightDiff;
+            if (isOpen && !this._devToolsOpen) {
+                this._devToolsOpen = true;
+                this._logEvent('devtools_open', {});
+                console.warn('%c[ARENA] DevTools detected. Activity logged for research purposes.', 'color: #e74c3c; font-size: 14px;');
+            } else if (!isOpen && this._devToolsOpen) {
+                this._devToolsOpen = false;
+                this._logEvent('devtools_close', {});
+            }
+        }, 2000);
+
         // Set accent color
         document.documentElement.style.setProperty('--box-accent', config.accent || '#3498db');
 
@@ -101,7 +128,19 @@ const BoxEngine = {
             });
         }
 
-        window.addEventListener('beforeunload', () => this.save());
+        window.addEventListener('beforeunload', () => {
+            this.save();
+            if (!this.state.completed) {
+                this._logEvent('session_abandon', {
+                    flagsFound: this.state.flagsFound.length,
+                    totalFlags: (this.config.flags || []).length,
+                    hintsUsed: this.state.hintsUsed.length,
+                    score: this.state.score,
+                    lastAction: this.state.events?.length ? this.state.events[this.state.events.length - 1] : null
+                });
+                this.save(); // Save again with abandon event
+            }
+        });
 
         // If state was previously saved (returning user), skip boot and go to desktop
         if (this.state.booted) {
@@ -124,13 +163,16 @@ const BoxEngine = {
             flagsFound: [],
             hintsUsed: [],
             wrongFlags: 0,
+            wrongFlagTimestamps: [],
             startTime: Date.now(),
             elapsed: 0,
             completed: false,
             godMode: false,
             booted: false,
             notes: '',
-            events: []  // Research instrumentation — timestamped action log
+            events: [],  // Research instrumentation — timestamped action log
+            _tutorialStep: 0,
+            _tutorialComplete: false
         };
     },
 
@@ -149,6 +191,18 @@ const BoxEngine = {
         });
     },
 
+    _classifyCommand(cmd) {
+        const c = cmd.toLowerCase().split(' ')[0];
+        const recon = ['nmap', 'whoami', 'id', 'ls', 'pwd', 'find', 'cat', 'head', 'hostname', 'uname', 'file', 'help'];
+        const exploit = ['sqlmap', 'curl', 'hydra', 'nikto', 'gobuster', 'dirb', 'wfuzz', 'burp'];
+        const extraction = ['cat', 'head', 'tail', 'grep', 'strings', 'xxd', 'base64'];
+        // 'cat' could be recon OR extraction — if any flags are found, cat becomes extraction
+        if (this.state.flagsFound.length > 0 && extraction.includes(c)) return 'EXTRACTION';
+        if (exploit.includes(c)) return 'EXPLOIT';
+        if (recon.includes(c)) return 'RECON';
+        return 'OTHER';
+    },
+
     exportEventLog() {
         if (!this.state || !this.state.godMode) return;
         const events = this.state.events || [];
@@ -159,6 +213,185 @@ const BoxEngine = {
             navigator.clipboard.writeText(blob);
             this.notify('Event log copied to clipboard (' + events.length + ' events)', 'success');
         }
+    },
+
+    // ────────────────────────────────────────────────
+    // ASSESSMENT REPORT EXPORT (Sprint AR-7)
+    // ────────────────────────────────────────────────
+
+    /**
+     * Export a CSV assessment report mapping flags to CompTIA cert objectives.
+     * God Mode only — instructor/admin feature.
+     */
+    exportAssessmentReport() {
+        if (!this.state || !this.state.godMode) {
+            this.notify('Assessment export requires God Mode', 'warning');
+            return;
+        }
+
+        const config = this.config;
+        const s = this.state;
+        const objectives = config.certObjectives?.mappings || [];
+
+        if (objectives.length === 0) {
+            this.notify('No cert objectives configured for this box', 'warning');
+            return;
+        }
+
+        const headers = ['Student','Box','Flag ID','Cert Path','Objective Code','Objective Description','Skill','Captured','Hints Used','Time to Capture (s)'];
+        const rows = [headers.join(',')];
+
+        for (const obj of objectives) {
+            const captured = s.flagsFound.includes(obj.flagId);
+            const flagEvent = (s.events || []).find(e => e.type === 'flag_correct' && e.data?.flagId === obj.flagId);
+            const timeToCapture = flagEvent ? Math.round(flagEvent.elapsed / 1000) : 'N/A';
+            const hintCount = (s.hintsUsed || []).filter(h => {
+                const hint = (config.hints || []).find(hi => hi.id === h);
+                return hint && hint.forFlag === obj.flagId;
+            }).length;
+
+            rows.push([
+                'Anonymous',
+                `"${config.title}"`,
+                obj.flagId,
+                config.certObjectives?.certPath || '',
+                obj.objective,
+                `"${obj.description}"`,
+                `"${obj.skill}"`,
+                captured ? 'Y' : 'N',
+                hintCount,
+                timeToCapture
+            ].join(','));
+        }
+
+        const csv = rows.join('\n');
+
+        // Copy to clipboard
+        if (navigator.clipboard) {
+            navigator.clipboard.writeText(csv);
+            this.notify('Assessment report copied to clipboard', 'success');
+        }
+
+        // Also trigger download
+        const blob = new Blob([csv], { type: 'text/csv' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${config.storageKey || 'box'}_assessment.csv`;
+        a.click();
+        URL.revokeObjectURL(url);
+    },
+
+    // ────────────────────────────────────────────────
+    // PRE/POST CONFIDENCE SURVEY (Sprint AR-14)
+    // ────────────────────────────────────────────────
+
+    _buildSurveyModal(type, questions, callback) {
+        const overlay = document.createElement('div');
+        overlay.className = 'survey-overlay';
+
+        const title = type === 'pre' ? 'Pre-Challenge Survey' : 'Post-Challenge Survey';
+        const subtitle = type === 'pre'
+            ? 'Rate how you feel before starting this challenge.'
+            : 'Reflect on your experience with this challenge.';
+
+        const labels = ['1', '2', '3', '4', '5'];
+
+        let questionsHtml = '';
+        questions.forEach((q, idx) => {
+            const lowLabel = q.low || '';
+            const highLabel = q.high || '';
+            questionsHtml += `
+                <div class="survey-question" data-q="${idx + 1}">
+                    <div class="survey-question-text">${this._escHtml(q.text)}</div>
+                    <div class="survey-likert">
+                        <span class="survey-anchor-label">${this._escHtml(lowLabel)}</span>
+                        ${labels.map(v => `<button class="survey-likert-btn" data-value="${v}">${v}</button>`).join('')}
+                        <span class="survey-anchor-label">${this._escHtml(highLabel)}</span>
+                    </div>
+                </div>
+            `;
+        });
+
+        overlay.innerHTML = `
+            <div class="survey-card">
+                <h3 class="survey-title">${title}</h3>
+                <p class="survey-subtitle">${subtitle}</p>
+                <div class="survey-questions">${questionsHtml}</div>
+                <div class="survey-actions">
+                    <button class="survey-submit-btn" disabled>Submit</button>
+                    <button class="survey-skip-btn">Skip</button>
+                </div>
+            </div>
+        `;
+
+        document.body.appendChild(overlay);
+        requestAnimationFrame(() => overlay.classList.add('active'));
+
+        const responses = {};
+        const submitBtn = overlay.querySelector('.survey-submit-btn');
+        const skipBtn = overlay.querySelector('.survey-skip-btn');
+
+        // Likert button click handling
+        overlay.querySelectorAll('.survey-question').forEach(qEl => {
+            const qKey = qEl.dataset.q;
+            qEl.querySelectorAll('.survey-likert-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    qEl.querySelectorAll('.survey-likert-btn').forEach(b => b.classList.remove('selected'));
+                    btn.classList.add('selected');
+                    responses['q' + qKey] = parseInt(btn.dataset.value);
+                    // Enable submit if all questions answered
+                    const answered = Object.keys(responses).length;
+                    submitBtn.disabled = answered < questions.length;
+                });
+            });
+        });
+
+        const close = (result) => {
+            overlay.classList.remove('active');
+            setTimeout(() => overlay.remove(), 300);
+            callback(result);
+        };
+
+        submitBtn.addEventListener('click', () => close(responses));
+        skipBtn.addEventListener('click', () => close(null));
+    },
+
+    _showPreSurvey(onComplete) {
+        const questions = [
+            { text: 'How confident are you in solving this type of challenge?', low: 'Not at all', high: 'Extremely' },
+            { text: 'How difficult do you expect this challenge to be?', low: 'Very Easy', high: 'Very Hard' },
+            { text: 'How familiar are you with the tools needed?', low: 'Not at all', high: 'Expert' },
+            { text: 'How anxious do you feel about this challenge?', low: 'Not at all', high: 'Extremely' },
+            { text: 'Have you completed a similar challenge before?', low: 'Never', high: 'Many times' }
+        ];
+
+        this._buildSurveyModal('pre', questions, (responses) => {
+            if (responses) {
+                this.state.preSurvey = responses;
+                this._logEvent('pre_survey', responses);
+                this.save();
+            }
+            onComplete();
+        });
+    },
+
+    _showPostSurvey() {
+        const questions = [
+            { text: 'How confident do you NOW feel about this type of challenge?', low: 'Not at all', high: 'Extremely' },
+            { text: 'How difficult was this challenge?', low: 'Very Easy', high: 'Very Hard' },
+            { text: 'How well did the hints help you?', low: 'Not at all', high: 'Perfectly' },
+            { text: 'How likely are you to attempt a harder challenge?', low: 'Not at all', high: 'Very likely' },
+            { text: 'How much did you learn from this challenge?', low: 'Nothing', high: 'A great deal' }
+        ];
+
+        this._buildSurveyModal('post', questions, (responses) => {
+            if (responses) {
+                this.state.postSurvey = responses;
+                this._logEvent('post_survey', responses);
+                this.save();
+            }
+        });
     },
 
     load() {
@@ -376,6 +609,10 @@ const BoxEngine = {
 
         document.getElementById('completionClose').addEventListener('click', () => {
             overlay.classList.remove('active');
+            // Show post-challenge survey after completion
+            if (!this.state.postSurvey) {
+                this._showPostSurvey();
+            }
         });
 
         // VS result overlay (hidden by default, shown when VS match ends)
@@ -546,10 +783,33 @@ const BoxEngine = {
     _showDesktop() {
         this._bootEl.style.display = 'none';
         this._desktopEl.classList.add('active');
-        // Log box_start on first desktop show (fresh session only)
-        if (this.state.events && this.state.events.length === 0) {
+
+        // Fresh session: log box_start and show pre-survey
+        if (this.state.events && this.state.events.length === 0 && !this.state.preSurvey) {
             this._logEvent('box_start', { boxId: this.config.storageKey || 'unknown' });
+            this._showPreSurvey(() => {
+                // After survey, init tutorial if configured
+                this._initTutorial();
+            });
+            return;
         }
+
+        // Returning session: detect prior abandonment and log resume
+        if (!this.state.completed && this.state.events && this.state.events.length > 0) {
+            const hasAbandon = this.state.events.some(e => e.type === 'session_abandon');
+            if (hasAbandon) {
+                this._logEvent('session_resume', {
+                    flagsFound: this.state.flagsFound.length,
+                    totalFlags: (this.config.flags || []).length,
+                    score: this.state.score
+                });
+                this.save();
+                this.notify('Welcome back! Resuming your session.', 'info');
+            }
+        }
+
+        // Init tutorial (handles guard internally if not configured)
+        this._initTutorial();
     },
 
     // ────────────────────────────────────────────────
@@ -844,6 +1104,97 @@ const BoxEngine = {
     },
 
     // ────────────────────────────────────────────────
+    // FLAG SECURITY (Sprint AR-11)
+    // ────────────────────────────────────────────────
+
+    /**
+     * Hash a flag value with a per-session seed using SHA-256.
+     * Prevents casual DevTools inspection of state from revealing flag text.
+     */
+    async _hashFlag(value, seed) {
+        const data = new TextEncoder().encode(value.toLowerCase().trim() + ':' + seed);
+        const hash = await crypto.subtle.digest('SHA-256', data);
+        return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, '0')).join('');
+    },
+
+    /**
+     * Pre-compute hashed versions of all flags for the current session.
+     * Called after session seed is established in _initWithMode.
+     */
+    async _computeFlagHashes() {
+        const flags = this.config.flags || [];
+        const seed = this.state._sessionSeed;
+        this._flagHashes = await Promise.all(flags.map(async f => ({
+            id: f.id,
+            hash: await this._hashFlag(f.value, seed),
+            points: f.points
+        })));
+    },
+
+    /**
+     * Rate limiting for flag submissions.
+     * 3 wrong → 30s cooldown. 6 wrong → 60s cooldown. 10 wrong → page refresh required.
+     */
+    _checkRateLimit() {
+        const stamps = this.state.wrongFlagTimestamps || [];
+        const now = Date.now();
+        // Clean old timestamps (older than 5 minutes)
+        this.state.wrongFlagTimestamps = stamps.filter(t => now - t < 300000);
+        const recent = this.state.wrongFlagTimestamps.length;
+
+        if (recent >= 10) {
+            return { blocked: true, message: 'Too many attempts. Refresh the page to try again.', wait: Infinity };
+        }
+        if (recent >= 6) {
+            const last = this.state.wrongFlagTimestamps[this.state.wrongFlagTimestamps.length - 1];
+            const elapsed = now - last;
+            if (elapsed < 60000) {
+                return { blocked: true, message: `Cooldown: ${Math.ceil((60000 - elapsed) / 1000)}s remaining`, wait: 60000 - elapsed };
+            }
+        }
+        if (recent >= 3) {
+            const last = this.state.wrongFlagTimestamps[this.state.wrongFlagTimestamps.length - 1];
+            const elapsed = now - last;
+            if (elapsed < 30000) {
+                return { blocked: true, message: `Cooldown: ${Math.ceil((30000 - elapsed) / 1000)}s remaining`, wait: 30000 - elapsed };
+            }
+        }
+        return { blocked: false };
+    },
+
+    /**
+     * Show a countdown timer on the submit button during rate limiting.
+     */
+    _startRateLimitCountdown(waitMs) {
+        const submitBtn = document.getElementById('flagModalSubmit');
+        const msg = document.getElementById('flagModalMsg');
+        if (!submitBtn) return;
+
+        submitBtn.disabled = true;
+        submitBtn.classList.add('rate-limited');
+
+        if (waitMs === Infinity) {
+            submitBtn.textContent = 'Locked';
+            return;
+        }
+
+        const endTime = Date.now() + waitMs;
+        const tick = () => {
+            const remaining = Math.ceil((endTime - Date.now()) / 1000);
+            if (remaining <= 0) {
+                submitBtn.disabled = false;
+                submitBtn.classList.remove('rate-limited');
+                submitBtn.textContent = 'Submit';
+                msg.innerHTML = '';
+                return;
+            }
+            submitBtn.textContent = `Wait ${remaining}s`;
+            requestAnimationFrame(tick);
+        };
+        tick();
+    },
+
+    // ────────────────────────────────────────────────
     // FLAG SYSTEM
     // ────────────────────────────────────────────────
 
@@ -854,6 +1205,22 @@ const BoxEngine = {
         input.value = '';
         input.focus();
         document.getElementById('flagModalMsg').innerHTML = '';
+
+        // Restore submit button state (may have been rate-limited)
+        const submitBtn = document.getElementById('flagModalSubmit');
+        if (submitBtn && !submitBtn.classList.contains('rate-limited')) {
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Submit';
+        }
+
+        // Check if rate limit is still active on open
+        if (!this._coOpMode) {
+            const rateCheck = this._checkRateLimit();
+            if (rateCheck.blocked) {
+                document.getElementById('flagModalMsg').innerHTML = `<span style="color:#e74c3c;">${this._escHtml(rateCheck.message)}</span>`;
+                this._startRateLimitCountdown(rateCheck.wait);
+            }
+        }
 
         // Enter key
         input.onkeydown = (e) => { if (e.key === 'Enter') this.submitFlag(); };
@@ -917,39 +1284,61 @@ const BoxEngine = {
             return;
         }
 
-        // Solo mode: original logic
-        const normalized = raw.toLowerCase().trim();
-
-        for (const flag of flags) {
-            if (normalized === flag.value.toLowerCase()) {
-                if (this.state.flagsFound.includes(flag.id)) {
-                    msg.innerHTML = '<span style="color:#3498db;">Flag already submitted.</span>';
-                    return;
-                }
-                // Found new flag
-                this.state.flagsFound.push(flag.id);
-                this.addScore(flag.points, `${flag.id}.txt captured`);
-                this._logEvent('flag_correct', { flagId: flag.id, points: flag.points, hintsUsed: this.state.hintsUsed.length, elapsed: Date.now() - this.state.startTime });
-                msg.innerHTML = `<span style="color:#2ecc71;">&#10003; ${flag.id}.txt captured! +${flag.points} points</span>`;
-                this.notify(`${flag.id}.txt captured! +${flag.points} points`, 'success');
-                this._reportFlagCapture(flag.id, flag.points);
-
-                // Update badge
-                const badge = document.getElementById('flagBadge_' + flag.id);
-                if (badge) badge.classList.add('found');
-
-                input.value = '';
-                this._checkCompletion();
-                return;
-            }
+        // Solo mode: rate limiting check (AR-11)
+        const rateCheck = this._checkRateLimit();
+        if (rateCheck.blocked) {
+            msg.innerHTML = `<span style="color:#e74c3c;">${this._escHtml(rateCheck.message)}</span>`;
+            this._startRateLimitCountdown(rateCheck.wait);
+            return;
         }
 
-        // Wrong flag
-        this.state.wrongFlags++;
-        const penalty = this.config.scoring?.wrongFlagPenalty || -25;
-        this.addScore(penalty, 'Wrong flag attempt');
-        this._logEvent('flag_wrong', { flagId: '__none__', attempt: raw });
-        msg.innerHTML = `<span style="color:#e74c3c;">Incorrect flag. ${penalty} points</span>`;
+        // Solo mode: hashed flag comparison (AR-11)
+        // Hash the submitted value and compare against pre-computed hashes
+        this._hashFlag(raw, this.state._sessionSeed).then(submittedHash => {
+            // Check against pre-computed flag hashes
+            for (const fh of this._flagHashes) {
+                if (submittedHash === fh.hash) {
+                    if (this.state.flagsFound.includes(fh.id)) {
+                        msg.innerHTML = '<span style="color:#3498db;">Flag already submitted.</span>';
+                        return;
+                    }
+                    // Found new flag
+                    const flag = flags.find(f => f.id === fh.id);
+                    this.state.flagsFound.push(fh.id);
+                    this.addScore(fh.points, `${fh.id}.txt captured`);
+                    this._logEvent('flag_correct', { flagId: fh.id, points: fh.points, hintsUsed: this.state.hintsUsed.length, elapsed: Date.now() - this.state.startTime });
+                    msg.innerHTML = `<span style="color:#2ecc71;">&#10003; ${fh.id}.txt captured! +${fh.points} points</span>`;
+                    this.notify(`${fh.id}.txt captured! +${fh.points} points`, 'success');
+                    this._reportFlagCapture(fh.id, fh.points);
+
+                    // Update badge
+                    const badge = document.getElementById('flagBadge_' + fh.id);
+                    if (badge) badge.classList.add('found');
+
+                    input.value = '';
+                    this._checkCompletion();
+                    return;
+                }
+            }
+
+            // Wrong flag
+            this.state.wrongFlags++;
+            this.state.wrongFlagTimestamps.push(Date.now());
+            const penalty = this.config.scoring?.wrongFlagPenalty || -25;
+            this.addScore(penalty, 'Wrong flag attempt');
+            this._logEvent('flag_wrong', { flagId: '__none__', attempt: raw });
+            msg.innerHTML = `<span style="color:#e74c3c;">Incorrect flag. ${penalty} points</span>`;
+            this.save();
+
+            // Check if we just triggered rate limiting
+            const postCheck = this._checkRateLimit();
+            if (postCheck.blocked) {
+                this._startRateLimitCountdown(postCheck.wait);
+            }
+        }).catch(e => {
+            console.error('[ARENA] Flag hash error:', e);
+            msg.innerHTML = '<span style="color:#e74c3c;">Error validating flag. Try again.</span>';
+        });
     },
 
     _checkCompletion() {
@@ -1143,6 +1532,16 @@ const BoxEngine = {
     },
 
     _toggleGodMode() {
+        // If enabling, check for instructor access (AR-11)
+        if (!this.state.godMode) {
+            const isAdmin = localStorage.getItem('hexworth_firebase_admin');
+            if (!isAdmin) {
+                this.notify('Instructor access required for God Mode', 'warning');
+                this._logEvent('god_mode_denied', {});
+                return;
+            }
+        }
+
         this.state.godMode = !this.state.godMode;
         document.body.classList.toggle('god-mode', this.state.godMode);
         this.save();
@@ -1240,12 +1639,27 @@ const BoxEngine = {
             return nextFlag ? nextFlag.t - h.t : null;
         }).filter(v => v !== null);
 
+        // Phase timing: group command events by phase, compute time per phase
+        const phaseTimings = { RECON: 0, EXPLOIT: 0, EXTRACTION: 0, OTHER: 0 };
+        const commandEvents = events.filter(e => e.type === 'command' && e.data && e.data.phase);
+        if (commandEvents.length > 0) {
+            for (let i = 0; i < commandEvents.length; i++) {
+                const phase = commandEvents[i].data.phase;
+                const start = commandEvents[i].t;
+                const end = (i + 1 < commandEvents.length) ? commandEvents[i + 1].t : (s.completed ? Date.now() : commandEvents[i].t);
+                phaseTimings[phase] = (phaseTimings[phase] || 0) + (end - start);
+            }
+        }
+
         const researchData = {
             eventLog: events,
             totalCommands,
             totalNavigations,
             avgTimeBetweenFlags,
-            hintEffectiveness
+            hintEffectiveness,
+            phaseTimings,
+            preSurvey: s.preSurvey || null,
+            postSurvey: s.postSurvey || null
         };
 
         // ProgressManager — marks module complete, awards XP
@@ -1285,6 +1699,11 @@ const BoxEngine = {
                     hints: s.hintsUsed.length,
                     time: elapsed,
                     mode: this._vsMode ? 'vs' : this._coOpMode ? 'coop' : 'solo',
+                    certObjectives: this.config.certObjectives || null,
+                    objectivesCovered: (this.config.certObjectives?.mappings || []).map(m => ({
+                        objective: m.objective,
+                        captured: this.state.flagsFound.includes(m.flagId)
+                    })),
                     ...researchData
                 });
             }
@@ -1319,5 +1738,153 @@ const BoxEngine = {
                 });
             }
         } catch (e) { /* silent */ }
+    },
+
+    // ────────────────────────────────────────────────
+    // TUTORIAL MODE (Sprint AR-12)
+    // ────────────────────────────────────────────────
+
+    _initTutorial() {
+        if (!this.config.tutorialMode || !this.config.tutorial) return;
+
+        this.tutorial = {
+            steps: this.config.tutorial.steps || [],
+            currentStep: this.state._tutorialStep || 0,
+            completed: this.state._tutorialComplete || false
+        };
+
+        if (this.tutorial.completed) return;
+
+        // Build tutorial UI
+        this._buildTutorialPanel();
+        this._showTutorialStep(this.tutorial.currentStep);
+
+        // Wrap _logEvent to auto-advance tutorial steps on matching events
+        const self = this;
+        const origLog = this._logEvent.bind(this);
+        this._logEvent = function(type, data) {
+            origLog(type, data);
+            self._checkTutorialProgress(type, data);
+        };
+    },
+
+    _buildTutorialPanel() {
+        const panel = document.createElement('div');
+        panel.className = 'tutorial-panel';
+        panel.id = 'tutorialPanel';
+        panel.innerHTML = `
+            <div class="tutorial-header">
+                <span class="tutorial-icon">\uD83D\uDCCB</span>
+                <span class="tutorial-title">Objectives</span>
+                <button class="tutorial-toggle" id="tutorialToggle">\u2212</button>
+            </div>
+            <div class="tutorial-steps" id="tutorialSteps"></div>
+            <div class="tutorial-tip" id="tutorialTip"></div>
+        `;
+        this._desktopEl.appendChild(panel);
+
+        document.getElementById('tutorialToggle').addEventListener('click', () => {
+            panel.classList.toggle('collapsed');
+            document.getElementById('tutorialToggle').textContent = panel.classList.contains('collapsed') ? '+' : '\u2212';
+        });
+    },
+
+    _showTutorialStep(index) {
+        const stepsEl = document.getElementById('tutorialSteps');
+        const tipEl = document.getElementById('tutorialTip');
+        if (!stepsEl || !tipEl) return;
+
+        stepsEl.innerHTML = '';
+        this.tutorial.steps.forEach((step, i) => {
+            const el = document.createElement('div');
+            el.className = 'tutorial-step ' + (i < index ? 'completed' : i === index ? 'active' : 'locked');
+            el.innerHTML = `
+                <span class="step-check">${i < index ? '\u2713' : i === index ? '\u25BA' : '\u25CB'}</span>
+                <span class="step-text">${i <= index ? this._escHtml(step.title) : '???'}</span>
+            `;
+            stepsEl.appendChild(el);
+        });
+
+        // Show tip for current step
+        if (index < this.tutorial.steps.length) {
+            const step = this.tutorial.steps[index];
+            tipEl.innerHTML = `<strong>Tip:</strong> ${this._escHtml(step.tip || '')}`;
+            tipEl.style.display = step.tip ? 'block' : 'none';
+        } else {
+            tipEl.innerHTML = '<strong>All objectives complete!</strong> Submit your flags.';
+            tipEl.style.display = 'block';
+        }
+
+        // Auto-scroll to active step
+        const activeStep = stepsEl.querySelector('.tutorial-step.active');
+        if (activeStep) activeStep.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    },
+
+    _checkTutorialProgress(eventType, eventData) {
+        if (!this.tutorial || this.tutorial.completed) return;
+
+        const step = this.tutorial.steps[this.tutorial.currentStep];
+        if (!step) return;
+
+        // Check if the current event matches the step's completion trigger
+        let matched = false;
+
+        if (step.trigger) {
+            if (step.trigger.event === eventType) {
+                // Check additional conditions
+                if (step.trigger.match) {
+                    matched = Object.entries(step.trigger.match).every(([key, val]) => {
+                        if (typeof val === 'string' && val.startsWith('contains:')) {
+                            return String(eventData[key] || '').toLowerCase().includes(val.slice(9).toLowerCase());
+                        }
+                        return eventData[key] === val;
+                    });
+                } else {
+                    matched = true;
+                }
+            }
+
+            // Also check alternate triggers (array of {event, match} objects)
+            if (!matched && step.trigger.alt) {
+                for (const alt of step.trigger.alt) {
+                    if (alt.event === eventType) {
+                        if (alt.match) {
+                            const altMatch = Object.entries(alt.match).every(([key, val]) => {
+                                if (typeof val === 'string' && val.startsWith('contains:')) {
+                                    return String(eventData[key] || '').toLowerCase().includes(val.slice(9).toLowerCase());
+                                }
+                                return eventData[key] === val;
+                            });
+                            if (altMatch) { matched = true; break; }
+                        } else {
+                            matched = true; break;
+                        }
+                    }
+                }
+            }
+
+            // Also check flag-based triggers
+            if (!matched && step.trigger.flagCaptured && this.state.flagsFound.includes(step.trigger.flagCaptured)) {
+                matched = true;
+            }
+        }
+
+        if (matched) {
+            this.tutorial.currentStep++;
+            this.state._tutorialStep = this.tutorial.currentStep;
+            this.save();
+
+            this.notify(`Objective ${this.tutorial.currentStep}/${this.tutorial.steps.length} complete!`, 'success');
+            this._logEvent('tutorial_step_complete', { step: this.tutorial.currentStep });
+
+            if (this.tutorial.currentStep >= this.tutorial.steps.length) {
+                this.tutorial.completed = true;
+                this.state._tutorialComplete = true;
+                this.save();
+                this.notify('All tutorial objectives complete! Great work!', 'success');
+            }
+
+            this._showTutorialStep(this.tutorial.currentStep);
+        }
     }
 };

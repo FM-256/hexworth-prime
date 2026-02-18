@@ -18,6 +18,18 @@ const A17Config = {
     trackerKey: 'ctf_a17',
 
     // ═══════════════════════════════════════════════════════
+    // CERT OBJECTIVES (Assessment Mode — AR-7)
+    // ═══════════════════════════════════════════════════════
+
+    certObjectives: {
+        certPath: 'SY0-701',
+        mappings: [
+            { flagId: 'user', objective: '1.1', description: 'Compare and contrast various types of social engineering techniques', skill: 'Steganographic LSB Data Extraction' },
+            { flagId: 'root', objective: '1.1', description: 'Compare and contrast various types of social engineering techniques', skill: 'Covert Communication Channel Analysis' }
+        ]
+    },
+
+    // ═══════════════════════════════════════════════════════
     // BOOT SEQUENCE
     // ═══════════════════════════════════════════════════════
 

@@ -19,6 +19,18 @@ const A19Config = {
     trackerKey: 'ctf_a19',
 
     // ═══════════════════════════════════════════════════════
+    // CERT OBJECTIVES (Assessment Mode — AR-7)
+    // ═══════════════════════════════════════════════════════
+
+    certObjectives: {
+        certPath: 'SY0-701',
+        mappings: [
+            { flagId: 'user', objective: '1.4', description: 'Given a scenario, analyze indicators of malicious activity', skill: 'Supply Chain Vulnerability Discovery' },
+            { flagId: 'root', objective: '1.4', description: 'Given a scenario, analyze indicators of malicious activity', skill: 'Kernel Exploitation via Backdoored Library' }
+        ]
+    },
+
+    // ═══════════════════════════════════════════════════════
     // BOOT SEQUENCE (Ubuntu target — user is already on target)
     // ═══════════════════════════════════════════════════════
 

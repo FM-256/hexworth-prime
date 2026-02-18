@@ -18,6 +18,18 @@ const A16Config = {
     trackerKey: 'ctf_a16',
 
     // ═══════════════════════════════════════════════════════
+    // CERT OBJECTIVES (Assessment Mode — AR-7)
+    // ═══════════════════════════════════════════════════════
+
+    certObjectives: {
+        certPath: 'CS0-003',
+        mappings: [
+            { flagId: 'user', objective: '4.3', description: 'Given an incident, analyze the indicators of compromise', skill: 'Malware C2 Beacon Identification' },
+            { flagId: 'root', objective: '4.3', description: 'Given an incident, analyze the indicators of compromise', skill: 'Firmware Backdoor Decryption Key Recovery' }
+        ]
+    },
+
+    // ═══════════════════════════════════════════════════════
     // BOOT SEQUENCE
     // ═══════════════════════════════════════════════════════
 

@@ -19,6 +19,18 @@ const A13Config = {
     trackerKey: 'ctf_a13',
 
     // ═══════════════════════════════════════════════════════
+    // CERT OBJECTIVES (Assessment Mode — AR-7)
+    // ═══════════════════════════════════════════════════════
+
+    certObjectives: {
+        certPath: 'SY0-701',
+        mappings: [
+            { flagId: 'user', objective: '1.4', description: 'Given a scenario, analyze indicators of malicious activity', skill: 'IoT Default Credential Exploitation' },
+            { flagId: 'root', objective: '1.4', description: 'Given a scenario, analyze indicators of malicious activity', skill: 'IoT Network Pivot & Lateral Movement' }
+        ]
+    },
+
+    // ═══════════════════════════════════════════════════════
     // STATE MACHINE — Two-host pivot tracking
     // ═══════════════════════════════════════════════════════
 

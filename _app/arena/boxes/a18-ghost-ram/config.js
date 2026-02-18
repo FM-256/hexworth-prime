@@ -19,6 +19,18 @@ const A18Config = {
     trackerKey: 'ctf_a18',
 
     // ═══════════════════════════════════════════════════════
+    // CERT OBJECTIVES (Assessment Mode — AR-7)
+    // ═══════════════════════════════════════════════════════
+
+    certObjectives: {
+        certPath: 'CS0-003',
+        mappings: [
+            { flagId: 'user', objective: '4.4', description: 'Given an incident, analyze potentially malicious activity', skill: 'Memory Dump C2 Beacon Analysis' },
+            { flagId: 'root', objective: '4.4', description: 'Given an incident, analyze potentially malicious activity', skill: 'Volatile Memory Forensics & Threat Intel' }
+        ]
+    },
+
+    // ═══════════════════════════════════════════════════════
     // BOOT SEQUENCE
     // ═══════════════════════════════════════════════════════
 

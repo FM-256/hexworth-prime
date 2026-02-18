@@ -18,6 +18,18 @@ const A5Config = {
     trackerKey: 'ctf_a5',
 
     // ═══════════════════════════════════════════════════════
+    // CERT OBJECTIVES (Assessment Mode — AR-7)
+    // ═══════════════════════════════════════════════════════
+
+    certObjectives: {
+        certPath: 'PT0-002',
+        mappings: [
+            { flagId: 'user', objective: '3.1', description: 'Given a scenario, apply attacks and exploits', skill: 'Windows Service Enumeration' },
+            { flagId: 'root', objective: '3.1', description: 'Given a scenario, apply attacks and exploits', skill: 'Windows Privilege Escalation via Unquoted Service Path' }
+        ]
+    },
+
+    // ═══════════════════════════════════════════════════════
     // BOOT SEQUENCE (Windows Server)
     // ═══════════════════════════════════════════════════════
 

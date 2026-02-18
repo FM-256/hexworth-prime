@@ -19,6 +19,18 @@ const A4Config = {
     trackerKey: 'ctf_a4',
 
     // ═══════════════════════════════════════════════════════
+    // CERT OBJECTIVES (Assessment Mode — AR-7)
+    // ═══════════════════════════════════════════════════════
+
+    certObjectives: {
+        certPath: 'PT0-002',
+        mappings: [
+            { flagId: 'user', objective: '3.1', description: 'Given a scenario, apply attacks and exploits', skill: 'Linux Enumeration & Initial Access' },
+            { flagId: 'root', objective: '3.1', description: 'Given a scenario, apply attacks and exploits', skill: 'Linux Privilege Escalation via SUID' }
+        ]
+    },
+
+    // ═══════════════════════════════════════════════════════
     // BOOT SEQUENCE (Linux target — NOT attacker box)
     // ═══════════════════════════════════════════════════════
 

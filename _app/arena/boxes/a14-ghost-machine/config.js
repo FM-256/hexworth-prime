@@ -19,6 +19,18 @@ const A14Config = {
     trackerKey: 'ctf_a14',
 
     // ═══════════════════════════════════════════════════════
+    // CERT OBJECTIVES (Assessment Mode — AR-7)
+    // ═══════════════════════════════════════════════════════
+
+    certObjectives: {
+        certPath: 'CS0-003',
+        mappings: [
+            { flagId: 'user', objective: '4.1', description: 'Given a scenario, apply common security techniques to computing resources', skill: 'LD_PRELOAD Persistence Mechanism' },
+            { flagId: 'root', objective: '4.1', description: 'Given a scenario, apply common security techniques to computing resources', skill: 'Red Team Evasion & Operational Security' }
+        ]
+    },
+
+    // ═══════════════════════════════════════════════════════
     // BOOT SEQUENCE (target Ubuntu server — NOT attacker box)
     // User already has a low-privilege reverse shell
     // ═══════════════════════════════════════════════════════

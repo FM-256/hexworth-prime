@@ -162,7 +162,18 @@ class TerminalInstance {
 
         // Check for box-defined custom commands first
         const customCommands = this.config.commands || {};
-        if (customCommands[cmd]) {
+        const isCustom = !!customCommands[cmd];
+
+        // Research instrumentation: log every command to BoxEngine event log
+        if (this.engine && this.engine._logEvent) {
+            this.engine._logEvent('command', {
+                cmd: trimmed,
+                type: isCustom ? 'custom' : 'builtin',
+                phase: this.engine._classifyCommand ? this.engine._classifyCommand(trimmed) : 'OTHER'
+            });
+        }
+
+        if (isCustom) {
             const output = customCommands[cmd](args, this, this.engine);
             if (output) this._appendOutput(output);
             this._scrollToBottom();

@@ -18,6 +18,18 @@ const A3Config = {
     trackerKey: 'ctf_a3',
 
     // ═══════════════════════════════════════════════════════
+    // CERT OBJECTIVES (Assessment Mode — AR-7)
+    // ═══════════════════════════════════════════════════════
+
+    certObjectives: {
+        certPath: 'PT0-002',
+        mappings: [
+            { flagId: 'user', objective: '3.1', description: 'Given a scenario, apply attacks and exploits', skill: 'Command Injection Discovery' },
+            { flagId: 'root', objective: '3.1', description: 'Given a scenario, apply attacks and exploits', skill: 'Reverse Shell Escalation' }
+        ]
+    },
+
+    // ═══════════════════════════════════════════════════════
     // BOOT SEQUENCE
     // ═══════════════════════════════════════════════════════
 

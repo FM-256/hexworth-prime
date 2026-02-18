@@ -122,6 +122,11 @@ class BrowserInstance {
             this._renderPage(path, url);
         }, 200 + Math.random() * 200);
 
+        // Research instrumentation: log navigation to BoxEngine event log
+        if (this.engine && this.engine._logEvent) {
+            this.engine._logEvent('navigate', { url: url });
+        }
+
         // History management
         if (pushHistory) {
             // Truncate forward history
