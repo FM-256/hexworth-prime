@@ -21,6 +21,8 @@
 | **R-** | Registration & Rebuild | Content catalog coverage + Hype applet native rebuilds |
 | **CLH-** | CLH Course | Command Line Heroes course (Script House) |
 | **AR-** | Arena | CTF Arena engine, box builds, and Instructional Design Packets |
+| **PR-** | Product Readiness | Monetization gaps: worksheets, cert matrix, instructor kits, marketing, flag security |
+| **QC-** | Quality Control | Bug fixes, crash fixes, UI/UX issues, search bar coverage, performance |
 
 ---
 
@@ -43,7 +45,7 @@
 - `60002bc5` — HED-1: Floating diagnostic panel — live runtime error overlay (admin-gated)
 - `d2fd3dd7` — Arena Boxes A6-A10: Crypto, NoSQL, File Upload, Deserialization, SSRF
 
-**Next up:** OB-1 (3 remaining), AR-2 (IDPs for all 20 boxes)
+**Next up:** PR-1 through PR-6 (product readiness — revenue unblockers), AR-11 through AR-14 (arena hardening)
 
 ---
 
@@ -859,6 +861,341 @@ Team-based competitive CTF battles. Teams race each other with separate scores, 
 | A20 | Project Chimera: The Genesis | APT Simulation | Genesis Collective | ✅ bench |
 
 **Total:** 14,617 lines across 10 boxes + 10 index.html consumers. All on bench for QC/QA.
+
+---
+
+### Sprint AR-11: Arena Academic Integrity — Flag Security
+**Status:** ⬜ Proposed
+**Priority:** HIGH — Revenue blocker for graded classroom use
+**Depends on:** AR-1 (engine)
+**Source:** Codex Architect Review (2026-02-17)
+
+**Problem:** All flag values are hardcoded plaintext in config.js — visible in browser DevTools. God Mode (`Ctrl+Shift+G`) dumps all flags to console. Zero flag randomization, zero attempt rate limiting, zero source inspection detection. In a graded classroom setting, this is an academic integrity crisis. In competitive tournaments, a credibility killer.
+
+| Task | Details | Effort | Status |
+|------|---------|--------|--------|
+| Per-session flag salting | Generate session-unique flag values using hash(base_flag + studentId + sessionSeed) | 1-2 days | ⬜ |
+| Server-side flag validation | Firebase Cloud Function validates flag submissions — flags never leave server | 2-3 days | ⬜ |
+| Attempt rate limiting | Cooldown timer after N wrong attempts (3 wrong → 30s cooldown, 6 → 60s, 10 → lockout) | 3-4 hours | ⬜ |
+| DevTools detection warning | Console warning + activity log entry when DevTools opened during active box | 2-3 hours | ⬜ |
+| God Mode instructor-gate | Restrict God Mode to instructor accounts only (check FirebaseAuth role) | 2-3 hours | ⬜ |
+
+---
+
+### Sprint AR-12: Arena Tutorial Mode — Beginner Scaffolding
+**Status:** ⬜ Proposed
+**Priority:** HIGH — Student retention blocker
+**Depends on:** AR-1 (engine)
+**Source:** Codex Architect Review (2026-02-17)
+
+**Problem:** BoxEngine has zero tutorial mode, zero guided walkthroughs, zero step-by-step prompts. Students face co-op + VS + narrative + multiple devices with no on-ramp. Risk of cognitive overload, especially for beginner-level Keiser students.
+
+| Task | Details | Effort | Status |
+|------|---------|--------|--------|
+| Tutorial mode flag in BoxEngine | `config.tutorialMode: true` → guided overlay, progressive objective reveal, contextual tips | 1-2 days | ⬜ |
+| A1 guided walkthrough | Step-by-step tutorial variant of A1: (1) Just run nmap, (2) Just find the web app, (3) Just test one input, (4) Full exploit | 1 day | ⬜ |
+| Progressive difficulty within boxes | Easy/Normal/Hard variants via config — fewer flags + more hints (Easy) vs all flags + no hints (Hard) | 1-2 days | ⬜ |
+| Objective checklist panel | Visible sidebar showing "Step 1: Run recon ✓ / Step 2: Find web service ○ / Step 3: Test input ○" | 3-4 hours | ⬜ |
+| Scaffolded Blue Team levels | Level 1: watch logs / Level 2: block IP / Level 3: patch service — progressive competency | 2-3 days | ⬜ |
+
+---
+
+### Sprint AR-13: Arena Instructor Dashboard Integration
+**Status:** ⬜ Proposed
+**Priority:** HIGH — Instructor adoption blocker
+**Depends on:** AR-7 (assessment mode), HD-6 (dashboard)
+**Source:** Codex Architect Review (2026-02-17)
+
+**Problem:** InstructorDashboard.js (2,730 lines) has ZERO arena-specific panels. BoxEngine reports completion data to Firestore via 3-channel pipeline (ProgressManager + GameTracker + AssignmentManager), but instructors can't see any of it. Also: `logActivity()` passes `classId = null` (BoxEngine.js line 1199) — arena data may silently drop in Firestore.
+
+| Task | Details | Effort | Status |
+|------|---------|--------|--------|
+| Fix null classId bug | BoxEngine._reportCompletion() passes null to AssignmentManager.logActivity() — resolve from localStorage class binding | 15 min | ⬜ |
+| Arena leaderboard panel | Per-class CTF leaderboard: student name, boxes completed, total score, avg time | 1-2 days | ⬜ |
+| Per-student box completion grid | Matrix view: students (rows) × boxes (cols) → score/flags/time per cell | 1-2 days | ⬜ |
+| Flag submission detail view | Click a cell → see which flags captured, hints used, wrong attempts, time per flag | 1 day | ⬜ |
+| CTF box assignment type | Add "CTF Box" as assignable content type in AssignmentManager — instructors can assign specific boxes | 3-4 hours | ⬜ |
+| Arena analytics export | CSV export of box completion data for LMS upload / accreditation reporting | 3-4 hours | ⬜ |
+
+---
+
+### Sprint AR-14: BoxEngine Research Instrumentation
+**Status:** ⬜ Proposed
+**Priority:** MEDIUM — PhD data collection enabler
+**Depends on:** AR-1 (engine)
+**Source:** Codex Review Sessions 1-3 (2026-02-15), Codex Architect Review (2026-02-17)
+
+**Problem:** BoxEngine tracks score/flags/hints/time but lacks granular event-level data needed for PhD research. No timestamped event log, no command sequence export, no pre/post surveys, no session abandonment detection. ECER/CERBI models need measurable behavioral data.
+
+| Task | Details | Effort | Status |
+|------|---------|--------|--------|
+| Timestamped event log | Add `state.events[]` — log every flag, hint, command, navigation, form submission with timestamp | 3-4 hours | ⬜ |
+| Command sequence export | Hook Terminal._execute() → engine._recordEvent('cmd', line) for attack pattern analysis | 1-2 hours | ⬜ |
+| Pre/post confidence survey | 5-question Likert modal before + after each box (self-efficacy, difficulty, confidence) | 1 day | ⬜ |
+| Extended completion report | Send events[], timeToFirstFlag, hintSequence, sessionMetrics to AssignmentManager | 2-3 hours | ⬜ |
+| Session abandonment detection | Track if student closes without completing — log partial progress + time invested | 1-2 hours | ⬜ |
+| Phase detection | Classify student activity as recon → exploit → extraction — measure avg time per phase | 3-4 hours | ⬜ |
+
+---
+
+## Product Readiness & Monetization (PR-Series)
+
+**Location:** `_planning/_IDP/`, `_planning/`, `_app/arena/`
+**Status:** 🔴 Critical — Revenue-blocking gaps identified by Codex review
+**Priority:** HIGHEST — This is the difference between hobby and product
+**Started:** February 2026
+**Source:** Codex Professor-to-Professor Review + Honest Architect Assessment (2026-02-17)
+**Planning Doc:** `_planning/CODEX_ANALYSIS_ACTION_PLAN.md`
+
+> **Core insight:** "Boxes without curriculum → cool demo. Boxes with curriculum → sellable product."
+> **Core warning:** "Building more features instead of packaging what you already built = the real danger."
+> Content quality matches mid-tier HTB/THM. Curriculum packaging is BETTER than both. That's the lane.
+
+### Sprint PR-1: Student Worksheets
+**Status:** ⬜ Proposed
+**Priority:** CRITICAL — #1 revenue blocker. Zero student-facing materials exist.
+**Effort:** 2-3 days (template + A1-A5)
+**Revenue Impact:** Schools buy worksheets, not just boxes. No institutional buyer purchases a platform without student deliverables.
+
+| Task | Details | Effort | Status |
+|------|---------|--------|--------|
+| Student worksheet template | Name/Date/Time/Recon/Exploit/Reflection format — printable, gradeable, PDF-ready | 3-4 hours | ⬜ |
+| A1 worksheet — The Ancient Ledger | SQL injection walkthrough: recon questions, payload documentation, reflection prompts | 3-4 hours | ⬜ |
+| A2 worksheet — The Shadow Encoder | Command injection: input testing, bypass documentation, mitigation analysis | 3-4 hours | ⬜ |
+| A3 worksheet — XSS | Cross-site scripting: DOM analysis, payload crafting, defense reflection | 3-4 hours | ⬜ |
+| A4 worksheet — Padding Oracle | Crypto attack: CBC analysis, byte manipulation, script documentation | 3-4 hours | ⬜ |
+| A5 worksheet — Windows PrivEsc | Privilege escalation: service enumeration, unquoted path exploitation, remediation | 3-4 hours | ⬜ |
+
+**Deliverables:** `_planning/_IDP/worksheets/Box_A{1-5}_Student_Worksheet.md`
+
+---
+
+### Sprint PR-2: Unified Certification Alignment Matrix
+**Status:** ⬜ Proposed
+**Priority:** HIGH — Sales tool. "Which 5 boxes teach Security+?" must be answerable in 10 seconds.
+**Effort:** 1 day
+**Revenue Impact:** Enables cert-prep bundles, institutional sales pitches, accreditation documentation.
+
+| Task | Details | Effort | Status |
+|------|---------|--------|--------|
+| Pivot 20 IDP skills tables into master matrix | One table: CompTIA Objective Code → Box ID → Skill → Tool → Assessment Type | 4-6 hours | ⬜ |
+| Security+ coverage map | Which boxes cover SY0-701 Domains 1-5? Identify gaps. | 1-2 hours | ⬜ |
+| PenTest+ coverage map | Which boxes cover PT0-002 objectives? Identify gaps. | 1-2 hours | ⬜ |
+| CySA+ coverage map | Which boxes cover CS0-003 objectives? Identify gaps. | 1-2 hours | ⬜ |
+| Cert-prep bundle definitions | "Security+ Bundle: A1, A2, A5, A8, A11" — sellable course packs | 1-2 hours | ⬜ |
+
+**Deliverable:** `_planning/CERTIFICATION_MATRIX.md`
+
+---
+
+### Sprint PR-3: Instructor Answer Keys & Teaching Guides
+**Status:** ⬜ Proposed
+**Priority:** HIGH — Professors won't assign what they can't grade without playing it themselves.
+**Effort:** 1 day per box (5 days for A1-A5)
+**Revenue Impact:** Instructor adoption — the real customer is the professor, not the student.
+
+| Task | Details | Effort | Status |
+|------|---------|--------|--------|
+| Instructor guide template | Step-by-step solution walkthrough, expected mistakes, hint timing, grading tips, class discussion prompts, accommodation guidance | 3-4 hours | ⬜ |
+| A1 instructor guide | Full SQLi walkthrough: exact commands, expected output, common student mistakes, when to intervene | 1 day | ⬜ |
+| A2 instructor guide | Command injection walkthrough with grading rubric application | 1 day | ⬜ |
+| A3 instructor guide | XSS walkthrough with DOM analysis tips | 1 day | ⬜ |
+| A4 instructor guide | Padding oracle walkthrough with crypto explanation notes | 1 day | ⬜ |
+| A5 instructor guide | Windows privesc walkthrough with AD context | 1 day | ⬜ |
+
+**Deliverables:** `_planning/_IDP/instructor_guides/Box_A{1-5}_Instructor_Guide.md`
+
+---
+
+### Sprint PR-4: Ethical Framing + IDP Completion
+**Status:** ⬜ Proposed
+**Priority:** HIGH — Legal protection + grant requirement
+**Effort:** 30 minutes (ethical section) + 2-3 hours (IDP finalization)
+**Revenue Impact:** Required for grant applications, VA approval, institutional partnerships.
+
+| Task | Details | Effort | Status |
+|------|---------|--------|--------|
+| Add Section 9 (Ethical Considerations) to IDP template | Responsible disclosure principles, controlled environment statement, legal framing | 15 min | ⬜ |
+| Add ethical section to all 20 IDP drafts | Template language + box-specific ethical context | 30 min | ⬜ |
+| Finalize A1 IDP to gold standard | Verify all 9 sections complete, cert codes accurate, rubric implementable | 1 hour | ⬜ |
+| Review + upgrade A2-A5 IDPs | Bring drafts to 7+/8 quality bar (per AR-2 standards) | 2-3 hours | ⬜ |
+
+---
+
+### Sprint PR-5: Difficulty Metrics & Analysis Layer
+**Status:** ⬜ Proposed
+**Priority:** MEDIUM — Grant reviewers love measurable learning. PhD data enabler.
+**Effort:** ~40 lines in BoxEngine + analysis tooling
+**Revenue Impact:** "Average completion time: 2.5hrs, success rate: 85% with hints" — this sells.
+
+| Task | Details | Effort | Status |
+|------|---------|--------|--------|
+| Hint effectiveness tracking | Per hint: did student capture next flag within 5 min of reveal? Correlation analysis | 2-3 hours | ⬜ |
+| Aggregated metrics dashboard | Avg completion time, success rates with/without hints, most-failed flags — instructor-visible | 1-2 days | ⬜ |
+| Difficulty calibration data | After pilot: benchmark each box with actual student data → adjust difficulty labels | Post-pilot | ⬜ |
+| Session abandonment metrics | Track drop-off points — which box/flag causes students to quit? | 2-3 hours | ⬜ |
+
+---
+
+### Sprint PR-6: Marketing & Demo Assets
+**Status:** ⬜ Proposed
+**Priority:** HIGH — Zero marketing assets exist. Product is invisible.
+**Effort:** 2-3 days
+**Revenue Impact:** Can't apply for grants, pitch to schools, or attract early adopters without something to show.
+
+| Task | Details | Effort | Status |
+|------|---------|--------|--------|
+| 2-minute demo video | Co-op gameplay, VS race, instructor dashboard, box walkthrough, boot sequence | 1 day | ⬜ |
+| 5 key screenshots for README | Dashboard, Arena lobby, Box gameplay, Co-Op panel, Instructor Dashboard | 2-3 hours | ⬜ |
+| Public landing page | What is Hexworth? Features, screenshots, pilot offer, contact — no auth required | 1 day | ⬜ |
+| 1-page product sheet (PDF) | For institutional sales: features, pricing, cert alignment, pilot offer | 3-4 hours | ⬜ |
+| 60-second walkthrough GIF | Animated capture: START → sorting → dashboard → arena → box boot → flag capture | 2-3 hours | ⬜ |
+
+**Note:** OB-1 already has 3 incomplete items that overlap (screenshots, video, syllabus). Merge into PR-6 and close OB-1 remaining items.
+
+---
+
+### Sprint PR-7: Red vs Blue — First Asymmetric Box
+**Status:** ⬜ Proposed
+**Priority:** MEDIUM — Product differentiator, but packaging comes first
+**Depends on:** AR-11 (flag security), AR-12 (scaffolding), PR-1 through PR-4 (packaging)
+**Source:** Codex Architect Review recommendation
+
+**Concept:** Use Box A1 as base. Red team: SQL injection attack. Blue team: log monitoring + query patching. Same Firestore sync infrastructure, asymmetric configs per team.
+
+| Task | Details | Effort | Status |
+|------|---------|--------|--------|
+| Blue team A1 config | SIEM-style log viewer, SQL query audit, firewall rules, patch deployment simulation | 2-3 days | ⬜ |
+| Asymmetric config loading | `teams.alpha.configOverride` + `teams.bravo.configOverride` in Firestore session | 1 day | ⬜ |
+| Cross-team event feed | Red actions appear as alerts on Blue side (real-time attack visibility) | 1 day | ⬜ |
+| Balanced scoring | Red scores by flags captured, Blue scores by attacks blocked + time to patch | 1 day | ⬜ |
+| A1 Red vs Blue worksheet + IDP | Student materials for both roles | 1 day | ⬜ |
+
+---
+
+## Quality Control & Bug Fixes (QC-Series)
+
+**Context:** Live user HED reports and manual QA revealed multiple crash bugs and UI issues across games, dashboard, and search functionality. These sprints ensure stability and UX quality.
+
+### Sprint QC-1: Terminal & Text Adventure Game Stability
+**Status:** ✅ Partially Complete (February 18, 2026)
+**Priority:** CRITICAL — Live users hitting crashes
+**Source:** GitHub Issue #2 (HED log from Fen1X-coder, Feb 17)
+
+**Bugs Fixed:**
+| Bug | File | Root Cause | Fix | Status |
+|-----|------|-----------|-----|--------|
+| Dashboard TypeError: "Cannot convert undefined or null to object" | `dashboard.html` lines 3412, 3531, 4337 | `Object.values(houseProgress)` crashes when localStorage has null house entries | Added `typeof === 'object' && !== null` guards at 3 locations | ✅ Fixed |
+| Sudo SU crash: "Cannot read properties of undefined (reading 'text')" | `houses/script/games/sudo-su.html` | 13 missing story nodes — choices led to undefined nodes | Added 13 complete story nodes + defensive guard in `showNode()` | ✅ Fixed |
+| Incident Response: SIEM logs cover action buttons | `houses/shield/games/incident-response.html` | `.siem-background` fixed at bottom overlapping `.terminal` choices | Converted to side-by-side split layout (65% terminal / 35% SIEM feed) | ✅ Fixed |
+| Incident Response: 22 missing story nodes | `houses/shield/games/incident-response.html` | Choices led to undefined nodes, crash on any deep path | Added 22 complete story nodes covering full IR workflow | ✅ Fixed |
+| chmod777 text adventure: missing `fix_srv` node | `houses/script/games/text-adventure-chmod777.html` | Choice "fix /srv/ from backup" led to undefined node | Added `fix_srv` node with backup restore + chmod --reference | ✅ Fixed |
+
+**Remaining QC Tasks:**
+| Task | Scope | Status |
+|------|-------|--------|
+| Full playthrough test all 10 "Don't" series games | 10 terminal games across all houses | ⬜ |
+| Full playthrough test all 5 text adventures | whoami, rmrf, wireshark, hydra, chmod777 | ⬜ |
+| Full playthrough test incident-response (new 41-node tree) | Shield house | ⬜ |
+| Full playthrough test sudo-su (new 44-node tree) | Script house | ⬜ |
+| Test all flappy bird variants for crash bugs | 5 flap games | ⬜ |
+| Test all runner games for state machine bugs | cloud-hop, packet-run, threat-runner, shell-sprint | ⬜ |
+| Test all strategy/puzzle games | malware-zoo, social-engineer, dr-malware, etc. | ⬜ |
+
+---
+
+### Sprint QC-2: Search Bar Availability Audit — All Houses
+**Status:** ⬜ Planned
+**Priority:** HIGH — Core UX feature must be consistent
+**Related:** F-12 (Universal Search) covers the full upgrade; QC-2 verifies CURRENT state
+
+**Goal:** Verify search bars are present and functional in ALL house index pages and key navigation points. This is NOT F-12 (which is a full overhaul) — this is a quick pass to ensure current search works everywhere it should.
+
+| Location | Expected | Status |
+|----------|----------|--------|
+| Eye House index (`houses/eye/index.html`) | Search bar with ContentDiscovery | ⬜ Verify |
+| Code House index (`houses/code/index.html`) | Search bar with ContentDiscovery | ⬜ Verify |
+| Key House index (`houses/key/index.html`) | Search bar with ContentDiscovery | ⬜ Verify |
+| Shield House index (`houses/shield/index.html`) | Search bar with ContentDiscovery | ⬜ Verify |
+| Script House index (`houses/script/index.html`) | Search bar with ContentDiscovery | ⬜ Verify |
+| Cloud House index (`houses/cloud/index.html`) | Search bar with ContentDiscovery | ⬜ Verify |
+| Web House index (`houses/web/index.html`) | Search bar with ContentDiscovery | ⬜ Verify |
+| Forge House index (`houses/forge/index.html`) | Search bar with ContentDiscovery | ⬜ Verify |
+| Dark Arts House index (`houses/dark-arts/index.html`) | Search bar (partial — scripts loaded, no UI) | ⬜ Fix |
+| Dark Arts Vault (`vault/index.html`) | **No search** — needs adding | ⬜ Fix |
+| Games page (`games.html`) | Custom filter — verify functional | ⬜ Verify |
+| Dashboard Explore tab | Custom search — verify functional | ⬜ Verify |
+| Factionless state (dashboard divergent) | **No search** — needs adding (F-12 scope) | ⬜ Defer to F-12 |
+
+**Acceptance Criteria:**
+- All 9 house index pages have a visible, functional search bar
+- Search returns relevant results for at least 3 test queries per house
+- No console errors when using search
+- Search bar placeholder text matches house context
+
+---
+
+### Sprint QC-3: Planet Performance + Known Issues Sweep
+**Status:** ⬜ Planned
+**Priority:** MEDIUM — Performance bug, known since DL-series
+**Source:** KNOWN_ISSUES.md, Achievement Gaps, Progress Tracking Audit
+
+| Task | File | Issue | Status |
+|------|------|-------|--------|
+| Planet overload cap | `digital-life/entities/Planet.js`, `Ecosystem.js` | After many planets, performance degrades — need max cap or cleanup | ⬜ |
+| Core 2 duplicate progress tracking | `houses/forge/applets/comptia-aplus/core-2/` | Two independent progress systems (applet hub vs house index) | ⬜ |
+| Achievement wiring gaps | `AchievementManager.js`, `AchievementSystem.js` | `first_module`, `house_scholar_X` not triggering | ⬜ |
+| WSA Domain 2-4 content gaps | Cloud house WSA modules | Domains 2, 3, 4 only 22-25% complete | ⬜ |
+| PSTerminal objective audit | `WSAGauntlet.js` | M07 context-sensitive objectives need path checking; M04 `new-vm` vs `create-vm` mismatch | ⬜ |
+| Backup or Bust game mechanic | `houses/forge/games/` | Workshop recall: currently quiz-in-disguise, needs real game mechanic | ⬜ |
+| Install `gh` CLI + configure GitHub token | Dev environment | No API access from CLI — can't comment/close issues, create PRs programmatically | ⬜ |
+
+---
+
+### Sprint QC-4: AccessGuard Server-Side Migration
+**Status:** ⬜ Planned
+**Priority:** CRITICAL — Security vulnerability, blocks graded/commercial use
+**Source:** sacred_Library/AUDIT-AG-CRITICAL-SECURITY-FLAWS.md
+
+**Problem:** All access control is client-side. `AccessGuard.js` checks localStorage flags (`hexworth_firebase_admin`, `hexworth_god_mode`, `gateX_complete`). Anyone with DevTools can bypass every gate, admin panel, and Dark Arts vault.
+
+**Impact:** Cannot use platform for graded assignments, cannot sell to institutions, cannot claim security credentials while shipping client-side auth.
+
+| Task | Details | Status |
+|------|---------|--------|
+| Design server-side auth architecture | Firestore security rules + Cloud Functions for protected content | ⬜ |
+| Migrate AccessGuard checks to Firestore reads | Gate completion, admin status, god mode — all server-verified | ⬜ |
+| Remove localStorage as authoritative source | Keep as cache only, server is source of truth | ⬜ |
+| Protected content delivery | Dark Arts vault, instructor dashboard — require server-side token | ⬜ |
+| Audit all `localStorage.getItem('hexworth_')` security-sensitive reads | Find every check that gates content access | ⬜ |
+
+---
+
+### Sprint QC-5: EduScan CI/CD Pipeline
+**Status:** ⬜ Planned
+**Priority:** MEDIUM — Automate quality gates
+**Source:** EDUSCAN_CI_ROADMAP.md
+
+| Task | Details | Status |
+|------|---------|--------|
+| GitHub Actions workflow for EduScan on PR | Run `npm run scan:ci` on every PR | ⬜ |
+| Block merge on CRITICAL issues | PR check fails if any CRITICAL found | ⬜ |
+| Deploy gate | `firebase deploy` blocked if EduScan gates fail | ⬜ |
+| Diff reporting in PR comments | Post scan diff as PR comment | ⬜ |
+
+---
+
+### Sprint QC-6: Progress Architecture Refactor
+**Status:** ⬜ Planned
+**Priority:** MEDIUM — Technical debt, blocks clean multi-course support
+**Source:** TWO_LAYER_PROGRESS_ARCHITECTURE.md
+
+| Task | Details | Status |
+|------|---------|--------|
+| Define course-specific Layer 1 localStorage keys | Each course gets own namespace (not monolithic `hexworth_progress`) | ⬜ |
+| Refactor `checkLocalCompletion()` | Read from course-specific keys, not global progress blob | ⬜ |
+| Migration bridge | Auto-migrate existing `hexworth_progress` data to new key structure | ⬜ |
+| Verify ProgressSync compatibility | Ensure Firestore sync still works with new key structure | ⬜ |
 
 ---
 
@@ -2657,4 +2994,4 @@ Completing a standalone presentation (e.g., `forge-windows-editions.presentation
 
 ---
 
-*Last Updated: February 13, 2026*
+*Last Updated: February 18, 2026*

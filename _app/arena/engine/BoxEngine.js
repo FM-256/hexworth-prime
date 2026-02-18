@@ -129,8 +129,36 @@ const BoxEngine = {
             completed: false,
             godMode: false,
             booted: false,
-            notes: ''
+            notes: '',
+            events: []  // Research instrumentation — timestamped action log
         };
+    },
+
+    // ────────────────────────────────────────────────
+    // RESEARCH INSTRUMENTATION (Sprint AR-14)
+    // ────────────────────────────────────────────────
+
+    _logEvent(type, data) {
+        if (!this.state) return;
+        if (!this.state.events) this.state.events = [];
+        this.state.events.push({
+            t: Date.now(),
+            elapsed: this.state.startTime ? Date.now() - this.state.startTime : 0,
+            type: type,
+            data: data || {}
+        });
+    },
+
+    exportEventLog() {
+        if (!this.state || !this.state.godMode) return;
+        const events = this.state.events || [];
+        const blob = JSON.stringify(events, null, 2);
+        console.log('[BoxEngine] Event Log (' + events.length + ' events):');
+        console.log(blob);
+        if (navigator.clipboard) {
+            navigator.clipboard.writeText(blob);
+            this.notify('Event log copied to clipboard (' + events.length + ' events)', 'success');
+        }
     },
 
     load() {
@@ -518,6 +546,10 @@ const BoxEngine = {
     _showDesktop() {
         this._bootEl.style.display = 'none';
         this._desktopEl.classList.add('active');
+        // Log box_start on first desktop show (fresh session only)
+        if (this.state.events && this.state.events.length === 0) {
+            this._logEvent('box_start', { boxId: this.config.storageKey || 'unknown' });
+        }
     },
 
     // ────────────────────────────────────────────────
@@ -585,6 +617,7 @@ const BoxEngine = {
         // Add taskbar button
         this._addTaskbarButton(appId, title, icon);
 
+        this._logEvent('window_open', { type: appId });
         return this._windows[appId];
     },
 
@@ -857,6 +890,7 @@ const BoxEngine = {
             ).then(result => {
                 if (result.success) {
                     this.state = { ...this._defaults(), ...result.newState };
+                    this._logEvent('flag_correct', { flagId: matchedFlag?.id, points: result.points, hintsUsed: this.state.hintsUsed.length, elapsed: Date.now() - this.state.startTime });
                     msg.innerHTML = `<span style="color:#2ecc71;">&#10003; ${result.message}</span>`;
                     this.notify(result.message, 'success');
                     this._syncFlagBadges();
@@ -872,6 +906,9 @@ const BoxEngine = {
                     if (result.penalty) {
                         this.state = { ...this._defaults(), ...result.newState };
                         this._updateScoreBadge();
+                    }
+                    if (result.message !== 'Flag already submitted') {
+                        this._logEvent('flag_wrong', { flagId: '__none__', attempt: raw });
                     }
                     const color = result.message === 'Flag already submitted' ? '#3498db' : '#e74c3c';
                     msg.innerHTML = `<span style="color:${color};">${result.message}${result.penalty ? '. ' + result.penalty + ' points' : ''}</span>`;
@@ -892,6 +929,7 @@ const BoxEngine = {
                 // Found new flag
                 this.state.flagsFound.push(flag.id);
                 this.addScore(flag.points, `${flag.id}.txt captured`);
+                this._logEvent('flag_correct', { flagId: flag.id, points: flag.points, hintsUsed: this.state.hintsUsed.length, elapsed: Date.now() - this.state.startTime });
                 msg.innerHTML = `<span style="color:#2ecc71;">&#10003; ${flag.id}.txt captured! +${flag.points} points</span>`;
                 this.notify(`${flag.id}.txt captured! +${flag.points} points`, 'success');
                 this._reportFlagCapture(flag.id, flag.points);
@@ -910,6 +948,7 @@ const BoxEngine = {
         this.state.wrongFlags++;
         const penalty = this.config.scoring?.wrongFlagPenalty || -25;
         this.addScore(penalty, 'Wrong flag attempt');
+        this._logEvent('flag_wrong', { flagId: '__none__', attempt: raw });
         msg.innerHTML = `<span style="color:#e74c3c;">Incorrect flag. ${penalty} points</span>`;
     },
 
@@ -928,6 +967,13 @@ const BoxEngine = {
                 speedBonus = scoring.speedBonus.points;
                 this.addScore(speedBonus, 'Speed bonus');
             }
+
+            this._logEvent('box_complete', {
+                score: this.state.score,
+                totalTime: elapsed,
+                flagsFound: this.state.flagsFound.length,
+                hintsUsed: this.state.hintsUsed.length
+            });
 
             this.save();
             this._reportCompletion();
@@ -1015,6 +1061,7 @@ const BoxEngine = {
             CoOpSync.revealHintAtomically(hint.id, hint.penalty, this.state.godMode).then(result => {
                 if (result.success) {
                     this.state = { ...this._defaults(), ...result.newState };
+                    this._logEvent('hint_reveal', { flagId: hint.forFlag || hint.id, hintIndex: this.state.hintsUsed.length - 1, penalty: this.state.godMode ? 0 : hint.penalty });
                     this._updateScoreBadge();
                     this._renderHints();
                     this._reportHintReveal(hint.id, hint.penalty);
@@ -1036,6 +1083,7 @@ const BoxEngine = {
         }
 
         this.save();
+        this._logEvent('hint_reveal', { flagId: hint.forFlag || hint.id, hintIndex: this.state.hintsUsed.length - 1, penalty: this.state.godMode ? 0 : hint.penalty });
         this._reportHintReveal(hint.id, hint.penalty);
         this.notify(`Hint revealed. ${this.state.godMode ? 'No penalty (God Mode)' : hint.penalty + ' points'}`, 'warning');
     },
@@ -1098,6 +1146,7 @@ const BoxEngine = {
         this.state.godMode = !this.state.godMode;
         document.body.classList.toggle('god-mode', this.state.godMode);
         this.save();
+        this._logEvent('god_mode', { enabled: this.state.godMode });
 
         if (this.state.godMode) {
             this.notify('GOD MODE ACTIVATED — Flags visible, hints free', 'danger');
@@ -1167,6 +1216,37 @@ const BoxEngine = {
         const boxId = this.config.storageKey || 'unknown';
         const s = this.state;
         const elapsed = Math.round((Date.now() - s.startTime) / 1000);
+        const events = s.events || [];
+
+        // Research instrumentation — compute analytics from event log
+        const flagEvents = events.filter(e => e.type === 'flag_correct');
+        const hintEvents = events.filter(e => e.type === 'hint_reveal');
+        const totalCommands = events.filter(e => e.type === 'command').length;
+        const totalNavigations = events.filter(e => e.type === 'navigate').length;
+
+        // Average time between flag captures (ms)
+        let avgTimeBetweenFlags = 0;
+        if (flagEvents.length > 1) {
+            const gaps = [];
+            for (let i = 1; i < flagEvents.length; i++) {
+                gaps.push(flagEvents[i].t - flagEvents[i - 1].t);
+            }
+            avgTimeBetweenFlags = Math.round(gaps.reduce((a, b) => a + b, 0) / gaps.length);
+        }
+
+        // Hint effectiveness: time from each hint_reveal to next flag_correct (ms)
+        const hintEffectiveness = hintEvents.map(h => {
+            const nextFlag = flagEvents.find(f => f.t > h.t);
+            return nextFlag ? nextFlag.t - h.t : null;
+        }).filter(v => v !== null);
+
+        const researchData = {
+            eventLog: events,
+            totalCommands,
+            totalNavigations,
+            avgTimeBetweenFlags,
+            hintEffectiveness
+        };
 
         // ProgressManager — marks module complete, awards XP
         try {
@@ -1175,7 +1255,8 @@ const BoxEngine = {
                     score: s.score,
                     flags: s.flagsFound.length,
                     hints: s.hintsUsed.length,
-                    time: elapsed
+                    time: elapsed,
+                    ...researchData
                 });
             }
         } catch (e) { console.error('[ARENA] ProgressManager error:', e); }
@@ -1186,9 +1267,10 @@ const BoxEngine = {
                 GameTracker.record(trackerKey, {
                     result: 'win',
                     timeElapsed: elapsed,
-                    commandsUsed: s.flagsFound.length,
+                    commandsUsed: totalCommands,
                     achievementsEarned: s.flagsFound.length,
-                    achievementsTotal: (this.config.flags || []).length
+                    achievementsTotal: (this.config.flags || []).length,
+                    ...researchData
                 });
             }
         } catch (e) { console.error('[ARENA] GameTracker error:', e); }
@@ -1202,12 +1284,13 @@ const BoxEngine = {
                     totalFlags: (this.config.flags || []).length,
                     hints: s.hintsUsed.length,
                     time: elapsed,
-                    mode: this._vsMode ? 'vs' : this._coOpMode ? 'coop' : 'solo'
+                    mode: this._vsMode ? 'vs' : this._coOpMode ? 'coop' : 'solo',
+                    ...researchData
                 });
             }
         } catch (e) { console.error('[ARENA] AssignmentManager error:', e); }
 
-        console.log(`%c[ARENA] Assessment reported: ${boxId} (${s.score} pts, ${elapsed}s)`, 'color: #9b59b6');
+        console.log(`%c[ARENA] Assessment reported: ${boxId} (${s.score} pts, ${elapsed}s, ${events.length} events)`, 'color: #9b59b6');
     },
 
     /**

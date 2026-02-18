@@ -207,6 +207,68 @@ const HouseRenderer = (function() {
                 line-height: 1.8;
             }
 
+            /* Top-level search bar (always visible) */
+            .hr-top-search {
+                display: flex;
+                align-items: center;
+                gap: 10px;
+                margin-bottom: 20px;
+                position: relative;
+            }
+
+            .hr-top-search-icon {
+                position: absolute;
+                left: 14px;
+                top: 50%;
+                transform: translateY(-50%);
+                color: #555;
+                font-size: 1rem;
+                pointer-events: none;
+                z-index: 1;
+            }
+
+            .hr-top-search-input {
+                flex: 1;
+                padding: 12px 16px 12px 42px;
+                background: rgba(15, 15, 20, 0.6);
+                border: 1px solid rgba(255, 255, 255, 0.1);
+                border-radius: 10px;
+                color: #e0e0e0;
+                font-size: 0.9rem;
+                font-family: inherit;
+                outline: none;
+                transition: all 0.3s ease;
+            }
+
+            .hr-top-search-input:focus {
+                border-color: var(--house-primary);
+                box-shadow: 0 0 0 3px var(--house-glow);
+            }
+
+            .hr-top-search-input::placeholder { color: #555; }
+
+            .hr-top-search-count {
+                font-size: 0.75rem;
+                color: #555;
+                white-space: nowrap;
+                position: absolute;
+                right: 14px;
+                top: 50%;
+                transform: translateY(-50%);
+                pointer-events: none;
+            }
+
+            .hr-top-search-kbd {
+                font-size: 0.6rem;
+                color: #444;
+                background: rgba(255, 255, 255, 0.05);
+                border: 1px solid rgba(255, 255, 255, 0.08);
+                border-radius: 4px;
+                padding: 2px 6px;
+                margin-left: 8px;
+                font-family: monospace;
+            }
+
             /* Stats bar */
             .stats-bar {
                 display: flex;
@@ -747,6 +809,19 @@ const HouseRenderer = (function() {
             }
         }
 
+        // Top-level search bar (always visible)
+        const searchPlaceholder = config.searchPlaceholder || `Search ${config.fullTitle} modules...`;
+        const topSearch = document.createElement('div');
+        topSearch.className = 'hr-top-search';
+        topSearch.innerHTML = `
+            <span class="hr-top-search-icon">&#128269;</span>
+            <input type="text" class="hr-top-search-input" id="hrTopSearchInput"
+                   placeholder="${searchPlaceholder}"
+                   autocomplete="off">
+            <span class="hr-top-search-count" id="hrTopSearchCount"></span>
+        `;
+        main.appendChild(topSearch);
+
         // Tab bar
         const tabs = [
             { id: 'paths',      icon: '🎯', label: 'Learning Paths' },
@@ -802,6 +877,88 @@ const HouseRenderer = (function() {
         });
 
         switchTab(activeTab);
+
+        // Wire up top-level search
+        const topInput = document.getElementById('hrTopSearchInput');
+        if (topInput) {
+            topInput.addEventListener('input', topLevelSearch);
+
+            // Keyboard shortcut: / to focus search (when not already in an input)
+            document.addEventListener('keydown', function(e) {
+                if (e.key === '/' && document.activeElement.tagName !== 'INPUT' && document.activeElement.tagName !== 'TEXTAREA') {
+                    e.preventDefault();
+                    topInput.focus();
+                }
+                if (e.key === 'Escape' && document.activeElement === topInput) {
+                    topInput.value = '';
+                    topLevelSearch();
+                    topInput.blur();
+                }
+            });
+        }
+    }
+
+    function topLevelSearch() {
+        const topInput = document.getElementById('hrTopSearchInput');
+        const query = (topInput ? topInput.value : '').toLowerCase().trim();
+        const modules = config.modules || [];
+        const countEl = document.getElementById('hrTopSearchCount');
+
+        if (!query) {
+            // Clear: reset all cards, hide count
+            const cards = document.querySelectorAll('#hrModuleGrid .module-card');
+            cards.forEach(card => card.classList.remove('hidden'));
+            if (countEl) countEl.textContent = '';
+            // Also sync the tab-level filter input
+            const tabInput = document.getElementById('hrFilterInput');
+            if (tabInput) tabInput.value = '';
+            const tabCount = document.getElementById('hrFilterCount');
+            if (tabCount) tabCount.textContent = modules.length + ' modules';
+            const noResults = document.getElementById('hrNoResults');
+            if (noResults) noResults.style.display = 'none';
+            return;
+        }
+
+        // Auto-switch to content tab when user types
+        if (activeTab !== 'content') {
+            switchTab('content');
+        }
+
+        // Filter modules
+        const cards = document.querySelectorAll('#hrModuleGrid .module-card');
+        let visible = 0;
+
+        cards.forEach((card, idx) => {
+            const mod = modules[idx];
+            if (!mod) return;
+
+            const searchable = [
+                mod.title,
+                mod.description,
+                ...(mod.tags || []),
+                ...(mod.components || [])
+            ].join(' ').toLowerCase();
+
+            if (searchable.includes(query)) {
+                card.classList.remove('hidden');
+                visible++;
+            } else {
+                card.classList.add('hidden');
+            }
+        });
+
+        // Update count display
+        if (countEl) {
+            countEl.textContent = visible + ' of ' + modules.length;
+        }
+
+        // Sync tab-level filter
+        const tabInput = document.getElementById('hrFilterInput');
+        if (tabInput) tabInput.value = query;
+        const tabCount = document.getElementById('hrFilterCount');
+        if (tabCount) tabCount.textContent = visible + ' of ' + modules.length;
+        const noResults = document.getElementById('hrNoResults');
+        if (noResults) noResults.style.display = visible === 0 ? 'block' : 'none';
     }
 
     function switchTab(tabId) {
@@ -947,6 +1104,7 @@ const HouseRenderer = (function() {
             const searchable = [
                 mod.title,
                 mod.description,
+                ...(mod.tags || []),
                 ...(mod.components || [])
             ].join(' ').toLowerCase();
 
@@ -967,6 +1125,16 @@ const HouseRenderer = (function() {
         } else {
             countEl.textContent = `${modules.length} modules`;
             noResults.style.display = 'none';
+        }
+
+        // Sync top-level search bar
+        const topInput = document.getElementById('hrTopSearchInput');
+        if (topInput && topInput.value !== document.getElementById('hrFilterInput').value) {
+            topInput.value = document.getElementById('hrFilterInput').value;
+        }
+        const topCount = document.getElementById('hrTopSearchCount');
+        if (topCount) {
+            topCount.textContent = query ? (visible + ' of ' + modules.length) : '';
         }
     }
 
