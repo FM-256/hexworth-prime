@@ -1,6 +1,6 @@
 # Hexworth Prime - Project State
 
-**Last Updated:** February 14, 2026
+**Last Updated:** February 17, 2026
 **Updated By:** CCode-Opus4.6
 **Version:** 3.11.2 "INTEGRITY"
 
@@ -8,6 +8,9 @@
 
 ## CURRENT STATUS
 
+### 🎮 MILESTONE: ARENA SERIES A COMPLETE! (20 boxes, A1-A20, Genesis Collective arc)
+### 🖥️ MILESTONE: WSA GAUNTLET + OUTPOST FIXES! (State persistence, AD ops, briefings)
+### 🏷️ MILESTONE: v4.6.0 "THUNDERDOME" RELEASED!
 ### 📦 MILESTONE: CONTENTCATALOG CENTRALIZATION COMPLETE! (749 modules, single source of truth, ~2500 lines removed)
 ### 📊 MILESTONE: INSTRUCTOR ANALYTICS COMPLETE! (Real Firestore data, smart ID resolution, all charts wired)
 ### ✅ MILESTONE: A+ CORE 2 & WSA CONTENT AUDIT COMPLETE! (Midterm + 28 files enhanced/created)
@@ -41,6 +44,27 @@
 ---
 
 ## WHAT JUST HAPPENED (Recent Session Summary)
+
+### February 17, 2026 - AR-10: ARENA BOXES A11-A20 + WSA/OUTPOST FIXES
+
+```
++======================================================================+
+|         SPRINT AR-10: ARENA BOXES A11-A20 (Genesis Collective)       |
+|         10 boxes built, 14,617 lines, Series A complete              |
++======================================================================+
+|                                                                       |
+|  BOXES A11-A20: The Genesis Collective narrative arc                  |
+|  All on bench for QC/QA                                               |
+|                                                                       |
+|  ALSO COMPLETED:                                                      |
+|  - WSA Gauntlet: per-module briefings, state persistence              |
+|  - OUTPOST Midterm: AD management, terminal parity, ADUC refresh     |
+|  - GUISimulator: fix windows going empty on tab switch               |
+|  - Disk Management: graphical view fix                                |
+|  - Dashboard footer padding for fixed buttons                         |
+|  - v4.6.0 "THUNDERDOME" release                                      |
++----------------------------------------------------------------------+
+```
 
 ### February 14, 2026 - ES-10: CONTENTCATALOG VALIDATION + 84 DEAD LINK FIXES (CCode-Opus4.6)
 

@@ -43,7 +43,23 @@
 - `60002bc5` — HED-1: Floating diagnostic panel — live runtime error overlay (admin-gated)
 - `d2fd3dd7` — Arena Boxes A6-A10: Crypto, NoSQL, File Upload, Deserialization, SSRF
 
-**Next up:** AR-2 (A1 IDP complete, Gemini drafting A2–A20), HD-6, or OB-1
+**Next up:** OB-1 (3 remaining), AR-2 (IDPs for all 20 boxes)
+
+---
+
+### Post-Marathon Fixes (February 17, 2026)
+**Status:** ✅ Complete
+
+| Task | Deliverable | Status |
+|------|-------------|--------|
+| WSA Gauntlet fixes | Per-module briefings, state persistence, impossible objectives | ✅ |
+| OUTPOST Midterm fixes | AD management, terminal parity, ADUC refresh | ✅ |
+| GUISimulator fix | Windows going empty on tab switch | ✅ |
+| Disk Management fix | Graphical view allocated vs unallocated | ✅ |
+| Dashboard footer | Pad to clear fixed buttons | ✅ |
+| Arena Boxes A11-A20 | Genesis Collective arc (AR-10) | ✅ |
+
+**Commits:** `d187aad8`, `c9560ce1`, `0f5a1ff0`, `51d64c6a`, `889ea229`, `bf86faf2`, `c8846f29`, `baafd3d3`, `ab89d786`
 
 ---
 
@@ -79,8 +95,9 @@
 
 ---
 
-### Sprint HD-6: Persistent Classroom Progress (PROPOSAL)
-**Status:** 📋 Proposed (February 12, 2026)
+### Sprint HD-6: Persistent Classroom Progress
+**Status:** ✅ Complete (February 15, 2026)
+**Commit:** `b4ef6b3a`
 **Priority:** High — Instructor visibility into student progress without login dependency
 **Estimated Scope:** 3 phases, ~4-6 deliverables
 
@@ -819,6 +836,29 @@ Team-based competitive CTF battles. Teams race each other with separate scores, 
 | A10 | The Glass Tunnel | SSRF | Glass Corridor | 1,021 | ✅ bench |
 
 **Total:** 5,084 lines of config across 5 boxes + 5 index.html consumers. All registered in arena index.html as `coming-soon`.
+
+---
+
+### Sprint AR-10: Arena Boxes A11–A20
+**Status:** ✅ Complete (February 17, 2026) — On bench for QC/QA
+**Priority:** Medium — Completes Series A with the Genesis Collective narrative arc
+**Depends on:** AR-1 (engine)
+**Commit:** `ab89d786`
+
+| Box | Title | Theme | Faction | Status |
+|-----|-------|-------|---------|--------|
+| A11 | The Dockerized Data Vault | Container Escape | Archivist Guild | ✅ bench |
+| A12 | The Mobile Scapegoat | Android Exploitation | Digital Nomads | ✅ bench |
+| A13 | The Rogue Sensor Node | IoT Exploitation | Arboreal Collective | ✅ bench |
+| A14 | The Ghost in the Machine | Red Team Evasion | Vanguard Network | ✅ bench |
+| A15 | The Spectral Interceptor | Signal Intelligence | Silent Broadcast | ✅ bench |
+| A16 | The Corrupted Core | Malware Analysis | Crimson Ghost | ✅ bench |
+| A17 | The Whisper Campaign | Steganography | The Whispering Eye | ✅ bench |
+| A18 | The Ghost in the RAM | Memory Forensics | Chronos Collective | ✅ bench |
+| A19 | The Foundation's Fault | Kernel Exploitation | The Foundation | ✅ bench |
+| A20 | Project Chimera: The Genesis | APT Simulation | Genesis Collective | ✅ bench |
+
+**Total:** 14,617 lines across 10 boxes + 10 index.html consumers. All on bench for QC/QA.
 
 ---
 
