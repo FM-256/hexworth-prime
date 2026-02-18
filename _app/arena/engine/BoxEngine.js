@@ -1607,10 +1607,37 @@ const BoxEngine = {
     // ────────────────────────────────────────────────
 
     /**
+     * Resolve the student's enrolled class IDs for activity logging.
+     * Mirrors the pattern used by ProgressSync.sync() — iterates over
+     * ClassManager.getStudentClasses() and returns all enrolled class IDs.
+     * Falls back to cached enrollments if the network call fails.
+     * Returns an empty array if the student is not enrolled in any class.
+     */
+    async _resolveClassIds() {
+        try {
+            if (typeof FirebaseAuth === 'undefined' || typeof ClassManager === 'undefined') return [];
+            const user = FirebaseAuth.getUser();
+            if (!user) return [];
+
+            let classes;
+            try {
+                classes = await ClassManager.getStudentClasses(user.uid);
+            } catch (e) {
+                // Offline fallback — same pattern as ProgressSync
+                classes = ClassManager.getCachedEnrollments ? ClassManager.getCachedEnrollments() : [];
+            }
+            return (classes || []).map(c => c.id).filter(Boolean);
+        } catch (e) {
+            console.warn('[ARENA] Could not resolve classIds:', e);
+            return [];
+        }
+    },
+
+    /**
      * Report box completion to instructor analytics pipeline.
      * Safe — all calls wrapped in try/catch and existence checks.
      */
-    _reportCompletion() {
+    async _reportCompletion() {
         const trackerKey = this.config.trackerKey;
         const boxId = this.config.storageKey || 'unknown';
         const s = this.state;
@@ -1690,9 +1717,11 @@ const BoxEngine = {
         } catch (e) { console.error('[ARENA] GameTracker error:', e); }
 
         // AssignmentManager — logs activity to Firestore for instructor dashboard
+        // Resolve classIds from enrolled classes (same pattern as ProgressSync)
         try {
             if (typeof AssignmentManager !== 'undefined') {
-                AssignmentManager.logActivity(null, 'arena_complete', boxId, this.config.title || boxId, {
+                const classIds = await this._resolveClassIds();
+                const activityData = {
                     score: s.score,
                     flags: s.flagsFound.length,
                     totalFlags: (this.config.flags || []).length,
@@ -1705,7 +1734,15 @@ const BoxEngine = {
                         captured: this.state.flagsFound.includes(m.flagId)
                     })),
                     ...researchData
-                });
+                };
+                if (classIds.length > 0) {
+                    for (const classId of classIds) {
+                        AssignmentManager.logActivity(classId, 'arena_complete', boxId, this.config.title || boxId, activityData);
+                    }
+                } else {
+                    // No enrolled classes — log without classId for global analytics
+                    console.warn('[ARENA] No enrolled classes found — arena_complete not synced to Firestore');
+                }
             }
         } catch (e) { console.error('[ARENA] AssignmentManager error:', e); }
 
@@ -1715,13 +1752,16 @@ const BoxEngine = {
     /**
      * Report a flag capture to instructor analytics.
      */
-    _reportFlagCapture(flagId, points) {
+    async _reportFlagCapture(flagId, points) {
         try {
             if (typeof AssignmentManager !== 'undefined') {
                 const boxId = this.config.storageKey || 'unknown';
-                AssignmentManager.logActivity(null, 'arena_flag', boxId, this.config.title || boxId, {
-                    flagId, points
-                });
+                const classIds = await this._resolveClassIds();
+                for (const classId of classIds) {
+                    AssignmentManager.logActivity(classId, 'arena_flag', boxId, this.config.title || boxId, {
+                        flagId, points
+                    });
+                }
             }
         } catch (e) { /* silent */ }
     },
@@ -1729,13 +1769,16 @@ const BoxEngine = {
     /**
      * Report a hint reveal to instructor analytics.
      */
-    _reportHintReveal(hintId, penalty) {
+    async _reportHintReveal(hintId, penalty) {
         try {
             if (typeof AssignmentManager !== 'undefined') {
                 const boxId = this.config.storageKey || 'unknown';
-                AssignmentManager.logActivity(null, 'arena_hint', boxId, this.config.title || boxId, {
-                    hintId, penalty
-                });
+                const classIds = await this._resolveClassIds();
+                for (const classId of classIds) {
+                    AssignmentManager.logActivity(classId, 'arena_hint', boxId, this.config.title || boxId, {
+                        hintId, penalty
+                    });
+                }
             }
         } catch (e) { /* silent */ }
     },

@@ -329,8 +329,8 @@ const AssignmentManager = (function() {
 
         const { collection: colRef, addDoc, serverTimestamp } = window.firebaseFirestore;
 
-        const activityRef = colRef(db, 'classes', classId, 'activity');
-        await addDoc(activityRef, {
+        // Build activity document — include all extras for arena events
+        const activityDoc = {
             studentUid: user.uid,
             studentName: user.displayName || user.email?.split('@')[0] || 'Student',
             eventType,
@@ -338,7 +338,17 @@ const AssignmentManager = (function() {
             contentTitle,
             score: extras.score || null,
             timestamp: serverTimestamp()
-        });
+        };
+
+        // For arena events, persist the full extras payload (flags, hints, time, phases, surveys, etc.)
+        if (eventType.startsWith('arena_')) {
+            Object.assign(activityDoc, extras);
+            // Ensure timestamp is not overwritten by extras
+            activityDoc.timestamp = serverTimestamp();
+        }
+
+        const activityRef = colRef(db, 'classes', classId, 'activity');
+        await addDoc(activityRef, activityDoc);
 
         console.log(`[AssignmentManager] Activity logged: ${eventType} for ${contentId}`);
     }

@@ -39,7 +39,32 @@ const InstructorDashboard = (function() {
     let classAssignments = [];
     let classProgressData = [];
     let rosterMembers = [];
+    let arenaActivity = [];  // arena_complete, arena_flag, arena_hint events
     let chartInstances = { completion: null, difficulty: null, assignment: null };
+
+    // Known CTF boxes (A1-A20) — used for grid columns and assignment dropdown
+    const CTF_BOXES = [
+        { id: 'hexworth_ctf_a1', label: 'A1', title: 'The Ancient Ledger' },
+        { id: 'hexworth_ctf_a2', label: 'A2', title: 'The Whispering Wall' },
+        { id: 'hexworth_ctf_a3', label: 'A3', title: 'Phantom Shell' },
+        { id: 'hexworth_ctf_a4', label: 'A4', title: 'Lost Root' },
+        { id: 'hexworth_ctf_a5', label: 'A5', title: "Custodian's Key" },
+        { id: 'hexworth_ctf_a6', label: 'A6', title: 'Broken Cipher' },
+        { id: 'hexworth_ctf_a7', label: 'A7', title: 'Hollow Database' },
+        { id: 'hexworth_ctf_a8', label: 'A8', title: 'Forgotten Upload' },
+        { id: 'hexworth_ctf_a9', label: 'A9', title: 'Rusted Lock' },
+        { id: 'hexworth_ctf_a10', label: 'A10', title: 'Glass Tunnel' },
+        { id: 'hexworth_ctf_a11', label: 'A11', title: 'Dockerized Vault' },
+        { id: 'hexworth_ctf_a12', label: 'A12', title: 'Mobile Scapegoat' },
+        { id: 'hexworth_ctf_a13', label: 'A13', title: 'Rogue Sensor' },
+        { id: 'hexworth_ctf_a14', label: 'A14', title: 'Ghost Machine' },
+        { id: 'hexworth_ctf_a15', label: 'A15', title: 'Spectral Interceptor' },
+        { id: 'hexworth_ctf_a16', label: 'A16', title: 'Corrupted Core' },
+        { id: 'hexworth_ctf_a17', label: 'A17', title: 'Whisper Campaign' },
+        { id: 'hexworth_ctf_a18', label: 'A18', title: 'Ghost RAM' },
+        { id: 'hexworth_ctf_a19', label: 'A19', title: "Foundation's Fault" },
+        { id: 'hexworth_ctf_a20', label: 'A20', title: 'Project Chimera' }
+    ];
 
     // ═══════════════════════════════════════════════════════════════
     // INITIALIZATION
@@ -214,6 +239,16 @@ const InstructorDashboard = (function() {
                             </div>
                         </div>
 
+                        <!-- Arena (CTF) Section -->
+                        <div class="id-section" id="idArenaSection" style="display:none;">
+                            <div class="id-section-header">
+                                <div class="id-section-title">Arena (CTF Boxes)</div>
+                                <button class="id-small-btn" onclick="InstructorDashboard.exportArenaCSV()">Export Arena CSV</button>
+                            </div>
+                            <div id="idArenaLeaderboard"></div>
+                            <div id="idArenaGrid" style="margin-top:16px;"></div>
+                        </div>
+
                         <!-- Time on Task Section -->
                         <div class="id-section" id="idTimeOnTaskSection" style="display:none;">
                             <div class="id-section-header">
@@ -239,6 +274,7 @@ const InstructorDashboard = (function() {
                         <div class="id-right-label">Export</div>
                         <button class="id-settings-btn" onclick="InstructorDashboard.exportRosterCSV()">Export Roster (CSV)</button>
                         <button class="id-settings-btn" onclick="InstructorDashboard.exportGradesCSV()">Export Grades (CSV)</button>
+                        <button class="id-settings-btn" onclick="InstructorDashboard.exportArenaCSV()">Export Arena (CSV)</button>
                     </div>
 
                     <div class="id-right-section">
@@ -793,6 +829,16 @@ const InstructorDashboard = (function() {
                             </div>
                         `).join('') || '<p class="id-cb-empty">No content available</p>'}
                     </div>
+                    <div class="id-cb-section-title" style="margin-top:20px;">CTF Boxes</div>
+                    <div class="id-cb-grid">
+                        <div class="id-cb-card" onclick="InstructorDashboard.closeModal('idContentBrowser'); InstructorDashboard.openArenaAssignModal();">
+                            <span class="id-cb-icon">&#9878;</span>
+                            <div class="id-cb-info">
+                                <div class="id-cb-name">Assign CTF Box</div>
+                                <div class="id-cb-meta">${CTF_BOXES.length} boxes available</div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         `;
@@ -833,6 +879,8 @@ const InstructorDashboard = (function() {
             updateCompletionStats();
             renderActivityFeed();
             renderAnalytics();
+            // Load arena activity data
+            await loadArenaActivity(classId);
         } catch (error) {
             console.error('Failed to load progress:', error);
             classProgressData = [];
@@ -1216,6 +1264,556 @@ const InstructorDashboard = (function() {
                 </tbody>
             </table>
         `;
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // ARENA (CTF) — Leaderboard, Grid, Detail, Assignment, Export
+    // ═══════════════════════════════════════════════════════════════
+
+    /**
+     * Load arena activity events (arena_complete, arena_flag, arena_hint)
+     * from the class activity subcollection.
+     */
+    async function loadArenaActivity(classId) {
+        const section = container.querySelector('#idArenaSection');
+        arenaActivity = [];
+
+        try {
+            if (typeof AssignmentManager !== 'undefined') {
+                // Fetch arena events — use a higher limit since we need all arena activity
+                const allActivity = await AssignmentManager.getClassActivity(classId, { limit: 500 });
+                arenaActivity = allActivity.filter(e =>
+                    e.eventType === 'arena_complete' ||
+                    e.eventType === 'arena_flag' ||
+                    e.eventType === 'arena_hint'
+                );
+            }
+        } catch (error) {
+            console.error('[InstructorDashboard] Failed to load arena activity:', error);
+        }
+
+        if (arenaActivity.length > 0) {
+            if (section) section.style.display = 'block';
+            renderArenaLeaderboard();
+            renderArenaGrid();
+        } else {
+            if (section) section.style.display = 'none';
+        }
+    }
+
+    /**
+     * Build per-student arena stats from activity events.
+     * Returns an array of { uid, name, boxesCompleted, totalScore, totalTime, completions }
+     */
+    function buildArenaStats() {
+        const studentMap = {};
+
+        // Process arena_complete events
+        for (const evt of arenaActivity) {
+            if (evt.eventType !== 'arena_complete') continue;
+
+            const uid = evt.studentUid;
+            if (!studentMap[uid]) {
+                studentMap[uid] = {
+                    uid,
+                    name: evt.studentName || 'Student',
+                    completions: {},
+                    flagEvents: [],
+                    hintEvents: []
+                };
+            }
+
+            const boxId = evt.contentId;
+            // Keep the best score for each box (in case of multiple completions)
+            const existing = studentMap[uid].completions[boxId];
+            const score = evt.score || 0;
+            if (!existing || score > existing.score) {
+                studentMap[uid].completions[boxId] = {
+                    score: score,
+                    flags: evt.flags || evt.score ? (evt.flags || 0) : 0,
+                    totalFlags: evt.totalFlags || 0,
+                    hints: evt.hints || 0,
+                    time: evt.time || 0,
+                    mode: evt.mode || 'solo',
+                    timestamp: evt.timestamp,
+                    certObjectives: evt.certObjectives || null,
+                    objectivesCovered: evt.objectivesCovered || [],
+                    phaseTimings: evt.phaseTimings || null,
+                    preSurvey: evt.preSurvey || null,
+                    postSurvey: evt.postSurvey || null
+                };
+            }
+        }
+
+        // Process arena_flag events
+        for (const evt of arenaActivity) {
+            if (evt.eventType !== 'arena_flag') continue;
+            const uid = evt.studentUid;
+            if (!studentMap[uid]) {
+                studentMap[uid] = {
+                    uid,
+                    name: evt.studentName || 'Student',
+                    completions: {},
+                    flagEvents: [],
+                    hintEvents: []
+                };
+            }
+            studentMap[uid].flagEvents.push({
+                boxId: evt.contentId,
+                flagId: evt.flagId,
+                points: evt.points,
+                timestamp: evt.timestamp
+            });
+        }
+
+        // Process arena_hint events
+        for (const evt of arenaActivity) {
+            if (evt.eventType !== 'arena_hint') continue;
+            const uid = evt.studentUid;
+            if (!studentMap[uid]) {
+                studentMap[uid] = {
+                    uid,
+                    name: evt.studentName || 'Student',
+                    completions: {},
+                    flagEvents: [],
+                    hintEvents: []
+                };
+            }
+            studentMap[uid].hintEvents.push({
+                boxId: evt.contentId,
+                hintId: evt.hintId,
+                penalty: evt.penalty,
+                timestamp: evt.timestamp
+            });
+        }
+
+        // Build summary rows
+        const rows = Object.values(studentMap).map(s => {
+            const completions = Object.values(s.completions);
+            const totalScore = completions.reduce((sum, c) => sum + (c.score || 0), 0);
+            const totalTime = completions.reduce((sum, c) => sum + (c.time || 0), 0);
+            const avgTime = completions.length > 0 ? Math.round(totalTime / completions.length) : 0;
+
+            return {
+                uid: s.uid,
+                name: s.name,
+                boxesCompleted: completions.length,
+                totalScore,
+                avgTime,
+                completions: s.completions,
+                flagEvents: s.flagEvents,
+                hintEvents: s.hintEvents
+            };
+        });
+
+        // Sort by total score descending
+        rows.sort((a, b) => b.totalScore - a.totalScore);
+        return rows;
+    }
+
+    /**
+     * Render the CTF leaderboard table.
+     */
+    function renderArenaLeaderboard() {
+        const el = container.querySelector('#idArenaLeaderboard');
+        if (!el) return;
+
+        const stats = buildArenaStats();
+
+        if (stats.length === 0) {
+            el.innerHTML = '<div class="id-activity-empty">No arena completions yet.</div>';
+            return;
+        }
+
+        el.innerHTML = `
+            <div class="id-arena-leaderboard-title">CTF Leaderboard</div>
+            <table class="id-arena-table">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Student</th>
+                        <th>Boxes</th>
+                        <th>Total Score</th>
+                        <th>Avg Time</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${stats.map((s, i) => `
+                        <tr class="id-arena-row">
+                            <td class="id-arena-rank">${i + 1}</td>
+                            <td>${escapeHtml(s.name)}</td>
+                            <td>${s.boxesCompleted}</td>
+                            <td class="id-arena-score">${s.totalScore}</td>
+                            <td>${formatDuration(s.avgTime)}</td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            </table>
+        `;
+    }
+
+    /**
+     * Render the student x box completion grid.
+     * Rows = students, Columns = boxes (A1-A20).
+     * Green = completed (shows score), Yellow = in-progress, Gray = not started.
+     */
+    function renderArenaGrid() {
+        const el = container.querySelector('#idArenaGrid');
+        if (!el) return;
+
+        const stats = buildArenaStats();
+        if (stats.length === 0) {
+            el.innerHTML = '';
+            return;
+        }
+
+        // Determine which boxes have any activity (to avoid showing 20 empty columns)
+        const activeBoxIds = new Set();
+        for (const s of stats) {
+            for (const boxId of Object.keys(s.completions)) activeBoxIds.add(boxId);
+            for (const fe of s.flagEvents) activeBoxIds.add(fe.boxId);
+        }
+        const activeCols = CTF_BOXES.filter(b => activeBoxIds.has(b.id));
+        if (activeCols.length === 0) {
+            el.innerHTML = '';
+            return;
+        }
+
+        // Build in-progress map: student has flag events but no completion for a box
+        const inProgressMap = {};
+        for (const s of stats) {
+            inProgressMap[s.uid] = {};
+            for (const fe of s.flagEvents) {
+                if (!s.completions[fe.boxId]) {
+                    inProgressMap[s.uid][fe.boxId] = true;
+                }
+            }
+        }
+
+        el.innerHTML = `
+            <div class="id-arena-leaderboard-title">Box Completion Grid</div>
+            <div class="id-arena-grid-scroll">
+                <table class="id-arena-grid-table">
+                    <thead>
+                        <tr>
+                            <th class="id-arena-grid-name">Student</th>
+                            ${activeCols.map(b => `<th class="id-arena-grid-box" title="${escapeAttr(b.title)}">${b.label}</th>`).join('')}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${stats.map(s => `
+                            <tr>
+                                <td class="id-arena-grid-name">${escapeHtml(s.name)}</td>
+                                ${activeCols.map(b => {
+                                    const comp = s.completions[b.id];
+                                    const inProg = inProgressMap[s.uid]?.[b.id];
+                                    if (comp) {
+                                        return `<td class="id-arena-cell id-arena-complete" onclick="InstructorDashboard.showArenaDetail('${s.uid}','${b.id}')" title="${escapeAttr(b.title)}: ${comp.score} pts">${comp.score}</td>`;
+                                    } else if (inProg) {
+                                        return `<td class="id-arena-cell id-arena-progress" onclick="InstructorDashboard.showArenaDetail('${s.uid}','${b.id}')" title="${escapeAttr(b.title)}: In Progress">...</td>`;
+                                    } else {
+                                        return `<td class="id-arena-cell id-arena-empty" title="${escapeAttr(b.title)}: Not Started">-</td>`;
+                                    }
+                                }).join('')}
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            </div>
+        `;
+    }
+
+    /**
+     * Show a detail modal for a specific student + box combination.
+     * Displays flags captured, hints used, wrong attempts, timing, surveys.
+     */
+    function showArenaDetail(uid, boxId) {
+        const stats = buildArenaStats();
+        const student = stats.find(s => s.uid === uid);
+        if (!student) return;
+
+        const box = CTF_BOXES.find(b => b.id === boxId) || { label: boxId, title: boxId };
+        const comp = student.completions[boxId];
+        const studentFlags = student.flagEvents.filter(f => f.boxId === boxId);
+        const studentHints = student.hintEvents.filter(h => h.boxId === boxId);
+
+        // Count wrong flag attempts from arena_complete event data (if available)
+        const wrongAttempts = comp?.wrongFlags || 0;
+
+        // Phase timings
+        let phaseHtml = '';
+        if (comp?.phaseTimings) {
+            const pt = comp.phaseTimings;
+            const phases = ['RECON', 'EXPLOIT', 'EXTRACTION', 'OTHER'];
+            phaseHtml = `
+                <div class="id-arena-detail-section">
+                    <div class="id-arena-detail-subtitle">Phase Timing</div>
+                    <table class="id-arena-detail-table">
+                        <thead><tr><th>Phase</th><th>Time</th></tr></thead>
+                        <tbody>
+                            ${phases.map(p => {
+                                const ms = pt[p] || 0;
+                                return ms > 0 ? `<tr><td>${p}</td><td>${formatDuration(Math.round(ms / 1000))}</td></tr>` : '';
+                            }).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+        }
+
+        // Pre/Post survey
+        let surveyHtml = '';
+        if (comp?.preSurvey || comp?.postSurvey) {
+            const preQ = ['Confidence', 'Expected Difficulty', 'Tool Familiarity', 'Anxiety', 'Prior Experience'];
+            const postQ = ['Confidence After', 'Actual Difficulty', 'Hint Helpfulness', 'Attempt Harder', 'Learning Gained'];
+
+            let surveyRows = '';
+            if (comp.preSurvey && comp.postSurvey) {
+                surveyRows = preQ.map((q, i) => {
+                    const preVal = comp.preSurvey['q' + (i + 1)] || '-';
+                    const postVal = comp.postSurvey['q' + (i + 1)] || '-';
+                    const postLabel = postQ[i] || q;
+                    return `<tr><td>${escapeHtml(q)}</td><td>${preVal}/5</td><td>${escapeHtml(postLabel)}</td><td>${postVal}/5</td></tr>`;
+                }).join('');
+                surveyHtml = `
+                    <div class="id-arena-detail-section">
+                        <div class="id-arena-detail-subtitle">Pre/Post Survey</div>
+                        <table class="id-arena-detail-table">
+                            <thead><tr><th>Pre-Question</th><th>Rating</th><th>Post-Question</th><th>Rating</th></tr></thead>
+                            <tbody>${surveyRows}</tbody>
+                        </table>
+                    </div>
+                `;
+            } else if (comp.preSurvey) {
+                surveyRows = preQ.map((q, i) => {
+                    const val = comp.preSurvey['q' + (i + 1)] || '-';
+                    return `<tr><td>${escapeHtml(q)}</td><td>${val}/5</td></tr>`;
+                }).join('');
+                surveyHtml = `
+                    <div class="id-arena-detail-section">
+                        <div class="id-arena-detail-subtitle">Pre-Survey (post not completed)</div>
+                        <table class="id-arena-detail-table">
+                            <thead><tr><th>Question</th><th>Rating</th></tr></thead>
+                            <tbody>${surveyRows}</tbody>
+                        </table>
+                    </div>
+                `;
+            }
+        }
+
+        // Objectives covered
+        let objectivesHtml = '';
+        if (comp?.objectivesCovered && comp.objectivesCovered.length > 0) {
+            objectivesHtml = `
+                <div class="id-arena-detail-section">
+                    <div class="id-arena-detail-subtitle">Cert Objectives</div>
+                    <table class="id-arena-detail-table">
+                        <thead><tr><th>Objective</th><th>Status</th></tr></thead>
+                        <tbody>
+                            ${comp.objectivesCovered.map(o => `
+                                <tr>
+                                    <td>${escapeHtml(o.objective)}</td>
+                                    <td>${o.captured ? '<span style="color:#4ade80;">Captured</span>' : '<span style="color:#f87171;">Missed</span>'}</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+        }
+
+        const overlay = document.createElement('div');
+        overlay.className = 'id-overlay';
+        overlay.id = 'idArenaDetailModal';
+        overlay.innerHTML = `
+            <div class="id-modal id-modal-lg">
+                <button class="id-modal-close" onclick="InstructorDashboard.closeModal('idArenaDetailModal')">&times;</button>
+                <div class="id-arena-detail-header">
+                    <div class="id-arena-detail-name">${escapeHtml(student.name)}</div>
+                    <div class="id-arena-detail-box">${escapeHtml(box.label)}: ${escapeHtml(box.title)}</div>
+                    ${comp ? `<div class="id-arena-detail-score">Score: ${comp.score} | Time: ${formatDuration(comp.time)} | Mode: ${comp.mode || 'solo'}</div>` : '<div class="id-arena-detail-score">In Progress</div>'}
+                </div>
+
+                <!-- Flags Captured -->
+                <div class="id-arena-detail-section">
+                    <div class="id-arena-detail-subtitle">Flags Captured (${studentFlags.length}${comp ? '/' + (comp.totalFlags || '?') : ''})</div>
+                    ${studentFlags.length > 0 ? `
+                        <table class="id-arena-detail-table">
+                            <thead><tr><th>Flag</th><th>Points</th><th>Time</th></tr></thead>
+                            <tbody>
+                                ${studentFlags.map(f => `
+                                    <tr>
+                                        <td><span style="color:#4ade80;">&#10003;</span> ${escapeHtml(f.flagId || 'flag')}</td>
+                                        <td>+${f.points || 0}</td>
+                                        <td>${f.timestamp ? formatTimeAgo(f.timestamp) : '-'}</td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    ` : '<div style="color:#666;font-size:0.85rem;">No flags captured yet</div>'}
+                </div>
+
+                <!-- Hints Used -->
+                <div class="id-arena-detail-section">
+                    <div class="id-arena-detail-subtitle">Hints Used (${studentHints.length})</div>
+                    ${studentHints.length > 0 ? `
+                        <table class="id-arena-detail-table">
+                            <thead><tr><th>Hint</th><th>Penalty</th><th>Time</th></tr></thead>
+                            <tbody>
+                                ${studentHints.map(h => `
+                                    <tr>
+                                        <td>${escapeHtml(h.hintId || 'hint')}</td>
+                                        <td style="color:#f87171;">${h.penalty || 0}</td>
+                                        <td>${h.timestamp ? formatTimeAgo(h.timestamp) : '-'}</td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    ` : '<div style="color:#666;font-size:0.85rem;">No hints used</div>'}
+                </div>
+
+                ${phaseHtml}
+                ${surveyHtml}
+                ${objectivesHtml}
+
+                <div class="id-modal-actions" style="margin-top:20px;">
+                    <button class="id-secondary-btn" onclick="InstructorDashboard.closeModal('idArenaDetailModal')">Close</button>
+                </div>
+            </div>
+        `;
+
+        document.body.appendChild(overlay);
+        overlay.addEventListener('click', (e) => {
+            if (e.target === overlay) closeModal('idArenaDetailModal');
+        });
+    }
+
+    /**
+     * Export arena data as CSV.
+     * Columns: Student, Box, Score, Flags Captured, Total Flags, Hints Used, Time (seconds), Completion Date, Cert Path, Objectives Covered
+     */
+    function exportArenaCSV() {
+        const stats = buildArenaStats();
+        if (stats.length === 0) {
+            showToast('No arena data to export');
+            return;
+        }
+
+        const headers = ['Student', 'Box', 'Score', 'Flags Captured', 'Total Flags', 'Hints Used', 'Time (seconds)', 'Completion Date', 'Cert Path', 'Objectives Covered'];
+        const rows = [];
+
+        for (const s of stats) {
+            for (const [boxId, comp] of Object.entries(s.completions)) {
+                const box = CTF_BOXES.find(b => b.id === boxId) || { label: boxId, title: boxId };
+                const completionDate = comp.timestamp ? (comp.timestamp.toISOString ? comp.timestamp.toISOString() : new Date(comp.timestamp).toISOString()) : '';
+                const certPath = comp.certObjectives?.certPath || '';
+                const objectives = (comp.objectivesCovered || []).map(o => `${o.objective}:${o.captured ? 'Y' : 'N'}`).join('; ');
+
+                rows.push([
+                    s.name,
+                    `${box.label} - ${box.title}`,
+                    comp.score || 0,
+                    comp.flags || 0,
+                    comp.totalFlags || 0,
+                    comp.hints || 0,
+                    comp.time || 0,
+                    completionDate,
+                    certPath,
+                    objectives
+                ]);
+            }
+        }
+
+        downloadCSV('arena', headers, rows);
+    }
+
+    /**
+     * Open the CTF Box assignment dialog — lets the instructor assign a specific box.
+     */
+    function openArenaAssignModal() {
+        const overlay = document.createElement('div');
+        overlay.className = 'id-overlay';
+        overlay.id = 'idArenaAssignModal';
+
+        const boxOptions = CTF_BOXES.map(b =>
+            `<option value="${b.id}">${b.label}: ${escapeHtml(b.title)}</option>`
+        ).join('');
+
+        overlay.innerHTML = `
+            <div class="id-modal">
+                <button class="id-modal-close" onclick="InstructorDashboard.closeModal('idArenaAssignModal')">&times;</button>
+                <div class="id-modal-title">Assign CTF Box</div>
+                <div class="id-input-group">
+                    <label class="id-input-label">Select Box *</label>
+                    <select class="id-input" id="idArenaAssignBox">${boxOptions}</select>
+                </div>
+                <div class="id-input-group">
+                    <label class="id-input-label">Due Date</label>
+                    <input type="date" class="id-input" id="idArenaAssignDue">
+                </div>
+                <div class="id-input-group">
+                    <label class="id-input-label">Notes</label>
+                    <textarea class="id-input" id="idArenaAssignNotes" placeholder="Optional instructions..." maxlength="500"></textarea>
+                </div>
+                <div class="id-error" id="idArenaAssignError"></div>
+                <div class="id-modal-actions">
+                    <button class="id-secondary-btn" onclick="InstructorDashboard.closeModal('idArenaAssignModal')">Cancel</button>
+                    <button class="id-primary-btn" id="idArenaAssignSubmitBtn" onclick="InstructorDashboard.submitArenaAssign()">Assign</button>
+                </div>
+            </div>
+        `;
+
+        document.body.appendChild(overlay);
+        overlay.addEventListener('click', (e) => {
+            if (e.target === overlay) closeModal('idArenaAssignModal');
+        });
+    }
+
+    async function submitArenaAssign() {
+        const boxSelect = document.getElementById('idArenaAssignBox');
+        const dueInput = document.getElementById('idArenaAssignDue');
+        const notesInput = document.getElementById('idArenaAssignNotes');
+        const errorEl = document.getElementById('idArenaAssignError');
+        const submitBtn = document.getElementById('idArenaAssignSubmitBtn');
+
+        const boxId = boxSelect?.value;
+        const box = CTF_BOXES.find(b => b.id === boxId);
+        if (!box) {
+            if (errorEl) { errorEl.textContent = 'Please select a box.'; errorEl.style.display = 'block'; }
+            return;
+        }
+
+        if (submitBtn) {
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<span class="id-spinner"></span>';
+        }
+        if (errorEl) errorEl.style.display = 'none';
+
+        try {
+            await AssignmentManager.createAssignment(selectedClassId, {
+                assignmentType: 'item',
+                contentId: box.id,
+                title: `CTF Box ${box.label}: ${box.title}`,
+                contentType: 'ctf_box',
+                description: `CTF Arena challenge — ${box.title}`,
+                house: 'arena',
+                dueDate: dueInput?.value || null,
+                notes: notesInput?.value?.trim() || ''
+            });
+
+            closeModal('idArenaAssignModal');
+            await loadAssignments(selectedClassId);
+            showToast(`CTF Box ${box.label} assigned`);
+        } catch (error) {
+            if (submitBtn) {
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Assign';
+            }
+            if (errorEl) {
+                errorEl.textContent = error.message || 'Failed to assign box.';
+                errorEl.style.display = 'block';
+            }
+        }
     }
 
     // ═══════════════════════════════════════════════════════════════
@@ -2664,6 +3262,183 @@ const InstructorDashboard = (function() {
                 border-bottom: 1px solid rgba(255,255,255,0.05);
             }
 
+            /* Arena (CTF) */
+            .id-arena-leaderboard-title {
+                font-size: 0.75rem;
+                font-weight: 700;
+                text-transform: uppercase;
+                letter-spacing: 0.5px;
+                color: var(--id-gold);
+                margin-bottom: 10px;
+            }
+
+            .id-arena-table {
+                width: 100%;
+                border-collapse: collapse;
+                font-size: 0.85rem;
+            }
+
+            .id-arena-table th {
+                text-align: left;
+                padding: 10px;
+                border-bottom: 1px solid rgba(255,255,255,0.1);
+                font-size: 0.7rem;
+                text-transform: uppercase;
+                color: var(--id-text-muted);
+            }
+
+            .id-arena-table td {
+                padding: 10px;
+                border-bottom: 1px solid rgba(255,255,255,0.05);
+            }
+
+            .id-arena-row {
+                transition: background 0.15s;
+            }
+
+            .id-arena-row:hover {
+                background: var(--id-gold-subtle);
+            }
+
+            .id-arena-rank {
+                font-weight: 700;
+                color: var(--id-gold);
+                width: 40px;
+            }
+
+            .id-arena-score {
+                font-weight: 700;
+                color: var(--id-gold);
+            }
+
+            .id-arena-grid-scroll {
+                overflow-x: auto;
+                max-width: 100%;
+            }
+
+            .id-arena-grid-table {
+                border-collapse: collapse;
+                font-size: 0.8rem;
+                min-width: 100%;
+            }
+
+            .id-arena-grid-table th {
+                padding: 8px 6px;
+                border-bottom: 1px solid rgba(255,255,255,0.1);
+                font-size: 0.65rem;
+                text-transform: uppercase;
+                color: var(--id-text-muted);
+                text-align: center;
+                white-space: nowrap;
+            }
+
+            .id-arena-grid-name {
+                text-align: left !important;
+                white-space: nowrap;
+                padding-right: 12px !important;
+                position: sticky;
+                left: 0;
+                background: var(--id-card-bg);
+                z-index: 1;
+            }
+
+            .id-arena-grid-box {
+                min-width: 45px;
+            }
+
+            .id-arena-cell {
+                text-align: center;
+                padding: 6px 4px;
+                border-bottom: 1px solid rgba(255,255,255,0.04);
+                font-size: 0.75rem;
+                font-weight: 600;
+                border-radius: 4px;
+            }
+
+            .id-arena-complete {
+                background: rgba(74, 222, 128, 0.15);
+                color: #4ade80;
+                cursor: pointer;
+                transition: background 0.15s;
+            }
+
+            .id-arena-complete:hover {
+                background: rgba(74, 222, 128, 0.3);
+            }
+
+            .id-arena-progress {
+                background: rgba(251, 191, 36, 0.15);
+                color: #fbbf24;
+                cursor: pointer;
+                transition: background 0.15s;
+            }
+
+            .id-arena-progress:hover {
+                background: rgba(251, 191, 36, 0.3);
+            }
+
+            .id-arena-empty {
+                color: #333;
+            }
+
+            /* Arena Detail Modal */
+            .id-arena-detail-header {
+                margin-bottom: 20px;
+                padding-bottom: 16px;
+                border-bottom: 1px solid rgba(255,255,255,0.1);
+            }
+
+            .id-arena-detail-name {
+                font-size: 1.2rem;
+                font-weight: 600;
+                color: var(--id-gold);
+                margin-bottom: 4px;
+            }
+
+            .id-arena-detail-box {
+                font-size: 0.9rem;
+                color: var(--id-text);
+                margin-bottom: 4px;
+            }
+
+            .id-arena-detail-score {
+                font-size: 0.8rem;
+                color: var(--id-text-muted);
+            }
+
+            .id-arena-detail-section {
+                margin-bottom: 16px;
+            }
+
+            .id-arena-detail-subtitle {
+                font-size: 0.75rem;
+                font-weight: 700;
+                text-transform: uppercase;
+                letter-spacing: 0.5px;
+                color: var(--id-text-muted);
+                margin-bottom: 8px;
+            }
+
+            .id-arena-detail-table {
+                width: 100%;
+                border-collapse: collapse;
+                font-size: 0.8rem;
+            }
+
+            .id-arena-detail-table th {
+                text-align: left;
+                padding: 8px;
+                border-bottom: 1px solid rgba(255,255,255,0.1);
+                font-size: 0.65rem;
+                text-transform: uppercase;
+                color: var(--id-text-muted);
+            }
+
+            .id-arena-detail-table td {
+                padding: 8px;
+                border-bottom: 1px solid rgba(255,255,255,0.04);
+            }
+
             /* Responsive */
             @media (max-width: 1000px) {
                 .id-layout {
@@ -2716,7 +3491,11 @@ const InstructorDashboard = (function() {
         removeAssignment: removeAssignment,
         exportRosterCSV: exportRosterCSV,
         exportGradesCSV: exportGradesCSV,
+        exportArenaCSV: exportArenaCSV,
         showStudentDetail: showStudentDetail,
+        showArenaDetail: showArenaDetail,
+        openArenaAssignModal: openArenaAssignModal,
+        submitArenaAssign: submitArenaAssign,
         showMergeModal: showMergeModal,
         previewMerge: previewMerge,
         submitMerge: submitMerge
