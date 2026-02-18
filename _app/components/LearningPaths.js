@@ -2896,6 +2896,7 @@ class LearningPaths {
             description: 'Security analyst certification prep covering threat detection, analysis, vulnerability management, incident response, and security operations',
             icon: '🔍',
             color: '#a855f7',
+            courseHref: 'houses/cysa-plus/index.html',
             modules: [
                 // Domain 1: Security Operations
                 {
@@ -3099,6 +3100,7 @@ class LearningPaths {
             description: 'Advanced security practitioner certification covering security architecture, operations, engineering, cryptography, and governance at the enterprise level',
             icon: '🏛️',
             color: '#dc2626',
+            courseHref: 'houses/casp-plus/index.html',
             modules: [
                 // Domain 1: Security Architecture
                 {
@@ -3320,6 +3322,7 @@ class LearningPaths {
             description: 'CCNA certification prep covering network fundamentals, network access, IP connectivity, IP services, security fundamentals, and automation',
             icon: '🔧',
             color: '#3b82f6',
+            courseHref: 'houses/ccna/index.html',
             modules: [
                 // Domain 1: Network Fundamentals
                 {
@@ -3624,6 +3627,7 @@ class LearningPaths {
             description: 'AWS Certified Cloud Practitioner prep covering cloud concepts, AWS services, security, architecture, pricing, and support',
             icon: '🟧',
             color: '#f97316',
+            courseHref: 'houses/aws-ccp/index.html',
             modules: [
                 // Domain 1: Cloud Concepts
                 {
@@ -3845,6 +3849,7 @@ class LearningPaths {
             description: 'Microsoft Azure Fundamentals certification prep covering cloud concepts, Azure services, security, privacy, compliance, and pricing',
             icon: '🔷',
             color: '#0ea5e9',
+            courseHref: 'houses/azure-fundamentals/index.html',
             modules: [
                 // Cloud Concepts
                 {
@@ -3994,6 +3999,7 @@ class LearningPaths {
             description: 'AWS Developer Associate certification prep covering development with AWS services, deployment, security, troubleshooting, and refactoring',
             icon: '☁️',
             color: '#ec4899',
+            courseHref: 'houses/aws-developer/index.html',
             modules: [
                 // Domain 1: Development with AWS Services
                 {
@@ -4197,6 +4203,7 @@ class LearningPaths {
             description: 'SOC analyst career path covering log analysis, SIEM operations, threat detection, incident investigation, network traffic analysis, and threat hunting',
             icon: '🛡️',
             color: '#6366f1',
+            courseHref: 'houses/security-operations/index.html',
             modules: [
                 // Tier 1: Log Analysis & Triage
                 {
