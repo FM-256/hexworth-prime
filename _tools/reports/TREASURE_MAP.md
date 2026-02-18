@@ -1,7 +1,7 @@
 ══════════════════════════════════════════════════════════════════════
                          EDUSCAN REPORT
                     Hexworth Prime Content Map
-                    Scanned: 2026-02-18 10:12:44 AM
+                    Scanned: 2026-02-18 11:00:05 AM
 ══════════════════════════════════════════════════════════════════════
 
 
@@ -13,7 +13,7 @@
 | Files Scanned | 1486 |
 | Directories | 564 |
 | Content Files | 1486 |
-| Scan Duration | 296ms |
+| Scan Duration | 189ms |
 
 ### Content by Type
 
@@ -29,10 +29,10 @@
 
 | Metric | Value |
 |--------|-------|
-| Total Modules | 1033 |
-| Available | 1028 |
+| Total Modules | 1400 |
+| Available | 1395 |
 | Missing Hrefs (CAT-001) | 0 |
-| Undeclared Files (CAT-002) | 370 |
+| Undeclared Files (CAT-002) | 0 |
 | Empty Hrefs (CAT-003) | 0 |
 
 
@@ -44,7 +44,7 @@
 | Suspect | 125 |
 | Warning | 983 |
 | Info | 408 |
-| **Total** | **2467** |
+| **Total** | **2097** |
 
 ### Sync Status
 
