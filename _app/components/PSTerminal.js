@@ -2348,6 +2348,27 @@ This is why we never run out of black budget money.
             }
         }
 
+        // Normalize AD state arrays: convert PascalCase keys to lowercase
+        // (consumers may pass PowerShell-style PascalCase property names)
+        ['adSites', 'adSubnets', 'adSiteLinks'].forEach(arrayKey => {
+            if (Array.isArray(state[arrayKey])) {
+                state[arrayKey] = state[arrayKey].map(obj => {
+                    const normalized = {};
+                    for (const [k, v] of Object.entries(obj)) {
+                        const lowerKey = k.charAt(0).toLowerCase() + k.slice(1);
+                        // Map known PascalCase aliases to internal property names
+                        const keyMap = {
+                            sitesIncluded: 'sites',
+                            replicationFrequencyInMinutes: 'frequency',
+                        };
+                        const finalKey = keyMap[lowerKey] || lowerKey;
+                        normalized[finalKey] = v;
+                    }
+                    return normalized;
+                });
+            }
+        });
+
         // Initialize WSAState if available (for GUISimulator integration)
         _initWSAState();
 
@@ -3117,8 +3138,8 @@ Type <span class="ps-cmd">Get-Help</span> for available commands, or <span class
                 _checkObjective('try-catch');
             }
 
-            // error-action: -ErrorAction parameter
-            if (/-ErrorAction\b/i.test(input)) {
+            // error-action: -ErrorAction parameter OR $ErrorActionPreference assignment
+            if (/-ErrorAction\b/i.test(input) || /\$ErrorActionPreference\s*=/i.test(input)) {
                 _checkObjective('error-action');
             }
             // ── End M18 Script Block Detection ────────────────────────────────
@@ -3179,6 +3200,43 @@ Type <span class="ps-cmd">Get-Help</span> for available commands, or <span class
         // Handle pipeline (simplified)
         if (cmdLine.includes('|')) {
             return _executePipeline(cmdLine);
+        }
+
+        // ── PowerShell Language Constructs ─────────────────────────────────
+        // Handle keywords and variable assignments that are NOT cmdlets.
+        // Without this, the tokenizer treats "function", "try", "$Var"
+        // as command names and the dispatch falls through to "not recognized".
+
+        // function <Name> { ... }
+        const funcMatch = cmdLine.match(/^function\s+([A-Za-z][\w-]*)/i);
+        if (funcMatch) {
+            return `<span class="ps-dim">Function ${funcMatch[1]} defined.</span>`;
+        }
+
+        // try { ... } catch { ... } (with optional finally)
+        if (/^\s*try\s*\{/i.test(cmdLine)) {
+            if (/catch\s*\{/i.test(cmdLine)) {
+                return `<span class="ps-dim">Try/Catch block executed.</span>`;
+            }
+            return `<span class="ps-dim">Try block executed.</span>`;
+        }
+
+        // Variable assignment: $Variable = value
+        // If the RHS looks like a cmdlet (Verb-Noun pattern), execute it so
+        // objectives like new-pssession still fire from "$session = New-PSSession ...".
+        const varAssignMatch = cmdLine.match(/^\$([A-Za-z_][\w]*)\s*=\s*(.+)/);
+        if (varAssignMatch) {
+            if (!state.userVariables) state.userVariables = {};
+            const rhs = varAssignMatch[2].trim();
+            // Check if RHS is a cmdlet call (Verb-Noun pattern) or pipeline
+            if (/^[A-Za-z][\w]*-[A-Za-z][\w]*/i.test(rhs) || rhs.includes('|')) {
+                // Execute the RHS as a command (triggers objectives + handlers)
+                const rhsResult = _parseAndExecute(rhs);
+                state.userVariables[varAssignMatch[1]] = '[command output]';
+                return '';  // Variable assignment is silent even when RHS is a command
+            }
+            state.userVariables[varAssignMatch[1]] = rhs.replace(/^["']|["']$/g, '');
+            return '';  // PowerShell is silent on variable assignment
         }
 
         // Parse command and arguments
@@ -7386,6 +7444,7 @@ Doing initial required tests
 
         if (sub === 'replsummary') {
             _checkObjective('repadmin');
+            _checkObjective('check-replication');
             return `
 Replication Summary Start Time: ${new Date().toISOString()}
 
@@ -7400,6 +7459,7 @@ Destination DSA     largest delta    fails/total %%   error
         }
         if (sub === 'showrepl') {
             _checkObjective('repadmin');
+            _checkObjective('check-replication');
             return `
 Repadmin: running command /showrepl against full DC localhost
 Default-First-Site-Name\\${config.hostname}
@@ -7417,6 +7477,7 @@ DC=hexworth,DC=local
         }
         if (sub === 'syncall') {
             _checkObjective('repadmin');
+            _checkObjective('check-replication');
             return `<span class="ps-success">Syncing all NC's held on ${config.hostname}.
 Syncing partition: DC=hexworth,DC=local
 CALLBACK MESSAGE: The following replication completed successfully:
@@ -7427,6 +7488,7 @@ SyncAll terminated with no errors.</span>`;
         }
         if (sub === 'kcc') {
             _checkObjective('repadmin');
+            _checkObjective('check-replication');
             return `<span class="ps-success">Consistency check on ${config.hostname} successful.
 KCC has verified and if necessary updated the replication topology.</span>`;
         }

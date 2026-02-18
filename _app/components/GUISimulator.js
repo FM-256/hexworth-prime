@@ -1474,7 +1474,7 @@ const GUISimulator = (function() {
             case 'password':
             case 'number':
                 html += `<input type="${field.type}" name="${field.id}" class="gui-form-input"
-                         placeholder="${field.placeholder || ''}"${required}>`;
+                         placeholder="${field.placeholder || ''}"${field.defaultValue != null ? ` value="${field.defaultValue}"` : ''}${required}>`;
                 break;
 
             case 'textarea':
@@ -2997,6 +2997,12 @@ const GUISimulator = (function() {
                     onClick: () => showChangeDriveLetterDialog(disk, partition),
                 },
                 {
+                    icon: '✏️',
+                    label: 'Rename...',
+                    onClick: () => showRenameVolumeDialog(disk, partition),
+                    disabled: !partition.DriveLetter && !partition.FileSystem,
+                },
+                {
                     icon: '📝',
                     label: 'Format...',
                     onClick: () => showFormatDialog(disk, partition),
@@ -3430,23 +3436,85 @@ const GUISimulator = (function() {
             function changeLetter() {
                 const values = form.getValues();
                 const oldLetter = partition.DriveLetter;
-                partition.DriveLetter = values.driveLetter || null;
+                const newLetter = values.driveLetter || null;
+                partition.DriveLetter = newLetter;
 
                 if (typeof WSAState !== 'undefined') {
                     WSAState.dispatch({
-                        type: 'STORAGE_CHANGE_DRIVE_LETTER',
+                        type: 'STORAGE_SET_DRIVE_LETTER',
                         payload: {
                             DiskNumber: disk.Number,
-                            PartitionNumber: partition.Number,
+                            PartitionNumber: partition.Number || partition.PartitionNumber,
                             OldDriveLetter: oldLetter,
-                            NewDriveLetter: values.driveLetter,
+                            NewDriveLetter: newLetter,
                         },
                         source: 'gui',
                     });
                 }
 
+                if (options.onObjectiveComplete) {
+                    options.onObjectiveComplete('change-drive-letter');
+                }
+
                 refreshViews();
-                dmState.statusBar.setMessage(`Drive letter changed to ${values.driveLetter || '(None)'}`, 'success');
+                dmState.statusBar.setMessage(`Drive letter changed to ${newLetter || '(None)'}`, 'success');
+            }
+        }
+
+        // Rename Volume Dialog
+        function showRenameVolumeDialog(disk, partition) {
+            const modal = showModal({
+                id: 'rename-volume-dialog',
+                title: 'Rename Volume',
+                icon: '✏️',
+                width: 400,
+                content: `
+                    <p class="gui-mb-3">Rename volume: ${partition.DriveLetter ? `(${partition.DriveLetter}:)` : partition.Label || 'Volume'}</p>
+                    <div id="rename-volume-form"></div>
+                `,
+                actions: [
+                    { label: 'OK', primary: true, onClick: doRename },
+                    { label: 'Cancel' },
+                ],
+            });
+
+            const form = buildForm({
+                container: '#rename-volume-form',
+                fields: [
+                    {
+                        id: 'volumeLabel',
+                        type: 'text',
+                        label: 'Volume label:',
+                        placeholder: 'New Volume',
+                        defaultValue: partition.Label || '',
+                    },
+                ],
+            });
+
+            function doRename() {
+                const values = form.getValues();
+                const newLabel = values.volumeLabel || '';
+                partition.Label = newLabel;
+
+                if (typeof WSAState !== 'undefined') {
+                    WSAState.dispatch({
+                        type: 'STORAGE_RENAME_VOLUME',
+                        payload: {
+                            DiskNumber: disk.Number,
+                            PartitionNumber: partition.Number || partition.PartitionNumber,
+                            DriveLetter: partition.DriveLetter,
+                            Label: newLabel,
+                        },
+                        source: 'gui',
+                    });
+                }
+
+                if (options.onObjectiveComplete) {
+                    options.onObjectiveComplete('rename-volume');
+                }
+
+                refreshViews();
+                dmState.statusBar.setMessage(`Volume renamed to "${newLabel}"`, 'success');
             }
         }
 
@@ -3616,6 +3684,8 @@ const GUISimulator = (function() {
             });
 
             if (confirmed) {
+                const deletedLetter = partition.DriveLetter;
+
                 // Convert partition to unallocated
                 partition.Type = 'Unallocated';
                 partition.FileSystem = null;
@@ -3628,10 +3698,15 @@ const GUISimulator = (function() {
                         type: 'STORAGE_DELETE_VOLUME',
                         payload: {
                             DiskNumber: disk.Number,
-                            PartitionNumber: partition.Number,
+                            PartitionNumber: partition.Number || partition.PartitionNumber,
+                            DriveLetter: deletedLetter,
                         },
                         source: 'gui',
                     });
+                }
+
+                if (options.onObjectiveComplete) {
+                    options.onObjectiveComplete('delete-volume');
                 }
 
                 refreshViews();

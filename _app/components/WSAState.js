@@ -95,7 +95,9 @@ const WSAState = (function() {
         STORAGE_RESIZE_PARTITION: 'STORAGE_RESIZE_PARTITION',
 
         STORAGE_FORMAT_VOLUME: 'STORAGE_FORMAT_VOLUME',
+        STORAGE_DELETE_VOLUME: 'STORAGE_DELETE_VOLUME',
         STORAGE_SET_DRIVE_LETTER: 'STORAGE_SET_DRIVE_LETTER',
+        STORAGE_RENAME_VOLUME: 'STORAGE_RENAME_VOLUME',
 
         STORAGE_CREATE_SHARE: 'STORAGE_CREATE_SHARE',
         STORAGE_DELETE_SHARE: 'STORAGE_DELETE_SHARE',
@@ -662,6 +664,110 @@ const WSAState = (function() {
                             DriveType: 'Fixed',
                         },
                     },
+                };
+            }
+
+            case ActionTypes.STORAGE_DELETE_VOLUME: {
+                const { DiskNumber, PartitionNumber, DriveLetter } = payload;
+                // Remove the volume entry by drive letter
+                const newVolumes = { ...state.volumes };
+                if (DriveLetter) {
+                    delete newVolumes[DriveLetter];
+                }
+                // Remove the partition entry
+                const newPartitions = { ...state.partitions };
+                Object.keys(newPartitions).forEach(key => {
+                    const p = newPartitions[key];
+                    if (p.DiskNumber === DiskNumber && (p.PartitionNumber === PartitionNumber || p.DriveLetter === DriveLetter)) {
+                        delete newPartitions[key];
+                    }
+                });
+                // Also clear the partition from the disk's inline partitions array
+                const disk = state.disks[DiskNumber];
+                let newDisks = state.disks;
+                if (disk && disk.partitions) {
+                    const updatedPartitions = disk.partitions.map(p => {
+                        if (p.PartitionNumber === PartitionNumber || p.DriveLetter === DriveLetter) {
+                            return { ...p, Type: 'Unallocated', FileSystem: null, DriveLetter: null, Label: null };
+                        }
+                        return p;
+                    });
+                    newDisks = { ...state.disks, [DiskNumber]: { ...disk, partitions: updatedPartitions } };
+                }
+                return {
+                    ...state,
+                    disks: newDisks,
+                    volumes: newVolumes,
+                    partitions: newPartitions,
+                };
+            }
+
+            case ActionTypes.STORAGE_SET_DRIVE_LETTER: {
+                const { OldDriveLetter, NewDriveLetter, DiskNumber, PartitionNumber } = payload;
+                // Update the volume entry: remove old key, add new key
+                const updatedVolumes = { ...state.volumes };
+                if (OldDriveLetter && updatedVolumes[OldDriveLetter]) {
+                    const vol = { ...updatedVolumes[OldDriveLetter], DriveLetter: NewDriveLetter || null };
+                    delete updatedVolumes[OldDriveLetter];
+                    if (NewDriveLetter) {
+                        updatedVolumes[NewDriveLetter] = vol;
+                    }
+                }
+                // Update partition entries
+                const updatedPartitions = { ...state.partitions };
+                Object.keys(updatedPartitions).forEach(key => {
+                    const p = updatedPartitions[key];
+                    if (p.DriveLetter === OldDriveLetter || (p.DiskNumber === DiskNumber && p.PartitionNumber === PartitionNumber)) {
+                        updatedPartitions[key] = { ...p, DriveLetter: NewDriveLetter || null };
+                    }
+                });
+                // Update inline disk partitions
+                const dlDisk = state.disks[DiskNumber];
+                let dlDisks = state.disks;
+                if (dlDisk && dlDisk.partitions) {
+                    const dlParts = dlDisk.partitions.map(p => {
+                        if (p.DriveLetter === OldDriveLetter || p.PartitionNumber === PartitionNumber) {
+                            return { ...p, DriveLetter: NewDriveLetter || null };
+                        }
+                        return p;
+                    });
+                    dlDisks = { ...state.disks, [DiskNumber]: { ...dlDisk, partitions: dlParts } };
+                }
+                return {
+                    ...state,
+                    disks: dlDisks,
+                    volumes: updatedVolumes,
+                    partitions: updatedPartitions,
+                };
+            }
+
+            case ActionTypes.STORAGE_RENAME_VOLUME: {
+                const { DriveLetter: rnLetter, Label: newLabel } = payload;
+                // Update the volume label
+                const rnVolumes = { ...state.volumes };
+                if (rnLetter && rnVolumes[rnLetter]) {
+                    rnVolumes[rnLetter] = { ...rnVolumes[rnLetter], FileSystemLabel: newLabel || '' };
+                }
+                // Update inline disk partition label
+                const rnDisks = { ...state.disks };
+                Object.keys(rnDisks).forEach(dKey => {
+                    const d = rnDisks[dKey];
+                    if (d.partitions) {
+                        const updated = d.partitions.map(p => {
+                            if (p.DriveLetter === rnLetter) {
+                                return { ...p, Label: newLabel || '' };
+                            }
+                            return p;
+                        });
+                        if (updated !== d.partitions) {
+                            rnDisks[dKey] = { ...d, partitions: updated };
+                        }
+                    }
+                });
+                return {
+                    ...state,
+                    disks: rnDisks,
+                    volumes: rnVolumes,
                 };
             }
 
