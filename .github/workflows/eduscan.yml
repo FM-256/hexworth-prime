@@ -1,0 +1,166 @@
+name: EduScan CI
+
+on:
+  pull_request:
+    branches: [master]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  eduscan:
+    name: EduScan Quality Gate
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Install dependencies
+        run: npm install
+
+      # Run the full scan with diff + archive.
+      # NOTE: In CI, _tools/reports/history/ is empty (not tracked), so the drift
+      # comparison will show "First scan" every time. The primary CI value is the
+      # severity counts and the CRITICAL gate. Local drift tracking remains useful
+      # via `npm run scan:ci` during development.
+      #
+      # EduScan exits 1 if CRITICAL issues are found (default --fail-on behavior).
+      # We capture the exit code separately so the workflow can always post a comment,
+      # even when the scan finds issues.
+      - name: Run EduScan
+        id: scan
+        run: |
+          set +e
+          npm run scan:ci --no-color 2>&1 | tee eduscan-output.txt
+          SCAN_EXIT_CODE=${PIPESTATUS[0]}
+          echo "exit_code=$SCAN_EXIT_CODE" >> "$GITHUB_OUTPUT"
+          set -e
+
+          # Parse the TREASURE_MAP.json for severity counts
+          if [ -f _tools/reports/TREASURE_MAP.json ]; then
+            CRITICAL=$(node -e "const r=require('./_tools/reports/TREASURE_MAP.json'); console.log(r.summary?.issuesBySeverity?.critical || 0)")
+            HIGH=$(node -e "const r=require('./_tools/reports/TREASURE_MAP.json'); console.log(r.summary?.issuesBySeverity?.high || 0)")
+            MEDIUM=$(node -e "const r=require('./_tools/reports/TREASURE_MAP.json'); console.log(r.summary?.issuesBySeverity?.medium || 0)")
+            LOW=$(node -e "const r=require('./_tools/reports/TREASURE_MAP.json'); console.log(r.summary?.issuesBySeverity?.low || 0)")
+            SUSPECT=$(node -e "const r=require('./_tools/reports/TREASURE_MAP.json'); console.log(r.summary?.issuesBySeverity?.suspect || 0)")
+            WARNING=$(node -e "const r=require('./_tools/reports/TREASURE_MAP.json'); console.log(r.summary?.issuesBySeverity?.warning || 0)")
+            TOTAL=$(node -e "const r=require('./_tools/reports/TREASURE_MAP.json'); console.log(r.summary?.issueCount || 0)")
+            SYNC_READY=$(node -e "const r=require('./_tools/reports/TREASURE_MAP.json'); console.log(r.syncStatus?.ready || 0)")
+          else
+            CRITICAL=0; HIGH=0; MEDIUM=0; LOW=0; SUSPECT=0; WARNING=0; TOTAL=0; SYNC_READY=0
+          fi
+
+          echo "critical=$CRITICAL" >> "$GITHUB_OUTPUT"
+          echo "high=$HIGH" >> "$GITHUB_OUTPUT"
+          echo "medium=$MEDIUM" >> "$GITHUB_OUTPUT"
+          echo "low=$LOW" >> "$GITHUB_OUTPUT"
+          echo "suspect=$SUSPECT" >> "$GITHUB_OUTPUT"
+          echo "warning=$WARNING" >> "$GITHUB_OUTPUT"
+          echo "total=$TOTAL" >> "$GITHUB_OUTPUT"
+          echo "sync_ready=$SYNC_READY" >> "$GITHUB_OUTPUT"
+
+      # Post scan results as a PR comment.
+      # Updates the same comment on subsequent pushes (finds by marker).
+      - name: Post scan results to PR
+        uses: actions/github-script@v7
+        if: always()
+        with:
+          script: |
+            const critical = parseInt('${{ steps.scan.outputs.critical }}') || 0;
+            const high = parseInt('${{ steps.scan.outputs.high }}') || 0;
+            const medium = parseInt('${{ steps.scan.outputs.medium }}') || 0;
+            const low = parseInt('${{ steps.scan.outputs.low }}') || 0;
+            const suspect = parseInt('${{ steps.scan.outputs.suspect }}') || 0;
+            const warning = parseInt('${{ steps.scan.outputs.warning }}') || 0;
+            const total = parseInt('${{ steps.scan.outputs.total }}') || 0;
+            const syncReady = parseInt('${{ steps.scan.outputs.sync_ready }}') || 0;
+            const exitCode = parseInt('${{ steps.scan.outputs.exit_code }}') || 0;
+
+            const statusIcon = critical > 0 ? ':x:' : ':white_check_mark:';
+            const statusText = critical > 0
+              ? `**BLOCKED** -- ${critical} CRITICAL issue(s) must be resolved before merge`
+              : 'Passed -- no CRITICAL issues';
+
+            // Build the drift section from console output
+            const fs = require('fs');
+            let driftSection = '';
+            try {
+              const output = fs.readFileSync('eduscan-output.txt', 'utf8');
+              // Extract the drift analysis section (between DRIFT ANALYSIS and the next separator)
+              const driftMatch = output.match(/DRIFT ANALYSIS[\s\S]*?(?=\s*Archived to:|$)/);
+              if (driftMatch) {
+                // Strip ANSI codes for clean markdown
+                const cleanDrift = driftMatch[0].replace(/\x1b\[[0-9;]*m/g, '').trim();
+                driftSection = `\n### Drift Analysis\n\`\`\`\n${cleanDrift}\n\`\`\`\n`;
+              }
+            } catch (e) {
+              // No drift output available
+            }
+
+            const body = [
+              '<!-- eduscan-ci-comment -->',
+              `## ${statusIcon} EduScan Report`,
+              '',
+              `**Status:** ${statusText}`,
+              '',
+              '### Issue Summary',
+              '',
+              '| Severity | Count |',
+              '|----------|------:|',
+              `| CRITICAL | **${critical}** |`,
+              `| HIGH | ${high} |`,
+              `| MEDIUM | ${medium} |`,
+              `| LOW | ${low} |`,
+              `| SUSPECT | ${suspect} |`,
+              `| WARNING | ${warning} |`,
+              `| **Total** | **${total}** |`,
+              '',
+              `**Sync-ready modules:** ${syncReady}`,
+              driftSection,
+              '---',
+              `*EduScan v1.4.0 -- ${new Date().toISOString().split('T')[0]}*`
+            ].join('\n');
+
+            // Find existing comment to update (avoids spam on force-pushes)
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number
+            });
+
+            const existing = comments.find(c => c.body.includes('<!-- eduscan-ci-comment -->'));
+
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existing.id,
+                body
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body
+              });
+            }
+
+      # Fail the workflow if CRITICAL issues were found.
+      # This step runs last so the PR comment is always posted first.
+      - name: Check for CRITICAL issues
+        if: always()
+        run: |
+          CRITICAL=${{ steps.scan.outputs.critical }}
+          if [ "$CRITICAL" -gt 0 ] 2>/dev/null; then
+            echo "::error::EduScan found $CRITICAL CRITICAL issue(s). Merge blocked."
+            exit 1
+          fi
+          echo "No CRITICAL issues. Merge allowed."

@@ -22,7 +22,7 @@ class Ecosystem {
             spawnRate: config.spawnRate ?? 0.02, // Chance per frame when under min
             collisionRadius: config.collisionRadius ?? 25,
             // Planet population control (prevents performance issues)
-            maxPlanets: config.maxPlanets ?? 5,          // Maximum planets allowed
+            maxPlanets: config.maxPlanets ?? 20,         // Maximum planets allowed
             planetCleanupAge: config.planetCleanupAge ?? 180000, // Force cleanup after 3 min if over limit
             ...config
         };

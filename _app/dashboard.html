@@ -5785,11 +5785,42 @@
         // PROGRESS SYNC — Push localStorage completions to Firestore
         // ═══════════════════════════════════════════════════════════════
 
+        /**
+         * Read a course progress key with namespace fallback (QC-6).
+         * Checks new hexworth_progress_* key first, then falls back to old key.
+         */
+        function _readCourseKey(oldKey) {
+            // Delegate to ProgressManager if available
+            if (typeof ProgressManager !== 'undefined' && ProgressManager.getCourseProgress) {
+                return ProgressManager.getCourseProgress(oldKey);
+            }
+            // Standalone fallback: inline key map
+            const keyMap = {
+                'aplus-core1-progress': 'hexworth_progress_core1',
+                'aplus-core2-progress': 'hexworth_progress_core2',
+                'wsa-course-progress':  'hexworth_progress_wsa',
+                'clh_progress':         'hexworth_progress_clh',
+                'clh_achievements':     'hexworth_progress_clh_achievements'
+            };
+            const newKey = keyMap[oldKey];
+            if (newKey) {
+                try {
+                    const data = localStorage.getItem(newKey);
+                    if (data !== null) return JSON.parse(data);
+                } catch (e) { /* fall through */ }
+            }
+            try {
+                const data = localStorage.getItem(oldKey);
+                if (data !== null) return JSON.parse(data);
+            } catch (e) { /* fall through */ }
+            return {};
+        }
+
         function checkLocalCompletion(contentId) {
             // Core 1 chapters: aplus-core1-ch01 through aplus-core1-ch12
             const core1Match = contentId.match(/^aplus-core1-(ch\d{2})$/);
             if (core1Match) {
-                const progress = JSON.parse(localStorage.getItem('aplus-core1-progress') || '{}');
+                const progress = _readCourseKey('aplus-core1-progress');
                 const chData = progress[core1Match[1]];
                 if (chData && chData.completed) {
                     return { completed: true, score: chData.score || null, completedAt: chData.lastAttempt || null };
@@ -5800,7 +5831,7 @@
             // Core 2 chapters: aplus-core2-ch13 through aplus-core2-ch24
             const core2Match = contentId.match(/^aplus-core2-(ch\d{2})$/);
             if (core2Match) {
-                const progress = JSON.parse(localStorage.getItem('aplus-core2-progress') || '{}');
+                const progress = _readCourseKey('aplus-core2-progress');
                 const chData = progress[core2Match[1]];
                 if (chData && chData.completed) {
                     return { completed: true, score: chData.score || null, completedAt: chData.lastAttempt || null };
@@ -5811,7 +5842,7 @@
             // WSA individual modules: wsa-m01-fundamentals, wsa-m02-active-directory, etc.
             const wsaModMatch = contentId.match(/^wsa-(m\d{2})-/);
             if (wsaModMatch) {
-                const progress = JSON.parse(localStorage.getItem('wsa-course-progress') || '{}');
+                const progress = _readCourseKey('wsa-course-progress');
                 const moduleId = wsaModMatch[1];
                 const moduleData = progress[moduleId];
                 if (moduleData) {
@@ -5839,7 +5870,7 @@
 
             // WSA whole course assignment
             if (contentId === 'wsa') {
-                const progress = JSON.parse(localStorage.getItem('wsa-course-progress') || '{}');
+                const progress = _readCourseKey('wsa-course-progress');
                 const regularModules = ['m01','m02','m03','m04','m05','m06','m07','m08','m09','m10',
                                         'm11','m12','m13','m14','m15','m16','m17','m18','m19','m20'];
                 const components = ['presentation', 'guiLab', 'psLab', 'quiz'];
@@ -6028,17 +6059,34 @@
         /**
          * Reverse-map a contentId back to the appropriate localStorage key.
          * Inverse of checkLocalCompletion().
+         * QC-6: Uses ProgressManager.saveCourseProgress() for dual-write when available.
          */
+        function _writeCourseKey(oldKey, data) {
+            if (typeof ProgressManager !== 'undefined' && ProgressManager.saveCourseProgress) {
+                ProgressManager.saveCourseProgress(oldKey, data);
+            } else {
+                // Fallback: write to both old and new keys directly
+                const keyMap = {
+                    'aplus-core1-progress': 'hexworth_progress_core1',
+                    'aplus-core2-progress': 'hexworth_progress_core2',
+                    'wsa-course-progress':  'hexworth_progress_wsa'
+                };
+                const json = JSON.stringify(data);
+                localStorage.setItem(oldKey, json);
+                if (keyMap[oldKey]) localStorage.setItem(keyMap[oldKey], json);
+            }
+        }
+
         function writeLocalCompletion(contentId, data) {
             const { score, completedAt } = data;
 
             // Core 1 chapters
             const core1Match = contentId.match(/^aplus-core1-(ch\d{2})$/);
             if (core1Match) {
-                const progress = JSON.parse(localStorage.getItem('aplus-core1-progress') || '{}');
+                const progress = _readCourseKey('aplus-core1-progress');
                 if (!progress[core1Match[1]]) {
                     progress[core1Match[1]] = { completed: true, score: score || null, lastAttempt: completedAt || new Date().toISOString() };
-                    localStorage.setItem('aplus-core1-progress', JSON.stringify(progress));
+                    _writeCourseKey('aplus-core1-progress', progress);
                 }
                 return;
             }
@@ -6046,10 +6094,10 @@
             // Core 2 chapters
             const core2Match = contentId.match(/^aplus-core2-(ch\d{2})$/);
             if (core2Match) {
-                const progress = JSON.parse(localStorage.getItem('aplus-core2-progress') || '{}');
+                const progress = _readCourseKey('aplus-core2-progress');
                 if (!progress[core2Match[1]]) {
                     progress[core2Match[1]] = { completed: true, score: score || null, lastAttempt: completedAt || new Date().toISOString() };
-                    localStorage.setItem('aplus-core2-progress', JSON.stringify(progress));
+                    _writeCourseKey('aplus-core2-progress', progress);
                 }
                 // Also write to hexworth_progress.forge for Core 2 index stamps
                 const hp = JSON.parse(localStorage.getItem('hexworth_progress') || '{}');
@@ -6065,7 +6113,7 @@
             // WSA modules
             const wsaMatch = contentId.match(/^wsa-(m\d{2})/);
             if (wsaMatch) {
-                const progress = JSON.parse(localStorage.getItem('wsa-course-progress') || '{}');
+                const progress = _readCourseKey('wsa-course-progress');
                 const moduleId = wsaMatch[1];
                 if (!progress[moduleId]) progress[moduleId] = {};
                 // Mark all components as complete
@@ -6073,7 +6121,7 @@
                     if (!progress[moduleId][c]) progress[moduleId][c] = true;
                 });
                 progress[moduleId].lastUpdated = Date.now();
-                localStorage.setItem('wsa-course-progress', JSON.stringify(progress));
+                _writeCourseKey('wsa-course-progress', progress);
                 return;
             }
 
@@ -6119,10 +6167,11 @@
                 if (!classes || classes.length === 0) return;
 
                 // Gather ALL known completions from localStorage
+                // QC-6: Uses _readCourseKey() for namespace-aware reads
                 const allCompletions = [];
 
                 // Core 1
-                const core1 = JSON.parse(localStorage.getItem('aplus-core1-progress') || '{}');
+                const core1 = _readCourseKey('aplus-core1-progress');
                 for (const [ch, data] of Object.entries(core1)) {
                     if (data && data.completed) {
                         allCompletions.push({ contentId: `aplus-core1-${ch}`, ...data });
@@ -6130,7 +6179,7 @@
                 }
 
                 // Core 2
-                const core2 = JSON.parse(localStorage.getItem('aplus-core2-progress') || '{}');
+                const core2 = _readCourseKey('aplus-core2-progress');
                 for (const [ch, data] of Object.entries(core2)) {
                     if (data && data.completed) {
                         allCompletions.push({ contentId: `aplus-core2-${ch}`, ...data });
@@ -6156,7 +6205,7 @@
                 }
 
                 // WSA
-                const wsa = JSON.parse(localStorage.getItem('wsa-course-progress') || '{}');
+                const wsa = _readCourseKey('wsa-course-progress');
                 for (const [mId, data] of Object.entries(wsa)) {
                     if (!data || typeof data !== 'object') continue;
                     const components = ['presentation', 'guiLab', 'psLab', 'quiz'];

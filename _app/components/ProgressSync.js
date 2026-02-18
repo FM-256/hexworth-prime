@@ -21,11 +21,56 @@
     const QUEUE_MAX = 100;
     let _lastSync = 0;
 
+    // ═══════════════════════════════════════════════════════════════
+    // QC-6: Course progress namespace helpers
+    // Read from new hexworth_progress_* keys first, fall back to old keys.
+    // ═══════════════════════════════════════════════════════════════
+
+    /**
+     * Read a course progress key with namespace fallback.
+     * Checks new key (hexworth_progress_*) first, then old key.
+     * If ProgressManager is loaded, delegates to its getCourseProgress();
+     * otherwise falls back to direct localStorage reads.
+     */
+    function _readCourseKey(oldKey) {
+        // Delegate to ProgressManager if available (it has the canonical key map)
+        if (typeof ProgressManager !== 'undefined' && ProgressManager.getCourseProgress) {
+            return ProgressManager.getCourseProgress(oldKey);
+        }
+
+        // Standalone fallback: inline key map for when ProgressManager isn't loaded
+        const keyMap = {
+            'aplus-core1-progress': 'hexworth_progress_core1',
+            'aplus-core2-progress': 'hexworth_progress_core2',
+            'wsa-course-progress':  'hexworth_progress_wsa',
+            'clh_progress':         'hexworth_progress_clh',
+            'clh_achievements':     'hexworth_progress_clh_achievements'
+        };
+
+        const newKey = keyMap[oldKey];
+
+        // Try new key first
+        if (newKey) {
+            try {
+                const data = localStorage.getItem(newKey);
+                if (data !== null) return JSON.parse(data);
+            } catch (e) { /* fall through */ }
+        }
+
+        // Fall back to old key
+        try {
+            const data = localStorage.getItem(oldKey);
+            if (data !== null) return JSON.parse(data);
+        } catch (e) { /* fall through */ }
+
+        return {};
+    }
+
     /**
      * Check if a WSA module is locally complete
      */
     function checkWSAModule(moduleId) {
-        const progress = JSON.parse(localStorage.getItem('wsa-course-progress') || '{}');
+        const progress = _readCourseKey('wsa-course-progress');
         const mod = progress[moduleId];
         if (!mod) return null;
 
@@ -51,13 +96,14 @@
     }
 
     /**
-     * Check local completion for a given contentId
+     * Check local completion for a given contentId.
+     * QC-6: Now checks new hexworth_progress_* keys first, falls back to old keys.
      */
     function checkLocalCompletion(contentId) {
         // A+ Core 1
         const core1Match = contentId.match(/^aplus-core1-(ch\d{2})$/);
         if (core1Match) {
-            const progress = JSON.parse(localStorage.getItem('aplus-core1-progress') || '{}');
+            const progress = _readCourseKey('aplus-core1-progress');
             const ch = progress[core1Match[1]];
             if (ch && ch.completed) return { completed: true, score: ch.score || null, completedAt: ch.lastAttempt || null };
             return null;
@@ -66,7 +112,7 @@
         // A+ Core 2
         const core2Match = contentId.match(/^aplus-core2-(ch\d{2})$/);
         if (core2Match) {
-            const progress = JSON.parse(localStorage.getItem('aplus-core2-progress') || '{}');
+            const progress = _readCourseKey('aplus-core2-progress');
             const ch = progress[core2Match[1]];
             if (ch && ch.completed) return { completed: true, score: ch.score || null, completedAt: ch.lastAttempt || null };
             return null;

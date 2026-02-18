@@ -1545,6 +1545,68 @@ const AchievementManager = (function() {
 
         // CLI Hacker tier achievements
         checkCLHProgress();
+
+        // Module completion achievements
+        checkModuleProgressAchievements();
+    }
+
+    // ═══════════════════════════════════════════════════════════════════
+    // MODULE PROGRESS ACHIEVEMENT CHECK
+    // ═══════════════════════════════════════════════════════════════════
+
+    function checkModuleProgressAchievements() {
+        try {
+            const progress = JSON.parse(localStorage.getItem('hexworth_progress') || '{}');
+            const completedModules = progress.completedModules || [];
+
+            // first_module: Complete your first module
+            if (completedModules.length >= 1 && !isUnlocked('first_module')) {
+                unlock('first_module');
+            }
+
+            // House-based module count achievements
+            // Triggers AchievementSystem house apprentice/master if available
+            const houses = progress.houses || {};
+            const houseIds = ['web', 'shield', 'forge', 'script', 'cloud', 'code', 'key', 'eye'];
+
+            for (const houseId of houseIds) {
+                const house = houses[houseId];
+                if (!house || !house.modulesCompleted) continue;
+
+                const count = house.modulesCompleted.length;
+
+                // House apprentice (5+ modules) — delegates to AchievementSystem
+                if (count >= 5 && typeof AchievementSystem !== 'undefined') {
+                    const apprenticeId = `${houseId}_apprentice`;
+                    if (AchievementSystem.ACHIEVEMENTS && AchievementSystem.ACHIEVEMENTS[apprenticeId]) {
+                        AchievementSystem.unlock(apprenticeId);
+                    }
+                }
+            }
+
+            // first_quiz: Pass your first quiz
+            const quizHistory = progress.quizHistory || [];
+            const passedQuizzes = quizHistory.filter(q => q.score >= 70);
+            if (passedQuizzes.length >= 1 && !isUnlocked('first_quiz')) {
+                unlock('first_quiz');
+            }
+
+            // Quiz master thresholds
+            if (passedQuizzes.length >= 10 && !isUnlocked('quiz_master_10')) {
+                unlock('quiz_master_10');
+            }
+            if (passedQuizzes.length >= 25 && !isUnlocked('quiz_master_25')) {
+                unlock('quiz_master_25');
+            }
+
+            // Perfect score check
+            if (quizHistory.some(q => q.score === 100) && !isUnlocked('perfect_score')) {
+                unlock('perfect_score');
+            }
+
+        } catch (e) {
+            console.warn('Error checking module progress achievements:', e);
+        }
     }
 
     // ═══════════════════════════════════════════════════════════════════
@@ -1643,7 +1705,8 @@ const AchievementManager = (function() {
         buildTitle,
         getShortTitle,
         checkImplicitAchievements,
-        checkCLHProgress
+        checkCLHProgress,
+        checkModuleProgressAchievements
     };
 })();
 

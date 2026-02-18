@@ -28,6 +28,153 @@ class ProgressManager {
         SKILL_TREE: 'hexworth_skill_tree'
     };
 
+    // ═══════════════════════════════════════════════════════════════
+    // COURSE PROGRESS NAMESPACE (QC-6)
+    // Standardizes course-specific localStorage keys under hexworth_progress_*
+    // Old keys are preserved for backwards compatibility — new keys are canonical.
+    //
+    // Key mapping (old → new):
+    //   'aplus-core1-progress' → 'hexworth_progress_core1'
+    //   'aplus-core2-progress' → 'hexworth_progress_core2'
+    //   'wsa-course-progress'  → 'hexworth_progress_wsa'
+    //   'clh_progress'         → 'hexworth_progress_clh'
+    //   'clh_achievements'     → 'hexworth_progress_clh_achievements'
+    // ═══════════════════════════════════════════════════════════════
+
+    /**
+     * Mapping of old course-specific localStorage keys to new namespaced keys.
+     * Old keys remain readable for backwards compat; new keys are the write target.
+     */
+    static COURSE_KEY_MAP = {
+        'aplus-core1-progress': 'hexworth_progress_core1',
+        'aplus-core2-progress': 'hexworth_progress_core2',
+        'wsa-course-progress':  'hexworth_progress_wsa',
+        'clh_progress':         'hexworth_progress_clh',
+        'clh_achievements':     'hexworth_progress_clh_achievements'
+    };
+
+    static MIGRATION_FLAG = 'hexworth_progress_migrated';
+
+    /**
+     * One-time migration: copy data from old course keys to new namespaced keys.
+     * - Idempotent: checks MIGRATION_FLAG before running
+     * - Non-destructive: old keys are NEVER deleted
+     * - Safe to call multiple times (no-op after first successful run)
+     *
+     * Called automatically on page load (see bottom of file).
+     */
+    static migrateProgressNamespace() {
+        // Already migrated — nothing to do
+        if (localStorage.getItem(this.MIGRATION_FLAG)) {
+            return { migrated: false, reason: 'already_migrated' };
+        }
+
+        const results = [];
+
+        for (const [oldKey, newKey] of Object.entries(this.COURSE_KEY_MAP)) {
+            try {
+                const oldData = localStorage.getItem(oldKey);
+                if (oldData !== null) {
+                    // Only copy if new key doesn't already have data
+                    const existingNew = localStorage.getItem(newKey);
+                    if (!existingNew) {
+                        localStorage.setItem(newKey, oldData);
+                        results.push({ oldKey, newKey, action: 'copied' });
+                    } else {
+                        // New key already exists — merge: old data as base, new data wins
+                        try {
+                            const oldObj = JSON.parse(oldData);
+                            const newObj = JSON.parse(existingNew);
+                            const merged = { ...oldObj, ...newObj };
+                            localStorage.setItem(newKey, JSON.stringify(merged));
+                            results.push({ oldKey, newKey, action: 'merged' });
+                        } catch (e) {
+                            // Non-JSON data — new key wins, skip
+                            results.push({ oldKey, newKey, action: 'skipped_parse_error' });
+                        }
+                    }
+                } else {
+                    results.push({ oldKey, newKey, action: 'no_old_data' });
+                }
+            } catch (e) {
+                console.warn(`[ProgressManager] Migration error for ${oldKey}:`, e);
+                results.push({ oldKey, newKey, action: 'error', error: e.message });
+            }
+        }
+
+        // Set migration flag with timestamp
+        localStorage.setItem(this.MIGRATION_FLAG, JSON.stringify({
+            migratedAt: new Date().toISOString(),
+            version: 1,
+            results
+        }));
+
+        console.log('[ProgressManager] Progress namespace migration complete:', results);
+        return { migrated: true, results };
+    }
+
+    /**
+     * Read course progress with fallback: new key first, then old key.
+     * Use this instead of raw localStorage.getItem() for course progress keys.
+     * @param {string} courseKey - Either old key (e.g., 'aplus-core1-progress') or
+     *                             new key (e.g., 'hexworth_progress_core1')
+     * @returns {object} Parsed JSON data or empty object
+     */
+    static getCourseProgress(courseKey) {
+        // Resolve to new key if an old key was passed
+        const newKey = this.COURSE_KEY_MAP[courseKey] || courseKey;
+        // Resolve to old key for fallback
+        const oldKey = Object.entries(this.COURSE_KEY_MAP)
+            .find(([, v]) => v === newKey)?.[0] || null;
+
+        // Try new key first
+        try {
+            const newData = localStorage.getItem(newKey);
+            if (newData !== null) {
+                return JSON.parse(newData);
+            }
+        } catch (e) {
+            console.warn(`[ProgressManager] Error reading new key ${newKey}:`, e);
+        }
+
+        // Fall back to old key
+        if (oldKey) {
+            try {
+                const oldData = localStorage.getItem(oldKey);
+                if (oldData !== null) {
+                    return JSON.parse(oldData);
+                }
+            } catch (e) {
+                console.warn(`[ProgressManager] Error reading old key ${oldKey}:`, e);
+            }
+        }
+
+        return {};
+    }
+
+    /**
+     * Write course progress to BOTH new and old keys (dual-write).
+     * This ensures backwards compat during transition: old code reading old keys
+     * still sees fresh data, while new code reads from new keys.
+     * @param {string} courseKey - Either old or new key
+     * @param {object} data - The progress data to save
+     */
+    static saveCourseProgress(courseKey, data) {
+        const newKey = this.COURSE_KEY_MAP[courseKey] || courseKey;
+        const oldKey = Object.entries(this.COURSE_KEY_MAP)
+            .find(([, v]) => v === newKey)?.[0] || null;
+
+        const json = JSON.stringify(data);
+
+        // Write to new key (canonical)
+        localStorage.setItem(newKey, json);
+
+        // Dual-write to old key for backwards compat
+        if (oldKey) {
+            localStorage.setItem(oldKey, json);
+        }
+    }
+
     // XP rewards for different activities
     static XP_REWARDS = {
         MODULE_COMPLETE: 100,
@@ -771,7 +918,134 @@ class ProgressManager {
         })();
         return this._depsLoading;
     }
+
+    // ═══════════════════════════════════════════════════════════════
+    // CORE 2 PROGRESS BRIDGE
+    // Bidirectional sync between aplus-core2-progress and hexworth_progress.forge
+    // ═══════════════════════════════════════════════════════════════
+
+    /**
+     * Sync Core 2 progress between legacy key (aplus-core2-progress)
+     * and the house progress key (hexworth_progress.forge).
+     *
+     * Direction 1: aplus-core2-progress → hexworth_progress.forge
+     *   Legacy chapters ch13-ch24 → forge keys core2-ch{NN}-index
+     *
+     * Direction 2: hexworth_progress.forge → aplus-core2-progress
+     *   forge keys core2-ch{NN}-index → legacy chapters ch{NN}
+     *
+     * Runs on page load and on progress update events.
+     */
+    static syncCore2Progress() {
+        try {
+            const core2Key = 'aplus-core2-progress';
+            // Read from new namespace first, fall back to old key
+            const core2Progress = this.getCourseProgress(core2Key);
+            const hp = JSON.parse(localStorage.getItem(this.STORAGE_KEYS.PROGRESS) || '{}');
+            if (!hp.forge) hp.forge = {};
+
+            let changed = false;
+            let core2Changed = false;
+
+            // Direction 1: aplus-core2-progress → hexworth_progress.forge
+            for (let ch = 13; ch <= 24; ch++) {
+                const chKey = 'ch' + ch;
+                const forgeKey = `core2-${chKey}-index`;
+
+                if (core2Progress[chKey] && core2Progress[chKey].completed) {
+                    if (!hp.forge[forgeKey] || !hp.forge[forgeKey].completed) {
+                        hp.forge[forgeKey] = {
+                            completed: true,
+                            completedAt: core2Progress[chKey].lastAttempt || new Date().toISOString(),
+                            score: core2Progress[chKey].score || null
+                        };
+                        changed = true;
+                    }
+                }
+            }
+
+            // Direction 2: hexworth_progress.forge → aplus-core2-progress
+            for (let ch = 13; ch <= 24; ch++) {
+                const chKey = 'ch' + ch;
+                const forgeKey = `core2-${chKey}-index`;
+
+                if (hp.forge[forgeKey] && hp.forge[forgeKey].completed) {
+                    if (!core2Progress[chKey] || !core2Progress[chKey].completed) {
+                        core2Progress[chKey] = {
+                            completed: true,
+                            score: hp.forge[forgeKey].score || null,
+                            lastAttempt: hp.forge[forgeKey].completedAt || new Date().toISOString()
+                        };
+                        core2Changed = true;
+                    }
+                }
+            }
+
+            // Also check quiz completions stored in standalone keys (core2-ch{NN}-quiz)
+            for (let ch = 13; ch <= 24; ch++) {
+                const quizKey = `core2-ch${ch}-quiz`;
+                try {
+                    const quizData = JSON.parse(localStorage.getItem(quizKey) || '{}');
+                    if (quizData.completed) {
+                        const chKey = 'ch' + ch;
+                        const forgeKey = `core2-${chKey}-index`;
+
+                        if (!hp.forge[forgeKey] || !hp.forge[forgeKey].completed) {
+                            hp.forge[forgeKey] = {
+                                completed: true,
+                                completedAt: quizData.completedAt || new Date().toISOString(),
+                                score: quizData.score || null
+                            };
+                            changed = true;
+                        }
+                        if (!core2Progress[chKey] || !core2Progress[chKey].completed) {
+                            core2Progress[chKey] = {
+                                completed: true,
+                                score: quizData.score || null,
+                                lastAttempt: quizData.completedAt || new Date().toISOString()
+                            };
+                            core2Changed = true;
+                        }
+                    }
+                } catch (e) { /* skip individual quiz key errors */ }
+            }
+
+            // Persist changes
+            if (changed) {
+                localStorage.setItem(this.STORAGE_KEYS.PROGRESS, JSON.stringify(hp));
+            }
+            if (core2Changed) {
+                // Dual-write: both old and new namespace key
+                this.saveCourseProgress(core2Key, core2Progress);
+            }
+
+            if (changed || core2Changed) {
+                console.log('[ProgressManager] Core 2 progress bridge synced');
+            }
+        } catch (e) {
+            console.warn('[ProgressManager] Core 2 bridge sync error:', e);
+        }
+    }
 }
 
 // Make globally available
 window.ProgressManager = ProgressManager;
+
+// Run namespace migration + Core 2 progress bridge on page load
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => {
+        ProgressManager.migrateProgressNamespace();
+        ProgressManager.syncCore2Progress();
+    });
+} else {
+    ProgressManager.migrateProgressNamespace();
+    ProgressManager.syncCore2Progress();
+}
+
+// Re-sync when progress updates occur
+window.addEventListener('hexworth:progressUpdate', () => {
+    ProgressManager.syncCore2Progress();
+});
+window.addEventListener('courseProgress:componentComplete', () => {
+    ProgressManager.syncCore2Progress();
+});
