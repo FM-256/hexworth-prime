@@ -154,7 +154,7 @@ const ContentDiscovery = (function() {
             viewMode: 'grid',
             currentHouse: currentHouse,
             showGlobalResults: true,
-            crossHouseEnabled: false
+            crossHouseEnabled: true
         };
 
         // Bind event listeners
@@ -750,13 +750,13 @@ const ContentDiscovery = (function() {
                     ).join('')}
                 </div>
                 <div class="discovery-filter-divider"></div>
-                <button class="discovery-filter-btn cd-cross-house-chip" id="crossHouseToggle" title="Toggle cross-house search">
+                <button class="discovery-filter-btn cd-cross-house-chip active" id="crossHouseToggle" title="Toggle cross-house search">
                     🌐 All Houses
                 </button>
             </div>
             <div class="discovery-results-bar">
                 <div class="discovery-results-count" id="discoveryResultsCount">
-                    Showing <strong>${SAMPLE_MODULES.length}</strong> modules in this house
+                    Showing <strong>${SAMPLE_MODULES.length}</strong> modules (searching all houses)
                 </div>
                 <div class="discovery-view-toggle">
                     <button class="discovery-view-btn active" data-view="grid" title="Grid view">&#8862;</button>
@@ -863,7 +863,7 @@ const ContentDiscovery = (function() {
         const countEl = document.getElementById('discoveryResultsCount');
         if (countEl) {
             if (!hasActiveFilter) {
-                countEl.innerHTML = `<strong>${SAMPLE_MODULES.length}</strong> modules in this house`;
+                countEl.innerHTML = `<strong>${SAMPLE_MODULES.length}</strong> modules (searching all houses)`;
             } else if (globalResults.length > 0) {
                 countEl.innerHTML = `<strong>${localResults.length}</strong> in this house, <strong>${globalResults.length}</strong> in other houses`;
             } else {
@@ -1000,7 +1000,7 @@ const ContentDiscovery = (function() {
             viewMode: window.discoveryState ? window.discoveryState.viewMode : 'grid',
             currentHouse: window.discoveryState ? window.discoveryState.currentHouse : null,
             showGlobalResults: true,
-            crossHouseEnabled: false
+            crossHouseEnabled: true
         };
 
         // Reset UI
@@ -1010,7 +1010,7 @@ const ContentDiscovery = (function() {
             btn.classList.toggle('active', btn.dataset.type === 'all' || btn.dataset.category === 'all');
         });
         const crossHouseBtn = document.getElementById('crossHouseToggle');
-        if (crossHouseBtn) crossHouseBtn.classList.remove('active');
+        if (crossHouseBtn) crossHouseBtn.classList.add('active');
 
         applyHouseFilters();
     };

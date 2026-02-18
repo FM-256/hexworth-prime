@@ -916,10 +916,29 @@ const HouseRenderer = (function() {
             if (tabCount) tabCount.textContent = modules.length + ' modules';
             const noResults = document.getElementById('hrNoResults');
             if (noResults) noResults.style.display = 'none';
+            // Also clear discovery search when on explore tab
+            if (activeTab === 'explore') {
+                const discoveryInput = document.getElementById('discoverySearch');
+                if (discoveryInput && discoveryInput.value) {
+                    discoveryInput.value = '';
+                    discoveryInput.dispatchEvent(new Event('input'));
+                }
+            }
             return;
         }
 
-        // Auto-switch to content tab when user types
+        // When on explore tab, forward search to ContentDiscovery panel instead
+        if (activeTab === 'explore') {
+            const discoveryInput = document.getElementById('discoverySearch');
+            if (discoveryInput) {
+                discoveryInput.value = query ? topInput.value : '';
+                discoveryInput.dispatchEvent(new Event('input'));
+            }
+            if (countEl) countEl.textContent = '';
+            return;
+        }
+
+        // Auto-switch to content tab when user types (from paths/profile tabs)
         if (activeTab !== 'content') {
             switchTab('content');
         }
