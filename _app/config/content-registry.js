@@ -622,7 +622,7 @@ const ContentRegistry = {
             topics: ['threats', 'malware', 'attacks', 'vulnerabilities'],
             paths: ['comptia-security'],
             components: {
-                applet: 'houses/shield/applets/threats/attacks_malware/shield-attacks.applet.html'
+                applet: 'houses/shield/applets/threats/attacks_malware/shield-threat-attacks-malware.applet.html'
             },
             prerequisites: ['shield-threat-types'],
             objectives: [
@@ -631,28 +631,6 @@ const ContentRegistry = {
                 'Apply user awareness training principles'
             ]
         },
-
-        'shield-social-engineering': {
-            id: 'shield-social-engineering',
-            title: 'Social Engineering',
-            description: 'Phishing, pretexting, baiting, and human-based attacks',
-            house: 'shield',
-            type: 'module',
-            difficulty: 'intermediate',
-            duration: 45,
-            topics: ['social-engineering', 'phishing', 'attacks'],
-            paths: ['comptia-security'],
-            components: {
-                applet: 'houses/shield/applets/threats/social_engineering/shield-social-engineering.applet.html'
-            },
-            prerequisites: ['shield-threat-types'],
-            objectives: [
-                'Understand XSS attack vectors',
-                'Recognize SQL injection patterns',
-                'Apply OWASP mitigation strategies'
-            ]
-        },
-
         'shield-web-attacks': {
             id: 'shield-web-attacks',
             title: 'Web Application Attacks',
@@ -664,7 +642,7 @@ const ContentRegistry = {
             topics: ['web-attacks', 'xss', 'sql-injection', 'owasp'],
             paths: ['comptia-security'],
             components: {
-                applet: 'houses/shield/applets/threats/sql_injection/shield-sq-linjection.applet.html'
+                applet: 'houses/shield/applets/threats/sql_injection_attack/shield-threat-sql-injection.applet.html'
             },
             prerequisites: ['shield-security-fundamentals'],
             objectives: [
@@ -3209,22 +3187,6 @@ const ContentRegistry = {
             prerequisites: [],
             objectives: []
         },
-        'shield-encrypt-data': {
-            id: 'shield-encrypt-data',
-            title: 'Encrypt Data',
-            description: 'Data encryption exercise',
-            house: 'shield',
-            type: 'applet',
-            difficulty: 'beginner',
-            duration: 20,
-            topics: ['cryptography', 'security', 'encryption'],
-            paths: ['comptia-security', 'security-fundamentals', 'cryptography-track'],
-            components: {
-                applet: 'houses/shield/applets/crypto/encrypt_data/shield-encrypt-data.applet.html'
-            },
-            prerequisites: [],
-            objectives: []
-        },
         'shield-encryption': {
             id: 'shield-encryption',
             title: 'Encryption Fundamentals',
@@ -3285,22 +3247,6 @@ const ContentRegistry = {
             paths: ['comptia-security', 'security-fundamentals', 'cryptography-track'],
             components: {
                 applet: 'houses/shield/applets/crypto/shield-crypto-hashing.applet.html'
-            },
-            prerequisites: [],
-            objectives: []
-        },
-        'shield-hashing-vo': {
-            id: 'shield-hashing-vo',
-            title: 'Hashing (Narrated)',
-            description: 'Narrated hashing tutorial',
-            house: 'shield',
-            type: 'applet',
-            difficulty: 'beginner',
-            duration: 20,
-            topics: ['cryptography', 'security', 'hashing'],
-            paths: ['comptia-security', 'security-fundamentals', 'cryptography-track'],
-            components: {
-                applet: 'houses/shield/applets/crypto/hashing_narrated/shield-hashing-vo.applet.html'
             },
             prerequisites: [],
             objectives: []
@@ -4153,22 +4099,6 @@ const ContentRegistry = {
             prerequisites: [],
             objectives: []
         },
-        'shield-code-injection': {
-            id: 'shield-code-injection',
-            title: 'Code Injection',
-            description: 'Code injection attacks',
-            house: 'shield',
-            type: 'applet',
-            difficulty: 'beginner',
-            duration: 20,
-            topics: ['threats', 'security'],
-            paths: ['comptia-security', 'security-fundamentals'],
-            components: {
-                applet: 'houses/shield/applets/threats/code_injection/shield-codeinjection.applet.html'
-            },
-            prerequisites: [],
-            objectives: []
-        },
         'shield-xss': {
             id: 'shield-xss',
             title: 'Cross-Site Scripting',
@@ -4180,39 +4110,7 @@ const ContentRegistry = {
             topics: ['threats', 'security'],
             paths: ['comptia-security', 'security-fundamentals'],
             components: {
-                applet: 'houses/shield/applets/threats/cross_site_scripting/shield-crosssitescripting.applet.html'
-            },
-            prerequisites: [],
-            objectives: []
-        },
-        'shield-google-hacking': {
-            id: 'shield-google-hacking',
-            title: 'Google Hacking',
-            description: 'Google dorking techniques',
-            house: 'shield',
-            type: 'applet',
-            difficulty: 'beginner',
-            duration: 20,
-            topics: ['threats', 'security'],
-            paths: ['comptia-security', 'security-fundamentals'],
-            components: {
-                applet: 'houses/shield/applets/threats/google_hacking/shield-googlehacking.applet.html'
-            },
-            prerequisites: [],
-            objectives: []
-        },
-        'shield-heartbleed': {
-            id: 'shield-heartbleed',
-            title: 'Heartbleed',
-            description: 'Heartbleed vulnerability',
-            house: 'shield',
-            type: 'applet',
-            difficulty: 'beginner',
-            duration: 20,
-            topics: ['threats', 'security'],
-            paths: ['comptia-security', 'security-fundamentals'],
-            components: {
-                applet: 'houses/shield/applets/threats/heartbleed/shield-heartbleed.applet.html'
+                applet: 'houses/shield/applets/threats/xss/shield-threat-xss.applet.html'
             },
             prerequisites: [],
             objectives: []
@@ -4233,54 +4131,6 @@ const ContentRegistry = {
             prerequisites: [],
             objectives: []
         },
-        'shield-meltdown': {
-            id: 'shield-meltdown',
-            title: 'Meltdown & Spectre',
-            description: 'CPU vulnerabilities',
-            house: 'shield',
-            type: 'applet',
-            difficulty: 'beginner',
-            duration: 20,
-            topics: ['threats', 'security'],
-            paths: ['comptia-security', 'security-fundamentals'],
-            components: {
-                applet: 'houses/shield/applets/threats/meltdown_spectre/shield-meltdown-spectre.applet.html'
-            },
-            prerequisites: [],
-            objectives: []
-        },
-        'shield-os-injection': {
-            id: 'shield-os-injection',
-            title: 'OS Command Injection',
-            description: 'Command injection attacks',
-            house: 'shield',
-            type: 'applet',
-            difficulty: 'beginner',
-            duration: 20,
-            topics: ['threats', 'security'],
-            paths: ['comptia-security', 'security-fundamentals'],
-            components: {
-                applet: 'houses/shield/applets/threats/os_command_injection/shield-oscommandinjection.applet.html'
-            },
-            prerequisites: [],
-            objectives: []
-        },
-        'shield-osint': {
-            id: 'shield-osint',
-            title: 'OSINT',
-            description: 'Open source intelligence',
-            house: 'shield',
-            type: 'applet',
-            difficulty: 'beginner',
-            duration: 20,
-            topics: ['threats', 'security'],
-            paths: ['comptia-security', 'security-fundamentals', 'comptia-network', 'security-operations'],
-            components: {
-                applet: 'houses/shield/applets/threats/osint/shield-osint.applet.html'
-            },
-            prerequisites: [],
-            objectives: []
-        },
         'shield-osint-challenge': {
             id: 'shield-osint-challenge',
             title: 'OSINT Challenge',
@@ -4293,22 +4143,6 @@ const ContentRegistry = {
             paths: ['comptia-security', 'security-fundamentals', 'comptia-network', 'security-operations'],
             components: {
                 applet: 'houses/shield/applets/threats/osint_challenge/shield-osint-lab.applet.html'
-            },
-            prerequisites: [],
-            objectives: []
-        },
-        'shield-pentest': {
-            id: 'shield-pentest',
-            title: 'Penetration Testing',
-            description: 'Pen testing methodology',
-            house: 'shield',
-            type: 'applet',
-            difficulty: 'beginner',
-            duration: 20,
-            topics: ['threats', 'security'],
-            paths: ['comptia-security', 'security-fundamentals', 'devops-fundamentals', 'security-operations'],
-            components: {
-                applet: 'houses/shield/applets/threats/pen_testing/shield-pen-testing.applet.html'
             },
             prerequisites: [],
             objectives: []
@@ -4357,54 +4191,6 @@ const ContentRegistry = {
             paths: ['comptia-security', 'security-fundamentals'],
             components: {
                 applet: 'houses/shield/applets/threats/social_engineering_attack/shield-threat-social-engineering.applet.html'
-            },
-            prerequisites: [],
-            objectives: []
-        },
-        'shield-spoofing': {
-            id: 'shield-spoofing',
-            title: 'Spoofing',
-            description: 'Spoofing attack types',
-            house: 'shield',
-            type: 'applet',
-            difficulty: 'beginner',
-            duration: 20,
-            topics: ['threats', 'security'],
-            paths: ['comptia-security', 'security-fundamentals'],
-            components: {
-                applet: 'houses/shield/applets/threats/spoofing/shield-spoofing1.applet.html'
-            },
-            prerequisites: [],
-            objectives: []
-        },
-        'shield-stuxnet': {
-            id: 'shield-stuxnet',
-            title: 'Stuxnet',
-            description: 'Stuxnet case study',
-            house: 'shield',
-            type: 'applet',
-            difficulty: 'beginner',
-            duration: 20,
-            topics: ['threats', 'security'],
-            paths: ['comptia-security', 'security-fundamentals'],
-            components: {
-                applet: 'houses/shield/applets/threats/stuxnet/shield-stuxnet.applet.html'
-            },
-            prerequisites: [],
-            objectives: []
-        },
-        'shield-threat-actors': {
-            id: 'shield-threat-actors',
-            title: 'Threat Actors',
-            description: 'Types of threat actors',
-            house: 'shield',
-            type: 'applet',
-            difficulty: 'beginner',
-            duration: 20,
-            topics: ['threats', 'security'],
-            paths: ['comptia-security', 'security-fundamentals'],
-            components: {
-                applet: 'houses/shield/applets/threats/threat_actors/shield-threat-actors.applet.html'
             },
             prerequisites: [],
             objectives: []
@@ -5262,22 +5048,6 @@ const ContentRegistry = {
             prerequisites: [],
             objectives: []
         },
-        'web-ipv6-challenge': {
-            id: 'web-ipv6-challenge',
-            title: 'IPv6 Challenge',
-            description: 'Practice IPv6 addressing exercises',
-            house: 'web',
-            type: 'applet',
-            difficulty: 'beginner',
-            duration: 20,
-            topics: ['ip-addressing', 'networking'],
-            paths: ['comptia-network', 'ccna'],
-            components: {
-                applet: 'houses/web/applets/ip-addressing/IPv6Challenge/web-ipv6-challenge.applet.html'
-            },
-            prerequisites: [],
-            objectives: []
-        },
         'web-nat': {
             id: 'web-nat',
             title: 'NAT Visualization',
@@ -5290,22 +5060,6 @@ const ContentRegistry = {
             paths: ['comptia-network', 'ccna'],
             components: {
                 applet: 'houses/web/applets/ip-addressing/nat-pat/web-ip-nat-pat.applet.html'
-            },
-            prerequisites: [],
-            objectives: []
-        },
-        'web-vlsm-challenge': {
-            id: 'web-vlsm-challenge',
-            title: 'VLSM Challenge',
-            description: 'Variable length subnet masking practice',
-            house: 'web',
-            type: 'applet',
-            difficulty: 'beginner',
-            duration: 20,
-            topics: ['ip-addressing', 'networking'],
-            paths: ['comptia-network', 'ccna'],
-            components: {
-                applet: 'houses/web/applets/ip-addressing/VLSM_challenge/web-vlsm-challenge.applet.html'
             },
             prerequisites: [],
             objectives: []
@@ -5386,22 +5140,6 @@ const ContentRegistry = {
             paths: ['comptia-network', 'ccna'],
             components: {
                 applet: 'houses/web/applets/ip-addressing/subnetting-practice/web-ip-subnetting-practice.applet.html'
-            },
-            prerequisites: [],
-            objectives: []
-        },
-        'web-mac-addressing': {
-            id: 'web-mac-addressing',
-            title: 'MAC Addressing',
-            description: 'Physical addressing exercises',
-            house: 'web',
-            type: 'applet',
-            difficulty: 'beginner',
-            duration: 20,
-            topics: ['ip-addressing', 'networking'],
-            paths: ['comptia-network', 'ccna'],
-            components: {
-                applet: 'houses/web/applets/ip-addressing/macaddressing/web-emate-pizzaparty-exercise-102918.applet.html'
             },
             prerequisites: [],
             objectives: []
@@ -7361,7 +7099,7 @@ const ContentRegistry = {
             topics: ['systems'],
             paths: ['comptia-aplus', 'sysadmin-essentials'],
             components: {
-                applet: 'houses/forge/applets/hardware/hard_drive_geometry/forge-hard-drive-geometry.applet.html'
+                applet: 'houses/forge/applets/hardware/hard_drive_geometry/forge-hard-drive-geometry-native.applet.html'
             },
             prerequisites: [],
             objectives: []
@@ -7410,22 +7148,6 @@ const ContentRegistry = {
             paths: ['comptia-aplus', 'sysadmin-essentials', 'aws-ccp'],
             components: {
                 applet: 'houses/forge/applets/hardware/motherboards/forge-motherboards.applet.html'
-            },
-            prerequisites: [],
-            objectives: []
-        },
-        'forge-multimeter': {
-            id: 'forge-multimeter',
-            title: 'Multimeter Training',
-            description: 'Learn to use a multimeter for hardware testing',
-            house: 'forge',
-            type: 'applet',
-            difficulty: 'beginner',
-            duration: 20,
-            topics: ['systems'],
-            paths: ['comptia-aplus', 'sysadmin-essentials'],
-            components: {
-                applet: 'houses/forge/applets/hardware/multimeter/forge-multimeter.applet.html'
             },
             prerequisites: [],
             objectives: []
@@ -9136,22 +8858,6 @@ const ContentRegistry = {
             paths: ['developer-essentials', 'devops-fundamentals', 'ccna'],
             components: {
                 applet: 'houses/code/tools/code-terraform.tool.html'
-            },
-            prerequisites: [],
-            objectives: []
-        },
-        'code-config-management': {
-            id: 'code-config-management',
-            title: 'Configuration Management',
-            description: 'Infrastructure as Code principles and configuration automation',
-            house: 'code',
-            type: 'applet',
-            difficulty: 'beginner',
-            duration: 20,
-            topics: ['devops'],
-            paths: ['developer-essentials', 'devops-fundamentals'],
-            components: {
-                applet: 'houses/code/applets/config_management/code-config-management.applet.html'
             },
             prerequisites: [],
             objectives: []

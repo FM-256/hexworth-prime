@@ -1371,7 +1371,7 @@ const MIGRATED_ENTRIES = {
             topics: ['threats', 'security'],
             paths: [],
             components: {
-                applet: 'houses/shield/applets/threats/cross_site_scripting/shield-crosssitescripting.applet.html'
+                applet: 'houses/shield/applets/threats/xss/shield-threat-xss.applet.html'
             },
             prerequisites: [],
             objectives: []
@@ -1515,7 +1515,7 @@ const MIGRATED_ENTRIES = {
             topics: ['threats', 'security'],
             paths: [],
             components: {
-                applet: 'houses/shield/applets/threats/phishing_mystery/shield-phishing.applet.html'
+                applet: 'houses/shield/applets/threats/phishing/shield-threat-phishing.applet.html'
             },
             prerequisites: [],
             objectives: []
@@ -2336,7 +2336,7 @@ const MIGRATED_ENTRIES = {
             topics: ['ip-addressing', 'networking'],
             paths: [],
             components: {
-                applet: 'houses/web/applets/ip-addressing/binaryIP/web-binary-ip.applet.html'
+                applet: 'houses/web/applets/ip-addressing/binary-ip/web-ip-binary-ip.applet.html'
             },
             prerequisites: [],
             objectives: []

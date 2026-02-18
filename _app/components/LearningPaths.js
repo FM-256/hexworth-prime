@@ -58,7 +58,7 @@ class LearningPaths {
                     type: 'applet',
                     difficulty: 'intermediate',
                     duration: '30 min',
-                    href: 'houses/shield/applets/threats/threat_actors/shield-threat-actors.applet.html',
+                    href: 'houses/shield/applets/threats/threat_actors/shield-threat-threat-actors.applet.html',
                     prerequisites: ['shield-access-control']
                 },
                 {
@@ -130,7 +130,7 @@ class LearningPaths {
                     type: 'applet',
                     difficulty: 'beginner',
                     duration: '30 min',
-                    href: 'houses/web/applets/ip-addressing/binaryIP/web-binary-ip.applet.html',
+                    href: 'houses/web/applets/ip-addressing/binary-ip/web-ip-binary-ip.applet.html',
                     prerequisites: ['web-osi-quiz']
                 },
                 {
@@ -1907,7 +1907,7 @@ class LearningPaths {
                     type: 'applet',
                     difficulty: 'intermediate',
                     duration: '30 min',
-                    href: 'houses/shield/applets/threats/attacks_malware/shield-attacks.applet.html',
+                    href: 'houses/shield/applets/threats/attacks_malware/shield-threat-attacks-malware.applet.html',
                     prerequisites: ['secplus-security-fundamentals-lab']
                 },
                 {
@@ -1916,7 +1916,7 @@ class LearningPaths {
                     type: 'applet',
                     difficulty: 'intermediate',
                     duration: '25 min',
-                    href: 'houses/shield/applets/threats/phishing_mystery/shield-phishing.applet.html',
+                    href: 'houses/shield/applets/threats/phishing/shield-threat-phishing.applet.html',
                     prerequisites: ['secplus-threat-types']
                 },
                 {
@@ -1925,7 +1925,7 @@ class LearningPaths {
                     type: 'applet',
                     difficulty: 'intermediate',
                     duration: '30 min',
-                    href: 'houses/shield/applets/threats/cross_site_scripting/shield-crosssitescripting.applet.html',
+                    href: 'houses/shield/applets/threats/xss/shield-threat-xss.applet.html',
                     prerequisites: ['secplus-social-engineering']
                 },
                 {
@@ -1980,7 +1980,7 @@ class LearningPaths {
                     type: 'applet',
                     difficulty: 'intermediate',
                     duration: '35 min',
-                    href: 'houses/shield/applets/crypto/cryptography/shield-cryptography.applet.html',
+                    href: 'houses/shield/applets/crypto/cryptography_intro/shield-crypto-cryptography-intro.applet.html',
                     prerequisites: ['secplus-vpn']
                 },
                 {
@@ -2175,7 +2175,7 @@ class LearningPaths {
                     type: 'applet',
                     difficulty: 'beginner',
                     duration: '30 min',
-                    href: 'houses/web/applets/ip-addressing/binaryIP/web-binary-ip.applet.html',
+                    href: 'houses/web/applets/ip-addressing/binary-ip/web-ip-binary-ip.applet.html',
                     prerequisites: ['netplus-tcp']
                 },
                 {
@@ -3210,7 +3210,7 @@ class LearningPaths {
                     type: 'applet',
                     difficulty: 'advanced',
                     duration: '35 min',
-                    href: 'houses/shield/applets/crypto/cryptography/shield-cryptography.applet.html',
+                    href: 'houses/shield/applets/crypto/cryptography_intro/shield-crypto-cryptography-intro.applet.html',
                     prerequisites: ['casp-ir-forensics']
                 },
                 {
@@ -3219,7 +3219,7 @@ class LearningPaths {
                     type: 'applet',
                     difficulty: 'advanced',
                     duration: '30 min',
-                    href: 'houses/shield/applets/crypto/pki/shield-pki.applet.html',
+                    href: 'houses/shield/applets/crypto/pki/shield-crypto-pki.applet.html',
                     prerequisites: ['casp-cryptography']
                 },
                 {
@@ -3228,7 +3228,7 @@ class LearningPaths {
                     type: 'applet',
                     difficulty: 'advanced',
                     duration: '25 min',
-                    href: 'houses/shield/applets/crypto/blockchain/shield-blockchain.applet.html',
+                    href: 'houses/shield/applets/crypto/blockchain/shield-crypto-blockchain.applet.html',
                     prerequisites: ['casp-pki']
                 },
                 {
@@ -3358,7 +3358,7 @@ class LearningPaths {
                     type: 'applet',
                     difficulty: 'beginner',
                     duration: '30 min',
-                    href: 'houses/web/applets/ip-addressing/binaryIP/web-binary-ip.applet.html',
+                    href: 'houses/web/applets/ip-addressing/binary-ip/web-ip-binary-ip.applet.html',
                     prerequisites: ['ccna-tcp']
                 },
                 {
@@ -3376,7 +3376,7 @@ class LearningPaths {
                     type: 'applet',
                     difficulty: 'intermediate',
                     duration: '30 min',
-                    href: 'houses/web/applets/ip-addressing/VLSM_challenge/web-vlsm-challenge.applet.html',
+                    href: 'houses/web/applets/ip-addressing/vlsm/web-ip-vlsm.applet.html',
                     prerequisites: ['ccna-subnetting']
                 },
                 {
