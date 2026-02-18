@@ -64,6 +64,12 @@ const GameTracker = (function () {
         chipmatch:    { title: "Chip Match",            house: 'forge',  icon: '🔨' },
         rackstack:    { title: "Rack Stack",            house: 'forge',  icon: '🔨' },
         cipherbubbles: { title: "Cipher Bubbles",       house: 'key',    icon: '🔑' },
+        // Flappy games
+        flappy_cloud:  { title: "Cloud Flap",             house: 'cloud',  icon: '☁️' },
+        flappy_packet: { title: "Packet Flap",            house: 'web',    icon: '🕸️' },
+        flappy_exploit: { title: "Exploit Flap",          house: 'shield', icon: '🛡️' },
+        flappy_crypto: { title: "Crypto Flap",            house: 'key',    icon: '🔑' },
+        flappy_sudo:   { title: "Sudo Flap",              house: 'script', icon: '☠️' },
         // Review/quiz games
         regexrunner:  { title: "Regex Runner",          house: 'script', icon: '☠️' },
         permission:   { title: "Permission Puzzle",     house: 'script', icon: '☠️' },

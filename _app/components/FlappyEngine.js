@@ -692,6 +692,9 @@ window.FlappyEngine = (function () {
 
         resumeAudio();
         startBgPulse();
+
+        // Notify consumer so side panels can reset
+        if (config.onStart) config.onStart();
     }
 
     function die() {

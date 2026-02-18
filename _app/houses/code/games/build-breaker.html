@@ -165,6 +165,7 @@ const BLOCK_TYPES = {
 let gameRunning = false, demoMode = true, gameOver = false;
 let score = 0, lives = 3, stage = 1;
 let stageTransition = 0;
+let xpAwarded = false, completionTracked = false;
 let blocks = [];
 let balls = [];
 let powerups = [];
@@ -272,6 +273,7 @@ function startGame() {
     gameRunning = true;
     gameOver = false;
     score = 0; lives = 3; stage = 1;
+    xpAwarded = false; completionTracked = false;
     activeEffects = { wide: 0, fire: 0, sticky: 0, laser: 0 };
     paddle.w = paddle.baseW;
     paddle.x = W / 2;
@@ -508,6 +510,8 @@ function update() {
             gameRunning = false;
             gameOver = true;
             if (typeof GameTracker !== 'undefined') GameTracker.record('buildbreaker', { score: score, result: 'failure' });
+            const best = parseInt(localStorage.getItem('game_buildbreaker_best') || '0');
+            if (score > best) localStorage.setItem('game_buildbreaker_best', score.toString());
         } else {
             const nb = createBall(paddle.x, paddle.y - 12, 0, 0);
             balls = [nb];
@@ -548,6 +552,28 @@ function update() {
     // Stage complete
     const breakable = blocks.filter(b => !b.indestructible);
     if (breakable.length === 0 && !demoMode && !stageTransition) {
+        // Award XP on clearing stage 3 (milestone)
+        if (stage >= 3 && !xpAwarded) {
+            xpAwarded = true;
+            if (!localStorage.getItem('game_buildbreaker_xp_awarded')) {
+                localStorage.setItem('game_buildbreaker_xp_awarded', 'true');
+                let xp = parseInt(localStorage.getItem('hexworth_xp') || '0');
+                xp += 30;
+                localStorage.setItem('hexworth_xp', xp.toString());
+                if (window.FirestoreManager) {
+                    const uid = localStorage.getItem('hexworth_uid');
+                    if (uid) FirestoreManager.addXP(uid, 30, 'build breaker: pipeline milestone');
+                }
+            }
+        }
+        // Award achievement and record completion on clearing stage 5
+        if (stage >= 5 && !completionTracked) {
+            completionTracked = true;
+            if (window.AchievementManager) AchievementManager.unlock('game_buildbreaker');
+            if (typeof GameTracker !== 'undefined') GameTracker.record('buildbreaker', { score: score, result: 'success' });
+            const best = parseInt(localStorage.getItem('game_buildbreaker_best') || '0');
+            if (score > best) localStorage.setItem('game_buildbreaker_best', score.toString());
+        }
         stage++;
         stageTransition = 90;
     }

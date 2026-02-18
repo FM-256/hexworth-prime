@@ -19,8 +19,13 @@ const GameScoreboard = (function () {
     function _detectGameId() {
         var scripts = document.querySelectorAll('script:not([src])');
         for (var i = 0; i < scripts.length; i++) {
-            var match = scripts[i].textContent.match(/GameTracker\.record\s*\(\s*['"]([^'"]+)['"]/);
+            var text = scripts[i].textContent;
+            // Direct GameTracker.record() call
+            var match = text.match(/GameTracker\.record\s*\(\s*['"]([^'"]+)['"]/);
             if (match) return match[1];
+            // Engine-based games pass trackerKey in config (e.g. FlappyEngine.init)
+            var tkMatch = text.match(/trackerKey\s*:\s*['"]([^'"]+)['"]/);
+            if (tkMatch) return tkMatch[1];
         }
         return null;
     }

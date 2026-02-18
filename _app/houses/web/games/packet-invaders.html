@@ -393,6 +393,32 @@ function startGame() {
 }
 function resetGame() { startGame(); }
 
+function handleGameOver() {
+    gameRunning = false;
+    gameOver = true;
+    // GameTracker
+    if (typeof GameTracker !== 'undefined') {
+        GameTracker.record('packetinvaders', { score: score, result: wave >= 10 ? 'success' : 'failure', waves: wave, maxCombo: maxCombo });
+    }
+    // High score persistence
+    const best = parseInt(localStorage.getItem('game_packetinvaders_best') || '0');
+    if (score > best) localStorage.setItem('game_packetinvaders_best', score.toString());
+    // Achievement + XP on reaching wave 5+
+    if (wave >= 5) {
+        if (window.AchievementManager) AchievementManager.unlock('game_packetinvaders');
+        if (!localStorage.getItem('game_packetinvaders_xp_awarded')) {
+            localStorage.setItem('game_packetinvaders_xp_awarded', 'true');
+            let xp = parseInt(localStorage.getItem('hexworth_xp') || '0');
+            xp += 25;
+            localStorage.setItem('hexworth_xp', xp.toString());
+            if (window.FirestoreManager) {
+                const uid = localStorage.getItem('hexworth_uid');
+                if (uid) FirestoreManager.addXP(uid, 25, 'packet invaders: wave 5+');
+            }
+        }
+    }
+}
+
 // Particles (now circular with gravity)
 function spawnParticles(x, y, color, count = 8) {
     for (let i = 0; i < count; i++) {
@@ -696,11 +722,7 @@ function update() {
                 spawnParticles(player.x, player.y, '#3b82f6', 15);
                 spawnExplosion(player.x, player.y, '#3b82f6');
                 if (lives <= 0) {
-                    gameRunning = false;
-                    gameOver = true;
-                    if (typeof GameTracker !== 'undefined') {
-                        GameTracker.record('packetinvaders', { score: score, result: 'failure', waves: wave, maxCombo: maxCombo });
-                    }
+                    handleGameOver();
                 }
             }
         });
@@ -709,11 +731,7 @@ function update() {
     // Collisions: enemies reaching bottom
     enemies.forEach(e => {
         if (e.alive && e.y + e.h > H - 60 && !demoMode) {
-            gameRunning = false;
-            gameOver = true;
-            if (typeof GameTracker !== 'undefined') {
-                GameTracker.record('packetinvaders', { score: score, result: 'failure', waves: wave, maxCombo: maxCombo });
-            }
+            handleGameOver();
         }
     });
 
@@ -767,7 +785,7 @@ function update() {
     // Update UI
     document.getElementById('scoreDisplay').textContent = `SCORE: ${score}`;
     document.getElementById('waveDisplay').textContent = `WAVE ${wave}`;
-    document.getElementById('livesDisplay').textContent = '♥'.repeat(lives) + '♡'.repeat(Math.max(0, 3 - lives));
+    document.getElementById('livesDisplay').textContent = '♥'.repeat(Math.min(lives, 5)) + '♡'.repeat(Math.max(0, 5 - lives));
     document.getElementById('loreWave').textContent = wave;
     document.getElementById('loreScore').textContent = score;
     document.getElementById('loreCombo').textContent = maxCombo;
@@ -1353,7 +1371,11 @@ function drawOverlays() {
         ctx.font = '22px Courier New';
         ctx.fillText(`Final Score: ${score}`, W/2, H/2 - 10);
         ctx.fillText(`Waves Survived: ${wave}`, W/2, H/2 + 25);
-        ctx.fillText(`Max Combo: ${maxCombo}`, W/2, H/2 + 60);
+        ctx.fillText(`Max Combo: ${maxCombo}`, W/2, H/2 + 55);
+        const bestScore = localStorage.getItem('game_packetinvaders_best') || '0';
+        ctx.fillStyle = '#f59e0b';
+        ctx.font = '18px Courier New';
+        ctx.fillText(`Best: ${bestScore}`, W/2, H/2 + 85);
 
         ctx.fillStyle = '#94a3b8';
         ctx.font = '16px Courier New';

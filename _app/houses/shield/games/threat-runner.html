@@ -1234,7 +1234,7 @@
             countdownActive = false;
             respawnCountdown = false;
             if (shieldFadeTimer <= 0) shieldFadeTimer = SHIELD_FADE_DURATION;
-            invincible = false;
+            // invincible stays true during shield fade — cleared when shieldFadeTimer hits 0
         }
     }
     function drawCountdown() {
@@ -1272,7 +1272,7 @@
     function gameOver() {
         gameRunning = false;
         playDeath();
-        if (typeof GameTracker !== 'undefined') GameTracker.record('threatrunner', { score: score, result: 'failure' });
+        if (typeof GameTracker !== 'undefined') GameTracker.record('threatrunner', { score: hopCount, result: 'failure' });
         if (hopCount > highScore) {
             highScore = hopCount;
             localStorage.setItem('threat_runner_high_score', highScore.toString());
@@ -1332,7 +1332,10 @@
         ctx.fillText('--- Security Tools ---', W/2, 175);
 
         ABILITIES.forEach((ab, i) => {
-            const unlocked = currentLevel >= ab.level;
+            // ab.level is 1-indexed display label; currentLevel is 0-indexed.
+            // Level 1 ability (double jump) unlocks at currentLevel >= 0 (always).
+            // Level 2+ SHIFT abilities unlock at currentLevel >= (ab.level - 1).
+            const unlocked = currentLevel >= ab.level - 1;
             const yy = 200 + i * 40;
             ctx.fillStyle = unlocked ? '#ef4444' : '#333';
             ctx.font = 'bold 13px monospace';
@@ -1525,13 +1528,14 @@
 
     // ===== INPUT =====
     document.addEventListener('keydown', (e) => {
-        if (showMovesPanel && e.key === '?') { showMovesPanel = false; return; }
+        if (showMovesPanel && e.key === '?') { showMovesPanel = false; document.getElementById('helpBtn').textContent = '?'; return; }
         if (demoMode || !gameRunning) return;
         if (e.code === 'Space' || e.code === 'ArrowUp') {
             e.preventDefault();
             if (!player.isJumping) {
                 player.velocityY = -13; player.isJumping = true; player.hasDoubleJumped = false; playJump();
             } else if (currentLevel >= 0 && !player.hasDoubleJumped) {
+                // SIEM Alert double jump (L1) — always available
                 player.velocityY = -11; player.hasDoubleJumped = true; playJump();
             }
         }
@@ -1547,7 +1551,7 @@
         const tx = (e.touches[0].clientX - rect.left) / rect.width * W;
         if (tx < W * 0.33) {
             if (!player.isJumping) { player.velocityY = -13; player.isJumping = true; playJump(); }
-            else if (!player.hasDoubleJumped) { player.velocityY = -11; player.hasDoubleJumped = true; playJump(); }
+            else if (currentLevel >= 0 && !player.hasDoubleJumped) { player.velocityY = -11; player.hasDoubleJumped = true; playJump(); }
         } else if (tx > W * 0.66) { activateAbility(); }
         else { if (!player.isJumping) player.isDucking = true; }
     });
@@ -1574,7 +1578,10 @@
         muted = !muted;
         document.getElementById('muteBtn').textContent = muted ? 'OFF' : 'SND';
     });
-    document.getElementById('helpBtn').addEventListener('click', () => { showMovesPanel = !showMovesPanel; });
+    document.getElementById('helpBtn').addEventListener('click', () => {
+        showMovesPanel = !showMovesPanel;
+        document.getElementById('helpBtn').textContent = showMovesPanel ? 'X' : '?';
+    });
 
     // ===== XP =====
     function awardXP() {
