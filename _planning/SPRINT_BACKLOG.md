@@ -920,19 +920,20 @@ Team-based competitive CTF battles. Teams race each other with separate scores, 
 ---
 
 ### Sprint AR-14: BoxEngine Research Instrumentation
-**Status:** ⬜ Proposed
+**Status:** 🟡 Partially Complete (February 18, 2026 — Marathon)
 **Priority:** MEDIUM — PhD data collection enabler
 **Depends on:** AR-1 (engine)
 **Source:** Codex Review Sessions 1-3 (2026-02-15), Codex Architect Review (2026-02-17)
+**Commit:** `54d6776c` (event logging)
 
 **Problem:** BoxEngine tracks score/flags/hints/time but lacks granular event-level data needed for PhD research. No timestamped event log, no command sequence export, no pre/post surveys, no session abandonment detection. ECER/CERBI models need measurable behavioral data.
 
 | Task | Details | Effort | Status |
 |------|---------|--------|--------|
-| Timestamped event log | Add `state.events[]` — log every flag, hint, command, navigation, form submission with timestamp | 3-4 hours | ⬜ |
+| Timestamped event log | `state.events[]` with `_logEvent(type, data)` — logs box_start, window_open, flag_correct, flag_wrong, box_complete, hint_reveal, god_mode with elapsed time | 3-4 hours | ✅ |
+| Event log export | `exportEventLog()` — clipboard export for god mode. Research analytics in `_reportCompletion()`: avgTimeBetweenFlags, hintEffectiveness, totalCommands, totalNavigations | 1-2 hours | ✅ |
 | Command sequence export | Hook Terminal._execute() → engine._recordEvent('cmd', line) for attack pattern analysis | 1-2 hours | ⬜ |
 | Pre/post confidence survey | 5-question Likert modal before + after each box (self-efficacy, difficulty, confidence) | 1 day | ⬜ |
-| Extended completion report | Send events[], timeToFirstFlag, hintSequence, sessionMetrics to AssignmentManager | 2-3 hours | ⬜ |
 | Session abandonment detection | Track if student closes without completing — log partial progress + time invested | 1-2 hours | ⬜ |
 | Phase detection | Classify student activity as recon → exploit → extraction — measure avg time per phase | 3-4 hours | ⬜ |
 
@@ -952,21 +953,21 @@ Team-based competitive CTF battles. Teams race each other with separate scores, 
 > Content quality matches mid-tier HTB/THM. Curriculum packaging is BETTER than both. That's the lane.
 
 ### Sprint PR-1: Student Worksheets
-**Status:** ⬜ Proposed
-**Priority:** CRITICAL — #1 revenue blocker. Zero student-facing materials exist.
+**Status:** 🟡 Partially Complete (February 18, 2026 — Marathon)
+**Priority:** CRITICAL — #1 revenue blocker.
 **Effort:** 2-3 days (template + A1-A5)
 **Revenue Impact:** Schools buy worksheets, not just boxes. No institutional buyer purchases a platform without student deliverables.
 
 | Task | Details | Effort | Status |
 |------|---------|--------|--------|
-| Student worksheet template | Name/Date/Time/Recon/Exploit/Reflection format — printable, gradeable, PDF-ready | 3-4 hours | ⬜ |
-| A1 worksheet — The Ancient Ledger | SQL injection walkthrough: recon questions, payload documentation, reflection prompts | 3-4 hours | ⬜ |
-| A2 worksheet — The Shadow Encoder | Command injection: input testing, bypass documentation, mitigation analysis | 3-4 hours | ⬜ |
-| A3 worksheet — XSS | Cross-site scripting: DOM analysis, payload crafting, defense reflection | 3-4 hours | ⬜ |
-| A4 worksheet — Padding Oracle | Crypto attack: CBC analysis, byte manipulation, script documentation | 3-4 hours | ⬜ |
+| Student worksheet template | Name/Date/Time/Recon/Exploit/Reflection format — printable, gradeable, PDF-ready | 3-4 hours | ✅ |
+| A1 worksheet — The Ancient Ledger | SQL injection walkthrough: recon questions, payload documentation, reflection prompts | 3-4 hours | ✅ |
+| A2 worksheet — The Shadow Encoder | Command injection: input testing, bypass documentation, mitigation analysis | 3-4 hours | ✅ |
+| A3 worksheet — XSS | Cross-site scripting: DOM analysis, payload crafting, defense reflection | 3-4 hours | ✅ |
+| A4 worksheet — Padding Oracle | Crypto attack: CBC analysis, byte manipulation, script documentation | 3-4 hours | ✅ |
 | A5 worksheet — Windows PrivEsc | Privilege escalation: service enumeration, unquoted path exploitation, remediation | 3-4 hours | ⬜ |
 
-**Deliverables:** `_planning/_IDP/worksheets/Box_A{1-5}_Student_Worksheet.md`
+**Deliverables:** `_planning/_IDP/` (WORKSHEET_TEMPLATE.md, Box_A1-A4_Student_Worksheet.md created)
 
 ---
 
@@ -989,36 +990,37 @@ Team-based competitive CTF battles. Teams race each other with separate scores, 
 ---
 
 ### Sprint PR-3: Instructor Answer Keys & Teaching Guides
-**Status:** ⬜ Proposed
+**Status:** 🟡 Partially Complete (February 18, 2026 — Marathon)
 **Priority:** HIGH — Professors won't assign what they can't grade without playing it themselves.
 **Effort:** 1 day per box (5 days for A1-A5)
 **Revenue Impact:** Instructor adoption — the real customer is the professor, not the student.
 
 | Task | Details | Effort | Status |
 |------|---------|--------|--------|
-| Instructor guide template | Step-by-step solution walkthrough, expected mistakes, hint timing, grading tips, class discussion prompts, accommodation guidance | 3-4 hours | ⬜ |
-| A1 instructor guide | Full SQLi walkthrough: exact commands, expected output, common student mistakes, when to intervene | 1 day | ⬜ |
-| A2 instructor guide | Command injection walkthrough with grading rubric application | 1 day | ⬜ |
+| Instructor guide template | Step-by-step solution walkthrough, expected mistakes, hint timing, grading tips, class discussion prompts, accommodation guidance | 3-4 hours | ✅ |
+| A1 instructor guide | Full SQLi walkthrough: exact commands, expected output, common student mistakes, when to intervene | 1 day | ✅ |
+| A2 instructor guide | Command injection walkthrough with grading rubric application | 1 day | ✅ |
 | A3 instructor guide | XSS walkthrough with DOM analysis tips | 1 day | ⬜ |
 | A4 instructor guide | Padding oracle walkthrough with crypto explanation notes | 1 day | ⬜ |
 | A5 instructor guide | Windows privesc walkthrough with AD context | 1 day | ⬜ |
 
-**Deliverables:** `_planning/_IDP/instructor_guides/Box_A{1-5}_Instructor_Guide.md`
+**Deliverables:** `_planning/_IDP/` (Box_A1-A2_Instructor_Guide.md created)
 
 ---
 
 ### Sprint PR-4: Ethical Framing + IDP Completion
-**Status:** ⬜ Proposed
+**Status:** ✅ Complete (February 18, 2026 — Marathon)
 **Priority:** HIGH — Legal protection + grant requirement
-**Effort:** 30 minutes (ethical section) + 2-3 hours (IDP finalization)
 **Revenue Impact:** Required for grant applications, VA approval, institutional partnerships.
 
 | Task | Details | Effort | Status |
 |------|---------|--------|--------|
-| Add Section 9 (Ethical Considerations) to IDP template | Responsible disclosure principles, controlled environment statement, legal framing | 15 min | ⬜ |
-| Add ethical section to all 20 IDP drafts | Template language + box-specific ethical context | 30 min | ⬜ |
-| Finalize A1 IDP to gold standard | Verify all 9 sections complete, cert codes accurate, rubric implementable | 1 hour | ⬜ |
-| Review + upgrade A2-A5 IDPs | Bring drafts to 7+/8 quality bar (per AR-2 standards) | 2-3 hours | ⬜ |
+| Add Section 9 (Ethical Considerations) to IDP template | Responsible disclosure principles, controlled environment statement, legal framing | 15 min | ✅ |
+| Add ethical section to all 20 IDP drafts | Template language + box-specific ethical context | 30 min | ✅ |
+| Finalize A1 IDP to gold standard | Verify all 9 sections complete, cert codes accurate, rubric implementable | 1 hour | ✅ |
+| Review + upgrade A2-A5 IDPs | Bring drafts to 7+/8 quality bar (per AR-2 standards) | 2-3 hours | ✅ |
+
+**Completed by 4 parallel agents (PR-4a through PR-4d):** All 20 IDPs (A1-A20) finalized with all 9 sections including ethical frameworks. Files in `_planning/_IDP/Box_A{1-20}_IDP.md`.
 
 ---
 
@@ -1091,10 +1093,21 @@ Team-based competitive CTF battles. Teams race each other with separate scores, 
 | Incident Response: 22 missing story nodes | `houses/shield/games/incident-response.html` | Choices led to undefined nodes, crash on any deep path | Added 22 complete story nodes covering full IR workflow | ✅ Fixed |
 | chmod777 text adventure: missing `fix_srv` node | `houses/script/games/text-adventure-chmod777.html` | Choice "fix /srv/ from backup" led to undefined node | Added `fix_srv` node with backup restore + chmod --reference | ✅ Fixed |
 
+**Don't Series Audit (February 18, 2026 — Marathon):**
+16 bugs fixed across 10 Don't series games. Committed in `54d6776c` + `b6feaa9d`.
+- Timer/interval leaks on restart (5 games)
+- Victory setTimeout race conditions via gameId guards (4 games)
+- Input disabled after game over preventing restart (2 games)
+- Negative time display from unclamped panic() (1 game)
+- Impossible achievement conditions (2 games)
+- Missing try/catch on localStorage JSON.parse (2 games)
+- Erroneous achievement unlocks (1 game)
+- Dead-end command routing (1 game)
+
 **Remaining QC Tasks:**
 | Task | Scope | Status |
 |------|-------|--------|
-| Full playthrough test all 10 "Don't" series games | 10 terminal games across all houses | ⬜ |
+| Full playthrough test all 10 "Don't" series games | 10 terminal games across all houses | ✅ Audited + 16 fixes |
 | Full playthrough test all 5 text adventures | whoami, rmrf, wireshark, hydra, chmod777 | ⬜ |
 | Full playthrough test incident-response (new 41-node tree) | Shield house | ⬜ |
 | Full playthrough test sudo-su (new 44-node tree) | Script house | ⬜ |
@@ -1105,7 +1118,7 @@ Team-based competitive CTF battles. Teams race each other with separate scores, 
 ---
 
 ### Sprint QC-2: Search Bar Availability Audit — All Houses
-**Status:** ⬜ Planned
+**Status:** ✅ Complete (February 18, 2026 — Marathon)
 **Priority:** HIGH — Core UX feature must be consistent
 **Related:** F-12 (Universal Search) covers the full upgrade; QC-2 verifies CURRENT state
 
@@ -1794,6 +1807,55 @@ The pod-crossing.html 404 scenario: a student clicks a dead catalog link → HED
 | LearningPaths integration (career → recommended cert track) | ⬜ |
 | Dashboard unlock trigger (badge, XP threshold, or manual opt-in) | ⬜ |
 | Instructor dashboard: class career distribution panel | ⬜ |
+
+---
+
+### Sprint F-39: Universal Completion Stamps + Mastery XP System
+**Status:** 💬 Discussion / Exploration
+**Priority:** TBD (potentially massive scope)
+
+**Concept:** Every module card across the entire platform gets a visual completion stamp when finished. As students work through content, their progress becomes physically visible — stamped cards, special badges for milestones, and a massive XP payout for completionists. Think "gold star on every assignment" meets "prestige system."
+
+**Core Vision:**
+- **Completion stamps on ALL module cards** — presentations, labs, quizzes, applets, tools, games, reviews, everything
+- **Visual stamp treatment** — not just a checkmark; a proper stamp/seal/mark that transforms the card appearance
+- **Progressive revelation** — cards visually evolve as you complete them (subtle glow, border change, stamp overlay)
+- **Special badges** — milestone badges for completing categories, houses, entire cert paths
+- **Massive XP rewards** — completionist XP in the 500K+ range for full platform mastery
+- **"Stamp collection" feel** — turning the entire catalog into a collectible achievement hunt
+
+**Design Questions to Explore:**
+- What does the stamp look like? (wax seal? ink stamp? holographic badge? house-themed?)
+- Per-component stamps vs per-module stamps? (stamp each piece, or stamp the card when all components done?)
+- How does this interact with existing progress tracking? (ProgressManager already tracks completions)
+- House-specific stamp designs? (Shield gets a shield stamp, Key gets a key stamp, etc.)
+- Tiered stamps? (bronze for started, silver for completed, gold for mastered/aced?)
+- Where does the 500K XP land? (per-house completion? all-house completion? per-cert-path?)
+- Does this need a dedicated "Stamp Book" or "Collection" page, or just visual on existing cards?
+- How does HouseRenderer render stamps? (CSS overlay on `.module-card`? New component?)
+
+**Scope Assessment:**
+This touches almost everything:
+- `HouseRenderer.js` — card rendering with stamp overlays
+- `ContentCatalog.js` — all 1000+ modules need stamp-eligible status
+- `ProgressManager.js` — completion state queries per module/component
+- `AchievementRegistry.js` — new badge definitions for milestones
+- `AchievementSystem.js` — XP payout logic for massive rewards
+- All 9 house index pages — stamp visual consistency
+- Dashboard — possible "Stamp Book" or collection overview panel
+- Potential new component: `CompletionStamps.js` or similar
+
+**Milestone Badge Ideas:**
+| Milestone | Badge | XP |
+|-----------|-------|-----|
+| First stamp | "First Mark" | 1,000 |
+| Complete a full category | "Category Cleared" (per category) | 10,000 |
+| Complete an entire house | "House Master: {House}" | 50,000 |
+| Complete a cert path | "Certified: {Path}" | 100,000 |
+| Complete ALL content | "Prime Completionist" | 500,000 |
+| Complete everything + all games | "Absolute Legend" | 1,000,000 |
+
+**Dependencies:** ProgressManager completion tracking must be reliable across all content types first. Current sync gaps (games, CMMC assessments, Dark Arts gates) need resolution before stamps can be accurate.
 
 ---
 
@@ -2994,4 +3056,4 @@ Completing a standalone presentation (e.g., `forge-windows-editions.presentation
 
 ---
 
-*Last Updated: February 18, 2026*
+*Last Updated: February 18, 2026 (reconciled marathon results)*

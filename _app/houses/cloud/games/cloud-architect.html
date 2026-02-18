@@ -992,6 +992,7 @@
             score: 0,
             startTime: Date.now(),
             levelStartTime: Date.now(),
+            nextInstanceId: 0,
             connectingService: null,
             completedLevels: new Set(),
             showingRequiredConnections: false,
@@ -1076,8 +1077,10 @@
                 const placed = document.createElement('div');
                 placed.className = 'placed-service';
                 placed.dataset.serviceId = service.id;
+                const instanceId = this.nextInstanceId++;
+                placed.dataset.instanceId = instanceId;
                 placed.innerHTML = `
-                    <div class="remove-btn" onclick="game.removeServiceById('${service.id}', event)">×</div>
+                    <div class="remove-btn" onclick="game.removeServiceByInstanceId(${instanceId}, event)">×</div>
                     <div style="font-size: 24px;">${service.icon}</div>
                     <div style="font-size: 11px; margin-top: 5px; font-weight: 600;">${service.name}</div>
                 `;
@@ -1100,7 +1103,7 @@
                 this.makeDraggable(placed);
 
                 canvas.appendChild(placed);
-                this.placedServices.push({ element: placed, service });
+                this.placedServices.push({ element: placed, service, instanceId });
                 this.updateCost();
 
                 if (this.showingRequiredConnections) {
@@ -1253,17 +1256,35 @@
                 this.redrawConnections();
             },
 
+            removeServiceByInstanceId(instanceId, event) {
+                if (event) event.stopPropagation();
+
+                const index = this.placedServices.findIndex(ps => ps.instanceId === instanceId);
+                if (index !== -1) {
+                    const ps = this.placedServices[index];
+                    // Remove connections that reference this specific element
+                    this.connections = this.connections.filter(conn =>
+                        conn.from.element !== ps.element && conn.to.element !== ps.element
+                    );
+
+                    ps.element.remove();
+                    this.placedServices.splice(index, 1);
+                    this.redrawConnections();
+                    this.updateCost();
+                }
+            },
+
             removeServiceById(serviceId, event) {
                 if (event) event.stopPropagation();
 
                 const index = this.placedServices.findIndex(ps => ps.service.id === serviceId);
                 if (index !== -1) {
-                    // Remove connections
+                    const ps = this.placedServices[index];
                     this.connections = this.connections.filter(conn =>
-                        conn.from.service.id !== serviceId && conn.to.service.id !== serviceId
+                        conn.from.element !== ps.element && conn.to.element !== ps.element
                     );
 
-                    this.placedServices[index].element.remove();
+                    ps.element.remove();
                     this.placedServices.splice(index, 1);
                     this.redrawConnections();
                     this.updateCost();
@@ -1274,6 +1295,7 @@
                 this.placedServices.forEach(ps => ps.element.remove());
                 this.placedServices = [];
                 this.connections = [];
+                this.nextInstanceId = 0;
                 this.connectingService = null;
                 document.getElementById('connectionSvg').innerHTML = '';
                 this.updateCost();

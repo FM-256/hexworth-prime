@@ -1,7 +1,7 @@
 ══════════════════════════════════════════════════════════════════════
                          EDUSCAN REPORT
                     Hexworth Prime Content Map
-                    Scanned: 2026-02-17 1:01:56 PM
+                    Scanned: 2026-02-18 10:12:44 AM
 ══════════════════════════════════════════════════════════════════════
 
 
@@ -10,29 +10,29 @@
 
 | Metric | Value |
 |--------|-------|
-| Files Scanned | 1450 |
-| Directories | 538 |
-| Content Files | 1450 |
-| Scan Duration | 170ms |
+| Files Scanned | 1486 |
+| Directories | 564 |
+| Content Files | 1486 |
+| Scan Duration | 296ms |
 
 ### Content by Type
 
 | Type | Count |
 |------|-------|
-| html | 604 |
+| html | 638 |
 | presentation | 403 |
 | lab | 237 |
-| applet | 191 |
+| applet | 193 |
 | quiz | 15 |
 
 ### ContentCatalog Validation
 
 | Metric | Value |
 |--------|-------|
-| Total Modules | 1032 |
-| Available | 1027 |
+| Total Modules | 1033 |
+| Available | 1028 |
 | Missing Hrefs (CAT-001) | 0 |
-| Undeclared Files (CAT-002) | 342 |
+| Undeclared Files (CAT-002) | 370 |
 | Empty Hrefs (CAT-003) | 0 |
 
 
@@ -42,17 +42,17 @@
 |----------|-------|
 | Critical | 0 |
 | Suspect | 125 |
-| Warning | 981 |
-| Info | 406 |
-| **Total** | **2438** |
+| Warning | 983 |
+| Info | 408 |
+| **Total** | **2467** |
 
 ### Sync Status
 
 | Status | Count |
 |--------|-------|
-| Ready | 632 |
+| Ready | 634 |
 | Not Ready | 214 |
-| Unknown | 604 |
+| Unknown | 638 |
 
 
 ## FILE HIERARCHY
@@ -72,7 +72,27 @@
 │   │   │   └── 📍 index.html
 │   │   ├── 📁 a10-glass-tunnel
 │   │   │   └── 📍 index.html
+│   │   ├── 📁 a11-dockerized-vault
+│   │   │   └── 📍 index.html
+│   │   ├── 📁 a12-mobile-scapegoat
+│   │   │   └── 📍 index.html
+│   │   ├── 📁 a13-rogue-sensor
+│   │   │   └── 📍 index.html
+│   │   ├── 📁 a14-ghost-machine
+│   │   │   └── 📍 index.html
+│   │   ├── 📁 a15-spectral-interceptor
+│   │   │   └── 📍 index.html
+│   │   ├── 📁 a16-corrupted-core
+│   │   │   └── 📍 index.html
+│   │   ├── 📁 a17-whisper-campaign
+│   │   │   └── 📍 index.html
+│   │   ├── 📁 a18-ghost-ram
+│   │   │   └── 📍 index.html
+│   │   ├── 📁 a19-foundations-fault
+│   │   │   └── 📍 index.html
 │   │   ├── 📁 a2-whispering-wall
+│   │   │   └── 📍 index.html
+│   │   ├── 📁 a20-project-chimera
 │   │   │   └── 📍 index.html
 │   │   ├── 📁 a3-phantom-shell
 │   │   │   └── 📍 index.html
@@ -209,6 +229,16 @@
 │   ├── 📁 aplus-core1
 │   │   └── 📍 index.html
 │   ├── 📁 aplus-core2
+│   │   └── 📍 index.html
+│   ├── 📁 aws-ccp
+│   │   └── 📍 index.html
+│   ├── 📁 aws-developer
+│   │   └── 📍 index.html
+│   ├── 📁 azure-fundamentals
+│   │   └── 📍 index.html
+│   ├── 📁 casp-plus
+│   │   └── 📍 index.html
+│   ├── 🏠 ccna [house:ccna]
 │   │   └── 📍 index.html
 │   ├── 🏠 cloud [house:cloud]
 │   │   ├── 📁 applets [applets]
@@ -481,6 +511,8 @@
 │   ├── 📁 comptia-network
 │   │   └── 📍 index.html
 │   ├── 📁 cryptography-track
+│   │   └── 📍 index.html
+│   ├── 📁 cysa-plus
 │   │   └── 📍 index.html
 │   ├── 📁 dark-arts
 │   │   ├── 📍 index.html
@@ -1416,6 +1448,8 @@
 │   │   │   ├── 📄 script-process-management.tool.html
 │   │   │   └── 📄 script-windows-registry.tool.html
 │   │   └── 📁 tutorials
+│   ├── 📁 security-operations
+│   │   └── 📍 index.html
 │   ├── 📁 security-plus
 │   │   └── 📍 index.html
 │   ├── 📁 security-plus-crypto
@@ -1489,7 +1523,8 @@
 │   │   │   │   │   └── 📄 shield-block.applet.html
 │   │   │   │   ├── 📁 blockchain [applets]
 │   │   │   │   │   ├── 📁 blockchain.hyperesources [applets]
-│   │   │   │   │   └── 📄 shield-blockchain.applet.html
+│   │   │   │   │   ├── 📄 shield-blockchain.applet.html
+│   │   │   │   │   └── 📄 shield-crypto-blockchain.applet.html
 │   │   │   │   ├── 📁 caesar [applets]
 │   │   │   │   │   └── 📄 shield-crypto-caesar.applet.html
 │   │   │   │   ├── 📁 crypto_protocols [applets]
@@ -1537,6 +1572,8 @@
 │   │   │   │   │   ├── 📁 pki.hyperesources [applets]
 │   │   │   │   │   ├── 📄 shield-crypto-pki.applet.html
 │   │   │   │   │   └── 📄 shield-pki.applet.html
+│   │   │   │   ├── 📁 prime_factorization [applets]
+│   │   │   │   │   └── 📄 shield-crypto-prime-factorization.applet.html
 │   │   │   │   ├── 📁 rsa [applets]
 │   │   │   │   │   ├── 📁 RSA.hyperesources [applets]
 │   │   │   │   │   ├── 📄 shield-crypto-rsa.applet.html
@@ -1560,8 +1597,10 @@
 │   │   │   │   │   └── 📄 shield-crypto-steganography.applet.html
 │   │   │   │   ├── 📁 stream_ciphers [applets]
 │   │   │   │   │   └── 📄 shield-crypto-stream-ciphers.applet.html
-│   │   │   │   └── 📁 symmetric_vs_asymmetric [applets]
-│   │   │   │       └── 📄 shield-crypto-symmetric-vs-asymmetric.applet.html
+│   │   │   │   ├── 📁 symmetric_vs_asymmetric [applets]
+│   │   │   │   │   └── 📄 shield-crypto-symmetric-vs-asymmetric.applet.html
+│   │   │   │   └── 📁 xor_encryption [applets]
+│   │   │   │       └── 📄 shield-crypto-xor-encryption.applet.html
 │   │   │   ├── 📁 fundamentals [applets]
 │   │   │   │   ├── 📁 career_exploration [applets]
 │   │   │   │   │   └── 📄 shield-career-explorer.applet.html
@@ -1599,21 +1638,28 @@
 │   │   │   ├── 📁 games [applets]
 │   │   │   │   ├── 📁 cookie_caper [applets]
 │   │   │   │   │   ├── 📁 cookies.hyperesources [applets]
+│   │   │   │   │   ├── 📄 shield-cookies-native.applet.html
 │   │   │   │   │   └── 📄 shield-cookies.applet.html
+│   │   │   │   ├── 📁 crypto_match [applets]
+│   │   │   │   │   └── 📄 shield-cryptomatch-native.applet.html
 │   │   │   │   ├── 📁 cyber_hat_match [applets]
 │   │   │   │   │   ├── 📁 hatmatch.hyperesources [applets]
+│   │   │   │   │   ├── 📄 shield-hatmatch-native.applet.html
 │   │   │   │   │   └── 📄 shield-hatmatch.applet.html
 │   │   │   │   ├── 📁 cyber_scramble [applets]
 │   │   │   │   │   ├── 📁 cyberscramble.hyperesources [applets]
+│   │   │   │   │   ├── 📄 shield-cyberscramble-native.applet.html
 │   │   │   │   │   └── 📄 shield-cyberscramble.applet.html
 │   │   │   │   ├── 📁 ethical_hacking_case [applets]
 │   │   │   │   │   ├── 📁 EH_exam_1A.hyperesources [applets]
 │   │   │   │   │   └── 📍 index.html
 │   │   │   │   ├── 📁 hacker_hangman [applets]
 │   │   │   │   │   ├── 📁 hangman.hyperesources [applets]
+│   │   │   │   │   ├── 📄 shield-hangman-native.applet.html
 │   │   │   │   │   └── 📄 shield-hangman.applet.html
 │   │   │   │   └── 📁 whats_my_crime [applets]
 │   │   │   │       ├── 📁 crime.hyperesources [applets]
+│   │   │   │       ├── 📄 shield-crime-native.applet.html
 │   │   │   │       └── 📄 shield-crime.applet.html
 │   │   │   ├── 📁 governance [applets]
 │   │   │   │   └── 📄 shield-cism-management-dashboard.applet.html
@@ -1685,6 +1731,8 @@
 │   │   │       ├── 📁 code_injection [applets]
 │   │   │       │   ├── 📁 codeinjection.hyperesources [applets]
 │   │   │       │   └── 📄 shield-codeinjection.applet.html
+│   │   │       ├── 📁 code_injection_attack [applets]
+│   │   │       │   └── 📄 shield-threat-code-injection.applet.html
 │   │   │       ├── 📁 cross_site_scripting [applets]
 │   │   │       │   ├── 📁 crosssitescripting.hyperesources [applets]
 │   │   │       │   └── 📄 shield-crosssitescripting.applet.html
@@ -1696,17 +1744,21 @@
 │   │   │       │   └── 📄 shield-threat-dns-attacks.applet.html
 │   │   │       ├── 📁 google_hacking [applets]
 │   │   │       │   ├── 📁 googlehacking.hyperesources [applets]
-│   │   │       │   └── 📄 shield-googlehacking.applet.html
+│   │   │       │   ├── 📄 shield-googlehacking.applet.html
+│   │   │       │   └── 📄 shield-threat-google-hacking.applet.html
 │   │   │       ├── 📁 heartbleed [applets]
 │   │   │       │   ├── 📁 heartbleed.hyperesources [applets]
 │   │   │       │   └── 📄 shield-heartbleed.applet.html
+│   │   │       ├── 📁 heartbleed_attack [applets]
+│   │   │       │   └── 📄 shield-threat-heartbleed.applet.html
 │   │   │       ├── 📁 insider_threats [applets]
 │   │   │       │   └── 📄 shield-threat-insider-threats.applet.html
 │   │   │       ├── 📁 iot_threats [applets]
 │   │   │       │   └── 📄 shield-threat-iot-threats.applet.html
 │   │   │       ├── 📁 meltdown_spectre [applets]
 │   │   │       │   ├── 📁 meltdown_spectre.hyperesources [applets]
-│   │   │       │   └── 📄 shield-meltdown-spectre.applet.html
+│   │   │       │   ├── 📄 shield-meltdown-spectre.applet.html
+│   │   │       │   └── 📄 shield-threat-meltdown-spectre.applet.html
 │   │   │       ├── 📁 mitm [applets]
 │   │   │       │   └── 📄 shield-threat-mitm.applet.html
 │   │   │       ├── 📁 os_command_injection [applets]
@@ -1720,6 +1772,8 @@
 │   │   │       ├── 📁 pen_testing [applets]
 │   │   │       │   ├── 📁 pen_testing.hyperesources [applets]
 │   │   │       │   └── 📄 shield-pen-testing.applet.html
+│   │   │       ├── 📁 pen_testing_methodology [applets]
+│   │   │       │   └── 📄 shield-threat-pen-testing.applet.html
 │   │   │       ├── 📁 phishing [applets]
 │   │   │       │   └── 📄 shield-threat-phishing.applet.html
 │   │   │       ├── 📁 phishing_mystery [applets]
@@ -1742,21 +1796,29 @@
 │   │   │       │   └── 📄 shield-threat-social-engineering.applet.html
 │   │   │       ├── 📁 social_engineering_tactics [applets]
 │   │   │       │   ├── 📁 SocialEngineeringTactics.hyperesources [applets]
-│   │   │       │   └── 📄 shield-social-engineering-tactics.applet.html
+│   │   │       │   ├── 📄 shield-social-engineering-tactics.applet.html
+│   │   │       │   └── 📄 shield-threat-social-engineering-tactics.applet.html
 │   │   │       ├── 📁 spoofing [applets]
 │   │   │       │   ├── 📄 shield-spoofing1.applet.html
 │   │   │       │   └── 📁 spoofing1.hyperesources [applets]
+│   │   │       ├── 📁 spoofing_attacks [applets]
+│   │   │       │   └── 📄 shield-threat-spoofing.applet.html
 │   │   │       ├── 📁 sql_injection [applets]
 │   │   │       │   ├── 📁 SQLinjection.hyperesources [applets]
 │   │   │       │   └── 📄 shield-sq-linjection.applet.html
+│   │   │       ├── 📁 sql_injection_attack [applets]
+│   │   │       │   └── 📄 shield-threat-sql-injection.applet.html
 │   │   │       ├── 📁 stuxnet [applets]
 │   │   │       │   ├── 📄 shield-stuxnet.applet.html
+│   │   │       │   ├── 📄 shield-threat-stuxnet.applet.html
 │   │   │       │   └── 📁 stuxnet.hyperesources [applets]
 │   │   │       ├── 📁 supply_chain [applets]
 │   │   │       │   └── 📄 shield-threat-supply-chain.applet.html
 │   │   │       ├── 📁 threat_actors [applets]
 │   │   │       │   ├── 📁 ThreatActors.hyperesources [applets]
 │   │   │       │   └── 📄 shield-threat-actors.applet.html
+│   │   │       ├── 📁 xss [applets]
+│   │   │       │   └── 📄 shield-threat-xss.applet.html
 │   │   │       └── 📁 zero_day [applets]
 │   │   │           └── 📄 shield-threat-zero-day.applet.html
 │   │   ├── 📁 challenges
@@ -2261,6 +2323,7 @@
 | eye-snort-rules.lab | lab | ✓ | 0 |
 | eye-threat-actor-profiling.lab | lab | ✓ | 0 |
 | alert-triage | applet | ✓ | 1 |
+| threat-modeler | applet | ✓ | 1 |
 | eye-siem.lab | applet | ✓ | 1 |
 | index | presentation | ✓ | 0 |
 | eye-log-basics.presentation | applet | ✓ | 1 |
@@ -2738,6 +2801,7 @@
 | shield-hatmatch.applet | presentation | ✓ | 0 |
 | shield-cyberscramble.applet | presentation | ✓ | 0 |
 | index | presentation | ✓ | 0 |
+| shield-hangman-native.applet | applet | ✓ | 1 |
 | shield-hangman.applet | presentation | ✓ | 0 |
 | shield-crime.applet | presentation | ✓ | 0 |
 | shield-browser-security-hardening.applet | applet | ✓ | 1 |
@@ -3459,7 +3523,7 @@
   File: `test-rare-only.html`
   Fix: Remove console.log or replace with proper logging
 
-### WARNING (981)
+### WARNING (983)
 
 **[REG-001]** Content file is not registered in content-registry.js
   File: `admin/audit-tool.html`
@@ -4803,6 +4867,10 @@
 
 **[REG-001]** Content file is not registered in content-registry.js
   File: `houses/eye/games/alert-triage.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/eye/games/threat-modeler.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
@@ -6770,6 +6838,10 @@
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/applets/games/hacker_hangman/shield-hangman-native.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
   File: `houses/shield/applets/games/hacker_hangman/shield-hangman.applet.html`
   Fix: Add entry to content-registry.js
 
@@ -7385,7 +7457,7 @@
   File: `workshop/a2-shadow-encoder/current.html`
   Fix: Add entry to content-registry.js
 
-### INFO (406)
+### INFO (408)
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `admin/audit-tool.html`
@@ -7913,6 +7985,10 @@
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `houses/eye/games/alert-triage.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/eye/games/threat-modeler.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
@@ -8700,6 +8776,10 @@
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/shield/applets/games/hacker_hangman/shield-hangman-native.applet.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `houses/shield/applets/network/shield-browser-security-hardening.applet.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
@@ -9007,7 +9087,7 @@
 ## REGISTRY GAPS
 ══════════════════════════════════════════════════════════════════════
 
-### Unregistered Content (797)
+### Unregistered Content (799)
 
 | Path | Type | House |
 |------|------|-------|
@@ -9263,6 +9343,7 @@
 | houses/eye/applets/cyberops/week7/labs/eye-snort-rules.lab.html | lab | eye |
 | houses/eye/applets/cyberops/week7/labs/eye-threat-actor-profiling.lab.html | lab | eye |
 | houses/eye/games/alert-triage.html | applet | eye |
+| houses/eye/games/threat-modeler.html | applet | eye |
 | houses/eye/labs/eye-siem.lab.html | applet | eye |
 | houses/eye/presentations/eye-log-basics.presentation.html | applet | eye |
 | houses/eye/presentations/eye-log-correlation.presentation.html | presentation | eye |
@@ -9684,6 +9765,7 @@
 | houses/shield/applets/games/cookie_caper/shield-cookies.applet.html | presentation | shield |
 | houses/shield/applets/games/cyber_hat_match/shield-hatmatch.applet.html | presentation | shield |
 | houses/shield/applets/games/cyber_scramble/shield-cyberscramble.applet.html | presentation | shield |
+| houses/shield/applets/games/hacker_hangman/shield-hangman-native.applet.html | applet | shield |
 | houses/shield/applets/games/hacker_hangman/shield-hangman.applet.html | presentation | shield |
 | houses/shield/applets/games/whats_my_crime/shield-crime.applet.html | presentation | shield |
 | houses/shield/applets/network/shield-browser-security-hardening.applet.html | applet | shield |

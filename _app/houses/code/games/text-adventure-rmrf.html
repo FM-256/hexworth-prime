@@ -362,6 +362,12 @@ Signals control process behavior: SIGTERM (graceful stop), SIGKILL (force stop),
         check_app: {
             text: function() {
                 const severe = damagePercent >= 40;
+                // Grant items based on current damage state (gives array evaluated at parse time
+                // when damagePercent=0, so we grant here inside the render function instead)
+                const appItem = severe ? 'app-deleted' : 'app-intact';
+                const dbItem = damagePercent >= 30 ? 'db-uncertain' : 'db-intact';
+                if (!state.inventory.includes(appItem)) state.inventory.push(appItem);
+                if (!state.inventory.includes(dbItem)) state.inventory.push(dbItem);
                 return `The application is a Node.js app in /opt/app/ with a PostgreSQL database in /var/lib/postgresql/.
 
 <span class="cmd">$ echo /opt/app/*</span>
@@ -386,7 +392,7 @@ ${state.inventory.includes('services-saved') ? '<span class="success">Because yo
 PostgreSQL uses WAL to ensure data integrity. Every change is written to the WAL BEFORE the data files. During recovery, PostgreSQL replays uncommitted WAL entries to reach a consistent state. As long as the WAL files and data directory are intact, the database can recover even from a crash or power loss. This is why /var/lib/postgresql is the most critical directory to protect.
 </div>`;
             },
-            gives: [damagePercent >= 40 ? 'app-deleted' : 'app-intact', damagePercent >= 30 ? 'db-uncertain' : 'db-intact'],
+            gives: [],
             choices: [
                 { text: 'Check for backups before attempting recovery', next: 'backup_check', key: 'A' },
                 { text: 'Try to recover the system with what remains', next: 'recovery_plan', key: 'B' },
@@ -858,8 +864,6 @@ Best of all: automate everything so humans never type rm in production.
             text: function() {
                 const minLoss = state.inventory.includes('minimal-data-loss');
                 const sixHrLoss = state.inventory.includes('data-loss-6hr');
-                const pitr = state.inventory.includes('pitr-recovery');
-                const fast = state.inventory.includes('process-stopped');
 
                 if (minLoss) return endingSaved();
                 if (sixHrLoss) return endingRebuilt();
@@ -1002,7 +1006,10 @@ Your next job has the best backup strategy anyone has ever seen. Because you bui
                 isTyping = false; cur.style.display = 'inline-block'; renderChoices(scene);
                 if (scene.audio === 'victory') SFX.playVictory();
                 if (scene.audio === 'danger') SFX.playDanger();
-                if (scene.ending) try { if (window.parent && window.parent.AchievementRegistry) window.parent.AchievementRegistry.unlock('ta-rmrf-' + (state.flags.ending || 'complete')); } catch(e) {}
+                if (scene.ending) {
+                    try { if (window.parent && window.parent.AchievementRegistry) window.parent.AchievementRegistry.unlock('ta-rmrf-' + (state.flags.ending || 'complete')); } catch(e) {}
+                    try { if (window.parent && window.parent.GameTracker) window.parent.GameTracker.record('ta-rmrf', state.flags.ending || 'complete'); } catch(e) {}
+                }
             }, 500);
         }, 100);
         window.scrollTo(0, 0);
