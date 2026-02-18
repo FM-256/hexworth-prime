@@ -29,10 +29,11 @@ class ProgressDisplay {
                             <span class="level-label">LEVEL</span>
                         </div>
                         <div class="xp-info">
+                            <div style="font-size: 0.7rem; color: ${profile.tier ? profile.tier.color : '#a855f7'}; font-weight: 600; margin-bottom: 2px;">${profile.tier ? profile.tier.name : ''} &middot; Lv ${profile.level}/${profile.maxLevel || 30}</div>
                             <div class="xp-bar">
                                 <div class="xp-fill" style="width: ${profile.levelProgress}%"></div>
                             </div>
-                            <span class="xp-text">${profile.xp.toLocaleString()} XP ${profile.xpToNextLevel ? `(${profile.xpToNextLevel} to next level)` : '(MAX)'}</span>
+                            <span class="xp-text">${profile.xp.toLocaleString()} / ${(profile.maxXP || 0).toLocaleString()} XP ${profile.xpToNextLevel ? `(${profile.xpToNextLevel.toLocaleString()} to next)` : '(MAX)'}</span>
                         </div>
                     </div>
                     <div class="quick-stats">

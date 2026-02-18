@@ -3409,17 +3409,32 @@
             const houseName = house ? house.name : 'The Factionless';
             const houseIcon = house ? house.icon : '⚡';
 
-            // Calculate stats
-            let modulesComplete = 0;
-            let quizzesPassed = 0;
-            Object.values(progress).forEach(houseProgress => {
-                if (typeof houseProgress === 'object' && houseProgress !== null) {
-                    Object.values(houseProgress).forEach(module => {
-                        if (module.completed) modulesComplete++;
-                        if (module.quizPassed) quizzesPassed++;
-                    });
-                }
-            });
+            // Use ProgressManager for accurate stats
+            const profile = (typeof ProgressManager !== 'undefined') ? ProgressManager.getProfile() : null;
+            const pmLevel = profile ? profile.level : level;
+            const pmXP = profile ? profile.xp : xp;
+            const tier = profile ? profile.tier : { name: 'Initiate', color: '#6b7280' };
+            const maxLvl = profile ? profile.maxLevel : 30;
+            const maxXP = profile ? profile.maxXP : 95700;
+            const xpPercent = profile ? profile.xpPercent : 0;
+            const completion = profile ? profile.completion : { completed: 0, total: 0, percent: 0 };
+            const milestones = profile ? profile.milestones : [];
+            const levelProg = profile ? profile.levelProgress : 0;
+            const xpToNext = profile ? profile.xpToNextLevel : null;
+
+            // Calculate stats from localStorage as fallback
+            let modulesComplete = completion.completed;
+            let quizzesPassed = profile ? profile.totalQuizzesPassed : 0;
+            if (modulesComplete === 0) {
+                Object.values(progress).forEach(houseProgress => {
+                    if (typeof houseProgress === 'object' && houseProgress !== null) {
+                        Object.values(houseProgress).forEach(module => {
+                            if (module.completed) modulesComplete++;
+                            if (module.quizPassed) quizzesPassed++;
+                        });
+                    }
+                });
+            }
 
             // Get role badge class
             const roleClass = `profile-role-${type}`;
@@ -3438,14 +3453,54 @@
                     </div>
                 </div>
 
+                <!-- Level & XP Section -->
+                <div class="profile-section" style="text-align: center;">
+                    <div style="display: flex; align-items: center; justify-content: center; gap: 15px; margin-bottom: 12px;">
+                        <div style="width: 70px; height: 70px; border-radius: 50%; background: linear-gradient(135deg, ${tier.color}33, ${tier.color}11); border: 2px solid ${tier.color}; display: flex; flex-direction: column; align-items: center; justify-content: center;">
+                            <span style="font-size: 1.4rem; font-weight: bold; color: ${tier.color};">${pmLevel}</span>
+                            <span style="font-size: 0.55rem; color: ${tier.color}99; text-transform: uppercase; letter-spacing: 0.05em;">Level</span>
+                        </div>
+                        <div style="flex: 1; text-align: left;">
+                            <div style="font-size: 0.85rem; color: ${tier.color}; font-weight: 600; margin-bottom: 4px;">${tier.name}</div>
+                            <div style="height: 10px; background: rgba(255,255,255,0.06); border-radius: 5px; overflow: hidden; position: relative;">
+                                <div style="height: 100%; width: ${levelProg}%; background: linear-gradient(90deg, ${tier.color}, ${tier.color}cc); border-radius: 5px; transition: width 0.5s;"></div>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; margin-top: 4px; font-size: 0.7rem; color: #666;">
+                                <span>${pmXP.toLocaleString()} XP</span>
+                                <span>${xpToNext !== null ? xpToNext.toLocaleString() + ' to Lv ' + (pmLevel + 1) : 'MAX LEVEL'}</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div style="font-size: 0.65rem; color: #555; margin-top: 2px;">Level ${pmLevel} of ${maxLvl} &middot; ${pmXP.toLocaleString()} / ${maxXP.toLocaleString()} possible XP (${xpPercent}%)</div>
+                </div>
+
+                <!-- Completion Bar -->
+                <div class="profile-section">
+                    <div class="profile-section-title">Platform Completion</div>
+                    <div style="margin-top: 8px;">
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 6px; font-size: 0.8rem;">
+                            <span style="color: #aaa;">${completion.completed} of ${completion.total} modules</span>
+                            <span style="color: #22c55e; font-weight: 600;">${completion.percent}%</span>
+                        </div>
+                        <div style="height: 14px; background: rgba(255,255,255,0.06); border-radius: 7px; overflow: hidden; position: relative;">
+                            <div style="height: 100%; width: ${completion.percent}%; background: linear-gradient(90deg, #22c55e, #4ade80); border-radius: 7px; transition: width 0.5s;"></div>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; margin-top: 6px; font-size: 0.65rem; color: #555;">
+                            <span>Quizzes: ${quizzesPassed}</span>
+                            <span>Labs: ${profile ? profile.totalLabsCompleted : 0}</span>
+                            <span>Time: ${calculateLearningTime()}</span>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Stats Grid -->
                 <div class="profile-stats-grid">
                     <div class="profile-stat">
-                        <div class="profile-stat-value">${level}</div>
+                        <div class="profile-stat-value">${pmLevel}</div>
                         <div class="profile-stat-label">Level</div>
                     </div>
                     <div class="profile-stat">
-                        <div class="profile-stat-value">${xp.toLocaleString()}</div>
+                        <div class="profile-stat-value">${pmXP.toLocaleString()}</div>
                         <div class="profile-stat-label">XP</div>
                     </div>
                     <div class="profile-stat">
@@ -3467,23 +3522,24 @@
                     <button class="profile-view-all-btn" onclick="openAchievements()">View All Achievements</button>
                 </div>
 
-                <!-- Journey Stats -->
+                <!-- Journey Milestones -->
                 <div class="profile-section">
                     <div class="profile-section-title">Your Journey</div>
-                    <div class="profile-journey-grid">
-                        <div class="profile-journey-stat">
-                            <div class="profile-journey-value">${modulesComplete}</div>
-                            <div class="profile-journey-label">Modules</div>
+                    ${milestones.length > 0 ? `
+                        <div style="margin-top: 10px; border-left: 2px solid rgba(255,255,255,0.08); padding-left: 16px;">
+                            ${milestones.map(m => `
+                                <div style="display: flex; align-items: center; gap: 10px; padding: 8px 0; position: relative;">
+                                    <div style="position: absolute; left: -23px; width: 12px; height: 12px; border-radius: 50%; background: ${m.type === 'start' ? '#22c55e' : m.type === 'level' ? '#f59e0b' : m.type === 'xp' ? '#06b6d4' : '#a855f7'}; border: 2px solid #0d0d12;"></div>
+                                    <span style="font-size: 1.1rem;">${m.icon}</span>
+                                    <span style="font-size: 0.8rem; color: #ccc;">${m.label}</span>
+                                </div>
+                            `).join('')}
                         </div>
-                        <div class="profile-journey-stat">
-                            <div class="profile-journey-value">${quizzesPassed}</div>
-                            <div class="profile-journey-label">Quizzes</div>
+                    ` : `
+                        <div style="text-align: center; padding: 20px; color: #555; font-size: 0.85rem;">
+                            Complete modules to build your journey timeline!
                         </div>
-                        <div class="profile-journey-stat">
-                            <div class="profile-journey-value">${calculateLearningTime()}</div>
-                            <div class="profile-journey-label">Learning Time</div>
-                        </div>
-                    </div>
+                    `}
                 </div>
             `;
         }
