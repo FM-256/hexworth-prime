@@ -1,7 +1,7 @@
 /**
  * ThreatAppletData.js — Complete Threat Intelligence Data for Shield House
  *
- * 26 threat topics with overview, attack flow, defense, and quiz data
+ * 28 threat topics with overview, attack flow, defense, and quiz data
  * Used by ThreatAppletRenderer.js
  */
 const ThreatAppletData = {
@@ -2823,6 +2823,229 @@ const ThreatAppletData = {
             { question: 'What is a watering hole attack?', options: ['Poisoning a company\'s water supply', 'Compromising a website frequently visited by the target group to deliver malware to visitors via drive-by exploits — named after predators who wait at watering holes', 'Flooding a server with traffic', 'Stealing water utility credentials'], correct: 1, explanation: 'Like a predator waiting at a watering hole, attackers compromise websites their targets regularly visit (industry forums, news sites, vendor portals). When employees visit the site, a drive-by exploit silently compromises their systems — bypassing email security entirely.' },
             { question: 'Why are deepfake voice and video attacks particularly dangerous for social engineering?', options: ['They are cheaper than phishing', 'They defeat the primary defense against social engineering — voice and visual verification of identity. When you can\'t trust a phone call or video call to be real, callback verification becomes unreliable.', 'They are faster than email', 'They only affect large companies'], correct: 1, explanation: 'Traditional anti-social-engineering advice says "call back on a known number to verify." But deepfake technology can now replicate a person\'s voice and appearance convincingly enough to fool colleagues. The $25M Arup scam used a deepfake VIDEO CALL with multiple fake participants to authorize a wire transfer.' },
             { question: 'What makes a quid pro quo attack effective?', options: ['It offers something the victim wants (tech support, a favor, a free service) in exchange for information or access — exploiting the reciprocity principle and the victim\'s desire to be helped', 'It uses brute force', 'It requires physical access', 'It only works against IT staff'], correct: 0, explanation: 'Quid pro quo exploits Cialdini\'s reciprocity principle: when someone offers help, people feel obligated to reciprocate. "I\'m from IT support, I can fix your slow computer if you give me your login credentials" is devastatingly effective because the victim genuinely wants the help being offered.' }
+        ]
+    },
+
+    // =================================================================
+    // 27. ATTACKS & MALWARE OVERVIEW
+    // =================================================================
+    ATTACKS_MALWARE: {
+        code: 'ATTACKS_MALWARE',
+        title: 'Attacks & Malware Overview',
+        icon: '\u{1F6A8}',
+        severity: 'critical',
+        color: '#ef4444',
+        description: 'A comprehensive taxonomy of cyber attacks and malware types — understanding the threat landscape from delivery to impact.',
+        overview: {
+            what: 'The cyber threat landscape encompasses three distinct but overlapping categories: attacks (the methods adversaries use to compromise systems), malware (the malicious software deployed during or after an attack), and exploits (the specific vulnerabilities leveraged to gain access). Understanding how these categories interrelate is fundamental to cybersecurity defense. Attacks follow predictable lifecycles — from initial reconnaissance through exploitation to achieving objectives — and defenders who understand these stages can disrupt campaigns at multiple points. Malware has evolved from simple viruses that spread via floppy disks in the 1980s to today\'s sophisticated, polymorphic, fileless threats that operate entirely in memory and evade traditional signature-based detection.',
+            keyPoints: [
+                'The MITRE ATT&CK framework catalogs 14 tactics and 200+ techniques used by real-world adversaries — the industry standard for mapping threats',
+                'Malware categories: viruses (self-replicating, need host), worms (self-propagating, no host needed), trojans (disguised as legitimate), ransomware (encryption extortion), spyware (surveillance), rootkits (deep persistence), fileless (memory-only)',
+                'Delivery methods: phishing email (90%+ of attacks), drive-by downloads, watering holes, supply chain compromise, USB drops, malvertising, exploitation of public-facing applications',
+                'Attacker motivation categories: financial gain (cybercrime), espionage (nation-states), disruption/destruction (hacktivism, warfare), ego/thrill (script kiddies), revenge (insiders)',
+                'The Cyber Kill Chain (Lockheed Martin) maps 7 sequential phases — breaking any one link disrupts the entire attack',
+                'Modern malware increasingly uses living-off-the-land (LOLBins) techniques, abusing legitimate system tools like PowerShell, WMI, and certutil to avoid detection'
+            ],
+            examples: [
+                { name: 'WannaCry Ransomware (2017)', detail: 'Exploited EternalBlue (MS17-010 SMB vulnerability leaked from NSA by Shadow Brokers) to self-propagate as a worm across networks. Infected 230,000+ computers in 150 countries in 24 hours. Estimated $4-8 billion in damages. NHS hospitals forced to divert ambulances. A $10 domain registration by researcher Marcus Hutchins accidentally activated the kill switch.' },
+                { name: 'Stuxnet (2010)', detail: 'The first known cyberweapon — a nation-state worm (attributed to US/Israel Operation Olympic Games) targeting Iranian uranium enrichment centrifuges. Used 4 zero-day exploits, spread via USB, and contained PLC-specific payloads that altered centrifuge spin speeds while reporting normal readings to operators. Destroyed ~1,000 centrifuges and set Iran\'s nuclear program back 2+ years.' },
+                { name: 'SolarWinds SUNBURST (2020)', detail: 'APT29 compromised SolarWinds\' Orion build pipeline, injecting a backdoor (SUNBURST) into legitimate software updates. 18,000+ organizations downloaded the trojanized update, including U.S. Treasury, Commerce, DHS, and Fortune 500 companies. Attackers had access for 9+ months before detection by FireEye.' }
+            ],
+            stats: [
+                { label: 'New malware per day', value: '450,000+', note: 'AV-TEST Institute 2024 — 1B+ total known malware samples' },
+                { label: 'Avg. ransomware payment', value: '$1.54M', note: 'Sophos State of Ransomware 2024 (2x increase from 2023)' },
+                { label: 'Attacks via phishing', value: '91%', note: 'of successful cyber attacks start with a phishing email (PhishMe/Cofense)' },
+                { label: 'Avg. breach detection', value: '204 days', note: 'IBM Cost of a Data Breach 2024 — down from 277 days in 2022' }
+            ]
+        },
+        attackFlow: {
+            title: 'Cyber Kill Chain — Attack Lifecycle',
+            steps: [
+                { phase: 'Reconnaissance', description: 'Attacker gathers intelligence on the target: OSINT from social media, DNS records, job postings revealing tech stack, Shodan/Censys for exposed services, LinkedIn for employee roles and org structure. Both passive (no direct contact) and active (port scanning, vulnerability scanning) reconnaissance.', icon: '\u{1F50D}' },
+                { phase: 'Weaponization', description: 'Attacker couples a remote access trojan (RAT) with an exploit into a deliverable payload. This might be a weaponized Office document with a macro dropper, a trojanized PDF exploiting a reader vulnerability, or a custom implant compiled for the target\'s specific OS and architecture. The payload is tested against common AV engines.', icon: '\u{2692}' },
+                { phase: 'Delivery', description: 'The weaponized payload is transmitted to the target via phishing emails (spear phishing for high-value targets), compromised websites (watering holes), malicious advertisements (malvertising), supply chain injection, or physical media (USB drops). The delivery method is chosen based on reconnaissance findings.', icon: '\u{1F4E8}' },
+                { phase: 'Exploitation', description: 'The weapon triggers and exploits a vulnerability: a user opens a macro-enabled document, clicks a malicious link, or a server-side vulnerability is triggered. This could be a known CVE with a public exploit, a zero-day, or simply social engineering that convinces the user to execute malicious code willingly.', icon: '\u{1F4A5}' },
+                { phase: 'Installation', description: 'Malware installs itself and establishes persistence: registry run keys, scheduled tasks, DLL hijacking, WMI event subscriptions, bootkit installation, or service creation. Modern malware often uses fileless techniques, living entirely in memory or abusing legitimate system processes (LOLBins).', icon: '\u{1F4E5}' },
+                { phase: 'Command & Control (C2)', description: 'The implant establishes communication with attacker infrastructure: HTTPS beaconing to cloud-fronted domains, DNS tunneling, social media dead drops, or traffic hidden in legitimate protocols. C2 provides the attacker with an interactive session to issue commands, upload additional tools, and pivot deeper into the network.', icon: '\u{1F4E1}' },
+                { phase: 'Actions on Objectives', description: 'The attacker achieves their goal: data exfiltration (intellectual property, PII, credentials), ransomware deployment and encryption, destructive attacks (wipers like NotPetya), cryptocurrency mining, establishing persistent backdoors for future campaigns, or using the compromised network as a launchpad for attacks on other targets.', icon: '\u{1F3AF}' }
+            ]
+        },
+        defense: {
+            detection: [
+                'Endpoint Detection and Response (EDR): behavioral analysis detects malicious process chains, fileless execution, and LOLBin abuse — not just signature matching',
+                'Network Detection and Response (NDR): deep packet inspection, TLS interception, and flow analysis to identify C2 beaconing, data exfiltration, and lateral movement',
+                'Sandboxing and dynamic analysis: detonate suspicious files and URLs in isolated environments to observe behavior before they reach endpoints',
+                'SIEM with threat intelligence correlation: aggregate logs from all sources and match against known IOCs, TTPs, and MITRE ATT&CK patterns',
+                'Deception technology (honeypots, honeytokens): deploy fake credentials, files, and services that legitimate users would never access — any interaction is an immediate high-fidelity alert'
+            ],
+            prevention: [
+                'Patch management program: automated patching within 24-72 hours for critical CVEs — unpatched vulnerabilities are the #1 initial access vector after phishing',
+                'Application whitelisting: only pre-approved executables can run — blocks unknown malware, LOLBin abuse, and unauthorized software regardless of AV signatures',
+                'Email security gateway with URL rewriting, attachment sandboxing, and DMARC/DKIM/SPF enforcement to block phishing delivery',
+                'Network segmentation and microsegmentation: limit blast radius by isolating critical systems, enforcing least-privilege network access between zones',
+                'Security awareness training with simulated phishing campaigns: the human is the first and last line of defense for social engineering delivery methods'
+            ],
+            response: [
+                'Containment: isolate affected systems from the network immediately (EDR network quarantine, switch port shutdown, or firewall rules) while preserving forensic evidence',
+                'Eradication: identify all persistence mechanisms, remove malware artifacts, and close the initial access vector. Rebuild from known-good images if rootkit or bootkit is suspected',
+                'Recovery: restore systems from verified clean backups, rotate all credentials (especially service accounts and domain admin), and validate integrity of critical data',
+                'Forensic analysis: timeline reconstruction, malware reverse engineering, IOC extraction for detection rule updates, and root cause analysis to prevent recurrence',
+                'Post-incident: update detection rules, share IOCs with ISACs and threat intelligence platforms, conduct lessons-learned review, and update incident response playbooks'
+            ]
+        },
+        indicators: {
+            network: [
+                'Beaconing traffic: periodic outbound connections at regular intervals (e.g., every 60 seconds) to domains with low reputation scores or recent registration',
+                'Unusual DNS activity: high volume of TXT or NULL record queries (DNS tunneling), queries to algorithmically generated domains (DGA), or DNS over HTTPS to non-corporate resolvers',
+                'Anomalous data flows: large outbound transfers to unusual geographic regions, data exfiltration via ICMP, DNS, or steganography in image uploads',
+                'Lateral movement signatures: SMB/RPC traffic between workstations (not normal), mass authentication attempts, or PsExec/WMI remote execution patterns',
+                'C2 infrastructure indicators: connections to known-bad IPs/domains from threat intel feeds, TLS certificates with suspicious attributes, or traffic to cloud services used as C2 redirectors'
+            ],
+            host: [
+                'New persistence mechanisms: unexpected scheduled tasks, services, registry autorun keys, WMI subscriptions, or startup folder entries',
+                'Suspicious process behavior: PowerShell with encoded commands (-EncodedCommand), cmd.exe spawned from Office applications, certutil used for file downloads, or mshta executing remote scripts',
+                'File system anomalies: executables in temp directories or user profile folders, files with double extensions (invoice.pdf.exe), or modification of system binaries (DLL hijacking)',
+                'Memory-only indicators: reflective DLL injection, process hollowing (legitimate process replaced with malicious code), or suspicious thread injection into system processes',
+                'Anti-forensic activity: cleared event logs, disabled Windows Defender or AMSI, timestomped files, or deleted prefetch/shimcache entries'
+            ],
+            behavioral: [
+                'Unusual user activity: accounts active during non-business hours, accessing resources outside their normal pattern, or authenticating from new geographic locations',
+                'Privilege escalation indicators: normal users suddenly accessing admin shares, service accounts used interactively, or new local admin accounts created',
+                'Data staging behavior: large amounts of data copied to a single staging directory before exfiltration, files compressed or encrypted before transfer',
+                'Reconnaissance patterns: internal port scanning, Active Directory enumeration (BloodHound, SharpHound), or mass DNS lookups of internal hostnames',
+                'Defense evasion: security tools disabled or uninstalled, audit policies modified, or exclusions added to antivirus configurations'
+            ],
+            tools: ['MITRE ATT&CK Navigator', 'VirusTotal', 'Cuckoo Sandbox', 'YARA', 'Snort/Suricata', 'Elastic Security', 'Splunk Enterprise Security', 'CrowdStrike Falcon', 'Any.Run', 'Joe Sandbox']
+        },
+        interactive: {
+            scenario: 'A user in your accounting department reports that after opening an email attachment labeled "Q4_Invoice.xlsm" from an unknown sender, their computer briefly showed a command prompt window flash and then nothing happened. Your EDR console shows the following chain: OUTLOOK.EXE spawned EXCEL.EXE, which spawned CMD.EXE, which spawned POWERSHELL.EXE with a Base64-encoded command. The PowerShell process made an outbound HTTPS connection to a domain registered 3 days ago. What kill chain phase has been reached, and what is your response?',
+            options: [
+                'This is normal Office macro behavior — no action needed',
+                'The attack has reached the C2 phase. EXCEL.EXE spawning CMD.EXE spawning POWERSHELL.EXE is a classic malicious macro execution chain. The encoded PowerShell reaching out to a newly registered domain confirms a C2 implant was downloaded. Immediately: (1) isolate the endpoint via EDR, (2) block the C2 domain at the firewall and DNS, (3) pull the Base64 command for decoding and IOC extraction, (4) search all endpoints for the same parent-child process chain, (5) quarantine the email and search for other recipients, (6) preserve memory dump before reboot.',
+                'The attack stopped at the Delivery phase since the user reported it — just delete the email',
+                'Run a full antivirus scan on the machine and wait for results before taking action'
+            ],
+            correct: 1,
+            explanation: 'The process chain OUTLOOK→EXCEL→CMD→POWERSHELL with encoded commands and outbound C2 is textbook kill chain progression through Delivery (email), Exploitation (macro execution), Installation (PowerShell payload), and into C2 (beacon to new domain). The attack has already progressed past installation. Waiting for an AV scan wastes critical time — the attacker may already be issuing commands. Immediate EDR isolation stops lateral movement while preserving the system state for forensics. The "nothing happened" user report is actually the worst sign — it means the payload executed cleanly without crashing.'
+        },
+        quiz: [
+            { question: 'What is the fundamental difference between a virus and a worm?', options: ['Viruses are more dangerous than worms', 'A virus requires a host file to propagate and needs user action to spread, while a worm self-propagates across networks without any host file or user interaction', 'Worms only affect Linux systems', 'Viruses are newer than worms'], correct: 1, explanation: 'A virus attaches to a legitimate file (the host) and requires user action (opening the file, running the program) to spread. A worm is a standalone program that self-propagates by exploiting network vulnerabilities — WannaCry exploited SMB to spread to 230,000 systems without any user clicks.' },
+            { question: 'In the Lockheed Martin Cyber Kill Chain, what phase comes immediately after Exploitation?', options: ['Delivery', 'Command & Control', 'Installation', 'Reconnaissance'], correct: 2, explanation: 'The Kill Chain order is: Reconnaissance → Weaponization → Delivery → Exploitation → Installation → C2 → Actions on Objectives. After exploitation triggers the vulnerability, the attacker installs persistence mechanisms (backdoors, RATs, scheduled tasks) to maintain access.' },
+            { question: 'Why is "living off the land" (LOLBins) particularly challenging for defenders?', options: ['Because LOLBins are encrypted', 'Because attackers abuse legitimate, pre-installed system tools (PowerShell, WMI, certutil) that cannot be blocked without breaking normal operations — making malicious use indistinguishable from admin activity', 'Because LOLBins only work on Linux', 'Because LOLBins bypass firewalls'], correct: 1, explanation: 'LOLBins (Living Off the Land Binaries) are legitimate system administration tools. PowerShell is used by IT daily — you cannot simply block it. When an attacker uses PowerShell to download a payload or certutil to decode a base64-encoded binary, the activity looks identical to legitimate admin work. Detection requires behavioral context, not signatures.' },
+            { question: 'What made the SolarWinds SUNBURST attack so devastating compared to typical malware delivery?', options: ['It used a zero-day exploit', 'The malware was delivered through a legitimate, digitally signed software update from a trusted vendor — bypassing all traditional security controls because organizations inherently trust their supply chain', 'It targeted more computers', 'It used stronger encryption'], correct: 1, explanation: 'Supply chain attacks weaponize trust. SolarWinds Orion was a trusted network management tool, digitally signed by SolarWinds, and distributed through their official update channel. No phishing, no exploitation — organizations voluntarily installed the backdoor because it came from a trusted source through a trusted process.' },
+            { question: 'What percentage of successful cyber attacks begin with a phishing email?', options: ['About 25%', 'About 50%', 'Over 90% — making email the dominant initial access vector by a wide margin', 'About 75%'], correct: 2, explanation: 'Multiple studies consistently show that 90%+ of successful attacks start with phishing. Despite billions spent on technical security controls, the human element remains the most exploitable vulnerability. This is why email security and security awareness training are considered foundational controls.' },
+            { question: 'Which malware type operates entirely in memory without writing files to disk?', options: ['Ransomware', 'Fileless malware — it uses techniques like reflective DLL injection, PowerShell in-memory execution, and process hollowing to avoid leaving artifacts on disk', 'Adware', 'Boot sector virus'], correct: 1, explanation: 'Fileless malware never touches the filesystem, operating entirely in RAM through techniques like reflective DLL injection (loading a DLL from memory, not disk), process hollowing (replacing a legitimate process\'s memory), or PowerShell executing downloaded scripts directly in memory. This evades traditional AV that scans files on disk — detection requires memory analysis and behavioral monitoring.' }
+        ]
+    },
+
+    // =================================================================
+    // 28. THREAT ACTOR TAXONOMY
+    // =================================================================
+    THREAT_ACTORS: {
+        code: 'THREAT_ACTORS',
+        title: 'Threat Actor Taxonomy',
+        icon: '\u{1F3AD}',
+        severity: 'high',
+        color: '#f59e0b',
+        description: 'Classification of cyber threat actors by motivation, capability, and sophistication — from script kiddies to nation-state APT groups.',
+        overview: {
+            what: 'A threat actor is any individual, group, or organization that intentionally causes harm in the digital domain. Threat actors range from lone teenagers running automated scripts to nation-state intelligence agencies with unlimited budgets and zero-day stockpiles. Understanding threat actor taxonomy is essential for threat modeling — you cannot defend against an adversary you do not understand. Attribution (determining who is behind an attack) is one of the hardest problems in cybersecurity because sophisticated actors deliberately use false flags, shared tooling, and compromised infrastructure to obscure their identity. The Diamond Model of Intrusion Analysis maps the relationship between adversary, capability, infrastructure, and victim to guide attribution efforts.',
+            keyPoints: [
+                'Nation-state actors (APT groups): government-backed, unlimited resources, strategic objectives (espionage, sabotage, pre-positioning). Examples: APT28/29 (Russia), APT41 (China), Lazarus (North Korea), APT33 (Iran)',
+                'Organized cybercrime: profit-driven syndicates operating ransomware-as-a-service (RaaS), business email compromise (BEC), and large-scale fraud. Revenue estimated at $8+ trillion annually by 2025 (Cybersecurity Ventures)',
+                'Hacktivists: ideologically motivated actors using DDoS, defacement, data leaks, and doxxing for political or social causes. Operations range from nuisance-level to genuinely damaging data exposure',
+                'Insider threats: current or former employees, contractors, or partners who misuse authorized access. Can be malicious (revenge, financial gain) or negligent (accidental data exposure). Responsible for ~25% of breaches',
+                'Script kiddies: low-skill actors using pre-built tools and exploit kits without understanding the underlying techniques. Despite low sophistication, they cause real damage through volume and automated scanning',
+                'Capability spectrum: ranges from publicly available exploit kits (script kiddies) through custom malware and zero-day exploits (organized crime, nation-states) to hardware implants and supply chain compromise (top-tier nation-states)'
+            ],
+            examples: [
+                { name: 'Lazarus Group (North Korea)', detail: 'Bureau 121-linked APT responsible for the Sony Pictures hack (2014 — retaliation for "The Interview"), WannaCry ransomware (2017 — $4B+ damage), Bangladesh Bank SWIFT heist ($81M stolen, $1B attempted), and ongoing cryptocurrency theft operations ($2B+ stolen since 2017). Unique among APTs: combines espionage with revenue generation to fund the DPRK regime.' },
+                { name: 'Anonymous (Hacktivist Collective)', detail: 'Decentralized hacktivist collective known for DDoS campaigns, data leaks, and website defacements. Notable operations: Project Chanology (2008, Scientology), OpPayback (2010, WikiLeaks supporters DDoS\'d PayPal/Visa), support for Arab Spring, and operations against Russia during the 2022 Ukraine invasion. Demonstrates how loose, leaderless groups can achieve significant impact through coordination.' },
+                { name: 'Lapsus$ (Teenage Extortion Group)', detail: 'A group of teenagers (ages 16-21) who breached Microsoft (Bing/Cortana source code), Nvidia (employee credentials + proprietary data), Samsung (Galaxy source code), Okta (identity provider — impacted 366 customers), and Uber. Used social engineering, SIM swapping, and MFA fatigue rather than sophisticated exploits — proving that human-factor attacks bypass even the most advanced technical defenses.' }
+            ],
+            stats: [
+                { label: 'Insider threat incidents', value: '~25%', note: 'of all breaches involve internal actors (Verizon DBIR 2024)' },
+                { label: 'Nation-state attack cost', value: '$4.88M avg', note: 'IBM Cost of a Data Breach 2024 — highest when state-sponsored' },
+                { label: 'Cybercrime revenue', value: '$8T/year', note: 'Cybersecurity Ventures 2024 — would be world\'s 3rd largest economy' },
+                { label: 'Attribution confidence', value: '<50%', note: 'Only ~50% of attacks can be attributed with high confidence (RAND Corporation)' }
+            ]
+        },
+        attackFlow: {
+            title: 'Threat Actor Campaign Lifecycle',
+            steps: [
+                { phase: 'Actor Identification', description: 'Threat intelligence teams classify the adversary based on observed TTPs (Tactics, Techniques, and Procedures), infrastructure patterns, malware families, and targeting preferences. MITRE ATT&CK groups catalog provides profiles of 130+ known threat groups with associated techniques and software.', icon: '\u{1F50D}' },
+                { phase: 'Capability Assessment', description: 'Evaluate the actor\'s technical sophistication: do they use commodity malware (low), custom tooling (medium), or zero-day exploits and firmware implants (high)? Assess operational security — do they reuse infrastructure (sloppy) or use disposable, compartmentalized operations (sophisticated)? Resource estimation: nation-states have virtually unlimited budgets; script kiddies have $0.', icon: '\u{1F4CA}' },
+                { phase: 'Intent Analysis', description: 'Determine the actor\'s motivation: espionage (data theft for strategic advantage), financial (ransomware, fraud, crypto theft), destructive (wipers, sabotage), ideological (hacktivism, information operations), or personal (insider revenge, thrill-seeking). Motivation shapes targeting and acceptable risk — a nation-state will invest months for one target; a criminal will attack thousands hoping for one payout.', icon: '\u{1F9E0}' },
+                { phase: 'Target Selection', description: 'Actors choose targets based on opportunity, value, and alignment with objectives. Nation-states target defense, government, energy, and critical infrastructure. Organized crime targets organizations with valuable data and weak security. Hacktivists target organizations opposed to their ideology. Insiders already have access to their target. Target selection reveals actor identity.', icon: '\u{1F3AF}' },
+                { phase: 'Campaign Execution', description: 'The actor deploys their capabilities against chosen targets using their preferred TTPs: spear phishing and custom implants (nation-state), phishing kits and ransomware-as-a-service (cybercrime), DDoS and defacement tools (hacktivists), or credential abuse and data download (insiders). Campaigns may be single operations or sustained over months/years.', icon: '\u{26A1}' },
+                { phase: 'Attribution Challenges', description: 'Determining who conducted an attack is extremely difficult. Sophisticated actors use false flags (planting another group\'s malware), shared tooling (open-source tools used by everyone), compromised third-party infrastructure (attacks appear to come from an innocent organization), and operational security that destroys forensic evidence. Attribution often requires signals intelligence, human intelligence, or law enforcement cooperation — not just technical analysis.', icon: '\u{2753}' }
+            ]
+        },
+        defense: {
+            detection: [
+                'Threat intelligence feeds: subscribe to commercial (Recorded Future, Mandiant) and open-source (AlienVault OTX, MISP) feeds that track known threat actor infrastructure, malware hashes, and behavioral patterns',
+                'Behavioral analytics (UEBA): baseline normal user and entity behavior, then alert on deviations — detects both external actors using stolen credentials and malicious insiders changing their access patterns',
+                'TTP-based detection rules: map detection logic to MITRE ATT&CK techniques rather than IOCs (which change frequently). Detect the behavior pattern, not the specific tool or IP address',
+                'Dark web monitoring: track threat actor forums, ransomware leak sites, and initial access broker marketplaces for mentions of your organization, stolen credentials, or planned targeting',
+                'Honeypots and deception: deploy realistic decoy systems, credentials, and data that no legitimate user would access. Any interaction reveals an attacker\'s presence, tools, and techniques — high fidelity, low false positive'
+            ],
+            prevention: [
+                'Threat modeling: identify which threat actors are likely to target your organization (industry, geography, data value) and prioritize defenses against their known TTPs — you cannot defend equally against everything',
+                'Security awareness training: Lapsus$ proved that social engineering and MFA fatigue bypass even advanced technical controls. Train employees to recognize pretexting, SIM swap requests, and MFA prompt bombing',
+                'Insider threat program: implement least-privilege access, separation of duties, user activity monitoring, and departure procedures. Combine technical controls with HR processes for behavioral warning signs',
+                'Defense-in-depth aligned to actor capability: commodity threats stopped by basic hygiene (patching, MFA, email filtering); advanced actors require EDR, network segmentation, zero trust, and threat hunting',
+                'Intelligence-driven patching: prioritize vulnerabilities known to be exploited by threat actors targeting your sector (CISA KEV catalog, sector-specific ISACs) over generic CVSS scoring'
+            ],
+            response: [
+                'Attribution-informed response: the response to a nation-state intrusion differs fundamentally from a ransomware gang. Nation-state: coordinate with intelligence agencies, assume the adversary will return, and plan for long-term remediation. Ransomware: focus on containment, backup restoration, and law enforcement reporting',
+                'Law enforcement coordination: FBI (IC3, field offices), Secret Service (financial crimes), CISA (critical infrastructure), and international coordination via Interpol. Share IOCs and TTPs to support broader disruption efforts',
+                'Threat intelligence sharing: report IOCs, TTPs, and campaign details to your sector ISAC (FS-ISAC, H-ISAC, etc.) and platforms like MISP. Collective defense improves detection for everyone in the community',
+                'Hunt-forward operations: after containing the immediate threat, proactively hunt for additional indicators of the same actor across your environment. Nation-state actors often have multiple access vectors and will attempt to re-enter through a different path',
+                'Strategic debrief: update your threat model based on what you learned. If you were targeted by a nation-state, your security posture and budget requirements have permanently changed.'
+            ]
+        },
+        indicators: {
+            network: [
+                'Known C2 infrastructure: connections to IP addresses and domains listed in threat intelligence feeds as belonging to specific threat groups (cross-reference with VirusTotal, OTX, Recorded Future)',
+                'TTP-consistent network patterns: nation-states use DNS tunneling and domain fronting; ransomware groups use Tor and bulletproof hosting; hacktivists use booter/stresser DDoS services',
+                'Infrastructure reuse: threat actors often reuse SSL certificates, domain registrar patterns, WHOIS details, or hosting providers across campaigns — enabling clustering even without malware samples',
+                'Geographic anomalies: authentication or data flow from countries matching known threat actor origins (Russia, China, North Korea, Iran) when your organization has no business presence there',
+                'Protocol-level TTPs: specific HTTP headers, JA3/JA3S fingerprints, or beacon timing patterns that match known malware families associated with particular threat groups'
+            ],
+            host: [
+                'Malware family signatures: specific implants associated with known groups — Cobalt Strike (widespread, used by both criminals and APTs), PlugX (Chinese APTs), Emotet (cybercrime ecosystem), Mimikatz (credential dumping, nearly universal)',
+                'Tooling fingerprints: compiler artifacts, debug strings, language-specific patterns, or coding conventions that link samples to specific development teams or regions',
+                'Persistence patterns: nation-states favor firmware implants, WMI subscriptions, and DLL sideloading; criminals prefer scheduled tasks and registry keys; insiders rarely install persistence (they already have access)',
+                'Anti-forensic techniques: level of sophistication in covering tracks reveals actor capability — script kiddies leave everything; nation-states timestomp files, clear logs, and use encrypted containers',
+                'Lateral movement tools: specific combinations reveal actor class — BloodHound + Rubeus + Cobalt Strike (professional red team / advanced actor) vs. mass exploitation with default credentials (script kiddie)'
+            ],
+            behavioral: [
+                'Targeting patterns: who and what the actor targets reveals identity — defense contractors (nation-state), healthcare billing systems (financial crime), organizations criticized on social media (hacktivist), specific projects or individuals (insider)',
+                'Operational timing: attacks during the actor\'s local business hours (UTC+8 suggests East Asian origin, UTC+3 suggests Eastern European). Some nation-state groups work Mon-Fri and observe national holidays',
+                'Campaign tempo: nation-states operate slowly and carefully over months; ransomware gangs work in rapid 48-72 hour blitzes; hacktivists surge around political events and then go quiet',
+                'Infrastructure investment: disposable cloud instances (low investment, criminal or hacktivist) vs. long-lived, carefully maintained C2 networks (high investment, nation-state)',
+                'Post-compromise behavior: data exfiltration (espionage), ransomware deployment (financial), website defacement (hacktivist), nothing stolen but access maintained (pre-positioning for future conflict)'
+            ],
+            tools: ['MITRE ATT&CK Groups', 'Recorded Future', 'Mandiant Threat Intelligence', 'CrowdStrike Adversary Universe', 'VirusTotal', 'MISP (Malware Information Sharing Platform)', 'Diamond Model tooling', 'AlienVault OTX', 'Shodan', 'GreyNoise']
+        },
+        interactive: {
+            scenario: 'Your SOC receives three alerts in 24 hours: (1) An employee at your defense contractor company receives a LinkedIn message from a "recruiter" with a PDF attachment — EDR flags the PDF as containing a known PlugX RAT variant. (2) The same day, your external threat intel feed reports that APT41 has been targeting defense contractors in your region using LinkedIn-based spear phishing with PlugX payloads. (3) Firewall logs show outbound connections from the employee\'s workstation to an IP address in a cloud hosting provider that your threat intel correlates with APT41 infrastructure. What is the threat actor classification, and how does this change your response?',
+            options: [
+                'It\'s a random phishing attempt — quarantine the email and scan the workstation',
+                'This is a targeted nation-state operation (APT41 / Chinese state-sponsored). The LinkedIn vector, PlugX malware family, defense contractor targeting, and correlated C2 infrastructure all point to APT41 with high confidence. Response escalation: (1) treat this as a national security incident — notify your FSO and DCSA, (2) assume the single detected endpoint is NOT the only compromise — hunt across ALL systems for PlugX indicators, (3) engage a threat intelligence firm with APT41 expertise for attribution confirmation, (4) do NOT simply reimage and move on — nation-state actors maintain multiple access vectors and WILL return, (5) review all LinkedIn connections and messages to this employee and similar roles, (6) report to FBI Cyber Division and CISA.',
+                'It\'s an insider who installed the malware — investigate the employee',
+                'Block the IP and move on — the antivirus caught it'
+            ],
+            correct: 1,
+            explanation: 'Three independent data points converge: (1) PlugX is a malware family almost exclusively associated with Chinese APT groups, (2) active threat intel on APT41 targeting your sector with the exact same TTP (LinkedIn + PlugX), and (3) C2 infrastructure correlation. This is high-confidence attribution. The response is fundamentally different from a criminal attack — nation-state actors have multiple access vectors (the LinkedIn phishing may be one of several simultaneous approaches), they are persistent (they will re-target you), and the data they seek (defense contractor IP) has national security implications. Simply reimaging the one detected endpoint and blocking one IP address would leave other potential compromises in place.'
+        },
+        quiz: [
+            { question: 'What makes Lazarus Group (North Korea) unique among nation-state APT groups?', options: ['They only target military systems', 'They combine traditional espionage operations with financially motivated attacks (bank heists, cryptocurrency theft) to generate revenue for the DPRK regime — blurring the line between state espionage and cybercrime', 'They only use open-source tools', 'They exclusively use zero-day exploits'], correct: 1, explanation: 'Most nation-state APTs focus purely on espionage or sabotage. Lazarus is unique because North Korea uses cyber operations as a revenue source, stealing billions in cryptocurrency and conducting bank heists (Bangladesh Bank, $81M) to fund the regime. This dual-purpose mission makes their targeting unusually broad.' },
+            { question: 'How did the Lapsus$ group bypass advanced security controls at companies like Microsoft and Okta?', options: ['They used zero-day exploits', 'They exploited network vulnerabilities', 'They primarily used social engineering, SIM swapping, and MFA fatigue attacks — targeting humans rather than technology, which proved effective even against organizations with sophisticated technical defenses', 'They had insider access at every target'], correct: 2, explanation: 'Lapsus$ (teenagers, ages 16-21) demonstrated that the human element remains the weakest link regardless of how advanced your technical security is. They called help desks to reset credentials, SIM-swapped employees\' phone numbers to intercept MFA codes, and repeatedly pushed MFA prompts until exhausted users approved. No zero-days needed.' },
+            { question: 'Why is attribution (determining who conducted an attack) so difficult in cybersecurity?', options: ['Because attackers don\'t use computers', 'Because sophisticated actors use false flags (planting other groups\' tools), shared/open-source tooling, compromised third-party infrastructure, and strong operational security — making technical evidence alone often insufficient for confident attribution', 'Because all attacks come from the same country', 'Because logs are never available'], correct: 1, explanation: 'Attribution is hard because: (1) tools are shared — Cobalt Strike is used by nation-states, criminals, and red teams, (2) false flags — Russian actors have planted Chinese malware to mislead investigators, (3) infrastructure is laundered — attacks route through compromised servers in neutral countries, (4) cleanup — sophisticated actors destroy forensic evidence. High-confidence attribution often requires signals intelligence or law enforcement, not just technical analysis.' },
+            { question: 'What behavioral indicator MOST strongly suggests a nation-state actor rather than a cybercriminal?', options: ['Using encrypted communications', 'Slow, patient operations over months with focus on data exfiltration and persistent access rather than immediate monetization — nation-states invest time for strategic intelligence, while criminals work on rapid 48-72 hour ransomware timelines', 'Attacking on weekdays', 'Using malware'], correct: 1, explanation: 'Tempo and objectives are the strongest differentiators. Nation-states invest months in reconnaissance, move slowly through networks to avoid detection, and focus on intelligence collection. Criminals need rapid ROI — they deploy ransomware within days of initial access because every hour increases detection risk. Patience is a luxury only state-funded actors can afford.' },
+            { question: 'Which threat actor category is responsible for approximately 25% of all data breaches?', options: ['Script kiddies', 'Hacktivists', 'Insider threats — current or former employees, contractors, or partners who misuse their authorized access, whether through malicious intent or negligent behavior', 'Nation-state actors'], correct: 2, explanation: 'Verizon\'s DBIR consistently shows ~25% of breaches involve internal actors. Insiders are dangerous because they already have authenticated access, know where valuable data lives, and can bypass external-facing security controls. Insider threats include both intentional theft (Edward Snowden, corporate espionage) and negligent actions (misconfigured S3 buckets, emailed spreadsheets).' },
+            { question: 'What is the Diamond Model of Intrusion Analysis used for?', options: ['Rating malware severity', 'It maps the four core features of any intrusion — adversary, capability, infrastructure, and victim — to structure analysis and support attribution by identifying relationships between these elements across multiple incidents', 'Encrypting network traffic', 'Classifying vulnerabilities by CVSS score'], correct: 1, explanation: 'The Diamond Model provides a structured framework for intrusion analysis: every attack involves an Adversary using a Capability (tools/techniques) over Infrastructure (C2 servers, domains) against a Victim. By analyzing and correlating these four vertices across incidents, analysts can cluster attacks, track campaigns, and build attribution cases — even when the adversary tries to hide behind false flags and shared tooling.' }
         ]
     }
 };

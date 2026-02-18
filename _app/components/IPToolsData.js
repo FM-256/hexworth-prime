@@ -1,5 +1,5 @@
 /**
- * IPToolsData.js — Data/Config for all 13 IP Addressing & Subnetting topics
+ * IPToolsData.js — Data/Config for all 15 IP Addressing & Subnetting topics
  *
  * Used by IPToolsRenderer.js (shared renderer pattern)
  * Usage: IPToolsRenderer.init('binary-ip')
@@ -538,6 +538,91 @@ const IPToolsData = {
             { question: 'An OSPF network statement uses "network 10.0.0.0 0.0.255.255". What does this match?', options: ['Only 10.0.0.0', 'All 10.0.x.x addresses', 'All 10.x.x.x addresses', 'All addresses'], correct: 1, explanation: 'Wildcard 0.0.255.255 = match first 2 octets (10.0), ignore last 2. Matches 10.0.0.0-10.0.255.255.' },
             { question: 'What is the wildcard mask for a /28 network?', options: ['0.0.0.7', '0.0.0.15', '0.0.0.31', '0.0.0.63'], correct: 1, explanation: '/28 mask = 255.255.255.240. Wildcard = 255-240 = 0.0.0.15.' },
             { question: 'In what situations are wildcard masks used?', options: ['Only in firewalls', 'In ACLs and OSPF/EIGRP network statements', 'Only in routing tables', 'In DNS configuration'], correct: 1, explanation: 'Wildcard masks are primarily used in Cisco ACLs (access control lists) and routing protocol network statements (OSPF, EIGRP).' }
+        ]
+    },
+
+    // ═══════════════════════════════════════════════════════════════════
+    // 14. MAC ADDRESSING & LAYER 2
+    // ═══════════════════════════════════════════════════════════════════
+    'mac-addressing': {
+        id: 'mac-addressing',
+        title: 'MAC Addressing & Layer 2',
+        icon: '🔌',
+        description: 'Understand MAC addresses — the 48-bit hardware identifiers that power Layer 2 communication on every LAN.',
+        color: '#3b82f6',
+        learn: {
+            sections: [
+                {
+                    title: 'What is a MAC Address?',
+                    content: 'A MAC (Media Access Control) address is a 48-bit (6-byte) hardware address permanently burned into every network interface card (NIC) at the factory. It operates at Layer 2 (Data Link) of the OSI model and is used to deliver frames within a local network segment. Unlike IP addresses, which are logical and can change, a MAC address is tied to the physical hardware. Every Ethernet frame carries both a source and destination MAC address in its header.'
+                },
+                {
+                    title: 'MAC Address Format',
+                    content: 'A MAC address is written as 6 octets in hexadecimal, separated by colons or hyphens: AA:BB:CC:DD:EE:FF or AA-BB-CC-DD-EE-FF. Cisco uses a dot notation with groups of 4: AABB.CCDD.EEFF. The first 3 octets (24 bits) form the OUI (Organizationally Unique Identifier) — this identifies the manufacturer (e.g., 00:1A:2B = a specific vendor). The last 3 octets (24 bits) are the NIC-specific portion assigned by the manufacturer to ensure uniqueness. You can look up an OUI to identify which company made a device.',
+                    diagram: 'mac-format'
+                },
+                {
+                    title: 'Types of MAC Addresses',
+                    content: 'Unicast: Identifies a single NIC. The least significant bit of the first octet is 0 (e.g., 00:1A:2B:3C:4D:5E). This is the most common type — one sender to one receiver. Broadcast: FF:FF:FF:FF:FF:FF — all 48 bits set to 1. Every device on the local segment processes broadcast frames. ARP requests use broadcast. Multicast: The least significant bit of the first octet is 1 (e.g., 01:00:5E:xx:xx:xx for IPv4 multicast). Delivers frames to a group of devices that have subscribed to a multicast group, rather than all devices.'
+                },
+                {
+                    title: 'ARP — Address Resolution Protocol',
+                    content: 'ARP bridges Layer 3 (IP) and Layer 2 (MAC). When a host wants to send data to an IP on the same subnet, it needs the destination MAC address. ARP Request: The sender broadcasts an Ethernet frame (destination FF:FF:FF:FF:FF:FF) asking "Who has IP 192.168.1.5? Tell 192.168.1.1." Every device on the segment receives this. ARP Reply: Only the device with that IP responds — via unicast — with "192.168.1.5 is at AA:BB:CC:DD:EE:FF." The sender caches this mapping in its ARP table (arp -a to view). ARP cache entries expire after a timeout (typically 2-20 minutes) to handle devices moving or changing NICs.'
+                },
+                {
+                    title: 'MAC vs IP — When Each Is Used',
+                    content: 'MAC addresses are used for LOCAL delivery within a single broadcast domain (same subnet/VLAN). They do not survive router hops — when a frame crosses a router, the source and destination MAC addresses are rewritten for the next segment. IP addresses are used for END-TO-END routing across subnets and the internet. They stay the same from source to destination (unless NAT is involved). Think of it this way: IP is the destination city on the envelope, MAC is the address of the next post office that handles it. At each hop, the MAC changes but the IP stays the same.'
+                }
+            ]
+        },
+        practiceType: 'mac-identifier',
+        quiz: [
+            { question: 'How many bits are in a MAC address?', options: ['32', '48', '64', '128'], correct: 1, explanation: 'MAC addresses are 48 bits (6 bytes) long, written as 6 pairs of hexadecimal digits.' },
+            { question: 'What do the first 3 octets of a MAC address represent?', options: ['The host ID', 'The VLAN assignment', 'The OUI (manufacturer identifier)', 'The network address'], correct: 2, explanation: 'The first 3 octets (24 bits) form the OUI — Organizationally Unique Identifier — assigned by IEEE to each manufacturer.' },
+            { question: 'What is the MAC broadcast address?', options: ['00:00:00:00:00:00', 'FF:FF:FF:FF:FF:FF', '255.255.255.255', '01:00:5E:00:00:00'], correct: 1, explanation: 'FF:FF:FF:FF:FF:FF is the Layer 2 broadcast address. All 48 bits set to 1. Every device on the local segment processes it.' },
+            { question: 'How does ARP discover a MAC address?', options: ['DNS lookup', 'Broadcast request asking "Who has this IP?" then unicast reply', 'Checking a routing table', 'Querying the DHCP server'], correct: 1, explanation: 'ARP sends a broadcast request to all devices asking who owns a specific IP. The owner replies with a unicast containing its MAC address.' },
+            { question: 'What happens to a MAC address when a frame crosses a router?', options: ['It stays the same end-to-end', 'It is rewritten for the next segment', 'It is encrypted', 'It is removed from the frame'], correct: 1, explanation: 'Routers operate at Layer 3. When forwarding a frame, the router replaces the source MAC with its own outgoing interface MAC and the destination MAC with the next-hop MAC. The IP addresses remain unchanged.' },
+            { question: 'At which OSI layer do MAC addresses operate?', options: ['Layer 1 (Physical)', 'Layer 2 (Data Link)', 'Layer 3 (Network)', 'Layer 4 (Transport)'], correct: 1, explanation: 'MAC addresses function at Layer 2 (Data Link layer). They are used for local frame delivery within a broadcast domain.' }
+        ]
+    },
+
+    // ═══════════════════════════════════════════════════════════════════
+    // 15. IPv6 PRACTICE CHALLENGE
+    // ═══════════════════════════════════════════════════════════════════
+    'ipv6-challenge': {
+        id: 'ipv6-challenge',
+        title: 'IPv6 Practice Challenge',
+        icon: '🏆',
+        description: 'Put your IPv6 knowledge to the test. Expand, shorten, classify, and subnet IPv6 addresses under pressure.',
+        color: '#3b82f6',
+        learn: {
+            sections: [
+                {
+                    title: 'IPv6 Address Review',
+                    content: 'IPv6 addresses are 128 bits long, written as 8 groups of 4 hexadecimal digits separated by colons (e.g., 2001:0db8:0000:0000:0000:ff00:0042:8329). Two shortening rules reduce verbosity: (1) Leading zeros in any group can be dropped — 0db8 becomes db8, 0042 becomes 42, 0000 becomes 0. (2) One longest consecutive run of all-zero groups can be replaced with :: (double colon). So 2001:0db8:0000:0000:0000:ff00:0042:8329 shortens to 2001:db8::ff00:42:8329. The :: can only appear once per address — using it twice creates ambiguity about how many zero groups each replaces.'
+                },
+                {
+                    title: 'Address Types Review',
+                    content: 'Global Unicast (2000::/3): Starts with 2 or 3 in the first hex digit. These are publicly routable — the IPv6 equivalent of public IPv4 addresses. Link-Local (fe80::/10): Auto-configured on every IPv6 interface. Used for neighbor discovery and router solicitation. Not routable beyond the local link. Multicast (ff00::/8): One-to-many delivery. ff02::1 = all nodes, ff02::2 = all routers. Loopback (::1): The IPv6 equivalent of 127.0.0.1. Unique Local (fc00::/7, practically fd00::/8): Similar to RFC 1918 private addresses — routable within an organization but not on the public internet.'
+                },
+                {
+                    title: 'Subnetting IPv6',
+                    content: 'A standard IPv6 allocation is a /48 from an ISP. The address breaks into three parts: Site Prefix (/48, first 48 bits) — identifies the organization. Subnet ID (bits 49-64, 16 bits) — gives 65,536 possible subnets per site. Interface ID (bits 65-128, 64 bits) — identifies the host. The /64 boundary is critical: virtually all IPv6 subnets use a /64 prefix. The interface ID can be generated via EUI-64 (derived from the MAC address by inserting FFFE in the middle and flipping the 7th bit) or via random/privacy extensions (RFC 4941) which rotate to prevent tracking.'
+                },
+                {
+                    title: 'Challenge Tips',
+                    content: 'Expanding addresses: Replace :: with the correct number of 0000 groups to make exactly 8 groups total. Pad each group to 4 hex digits. Shortening addresses: Strip leading zeros from each group, find the longest run of consecutive all-zero groups and replace with ::. If two runs tie, replace the leftmost. Identifying types: Check the first few hex digits — 2xxx/3xxx = global unicast, fe80 = link-local, ff = multicast, fc/fd = unique local, ::1 = loopback. Subnet boundaries: With a /48 prefix, you have 16 bits (4 hex digits) for subnetting before the /64 interface ID boundary.'
+                }
+            ]
+        },
+        practiceType: 'ipv6-challenge',
+        quiz: [
+            { question: 'Expand the address 2001:db8::1 to its full form.', options: ['2001:0db8:0000:0000:0000:0000:0000:0001', '2001:0db8:0000:0001:0000:0000:0000:0000', '2001:0db8:0001:0000:0000:0000:0000:0000', '2001:0db8:0000:0000:0000:0000:0001:0000'], correct: 0, explanation: 'The :: replaces 6 groups of zeros (to make 8 total). Full form: 2001:0db8:0000:0000:0000:0000:0000:0001.' },
+            { question: 'What is the shortest valid form of fe80:0000:0000:0000:0200:00ff:fe00:0001?', options: ['fe80::200:ff:fe00:1', 'fe80::0200:00ff:fe00:0001', 'fe80:0:0:0:200:ff:fe00:1', 'fe80::200:ff:fe00:0001'], correct: 0, explanation: 'Remove leading zeros in each group: fe80:0:0:0:200:ff:fe00:1. Replace the longest zero run with :: to get fe80::200:ff:fe00:1.' },
+            { question: 'An address starts with fd9a:. What type is it?', options: ['Global unicast', 'Link-local', 'Multicast', 'Unique local'], correct: 3, explanation: 'Addresses starting with fd (within fc00::/7) are unique local addresses — the IPv6 equivalent of RFC 1918 private space.' },
+            { question: 'Your organization has the prefix 2001:db8:abcd::/48. How many /64 subnets can you create?', options: ['256', '4,096', '65,536', '16,777,216'], correct: 2, explanation: '/48 to /64 leaves 16 bits for subnetting. 2^16 = 65,536 possible /64 subnets per /48 allocation.' },
+            { question: 'In EUI-64, what is inserted in the middle of the MAC address to form the interface ID?', options: ['0000', 'FFFF', 'FFFE', 'FF00'], correct: 2, explanation: 'EUI-64 takes the 48-bit MAC, splits it in half, and inserts FFFE in the middle to create a 64-bit interface ID. The 7th bit (U/L) is also flipped.' },
+            { question: 'Which of the following is a valid shortened form of 2001:0db8:0000:0000:0000:0000:0000:0000?', options: ['2001:db8::', '2001:db8::0:0:0:0:0', '2001:db8:0:0:0:0:0::', '2001::db8::'], correct: 0, explanation: '2001:db8:: is the correct shortest form. The :: replaces 6 trailing zero groups. 2001::db8:: is invalid (two :: in one address).' }
         ]
     }
 };

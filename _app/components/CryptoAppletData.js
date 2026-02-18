@@ -1175,5 +1175,322 @@ const CryptoAppletData = {
             { question: 'Why is the number 1 not considered prime?', options: ['It is too small', 'By convention — including 1 would break the uniqueness of prime factorization', 'It is an even number', 'It has too many factors'], correct: 1, explanation: 'If 1 were prime, the Fundamental Theorem of Arithmetic would fail: 6 = 2 x 3 = 1 x 2 x 3 = 1 x 1 x 2 x 3, etc. Excluding 1 preserves unique prime factorization.' },
             { question: 'Approximately how many decimal digits does each prime in RSA-2048 have?', options: ['64 digits', '128 digits', '308 digits', '2048 digits'], correct: 2, explanation: 'RSA-2048 uses a 2048-bit modulus n = p*q. Each prime is approximately 1024 bits, which is about 308 decimal digits. These primes are large enough that factoring their product is infeasible with current technology.' }
         ]
+    },
+
+    // =====================================================================
+    // CRYPTOGRAPHY_INTRO — Introduction to Cryptography
+    // =====================================================================
+    CRYPTOGRAPHY_INTRO: {
+        key: 'CRYPTOGRAPHY_INTRO',
+        title: 'Introduction to Cryptography',
+        icon: '🗝️',
+        color: '#a855f7',
+        description: 'The foundational overview of cryptography — what it is, why it matters, and how its core pillars (symmetric, asymmetric, hashing) protect every digital interaction you have.',
+        overview: {
+            concepts: ['Confidentiality', 'Integrity', 'Authentication', 'Non-Repudiation', 'Plaintext & Ciphertext', 'Keys & Key Space', 'Symmetric Encryption', 'Asymmetric Encryption', 'Hashing'],
+            explanation: `
+                <p><strong>Cryptography</strong> is the science of securing communication and data through mathematical transformations. It ensures that information can only be read by intended recipients, has not been tampered with, and can be traced back to its origin.</p>
+                <h4>The Four Pillars of Cryptographic Security</h4>
+                <div class="crypto-comparison">
+                    <div class="crypto-compare-item">
+                        <div class="crypto-compare-label">Confidentiality</div>
+                        <div class="crypto-compare-detail">Only authorized parties can read the data</div>
+                        <div class="crypto-compare-note">Achieved through encryption (symmetric or asymmetric)</div>
+                    </div>
+                    <div class="crypto-compare-item">
+                        <div class="crypto-compare-label">Integrity</div>
+                        <div class="crypto-compare-detail">Data has not been altered in transit or storage</div>
+                        <div class="crypto-compare-note">Achieved through hashing and MACs</div>
+                    </div>
+                    <div class="crypto-compare-item">
+                        <div class="crypto-compare-label">Authentication</div>
+                        <div class="crypto-compare-detail">Verify the identity of communicating parties</div>
+                        <div class="crypto-compare-note">Achieved through digital signatures and certificates</div>
+                    </div>
+                    <div class="crypto-compare-item">
+                        <div class="crypto-compare-label">Non-Repudiation</div>
+                        <div class="crypto-compare-detail">Sender cannot deny having sent a message</div>
+                        <div class="crypto-compare-note">Achieved through digital signatures with PKI</div>
+                    </div>
+                </div>
+                <h4>A Brief History</h4>
+                <p>Cryptography has evolved from ancient manual ciphers to modern algorithmic systems:</p>
+                <ul>
+                    <li><strong>~50 BC — Caesar Cipher:</strong> Simple letter substitution used by Julius Caesar. Each letter shifts by a fixed number. Trivially breakable with only 25 possible keys.</li>
+                    <li><strong>1467 — Vigenère Cipher:</strong> Polyalphabetic substitution that resisted frequency analysis for centuries. Called "le chiffre indéchiffrable" until Charles Babbage broke it.</li>
+                    <li><strong>1918 — Enigma Machine:</strong> Electromechanical rotor cipher used by Nazi Germany. Cracked by Polish mathematicians and Alan Turing at Bletchley Park — arguably shortening WWII by two years.</li>
+                    <li><strong>1977 — DES:</strong> First standardized digital cipher (56-bit key). Broken by brute force in 1999 in under 24 hours by the EFF's "Deep Crack" machine.</li>
+                    <li><strong>1977 — RSA:</strong> First practical public-key cryptosystem. Enabled secure communication without pre-shared keys — revolutionary.</li>
+                    <li><strong>2001 — AES:</strong> Replaced DES after a 5-year NIST competition. Still the gold standard for symmetric encryption today.</li>
+                    <li><strong>2017+ — Post-Quantum:</strong> NIST standardizing lattice-based algorithms (CRYSTALS-Kyber, CRYSTALS-Dilithium) to resist quantum computers.</li>
+                </ul>
+                <h4>The Three Pillars of Modern Cryptography</h4>
+                <div class="crypto-comparison">
+                    <div class="crypto-compare-item">
+                        <div class="crypto-compare-label">Symmetric Encryption</div>
+                        <div class="crypto-compare-detail">Same key encrypts and decrypts (AES, ChaCha20)</div>
+                        <div class="crypto-compare-note good">Fast — used for bulk data encryption</div>
+                    </div>
+                    <div class="crypto-compare-item">
+                        <div class="crypto-compare-label">Asymmetric Encryption</div>
+                        <div class="crypto-compare-detail">Public key encrypts, private key decrypts (RSA, ECC)</div>
+                        <div class="crypto-compare-note">Slow — used for key exchange, signatures, authentication</div>
+                    </div>
+                    <div class="crypto-compare-item">
+                        <div class="crypto-compare-label">Hashing</div>
+                        <div class="crypto-compare-detail">One-way function producing fixed-length digest (SHA-256)</div>
+                        <div class="crypto-compare-note">No key — used for integrity verification, password storage</div>
+                    </div>
+                </div>
+                <h4>Core Vocabulary</h4>
+                <ul>
+                    <li><strong>Plaintext:</strong> The original readable data before encryption</li>
+                    <li><strong>Ciphertext:</strong> The scrambled output after encryption — unreadable without the key</li>
+                    <li><strong>Key:</strong> A secret value that controls the encryption/decryption process</li>
+                    <li><strong>Algorithm (Cipher):</strong> The mathematical procedure that transforms plaintext to ciphertext and back</li>
+                    <li><strong>Key Space:</strong> The total number of possible keys. AES-128 has a key space of 2^128 (~3.4 x 10^38) — larger than the number of atoms in the Milky Way</li>
+                    <li><strong>Kerckhoffs's Principle:</strong> A cryptosystem should be secure even if everything about it is public knowledge, except the key. Security through obscurity is not security.</li>
+                </ul>
+            `,
+            diagram: 'crypto-overview'
+        },
+        howItWorks: {
+            steps: [
+                { title: 'Plaintext Input', description: 'The process begins with readable data — a message, file, password, or any digital content that needs protection.', detail: 'Plaintext can be any format: text, binary, images, video. Cryptographic algorithms operate on raw bytes, not on human-readable content specifically.' },
+                { title: 'Key Generation', description: 'A cryptographic key is generated using a secure random number generator (CSPRNG). The key length determines the security level — longer keys mean a larger key space to brute-force.', detail: 'True randomness is critical. Weak random number generators (like rand() in C) are the #1 cause of cryptographic failures in real systems. Always use /dev/urandom, CryptGenRandom, or equivalent CSPRNGs.' },
+                { title: 'Encryption Algorithm', description: 'The algorithm combines the plaintext with the key through a series of mathematical operations (substitution, permutation, XOR, modular arithmetic) to produce ciphertext.', detail: 'A good cipher ensures that changing even one bit of plaintext or key produces a completely different ciphertext (avalanche effect). Shannon called these properties "confusion" (complex key-ciphertext relationship) and "diffusion" (spreading plaintext influence across ciphertext).' },
+                { title: 'Ciphertext Output', description: 'The encrypted output appears as random bytes. A properly encrypted ciphertext is computationally indistinguishable from random noise — no patterns, no structure, no information leakage.', detail: 'Ciphertext is typically encoded as Base64 or hex for transmission. The ciphertext is usually longer than the plaintext due to padding, IV/nonce, and authentication tags.' },
+                { title: 'Key Exchange / Distribution', description: 'The recipient needs the key to decrypt. Symmetric encryption faces the "key distribution problem" — how do you securely share the key? Asymmetric encryption solves this: encrypt with the recipient\'s public key.', detail: 'In practice, TLS uses a hybrid approach: asymmetric encryption (RSA or ECDHE) to exchange a symmetric session key, then AES for bulk encryption. This combines the security of asymmetric with the speed of symmetric.' },
+                { title: 'Decryption', description: 'The recipient applies the decryption algorithm with the correct key to recover the original plaintext. If the wrong key is used, the output is garbage — not partial recovery, total garbage.', detail: 'Modern authenticated encryption (AES-GCM) also verifies integrity before decryption. If a single bit was altered in transit, decryption fails entirely rather than producing corrupted plaintext. This prevents bit-flipping attacks.' }
+            ]
+        },
+        interactive: {
+            type: 'crypto-overview',
+            instructions: 'Explore the fundamentals of cryptography. See how plaintext transforms into ciphertext, compare symmetric vs. asymmetric approaches, and understand where each pillar is used in real-world protocols.',
+            placeholder: 'Enter a message to see encryption in action...'
+        },
+        quiz: [
+            { question: 'Which cryptographic property ensures that a sender cannot deny having sent a message?', options: ['Confidentiality', 'Integrity', 'Authentication', 'Non-Repudiation'], correct: 3, explanation: 'Non-repudiation prevents the sender from denying they sent a message. It is achieved through digital signatures — the sender\'s private key creates a signature that only their public key can verify, proving authorship.' },
+            { question: 'What is Kerckhoffs\'s Principle?', options: ['The algorithm must be kept secret', 'Security should depend only on the secrecy of the key, not the algorithm', 'Longer keys are always more secure', 'All ciphers can eventually be broken'], correct: 1, explanation: 'Kerckhoffs\'s Principle (1883) states that a cryptosystem should be secure even if everything about it is public knowledge, except the key. This is why AES, RSA, and SHA are all published algorithms — their security comes from the key, not from secrecy.' },
+            { question: 'Which type of cryptography uses the same key for encryption and decryption?', options: ['Asymmetric encryption', 'Symmetric encryption', 'Hashing', 'Digital signatures'], correct: 1, explanation: 'Symmetric encryption (AES, ChaCha20, 3DES) uses a single shared key for both encryption and decryption. It is fast and efficient for bulk data but requires a secure way to share the key between parties.' },
+            { question: 'What major weakness of DES led to its replacement by AES?', options: ['DES was too slow for modern hardware', 'DES had a backdoor inserted by the NSA', 'DES used a 56-bit key, which was brute-forced in under 24 hours', 'DES could only encrypt text, not binary data'], correct: 2, explanation: 'DES\'s fatal flaw was its 56-bit key length. In 1999, the EFF built "Deep Crack" for $250,000 and brute-forced a DES key in 22 hours. AES uses 128/192/256-bit keys, making brute force computationally infeasible.' },
+            { question: 'In TLS (HTTPS), why is a hybrid approach used instead of purely asymmetric encryption?', options: ['Asymmetric encryption is not secure enough', 'Asymmetric encryption is too slow for bulk data — it is used only to exchange a symmetric session key', 'Symmetric encryption cannot work over the internet', 'Browsers do not support asymmetric encryption'], correct: 1, explanation: 'RSA encryption is roughly 1000x slower than AES. TLS uses asymmetric encryption (RSA or ECDHE) to securely exchange a symmetric session key, then uses AES for the actual data encryption. This hybrid approach gives the best of both worlds.' },
+            { question: 'What does "key space" refer to in cryptography?', options: ['The physical storage required for a key', 'The total number of possible keys for a given algorithm', 'The network bandwidth needed to transmit keys', 'The time required to generate a key'], correct: 1, explanation: 'Key space is the total number of possible keys. AES-128 has 2^128 possible keys (~3.4 x 10^38). A larger key space makes brute-force attacks infeasible. Each additional bit doubles the key space — AES-256 has 2^128 times more keys than AES-128.' }
+        ]
+    },
+
+    // =====================================================================
+    // ENCRYPTION — Encryption & Data Formatting
+    // =====================================================================
+    ENCRYPTION: {
+        key: 'ENCRYPTION',
+        title: 'Encryption & Data Formatting',
+        icon: '🔐',
+        color: '#a855f7',
+        description: 'How encryption transforms data across different states and contexts — symmetric vs. asymmetric, data-at-rest vs. data-in-transit, and the critical distinction between encoding, encryption, and hashing.',
+        overview: {
+            concepts: ['Symmetric vs Asymmetric', 'Encoding vs Encryption vs Hashing', 'Data-at-Rest', 'Data-in-Transit', 'Data-in-Use', 'Key Management Lifecycle', 'Algorithm Selection'],
+            explanation: `
+                <p><strong>Encryption</strong> is the process of transforming readable data (plaintext) into an unreadable format (ciphertext) using a mathematical algorithm and a key. Unlike encoding (which is reversible without a key) or hashing (which is one-way), encryption is a <strong>two-way process that requires a key</strong> to reverse.</p>
+                <h4>Encoding vs. Encryption vs. Hashing</h4>
+                <div class="crypto-comparison">
+                    <div class="crypto-compare-item">
+                        <div class="crypto-compare-label">Encoding</div>
+                        <div class="crypto-compare-detail">Transforms data format (Base64, URL encoding, UTF-8)</div>
+                        <div class="crypto-compare-note warn">NOT security — no key required, freely reversible</div>
+                    </div>
+                    <div class="crypto-compare-item">
+                        <div class="crypto-compare-label">Encryption</div>
+                        <div class="crypto-compare-detail">Transforms data using a key (AES, RSA, ChaCha20)</div>
+                        <div class="crypto-compare-note good">Two-way with key — provides confidentiality</div>
+                    </div>
+                    <div class="crypto-compare-item">
+                        <div class="crypto-compare-label">Hashing</div>
+                        <div class="crypto-compare-detail">One-way digest (SHA-256, bcrypt, Argon2)</div>
+                        <div class="crypto-compare-note">No key, irreversible — provides integrity verification</div>
+                    </div>
+                </div>
+                <h4>Symmetric vs. Asymmetric Encryption</h4>
+                <div class="crypto-comparison">
+                    <div class="crypto-compare-item">
+                        <div class="crypto-compare-label">Symmetric</div>
+                        <div class="crypto-compare-detail">One shared key for encrypt + decrypt</div>
+                        <div class="crypto-compare-note good">Fast (AES: ~1 GB/s). Problem: key distribution</div>
+                    </div>
+                    <div class="crypto-compare-item">
+                        <div class="crypto-compare-label">Asymmetric</div>
+                        <div class="crypto-compare-detail">Public key encrypts, private key decrypts</div>
+                        <div class="crypto-compare-note">Slow (~1000x slower). Solves key distribution</div>
+                    </div>
+                </div>
+                <h4>Three States of Data</h4>
+                <p>Data exists in three states, each requiring different encryption strategies:</p>
+                <div class="crypto-comparison">
+                    <div class="crypto-compare-item">
+                        <div class="crypto-compare-label">Data-at-Rest</div>
+                        <div class="crypto-compare-detail">Stored on disk, database, backup media</div>
+                        <div class="crypto-compare-note">AES-256 (BitLocker, FileVault, LUKS), TDE for databases</div>
+                    </div>
+                    <div class="crypto-compare-item">
+                        <div class="crypto-compare-label">Data-in-Transit</div>
+                        <div class="crypto-compare-detail">Moving across a network (HTTPS, VPN, email)</div>
+                        <div class="crypto-compare-note">TLS 1.3 (AES-GCM + ECDHE), IPSec, WireGuard</div>
+                    </div>
+                    <div class="crypto-compare-item">
+                        <div class="crypto-compare-label">Data-in-Use</div>
+                        <div class="crypto-compare-detail">Being processed in memory/CPU</div>
+                        <div class="crypto-compare-note">Hardest to protect — Intel SGX, AMD SEV, homomorphic encryption</div>
+                    </div>
+                </div>
+                <h4>Common Encryption Algorithms and Use Cases</h4>
+                <ul>
+                    <li><strong>AES-256-GCM:</strong> Standard for data-at-rest and TLS 1.3. Authenticated encryption with associated data (AEAD). Government-approved for TOP SECRET.</li>
+                    <li><strong>ChaCha20-Poly1305:</strong> Alternative to AES-GCM for environments without hardware AES support (mobile devices). Used by WireGuard and Google's QUIC protocol.</li>
+                    <li><strong>RSA-2048/4096:</strong> Key exchange and digital signatures. Being phased out in favor of ECC for performance. Still dominant in X.509 certificates.</li>
+                    <li><strong>ECDHE (Elliptic Curve Diffie-Hellman Ephemeral):</strong> Key agreement protocol. Provides perfect forward secrecy — compromising the server's long-term key doesn't reveal past session keys.</li>
+                    <li><strong>XChaCha20-Poly1305:</strong> Extended nonce variant for file encryption. Used by tools like age, Secretstream.</li>
+                </ul>
+                <h4>Key Management Lifecycle</h4>
+                <ul>
+                    <li><strong>Generation:</strong> Use CSPRNGs (not math.random). Key ceremony for high-value keys (HSMs).</li>
+                    <li><strong>Distribution:</strong> Never send keys in plaintext. Use Diffie-Hellman, PKI, or out-of-band channels.</li>
+                    <li><strong>Storage:</strong> Hardware Security Modules (HSMs), key vaults (AWS KMS, Azure Key Vault), or encrypted key files.</li>
+                    <li><strong>Rotation:</strong> Regular key rotation limits exposure from compromised keys. TLS session keys rotate per-connection.</li>
+                    <li><strong>Revocation:</strong> CRLs and OCSP for certificates. Key escrow for recovery scenarios.</li>
+                    <li><strong>Destruction:</strong> Crypto-shredding — destroy the key and the data becomes permanently unrecoverable. Used in cloud decommissioning.</li>
+                </ul>
+            `,
+            diagram: 'encryption-states'
+        },
+        howItWorks: {
+            steps: [
+                { title: 'Data Classification', description: 'Before encrypting, classify the data by sensitivity level (public, internal, confidential, restricted). The classification determines the required encryption strength and key management rigor.', detail: 'NIST SP 800-53 defines security controls by impact level (Low/Moderate/High). PCI-DSS mandates AES-128+ for cardholder data. HIPAA requires encryption for PHI at rest and in transit. Classification drives algorithm and key length selection.' },
+                { title: 'Algorithm Selection', description: 'Choose the appropriate algorithm based on the use case. Symmetric (AES) for bulk data, asymmetric (RSA/ECC) for key exchange, or hybrid for TLS-style protocols.', detail: 'Key selection criteria: (1) Security margin — AES-256 for long-term secrets. (2) Performance — ChaCha20 for mobile, AES-NI for servers. (3) Compliance — FIPS 140-2/3 may mandate specific algorithms. (4) Forward secrecy — use ephemeral keys (ECDHE) when possible.' },
+                { title: 'Key Generation', description: 'Generate a cryptographic key using a CSPRNG (Cryptographically Secure Pseudo-Random Number Generator). The key must have sufficient entropy — predictable keys are the most common real-world crypto failure.', detail: 'Key sizes: AES-128 (standard), AES-256 (high-value). RSA minimum 2048-bit (NIST recommends 3072+ through 2031). ECC: P-256 (equivalent to RSA-3072). Never derive keys from passwords directly — use PBKDF2, scrypt, or Argon2.' },
+                { title: 'Encryption Process', description: 'The algorithm transforms plaintext into ciphertext block by block (block ciphers) or byte by byte (stream ciphers). An IV or nonce ensures that encrypting the same plaintext twice produces different ciphertext.', detail: 'AES-GCM generates a 128-bit authentication tag alongside the ciphertext, providing authenticated encryption. If any bit of the ciphertext is modified, decryption fails entirely. Never reuse a nonce with the same key — nonce reuse in AES-GCM is catastrophic (reveals the authentication key).' },
+                { title: 'Secure Key Storage', description: 'Keys must be stored separately from the data they protect. Hardware Security Modules (HSMs) provide tamper-resistant key storage. Cloud services use managed key vaults with access controls and audit logging.', detail: 'Key hierarchy: Master Key (stored in HSM) → Data Encryption Key (DEK, encrypted by master key) → Encrypted Data. This "envelope encryption" pattern means compromising one DEK only exposes that data segment, not everything.' },
+                { title: 'Decryption on Demand', description: 'The authorized recipient retrieves the key and applies the decryption algorithm. Authenticated encryption (GCM, Poly1305) verifies integrity before returning plaintext — preventing attacks that manipulate ciphertext.', detail: 'Decrypt-then-verify (older approach) is vulnerable to padding oracle attacks (BEAST, POODLE). Encrypt-then-MAC or AEAD (encrypt and authenticate simultaneously) is the modern standard. TLS 1.3 only supports AEAD cipher suites.' }
+            ]
+        },
+        interactive: {
+            type: 'encryption-compare',
+            instructions: 'Compare symmetric and asymmetric encryption side by side. Encrypt data with AES (symmetric) and RSA (asymmetric) to see the differences in speed, output size, and key usage.',
+            placeholder: 'Enter data to encrypt with different algorithms...'
+        },
+        quiz: [
+            { question: 'What is the fundamental difference between encoding and encryption?', options: ['Encoding is faster than encryption', 'Encoding requires no key and is freely reversible; encryption requires a key', 'Encryption produces shorter output than encoding', 'Encoding is a newer technology than encryption'], correct: 1, explanation: 'Encoding (Base64, URL encoding) is a data format transformation that requires no secret — anyone can reverse it. Encryption requires a key to reverse. Treating encoding as security (e.g., Base64-encoding passwords) is a critical mistake.' },
+            { question: 'Which data state is the hardest to protect with encryption?', options: ['Data-at-rest', 'Data-in-transit', 'Data-in-use', 'Data-in-backup'], correct: 2, explanation: 'Data-in-use must be decrypted in memory for processing, exposing it to memory dumps, cold boot attacks, and side-channel attacks. Technologies like Intel SGX, AMD SEV, and homomorphic encryption address this but add significant complexity and performance overhead.' },
+            { question: 'Why is nonce reuse catastrophic in AES-GCM?', options: ['It slows down encryption significantly', 'It reveals the authentication key, allowing forgery of arbitrary messages', 'It causes the algorithm to crash', 'It doubles the ciphertext size'], correct: 1, explanation: 'AES-GCM derives its authentication key from the nonce. Reusing a nonce with the same key allows an attacker to recover the authentication key via XOR of the two authentication tags, enabling them to forge valid ciphertexts.' },
+            { question: 'What is "crypto-shredding"?', options: ['A method to strengthen weak encryption', 'Destroying the encryption key to make data permanently unrecoverable', 'Compressing encrypted data', 'Splitting a key among multiple parties'], correct: 1, explanation: 'Crypto-shredding destroys the encryption key rather than the data itself. Since the data is encrypted, destroying the key makes it permanently unrecoverable. This is used for decommissioning cloud resources, device disposal, and GDPR "right to be forgotten" compliance.' },
+            { question: 'What does "perfect forward secrecy" provide?', options: ['Encryption that can never be broken', 'Each session uses ephemeral keys — compromising the long-term key does not reveal past sessions', 'Automatic key rotation every hour', 'Encryption of future messages using predicted keys'], correct: 1, explanation: 'Perfect forward secrecy (PFS) uses ephemeral Diffie-Hellman key exchange so each session has a unique key. Even if the server\'s long-term private key is compromised, an attacker cannot decrypt previously recorded traffic. TLS 1.3 mandates PFS via ECDHE.' },
+            { question: 'In envelope encryption, what is the role of the master key?', options: ['It directly encrypts all data', 'It encrypts the Data Encryption Keys (DEKs), which in turn encrypt the data', 'It is shared with all users for decryption', 'It replaces the need for key rotation'], correct: 1, explanation: 'Envelope encryption uses a hierarchy: the master key (stored in an HSM) encrypts DEKs, and DEKs encrypt the actual data. This limits exposure — compromising one DEK only affects that data segment, and key rotation only requires re-encrypting the DEK, not all the data.' }
+        ]
+    },
+
+    // =====================================================================
+    // HASHING_WALKTHROUGH — Hashing: Step-by-Step Walkthrough
+    // =====================================================================
+    HASHING_WALKTHROUGH: {
+        key: 'HASHING_WALKTHROUGH',
+        title: 'Hashing: Step-by-Step Walkthrough',
+        icon: '#️⃣',
+        color: '#a855f7',
+        description: 'A guided walkthrough of how cryptographic hash functions work — from input to fixed-length output, the avalanche effect, rainbow tables, salting, and modern password hashing best practices.',
+        overview: {
+            concepts: ['One-Way Function', 'Fixed-Length Output', 'Avalanche Effect', 'Collision Resistance', 'Rainbow Tables', 'Salting', 'bcrypt / scrypt / Argon2', 'MD5 / SHA-1 / SHA-256 / SHA-3'],
+            explanation: `
+                <p>A <strong>cryptographic hash function</strong> takes input of any length and produces a fixed-length output (digest) that acts as a unique fingerprint of the data. Unlike encryption, hashing is <strong>one-way</strong> — you cannot recover the original input from the hash.</p>
+                <h4>Hashing vs. Encryption</h4>
+                <div class="crypto-comparison">
+                    <div class="crypto-compare-item">
+                        <div class="crypto-compare-label">Encryption</div>
+                        <div class="crypto-compare-detail">Two-way: encrypt with key, decrypt with key</div>
+                        <div class="crypto-compare-note">Purpose: confidentiality — protect data so it can be recovered later</div>
+                    </div>
+                    <div class="crypto-compare-item">
+                        <div class="crypto-compare-label">Hashing</div>
+                        <div class="crypto-compare-detail">One-way: input → digest (no reverse operation)</div>
+                        <div class="crypto-compare-note good">Purpose: integrity verification, password storage, digital signatures</div>
+                    </div>
+                </div>
+                <h4>Properties of a Secure Hash Function</h4>
+                <ul>
+                    <li><strong>Deterministic:</strong> Same input always produces the same hash. "hello" will always hash to the same SHA-256 value.</li>
+                    <li><strong>Fixed-length output:</strong> Regardless of input size (1 byte or 1 terabyte), SHA-256 always outputs 256 bits (64 hex characters).</li>
+                    <li><strong>Avalanche effect:</strong> Changing one bit of input changes approximately 50% of the output bits. "hello" and "hellp" produce completely different hashes.</li>
+                    <li><strong>Pre-image resistance:</strong> Given a hash H, it is computationally infeasible to find any input M such that hash(M) = H.</li>
+                    <li><strong>Second pre-image resistance:</strong> Given input M1, it is infeasible to find M2 (where M2 ≠ M1) such that hash(M1) = hash(M2).</li>
+                    <li><strong>Collision resistance:</strong> It is infeasible to find ANY two different inputs that produce the same hash. SHA-1 lost this property in 2017 (SHAttered attack).</li>
+                </ul>
+                <h4>Hash Algorithm Comparison</h4>
+                <div class="crypto-comparison">
+                    <div class="crypto-compare-item">
+                        <div class="crypto-compare-label">MD5</div>
+                        <div class="crypto-compare-detail">128-bit output, fast, widely deployed</div>
+                        <div class="crypto-compare-note warn">BROKEN — collision attacks since 2004. Never use for security.</div>
+                    </div>
+                    <div class="crypto-compare-item">
+                        <div class="crypto-compare-label">SHA-1</div>
+                        <div class="crypto-compare-detail">160-bit output, successor to MD5</div>
+                        <div class="crypto-compare-note warn">BROKEN — Google produced a collision in 2017 (SHAttered). Deprecated everywhere.</div>
+                    </div>
+                    <div class="crypto-compare-item">
+                        <div class="crypto-compare-label">SHA-256</div>
+                        <div class="crypto-compare-detail">256-bit output, part of SHA-2 family</div>
+                        <div class="crypto-compare-note good">Current standard. Used in TLS, Bitcoin, code signing, and file integrity.</div>
+                    </div>
+                    <div class="crypto-compare-item">
+                        <div class="crypto-compare-label">SHA-3 (Keccak)</div>
+                        <div class="crypto-compare-detail">Variable output, sponge construction</div>
+                        <div class="crypto-compare-note good">Backup standard. Different internal design than SHA-2 (not Merkle-Damgård).</div>
+                    </div>
+                </div>
+                <h4>Rainbow Tables and Why Salting Matters</h4>
+                <p>A <strong>rainbow table</strong> is a precomputed lookup table mapping common passwords to their hash values. If passwords are hashed without a salt, an attacker with a rainbow table can reverse millions of hashes instantly.</p>
+                <p>A <strong>salt</strong> is a unique random value prepended to each password before hashing. Even if two users have the same password, their salts differ, producing different hashes. This forces attackers to crack each hash individually.</p>
+                <h4>Password Hashing Best Practices</h4>
+                <div class="crypto-comparison">
+                    <div class="crypto-compare-item">
+                        <div class="crypto-compare-label">bcrypt</div>
+                        <div class="crypto-compare-detail">Adaptive cost factor, built-in salt, 60-char output</div>
+                        <div class="crypto-compare-note good">Battle-tested since 1999. Default for most web frameworks.</div>
+                    </div>
+                    <div class="crypto-compare-item">
+                        <div class="crypto-compare-label">scrypt</div>
+                        <div class="crypto-compare-detail">Memory-hard: CPU + RAM intensive</div>
+                        <div class="crypto-compare-note good">Resists GPU/ASIC attacks. Used in cryptocurrency mining (Litecoin).</div>
+                    </div>
+                    <div class="crypto-compare-item">
+                        <div class="crypto-compare-label">Argon2</div>
+                        <div class="crypto-compare-detail">Winner of 2015 Password Hashing Competition</div>
+                        <div class="crypto-compare-note good">State of the art. Configurable: time, memory, parallelism. Recommended by OWASP.</div>
+                    </div>
+                </div>
+            `,
+            diagram: 'hash-walkthrough'
+        },
+        howItWorks: {
+            steps: [
+                { title: 'Input of Any Length', description: 'The hash function accepts an input message of arbitrary length — from a single character to an entire database. The output size is always fixed regardless of input size.', detail: 'SHA-256 processes input in 512-bit (64-byte) blocks. A 1-byte input and a 1-TB input both produce a 256-bit (32-byte) hash. This compression is fundamental — it means collisions must theoretically exist (pigeonhole principle), but finding them should be computationally infeasible.' },
+                { title: 'Padding to Block Size', description: 'The input is padded to a multiple of the block size (512 bits for SHA-256). Padding appends a "1" bit, then zeros, then the original message length as a 64-bit integer.', detail: 'Merkle-Damgård padding (used by MD5, SHA-1, SHA-2): append bit "1", then zeros until 448 mod 512, then the 64-bit message length. This length-encoding prevents length extension attacks in the padding itself (though the construction is still vulnerable to them without HMAC).' },
+                { title: 'Initial Hash Values', description: 'The algorithm starts with a set of fixed initial hash values (H0-H7 for SHA-256). These are derived from the fractional parts of the square roots of the first 8 prime numbers — nothing-up-my-sleeve numbers.', detail: 'SHA-256 initial values: H0=6a09e667, H1=bb67ae85, H2=3c6ef372, etc. Using mathematical constants (not arbitrary values) provides transparency — anyone can verify they contain no hidden backdoor. SHA-3 (Keccak) uses a different approach with an all-zero initial state.' },
+                { title: 'Compression Rounds', description: 'Each 512-bit block is processed through 64 rounds of compression. Each round uses bitwise operations (AND, XOR, NOT, rotate, shift), addition modulo 2^32, and round constants derived from cube roots of the first 64 primes.', detail: 'Each round combines the working variables (a-h) with a message schedule word and a round constant using Sigma functions, Ch (choice), and Maj (majority) operations. After 64 rounds, the result is added to the previous hash state. This Merkle-Damgård construction chains blocks: H(block_n) depends on H(block_n-1).' },
+                { title: 'Avalanche Effect', description: 'The compression rounds ensure that every bit of input influences every bit of output. Changing a single bit in the input flips approximately 50% of output bits — making it impossible to predict how a change affects the hash.', detail: 'Example: SHA-256("hello") = 2cf24dba... SHA-256("hellp") = 5f2b7c... — completely different despite one letter change. This is measured by the Strict Avalanche Criterion (SAC): flipping any input bit should give each output bit a 50% chance of flipping. A hash function failing SAC would leak information about the input.' },
+                { title: 'Fixed-Length Output', description: 'After all blocks are processed, the final hash state (H0-H7) is concatenated to produce the 256-bit digest. This fixed-length output serves as a unique fingerprint of the input data.', detail: 'The digest is typically displayed as 64 hexadecimal characters. Applications: file integrity (checksums), password storage (with salt), digital signatures (sign the hash, not the message), blockchain (proof-of-work), HMAC (keyed hash for message authentication), and commit hashes (Git uses SHA-1, migrating to SHA-256).' }
+            ]
+        },
+        interactive: {
+            type: 'hash-walkthrough',
+            instructions: 'Walk through the hashing process step by step. Enter a message and watch as it is padded, compressed through rounds, and reduced to a fixed-length digest. Change one character and observe the avalanche effect.',
+            placeholder: 'Enter a message to hash step by step...'
+        },
+        quiz: [
+            { question: 'What is the key difference between hashing and encryption?', options: ['Hashing is faster than encryption', 'Hashing is one-way (irreversible); encryption is two-way (reversible with a key)', 'Hashing uses larger keys than encryption', 'Encryption produces fixed-length output; hashing does not'], correct: 1, explanation: 'Hashing is a one-way function — there is no key and no way to recover the original input from the digest. Encryption is two-way: with the correct key, ciphertext can be decrypted back to plaintext. This fundamental difference determines their use cases.' },
+            { question: 'What is the "avalanche effect" in hash functions?', options: ['Output gets larger as input gets larger', 'Changing one input bit changes approximately 50% of output bits', 'The hash computation gets exponentially slower with larger inputs', 'Multiple inputs always produce the same hash'], correct: 1, explanation: 'The avalanche effect means a tiny change in input (even 1 bit) causes approximately half the output bits to flip. This ensures that similar inputs produce completely different hashes, preventing anyone from deducing the input by analyzing the output.' },
+            { question: 'Why is MD5 considered broken for security purposes?', options: ['It is too slow for modern hardware', 'Practical collision attacks exist — two different inputs can produce the same hash', 'Its 128-bit output is too long to store', 'It was never standardized by NIST'], correct: 1, explanation: 'In 2004, researchers demonstrated practical collision attacks against MD5. An attacker can create two different files with the same MD5 hash. This was exploited in the real world — the Flame malware used an MD5 collision to forge a Microsoft certificate.' },
+            { question: 'What does a "salt" do in password hashing?', options: ['Makes the password longer and harder to guess', 'Adds a unique random value to each password before hashing, defeating rainbow tables', 'Encrypts the hash for additional security', 'Compresses the password before hashing to save storage'], correct: 1, explanation: 'A salt is a unique random value generated for each password and stored alongside the hash. It ensures that identical passwords produce different hashes (different salts). This defeats rainbow tables, which rely on precomputed hash lookups, and forces attackers to crack each hash individually.' },
+            { question: 'Why is Argon2 recommended over plain SHA-256 for password hashing?', options: ['Argon2 produces longer hashes', 'Argon2 is deliberately slow and memory-hard, making brute-force attacks expensive', 'SHA-256 is broken', 'Argon2 does not require a salt'], correct: 1, explanation: 'SHA-256 is designed to be FAST — a GPU can compute billions of SHA-256 hashes per second. For password hashing, speed is the enemy. Argon2 is deliberately slow and memory-intensive (configurable time, memory, parallelism), making GPU/ASIC brute-force attacks prohibitively expensive.' },
+            { question: 'How does SHA-3 (Keccak) differ architecturally from SHA-2?', options: ['SHA-3 uses longer keys', 'SHA-3 uses a sponge construction instead of Merkle-Damgård', 'SHA-3 is proprietary and closed-source', 'SHA-3 only works on text input, not binary'], correct: 1, explanation: 'SHA-2 uses the Merkle-Damgård construction (chained compression function), which is vulnerable to length extension attacks. SHA-3 uses a sponge construction that "absorbs" input and "squeezes" output, which is inherently resistant to length extension attacks and provides a completely different security foundation.' }
+        ]
     }
 };

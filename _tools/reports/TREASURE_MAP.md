@@ -1,7 +1,7 @@
 ══════════════════════════════════════════════════════════════════════
                          EDUSCAN REPORT
                     Hexworth Prime Content Map
-                    Scanned: 2026-02-18 11:00:05 AM
+                    Scanned: 2026-02-18 1:22:43 PM
 ══════════════════════════════════════════════════════════════════════
 
 
@@ -10,29 +10,29 @@
 
 | Metric | Value |
 |--------|-------|
-| Files Scanned | 1486 |
-| Directories | 564 |
-| Content Files | 1486 |
-| Scan Duration | 189ms |
+| Files Scanned | 1495 |
+| Directories | 569 |
+| Content Files | 1495 |
+| Scan Duration | 206ms |
 
 ### Content by Type
 
 | Type | Count |
 |------|-------|
-| html | 638 |
+| html | 646 |
 | presentation | 403 |
 | lab | 237 |
-| applet | 193 |
+| applet | 194 |
 | quiz | 15 |
 
 ### ContentCatalog Validation
 
 | Metric | Value |
 |--------|-------|
-| Total Modules | 1400 |
-| Available | 1395 |
+| Total Modules | 1407 |
+| Available | 1402 |
 | Missing Hrefs (CAT-001) | 0 |
-| Undeclared Files (CAT-002) | 0 |
+| Undeclared Files (CAT-002) | 2 |
 | Empty Hrefs (CAT-003) | 0 |
 
 
@@ -42,17 +42,17 @@
 |----------|-------|
 | Critical | 0 |
 | Suspect | 125 |
-| Warning | 983 |
-| Info | 408 |
-| **Total** | **2097** |
+| Warning | 984 |
+| Info | 409 |
+| **Total** | **2102** |
 
 ### Sync Status
 
 | Status | Count |
 |--------|-------|
-| Ready | 634 |
+| Ready | 635 |
 | Not Ready | 214 |
-| Unknown | 638 |
+| Unknown | 646 |
 
 
 ## FILE HIERARCHY
@@ -884,6 +884,7 @@
 │   │   │       ├── 📄 forge-backup-strategy-planner.applet.html
 │   │   │       ├── 📄 forge-hardware-trainer.applet.html
 │   │   │       ├── 📁 hard_drive_geometry [applets]
+│   │   │       │   ├── 📄 forge-hard-drive-geometry-native.applet.html
 │   │   │       │   ├── 📄 forge-hard-drive-geometry.applet.html
 │   │   │       │   ├── 📄 forge-hard-drive-geometry1.applet.html
 │   │   │       │   └── 📁 hard_drive_geometry1.hyperesources [applets]
@@ -1491,6 +1492,8 @@
 │   │   │   │   │   └── 📄 shield-cmmc-ma.applet.html
 │   │   │   │   ├── 📁 cmmc_media_protection [applets]
 │   │   │   │   │   └── 📄 shield-cmmc-mp.applet.html
+│   │   │   │   ├── 📁 cmmc_overview [applets]
+│   │   │   │   │   └── 📄 shield-cmmc-overview.applet.html
 │   │   │   │   ├── 📁 cmmc_personnel_security [applets]
 │   │   │   │   │   └── 📄 shield-cmmc-ps.applet.html
 │   │   │   │   ├── 📁 cmmc_physical_protection [applets]
@@ -1532,6 +1535,8 @@
 │   │   │   │   ├── 📁 cryptography [applets]
 │   │   │   │   │   ├── 📁 cryptography.hyperesources [applets]
 │   │   │   │   │   └── 📄 shield-cryptography.applet.html
+│   │   │   │   ├── 📁 cryptography_intro [applets]
+│   │   │   │   │   └── 📄 shield-crypto-cryptography-intro.applet.html
 │   │   │   │   ├── 📁 cryptomatch [applets]
 │   │   │   │   │   ├── 📁 CryptoMatch.hyperesources [applets]
 │   │   │   │   │   └── 📄 shield-crypto-match.applet.html
@@ -1545,6 +1550,7 @@
 │   │   │   │   │   └── 📄 shield-digital-signature.applet.html
 │   │   │   │   ├── 📁 encrypt_data [applets]
 │   │   │   │   │   ├── 📁 EncryptData.hyperesources [applets]
+│   │   │   │   │   ├── 📄 shield-crypto-encryption.applet.html
 │   │   │   │   │   └── 📄 shield-encrypt-data.applet.html
 │   │   │   │   ├── 📁 encryption [applets]
 │   │   │   │   │   ├── 📁 encryption_jedit_6_1.hyperesources [applets]
@@ -1564,6 +1570,8 @@
 │   │   │   │   │   ├── 📄 shield-encryption-task.applet.html
 │   │   │   │   │   ├── 📄 shield-hash-v3.applet.html
 │   │   │   │   │   └── 📄 shield-stego.applet.html
+│   │   │   │   ├── 📁 hashing_walkthrough [applets]
+│   │   │   │   │   └── 📄 shield-crypto-hashing-walkthrough.applet.html
 │   │   │   │   ├── 📁 hmac [applets]
 │   │   │   │   │   └── 📄 shield-crypto-hmac.applet.html
 │   │   │   │   ├── 📁 key_exchange [applets]
@@ -1720,7 +1728,8 @@
 │   │   │       │   └── 📄 shield-threat-apt.applet.html
 │   │   │       ├── 📁 attacks_malware [applets]
 │   │   │       │   ├── 📁 attacks.hyperesources [applets]
-│   │   │       │   └── 📄 shield-attacks.applet.html
+│   │   │       │   ├── 📄 shield-attacks.applet.html
+│   │   │       │   └── 📄 shield-threat-attacks-malware.applet.html
 │   │   │       ├── 📁 botnets [applets]
 │   │   │       │   └── 📄 shield-threat-botnets.applet.html
 │   │   │       ├── 📁 buffer_overflow [applets]
@@ -1816,7 +1825,8 @@
 │   │   │       │   └── 📄 shield-threat-supply-chain.applet.html
 │   │   │       ├── 📁 threat_actors [applets]
 │   │   │       │   ├── 📁 ThreatActors.hyperesources [applets]
-│   │   │       │   └── 📄 shield-threat-actors.applet.html
+│   │   │       │   ├── 📄 shield-threat-actors.applet.html
+│   │   │       │   └── 📄 shield-threat-threat-actors.applet.html
 │   │   │       ├── 📁 xss [applets]
 │   │   │       │   └── 📄 shield-threat-xss.applet.html
 │   │   │       └── 📁 zero_day [applets]
@@ -1938,6 +1948,10 @@
 │       │   │   │   └── 📄 web-ip-ipv4-classes.applet.html
 │       │   │   ├── 📁 ipv6-addressing [applets]
 │       │   │   │   └── 📄 web-ip-ipv6-addressing.applet.html
+│       │   │   ├── 📁 ipv6-challenge [applets]
+│       │   │   │   └── 📄 web-ip-ipv6-challenge.applet.html
+│       │   │   ├── 📁 mac-addressing [applets]
+│       │   │   │   └── 📄 web-ip-mac-addressing.applet.html
 │       │   │   ├── 📁 macaddressing [applets]
 │       │   │   │   ├── 📁 EMate_pizzaparty_exercise_102918.hyperesources [applets]
 │       │   │   │   └── 📄 web-emate-pizzaparty-exercise-102918.applet.html
@@ -2444,6 +2458,7 @@
 | forge-settings.tool | presentation | ✓ | 0 |
 | forge-system-tools-sim.applet | presentation | ✓ | 1 |
 | forge-windows-edition-selector.applet | presentation | ✓ | 0 |
+| forge-hard-drive-geometry-native.applet | applet | ✓ | 1 |
 | forge-hard-drive-geometry.applet | applet | ✓ | 1 |
 | forge-multimeter.applet | applet | ✓ | 1 |
 | forge-peripheral-devices.applet | applet | ✓ | 1 |
@@ -3523,7 +3538,7 @@
   File: `test-rare-only.html`
   Fix: Remove console.log or replace with proper logging
 
-### WARNING (983)
+### WARNING (984)
 
 **[REG-001]** Content file is not registered in content-registry.js
   File: `admin/audit-tool.html`
@@ -5291,6 +5306,10 @@
 
 **[REG-001]** Content file is not registered in content-registry.js
   File: `houses/forge/applets/forge-windows-edition-selector.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/forge/applets/hardware/hard_drive_geometry/forge-hard-drive-geometry-native.applet.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
@@ -7457,7 +7476,7 @@
   File: `workshop/a2-shadow-encoder/current.html`
   Fix: Add entry to content-registry.js
 
-### INFO (408)
+### INFO (409)
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `admin/audit-tool.html`
@@ -8213,6 +8232,10 @@
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `houses/forge/applets/forge-system-tools-sim.applet.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/forge/applets/hardware/hard_drive_geometry/forge-hard-drive-geometry-native.applet.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
@@ -9087,7 +9110,7 @@
 ## REGISTRY GAPS
 ══════════════════════════════════════════════════════════════════════
 
-### Unregistered Content (799)
+### Unregistered Content (800)
 
 | Path | Type | House |
 |------|------|-------|
@@ -9432,6 +9455,7 @@
 | houses/forge/applets/forge-settings.tool.html | presentation | forge |
 | houses/forge/applets/forge-system-tools-sim.applet.html | presentation | forge |
 | houses/forge/applets/forge-windows-edition-selector.applet.html | presentation | forge |
+| houses/forge/applets/hardware/hard_drive_geometry/forge-hard-drive-geometry-native.applet.html | applet | forge |
 | houses/forge/applets/hardware/hard_drive_geometry/forge-hard-drive-geometry.applet.html | applet | forge |
 | houses/forge/applets/hardware/multimeter/forge-multimeter.applet.html | applet | forge |
 | houses/forge/applets/hardware/peripheral_devices/forge-peripheral-devices.applet.html | applet | forge |
