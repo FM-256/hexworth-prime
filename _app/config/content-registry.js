@@ -3140,7 +3140,7 @@ const ContentRegistry = {
             topics: ['cryptography', 'security'],
             paths: ['comptia-security', 'security-fundamentals', 'cryptography-track'],
             components: {
-                applet: 'houses/shield/applets/crypto/blockchain/shield-blockchain.applet.html'
+                applet: 'houses/shield/applets/crypto/blockchain/shield-crypto-blockchain.applet.html'
             },
             prerequisites: [],
             objectives: []
@@ -3172,7 +3172,7 @@ const ContentRegistry = {
             topics: ['cryptography', 'security'],
             paths: ['comptia-security', 'security-fundamentals', 'cryptography-track'],
             components: {
-                applet: 'houses/shield/applets/crypto/cryptomatch/shield-crypto-match.applet.html'
+                applet: 'houses/shield/applets/games/crypto_match/shield-cryptomatch-native.applet.html'
             },
             prerequisites: [],
             objectives: []
@@ -3252,7 +3252,7 @@ const ContentRegistry = {
             topics: ['cryptography', 'security'],
             paths: ['comptia-security', 'security-fundamentals'],
             components: {
-                applet: 'houses/shield/applets/crypto/factor_prime/shield-factor-prime.applet.html'
+                applet: 'houses/shield/applets/crypto/prime_factorization/shield-crypto-prime-factorization.applet.html'
             },
             prerequisites: [],
             objectives: []
@@ -3445,6 +3445,22 @@ const ContentRegistry = {
             paths: ['comptia-security', 'security-fundamentals', 'cryptography-track'],
             components: {
                 applet: 'houses/shield/applets/crypto/shield-crypto-rsa.applet.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'shield-xor-encryption': {
+            id: 'shield-xor-encryption',
+            title: 'XOR Encryption',
+            description: 'XOR cipher mechanics and bitwise operations',
+            house: 'shield',
+            type: 'applet',
+            difficulty: 'beginner',
+            duration: 20,
+            topics: ['cryptography', 'security'],
+            paths: ['comptia-security', 'security-fundamentals', 'cryptography-track'],
+            components: {
+                applet: 'houses/shield/applets/crypto/xor_encryption/shield-crypto-xor-encryption.applet.html'
             },
             prerequisites: [],
             objectives: []
@@ -3748,7 +3764,7 @@ const ContentRegistry = {
             topics: ['fundamentals', 'security'],
             paths: ['comptia-security', 'security-fundamentals'],
             components: {
-                applet: 'houses/shield/applets/games/cookie_caper/shield-cookies.applet.html'
+                applet: 'houses/shield/applets/games/cookie_caper/shield-cookies-native.applet.html'
             },
             prerequisites: [],
             objectives: []
@@ -3764,7 +3780,7 @@ const ContentRegistry = {
             topics: ['fundamentals', 'security'],
             paths: ['comptia-security', 'security-fundamentals'],
             components: {
-                applet: 'houses/shield/applets/games/cyber_hat_match/shield-hatmatch.applet.html'
+                applet: 'houses/shield/applets/games/cyber_hat_match/shield-hatmatch-native.applet.html'
             },
             prerequisites: [],
             objectives: []
@@ -3780,7 +3796,7 @@ const ContentRegistry = {
             topics: ['fundamentals', 'security'],
             paths: ['comptia-security', 'security-fundamentals'],
             components: {
-                applet: 'houses/shield/applets/games/cyber_scramble/shield-cyberscramble.applet.html'
+                applet: 'houses/shield/applets/games/cyber_scramble/shield-cyberscramble-native.applet.html'
             },
             prerequisites: [],
             objectives: []
@@ -3812,7 +3828,7 @@ const ContentRegistry = {
             topics: ['fundamentals', 'security'],
             paths: ['comptia-security', 'security-fundamentals'],
             components: {
-                applet: 'houses/shield/applets/games/hacker_hangman/shield-hangman.applet.html'
+                applet: 'houses/shield/applets/games/hacker_hangman/shield-hangman-native.applet.html'
             },
             prerequisites: [],
             objectives: []
@@ -3828,7 +3844,7 @@ const ContentRegistry = {
             topics: ['threats', 'security'],
             paths: ['comptia-security', 'security-fundamentals'],
             components: {
-                applet: 'houses/shield/applets/games/whats_my_crime/shield-crime.applet.html'
+                applet: 'houses/shield/applets/games/whats_my_crime/shield-crime-native.applet.html'
             },
             prerequisites: [],
             objectives: []

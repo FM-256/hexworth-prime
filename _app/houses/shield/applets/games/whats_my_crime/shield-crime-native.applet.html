@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>What's My Crime? - Shield House</title>
+    <script src="../../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { background: #0a0a0f; color: #c8c8d0; font-family: 'Segoe UI', system-ui, sans-serif; min-height: 100vh; user-select: none; }
+        .top-bar { display: flex; align-items: center; padding: 10px 20px; background: #111118; border-bottom: 1px solid #dc143c33; }
+        .back-btn { color: #dc143c; text-decoration: none; font-size: 14px; display: flex; align-items: center; gap: 6px; transition: color .2s; }
+        .back-btn:hover { color: #ff3355; }
+        .top-bar h1 { flex: 1; text-align: center; font-size: 20px; color: #dc143c; letter-spacing: 1px; }
+
+        .game-wrap { max-width: 1000px; margin: 0 auto; padding: 20px; }
+
+        /* Start */
+        .start-screen { text-align: center; padding: 50px 20px; }
+        .start-screen .hero-icon { font-size: 72px; margin-bottom: 16px; }
+        .start-screen h2 { color: #dc143c; font-size: 32px; margin-bottom: 8px; }
+        .start-screen .sub { color: #888; font-size: 15px; margin-bottom: 28px; }
+        .btn { background: #dc143c; color: #fff; border: none; padding: 12px 32px; font-size: 16px; border-radius: 8px; cursor: pointer; transition: all .2s; }
+        .btn:hover { background: #ff1a4a; transform: scale(1.03); }
+        .btn:disabled { background: #333; cursor: default; transform: none; }
+        .btn-outline { background: transparent; border: 2px solid #dc143c; color: #dc143c; }
+        .btn-outline:hover { background: #dc143c22; }
+
+        /* HUD */
+        .hud { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; margin-bottom: 12px; flex-wrap: wrap; gap: 8px; }
+        .hud-item { font-size: 14px; color: #888; }
+        .hud-item span { color: #dc143c; font-weight: 700; }
+        .round-label { background: #dc143c22; color: #dc143c; padding: 4px 14px; border-radius: 12px; font-size: 13px; font-weight: 600; }
+
+        /* Match Area */
+        .match-area { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+        @media (max-width: 700px) { .match-area { grid-template-columns: 1fr; } }
+
+        .column-header { font-size: 14px; color: #dc143c; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px; text-align: center; }
+
+        /* Crime Cards */
+        .crime-card { background: #13131d; border: 2px solid #1e1e2e; border-radius: 10px; padding: 14px 16px; margin-bottom: 10px; cursor: pointer; transition: all .2s; position: relative; }
+        .crime-card:hover { border-color: #dc143c55; }
+        .crime-card.selected { border-color: #dc143c; background: #1a0a10; box-shadow: 0 0 12px #dc143c22; }
+        .crime-card.matched { border-color: #22c55e; background: #0a1a10; opacity: .7; pointer-events: none; }
+        .crime-card.wrong-flash { animation: wrongShake .4s ease; }
+        @keyframes wrongShake { 0%,100% { transform: translateX(0); } 25% { transform: translateX(-6px); } 75% { transform: translateX(6px); } }
+
+        .crime-card .mugshot { display: flex; align-items: center; gap: 10px; }
+        .mugshot-icon { width: 40px; height: 40px; background: #dc143c22; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 20px; flex-shrink: 0; }
+        .crime-card .crime-name { font-weight: 600; color: #e0e0e8; font-size: 15px; }
+        .crime-card .crime-id { font-size: 11px; color: #555; margin-top: 2px; }
+
+        /* Definition Cards */
+        .def-card { background: #13131d; border: 2px solid #1e1e2e; border-radius: 10px; padding: 14px 16px; margin-bottom: 10px; cursor: pointer; transition: all .2s; font-size: 13px; line-height: 1.5; color: #aaa; }
+        .def-card:hover { border-color: #dc143c55; }
+        .def-card.selected { border-color: #dc143c; background: #1a0a10; }
+        .def-card.matched { border-color: #22c55e; background: #0a1a10; opacity: .7; pointer-events: none; }
+        .def-card.wrong-flash { animation: wrongShake .4s ease; }
+
+        /* Results */
+        .results { text-align: center; padding: 40px 20px; }
+        .results h2 { color: #dc143c; font-size: 28px; margin-bottom: 16px; }
+        .stat-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; max-width: 500px; margin: 20px auto; }
+        .stat-box { background: #13131d; border: 1px solid #1e1e2e; border-radius: 10px; padding: 16px; }
+        .stat-box .val { font-size: 28px; font-weight: 700; color: #dc143c; }
+        .stat-box .label { font-size: 12px; color: #888; margin-top: 4px; }
+        .badge { display: inline-block; background: #dc143c22; border: 1px solid #dc143c44; color: #dc143c; padding: 8px 20px; border-radius: 20px; font-size: 14px; margin: 16px 0; }
+        .btn-row { display: flex; gap: 12px; justify-content: center; margin-top: 20px; }
+
+        .hidden { display: none !important; }
+    </style>
+</head>
+<body>
+    <div class="top-bar">
+        <a href="../../../index.html" class="back-btn">&#8592; Shield House</a>
+        <h1>What's My Crime?</h1>
+        <div style="width:100px"></div>
+    </div>
+
+    <div class="game-wrap">
+        <div id="startScreen" class="start-screen">
+            <div class="hero-icon">&#128373;</div>
+            <h2>What's My Crime?</h2>
+            <p class="sub">Match each social engineering attack to its description.<br>14 suspects. Can you identify them all?</p>
+            <button class="btn" onclick="Game.start()">Open Case Files</button>
+        </div>
+
+        <div id="gameScreen" class="hidden">
+            <div class="hud">
+                <span class="round-label" id="roundLabel">Round 1 / 2</span>
+                <div class="hud-item">Correct: <span id="hudCorrect">0</span></div>
+                <div class="hud-item">Mistakes: <span id="hudWrong">0</span></div>
+                <div class="hud-item">Time: <span id="hudTime">0:00</span></div>
+            </div>
+            <div class="match-area">
+                <div>
+                    <div class="column-header">Suspects (Attacks)</div>
+                    <div id="crimeCol"></div>
+                </div>
+                <div>
+                    <div class="column-header">Crime Descriptions</div>
+                    <div id="defCol"></div>
+                </div>
+            </div>
+        </div>
+
+        <div id="resultsScreen" class="hidden results"></div>
+    </div>
+
+    <script>
+    const Game = (() => {
+        const CRIMES = [
+            { id: 'phishing', name: 'Phishing', icon: '\uD83C\uDFA3',
+              desc: 'Sending fraudulent emails that appear to be from a trusted source to trick victims into revealing credentials or clicking malicious links.' },
+            { id: 'spear', name: 'Spear Phishing', icon: '\uD83C\uDFAF',
+              desc: 'A targeted phishing attack aimed at a specific individual or organization, using personalized details to increase believability.' },
+            { id: 'whaling', name: 'Whaling', icon: '\uD83D\uDC33',
+              desc: 'A phishing attack specifically targeting high-profile executives (CEO, CFO) to steal sensitive corporate data or authorize wire transfers.' },
+            { id: 'vishing', name: 'Vishing', icon: '\uD83D\uDCDE',
+              desc: 'Voice phishing \u2014 using phone calls to impersonate banks, IRS, or tech support to extract personal information or payments.' },
+            { id: 'smishing', name: 'Smishing', icon: '\uD83D\uDCF1',
+              desc: 'SMS phishing \u2014 sending fraudulent text messages with malicious links or urgent requests to trick users into action.' },
+            { id: 'pretexting', name: 'Pretexting', icon: '\uD83C\uDFAD',
+              desc: 'Creating a fabricated scenario (pretext) to establish trust and manipulate the victim into divulging information or performing an action.' },
+            { id: 'baiting', name: 'Baiting', icon: '\uD83E\uDDC0',
+              desc: 'Leaving infected USB drives or offering free downloads to lure victims into installing malware on their systems.' },
+            { id: 'tailgating', name: 'Tailgating', icon: '\uD83D\uDEB6',
+              desc: 'Following an authorized person through a secure door without using your own credentials \u2014 relying on politeness or distraction.' },
+            { id: 'piggybacking', name: 'Piggybacking', icon: '\uD83E\uDDD1\u200D\uD83E\uDD1D\u200D\uD83E\uDDD1',
+              desc: 'Like tailgating, but the authorized person knowingly allows the intruder through, often by holding the door open for a "colleague."' },
+            { id: 'dumpster', name: 'Dumpster Diving', icon: '\uD83D\uDDD1',
+              desc: 'Searching through an organization\'s trash to find discarded documents containing passwords, org charts, or sensitive data.' },
+            { id: 'shoulder', name: 'Shoulder Surfing', icon: '\uD83D\uDC40',
+              desc: 'Observing someone\'s screen or keyboard over their shoulder to steal passwords, PINs, or other confidential information.' },
+            { id: 'waterhole', name: 'Watering Hole', icon: '\uD83D\uDCA7',
+              desc: 'Compromising a website frequently visited by the target group, so visiting it delivers malware \u2014 like poisoning a watering hole.' },
+            { id: 'quidproquo', name: 'Quid Pro Quo', icon: '\uD83E\uDD1D',
+              desc: 'Offering a service or benefit (free tech support, a gift) in exchange for login credentials or system access.' },
+            { id: 'ransomware', name: 'Ransomware (SE Delivery)', icon: '\uD83D\uDD12',
+              desc: 'Using social engineering tactics (phishing emails, fake updates) to trick users into running ransomware that encrypts their files.' }
+        ];
+
+        let rounds = [];
+        let currentRound = 0;
+        let selectedCrime = null;
+        let selectedDef = null;
+        let correctCount = 0;
+        let wrongCount = 0;
+        let matchedThisRound = 0;
+        let roundSize = 0;
+        let timer = null;
+        let seconds = 0;
+
+        function shuffle(arr) {
+            const a = [...arr];
+            for (let i = a.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [a[i], a[j]] = [a[j], a[i]];
+            }
+            return a;
+        }
+
+        function start() {
+            // Split 14 crimes into 2 rounds of 7
+            const shuffled = shuffle(CRIMES);
+            rounds = [shuffled.slice(0, 7), shuffled.slice(7, 14)];
+            currentRound = 0;
+            correctCount = 0;
+            wrongCount = 0;
+            seconds = 0;
+
+            document.getElementById('startScreen').classList.add('hidden');
+            document.getElementById('resultsScreen').classList.add('hidden');
+            document.getElementById('gameScreen').classList.remove('hidden');
+
+            startTimer();
+            renderRound();
+        }
+
+        function startTimer() {
+            clearInterval(timer);
+            timer = setInterval(() => {
+                seconds++;
+                const m = Math.floor(seconds / 60);
+                const s = seconds % 60;
+                document.getElementById('hudTime').textContent = m + ':' + String(s).padStart(2, '0');
+            }, 1000);
+        }
+
+        function renderRound() {
+            const crimes = rounds[currentRound];
+            roundSize = crimes.length;
+            matchedThisRound = 0;
+            selectedCrime = null;
+            selectedDef = null;
+
+            document.getElementById('roundLabel').textContent = 'Round ' + (currentRound + 1) + ' / ' + rounds.length;
+            document.getElementById('hudCorrect').textContent = correctCount;
+            document.getElementById('hudWrong').textContent = wrongCount;
+
+            // Render crime cards (shuffled order)
+            const crimeCol = document.getElementById('crimeCol');
+            crimeCol.innerHTML = '';
+            shuffle(crimes).forEach(c => {
+                const el = document.createElement('div');
+                el.className = 'crime-card';
+                el.dataset.id = c.id;
+                el.innerHTML = `<div class="mugshot"><div class="mugshot-icon">${c.icon}</div><div><div class="crime-name">${c.name}</div><div class="crime-id">CASE #${c.id.toUpperCase()}</div></div></div>`;
+                el.addEventListener('click', () => selectCrime(c.id));
+                crimeCol.appendChild(el);
+            });
+
+            // Render definition cards (shuffled order)
+            const defCol = document.getElementById('defCol');
+            defCol.innerHTML = '';
+            shuffle(crimes).forEach(c => {
+                const el = document.createElement('div');
+                el.className = 'def-card';
+                el.dataset.id = c.id;
+                el.textContent = c.desc;
+                el.addEventListener('click', () => selectDef(c.id));
+                defCol.appendChild(el);
+            });
+        }
+
+        function selectCrime(id) {
+            const card = document.querySelector('.crime-card[data-id="' + id + '"]');
+            if (card.classList.contains('matched')) return;
+            document.querySelectorAll('.crime-card').forEach(c => c.classList.remove('selected'));
+            card.classList.add('selected');
+            selectedCrime = id;
+            tryMatch();
+        }
+
+        function selectDef(id) {
+            const card = document.querySelector('.def-card[data-id="' + id + '"]');
+            if (card.classList.contains('matched')) return;
+            document.querySelectorAll('.def-card').forEach(c => c.classList.remove('selected'));
+            card.classList.add('selected');
+            selectedDef = id;
+            tryMatch();
+        }
+
+        function tryMatch() {
+            if (!selectedCrime || !selectedDef) return;
+
+            const crimeCard = document.querySelector('.crime-card[data-id="' + selectedCrime + '"]');
+            const defCard = document.querySelector('.def-card[data-id="' + selectedDef + '"]');
+
+            if (selectedCrime === selectedDef) {
+                // Correct match
+                crimeCard.classList.remove('selected');
+                defCard.classList.remove('selected');
+                crimeCard.classList.add('matched');
+                defCard.classList.add('matched');
+                correctCount++;
+                matchedThisRound++;
+                document.getElementById('hudCorrect').textContent = correctCount;
+
+                if (matchedThisRound === roundSize) {
+                    setTimeout(() => nextRound(), 600);
+                }
+            } else {
+                // Wrong match
+                wrongCount++;
+                document.getElementById('hudWrong').textContent = wrongCount;
+                crimeCard.classList.add('wrong-flash');
+                defCard.classList.add('wrong-flash');
+                setTimeout(() => {
+                    crimeCard.classList.remove('selected', 'wrong-flash');
+                    defCard.classList.remove('selected', 'wrong-flash');
+                }, 500);
+            }
+
+            selectedCrime = null;
+            selectedDef = null;
+        }
+
+        function nextRound() {
+            currentRound++;
+            if (currentRound >= rounds.length) {
+                showResults();
+            } else {
+                renderRound();
+            }
+        }
+
+        function showResults() {
+            clearInterval(timer);
+            document.getElementById('gameScreen').classList.add('hidden');
+            const res = document.getElementById('resultsScreen');
+            res.classList.remove('hidden');
+
+            const m = Math.floor(seconds / 60);
+            const s = seconds % 60;
+            const timeStr = m + ':' + String(s).padStart(2, '0');
+            const accuracy = correctCount > 0 ? Math.round((correctCount / (correctCount + wrongCount)) * 100) : 0;
+
+            let badge;
+            if (wrongCount === 0) badge = 'Master Profiler';
+            else if (wrongCount <= 3) badge = 'Senior Detective';
+            else if (wrongCount <= 7) badge = 'Junior Investigator';
+            else badge = 'Trainee';
+
+            res.innerHTML = `
+                <h2>Case Closed!</h2>
+                <div class="badge">${badge}</div>
+                <div class="stat-grid">
+                    <div class="stat-box"><div class="val">${correctCount}</div><div class="label">Correct</div></div>
+                    <div class="stat-box"><div class="val">${wrongCount}</div><div class="label">Mistakes</div></div>
+                    <div class="stat-box"><div class="val">${timeStr}</div><div class="label">Time</div></div>
+                </div>
+                <p style="color:#888;font-size:14px;margin:12px 0">Accuracy: ${accuracy}% &mdash; ${CRIMES.length} social engineering attacks identified</p>
+                <div class="btn-row">
+                    <button class="btn" onclick="Game.start()">Play Again</button>
+                    <a href="../../../index.html" class="btn btn-outline" style="text-decoration:none;display:inline-flex;align-items:center">Back to Shield</a>
+                </div>
+            `;
+
+            // Save best score
+            const existing = JSON.parse(localStorage.getItem('hexworth_shield_crime') || '{}');
+            const prevBestWrong = existing.bestWrong !== undefined ? existing.bestWrong : 999;
+            const prevBestTime = existing.bestTime || 9999;
+            const isBetter = wrongCount < prevBestWrong || (wrongCount === prevBestWrong && seconds < prevBestTime);
+            localStorage.setItem('hexworth_shield_crime', JSON.stringify({
+                completed: true,
+                bestWrong: isBetter ? wrongCount : prevBestWrong,
+                bestTime: isBetter ? seconds : prevBestTime,
+                bestAccuracy: isBetter ? accuracy : (existing.bestAccuracy || 0),
+                lastPlayed: new Date().toISOString(),
+                attempts: (existing.attempts || 0) + 1
+            }));
+        }
+
+        return { start };
+    })();
+    </script>
+    <script src="../../../../../components/GameTracker.js"></script>
+    <script src="../../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>

@@ -1,0 +1,568 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cyber Hat Match | Shield House</title>
+    <script src="../../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background: #0a0a0f;
+            color: #e0e0e0;
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .top-bar {
+            width: 100%;
+            padding: 12px 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: #111118;
+            border-bottom: 1px solid #1a1a2e;
+        }
+        .back-btn {
+            color: #dc143c;
+            text-decoration: none;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            transition: opacity 0.2s;
+        }
+        .back-btn:hover { opacity: 0.8; }
+        .top-bar h1 {
+            font-size: 18px;
+            color: #dc143c;
+            font-weight: 600;
+            letter-spacing: 1px;
+        }
+        .stats-summary {
+            font-size: 12px;
+            color: #666;
+        }
+        .stats-summary span { color: #dc143c; font-weight: 600; }
+
+        .game-container {
+            max-width: 900px;
+            width: 100%;
+            padding: 20px;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 16px;
+        }
+
+        /* HUD */
+        .hud {
+            display: flex;
+            gap: 24px;
+            align-items: center;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        .hud-item {
+            font-size: 14px;
+            color: #888;
+        }
+        .hud-item span {
+            color: #dc143c;
+            font-weight: 700;
+            font-size: 16px;
+        }
+
+        /* Category Selector */
+        .cat-row {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        .cat-btn {
+            background: #16161e;
+            border: 2px solid #2a2a3e;
+            color: #e0e0e0;
+            padding: 6px 14px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.2s;
+        }
+        .cat-btn:hover, .cat-btn.active {
+            border-color: #dc143c;
+            background: #1a0a0f;
+            color: #fff;
+        }
+
+        /* Grid Size */
+        .size-row {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+        .size-btn {
+            background: #16161e;
+            border: 1px solid #2a2a3e;
+            color: #aaa;
+            padding: 4px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.2s;
+        }
+        .size-btn:hover, .size-btn.active {
+            border-color: #dc143c;
+            color: #fff;
+        }
+
+        /* Card Grid */
+        .card-grid {
+            display: grid;
+            gap: 10px;
+            justify-content: center;
+            width: 100%;
+            max-width: 760px;
+        }
+        .card-grid.grid-4x4 { grid-template-columns: repeat(4, 1fr); }
+        .card-grid.grid-6x4 { grid-template-columns: repeat(6, 1fr); }
+
+        .card {
+            aspect-ratio: 3/4;
+            perspective: 600px;
+            cursor: pointer;
+            min-height: 100px;
+        }
+        .card-inner {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            transition: transform 0.5s;
+            transform-style: preserve-3d;
+        }
+        .card.flipped .card-inner { transform: rotateY(180deg); }
+        .card.matched .card-inner { transform: rotateY(180deg); }
+
+        .card-face {
+            position: absolute;
+            inset: 0;
+            backface-visibility: hidden;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 8px;
+            text-align: center;
+            font-size: 12px;
+            line-height: 1.4;
+        }
+        .card-front {
+            background: #16161e;
+            border: 2px solid #2a2a3e;
+            color: #dc143c;
+            font-size: 28px;
+            font-weight: 700;
+        }
+        .card-front::after {
+            content: '?';
+            font-size: 32px;
+            opacity: 0.4;
+        }
+        .card:hover .card-front { border-color: #dc143c; background: #1a0a10; }
+
+        .card-back {
+            background: #12121a;
+            border: 2px solid #3a3a4e;
+            color: #e0e0e0;
+            transform: rotateY(180deg);
+            font-weight: 500;
+            overflow: hidden;
+        }
+        .card-back.is-term {
+            font-weight: 700;
+            font-size: 14px;
+            color: #dc143c;
+            border-color: #dc143c;
+            background: #1a0a0f;
+        }
+        .card-back.is-def {
+            font-size: 11px;
+            color: #ccc;
+            border-color: #3a5a3a;
+            background: #0f1a0f;
+        }
+
+        .card.matched .card-back {
+            opacity: 0.5;
+            border-color: #4caf50 !important;
+        }
+        .card.wrong .card-back {
+            animation: card-shake 0.4s;
+            border-color: #ff4444 !important;
+        }
+        @keyframes card-shake {
+            0%, 100% { transform: rotateY(180deg) translateX(0); }
+            25% { transform: rotateY(180deg) translateX(-4px); }
+            75% { transform: rotateY(180deg) translateX(4px); }
+        }
+
+        /* Buttons */
+        .btn-row {
+            display: flex;
+            gap: 12px;
+        }
+        .game-btn {
+            background: #dc143c;
+            border: none;
+            color: #fff;
+            padding: 10px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+        .game-btn:hover { background: #ff1744; transform: translateY(-1px); }
+        .game-btn.secondary {
+            background: #16161e;
+            border: 1px solid #2a2a3e;
+            color: #aaa;
+        }
+        .game-btn.secondary:hover { border-color: #dc143c; color: #fff; }
+
+        /* Win overlay */
+        .overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.85);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+        }
+        .overlay.show { display: flex; }
+        .overlay-box {
+            background: #12121a;
+            border: 2px solid #dc143c;
+            border-radius: 16px;
+            padding: 40px;
+            text-align: center;
+            max-width: 420px;
+        }
+        .overlay-box h2 { color: #4caf50; margin-bottom: 8px; font-size: 24px; }
+        .overlay-box .sub { color: #dc143c; font-size: 14px; margin-bottom: 16px; }
+        .overlay-box p { color: #aaa; margin-bottom: 20px; line-height: 1.5; font-size: 14px; }
+        .overlay-box button {
+            background: #dc143c;
+            border: none;
+            color: #fff;
+            padding: 12px 32px;
+            border-radius: 8px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        .overlay-box button:hover { background: #ff1744; }
+    </style>
+</head>
+<body>
+    <div class="top-bar">
+        <a href="../../../index.html" class="back-btn">&#9664; Shield House</a>
+        <h1>CYBER HAT MATCH</h1>
+        <div class="stats-summary">Best: <span id="bestMoves">--</span> moves</div>
+    </div>
+
+    <div class="game-container">
+        <div class="hud">
+            <div class="hud-item">Moves: <span id="moveCount">0</span></div>
+            <div class="hud-item">Matched: <span id="matchCount">0</span>/<span id="totalPairs">8</span></div>
+            <div class="hud-item">Time: <span id="timer">0:00</span></div>
+        </div>
+
+        <div class="cat-row">
+            <button class="cat-btn active" data-cat="hackers" onclick="setCat('hackers')">Hacker Types</button>
+            <button class="cat-btn" data-cat="attacks" onclick="setCat('attacks')">Attack Types</button>
+            <button class="cat-btn" data-cat="defense" onclick="setCat('defense')">Defense Tools</button>
+            <button class="cat-btn" data-cat="mixed" onclick="setCat('mixed')">Mixed</button>
+        </div>
+
+        <div class="size-row">
+            <span style="font-size:12px;color:#666">Grid:</span>
+            <button class="size-btn active" data-size="4x4" onclick="setSize('4x4')">4x4 (8 pairs)</button>
+            <button class="size-btn" data-size="6x4" onclick="setSize('6x4')">6x4 (12 pairs)</button>
+        </div>
+
+        <div class="card-grid grid-4x4" id="cardGrid"></div>
+
+        <div class="btn-row">
+            <button class="game-btn" onclick="newGame()">New Game</button>
+        </div>
+    </div>
+
+    <div class="overlay" id="overlay">
+        <div class="overlay-box">
+            <h2>ALL MATCHED!</h2>
+            <div class="sub" id="winSub"></div>
+            <p id="winMsg"></p>
+            <button onclick="closeOverlay()">Play Again</button>
+        </div>
+    </div>
+
+    <script>
+    const PAIRS = {
+        hackers: [
+            { term: 'White Hat', def: 'Ethical hackers who find vulnerabilities with permission to improve security' },
+            { term: 'Black Hat', def: 'Malicious hackers who exploit systems for personal gain or damage' },
+            { term: 'Grey Hat', def: 'Hackers who find flaws without permission but report them rather than exploit' },
+            { term: 'Script Kiddie', def: 'Unskilled attackers who use pre-made tools without understanding them' },
+            { term: 'Hacktivist', def: 'Hackers motivated by political or social causes rather than profit' },
+            { term: 'State-Sponsored', def: 'Government-backed hackers conducting cyber espionage or warfare' },
+            { term: 'Insider Threat', def: 'An employee or contractor who misuses authorized access maliciously' },
+            { term: 'Bug Bounty Hunter', def: 'Security researchers paid to find and report vulnerabilities responsibly' },
+            { term: 'Red Team', def: 'Offensive security professionals simulating real-world attacks on systems' },
+            { term: 'Blue Team', def: 'Defensive security professionals who detect and respond to attacks' },
+            { term: 'Purple Team', def: 'Collaborative group combining red and blue team tactics for improvement' },
+            { term: 'Pen Tester', def: 'Professional who performs authorized simulated cyberattacks on systems' }
+        ],
+        attacks: [
+            { term: 'Phishing', def: 'Sending fake emails to trick users into revealing sensitive information' },
+            { term: 'DDoS', def: 'Overwhelming a server with traffic to make it unavailable to users' },
+            { term: 'SQL Injection', def: 'Inserting malicious SQL code into input fields to access databases' },
+            { term: 'Ransomware', def: 'Malware that encrypts files and demands payment for decryption' },
+            { term: 'Man-in-the-Middle', def: 'Intercepting communication between two parties to steal or alter data' },
+            { term: 'Zero-Day Exploit', def: 'Attacking a vulnerability before the vendor knows about or patches it' },
+            { term: 'Cross-Site Scripting', def: 'Injecting malicious scripts into web pages viewed by other users' },
+            { term: 'Brute Force', def: 'Systematically trying every possible password combination until one works' },
+            { term: 'Buffer Overflow', def: 'Writing more data to a buffer than it can hold to execute arbitrary code' },
+            { term: 'Privilege Escalation', def: 'Gaining higher access rights than originally authorized on a system' },
+            { term: 'DNS Poisoning', def: 'Corrupting DNS records to redirect users to malicious websites' },
+            { term: 'Watering Hole', def: 'Compromising a website commonly visited by the target group' }
+        ],
+        defense: [
+            { term: 'Firewall', def: 'Monitors and filters network traffic based on predetermined security rules' },
+            { term: 'IDS/IPS', def: 'Detects and/or prevents suspicious network activity and known attack patterns' },
+            { term: 'SIEM', def: 'Aggregates security logs from multiple sources for real-time analysis' },
+            { term: 'Encryption', def: 'Converts data into unreadable code to protect it from unauthorized access' },
+            { term: 'MFA', def: 'Requires multiple forms of verification before granting system access' },
+            { term: 'Honeypot', def: 'A decoy system designed to attract and study attacker behavior' },
+            { term: 'Sandbox', def: 'Isolated environment for safely executing and analyzing suspicious code' },
+            { term: 'Antivirus', def: 'Software that detects, quarantines, and removes malicious programs' },
+            { term: 'VPN', def: 'Creates an encrypted tunnel for secure data transmission over public networks' },
+            { term: 'Patch Management', def: 'Systematic process of applying security updates to fix known vulnerabilities' },
+            { term: 'Access Control List', def: 'Rules specifying which users or systems can access specific resources' },
+            { term: 'Backup Strategy', def: 'Regular data copies stored separately to enable recovery after incidents' }
+        ]
+    };
+
+    let currentCat = 'hackers';
+    let gridSize = '4x4';
+    let cards = [];
+    let flippedCards = [];
+    let matchedPairs = 0;
+    let totalPairs = 8;
+    let moves = 0;
+    let timerInterval = null;
+    let seconds = 0;
+    let locked = false;
+    let gameStarted = false;
+    let bestScore = JSON.parse(localStorage.getItem('hexworth_shield_hatmatch') || '{}');
+
+    function getBestKey() { return currentCat + '_' + gridSize; }
+
+    function updateBestDisplay() {
+        const key = getBestKey();
+        const best = bestScore[key];
+        document.getElementById('bestMoves').textContent = best ? best.moves : '--';
+    }
+
+    function setCat(cat) {
+        currentCat = cat;
+        document.querySelectorAll('.cat-btn').forEach(b => b.classList.toggle('active', b.dataset.cat === cat));
+        newGame();
+    }
+
+    function setSize(size) {
+        gridSize = size;
+        document.querySelectorAll('.size-btn').forEach(b => b.classList.toggle('active', b.dataset.size === size));
+        newGame();
+    }
+
+    function shuffle(arr) {
+        const a = [...arr];
+        for (let i = a.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [a[i], a[j]] = [a[j], a[i]];
+        }
+        return a;
+    }
+
+    function getPairsForGame() {
+        let pool;
+        if (currentCat === 'mixed') {
+            pool = [...PAIRS.hackers, ...PAIRS.attacks, ...PAIRS.defense];
+        } else {
+            pool = [...PAIRS[currentCat]];
+        }
+        const numPairs = gridSize === '4x4' ? 8 : 12;
+        return shuffle(pool).slice(0, numPairs);
+    }
+
+    function startTimer() {
+        if (timerInterval) clearInterval(timerInterval);
+        seconds = 0;
+        timerInterval = setInterval(() => {
+            seconds++;
+            const m = Math.floor(seconds / 60);
+            const s = seconds % 60;
+            document.getElementById('timer').textContent = m + ':' + String(s).padStart(2, '0');
+        }, 1000);
+    }
+
+    function stopTimer() {
+        if (timerInterval) {
+            clearInterval(timerInterval);
+            timerInterval = null;
+        }
+    }
+
+    function newGame() {
+        stopTimer();
+        gameStarted = false;
+        matchedPairs = 0;
+        moves = 0;
+        flippedCards = [];
+        locked = false;
+
+        const pairs = getPairsForGame();
+        totalPairs = pairs.length;
+
+        document.getElementById('moveCount').textContent = '0';
+        document.getElementById('matchCount').textContent = '0';
+        document.getElementById('totalPairs').textContent = totalPairs;
+        document.getElementById('timer').textContent = '0:00';
+        updateBestDisplay();
+
+        // Build card data: each pair becomes 2 cards (term + definition)
+        cards = [];
+        pairs.forEach((pair, i) => {
+            cards.push({ pairId: i, type: 'term', content: pair.term });
+            cards.push({ pairId: i, type: 'def', content: pair.def });
+        });
+        cards = shuffle(cards);
+
+        // Render grid
+        const grid = document.getElementById('cardGrid');
+        grid.className = 'card-grid ' + (gridSize === '6x4' ? 'grid-6x4' : 'grid-4x4');
+        grid.innerHTML = '';
+
+        cards.forEach((card, idx) => {
+            const cardEl = document.createElement('div');
+            cardEl.className = 'card';
+            cardEl.dataset.index = idx;
+            cardEl.dataset.pairId = card.pairId;
+            cardEl.dataset.type = card.type;
+            cardEl.innerHTML = `
+                <div class="card-inner">
+                    <div class="card-face card-front"></div>
+                    <div class="card-face card-back ${card.type === 'term' ? 'is-term' : 'is-def'}">${card.content}</div>
+                </div>
+            `;
+            cardEl.onclick = () => flipCard(idx);
+            grid.appendChild(cardEl);
+        });
+    }
+
+    function flipCard(idx) {
+        if (locked) return;
+        const cardEl = document.querySelector(`.card[data-index="${idx}"]`);
+        if (!cardEl || cardEl.classList.contains('flipped') || cardEl.classList.contains('matched')) return;
+        if (flippedCards.length >= 2) return;
+
+        if (!gameStarted) {
+            gameStarted = true;
+            startTimer();
+        }
+
+        cardEl.classList.add('flipped');
+        flippedCards.push({ idx, pairId: cards[idx].pairId, type: cards[idx].type, el: cardEl });
+
+        if (flippedCards.length === 2) {
+            moves++;
+            document.getElementById('moveCount').textContent = moves;
+            checkMatch();
+        }
+    }
+
+    function checkMatch() {
+        const [a, b] = flippedCards;
+        locked = true;
+
+        if (a.pairId === b.pairId && a.type !== b.type) {
+            // Match!
+            setTimeout(() => {
+                a.el.classList.add('matched');
+                b.el.classList.add('matched');
+                matchedPairs++;
+                document.getElementById('matchCount').textContent = matchedPairs;
+                flippedCards = [];
+                locked = false;
+
+                if (matchedPairs >= totalPairs) {
+                    stopTimer();
+                    saveScore();
+                    showWin();
+                }
+            }, 500);
+        } else {
+            // No match
+            a.el.classList.add('wrong');
+            b.el.classList.add('wrong');
+            setTimeout(() => {
+                a.el.classList.remove('flipped', 'wrong');
+                b.el.classList.remove('flipped', 'wrong');
+                flippedCards = [];
+                locked = false;
+            }, 1000);
+        }
+    }
+
+    function saveScore() {
+        const key = getBestKey();
+        const current = bestScore[key];
+        if (!current || moves < current.moves) {
+            bestScore[key] = { moves: moves, time: seconds };
+            localStorage.setItem('hexworth_shield_hatmatch', JSON.stringify(bestScore));
+        }
+        updateBestDisplay();
+    }
+
+    function showWin() {
+        const key = getBestKey();
+        const best = bestScore[key];
+        const m = Math.floor(seconds / 60);
+        const s = seconds % 60;
+        const timeStr = m + ':' + String(s).padStart(2, '0');
+        const isNewBest = best && best.moves === moves;
+
+        document.getElementById('winSub').textContent = isNewBest ? 'NEW BEST SCORE!' : 'Great work, defender!';
+        document.getElementById('winMsg').textContent = `You matched all ${totalPairs} pairs in ${moves} moves (${timeStr}).${isNewBest ? ' That\'s your new record for this category!' : ''}`;
+        document.getElementById('overlay').classList.add('show');
+    }
+
+    function closeOverlay() {
+        document.getElementById('overlay').classList.remove('show');
+        newGame();
+    }
+
+    // Init
+    newGame();
+    </script>
+    <script src="../../../../../components/GameTracker.js"></script>
+    <script src="../../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>

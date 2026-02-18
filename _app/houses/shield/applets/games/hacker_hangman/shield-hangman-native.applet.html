@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hacker Hangman | Shield House</title>
+    <script src="../../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background: #0a0a0f;
+            color: #e0e0e0;
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .top-bar {
+            width: 100%;
+            padding: 12px 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: #111118;
+            border-bottom: 1px solid #1a1a2e;
+        }
+        .back-btn {
+            color: #dc143c;
+            text-decoration: none;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            transition: opacity 0.2s;
+        }
+        .back-btn:hover { opacity: 0.8; }
+        .top-bar h1 {
+            font-size: 18px;
+            color: #dc143c;
+            font-weight: 600;
+            letter-spacing: 1px;
+        }
+        .stats-bar {
+            font-size: 13px;
+            color: #888;
+        }
+        .stats-bar span { color: #dc143c; font-weight: 600; }
+
+        .game-container {
+            max-width: 800px;
+            width: 100%;
+            padding: 24px;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+        }
+
+        /* Category Selection */
+        .category-select {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        .cat-btn {
+            background: #16161e;
+            border: 2px solid #2a2a3e;
+            color: #e0e0e0;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+        .cat-btn:hover, .cat-btn.active {
+            border-color: #dc143c;
+            background: #1a0a0f;
+            color: #fff;
+        }
+
+        /* Hangman SVG */
+        .hangman-svg {
+            width: 200px;
+            height: 220px;
+        }
+        .hangman-svg line, .hangman-svg circle, .hangman-svg path {
+            stroke: #dc143c;
+            stroke-width: 3;
+            stroke-linecap: round;
+            fill: none;
+        }
+        .hangman-svg .gallows { stroke: #3a3a4e; stroke-width: 4; }
+        .hangman-part { opacity: 0; transition: opacity 0.3s; }
+        .hangman-part.visible { opacity: 1; }
+
+        /* Word Display */
+        .word-display {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            justify-content: center;
+            min-height: 50px;
+        }
+        .letter-slot {
+            width: 36px;
+            height: 44px;
+            border-bottom: 3px solid #3a3a4e;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            font-weight: 700;
+            color: #fff;
+            text-transform: uppercase;
+            transition: border-color 0.3s;
+        }
+        .letter-slot.revealed { border-color: #dc143c; }
+        .letter-slot.wrong { color: #ff4444; }
+        .word-spacer { width: 16px; }
+
+        /* Keyboard */
+        .keyboard {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            justify-content: center;
+            max-width: 520px;
+        }
+        .key-btn {
+            width: 42px;
+            height: 42px;
+            background: #16161e;
+            border: 1px solid #2a2a3e;
+            color: #e0e0e0;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            transition: all 0.15s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .key-btn:hover:not(:disabled) {
+            background: #dc143c;
+            border-color: #dc143c;
+            color: #fff;
+            transform: scale(1.05);
+        }
+        .key-btn:disabled {
+            opacity: 0.2;
+            cursor: not-allowed;
+        }
+        .key-btn.correct {
+            background: #1a3a1a;
+            border-color: #2d8a2d;
+            color: #4caf50;
+        }
+        .key-btn.wrong {
+            background: #2a1010;
+            border-color: #5a2020;
+            color: #884444;
+        }
+
+        /* Definition / Result */
+        .result-area {
+            text-align: center;
+            min-height: 80px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+        }
+        .result-msg {
+            font-size: 20px;
+            font-weight: 700;
+            opacity: 0;
+            transition: opacity 0.4s;
+        }
+        .result-msg.show { opacity: 1; }
+        .result-msg.win { color: #4caf50; }
+        .result-msg.lose { color: #ff4444; }
+        .definition {
+            font-size: 14px;
+            color: #aaa;
+            max-width: 500px;
+            line-height: 1.5;
+            opacity: 0;
+            transition: opacity 0.4s;
+            background: #12121a;
+            padding: 12px 16px;
+            border-radius: 8px;
+            border-left: 3px solid #dc143c;
+        }
+        .definition.show { opacity: 1; }
+
+        .new-word-btn {
+            background: #dc143c;
+            border: none;
+            color: #fff;
+            padding: 10px 28px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 15px;
+            font-weight: 600;
+            transition: all 0.2s;
+            display: none;
+        }
+        .new-word-btn.show { display: inline-block; }
+        .new-word-btn:hover { background: #ff1744; transform: translateY(-1px); }
+
+        .guesses-left {
+            font-size: 13px;
+            color: #888;
+        }
+        .guesses-left span { color: #dc143c; font-weight: 600; }
+    </style>
+</head>
+<body>
+    <div class="top-bar">
+        <a href="../../../index.html" class="back-btn">&#9664; Shield House</a>
+        <h1>HACKER HANGMAN</h1>
+        <div class="stats-bar">W: <span id="wins">0</span> / L: <span id="losses">0</span></div>
+    </div>
+
+    <div class="game-container">
+        <div class="category-select">
+            <button class="cat-btn active" onclick="setCategory('principles')">Cybersecurity Principles</button>
+            <button class="cat-btn" onclick="setCategory('social')">Social Engineering</button>
+        </div>
+
+        <svg class="hangman-svg" viewBox="0 0 200 220">
+            <!-- Gallows -->
+            <line class="gallows" x1="20" y1="210" x2="180" y2="210"/>
+            <line class="gallows" x1="60" y1="210" x2="60" y2="20"/>
+            <line class="gallows" x1="60" y1="20" x2="140" y2="20"/>
+            <line class="gallows" x1="140" y1="20" x2="140" y2="40"/>
+            <!-- Body parts -->
+            <circle id="hp-head" class="hangman-part" cx="140" cy="55" r="15"/>
+            <line id="hp-body" class="hangman-part" x1="140" y1="70" x2="140" y2="120"/>
+            <line id="hp-larm" class="hangman-part" x1="140" y1="85" x2="115" y2="105"/>
+            <line id="hp-rarm" class="hangman-part" x1="140" y1="85" x2="165" y2="105"/>
+            <line id="hp-lleg" class="hangman-part" x1="140" y1="120" x2="118" y2="155"/>
+            <line id="hp-rleg" class="hangman-part" x1="140" y1="120" x2="162" y2="155"/>
+        </svg>
+
+        <div class="guesses-left">Guesses remaining: <span id="guessCount">6</span></div>
+        <div class="word-display" id="wordDisplay"></div>
+        <div class="keyboard" id="keyboard"></div>
+
+        <div class="result-area">
+            <div class="result-msg" id="resultMsg"></div>
+            <div class="definition" id="definition"></div>
+            <button class="new-word-btn" id="newWordBtn" onclick="newGame()">Next Word</button>
+        </div>
+    </div>
+
+    <script>
+    const WORDS = {
+        principles: [
+            { word: 'FIREWALL', def: 'A network security device that monitors and filters incoming and outgoing traffic based on established rules.' },
+            { word: 'ENCRYPTION', def: 'The process of converting plaintext into ciphertext to protect data confidentiality.' },
+            { word: 'AUTHENTICATION', def: 'The process of verifying the identity of a user, device, or system.' },
+            { word: 'AUTHORIZATION', def: 'The process of granting or denying access rights to resources after authentication.' },
+            { word: 'VULNERABILITY', def: 'A weakness in a system that can be exploited by a threat actor to gain unauthorized access.' },
+            { word: 'RANSOMWARE', def: 'Malware that encrypts victim files and demands payment for the decryption key.' },
+            { word: 'MALWARE', def: 'Malicious software designed to damage, disrupt, or gain unauthorized access to systems.' },
+            { word: 'INTRUSION', def: 'Unauthorized access to a computer system or network, often detected by IDS/IPS.' },
+            { word: 'CRYPTOGRAPHY', def: 'The practice of securing communications through mathematical algorithms and protocols.' },
+            { word: 'INTEGRITY', def: 'Ensuring that data has not been altered or tampered with during storage or transmission.' },
+            { word: 'CONFIDENTIALITY', def: 'Ensuring that sensitive information is accessible only to authorized individuals.' },
+            { word: 'AVAILABILITY', def: 'Ensuring that systems and data are accessible to authorized users when needed.' },
+            { word: 'BOTNET', def: 'A network of compromised computers controlled remotely by an attacker for coordinated attacks.' },
+            { word: 'ROOTKIT', def: 'Malware that provides continued privileged access while hiding its presence from detection.' },
+            { word: 'KEYLOGGER', def: 'Software or hardware that records keystrokes to capture passwords and sensitive data.' },
+            { word: 'SANDBOX', def: 'An isolated testing environment where suspicious code can be executed safely.' },
+            { word: 'HONEYPOT', def: 'A decoy system designed to attract attackers and study their behavior and methods.' },
+            { word: 'PATCHING', def: 'Applying updates to software to fix vulnerabilities and improve security.' },
+            { word: 'TROJAN', def: 'Malware disguised as legitimate software that creates a backdoor for attackers.' },
+            { word: 'EXPLOIT', def: 'A piece of code or technique that takes advantage of a software vulnerability.' },
+            { word: 'CIPHER', def: 'An algorithm for performing encryption or decryption of data.' },
+            { word: 'HASHING', def: 'A one-way function that converts data into a fixed-length string for integrity verification.' },
+            { word: 'FORENSICS', def: 'The process of collecting and analyzing digital evidence after a security incident.' },
+            { word: 'PAYLOAD', def: 'The component of malware that performs the malicious action after delivery.' },
+            { word: 'BACKDOOR', def: 'A hidden method for bypassing normal authentication to gain remote access to a system.' },
+            { word: 'STEGANOGRAPHY', def: 'The practice of hiding secret data within ordinary files like images or audio.' },
+            { word: 'SPYWARE', def: 'Software that secretly monitors user activity and collects personal information.' },
+            { word: 'QUARANTINE', def: 'Isolating a suspected malicious file to prevent it from executing or spreading.' },
+            { word: 'BIOMETRICS', def: 'Authentication using unique physical characteristics like fingerprints or retinal scans.' },
+            { word: 'PENTESTING', def: 'Authorized simulated attacks on systems to identify exploitable vulnerabilities.' },
+            { word: 'WORM', def: 'Self-replicating malware that spreads across networks without user interaction.' },
+            { word: 'PROTOCOL', def: 'A set of rules governing the format and transmission of data between systems.' }
+        ],
+        social: [
+            { word: 'PHISHING', def: 'Fraudulent emails or messages impersonating trusted entities to steal credentials or data.' },
+            { word: 'PRETEXTING', def: 'Creating a fabricated scenario to manipulate a target into revealing information.' },
+            { word: 'TAILGATING', def: 'Following an authorized person through a secured door without proper credentials.' },
+            { word: 'BAITING', def: 'Leaving malware-infected media in public places hoping targets will use them.' },
+            { word: 'VISHING', def: 'Voice phishing — using phone calls to trick people into revealing sensitive information.' },
+            { word: 'SMISHING', def: 'SMS phishing — using text messages to lure victims into clicking malicious links.' },
+            { word: 'SPEARPHISHING', def: 'Targeted phishing attacks directed at specific individuals or organizations.' },
+            { word: 'WHALING', def: 'Phishing attacks targeting high-profile executives or senior management.' },
+            { word: 'IMPERSONATION', def: 'Pretending to be someone else to gain trust and extract information from targets.' },
+            { word: 'DUMPSTER DIVING', def: 'Searching through trash for sensitive documents, passwords, or discarded hardware.' },
+            { word: 'SHOULDER SURFING', def: 'Observing someone\'s screen or keyboard to steal passwords or sensitive data.' },
+            { word: 'PIGGYBACKING', def: 'Gaining physical access by following someone who has legitimate access, with their knowledge.' },
+            { word: 'WATERING HOLE', def: 'Compromising a website frequently visited by target group members.' },
+            { word: 'QUID PRO QUO', def: 'Offering something in exchange for information, like fake tech support.' },
+            { word: 'PHARMING', def: 'Redirecting website traffic from legitimate sites to fraudulent ones via DNS poisoning.' },
+            { word: 'TYPOSQUATTING', def: 'Registering domains similar to popular websites to capture mistyped URLs.' },
+            { word: 'CATFISHING', def: 'Creating a fake online identity to deceive and manipulate targets.' },
+            { word: 'ELICITATION', def: 'Subtly extracting information through casual conversation without raising suspicion.' },
+            { word: 'DIVERSION', def: 'Redirecting a delivery or shipment to an attacker-controlled location.' },
+            { word: 'SCAREWARE', def: 'Fake security alerts designed to frighten users into installing malware or paying fees.' },
+            { word: 'CREDENTIAL HARVESTING', def: 'Collecting usernames and passwords through fake login pages or keyloggers.' },
+            { word: 'DEEPFAKE', def: 'AI-generated synthetic media used to impersonate someone convincingly.' },
+            { word: 'DOXING', def: 'Publicly revealing private personal information about an individual without consent.' },
+            { word: 'INFLUENCE CAMPAIGN', def: 'Coordinated efforts to manipulate public opinion through disinformation and propaganda.' },
+            { word: 'BUSINESS EMAIL COMPROMISE', def: 'Impersonating a company executive via email to authorize fraudulent transactions.' },
+            { word: 'INVOICE FRAUD', def: 'Sending fake invoices to trick organizations into making payments to attacker accounts.' },
+            { word: 'ANGLER PHISHING', def: 'Impersonating customer support on social media to steal credentials from complainants.' },
+            { word: 'HONEY TRAP', def: 'Using romantic or sexual interest to manipulate targets into revealing secrets.' },
+            { word: 'REVERSE ENGINEERING', def: 'Manipulating a target into contacting the attacker for help, establishing trust.' },
+            { word: 'AUTHORITY COMPLIANCE', def: 'Exploiting people\'s tendency to obey perceived authority figures without question.' },
+            { word: 'URGENCY MANIPULATION', def: 'Creating artificial time pressure to prevent targets from thinking critically.' },
+            { word: 'RECIPROCITY EXPLOIT', def: 'Doing someone a favor first to create social obligation for information disclosure.' }
+        ]
+    };
+
+    const HANGMAN_PARTS = ['hp-head', 'hp-body', 'hp-larm', 'hp-rarm', 'hp-lleg', 'hp-rleg'];
+    const MAX_WRONG = 6;
+
+    let currentCategory = 'principles';
+    let currentWord = null;
+    let currentDef = '';
+    let guessedLetters = new Set();
+    let wrongGuesses = 0;
+    let gameOver = false;
+    let stats = JSON.parse(localStorage.getItem('hexworth_shield_hangman') || '{"wins":0,"losses":0}');
+
+    function updateStats() {
+        document.getElementById('wins').textContent = stats.wins;
+        document.getElementById('losses').textContent = stats.losses;
+        localStorage.setItem('hexworth_shield_hangman', JSON.stringify(stats));
+    }
+
+    function setCategory(cat) {
+        currentCategory = cat;
+        document.querySelectorAll('.cat-btn').forEach((btn, i) => {
+            btn.classList.toggle('active', (i === 0 && cat === 'principles') || (i === 1 && cat === 'social'));
+        });
+        newGame();
+    }
+
+    function buildKeyboard() {
+        const kb = document.getElementById('keyboard');
+        kb.innerHTML = '';
+        'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('').forEach(letter => {
+            const btn = document.createElement('button');
+            btn.className = 'key-btn';
+            btn.textContent = letter;
+            btn.dataset.letter = letter;
+            btn.onclick = () => guessLetter(letter);
+            kb.appendChild(btn);
+        });
+    }
+
+    function renderWord() {
+        const display = document.getElementById('wordDisplay');
+        display.innerHTML = '';
+        const words = currentWord.split(' ');
+        words.forEach((word, wi) => {
+            word.split('').forEach(ch => {
+                const slot = document.createElement('div');
+                slot.className = 'letter-slot';
+                if (ch === '-' || ch === '\'') {
+                    slot.textContent = ch;
+                    slot.classList.add('revealed');
+                } else if (guessedLetters.has(ch)) {
+                    slot.textContent = ch;
+                    slot.classList.add('revealed');
+                }
+                display.appendChild(slot);
+            });
+            if (wi < words.length - 1) {
+                const spacer = document.createElement('div');
+                spacer.className = 'word-spacer';
+                display.appendChild(spacer);
+            }
+        });
+    }
+
+    function renderHangman() {
+        HANGMAN_PARTS.forEach((id, i) => {
+            document.getElementById(id).classList.toggle('visible', i < wrongGuesses);
+        });
+        document.getElementById('guessCount').textContent = MAX_WRONG - wrongGuesses;
+    }
+
+    function checkWin() {
+        const letters = currentWord.replace(/[\s\-\']/g, '').split('');
+        return letters.every(ch => guessedLetters.has(ch));
+    }
+
+    function revealWord() {
+        const display = document.getElementById('wordDisplay');
+        const words = currentWord.split(' ');
+        let slotIndex = 0;
+        const slots = display.querySelectorAll('.letter-slot');
+        words.forEach(word => {
+            word.split('').forEach(ch => {
+                if (slots[slotIndex]) {
+                    slots[slotIndex].textContent = ch;
+                    if (!guessedLetters.has(ch) && ch !== '-' && ch !== '\'') {
+                        slots[slotIndex].classList.add('wrong');
+                    }
+                    slots[slotIndex].classList.add('revealed');
+                }
+                slotIndex++;
+            });
+        });
+    }
+
+    function endGame(won) {
+        gameOver = true;
+        const msg = document.getElementById('resultMsg');
+        const def = document.getElementById('definition');
+        const btn = document.getElementById('newWordBtn');
+
+        if (won) {
+            stats.wins++;
+            msg.textContent = 'ACCESS GRANTED!';
+            msg.className = 'result-msg show win';
+        } else {
+            stats.losses++;
+            revealWord();
+            msg.textContent = 'ACCESS DENIED!';
+            msg.className = 'result-msg show lose';
+        }
+        updateStats();
+
+        def.innerHTML = '<strong>' + currentWord + '</strong>: ' + currentDef;
+        def.classList.add('show');
+        btn.classList.add('show');
+
+        document.querySelectorAll('.key-btn').forEach(b => b.disabled = true);
+    }
+
+    function guessLetter(letter) {
+        if (gameOver || guessedLetters.has(letter)) return;
+        guessedLetters.add(letter);
+
+        const btn = document.querySelector(`.key-btn[data-letter="${letter}"]`);
+        const stripped = currentWord.replace(/[\s\-\']/g, '');
+
+        if (stripped.includes(letter)) {
+            btn.classList.add('correct');
+            btn.disabled = true;
+            renderWord();
+            if (checkWin()) endGame(true);
+        } else {
+            btn.classList.add('wrong');
+            btn.disabled = true;
+            wrongGuesses++;
+            renderHangman();
+            if (wrongGuesses >= MAX_WRONG) endGame(false);
+        }
+    }
+
+    function newGame() {
+        const pool = WORDS[currentCategory];
+        const entry = pool[Math.floor(Math.random() * pool.length)];
+        currentWord = entry.word;
+        currentDef = entry.def;
+        guessedLetters = new Set();
+        wrongGuesses = 0;
+        gameOver = false;
+
+        document.getElementById('resultMsg').className = 'result-msg';
+        document.getElementById('definition').classList.remove('show');
+        document.getElementById('newWordBtn').classList.remove('show');
+
+        buildKeyboard();
+        renderWord();
+        renderHangman();
+    }
+
+    // Keyboard support
+    document.addEventListener('keydown', e => {
+        const key = e.key.toUpperCase();
+        if (/^[A-Z]$/.test(key)) guessLetter(key);
+    });
+
+    updateStats();
+    newGame();
+    </script>
+    <script src="../../../../../components/GameTracker.js"></script>
+    <script src="../../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>

@@ -1,7 +1,7 @@
 /**
  * CryptoAppletData.js — Complete Cryptography Applet Data
  *
- * All 14 crypto topics with overview, how-it-works, interactive exercises, and quizzes.
+ * All 17 crypto topics with overview, how-it-works, interactive exercises, and quizzes.
  * Used by CryptoAppletRenderer.js
  */
 const CryptoAppletData = {
@@ -918,6 +918,262 @@ const CryptoAppletData = {
             { question: 'Why can\'t we use asymmetric encryption for everything?', options: ['It is not secure enough', 'It is too slow for bulk data encryption', 'It only works for small messages', 'Both B and C are correct'], correct: 3, explanation: 'Asymmetric encryption is ~1000x slower than symmetric, making it impractical for large data. Additionally, RSA can only encrypt messages shorter than the key size (< 256 bytes for RSA-2048).' },
             { question: 'For 1000 people to communicate pairwise with symmetric keys, how many keys are needed?', options: ['1,000', '2,000', '499,500', '1,000,000'], correct: 2, explanation: 'N*(N-1)/2 = 1000*999/2 = 499,500 unique symmetric keys. With asymmetric crypto, only 1,000 key pairs are needed. This scaling problem is why asymmetric crypto was invented.' },
             { question: 'What does Grover\'s algorithm (quantum) do to AES?', options: ['Breaks it completely', 'Halves the effective key strength', 'Has no effect', 'Doubles the key requirement'], correct: 1, explanation: 'Grover\'s algorithm provides a quadratic speedup for brute-force searches, effectively halving the key strength. AES-256 becomes ~128-bit strength — still secure. AES-128 would drop to ~64-bit — potentially vulnerable. Response: use AES-256.' }
+        ]
+    },
+
+    // =====================================================================
+    // BLOCKCHAIN — Blockchain Technology
+    // =====================================================================
+    BLOCKCHAIN: {
+        key: 'BLOCKCHAIN',
+        title: 'Blockchain Technology',
+        icon: '⛓️',
+        color: '#a855f7',
+        description: 'A distributed, immutable ledger that solves the money transfer problem without a trusted middleman. The cryptographic backbone of cryptocurrency, smart contracts, and decentralized trust.',
+        overview: {
+            concepts: ['Distributed Ledger', 'Immutability', 'Block Structure', 'Hashing Chains', 'Mining', 'Proof of Work', 'Consensus', 'Smart Contracts'],
+            explanation: `
+                <p>Blockchain technology emerged to solve the <strong>money transfer problem</strong> — how do you transfer value between two parties without a trusted intermediary (bank, PayPal, government)? The answer: a shared ledger that everyone can verify but no one can tamper with.</p>
+                <h4>The Money Transfer Problem</h4>
+                <p>Traditional transfers require trust in a central authority. If Alice sends Bob $100, a bank verifies Alice has funds, deducts from her account, and credits Bob's. But what if there is no bank? How do you prevent Alice from spending the same $100 twice (double-spending)?</p>
+                <h4>Open / Distributed Ledger</h4>
+                <p>A blockchain is a <strong>distributed ledger</strong> — a record of all transactions shared across thousands of nodes. No single entity controls it. Every participant has a complete copy, and the network collectively validates new entries.</p>
+                <h4>Block Structure</h4>
+                <div class="crypto-comparison">
+                    <div class="crypto-compare-item">
+                        <div class="crypto-compare-label">Block Hash</div>
+                        <div class="crypto-compare-detail">SHA-256 fingerprint of the entire block</div>
+                        <div class="crypto-compare-note">Changes if ANY data in the block is modified</div>
+                    </div>
+                    <div class="crypto-compare-item">
+                        <div class="crypto-compare-label">Transaction Data</div>
+                        <div class="crypto-compare-detail">The actual records (sender, receiver, amount)</div>
+                        <div class="crypto-compare-note">Grouped into a Merkle tree for efficient verification</div>
+                    </div>
+                    <div class="crypto-compare-item">
+                        <div class="crypto-compare-label">Previous Block Hash</div>
+                        <div class="crypto-compare-detail">Hash of the preceding block in the chain</div>
+                        <div class="crypto-compare-note good">This link creates the immutable chain — altering one block invalidates all subsequent blocks</div>
+                    </div>
+                </div>
+                <h4>Practical Applications</h4>
+                <ul>
+                    <li><strong>Cryptocurrency:</strong> Bitcoin, Ethereum — decentralized digital money with no central bank</li>
+                    <li><strong>Smart Contracts:</strong> Self-executing code on the blockchain (Ethereum, Solana) — "if condition X, then automatically do Y"</li>
+                    <li><strong>Healthcare:</strong> Immutable patient records, drug supply chain tracking, clinical trial transparency</li>
+                    <li><strong>Elections:</strong> Tamper-evident voting systems where every vote is verifiable without revealing the voter</li>
+                    <li><strong>Supply Chain:</strong> Track goods from manufacturer to consumer — verify authenticity, prevent counterfeiting</li>
+                </ul>
+                <h4>Pros and Cons</h4>
+                <div class="crypto-comparison">
+                    <div class="crypto-compare-item">
+                        <div class="crypto-compare-label">Pros</div>
+                        <div class="crypto-compare-detail">Decentralized, immutable, transparent, trustless</div>
+                        <div class="crypto-compare-note good">No single point of failure or control</div>
+                    </div>
+                    <div class="crypto-compare-item">
+                        <div class="crypto-compare-label">Cons</div>
+                        <div class="crypto-compare-detail">Slow throughput, high energy cost (PoW), scalability limits</div>
+                        <div class="crypto-compare-note warn">Bitcoin: ~7 tx/sec vs Visa: ~65,000 tx/sec</div>
+                    </div>
+                </div>
+            `,
+            diagram: 'blockchain-structure'
+        },
+        howItWorks: {
+            steps: [
+                { title: 'Transaction Creation', description: 'Alice wants to send Bob 1 BTC. She creates a transaction signed with her private key (digital signature). This proves she authorized the transfer without revealing her private key.', detail: 'The transaction includes Alice\'s public address, Bob\'s public address, the amount, and a timestamp. The digital signature makes it unforgeable.' },
+                { title: 'Broadcast to Network', description: 'The signed transaction is broadcast to the peer-to-peer network. Nodes validate the signature and check that Alice has sufficient funds by examining the ledger history.', detail: 'Nodes independently verify: (1) valid signature, (2) sufficient balance, (3) no double-spending. Invalid transactions are rejected.' },
+                { title: 'Transaction Pool (Mempool)', description: 'Valid transactions wait in a pool (mempool) until a miner selects them for inclusion in the next block. Miners typically prioritize transactions with higher fees.', detail: 'The mempool is where unconfirmed transactions live. During high traffic, the mempool grows and fees increase as users compete for block space.' },
+                { title: 'Mining — Proof of Work', description: 'Miners compete to solve a computational puzzle: find a nonce value such that SHA-256(block header + nonce) starts with a required number of leading zeros. This requires trillions of guesses.', detail: 'The difficulty adjusts every 2,016 blocks (~2 weeks) to maintain a ~10 minute block time. More miners = higher difficulty. This is why Bitcoin mining consumes enormous energy.' },
+                { title: 'Block Added to Chain', description: 'The winning miner broadcasts the new block. Other nodes verify the proof of work, validate all transactions, and add the block to their copy of the chain. The miner receives the block reward + fees.', detail: 'Each block contains: block hash, previous block hash, timestamp, nonce, Merkle root of transactions. The previous hash is what chains the blocks together.' },
+                { title: 'Immutability Through Chaining', description: 'To alter a past transaction, an attacker would need to re-mine that block AND every subsequent block faster than the rest of the network combined. This is computationally infeasible.', detail: 'A transaction is considered "confirmed" after ~6 blocks (~1 hour). The deeper a block is in the chain, the more computationally expensive it is to alter — this is the source of blockchain immutability.' }
+            ]
+        },
+        interactive: {
+            type: 'blockchain-builder',
+            instructions: 'Build a simple blockchain. Add transactions to blocks, watch the hashes chain together, then try tampering with a past block to see how it breaks the chain.',
+            placeholder: 'Enter a transaction (e.g., "Alice pays Bob 5 BTC")...'
+        },
+        quiz: [
+            { question: 'What problem does blockchain technology fundamentally solve?', options: ['Faster internet speeds', 'Trustless value transfer without a central authority', 'Data compression', 'Password management'], correct: 1, explanation: 'Blockchain solves the money transfer (double-spending) problem — how to transfer value between parties without needing a trusted intermediary like a bank. The distributed ledger and consensus mechanism replace centralized trust.' },
+            { question: 'What links blocks together in a blockchain?', options: ['A central database index', 'Each block contains the hash of the previous block', 'Timestamps only', 'Block numbers'], correct: 1, explanation: 'Each block includes the SHA-256 hash of the previous block. This creates a chain — if you modify any data in a past block, its hash changes, which invalidates every block after it.' },
+            { question: 'What is Proof of Work?', options: ['A legal document proving ownership', 'A computational puzzle miners solve to add blocks to the chain', 'A user authentication method', 'A type of encryption'], correct: 1, explanation: 'Proof of Work requires miners to find a nonce that produces a block hash meeting a difficulty target (leading zeros). This requires massive computational effort, making it prohibitively expensive to tamper with the chain.' },
+            { question: 'Why is blockchain considered immutable?', options: ['Files are saved as read-only', 'Altering one block invalidates all subsequent blocks, requiring re-mining the entire chain', 'Blocks are encrypted with AES-256', 'Government regulations prevent changes'], correct: 1, explanation: 'Because each block\'s hash depends on the previous block\'s hash, changing any historical block requires re-computing every subsequent block\'s proof of work — faster than the rest of the network combined. This is computationally infeasible.' },
+            { question: 'What is a smart contract?', options: ['A legally binding digital agreement', 'Self-executing code stored on the blockchain that runs when conditions are met', 'A virus that runs on blockchain networks', 'An encrypted email contract'], correct: 1, explanation: 'Smart contracts are programs stored on the blockchain (e.g., Ethereum) that automatically execute when predefined conditions are met — "if X happens, then do Y." They enable decentralized applications (dApps) without middlemen.' }
+        ]
+    },
+
+    // =====================================================================
+    // XOR_ENCRYPTION — XOR Encryption & Data Formatting
+    // =====================================================================
+    XOR_ENCRYPTION: {
+        key: 'XOR_ENCRYPTION',
+        title: 'XOR Encryption & Data Formatting',
+        icon: '⊕',
+        color: '#a855f7',
+        description: 'The simplest encryption operation — XOR. Understand how ASCII encoding, binary logic gates, and the reversibility property of XOR form the basis of every modern stream cipher.',
+        overview: {
+            concepts: ['ASCII Encoding', 'XOR Gate', 'Truth Table', 'Streaming Cipher', 'Reversibility', 'Binary / Decimal / Hex', 'One-Time Pad', 'Data Format Conversion'],
+            explanation: `
+                <p>XOR (Exclusive OR) is the <strong>fundamental building block</strong> of nearly all encryption. AES uses it. ChaCha20 uses it. The one-time pad — the only provably unbreakable cipher — is pure XOR. Understanding XOR is understanding encryption at its core.</p>
+                <h4>ASCII Character Encoding</h4>
+                <p>Before we can XOR text, we need to represent characters as numbers. ASCII (American Standard Code for Information Interchange) maps characters to 7-bit values:</p>
+                <div class="crypto-comparison">
+                    <div class="crypto-compare-item">
+                        <div class="crypto-compare-label">A = 65</div>
+                        <div class="crypto-compare-detail">Binary: 01000001 | Hex: 0x41</div>
+                        <div class="crypto-compare-note">Uppercase letters: 65-90</div>
+                    </div>
+                    <div class="crypto-compare-item">
+                        <div class="crypto-compare-label">a = 97</div>
+                        <div class="crypto-compare-detail">Binary: 01100001 | Hex: 0x61</div>
+                        <div class="crypto-compare-note">Lowercase letters: 97-122</div>
+                    </div>
+                    <div class="crypto-compare-item">
+                        <div class="crypto-compare-label">0 = 48</div>
+                        <div class="crypto-compare-detail">Binary: 00110000 | Hex: 0x30</div>
+                        <div class="crypto-compare-note">Digit characters: 48-57</div>
+                    </div>
+                </div>
+                <h4>XOR Gate Logic</h4>
+                <p>XOR outputs 1 when the inputs <em>differ</em>, and 0 when they are the <em>same</em>:</p>
+                <table style="width:100%;max-width:300px;border-collapse:collapse;margin-top:.5rem">
+                    <tr style="border-bottom:1px solid rgba(255,255,255,.1)">
+                        <td style="padding:.4rem;color:#a855f7;font-size:.82rem;font-weight:600">A</td>
+                        <td style="padding:.4rem;color:#a855f7;font-size:.82rem;font-weight:600">B</td>
+                        <td style="padding:.4rem;color:#a855f7;font-size:.82rem;font-weight:600">A XOR B</td>
+                    </tr>
+                    <tr style="border-bottom:1px solid rgba(255,255,255,.06)">
+                        <td style="padding:.4rem;font-size:.82rem">0</td>
+                        <td style="padding:.4rem;font-size:.82rem">0</td>
+                        <td style="padding:.4rem;font-size:.82rem;color:#22c55e">0</td>
+                    </tr>
+                    <tr style="border-bottom:1px solid rgba(255,255,255,.06)">
+                        <td style="padding:.4rem;font-size:.82rem">0</td>
+                        <td style="padding:.4rem;font-size:.82rem">1</td>
+                        <td style="padding:.4rem;font-size:.82rem;color:#22c55e">1</td>
+                    </tr>
+                    <tr style="border-bottom:1px solid rgba(255,255,255,.06)">
+                        <td style="padding:.4rem;font-size:.82rem">1</td>
+                        <td style="padding:.4rem;font-size:.82rem">0</td>
+                        <td style="padding:.4rem;font-size:.82rem;color:#22c55e">1</td>
+                    </tr>
+                    <tr>
+                        <td style="padding:.4rem;font-size:.82rem">1</td>
+                        <td style="padding:.4rem;font-size:.82rem">1</td>
+                        <td style="padding:.4rem;font-size:.82rem;color:#22c55e">0</td>
+                    </tr>
+                </table>
+                <h4>The Magic Property: Reversibility</h4>
+                <p>XOR is its own inverse: <code>(P XOR K) XOR K = P</code>. Encrypt with a key, XOR with the same key again, and you get the original data back. This is why the same operation encrypts and decrypts.</p>
+            `,
+            diagram: 'xor-operation'
+        },
+        howItWorks: {
+            steps: [
+                { title: 'Convert to Binary', description: 'Convert each character of the plaintext to its ASCII binary representation. For example, "Hi" becomes: H = 01001000, i = 01101001.', detail: 'ASCII uses 7 bits (0-127) but is typically stored in 8-bit bytes. Extended ASCII and UTF-8 use 8+ bits for additional characters.' },
+                { title: 'Choose a Key', description: 'Select a key byte (or stream of key bytes). For a simple XOR cipher, the key repeats across the message. For a one-time pad, the key is as long as the message and truly random.', detail: 'A single-byte XOR key has only 256 possibilities — trivially broken by brute force. Real stream ciphers (ChaCha20) use CSPRNG-generated keystreams of the full message length.' },
+                { title: 'XOR Each Byte', description: 'XOR each plaintext byte with the corresponding key byte, bit by bit. Example: H (01001000) XOR key 0x2A (00101010) = 01100010 = b.', detail: 'The XOR streaming cipher processes one byte at a time — there is no block size, no padding, and no mode of operation needed.' },
+                { title: 'Format the Output', description: 'The ciphertext bytes can be represented in multiple formats: binary (01100010), decimal (98), hexadecimal (0x62), or even ASCII if the result is a printable character.', detail: 'Hex is the most common representation for ciphertext because every byte maps to exactly 2 hex digits, making it compact and unambiguous.' },
+                { title: 'Decrypt — XOR Again', description: 'To decrypt, XOR the ciphertext with the same key. Because XOR is self-inverse, (P XOR K) XOR K = P. The exact same function encrypts and decrypts.', detail: 'Full walkthrough: plaintext "H" = 0x48, key = 0x2A → 0x48 XOR 0x2A = 0x62 (ciphertext). Decrypt: 0x62 XOR 0x2A = 0x48 = "H". The original is restored.' },
+                { title: 'Connection to Modern Ciphers', description: 'Every stream cipher (ChaCha20, AES-CTR, RC4) is fundamentally a XOR cipher — the only difference is HOW the keystream is generated. XOR is the encryption; the algorithm is the key schedule.', detail: 'The one-time pad proves that XOR with a truly random, never-reused key is information-theoretically secure — unbreakable by any computational power. The challenge is generating and distributing that key.' }
+            ]
+        },
+        interactive: {
+            type: 'xor-calculator',
+            instructions: 'Enter plaintext and a key to see XOR encryption in action. Watch the binary XOR operation bit by bit, and convert between ASCII, decimal, hex, and binary representations.',
+            placeholder: 'Type a message to XOR encrypt...'
+        },
+        quiz: [
+            { question: 'What is the ASCII decimal value of the character "A"?', options: ['41', '65', '97', '01000001'], correct: 1, explanation: 'The character "A" has ASCII decimal value 65 (hex 0x41, binary 01000001). Lowercase "a" is 97 (0x61). The 32-difference between upper and lowercase is a single bit flip.' },
+            { question: 'What is 1 XOR 1?', options: ['0', '1', '2', '11'], correct: 0, explanation: 'XOR outputs 1 only when inputs differ. 1 XOR 1 = 0 (same inputs). 1 XOR 0 = 1 (different inputs). This "same = 0, different = 1" property is what makes XOR useful for encryption.' },
+            { question: 'What property makes XOR ideal for encryption?', options: ['It is very slow to compute', 'It is self-inverse: (A XOR B) XOR B = A', 'It produces larger output than input', 'It is a one-way function'], correct: 1, explanation: 'XOR is self-inverse — applying the same key twice returns the original data. This means the same operation (XOR with key) both encrypts and decrypts, making implementation simple and efficient.' },
+            { question: 'If you XOR the byte 01001000 (H) with key 11111111, what do you get?', options: ['00000000', '01001000', '10110111', '11111111'], correct: 2, explanation: 'XORing with 11111111 flips every bit: 01001000 becomes 10110111. This is the bitwise complement. XOR with all-ones is equivalent to NOT.' },
+            { question: 'Why is a single-byte XOR key considered insecure?', options: ['It is too slow', 'Only 256 possible keys — trivially brute-forced', 'It only works with ASCII text', 'It does not produce binary output'], correct: 1, explanation: 'A single byte has only 256 possible values (0x00-0xFF). An attacker can try all 256 keys in microseconds. Additionally, frequency analysis works because each plaintext byte maps consistently to the same ciphertext byte.' }
+        ]
+    },
+
+    // =====================================================================
+    // PRIME_FACTORIZATION — Factoring & Prime Numbers for Cryptography
+    // =====================================================================
+    PRIME_FACTORIZATION: {
+        key: 'PRIME_FACTORIZATION',
+        title: 'Factoring & Prime Numbers for Cryptography',
+        icon: '🔢',
+        color: '#a855f7',
+        description: 'Prime numbers are the atoms of mathematics — and the foundation of RSA encryption. Understand factoring, prime factorization, and Euler\'s Totient function (Phi) that makes public-key cryptography work.',
+        overview: {
+            concepts: ['Factors', 'Prime Numbers', 'Composite Numbers', 'Prime Factorization', 'Factor Tree', 'Division Method', 'Euler\'s Totient (Phi)', 'RSA Key Generation'],
+            explanation: `
+                <p>Every integer greater than 1 is either <strong>prime</strong> (divisible only by 1 and itself) or <strong>composite</strong> (can be broken into smaller factors). This simple mathematical fact is the foundation of RSA — the most widely deployed public-key cryptosystem.</p>
+                <h4>What Are Factors?</h4>
+                <p>Factors of a number N are integers that divide N evenly. For example, factors of 12 are: 1, 2, 3, 4, 6, 12. Factors of 7 are: 1, 7 (only — making 7 prime).</p>
+                <h4>Prime vs Composite</h4>
+                <div class="crypto-comparison">
+                    <div class="crypto-compare-item">
+                        <div class="crypto-compare-label">Prime</div>
+                        <div class="crypto-compare-detail">Exactly 2 factors: 1 and itself</div>
+                        <div class="crypto-compare-note">2, 3, 5, 7, 11, 13, 17, 19, 23, 29...</div>
+                    </div>
+                    <div class="crypto-compare-item">
+                        <div class="crypto-compare-label">Composite</div>
+                        <div class="crypto-compare-detail">More than 2 factors — can be decomposed</div>
+                        <div class="crypto-compare-note">4, 6, 8, 9, 10, 12, 14, 15, 16...</div>
+                    </div>
+                    <div class="crypto-compare-item">
+                        <div class="crypto-compare-label">Special: 1</div>
+                        <div class="crypto-compare-detail">Neither prime nor composite</div>
+                        <div class="crypto-compare-note">By convention, 1 is excluded from primes</div>
+                    </div>
+                </div>
+                <h4>Prime Factorization Methods</h4>
+                <ul>
+                    <li><strong>Factor Tree:</strong> Repeatedly split a number into two factors until all leaves are prime. Example: 60 → 2 x 30 → 2 x 2 x 15 → 2 x 2 x 3 x 5</li>
+                    <li><strong>Division Method:</strong> Divide by the smallest prime (2, 3, 5, 7...) repeatedly. 60 ÷ 2 = 30, ÷ 2 = 15, ÷ 3 = 5, ÷ 5 = 1. Result: 2² x 3 x 5</li>
+                </ul>
+                <h4>Euler's Totient Function — phi(n)</h4>
+                <p>phi(n) counts how many integers from 1 to n are <strong>coprime</strong> to n (share no common factors). This function is critical to RSA key generation:</p>
+                <div class="crypto-comparison">
+                    <div class="crypto-compare-item">
+                        <div class="crypto-compare-label">phi(p) for prime p</div>
+                        <div class="crypto-compare-detail">phi(p) = p - 1</div>
+                        <div class="crypto-compare-note">All integers less than a prime are coprime to it</div>
+                    </div>
+                    <div class="crypto-compare-item">
+                        <div class="crypto-compare-label">phi(n) for n = p * q</div>
+                        <div class="crypto-compare-detail">phi(n) = (p-1)(q-1)</div>
+                        <div class="crypto-compare-note good">This is the formula RSA uses — knowing p and q makes phi(n) easy</div>
+                    </div>
+                </div>
+                <h4>Connection to RSA</h4>
+                <p>RSA security relies on this asymmetry: multiplying two 1024-bit primes is instant, but factoring the product back into primes is computationally infeasible. If you know p and q, computing phi(n) is trivial. If you only know n = p*q, computing phi(n) requires factoring — which is the hard problem.</p>
+                <h4>How Big Are Cryptographic Primes?</h4>
+                <p>RSA-2048 uses two primes each approximately 1024 bits (~308 decimal digits). The number of primes below 2^1024 is approximately 2^1024 / (1024 * ln 2) — an astronomically large supply ensuring unique primes for every key ever generated.</p>
+            `,
+            diagram: 'prime-factorization'
+        },
+        howItWorks: {
+            steps: [
+                { title: 'Find the Factors', description: 'To factor a number N, test divisibility starting from the smallest prime (2). If N is divisible, record the factor and divide. Continue until the quotient is 1.', detail: 'You only need to test primes up to sqrt(N). If no prime up to sqrt(N) divides N evenly, then N itself is prime. For N=100, sqrt(100)=10, so test 2, 3, 5, 7.' },
+                { title: 'Build the Factor Tree', description: 'Split the number into any two factors, then continue splitting each composite factor until all leaves are prime. Example: 84 → 2 x 42 → 2 x 2 x 21 → 2 x 2 x 3 x 7.', detail: 'The Fundamental Theorem of Arithmetic guarantees that every integer > 1 has a UNIQUE prime factorization (regardless of the order you factor). 84 is always 2² x 3 x 7.' },
+                { title: 'Identify Prime Numbers', description: 'A prime number has exactly two factors: 1 and itself. Primality testing for large numbers uses probabilistic tests like Miller-Rabin rather than trial division.', detail: 'The largest known prime (as of 2024) is 2^136,279,841 - 1, a Mersenne prime with over 41 million digits. RSA primes are "only" ~308 digits.' },
+                { title: 'Compute Euler\'s Totient', description: 'For any integer n, phi(n) counts integers from 1 to n that are coprime to n. For primes: phi(p) = p-1. For n = p*q where p,q are prime: phi(n) = (p-1)(q-1).', detail: 'Example: phi(15) where 15 = 3 x 5. phi(15) = (3-1)(5-1) = 2 x 4 = 8. The 8 coprime integers are: 1, 2, 4, 7, 8, 11, 13, 14.' },
+                { title: 'RSA Key Generation', description: 'Choose two large primes p and q. Compute n = p*q and phi(n) = (p-1)(q-1). Choose public exponent e coprime to phi(n). Compute private exponent d = e^(-1) mod phi(n).', detail: 'The public key is (n, e) and the private key is (n, d). Security: an attacker who knows n but not p and q cannot compute phi(n), and therefore cannot compute d. Factoring n is the hard problem.' },
+                { title: 'Why Factoring Is Hard', description: 'Multiplying two 1024-bit primes takes microseconds. Factoring their 2048-bit product with the best known algorithm (General Number Field Sieve) would take billions of years with current computers.', detail: 'This asymmetry (easy to multiply, hard to factor) is called a trapdoor one-way function. Knowing the "trapdoor" (the prime factors) makes the reverse operation easy. This asymmetry is what makes RSA possible.' }
+            ]
+        },
+        interactive: {
+            type: 'factor-calculator',
+            instructions: 'Enter a number to see its complete prime factorization (factor tree + division method). Then try the Phi calculator to compute Euler\'s Totient for any number and see its connection to RSA.',
+            placeholder: 'Enter a number to factorize...'
+        },
+        quiz: [
+            { question: 'What is the prime factorization of 60?', options: ['2 x 30', '4 x 15', '2² x 3 x 5', '2 x 3 x 10'], correct: 2, explanation: '60 = 2 x 2 x 3 x 5 = 2² x 3 x 5. The Fundamental Theorem of Arithmetic guarantees this decomposition is unique. Factor trees may look different, but the prime factors are always the same.' },
+            { question: 'What is phi(7) — Euler\'s Totient of the prime number 7?', options: ['1', '6', '7', '8'], correct: 1, explanation: 'For any prime p, phi(p) = p - 1, because every integer from 1 to p-1 is coprime to a prime. phi(7) = 6. The coprime integers are 1, 2, 3, 4, 5, 6.' },
+            { question: 'In RSA, what makes computing phi(n) easy for the key owner but hard for an attacker?', options: ['The key owner has a faster computer', 'The key owner knows the prime factors p and q, so phi(n) = (p-1)(q-1)', 'phi(n) is stored in the certificate', 'The key owner uses quantum computing'], correct: 1, explanation: 'The key owner knows p and q, making phi(n) = (p-1)(q-1) trivial. An attacker who only knows n = p*q would need to factor n to find p and q — which is computationally infeasible for large numbers.' },
+            { question: 'Why is the number 1 not considered prime?', options: ['It is too small', 'By convention — including 1 would break the uniqueness of prime factorization', 'It is an even number', 'It has too many factors'], correct: 1, explanation: 'If 1 were prime, the Fundamental Theorem of Arithmetic would fail: 6 = 2 x 3 = 1 x 2 x 3 = 1 x 1 x 2 x 3, etc. Excluding 1 preserves unique prime factorization.' },
+            { question: 'Approximately how many decimal digits does each prime in RSA-2048 have?', options: ['64 digits', '128 digits', '308 digits', '2048 digits'], correct: 2, explanation: 'RSA-2048 uses a 2048-bit modulus n = p*q. Each prime is approximately 1024 bits, which is about 308 decimal digits. These primes are large enough that factoring their product is infeasible with current technology.' }
         ]
     }
 };

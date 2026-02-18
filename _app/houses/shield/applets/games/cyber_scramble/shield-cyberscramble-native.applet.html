@@ -1,0 +1,659 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CyberScramble | Shield House</title>
+    <script src="../../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background: #0a0a0f;
+            color: #e0e0e0;
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .top-bar {
+            width: 100%;
+            padding: 12px 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: #111118;
+            border-bottom: 1px solid #1a1a2e;
+        }
+        .back-btn {
+            color: #dc143c;
+            text-decoration: none;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            transition: opacity 0.2s;
+        }
+        .back-btn:hover { opacity: 0.8; }
+        .top-bar h1 {
+            font-size: 18px;
+            color: #dc143c;
+            font-weight: 600;
+            letter-spacing: 1px;
+        }
+        .level-badge {
+            font-size: 13px;
+            color: #888;
+        }
+        .level-badge span { color: #dc143c; font-weight: 600; }
+
+        .game-container {
+            max-width: 700px;
+            width: 100%;
+            padding: 24px;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+        }
+
+        /* Level Progress */
+        .level-bar {
+            width: 100%;
+            display: flex;
+            gap: 6px;
+            justify-content: center;
+        }
+        .level-pip {
+            width: 36px;
+            height: 8px;
+            border-radius: 4px;
+            background: #1e1e2e;
+            border: 1px solid #2a2a3e;
+            transition: all 0.3s;
+        }
+        .level-pip.completed { background: #dc143c; border-color: #dc143c; }
+        .level-pip.current { background: #2a1020; border-color: #dc143c; animation: pip-pulse 1.5s ease infinite; }
+        @keyframes pip-pulse {
+            0%, 100% { opacity: 0.6; }
+            50% { opacity: 1; }
+        }
+
+        .status-line {
+            font-size: 14px;
+            color: #888;
+            text-align: center;
+        }
+        .status-line .level-num { color: #dc143c; font-weight: 700; font-size: 16px; }
+        .status-line .counter { color: #aaa; }
+
+        /* Word Progress (solved words in current level) */
+        .word-progress {
+            display: flex;
+            gap: 8px;
+        }
+        .word-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #1e1e2e;
+            border: 2px solid #2a2a3e;
+            transition: all 0.3s;
+        }
+        .word-dot.solved { background: #4caf50; border-color: #4caf50; }
+        .word-dot.failed { background: #ff4444; border-color: #ff4444; }
+        .word-dot.current { border-color: #dc143c; }
+
+        /* Strikes */
+        .strikes {
+            display: flex;
+            gap: 6px;
+            align-items: center;
+            font-size: 13px;
+            color: #888;
+        }
+        .strike-x {
+            width: 20px;
+            height: 20px;
+            border-radius: 4px;
+            background: #1e1e2e;
+            border: 1px solid #2a2a3e;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            font-weight: 700;
+            transition: all 0.3s;
+        }
+        .strike-x.active { background: #3a1010; border-color: #ff4444; color: #ff4444; }
+
+        /* Scramble Area */
+        .scramble-area {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 16px;
+            width: 100%;
+        }
+        .hint-text {
+            font-size: 13px;
+            color: #666;
+            font-style: italic;
+            min-height: 20px;
+        }
+
+        .tiles-row {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            justify-content: center;
+            min-height: 56px;
+        }
+        .tile {
+            width: 44px;
+            height: 48px;
+            background: #16161e;
+            border: 2px solid #2a2a3e;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            font-weight: 700;
+            color: #e0e0e0;
+            cursor: pointer;
+            transition: all 0.15s;
+            text-transform: uppercase;
+            user-select: none;
+        }
+        .tile:hover { border-color: #dc143c; background: #1a0a0f; transform: translateY(-2px); }
+        .tile.selected { opacity: 0.3; cursor: default; pointer-events: none; }
+
+        /* Answer Slots */
+        .answer-row {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+            justify-content: center;
+            min-height: 52px;
+        }
+        .answer-slot {
+            width: 44px;
+            height: 48px;
+            border-bottom: 3px solid #3a3a4e;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            font-weight: 700;
+            color: #fff;
+            cursor: pointer;
+            transition: all 0.15s;
+            text-transform: uppercase;
+            border-radius: 4px 4px 0 0;
+        }
+        .answer-slot.filled { border-color: #dc143c; background: rgba(220,20,60,0.08); }
+        .answer-slot.filled:hover { background: rgba(220,20,60,0.15); }
+        .answer-slot.correct { border-color: #4caf50; background: rgba(76,175,80,0.1); color: #4caf50; }
+        .answer-slot.wrong { border-color: #ff4444; background: rgba(255,68,68,0.1); color: #ff4444; animation: shake 0.4s; }
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-6px); }
+            75% { transform: translateX(6px); }
+        }
+
+        .action-row {
+            display: flex;
+            gap: 12px;
+        }
+        .action-btn {
+            padding: 8px 20px;
+            border-radius: 6px;
+            border: 1px solid #2a2a3e;
+            background: #16161e;
+            color: #e0e0e0;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .action-btn:hover { border-color: #dc143c; background: #1a0a0f; }
+        .action-btn.submit { background: #dc143c; border-color: #dc143c; color: #fff; font-weight: 600; }
+        .action-btn.submit:hover { background: #ff1744; }
+        .action-btn.submit:disabled { opacity: 0.4; cursor: not-allowed; }
+
+        /* Definition reveal */
+        .definition {
+            font-size: 14px;
+            color: #aaa;
+            max-width: 500px;
+            line-height: 1.5;
+            text-align: center;
+            background: #12121a;
+            padding: 12px 16px;
+            border-radius: 8px;
+            border-left: 3px solid #dc143c;
+            opacity: 0;
+            transition: opacity 0.4s;
+            min-height: 0;
+        }
+        .definition.show { opacity: 1; }
+
+        /* Game Over Overlay */
+        .overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.85);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+        }
+        .overlay.show { display: flex; }
+        .overlay-box {
+            background: #12121a;
+            border: 2px solid #dc143c;
+            border-radius: 16px;
+            padding: 40px;
+            text-align: center;
+            max-width: 400px;
+        }
+        .overlay-box h2 { color: #dc143c; margin-bottom: 12px; font-size: 24px; }
+        .overlay-box p { color: #aaa; margin-bottom: 20px; line-height: 1.5; }
+        .overlay-box button {
+            background: #dc143c;
+            border: none;
+            color: #fff;
+            padding: 12px 32px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .overlay-box button:hover { background: #ff1744; }
+
+        .best-level { font-size: 12px; color: #666; margin-top: 8px; }
+    </style>
+</head>
+<body>
+    <div class="top-bar">
+        <a href="../../../index.html" class="back-btn">&#9664; Shield House</a>
+        <h1>CYBERSCRAMBLE</h1>
+        <div class="level-badge">Best: Level <span id="bestLevel">1</span></div>
+    </div>
+
+    <div class="game-container">
+        <div class="level-bar" id="levelBar"></div>
+
+        <div class="status-line">
+            Level <span class="level-num" id="levelNum">1</span>
+            <span class="counter"> &mdash; Word <span id="wordNum">1</span>/3</span>
+        </div>
+
+        <div class="word-progress" id="wordProgress"></div>
+
+        <div class="strikes" id="strikes">
+            Strikes:
+            <div class="strike-x" id="s1"></div>
+            <div class="strike-x" id="s2"></div>
+            <div class="strike-x" id="s3"></div>
+        </div>
+
+        <div class="scramble-area">
+            <div class="hint-text" id="hintText"></div>
+            <div class="answer-row" id="answerRow"></div>
+            <div class="tiles-row" id="tilesRow"></div>
+            <div class="action-row">
+                <button class="action-btn" onclick="clearAnswer()">Clear</button>
+                <button class="action-btn" onclick="shuffleTiles()">Shuffle</button>
+                <button class="action-btn submit" id="submitBtn" onclick="submitAnswer()" disabled>Submit</button>
+            </div>
+        </div>
+
+        <div class="definition" id="definition"></div>
+    </div>
+
+    <div class="overlay" id="overlay">
+        <div class="overlay-box">
+            <h2 id="overlayTitle">LEVEL FAILED</h2>
+            <p id="overlayMsg">Too many wrong answers. Restarting level...</p>
+            <button id="overlayBtn" onclick="handleOverlay()">Continue</button>
+        </div>
+    </div>
+
+    <script>
+    const ALL_WORDS = [
+        { word: 'FIREWALL', def: 'A network security system that monitors and controls incoming and outgoing traffic.', level: 1 },
+        { word: 'MALWARE', def: 'Software designed to disrupt, damage, or gain unauthorized access to a system.', level: 1 },
+        { word: 'PHISHING', def: 'Fraudulent attempt to obtain sensitive information by disguising as a trustworthy entity.', level: 1 },
+        { word: 'VIRUS', def: 'Malicious code that attaches to programs and replicates when executed.', level: 1 },
+        { word: 'HACKER', def: 'A person who uses computers to gain unauthorized access to data or systems.', level: 1 },
+        { word: 'PATCH', def: 'A software update designed to fix vulnerabilities or bugs.', level: 1 },
+        { word: 'TROJAN', def: 'Malware disguised as legitimate software to trick users into installing it.', level: 2 },
+        { word: 'BOTNET', def: 'A network of hijacked computers used to carry out coordinated cyber attacks.', level: 2 },
+        { word: 'ROOTKIT', def: 'Tools that give attackers persistent, undetectable privileged access to a system.', level: 2 },
+        { word: 'EXPLOIT', def: 'A technique or code that takes advantage of a vulnerability in software.', level: 2 },
+        { word: 'CIPHER', def: 'An algorithm for performing encryption or decryption of data.', level: 2 },
+        { word: 'SPYWARE', def: 'Software that covertly collects information about a user\'s activities.', level: 2 },
+        { word: 'RANSOMWARE', def: 'Malware that encrypts files and demands payment for the decryption key.', level: 3 },
+        { word: 'ENCRYPTION', def: 'The process of encoding data so only authorized parties can read it.', level: 3 },
+        { word: 'BACKDOOR', def: 'A hidden method for bypassing normal authentication in a system.', level: 3 },
+        { word: 'KEYLOGGER', def: 'Software that records keystrokes to capture passwords and other data.', level: 3 },
+        { word: 'HONEYPOT', def: 'A decoy system set up to attract and study attackers.', level: 3 },
+        { word: 'SANDBOX', def: 'An isolated environment for safely testing untrusted programs.', level: 3 },
+        { word: 'AUTHENTICATION', def: 'The process of verifying the identity of a user or system.', level: 4 },
+        { word: 'VULNERABILITY', def: 'A weakness in a system that can be exploited by attackers.', level: 4 },
+        { word: 'CRYPTOGRAPHY', def: 'The practice of securing information through mathematical encoding.', level: 4 },
+        { word: 'STEGANOGRAPHY', def: 'Hiding secret data within ordinary files like images or audio.', level: 4 },
+        { word: 'PENTESTING', def: 'Authorized simulated attacks to find exploitable security weaknesses.', level: 4 },
+        { word: 'FORENSICS', def: 'Collecting and analyzing digital evidence after a security incident.', level: 4 },
+        { word: 'AUTHORIZATION', def: 'Granting or denying specific access rights to authenticated users.', level: 5 },
+        { word: 'CONFIDENTIALITY', def: 'Ensuring information is accessible only to authorized individuals.', level: 5 },
+        { word: 'PRETEXTING', def: 'Creating a fabricated scenario to manipulate a target into revealing info.', level: 5 },
+        { word: 'TAILGATING', def: 'Following an authorized person through a secured entrance.', level: 5 },
+        { word: 'BIOMETRICS', def: 'Authentication using unique biological characteristics like fingerprints.', level: 5 },
+        { word: 'QUARANTINE', def: 'Isolating a suspicious file to prevent it from causing harm.', level: 5 },
+        { word: 'SOCIAL ENGINEERING', def: 'Manipulating people into divulging confidential information.', level: 6 },
+        { word: 'INTRUSION DETECTION', def: 'A system that monitors network traffic for suspicious activity.', level: 6 },
+        { word: 'PRIVILEGE ESCALATION', def: 'Gaining higher access rights than originally authorized.', level: 6 },
+        { word: 'DENIAL OF SERVICE', def: 'An attack that floods a system to make it unavailable to users.', level: 6 },
+        { word: 'ACCESS CONTROL', def: 'Policies and mechanisms that restrict access to resources.', level: 6 },
+        { word: 'ZERO DAY', def: 'A vulnerability unknown to the vendor, with no available patch.', level: 6 },
+        { word: 'BRUTE FORCE', def: 'Trying every possible combination to crack passwords or keys.', level: 7 },
+        { word: 'MAN IN THE MIDDLE', def: 'An attacker secretly intercepts communication between two parties.', level: 7 },
+        { word: 'CERTIFICATE AUTHORITY', def: 'A trusted entity that issues digital certificates for secure communication.', level: 7 },
+        { word: 'INCIDENT RESPONSE', def: 'The organized approach to managing and mitigating security breaches.', level: 7 },
+        { word: 'THREAT MODELING', def: 'A structured approach to identifying and prioritizing potential threats.', level: 7 },
+        { word: 'PACKET SNIFFING', def: 'Capturing and analyzing network traffic packets for data extraction.', level: 7 },
+        { word: 'ADVANCED PERSISTENT THREAT', def: 'A prolonged, targeted attack where an intruder maintains hidden access.', level: 8 },
+        { word: 'SECURITY INFORMATION EVENT MANAGEMENT', def: 'A system that aggregates and analyzes security log data in real time.', level: 8 },
+        { word: 'MULTIFACTOR AUTHENTICATION', def: 'Requiring two or more verification methods to prove identity.', level: 8 },
+        { word: 'PUBLIC KEY INFRASTRUCTURE', def: 'A framework for managing digital certificates and encryption keys.', level: 8 },
+        { word: 'ROLE BASED ACCESS CONTROL', def: 'Restricting system access based on user roles within an organization.', level: 8 },
+        { word: 'NETWORK SEGMENTATION', def: 'Dividing a network into zones to limit the spread of attacks.', level: 8 },
+        { word: 'SUPPLY CHAIN ATTACK', def: 'Compromising a trusted vendor to infiltrate their customers\' systems.', level: 8 },
+        { word: 'CREDENTIAL STUFFING', def: 'Using stolen username-password pairs to gain access across multiple sites.', level: 8 }
+    ];
+
+    const WORDS_PER_LEVEL = 3;
+    const MAX_STRIKES = 3;
+    const TOTAL_LEVELS = 8;
+
+    let currentLevel = 1;
+    let wordsInLevel = 0;
+    let strikes = 0;
+    let currentWordObj = null;
+    let selectedTiles = [];
+    let levelPool = [];
+    let overlayAction = null;
+    let bestLevel = parseInt(localStorage.getItem('hexworth_shield_scramble') || '1');
+
+    function saveBest() {
+        if (currentLevel > bestLevel) {
+            bestLevel = currentLevel;
+            localStorage.setItem('hexworth_shield_scramble', String(bestLevel));
+        }
+        document.getElementById('bestLevel').textContent = bestLevel;
+    }
+
+    function renderLevelBar() {
+        const bar = document.getElementById('levelBar');
+        bar.innerHTML = '';
+        for (let i = 1; i <= TOTAL_LEVELS; i++) {
+            const pip = document.createElement('div');
+            pip.className = 'level-pip';
+            if (i < currentLevel) pip.classList.add('completed');
+            else if (i === currentLevel) pip.classList.add('current');
+            bar.appendChild(pip);
+        }
+    }
+
+    function renderWordProgress() {
+        const wp = document.getElementById('wordProgress');
+        wp.innerHTML = '';
+        for (let i = 0; i < WORDS_PER_LEVEL; i++) {
+            const dot = document.createElement('div');
+            dot.className = 'word-dot';
+            if (i < wordsInLevel) dot.classList.add('solved');
+            else if (i === wordsInLevel) dot.classList.add('current');
+            wp.appendChild(dot);
+        }
+    }
+
+    function renderStrikes() {
+        for (let i = 1; i <= MAX_STRIKES; i++) {
+            document.getElementById('s' + i).classList.toggle('active', i <= strikes);
+            document.getElementById('s' + i).textContent = i <= strikes ? 'X' : '';
+        }
+    }
+
+    function scrambleWord(word) {
+        const clean = word.replace(/\s/g, '');
+        const arr = clean.split('');
+        for (let i = arr.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [arr[i], arr[j]] = [arr[j], arr[i]];
+        }
+        // Make sure it's different from original
+        if (arr.join('') === clean && arr.length > 1) {
+            [arr[0], arr[1]] = [arr[1], arr[0]];
+        }
+        return arr;
+    }
+
+    function getLevelPool(level) {
+        const pool = ALL_WORDS.filter(w => w.level === level);
+        // Shuffle
+        for (let i = pool.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [pool[i], pool[j]] = [pool[j], pool[i]];
+        }
+        return pool;
+    }
+
+    function loadWord() {
+        if (levelPool.length === 0) levelPool = getLevelPool(currentLevel);
+        currentWordObj = levelPool.pop();
+        selectedTiles = [];
+
+        const cleanWord = currentWordObj.word.replace(/\s/g, '');
+        const scrambled = scrambleWord(currentWordObj.word);
+        const hasSpace = currentWordObj.word.includes(' ');
+
+        document.getElementById('hintText').textContent = hasSpace
+            ? `Hint: ${currentWordObj.word.split(' ').length} words, ${cleanWord.length} letters total`
+            : `Hint: ${cleanWord.length} letters`;
+        document.getElementById('definition').classList.remove('show');
+        document.getElementById('definition').textContent = '';
+
+        // Build answer slots
+        const answerRow = document.getElementById('answerRow');
+        answerRow.innerHTML = '';
+        for (let i = 0; i < cleanWord.length; i++) {
+            const slot = document.createElement('div');
+            slot.className = 'answer-slot';
+            slot.dataset.index = i;
+            slot.onclick = () => removeLetter(i);
+            answerRow.appendChild(slot);
+        }
+
+        // Build tiles
+        const tilesRow = document.getElementById('tilesRow');
+        tilesRow.innerHTML = '';
+        scrambled.forEach((ch, i) => {
+            const tile = document.createElement('div');
+            tile.className = 'tile';
+            tile.textContent = ch;
+            tile.dataset.index = i;
+            tile.onclick = () => selectTile(i, ch);
+            tilesRow.appendChild(tile);
+        });
+
+        document.getElementById('submitBtn').disabled = true;
+        updateStatusLine();
+    }
+
+    function selectTile(index, ch) {
+        const tile = document.querySelector(`.tile[data-index="${index}"]`);
+        if (tile.classList.contains('selected')) return;
+        tile.classList.add('selected');
+        selectedTiles.push({ tileIndex: index, letter: ch });
+
+        // Place in next empty answer slot
+        const slots = document.querySelectorAll('.answer-slot');
+        for (const slot of slots) {
+            if (!slot.dataset.filled) {
+                slot.textContent = ch;
+                slot.dataset.filled = 'true';
+                slot.dataset.tileRef = index;
+                slot.classList.add('filled');
+                break;
+            }
+        }
+
+        const cleanLen = currentWordObj.word.replace(/\s/g, '').length;
+        document.getElementById('submitBtn').disabled = selectedTiles.length < cleanLen;
+    }
+
+    function removeLetter(slotIndex) {
+        const slot = document.querySelectorAll('.answer-slot')[slotIndex];
+        if (!slot.dataset.filled) return;
+
+        const tileIdx = slot.dataset.tileRef;
+        const tile = document.querySelector(`.tile[data-index="${tileIdx}"]`);
+        if (tile) tile.classList.remove('selected');
+
+        selectedTiles = selectedTiles.filter(t => String(t.tileIndex) !== String(tileIdx));
+        slot.textContent = '';
+        delete slot.dataset.filled;
+        delete slot.dataset.tileRef;
+        slot.classList.remove('filled');
+        document.getElementById('submitBtn').disabled = true;
+    }
+
+    function clearAnswer() {
+        document.querySelectorAll('.tile').forEach(t => t.classList.remove('selected'));
+        document.querySelectorAll('.answer-slot').forEach(s => {
+            s.textContent = '';
+            delete s.dataset.filled;
+            delete s.dataset.tileRef;
+            s.classList.remove('filled', 'correct', 'wrong');
+        });
+        selectedTiles = [];
+        document.getElementById('submitBtn').disabled = true;
+    }
+
+    function shuffleTiles() {
+        clearAnswer();
+        const tilesRow = document.getElementById('tilesRow');
+        const tiles = Array.from(tilesRow.children);
+        for (let i = tiles.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            tilesRow.insertBefore(tiles[j], tiles[i]);
+            [tiles[i], tiles[j]] = [tiles[j], tiles[i]];
+        }
+    }
+
+    function submitAnswer() {
+        const slots = document.querySelectorAll('.answer-slot');
+        const guess = Array.from(slots).map(s => s.textContent).join('');
+        const answer = currentWordObj.word.replace(/\s/g, '');
+
+        if (guess === answer) {
+            // Correct!
+            slots.forEach(s => s.classList.add('correct'));
+            showDefinition();
+            wordsInLevel++;
+            renderWordProgress();
+            saveBest();
+
+            setTimeout(() => {
+                if (wordsInLevel >= WORDS_PER_LEVEL) {
+                    if (currentLevel >= TOTAL_LEVELS) {
+                        showOverlay('SYSTEM CLEARED!', 'You unscrambled all 8 levels of cybersecurity terms! You are a true defender.', 'Play Again', 'restart');
+                    } else {
+                        currentLevel++;
+                        wordsInLevel = 0;
+                        strikes = 0;
+                        levelPool = [];
+                        saveBest();
+                        renderLevelBar();
+                        renderWordProgress();
+                        renderStrikes();
+                        loadWord();
+                    }
+                } else {
+                    loadWord();
+                }
+            }, 1500);
+        } else {
+            // Wrong
+            slots.forEach(s => s.classList.add('wrong'));
+            strikes++;
+            renderStrikes();
+            showDefinition();
+
+            setTimeout(() => {
+                if (strikes >= MAX_STRIKES) {
+                    showOverlay('LEVEL FAILED', `Too many wrong answers on Level ${currentLevel}. Restarting this level...`, 'Retry Level', 'retry');
+                } else {
+                    clearAnswer();
+                    loadWord();
+                }
+            }, 1800);
+        }
+    }
+
+    function showDefinition() {
+        const def = document.getElementById('definition');
+        def.innerHTML = '<strong>' + currentWordObj.word + '</strong>: ' + currentWordObj.def;
+        def.classList.add('show');
+    }
+
+    function showOverlay(title, msg, btnText, action) {
+        document.getElementById('overlayTitle').textContent = title;
+        document.getElementById('overlayMsg').textContent = msg;
+        document.getElementById('overlayBtn').textContent = btnText;
+        overlayAction = action;
+        document.getElementById('overlay').classList.add('show');
+    }
+
+    function handleOverlay() {
+        document.getElementById('overlay').classList.remove('show');
+        if (overlayAction === 'retry') {
+            wordsInLevel = 0;
+            strikes = 0;
+            levelPool = [];
+            renderWordProgress();
+            renderStrikes();
+            loadWord();
+        } else if (overlayAction === 'restart') {
+            currentLevel = 1;
+            wordsInLevel = 0;
+            strikes = 0;
+            levelPool = [];
+            renderLevelBar();
+            renderWordProgress();
+            renderStrikes();
+            loadWord();
+        }
+    }
+
+    function updateStatusLine() {
+        document.getElementById('levelNum').textContent = currentLevel;
+        document.getElementById('wordNum').textContent = wordsInLevel + 1;
+    }
+
+    // Init
+    saveBest();
+    renderLevelBar();
+    renderWordProgress();
+    renderStrikes();
+    loadWord();
+    </script>
+    <script src="../../../../../components/GameTracker.js"></script>
+    <script src="../../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>
