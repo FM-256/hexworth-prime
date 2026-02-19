@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>FAILSAFE Simulation - Hexworth Prime</title>
+    <script src="../../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -1074,6 +1076,7 @@ LESSONS LEARNED:
         </div>
     </div>
 
+    <script src="../progress.js"></script>
     <script>
         const STORAGE_KEY = 'wsa-failsafe-capstone';
 
@@ -1134,6 +1137,8 @@ LESSONS LEARNED:
             }
         ];
 
+        let startedAt = Date.now();
+        const TERMINAL_MAX_LINES = 500;
         let currentPhase = 0;
         let recoveryState = {
             serverDeployed: false,
@@ -1173,12 +1178,16 @@ LESSONS LEARNED:
                 });
             });
 
+            // Cap terminal lines to prevent localStorage bloat
+            const cappedLines = terminalLines.slice(-TERMINAL_MAX_LINES);
+
             const state = {
                 recoveryState: recoveryState,
                 completedObjectives: completedObjectives,
-                terminalLines: terminalLines,
-                commandHistory: commandHistory,
+                terminalLines: cappedLines,
+                commandHistory: commandHistory.slice(-200),
                 docsContent: document.getElementById('docsEditor').value,
+                startedAt: startedAt,
                 timestamp: Date.now()
             };
 
@@ -1207,7 +1216,15 @@ LESSONS LEARNED:
             clearSavedState();
             // Also clear the old failsafe-docs key for consistency
             localStorage.removeItem('failsafe-docs');
+            startedAt = Date.now();
+            // Reset objectives
+            phases.forEach(phase => {
+                phase.objectives.forEach(obj => { obj.completed = false; });
+            });
+            recoveryState = { serverDeployed: false, fsmoSeized: false, metadataCleanedUp: false, newDCPromoted: false, backupSelected: null };
             document.getElementById('resumeOverlay').classList.remove('show');
+            buildObjectivesSidebar();
+            updateProgress();
             // Show briefing on fresh start
             toggleBriefing();
         }
@@ -1251,6 +1268,11 @@ LESSONS LEARNED:
                 commandHistory.length = 0;
                 saved.commandHistory.forEach(cmd => commandHistory.push(cmd));
                 historyIndex = commandHistory.length;
+            }
+
+            // Restore timer start
+            if (saved.startedAt) {
+                startedAt = saved.startedAt;
             }
 
             // Restore docs content
@@ -1356,10 +1378,11 @@ LESSONS LEARNED:
         }
 
         function toggleObjective(objId) {
+            // Non-revocable: once completed, stays completed (matches Gauntlet pattern)
             phases.forEach(phase => {
                 phase.objectives.forEach(obj => {
-                    if (obj.id === objId) {
-                        obj.completed = !obj.completed;
+                    if (obj.id === objId && !obj.completed) {
+                        obj.completed = true;
                     }
                 });
             });
@@ -1416,6 +1439,22 @@ LESSONS LEARNED:
             // Check completion
             if (completed === total) {
                 setTimeout(() => {
+                    const elapsed = Math.round((Date.now() - startedAt) / 1000);
+                    const elapsedMin = Math.floor(elapsed / 60);
+                    // Update score display with elapsed time
+                    const scoreEl = document.getElementById('finalScore');
+                    if (scoreEl) scoreEl.textContent = `${elapsedMin}m`;
+
+                    // Report to WSA progress pipeline
+                    try {
+                        WSAProgress.markComplete('capstone', 'guiLab', {
+                            completed: true,
+                            objectives: total,
+                            elapsed: elapsed,
+                            timestamp: Date.now()
+                        });
+                    } catch(e) { /* WSAProgress not loaded */ }
+
                     document.getElementById('completionOverlay').classList.add('show');
                     // Clear saved state on completion
                     clearSavedState();
@@ -1674,6 +1713,10 @@ LESSONS LEARNED:
             line.className = `terminal-line ${type}`;
             line.innerHTML = text;
             terminalOutput.appendChild(line);
+            // Cap terminal buffer to prevent unbounded DOM growth
+            while (terminalOutput.children.length > TERMINAL_MAX_LINES) {
+                terminalOutput.removeChild(terminalOutput.firstChild);
+            }
             terminalOutput.scrollTop = terminalOutput.scrollHeight;
         }
 
@@ -1813,6 +1856,9 @@ LESSONS LEARNED:
             const days = Math.floor(hours / 24);
             return days + ' day' + (days !== 1 ? 's' : '') + ' ago';
         }
+        // Save on tab close/navigation to prevent progress loss
+        window.addEventListener('beforeunload', () => { saveState(); });
     </script>
+    <script src="../../../../../components/FluxCapacitor.js"></script>
 </body>
 </html>
