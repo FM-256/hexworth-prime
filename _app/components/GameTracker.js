@@ -220,6 +220,31 @@ const GameTracker = (function () {
         return { totalXP, reigns };
     }
 
+    // ── cloud scoreboard submission ─────────────────────────────
+
+    /**
+     * Submit score to global scoreboard via FirestoreManager.
+     * Fire-and-forget: non-blocking, fail-silent.
+     * Skips if user is not authenticated.
+     */
+    function _submitToCloud(gameId, score, sessionDuration) {
+        try {
+            // Skip if not authenticated
+            if (typeof FirebaseAuth === 'undefined' || !FirebaseAuth.getUser()) return;
+            if (typeof FirestoreManager === 'undefined' || !FirestoreManager.submitGameScore) return;
+
+            FirestoreManager.submitGameScore(gameId, score, { sessionDuration })
+                .then(result => {
+                    if (result && result.qualified) {
+                        window.dispatchEvent(new CustomEvent('hexworth:globalHighScore', {
+                            detail: { gameId, score, rank: result.rank }
+                        }));
+                    }
+                })
+                .catch(() => { /* silent */ });
+        } catch (e) { /* silent */ }
+    }
+
     // ── public API ───────────────────────────────────────────────
 
     /**
@@ -349,6 +374,11 @@ const GameTracker = (function () {
             const reignData = _load();
             _startReign(reignData, gameId);
             _save(reignData);
+        }
+
+        // Cloud scoreboard — submit when score exists and placed in local top 5
+        if (highScoreRank != null && details.score != null) {
+            _submitToCloud(gameId, details.score, details.timeElapsed || 0);
         }
     }
 

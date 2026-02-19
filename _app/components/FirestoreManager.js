@@ -677,6 +677,112 @@ const FirestoreManager = (function() {
     }
 
     // ═══════════════════════════════════════════════════════════════
+    // GAME SCOREBOARDS
+    // ═══════════════════════════════════════════════════════════════
+
+    // In-memory cache: gameId → { data, fetchedAt }
+    const _scoreboardCache = {};
+    const SCOREBOARD_CACHE_TTL = 2 * 60 * 1000; // 2 minutes
+
+    /**
+     * Submit a game score to the global scoreboard via Cloud Function.
+     * @param {string} gameId
+     * @param {number} score
+     * @param {{ sessionDuration: number }} meta
+     * @returns {{ qualified: boolean, rank: number|null } | null}
+     */
+    async function submitGameScore(gameId, score, meta) {
+        try {
+            if (typeof FirebaseAuth === 'undefined' || !FirebaseAuth.getUser()) {
+                return null;
+            }
+            const result = await FirebaseAuth.callFunction('submitGameScore', {
+                gameId,
+                score,
+                sessionDuration: meta.sessionDuration || 0,
+                meta
+            });
+            // Invalidate cache for this game on successful submission
+            delete _scoreboardCache[gameId];
+            return result.data || result;
+        } catch (error) {
+            console.warn('[FirestoreManager] submitGameScore failed:', error.message);
+            return null;
+        }
+    }
+
+    /**
+     * Get global scoreboard for a game (top 10). 2-minute cache.
+     * @param {string} gameId
+     * @returns {{ topScores: Array, lowestTopScore: number, entryCount: number } | null}
+     */
+    async function getGameScoreboard(gameId) {
+        // Check cache
+        const cached = _scoreboardCache[gameId];
+        if (cached && (Date.now() - cached.fetchedAt) < SCOREBOARD_CACHE_TTL) {
+            return cached.data;
+        }
+
+        if (!initialized) await init();
+        if (!db) return null;
+
+        try {
+            const { doc, getDoc } = window.firebaseFirestore;
+            const scoreRef = doc(db, 'game_scores', gameId);
+            const snapshot = await getDoc(scoreRef);
+
+            if (!snapshot.exists()) {
+                const empty = { topScores: [], lowestTopScore: 0, entryCount: 0 };
+                _scoreboardCache[gameId] = { data: empty, fetchedAt: Date.now() };
+                return empty;
+            }
+
+            const data = snapshot.data();
+            _scoreboardCache[gameId] = { data, fetchedAt: Date.now() };
+            return data;
+        } catch (error) {
+            console.error('[FirestoreManager] getGameScoreboard failed:', error);
+            return null;
+        }
+    }
+
+    /**
+     * Batch-fetch scoreboards for multiple games (parallel, 10 at a time).
+     * @param {string[]} gameIds
+     * @returns {Object<string, object>} map of gameId → scoreboard data
+     */
+    async function getGameScoreboards(gameIds) {
+        const results = {};
+        const chunks = [];
+
+        // Split into chunks of 10
+        for (let i = 0; i < gameIds.length; i += 10) {
+            chunks.push(gameIds.slice(i, i + 10));
+        }
+
+        for (const chunk of chunks) {
+            const fetches = chunk.map(async (id) => {
+                results[id] = await getGameScoreboard(id);
+            });
+            await Promise.all(fetches);
+        }
+
+        return results;
+    }
+
+    /**
+     * Get the minimum score needed to enter the top 10 for a game.
+     * Returns 0 if the board isn't full yet.
+     * @param {string} gameId
+     * @returns {number}
+     */
+    async function getGameScoreThreshold(gameId) {
+        const board = await getGameScoreboard(gameId);
+        if (!board || board.entryCount < 10) return 0;
+        return board.lowestTopScore || 0;
+    }
+
+    // ═══════════════════════════════════════════════════════════════
     // CLOUD RESTORE (New Device / Fresh Cache)
     // ═══════════════════════════════════════════════════════════════
 
@@ -1164,6 +1270,12 @@ const FirestoreManager = (function() {
         getHouseLeaderboard,
         getUserRank,
         calculateLevel,
+
+        // Game Scoreboards
+        submitGameScore,
+        getGameScoreboard,
+        getGameScoreboards,
+        getGameScoreThreshold,
 
         // New User
         initializeNewUser,

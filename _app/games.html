@@ -464,6 +464,41 @@
         .game-card {
             animation: fadeIn 0.3s ease-out;
         }
+
+        /* Trophy button on game cards */
+        .game-trophy-btn {
+            position: absolute;
+            top: 12px;
+            right: 40px;
+            background: none;
+            border: none;
+            font-size: 1.2rem;
+            cursor: pointer;
+            opacity: 0.3;
+            transition: all 0.2s;
+            padding: 2px 4px;
+            line-height: 1;
+            z-index: 2;
+        }
+        .game-trophy-btn:hover {
+            opacity: 1;
+            transform: scale(1.2);
+        }
+
+        /* Global #1 score badge on cards */
+        .game-score-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.3rem;
+            padding: 0.2rem 0.6rem;
+            background: rgba(251, 191, 36, 0.12);
+            border: 1px solid rgba(251, 191, 36, 0.25);
+            border-radius: 6px;
+            font-size: 0.72rem;
+            font-weight: 600;
+            color: #fbbf24;
+            margin-top: 0.5rem;
+        }
     </style>
 </head>
 <body>
@@ -561,6 +596,8 @@
     <script src="components/ContentCatalog.js"></script>
     <script src="components/ContentDiscovery.js"></script>
     <script src="components/FavoritesManager.js"></script>
+    <script src="components/GameTracker.js"></script>
+    <script src="components/ArcadeScoreModal.js"></script>
     <script>
         // Complete game database
         // category: 'game' | 'review' | 'lab' (from audit reclassification)
@@ -723,8 +760,10 @@
             const catInfo = CATEGORY_INFO[game.category];
             const hasFav = typeof FavoritesManager !== 'undefined';
             const isFav = hasFav && FavoritesManager.isFavorite(gameId);
+            const isAuthenticated = typeof FirebaseAuth !== 'undefined' && FirebaseAuth.getUser();
 
             card.innerHTML = `
+                ${isAuthenticated ? `<button class="game-trophy-btn" data-game-id="${gameId}" title="View Scoreboard">\uD83C\uDFC6</button>` : ''}
                 ${hasFav ? `<button class="game-favorite-btn${isFav ? ' favorited' : ''}" data-game-id="${gameId}">${isFav ? '♥' : '♡'}</button>` : ''}
                 <span class="game-icon">${game.icon}</span>
                 <div class="game-title">${game.title}</div>
@@ -734,6 +773,7 @@
                     <span class="badge badge-type">${TYPE_INFO[game.type].icon} ${game.type}</span>
                     <span class="badge badge-house">${HOUSE_NAMES[game.house]}</span>
                 </div>
+                <div class="game-score-badge-slot" data-game-id="${gameId}"></div>
             `;
 
             // Heart button click
@@ -753,6 +793,17 @@
                     heartBtn.textContent = nowFav ? '♥' : '♡';
                     // Re-filter if favorites filter is active
                     if (currentCategoryFilter === 'favorites') applyFilters();
+                });
+            }
+
+            // Trophy button click — open scoreboard modal
+            const trophyBtn = card.querySelector('.game-trophy-btn');
+            if (trophyBtn) {
+                trophyBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    if (typeof ArcadeScoreModal !== 'undefined') {
+                        ArcadeScoreModal.show(gameId, game.title, game.href);
+                    }
                 });
             }
 
@@ -924,10 +975,45 @@
             });
         }
 
+        // Lazy-load global #1 score badge onto visible game cards
+        function setupScoreBadgeObserver() {
+            const isAuthenticated = typeof FirebaseAuth !== 'undefined' && FirebaseAuth.getUser();
+            if (!isAuthenticated) return;
+            if (typeof FirestoreManager === 'undefined' || !FirestoreManager.getGameScoreboard) return;
+
+            const loaded = new Set();
+
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (!entry.isIntersecting) return;
+                    const slot = entry.target;
+                    const gid = slot.dataset.gameId;
+                    if (!gid || loaded.has(gid)) return;
+                    loaded.add(gid);
+
+                    FirestoreManager.getGameScoreboard(gid).then(board => {
+                        if (!board || !board.topScores || board.topScores.length === 0) return;
+                        const top = board.topScores[0];
+                        slot.innerHTML =
+                            `<span class="game-score-badge">\uD83D\uDC51 @${_escapeHtml(top.callsign || 'Anonymous')} ${Number(top.score).toLocaleString()}</span>`;
+                    }).catch(() => {});
+                });
+            }, { rootMargin: '200px' });
+
+            document.querySelectorAll('.game-score-badge-slot').forEach(el => observer.observe(el));
+        }
+
+        function _escapeHtml(str) {
+            const d = document.createElement('div');
+            d.textContent = str;
+            return d.innerHTML;
+        }
+
         // Initialize the arcade
         function init() {
             renderGames();
             setupFilters();
+            setupScoreBadgeObserver();
 
             // Initialize universal ContentDiscovery search for non-game content
             if (typeof ContentDiscovery !== 'undefined') {
