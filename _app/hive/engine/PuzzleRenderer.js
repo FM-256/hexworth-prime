@@ -193,6 +193,27 @@ const PuzzleRenderer = (() => {
                 color: #555;
                 font-style: italic;
             }
+            .hv-variant-badge {
+                display: inline-block;
+                font-size: 0.6rem;
+                letter-spacing: 0.1em;
+                color: #e67e22;
+                border: 1px solid #e67e22;
+                border-radius: 3px;
+                padding: 2px 8px;
+                margin-left: 10px;
+                vertical-align: middle;
+            }
+            .hv-debug-answer {
+                margin-top: 8px;
+                padding: 6px 12px;
+                background: #fff3cd;
+                border: 1px dashed #e67e22;
+                border-radius: 3px;
+                font-family: 'Courier New', monospace;
+                font-size: 0.75rem;
+                color: #856404;
+            }
             @keyframes hvFeedbackIn {
                 from { opacity: 0; transform: translateY(-8px); }
                 to { opacity: 1; transform: translateY(0); }
@@ -467,11 +488,26 @@ const PuzzleRenderer = (() => {
         const wrapper = document.createElement('div');
         wrapper.className = 'hv-puzzle';
 
-        // Title
+        // Title + variant badge
         const title = document.createElement('div');
         title.className = 'hv-puzzle-title';
-        title.textContent = `[ Puzzle: ${puzzle.title} ]`;
+        title.innerHTML = `[ Puzzle: ${puzzle.title} ]`;
+        if (puzzle.isVariant) {
+            title.innerHTML += '<span class="hv-variant-badge">VARIANT</span>';
+        }
         wrapper.appendChild(title);
+
+        // Debug mode — show expected answer when ?debug=1
+        const debugMode = new URLSearchParams(window.location.search).get('debug') === '1';
+        if (debugMode) {
+            const debugEl = document.createElement('div');
+            debugEl.className = 'hv-debug-answer';
+            const answerDisplay = Array.isArray(puzzle.answer)
+                ? puzzle.answer.join(', ')
+                : puzzle.answer;
+            debugEl.textContent = `DEBUG — Expected: ${answerDisplay} | Code digit: ${puzzle.codeDigit}`;
+            wrapper.appendChild(debugEl);
+        }
 
         // Prompt
         const prompt = document.createElement('div');

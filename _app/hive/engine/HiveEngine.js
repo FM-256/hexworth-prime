@@ -675,9 +675,9 @@ const HiveEngine = (() => {
         return puzzles.map(p => {
             if (p.variants && p.variants.length > 0 && Math.random() < 0.3) {
                 const variant = p.variants[Math.floor(Math.random() * p.variants.length)];
-                return { ...p, ...variant, variants: undefined };
+                return { ...p, ...variant, variants: undefined, isVariant: true };
             }
-            return { ...p };
+            return { ...p, isVariant: false };
         });
     }
 
