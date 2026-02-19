@@ -69,6 +69,7 @@ function checkProgressTracking(content) {
     // Check for various progress tracking patterns
     return test(content, PATTERNS.presentation.detectProgressManager) ||
            test(content, PATTERNS.presentation.detectSaveProgress) ||
+           test(content, PATTERNS.presentation.detectModuleProgress) ||
            /trackProgress\s*:\s*true/.test(content) ||
            /completeModule|markComplete|saveProgress/.test(content);
 }

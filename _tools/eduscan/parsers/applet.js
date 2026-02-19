@@ -70,7 +70,9 @@ function parse(content, filePath) {
 
     // Check for progress tracking
     result.config.tracksProgress = hasToolExplore ||
-                                   test(content, PATTERNS.presentation.detectProgressManager);
+                                   test(content, PATTERNS.presentation.detectProgressManager) ||
+                                   test(content, PATTERNS.presentation.detectModuleProgress) ||
+                                   test(content, PATTERNS.presentation.detectSaveProgress);
 
     // Extract module info if present
     const moduleMatch = content.match(/moduleId:\s*['"]([^'"]+)['"]/);

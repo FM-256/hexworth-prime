@@ -3914,11 +3914,14 @@
             if (!houseProgress || houseProgress.length === 0) {
                 return '<p style="color:#555;font-size:0.78rem;text-align:center;padding:10px 0;">Complete modules across houses to see your progress here.</p>';
             }
-            // Sort: houses with progress first, then alphabetically
-            const sorted = [...houseProgress].sort((a, b) => b.percent - a.percent);
+            // Sort: houses with progress first, then by percent descending
+            const sorted = [...houseProgress].sort((a, b) => (b.percent || 0) - (a.percent || 0));
             return sorted.map(h => {
                 const pct = Math.min(100, Math.round(h.percent || 0));
                 const barColor = h.color || tierColor || 'var(--house-primary)';
+                const completed = h.completedCount || (h.modulesCompleted || []).length || 0;
+                const total = h.totalInHouse || 0;
+                const subText = total > 0 ? `${completed} / ${total}` : `${completed} completed`;
                 return `<div class="profile-house-row">
                     <div class="profile-house-icon">${h.icon || '🏠'}</div>
                     <div class="profile-house-bar-wrap">
@@ -3926,6 +3929,7 @@
                         <div class="profile-house-bar-track">
                             <div class="profile-house-bar-fill" style="width:${pct}%;background:${barColor};"></div>
                         </div>
+                        <div style="font-size:0.6rem;color:#555;margin-top:2px;">${subText}</div>
                     </div>
                     <div class="profile-house-pct">${pct}%</div>
                 </div>`;
@@ -4063,11 +4067,12 @@
             if (!container) return;
 
             // ── Gather data ──────────────────────────────────────────────
-            const type = AccountFrame.getAccountType();
+            const type = (typeof AccountFrame !== 'undefined' && AccountFrame.getAccountType)
+                ? AccountFrame.getAccountType() : 'operative';
             const achievements = JSON.parse(localStorage.getItem('hexworth_achievements') || '[]');
-            const xp = parseInt(localStorage.getItem('hexworth_xp') || '0');
-            const level = parseInt(localStorage.getItem('hexworth_level') || '1');
-            const streak = parseInt(localStorage.getItem('hexworth_streak') || '0');
+            const xp = parseInt(localStorage.getItem('hexworth_xp') || '0') || 0;
+            const level = parseInt(localStorage.getItem('hexworth_level') || '1') || 1;
+            const streak = parseInt(localStorage.getItem('hexworth_streak') || '0') || 0;
             const userName = localStorage.getItem('hexworth_callsign') || 'Operative';
             const houseName = house ? house.name : 'The Factionless';
             const houseIcon = house ? house.icon : '⚡';
@@ -4076,41 +4081,53 @@
             if (!localStorage.getItem('hexworth_first_visit')) {
                 localStorage.setItem('hexworth_first_visit', String(Date.now()));
             }
-            const firstVisit = parseInt(localStorage.getItem('hexworth_first_visit') || '0');
+            const firstVisit = parseInt(localStorage.getItem('hexworth_first_visit') || '0') || 0;
 
             // Log today's activity and fetch the log for the heatmap
             const activityLog = logDailyActivity();
             const yearActivityCount = Object.values(activityLog).reduce((s, v) => s + v, 0);
 
-            // ProgressManager data
-            const profile = (typeof ProgressManager !== 'undefined') ? ProgressManager.getProfile() : null;
-            const pmLevel = profile ? profile.level : level;
-            const pmXP = profile ? profile.xp : xp;
-            const tier = profile ? profile.tier : { name: 'Initiate', color: '#6b7280' };
-            const maxLvl = profile ? profile.maxLevel : 30;
-            const maxXP = profile ? profile.maxXP : 95700;
-            const xpPercent = profile ? profile.xpPercent : 0;
-            const completion = profile ? profile.completion : { completed: 0, total: 0, percent: 0 };
-            const levelProg = profile ? profile.levelProgress : 0;
+            // ProgressManager data (with NaN guards on every field)
+            let profile = null;
+            try {
+                profile = (typeof ProgressManager !== 'undefined') ? ProgressManager.getProfile() : null;
+            } catch (e) {
+                console.warn('[Profile] ProgressManager.getProfile() failed:', e.message);
+            }
+            const pmLevel = (profile ? profile.level : level) || 1;
+            const pmXP = (profile ? profile.xp : xp) || 0;
+            const tier = (profile ? profile.tier : null) || { name: 'Initiate', color: '#6b7280' };
+            const maxXP = (profile ? profile.maxXP : 495000) || 495000;
+            const xpPercent = (profile ? profile.xpPercent : 0) || 0;
+            const completion = (profile ? profile.completion : null) || { completed: 0, total: 0, percent: 0 };
+            const levelProg = (profile ? profile.levelProgress : 0) || 0;
             const xpToNext = profile ? profile.xpToNextLevel : null;
-            const houseProgress = profile ? (profile.houseProgress || []) : [];
-            const totalModules = profile ? (profile.totalModulesCompleted || completion.completed) : completion.completed;
-            const totalQuizzes = profile ? (profile.totalQuizzesPassed || 0) : 0;
-            const totalLabs = profile ? (profile.totalLabsCompleted || 0) : 0;
+            const houseProgress = (profile ? profile.houseProgress : null) || [];
+            const totalLabs = (profile ? profile.totalLabsCompleted : 0) || 0;
 
-            // Fallback: scrape progress object if ProgressManager not present
-            let modulesComplete = totalModules;
-            let quizzesPassed = totalQuizzes;
-            if (modulesComplete === 0 && !profile) {
+            // Module + quiz counts: use reconciled profile data, with flat-format fallback
+            let modulesComplete = (profile ? profile.totalModulesCompleted : 0) || 0;
+            let quizzesPassed = (profile ? profile.totalQuizzesPassed : 0) || 0;
+            if (modulesComplete === 0) {
+                // Fallback: count from flat progress format
                 const rawProgress = JSON.parse(localStorage.getItem('hexworth_progress') || '{}');
-                Object.values(rawProgress).forEach(hp => {
-                    if (typeof hp === 'object' && hp !== null) {
+                const houseIds = ['web','shield','forge','script','cloud','code','key','eye','dark-arts','matrix','divergent'];
+                houseIds.forEach(hid => {
+                    const hp = rawProgress[hid];
+                    if (hp && typeof hp === 'object' && !Array.isArray(hp)) {
                         Object.values(hp).forEach(m => {
-                            if (m.completed) modulesComplete++;
-                            if (m.quizPassed) quizzesPassed++;
+                            if (m && typeof m === 'object' && m.completed) {
+                                modulesComplete++;
+                                if (m.score !== undefined) quizzesPassed++;
+                            }
                         });
                     }
                 });
+                // Also check localStorage counters
+                const lsMod = parseInt(localStorage.getItem('hexworth_modules_completed') || '0') || 0;
+                const lsQuiz = parseInt(localStorage.getItem('hexworth_quizzes_passed') || '0') || 0;
+                modulesComplete = Math.max(modulesComplete, lsMod);
+                quizzesPassed = Math.max(quizzesPassed, lsQuiz);
             }
 
             // Rank/percentile
@@ -4131,8 +4148,8 @@
                 : generateAvatar(userName, 88);
 
             // Stats cards config
-            const quizAccuracy = (totalQuizzes > 0 && modulesComplete > 0)
-                ? Math.round((totalQuizzes / Math.max(1, modulesComplete)) * 100)
+            const quizAccuracy = (quizzesPassed > 0 && modulesComplete > 0)
+                ? Math.round((quizzesPassed / Math.max(1, modulesComplete)) * 100)
                 : null;
             const tierColor = tier.color || 'var(--house-primary)';
             const moduleRing = buildStatRing(Math.min(100, Math.round((modulesComplete / Math.max(1, completion.total || 1)) * 100)), tierColor);
@@ -5132,37 +5149,47 @@
                 if (typeof ProgressManager !== 'undefined') {
                     const profile = ProgressManager.getProfile();
 
-                    // Update XP/Level display
-                    document.getElementById('userLevel').textContent = profile.level;
-                    document.getElementById('currentXP').textContent = profile.xp.toLocaleString();
-                    document.getElementById('xpFill').style.width = `${profile.levelProgress}%`;
+                    // Update XP/Level display (with NaN guards)
+                    const lvl = profile.level || 1;
+                    const pxp = profile.xp || 0;
+                    document.getElementById('userLevel').textContent = lvl;
+                    document.getElementById('currentXP').textContent = pxp.toLocaleString();
+                    document.getElementById('xpFill').style.width = `${profile.levelProgress || 0}%`;
 
-                    if (profile.xpToNextLevel) {
+                    if (profile.xpToNextLevel && profile.xpToNextLevel > 0) {
                         document.getElementById('xpToNext').textContent = `(${profile.xpToNextLevel.toLocaleString()} to next level)`;
                     } else {
-                        document.getElementById('xpToNext').textContent = '(MAX LEVEL)';
+                        document.getElementById('xpToNext').textContent = '';
                     }
 
-                    // Update stats
-                    document.getElementById('modulesComplete').textContent = profile.totalModulesCompleted;
-                    document.getElementById('quizzesPassed').textContent = profile.totalQuizzesPassed;
-                    document.getElementById('achievementsEarned').textContent = profile.achievementCount;
+                    // Update stats (reconciled counts — never NaN)
+                    document.getElementById('modulesComplete').textContent = profile.totalModulesCompleted || 0;
+                    document.getElementById('quizzesPassed').textContent = profile.totalQuizzesPassed || 0;
+                    document.getElementById('achievementsEarned').textContent = profile.achievementCount || 0;
                 } else {
                     // Fallback to basic localStorage reading
                     const progress = JSON.parse(localStorage.getItem('hexworth_progress') || '{}');
                     let totalComplete = 0;
                     let quizzesPassed = 0;
+                    const houseIds = ['web','shield','forge','script','cloud','code','key','eye','dark-arts','matrix','divergent'];
 
-                    Object.values(progress).forEach(houseProgress => {
-                        if (typeof houseProgress === 'object' && houseProgress !== null) {
+                    houseIds.forEach(hid => {
+                        const houseProgress = progress[hid];
+                        if (houseProgress && typeof houseProgress === 'object' && !Array.isArray(houseProgress)) {
                             Object.values(houseProgress).forEach(moduleProgress => {
-                                if (moduleProgress.completed) {
+                                if (moduleProgress && typeof moduleProgress === 'object' && moduleProgress.completed) {
                                     totalComplete++;
                                     if (moduleProgress.score !== undefined) quizzesPassed++;
                                 }
                             });
                         }
                     });
+
+                    // Also check localStorage counters
+                    const lsMod = parseInt(localStorage.getItem('hexworth_modules_completed') || '0') || 0;
+                    const lsQuiz = parseInt(localStorage.getItem('hexworth_quizzes_passed') || '0') || 0;
+                    totalComplete = Math.max(totalComplete, lsMod);
+                    quizzesPassed = Math.max(quizzesPassed, lsQuiz);
 
                     document.getElementById('modulesComplete').textContent = totalComplete;
                     document.getElementById('quizzesPassed').textContent = quizzesPassed;

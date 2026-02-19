@@ -1,7 +1,7 @@
 ══════════════════════════════════════════════════════════════════════
                          EDUSCAN REPORT
                     Hexworth Prime Content Map
-                    Scanned: 2026-02-19 12:10:52 AM
+                    Scanned: 2026-02-19 12:43:31 AM
 ══════════════════════════════════════════════════════════════════════
 
 
@@ -13,17 +13,17 @@
 | Files Scanned | 1437 |
 | Directories | 455 |
 | Content Files | 1437 |
-| Scan Duration | 185ms |
+| Scan Duration | 181ms |
 
 ### Content by Type
 
 | Type | Count |
 |------|-------|
-| html | 612 |
-| presentation | 383 |
+| html | 509 |
+| presentation | 399 |
 | lab | 237 |
-| applet | 190 |
-| quiz | 15 |
+| applet | 166 |
+| quiz | 126 |
 
 ### ContentCatalog Validation
 
@@ -42,17 +42,17 @@
 |----------|-------|
 | Critical | 0 |
 | Suspect | 125 |
-| Warning | 960 |
-| Info | 404 |
-| **Total** | **2071** |
+| Warning | 988 |
+| Info | 224 |
+| **Total** | **1919** |
 
 ### Sync Status
 
 | Status | Count |
 |--------|-------|
-| Ready | 612 |
-| Not Ready | 213 |
-| Unknown | 612 |
+| Ready | 856 |
+| Not Ready | 72 |
+| Unknown | 509 |
 
 
 ## FILE HIERARCHY
@@ -1963,7 +1963,7 @@
 | ID/Name | Type | Sync | Issues |
 |---------|------|------|--------|
 | cloud-architecture-designer.applet | presentation | ✓ | 0 |
-| cloud-provider-comparison.applet | presentation | ✓ | 1 |
+| cloud-provider-comparison.applet | presentation | ✓ | 0 |
 | ad-attack-path | presentation | ✓ | 0 |
 | cloud-architect | presentation | ✓ | 0 |
 | index | applet | ✓ | 1 |
@@ -1972,9 +1972,9 @@
 | cloud-cse-module01.lab | lab | ✓ | 1 |
 | cloud-cse-module02.lab | lab | ✓ | 1 |
 | cloud-cse-module03.lab | lab | ✓ | 1 |
-| cloud-cse-module04.lab | lab | ✓ | 1 |
-| cloud-cse-module05.lab | lab | ✓ | 1 |
-| cloud-cse-module06.lab | lab | ✓ | 1 |
+| cloud-cse-module04.lab | lab | ✓ | 0 |
+| cloud-cse-module05.lab | lab | ✓ | 0 |
+| cloud-cse-module06.lab | lab | ✓ | 0 |
 | cloud-cse-module07.lab | lab | ✓ | 1 |
 | cloud-cse-module08.lab | lab | ✓ | 1 |
 | cloud-lab.lab | lab | ✓ | 2 |
@@ -2041,6 +2041,9 @@
 | cloud-azure-fundamentals.presentation | presentation | ✓ | 2 |
 | cloud-cloud.presentation | presentation | ✓ | 2 |
 | cloud-concepts.presentation | applet | ✓ | 1 |
+| cloud-cse-06-security-monitoring-ir.presentation | presentation | ✓ | 0 |
+| cloud-cse-07-risk-assessment.presentation | presentation | ✓ | 0 |
+| cloud-cse-08-compliance-governance.presentation | presentation | ✓ | 0 |
 | cloud-cse-module01.presentation | presentation | ✓ | 1 |
 | cloud-cse-module02.presentation | presentation | ✓ | 1 |
 | cloud-cse-module03.presentation | presentation | ✓ | 1 |
@@ -2050,30 +2053,43 @@
 | cloud-cse-module07.presentation | presentation | ✓ | 1 |
 | cloud-cse-module08.presentation | presentation | ✓ | 1 |
 | aws-fundamentals | quiz | ✓ | 0 |
+| ch01-cloud-fundamentals-quiz | quiz | ✓ | 0 |
+| ch05-iam-security-quiz | quiz | ✓ | 0 |
+| ch08-storage-quiz | quiz | ✓ | 0 |
+| ch09-database-quiz | quiz | ✓ | 0 |
+| ch10-networking-quiz | quiz | ✓ | 0 |
+| ch12-aws-final-quiz | quiz | ✓ | 0 |
 | cse-01-fundamentals | quiz | ✓ | 0 |
 | cse-02-iam | quiz | ✓ | 0 |
 | cse-03-encryption | quiz | ✓ | 0 |
 | cse-04-network | quiz | ✓ | 0 |
 | cse-05-appsec | quiz | ✓ | 1 |
-| cloud-cse-module04.quiz | presentation | ✓ | 0 |
-| cloud-cse-module05.quiz | presentation | ✓ | 0 |
-| cloud-cse-module06.quiz | presentation | ✓ | 0 |
-| cloud-cse-module08.quiz | applet | ✓ | 0 |
-| cloud-aws-service.tool | presentation | ✓ | 1 |
-| cloud-ch01-cloud-models.tool | presentation | ✓ | 1 |
-| cloud-ch02-aws-account.tool | presentation | ✓ | 1 |
+| cse-06-quiz | quiz | ✓ | 0 |
+| cse-07-quiz | quiz | ✓ | 0 |
+| cse-08-quiz | quiz | ✓ | 0 |
+| cse-module01-quiz | quiz | ✓ | 0 |
+| cse-module02-quiz | quiz | ✓ | 0 |
+| cse-module03-quiz | quiz | ✓ | 0 |
+| cse-module04-quiz | quiz | ✓ | 0 |
+| cse-module05-quiz | quiz | ✓ | 0 |
+| cse-module06-quiz | quiz | ✓ | 0 |
+| cse-module07-quiz | quiz | ✓ | 0 |
+| cse-module08-quiz | quiz | ✓ | 0 |
+| cloud-aws-service.tool | presentation | ✓ | 0 |
+| cloud-ch01-cloud-models.tool | presentation | ✓ | 0 |
+| cloud-ch02-aws-account.tool | presentation | ✓ | 0 |
 | cloud-ch03-support-plans.tool | presentation | ✓ | 0 |
-| cloud-ch04-aws-regions.tool | presentation | ✓ | 1 |
-| cloud-ch05-security.tool | presentation | ✓ | 1 |
+| cloud-ch04-aws-regions.tool | presentation | ✓ | 0 |
+| cloud-ch05-security.tool | presentation | ✓ | 0 |
 | cloud-ch06-aws-tools.tool | presentation | ✓ | 0 |
 | cloud-ch07-compute-services.tool | presentation | ✓ | 0 |
-| cloud-ch07-ec2-instance.tool | presentation | ✓ | 1 |
+| cloud-ch07-ec2-instance.tool | presentation | ✓ | 0 |
 | cloud-ch08-storage-services.tool | presentation | ✓ | 0 |
 | cloud-ch09-database-services.tool | presentation | ✓ | 0 |
-| cloud-ch10-vpc-networking.tool | presentation | ✓ | 1 |
+| cloud-ch10-vpc-networking.tool | presentation | ✓ | 0 |
 | cloud-ch11-automation.tool | presentation | ✓ | 0 |
-| cloud-ch12-use-cases.tool | presentation | ✓ | 1 |
-| cloud-cloud.tool | presentation | ✓ | 1 |
+| cloud-ch12-use-cases.tool | presentation | ✓ | 0 |
+| cloud-cloud.tool | presentation | ✓ | 0 |
 
 ### CODE (DevOps)
 ──────────────────────────────────────────────────
@@ -2086,17 +2102,25 @@
 | kubernetes-rescue | presentation | ✓ | 0 |
 | code-cicd.lab | presentation | ✓ | 0 |
 | code-cloudformation.lab | presentation | ✓ | 0 |
-| code-docker.lab | presentation | ✓ | 1 |
-| code-kubernetes.lab | presentation | ✓ | 1 |
+| code-docker.lab | presentation | ✓ | 0 |
+| code-kubernetes.lab | presentation | ✓ | 0 |
+| code-terraform.lab | presentation | ✓ | 0 |
 | code-unit-testing.lab | presentation | ✓ | 0 |
-| code-agile-sdlc.presentation | applet | ✓ | 1 |
-| code-automation.presentation | presentation | ✓ | 1 |
-| code-cicd-fundamentals.presentation | applet | ✓ | 1 |
-| code-cloudformation-fundamentals.presentation | applet | ✓ | 1 |
-| code-docker-fundamentals.presentation | applet | ✓ | 1 |
-| code-git-basics.presentation | applet | ✓ | 1 |
-| code-kubernetes-fundamentals.presentation | applet | ✓ | 1 |
-| code-terraform-fundamentals.presentation | applet | ✓ | 1 |
+| code-agile-sdlc.presentation | presentation | ✓ | 0 |
+| code-automation.presentation | presentation | ✓ | 0 |
+| code-cicd-fundamentals.presentation | presentation | ✓ | 0 |
+| code-cloudformation-fundamentals.presentation | presentation | ✓ | 0 |
+| code-docker-fundamentals.presentation | presentation | ✓ | 0 |
+| code-git-basics.presentation | presentation | ✓ | 0 |
+| code-kubernetes-fundamentals.presentation | presentation | ✓ | 0 |
+| code-terraform-fundamentals.presentation | presentation | ✓ | 0 |
+| agile-quiz | quiz | ✓ | 0 |
+| cicd-quiz | quiz | ✓ | 0 |
+| cloudformation-quiz | quiz | ✓ | 0 |
+| docker-quiz | quiz | ✓ | 0 |
+| kubernetes-quiz | quiz | ✓ | 0 |
+| terraform-quiz | quiz | ✓ | 0 |
+| unit-testing-quiz | quiz | ✓ | 0 |
 | code-ansible-playbook.tool | applet | ✓ | 1 |
 | code-automation.tool | applet | ✓ | 1 |
 | code-sprint.tool | applet | ✓ | 1 |
@@ -2107,7 +2131,7 @@
 | ID/Name | Type | Sync | Issues |
 |---------|------|------|--------|
 | eye-5-tuple-approach.applet | applet | ✓ | 1 |
-| eye-app-visibility-control.applet | presentation | ✓ | 1 |
+| eye-app-visibility-control.applet | presentation | ✓ | 0 |
 | eye-attack-surface-vuln.applet | presentation | ✓ | 0 |
 | eye-attack-surface.applet | applet | ✓ | 1 |
 | eye-attribution-investigation.applet | presentation | ✓ | 0 |
@@ -2117,20 +2141,20 @@
 | eye-data-visibility-challenges.applet | presentation | ✓ | 0 |
 | eye-data-visibility.applet | applet | ✓ | 1 |
 | eye-detection-methods.applet | applet | ✓ | 1 |
-| eye-disk-images.applet | presentation | ✓ | 1 |
-| eye-endpoint-attacks.applet | presentation | ✓ | 1 |
-| eye-evasion-obfuscation.applet | presentation | ✓ | 1 |
+| eye-disk-images.applet | presentation | ✓ | 0 |
+| eye-endpoint-attacks.applet | presentation | ✓ | 0 |
+| eye-evasion-obfuscation.applet | presentation | ✓ | 0 |
 | eye-evidence-types.applet | presentation | ✓ | 0 |
 | eye-firewall-data.applet | applet | ✓ | 1 |
 | eye-irp-elements.applet | applet | ✓ | 1 |
-| eye-malware-analysis-output.applet | presentation | ✓ | 1 |
+| eye-malware-analysis-output.applet | presentation | ✓ | 0 |
 | eye-network-attacks.applet | applet | ✓ | 1 |
-| eye-nsm-data-types.applet | presentation | ✓ | 1 |
+| eye-nsm-data-types.applet | presentation | ✓ | 0 |
 | eye-risk-rating.applet | applet | ✓ | 1 |
 | eye-risk-register.applet | applet | ✓ | 1 |
 | eye-security-approaches.applet | applet | ✓ | 1 |
 | eye-source-technologies.applet | applet | ✓ | 1 |
-| eye-tcpdump-netflow.applet | presentation | ✓ | 1 |
+| eye-tcpdump-netflow.applet | presentation | ✓ | 0 |
 | eye-web-attacks.applet | applet | ✓ | 1 |
 | eye-lab-3-0-3-running-processes.lab | lab | ✓ | 0 |
 | eye-lab-3-2-11-windows-internals.lab | lab | ✓ | 0 |
@@ -2138,7 +2162,7 @@
 | index | presentation | ✓ | 0 |
 | eye-linux-servers.lab | lab | ✓ | 0 |
 | eye-windows-system-resources.lab | presentation | ✓ | 0 |
-| eye-windows-task-manager.lab | presentation | ✓ | 1 |
+| eye-windows-task-manager.lab | presentation | ✓ | 0 |
 | eye-exploring-nmap.lab | lab | ✓ | 2 |
 | eye-tracing-route.lab | lab | ✓ | 2 |
 | eye-verify-ipv4-ipv6.lab | applet | ✓ | 1 |
@@ -2146,7 +2170,7 @@
 | eye-acl-demo.lab | applet | ✓ | 1 |
 | eye-packet-flow.lab | applet | ✓ | 1 |
 | eye-logging-network-activity.lab | applet | ✓ | 1 |
-| eye-soc-triage.lab | presentation | ✓ | 1 |
+| eye-soc-triage.lab | presentation | ✓ | 0 |
 | eye-asymmetric-encryption.lab | lab | ✓ | 0 |
 | eye-certificate-stores.lab | lab | ✓ | 0 |
 | eye-digital-signatures.lab | lab | ✓ | 0 |
@@ -2157,7 +2181,7 @@
 | eye-wireshark-crypto.lab | lab | ✓ | 0 |
 | eye-chain-of-custody.lab | lab | ✓ | 0 |
 | eye-incident-handling.lab | lab | ✓ | 0 |
-| eye-log-correlation.lab | lab | ✓ | 1 |
+| eye-log-correlation.lab | lab | ✓ | 0 |
 | eye-memory-forensics.lab | lab | ✓ | 0 |
 | eye-network-forensics.lab | lab | ✓ | 0 |
 | eye-pcap-forensics.lab | lab | ✓ | 0 |
@@ -2165,37 +2189,43 @@
 | eye-threat-actor-profiling.lab | lab | ✓ | 0 |
 | alert-triage | applet | ✓ | 1 |
 | threat-modeler | applet | ✓ | 1 |
+| eye-hunting.lab | presentation | ✓ | 0 |
 | eye-siem.lab | applet | ✓ | 1 |
 | index | presentation | ✓ | 0 |
-| eye-log-basics.presentation | applet | ✓ | 1 |
-| eye-log-correlation.presentation | presentation | ✓ | 2 |
-| eye-network-traffic-analysis.presentation | presentation | ✓ | 2 |
-| eye-siem-fundamentals.presentation | presentation | ✓ | 2 |
-| eye-soc-operations.presentation | presentation | ✓ | 2 |
-| eye-threat-hunting.presentation | presentation | ✓ | 2 |
+| eye-log-basics.presentation | presentation | ✓ | 0 |
+| eye-log-correlation.presentation | presentation | ✓ | 0 |
+| eye-network-traffic-analysis.presentation | presentation | ✓ | 0 |
+| eye-siem-fundamentals.presentation | presentation | ✓ | 0 |
+| eye-soc-operations.presentation | presentation | ✓ | 0 |
+| eye-threat-hunting.presentation | presentation | ✓ | 0 |
+| log-correlation-quiz | quiz | ✓ | 0 |
+| hunting-quiz | quiz | ✓ | 0 |
+| siem-fundamentals | quiz | ✓ | 0 |
+| soc-operations | quiz | ✓ | 0 |
+| network-traffic-quiz | quiz | ✓ | 0 |
 | eye-correlation.tool | applet | ✓ | 1 |
 | eye-packet.tool | applet | ✓ | 1 |
 | eye-siem.tool | applet | ✓ | 1 |
 | eye-soc.tool | applet | ✓ | 1 |
-| eye-wireshark.tool | presentation | ✓ | 1 |
+| eye-wireshark.tool | presentation | ✓ | 0 |
 
 ### FORGE (Systems)
 ──────────────────────────────────────────────────
 
 | ID/Name | Type | Sync | Issues |
 |---------|------|------|--------|
-| index | presentation | ✓ | 1 |
-| index | presentation | ✓ | 1 |
-| index | presentation | ✓ | 1 |
-| index | presentation | ✓ | 1 |
-| index | presentation | ✓ | 1 |
-| index | presentation | ✓ | 1 |
-| index | presentation | ✓ | 1 |
+| index | presentation | ✓ | 0 |
+| index | presentation | ✓ | 0 |
+| index | presentation | ✓ | 0 |
+| index | presentation | ✓ | 0 |
+| index | presentation | ✓ | 0 |
+| index | presentation | ✓ | 0 |
+| index | presentation | ✓ | 0 |
 | index | applet | ✓ | 1 |
 | index | applet | ✓ | 1 |
-| index | presentation | ✓ | 1 |
-| index | presentation | ✓ | 1 |
-| index | presentation | ✓ | 1 |
+| index | presentation | ✓ | 0 |
+| index | presentation | ✓ | 0 |
+| index | presentation | ✓ | 0 |
 | forge-bluetooth-pairing.lab | presentation | ✓ | 0 |
 | forge-cable-matching.lab | presentation | ✓ | 0 |
 | forge-cloud-scenarios.lab | lab | ✓ | 0 |
@@ -2206,36 +2236,36 @@
 | forge-dns-config.lab | lab | ✓ | 0 |
 | forge-docking-config.lab | presentation | ✓ | 0 |
 | forge-email-config.lab | presentation | ✓ | 0 |
-| forge-hardware-diagnosis.lab | lab | ✓ | 1 |
-| forge-laptop-memory.lab | presentation | ✓ | 1 |
+| forge-hardware-diagnosis.lab | lab | ✓ | 0 |
+| forge-laptop-memory.lab | presentation | ✓ | 0 |
 | forge-mdm-config.lab | lab | ✓ | 0 |
-| forge-mobile-email.lab | lab | ✓ | 1 |
+| forge-mobile-email.lab | lab | ✓ | 0 |
 | forge-mobile-identifier.lab | presentation | ✓ | 0 |
 | forge-mobile-sync.lab | lab | ✓ | 0 |
 | forge-network-commands.lab | lab | ✓ | 0 |
-| forge-network-config.lab | lab | ✓ | 1 |
-| forge-network-design.lab | lab | ✓ | 1 |
-| forge-pc-builder.lab | lab | ✓ | 1 |
+| forge-network-config.lab | lab | ✓ | 0 |
+| forge-network-design.lab | lab | ✓ | 0 |
+| forge-pc-builder.lab | lab | ✓ | 0 |
 | forge-pc-components.lab | presentation | ✓ | 0 |
 | forge-port-identification.lab | presentation | ✓ | 0 |
-| forge-post-beep-codes.lab | presentation | ✓ | 1 |
-| forge-printer-troubleshoot.lab | lab | ✓ | 1 |
+| forge-post-beep-codes.lab | presentation | ✓ | 0 |
+| forge-printer-troubleshoot.lab | lab | ✓ | 0 |
 | forge-protocol-analysis.lab | lab | ✓ | 0 |
-| forge-raid-config.lab | lab | ✓ | 1 |
+| forge-raid-config.lab | lab | ✓ | 0 |
 | forge-ram-identification.lab | lab | ✓ | 1 |
 | forge-router-config.lab | presentation | ✓ | 0 |
 | forge-server-roles.lab | presentation | ✓ | 0 |
 | forge-soho-designer.lab | lab | ✓ | 0 |
 | forge-storage-upgrade.lab | presentation | ✓ | 0 |
 | forge-subnet-calculator.lab | lab | ✓ | 0 |
-| forge-topology-builder.lab | lab | ✓ | 1 |
+| forge-topology-builder.lab | lab | ✓ | 0 |
 | forge-troubleshooting-flowchart.lab | lab | ✓ | 0 |
 | forge-vm-setup.lab | presentation | ✓ | 0 |
 | forge-wireless-security.lab | presentation | ✓ | 0 |
-| index | presentation | ✓ | 1 |
-| index | presentation | ✓ | 1 |
-| index | presentation | ✓ | 1 |
-| index | presentation | ✓ | 1 |
+| index | presentation | ✓ | 0 |
+| index | presentation | ✓ | 0 |
+| index | presentation | ✓ | 0 |
+| index | presentation | ✓ | 0 |
 | index | presentation | ✓ | 0 |
 | index | presentation | ✓ | 0 |
 | index | presentation | ✓ | 0 |
@@ -2252,28 +2282,29 @@
 | forge-documentation.lab | lab | ✓ | 0 |
 | forge-incident-response.lab | lab | ✓ | 0 |
 | forge-lab-macos-linux.lab | lab | ✓ | 2 |
-| forge-malware.lab | lab | ✓ | 1 |
-| forge-physical-security.lab | lab | ✓ | 1 |
+| forge-malware.lab | lab | ✓ | 0 |
+| forge-physical-security.lab | lab | ✓ | 0 |
 | forge-security-fundamentals.lab | lab | ✓ | 0 |
 | forge-system-tools.lab | lab | ✓ | 2 |
-| forge-users-groups.lab | lab | ✓ | 1 |
+| forge-users-groups.lab | lab | ✓ | 0 |
 | forge-windows-editions.lab | lab | ✓ | 2 |
 | forge-windows-settings.lab | lab | ✓ | 2 |
-| forge-admin-tools.presentation | presentation | ✓ | 2 |
+| forge-admin-tools.presentation | presentation | ✓ | 0 |
 | forge-change-management.presentation | presentation | ✓ | 0 |
-| forge-control-panel.presentation | presentation | ✓ | 2 |
+| forge-control-panel.presentation | presentation | ✓ | 0 |
 | forge-documentation.presentation | presentation | ✓ | 0 |
 | forge-incident-response.presentation | presentation | ✓ | 0 |
-| forge-macos-linux-basics.presentation | presentation | ✓ | 1 |
+| forge-macos-linux-basics.presentation | presentation | ✓ | 0 |
 | forge-malware.presentation | presentation | ✓ | 0 |
-| forge-physical-security.presentation | presentation | ✓ | 1 |
+| forge-physical-security.presentation | presentation | ✓ | 0 |
 | forge-security-fundamentals.presentation | presentation | ✓ | 0 |
-| forge-system-tools.presentation | presentation | ✓ | 1 |
+| forge-system-tools.presentation | presentation | ✓ | 0 |
 | forge-users-groups.presentation | presentation | ✓ | 0 |
-| forge-windows-editions.presentation | presentation | ✓ | 2 |
-| forge-windows-settings.presentation | presentation | ✓ | 2 |
+| forge-windows-editions.presentation | presentation | ✓ | 0 |
+| forge-windows-settings.presentation | presentation | ✓ | 0 |
+| aplus-core2-quiz | quiz | ✓ | 0 |
 | forge-ch20.quiz | presentation | ✓ | 0 |
-| forge-ch21.quiz | presentation | ✓ | 1 |
+| forge-ch21.quiz | presentation | ✓ | 0 |
 | forge-ch22.quiz | presentation | ✓ | 0 |
 | forge-ch23.quiz | presentation | ✓ | 0 |
 | forge-ch24.quiz | presentation | ✓ | 0 |
@@ -2283,7 +2314,7 @@
 | forge-command-translator.applet | applet | ✓ | 1 |
 | forge-control-panel.tool | presentation | ✓ | 0 |
 | forge-settings.tool | presentation | ✓ | 0 |
-| forge-system-tools-sim.applet | presentation | ✓ | 1 |
+| forge-system-tools-sim.applet | presentation | ✓ | 0 |
 | forge-windows-edition-selector.applet | presentation | ✓ | 0 |
 | forge-hard-drive-geometry-native.applet | applet | ✓ | 1 |
 | forge-multimeter-jedit-v1.applet | presentation | ✓ | 0 |
@@ -2294,12 +2325,13 @@
 | forge-system-tools.lab | lab | ✓ | 2 |
 | forge-windows-editions.lab | lab | ✓ | 2 |
 | forge-windows-settings.lab | lab | ✓ | 2 |
-| forge-admin-tools.presentation | presentation | ✓ | 2 |
-| forge-control-panel.presentation | presentation | ✓ | 2 |
+| forge-admin-tools.presentation | presentation | ✓ | 0 |
+| forge-control-panel.presentation | presentation | ✓ | 0 |
 | forge-macos-linux-basics.presentation | presentation | ✓ | 2 |
-| forge-system-tools.presentation | presentation | ✓ | 1 |
-| forge-windows-editions.presentation | presentation | ✓ | 2 |
-| forge-windows-settings.presentation | presentation | ✓ | 2 |
+| forge-system-tools.presentation | presentation | ✓ | 0 |
+| forge-windows-editions.presentation | presentation | ✓ | 0 |
+| forge-windows-settings.presentation | presentation | ✓ | 0 |
+| aplus-core2-quiz | quiz | ✓ | 0 |
 | windows-admin | quiz | ✓ | 0 |
 | backup-or-bust | applet | ✓ | 1 |
 | forge-admin-tools.tool | presentation | ✓ | 0 |
@@ -2307,7 +2339,7 @@
 | forge-os-core.tool | presentation | ✓ | 0 |
 | forge-raid-level.tool | applet | ✓ | 1 |
 | forge-settings.tool | presentation | ✓ | 0 |
-| forge-system-tools-sim.tool | presentation | ✓ | 1 |
+| forge-system-tools-sim.tool | presentation | ✓ | 0 |
 | forge-windows-edition-selector.tool | presentation | ✓ | 0 |
 
 ### KEY (Cryptography)
@@ -2315,46 +2347,46 @@
 
 | ID/Name | Type | Sync | Issues |
 |---------|------|------|--------|
-| cipher-cracker | presentation | ✓ | 1 |
+| cipher-cracker | presentation | ✓ | 0 |
 | dont-leak-the-key | applet | ✓ | 1 |
 | key-aes.lab | presentation | ✓ | 0 |
 | key-attack.lab | presentation | ✓ | 0 |
 | key-cert.lab | presentation | ✓ | 0 |
-| key-cryptanalysis.lab | presentation | ✓ | 1 |
-| key-crypto-stego.lab | presentation | ✓ | 1 |
+| key-cryptanalysis.lab | presentation | ✓ | 0 |
+| key-crypto-stego.lab | presentation | ✓ | 0 |
 | key-ecc.lab | lab | ✓ | 0 |
 | key-hmac.lab | lab | ✓ | 0 |
 | key-hsm.lab | presentation | ✓ | 0 |
-| key-kdf.lab | presentation | ✓ | 1 |
-| key-pqc.lab | presentation | ✓ | 1 |
-| key-hash-stego-intro.module | presentation | ✓ | 1 |
-| key-advanced-symmetric.presentation | applet | ✓ | 1 |
-| key-certificates.presentation | applet | ✓ | 1 |
-| key-cryptanalysis.presentation | applet | ✓ | 1 |
-| key-cryptography-fundamentals.presentation | presentation | ✓ | 1 |
-| key-derivation.presentation | applet | ✓ | 1 |
-| key-elliptic-curve.presentation | presentation | ✓ | 1 |
-| key-encryption-basics.presentation | applet | ✓ | 1 |
-| key-management.presentation | presentation | ✓ | 1 |
-| key-message-authentication.presentation | applet | ✓ | 1 |
-| key-post-quantum.presentation | applet | ✓ | 1 |
-| key-tls-ssl.presentation | presentation | ✓ | 2 |
-| key-cert.quiz | presentation | ✓ | 0 |
-| key-cryptanalysis.quiz | presentation | ✓ | 0 |
-| key-ecc.quiz | presentation | ✓ | 0 |
-| key-hsm.quiz | presentation | ✓ | 0 |
-| key-kdf.quiz | presentation | ✓ | 1 |
-| key-mac.quiz | presentation | ✓ | 0 |
-| key-pqc.quiz | presentation | ✓ | 0 |
-| key-symmetric.quiz | presentation | ✓ | 0 |
+| key-kdf.lab | presentation | ✓ | 0 |
+| key-pqc.lab | presentation | ✓ | 0 |
+| key-hash-stego-intro.module | presentation | ✓ | 0 |
+| key-advanced-symmetric.presentation | presentation | ✓ | 0 |
+| key-certificates.presentation | presentation | ✓ | 0 |
+| key-cryptanalysis.presentation | presentation | ✓ | 0 |
+| key-cryptography-fundamentals.presentation | presentation | ✓ | 0 |
+| key-derivation.presentation | presentation | ✓ | 0 |
+| key-elliptic-curve.presentation | presentation | ✓ | 0 |
+| key-encryption-basics.presentation | presentation | ✓ | 0 |
+| key-management.presentation | presentation | ✓ | 0 |
+| key-message-authentication.presentation | presentation | ✓ | 0 |
+| key-post-quantum.presentation | presentation | ✓ | 0 |
+| key-tls-ssl.presentation | presentation | ✓ | 0 |
+| certificates-quiz | quiz | ✓ | 0 |
+| cryptanalysis-quiz | quiz | ✓ | 0 |
+| ecc-quiz | quiz | ✓ | 0 |
+| hsm-quiz | quiz | ✓ | 0 |
+| kdf-quiz | quiz | ✓ | 0 |
+| mac-quiz | quiz | ✓ | 0 |
+| pqc-quiz | quiz | ✓ | 0 |
+| symmetric-quiz | quiz | ✓ | 0 |
 | hash-cracker | presentation | ✓ | 0 |
-| key-aes.tool | presentation | ✓ | 1 |
+| key-aes.tool | presentation | ✓ | 0 |
 | key-cert.tool | presentation | ✓ | 0 |
-| key-ecc.tool | presentation | ✓ | 1 |
-| key-hmac.tool | presentation | ✓ | 1 |
-| key-kdf.tool | presentation | ✓ | 1 |
-| key-lifecycle.tool | presentation | ✓ | 1 |
-| key-pqc.tool | presentation | ✓ | 1 |
+| key-ecc.tool | presentation | ✓ | 0 |
+| key-hmac.tool | presentation | ✓ | 0 |
+| key-kdf.tool | presentation | ✓ | 0 |
+| key-lifecycle.tool | presentation | ✓ | 0 |
+| key-pqc.tool | presentation | ✓ | 0 |
 
 ### SCRIPT (Automation)
 ──────────────────────────────────────────────────
@@ -2367,7 +2399,7 @@
 | script-clh-003-pattern-hunting.applet | presentation | ✓ | 0 |
 | script-clh-004-process-investigation.applet | presentation | ✓ | 0 |
 | script-clh-005-log-analysis.applet | presentation | ✓ | 0 |
-| script-clh-006-file-operations.applet | presentation | ✓ | 1 |
+| script-clh-006-file-operations.applet | presentation | ✓ | 0 |
 | script-clh-007-permissions.applet | presentation | ✓ | 0 |
 | script-clh-008-shell-scripting.applet | presentation | ✓ | 0 |
 | script-clh-009-text-processing.applet | presentation | ✓ | 0 |
@@ -2409,66 +2441,125 @@
 | script-python-chapter7-file-handling.applet | applet | ✓ | 1 |
 | script-python-chapter8-oop.applet | applet | ✓ | 1 |
 | script-clh-001-intro.applet | applet | ✓ | 1 |
+| clh-001-quiz | quiz | ✓ | 0 |
 | script-clh-002-intro.applet | applet | ✓ | 1 |
+| clh-002-quiz | quiz | ✓ | 0 |
 | script-clh-003-intro.applet | applet | ✓ | 1 |
+| clh-003-quiz | quiz | ✓ | 0 |
 | script-clh-004-intro.applet | applet | ✓ | 1 |
+| clh-004-quiz | quiz | ✓ | 0 |
 | script-clh-005-intro.applet | applet | ✓ | 1 |
+| clh-005-quiz | quiz | ✓ | 0 |
 | script-clh-006-intro.applet | applet | ✓ | 1 |
+| clh-006-quiz | quiz | ✓ | 0 |
 | script-clh-007-intro.applet | applet | ✓ | 1 |
+| clh-007-quiz | quiz | ✓ | 0 |
 | script-clh-008-intro.applet | applet | ✓ | 1 |
+| clh-008-quiz | quiz | ✓ | 0 |
 | script-clh-009-intro.applet | applet | ✓ | 1 |
+| clh-009-quiz | quiz | ✓ | 0 |
 | script-clh-010-intro.applet | applet | ✓ | 1 |
+| clh-010-quiz | quiz | ✓ | 0 |
 | script-clh-011-intro.applet | applet | ✓ | 1 |
+| clh-011-quiz | quiz | ✓ | 0 |
 | script-clh-012-intro.applet | applet | ✓ | 1 |
+| clh-012-quiz | quiz | ✓ | 0 |
 | script-clh-013-intro.applet | applet | ✓ | 1 |
+| clh-013-quiz | quiz | ✓ | 0 |
 | script-clh-014-intro.applet | applet | ✓ | 1 |
+| clh-014-quiz | quiz | ✓ | 0 |
 | script-clh-015-intro.applet | applet | ✓ | 1 |
+| clh-015-quiz | quiz | ✓ | 0 |
+| clh-016-quiz | quiz | ✓ | 0 |
+| clh-017-quiz | quiz | ✓ | 0 |
+| clh-018-quiz | quiz | ✓ | 0 |
+| clh-019-quiz | quiz | ✓ | 0 |
+| clh-020-quiz | quiz | ✓ | 0 |
+| clh-021-quiz | quiz | ✓ | 0 |
 | script-clh-022-intro.applet | applet | ✓ | 1 |
+| clh-022-quiz | quiz | ✓ | 0 |
+| clh-023-quiz | quiz | ✓ | 0 |
+| clh-024-quiz | quiz | ✓ | 0 |
+| clh-025-quiz | quiz | ✓ | 0 |
+| clh-026-quiz | quiz | ✓ | 0 |
+| clh-027-quiz | quiz | ✓ | 0 |
+| clh-028-quiz | quiz | ✓ | 0 |
+| clh-029-quiz | quiz | ✓ | 0 |
+| clh-030-quiz | quiz | ✓ | 0 |
 | script-intro.module | applet | ✓ | 1 |
 | script-intro.module | applet | ✓ | 1 |
 | script-lab.lab | lab | ✓ | 0 |
+| clh-002-quiz | quiz | ✓ | 0 |
 | script-intro.module | applet | ✓ | 1 |
 | script-lab.lab | lab | ✓ | 0 |
+| clh-003-quiz | quiz | ✓ | 0 |
 | script-intro.module | applet | ✓ | 1 |
 | script-lab.lab | lab | ✓ | 0 |
+| clh-004-quiz | quiz | ✓ | 0 |
 | script-intro.module | applet | ✓ | 1 |
 | script-lab.lab | lab | ✓ | 0 |
-| script-intro.module | applet | ✓ | 1 |
-| script-lab.lab | lab | ✓ | 1 |
-| script-intro.module | applet | ✓ | 1 |
-| script-lab.lab | lab | ✓ | 0 |
+| clh-005-quiz | quiz | ✓ | 0 |
 | script-intro.module | applet | ✓ | 1 |
 | script-lab.lab | lab | ✓ | 0 |
+| clh-006-quiz | quiz | ✓ | 0 |
 | script-intro.module | applet | ✓ | 1 |
 | script-lab.lab | lab | ✓ | 0 |
+| clh-007-quiz | quiz | ✓ | 0 |
 | script-intro.module | applet | ✓ | 1 |
 | script-lab.lab | lab | ✓ | 0 |
+| clh-008-quiz | quiz | ✓ | 0 |
 | script-intro.module | applet | ✓ | 1 |
 | script-lab.lab | lab | ✓ | 0 |
+| clh-009-quiz | quiz | ✓ | 0 |
 | script-intro.module | applet | ✓ | 1 |
 | script-lab.lab | lab | ✓ | 0 |
+| clh-010-quiz | quiz | ✓ | 0 |
 | script-intro.module | applet | ✓ | 1 |
 | script-lab.lab | lab | ✓ | 0 |
+| clh-011-quiz | quiz | ✓ | 0 |
 | script-intro.module | applet | ✓ | 1 |
 | script-lab.lab | lab | ✓ | 0 |
+| clh-012-quiz | quiz | ✓ | 0 |
 | script-intro.module | applet | ✓ | 1 |
 | script-lab.lab | lab | ✓ | 0 |
-| script-lab.lab | lab | ✓ | 0 |
-| script-lab.lab | lab | ✓ | 0 |
-| script-lab.lab | lab | ✓ | 0 |
-| script-lab.lab | lab | ✓ | 0 |
-| script-lab.lab | lab | ✓ | 0 |
-| script-lab.lab | lab | ✓ | 0 |
+| clh-013-quiz | quiz | ✓ | 0 |
 | script-intro.module | applet | ✓ | 1 |
 | script-lab.lab | lab | ✓ | 0 |
+| clh-014-quiz | quiz | ✓ | 0 |
+| script-intro.module | applet | ✓ | 1 |
 | script-lab.lab | lab | ✓ | 0 |
+| clh-015-quiz | quiz | ✓ | 0 |
 | script-lab.lab | lab | ✓ | 0 |
+| clh-016-quiz | quiz | ✓ | 0 |
 | script-lab.lab | lab | ✓ | 0 |
+| clh-017-quiz | quiz | ✓ | 0 |
 | script-lab.lab | lab | ✓ | 0 |
+| clh-018-quiz | quiz | ✓ | 0 |
 | script-lab.lab | lab | ✓ | 0 |
+| clh-019-quiz | quiz | ✓ | 0 |
 | script-lab.lab | lab | ✓ | 0 |
+| clh-020-quiz | quiz | ✓ | 0 |
 | script-lab.lab | lab | ✓ | 0 |
+| clh-021-quiz | quiz | ✓ | 0 |
+| script-intro.module | applet | ✓ | 1 |
 | script-lab.lab | lab | ✓ | 0 |
+| clh-022-quiz | quiz | ✓ | 0 |
+| script-lab.lab | lab | ✓ | 0 |
+| clh-023-quiz | quiz | ✓ | 0 |
+| script-lab.lab | lab | ✓ | 0 |
+| clh-024-quiz | quiz | ✓ | 0 |
+| script-lab.lab | lab | ✓ | 0 |
+| clh-025-quiz | quiz | ✓ | 0 |
+| script-lab.lab | lab | ✓ | 0 |
+| clh-026-quiz | quiz | ✓ | 0 |
+| script-lab.lab | lab | ✓ | 0 |
+| clh-027-quiz | quiz | ✓ | 0 |
+| script-lab.lab | lab | ✓ | 0 |
+| clh-028-quiz | quiz | ✓ | 0 |
+| script-lab.lab | lab | ✓ | 0 |
+| clh-029-quiz | quiz | ✓ | 0 |
+| script-lab.lab | lab | ✓ | 0 |
+| clh-030-quiz | quiz | ✓ | 0 |
 | script-lab.lab | lab | ✓ | 1 |
 | index | applet | ✓ | 1 |
 | dont-kill-the-server | applet | ✓ | 1 |
@@ -2520,8 +2611,8 @@
 | script-linux-viewing-drill.lab | lab | ✓ | 1 |
 | script-linux-wildcards.lab | lab | ✓ | 1 |
 | script-lab.lab | lab | ✓ | 0 |
-| script-linux-bash.lab | presentation | ✓ | 1 |
-| script-powershell.lab | lab | ✓ | 1 |
+| script-linux-bash.lab | presentation | ✓ | 0 |
+| script-powershell.lab | lab | ✓ | 0 |
 | script-python.lab | lab | ✓ | 0 |
 | script-sysadmin.lab | lab | ✓ | 0 |
 | script-mission-file-operations.lab | lab | ✓ | 1 |
@@ -2536,9 +2627,9 @@
 | script-service.tool | applet | ✓ | 1 |
 | script-lm-03-getting-help.module | applet | ✓ | 1 |
 | script-lm-04-terminal-environment.module | applet | ✓ | 1 |
-| script-lm-08-file-operations.module | presentation | ✓ | 1 |
-| script-lm-09-copy-move.module | presentation | ✓ | 1 |
-| script-lm-10-viewing-files.module | presentation | ✓ | 1 |
+| script-lm-08-file-operations.module | presentation | ✓ | 0 |
+| script-lm-09-copy-move.module | presentation | ✓ | 0 |
+| script-lm-10-viewing-files.module | presentation | ✓ | 0 |
 | script-lm-11-finding-files.module | presentation | ✓ | 0 |
 | script-lm-12-section2-practice.module | presentation | ✓ | 0 |
 | script-lm-13-grep-basics.module | presentation | ✓ | 0 |
@@ -2550,25 +2641,25 @@
 | script-lm-22-file-permissions.module | presentation | ✓ | 0 |
 | script-lm-23-chmod.module | presentation | ✓ | 0 |
 | script-lm-24-chown.module | presentation | ✓ | 0 |
-| script-lm-25-sudo.module | presentation | ✓ | 1 |
+| script-lm-25-sudo.module | presentation | ✓ | 0 |
 | script-lm-26-special-permissions.module | presentation | ✓ | 0 |
 | script-lm-27-section4-practice.module | presentation | ✓ | 0 |
 | script-lm-28-process-basics.module | presentation | ✓ | 0 |
-| script-lm-29-ps-top.module | presentation | ✓ | 1 |
+| script-lm-29-ps-top.module | presentation | ✓ | 0 |
 | script-lm-30-background-jobs.module | presentation | ✓ | 0 |
 | script-lm-31-signals-kill.module | presentation | ✓ | 0 |
 | script-lm-32-cron.module | presentation | ✓ | 0 |
 | script-lm-33-systemd.module | presentation | ✓ | 0 |
 | script-lm-34-section5-practice.module | presentation | ✓ | 0 |
 | script-lm-35-network-info.module | presentation | ✓ | 0 |
-| script-lm-36-connectivity.module | presentation | ✓ | 1 |
-| script-lm-37-dns-tools.module | presentation | ✓ | 1 |
-| script-lm-38-downloading.module | presentation | ✓ | 1 |
-| script-lm-39-ssh-basics.module | presentation | ✓ | 1 |
+| script-lm-36-connectivity.module | presentation | ✓ | 0 |
+| script-lm-37-dns-tools.module | presentation | ✓ | 0 |
+| script-lm-38-downloading.module | presentation | ✓ | 0 |
+| script-lm-39-ssh-basics.module | presentation | ✓ | 0 |
 | script-lm-40-section6-practice.module | presentation | ✓ | 0 |
-| script-lm-41-first-script.module | presentation | ✓ | 1 |
+| script-lm-41-first-script.module | presentation | ✓ | 0 |
 | script-lm-42-variables.module | presentation | ✓ | 0 |
-| script-lm-43-user-input.module | presentation | ✓ | 1 |
+| script-lm-43-user-input.module | presentation | ✓ | 0 |
 | script-lm-44-conditionals.module | presentation | ✓ | 0 |
 | script-lm-45-loops.module | presentation | ✓ | 0 |
 | script-lm-46-functions.module | presentation | ✓ | 0 |
@@ -2576,13 +2667,13 @@
 | script-lm-48-section7-practice.module | presentation | ✓ | 0 |
 | script-lm-49-links.module | presentation | ✓ | 0 |
 | script-lm-50-text-editors.module | presentation | ✓ | 0 |
-| script-lm-51-package-management.module | presentation | ✓ | 1 |
-| script-lm-52-environment-path.module | presentation | ✓ | 1 |
+| script-lm-51-package-management.module | presentation | ✓ | 0 |
+| script-lm-52-environment-path.module | presentation | ✓ | 0 |
 | script-lm-53-next-steps.module | presentation | ✓ | 0 |
 | index | presentation | ✓ | 0 |
 | script-python-immersive-chapter2.module | applet | ✓ | 1 |
 | script-python-immersive-chapter7.module | applet | ✓ | 1 |
-| script-python-chapter1.presentation | presentation | ✓ | 1 |
+| script-python-chapter1.presentation | presentation | ✓ | 0 |
 | script-python-chapter2.presentation | presentation | ✓ | 0 |
 | script-python-chapter3.presentation | presentation | ✓ | 0 |
 | script-python-chapter4.presentation | presentation | ✓ | 0 |
@@ -2591,10 +2682,11 @@
 | script-python-chapter7.presentation | presentation | ✓ | 0 |
 | script-python-chapter8.presentation | presentation | ✓ | 0 |
 | script-automation.presentation | presentation | ✓ | 0 |
-| script-macos-linux-basics.presentation | presentation | ✓ | 1 |
-| script-scripting-basics.presentation | presentation | ✓ | 1 |
-| script-linux-bash.quiz | presentation | ✓ | 1 |
+| script-macos-linux-basics.presentation | presentation | ✓ | 0 |
+| script-scripting-basics.presentation | presentation | ✓ | 0 |
+| script-linux-bash.quiz | presentation | ✓ | 0 |
 | linux-basics | quiz | ✓ | 0 |
+| clh-001-quiz | quiz | ✓ | 0 |
 | linux-cli-review | applet | ✓ | 1 |
 | permission-puzzle | presentation | ✓ | 0 |
 | script-automation.tool | applet | ✓ | 1 |
@@ -2610,17 +2702,17 @@
 
 | ID/Name | Type | Sync | Issues |
 |---------|------|------|--------|
-| shield-access-control-models.applet | presentation | ✓ | 1 |
+| shield-access-control-models.applet | presentation | ✓ | 0 |
 | cmmc-comprehensive | quiz | ✓ | 0 |
 | shield-cui-overview.applet | applet | ✓ | 1 |
 | shield-laws-regulations.applet | presentation | ✓ | 0 |
 | shield-encryption-ii.applet | applet | ✓ | 1 |
 | shield-encryption-task.applet | applet | ✓ | 1 |
-| shield-hash-v3.applet | presentation | ✓ | 1 |
-| shield-stego.applet | presentation | ✓ | 1 |
+| shield-hash-v3.applet | presentation | ✓ | 0 |
+| shield-stego.applet | presentation | ✓ | 0 |
 | shield-checksum-verifier.applet | presentation | ✓ | 0 |
-| shield-secure-sdlc-framework.applet | presentation | ✓ | 1 |
-| shield-security-best-practices.applet | presentation | ✓ | 1 |
+| shield-secure-sdlc-framework.applet | presentation | ✓ | 0 |
+| shield-security-best-practices.applet | presentation | ✓ | 0 |
 | shield-security-governance-dashboard.applet | presentation | ✓ | 0 |
 | index | presentation | ✓ | 0 |
 | shield-hangman-native.applet | applet | ✓ | 1 |
@@ -2629,9 +2721,9 @@
 | shield-linux-firewall-builder.applet | applet | ✓ | 1 |
 | shield-cyber-arts-bootcamp.applet | lab | ✓ | 1 |
 | shield-cysa-analyst-toolkit.applet | applet | ✓ | 1 |
-| shield-ics-scada-security.applet | applet | ✓ | 1 |
+| shield-ics-scada-security.applet | presentation | ✓ | 0 |
 | shield-business-continuity-planner.applet | presentation | ✓ | 0 |
-| shield-change-management.applet | presentation | ✓ | 1 |
+| shield-change-management.applet | presentation | ✓ | 0 |
 | shield-malware-types.applet | applet | ✓ | 1 |
 | shield-eh-exam-1-a.exam | presentation | ✓ | 0 |
 | malware-zoo | lab | ✓ | 1 |
@@ -2652,29 +2744,37 @@
 | shield-access-control.lab | presentation | ✓ | 0 |
 | shield-compliance.lab | presentation | ✓ | 0 |
 | shield-cryptography.lab | presentation | ✓ | 0 |
-| shield-gpg-encryption.lab | presentation | ✓ | 1 |
+| shield-gpg-encryption.lab | presentation | ✓ | 0 |
 | shield-hash.lab | presentation | ✓ | 0 |
-| shield-hashing.lab | presentation | ✓ | 1 |
+| shield-hashing.lab | presentation | ✓ | 0 |
+| shield-ir-forensics.lab | presentation | ✓ | 0 |
 | shield-network-security.lab | presentation | ✓ | 0 |
 | shield-osint-google-dorking.lab | applet | ✓ | 1 |
 | shield-security-fundamentals.lab | applet | ✓ | 0 |
 | shield-threats.lab | presentation | ✓ | 0 |
 | shield-cia-triad.presentation | presentation | ✓ | 0 |
-| shield-hash-steg.presentation | presentation | ✓ | 1 |
+| shield-hash-steg.presentation | presentation | ✓ | 0 |
+| shield-security-fundamentals.presentation | presentation | ✓ | 0 |
 | shield-security.presentation | presentation | ✓ | 1 |
 | shield-social-engineering.presentation | applet | ✓ | 1 |
+| shield-access-quiz | quiz | ✓ | 0 |
 | cia-triad | quiz | ✓ | 0 |
+| shield-compliance-quiz | quiz | ✓ | 0 |
+| shield-crypto-quiz | quiz | ✓ | 0 |
 | cse-06-monitoring | quiz | ✓ | 0 |
 | cse-07-risk | quiz | ✓ | 0 |
 | cse-08-compliance | quiz | ✓ | 0 |
-| shield-aaa-flow.tool | presentation | ✓ | 1 |
+| shield-network-quiz | quiz | ✓ | 0 |
+| shield-fundamentals-quiz | quiz | ✓ | 0 |
+| shield-threats-quiz | quiz | ✓ | 0 |
+| shield-aaa-flow.tool | presentation | ✓ | 0 |
 | shield-bia.tool | presentation | ✓ | 2 |
 | shield-crisc-risk.tool | presentation | ✓ | 1 |
 | shield-data-lifecycle.tool | applet | ✓ | 1 |
-| shield-incident-response.tool | presentation | ✓ | 1 |
+| shield-incident-response.tool | presentation | ✓ | 0 |
 | shield-security-models.tool | applet | ✓ | 1 |
-| shield-yara.tool | presentation | ✓ | 1 |
-| shield-zero-trust.tool | applet | ✓ | 1 |
+| shield-yara.tool | presentation | ✓ | 0 |
+| shield-zero-trust.tool | presentation | ✓ | 0 |
 
 ### UNASSIGNED
 ──────────────────────────────────────────────────
@@ -2683,12 +2783,12 @@
 |---------|------|------|--------|
 | audit-tool | applet | ✓ | 1 |
 | ctf-leaderboard.applet | applet | ✓ | 1 |
-| botnet-architecture.presentation | presentation | ✓ | 1 |
-| buffer-overflow-lab | presentation | ✓ | 1 |
+| botnet-architecture.presentation | presentation | ✓ | 0 |
+| buffer-overflow-lab | presentation | ✓ | 0 |
 | ceh-attack-reference | applet | ✓ | 1 |
 | cloud-hacking-lab | lab | ✓ | 2 |
 | csrf-attack-lab | lab | ✓ | 2 |
-| dos-ddos-lab | presentation | ✓ | 1 |
+| dos-ddos-lab | presentation | ✓ | 0 |
 | enumeration-lab | applet | ✓ | 1 |
 | footprinting-lab | lab | ✓ | 2 |
 | gate-11 | applet | ✓ | 1 |
@@ -2712,8 +2812,8 @@
 | da-linux-privesc.lab | lab | ✓ | 0 |
 | da-linux-recon-drill.lab | lab | ✓ | 0 |
 | da-linux-reverse-shells.lab | lab | ✓ | 0 |
-| malware-analysis-lab | presentation | ✓ | 1 |
-| mobile-security-lab | lab | ✓ | 1 |
+| malware-analysis-lab | presentation | ✓ | 0 |
+| mobile-security-lab | lab | ✓ | 0 |
 | behavioral-analysis.module | applet | ✓ | 1 |
 | dynamic-analysis.module | applet | ✓ | 1 |
 | incident-response.module | applet | ✓ | 1 |
@@ -2722,22 +2822,22 @@
 | static-analysis.module | applet | ✓ | 1 |
 | network-scanning-lab | applet | ✓ | 1 |
 | network-sniffing-lab | applet | ✓ | 1 |
-| nmap-scanning-lab | applet | ✓ | 1 |
-| owasp-top10-lab | presentation | ✓ | 1 |
-| password-attacks-lab | applet | ✓ | 1 |
+| nmap-scanning-lab | presentation | ✓ | 0 |
+| owasp-top10-lab | presentation | ✓ | 0 |
+| password-attacks-quiz | quiz | ✓ | 0 |
 | privilege-escalation-lab | lab | ✓ | 2 |
 | dark-arts | quiz | ✓ | 1 |
 | session-hijacking-lab | applet | ✓ | 1 |
 | social-engineering-advanced | applet | ✓ | 1 |
-| sql-injection-lab | applet | ✓ | 1 |
+| sql-injection-lab | presentation | ✓ | 0 |
 | ssrf-attack-lab | presentation | ✓ | 1 |
 | steganography-lab | lab | ✓ | 2 |
 | hashcat-training | presentation | ✓ | 0 |
 | hydra-training | presentation | ✓ | 2 |
-| john-training | presentation | ✓ | 1 |
-| metasploit-training | presentation | ✓ | 1 |
-| nmap-training | presentation | ✓ | 1 |
-| wireless-attacks-lab | applet | ✓ | 1 |
+| john-training | presentation | ✓ | 0 |
+| metasploit-training | presentation | ✓ | 0 |
+| nmap-training | presentation | ✓ | 0 |
+| wireless-attacks-lab | presentation | ✓ | 0 |
 | xss-attacks-lab | applet | ✓ | 1 |
 | dashboard | applet | ✓ | 0 |
 | faq | applet | ✓ | 1 |
@@ -2763,17 +2863,17 @@
 |---------|------|------|--------|
 | web-binary-decimal-converter.applet | applet | ✓ | 1 |
 | web-server-comparison.applet | applet | ✓ | 1 |
-| web-networking-interactive.applet | applet | ✓ | 1 |
+| networking-interactive-guide | quiz | ✓ | 0 |
 | web-networking-midterm.exam | applet | ✓ | 1 |
-| packet-sniffer | presentation | ✓ | 1 |
+| packet-sniffer | presentation | ✓ | 0 |
 | index | applet | ✓ | 1 |
 | web-dns-troubleshooting.lab | lab | ✓ | 0 |
-| web-firewall-rules.lab | lab | ✓ | 1 |
+| web-firewall-rules.lab | lab | ✓ | 0 |
 | web-networking-fundamentals.lab | lab | ✓ | 0 |
 | web-packet-analysis.lab | lab | ✓ | 0 |
 | web-static-routes.lab | lab | ✓ | 0 |
 | web-subnetting-practice.lab | lab | ✓ | 0 |
-| web-troubleshooting.lab | lab | ✓ | 1 |
+| web-troubleshooting.lab | lab | ✓ | 0 |
 | web-vlan-config.lab | lab | ✓ | 0 |
 | web-ip-addressing-ch7-10.module | applet | ✓ | 1 |
 | web-arp.presentation | presentation | ✓ | 2 |
@@ -2801,40 +2901,43 @@
 | web-vlan.presentation | presentation | ✓ | 1 |
 | web-wireless-architecture.presentation | presentation | ✓ | 1 |
 | web-wireless.presentation | presentation | ✓ | 1 |
-| web-networking-ch7-10.quiz | applet | ✓ | 0 |
+| web-networking-ch7-10 | quiz | ✓ | 0 |
 | web-networking-ch7-20.quiz | applet | ✓ | 1 |
+| web-ports-quiz | quiz | ✓ | 0 |
+| osi-quiz | quiz | ✓ | 0 |
 | subnetting | quiz | ✓ | 0 |
+| web-week3-quiz | quiz | ✓ | 0 |
 | dns-resolver-race | presentation | ✓ | 0 |
 | subnet-siege | presentation | ✓ | 0 |
-| web-interactive-network-simulatorv2.simulator | presentation | ✓ | 1 |
+| web-interactive-network-simulatorv2.simulator | presentation | ✓ | 0 |
 | web-packet-tracer-lite-v3.simulator | applet | ✓ | 1 |
 | web-networking-textbook-ch7-20.textbook | applet | ✓ | 1 |
-| web-acl.tool | presentation | ✓ | 1 |
-| web-burp.tool | presentation | ✓ | 1 |
-| web-cable.tool | presentation | ✓ | 1 |
+| web-acl.tool | presentation | ✓ | 0 |
+| web-burp.tool | presentation | ✓ | 0 |
+| web-cable.tool | presentation | ✓ | 0 |
 | web-devices.tool | presentation | ✓ | 0 |
 | web-dns-header.tool | applet | ✓ | 1 |
-| web-etherchannel.tool | presentation | ✓ | 1 |
-| web-fhrp.tool | presentation | ✓ | 1 |
-| web-gobuster.tool | presentation | ✓ | 1 |
-| web-ipv6.tool | presentation | ✓ | 1 |
-| web-network-services.tool | presentation | ✓ | 1 |
-| web-nikto.tool | presentation | ✓ | 1 |
-| web-osi-deep-dive.tool | presentation | ✓ | 1 |
-| web-osi.tool | presentation | ✓ | 1 |
-| web-ospf-cost.tool | presentation | ✓ | 1 |
-| web-port.tool | presentation | ✓ | 1 |
-| web-qos.tool | presentation | ✓ | 1 |
-| web-security.tool | presentation | ✓ | 1 |
-| web-sqlmap.tool | presentation | ✓ | 1 |
-| web-stp.tool | presentation | ✓ | 1 |
-| web-subnetting.tool | presentation | ✓ | 1 |
-| web-switch-operations.tool | presentation | ✓ | 1 |
-| web-topology.tool | presentation | ✓ | 1 |
-| web-troubleshooting.tool | presentation | ✓ | 1 |
-| web-vlan.tool | presentation | ✓ | 1 |
-| web-wireless-architecture.tool | presentation | ✓ | 1 |
-| web-wireless.tool | presentation | ✓ | 1 |
+| web-etherchannel.tool | presentation | ✓ | 0 |
+| web-fhrp.tool | presentation | ✓ | 0 |
+| web-gobuster.tool | presentation | ✓ | 0 |
+| web-ipv6.tool | presentation | ✓ | 0 |
+| web-network-services.tool | presentation | ✓ | 0 |
+| web-nikto.tool | presentation | ✓ | 0 |
+| web-osi-deep-dive.tool | presentation | ✓ | 0 |
+| web-osi.tool | presentation | ✓ | 0 |
+| web-ospf-cost.tool | presentation | ✓ | 0 |
+| web-port.tool | presentation | ✓ | 0 |
+| web-qos.tool | presentation | ✓ | 0 |
+| web-security.tool | presentation | ✓ | 0 |
+| web-sqlmap.tool | presentation | ✓ | 0 |
+| web-stp.tool | presentation | ✓ | 0 |
+| web-subnetting.tool | presentation | ✓ | 0 |
+| web-switch-operations.tool | presentation | ✓ | 0 |
+| web-topology.tool | presentation | ✓ | 0 |
+| web-troubleshooting.tool | presentation | ✓ | 0 |
+| web-vlan.tool | presentation | ✓ | 0 |
+| web-wireless-architecture.tool | presentation | ✓ | 0 |
+| web-wireless.tool | presentation | ✓ | 0 |
 
 
 ## ISSUES DETECTED
@@ -3342,7 +3445,7 @@
   File: `test-rare-only.html`
   Fix: Remove console.log or replace with proper logging
 
-### WARNING (960)
+### WARNING (988)
 
 **[REG-001]** Content file is not registered in content-registry.js
   File: `admin/audit-tool.html`
@@ -4136,6 +4239,18 @@
   File: `houses/cloud/presentations/cloud-concepts.presentation.html`
   Fix: Add entry to content-registry.js
 
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/presentations/cloud-cse-06-security-monitoring-ir.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/presentations/cloud-cse-07-risk-assessment.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/presentations/cloud-cse-08-compliance-governance.presentation.html`
+  Fix: Add entry to content-registry.js
+
 **[TRACK-002]** Presentation has slides but no progress tracking
   File: `houses/cloud/presentations/cloud-cse-module01.presentation.html`
   Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
@@ -4205,6 +4320,42 @@
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/quizzes/cloud-ch01-cloud-fundamentals.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/quizzes/cloud-ch05-iam-security.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/quizzes/cloud-ch08-storage.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/quizzes/cloud-ch09-database.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/quizzes/cloud-ch10-networking.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/quizzes/cloud-ch12-aws-practitioner-final.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/quizzes/cloud-cse-module01.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/quizzes/cloud-cse-module02.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/quizzes/cloud-cse-module03.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
   File: `houses/cloud/quizzes/cloud-cse-module04.quiz.html`
   Fix: Add entry to content-registry.js
 
@@ -4214,6 +4365,10 @@
 
 **[REG-001]** Content file is not registered in content-registry.js
   File: `houses/cloud/quizzes/cloud-cse-module06.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/quizzes/cloud-cse-module07.quiz.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
@@ -4313,16 +4468,16 @@
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/labs/code-terraform.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
   File: `houses/code/labs/code-unit-testing.lab.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
   File: `houses/code/presentations/code-agile-sdlc.presentation.html`
   Fix: Add entry to content-registry.js
-
-**[TRACK-002]** Presentation has slides but no progress tracking
-  File: `houses/code/presentations/code-automation.presentation.html`
-  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
 
 **[REG-001]** Content file is not registered in content-registry.js
   File: `houses/code/presentations/code-automation.presentation.html`
@@ -4350,6 +4505,10 @@
 
 **[REG-001]** Content file is not registered in content-registry.js
   File: `houses/code/presentations/code-terraform-fundamentals.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/quizzes/code-unit-testing.quiz.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
@@ -4685,6 +4844,10 @@
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/eye/labs/eye-hunting.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
   File: `houses/eye/labs/eye-siem.lab.html`
   Fix: Add entry to content-registry.js
 
@@ -4692,44 +4855,36 @@
   File: `houses/eye/presentations/eye-log-basics.presentation.html`
   Fix: Add entry to content-registry.js
 
-**[TRACK-002]** Presentation has slides but no progress tracking
-  File: `houses/eye/presentations/eye-log-correlation.presentation.html`
-  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
-
 **[REG-001]** Content file is not registered in content-registry.js
   File: `houses/eye/presentations/eye-log-correlation.presentation.html`
   Fix: Add entry to content-registry.js
-
-**[TRACK-002]** Presentation has slides but no progress tracking
-  File: `houses/eye/presentations/eye-network-traffic-analysis.presentation.html`
-  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
 
 **[REG-001]** Content file is not registered in content-registry.js
   File: `houses/eye/presentations/eye-network-traffic-analysis.presentation.html`
   Fix: Add entry to content-registry.js
 
-**[TRACK-002]** Presentation has slides but no progress tracking
-  File: `houses/eye/presentations/eye-siem-fundamentals.presentation.html`
-  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
-
 **[REG-001]** Content file is not registered in content-registry.js
   File: `houses/eye/presentations/eye-siem-fundamentals.presentation.html`
   Fix: Add entry to content-registry.js
-
-**[TRACK-002]** Presentation has slides but no progress tracking
-  File: `houses/eye/presentations/eye-soc-operations.presentation.html`
-  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
 
 **[REG-001]** Content file is not registered in content-registry.js
   File: `houses/eye/presentations/eye-soc-operations.presentation.html`
   Fix: Add entry to content-registry.js
 
-**[TRACK-002]** Presentation has slides but no progress tracking
-  File: `houses/eye/presentations/eye-threat-hunting.presentation.html`
-  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
-
 **[REG-001]** Content file is not registered in content-registry.js
   File: `houses/eye/presentations/eye-threat-hunting.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/eye/quizzes/eye-correlation.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/eye/quizzes/eye-siem.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/eye/quizzes/eye-traffic.quiz.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
@@ -4980,10 +5135,6 @@
   File: `houses/forge/applets/comptia-aplus/core-2/labs/forge-windows-settings.lab.html`
   Fix: Add entry to content-registry.js
 
-**[TRACK-002]** Presentation has slides but no progress tracking
-  File: `houses/forge/applets/comptia-aplus/core-2/presentations/forge-admin-tools.presentation.html`
-  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
-
 **[REG-001]** Content file is not registered in content-registry.js
   File: `houses/forge/applets/comptia-aplus/core-2/presentations/forge-admin-tools.presentation.html`
   Fix: Add entry to content-registry.js
@@ -4991,10 +5142,6 @@
 **[REG-001]** Content file is not registered in content-registry.js
   File: `houses/forge/applets/comptia-aplus/core-2/presentations/forge-change-management.presentation.html`
   Fix: Add entry to content-registry.js
-
-**[TRACK-002]** Presentation has slides but no progress tracking
-  File: `houses/forge/applets/comptia-aplus/core-2/presentations/forge-control-panel.presentation.html`
-  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
 
 **[REG-001]** Content file is not registered in content-registry.js
   File: `houses/forge/applets/comptia-aplus/core-2/presentations/forge-control-panel.presentation.html`
@@ -5024,10 +5171,6 @@
   File: `houses/forge/applets/comptia-aplus/core-2/presentations/forge-security-fundamentals.presentation.html`
   Fix: Add entry to content-registry.js
 
-**[TRACK-002]** Presentation has slides but no progress tracking
-  File: `houses/forge/applets/comptia-aplus/core-2/presentations/forge-system-tools.presentation.html`
-  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
-
 **[REG-001]** Content file is not registered in content-registry.js
   File: `houses/forge/applets/comptia-aplus/core-2/presentations/forge-system-tools.presentation.html`
   Fix: Add entry to content-registry.js
@@ -5036,17 +5179,9 @@
   File: `houses/forge/applets/comptia-aplus/core-2/presentations/forge-users-groups.presentation.html`
   Fix: Add entry to content-registry.js
 
-**[TRACK-002]** Presentation has slides but no progress tracking
-  File: `houses/forge/applets/comptia-aplus/core-2/presentations/forge-windows-editions.presentation.html`
-  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
-
 **[REG-001]** Content file is not registered in content-registry.js
   File: `houses/forge/applets/comptia-aplus/core-2/presentations/forge-windows-editions.presentation.html`
   Fix: Add entry to content-registry.js
-
-**[TRACK-002]** Presentation has slides but no progress tracking
-  File: `houses/forge/applets/comptia-aplus/core-2/presentations/forge-windows-settings.presentation.html`
-  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
 
 **[REG-001]** Content file is not registered in content-registry.js
   File: `houses/forge/applets/comptia-aplus/core-2/presentations/forge-windows-settings.presentation.html`
@@ -5160,17 +5295,9 @@
   File: `houses/forge/labs/forge-windows-settings.lab.html`
   Fix: Add entry to content-registry.js
 
-**[TRACK-002]** Presentation has slides but no progress tracking
-  File: `houses/forge/presentations/forge-admin-tools.presentation.html`
-  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
-
 **[REG-001]** Content file is not registered in content-registry.js
   File: `houses/forge/presentations/forge-admin-tools.presentation.html`
   Fix: Add entry to content-registry.js
-
-**[TRACK-002]** Presentation has slides but no progress tracking
-  File: `houses/forge/presentations/forge-control-panel.presentation.html`
-  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
 
 **[REG-001]** Content file is not registered in content-registry.js
   File: `houses/forge/presentations/forge-control-panel.presentation.html`
@@ -5184,25 +5311,13 @@
   File: `houses/forge/presentations/forge-macos-linux-basics.presentation.html`
   Fix: Add entry to content-registry.js
 
-**[TRACK-002]** Presentation has slides but no progress tracking
-  File: `houses/forge/presentations/forge-system-tools.presentation.html`
-  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
-
 **[REG-001]** Content file is not registered in content-registry.js
   File: `houses/forge/presentations/forge-system-tools.presentation.html`
   Fix: Add entry to content-registry.js
 
-**[TRACK-002]** Presentation has slides but no progress tracking
-  File: `houses/forge/presentations/forge-windows-editions.presentation.html`
-  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
-
 **[REG-001]** Content file is not registered in content-registry.js
   File: `houses/forge/presentations/forge-windows-editions.presentation.html`
   Fix: Add entry to content-registry.js
-
-**[TRACK-002]** Presentation has slides but no progress tracking
-  File: `houses/forge/presentations/forge-windows-settings.presentation.html`
-  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
 
 **[REG-001]** Content file is not registered in content-registry.js
   File: `houses/forge/presentations/forge-windows-settings.presentation.html`
@@ -5332,44 +5447,12 @@
   File: `houses/key/presentations/key-post-quantum.presentation.html`
   Fix: Add entry to content-registry.js
 
-**[TRACK-002]** Presentation has slides but no progress tracking
-  File: `houses/key/presentations/key-tls-ssl.presentation.html`
-  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
-
 **[REG-001]** Content file is not registered in content-registry.js
   File: `houses/key/presentations/key-tls-ssl.presentation.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
   File: `houses/key/quizzes/key-cert.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/key/quizzes/key-cryptanalysis.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/key/quizzes/key-ecc.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/key/quizzes/key-hsm.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/key/quizzes/key-kdf.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/key/quizzes/key-mac.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/key/quizzes/key-pqc.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/key/quizzes/key-symmetric.quiz.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
@@ -5653,7 +5736,67 @@
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/clh/script-clh-016.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/clh/script-clh-017.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/clh/script-clh-018.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/clh/script-clh-019.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/clh/script-clh-020.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/clh/script-clh-021.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
   File: `houses/script/clh/script-clh-022-intro.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/clh/script-clh-022.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/clh/script-clh-023.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/clh/script-clh-024.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/clh/script-clh-025.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/clh/script-clh-026.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/clh/script-clh-027.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/clh/script-clh-028.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/clh/script-clh-029.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/clh/script-clh-030.quiz.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
@@ -5777,7 +5920,15 @@
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/courses/clh/modules/clh-016/script-quiz.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
   File: `houses/script/courses/clh/modules/clh-017/script-lab.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/courses/clh/modules/clh-017/script-quiz.quiz.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
@@ -5785,7 +5936,15 @@
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/courses/clh/modules/clh-018/script-quiz.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
   File: `houses/script/courses/clh/modules/clh-019/script-lab.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/courses/clh/modules/clh-019/script-quiz.quiz.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
@@ -5793,7 +5952,15 @@
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/courses/clh/modules/clh-020/script-quiz.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
   File: `houses/script/courses/clh/modules/clh-021/script-lab.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/courses/clh/modules/clh-021/script-quiz.quiz.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
@@ -5805,7 +5972,15 @@
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/courses/clh/modules/clh-022/script-quiz.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
   File: `houses/script/courses/clh/modules/clh-023/script-lab.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/courses/clh/modules/clh-023/script-quiz.quiz.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
@@ -5813,7 +5988,15 @@
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/courses/clh/modules/clh-024/script-quiz.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
   File: `houses/script/courses/clh/modules/clh-025/script-lab.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/courses/clh/modules/clh-025/script-quiz.quiz.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
@@ -5821,7 +6004,15 @@
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/courses/clh/modules/clh-026/script-quiz.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
   File: `houses/script/courses/clh/modules/clh-027/script-lab.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/courses/clh/modules/clh-027/script-quiz.quiz.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
@@ -5829,11 +6020,23 @@
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/courses/clh/modules/clh-028/script-quiz.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
   File: `houses/script/courses/clh/modules/clh-029/script-lab.lab.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/courses/clh/modules/clh-029/script-quiz.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
   File: `houses/script/courses/clh/modules/clh-030/script-lab.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/courses/clh/modules/clh-030/script-quiz.quiz.html`
   Fix: Add entry to content-registry.js
 
 **[TRACK-003]** Lab has no visible progress tracking mechanism
@@ -6709,6 +6912,10 @@
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/labs/shield-ir-forensics.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
   File: `houses/shield/labs/shield-network-security.lab.html`
   Fix: Add entry to content-registry.js
 
@@ -6730,6 +6937,10 @@
 
 **[REG-001]** Content file is not registered in content-registry.js
   File: `houses/shield/presentations/shield-hash-steg.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/presentations/shield-security-fundamentals.presentation.html`
   Fix: Add entry to content-registry.js
 
 **[TRACK-002]** Presentation has slides but no progress tracking
@@ -7053,6 +7264,10 @@
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/quizzes/web-week3.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
   File: `houses/web/reviews/dns-resolver-race.html`
   Fix: Add entry to content-registry.js
 
@@ -7184,7 +7399,7 @@
   File: `workshop/a2-shadow-encoder/current.html`
   Fix: Add entry to content-registry.js
 
-### INFO (404)
+### INFO (224)
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `admin/audit-tool.html`
@@ -7192,14 +7407,6 @@
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `dark-arts/ctf-leaderboard.applet.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `dark-arts/vault/botnet-architecture.presentation.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `dark-arts/vault/buffer-overflow-lab.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
@@ -7212,10 +7419,6 @@
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `dark-arts/vault/csrf-attack-lab.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `dark-arts/vault/dos-ddos-lab.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
@@ -7251,14 +7454,6 @@
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `dark-arts/vault/malware-analysis-lab.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `dark-arts/vault/mobile-security-lab.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `dark-arts/vault/modules/behavioral-analysis.module.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
@@ -7291,18 +7486,6 @@
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `dark-arts/vault/nmap-scanning-lab.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `dark-arts/vault/owasp-top10-lab.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `dark-arts/vault/password-attacks-lab.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `dark-arts/vault/privilege-escalation-lab.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
@@ -7315,31 +7498,11 @@
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `dark-arts/vault/sql-injection-lab.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `dark-arts/vault/steganography-lab.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `dark-arts/vault/tools/hydra-training.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `dark-arts/vault/tools/john-training.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `dark-arts/vault/tools/metasploit-training.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `dark-arts/vault/tools/nmap-training.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `dark-arts/vault/wireless-attacks-lab.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
@@ -7351,23 +7514,7 @@
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/cloud/applets/fundamentals/cloud-provider-comparison.applet.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `houses/cloud/index.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/cloud/labs/cloud-cse-module04.lab.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/cloud/labs/cloud-cse-module05.lab.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/cloud/labs/cloud-cse-module06.lab.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
@@ -7455,42 +7602,6 @@
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/cloud/tools/cloud-aws-service.tool.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/cloud/tools/cloud-ch01-cloud-models.tool.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/cloud/tools/cloud-ch02-aws-account.tool.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/cloud/tools/cloud-ch04-aws-regions.tool.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/cloud/tools/cloud-ch05-security.tool.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/cloud/tools/cloud-ch07-ec2-instance.tool.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/cloud/tools/cloud-ch10-vpc-networking.tool.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/cloud/tools/cloud-ch12-use-cases.tool.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/cloud/tools/cloud-cloud.tool.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `houses/code/applets/code-docker-playground.applet.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
@@ -7500,42 +7611,6 @@
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `houses/code/games/git-blame.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/code/labs/code-docker.lab.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/code/labs/code-kubernetes.lab.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/code/presentations/code-agile-sdlc.presentation.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/code/presentations/code-cicd-fundamentals.presentation.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/code/presentations/code-cloudformation-fundamentals.presentation.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/code/presentations/code-docker-fundamentals.presentation.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/code/presentations/code-git-basics.presentation.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/code/presentations/code-kubernetes-fundamentals.presentation.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/code/presentations/code-terraform-fundamentals.presentation.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
@@ -7583,10 +7658,6 @@
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/eye/applets/cyberops/eye-app-visibility-control.applet.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `houses/eye/applets/cyberops/eye-attack-surface.applet.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
@@ -7607,18 +7678,6 @@
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/eye/applets/cyberops/eye-disk-images.applet.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/eye/applets/cyberops/eye-endpoint-attacks.applet.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/eye/applets/cyberops/eye-evasion-obfuscation.applet.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `houses/eye/applets/cyberops/eye-firewall-data.applet.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
@@ -7627,15 +7686,7 @@
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/eye/applets/cyberops/eye-malware-analysis-output.applet.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `houses/eye/applets/cyberops/eye-network-attacks.applet.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/eye/applets/cyberops/eye-nsm-data-types.applet.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
@@ -7655,15 +7706,7 @@
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/eye/applets/cyberops/eye-tcpdump-netflow.applet.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `houses/eye/applets/cyberops/eye-web-attacks.applet.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/eye/applets/cyberops/week2/labs/eye-windows-task-manager.lab.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
@@ -7695,14 +7738,6 @@
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/eye/applets/cyberops/week5/labs/eye-soc-triage.lab.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/eye/applets/cyberops/week7/labs/eye-log-correlation.lab.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `houses/eye/games/alert-triage.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
@@ -7712,30 +7747,6 @@
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `houses/eye/labs/eye-siem.lab.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/eye/presentations/eye-log-basics.presentation.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/eye/presentations/eye-log-correlation.presentation.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/eye/presentations/eye-network-traffic-analysis.presentation.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/eye/presentations/eye-siem-fundamentals.presentation.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/eye/presentations/eye-soc-operations.presentation.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/eye/presentations/eye-threat-hunting.presentation.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
@@ -7755,111 +7766,11 @@
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/eye/tools/eye-wireshark.tool.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/forge/applets/comptia-aplus/core-1/chapters/ch01-motherboards/index.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/forge/applets/comptia-aplus/core-1/chapters/ch02-expansion-storage/index.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/forge/applets/comptia-aplus/core-1/chapters/ch03-peripherals/index.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/forge/applets/comptia-aplus/core-1/chapters/ch04-printers/index.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/forge/applets/comptia-aplus/core-1/chapters/ch05-networking/index.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/forge/applets/comptia-aplus/core-1/chapters/ch06-tcpip/index.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/forge/applets/comptia-aplus/core-1/chapters/ch07-wireless/index.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `houses/forge/applets/comptia-aplus/core-1/chapters/ch08-cloud/index.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `houses/forge/applets/comptia-aplus/core-1/chapters/ch09-laptops/index.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/forge/applets/comptia-aplus/core-1/chapters/ch10-mobile/index.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/forge/applets/comptia-aplus/core-1/chapters/ch11-troubleshooting/index.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/forge/applets/comptia-aplus/core-1/chapters/ch12-hw-network-troubleshooting/index.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/forge/applets/comptia-aplus/core-1/labs/forge-hardware-diagnosis.lab.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/forge/applets/comptia-aplus/core-1/labs/forge-laptop-memory.lab.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/forge/applets/comptia-aplus/core-1/labs/forge-mobile-email.lab.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/forge/applets/comptia-aplus/core-1/labs/forge-network-config.lab.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/forge/applets/comptia-aplus/core-1/labs/forge-network-design.lab.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/forge/applets/comptia-aplus/core-1/labs/forge-pc-builder.lab.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/forge/applets/comptia-aplus/core-1/labs/forge-post-beep-codes.lab.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/forge/applets/comptia-aplus/core-1/labs/forge-printer-troubleshoot.lab.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/forge/applets/comptia-aplus/core-1/labs/forge-raid-config.lab.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/forge/applets/comptia-aplus/core-1/labs/forge-topology-builder.lab.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/forge/applets/comptia-aplus/core-2/chapters/ch13-windows-editions/index.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/forge/applets/comptia-aplus/core-2/chapters/ch14-windows-settings/index.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/forge/applets/comptia-aplus/core-2/chapters/ch15-admin-tools/index.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/forge/applets/comptia-aplus/core-2/chapters/ch16-system-tools/index.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
@@ -7875,19 +7786,7 @@
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/forge/applets/comptia-aplus/core-2/labs/forge-malware.lab.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/forge/applets/comptia-aplus/core-2/labs/forge-physical-security.lab.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `houses/forge/applets/comptia-aplus/core-2/labs/forge-system-tools.lab.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/forge/applets/comptia-aplus/core-2/labs/forge-users-groups.lab.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
@@ -7899,39 +7798,7 @@
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/forge/applets/comptia-aplus/core-2/presentations/forge-admin-tools.presentation.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/forge/applets/comptia-aplus/core-2/presentations/forge-control-panel.presentation.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/forge/applets/comptia-aplus/core-2/presentations/forge-macos-linux-basics.presentation.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/forge/applets/comptia-aplus/core-2/presentations/forge-physical-security.presentation.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/forge/applets/comptia-aplus/core-2/presentations/forge-windows-editions.presentation.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/forge/applets/comptia-aplus/core-2/presentations/forge-windows-settings.presentation.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/forge/applets/comptia-aplus/core-2/quizzes/forge-ch21.quiz.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `houses/forge/applets/forge-command-translator.applet.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/forge/applets/forge-system-tools-sim.applet.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
@@ -7963,23 +7830,7 @@
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/forge/presentations/forge-admin-tools.presentation.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/forge/presentations/forge-control-panel.presentation.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `houses/forge/presentations/forge-macos-linux-basics.presentation.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/forge/presentations/forge-windows-editions.presentation.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/forge/presentations/forge-windows-settings.presentation.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
@@ -7991,115 +7842,11 @@
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/forge/tools/forge-system-tools-sim.tool.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/key/games/cipher-cracker.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `houses/key/games/dont-leak-the-key.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/key/labs/key-cryptanalysis.lab.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/key/labs/key-crypto-stego.lab.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/key/labs/key-kdf.lab.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/key/labs/key-pqc.lab.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/key/modules/key-hash-stego-intro.module.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/key/presentations/key-advanced-symmetric.presentation.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/key/presentations/key-certificates.presentation.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/key/presentations/key-cryptanalysis.presentation.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/key/presentations/key-cryptography-fundamentals.presentation.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/key/presentations/key-derivation.presentation.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/key/presentations/key-elliptic-curve.presentation.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/key/presentations/key-encryption-basics.presentation.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/key/presentations/key-management.presentation.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/key/presentations/key-message-authentication.presentation.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/key/presentations/key-post-quantum.presentation.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/key/presentations/key-tls-ssl.presentation.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/key/quizzes/key-kdf.quiz.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/key/tools/key-aes.tool.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/key/tools/key-ecc.tool.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/key/tools/key-hmac.tool.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/key/tools/key-kdf.tool.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/key/tools/key-lifecycle.tool.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/key/tools/key-pqc.tool.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `houses/script/applets/linux/script-bash-scripting-playground.applet.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/script/applets/linux/script-clh-006-file-operations.applet.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
@@ -8243,10 +7990,6 @@
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/script/courses/clh/modules/clh-006/script-lab.lab.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `houses/script/courses/clh/modules/clh-007/script-intro.module.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
@@ -8315,14 +8058,6 @@
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/script/labs/script-linux-bash.lab.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/script/labs/script-powershell.lab.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `houses/script/linux/script-quick.reference.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
@@ -8347,79 +8082,11 @@
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/script/modules/linux-mastery/script-lm-08-file-operations.module.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/script/modules/linux-mastery/script-lm-09-copy-move.module.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/script/modules/linux-mastery/script-lm-10-viewing-files.module.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/script/modules/linux-mastery/script-lm-25-sudo.module.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/script/modules/linux-mastery/script-lm-29-ps-top.module.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/script/modules/linux-mastery/script-lm-36-connectivity.module.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/script/modules/linux-mastery/script-lm-37-dns-tools.module.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/script/modules/linux-mastery/script-lm-38-downloading.module.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/script/modules/linux-mastery/script-lm-39-ssh-basics.module.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/script/modules/linux-mastery/script-lm-41-first-script.module.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/script/modules/linux-mastery/script-lm-43-user-input.module.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/script/modules/linux-mastery/script-lm-51-package-management.module.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/script/modules/linux-mastery/script-lm-52-environment-path.module.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `houses/script/modules/python/script-python-immersive-chapter2.module.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `houses/script/modules/python/script-python-immersive-chapter7.module.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/script/presentations/python/script-python-chapter1.presentation.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/script/presentations/script-macos-linux-basics.presentation.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/script/presentations/script-scripting-basics.presentation.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/script/quizzes/script-linux-bash.quiz.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
@@ -8455,10 +8122,6 @@
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/shield/applets/access/shield-access-control-models.applet.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `houses/shield/applets/compliance/cui_overview/shield-cui-overview.applet.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
@@ -8468,22 +8131,6 @@
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `houses/shield/applets/crypto/hashing_steganography/shield-encryption-task.applet.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/shield/applets/crypto/hashing_steganography/shield-hash-v3.applet.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/shield/applets/crypto/hashing_steganography/shield-stego.applet.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/shield/applets/fundamentals/shield-secure-sdlc-framework.applet.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/shield/applets/fundamentals/shield-security-best-practices.applet.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
@@ -8507,23 +8154,7 @@
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/shield/applets/operations/shield-ics-scada-security.applet.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/shield/applets/risk/shield-change-management.applet.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `houses/shield/applets/threats/shield-malware-types.applet.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/shield/labs/shield-gpg-encryption.lab.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/shield/labs/shield-hashing.lab.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
@@ -8531,15 +8162,7 @@
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/shield/presentations/shield-hash-steg.presentation.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `houses/shield/presentations/shield-social-engineering.presentation.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/shield/tools/shield-aaa-flow.tool.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
@@ -8551,19 +8174,7 @@
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/shield/tools/shield-incident-response.tool.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `houses/shield/tools/shield-security-models.tool.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/shield/tools/shield-yara.tool.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/shield/tools/shield-zero-trust.tool.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
@@ -8575,27 +8186,11 @@
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/web/applets/web-networking-interactive.applet.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `houses/web/exams/web-networking-midterm.exam.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/web/games/packet-sniffer.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `houses/web/index.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/web/labs/web-firewall-rules.lab.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/web/labs/web-troubleshooting.lab.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
@@ -8651,10 +8246,6 @@
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/web/simulators/web-interactive-network-simulatorv2.simulator.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `houses/web/simulators/web-packet-tracer-lite-v3.simulator.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
@@ -8663,103 +8254,7 @@
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/web/tools/web-acl.tool.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/web/tools/web-burp.tool.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/web/tools/web-cable.tool.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `houses/web/tools/web-dns-header.tool.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/web/tools/web-etherchannel.tool.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/web/tools/web-fhrp.tool.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/web/tools/web-gobuster.tool.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/web/tools/web-ipv6.tool.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/web/tools/web-network-services.tool.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/web/tools/web-nikto.tool.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/web/tools/web-osi-deep-dive.tool.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/web/tools/web-osi.tool.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/web/tools/web-ospf-cost.tool.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/web/tools/web-port.tool.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/web/tools/web-qos.tool.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/web/tools/web-security.tool.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/web/tools/web-sqlmap.tool.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/web/tools/web-stp.tool.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/web/tools/web-subnetting.tool.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/web/tools/web-switch-operations.tool.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/web/tools/web-topology.tool.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/web/tools/web-troubleshooting.tool.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/web/tools/web-vlan.tool.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/web/tools/web-wireless-architecture.tool.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/web/tools/web-wireless.tool.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
@@ -8798,7 +8293,7 @@
 ## REGISTRY GAPS
 ══════════════════════════════════════════════════════════════════════
 
-### Unregistered Content (776)
+### Unregistered Content (821)
 
 | Path | Type | House |
 |------|------|-------|
@@ -8842,13 +8337,13 @@
 | dark-arts/vault/modules/static-analysis.module.html | applet | - |
 | dark-arts/vault/network-scanning-lab.html | applet | - |
 | dark-arts/vault/network-sniffing-lab.html | applet | - |
-| dark-arts/vault/nmap-scanning-lab.html | applet | - |
+| dark-arts/vault/nmap-scanning-lab.html | presentation | - |
 | dark-arts/vault/owasp-top10-lab.html | presentation | - |
-| dark-arts/vault/password-attacks-lab.html | applet | - |
+| dark-arts/vault/password-attacks-lab.html | quiz | - |
 | dark-arts/vault/privilege-escalation-lab.html | lab | - |
 | dark-arts/vault/session-hijacking-lab.html | applet | - |
 | dark-arts/vault/social-engineering-advanced.html | applet | - |
-| dark-arts/vault/sql-injection-lab.html | applet | - |
+| dark-arts/vault/sql-injection-lab.html | presentation | - |
 | dark-arts/vault/ssrf-attack-lab.html | presentation | - |
 | dark-arts/vault/steganography-lab.html | lab | - |
 | dark-arts/vault/tools/hashcat-training.html | presentation | - |
@@ -8856,7 +8351,7 @@
 | dark-arts/vault/tools/john-training.html | presentation | - |
 | dark-arts/vault/tools/metasploit-training.html | presentation | - |
 | dark-arts/vault/tools/nmap-training.html | presentation | - |
-| dark-arts/vault/wireless-attacks-lab.html | applet | - |
+| dark-arts/vault/wireless-attacks-lab.html | presentation | - |
 | dark-arts/vault/xss-attacks-lab.html | applet | - |
 | faq.html | applet | - |
 | houses/cloud/applets/architecture/cloud-architecture-designer.applet.html | presentation | cloud |
@@ -8937,6 +8432,9 @@
 | houses/cloud/presentations/cloud-azure-fundamentals.presentation.html | presentation | cloud |
 | houses/cloud/presentations/cloud-cloud.presentation.html | presentation | cloud |
 | houses/cloud/presentations/cloud-concepts.presentation.html | applet | cloud |
+| houses/cloud/presentations/cloud-cse-06-security-monitoring-ir.presentation.html | presentation | cloud |
+| houses/cloud/presentations/cloud-cse-07-risk-assessment.presentation.html | presentation | cloud |
+| houses/cloud/presentations/cloud-cse-08-compliance-governance.presentation.html | presentation | cloud |
 | houses/cloud/presentations/cloud-cse-module01.presentation.html | presentation | cloud |
 | houses/cloud/presentations/cloud-cse-module02.presentation.html | presentation | cloud |
 | houses/cloud/presentations/cloud-cse-module03.presentation.html | presentation | cloud |
@@ -8946,10 +8444,20 @@
 | houses/cloud/presentations/cloud-cse-module07.presentation.html | presentation | cloud |
 | houses/cloud/presentations/cloud-cse-module08.presentation.html | presentation | cloud |
 | houses/cloud/quizzes/cloud-aws-fundamentals.quiz.html | quiz | cloud |
-| houses/cloud/quizzes/cloud-cse-module04.quiz.html | presentation | cloud |
-| houses/cloud/quizzes/cloud-cse-module05.quiz.html | presentation | cloud |
-| houses/cloud/quizzes/cloud-cse-module06.quiz.html | presentation | cloud |
-| houses/cloud/quizzes/cloud-cse-module08.quiz.html | applet | cloud |
+| houses/cloud/quizzes/cloud-ch01-cloud-fundamentals.quiz.html | quiz | cloud |
+| houses/cloud/quizzes/cloud-ch05-iam-security.quiz.html | quiz | cloud |
+| houses/cloud/quizzes/cloud-ch08-storage.quiz.html | quiz | cloud |
+| houses/cloud/quizzes/cloud-ch09-database.quiz.html | quiz | cloud |
+| houses/cloud/quizzes/cloud-ch10-networking.quiz.html | quiz | cloud |
+| houses/cloud/quizzes/cloud-ch12-aws-practitioner-final.quiz.html | quiz | cloud |
+| houses/cloud/quizzes/cloud-cse-module01.quiz.html | quiz | cloud |
+| houses/cloud/quizzes/cloud-cse-module02.quiz.html | quiz | cloud |
+| houses/cloud/quizzes/cloud-cse-module03.quiz.html | quiz | cloud |
+| houses/cloud/quizzes/cloud-cse-module04.quiz.html | quiz | cloud |
+| houses/cloud/quizzes/cloud-cse-module05.quiz.html | quiz | cloud |
+| houses/cloud/quizzes/cloud-cse-module06.quiz.html | quiz | cloud |
+| houses/cloud/quizzes/cloud-cse-module07.quiz.html | quiz | cloud |
+| houses/cloud/quizzes/cloud-cse-module08.quiz.html | quiz | cloud |
 | houses/cloud/tools/cloud-aws-service.tool.html | presentation | cloud |
 | houses/cloud/tools/cloud-ch01-cloud-models.tool.html | presentation | cloud |
 | houses/cloud/tools/cloud-ch02-aws-account.tool.html | presentation | cloud |
@@ -8973,15 +8481,17 @@
 | houses/code/labs/code-cloudformation.lab.html | presentation | code |
 | houses/code/labs/code-docker.lab.html | presentation | code |
 | houses/code/labs/code-kubernetes.lab.html | presentation | code |
+| houses/code/labs/code-terraform.lab.html | presentation | code |
 | houses/code/labs/code-unit-testing.lab.html | presentation | code |
-| houses/code/presentations/code-agile-sdlc.presentation.html | applet | code |
+| houses/code/presentations/code-agile-sdlc.presentation.html | presentation | code |
 | houses/code/presentations/code-automation.presentation.html | presentation | code |
-| houses/code/presentations/code-cicd-fundamentals.presentation.html | applet | code |
-| houses/code/presentations/code-cloudformation-fundamentals.presentation.html | applet | code |
-| houses/code/presentations/code-docker-fundamentals.presentation.html | applet | code |
-| houses/code/presentations/code-git-basics.presentation.html | applet | code |
-| houses/code/presentations/code-kubernetes-fundamentals.presentation.html | applet | code |
-| houses/code/presentations/code-terraform-fundamentals.presentation.html | applet | code |
+| houses/code/presentations/code-cicd-fundamentals.presentation.html | presentation | code |
+| houses/code/presentations/code-cloudformation-fundamentals.presentation.html | presentation | code |
+| houses/code/presentations/code-docker-fundamentals.presentation.html | presentation | code |
+| houses/code/presentations/code-git-basics.presentation.html | presentation | code |
+| houses/code/presentations/code-kubernetes-fundamentals.presentation.html | presentation | code |
+| houses/code/presentations/code-terraform-fundamentals.presentation.html | presentation | code |
+| houses/code/quizzes/code-unit-testing.quiz.html | quiz | code |
 | houses/code/tools/code-ansible-playbook.tool.html | applet | code |
 | houses/code/tools/code-automation.tool.html | applet | code |
 | houses/code/tools/code-sprint.tool.html | applet | code |
@@ -9053,13 +8563,17 @@
 | houses/eye/applets/cyberops/week7/labs/eye-threat-actor-profiling.lab.html | lab | eye |
 | houses/eye/games/alert-triage.html | applet | eye |
 | houses/eye/games/threat-modeler.html | applet | eye |
+| houses/eye/labs/eye-hunting.lab.html | presentation | eye |
 | houses/eye/labs/eye-siem.lab.html | applet | eye |
-| houses/eye/presentations/eye-log-basics.presentation.html | applet | eye |
+| houses/eye/presentations/eye-log-basics.presentation.html | presentation | eye |
 | houses/eye/presentations/eye-log-correlation.presentation.html | presentation | eye |
 | houses/eye/presentations/eye-network-traffic-analysis.presentation.html | presentation | eye |
 | houses/eye/presentations/eye-siem-fundamentals.presentation.html | presentation | eye |
 | houses/eye/presentations/eye-soc-operations.presentation.html | presentation | eye |
 | houses/eye/presentations/eye-threat-hunting.presentation.html | presentation | eye |
+| houses/eye/quizzes/eye-correlation.quiz.html | quiz | eye |
+| houses/eye/quizzes/eye-siem.quiz.html | quiz | eye |
+| houses/eye/quizzes/eye-traffic.quiz.html | quiz | eye |
 | houses/eye/tools/eye-correlation.tool.html | applet | eye |
 | houses/eye/tools/eye-packet.tool.html | applet | eye |
 | houses/eye/tools/eye-siem.tool.html | applet | eye |
@@ -9177,25 +8691,18 @@
 | houses/key/labs/key-kdf.lab.html | presentation | key |
 | houses/key/labs/key-pqc.lab.html | presentation | key |
 | houses/key/modules/key-hash-stego-intro.module.html | presentation | key |
-| houses/key/presentations/key-advanced-symmetric.presentation.html | applet | key |
-| houses/key/presentations/key-certificates.presentation.html | applet | key |
-| houses/key/presentations/key-cryptanalysis.presentation.html | applet | key |
+| houses/key/presentations/key-advanced-symmetric.presentation.html | presentation | key |
+| houses/key/presentations/key-certificates.presentation.html | presentation | key |
+| houses/key/presentations/key-cryptanalysis.presentation.html | presentation | key |
 | houses/key/presentations/key-cryptography-fundamentals.presentation.html | presentation | key |
-| houses/key/presentations/key-derivation.presentation.html | applet | key |
+| houses/key/presentations/key-derivation.presentation.html | presentation | key |
 | houses/key/presentations/key-elliptic-curve.presentation.html | presentation | key |
-| houses/key/presentations/key-encryption-basics.presentation.html | applet | key |
+| houses/key/presentations/key-encryption-basics.presentation.html | presentation | key |
 | houses/key/presentations/key-management.presentation.html | presentation | key |
-| houses/key/presentations/key-message-authentication.presentation.html | applet | key |
-| houses/key/presentations/key-post-quantum.presentation.html | applet | key |
+| houses/key/presentations/key-message-authentication.presentation.html | presentation | key |
+| houses/key/presentations/key-post-quantum.presentation.html | presentation | key |
 | houses/key/presentations/key-tls-ssl.presentation.html | presentation | key |
-| houses/key/quizzes/key-cert.quiz.html | presentation | key |
-| houses/key/quizzes/key-cryptanalysis.quiz.html | presentation | key |
-| houses/key/quizzes/key-ecc.quiz.html | presentation | key |
-| houses/key/quizzes/key-hsm.quiz.html | presentation | key |
-| houses/key/quizzes/key-kdf.quiz.html | presentation | key |
-| houses/key/quizzes/key-mac.quiz.html | presentation | key |
-| houses/key/quizzes/key-pqc.quiz.html | presentation | key |
-| houses/key/quizzes/key-symmetric.quiz.html | presentation | key |
+| houses/key/quizzes/key-cert.quiz.html | quiz | key |
 | houses/key/reviews/hash-cracker.html | presentation | key |
 | houses/key/tools/key-aes.tool.html | presentation | key |
 | houses/key/tools/key-cert.tool.html | presentation | key |
@@ -9266,7 +8773,22 @@
 | houses/script/clh/script-clh-013-intro.applet.html | applet | script |
 | houses/script/clh/script-clh-014-intro.applet.html | applet | script |
 | houses/script/clh/script-clh-015-intro.applet.html | applet | script |
+| houses/script/clh/script-clh-016.quiz.html | quiz | script |
+| houses/script/clh/script-clh-017.quiz.html | quiz | script |
+| houses/script/clh/script-clh-018.quiz.html | quiz | script |
+| houses/script/clh/script-clh-019.quiz.html | quiz | script |
+| houses/script/clh/script-clh-020.quiz.html | quiz | script |
+| houses/script/clh/script-clh-021.quiz.html | quiz | script |
 | houses/script/clh/script-clh-022-intro.applet.html | applet | script |
+| houses/script/clh/script-clh-022.quiz.html | quiz | script |
+| houses/script/clh/script-clh-023.quiz.html | quiz | script |
+| houses/script/clh/script-clh-024.quiz.html | quiz | script |
+| houses/script/clh/script-clh-025.quiz.html | quiz | script |
+| houses/script/clh/script-clh-026.quiz.html | quiz | script |
+| houses/script/clh/script-clh-027.quiz.html | quiz | script |
+| houses/script/clh/script-clh-028.quiz.html | quiz | script |
+| houses/script/clh/script-clh-029.quiz.html | quiz | script |
+| houses/script/clh/script-clh-030.quiz.html | quiz | script |
 | houses/script/courses/clh/modules/clh-001/script-intro.module.html | applet | script |
 | houses/script/courses/clh/modules/clh-002/script-intro.module.html | applet | script |
 | houses/script/courses/clh/modules/clh-002/script-lab.lab.html | lab | script |
@@ -9297,21 +8819,36 @@
 | houses/script/courses/clh/modules/clh-015/script-intro.module.html | applet | script |
 | houses/script/courses/clh/modules/clh-015/script-lab.lab.html | lab | script |
 | houses/script/courses/clh/modules/clh-016/script-lab.lab.html | lab | script |
+| houses/script/courses/clh/modules/clh-016/script-quiz.quiz.html | quiz | script |
 | houses/script/courses/clh/modules/clh-017/script-lab.lab.html | lab | script |
+| houses/script/courses/clh/modules/clh-017/script-quiz.quiz.html | quiz | script |
 | houses/script/courses/clh/modules/clh-018/script-lab.lab.html | lab | script |
+| houses/script/courses/clh/modules/clh-018/script-quiz.quiz.html | quiz | script |
 | houses/script/courses/clh/modules/clh-019/script-lab.lab.html | lab | script |
+| houses/script/courses/clh/modules/clh-019/script-quiz.quiz.html | quiz | script |
 | houses/script/courses/clh/modules/clh-020/script-lab.lab.html | lab | script |
+| houses/script/courses/clh/modules/clh-020/script-quiz.quiz.html | quiz | script |
 | houses/script/courses/clh/modules/clh-021/script-lab.lab.html | lab | script |
+| houses/script/courses/clh/modules/clh-021/script-quiz.quiz.html | quiz | script |
 | houses/script/courses/clh/modules/clh-022/script-intro.module.html | applet | script |
 | houses/script/courses/clh/modules/clh-022/script-lab.lab.html | lab | script |
+| houses/script/courses/clh/modules/clh-022/script-quiz.quiz.html | quiz | script |
 | houses/script/courses/clh/modules/clh-023/script-lab.lab.html | lab | script |
+| houses/script/courses/clh/modules/clh-023/script-quiz.quiz.html | quiz | script |
 | houses/script/courses/clh/modules/clh-024/script-lab.lab.html | lab | script |
+| houses/script/courses/clh/modules/clh-024/script-quiz.quiz.html | quiz | script |
 | houses/script/courses/clh/modules/clh-025/script-lab.lab.html | lab | script |
+| houses/script/courses/clh/modules/clh-025/script-quiz.quiz.html | quiz | script |
 | houses/script/courses/clh/modules/clh-026/script-lab.lab.html | lab | script |
+| houses/script/courses/clh/modules/clh-026/script-quiz.quiz.html | quiz | script |
 | houses/script/courses/clh/modules/clh-027/script-lab.lab.html | lab | script |
+| houses/script/courses/clh/modules/clh-027/script-quiz.quiz.html | quiz | script |
 | houses/script/courses/clh/modules/clh-028/script-lab.lab.html | lab | script |
+| houses/script/courses/clh/modules/clh-028/script-quiz.quiz.html | quiz | script |
 | houses/script/courses/clh/modules/clh-029/script-lab.lab.html | lab | script |
+| houses/script/courses/clh/modules/clh-029/script-quiz.quiz.html | quiz | script |
 | houses/script/courses/clh/modules/clh-030/script-lab.lab.html | lab | script |
+| houses/script/courses/clh/modules/clh-030/script-quiz.quiz.html | quiz | script |
 | houses/script/courses/clh/modules/clh-031/script-lab.lab.html | lab | script |
 | houses/script/games/dont-kill-the-server.html | applet | script |
 | houses/script/labs/linux/script-bash-arrays.lab.html | lab | script |
@@ -9461,7 +8998,7 @@
 | houses/shield/applets/network/shield-linux-firewall-builder.applet.html | applet | shield |
 | houses/shield/applets/operations/shield-cyber-arts-bootcamp.applet.html | lab | shield |
 | houses/shield/applets/operations/shield-cysa-analyst-toolkit.applet.html | applet | shield |
-| houses/shield/applets/operations/shield-ics-scada-security.applet.html | applet | shield |
+| houses/shield/applets/operations/shield-ics-scada-security.applet.html | presentation | shield |
 | houses/shield/applets/risk/shield-business-continuity-planner.applet.html | presentation | shield |
 | houses/shield/applets/risk/shield-change-management.applet.html | presentation | shield |
 | houses/shield/applets/threats/shield-malware-types.applet.html | applet | shield |
@@ -9487,12 +9024,14 @@
 | houses/shield/labs/shield-gpg-encryption.lab.html | presentation | shield |
 | houses/shield/labs/shield-hash.lab.html | presentation | shield |
 | houses/shield/labs/shield-hashing.lab.html | presentation | shield |
+| houses/shield/labs/shield-ir-forensics.lab.html | presentation | shield |
 | houses/shield/labs/shield-network-security.lab.html | presentation | shield |
 | houses/shield/labs/shield-osint-google-dorking.lab.html | applet | shield |
 | houses/shield/labs/shield-security-fundamentals.lab.html | applet | shield |
 | houses/shield/labs/shield-threats.lab.html | presentation | shield |
 | houses/shield/presentations/shield-cia-triad.presentation.html | presentation | shield |
 | houses/shield/presentations/shield-hash-steg.presentation.html | presentation | shield |
+| houses/shield/presentations/shield-security-fundamentals.presentation.html | presentation | shield |
 | houses/shield/presentations/shield-security.presentation.html | presentation | shield |
 | houses/shield/presentations/shield-social-engineering.presentation.html | applet | shield |
 | houses/shield/tools/shield-aaa-flow.tool.html | presentation | shield |
@@ -9502,10 +9041,10 @@
 | houses/shield/tools/shield-incident-response.tool.html | presentation | shield |
 | houses/shield/tools/shield-security-models.tool.html | applet | shield |
 | houses/shield/tools/shield-yara.tool.html | presentation | shield |
-| houses/shield/tools/shield-zero-trust.tool.html | applet | shield |
+| houses/shield/tools/shield-zero-trust.tool.html | presentation | shield |
 | houses/web/applets/ip-addressing/web-binary-decimal-converter.applet.html | applet | web |
 | houses/web/applets/services/web-server-comparison.applet.html | applet | web |
-| houses/web/applets/web-networking-interactive.applet.html | applet | web |
+| houses/web/applets/web-networking-interactive.applet.html | quiz | web |
 | houses/web/exams/web-networking-midterm.exam.html | applet | web |
 | houses/web/games/packet-sniffer.html | presentation | web |
 | houses/web/labs/web-dns-troubleshooting.lab.html | lab | web |
@@ -9542,9 +9081,10 @@
 | houses/web/presentations/web-vlan.presentation.html | presentation | web |
 | houses/web/presentations/web-wireless-architecture.presentation.html | presentation | web |
 | houses/web/presentations/web-wireless.presentation.html | presentation | web |
-| houses/web/quizzes/web-networking-ch7-10.quiz.html | applet | web |
+| houses/web/quizzes/web-networking-ch7-10.quiz.html | quiz | web |
 | houses/web/quizzes/web-networking-ch7-20.quiz.html | applet | web |
 | houses/web/quizzes/web-subnetting.quiz.html | quiz | web |
+| houses/web/quizzes/web-week3.quiz.html | quiz | web |
 | houses/web/reviews/dns-resolver-race.html | presentation | web |
 | houses/web/reviews/subnet-siege.html | presentation | web |
 | houses/web/simulators/web-interactive-network-simulatorv2.simulator.html | presentation | web |

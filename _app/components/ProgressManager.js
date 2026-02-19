@@ -218,14 +218,17 @@ class ProgressManager {
 
     // House definitions with colors and icons
     static HOUSES = {
-        web: { name: 'Web House', icon: '🌐', color: '#3b82f6', domain: 'Networking' },
-        shield: { name: 'Shield House', icon: '🛡️', color: '#a855f7', domain: 'Security' },
-        forge: { name: 'Forge House', icon: '🔨', color: '#f97316', domain: 'Systems' },
-        script: { name: 'Script House', icon: '📜', color: '#22c55e', domain: 'Automation' },
-        cloud: { name: 'Cloud House', icon: '☁️', color: '#06b6d4', domain: 'Cloud Computing' },
-        code: { name: 'Code House', icon: '💻', color: '#ec4899', domain: 'DevOps' },
-        key: { name: 'Key House', icon: '🔑', color: '#eab308', domain: 'Cryptography' },
-        eye: { name: 'Eye House', icon: '👁️', color: '#6366f1', domain: 'Monitoring' }
+        web: { name: 'House of the Web', icon: '🕸️', color: '#60a5fa', domain: 'Networking & Connections' },
+        shield: { name: 'House of the Shield', icon: '🛡️', color: '#f87171', domain: 'Security & Defense' },
+        forge: { name: 'House of the Forge', icon: '⚒️', color: '#fbbf24', domain: 'Hardware & Systems' },
+        script: { name: 'House of the Script', icon: '📜', color: '#a78bfa', domain: 'Automation & Efficiency' },
+        cloud: { name: 'House of the Cloud', icon: '☁️', color: '#38bdf8', domain: 'Infrastructure & Scale' },
+        code: { name: 'House of the Code', icon: '💻', color: '#4ade80', domain: 'Development & Engineering' },
+        key: { name: 'House of the Key', icon: '🔑', color: '#f472b6', domain: 'Cryptography & Secrets' },
+        eye: { name: 'House of the Eye', icon: '👁️', color: '#c084fc', domain: 'Monitoring & Analysis' },
+        'dark-arts': { name: 'House of the Dark Arts', icon: '🌑', color: '#6b21a8', domain: 'Offensive Security & Research' },
+        'matrix': { name: 'House of the Matrix', icon: '💊', color: '#00ff41', domain: 'Augmentation & Transcendence' },
+        'divergent': { name: 'The Factionless', icon: '⚡', color: '#ff00ff', domain: 'All Domains' }
     };
 
     /**
@@ -626,9 +629,19 @@ class ProgressManager {
      */
     static getCompletionStats() {
         const progress = this.getProgress();
-        const completed = Array.isArray(progress.completedModules) ? progress.completedModules.length : 0;
-        let total = 0;
 
+        // Structured count
+        let completed = Array.isArray(progress.completedModules) ? progress.completedModules.length : 0;
+
+        // Reconcile with flat-format count (use the higher number)
+        let flatCount = 0;
+        Object.keys(this.HOUSES).forEach(houseId => {
+            flatCount += this._countFlatCompletions(progress, houseId);
+        });
+        const lsCount = parseInt(localStorage.getItem('hexworth_modules_completed') || '0') || 0;
+        completed = Math.max(completed, flatCount, lsCount);
+
+        let total = 0;
         if (typeof ContentCatalog !== 'undefined') {
             total = ContentCatalog.getAllModules().filter(m => !m.status || m.status === 'available').length;
         }
@@ -759,36 +772,137 @@ class ProgressManager {
      */
     static getProfile() {
         const progress = this.getProgress();
-        const achievements = AchievementSystem.getUnlockedAchievements();
+        const achievements = (typeof AchievementSystem !== 'undefined')
+            ? AchievementSystem.getUnlockedAchievements() : [];
 
-        const nextXP = this.getXPForNextLevel(progress.level);
-        const tier = this.getLevelTier(progress.level);
+        const xp = progress.xp || 0;
+        const level = progress.level || 1;
+        const nextXP = this.getXPForNextLevel(level);
+        const tier = this.getLevelTier(level) || { name: 'Initiate', color: '#6b7280' };
         const completion = this.getCompletionStats();
-        const maxXP = this.getMaxXP();
+        const maxXP = this.getMaxXP() || 495000;
+
+        // ── Reconcile counts from BOTH structured AND flat progress ──
+        // Structured: progress.completedModules[], houses[h].quizzesPassed[], etc.
+        // Flat: progress[houseId][moduleId] = { completed: true, score: 85 }
+        const counts = this._reconcileCounts(progress);
+
+        // ── Build per-house progress with real percentages ──
+        const hasCatalog = typeof ContentCatalog !== 'undefined';
+        const houseProgress = Object.entries(progress.houses || {}).map(([id, house]) => {
+            const def = this.HOUSES[id] || {};
+            const completedCount = (house.modulesCompleted || []).length;
+            // Also count flat-format completions for this house
+            const flatCount = this._countFlatCompletions(progress, id);
+            const totalCompleted = Math.max(completedCount, flatCount);
+            // Get total available modules in this house from ContentCatalog
+            let totalInHouse = 0;
+            if (hasCatalog) {
+                totalInHouse = ContentCatalog.getHouseModules(id)
+                    .filter(m => !m.status || m.status === 'available').length;
+            }
+            const percent = totalInHouse > 0
+                ? Math.round((totalCompleted / totalInHouse) * 100) : 0;
+            return {
+                id,
+                ...def,
+                ...house,
+                percent,
+                completedCount: totalCompleted,
+                totalInHouse
+            };
+        }).filter(h => h.completedCount > 0 || h.totalInHouse > 0);
 
         return {
-            xp: progress.xp,
-            level: progress.level,
+            xp,
+            level,
             maxLevel: null, // uncapped
-            levelProgress: this.getLevelProgress(progress.xp, progress.level),
-            xpToNextLevel: nextXP ? nextXP - progress.xp : null,
-            tier: tier,
-            maxXP: maxXP,
-            xpPercent: maxXP > 0 ? Math.round((progress.xp / maxXP) * 100) : 0,
-            completion: completion,
-            totalModulesCompleted: Array.isArray(progress.completedModules) ? progress.completedModules.length : Object.keys(progress.completedModules || {}).length,
-            totalQuizzesPassed: Array.isArray(progress.quizHistory) ? progress.quizHistory.filter(q => q.score >= 70).length : 0,
-            totalLabsCompleted: Array.isArray(progress.labsCompleted) ? progress.labsCompleted.length : Object.keys(progress.labsCompleted || {}).length,
+            levelProgress: this.getLevelProgress(xp, level),
+            xpToNextLevel: nextXP ? nextXP - xp : null,
+            tier,
+            maxXP,
+            xpPercent: maxXP > 0 ? Math.round((xp / maxXP) * 100) : 0,
+            completion,
+            totalModulesCompleted: counts.modules,
+            totalQuizzesPassed: counts.quizzes,
+            totalLabsCompleted: counts.labs,
             achievementCount: achievements.length,
-            houseProgress: Object.entries(progress.houses || {}).map(([id, house]) => ({
-                id,
-                ...this.HOUSES[id],
-                ...house
-            })),
+            houseProgress,
             divergentBranches: progress.divergentBranches,
             memberSince: progress.createdAt,
             milestones: this.getJourneyMilestones()
         };
+    }
+
+    /**
+     * Reconcile module/quiz/lab counts from both structured and flat progress formats.
+     * Returns the HIGHER of the two counts to avoid undercounting.
+     */
+    static _reconcileCounts(progress) {
+        // Structured counts
+        const structModules = Array.isArray(progress.completedModules)
+            ? progress.completedModules.length
+            : Object.keys(progress.completedModules || {}).length;
+        const structLabs = Array.isArray(progress.labsCompleted)
+            ? progress.labsCompleted.length
+            : Object.keys(progress.labsCompleted || {}).length;
+
+        // Count quizzes from per-house quizzesPassed arrays (structured)
+        let structQuizzes = 0;
+        Object.values(progress.houses || {}).forEach(house => {
+            if (Array.isArray(house.quizzesPassed)) {
+                structQuizzes += house.quizzesPassed.length;
+            }
+        });
+        // Also check the old quizHistory array
+        if (Array.isArray(progress.quizHistory)) {
+            structQuizzes = Math.max(structQuizzes, progress.quizHistory.filter(q => q.score >= 70).length);
+        }
+
+        // Flat-format counts: progress[houseId][moduleId] = { completed, score }
+        let flatModules = 0;
+        let flatQuizzes = 0;
+        let flatLabs = 0;
+        const houseIds = Object.keys(this.HOUSES);
+        houseIds.forEach(houseId => {
+            const houseData = progress[houseId];
+            if (!houseData || typeof houseData !== 'object') return;
+            // Skip structured fields (arrays, primitives)
+            if (Array.isArray(houseData)) return;
+            Object.entries(houseData).forEach(([key, val]) => {
+                if (!val || typeof val !== 'object' || Array.isArray(val)) return;
+                if (val.completed) {
+                    flatModules++;
+                    if (val.score !== undefined) flatQuizzes++;
+                }
+            });
+        });
+
+        // Also check localStorage counters as a third source
+        const lsQuizzes = parseInt(localStorage.getItem('hexworth_quizzes_passed') || '0', 10) || 0;
+        const lsModules = parseInt(localStorage.getItem('hexworth_modules_completed') || '0', 10) || 0;
+
+        return {
+            modules: Math.max(structModules, flatModules, lsModules),
+            quizzes: Math.max(structQuizzes, flatQuizzes, lsQuizzes),
+            labs: Math.max(structLabs, flatLabs)
+        };
+    }
+
+    /**
+     * Count flat-format completions for a specific house.
+     * Reads progress[houseId][moduleId].completed entries.
+     */
+    static _countFlatCompletions(progress, houseId) {
+        const houseData = progress[houseId];
+        if (!houseData || typeof houseData !== 'object' || Array.isArray(houseData)) return 0;
+        let count = 0;
+        Object.values(houseData).forEach(val => {
+            if (val && typeof val === 'object' && !Array.isArray(val) && val.completed) {
+                count++;
+            }
+        });
+        return count;
     }
 
     /**

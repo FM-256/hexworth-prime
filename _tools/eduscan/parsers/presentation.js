@@ -22,11 +22,12 @@ function parse(content, filePath) {
     // Check for presentation indicators
     const hasSaveProgress = test(content, PATTERNS.presentation.detectSaveProgress);
     const hasProgressManager = test(content, PATTERNS.presentation.detectProgressManager);
+    const hasModuleProgress = test(content, PATTERNS.presentation.detectModuleProgress);
     const hasSlides = test(content, PATTERNS.presentation.detectSlides);
     const hasPresentationEngine = test(content, PATTERNS.presentation.detectPresentationEngine);
 
-    // Must have slides OR presentation engine OR saveProgress to be a presentation
-    if (!hasSlides && !hasPresentationEngine && !hasSaveProgress) {
+    // Must have slides OR presentation engine OR saveProgress/ModuleProgress to be a presentation
+    if (!hasSlides && !hasPresentationEngine && !hasSaveProgress && !hasModuleProgress) {
         return result;
     }
 
@@ -37,6 +38,7 @@ function parse(content, filePath) {
         type: 'presentation',
         hasSaveProgress,
         hasProgressManager,
+        hasModuleProgress,
         slideCount: countSlides(content),
         engine: hasPresentationEngine ? 'PresentationEngine' : 'custom'
     };
@@ -59,8 +61,17 @@ function parse(content, filePath) {
         }
     }
 
+    // Extract ModuleProgress.complete arguments if present
+    if (hasModuleProgress) {
+        const args = extractModuleProgressArgs(content);
+        if (args) {
+            result.config.progressModuleId = result.config.progressModuleId || args.moduleId;
+            result.config.progressHouseId = result.config.progressHouseId || args.houseId;
+        }
+    }
+
     // Determine tracking status
-    result.config.tracksProgress = hasSaveProgress || hasProgressManager;
+    result.config.tracksProgress = hasSaveProgress || hasProgressManager || hasModuleProgress;
 
     // Validate and collect issues
     validateConfig(result, filePath);
@@ -103,6 +114,23 @@ function extractCompleteModuleArgs(content) {
         return {
             moduleId: match[1],
             houseId: match[2]
+        };
+    }
+    return null;
+}
+
+/**
+ * Extract arguments from ModuleProgress.complete call
+ * ModuleProgress.complete('houseId', 'moduleId', {...})
+ * or ModuleProgress.completeQuiz('houseId', 'quizId', score)
+ */
+function extractModuleProgressArgs(content) {
+    const pattern = /ModuleProgress\.(?:complete|completeQuiz)\s*\(\s*['"]([^'"]+)['"]\s*,\s*['"]([^'"]+)['"]/;
+    const match = content.match(pattern);
+    if (match) {
+        return {
+            houseId: match[1],
+            moduleId: match[2]
         };
     }
     return null;

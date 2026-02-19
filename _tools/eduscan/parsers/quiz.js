@@ -11,8 +11,8 @@
 
 const { PATTERNS, extractFirst, test } = require('../utils/patterns');
 
-// Valid house names for validation
-const VALID_HOUSES = ['web', 'shield', 'forge', 'script', 'cloud', 'code', 'key', 'eye'];
+// Valid house names for validation (all 11 houses including secret/special)
+const VALID_HOUSES = ['web', 'shield', 'forge', 'script', 'cloud', 'code', 'key', 'eye', 'dark-arts', 'matrix', 'divergent'];
 
 /**
  * Parse file content for quiz indicators
@@ -28,8 +28,12 @@ function parse(content, filePath) {
         ignored: []
     };
 
-    // Check for QuizEngine
-    if (!test(content, PATTERNS.quiz.detect)) {
+    // Check for QuizEngine, ModuleProgress.completeQuiz, or ProgressManager.completeModule with quiz type
+    const hasQuizEngine = test(content, PATTERNS.quiz.detect);
+    const hasModuleProgressQuiz = /ModuleProgress\.completeQuiz\s*\(/.test(content);
+    const hasProgressManagerQuiz = /ProgressManager\.completeModule\s*\([^)]*['"]quiz['"]/.test(content);
+
+    if (!hasQuizEngine && !hasModuleProgressQuiz && !hasProgressManagerQuiz) {
         return result;
     }
 
@@ -39,18 +43,53 @@ function parse(content, filePath) {
     const ignoreDirectives = extractIgnoreDirectives(content);
 
     // Extract configuration
-    result.config = {
-        type: 'quiz',
-        engine: 'QuizEngine',
-        moduleId: extractFirst(content, PATTERNS.quiz.moduleId),
-        houseId: extractFirst(content, PATTERNS.quiz.houseId),
-        trackProgress: extractTrackProgress(content),
-        passingScore: extractNumber(content, PATTERNS.quiz.passingScore),
-        title: extractFirst(content, PATTERNS.quiz.title),
-        achievement: extractFirst(content, PATTERNS.quiz.achievement),
-        timeLimit: extractTimeLimit(content),
-        questionCount: countQuestions(content)
-    };
+    if (hasQuizEngine) {
+        result.config = {
+            type: 'quiz',
+            engine: 'QuizEngine',
+            moduleId: extractFirst(content, PATTERNS.quiz.moduleId),
+            houseId: extractFirst(content, PATTERNS.quiz.houseId),
+            trackProgress: extractTrackProgress(content),
+            passingScore: extractNumber(content, PATTERNS.quiz.passingScore),
+            title: extractFirst(content, PATTERNS.quiz.title),
+            achievement: extractFirst(content, PATTERNS.quiz.achievement),
+            timeLimit: extractTimeLimit(content),
+            questionCount: countQuestions(content)
+        };
+    } else if (hasModuleProgressQuiz) {
+        // ModuleProgress-based quiz — extract from ModuleProgress.completeQuiz('house', 'id', ...)
+        const mpPattern = /ModuleProgress\.completeQuiz\s*\(\s*['"]([^'"]+)['"]\s*,\s*['"]([^'"]+)['"]/;
+        const mpMatch = content.match(mpPattern);
+        result.config = {
+            type: 'quiz',
+            engine: 'ModuleProgress',
+            moduleId: mpMatch ? mpMatch[2] : null,
+            houseId: mpMatch ? mpMatch[1] : extractHouseFromPath(filePath),
+            trackProgress: true,
+            passingScore: extractNumber(content, PATTERNS.quiz.passingScore) || 70,
+            title: extractFirst(content, PATTERNS.quiz.title) || extractFirst(content, /\<title\>([^<]+)/i),
+            achievement: extractFirst(content, PATTERNS.quiz.achievement),
+            timeLimit: null,
+            questionCount: countQuestions(content)
+        };
+    } else {
+        // ProgressManager.completeModule-based quiz — extract moduleId and houseId
+        // Pattern: ProgressManager.completeModule('moduleId', 'houseId', 'quiz', ...)
+        const pmPattern = /ProgressManager\.completeModule\s*\(\s*['"]([^'"]+)['"]\s*,\s*['"]([^'"]+)['"]/;
+        const pmMatch = content.match(pmPattern);
+        result.config = {
+            type: 'quiz',
+            engine: 'ProgressManager',
+            moduleId: pmMatch ? pmMatch[1] : null,
+            houseId: pmMatch ? pmMatch[2] : extractHouseFromPath(filePath),
+            trackProgress: true,
+            passingScore: extractNumber(content, PATTERNS.quiz.passingScore) || 70,
+            title: extractFirst(content, PATTERNS.quiz.title) || extractFirst(content, /\<title\>([^<]+)/i),
+            achievement: extractFirst(content, PATTERNS.quiz.achievement),
+            timeLimit: null,
+            questionCount: countQuestions(content)
+        };
+    }
 
     // Validate configuration and collect issues
     validateConfig(result, filePath, ignoreDirectives);
@@ -176,8 +215,8 @@ function validateConfig(result, filePath, ignoreDirectives) {
     const hasModuleIdIssues = config.moduleId && suggestedModuleId !== config.moduleId;
 
     // ID-001: Combined moduleId issue (house prefix or -quiz suffix)
-    // This is the primary sync-breaking issue
-    if (hasModuleIdIssues) {
+    // Only critical for QuizEngine — ModuleProgress handles its own IDs
+    if (hasModuleIdIssues && config.engine === 'QuizEngine') {
         const ignoreCheck = shouldIgnore('ID-001', ignoreDirectives);
 
         if (ignoreCheck.ignored) {
