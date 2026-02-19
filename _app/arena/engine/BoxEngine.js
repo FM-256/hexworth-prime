@@ -1770,6 +1770,9 @@ const BoxEngine = {
                     time: elapsed,
                     ...researchData
                 });
+            } else if (trackerKey) {
+                // Bridge: write progress directly when ProgressManager isn't loaded
+                this._bridgeProgress(trackerKey, s.score);
             }
         } catch (e) { console.error('[ARENA] ProgressManager error:', e); }
 
@@ -1778,6 +1781,7 @@ const BoxEngine = {
             if (typeof GameTracker !== 'undefined' && trackerKey) {
                 GameTracker.record(trackerKey, {
                     result: 'win',
+                    score: s.score,
                     timeElapsed: elapsed,
                     commandsUsed: totalCommands,
                     achievementsEarned: s.flagsFound.length,
@@ -1818,6 +1822,58 @@ const BoxEngine = {
         } catch (e) { console.error('[ARENA] AssignmentManager error:', e); }
 
         console.log(`%c[ARENA] Assessment reported: ${boxId} (${s.score} pts, ${elapsed}s, ${events.length} events)`, 'color: #9b59b6');
+    },
+
+    /**
+     * Bridge progress to localStorage when ProgressManager isn't loaded.
+     * Writes both flat and structured format + awards LAB_COMPLETE XP (200).
+     */
+    _bridgeProgress(trackerKey, score) {
+        const PROGRESS_KEY = 'hexworth_progress';
+        const LAB_XP = 500; // mirrors ProgressManager.XP_REWARDS.LAB_COMPLETE
+        try {
+            const progress = JSON.parse(localStorage.getItem(PROGRESS_KEY) || '{}');
+
+            // Flat format
+            if (!progress.arena) progress.arena = {};
+            progress.arena[trackerKey] = {
+                completed: true,
+                completedAt: new Date().toISOString(),
+                score: score
+            };
+
+            // Structured format
+            if (!Array.isArray(progress.completedModules)) progress.completedModules = [];
+            if (!progress.houses) progress.houses = {};
+            if (!progress.houses.arena) {
+                progress.houses.arena = {
+                    unlocked: true, modulesCompleted: [], quizzesPassed: [],
+                    labsCompleted: [], currentModule: null, progressPercent: 0, lastAccessed: null
+                };
+            }
+            const house = progress.houses.arena;
+            if (!Array.isArray(house.modulesCompleted)) house.modulesCompleted = [];
+            if (!Array.isArray(house.labsCompleted)) house.labsCompleted = [];
+            house.lastAccessed = Date.now();
+
+            // Only award XP on first completion
+            if (!progress.completedModules.includes(trackerKey)) {
+                progress.completedModules.push(trackerKey);
+                if (!house.modulesCompleted.includes(trackerKey)) house.modulesCompleted.push(trackerKey);
+                if (!house.labsCompleted.includes(trackerKey)) house.labsCompleted.push(trackerKey);
+                if (!Array.isArray(progress.labsCompleted)) progress.labsCompleted = [];
+                if (!progress.labsCompleted.includes(trackerKey)) progress.labsCompleted.push(trackerKey);
+
+                progress.xp = (progress.xp || 0) + LAB_XP;
+                // Level formula inverse (uncapped): N = floor((1 + sqrt(1 + xp/12.5)) / 2)
+                progress.level = Math.max(1, Math.floor((1 + Math.sqrt(1 + progress.xp / 12.5)) / 2));
+            }
+
+            localStorage.setItem(PROGRESS_KEY, JSON.stringify(progress));
+            console.log(`[ARENA] Progress bridge: ${trackerKey} → +${LAB_XP} XP (total: ${progress.xp})`);
+        } catch (e) {
+            console.warn('[ARENA] Progress bridge failed:', e.message);
+        }
     },
 
     /**

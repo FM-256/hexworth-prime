@@ -130,6 +130,115 @@ const ModuleProgress = (function() {
         window.location.href = prefix + 'dashboard.html';
     }
 
+    // ═══════════════════════════════════════════════════════════════
+    // STRUCTURED FORMAT BRIDGE
+    // HouseProgressPanel reads from progress.houses[houseId].modulesCompleted
+    // and progress.completedModules — the structured format that
+    // ProgressManager writes. ModuleProgress historically only wrote
+    // flat format (progress[houseId][moduleId] = { completed: true }).
+    // These bridge functions ensure both formats stay in sync so
+    // "Continue Learning" advances correctly and XP is awarded
+    // even when ProgressManager.js hasn't been loaded on the page.
+    // ═══════════════════════════════════════════════════════════════
+
+    /**
+     * Bridge to ProgressManager structured format.
+     * Awards XP and recalculates level on first completion.
+     */
+    function bridgeStructuredProgress(progress, houseId, moduleId, moduleType, metadata) {
+        if (!Array.isArray(progress.completedModules)) progress.completedModules = [];
+        if (!progress.houses) progress.houses = {};
+        if (!progress.houses[houseId]) {
+            progress.houses[houseId] = {
+                unlocked: true,
+                modulesCompleted: [],
+                quizzesPassed: [],
+                labsCompleted: [],
+                currentModule: null,
+                progressPercent: 0,
+                lastAccessed: null
+            };
+        }
+
+        const house = progress.houses[houseId];
+        if (!Array.isArray(house.modulesCompleted)) house.modulesCompleted = [];
+        house.lastAccessed = Date.now();
+
+        // Only award XP on first completion
+        if (progress.completedModules.includes(moduleId)) return;
+
+        progress.completedModules.push(moduleId);
+        if (!house.modulesCompleted.includes(moduleId)) {
+            house.modulesCompleted.push(moduleId);
+        }
+
+        // Track type-specific lists
+        if (moduleType === 'quiz') {
+            if (!Array.isArray(house.quizzesPassed)) house.quizzesPassed = [];
+            if (!house.quizzesPassed.includes(moduleId)) house.quizzesPassed.push(moduleId);
+        } else if (moduleType === 'lab') {
+            if (!Array.isArray(house.labsCompleted)) house.labsCompleted = [];
+            if (!house.labsCompleted.includes(moduleId)) house.labsCompleted.push(moduleId);
+            if (!Array.isArray(progress.labsCompleted)) progress.labsCompleted = [];
+            if (!progress.labsCompleted.includes(moduleId)) progress.labsCompleted.push(moduleId);
+        }
+
+        // Award XP (mirrors ProgressManager.XP_REWARDS)
+        const XP_BY_TYPE = {
+            presentation: 50, tool: 50, applet: 50,
+            quiz: 100, lab: 500, module: 1000
+        };
+        let xpReward = XP_BY_TYPE[moduleType] || XP_BY_TYPE.presentation;
+
+        // Quiz scoring: 70-89% = 100 XP, 90%+ = 200 XP
+        if (moduleType === 'quiz' && metadata && metadata.score >= 90) {
+            xpReward = 200;
+        }
+
+        progress.xp = (progress.xp || 0) + xpReward;
+        progress.level = calculateLevelFromXP(progress.xp);
+    }
+
+    /**
+     * Bridge to CompletionStamp system.
+     * Writes directly to hexworth_completion_stamps localStorage.
+     * Per-module stamps are visual tracking only (no XP).
+     * House mastery XP (500k) is awarded by ProgressManager when
+     * all modules in a house path are completed.
+     */
+    function bridgeCompletionStamp(houseId, moduleId, score) {
+        const STAMP_KEY = 'hexworth_completion_stamps';
+
+        try {
+            const stamps = JSON.parse(localStorage.getItem(STAMP_KEY) || '{}');
+            const stampId = houseId + '-' + moduleId;
+
+            if (stamps[stampId] && stamps[stampId].completed) return;
+
+            stamps[stampId] = {
+                completed: true,
+                timestamp: new Date().toISOString(),
+                score: (typeof score === 'number') ? score : null
+            };
+            localStorage.setItem(STAMP_KEY, JSON.stringify(stamps));
+
+            window.dispatchEvent(new CustomEvent('completionStamp:marked', {
+                detail: { moduleId: stampId, score }
+            }));
+        } catch (e) {
+            console.warn('[ModuleProgress] CompletionStamp bridge failed:', e.message);
+        }
+    }
+
+    /**
+     * Calculate level from XP (mirrors ProgressManager formula, uncapped)
+     * Formula inverse: N = floor((1 + sqrt(1 + xp/12.5)) / 2)
+     */
+    function calculateLevelFromXP(xp) {
+        if (!xp || xp <= 0) return 1;
+        return Math.max(1, Math.floor((1 + Math.sqrt(1 + xp / 12.5)) / 2));
+    }
+
     /**
      * Complete a module
      * @param {string} houseId - The house ID (forge, shield, web, etc.)
@@ -141,7 +250,7 @@ const ModuleProgress = (function() {
      * @param {number} options.timeSpent - Time spent in minutes
      */
     function complete(houseId, moduleId, options = {}) {
-        const { silent = false, returnToDashboard = true, returnUrl = null, timeSpent = 0 } = options;
+        const { silent = false, returnToDashboard = true, returnUrl = null, timeSpent = 0, type = 'presentation' } = options;
 
         // Load current progress
         const progress = JSON.parse(localStorage.getItem(PROGRESS_KEY) || '{}');
@@ -150,19 +259,20 @@ const ModuleProgress = (function() {
         // Check if this is first completion ever
         const isFirstModule = !hasCompletedAnyModule(progress);
 
-        // Save this module's progress
+        // Save this module's progress (flat format)
         progress[houseId][moduleId] = {
             completed: true,
             date: new Date().toISOString(),
             timeSpent: timeSpent
         };
 
-        localStorage.setItem(PROGRESS_KEY, JSON.stringify(progress));
+        // Bridge to ProgressManager structured format (XP, levels, house progress)
+        bridgeStructuredProgress(progress, houseId, moduleId, type);
 
-        // Bridge to CompletionStamp system
-        if (typeof CompletionStamp !== 'undefined') {
-            CompletionStamp.mark(houseId + '-' + moduleId, null);
-        }
+        // Bridge to CompletionStamp system (visual tracking)
+        bridgeCompletionStamp(houseId, moduleId, null);
+
+        localStorage.setItem(PROGRESS_KEY, JSON.stringify(progress));
 
         // Sync to Firestore for instructor dashboard
         const syncPromise = tryFirestoreSync(moduleId, houseId, 'presentation', {});
@@ -243,12 +353,13 @@ const ModuleProgress = (function() {
             attempts: (progress[houseId][quizId]?.attempts || 0) + 1
         };
 
-        localStorage.setItem(PROGRESS_KEY, JSON.stringify(progress));
-
-        // Bridge to CompletionStamp system
-        if (passed && typeof CompletionStamp !== 'undefined') {
-            CompletionStamp.mark(houseId + '-' + quizId, score);
+        // Bridge to ProgressManager structured format (XP, levels, house progress)
+        if (passed) {
+            bridgeStructuredProgress(progress, houseId, quizId, 'quiz', { score });
+            bridgeCompletionStamp(houseId, quizId, score);
         }
+
+        localStorage.setItem(PROGRESS_KEY, JSON.stringify(progress));
 
         // Sync to Firestore for instructor dashboard
         const syncPromise = tryFirestoreSync(quizId, houseId, 'quiz', { score });

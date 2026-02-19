@@ -100,6 +100,126 @@ const GameTracker = (function () {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
     }
 
+    /**
+     * Award tiered XP for top-5 game score placements.
+     * #1: 1000 XP, #2: 750 XP, #3: 500 XP, #4: 250 XP, #5: 100 XP
+     * Bridges directly to hexworth_progress localStorage.
+     */
+    const RANK_XP = { 1: 1000, 2: 750, 3: 500, 4: 250, 5: 100 };
+
+    function _awardHighScoreXP(gameId, score, rank) {
+        const xpReward = RANK_XP[rank];
+        if (!xpReward) return;
+        try {
+            const progress = JSON.parse(localStorage.getItem('hexworth_progress') || '{}');
+            progress.xp = (progress.xp || 0) + xpReward;
+            _recalcLevel(progress);
+            localStorage.setItem('hexworth_progress', JSON.stringify(progress));
+            console.log(`🏆 ${gameId}: rank #${rank} (${score})! +${xpReward} XP (total: ${progress.xp})`);
+        } catch (e) { /* silent */ }
+    }
+
+    // ── Level helper (shared, uncapped) ─────────────────────────────
+    function _recalcLevel(progress) {
+        // Quadratic formula inverse: N = floor((1 + sqrt(1 + xp/12.5)) / 2)
+        const xp = progress.xp || 0;
+        if (xp <= 0) { progress.level = 1; return; }
+        progress.level = Math.max(1, Math.floor((1 + Math.sqrt(1 + xp / 12.5)) / 2));
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // SCORE REIGN SYSTEM
+    // Hold #1 in a game → earn compounding passive XP over time.
+    // 5% daily compound on a 25 XP base, capped at 500 XP/day, max 90 days.
+    // XP is collected on next visit (dashboard load, game play, etc.).
+    // Reign ends if you play and don't place in top 5.
+    // ═══════════════════════════════════════════════════════════════
+
+    const REIGN = {
+        BASE_XP: 25,         // Base XP per day holding #1
+        RATE: 0.05,          // 5% daily compound
+        MAX_PER_DAY: 500,    // Cap per day
+        MAX_DAYS: 90          // Max compounding period per reign
+    };
+
+    /**
+     * Start or renew a reign for a game.
+     * Called when a new #1 high score is set.
+     * If already reigning, resets the 90-day clock (rewards improvement).
+     */
+    function _startReign(data, gameId) {
+        if (!data[gameId]) return;
+        data[gameId].reign = {
+            active: true,
+            startDate: new Date().toISOString(),
+            lastPaidDay: 0,
+            totalPaid: (data[gameId].reign ? data[gameId].reign.totalPaid : 0) || 0
+        };
+    }
+
+    /**
+     * End a reign for a game.
+     * Called when you play but don't place in top 5.
+     */
+    function _endReign(data, gameId) {
+        if (data[gameId] && data[gameId].reign) {
+            data[gameId].reign.active = false;
+        }
+    }
+
+    /**
+     * Collect all pending reign XP across all games.
+     * Should be called on dashboard load, game start, etc.
+     * @returns {{ totalXP: number, reigns: Array<{gameId, days, earned}> }}
+     */
+    function collectReigns() {
+        const data = _load();
+        const now = new Date();
+        let totalXP = 0;
+        const reigns = [];
+
+        for (const [gameId, entry] of Object.entries(data)) {
+            if (gameId === '_aggregate' || !entry || !entry.reign || !entry.reign.active) continue;
+
+            const start = new Date(entry.reign.startDate);
+            const daysSinceStart = Math.floor((now - start) / 86400000);
+            const payableDays = Math.min(daysSinceStart, REIGN.MAX_DAYS);
+
+            if (payableDays <= entry.reign.lastPaidDay) continue;
+
+            let earned = 0;
+            for (let day = entry.reign.lastPaidDay + 1; day <= payableDays; day++) {
+                const dayXP = Math.min(
+                    Math.round(REIGN.BASE_XP * Math.pow(1 + REIGN.RATE, day)),
+                    REIGN.MAX_PER_DAY
+                );
+                earned += dayXP;
+            }
+
+            if (earned > 0) {
+                entry.reign.lastPaidDay = payableDays;
+                entry.reign.totalPaid = (entry.reign.totalPaid || 0) + earned;
+                totalXP += earned;
+                reigns.push({ gameId, days: payableDays, earned });
+            }
+        }
+
+        if (totalXP > 0) {
+            _save(data);
+            // Bridge XP to progress
+            try {
+                const progress = JSON.parse(localStorage.getItem('hexworth_progress') || '{}');
+                progress.xp = (progress.xp || 0) + totalXP;
+                _recalcLevel(progress);
+                localStorage.setItem('hexworth_progress', JSON.stringify(progress));
+                console.log(`👑 Score Reign: collected ${totalXP} XP from ${reigns.length} active reign(s)`);
+                reigns.forEach(r => console.log(`   ${r.gameId}: ${r.days} days → +${r.earned} XP`));
+            } catch (e) { /* silent */ }
+        }
+
+        return { totalXP, reigns };
+    }
+
     // ── public API ───────────────────────────────────────────────
 
     /**
@@ -176,7 +296,7 @@ const GameTracker = (function () {
         });
         if (entry.history.length > 10) entry.history.shift();
 
-        // ── Top 3 high scores ──────────────────────────────────────
+        // ── Top 5 high scores ──────────────────────────────────────
         let isNewHighScore = false;
         let highScoreRank = null;
 
@@ -192,7 +312,7 @@ const GameTracker = (function () {
             }
             entry.topScores.push({ score: details.score, date: now, name: _name });
             entry.topScores.sort((a, b) => b.score - a.score);
-            entry.topScores = entry.topScores.slice(0, 3);
+            entry.topScores = entry.topScores.slice(0, 5);
 
             // Determine rank (1-based) of the score we just pushed
             const rank = entry.topScores.findIndex(s => s.score === details.score && s.date === now);
@@ -217,6 +337,18 @@ const GameTracker = (function () {
             window.dispatchEvent(new CustomEvent('hexworth:newHighScore', {
                 detail: { gameId, score: details.score, rank: highScoreRank }
             }));
+        }
+
+        // Award tiered XP for top 5 placements
+        if (highScoreRank != null) {
+            _awardHighScoreXP(gameId, details.score, highScoreRank);
+        }
+
+        // Score Reign — start/renew reign on new #1
+        if (isNewHighScore) {
+            const reignData = _load();
+            _startReign(reignData, gameId);
+            _save(reignData);
         }
     }
 
@@ -296,7 +428,7 @@ const GameTracker = (function () {
     }
 
     /**
-     * Get top 3 high scores for a game.
+     * Get top 5 high scores for a game.
      * @param {string} gameId
      * @returns {Array<{score: number, date: number}>}
      */
@@ -396,6 +528,7 @@ const GameTracker = (function () {
         hasWonAll,
         getTopScores,
         getHighScore,
+        collectReigns,
         reset,
         formatTime,
         GAME_REGISTRY

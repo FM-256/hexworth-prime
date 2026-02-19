@@ -177,64 +177,44 @@ class ProgressManager {
 
     // XP rewards for different activities
     static XP_REWARDS = {
-        MODULE_COMPLETE: 100,
-        QUIZ_PASS: 150,
-        QUIZ_PERFECT: 300,
-        FIRST_ATTEMPT_PASS: 50,  // Bonus
-        LAB_COMPLETE: 200,
-        PRESENTATION_VIEW: 50,
-        TOOL_EXPLORE: 75,
+        PRESENTATION_VIEW: 50,     // Viewed a presentation
+        QUIZ_PASS: 100,            // Quiz score 70-89%
+        QUIZ_PERFECT: 200,         // Quiz score 90%+ (first time only, cannot be farmed)
+        LAB_COMPLETE: 500,         // Completed a lab exercise
+        MODULE_COMPLETE: 1000,     // All components of a module finished
+        COURSE_COMPLETE: 10000,    // All modules in a house path finished
+        GAME_HIGH_SCORE: 1000,     // Beat a personal high score in any game
+        TOOL_EXPLORE: 50,          // Explored a tool/applet
         DAILY_LOGIN: 25
         // Note: Achievements award their own .points value (see AchievementSystem.js)
     };
 
-    // Level thresholds (XP required to reach each level)
-    // Formula: gap between levels = 500 + (level-1) * 200
-    static LEVEL_THRESHOLDS = [
-        0,      // Level 1  — Initiate
-        500,    // Level 2
-        1200,   // Level 3
-        2100,   // Level 4
-        3200,   // Level 5
-        4500,   // Level 6  — Apprentice
-        6000,   // Level 7
-        7700,   // Level 8
-        9600,   // Level 9
-        11700,  // Level 10
-        14000,  // Level 11 — Journeyman
-        16500,  // Level 12
-        19200,  // Level 13
-        22100,  // Level 14
-        25200,  // Level 15
-        28500,  // Level 16 — Expert
-        32000,  // Level 17
-        35700,  // Level 18
-        39600,  // Level 19
-        43700,  // Level 20
-        48000,  // Level 21 — Master
-        52500,  // Level 22
-        57200,  // Level 23
-        62100,  // Level 24
-        67200,  // Level 25
-        72500,  // Level 26 — Grandmaster
-        78000,  // Level 27
-        83700,  // Level 28
-        89600,  // Level 29
-        95700,  // Level 30 — Hexworth Prime
-    ];
+    // Level system — uncapped RPG-style quadratic curve
+    // Formula: Level N requires 50 * N * (N-1) cumulative XP
+    // Gap between levels grows linearly: +100 XP per level
+    //   Level  2:       100 XP  |  Level 10:    4,500 XP
+    //   Level 20:    19,000 XP  |  Level 50:  122,500 XP
+    //   Level 100:  495,000 XP  |  Level 200: 1,990,000 XP
+    // No cap — levels keep growing forever. Use the formula, not arrays.
 
-    // Level tier names
+    // Level tier names — base tiers + prestige tiers beyond 100
     static LEVEL_TIERS = [
-        { min: 1,  max: 5,  name: 'Initiate',        color: '#6b7280' },
-        { min: 6,  max: 10, name: 'Apprentice',       color: '#3b82f6' },
-        { min: 11, max: 15, name: 'Journeyman',       color: '#22c55e' },
-        { min: 16, max: 20, name: 'Expert',            color: '#a855f7' },
-        { min: 21, max: 25, name: 'Master',            color: '#f59e0b' },
-        { min: 26, max: 29, name: 'Grandmaster',       color: '#ef4444' },
-        { min: 30, max: 30, name: 'Hexworth Prime',    color: '#06b6d4' },
+        { min: 1,    max: 10,   name: 'Initiate',         color: '#6b7280' },
+        { min: 11,   max: 20,   name: 'Apprentice',       color: '#3b82f6' },
+        { min: 21,   max: 30,   name: 'Journeyman',       color: '#22c55e' },
+        { min: 31,   max: 40,   name: 'Specialist',       color: '#14b8a6' },
+        { min: 41,   max: 50,   name: 'Expert',           color: '#a855f7' },
+        { min: 51,   max: 60,   name: 'Veteran',          color: '#f97316' },
+        { min: 61,   max: 70,   name: 'Master',           color: '#eab308' },
+        { min: 71,   max: 80,   name: 'Grandmaster',      color: '#ef4444' },
+        { min: 81,   max: 90,   name: 'Legend',            color: '#dc2626' },
+        { min: 91,   max: 100,  name: 'Hexworth Prime',   color: '#06b6d4' },
+        { min: 101,  max: 150,  name: 'Ascendant',        color: '#8b5cf6' },
+        { min: 151,  max: 200,  name: 'Transcendent',     color: '#d946ef' },
+        { min: 201,  max: 300,  name: 'Mythic',           color: '#f43f5e' },
+        { min: 301,  max: 500,  name: 'Eternal',          color: '#fbbf24' },
+        { min: 501,  max: Infinity, name: 'Infinite',     color: '#ffffff' },
     ];
-
-    static MAX_LEVEL = 30;
 
     // House definitions with colors and icons
     static HOUSES = {
@@ -499,13 +479,10 @@ class ProgressManager {
         // Calculate XP based on module type
         switch (moduleType) {
             case 'quiz':
-                result.xpEarned = this.XP_REWARDS.QUIZ_PASS;
-                if (metadata.score === 100) {
-                    result.xpEarned = this.XP_REWARDS.QUIZ_PERFECT;
-                }
-                if (metadata.attempts === 1) {
-                    result.xpEarned += this.XP_REWARDS.FIRST_ATTEMPT_PASS;
-                }
+                // 70-89% = 100 XP, 90%+ = 200 XP (first time only)
+                result.xpEarned = (metadata.score >= 90)
+                    ? this.XP_REWARDS.QUIZ_PERFECT
+                    : this.XP_REWARDS.QUIZ_PASS;
                 // Store quiz result
                 progress.quizHistory.push({
                     moduleId,
@@ -580,36 +557,30 @@ class ProgressManager {
     }
 
     /**
-     * Calculate level from XP
+     * Calculate level from XP (uncapped — formula-based, no array lookup)
+     * Formula inverse: N = floor((1 + sqrt(1 + xp/12.5)) / 2)
      */
     static calculateLevel(xp) {
-        for (let i = this.LEVEL_THRESHOLDS.length - 1; i >= 0; i--) {
-            if (xp >= this.LEVEL_THRESHOLDS[i]) {
-                return i + 1;
-            }
-        }
-        return 1;
+        if (!xp || xp <= 0) return 1;
+        return Math.max(1, Math.floor((1 + Math.sqrt(1 + xp / 12.5)) / 2));
     }
 
     /**
-     * Get XP required for next level
+     * Get XP required for next level (always returns a value — no cap)
      */
     static getXPForNextLevel(currentLevel) {
-        if (currentLevel >= this.LEVEL_THRESHOLDS.length) {
-            return null; // Max level
-        }
-        return this.LEVEL_THRESHOLDS[currentLevel];
+        return 50 * (currentLevel + 1) * currentLevel;
     }
 
     /**
      * Get current level progress (0-100%)
      */
     static getLevelProgress(xp, level) {
-        const currentThreshold = this.LEVEL_THRESHOLDS[level - 1] || 0;
-        const nextThreshold = this.LEVEL_THRESHOLDS[level] || this.LEVEL_THRESHOLDS[this.LEVEL_THRESHOLDS.length - 1];
+        const currentThreshold = 50 * level * (level - 1);
+        const nextThreshold = 50 * (level + 1) * level;
         const range = nextThreshold - currentThreshold;
         const progress = xp - currentThreshold;
-        return Math.min(100, Math.round((progress / range) * 100));
+        return range > 0 ? Math.min(100, Math.round((progress / range) * 100)) : 100;
     }
 
     /**
@@ -626,7 +597,7 @@ class ProgressManager {
      * Get the theoretical max XP from all available content
      */
     static getMaxXP() {
-        if (typeof ContentCatalog === 'undefined') return this.LEVEL_THRESHOLDS[this.LEVEL_THRESHOLDS.length - 1];
+        if (typeof ContentCatalog === 'undefined') return 495000; // fallback estimate
 
         const modules = ContentCatalog.getAllModules();
         let maxXP = 0;
@@ -634,20 +605,18 @@ class ProgressManager {
         modules.forEach(mod => {
             if (mod.status && mod.status !== 'available') return;
             const comps = mod.components || [];
-            if (comps.includes('quiz')) {
-                maxXP += this.XP_REWARDS.QUIZ_PERFECT + this.XP_REWARDS.FIRST_ATTEMPT_PASS;
-            } else if (comps.includes('lab')) {
-                maxXP += this.XP_REWARDS.LAB_COMPLETE;
-            } else if (comps.includes('presentation')) {
-                maxXP += this.XP_REWARDS.PRESENTATION_VIEW;
-            } else if (comps.includes('game')) {
-                maxXP += this.XP_REWARDS.LAB_COMPLETE;
-            } else if (comps.includes('applet') || comps.includes('tool')) {
-                maxXP += this.XP_REWARDS.TOOL_EXPLORE;
-            } else {
-                maxXP += this.XP_REWARDS.MODULE_COMPLETE;
-            }
+            // Each component type awards its own XP
+            if (comps.includes('presentation')) maxXP += this.XP_REWARDS.PRESENTATION_VIEW;
+            if (comps.includes('quiz'))         maxXP += this.XP_REWARDS.QUIZ_PERFECT;
+            if (comps.includes('lab'))          maxXP += this.XP_REWARDS.LAB_COMPLETE;
+            if (comps.includes('game'))         maxXP += this.XP_REWARDS.GAME_HIGH_SCORE;
+            if (comps.includes('applet') || comps.includes('tool')) maxXP += this.XP_REWARDS.TOOL_EXPLORE;
+            // Full module completion bonus
+            maxXP += this.XP_REWARDS.MODULE_COMPLETE;
         });
+
+        // Add house mastery bonuses (8 houses × 10k)
+        maxXP += Object.keys(this.HOUSES).length * this.XP_REWARDS.COURSE_COMPLETE;
 
         return maxXP;
     }
@@ -696,20 +665,33 @@ class ProgressManager {
             }
         });
 
-        // Level milestones
+        // Level milestones — base tiers + prestige
         const level = progress.level || 1;
-        if (level >= 5) milestones.push({ icon: '⭐', label: 'Reached Apprentice (Lv 6)', type: 'level' });
-        if (level >= 10) milestones.push({ icon: '⭐', label: 'Reached Lv 10', type: 'level' });
-        if (level >= 15) milestones.push({ icon: '🌟', label: 'Reached Journeyman (Lv 15)', type: 'level' });
-        if (level >= 20) milestones.push({ icon: '🌟', label: 'Reached Expert (Lv 20)', type: 'level' });
-        if (level >= 25) milestones.push({ icon: '💫', label: 'Reached Master (Lv 25)', type: 'level' });
-        if (level >= 30) milestones.push({ icon: '👑', label: 'HEXWORTH PRIME (Lv 30)', type: 'level' });
+        if (level >= 10)  milestones.push({ icon: '⭐', label: 'Initiate Complete (Lv 10)', type: 'level' });
+        if (level >= 20)  milestones.push({ icon: '⭐', label: 'Apprentice (Lv 20)', type: 'level' });
+        if (level >= 30)  milestones.push({ icon: '🌟', label: 'Journeyman (Lv 30)', type: 'level' });
+        if (level >= 40)  milestones.push({ icon: '🌟', label: 'Specialist (Lv 40)', type: 'level' });
+        if (level >= 50)  milestones.push({ icon: '💫', label: 'Expert (Lv 50)', type: 'level' });
+        if (level >= 60)  milestones.push({ icon: '💫', label: 'Veteran (Lv 60)', type: 'level' });
+        if (level >= 70)  milestones.push({ icon: '🏅', label: 'Master (Lv 70)', type: 'level' });
+        if (level >= 80)  milestones.push({ icon: '🏅', label: 'Grandmaster (Lv 80)', type: 'level' });
+        if (level >= 90)  milestones.push({ icon: '👑', label: 'Legend (Lv 90)', type: 'level' });
+        if (level >= 100) milestones.push({ icon: '👑', label: 'HEXWORTH PRIME (Lv 100)', type: 'level' });
+        if (level >= 150) milestones.push({ icon: '🔮', label: 'Ascendant (Lv 150)', type: 'level' });
+        if (level >= 200) milestones.push({ icon: '🔮', label: 'Transcendent (Lv 200)', type: 'level' });
+        if (level >= 300) milestones.push({ icon: '🔥', label: 'Mythic (Lv 300)', type: 'level' });
+        if (level >= 500) milestones.push({ icon: '🔥', label: 'Eternal (Lv 500)', type: 'level' });
 
         // XP milestones
         const xp = progress.xp || 0;
-        if (xp >= 1000) milestones.push({ icon: '💎', label: '1,000 XP earned', type: 'xp' });
-        if (xp >= 10000) milestones.push({ icon: '💎', label: '10,000 XP earned', type: 'xp' });
-        if (xp >= 50000) milestones.push({ icon: '💎', label: '50,000 XP earned', type: 'xp' });
+        if (xp >= 1000)    milestones.push({ icon: '💎', label: '1,000 XP earned', type: 'xp' });
+        if (xp >= 10000)   milestones.push({ icon: '💎', label: '10,000 XP earned', type: 'xp' });
+        if (xp >= 50000)   milestones.push({ icon: '💎', label: '50,000 XP earned', type: 'xp' });
+        if (xp >= 100000)  milestones.push({ icon: '💎', label: '100,000 XP earned', type: 'xp' });
+        if (xp >= 250000)  milestones.push({ icon: '💎', label: '250,000 XP earned', type: 'xp' });
+        if (xp >= 500000)  milestones.push({ icon: '💎', label: '500,000 XP earned', type: 'xp' });
+        if (xp >= 1000000) milestones.push({ icon: '💎', label: '1,000,000 XP earned', type: 'xp' });
+        if (xp >= 5000000) milestones.push({ icon: '💎', label: '5,000,000 XP earned', type: 'xp' });
 
         return milestones;
     }
@@ -787,7 +769,7 @@ class ProgressManager {
         return {
             xp: progress.xp,
             level: progress.level,
-            maxLevel: this.MAX_LEVEL,
+            maxLevel: null, // uncapped
             levelProgress: this.getLevelProgress(progress.xp, progress.level),
             xpToNextLevel: nextXP ? nextXP - progress.xp : null,
             tier: tier,
@@ -823,6 +805,11 @@ class ProgressManager {
             house.modulesCompleted.includes(m.id)
         );
 
+        // Check for house mastery reward (500k XP)
+        if (pathModules.length > 0 && completedInPath.length === pathModules.length) {
+            this.awardHouseMastery(houseId);
+        }
+
         return {
             ...this.HOUSES[houseId],
             ...house,
@@ -830,6 +817,41 @@ class ProgressManager {
             completedCount: completedInPath.length,
             nextModule: LearningPaths.getNextIncompleteModule(houseId, house.modulesCompleted)
         };
+    }
+
+    /**
+     * Award 500,000 XP for completing all modules in a house path.
+     * Tracked in hexworth_house_completions to prevent duplicates.
+     */
+    static HOUSE_MASTERY_XP = 10000; // XP_REWARDS.COURSE_COMPLETE
+
+    static awardHouseMastery(houseId) {
+        const COMPLETION_KEY = 'hexworth_house_completions';
+        try {
+            const completions = JSON.parse(localStorage.getItem(COMPLETION_KEY) || '{}');
+            if (completions[houseId]) return; // Already awarded
+
+            // Mark as awarded
+            completions[houseId] = {
+                timestamp: new Date().toISOString()
+            };
+            localStorage.setItem(COMPLETION_KEY, JSON.stringify(completions));
+
+            // Award XP
+            const progress = this.getProgress();
+            progress.xp = (progress.xp || 0) + this.HOUSE_MASTERY_XP;
+            progress.level = this.calculateLevel(progress.xp);
+            this.saveProgress(progress);
+
+            console.log(`🏆 House ${houseId} mastery complete! +${this.HOUSE_MASTERY_XP.toLocaleString()} XP`);
+
+            // Unlock house mastery achievement
+            if (typeof AchievementManager !== 'undefined') {
+                AchievementManager.unlock(`house_master_${houseId}`);
+            }
+        } catch (e) {
+            console.warn('[ProgressManager] House mastery check failed:', e.message);
+        }
     }
 
     /**
