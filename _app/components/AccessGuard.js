@@ -1,15 +1,16 @@
 /**
  * AccessGuard.js - Content Access Control System
  *
- * Prevents direct file access to protected content.
- * Each module page includes this script which verifies the user
- * has proper authorization before allowing the page to render.
+ * QC-4: Server-side admin verification via Firebase Auth custom claims.
+ * Trust-then-verify pattern: sync localStorage check for instant UX,
+ * async custom claims verification catches forgery in background.
  *
  * Protection Levels:
  * - SORTED: User must have completed house sorting
  * - HOUSE: User must belong to specific house (or have God Mode)
  * - GATE: User must have passed specific Dark Arts gate
- * - ADMIN: User must have God Mode enabled
+ * - ADMIN: User must have Firebase Admin, God Mode, or Master Key
+ * - ADMIN-ONLY: User must have Firebase Admin ONLY (strictest)
  *
  * Usage (add to protected pages):
  *   <script src="../../components/AccessGuard.js"></script>
@@ -17,11 +18,11 @@
  *     AccessGuard.require('sorted');                    // Must be sorted
  *     AccessGuard.require('house', 'shield');           // Must be in Shield house
  *     AccessGuard.require('gate', 3);                   // Must have passed gate 3
- *     AccessGuard.require('admin');                     // Must have God Mode
+ *     AccessGuard.require('admin');                     // Must have admin access
  *   </script>
  *
  * @author Hexworth Prime
- * @version 1.0.0
+ * @version 2.0.0
  */
 
 const AccessGuard = (function() {
@@ -83,14 +84,12 @@ const AccessGuard = (function() {
 
     // ─────────────────────────────────────────────────────────────
     // FIREBASE ADMIN - Persistent admin access via Google sign-in
-    // Uses localStorage - persists across pages and file:// protocol
+    // QC-4: Sync check from localStorage, async verify from custom claims
     // ─────────────────────────────────────────────────────────────
 
-    // Check if user is Firebase admin (reads from localStorage)
+    // Sync check: reads localStorage (fast, may be forged)
     function isFirebaseAdmin() {
-        const value = localStorage.getItem('hexworth_firebase_admin');
-        console.log('[AccessGuard] Firebase admin check:', value);
-        return value === 'true';
+        return localStorage.getItem('hexworth_firebase_admin') === 'true';
     }
 
     // Get Firebase user info
@@ -100,6 +99,45 @@ const AccessGuard = (function() {
             return user ? JSON.parse(user) : null;
         } catch (e) {
             return null;
+        }
+    }
+
+    /**
+     * QC-4: Async admin verification via Firebase Auth custom claims.
+     * Returns: true (verified admin), false (not admin / forged), null (inconclusive)
+     */
+    async function _verifyAdminAsync() {
+        try {
+            if (typeof FirebaseAuth === 'undefined') return null;
+
+            await FirebaseAuth.waitForAuth();
+
+            if (!FirebaseAuth.isSignedIn()) return null; // can't verify unsigned users
+
+            const claims = await FirebaseAuth.getCustomClaims();
+            return claims.admin === true;
+        } catch (e) {
+            console.warn('[AccessGuard] Admin verification error:', e);
+            return null; // inconclusive — don't punish on error
+        }
+    }
+
+    /**
+     * QC-4: Schedule background async verification.
+     * If verification returns false (forged), hide content and redirect.
+     */
+    function _scheduleAsyncVerification(type) {
+        if (type === 'admin') {
+            _verifyAdminAsync().then(result => {
+                if (result === false) {
+                    console.warn('[AccessGuard] ASYNC ADMIN VERIFICATION FAILED — forged localStorage detected');
+                    localStorage.removeItem('hexworth_firebase_admin');
+                    hideContent();
+                    redirect('dashboard', 'Admin access could not be verified.');
+                }
+                // result === true → legitimate admin, keep showing
+                // result === null → inconclusive (offline/not signed in), keep showing
+            });
         }
     }
 
@@ -372,16 +410,12 @@ const AccessGuard = (function() {
 
     // Show page content (after successful check)
     function showContent() {
-        console.log('[AccessGuard] showContent() called');
-
         // Remove both hide styles (preload and dynamic)
         const preloadStyle = document.getElementById('access-guard-preload');
-        console.log('[AccessGuard] preload style found:', !!preloadStyle);
         if (preloadStyle) {
             preloadStyle.remove();
         }
         const hideStyle = document.getElementById('access-guard-hide');
-        console.log('[AccessGuard] hide style found:', !!hideStyle);
         if (hideStyle) {
             hideStyle.remove();
         }
@@ -390,9 +424,6 @@ const AccessGuard = (function() {
         if (document.body) {
             document.body.style.visibility = 'visible';
             document.body.style.opacity = '1';
-            console.log('[AccessGuard] Body styles set');
-        } else {
-            console.log('[AccessGuard] Body does not exist yet');
         }
     }
 
@@ -427,18 +458,21 @@ const AccessGuard = (function() {
         }, config.redirectDelay);
     }
 
+    // ─────────────────────────────────────────────────────────────
+    // MAIN ACCESS CHECK — require(), requireAll(), requireAny()
+    // ─────────────────────────────────────────────────────────────
+
     // Main requirement check
     function require(level, param) {
-        console.log('[AccessGuard] require() called with:', level, param);
-
         // Hide content immediately
         hideContent();
 
-        // Firebase Admin bypasses everything (uses localStorage - persists across pages)
+        // Firebase Admin bypasses everything except admin-only
+        // QC-4: Sync show, async verify in background
         if (isFirebaseAdmin() && level !== 'admin-only') {
-            console.log('[AccessGuard] Firebase admin - showing content');
             showContent();
             addFirebaseAdminBadge();
+            _scheduleAsyncVerification('admin');
             return true;
         }
 
@@ -517,13 +551,31 @@ const AccessGuard = (function() {
                 break;
 
             case 'admin':
-            case 'admin-only':
-                // Must have God Mode - no bypass
+                // QC-4: Firebase admin (verified via custom claims) OR God Mode
+                if (isFirebaseAdmin()) {
+                    showContent();
+                    addFirebaseAdminBadge();
+                    _scheduleAsyncVerification('admin');
+                    return true;
+                }
                 authorized = hasGodMode();
                 if (!authorized) {
                     redirectTo = 'dashboard';
                     message = 'This area requires administrator access.';
                 }
+                break;
+
+            case 'admin-only':
+                // QC-4: Strictest level — Firebase admin only (verified via custom claims)
+                if (isFirebaseAdmin()) {
+                    showContent();
+                    addFirebaseAdminBadge();
+                    _scheduleAsyncVerification('admin');
+                    return true;
+                }
+                authorized = false;
+                redirectTo = 'dashboard';
+                message = 'This area requires administrator access.';
                 break;
 
             default:
@@ -579,10 +631,11 @@ const AccessGuard = (function() {
     function requireAll(...requirements) {
         hideContent();
 
-        // Firebase Admin bypass
+        // Firebase Admin bypass — QC-4: with async verification
         if (isFirebaseAdmin()) {
             showContent();
             addFirebaseAdminBadge();
+            _scheduleAsyncVerification('admin');
             return true;
         }
 
@@ -620,7 +673,8 @@ const AccessGuard = (function() {
                     passed = hasPassedGatesUpTo(5);
                     break;
                 case 'admin':
-                    passed = hasGodMode();
+                    // QC-4: Firebase admin OR God Mode
+                    passed = hasGodMode() || isFirebaseAdmin();
                     break;
                 default:
                     passed = true;
@@ -639,10 +693,11 @@ const AccessGuard = (function() {
     function requireAny(...requirements) {
         hideContent();
 
-        // Firebase Admin bypass
+        // Firebase Admin bypass — QC-4: with async verification
         if (isFirebaseAdmin()) {
             showContent();
             addFirebaseAdminBadge();
+            _scheduleAsyncVerification('admin');
             return true;
         }
 
@@ -679,7 +734,8 @@ const AccessGuard = (function() {
                     passed = hasPassedGatesUpTo(5);
                     break;
                 case 'admin':
-                    passed = hasGodMode();
+                    // QC-4: Firebase admin OR God Mode
+                    passed = hasGodMode() || isFirebaseAdmin();
                     break;
                 default:
                     passed = true;

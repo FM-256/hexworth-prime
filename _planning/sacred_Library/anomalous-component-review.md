@@ -1,3 +1,4 @@
+[STATUS: All issues remain unfixed.]
 # Anomalous Component Review: FluxCapacitor.js
 
 ## Date

@@ -7,192 +7,2040 @@
     <script>GATE_CIPHER.checkVersion();</script>
     <script src="../../../components/AccessGuard.js"></script>
     <script>AccessGuard.require('dark-arts');</script>
-    <title>Gate 9: Binary Analysis | Dark Arts Vault</title>
+    <title>Gate 9: Reverse Engineering | Dark Arts Vault</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
+
         body {
             font-family: 'Courier New', monospace;
             background: #0a0a0f;
-            color: #b0b0c0;
+            color: #b0b8b4;
             min-height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            overflow: hidden;
+            overflow-x: hidden;
             position: relative;
         }
+
         body::before {
             content: '';
             position: fixed;
-            top: 50%; left: 50%;
-            transform: translate(-50%, -50%);
-            width: 800px; height: 800px;
-            background: radial-gradient(circle, rgba(0,200,120,0.04) 0%, rgba(0,140,80,0.02) 30%, transparent 60%);
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: repeating-linear-gradient(
+                0deg,
+                rgba(0,200,120,0.015) 0px,
+                transparent 1px,
+                transparent 3px
+            );
             pointer-events: none;
-            animation: ambientPulse 4s ease-in-out infinite;
+            z-index: 999;
         }
-        @keyframes ambientPulse {
-            0%, 100% { opacity: 0.6; transform: translate(-50%, -50%) scale(1); }
-            50% { opacity: 1; transform: translate(-50%, -50%) scale(1.1); }
-        }
+
         .particle {
             position: fixed;
             width: 2px; height: 2px;
-            background: rgba(0,200,120,0.3);
+            background: rgba(0,200,120,0.25);
             border-radius: 50%;
             pointer-events: none;
-            animation: drift 15s infinite linear;
+            animation: drift 18s infinite linear;
         }
+
         @keyframes drift {
             0% { transform: translateY(100vh) translateX(0); opacity: 0; }
             10% { opacity: 0.6; }
             90% { opacity: 0.6; }
-            100% { transform: translateY(-10vh) translateX(30px); opacity: 0; }
+            100% { transform: translateY(-10vh) translateX(40px); opacity: 0; }
         }
+
         .container {
-            text-align: center;
-            padding: 40px;
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 40px 20px;
             position: relative;
-            z-index: 10;
-            max-width: 600px;
+            z-index: 1;
         }
-        .gate-symbol {
-            width: 160px; height: 160px;
-            margin: 0 auto 40px;
-        }
-        .gate-symbol svg {
-            width: 100%; height: 100%;
-            filter: drop-shadow(0 0 30px rgba(0,200,120,0.3));
-            animation: symbolGlow 3s ease-in-out infinite;
-        }
-        @keyframes symbolGlow {
-            0%, 100% { filter: drop-shadow(0 0 20px rgba(0,200,120,0.2)); }
-            50% { filter: drop-shadow(0 0 40px rgba(0,200,120,0.5)); }
-        }
-        .gate-number { font-size: 0.7rem; letter-spacing: 0.4em; color: #3a5a4a; text-transform: uppercase; margin-bottom: 12px; }
-        .gate-title { font-size: 1.8rem; color: #30d880; letter-spacing: 0.1em; margin-bottom: 8px; text-shadow: 0 0 30px rgba(0,200,120,0.3); }
-        .gate-subtitle { font-size: 0.85rem; color: #5a7a6a; letter-spacing: 0.05em; margin-bottom: 40px; }
-        .construction-banner {
-            background: rgba(0,200,120,0.06);
+
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+            padding: 30px;
+            background: rgba(0,200,120,0.03);
             border: 1px solid rgba(0,200,120,0.15);
-            border-radius: 8px;
-            padding: 30px; margin-bottom: 30px;
-            position: relative; overflow: hidden;
+            border-radius: 10px;
+            position: relative;
+            overflow: hidden;
         }
-        .construction-banner::before {
+
+        .header::before {
             content: '';
             position: absolute;
-            top: 0; left: -100%;
-            width: 50%; height: 100%;
-            background: linear-gradient(90deg, transparent, rgba(0,200,120,0.03), transparent);
-            animation: scanLine 4s ease-in-out infinite;
+            top: -50%; left: -50%;
+            width: 200%; height: 200%;
+            background: radial-gradient(circle, rgba(0,200,120,0.06) 0%, transparent 70%);
+            animation: pulse 4s ease-in-out infinite;
         }
-        @keyframes scanLine { 0% { left: -50%; } 100% { left: 150%; } }
-        .construction-icon { font-size: 1.4rem; margin-bottom: 12px; opacity: 0.7; }
-        .construction-status {
-            font-size: 0.7rem; letter-spacing: 0.3em; color: #30d880;
-            text-transform: uppercase; margin-bottom: 10px;
-            animation: statusBlink 2s ease-in-out infinite;
+
+        @keyframes pulse {
+            0%, 100% { opacity: 0.5; }
+            50% { opacity: 1; }
         }
-        @keyframes statusBlink { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
-        .construction-text { font-size: 0.75rem; color: #4a6a5a; line-height: 1.8; }
-        .preview-section { margin-top: 30px; text-align: left; }
-        .preview-label { font-size: 0.6rem; letter-spacing: 0.3em; color: #3a4a3a; text-transform: uppercase; margin-bottom: 15px; }
-        .preview-item { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid rgba(0,200,120,0.06); }
-        .preview-item:last-child { border-bottom: none; }
-        .preview-icon { font-size: 0.9rem; width: 28px; text-align: center; opacity: 0.5; }
-        .preview-text { font-size: 0.7rem; color: #4a5a4a; letter-spacing: 0.03em; }
-        .preview-text strong { color: #6a8a6a; font-weight: normal; }
-        .classification {
-            margin-top: 35px; padding: 12px 20px;
+
+        .header h1 {
+            font-size: 2.2em;
+            color: #00c878;
+            text-shadow: 0 0 20px rgba(0,200,120,0.6);
+            margin-bottom: 8px;
+            position: relative;
+            letter-spacing: 2px;
+        }
+
+        .header .subtitle {
+            font-size: 1.1em;
+            color: #5a8a70;
+            font-style: italic;
+        }
+
+        .tier-badge {
+            display: inline-block;
+            background: linear-gradient(135deg, #0a3020, #00c878);
+            padding: 6px 18px;
+            border-radius: 20px;
+            margin-top: 10px;
+            font-weight: bold;
+            font-size: 0.85em;
+            color: #c0f0d8;
+            box-shadow: 0 0 15px rgba(0,200,120,0.3);
+        }
+
+        /* Progress Tracker */
+        .progress-tracker {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 30px;
+            padding: 18px;
             background: rgba(0,200,120,0.04);
-            border: 1px dashed rgba(0,200,120,0.12);
+            border-radius: 8px;
+            border: 1px solid rgba(0,200,120,0.12);
+        }
+
+        .progress-item {
+            text-align: center;
+            flex: 1;
+        }
+
+        .progress-item .label {
+            font-size: 0.8em;
+            color: #3a7a5a;
+            margin-bottom: 4px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .progress-item .value {
+            font-size: 1.4em;
+            font-weight: bold;
+            color: #00c878;
+        }
+
+        /* Briefing */
+        .briefing {
+            background: rgba(0,200,120,0.03);
+            border: 1px solid rgba(0,200,120,0.15);
+            border-radius: 10px;
+            padding: 25px;
+            margin-bottom: 30px;
+        }
+
+        .briefing h2 {
+            color: #00c878;
+            margin-bottom: 15px;
+            font-size: 1.4em;
+            text-align: center;
+        }
+
+        .briefing-text {
+            line-height: 1.8;
+            font-size: 0.95em;
+            color: #8aaa98;
+        }
+
+        .briefing-text p { margin-bottom: 12px; }
+
+        .classified-banner {
+            background: repeating-linear-gradient(
+                45deg,
+                rgba(0,200,120,0.15),
+                rgba(0,200,120,0.15) 10px,
+                rgba(0,200,120,0.05) 10px,
+                rgba(0,200,120,0.05) 20px
+            );
+            color: #00c878;
+            text-align: center;
+            padding: 8px;
+            font-weight: bold;
+            margin-bottom: 15px;
+            letter-spacing: 3px;
+            font-size: 0.85em;
+        }
+
+        /* Evidence Cards */
+        .evidence-card {
+            background: rgba(0,10,5,0.6);
+            border: 2px solid rgba(0,200,120,0.15);
+            border-radius: 10px;
+            margin-bottom: 20px;
+            overflow: hidden;
+            transition: all 0.3s ease;
+        }
+
+        .evidence-card.completed {
+            border-color: #00c878;
+            box-shadow: 0 0 20px rgba(0,200,120,0.2);
+        }
+
+        .evidence-card.locked {
+            opacity: 0.4;
+            pointer-events: none;
+            filter: blur(1px);
+        }
+
+        .evidence-header {
+            background: linear-gradient(135deg, rgba(0,40,25,0.8), rgba(0,80,50,0.5));
+            padding: 15px 20px;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: background 0.3s ease;
+        }
+
+        .evidence-header:hover {
+            background: linear-gradient(135deg, rgba(0,60,35,0.8), rgba(0,100,60,0.5));
+        }
+
+        .evidence-header h3 {
+            color: #c0f0d8;
+            font-size: 1.15em;
+        }
+
+        .evidence-status {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 0.9em;
+            color: #5a8a70;
+        }
+
+        .status-icon {
+            width: 22px; height: 22px;
+            border-radius: 50%;
+            border: 2px solid #3a6a4a;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.75em;
+            font-weight: bold;
+        }
+
+        .status-icon.complete {
+            background: #00c878;
+            border-color: #00c878;
+            color: #0a0a0f;
+        }
+
+        .evidence-content {
+            padding: 25px;
+            display: none;
+        }
+
+        .evidence-content.expanded {
+            display: block;
+        }
+
+        /* Assembly / Disassembly View */
+        .disasm-view {
+            background: #050508;
+            border: 1px solid rgba(0,200,120,0.2);
+            border-radius: 5px;
+            padding: 18px;
+            margin: 15px 0;
+            font-size: 0.85em;
+            overflow-x: auto;
+            line-height: 1.7;
+        }
+
+        .disasm-line {
+            white-space: pre;
+        }
+
+        .addr {
+            color: #3a6a4a;
+        }
+
+        .instr {
+            color: #00c878;
+            font-weight: bold;
+        }
+
+        .reg {
+            color: #60b0ff;
+        }
+
+        .imm {
+            color: #f0a040;
+        }
+
+        .comment {
+            color: #4a5a50;
+            font-style: italic;
+        }
+
+        .str-ref {
+            color: #e06060;
+        }
+
+        .func-label {
+            color: #d080ff;
+            font-weight: bold;
+        }
+
+        /* Question / Answer */
+        .question-section {
+            margin-top: 20px;
+            padding: 18px;
+            background: rgba(0,200,120,0.04);
+            border-radius: 5px;
+            border-left: 3px solid rgba(0,200,120,0.3);
+        }
+
+        .question-text {
+            color: #00c878;
+            font-weight: bold;
+            margin-bottom: 12px;
+            font-size: 1em;
+        }
+
+        .answer-options {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .answer-option {
+            background: rgba(0,10,5,0.6);
+            border: 1px solid rgba(0,200,120,0.12);
+            border-radius: 5px;
+            padding: 12px 15px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 0.9em;
+            color: #8aaa98;
+        }
+
+        .answer-option:hover {
+            border-color: rgba(0,200,120,0.4);
+            background: rgba(0,200,120,0.06);
+            transform: translateX(4px);
+        }
+
+        .answer-option.selected {
+            border-color: #00bfff;
+            background: rgba(0,191,255,0.1);
+        }
+
+        .answer-option.correct {
+            border-color: #00ff66;
+            background: rgba(0,255,100,0.1);
+        }
+
+        .answer-option.incorrect {
+            border-color: #ff4444;
+            background: rgba(255,68,68,0.1);
+        }
+
+        .answer-option input[type="radio"] {
+            accent-color: #00c878;
+        }
+
+        /* Interactive decoder tool */
+        .decoder-tool {
+            background: #050508;
+            border: 1px solid rgba(0,200,120,0.2);
+            border-radius: 5px;
+            padding: 18px;
+            margin: 15px 0;
+        }
+
+        .decoder-tool label {
+            display: block;
+            color: #3a7a5a;
+            font-size: 0.8em;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 6px;
+        }
+
+        .decoder-input {
+            width: 100%;
+            padding: 10px;
+            background: #0a0a0f;
+            border: 1px solid rgba(0,200,120,0.2);
+            color: #00c878;
             border-radius: 4px;
-            font-size: 0.55rem; letter-spacing: 0.2em; color: #3a4a3a; text-transform: uppercase;
+            font-family: 'Courier New', monospace;
+            font-size: 0.95em;
+            margin-bottom: 12px;
         }
-        .return-link {
-            display: inline-block; margin-top: 30px; padding: 10px 30px;
-            border: 1px solid rgba(0,200,120,0.15); border-radius: 20px;
-            color: #4a6a5a; font-size: 0.7rem; letter-spacing: 0.15em;
-            text-decoration: none; transition: all 0.3s ease;
+
+        .decoder-input:focus {
+            outline: none;
+            border-color: #00c878;
+            box-shadow: 0 0 10px rgba(0,200,120,0.2);
         }
-        .return-link:hover { border-color: rgba(0,200,120,0.4); color: #30d880; box-shadow: 0 0 20px rgba(0,200,120,0.1); }
-        @media (max-width: 600px) { .gate-symbol { width: 120px; height: 120px; } .gate-title { font-size: 1.3rem; } .container { padding: 20px; } }
+
+        .decoder-output {
+            background: #0a0a0f;
+            border: 1px solid rgba(0,200,120,0.1);
+            border-radius: 4px;
+            padding: 12px;
+            min-height: 40px;
+            color: #e06060;
+            font-size: 0.9em;
+            word-break: break-all;
+        }
+
+        /* API hash matching */
+        .api-match-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin: 15px 0;
+        }
+
+        .api-match-item {
+            background: #050508;
+            border: 1px solid rgba(0,200,120,0.12);
+            border-radius: 5px;
+            padding: 12px;
+        }
+
+        .api-match-item .hash-val {
+            color: #f0a040;
+            font-size: 0.85em;
+            margin-bottom: 6px;
+        }
+
+        .api-match-item select {
+            width: 100%;
+            padding: 8px;
+            background: #0a0a0f;
+            border: 1px solid rgba(0,200,120,0.2);
+            color: #b0b8b4;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.85em;
+        }
+
+        .api-match-item select:focus {
+            outline: none;
+            border-color: #00c878;
+        }
+
+        .api-match-item.matched-correct select {
+            border-color: #00ff66;
+            color: #00ff66;
+        }
+
+        .api-match-item.matched-wrong select {
+            border-color: #ff4444;
+            color: #ff4444;
+        }
+
+        /* Control flow path highlighting */
+        .flow-path {
+            transition: all 0.4s ease;
+        }
+
+        .flow-path.active-path {
+            background: rgba(0,200,120,0.08);
+            border-left: 3px solid #00c878;
+            padding-left: 10px;
+        }
+
+        .flow-path.inactive-path {
+            opacity: 0.35;
+        }
+
+        /* Final report form */
+        .report-form {
+            margin-top: 15px;
+        }
+
+        .report-field {
+            margin-bottom: 15px;
+        }
+
+        .report-field label {
+            display: block;
+            color: #00c878;
+            font-size: 0.85em;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 6px;
+        }
+
+        .report-field textarea,
+        .report-field input[type="text"],
+        .report-field select {
+            width: 100%;
+            padding: 10px;
+            background: #050508;
+            border: 1px solid rgba(0,200,120,0.2);
+            color: #b0b8b4;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+            resize: vertical;
+        }
+
+        .report-field textarea { min-height: 80px; }
+
+        .report-field textarea:focus,
+        .report-field input:focus,
+        .report-field select:focus {
+            outline: none;
+            border-color: #00c878;
+            box-shadow: 0 0 10px rgba(0,200,120,0.15);
+        }
+
+        /* Buttons */
+        .submit-button {
+            background: linear-gradient(135deg, #0a3020, #00c878);
+            color: #0a0a0f;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-family: 'Courier New', monospace;
+            font-size: 1em;
+            font-weight: bold;
+            margin-top: 15px;
+            transition: all 0.3s ease;
+            width: 100%;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .submit-button:hover {
+            box-shadow: 0 0 20px rgba(0,200,120,0.5);
+            transform: translateY(-2px);
+        }
+
+        .submit-button:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        /* Feedback */
+        .feedback {
+            margin-top: 12px;
+            padding: 12px;
+            border-radius: 5px;
+            font-weight: bold;
+            text-align: center;
+            display: none;
+            font-size: 0.95em;
+        }
+
+        .feedback.correct {
+            background: rgba(0,255,100,0.1);
+            border: 1px solid #00ff66;
+            color: #00ff66;
+            display: block;
+        }
+
+        .feedback.incorrect {
+            background: rgba(255,68,68,0.1);
+            border: 1px solid #ff4444;
+            color: #ff6666;
+            display: block;
+        }
+
+        /* Filesystem Hints */
+        .filesystem {
+            background: #050508;
+            border: 1px solid rgba(0,200,120,0.15);
+            border-radius: 5px;
+            padding: 15px;
+            margin: 20px 0;
+            font-size: 0.85em;
+        }
+
+        .filesystem .fs-title {
+            color: #3a7a5a;
+            font-size: 0.75em;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 10px;
+        }
+
+        .fs-item {
+            padding: 5px 8px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            border-radius: 3px;
+            transition: background 0.2s;
+            color: #6a8a78;
+        }
+
+        .fs-item:hover {
+            background: rgba(0,200,120,0.06);
+        }
+
+        .fs-item.hidden-file {
+            display: none;
+        }
+
+        .fs-item.revealed {
+            display: flex;
+            color: #e0a040;
+        }
+
+        .fs-item .icon { width: 16px; text-align: center; }
+
+        .fs-popup {
+            display: none;
+            position: fixed;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            background: #0a0a0f;
+            border: 2px solid rgba(0,200,120,0.3);
+            border-radius: 8px;
+            padding: 25px;
+            max-width: 650px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+            z-index: 500;
+            box-shadow: 0 0 40px rgba(0,200,120,0.2);
+        }
+
+        .fs-popup.active { display: block; }
+
+        .fs-popup h4 {
+            color: #00c878;
+            margin-bottom: 12px;
+            font-size: 1em;
+        }
+
+        .fs-popup pre {
+            color: #8aaa98;
+            font-size: 0.85em;
+            line-height: 1.6;
+            white-space: pre-wrap;
+        }
+
+        .fs-popup .close-btn {
+            position: absolute;
+            top: 10px; right: 15px;
+            color: #5a8a70;
+            cursor: pointer;
+            font-size: 1.2em;
+            background: none;
+            border: none;
+            font-family: 'Courier New', monospace;
+        }
+
+        .fs-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(0,0,0,0.7);
+            z-index: 499;
+        }
+
+        .fs-overlay.active { display: block; }
+
+        /* God Mode */
+        .god-mode-toggle {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: rgba(0,10,5,0.9);
+            border: 1px solid rgba(0,200,120,0.15);
+            border-radius: 5px;
+            padding: 8px 14px;
+            z-index: 100;
+            font-size: 0.8em;
+            color: #3a6a4a;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .god-mode-toggle:hover {
+            border-color: rgba(0,200,120,0.4);
+            color: #00c878;
+        }
+
+        .god-mode-toggle input { margin-right: 6px; accent-color: #00c878; }
+
+        /* Success Modal */
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(0,0,0,0.9);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .modal-overlay.active { display: flex; }
+
+        .success-modal {
+            background: linear-gradient(135deg, #0a0a0f, #0a1a12);
+            border: 3px solid #00c878;
+            border-radius: 15px;
+            padding: 40px;
+            max-width: 550px;
+            text-align: center;
+            box-shadow: 0 0 60px rgba(0,200,120,0.5);
+            animation: modalSlide 0.5s ease-out;
+        }
+
+        @keyframes modalSlide {
+            from { transform: translateY(-40px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+
+        .success-modal h2 {
+            color: #00c878;
+            font-size: 2.2em;
+            margin-bottom: 15px;
+            text-shadow: 0 0 25px rgba(0,200,120,0.8);
+        }
+
+        .success-modal .rank {
+            font-size: 1.4em;
+            color: #5aaa80;
+            margin-bottom: 10px;
+        }
+
+        .success-modal .final-score {
+            font-size: 2.5em;
+            color: #00c878;
+            font-weight: bold;
+            margin: 15px 0;
+            text-shadow: 0 0 20px rgba(0,200,120,0.6);
+        }
+
+        .success-modal .message {
+            color: #8aaa98;
+            line-height: 1.7;
+            margin-bottom: 25px;
+            font-size: 0.95em;
+        }
+
+        .continue-button {
+            background: linear-gradient(135deg, #00c878, #00a060);
+            color: #0a0a0f;
+            border: none;
+            padding: 14px 40px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-family: 'Courier New', monospace;
+            font-size: 1.1em;
+            font-weight: bold;
+            transition: all 0.3s ease;
+        }
+
+        .continue-button:hover {
+            box-shadow: 0 0 25px rgba(0,200,120,0.6);
+            transform: scale(1.05);
+        }
+
+        .back-link {
+            display: inline-block;
+            margin-top: 30px;
+            color: #3a5a48;
+            font-size: 0.75em;
+            text-decoration: none;
+            letter-spacing: 0.1em;
+            transition: color 0.3s ease;
+        }
+
+        .back-link:hover { color: #00c878; }
+
+        .ref-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 10px 0;
+            font-size: 0.85em;
+        }
+
+        .ref-table th {
+            background: rgba(0,200,120,0.1);
+            color: #00c878;
+            padding: 8px 10px;
+            text-align: left;
+            border-bottom: 1px solid rgba(0,200,120,0.2);
+        }
+
+        .ref-table td {
+            padding: 6px 10px;
+            border-bottom: 1px solid rgba(0,200,120,0.06);
+            color: #8aaa98;
+        }
+
+        @media (max-width: 768px) {
+            .header h1 { font-size: 1.5em; }
+            .progress-tracker { flex-direction: column; gap: 12px; }
+            .api-match-grid { grid-template-columns: 1fr; }
+        }
     </style>
 </head>
 <body>
-    <div class="particle" style="left:10%;animation-delay:0s;animation-duration:12s"></div>
-    <div class="particle" style="left:25%;animation-delay:2s;animation-duration:16s"></div>
-    <div class="particle" style="left:40%;animation-delay:5s;animation-duration:14s"></div>
-    <div class="particle" style="left:55%;animation-delay:1s;animation-duration:18s"></div>
-    <div class="particle" style="left:70%;animation-delay:7s;animation-duration:13s"></div>
-    <div class="particle" style="left:85%;animation-delay:3s;animation-duration:15s"></div>
+    <!-- Particles -->
+    <div class="particle" style="left:8%;animation-delay:0s;animation-duration:14s"></div>
+    <div class="particle" style="left:22%;animation-delay:3s;animation-duration:18s"></div>
+    <div class="particle" style="left:38%;animation-delay:6s;animation-duration:15s"></div>
+    <div class="particle" style="left:52%;animation-delay:1s;animation-duration:20s"></div>
+    <div class="particle" style="left:68%;animation-delay:8s;animation-duration:16s"></div>
+    <div class="particle" style="left:82%;animation-delay:4s;animation-duration:13s"></div>
+    <div class="particle" style="left:94%;animation-delay:9s;animation-duration:17s"></div>
+
+    <!-- God Mode -->
+    <div class="god-mode-toggle">
+        <input type="checkbox" id="godMode">
+        <label for="godMode">God Mode</label>
+    </div>
 
     <div class="container">
-        <div class="gate-symbol">
-            <svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
-                <!-- Outer ring -->
-                <circle cx="100" cy="100" r="90" fill="none" stroke="rgba(48,216,128,0.15)" stroke-width="2"/>
-                <!-- Biohazard symbol -->
-                <!-- Three crescents -->
-                <g transform="translate(100,100)" fill="none" stroke="rgba(48,216,128,0.5)" stroke-width="4">
-                    <!-- Top crescent -->
-                    <path d="M0,-55 A30,30 0 0,1 0,-15" fill="rgba(48,216,128,0.25)"/>
-                    <path d="M0,-55 A30,30 0 0,0 0,-15" fill="rgba(48,216,128,0.15)"/>
-                    <!-- Bottom-left crescent -->
-                    <path d="M-47.6,27.5 A30,30 0 0,1 -13,-7.5" fill="rgba(48,216,128,0.25)"/>
-                    <path d="M-47.6,27.5 A30,30 0 0,0 -13,-7.5" fill="rgba(48,216,128,0.15)"/>
-                    <!-- Bottom-right crescent -->
-                    <path d="M47.6,27.5 A30,30 0 0,1 13,-7.5" fill="rgba(48,216,128,0.25)"/>
-                    <path d="M47.6,27.5 A30,30 0 0,0 13,-7.5" fill="rgba(48,216,128,0.15)"/>
-                </g>
-                <!-- Center ring -->
-                <circle cx="100" cy="100" r="10" fill="none" stroke="rgba(48,216,128,0.5)" stroke-width="3"/>
-                <!-- Center dot with gate number -->
-                <circle cx="100" cy="100" r="6" fill="rgba(48,216,128,0.3)"/>
-                <text x="100" y="145" text-anchor="middle" fill="rgba(48,216,128,0.6)" font-family="Courier New" font-size="12" font-weight="bold">IX</text>
-            </svg>
+        <!-- Header -->
+        <div class="header">
+            <h1>GATE IX: REVERSE ENGINEERING</h1>
+            <div class="subtitle">Disassemble. Trace. Decode. Reconstruct.</div>
+            <div class="tier-badge">TIER 5 // EST. 40-60 MIN</div>
         </div>
 
-        <div class="gate-number">Gate IX</div>
-        <h1 class="gate-title">Binary Analysis</h1>
-        <p class="gate-subtitle">Decode. Deobfuscate. Extract.</p>
-
-        <div class="construction-banner">
-            <div class="construction-icon">&#9888;</div>
-            <div class="construction-status">Analysis Lab Under Construction</div>
-            <p class="construction-text">
-                The binary analysis environment is being calibrated.<br>
-                Hex viewers, decoders, and cipher tools<br>
-                are not yet operational.
-            </p>
-        </div>
-
-        <div class="preview-section">
-            <div class="preview-label">Mission Preview</div>
-            <div class="preview-item">
-                <span class="preview-icon">&#9635;</span>
-                <span class="preview-text"><strong>Hex Dump</strong> &mdash; Locate anomalous data regions in raw binary</span>
+        <!-- Progress Tracker -->
+        <div class="progress-tracker">
+            <div class="progress-item">
+                <div class="label">Evidence</div>
+                <div class="value" id="evidenceCount">0/4</div>
             </div>
-            <div class="preview-item">
-                <span class="preview-icon">&#9638;</span>
-                <span class="preview-text"><strong>ASCII Extraction</strong> &mdash; Convert hex sequences to readable strings</span>
+            <div class="progress-item">
+                <div class="label">Score</div>
+                <div class="value" id="currentScore">0/600</div>
             </div>
-            <div class="preview-item">
-                <span class="preview-icon">&#9670;</span>
-                <span class="preview-text"><strong>Multi-Layer Decode</strong> &mdash; Peel nested encoding schemes</span>
-            </div>
-            <div class="preview-item">
-                <span class="preview-icon">&#9881;</span>
-                <span class="preview-text"><strong>Caesar Cipher</strong> &mdash; Apply shift-based decryption to reveal the flag</span>
+            <div class="progress-item">
+                <div class="label">Pass Threshold</div>
+                <div class="value">400</div>
             </div>
         </div>
 
-        <div class="classification">
-            Tier V // Master Clearance Required // Est. 20&ndash;30 min
+        <!-- Briefing -->
+        <div class="briefing">
+            <div class="classified-banner">CLASSIFIED // REVERSE ENGINEERING LAB</div>
+            <h2>MISSION BRIEFING</h2>
+            <div class="briefing-text">
+                <p>An incident response team has recovered a suspicious PE binary from a compromised workstation in a defense contractor's network. Initial triage flagged it as a custom implant -- not matching any known malware family signature.</p>
+                <p>Your task: perform reverse engineering analysis on the disassembled code. Identify subroutine purposes, trace execution flow, decrypt obfuscated strings, reconstruct API calls, and produce a structured malware analysis report.</p>
+                <p>A simulated analyst workstation has been provisioned. Browse the filesystem for reference materials. Some useful files may be hidden -- a real analyst knows to look everywhere.</p>
+                <p><strong>Success criteria:</strong> Score 400+ out of 600 points across all sections.</p>
+            </div>
         </div>
 
-        <a href="../index.html" class="return-link">Return to Vault</a>
+        <!-- Filesystem Browser -->
+        <div class="filesystem" id="filesystemBrowser">
+            <div class="fs-title">Analyst Workstation -- /home/analyst/</div>
+            <div class="fs-item" onclick="openFile('x86ref')">
+                <span class="icon">&#128196;</span>
+                <span>reference/x86-quick-ref.md</span>
+            </div>
+            <div class="fs-item hidden-file" id="fs-apihash" onclick="openFile('apihash')">
+                <span class="icon">&#128196;</span>
+                <span>reference/.api-hash-lookup.txt</span>
+            </div>
+            <div class="fs-item hidden-file" id="fs-xorpat" onclick="openFile('xorpat')">
+                <span class="icon">&#128196;</span>
+                <span>reference/.xor-patterns.txt</span>
+            </div>
+            <div class="fs-item hidden-file" id="fs-sample" onclick="openFile('sample')">
+                <span class="icon">&#128196;</span>
+                <span>previous-samples/.sample-2847-notes.txt</span>
+            </div>
+            <div class="fs-item hidden-file" id="fs-ghidra" onclick="openFile('ghidra')">
+                <span class="icon">&#128196;</span>
+                <span>.ghidra-plugins/tips.txt</span>
+            </div>
+            <div class="fs-item" onclick="revealHidden()" style="color:#3a5a48;">
+                <span class="icon">$</span>
+                <span>ls -la (show hidden files)</span>
+            </div>
+        </div>
+
+        <!-- ======================== EVIDENCE 1: Function Identification ======================== -->
+        <div class="evidence-card" id="evidence1">
+            <div class="evidence-header" onclick="toggleEvidence('evidence1')">
+                <h3>Evidence 1: Function Identification</h3>
+                <div class="evidence-status">
+                    <span id="evidence1-points">0/100 pts</span>
+                    <div class="status-icon" id="evidence1-status"></div>
+                </div>
+            </div>
+            <div class="evidence-content expanded" id="evidence1-content">
+                <p style="margin-bottom:15px;color:#8aaa98;">The binary has been disassembled. Below are five subroutines extracted from the .text section. Identify the purpose of each function based on the assembly instructions and API calls.</p>
+
+                <!-- Sub 1: Encryption routine -->
+                <div class="disasm-view">
+                    <div class="disasm-line"><span class="func-label">sub_00401000:</span></div>
+                    <div class="disasm-line"><span class="addr">00401000</span>  <span class="instr">push</span>   <span class="reg">ebp</span></div>
+                    <div class="disasm-line"><span class="addr">00401001</span>  <span class="instr">mov</span>    <span class="reg">ebp</span>, <span class="reg">esp</span></div>
+                    <div class="disasm-line"><span class="addr">00401003</span>  <span class="instr">sub</span>    <span class="reg">esp</span>, <span class="imm">0x20</span></div>
+                    <div class="disasm-line"><span class="addr">00401006</span>  <span class="instr">mov</span>    <span class="reg">esi</span>, [<span class="reg">ebp</span>+<span class="imm">0x08</span>]        <span class="comment">; plaintext buffer ptr</span></div>
+                    <div class="disasm-line"><span class="addr">00401009</span>  <span class="instr">mov</span>    <span class="reg">edi</span>, [<span class="reg">ebp</span>+<span class="imm">0x0C</span>]        <span class="comment">; output buffer ptr</span></div>
+                    <div class="disasm-line"><span class="addr">0040100C</span>  <span class="instr">mov</span>    <span class="reg">ecx</span>, [<span class="reg">ebp</span>+<span class="imm">0x10</span>]        <span class="comment">; buffer length</span></div>
+                    <div class="disasm-line"><span class="addr">0040100F</span>  <span class="instr">mov</span>    <span class="reg">al</span>, <span class="imm">0x5A</span>              <span class="comment">; XOR key byte</span></div>
+                    <div class="disasm-line"><span class="addr">00401011</span>  <span class="instr">xor</span>    <span class="reg">edx</span>, <span class="reg">edx</span></div>
+                    <div class="disasm-line"><span class="func-label">.loop:</span></div>
+                    <div class="disasm-line"><span class="addr">00401013</span>  <span class="instr">cmp</span>    <span class="reg">edx</span>, <span class="reg">ecx</span></div>
+                    <div class="disasm-line"><span class="addr">00401015</span>  <span class="instr">jge</span>    <span class="func-label">.done</span></div>
+                    <div class="disasm-line"><span class="addr">00401017</span>  <span class="instr">mov</span>    <span class="reg">bl</span>, [<span class="reg">esi</span>+<span class="reg">edx</span>]</div>
+                    <div class="disasm-line"><span class="addr">0040101A</span>  <span class="instr">xor</span>    <span class="reg">bl</span>, <span class="reg">al</span>               <span class="comment">; XOR each byte with key</span></div>
+                    <div class="disasm-line"><span class="addr">0040101C</span>  <span class="instr">mov</span>    [<span class="reg">edi</span>+<span class="reg">edx</span>], <span class="reg">bl</span></div>
+                    <div class="disasm-line"><span class="addr">00401022</span>  <span class="instr">inc</span>    <span class="reg">edx</span></div>
+                    <div class="disasm-line"><span class="addr">00401023</span>  <span class="instr">jmp</span>    <span class="func-label">.loop</span></div>
+                    <div class="disasm-line"><span class="func-label">.done:</span></div>
+                    <div class="disasm-line"><span class="addr">00401025</span>  <span class="instr">leave</span></div>
+                    <div class="disasm-line"><span class="addr">00401026</span>  <span class="instr">ret</span></div>
+                </div>
+
+                <div class="question-section" id="q1a">
+                    <div class="question-text">Q1a: What is the purpose of sub_00401000?</div>
+                    <div class="answer-options">
+                        <label class="answer-option"><input type="radio" name="q1a" value="a"><span>Memory allocation wrapper for heap buffers</span></label>
+                        <label class="answer-option"><input type="radio" name="q1a" value="b"><span>XOR-based encryption/encoding routine with bit rotation</span></label>
+                        <label class="answer-option"><input type="radio" name="q1a" value="c"><span>String comparison function for password validation</span></label>
+                        <label class="answer-option"><input type="radio" name="q1a" value="d"><span>Network packet checksum calculator</span></label>
+                    </div>
+                </div>
+
+                <!-- Sub 2: C2 callback -->
+                <div class="disasm-view" style="margin-top:20px;">
+                    <div class="disasm-line"><span class="func-label">sub_00401100:</span></div>
+                    <div class="disasm-line"><span class="addr">00401100</span>  <span class="instr">push</span>   <span class="reg">ebp</span></div>
+                    <div class="disasm-line"><span class="addr">00401101</span>  <span class="instr">mov</span>    <span class="reg">ebp</span>, <span class="reg">esp</span></div>
+                    <div class="disasm-line"><span class="addr">00401103</span>  <span class="instr">sub</span>    <span class="reg">esp</span>, <span class="imm">0x100</span></div>
+                    <div class="disasm-line"><span class="addr">00401109</span>  <span class="instr">push</span>   <span class="imm">0x06</span>                <span class="comment">; IPPROTO_TCP</span></div>
+                    <div class="disasm-line"><span class="addr">0040110B</span>  <span class="instr">push</span>   <span class="imm">0x01</span>                <span class="comment">; SOCK_STREAM</span></div>
+                    <div class="disasm-line"><span class="addr">0040110D</span>  <span class="instr">push</span>   <span class="imm">0x02</span>                <span class="comment">; AF_INET</span></div>
+                    <div class="disasm-line"><span class="addr">0040110F</span>  <span class="instr">call</span>   <span class="func-label">socket</span></div>
+                    <div class="disasm-line"><span class="addr">00401114</span>  <span class="instr">mov</span>    [<span class="reg">ebp</span>-<span class="imm">0x04</span>], <span class="reg">eax</span>      <span class="comment">; save socket handle</span></div>
+                    <div class="disasm-line"><span class="addr">00401117</span>  <span class="instr">lea</span>    <span class="reg">eax</span>, [<span class="reg">ebp</span>-<span class="imm">0x14</span>]</div>
+                    <div class="disasm-line"><span class="addr">0040111A</span>  <span class="instr">mov</span>    word [<span class="reg">eax</span>], <span class="imm">0x0002</span>   <span class="comment">; sin_family = AF_INET</span></div>
+                    <div class="disasm-line"><span class="addr">0040111F</span>  <span class="instr">mov</span>    word [<span class="reg">eax</span>+<span class="imm">2</span>], <span class="imm">0x5C11</span> <span class="comment">; sin_port = htons(4444)</span></div>
+                    <div class="disasm-line"><span class="addr">00401125</span>  <span class="instr">mov</span>    dword [<span class="reg">eax</span>+<span class="imm">4</span>], <span class="imm">0x2D64A8C0</span> <span class="comment">; 192.168.100.45</span></div>
+                    <div class="disasm-line"><span class="addr">0040112C</span>  <span class="instr">push</span>   <span class="imm">0x10</span></div>
+                    <div class="disasm-line"><span class="addr">0040112E</span>  <span class="instr">lea</span>    <span class="reg">ecx</span>, [<span class="reg">ebp</span>-<span class="imm">0x14</span>]</div>
+                    <div class="disasm-line"><span class="addr">00401131</span>  <span class="instr">push</span>   <span class="reg">ecx</span></div>
+                    <div class="disasm-line"><span class="addr">00401132</span>  <span class="instr">push</span>   [<span class="reg">ebp</span>-<span class="imm">0x04</span>]</div>
+                    <div class="disasm-line"><span class="addr">00401135</span>  <span class="instr">call</span>   <span class="func-label">connect</span></div>
+                    <div class="disasm-line"><span class="addr">0040113A</span>  <span class="instr">push</span>   <span class="imm">0x00</span></div>
+                    <div class="disasm-line"><span class="addr">0040113C</span>  <span class="instr">push</span>   <span class="imm">0x200</span>               <span class="comment">; recv buffer size</span></div>
+                    <div class="disasm-line"><span class="addr">00401141</span>  <span class="instr">lea</span>    <span class="reg">edx</span>, [<span class="reg">ebp</span>-<span class="imm">0x100</span>]</div>
+                    <div class="disasm-line"><span class="addr">00401147</span>  <span class="instr">push</span>   <span class="reg">edx</span></div>
+                    <div class="disasm-line"><span class="addr">00401148</span>  <span class="instr">push</span>   [<span class="reg">ebp</span>-<span class="imm">0x04</span>]</div>
+                    <div class="disasm-line"><span class="addr">0040114B</span>  <span class="instr">call</span>   <span class="func-label">recv</span>             <span class="comment">; receive command from C2</span></div>
+                    <div class="disasm-line"><span class="addr">00401150</span>  <span class="instr">leave</span></div>
+                    <div class="disasm-line"><span class="addr">00401151</span>  <span class="instr">ret</span></div>
+                </div>
+
+                <div class="question-section" id="q1b">
+                    <div class="question-text">Q1b: What is the purpose of sub_00401100?</div>
+                    <div class="answer-options">
+                        <label class="answer-option"><input type="radio" name="q1b" value="a"><span>Local inter-process communication via named pipes</span></label>
+                        <label class="answer-option"><input type="radio" name="q1b" value="b"><span>DNS resolver that translates hostnames to IP addresses</span></label>
+                        <label class="answer-option"><input type="radio" name="q1b" value="c"><span>C2 callback -- creates TCP socket, connects to remote server, receives commands</span></label>
+                        <label class="answer-option"><input type="radio" name="q1b" value="d"><span>HTTP file download routine using WinINet API</span></label>
+                    </div>
+                </div>
+
+                <!-- Sub 3: Keylogger hook -->
+                <div class="disasm-view" style="margin-top:20px;">
+                    <div class="disasm-line"><span class="func-label">sub_00401200:</span></div>
+                    <div class="disasm-line"><span class="addr">00401200</span>  <span class="instr">push</span>   <span class="reg">ebp</span></div>
+                    <div class="disasm-line"><span class="addr">00401201</span>  <span class="instr">mov</span>    <span class="reg">ebp</span>, <span class="reg">esp</span></div>
+                    <div class="disasm-line"><span class="addr">00401203</span>  <span class="instr">push</span>   <span class="imm">0x00</span>                <span class="comment">; dwThreadId = 0 (all threads)</span></div>
+                    <div class="disasm-line"><span class="addr">00401205</span>  <span class="instr">push</span>   [<span class="reg">ebp</span>+<span class="imm">0x08</span>]           <span class="comment">; hMod = this module</span></div>
+                    <div class="disasm-line"><span class="addr">00401208</span>  <span class="instr">push</span>   offset <span class="func-label">fnKeyProc</span>    <span class="comment">; lpfn = keyboard callback</span></div>
+                    <div class="disasm-line"><span class="addr">0040120D</span>  <span class="instr">push</span>   <span class="imm">0x0D</span>                <span class="comment">; WH_KEYBOARD_LL (13)</span></div>
+                    <div class="disasm-line"><span class="addr">0040120F</span>  <span class="instr">call</span>   <span class="func-label">SetWindowsHookExA</span></div>
+                    <div class="disasm-line"><span class="addr">00401214</span>  <span class="instr">mov</span>    [<span class="func-label">g_hHook</span>], <span class="reg">eax</span>      <span class="comment">; save hook handle</span></div>
+                    <div class="disasm-line"><span class="addr">00401219</span>  <span class="instr">leave</span></div>
+                    <div class="disasm-line"><span class="addr">0040121A</span>  <span class="instr">ret</span></div>
+                </div>
+
+                <div class="question-section" id="q1c">
+                    <div class="question-text">Q1c: What is the purpose of sub_00401200?</div>
+                    <div class="answer-options">
+                        <label class="answer-option"><input type="radio" name="q1c" value="a"><span>Window enumeration callback for screenshot capture</span></label>
+                        <label class="answer-option"><input type="radio" name="q1c" value="b"><span>Keylogger hook installation -- registers low-level keyboard callback on all threads</span></label>
+                        <label class="answer-option"><input type="radio" name="q1c" value="c"><span>Clipboard monitor that intercepts copy/paste operations</span></label>
+                        <label class="answer-option"><input type="radio" name="q1c" value="d"><span>Anti-debugging check using structured exception handling</span></label>
+                    </div>
+                </div>
+
+                <!-- Sub 4: File exfiltration -->
+                <div class="disasm-view" style="margin-top:20px;">
+                    <div class="disasm-line"><span class="func-label">sub_00401300:</span></div>
+                    <div class="disasm-line"><span class="addr">00401300</span>  <span class="instr">push</span>   <span class="reg">ebp</span></div>
+                    <div class="disasm-line"><span class="addr">00401301</span>  <span class="instr">mov</span>    <span class="reg">ebp</span>, <span class="reg">esp</span></div>
+                    <div class="disasm-line"><span class="addr">00401303</span>  <span class="instr">sub</span>    <span class="reg">esp</span>, <span class="imm">0x40</span></div>
+                    <div class="disasm-line"><span class="addr">00401306</span>  <span class="instr">push</span>   <span class="imm">0x00</span>                <span class="comment">; hTemplateFile</span></div>
+                    <div class="disasm-line"><span class="addr">00401308</span>  <span class="instr">push</span>   <span class="imm">0x80</span>                <span class="comment">; FILE_ATTRIBUTE_NORMAL</span></div>
+                    <div class="disasm-line"><span class="addr">0040130D</span>  <span class="instr">push</span>   <span class="imm">0x03</span>                <span class="comment">; OPEN_EXISTING</span></div>
+                    <div class="disasm-line"><span class="addr">0040130F</span>  <span class="instr">push</span>   <span class="imm">0x00</span></div>
+                    <div class="disasm-line"><span class="addr">00401311</span>  <span class="instr">push</span>   <span class="imm">0x01</span>                <span class="comment">; FILE_SHARE_READ</span></div>
+                    <div class="disasm-line"><span class="addr">00401313</span>  <span class="instr">push</span>   <span class="imm">0x80000000</span>          <span class="comment">; GENERIC_READ</span></div>
+                    <div class="disasm-line"><span class="addr">00401318</span>  <span class="instr">push</span>   [<span class="reg">ebp</span>+<span class="imm">0x08</span>]           <span class="comment">; lpFileName</span></div>
+                    <div class="disasm-line"><span class="addr">0040131B</span>  <span class="instr">call</span>   <span class="func-label">CreateFileA</span></div>
+                    <div class="disasm-line"><span class="addr">00401320</span>  <span class="instr">mov</span>    [<span class="reg">ebp</span>-<span class="imm">0x04</span>], <span class="reg">eax</span>      <span class="comment">; file handle</span></div>
+                    <div class="disasm-line"><span class="addr">00401323</span>  <span class="instr">push</span>   <span class="imm">0x00</span></div>
+                    <div class="disasm-line"><span class="addr">00401325</span>  <span class="instr">lea</span>    <span class="reg">ecx</span>, [<span class="reg">ebp</span>-<span class="imm">0x08</span>]</div>
+                    <div class="disasm-line"><span class="addr">00401328</span>  <span class="instr">push</span>   <span class="reg">ecx</span>                 <span class="comment">; lpBytesRead</span></div>
+                    <div class="disasm-line"><span class="addr">00401329</span>  <span class="instr">push</span>   <span class="imm">0x1000</span>              <span class="comment">; read 4096 bytes</span></div>
+                    <div class="disasm-line"><span class="addr">0040132E</span>  <span class="instr">lea</span>    <span class="reg">edx</span>, [<span class="reg">ebp</span>-<span class="imm">0x40</span>]</div>
+                    <div class="disasm-line"><span class="addr">00401331</span>  <span class="instr">push</span>   <span class="reg">edx</span>                 <span class="comment">; lpBuffer</span></div>
+                    <div class="disasm-line"><span class="addr">00401332</span>  <span class="instr">push</span>   [<span class="reg">ebp</span>-<span class="imm">0x04</span>]</div>
+                    <div class="disasm-line"><span class="addr">00401335</span>  <span class="instr">call</span>   <span class="func-label">ReadFile</span></div>
+                    <div class="disasm-line"><span class="addr">0040133A</span>  <span class="instr">push</span>   [<span class="reg">ebp</span>-<span class="imm">0x04</span>]</div>
+                    <div class="disasm-line"><span class="addr">0040133D</span>  <span class="instr">call</span>   <span class="func-label">CloseHandle</span></div>
+                    <div class="disasm-line"><span class="addr">00401342</span>  <span class="instr">lea</span>    <span class="reg">eax</span>, [<span class="reg">ebp</span>-<span class="imm">0x40</span>]      <span class="comment">; return ptr to read data</span></div>
+                    <div class="disasm-line"><span class="addr">00401345</span>  <span class="instr">leave</span></div>
+                    <div class="disasm-line"><span class="addr">00401346</span>  <span class="instr">ret</span></div>
+                </div>
+
+                <div class="question-section" id="q1d">
+                    <div class="question-text">Q1d: What is the purpose of sub_00401300?</div>
+                    <div class="answer-options">
+                        <label class="answer-option"><input type="radio" name="q1d" value="a"><span>File exfiltration -- opens target file for reading and extracts contents to buffer</span></label>
+                        <label class="answer-option"><input type="radio" name="q1d" value="b"><span>Log file writer that appends timestamps to an output file</span></label>
+                        <label class="answer-option"><input type="radio" name="q1d" value="c"><span>Dropper routine that writes a secondary payload to disk</span></label>
+                        <label class="answer-option"><input type="radio" name="q1d" value="d"><span>Configuration parser that reads settings from an INI file</span></label>
+                    </div>
+                </div>
+
+                <!-- Sub 5: Persistence -->
+                <div class="disasm-view" style="margin-top:20px;">
+                    <div class="disasm-line"><span class="func-label">sub_00401400:</span></div>
+                    <div class="disasm-line"><span class="addr">00401400</span>  <span class="instr">push</span>   <span class="reg">ebp</span></div>
+                    <div class="disasm-line"><span class="addr">00401401</span>  <span class="instr">mov</span>    <span class="reg">ebp</span>, <span class="reg">esp</span></div>
+                    <div class="disasm-line"><span class="addr">00401403</span>  <span class="instr">sub</span>    <span class="reg">esp</span>, <span class="imm">0x08</span></div>
+                    <div class="disasm-line"><span class="addr">00401406</span>  <span class="instr">lea</span>    <span class="reg">eax</span>, [<span class="reg">ebp</span>-<span class="imm">0x04</span>]</div>
+                    <div class="disasm-line"><span class="addr">00401409</span>  <span class="instr">push</span>   <span class="reg">eax</span>                 <span class="comment">; phkResult</span></div>
+                    <div class="disasm-line"><span class="addr">0040140A</span>  <span class="instr">push</span>   <span class="imm">0xF003F</span>             <span class="comment">; KEY_ALL_ACCESS</span></div>
+                    <div class="disasm-line"><span class="addr">0040140F</span>  <span class="instr">push</span>   <span class="imm">0x00</span></div>
+                    <div class="disasm-line"><span class="addr">00401411</span>  <span class="instr">push</span>   offset <span class="str-ref">"SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run"</span></div>
+                    <div class="disasm-line"><span class="addr">00401416</span>  <span class="instr">push</span>   <span class="imm">0x80000002</span>          <span class="comment">; HKEY_LOCAL_MACHINE</span></div>
+                    <div class="disasm-line"><span class="addr">0040141B</span>  <span class="instr">call</span>   <span class="func-label">RegOpenKeyExA</span></div>
+                    <div class="disasm-line"><span class="addr">00401420</span>  <span class="instr">push</span>   <span class="imm">0x3C</span>                <span class="comment">; cbData (path length)</span></div>
+                    <div class="disasm-line"><span class="addr">00401422</span>  <span class="instr">push</span>   offset <span class="str-ref">"C:\\Users\\Public\\svchost.exe"</span></div>
+                    <div class="disasm-line"><span class="addr">00401427</span>  <span class="instr">push</span>   <span class="imm">0x01</span>                <span class="comment">; REG_SZ</span></div>
+                    <div class="disasm-line"><span class="addr">00401429</span>  <span class="instr">push</span>   <span class="imm">0x00</span></div>
+                    <div class="disasm-line"><span class="addr">0040142B</span>  <span class="instr">push</span>   offset <span class="str-ref">"WindowsSecurityService"</span></div>
+                    <div class="disasm-line"><span class="addr">00401430</span>  <span class="instr">push</span>   [<span class="reg">ebp</span>-<span class="imm">0x04</span>]</div>
+                    <div class="disasm-line"><span class="addr">00401433</span>  <span class="instr">call</span>   <span class="func-label">RegSetValueExA</span></div>
+                    <div class="disasm-line"><span class="addr">00401438</span>  <span class="instr">push</span>   [<span class="reg">ebp</span>-<span class="imm">0x04</span>]</div>
+                    <div class="disasm-line"><span class="addr">0040143B</span>  <span class="instr">call</span>   <span class="func-label">RegCloseKey</span></div>
+                    <div class="disasm-line"><span class="addr">00401440</span>  <span class="instr">leave</span></div>
+                    <div class="disasm-line"><span class="addr">00401441</span>  <span class="instr">ret</span></div>
+                </div>
+
+                <div class="question-section" id="q1e">
+                    <div class="question-text">Q1e: What is the purpose of sub_00401400?</div>
+                    <div class="answer-options">
+                        <label class="answer-option"><input type="radio" name="q1e" value="a"><span>System information enumeration via registry queries</span></label>
+                        <label class="answer-option"><input type="radio" name="q1e" value="b"><span>Anti-forensics routine that deletes event logs from the registry</span></label>
+                        <label class="answer-option"><input type="radio" name="q1e" value="c"><span>Persistence mechanism -- adds Run key entry to auto-start on boot</span></label>
+                        <label class="answer-option"><input type="radio" name="q1e" value="d"><span>Privilege escalation by modifying security policy registry keys</span></label>
+                    </div>
+                </div>
+
+                <button class="submit-button" onclick="submitEvidence1()">Submit All Function Identifications</button>
+                <div class="feedback" id="feedback1"></div>
+            </div>
+        </div>
+
+        <!-- ======================== EVIDENCE 2: Control Flow Analysis ======================== -->
+        <div class="evidence-card locked" id="evidence2">
+            <div class="evidence-header" onclick="toggleEvidence('evidence2')">
+                <h3>Evidence 2: Control Flow Analysis</h3>
+                <div class="evidence-status">
+                    <span id="evidence2-points">0/100 pts</span>
+                    <div class="status-icon" id="evidence2-status"></div>
+                </div>
+            </div>
+            <div class="evidence-content" id="evidence2-content">
+                <p style="margin-bottom:15px;color:#8aaa98;">The malware's main dispatch routine uses conditional branches to select behavior based on the C2 command byte stored in register <span style="color:#60b0ff;">EAX</span>. Given the initial register state below, trace which execution path the CPU will follow.</p>
+
+                <div style="background:#050508;border:1px solid rgba(0,200,120,0.15);border-radius:5px;padding:15px;margin:15px 0;">
+                    <div style="color:#00c878;font-weight:bold;margin-bottom:10px;">INITIAL REGISTER STATE:</div>
+                    <table class="ref-table">
+                        <tr><td style="color:#60b0ff;">EAX</td><td style="color:#f0a040;">0x00000003</td><td style="color:#4a5a50;">Command byte from C2</td></tr>
+                        <tr><td style="color:#60b0ff;">EBX</td><td style="color:#f0a040;">0x00000001</td><td style="color:#4a5a50;">Connection flag</td></tr>
+                        <tr><td style="color:#60b0ff;">ECX</td><td style="color:#f0a040;">0x0012FF80</td><td style="color:#4a5a50;">Stack buffer ptr</td></tr>
+                    </table>
+                </div>
+
+                <div class="disasm-view">
+                    <div class="disasm-line"><span class="func-label">dispatch_command:</span></div>
+                    <div class="disasm-line"><span class="addr">00401500</span>  <span class="instr">cmp</span>    <span class="reg">eax</span>, <span class="imm">0x01</span>             <span class="comment">; CMD_SHELL?</span></div>
+                    <div class="disasm-line"><span class="addr">00401503</span>  <span class="instr">je</span>     <span class="func-label">cmd_shell</span>            <span class="comment">; jump if EAX == 1</span></div>
+                    <div class="disasm-line" id="flow-a"><span class="addr">00401505</span>  <span class="instr">cmp</span>    <span class="reg">eax</span>, <span class="imm">0x02</span>             <span class="comment">; CMD_UPLOAD?</span></div>
+                    <div class="disasm-line" id="flow-b"><span class="addr">00401508</span>  <span class="instr">je</span>     <span class="func-label">cmd_upload</span>           <span class="comment">; jump if EAX == 2</span></div>
+                    <div class="disasm-line" id="flow-c"><span class="addr">0040150A</span>  <span class="instr">cmp</span>    <span class="reg">eax</span>, <span class="imm">0x03</span>             <span class="comment">; CMD_KEYLOG?</span></div>
+                    <div class="disasm-line" id="flow-d"><span class="addr">0040150D</span>  <span class="instr">je</span>     <span class="func-label">cmd_keylog</span>           <span class="comment">; jump if EAX == 3</span></div>
+                    <div class="disasm-line"><span class="addr">0040150F</span>  <span class="instr">cmp</span>    <span class="reg">eax</span>, <span class="imm">0x04</span>             <span class="comment">; CMD_EXFIL?</span></div>
+                    <div class="disasm-line"><span class="addr">00401512</span>  <span class="instr">je</span>     <span class="func-label">cmd_exfil</span></div>
+                    <div class="disasm-line"><span class="addr">00401514</span>  <span class="instr">jmp</span>    <span class="func-label">cmd_default</span>          <span class="comment">; unknown command</span></div>
+                    <div class="disasm-line"></div>
+                    <div class="disasm-line"><span class="func-label">cmd_shell:</span></div>
+                    <div class="disasm-line"><span class="addr">00401520</span>  <span class="instr">push</span>   <span class="reg">ecx</span></div>
+                    <div class="disasm-line"><span class="addr">00401521</span>  <span class="instr">call</span>   <span class="func-label">sub_00401600</span>         <span class="comment">; spawn reverse shell</span></div>
+                    <div class="disasm-line"><span class="addr">00401526</span>  <span class="instr">jmp</span>    <span class="func-label">dispatch_end</span></div>
+                    <div class="disasm-line"></div>
+                    <div class="disasm-line"><span class="func-label">cmd_upload:</span></div>
+                    <div class="disasm-line"><span class="addr">00401530</span>  <span class="instr">push</span>   <span class="reg">ecx</span></div>
+                    <div class="disasm-line"><span class="addr">00401531</span>  <span class="instr">call</span>   <span class="func-label">sub_00401700</span>         <span class="comment">; upload file to target</span></div>
+                    <div class="disasm-line"><span class="addr">00401536</span>  <span class="instr">jmp</span>    <span class="func-label">dispatch_end</span></div>
+                    <div class="disasm-line"></div>
+                    <div class="disasm-line"><span class="func-label">cmd_keylog:</span>                           <span class="comment">; <-- TARGET PATH</span></div>
+                    <div class="disasm-line"><span class="addr">00401540</span>  <span class="instr">push</span>   <span class="reg">ecx</span></div>
+                    <div class="disasm-line"><span class="addr">00401541</span>  <span class="instr">call</span>   <span class="func-label">sub_00401200</span>         <span class="comment">; install keylogger hook</span></div>
+                    <div class="disasm-line"><span class="addr">00401546</span>  <span class="instr">jmp</span>    <span class="func-label">dispatch_end</span></div>
+                    <div class="disasm-line"></div>
+                    <div class="disasm-line"><span class="func-label">cmd_exfil:</span></div>
+                    <div class="disasm-line"><span class="addr">00401550</span>  <span class="instr">push</span>   <span class="reg">ecx</span></div>
+                    <div class="disasm-line"><span class="addr">00401551</span>  <span class="instr">call</span>   <span class="func-label">sub_00401300</span>         <span class="comment">; read and exfiltrate file</span></div>
+                    <div class="disasm-line"><span class="addr">00401556</span>  <span class="instr">jmp</span>    <span class="func-label">dispatch_end</span></div>
+                    <div class="disasm-line"></div>
+                    <div class="disasm-line"><span class="func-label">cmd_default:</span></div>
+                    <div class="disasm-line"><span class="addr">00401560</span>  <span class="instr">nop</span>                             <span class="comment">; no-op for unknown cmds</span></div>
+                    <div class="disasm-line"></div>
+                    <div class="disasm-line"><span class="func-label">dispatch_end:</span></div>
+                    <div class="disasm-line"><span class="addr">00401570</span>  <span class="instr">ret</span></div>
+                </div>
+
+                <div class="question-section">
+                    <div class="question-text">With EAX = 0x03, which label does execution jump to, and what function is called?</div>
+                    <div class="answer-options">
+                        <label class="answer-option"><input type="radio" name="q2" value="a"><span>cmd_shell (0x00401520) -- spawns a reverse shell via sub_00401600</span></label>
+                        <label class="answer-option"><input type="radio" name="q2" value="b"><span>cmd_upload (0x00401530) -- uploads a file to the target via sub_00401700</span></label>
+                        <label class="answer-option"><input type="radio" name="q2" value="c"><span>cmd_keylog (0x00401540) -- installs keylogger hook via sub_00401200</span></label>
+                        <label class="answer-option"><input type="radio" name="q2" value="d"><span>cmd_exfil (0x00401550) -- reads and exfiltrates files via sub_00401300</span></label>
+                    </div>
+                    <button class="submit-button" onclick="submitEvidence2()">Submit Control Flow Analysis</button>
+                    <div class="feedback" id="feedback2"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ======================== EVIDENCE 3: String Decryption ======================== -->
+        <div class="evidence-card locked" id="evidence3">
+            <div class="evidence-header" onclick="toggleEvidence('evidence3')">
+                <h3>Evidence 3: String Decryption</h3>
+                <div class="evidence-status">
+                    <span id="evidence3-points">0/100 pts</span>
+                    <div class="status-icon" id="evidence3-status"></div>
+                </div>
+            </div>
+            <div class="evidence-content" id="evidence3-content">
+                <p style="margin-bottom:15px;color:#8aaa98;">The malware stores its configuration strings as XOR-encoded hex blobs in the .data section. From the disassembly in Evidence 1, we know the XOR key byte is <span style="color:#f0a040;">0x5A</span>. Use the interactive decoder to reveal the hidden strings, then identify what they contain.</p>
+
+                <div style="background:#050508;border:1px solid rgba(0,200,120,0.15);border-radius:5px;padding:15px;margin:15px 0;">
+                    <div style="color:#00c878;font-weight:bold;margin-bottom:10px;">ENCODED STRING TABLE (.data section):</div>
+                    <div style="font-size:0.85em;line-height:1.8;">
+                        <div><span style="color:#3a6a4a;">str_0:</span> <span style="color:#f0a040;">39 36 35 3B 31 77 39 35 34 2E 28 35 36 74 28 2F</span></div>
+                        <div><span style="color:#3a6a4a;">str_1:</span> <span style="color:#f0a040;">32 22 22 2A 60 75 75 39 36 35 3B 31 77 39 35 34 2E 28 35 36 74 28 2F 75 38 3F 3B 39 35 34</span></div>
+                        <div><span style="color:#3a6a4a;">str_2:</span> <span style="color:#f0a040;">6B 63 68 74 6B 6C 62 74 6B 6A 6A 74 6E 6F</span></div>
+                        <div><span style="color:#3a6a4a;">str_3:</span> <span style="color:#f0a040;">29 2C 39 32 35 29 2E 05 39 36 35 34 3F 74 3F 22 3F</span></div>
+                    </div>
+                </div>
+
+                <div class="decoder-tool">
+                    <label>XOR Decoder -- Enter hex bytes (space-separated) and key byte</label>
+                    <input type="text" class="decoder-input" id="decoderHexInput" placeholder="Paste hex bytes here, e.g.: 39 32 29 24 36 2B 32 38 24 3C 3A 32 15 31 3B 3C 35 3F 33">
+                    <label>XOR Key (hex byte)</label>
+                    <input type="text" class="decoder-input" id="decoderKeyInput" placeholder="e.g.: 5A" value="5A" style="width:120px;">
+                    <button class="submit-button" onclick="runDecoder()" style="width:auto;padding:10px 25px;margin-top:8px;">Decode</button>
+                    <div style="margin-top:12px;">
+                        <label>Decoded Output</label>
+                        <div class="decoder-output" id="decoderOutput">--</div>
+                    </div>
+                </div>
+
+                <div class="question-section">
+                    <div class="question-text">After decoding all four strings with XOR key 0x5A, identify the string types. Which of the following correctly describes all four decoded values?</div>
+                    <div class="answer-options">
+                        <label class="answer-option"><input type="radio" name="q3" value="a"><span>str_0 = registry key path, str_1 = HTTP URL, str_2 = Bitcoin wallet address, str_3 = executable filename</span></label>
+                        <label class="answer-option"><input type="radio" name="q3" value="b"><span>str_0 = C2 domain name, str_1 = HTTP C2 callback URL, str_2 = C2 IP address, str_3 = dropped payload path</span></label>
+                        <label class="answer-option"><input type="radio" name="q3" value="c"><span>str_0 = Windows API name, str_1 = error message string, str_2 = MAC address, str_3 = temporary filename</span></label>
+                        <label class="answer-option"><input type="radio" name="q3" value="d"><span>str_0 = mutex name, str_1 = email address, str_2 = decryption key, str_3 = ransom note text</span></label>
+                    </div>
+                    <button class="submit-button" onclick="submitEvidence3()">Submit String Analysis</button>
+                    <div class="feedback" id="feedback3"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ======================== EVIDENCE 4: API Call Reconstruction ======================== -->
+        <div class="evidence-card locked" id="evidence4">
+            <div class="evidence-header" onclick="toggleEvidence('evidence4')">
+                <h3>Evidence 4: API Call Reconstruction</h3>
+                <div class="evidence-status">
+                    <span id="evidence4-points">0/100 pts</span>
+                    <div class="status-icon" id="evidence4-status"></div>
+                </div>
+            </div>
+            <div class="evidence-content" id="evidence4-content">
+                <p style="margin-bottom:15px;color:#8aaa98;">The malware uses API hashing to resolve function addresses at runtime, evading static import table analysis. Each Windows API name is hashed with a custom ROR-13 algorithm. Below are the hash values found in the binary. Match each hash to the correct API function using the reference table.</p>
+
+                <div style="background:#050508;border:1px solid rgba(0,200,120,0.15);border-radius:5px;padding:15px;margin:15px 0;">
+                    <div style="color:#00c878;font-weight:bold;margin-bottom:10px;">API HASH RESOLUTION ROUTINE:</div>
+                    <div class="disasm-view" style="margin:0;border:none;padding:0;">
+                        <div class="disasm-line"><span class="func-label">resolve_api:</span></div>
+                        <div class="disasm-line"><span class="addr">00401800</span>  <span class="instr">push</span>   <span class="imm">0x7C0DFCAA</span>          <span class="comment">; API hash constant</span></div>
+                        <div class="disasm-line"><span class="addr">00401805</span>  <span class="instr">call</span>   <span class="func-label">get_proc_by_hash</span>    <span class="comment">; custom hash resolver</span></div>
+                        <div class="disasm-line"><span class="addr">0040180A</span>  <span class="instr">call</span>   <span class="reg">eax</span>                 <span class="comment">; call resolved function</span></div>
+                    </div>
+                </div>
+
+                <p style="margin:15px 0;color:#8aaa98;font-size:0.9em;">Match each hash to the correct Windows API function. The reference table provides known ROR-13 hash mappings for common malware APIs.</p>
+
+                <table class="ref-table" style="margin-bottom:20px;">
+                    <tr><th>Common API</th><th>ROR-13 Hash</th></tr>
+                    <tr><td>VirtualAlloc</td><td style="color:#f0a040;">0x91AFCA54</td></tr>
+                    <tr><td>VirtualProtect</td><td style="color:#f0a040;">0x7946C61B</td></tr>
+                    <tr><td>CreateProcessA</td><td style="color:#f0a040;">0x16B3FE72</td></tr>
+                    <tr><td>WriteProcessMemory</td><td style="color:#f0a040;">0xE7BDD8C5</td></tr>
+                    <tr><td>GetProcAddress</td><td style="color:#f0a040;">0x7C0DFCAA</td></tr>
+                    <tr><td>LoadLibraryA</td><td style="color:#f0a040;">0xEC0E4E8E</td></tr>
+                    <tr><td>CreateRemoteThread</td><td style="color:#f0a040;">0x72BD9CDD</td></tr>
+                    <tr><td>OpenProcess</td><td style="color:#f0a040;">0x4798A580</td></tr>
+                    <tr><td>RegSetValueExA</td><td style="color:#f0a040;">0x5B2FC1A3</td></tr>
+                    <tr><td>InternetOpenA</td><td style="color:#f0a040;">0xA779563A</td></tr>
+                </table>
+
+                <div style="color:#00c878;font-weight:bold;margin-bottom:12px;">Match the hashes found in the binary to API names:</div>
+
+                <div class="api-match-grid">
+                    <div class="api-match-item" id="api1">
+                        <div class="hash-val">0x7C0DFCAA</div>
+                        <select id="apiSelect1">
+                            <option value="">-- Select API --</option>
+                            <option value="VirtualAlloc">VirtualAlloc</option>
+                            <option value="VirtualProtect">VirtualProtect</option>
+                            <option value="CreateProcessA">CreateProcessA</option>
+                            <option value="WriteProcessMemory">WriteProcessMemory</option>
+                            <option value="GetProcAddress">GetProcAddress</option>
+                            <option value="LoadLibraryA">LoadLibraryA</option>
+                            <option value="CreateRemoteThread">CreateRemoteThread</option>
+                            <option value="OpenProcess">OpenProcess</option>
+                            <option value="RegSetValueExA">RegSetValueExA</option>
+                            <option value="InternetOpenA">InternetOpenA</option>
+                        </select>
+                    </div>
+                    <div class="api-match-item" id="api2">
+                        <div class="hash-val">0x91AFCA54</div>
+                        <select id="apiSelect2">
+                            <option value="">-- Select API --</option>
+                            <option value="VirtualAlloc">VirtualAlloc</option>
+                            <option value="VirtualProtect">VirtualProtect</option>
+                            <option value="CreateProcessA">CreateProcessA</option>
+                            <option value="WriteProcessMemory">WriteProcessMemory</option>
+                            <option value="GetProcAddress">GetProcAddress</option>
+                            <option value="LoadLibraryA">LoadLibraryA</option>
+                            <option value="CreateRemoteThread">CreateRemoteThread</option>
+                            <option value="OpenProcess">OpenProcess</option>
+                            <option value="RegSetValueExA">RegSetValueExA</option>
+                            <option value="InternetOpenA">InternetOpenA</option>
+                        </select>
+                    </div>
+                    <div class="api-match-item" id="api3">
+                        <div class="hash-val">0xE7BDD8C5</div>
+                        <select id="apiSelect3">
+                            <option value="">-- Select API --</option>
+                            <option value="VirtualAlloc">VirtualAlloc</option>
+                            <option value="VirtualProtect">VirtualProtect</option>
+                            <option value="CreateProcessA">CreateProcessA</option>
+                            <option value="WriteProcessMemory">WriteProcessMemory</option>
+                            <option value="GetProcAddress">GetProcAddress</option>
+                            <option value="LoadLibraryA">LoadLibraryA</option>
+                            <option value="CreateRemoteThread">CreateRemoteThread</option>
+                            <option value="OpenProcess">OpenProcess</option>
+                            <option value="RegSetValueExA">RegSetValueExA</option>
+                            <option value="InternetOpenA">InternetOpenA</option>
+                        </select>
+                    </div>
+                    <div class="api-match-item" id="api4">
+                        <div class="hash-val">0x72BD9CDD</div>
+                        <select id="apiSelect4">
+                            <option value="">-- Select API --</option>
+                            <option value="VirtualAlloc">VirtualAlloc</option>
+                            <option value="VirtualProtect">VirtualProtect</option>
+                            <option value="CreateProcessA">CreateProcessA</option>
+                            <option value="WriteProcessMemory">WriteProcessMemory</option>
+                            <option value="GetProcAddress">GetProcAddress</option>
+                            <option value="LoadLibraryA">LoadLibraryA</option>
+                            <option value="CreateRemoteThread">CreateRemoteThread</option>
+                            <option value="OpenProcess">OpenProcess</option>
+                            <option value="RegSetValueExA">RegSetValueExA</option>
+                            <option value="InternetOpenA">InternetOpenA</option>
+                        </select>
+                    </div>
+                    <div class="api-match-item" id="api5">
+                        <div class="hash-val">0xEC0E4E8E</div>
+                        <select id="apiSelect5">
+                            <option value="">-- Select API --</option>
+                            <option value="VirtualAlloc">VirtualAlloc</option>
+                            <option value="VirtualProtect">VirtualProtect</option>
+                            <option value="CreateProcessA">CreateProcessA</option>
+                            <option value="WriteProcessMemory">WriteProcessMemory</option>
+                            <option value="GetProcAddress">GetProcAddress</option>
+                            <option value="LoadLibraryA">LoadLibraryA</option>
+                            <option value="CreateRemoteThread">CreateRemoteThread</option>
+                            <option value="OpenProcess">OpenProcess</option>
+                            <option value="RegSetValueExA">RegSetValueExA</option>
+                            <option value="InternetOpenA">InternetOpenA</option>
+                        </select>
+                    </div>
+                    <div class="api-match-item" id="api6">
+                        <div class="hash-val">0x4798A580</div>
+                        <select id="apiSelect6">
+                            <option value="">-- Select API --</option>
+                            <option value="VirtualAlloc">VirtualAlloc</option>
+                            <option value="VirtualProtect">VirtualProtect</option>
+                            <option value="CreateProcessA">CreateProcessA</option>
+                            <option value="WriteProcessMemory">WriteProcessMemory</option>
+                            <option value="GetProcAddress">GetProcAddress</option>
+                            <option value="LoadLibraryA">LoadLibraryA</option>
+                            <option value="CreateRemoteThread">CreateRemoteThread</option>
+                            <option value="OpenProcess">OpenProcess</option>
+                            <option value="RegSetValueExA">RegSetValueExA</option>
+                            <option value="InternetOpenA">InternetOpenA</option>
+                        </select>
+                    </div>
+                </div>
+
+                <button class="submit-button" onclick="submitEvidence4()">Submit API Reconstruction</button>
+                <div class="feedback" id="feedback4"></div>
+            </div>
+        </div>
+
+        <!-- ======================== EVIDENCE 5: Final Malware Report ======================== -->
+        <div class="evidence-card locked" id="evidence5">
+            <div class="evidence-header" onclick="toggleEvidence('evidence5')">
+                <h3>Final Analysis: Malware Report</h3>
+                <div class="evidence-status">
+                    <span id="evidence5-points">0/200 pts</span>
+                    <div class="status-icon" id="evidence5-status"></div>
+                </div>
+            </div>
+            <div class="evidence-content" id="evidence5-content">
+                <p style="margin-bottom:15px;color:#8aaa98;">Compile your findings into a structured malware analysis report. Reference the evidence you have analyzed to complete each field.</p>
+
+                <div class="report-form">
+                    <div class="report-field">
+                        <label>Malware Family Classification</label>
+                        <select id="reportFamily">
+                            <option value="">-- Select Classification --</option>
+                            <option value="rat">RAT (Remote Access Trojan)</option>
+                            <option value="ransomware">Ransomware</option>
+                            <option value="worm">Network Worm</option>
+                            <option value="dropper">Dropper / Loader</option>
+                            <option value="rootkit">Rootkit</option>
+                            <option value="infostealer">Information Stealer</option>
+                            <option value="botnet">Botnet Agent</option>
+                        </select>
+                    </div>
+
+                    <div class="report-field">
+                        <label>Capabilities (check all that apply)</label>
+                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:5px;">
+                            <label class="answer-option" style="margin:0;padding:8px 12px;cursor:pointer;">
+                                <input type="checkbox" id="cap_keylog" style="accent-color:#00c878;margin-right:8px;">
+                                <span>Keystroke logging</span>
+                            </label>
+                            <label class="answer-option" style="margin:0;padding:8px 12px;cursor:pointer;">
+                                <input type="checkbox" id="cap_c2" style="accent-color:#00c878;margin-right:8px;">
+                                <span>C2 communication</span>
+                            </label>
+                            <label class="answer-option" style="margin:0;padding:8px 12px;cursor:pointer;">
+                                <input type="checkbox" id="cap_exfil" style="accent-color:#00c878;margin-right:8px;">
+                                <span>File exfiltration</span>
+                            </label>
+                            <label class="answer-option" style="margin:0;padding:8px 12px;cursor:pointer;">
+                                <input type="checkbox" id="cap_persist" style="accent-color:#00c878;margin-right:8px;">
+                                <span>Persistence (registry)</span>
+                            </label>
+                            <label class="answer-option" style="margin:0;padding:8px 12px;cursor:pointer;">
+                                <input type="checkbox" id="cap_encrypt" style="accent-color:#00c878;margin-right:8px;">
+                                <span>String encryption (XOR)</span>
+                            </label>
+                            <label class="answer-option" style="margin:0;padding:8px 12px;cursor:pointer;">
+                                <input type="checkbox" id="cap_inject" style="accent-color:#00c878;margin-right:8px;">
+                                <span>Process injection</span>
+                            </label>
+                            <label class="answer-option" style="margin:0;padding:8px 12px;cursor:pointer;">
+                                <input type="checkbox" id="cap_ransom" style="accent-color:#00c878;margin-right:8px;">
+                                <span>File encryption (ransom)</span>
+                            </label>
+                            <label class="answer-option" style="margin:0;padding:8px 12px;cursor:pointer;">
+                                <input type="checkbox" id="cap_worm" style="accent-color:#00c878;margin-right:8px;">
+                                <span>Self-propagation</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="report-field">
+                        <label>Indicators of Compromise (IOCs) -- list C2 domains, IPs, registry keys, file paths</label>
+                        <textarea id="reportIOCs" placeholder="Example:&#10;C2: hxxp://cloak-control[.]ru/beacon&#10;IP: 192.168.100.45:4444&#10;Registry: HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Run\WindowsSecurityService&#10;File: C:\Users\Public\svchost.exe"></textarea>
+                    </div>
+
+                    <div class="report-field">
+                        <label>Recommended Mitigations</label>
+                        <textarea id="reportMitigations" placeholder="Example:&#10;- Block C2 IP at perimeter firewall&#10;- Remove registry Run key persistence&#10;- Scan for svchost.exe in non-standard paths&#10;- Deploy EDR with API hook monitoring"></textarea>
+                    </div>
+                </div>
+
+                <button class="submit-button" onclick="submitFinalReport()">Submit Malware Analysis Report</button>
+                <div class="feedback" id="feedback5"></div>
+            </div>
+        </div>
+
+        <a href="../index.html" class="back-link">&larr; Return to Vault</a>
     </div>
+
+    <!-- File Viewer Overlay -->
+    <div class="fs-overlay" id="fsOverlay" onclick="closeFile()"></div>
+    <div class="fs-popup" id="fsPopup">
+        <button class="close-btn" onclick="closeFile()">[X]</button>
+        <h4 id="fsPopupTitle"></h4>
+        <pre id="fsPopupContent"></pre>
+    </div>
+
+    <!-- Success Modal -->
+    <div class="modal-overlay" id="successModal">
+        <div class="success-modal">
+            <h2>GATE IX CLEARED</h2>
+            <div class="rank">REVERSE ENGINEER</div>
+            <div class="final-score" id="finalScore">0</div>
+            <div style="color:#5a8a70;margin-bottom:5px;">out of 600</div>
+            <div class="message">
+                Outstanding work, analyst. You have demonstrated the ability to read disassembly,
+                trace execution flow, decrypt obfuscated data, reconstruct hidden API calls,
+                and produce a coherent malware analysis report.
+                <br><br>
+                <strong>These skills form the core of professional reverse engineering.</strong>
+            </div>
+            <button class="continue-button" onclick="returnToVault()">Return to Vault</button>
+        </div>
+    </div>
+
+    <script>
+        // ==================== STATE ====================
+        const state = {
+            score: 0,
+            evidenceCompleted: 0,
+            answers: {},
+            godMode: false
+        };
+
+        // ==================== FILE SYSTEM HINTS ====================
+        const fileContents = {
+            x86ref: {
+                title: '/home/analyst/reference/x86-quick-ref.md',
+                content: `# x86 Assembly Quick Reference
+
+## Common Instructions
+  MOV  dst, src    — Move data from src to dst
+  PUSH val         — Push value onto stack
+  POP  dst         — Pop top of stack into dst
+  LEA  dst, [addr] — Load effective address (pointer math)
+  CALL target      — Call subroutine (pushes return addr)
+  RET              — Return from subroutine
+  NOP              — No operation
+
+## Arithmetic / Logic
+  ADD  dst, src    — dst = dst + src
+  SUB  dst, src    — dst = dst - src
+  XOR  dst, src    — dst = dst ^ src  (bitwise XOR)
+  AND  dst, src    — dst = dst & src
+  OR   dst, src    — dst = dst | src
+  ROL  dst, n      — Rotate left by n bits
+  ROR  dst, n      — Rotate right by n bits
+  INC  dst         — dst = dst + 1
+  DEC  dst         — dst = dst - 1
+
+## Comparisons & Jumps
+  CMP  a, b        — Compare a and b (sets flags)
+  JE   label       — Jump if equal (ZF=1)
+  JNE  label       — Jump if not equal (ZF=0)
+  JNZ  label       — Jump if not zero (same as JNE)
+  JGE  label       — Jump if greater or equal
+  JMP  label       — Unconditional jump
+
+## Registers (32-bit)
+  EAX — Accumulator / return value
+  EBX — Base register (callee-saved)
+  ECX — Counter register
+  EDX — Data register
+  ESI — Source index (string ops)
+  EDI — Destination index (string ops)
+  EBP — Base pointer (stack frame)
+  ESP — Stack pointer
+
+## Function Prologue / Epilogue
+  push ebp          ; save old frame pointer
+  mov  ebp, esp     ; set new frame pointer
+  sub  esp, N       ; allocate local variables
+  ...
+  leave             ; restore esp and ebp
+  ret               ; return to caller
+
+## Common Patterns
+  XOR reg, reg      → Zeroes the register (fast way to set 0)
+  PUSH imm / CALL   → Function argument passing (cdecl)
+  CMP / Jcc         → Conditional branching (if/else)`
+            },
+            apihash: {
+                title: '/home/analyst/reference/.api-hash-lookup.txt',
+                content: `API Hash Lookup Table (ROR-13 algorithm)
+==========================================
+These are commonly seen in malware that resolves
+Windows APIs dynamically to evade import table analysis.
+
+Hash          | API Function
+--------------+------------------------
+0x7C0DFCAA    | GetProcAddress
+0xEC0E4E8E    | LoadLibraryA
+0x91AFCA54    | VirtualAlloc
+0x7946C61B    | VirtualProtect
+0xE7BDD8C5    | WriteProcessMemory
+0x16B3FE72    | CreateProcessA
+0x72BD9CDD    | CreateRemoteThread
+0x4798A580    | OpenProcess
+0x5B2FC1A3    | RegSetValueExA
+0xA779563A    | InternetOpenA
+0x0726774C    | LoadLibraryExA
+0x6F721347    | NtAllocateVirtualMemory
+
+Note: Malware authors often use custom hash algorithms.
+ROR-13 is just the most common variant. Always verify
+the hashing routine before using lookup tables.`
+            },
+            xorpat: {
+                title: '/home/analyst/reference/.xor-patterns.txt',
+                content: `XOR Encryption Patterns in Malware
+=====================================
+
+SINGLE-BYTE XOR:
+  Each byte of plaintext is XORed with a constant key byte.
+  Decryption: ciphertext[i] ^ key = plaintext[i]
+  Weakness: Frequency analysis, known-plaintext attacks.
+  Common keys: 0x5A, 0xFF, 0x41, 0x37
+
+DETECTING THE KEY:
+  - If the encrypted data contains URLs, look for common
+    characters: '/' (0x2F), '.' (0x2E), 'h' (0x68)
+  - XOR is its own inverse: plaintext ^ key = cipher,
+    so cipher ^ key = plaintext
+
+EXAMPLE (from str_0):
+  Encoded: 39 36 35 3B 31 77 ...
+  Key:     0x5A
+  Decode:  0x39 ^ 0x5A = 0x63 = 'c'
+           0x36 ^ 0x5A = 0x6C = 'l'
+           0x35 ^ 0x5A = 0x6F = 'o'
+           0x3B ^ 0x5A = 0x61 = 'a'
+           0x31 ^ 0x5A = 0x6B = 'k'
+           (... keep going to reveal the full string)
+
+TIP: If the binary has a single-byte XOR loop with no
+additional transforms (no ROL/ROR after XOR), you can
+decode the entire string table by XORing each byte
+with the key constant found in the disassembly.`
+            },
+            sample: {
+                title: '/home/analyst/previous-samples/.sample-2847-notes.txt',
+                content: `SAMPLE 2847 — Analysis Notes (previous case)
+==============================================
+Analyst: J. Chen | Date: 2025-11-03
+
+Classification: RAT (Remote Access Trojan)
+
+This sample shared structural similarities with the
+current binary under investigation:
+
+- Same XOR key (0x5A) for string obfuscation
+- Similar C2 callback pattern (socket → connect → recv)
+- Registry persistence via Run key
+- Keylogging via SetWindowsHookExA (WH_KEYBOARD_LL)
+
+Key IOCs from Sample 2847:
+  C2 Domain: shadow-update[.]net
+  C2 IP: 185.220.101.47:4444
+  Registry: HKLM\\...\\Run\\WindowsUpdateService
+  Dropped: C:\\Users\\Public\\csrss.exe
+
+The current sample appears to be an evolution of the
+same malware family. The command dispatch structure
+(shell/upload/keylog/exfil) is nearly identical.
+
+RECOMMENDATION: Classify as RAT with keylogging,
+file exfiltration, and process injection capabilities.`
+            },
+            ghidra: {
+                title: '/home/analyst/.ghidra-plugins/tips.txt',
+                content: `Ghidra Reverse Engineering Tips
+=================================
+
+FUNCTION IDENTIFICATION:
+  - Look for the prologue: push ebp / mov ebp, esp
+  - API calls reveal purpose: socket/connect = network,
+    CreateFile/ReadFile = file I/O,
+    RegOpenKeyEx/RegSetValueEx = registry persistence,
+    SetWindowsHookEx = hooking (often keylogger)
+
+CONTROL FLOW:
+  - CMP + JE/JNE = if/else branching
+  - Sequential CMP chains = switch/case dispatch
+  - The value being compared tells you the case number
+
+STRING DECRYPTION:
+  - Find the decryption routine (look for XOR in a loop)
+  - Note the key byte and any additional transforms
+  - Apply the inverse transforms to the encoded data
+
+API HASHING:
+  - Malware resolves APIs by hash to hide imports
+  - Common algorithm: ROR-13 (rotate right 13 bits)
+  - Build or find a hash lookup table
+  - Hash tables are available on GitHub and in malware
+    analysis references`
+            }
+        };
+
+        let hiddenRevealed = false;
+
+        function revealHidden() {
+            if (hiddenRevealed) return;
+            hiddenRevealed = true;
+            document.querySelectorAll('.fs-item.hidden-file').forEach(el => {
+                el.classList.add('revealed');
+            });
+        }
+
+        function openFile(fileId) {
+            const file = fileContents[fileId];
+            if (!file) return;
+            document.getElementById('fsPopupTitle').textContent = file.title;
+            document.getElementById('fsPopupContent').textContent = file.content;
+            document.getElementById('fsOverlay').classList.add('active');
+            document.getElementById('fsPopup').classList.add('active');
+        }
+
+        function closeFile() {
+            document.getElementById('fsOverlay').classList.remove('active');
+            document.getElementById('fsPopup').classList.remove('active');
+        }
+
+        // ==================== XOR DECODER TOOL ====================
+        function runDecoder() {
+            const hexInput = document.getElementById('decoderHexInput').value.trim();
+            const keyInput = document.getElementById('decoderKeyInput').value.trim();
+            const outputEl = document.getElementById('decoderOutput');
+
+            if (!hexInput || !keyInput) {
+                outputEl.textContent = 'Enter hex bytes and a key byte.';
+                return;
+            }
+
+            const keyByte = parseInt(keyInput, 16);
+            if (isNaN(keyByte) || keyByte < 0 || keyByte > 255) {
+                outputEl.textContent = 'Invalid key byte. Enter a hex value 00-FF.';
+                return;
+            }
+
+            const bytes = hexInput.split(/[\s,]+/).map(h => parseInt(h, 16));
+            if (bytes.some(b => isNaN(b))) {
+                outputEl.textContent = 'Invalid hex bytes detected.';
+                return;
+            }
+
+            const decoded = bytes.map(b => {
+                const xored = b ^ keyByte;
+                return String.fromCharCode(xored);
+            }).join('');
+
+            outputEl.textContent = decoded;
+        }
+
+        // ==================== PROGRESS / SAVE ====================
+        function loadProgress() {
+            const saved = localStorage.getItem('gate9_progress');
+            if (saved) {
+                const data = JSON.parse(saved);
+                Object.assign(state, data);
+                updateUI();
+            }
+        }
+
+        function saveProgress() {
+            localStorage.setItem('gate9_progress', JSON.stringify(state));
+        }
+
+        function updateUI() {
+            document.getElementById('currentScore').textContent = state.score + '/600';
+            document.getElementById('evidenceCount').textContent = state.evidenceCompleted + '/4';
+
+            for (let i = 1; i <= 5; i++) {
+                if (state.answers[i]) {
+                    const card = document.getElementById('evidence' + i);
+                    card.classList.add('completed');
+                    card.classList.remove('locked');
+
+                    const statusIcon = document.getElementById('evidence' + i + '-status');
+                    statusIcon.classList.add('complete');
+                    statusIcon.textContent = '\u2713';
+
+                    const maxPts = i === 5 ? 200 : 100;
+                    document.getElementById('evidence' + i + '-points').textContent =
+                        state.answers[i].points + '/' + maxPts + ' pts';
+                }
+            }
+
+            // Unlock next card
+            for (let i = 1; i <= 5; i++) {
+                if (!state.answers[i]) {
+                    const card = document.getElementById('evidence' + i);
+                    card.classList.remove('locked');
+                    break;
+                }
+            }
+        }
+
+        // ==================== TOGGLE EVIDENCE ====================
+        function toggleEvidence(id) {
+            const card = document.getElementById(id);
+            if (card.classList.contains('locked')) return;
+            const content = document.getElementById(id + '-content');
+            content.classList.toggle('expanded');
+        }
+
+        // ==================== SHOW FEEDBACK ====================
+        function showFeedback(id, message, type) {
+            const el = document.getElementById(id);
+            el.className = 'feedback ' + type;
+            el.textContent = message;
+        }
+
+        // ==================== MARK COMPLETE ====================
+        function markComplete(evidenceNum, points) {
+            const maxPts = evidenceNum === 5 ? 200 : 100;
+            state.answers[evidenceNum] = { points: points };
+            state.score += points;
+            if (evidenceNum <= 4) state.evidenceCompleted++;
+
+            const card = document.getElementById('evidence' + evidenceNum);
+            card.classList.add('completed');
+
+            const statusIcon = document.getElementById('evidence' + evidenceNum + '-status');
+            statusIcon.classList.add('complete');
+            statusIcon.textContent = '\u2713';
+
+            document.getElementById('evidence' + evidenceNum + '-points').textContent =
+                points + '/' + maxPts + ' pts';
+
+            // Unlock next
+            if (evidenceNum < 5) {
+                const next = document.getElementById('evidence' + (evidenceNum + 1));
+                next.classList.remove('locked');
+            }
+
+            updateUI();
+            saveProgress();
+        }
+
+        // ==================== EVIDENCE 1: Function Identification ====================
+        function submitEvidence1() {
+            if (state.answers[1]) return;
+
+            const correctAnswers = { q1a: 'b', q1b: 'c', q1c: 'b', q1d: 'a', q1e: 'c' };
+
+            if (state.godMode) {
+                showFeedback('feedback1', '\u2713 GOD MODE -- All functions identified correctly. +100 points', 'correct');
+                markComplete(1, 100);
+                return;
+            }
+
+            let correct = 0;
+            const total = 5;
+
+            for (const [name, answer] of Object.entries(correctAnswers)) {
+                const selected = document.querySelector('input[name="' + name + '"]:checked');
+                if (selected && selected.value === answer) {
+                    correct++;
+                    selected.closest('.answer-option').classList.add('correct');
+                } else if (selected) {
+                    selected.closest('.answer-option').classList.add('incorrect');
+                }
+            }
+
+            if (correct >= 4) {
+                const pts = correct === 5 ? 100 : 80;
+                showFeedback('feedback1', '\u2713 ' + correct + '/' + total + ' functions identified correctly. +' + pts + ' points', 'correct');
+                markComplete(1, pts);
+            } else {
+                showFeedback('feedback1', '\u2717 ' + correct + '/' + total + ' correct. You need at least 4/5. Review the disassembly and try again.', 'incorrect');
+                setTimeout(() => {
+                    document.querySelectorAll('#evidence1-content .answer-option').forEach(opt => {
+                        opt.classList.remove('incorrect');
+                    });
+                    document.getElementById('feedback1').style.display = 'none';
+                }, 3000);
+            }
+        }
+
+        // ==================== EVIDENCE 2: Control Flow ====================
+        function submitEvidence2() {
+            if (state.answers[2]) return;
+
+            const selected = document.querySelector('input[name="q2"]:checked');
+            if (!selected) {
+                showFeedback('feedback2', 'Select an answer before submitting.', 'incorrect');
+                return;
+            }
+
+            if (state.godMode || selected.value === 'c') {
+                selected.closest('.answer-option').classList.add('correct');
+                showFeedback('feedback2', '\u2713 Correct. EAX=3 matches CMP 0x03, JE branches to cmd_keylog which calls sub_00401200. +100 points', 'correct');
+
+                document.querySelectorAll('input[name="q2"]').forEach(i => i.disabled = true);
+                markComplete(2, 100);
+            } else {
+                selected.closest('.answer-option').classList.add('incorrect');
+                showFeedback('feedback2', '\u2717 Incorrect. Trace the CMP/JE chain: EAX is compared to 1 (no match), then 2 (no match), then 3 (match). Try again.', 'incorrect');
+                setTimeout(() => {
+                    selected.closest('.answer-option').classList.remove('incorrect');
+                    selected.checked = false;
+                    document.getElementById('feedback2').style.display = 'none';
+                }, 3000);
+            }
+        }
+
+        // ==================== EVIDENCE 3: String Decryption ====================
+        function submitEvidence3() {
+            if (state.answers[3]) return;
+
+            const selected = document.querySelector('input[name="q3"]:checked');
+            if (!selected) {
+                showFeedback('feedback3', 'Select an answer before submitting.', 'incorrect');
+                return;
+            }
+
+            if (state.godMode || selected.value === 'b') {
+                selected.closest('.answer-option').classList.add('correct');
+                showFeedback('feedback3', '\u2713 Correct. The decoded strings reveal: C2 domain, C2 callback URL, C2 IP address, and a dropped payload path. +100 points', 'correct');
+
+                document.querySelectorAll('input[name="q3"]').forEach(i => i.disabled = true);
+                markComplete(3, 100);
+            } else {
+                selected.closest('.answer-option').classList.add('incorrect');
+                showFeedback('feedback3', '\u2717 Incorrect. Use the XOR decoder tool with key 0x5A on each string. Look at what the decoded text contains.', 'incorrect');
+                setTimeout(() => {
+                    selected.closest('.answer-option').classList.remove('incorrect');
+                    selected.checked = false;
+                    document.getElementById('feedback3').style.display = 'none';
+                }, 3000);
+            }
+        }
+
+        // ==================== EVIDENCE 4: API Hash Matching ====================
+        function submitEvidence4() {
+            if (state.answers[4]) return;
+
+            const correctMap = {
+                apiSelect1: 'GetProcAddress',
+                apiSelect2: 'VirtualAlloc',
+                apiSelect3: 'WriteProcessMemory',
+                apiSelect4: 'CreateRemoteThread',
+                apiSelect5: 'LoadLibraryA',
+                apiSelect6: 'OpenProcess'
+            };
+
+            if (state.godMode) {
+                for (const [selId, val] of Object.entries(correctMap)) {
+                    document.getElementById(selId).value = val;
+                    document.getElementById(selId).closest('.api-match-item').classList.add('matched-correct');
+                }
+                showFeedback('feedback4', '\u2713 GOD MODE -- All API hashes matched correctly. +100 points', 'correct');
+                markComplete(4, 100);
+                return;
+            }
+
+            let correct = 0;
+            const total = 6;
+
+            for (const [selId, expected] of Object.entries(correctMap)) {
+                const sel = document.getElementById(selId);
+                const item = sel.closest('.api-match-item');
+                item.classList.remove('matched-correct', 'matched-wrong');
+
+                if (sel.value === expected) {
+                    correct++;
+                    item.classList.add('matched-correct');
+                } else {
+                    item.classList.add('matched-wrong');
+                }
+            }
+
+            if (correct >= 5) {
+                const pts = correct === 6 ? 100 : 80;
+                showFeedback('feedback4', '\u2713 ' + correct + '/' + total + ' API hashes matched. +' + pts + ' points', 'correct');
+                markComplete(4, pts);
+            } else {
+                showFeedback('feedback4', '\u2717 ' + correct + '/' + total + ' correct. Need at least 5. Cross-reference each hash with the lookup table.', 'incorrect');
+                setTimeout(() => {
+                    document.querySelectorAll('.api-match-item').forEach(item => {
+                        item.classList.remove('matched-wrong');
+                    });
+                    document.getElementById('feedback4').style.display = 'none';
+                }, 3000);
+            }
+        }
+
+        // ==================== EVIDENCE 5: Final Report ====================
+        function submitFinalReport() {
+            if (state.answers[5]) return;
+
+            const family = document.getElementById('reportFamily').value;
+            const iocs = document.getElementById('reportIOCs').value.trim();
+            const mitigations = document.getElementById('reportMitigations').value.trim();
+
+            const capKeylog = document.getElementById('cap_keylog').checked;
+            const capC2 = document.getElementById('cap_c2').checked;
+            const capExfil = document.getElementById('cap_exfil').checked;
+            const capPersist = document.getElementById('cap_persist').checked;
+            const capEncrypt = document.getElementById('cap_encrypt').checked;
+            const capInject = document.getElementById('cap_inject').checked;
+            const capRansom = document.getElementById('cap_ransom').checked;
+            const capWorm = document.getElementById('cap_worm').checked;
+
+            if (state.godMode) {
+                showFeedback('feedback5', '\u2713 GOD MODE -- Report accepted. +200 points', 'correct');
+                markComplete(5, 200);
+                setTimeout(checkCompletion, 1500);
+                return;
+            }
+
+            // Validate family
+            if (family !== 'rat') {
+                showFeedback('feedback5', '\u2717 Incorrect classification. Review the capabilities: C2 communication, keylogging, file exfiltration, command dispatch. What type of malware has all of these?', 'incorrect');
+                return;
+            }
+
+            // Validate capabilities (must check correct ones, must not check wrong ones)
+            const correctCaps = [capKeylog, capC2, capExfil, capPersist, capEncrypt, capInject];
+            const wrongCaps = [capRansom, capWorm];
+            const correctCount = correctCaps.filter(Boolean).length;
+            const wrongCount = wrongCaps.filter(Boolean).length;
+
+            if (correctCount < 4 || wrongCount > 0) {
+                showFeedback('feedback5', '\u2717 Capabilities list is incomplete or has incorrect entries. Review all five subroutines and the API reconstruction evidence.', 'incorrect');
+                return;
+            }
+
+            // Validate IOCs (must mention at least 2 indicators)
+            if (iocs.length < 30) {
+                showFeedback('feedback5', '\u2717 IOC list is too short. Include C2 addresses, registry keys, and file paths found during analysis.', 'incorrect');
+                return;
+            }
+
+            // Validate mitigations
+            if (mitigations.length < 20) {
+                showFeedback('feedback5', '\u2717 Provide at least one specific mitigation recommendation.', 'incorrect');
+                return;
+            }
+
+            // Score based on completeness
+            let pts = 140; // base for correct family + enough caps
+            if (correctCount >= 5) pts += 20;
+            if (correctCount === 6) pts += 20;
+            if (iocs.length >= 80) pts += 10;
+            if (mitigations.length >= 60) pts += 10;
+            pts = Math.min(pts, 200);
+
+            showFeedback('feedback5', '\u2713 Malware report accepted. Classification: RAT confirmed. +' + pts + ' points', 'correct');
+            markComplete(5, pts);
+
+            setTimeout(checkCompletion, 1500);
+        }
+
+        // ==================== COMPLETION ====================
+        function checkCompletion() {
+            if (state.score >= 400) {
+                localStorage.setItem('gate9_complete', 'true');
+                localStorage.setItem('gate9_score', state.score.toString());
+
+                document.getElementById('finalScore').textContent = state.score;
+                document.getElementById('successModal').classList.add('active');
+            }
+        }
+
+        function returnToVault() {
+            window.location.href = '../index.html';
+        }
+
+        // ==================== GOD MODE ====================
+        document.getElementById('godMode').addEventListener('change', function() {
+            state.godMode = this.checked;
+            if (state.godMode) {
+                console.log('%cGod Mode Activated -- all answers accepted', 'color:#00c878;font-weight:bold;');
+            }
+        });
+
+        document.addEventListener('keydown', function(e) {
+            if (e.ctrlKey && e.shiftKey && e.key === 'G') {
+                const cb = document.getElementById('godMode');
+                cb.checked = !cb.checked;
+                state.godMode = cb.checked;
+                console.log('God Mode:', state.godMode ? 'ON' : 'OFF');
+            }
+        });
+
+        // ==================== INIT ====================
+        window.addEventListener('DOMContentLoaded', function() {
+            loadProgress();
+
+            // If no progress yet, expand first evidence
+            if (!state.answers[1]) {
+                document.getElementById('evidence1-content').classList.add('expanded');
+            }
+        });
+
+        // Console breadcrumb
+        console.log('%cGate IX: Reverse Engineering', 'color:#00c878;font-size:12px;font-weight:bold;');
+        console.log('%cDisassemble. Trace. Decode. Reconstruct.', 'color:#3a6a4a;font-size:10px;');
+    </script>
+<script src="../../../components/FluxCapacitor.js"></script>
 </body>
 </html>

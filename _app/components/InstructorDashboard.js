@@ -771,8 +771,8 @@ const InstructorDashboard = (function() {
         }
 
         listEl.innerHTML = classAssignments.map(a => {
-            const icon = a.assignmentType === 'path' ? '📚' : '📄';
-            const badge = a.assignmentType === 'path' ? 'Learning Path' : (a.contentType || 'Module');
+            const icon = a.assignmentType === 'path' ? '📚' : (a.contentType === 'ctf_box' ? '&#9878;' : '📄');
+            const badge = a.assignmentType === 'path' ? 'Learning Path' : (a.contentType === 'ctf_box' ? 'CTF Box' : (a.contentType || 'Module'));
 
             return `
                 <div class="id-assignment-card">
@@ -1425,6 +1425,13 @@ const InstructorDashboard = (function() {
             return;
         }
 
+        const rankLabel = (i) => {
+            if (i === 0) return '<span class="id-arena-medal id-arena-gold">1</span>';
+            if (i === 1) return '<span class="id-arena-medal id-arena-silver">2</span>';
+            if (i === 2) return '<span class="id-arena-medal id-arena-bronze">3</span>';
+            return i + 1;
+        };
+
         el.innerHTML = `
             <div class="id-arena-leaderboard-title">CTF Leaderboard</div>
             <table class="id-arena-table">
@@ -1439,8 +1446,8 @@ const InstructorDashboard = (function() {
                 </thead>
                 <tbody>
                     ${stats.map((s, i) => `
-                        <tr class="id-arena-row">
-                            <td class="id-arena-rank">${i + 1}</td>
+                        <tr class="id-arena-row ${i < 3 ? 'id-arena-top3' : ''} ${i % 2 === 1 ? 'id-arena-row-alt' : ''}">
+                            <td class="id-arena-rank">${rankLabel(i)}</td>
                             <td>${escapeHtml(s.name)}</td>
                             <td>${s.boxesCompleted}</td>
                             <td class="id-arena-score">${s.totalScore}</td>
@@ -1508,7 +1515,8 @@ const InstructorDashboard = (function() {
                                     const comp = s.completions[b.id];
                                     const inProg = inProgressMap[s.uid]?.[b.id];
                                     if (comp) {
-                                        return `<td class="id-arena-cell id-arena-complete" onclick="InstructorDashboard.showArenaDetail('${s.uid}','${b.id}')" title="${escapeAttr(b.title)}: ${comp.score} pts">${comp.score}</td>`;
+                                        const scoreClass = comp.score > 800 ? 'id-arena-score-high' : comp.score >= 500 ? 'id-arena-score-mid' : 'id-arena-score-low';
+                                        return `<td class="id-arena-cell ${scoreClass}" onclick="InstructorDashboard.showArenaDetail('${s.uid}','${b.id}')" title="${escapeAttr(b.title)}: ${comp.score} pts">${comp.score}</td>`;
                                     } else if (inProg) {
                                         return `<td class="id-arena-cell id-arena-progress" onclick="InstructorDashboard.showArenaDetail('${s.uid}','${b.id}')" title="${escapeAttr(b.title)}: In Progress">...</td>`;
                                     } else {
@@ -1537,8 +1545,17 @@ const InstructorDashboard = (function() {
         const studentFlags = student.flagEvents.filter(f => f.boxId === boxId);
         const studentHints = student.hintEvents.filter(h => h.boxId === boxId);
 
-        // Count wrong flag attempts from arena_complete event data (if available)
-        const wrongAttempts = comp?.wrongFlags || 0;
+        // Count wrong flag attempts: check arena_complete extras, then look for arena_flag_wrong events
+        let wrongAttempts = comp?.wrongFlags || 0;
+        if (!wrongAttempts) {
+            // Count arena_flag events that have a wrong/miss indicator
+            wrongAttempts = arenaActivity.filter(e =>
+                e.eventType === 'arena_flag' &&
+                e.studentUid === uid &&
+                e.contentId === boxId &&
+                e.wrong === true
+            ).length;
+        }
 
         // Phase timings
         let phaseHtml = '';
@@ -1631,7 +1648,14 @@ const InstructorDashboard = (function() {
                 <div class="id-arena-detail-header">
                     <div class="id-arena-detail-name">${escapeHtml(student.name)}</div>
                     <div class="id-arena-detail-box">${escapeHtml(box.label)}: ${escapeHtml(box.title)}</div>
-                    ${comp ? `<div class="id-arena-detail-score">Score: ${comp.score} | Time: ${formatDuration(comp.time)} | Mode: ${comp.mode || 'solo'}</div>` : '<div class="id-arena-detail-score">In Progress</div>'}
+                    ${comp ? `
+                        <div class="id-arena-detail-score">Score: ${comp.score} | Time: ${formatDuration(comp.time)} | Mode: ${comp.mode || 'solo'}</div>
+                        <div class="id-arena-detail-summary">
+                            <span class="id-arena-detail-stat"><span class="id-arena-detail-stat-val" style="color:#4ade80;">${studentFlags.length}</span> flags</span>
+                            <span class="id-arena-detail-stat"><span class="id-arena-detail-stat-val" style="color:#fbbf24;">${studentHints.length}</span> hints</span>
+                            <span class="id-arena-detail-stat"><span class="id-arena-detail-stat-val" style="color:#f87171;">${wrongAttempts}</span> wrong attempts</span>
+                        </div>
+                    ` : '<div class="id-arena-detail-score">In Progress</div>'}
                 </div>
 
                 <!-- Flags Captured -->
@@ -1690,7 +1714,8 @@ const InstructorDashboard = (function() {
 
     /**
      * Export arena data as CSV.
-     * Columns: Student, Box, Score, Flags Captured, Total Flags, Hints Used, Time (seconds), Completion Date, Cert Path, Objectives Covered
+     * Columns: Student, Box, Score, Flags Found, Total Flags, Hints Used, Time (s), Completed (Y/N)
+     * Filename: arena_analytics_{classId}_{date}.csv
      */
     function exportArenaCSV() {
         const stats = buildArenaStats();
@@ -1699,32 +1724,69 @@ const InstructorDashboard = (function() {
             return;
         }
 
-        const headers = ['Student', 'Box', 'Score', 'Flags Captured', 'Total Flags', 'Hints Used', 'Time (seconds)', 'Completion Date', 'Cert Path', 'Objectives Covered'];
+        const headers = ['Student', 'Box', 'Score', 'Flags Found', 'Total Flags', 'Hints Used', 'Time (s)', 'Completed (Y/N)', 'Completion Date', 'Cert Path', 'Objectives Covered'];
         const rows = [];
 
-        for (const s of stats) {
-            for (const [boxId, comp] of Object.entries(s.completions)) {
-                const box = CTF_BOXES.find(b => b.id === boxId) || { label: boxId, title: boxId };
-                const completionDate = comp.timestamp ? (comp.timestamp.toISOString ? comp.timestamp.toISOString() : new Date(comp.timestamp).toISOString()) : '';
-                const certPath = comp.certObjectives?.certPath || '';
-                const objectives = (comp.objectivesCovered || []).map(o => `${o.objective}:${o.captured ? 'Y' : 'N'}`).join('; ');
+        // Include all students in roster, not just those with arena activity
+        for (const member of rosterMembers) {
+            const studentStat = stats.find(s => s.uid === member.uid);
+            const name = member.displayName || member.email?.split('@')[0] || 'Student';
 
-                rows.push([
-                    s.name,
-                    `${box.label} - ${box.title}`,
-                    comp.score || 0,
-                    comp.flags || 0,
-                    comp.totalFlags || 0,
-                    comp.hints || 0,
-                    comp.time || 0,
-                    completionDate,
-                    certPath,
-                    objectives
-                ]);
+            if (studentStat && Object.keys(studentStat.completions).length > 0) {
+                for (const [boxId, comp] of Object.entries(studentStat.completions)) {
+                    const box = CTF_BOXES.find(b => b.id === boxId) || { label: boxId, title: boxId };
+                    const completionDate = comp.timestamp ? (comp.timestamp.toISOString ? comp.timestamp.toISOString() : new Date(comp.timestamp).toISOString()) : '';
+                    const certPath = comp.certObjectives?.certPath || '';
+                    const objectives = (comp.objectivesCovered || []).map(o => `${o.objective}:${o.captured ? 'Y' : 'N'}`).join('; ');
+
+                    rows.push([
+                        name,
+                        `${box.label} - ${box.title}`,
+                        comp.score || 0,
+                        comp.flags || 0,
+                        comp.totalFlags || 0,
+                        comp.hints || 0,
+                        comp.time || 0,
+                        'Y',
+                        completionDate,
+                        certPath,
+                        objectives
+                    ]);
+                }
+
+                // Also include in-progress boxes (flag events but no completion)
+                for (const fe of (studentStat.flagEvents || [])) {
+                    if (!studentStat.completions[fe.boxId]) {
+                        const box = CTF_BOXES.find(b => b.id === fe.boxId) || { label: fe.boxId, title: fe.boxId };
+                        // Only add once per box
+                        if (!rows.find(r => r[0] === name && r[1] === `${box.label} - ${box.title}`)) {
+                            const flagCount = studentStat.flagEvents.filter(f => f.boxId === fe.boxId).length;
+                            const hintCount = studentStat.hintEvents.filter(h => h.boxId === fe.boxId).length;
+                            rows.push([
+                                name,
+                                `${box.label} - ${box.title}`,
+                                0,
+                                flagCount,
+                                '',
+                                hintCount,
+                                '',
+                                'N',
+                                '',
+                                '',
+                                ''
+                            ]);
+                        }
+                    }
+                }
             }
         }
 
-        downloadCSV('arena', headers, rows);
+        // Use specific filename format: arena_analytics_{classId}_{date}.csv
+        const date = new Date().toISOString().split('T')[0];
+        const cls = handlerClasses.find(c => c.id === selectedClassId);
+        const classLabel = cls ? cls.name.replace(/[^a-z0-9]/gi, '-').toLowerCase() : selectedClassId;
+        const filename = `arena_analytics_${classLabel}_${date}`;
+        downloadCSV(filename, headers, rows, true);
     }
 
     /**
@@ -1869,10 +1931,15 @@ const InstructorDashboard = (function() {
         downloadCSV('grades', headers, rows);
     }
 
-    function downloadCSV(filename, headers, rows) {
-        const cls = handlerClasses.find(c => c.id === selectedClassId);
-        const className = cls ? cls.name.replace(/[^a-z0-9]/gi, '-') : 'class';
-        const fullFilename = `${className}-${filename}-${new Date().toISOString().split('T')[0]}.csv`;
+    function downloadCSV(filename, headers, rows, rawFilename) {
+        let fullFilename;
+        if (rawFilename) {
+            fullFilename = `${filename}.csv`;
+        } else {
+            const cls = handlerClasses.find(c => c.id === selectedClassId);
+            const className = cls ? cls.name.replace(/[^a-z0-9]/gi, '-') : 'class';
+            fullFilename = `${className}-${filename}-${new Date().toISOString().split('T')[0]}.csv`;
+        }
 
         const csv = [headers.join(','), ...rows.map(r => r.map(c => `"${c}"`).join(','))].join('\n');
         const blob = new Blob([csv], { type: 'text/csv' });
@@ -3355,6 +3422,41 @@ const InstructorDashboard = (function() {
                 border-radius: 4px;
             }
 
+            /* Score-based cell coloring: >800 green, 500-800 yellow, <500 red */
+            .id-arena-score-high {
+                background: rgba(74, 222, 128, 0.15);
+                color: #4ade80;
+                cursor: pointer;
+                transition: background 0.15s;
+            }
+
+            .id-arena-score-high:hover {
+                background: rgba(74, 222, 128, 0.3);
+            }
+
+            .id-arena-score-mid {
+                background: rgba(251, 191, 36, 0.15);
+                color: #fbbf24;
+                cursor: pointer;
+                transition: background 0.15s;
+            }
+
+            .id-arena-score-mid:hover {
+                background: rgba(251, 191, 36, 0.3);
+            }
+
+            .id-arena-score-low {
+                background: rgba(248, 113, 113, 0.15);
+                color: #f87171;
+                cursor: pointer;
+                transition: background 0.15s;
+            }
+
+            .id-arena-score-low:hover {
+                background: rgba(248, 113, 113, 0.3);
+            }
+
+            /* Backward compat alias */
             .id-arena-complete {
                 background: rgba(74, 222, 128, 0.15);
                 color: #4ade80;
@@ -3381,6 +3483,50 @@ const InstructorDashboard = (function() {
                 color: #333;
             }
 
+            /* Leaderboard: alternating rows */
+            .id-arena-row-alt {
+                background: rgba(255,255,255,0.02);
+            }
+
+            /* Leaderboard: top-3 highlight */
+            .id-arena-top3 {
+                background: rgba(212, 160, 23, 0.06);
+            }
+
+            .id-arena-top3:hover {
+                background: rgba(212, 160, 23, 0.12);
+            }
+
+            /* Leaderboard: rank medals */
+            .id-arena-medal {
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                width: 24px;
+                height: 24px;
+                border-radius: 50%;
+                font-size: 0.7rem;
+                font-weight: 800;
+            }
+
+            .id-arena-gold {
+                background: linear-gradient(135deg, #ffd700, #daa520);
+                color: #000;
+                box-shadow: 0 0 8px rgba(255, 215, 0, 0.4);
+            }
+
+            .id-arena-silver {
+                background: linear-gradient(135deg, #c0c0c0, #a8a8a8);
+                color: #000;
+                box-shadow: 0 0 6px rgba(192, 192, 192, 0.3);
+            }
+
+            .id-arena-bronze {
+                background: linear-gradient(135deg, #cd7f32, #a0522d);
+                color: #000;
+                box-shadow: 0 0 6px rgba(205, 127, 50, 0.3);
+            }
+
             /* Arena Detail Modal */
             .id-arena-detail-header {
                 margin-bottom: 20px;
@@ -3404,6 +3550,28 @@ const InstructorDashboard = (function() {
             .id-arena-detail-score {
                 font-size: 0.8rem;
                 color: var(--id-text-muted);
+            }
+
+            .id-arena-detail-summary {
+                display: flex;
+                gap: 16px;
+                margin-top: 10px;
+                padding: 10px 14px;
+                background: rgba(255,255,255,0.03);
+                border-radius: 6px;
+                font-size: 0.8rem;
+                color: var(--id-text-muted);
+            }
+
+            .id-arena-detail-stat {
+                display: flex;
+                align-items: center;
+                gap: 4px;
+            }
+
+            .id-arena-detail-stat-val {
+                font-weight: 700;
+                font-size: 0.9rem;
             }
 
             .id-arena-detail-section {

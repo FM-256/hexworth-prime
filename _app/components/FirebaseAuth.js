@@ -1,16 +1,18 @@
 /**
  * FirebaseAuth.js - Firebase Authentication Manager
  *
- * Handles Google sign-in and admin access control.
+ * QC-4: Server-side admin verification via Firebase Auth custom claims.
+ * Handles Google sign-in, admin claims, and Cloud Function invocation.
  * Persists auth state to localStorage for file:// protocol compatibility.
  */
 
 const FirebaseAuth = (function() {
     'use strict';
 
-    // Firebase SDK imports will be loaded dynamically
+    // Firebase SDK instances
     let app = null;
     let auth = null;
+    let functions = null;
     let initialized = false;
 
     // Configuration
@@ -24,6 +26,7 @@ const FirebaseAuth = (function() {
             appId: "1:11726236962:web:1829ea0839f2587121497b",
             measurementId: "G-YK193VC8S9"
         },
+        // Client-side fallback — real authority is the Cloud Function ADMIN_EMAILS list
         adminEmails: [
             'f.mora80@gmail.com'
         ],
@@ -41,7 +44,7 @@ const FirebaseAuth = (function() {
     const _authReadyPromise = new Promise(resolve => { _authReadyResolve = resolve; });
 
     /**
-     * Load Firebase SDK dynamically
+     * Load Firebase SDK dynamically (App + Auth + Functions)
      */
     async function loadFirebaseSDK() {
         if (window.firebaseApp && window.firebaseAuth) {
@@ -49,14 +52,15 @@ const FirebaseAuth = (function() {
         }
 
         try {
-            // Import Firebase modules
-            const [appModule, authModule] = await Promise.all([
+            const modules = await Promise.all([
                 import('https://www.gstatic.com/firebasejs/12.7.0/firebase-app.js'),
-                import('https://www.gstatic.com/firebasejs/12.7.0/firebase-auth.js')
+                import('https://www.gstatic.com/firebasejs/12.7.0/firebase-auth.js'),
+                import('https://www.gstatic.com/firebasejs/12.7.0/firebase-functions.js')
             ]);
 
-            window.firebaseApp = appModule;
-            window.firebaseAuth = authModule;
+            window.firebaseApp = modules[0];
+            window.firebaseAuth = modules[1];
+            window.firebaseFunctions = modules[2];
             return true;
         } catch (error) {
             console.error('[FirebaseAuth] Failed to load Firebase SDK:', error);
@@ -81,8 +85,6 @@ const FirebaseAuth = (function() {
         try {
             // Initialize Firebase app
             const { initializeApp, getApps } = window.firebaseApp;
-
-            // Check if already initialized
             if (getApps().length === 0) {
                 app = initializeApp(config.firebase);
             } else {
@@ -93,11 +95,17 @@ const FirebaseAuth = (function() {
             const { getAuth, onAuthStateChanged } = window.firebaseAuth;
             auth = getAuth(app);
 
+            // Initialize Functions (QC-4)
+            if (window.firebaseFunctions) {
+                const { getFunctions } = window.firebaseFunctions;
+                functions = getFunctions(app, 'us-central1');
+            }
+
             // Listen for auth state changes
             onAuthStateChanged(auth, handleAuthStateChange);
 
             initialized = true;
-            console.log('[FirebaseAuth] Initialized successfully');
+            console.log('[FirebaseAuth] Initialized (Auth + Functions)');
             return true;
         } catch (error) {
             console.error('[FirebaseAuth] Initialization failed:', error);
@@ -130,9 +138,17 @@ const FirebaseAuth = (function() {
                 isAnonymous: user.isAnonymous || false,
                 deviceId: getOrCreateDeviceId()
             };
-            isAdmin = user.email ? config.adminEmails.includes(user.email.toLowerCase()) : false;
 
-            // Cache to localStorage for file:// persistence
+            // QC-4: Read admin from custom claims (set by setAdminClaim Cloud Function)
+            try {
+                const tokenResult = await user.getIdTokenResult();
+                isAdmin = tokenResult.claims.admin === true;
+            } catch (e) {
+                // Fallback: email allowlist (offline / first-time before claims set)
+                isAdmin = user.email ? config.adminEmails.includes(user.email.toLowerCase()) : false;
+            }
+
+            // Cache to localStorage for file:// persistence and sync AccessGuard checks
             localStorage.setItem(config.storageKeys.user, JSON.stringify(currentUser));
             localStorage.setItem(config.storageKeys.isAdmin, isAdmin.toString());
 
@@ -199,8 +215,52 @@ const FirebaseAuth = (function() {
         }
     }
 
+    // ─── QC-4: Cloud Function & Claims API ──────────────────────────
+
     /**
-     * Sign in with Google
+     * Call a Cloud Function by name.
+     * @param {string} name - Function name (e.g., 'setAdminClaim', 'completeGate', 'validateFlag')
+     * @param {Object} data - Data to pass to the function
+     * @returns {Promise<Object>} Function result
+     */
+    async function callFunction(name, data) {
+        if (!functions) {
+            throw new Error('Firebase Functions not initialized');
+        }
+        const { httpsCallable } = window.firebaseFunctions;
+        const fn = httpsCallable(functions, name);
+        return fn(data || {});
+    }
+
+    /**
+     * Get custom claims from the current user's ID token.
+     * Claims are embedded in the JWT — this is a local decode, not a network call
+     * (unless the token is expired and needs refresh).
+     * @returns {Promise<Object>} Claims object or empty object
+     */
+    async function getCustomClaims() {
+        if (!auth || !auth.currentUser) return {};
+        try {
+            const tokenResult = await auth.currentUser.getIdTokenResult();
+            return tokenResult.claims || {};
+        } catch (e) {
+            return {};
+        }
+    }
+
+    /**
+     * Force refresh the ID token (needed after claims change).
+     * @returns {Promise<string|null>} New ID token or null
+     */
+    async function refreshToken() {
+        if (!auth || !auth.currentUser) return null;
+        return auth.currentUser.getIdToken(true);
+    }
+
+    // ─── Sign In / Sign Out ─────────────────────────────────────────
+
+    /**
+     * Sign in with Google — also sets admin claims via Cloud Function (QC-4)
      */
     async function signInWithGoogle() {
         if (!initialized || !auth) {
@@ -217,6 +277,28 @@ const FirebaseAuth = (function() {
             const { GoogleAuthProvider, signInWithPopup } = window.firebaseAuth;
             const provider = new GoogleAuthProvider();
             const result = await signInWithPopup(auth, provider);
+
+            // QC-4: Set admin claims via Cloud Function after explicit sign-in
+            if (functions && !result.user.isAnonymous) {
+                try {
+                    const claimResult = await callFunction('setAdminClaim');
+                    // Force token refresh so claims are available immediately
+                    await result.user.getIdToken(true);
+
+                    isAdmin = claimResult.data.admin === true;
+                    localStorage.setItem(config.storageKeys.isAdmin, isAdmin.toString());
+
+                    // Notify listeners that admin claims have been verified
+                    window.dispatchEvent(new CustomEvent('firebaseAdminVerified', {
+                        detail: { admin: isAdmin }
+                    }));
+
+                    console.log('[FirebaseAuth] Admin claims set via Cloud Function:', isAdmin);
+                } catch (e) {
+                    console.warn('[FirebaseAuth] setAdminClaim failed (using email fallback):', e);
+                }
+            }
+
             return result.user;
         } catch (error) {
             console.error('[FirebaseAuth] Sign in failed:', error);
@@ -344,6 +426,19 @@ const FirebaseAuth = (function() {
             const provider = new GoogleAuthProvider();
             const result = await linkWithPopup(auth.currentUser, provider);
             console.log('[FirebaseAuth] Account linked successfully:', result.user.email);
+
+            // QC-4: Set admin claims for newly linked Google account
+            if (functions) {
+                try {
+                    const claimResult = await callFunction('setAdminClaim');
+                    await result.user.getIdToken(true);
+                    isAdmin = claimResult.data.admin === true;
+                    localStorage.setItem(config.storageKeys.isAdmin, isAdmin.toString());
+                } catch (e) {
+                    console.warn('[FirebaseAuth] setAdminClaim after link failed:', e);
+                }
+            }
+
             return result.user;
         } catch (error) {
             // If Google account already exists, sign in with that credential instead
@@ -406,7 +501,11 @@ const FirebaseAuth = (function() {
         isSignedIn,
         addAdminEmail,
         removeAdminEmail,
-        getOrCreateDeviceId
+        getOrCreateDeviceId,
+        // QC-4: Server-side verification
+        callFunction,
+        getCustomClaims,
+        refreshToken
     };
 })();
 

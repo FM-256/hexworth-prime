@@ -1,7 +1,7 @@
 ══════════════════════════════════════════════════════════════════════
                          EDUSCAN REPORT
                     Hexworth Prime Content Map
-                    Scanned: 2026-02-19 12:43:31 AM
+                    Scanned: 2026-02-19 7:38:26 AM
 ══════════════════════════════════════════════════════════════════════
 
 
@@ -10,17 +10,17 @@
 
 | Metric | Value |
 |--------|-------|
-| Files Scanned | 1437 |
-| Directories | 455 |
-| Content Files | 1437 |
+| Files Scanned | 1449 |
+| Directories | 467 |
+| Content Files | 1449 |
 | Scan Duration | 181ms |
 
 ### Content by Type
 
 | Type | Count |
 |------|-------|
-| html | 509 |
-| presentation | 399 |
+| html | 518 |
+| presentation | 402 |
 | lab | 237 |
 | applet | 166 |
 | quiz | 126 |
@@ -41,18 +41,18 @@
 | Severity | Count |
 |----------|-------|
 | Critical | 0 |
-| Suspect | 125 |
-| Warning | 988 |
+| Suspect | 128 |
+| Warning | 991 |
 | Info | 224 |
-| **Total** | **1919** |
+| **Total** | **1925** |
 
 ### Sync Status
 
 | Status | Count |
 |--------|-------|
-| Ready | 856 |
+| Ready | 859 |
 | Not Ready | 72 |
-| Unknown | 509 |
+| Unknown | 518 |
 
 
 ## FILE HIERARCHY
@@ -65,6 +65,29 @@
 │   ├── 📄 audit-tool.html
 │   └── 📁 scripts
 ├── 📁 arctic
+│   ├── 📁 districts
+│   │   ├── 📁 arena
+│   │   │   └── 📍 index.html
+│   │   ├── 📁 cert-prep
+│   │   │   └── 📍 index.html
+│   │   ├── 📁 cli-fundamentals
+│   │   │   └── 📍 index.html
+│   │   ├── 📁 hardening
+│   │   │   └── 📍 index.html
+│   │   ├── 📁 incident-response
+│   │   │   └── 📍 index.html
+│   │   ├── 📁 log-analysis
+│   │   │   └── 📍 index.html
+│   │   ├── 📁 network-ops
+│   │   │   └── 📍 index.html
+│   │   ├── 📁 offensive-tools
+│   │   │   └── 📍 index.html
+│   │   ├── 📁 shell-scripting
+│   │   │   └── 📍 index.html
+│   │   ├── 📁 sysadmin
+│   │   │   └── 📍 index.html
+│   │   └── 📁 text-processing
+│   │       └── 📍 index.html
 │   └── 📍 index.html
 ├── 📁 arena
 │   ├── 📁 boxes
@@ -154,6 +177,7 @@
 │       │   │       ├── 📄 interview-colleague.html
 │       │   │       ├── 📄 interview-neighbor.html
 │       │   │       └── 📄 police-report.html
+│       │   ├── 📄 gate-8.html
 │       │   └── 📄 gate-9.html
 │       ├── 🔬 idor-attack-lab.html
 │       ├── 🔬 ids-evasion-lab.html
@@ -2791,9 +2815,12 @@
 | dos-ddos-lab | presentation | ✓ | 0 |
 | enumeration-lab | applet | ✓ | 1 |
 | footprinting-lab | lab | ✓ | 2 |
+| gate-10 | presentation | ✓ | 0 |
 | gate-11 | applet | ✓ | 1 |
 | gate-6 | presentation | ✓ | 0 |
 | gate-7 | presentation | ✓ | 0 |
+| gate-8 | presentation | ✓ | 0 |
+| gate-9 | presentation | ✓ | 0 |
 | idor-attack-lab | lab | ✓ | 2 |
 | ids-evasion-lab | applet | ✓ | 1 |
 | index | applet | ✓ | 1 |
@@ -2943,7 +2970,7 @@
 ## ISSUES DETECTED
 ══════════════════════════════════════════════════════════════════════
 
-### SUSPECT (125) — heuristic, needs review
+### SUSPECT (128) — heuristic, needs review
 
 **[HEUR-004]** console.log() in inline script (production hygiene)
   File: `admin/audit-tool.html`
@@ -2986,6 +3013,10 @@
   Fix: Remove console.log or replace with proper logging
 
 **[HEUR-004]** console.log() in inline script (production hygiene)
+  File: `dark-arts/vault/gates/gate-10.html`
+  Fix: Remove console.log or replace with proper logging
+
+**[HEUR-004]** console.log() in inline script (production hygiene)
   File: `dark-arts/vault/gates/gate-6.html`
   Fix: Remove console.log or replace with proper logging
 
@@ -2995,6 +3026,14 @@
 
 **[HEUR-004]** console.log() in inline script (production hygiene)
   File: `dark-arts/vault/gates/gate-8/phone.html`
+  Fix: Remove console.log or replace with proper logging
+
+**[HEUR-004]** console.log() in inline script (production hygiene)
+  File: `dark-arts/vault/gates/gate-8.html`
+  Fix: Remove console.log or replace with proper logging
+
+**[HEUR-004]** console.log() in inline script (production hygiene)
+  File: `dark-arts/vault/gates/gate-9.html`
   Fix: Remove console.log or replace with proper logging
 
 **[HEUR-004]** console.log() in inline script (production hygiene)
@@ -3445,7 +3484,7 @@
   File: `test-rare-only.html`
   Fix: Remove console.log or replace with proper logging
 
-### WARNING (988)
+### WARNING (991)
 
 **[REG-001]** Content file is not registered in content-registry.js
   File: `admin/audit-tool.html`
@@ -3500,6 +3539,10 @@
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
+  File: `dark-arts/vault/gates/gate-10.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
   File: `dark-arts/vault/gates/gate-11.html`
   Fix: Add entry to content-registry.js
 
@@ -3509,6 +3552,14 @@
 
 **[REG-001]** Content file is not registered in content-registry.js
   File: `dark-arts/vault/gates/gate-7.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `dark-arts/vault/gates/gate-8.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `dark-arts/vault/gates/gate-9.html`
   Fix: Add entry to content-registry.js
 
 **[TRACK-003]** Lab has no visible progress tracking mechanism
@@ -8293,7 +8344,7 @@
 ## REGISTRY GAPS
 ══════════════════════════════════════════════════════════════════════
 
-### Unregistered Content (821)
+### Unregistered Content (824)
 
 | Path | Type | House |
 |------|------|-------|
@@ -8307,9 +8358,12 @@
 | dark-arts/vault/dos-ddos-lab.html | presentation | - |
 | dark-arts/vault/enumeration-lab.html | applet | - |
 | dark-arts/vault/footprinting-lab.html | lab | - |
+| dark-arts/vault/gates/gate-10.html | presentation | - |
 | dark-arts/vault/gates/gate-11.html | applet | - |
 | dark-arts/vault/gates/gate-6.html | presentation | - |
 | dark-arts/vault/gates/gate-7.html | presentation | - |
+| dark-arts/vault/gates/gate-8.html | presentation | - |
+| dark-arts/vault/gates/gate-9.html | presentation | - |
 | dark-arts/vault/idor-attack-lab.html | lab | - |
 | dark-arts/vault/ids-evasion-lab.html | applet | - |
 | dark-arts/vault/iot-security-lab.html | applet | - |

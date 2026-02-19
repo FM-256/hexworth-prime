@@ -3,10 +3,41 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    // ─── Helper: is this user an admin? ─────────────────────────
+    function isAdmin() {
+      return request.auth != null && request.auth.token.admin == true;
+    }
+
     // Users collection — authenticated users can read/write their own doc
+    // Cloud Functions (setAdminClaim) also writes role/claimsUpdatedAt via admin SDK (bypasses rules)
     match /users/{userId} {
       allow read: if request.auth != null;
-      allow write: if request.auth != null && request.auth.uid == userId;
+      // Users can write own doc EXCEPT the role field (only Cloud Functions can set role)
+      allow write: if request.auth != null && request.auth.uid == userId
+        && (!('role' in request.resource.data) || request.resource.data.role == resource.data.role);
+
+      // Gate completions subcollection — written by Cloud Functions (completeGate)
+      // Students can read their own, admins can read any
+      match /gates/{gateId} {
+        allow read: if request.auth != null && (request.auth.uid == userId || isAdmin());
+        // Only Cloud Functions (admin SDK) can write — no client writes allowed
+      }
+
+      // Flag capture records — written by Cloud Functions (validateFlag)
+      match /flag_captures/{captureId} {
+        allow read: if request.auth != null && (request.auth.uid == userId || isAdmin());
+      }
+
+      // Flag attempt rate-limiting — written by Cloud Functions (validateFlag)
+      match /flag_attempts/{attemptId} {
+        allow read: if isAdmin();
+      }
+    }
+
+    // Flag registry — server-side only (admin SDK writes, no client access)
+    match /flag_registry/{boxId} {
+      allow read: if false;
+      allow write: if false;
     }
 
     // Leaderboards — any authenticated user can read
@@ -17,8 +48,7 @@ service cloud.firestore {
     // HED reports — authenticated users can create, admin can read/delete
     match /hed_reports/{reportId} {
       allow create: if request.auth != null;
-      allow read, delete: if request.auth != null
-        && request.auth.token.email == 'f.mora80@gmail.com';
+      allow read, delete: if isAdmin();
     }
 
     // OASIS Rings — anyone authenticated can read, any auth user can update (score submission)

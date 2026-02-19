@@ -1,0 +1,1874 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="../../gate-cipher.js"></script>
+    <script>GATE_CIPHER.checkVersion();</script>
+    <script src="../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('dark-arts');</script>
+    <title>Gate 8: Dynamic Analysis Sandbox | Dark Arts Vault</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Courier New', monospace;
+            background: linear-gradient(135deg, #0a0015 0%, #1a0033 50%, #0f001f 100%);
+            color: #b19cd9;
+            min-height: 100vh;
+            overflow-x: hidden;
+            position: relative;
+        }
+
+        /* Animated background particles */
+        .particle {
+            position: fixed;
+            width: 2px;
+            height: 2px;
+            background: rgba(138, 43, 226, 0.3);
+            border-radius: 50%;
+            pointer-events: none;
+            animation: float 20s infinite;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0) translateX(0); opacity: 0; }
+            10% { opacity: 1; }
+            90% { opacity: 1; }
+            100% { transform: translateY(-100vh) translateX(50px); opacity: 0; }
+        }
+
+        /* Scanline effect */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: repeating-linear-gradient(
+                0deg,
+                rgba(0, 0, 0, 0.05) 0px,
+                transparent 1px,
+                transparent 2px,
+                rgba(0, 0, 0, 0.05) 3px
+            );
+            pointer-events: none;
+            z-index: 9999;
+            animation: scanline 8s linear infinite;
+        }
+
+        @keyframes scanline {
+            0% { transform: translateY(0); }
+            100% { transform: translateY(20px); }
+        }
+
+        /* Layout */
+        .sandbox-wrapper {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* Header */
+        .header {
+            text-align: center;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #8a2be2;
+            padding-bottom: 15px;
+        }
+
+        .header h1 {
+            font-size: 2.2em;
+            color: #9370db;
+            text-shadow: 0 0 20px rgba(138, 43, 226, 0.8);
+            margin-bottom: 8px;
+            letter-spacing: 2px;
+        }
+
+        .header .subtitle {
+            font-size: 1.1em;
+            color: #b19cd9;
+            font-style: italic;
+        }
+
+        .tier-badge {
+            display: inline-block;
+            background: linear-gradient(135deg, #4b0082, #8a2be2);
+            padding: 6px 16px;
+            border-radius: 20px;
+            margin-top: 8px;
+            font-weight: bold;
+            font-size: 0.9em;
+            box-shadow: 0 0 15px rgba(138, 43, 226, 0.5);
+        }
+
+        /* Progress Tracker */
+        .progress-tracker {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 15px;
+            padding: 12px 20px;
+            background: rgba(20, 0, 40, 0.6);
+            border-radius: 8px;
+            border: 1px solid #8a2be2;
+        }
+
+        .progress-item { text-align: center; flex: 1; }
+        .progress-item .label { font-size: 0.85em; color: #9370db; margin-bottom: 3px; }
+        .progress-item .value { font-size: 1.3em; font-weight: bold; color: #b19cd9; }
+
+        /* VM Desktop Container */
+        .vm-desktop {
+            background: #1a1a2e;
+            border: 2px solid #8a2be2;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 0 40px rgba(138, 43, 226, 0.3);
+            min-height: 600px;
+            position: relative;
+        }
+
+        /* VM Title Bar */
+        .vm-titlebar {
+            background: linear-gradient(90deg, #2d1050, #1a0a30);
+            padding: 8px 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #8a2be2;
+            user-select: none;
+        }
+
+        .vm-titlebar-left {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: #9370db;
+            font-size: 0.9em;
+        }
+
+        .vm-dot {
+            width: 10px; height: 10px;
+            border-radius: 50%;
+            display: inline-block;
+        }
+
+        .vm-dot.green { background: #4caf50; }
+        .vm-dot.yellow { background: #ff9800; }
+        .vm-dot.red { background: #f44336; }
+
+        .vm-titlebar-right {
+            display: flex;
+            gap: 8px;
+        }
+
+        .vm-btn {
+            background: rgba(138, 43, 226, 0.2);
+            border: 1px solid #6a0dad;
+            color: #b19cd9;
+            padding: 3px 10px;
+            border-radius: 3px;
+            cursor: pointer;
+            font-family: 'Courier New', monospace;
+            font-size: 0.8em;
+            transition: all 0.2s;
+        }
+
+        .vm-btn:hover {
+            background: rgba(138, 43, 226, 0.4);
+            box-shadow: 0 0 8px rgba(138, 43, 226, 0.4);
+        }
+
+        /* VM Body Layout */
+        .vm-body {
+            display: grid;
+            grid-template-columns: 260px 1fr 280px;
+            grid-template-rows: 1fr 280px;
+            height: 600px;
+        }
+
+        /* File System Panel (Left) */
+        .panel-filesystem {
+            grid-row: 1 / 3;
+            background: #12102a;
+            border-right: 1px solid rgba(138, 43, 226, 0.3);
+            overflow-y: auto;
+            padding: 10px;
+        }
+
+        /* Main Area (Center) */
+        .panel-main {
+            background: #16142e;
+            padding: 15px;
+            overflow-y: auto;
+            position: relative;
+        }
+
+        /* Process Tree (Right) */
+        .panel-processes {
+            grid-row: 1 / 2;
+            background: #12102a;
+            border-left: 1px solid rgba(138, 43, 226, 0.3);
+            overflow-y: auto;
+            padding: 10px;
+        }
+
+        /* Bottom Panels */
+        .panel-bottom {
+            grid-column: 2 / 4;
+            background: #0e0c22;
+            border-top: 1px solid rgba(138, 43, 226, 0.3);
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Tab system for bottom panels */
+        .bottom-tabs {
+            display: flex;
+            border-bottom: 1px solid rgba(138, 43, 226, 0.3);
+            background: #1a1840;
+        }
+
+        .bottom-tab {
+            padding: 6px 16px;
+            cursor: pointer;
+            color: #7a6a9a;
+            font-size: 0.85em;
+            border-right: 1px solid rgba(138, 43, 226, 0.2);
+            transition: all 0.2s;
+            user-select: none;
+        }
+
+        .bottom-tab:hover { color: #b19cd9; background: rgba(138, 43, 226, 0.1); }
+        .bottom-tab.active { color: #9370db; background: rgba(138, 43, 226, 0.2); border-bottom: 2px solid #8a2be2; }
+
+        .bottom-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 8px 12px;
+        }
+
+        .bottom-pane { display: none; }
+        .bottom-pane.active { display: block; }
+
+        /* Panel Headers */
+        .panel-header {
+            font-size: 0.85em;
+            color: #8a2be2;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            padding-bottom: 6px;
+            margin-bottom: 8px;
+            border-bottom: 1px solid rgba(138, 43, 226, 0.2);
+            font-weight: bold;
+        }
+
+        /* File Tree Styles */
+        .file-tree { font-size: 0.82em; line-height: 1.6; }
+
+        .tree-folder {
+            cursor: pointer;
+            color: #9370db;
+            user-select: none;
+            transition: color 0.2s;
+        }
+
+        .tree-folder:hover { color: #b19cd9; }
+        .tree-folder::before { content: '\25B6 '; font-size: 0.7em; }
+        .tree-folder.open::before { content: '\25BC '; font-size: 0.7em; }
+
+        .tree-children { margin-left: 14px; display: none; }
+        .tree-children.open { display: block; }
+
+        .tree-file {
+            color: #7a6a9a;
+            cursor: pointer;
+            padding: 1px 4px;
+            border-radius: 3px;
+            transition: all 0.2s;
+        }
+
+        .tree-file:hover { background: rgba(138, 43, 226, 0.15); color: #b19cd9; }
+        .tree-file.malware { color: #ff6b6b; font-weight: bold; }
+        .tree-file.highlight { background: rgba(255, 152, 0, 0.15); color: #ffb74d; }
+        .tree-file.dropped { color: #ff9800; animation: dropPulse 1s ease; }
+
+        @keyframes dropPulse {
+            0% { background: rgba(255, 152, 0, 0.4); }
+            100% { background: transparent; }
+        }
+
+        /* Process Tree Styles */
+        .process-entry {
+            font-size: 0.8em;
+            padding: 4px 6px;
+            margin: 2px 0;
+            border-radius: 3px;
+            animation: processAppear 0.4s ease;
+            line-height: 1.4;
+        }
+
+        .process-entry.system { color: #6a6a8a; }
+        .process-entry.suspicious { color: #ff9800; background: rgba(255, 152, 0, 0.08); border-left: 2px solid #ff9800; }
+        .process-entry.malicious { color: #ff6b6b; background: rgba(255, 107, 107, 0.08); border-left: 2px solid #ff6b6b; }
+
+        @keyframes processAppear {
+            from { opacity: 0; transform: translateX(10px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+
+        .process-pid { color: #8a2be2; font-weight: bold; }
+
+        /* Registry / Network Log Styles */
+        .log-entry {
+            font-size: 0.8em;
+            padding: 4px 6px;
+            margin: 2px 0;
+            border-radius: 3px;
+            animation: logAppear 0.3s ease;
+            line-height: 1.4;
+        }
+
+        .log-entry.registry { color: #dda0dd; border-left: 2px solid #9370db; padding-left: 8px; }
+        .log-entry.network { color: #80cbc4; border-left: 2px solid #00897b; padding-left: 8px; }
+        .log-entry.network.dns { color: #4dd0e1; border-left-color: #00acc1; }
+        .log-entry.network.http { color: #ef9a9a; border-left-color: #e53935; }
+        .log-entry.file-event { color: #ffb74d; border-left: 2px solid #ff9800; padding-left: 8px; }
+
+        @keyframes logAppear {
+            from { opacity: 0; transform: translateY(5px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .timestamp { color: #5a5a7a; margin-right: 6px; }
+
+        /* Desktop Icons in main area */
+        .desktop-area {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            padding: 10px;
+        }
+
+        .desktop-icon {
+            width: 80px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+            padding: 8px;
+            border-radius: 5px;
+        }
+
+        .desktop-icon:hover {
+            background: rgba(138, 43, 226, 0.15);
+            transform: scale(1.05);
+        }
+
+        .desktop-icon .icon-img {
+            font-size: 2.5em;
+            display: block;
+            margin-bottom: 4px;
+        }
+
+        .desktop-icon .icon-label {
+            font-size: 0.7em;
+            color: #b19cd9;
+            word-wrap: break-word;
+        }
+
+        .desktop-icon.malware-sample .icon-img { color: #ff6b6b; }
+        .desktop-icon.malware-sample .icon-label { color: #ff6b6b; }
+
+        /* Execution Banner */
+        .exec-banner {
+            display: none;
+            background: rgba(255, 0, 0, 0.15);
+            border: 2px solid #ff4444;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 15px;
+            text-align: center;
+            animation: bannerPulse 2s ease infinite;
+        }
+
+        .exec-banner.active { display: block; }
+
+        @keyframes bannerPulse {
+            0%, 100% { box-shadow: 0 0 10px rgba(255, 0, 0, 0.3); }
+            50% { box-shadow: 0 0 25px rgba(255, 0, 0, 0.6); }
+        }
+
+        .exec-banner h3 { color: #ff6b6b; margin-bottom: 5px; }
+        .exec-banner p { color: #ffab91; font-size: 0.9em; }
+
+        /* Timeline Progress */
+        .timeline-bar {
+            display: none;
+            background: rgba(138, 43, 226, 0.2);
+            height: 6px;
+            border-radius: 3px;
+            margin: 10px 15px;
+            overflow: hidden;
+        }
+
+        .timeline-bar.active { display: block; }
+
+        .timeline-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #8a2be2, #ff6b6b);
+            width: 0%;
+            transition: width 0.5s ease;
+            border-radius: 3px;
+        }
+
+        /* File Viewer Overlay */
+        .file-viewer {
+            display: none;
+            position: absolute;
+            top: 10px; left: 10px; right: 10px; bottom: 10px;
+            background: rgba(10, 5, 20, 0.97);
+            border: 1px solid #8a2be2;
+            border-radius: 8px;
+            z-index: 10;
+            padding: 15px;
+            overflow-y: auto;
+        }
+
+        .file-viewer.active { display: block; }
+
+        .file-viewer-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid rgba(138, 43, 226, 0.3);
+        }
+
+        .file-viewer-title { color: #9370db; font-weight: bold; }
+
+        .file-viewer-close {
+            background: rgba(255, 0, 0, 0.2);
+            border: 1px solid #f44336;
+            color: #ff6b6b;
+            padding: 3px 10px;
+            border-radius: 3px;
+            cursor: pointer;
+            font-family: 'Courier New', monospace;
+            transition: all 0.2s;
+        }
+
+        .file-viewer-close:hover { background: rgba(255, 0, 0, 0.4); }
+
+        .file-viewer-body {
+            font-size: 0.85em;
+            line-height: 1.6;
+            color: #b19cd9;
+            white-space: pre-wrap;
+        }
+
+        /* Answer Panel */
+        .answer-panel {
+            background: rgba(20, 0, 40, 0.9);
+            border: 2px solid #8a2be2;
+            border-radius: 10px;
+            padding: 25px;
+            margin-top: 20px;
+            box-shadow: 0 0 30px rgba(138, 43, 226, 0.3);
+        }
+
+        .answer-panel h2 {
+            color: #9370db;
+            text-align: center;
+            margin-bottom: 20px;
+            font-size: 1.5em;
+            text-shadow: 0 0 10px rgba(138, 43, 226, 0.6);
+        }
+
+        .answer-section {
+            margin-bottom: 20px;
+            padding: 15px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 8px;
+            border: 1px solid rgba(138, 43, 226, 0.2);
+        }
+
+        .answer-section.correct {
+            border-color: #4caf50;
+            background: rgba(76, 175, 80, 0.08);
+        }
+
+        .answer-section.incorrect {
+            border-color: #f44336;
+            background: rgba(244, 67, 54, 0.05);
+        }
+
+        .answer-label {
+            color: #9370db;
+            font-weight: bold;
+            margin-bottom: 6px;
+            font-size: 0.95em;
+        }
+
+        .answer-sublabel {
+            color: #7a6a9a;
+            font-size: 0.8em;
+            margin-bottom: 8px;
+        }
+
+        .answer-input {
+            width: 100%;
+            padding: 10px;
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid #6a0dad;
+            color: #b19cd9;
+            border-radius: 5px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+            transition: all 0.2s;
+        }
+
+        .answer-input:focus {
+            outline: none;
+            border-color: #8a2be2;
+            box-shadow: 0 0 10px rgba(138, 43, 226, 0.3);
+        }
+
+        .answer-input:disabled {
+            opacity: 0.6;
+        }
+
+        .answer-check {
+            color: #4caf50;
+            font-weight: bold;
+            margin-left: 8px;
+            display: none;
+        }
+
+        .answer-check.visible { display: inline; }
+
+        .answer-wrong {
+            color: #f44336;
+            font-size: 0.85em;
+            margin-top: 4px;
+            display: none;
+        }
+
+        .answer-wrong.visible { display: block; }
+
+        .points-badge {
+            float: right;
+            background: rgba(138, 43, 226, 0.3);
+            padding: 2px 10px;
+            border-radius: 10px;
+            font-size: 0.8em;
+            color: #b19cd9;
+        }
+
+        .points-badge.earned {
+            background: rgba(76, 175, 80, 0.3);
+            color: #4caf50;
+        }
+
+        /* Submit buttons */
+        .submit-row {
+            display: flex;
+            gap: 10px;
+            margin-top: 8px;
+        }
+
+        .btn-submit {
+            background: linear-gradient(135deg, #8a2be2, #6a0dad);
+            color: white;
+            border: none;
+            padding: 8px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+            transition: all 0.2s;
+        }
+
+        .btn-submit:hover {
+            box-shadow: 0 0 15px rgba(138, 43, 226, 0.5);
+            transform: translateY(-1px);
+        }
+
+        .btn-submit:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+
+        .btn-execute {
+            background: linear-gradient(135deg, #c62828, #b71c1c);
+            color: white;
+            border: 2px solid #ff5252;
+            padding: 12px 30px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-family: 'Courier New', monospace;
+            font-size: 1.1em;
+            font-weight: bold;
+            letter-spacing: 1px;
+            transition: all 0.3s;
+            text-transform: uppercase;
+        }
+
+        .btn-execute:hover {
+            background: linear-gradient(135deg, #d32f2f, #c62828);
+            box-shadow: 0 0 25px rgba(255, 82, 82, 0.6);
+            transform: translateY(-2px);
+        }
+
+        .btn-execute:disabled { opacity: 0.3; cursor: not-allowed; transform: none; box-shadow: none; }
+
+        /* Final Submit */
+        .btn-final {
+            background: linear-gradient(135deg, #8a2be2, #9370db);
+            color: white;
+            border: none;
+            padding: 14px 40px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-family: 'Courier New', monospace;
+            font-size: 1.1em;
+            font-weight: bold;
+            width: 100%;
+            margin-top: 15px;
+            transition: all 0.3s;
+        }
+
+        .btn-final:hover {
+            box-shadow: 0 0 20px rgba(138, 43, 226, 0.6);
+            transform: translateY(-2px);
+        }
+
+        .btn-final:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+
+        /* God Mode Toggle */
+        .god-mode-toggle {
+            position: fixed;
+            top: 15px;
+            right: 15px;
+            background: rgba(20, 0, 40, 0.9);
+            border: 1px solid #8a2be2;
+            border-radius: 5px;
+            padding: 6px 12px;
+            cursor: pointer;
+            z-index: 100;
+            font-size: 0.85em;
+            transition: all 0.3s;
+        }
+
+        .god-mode-toggle:hover {
+            background: rgba(138, 43, 226, 0.3);
+        }
+
+        .god-mode-toggle input { margin-right: 6px; }
+
+        /* Success Modal */
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.92);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 10000;
+        }
+
+        .modal-overlay.active { display: flex; }
+
+        .success-modal {
+            background: linear-gradient(135deg, #1a0033, #0a0015);
+            border: 3px solid #00ff00;
+            border-radius: 15px;
+            padding: 40px;
+            max-width: 650px;
+            width: 90%;
+            text-align: center;
+            box-shadow: 0 0 60px rgba(0, 255, 0, 0.5);
+            animation: modalPop 0.5s ease;
+        }
+
+        @keyframes modalPop {
+            0% { transform: scale(0.8) translateY(-30px); opacity: 0; }
+            100% { transform: scale(1) translateY(0); opacity: 1; }
+        }
+
+        .success-modal h2 {
+            color: #00ff00;
+            font-size: 2.2em;
+            margin-bottom: 15px;
+            text-shadow: 0 0 20px rgba(0, 255, 0, 0.8);
+        }
+
+        .success-modal .final-score {
+            font-size: 2.5em;
+            color: #9370db;
+            font-weight: bold;
+            margin: 10px 0;
+        }
+
+        .success-modal .message {
+            color: #dda0dd;
+            line-height: 1.7;
+            margin: 15px 0 20px;
+            font-size: 1.05em;
+        }
+
+        .score-breakdown {
+            text-align: left;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 8px;
+            padding: 15px;
+            margin: 15px 0;
+            font-size: 0.9em;
+        }
+
+        .score-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 4px 0;
+            color: #b19cd9;
+        }
+
+        .score-row.earned { color: #4caf50; }
+        .score-row.missed { color: #666; }
+
+        .continue-button {
+            background: linear-gradient(135deg, #00ff00, #00cc00);
+            color: #000;
+            border: none;
+            padding: 14px 40px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-family: 'Courier New', monospace;
+            font-size: 1.1em;
+            font-weight: bold;
+            transition: all 0.3s;
+        }
+
+        .continue-button:hover {
+            box-shadow: 0 0 25px rgba(0, 255, 0, 0.6);
+            transform: scale(1.05);
+        }
+
+        /* Back link */
+        .back-link {
+            display: inline-block;
+            margin-top: 20px;
+            color: #5a4a6a;
+            font-size: 0.75em;
+            text-decoration: none;
+            letter-spacing: 0.1em;
+            transition: color 0.3s;
+        }
+
+        .back-link:hover { color: #9370db; }
+
+        /* Scrollbar styling */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: rgba(0, 0, 0, 0.2); }
+        ::-webkit-scrollbar-thumb { background: rgba(138, 43, 226, 0.4); border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(138, 43, 226, 0.6); }
+
+        /* Responsive */
+        @media (max-width: 1024px) {
+            .vm-body {
+                grid-template-columns: 200px 1fr 220px;
+                height: 500px;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .header h1 { font-size: 1.5em; }
+            .vm-body {
+                grid-template-columns: 1fr;
+                grid-template-rows: 200px 250px 200px 250px;
+                height: auto;
+            }
+            .panel-filesystem { grid-row: auto; border-right: none; border-bottom: 1px solid rgba(138, 43, 226, 0.3); }
+            .panel-processes { grid-row: auto; border-left: none; border-bottom: 1px solid rgba(138, 43, 226, 0.3); }
+            .panel-bottom { grid-column: auto; }
+            .progress-tracker { flex-wrap: wrap; gap: 10px; }
+        }
+    </style>
+</head>
+<body>
+    <!-- Background Particles -->
+    <script>
+        for (let i = 0; i < 25; i++) {
+            const p = document.createElement('div');
+            p.className = 'particle';
+            p.style.left = Math.random() * 100 + '%';
+            p.style.animationDelay = Math.random() * 20 + 's';
+            p.style.animationDuration = (15 + Math.random() * 10) + 's';
+            document.body.appendChild(p);
+        }
+    </script>
+
+    <!-- God Mode -->
+    <div class="god-mode-toggle">
+        <input type="checkbox" id="godMode">
+        <label for="godMode">God Mode</label>
+    </div>
+
+    <div class="sandbox-wrapper">
+        <!-- Header -->
+        <div class="header">
+            <h1>GATE VIII: DYNAMIC ANALYSIS SANDBOX</h1>
+            <div class="subtitle">Execute. Observe. Classify.</div>
+            <div class="tier-badge">TIER 4 UNLOCK</div>
+        </div>
+
+        <!-- Progress Tracker -->
+        <div class="progress-tracker">
+            <div class="progress-item">
+                <div class="label">Execution</div>
+                <div class="value" id="execStatus">STANDBY</div>
+            </div>
+            <div class="progress-item">
+                <div class="label">Events Captured</div>
+                <div class="value" id="eventsCount">0/10</div>
+            </div>
+            <div class="progress-item">
+                <div class="label">Score</div>
+                <div class="value" id="currentScore">0/100</div>
+            </div>
+            <div class="progress-item">
+                <div class="label">Hints Found</div>
+                <div class="value" id="hintsFound">0/3</div>
+            </div>
+        </div>
+
+        <!-- VM Desktop -->
+        <div class="vm-desktop">
+            <div class="vm-titlebar">
+                <div class="vm-titlebar-left">
+                    <span class="vm-dot green"></span>
+                    <span class="vm-dot yellow"></span>
+                    <span class="vm-dot red"></span>
+                    <span>Hexworth Sandbox VM - Windows 10 (Isolated)</span>
+                </div>
+                <div class="vm-titlebar-right">
+                    <button class="vm-btn" id="btnToggleTerminal" onclick="toggleTerminal()">Terminal</button>
+                    <button class="vm-btn" onclick="resetView()">Desktop</button>
+                </div>
+            </div>
+
+            <div class="vm-body">
+                <!-- Left: File System -->
+                <div class="panel-filesystem">
+                    <div class="panel-header">File System</div>
+                    <div class="file-tree" id="fileTree"></div>
+                </div>
+
+                <!-- Center: Main Area -->
+                <div class="panel-main" id="panelMain">
+                    <!-- Desktop icons shown by default -->
+                    <div class="desktop-area" id="desktopArea">
+                        <div class="desktop-icon malware-sample" ondblclick="promptExecute()">
+                            <span class="icon-img">&#128196;</span>
+                            <span class="icon-label">invoice_q4_2025.doc.exe</span>
+                        </div>
+                        <div class="desktop-icon" ondblclick="openFile('/C:/Users/victim/Desktop/README_sandbox.txt')">
+                            <span class="icon-img">&#128221;</span>
+                            <span class="icon-label">README_sandbox.txt</span>
+                        </div>
+                        <div class="desktop-icon" ondblclick="openFile('/C:/Users/victim/Desktop/Analysis_Tools/')">
+                            <span class="icon-img">&#128193;</span>
+                            <span class="icon-label">Analysis Tools</span>
+                        </div>
+                    </div>
+
+                    <!-- Execution confirmation -->
+                    <div class="exec-banner" id="execBanner">
+                        <h3>MALWARE EXECUTING IN SANDBOX</h3>
+                        <p>Monitoring behavioral events... <span id="execPhase"></span></p>
+                    </div>
+
+                    <div class="timeline-bar" id="timelineBar">
+                        <div class="timeline-fill" id="timelineFill"></div>
+                    </div>
+
+                    <!-- File Viewer Overlay -->
+                    <div class="file-viewer" id="fileViewer">
+                        <div class="file-viewer-header">
+                            <span class="file-viewer-title" id="fileViewerTitle">File</span>
+                            <button class="file-viewer-close" onclick="closeFileViewer()">X Close</button>
+                        </div>
+                        <div class="file-viewer-body" id="fileViewerBody"></div>
+                    </div>
+
+                    <!-- Terminal Overlay -->
+                    <div class="file-viewer" id="terminalOverlay">
+                        <div class="file-viewer-header">
+                            <span class="file-viewer-title">Sandbox Terminal</span>
+                            <button class="file-viewer-close" onclick="toggleTerminal()">X Close</button>
+                        </div>
+                        <div id="terminalOutput" style="font-size:0.82em; color:#80cbc4; margin-bottom:8px; max-height:200px; overflow-y:auto;"></div>
+                        <div style="display:flex; gap:6px;">
+                            <span style="color:#4caf50;">sandbox&gt;</span>
+                            <input type="text" id="terminalInput" style="flex:1; background:transparent; border:none; color:#b19cd9; font-family:'Courier New',monospace; font-size:0.9em; outline:none;" placeholder="Type a command..." onkeydown="if(event.key==='Enter')runTerminalCmd()">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right: Process Tree -->
+                <div class="panel-processes">
+                    <div class="panel-header">Process Tree</div>
+                    <div id="processTree">
+                        <div class="process-entry system"><span class="process-pid">[PID 4]</span> System</div>
+                        <div class="process-entry system"><span class="process-pid">[PID 508]</span> csrss.exe</div>
+                        <div class="process-entry system"><span class="process-pid">[PID 624]</span> services.exe</div>
+                        <div class="process-entry system"><span class="process-pid">[PID 780]</span> svchost.exe</div>
+                        <div class="process-entry system"><span class="process-pid">[PID 892]</span> explorer.exe</div>
+                        <div class="process-entry system"><span class="process-pid">[PID 1120]</span> dwm.exe</div>
+                        <div class="process-entry system"><span class="process-pid">[PID 1404]</span> taskhostw.exe</div>
+                    </div>
+                </div>
+
+                <!-- Bottom: Registry + Network + File Events -->
+                <div class="panel-bottom">
+                    <div class="bottom-tabs">
+                        <div class="bottom-tab active" onclick="switchBottomTab('registry')">Registry</div>
+                        <div class="bottom-tab" onclick="switchBottomTab('network')">Network Capture</div>
+                        <div class="bottom-tab" onclick="switchBottomTab('fileevents')">File Activity</div>
+                    </div>
+                    <div class="bottom-content">
+                        <div class="bottom-pane active" id="pane-registry">
+                            <div style="color:#5a5a7a; font-size:0.8em; font-style:italic;" id="regPlaceholder">Waiting for execution...</div>
+                            <div id="registryLog"></div>
+                        </div>
+                        <div class="bottom-pane" id="pane-network">
+                            <div style="color:#5a5a7a; font-size:0.8em; font-style:italic;" id="netPlaceholder">Waiting for execution...</div>
+                            <div id="networkLog"></div>
+                        </div>
+                        <div class="bottom-pane" id="pane-fileevents">
+                            <div style="color:#5a5a7a; font-size:0.8em; font-style:italic;" id="filePlaceholder">Waiting for execution...</div>
+                            <div id="fileEventLog"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Execute Button (below VM, before answers) -->
+        <div style="text-align:center; margin:20px 0;">
+            <button class="btn-execute" id="btnExecute" onclick="executeMalware()">Execute Sample in Sandbox</button>
+            <p style="font-size:0.8em; color:#5a5a7a; margin-top:6px;" id="execHint">Double-click the file on the desktop or click this button</p>
+        </div>
+
+        <!-- Answer Panel -->
+        <div class="answer-panel" id="answerPanel">
+            <h2>BEHAVIORAL ANALYSIS REPORT</h2>
+            <p style="text-align:center; color:#7a6a9a; margin-bottom:20px; font-size:0.9em;">
+                Observe the sandbox execution and submit your findings below. Score 70+ to complete this gate.
+            </p>
+
+            <!-- Q1: Dropped Files (15 pts each = 30) -->
+            <div class="answer-section" id="section-q1">
+                <div class="answer-label">
+                    1. Identify Dropped Files
+                    <span class="points-badge" id="badge-q1">0/30 pts</span>
+                </div>
+                <div class="answer-sublabel">The malware dropped files to disk. Name both dropped file paths.</div>
+                <input type="text" class="answer-input" id="answer-q1a" placeholder="First dropped file (full path)..." style="margin-bottom:6px;">
+                <input type="text" class="answer-input" id="answer-q1b" placeholder="Second dropped file (full path)...">
+                <div class="submit-row">
+                    <button class="btn-submit" onclick="checkAnswer('q1')">Submit</button>
+                    <span class="answer-check" id="check-q1">Correct</span>
+                </div>
+                <div class="answer-wrong" id="wrong-q1"></div>
+            </div>
+
+            <!-- Q2: Persistence Mechanism (15 pts) -->
+            <div class="answer-section" id="section-q2">
+                <div class="answer-label">
+                    2. Identify Persistence Mechanism
+                    <span class="points-badge" id="badge-q2">0/15 pts</span>
+                </div>
+                <div class="answer-sublabel">What registry key was created for persistence? Provide the full key path and value name.</div>
+                <input type="text" class="answer-input" id="answer-q2" placeholder="Registry key path...">
+                <div class="submit-row">
+                    <button class="btn-submit" onclick="checkAnswer('q2')">Submit</button>
+                    <span class="answer-check" id="check-q2">Correct</span>
+                </div>
+                <div class="answer-wrong" id="wrong-q2"></div>
+            </div>
+
+            <!-- Q3: C2 Server (15 pts) -->
+            <div class="answer-section" id="section-q3">
+                <div class="answer-label">
+                    3. Identify C2 Server
+                    <span class="points-badge" id="badge-q3">0/15 pts</span>
+                </div>
+                <div class="answer-sublabel">What is the C2 server IP address and port?</div>
+                <input type="text" class="answer-input" id="answer-q3" placeholder="IP:port (e.g., 10.0.0.1:443)">
+                <div class="submit-row">
+                    <button class="btn-submit" onclick="checkAnswer('q3')">Submit</button>
+                    <span class="answer-check" id="check-q3">Correct</span>
+                </div>
+                <div class="answer-wrong" id="wrong-q3"></div>
+            </div>
+
+            <!-- Q4: Exfiltrated Data (15 pts) -->
+            <div class="answer-section" id="section-q4">
+                <div class="answer-label">
+                    4. Identify Exfiltrated Data
+                    <span class="points-badge" id="badge-q4">0/15 pts</span>
+                </div>
+                <div class="answer-sublabel">What data was stolen by the malware? Name the file that was read and exfiltrated.</div>
+                <input type="text" class="answer-input" id="answer-q4" placeholder="File that was accessed/stolen...">
+                <div class="submit-row">
+                    <button class="btn-submit" onclick="checkAnswer('q4')">Submit</button>
+                    <span class="answer-check" id="check-q4">Correct</span>
+                </div>
+                <div class="answer-wrong" id="wrong-q4"></div>
+            </div>
+
+            <!-- Q5: IOCs (5 pts each = 15) -->
+            <div class="answer-section" id="section-q5">
+                <div class="answer-label">
+                    5. Extract Indicators of Compromise (IOCs)
+                    <span class="points-badge" id="badge-q5">0/15 pts</span>
+                </div>
+                <div class="answer-sublabel">List 3 IOCs an analyst should report (IPs, domains, file hashes, file paths, registry keys).</div>
+                <input type="text" class="answer-input" id="answer-q5a" placeholder="IOC #1..." style="margin-bottom:4px;">
+                <input type="text" class="answer-input" id="answer-q5b" placeholder="IOC #2..." style="margin-bottom:4px;">
+                <input type="text" class="answer-input" id="answer-q5c" placeholder="IOC #3...">
+                <div class="submit-row">
+                    <button class="btn-submit" onclick="checkAnswer('q5')">Submit</button>
+                    <span class="answer-check" id="check-q5">Correct</span>
+                </div>
+                <div class="answer-wrong" id="wrong-q5"></div>
+            </div>
+
+            <!-- Q6: Evasion Technique (10 pts) -->
+            <div class="answer-section" id="section-q6">
+                <div class="answer-label">
+                    6. What Evasion Technique Was Used?
+                    <span class="points-badge" id="badge-q6">0/10 pts</span>
+                </div>
+                <div class="answer-sublabel">The malware used a specific technique to avoid detection of the exfiltrated data. What was it?</div>
+                <select class="answer-input" id="answer-q6" style="cursor:pointer;">
+                    <option value="">-- Select evasion technique --</option>
+                    <option value="process-hollowing">Process Hollowing</option>
+                    <option value="encrypted-staging">Encrypted Staging / Data Encryption Before Exfiltration</option>
+                    <option value="dll-sideloading">DLL Side-Loading</option>
+                    <option value="timestomping">Timestomping</option>
+                    <option value="steganography">Steganography</option>
+                    <option value="living-off-the-land">Living Off the Land (LOLBins)</option>
+                </select>
+                <div class="submit-row">
+                    <button class="btn-submit" onclick="checkAnswer('q6')">Submit</button>
+                    <span class="answer-check" id="check-q6">Correct</span>
+                </div>
+                <div class="answer-wrong" id="wrong-q6"></div>
+            </div>
+
+            <!-- Final Submit -->
+            <button class="btn-final" id="btnFinal" onclick="submitFinalReport()">Submit Analysis Report</button>
+        </div>
+
+        <div style="text-align:center;">
+            <a href="/dark-arts/vault/index.html" class="back-link">&larr; Return to Vault</a>
+        </div>
+    </div>
+
+    <!-- Success Modal -->
+    <div class="modal-overlay" id="successModal">
+        <div class="success-modal">
+            <h2>GATE VIII COMPLETE</h2>
+            <div class="final-score" id="finalScoreDisplay">0/100</div>
+            <div class="message">
+                You've mastered dynamic analysis. The ability to observe malware behavior in a controlled sandbox
+                is the complement to static analysis &mdash; together, they form the foundation of malware investigation.
+                <br><br>
+                <strong>Tier 4 vault modules are now unlocked.</strong>
+            </div>
+            <div class="score-breakdown" id="scoreBreakdown"></div>
+            <button class="continue-button" onclick="returnToVault()">Return to Vault</button>
+        </div>
+    </div>
+
+    <script>
+    // ========================================================
+    // State Management
+    // ========================================================
+    const state = {
+        executed: false,
+        eventsComplete: false,
+        eventsFired: 0,
+        totalEvents: 10,
+        score: 0,
+        answered: {},
+        hintsFound: 0,
+        godMode: false
+    };
+
+    // ========================================================
+    // Virtual File System
+    // ========================================================
+    const vfs = {
+        'C:': {
+            type: 'folder', children: {
+                'Users': {
+                    type: 'folder', children: {
+                        'victim': {
+                            type: 'folder', children: {
+                                'Desktop': {
+                                    type: 'folder', children: {
+                                        'invoice_q4_2025.doc.exe': { type: 'file', cls: 'malware', content: '[BINARY DATA - PE32 executable]\nMZ header detected\nSize: 284,672 bytes\nCompile time: 2025-09-14 02:33:17\nSubsystem: Windows GUI\n\nThis is the malware sample. Execute it in the sandbox to observe its behavior.' },
+                                        'README_sandbox.txt': { type: 'file', cls: 'highlight', content: '=== HEXWORTH SANDBOX ENVIRONMENT ===\n\nWelcome to the Dynamic Analysis Sandbox.\n\nThis is an isolated Windows VM. Network traffic is captured\nbut cannot leave the sandbox boundary.\n\nTips:\n- Remember: Procmon logs ALL filesystem and registry activity.\n  Sort by timestamp.\n- Use the Process Tree panel to track process spawning.\n- Check the Network Capture tab for outbound connections.\n- Look for persistence mechanisms in the Registry tab.\n\nGood luck, analyst.' },
+                                        'Analysis_Tools': {
+                                            type: 'folder', children: {
+                                                'procmon.exe': { type: 'file', content: '[Procmon v3.94]\nProcess Monitor - Sysinternals\nReal-time file system, registry, and process activity monitor.\n\nNote: Events are automatically captured in the bottom panels.' },
+                                                'strings.exe': { type: 'file', content: '[Strings v2.54]\nExtracts printable strings from binary files.\n\nUsage: strings <filename>\nTry it in the terminal.' },
+                                                'autoruns.exe': { type: 'file', content: '[Autoruns v14.1]\nShows configured auto-start applications.\n\nCheck HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run\nfor persistence entries.' }
+                                            }
+                                        }
+                                    }
+                                },
+                                'Documents': {
+                                    type: 'folder', children: {
+                                        'passwords.txt': { type: 'file', content: '=== Personal Password List ===\n\nEmail: victim@example.com / Summer2025!\nBank: victim_bank / B@nking#2025\nVPN: corp_vpn / C0rp0r@te!\nSSH Key Passphrase: MyS3cretK3y\nWiFi: HomeNet / W1f1P@ss2025\n\n[!] WARNING: This file contains sensitive credentials.\n    A real malware sample would exfiltrate this data.' },
+                                        'quarterly_report.xlsx': { type: 'file', content: '[Excel file - 142KB]\nQ4 2025 Financial Report\nContains: Revenue projections, employee salary data' },
+                                        '.professor_notes.txt': { type: 'file', cls: 'highlight', content: '=== Professor\'s Analysis Notes ===\n\nDynamic analysis checklist:\n\n1. Process spawning - Watch for child processes\n2. File drops - Malware often drops payloads to %TEMP% or %WINDIR%\n3. Registry modifications - Malware loves Run keys:\n   HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run\n4. Network activity - C2 callbacks, DNS queries, data exfil\n5. Evasion - Look for encoded/encrypted staging before exfiltration\n\nThe behavioral timeline tells the story of what malware\n*actually does* vs. what static analysis says it *could* do.' }
+                                    }
+                                },
+                                'AppData': {
+                                    type: 'folder', children: {
+                                        'Local': {
+                                            type: 'folder', children: {
+                                                'Temp': {
+                                                    type: 'folder', children: {}
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                'Windows': {
+                    type: 'folder', children: {
+                        'System32': {
+                            type: 'folder', children: {
+                                'cmd.exe': { type: 'file', content: '[Windows Command Processor]\nVersion 10.0.19045' },
+                                'rundll32.exe': { type: 'file', content: '[rundll32.exe]\nRuns DLL functions.\nUsage: rundll32.exe <dll>,<function>' },
+                                'powershell.exe': { type: 'file', content: '[PowerShell v5.1]\nWindows PowerShell' },
+                                'svchost.exe': { type: 'file', content: '[Service Host]\nGeneric host process for Windows services.\nLegitimate system process - often impersonated by malware.' }
+                            }
+                        },
+                        'Temp': {
+                            type: 'folder', children: {}
+                        }
+                    }
+                },
+                'Program Files': {
+                    type: 'folder', children: {
+                        'Sandbox': {
+                            type: 'folder', children: {
+                                'config': {
+                                    type: 'folder', children: {
+                                        '.analysis_notes.txt': { type: 'file', cls: 'highlight', content: '=== Sandbox Configuration Notes ===\n\nC2 callbacks often use non-standard ports.\nCheck network capture for outbound connections\nto unusual port numbers.\n\nCommon C2 ports: 443, 8443, 4444, 8080, 9090\nThis malware uses HTTPS over a non-standard port\nto blend in with legitimate encrypted traffic.\n\nLook for HTTP POST requests - these are often\nused for beaconing and data exfiltration.' }
+                                    }
+                                },
+                                'sandbox.conf': { type: 'file', content: '[Sandbox Config]\nnetwork_capture=true\nregistry_monitor=true\nfilesystem_monitor=true\nprocess_monitor=true\nisolation_level=strict\nmax_runtime=300s' }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    };
+
+    // Track discovered hints
+    const hintFiles = new Set([
+        '/C:/Users/victim/Desktop/README_sandbox.txt',
+        '/C:/Program Files/Sandbox/config/.analysis_notes.txt',
+        '/C:/Users/victim/Documents/.professor_notes.txt'
+    ]);
+    const discoveredHints = new Set();
+
+    // ========================================================
+    // File Tree Rendering
+    // ========================================================
+    function buildFileTree(node, path, container) {
+        const keys = Object.keys(node).sort((a, b) => {
+            const aIsFolder = node[a].type === 'folder';
+            const bIsFolder = node[b].type === 'folder';
+            if (aIsFolder && !bIsFolder) return -1;
+            if (!aIsFolder && bIsFolder) return 1;
+            return a.localeCompare(b);
+        });
+
+        keys.forEach(name => {
+            const item = node[name];
+            const fullPath = path + '/' + name;
+
+            if (item.type === 'folder') {
+                const folderEl = document.createElement('div');
+                folderEl.className = 'tree-folder';
+                folderEl.textContent = name;
+                folderEl.onclick = function(e) {
+                    e.stopPropagation();
+                    this.classList.toggle('open');
+                    const children = this.nextElementSibling;
+                    if (children) children.classList.toggle('open');
+                };
+                container.appendChild(folderEl);
+
+                const childContainer = document.createElement('div');
+                childContainer.className = 'tree-children';
+                if (item.children) {
+                    buildFileTree(item.children, fullPath, childContainer);
+                }
+                container.appendChild(childContainer);
+            } else {
+                const fileEl = document.createElement('div');
+                fileEl.className = 'tree-file' + (item.cls ? ' ' + item.cls : '');
+                fileEl.textContent = '  ' + name;
+                fileEl.onclick = function() { openFile(fullPath); };
+                container.appendChild(fileEl);
+            }
+        });
+    }
+
+    function renderFileTree() {
+        const container = document.getElementById('fileTree');
+        container.innerHTML = '';
+        buildFileTree(vfs, '', container);
+    }
+
+    // ========================================================
+    // File Viewer
+    // ========================================================
+    function resolveVfsPath(path) {
+        const parts = path.replace(/^\//, '').split('/');
+        let current = vfs;
+        for (const part of parts) {
+            if (!current) return null;
+            if (current[part]) {
+                current = current[part];
+            } else if (current.children && current.children[part]) {
+                current = current.children[part];
+            } else {
+                return null;
+            }
+        }
+        return current;
+    }
+
+    function openFile(path) {
+        const node = resolveVfsPath(path);
+        if (!node) return;
+
+        if (node.type === 'folder') {
+            // Just expand in tree view
+            return;
+        }
+
+        // Check for hint discovery
+        if (hintFiles.has(path) && !discoveredHints.has(path)) {
+            discoveredHints.add(path);
+            state.hintsFound = discoveredHints.size;
+            document.getElementById('hintsFound').textContent = state.hintsFound + '/3';
+        }
+
+        const viewer = document.getElementById('fileViewer');
+        document.getElementById('fileViewerTitle').textContent = path;
+        document.getElementById('fileViewerBody').textContent = node.content || '[Empty file]';
+        viewer.classList.add('active');
+
+        // Close terminal if open
+        document.getElementById('terminalOverlay').classList.remove('active');
+    }
+
+    function closeFileViewer() {
+        document.getElementById('fileViewer').classList.remove('active');
+    }
+
+    function resetView() {
+        closeFileViewer();
+        document.getElementById('terminalOverlay').classList.remove('active');
+    }
+
+    // ========================================================
+    // Terminal
+    // ========================================================
+    function toggleTerminal() {
+        const term = document.getElementById('terminalOverlay');
+        term.classList.toggle('active');
+        document.getElementById('fileViewer').classList.remove('active');
+        if (term.classList.contains('active')) {
+            document.getElementById('terminalInput').focus();
+        }
+    }
+
+    function terminalPrint(text) {
+        const out = document.getElementById('terminalOutput');
+        out.innerHTML += '<div>' + text + '</div>';
+        out.scrollTop = out.scrollHeight;
+    }
+
+    function runTerminalCmd() {
+        const input = document.getElementById('terminalInput');
+        const cmd = input.value.trim();
+        input.value = '';
+        if (!cmd) return;
+
+        terminalPrint('<span style="color:#4caf50;">sandbox&gt;</span> ' + cmd);
+
+        const parts = cmd.toLowerCase().split(/\s+/);
+        const base = parts[0];
+
+        if (base === 'help') {
+            terminalPrint('Available commands: help, strings, file, procmon, netstat, tasklist, reg, dir, cat, clear');
+        } else if (base === 'strings') {
+            if (!state.executed) {
+                terminalPrint('Error: No sample loaded. Execute the malware first.');
+            } else {
+                terminalPrint('Extracting strings from invoice_q4_2025.doc.exe...\n' +
+                    'update-service.darkweb.example.com\n' +
+                    'svchost_update.dll\n' +
+                    'DllMain\n' +
+                    'C:\\Windows\\Temp\\exfil_data.enc\n' +
+                    'passwords.txt\n' +
+                    'WindowsUpdate\n' +
+                    'HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run\n' +
+                    '185.234.67.89\n' +
+                    '/beacon\n' +
+                    '/upload\n' +
+                    '-enc [base64 encoded command]\n' +
+                    'powershell.exe\n' +
+                    'rundll32.exe');
+            }
+        } else if (base === 'file') {
+            if (parts[1] && parts[1].includes('invoice')) {
+                terminalPrint('invoice_q4_2025.doc.exe: PE32 executable (GUI) Intel 80386 Mono/.Net assembly, for MS Windows');
+            } else {
+                terminalPrint('Usage: file <filename>');
+            }
+        } else if (base === 'procmon' || base === 'procmon.exe') {
+            terminalPrint('Process Monitor is running. Events displayed in bottom panels.');
+        } else if (base === 'netstat') {
+            if (!state.executed) {
+                terminalPrint('Active Connections:\n  Proto  Local Address     Foreign Address    State\n  TCP    0.0.0.0:135       0.0.0.0:0          LISTENING\n  TCP    0.0.0.0:445       0.0.0.0:0          LISTENING');
+            } else {
+                terminalPrint('Active Connections:\n  Proto  Local Address       Foreign Address        State\n  TCP    0.0.0.0:135         0.0.0.0:0              LISTENING\n  TCP    0.0.0.0:445         0.0.0.0:0              LISTENING\n  TCP    10.0.2.15:49721     185.234.67.89:8443     ESTABLISHED\n  UDP    10.0.2.15:53        *:*');
+            }
+        } else if (base === 'tasklist') {
+            let output = 'Image Name            PID   Session Name\n========================= ===== ============\nSystem                4     Services\ncsrss.exe             508   Services\nservices.exe          624   Services\nsvchost.exe           780   Services\nexplorer.exe          892   Console\ndwm.exe               1120  Console\ntaskhostw.exe         1404  Console';
+            if (state.executed) {
+                output += '\ninvoice_q4_2025.doc   4132  Console\nrundll32.exe          5801  Console\npowershell.exe        6022  Console';
+            }
+            terminalPrint(output);
+        } else if (base === 'reg') {
+            if (cmd.toLowerCase().includes('run')) {
+                if (state.executed) {
+                    terminalPrint('HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run\n    WindowsUpdate    REG_SZ    rundll32.exe C:\\Users\\victim\\AppData\\Local\\Temp\\svchost_update.dll,DllMain');
+                } else {
+                    terminalPrint('HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run\n    (Default)    REG_SZ    (value not set)');
+                }
+            } else {
+                terminalPrint('Usage: reg query HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run');
+            }
+        } else if (base === 'dir') {
+            terminalPrint('Directory listing:\n C:\\Users\\victim\\Desktop\\\n   invoice_q4_2025.doc.exe    284,672\n   README_sandbox.txt            827\n   Analysis_Tools\\              <DIR>');
+        } else if (base === 'cat' || base === 'type') {
+            const target = parts.slice(1).join(' ');
+            if (target.includes('password')) {
+                terminalPrint('=== Personal Password List ===\n\nEmail: victim@example.com / Summer2025!\nBank: victim_bank / B@nking#2025\n[...truncated]');
+            } else if (target.includes('readme') || target.includes('README')) {
+                terminalPrint('=== HEXWORTH SANDBOX ENVIRONMENT ===\nRemember: Procmon logs ALL filesystem and registry activity.\nSort by timestamp.');
+            } else {
+                terminalPrint('File not found or access denied: ' + target);
+            }
+        } else if (base === 'clear') {
+            document.getElementById('terminalOutput').innerHTML = '';
+        } else {
+            terminalPrint('Command not recognized: ' + base + '. Type "help" for available commands.');
+        }
+    }
+
+    // ========================================================
+    // Bottom Panel Tab Switching
+    // ========================================================
+    function switchBottomTab(tab) {
+        document.querySelectorAll('.bottom-tab').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.bottom-pane').forEach(p => p.classList.remove('active'));
+        document.getElementById('pane-' + tab).classList.add('active');
+        // Find the correct tab button
+        const tabs = document.querySelectorAll('.bottom-tab');
+        const tabMap = ['registry', 'network', 'fileevents'];
+        tabs[tabMap.indexOf(tab)]?.classList.add('active');
+    }
+
+    // ========================================================
+    // Malware Execution Timeline
+    // ========================================================
+    function promptExecute() {
+        if (state.executed) return;
+        executeMalware();
+    }
+
+    function executeMalware() {
+        if (state.executed) return;
+        state.executed = true;
+
+        const btn = document.getElementById('btnExecute');
+        btn.disabled = true;
+        btn.textContent = 'EXECUTING...';
+
+        document.getElementById('execHint').textContent = 'Malware sample is executing in sandbox...';
+        document.getElementById('execBanner').classList.add('active');
+        document.getElementById('timelineBar').classList.add('active');
+        document.getElementById('execStatus').textContent = 'RUNNING';
+        document.getElementById('execStatus').style.color = '#ff6b6b';
+
+        // Hide placeholders
+        document.getElementById('regPlaceholder').style.display = 'none';
+        document.getElementById('netPlaceholder').style.display = 'none';
+        document.getElementById('filePlaceholder').style.display = 'none';
+
+        // Close any open overlays
+        closeFileViewer();
+        document.getElementById('terminalOverlay').classList.remove('active');
+
+        // Fire behavioral events on timeline
+        const events = [
+            { delay: 2000,  fn: event1_processSpawn },
+            { delay: 6000,  fn: event2_fileDrop },
+            { delay: 10000, fn: event3_registryWrite },
+            { delay: 15000, fn: event4_rundll32Spawn },
+            { delay: 20000, fn: event5_dnsQuery },
+            { delay: 26000, fn: event6_c2Beacon },
+            { delay: 32000, fn: event7_fileAccess },
+            { delay: 38000, fn: event8_exfilStaging },
+            { delay: 44000, fn: event9_dataExfil },
+            { delay: 50000, fn: event10_cleanup }
+        ];
+
+        events.forEach(({ delay, fn }, i) => {
+            setTimeout(() => {
+                fn();
+                state.eventsFired = i + 1;
+                document.getElementById('eventsCount').textContent = state.eventsFired + '/' + state.totalEvents;
+                document.getElementById('timelineFill').style.width = ((i + 1) / state.totalEvents * 100) + '%';
+                document.getElementById('execPhase').textContent = 'Event ' + (i + 1) + '/' + state.totalEvents;
+
+                if (i === events.length - 1) {
+                    setTimeout(() => {
+                        state.eventsComplete = true;
+                        document.getElementById('execBanner').querySelector('h3').textContent = 'EXECUTION COMPLETE';
+                        document.getElementById('execBanner').querySelector('p').textContent = 'All behavioral events captured. Analyze your findings below.';
+                        document.getElementById('execBanner').style.borderColor = '#4caf50';
+                        document.getElementById('execBanner').style.background = 'rgba(76, 175, 80, 0.1)';
+                        document.getElementById('execStatus').textContent = 'COMPLETE';
+                        document.getElementById('execStatus').style.color = '#4caf50';
+                        btn.textContent = 'EXECUTION COMPLETE';
+                        document.getElementById('execHint').textContent = 'Analysis data captured. Submit your findings below.';
+                    }, 1500);
+                }
+            }, delay);
+        });
+    }
+
+    // --- Timeline Event Functions ---
+
+    function addProcessEntry(pid, name, cls, parent) {
+        const tree = document.getElementById('processTree');
+        const entry = document.createElement('div');
+        entry.className = 'process-entry ' + cls;
+        entry.innerHTML = (parent ? '&nbsp;&nbsp;' : '') + '<span class="process-pid">[PID ' + pid + ']</span> ' + name;
+        tree.appendChild(entry);
+        tree.scrollTop = tree.scrollHeight;
+    }
+
+    function addRegistryLog(timestamp, action, key, value) {
+        const log = document.getElementById('registryLog');
+        const entry = document.createElement('div');
+        entry.className = 'log-entry registry';
+        entry.innerHTML = '<span class="timestamp">[' + timestamp + ']</span> <strong>' + action + '</strong> ' + key + (value ? ' = ' + value : '');
+        log.appendChild(entry);
+        log.scrollTop = log.scrollHeight;
+    }
+
+    function addNetworkLog(timestamp, proto, detail, cls) {
+        const log = document.getElementById('networkLog');
+        const entry = document.createElement('div');
+        entry.className = 'log-entry network ' + (cls || '');
+        entry.innerHTML = '<span class="timestamp">[' + timestamp + ']</span> <strong>[' + proto + ']</strong> ' + detail;
+        log.appendChild(entry);
+        log.scrollTop = log.scrollHeight;
+    }
+
+    function addFileEventLog(timestamp, action, path) {
+        const log = document.getElementById('fileEventLog');
+        const entry = document.createElement('div');
+        entry.className = 'log-entry file-event';
+        entry.innerHTML = '<span class="timestamp">[' + timestamp + ']</span> <strong>' + action + '</strong> ' + path;
+        log.appendChild(entry);
+        log.scrollTop = log.scrollHeight;
+    }
+
+    // Event 1: Process spawn - invoice_q4_2025.doc.exe (PID 4132)
+    function event1_processSpawn() {
+        addProcessEntry(4132, 'invoice_q4_2025.doc.exe', 'malicious', false);
+        addFileEventLog('00:00:02', 'PROCESS_CREATE', 'invoice_q4_2025.doc.exe (PID 4132) spawned by explorer.exe (PID 892)');
+    }
+
+    // Event 2: File drop - svchost_update.dll
+    function event2_fileDrop() {
+        // Add file to VFS
+        vfs['C:'].children['Users'].children['victim'].children['AppData'].children['Local'].children['Temp'].children['svchost_update.dll'] = {
+            type: 'file', cls: 'dropped',
+            content: '[BINARY DATA - PE32 DLL]\nDLL dropped by invoice_q4_2025.doc.exe\nExport: DllMain\nSize: 94,208 bytes\n\nThis is the payload DLL. It will be loaded via rundll32.exe\nto establish persistence and C2 communication.'
+        };
+        renderFileTree();
+
+        addFileEventLog('00:00:06', 'FILE_WRITE', 'C:\\Users\\victim\\AppData\\Local\\Temp\\svchost_update.dll (94,208 bytes)');
+        addFileEventLog('00:00:06', 'FILE_CREATE', 'New file dropped to Temp directory');
+    }
+
+    // Event 3: Registry write - persistence
+    function event3_registryWrite() {
+        addRegistryLog('00:00:10', 'RegCreateKey', 'HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run', '');
+        addRegistryLog('00:00:10', 'RegSetValue', 'HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run\\WindowsUpdate', 'rundll32.exe C:\\Users\\victim\\AppData\\Local\\Temp\\svchost_update.dll,DllMain');
+    }
+
+    // Event 4: rundll32.exe spawn (PID 5801)
+    function event4_rundll32Spawn() {
+        addProcessEntry(5801, 'rundll32.exe svchost_update.dll,DllMain', 'suspicious', true);
+        addFileEventLog('00:00:15', 'PROCESS_CREATE', 'rundll32.exe (PID 5801) spawned by invoice_q4_2025.doc.exe (PID 4132)');
+        addFileEventLog('00:00:15', 'DLL_LOAD', 'svchost_update.dll loaded by rundll32.exe');
+    }
+
+    // Event 5: DNS query
+    function event5_dnsQuery() {
+        addNetworkLog('00:00:20', 'DNS', 'Query: update-service.darkweb.example.com -> 185.234.67.89', 'dns');
+        addNetworkLog('00:00:20', 'DNS', 'Response: A record 185.234.67.89 (TTL: 300)', 'dns');
+    }
+
+    // Event 6: C2 beacon
+    function event6_c2Beacon() {
+        addNetworkLog('00:00:26', 'TCP', 'SYN -> 185.234.67.89:8443', '');
+        addNetworkLog('00:00:26', 'TCP', 'SYN-ACK <- 185.234.67.89:8443', '');
+        addNetworkLog('00:00:26', 'TLS', 'ClientHello -> 185.234.67.89:8443 (TLS 1.2)', '');
+        addNetworkLog('00:00:27', 'HTTP', 'POST /beacon -> 185.234.67.89:8443 (C2 callback, 128 bytes)', 'http');
+        addNetworkLog('00:00:27', 'HTTP', '200 OK <- 185.234.67.89:8443 (command payload, 256 bytes)', 'http');
+    }
+
+    // Event 7: Read passwords.txt
+    function event7_fileAccess() {
+        addFileEventLog('00:00:32', 'FILE_READ', 'C:\\Users\\victim\\Documents\\passwords.txt (accessed by PID 5801)');
+        addFileEventLog('00:00:32', 'FILE_READ', 'Read 512 bytes from passwords.txt - credential harvesting detected');
+    }
+
+    // Event 8: Encrypted staging file
+    function event8_exfilStaging() {
+        // Add staging file to VFS
+        vfs['C:'].children['Windows'].children['Temp'].children['exfil_data.enc'] = {
+            type: 'file', cls: 'dropped',
+            content: '[ENCRYPTED DATA]\n\nFile: exfil_data.enc\nSize: 1,024 bytes\nEntropy: 7.98 (near-maximum - encrypted/compressed)\n\nThis file contains the stolen credentials from passwords.txt,\nencrypted with AES-256-CBC before exfiltration.\n\nEncrypting data before exfiltration is an evasion technique:\n- DLP systems cannot inspect encrypted content\n- Network IDS/IPS cannot match signatures\n- The data appears as random noise in transit'
+        };
+        renderFileTree();
+
+        addFileEventLog('00:00:38', 'FILE_WRITE', 'C:\\Windows\\Temp\\exfil_data.enc (1,024 bytes, encrypted staging)');
+        addFileEventLog('00:00:38', 'FILE_CREATE', 'Encrypted staging file created - data prepared for exfiltration');
+    }
+
+    // Event 9: Data exfiltration
+    function event9_dataExfil() {
+        addNetworkLog('00:00:44', 'HTTP', 'POST /upload -> 185.234.67.89:8443 (1,024 bytes - exfil_data.enc)', 'http');
+        addNetworkLog('00:00:44', 'HTTP', '200 OK <- 185.234.67.89:8443 (upload confirmed)', 'http');
+        addFileEventLog('00:00:44', 'DATA_EXFIL', 'Encrypted data uploaded to C2 server via HTTPS POST');
+    }
+
+    // Event 10: Cleanup - powershell
+    function event10_cleanup() {
+        addProcessEntry(6022, 'powershell.exe -enc [base64 encoded]', 'malicious', true);
+        addFileEventLog('00:00:50', 'PROCESS_CREATE', 'powershell.exe (PID 6022) spawned for cleanup');
+        addFileEventLog('00:00:50', 'CLEANUP', 'PowerShell executing encoded cleanup commands');
+        addRegistryLog('00:00:50', 'RegQueryValue', 'HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System\\EnableLUA', '0x00000001');
+        addFileEventLog('00:00:51', 'FILE_DELETE', 'Attempted deletion of initial payload artifacts');
+    }
+
+    // ========================================================
+    // Answer Checking
+    // ========================================================
+    const correctAnswers = {
+        q1: {
+            points: 30,
+            validate: function(inputs) {
+                const a = (inputs.a || '').toLowerCase().replace(/\\/g, '/').trim();
+                const b = (inputs.b || '').toLowerCase().replace(/\\/g, '/').trim();
+
+                const targets = [
+                    ['svchost_update.dll', 'appdata', 'temp'],
+                    ['exfil_data.enc', 'windows', 'temp']
+                ];
+
+                let matched = 0;
+                [a, b].forEach(answer => {
+                    targets.forEach(keywords => {
+                        if (keywords.every(k => answer.includes(k))) matched++;
+                    });
+                });
+
+                return matched >= 2;
+            },
+            feedback_wrong: 'Check the File Activity tab for FILE_WRITE events. Two files were dropped to disk.'
+        },
+        q2: {
+            points: 15,
+            validate: function(inputs) {
+                const v = (inputs.main || '').toLowerCase().trim();
+                return (v.includes('currentversion') && v.includes('run') && v.includes('windowsupdate')) ||
+                       (v.includes('currentversion') && v.includes('run') && v.includes('windows update')) ||
+                       (v.includes('hkcu') && v.includes('run'));
+            },
+            feedback_wrong: 'Check the Registry tab for RegSetValue entries. Look for the Run key.'
+        },
+        q3: {
+            points: 15,
+            validate: function(inputs) {
+                const v = (inputs.main || '').trim();
+                return v.includes('185.234.67.89') && v.includes('8443');
+            },
+            feedback_wrong: 'Check the Network Capture tab for connection targets. Look for the IP and port.'
+        },
+        q4: {
+            points: 15,
+            validate: function(inputs) {
+                const v = (inputs.main || '').toLowerCase().trim();
+                return v.includes('passwords.txt') || v.includes('passwords') || v.includes('credential');
+            },
+            feedback_wrong: 'Check the File Activity tab for FILE_READ events. What sensitive file was accessed?'
+        },
+        q5: {
+            points: 15,
+            validate: function(inputs) {
+                const all = [inputs.a, inputs.b, inputs.c].map(s => (s || '').toLowerCase().trim()).filter(s => s.length > 3);
+
+                const validIOCs = [
+                    v => v.includes('185.234.67.89'),
+                    v => v.includes('update-service.darkweb.example.com') || v.includes('darkweb.example.com'),
+                    v => v.includes('svchost_update.dll'),
+                    v => v.includes('exfil_data.enc'),
+                    v => v.includes('8443'),
+                    v => v.includes('currentversion') && v.includes('run') && v.includes('windowsupdate'),
+                    v => v.includes('invoice_q4_2025'),
+                    v => v.includes('/beacon') || v.includes('/upload'),
+                    v => v.includes('rundll32') && v.includes('svchost_update'),
+                    v => v.includes('powershell') && v.includes('enc')
+                ];
+
+                let matched = 0;
+                all.forEach(answer => {
+                    if (validIOCs.some(check => check(answer))) matched++;
+                });
+
+                return matched >= 3;
+            },
+            feedback_wrong: 'IOCs include IPs, domains, file paths, registry keys, or network indicators observed during execution.'
+        },
+        q6: {
+            points: 10,
+            validate: function(inputs) {
+                return (inputs.main || '').trim() === 'encrypted-staging';
+            },
+            feedback_wrong: 'The malware encrypted the stolen data before sending it out. What is this technique called?'
+        }
+    };
+
+    function checkAnswer(qId) {
+        if (state.answered[qId]) return;
+
+        const answer = correctAnswers[qId];
+        let inputs = {};
+
+        if (qId === 'q1') {
+            inputs.a = document.getElementById('answer-q1a').value;
+            inputs.b = document.getElementById('answer-q1b').value;
+        } else if (qId === 'q5') {
+            inputs.a = document.getElementById('answer-q5a').value;
+            inputs.b = document.getElementById('answer-q5b').value;
+            inputs.c = document.getElementById('answer-q5c').value;
+        } else {
+            inputs.main = document.getElementById('answer-' + qId).value;
+        }
+
+        const isCorrect = state.godMode || answer.validate(inputs);
+
+        if (isCorrect) {
+            state.answered[qId] = true;
+            state.score += answer.points;
+
+            document.getElementById('section-' + qId).classList.add('correct');
+            document.getElementById('check-' + qId).classList.add('visible');
+            document.getElementById('badge-' + qId).textContent = answer.points + '/' + answer.points + ' pts';
+            document.getElementById('badge-' + qId).classList.add('earned');
+            document.getElementById('wrong-' + qId).classList.remove('visible');
+
+            // Disable inputs
+            document.querySelectorAll('#section-' + qId + ' .answer-input').forEach(el => el.disabled = true);
+            document.querySelector('#section-' + qId + ' .btn-submit').disabled = true;
+
+            updateScore();
+            saveProgress();
+        } else {
+            document.getElementById('section-' + qId).classList.add('incorrect');
+            const wrongEl = document.getElementById('wrong-' + qId);
+            wrongEl.textContent = answer.feedback_wrong;
+            wrongEl.classList.add('visible');
+
+            setTimeout(() => {
+                document.getElementById('section-' + qId).classList.remove('incorrect');
+            }, 2000);
+        }
+    }
+
+    function updateScore() {
+        document.getElementById('currentScore').textContent = state.score + '/100';
+    }
+
+    // ========================================================
+    // Final Report Submission
+    // ========================================================
+    function submitFinalReport() {
+        const answeredCount = Object.keys(state.answered).length;
+
+        if (answeredCount === 0 && !state.godMode) {
+            alert('Submit at least some answers before filing your report.');
+            return;
+        }
+
+        if (state.godMode) {
+            // Auto-answer everything
+            ['q1', 'q2', 'q3', 'q4', 'q5', 'q6'].forEach(qId => {
+                if (!state.answered[qId]) {
+                    state.answered[qId] = true;
+                    state.score += correctAnswers[qId].points;
+                    document.getElementById('section-' + qId).classList.add('correct');
+                    document.getElementById('check-' + qId).classList.add('visible');
+                    document.getElementById('badge-' + qId).textContent = correctAnswers[qId].points + '/' + correctAnswers[qId].points + ' pts';
+                    document.getElementById('badge-' + qId).classList.add('earned');
+                }
+            });
+            updateScore();
+        }
+
+        // Build score breakdown
+        const breakdown = document.getElementById('scoreBreakdown');
+        let breakdownHTML = '';
+        const questions = [
+            { id: 'q1', label: 'Dropped Files', max: 30 },
+            { id: 'q2', label: 'Persistence Mechanism', max: 15 },
+            { id: 'q3', label: 'C2 Server', max: 15 },
+            { id: 'q4', label: 'Exfiltrated Data', max: 15 },
+            { id: 'q5', label: 'IOC Extraction', max: 15 },
+            { id: 'q6', label: 'Evasion Technique', max: 10 }
+        ];
+
+        questions.forEach(q => {
+            const earned = state.answered[q.id] ? q.max : 0;
+            const cls = earned > 0 ? 'earned' : 'missed';
+            breakdownHTML += '<div class="score-row ' + cls + '"><span>' + q.label + '</span><span>' + earned + '/' + q.max + '</span></div>';
+        });
+
+        breakdown.innerHTML = breakdownHTML;
+        document.getElementById('finalScoreDisplay').textContent = state.score + '/100';
+
+        if (state.score >= 70) {
+            // Gate complete
+            localStorage.setItem('gate8_complete', 'true');
+            localStorage.setItem('hexworth_gate_8_complete', Date.now().toString());
+            localStorage.setItem('gate8_score', state.score.toString());
+            document.getElementById('successModal').classList.add('active');
+        } else {
+            // Not enough points
+            alert('Score: ' + state.score + '/100. You need at least 70 points to complete this gate. Keep analyzing!');
+        }
+
+        saveProgress();
+    }
+
+    // ========================================================
+    // Utility
+    // ========================================================
+    function returnToVault() {
+        window.location.href = '/dark-arts/vault/index.html';
+    }
+
+    function saveProgress() {
+        localStorage.setItem('gate8_progress', JSON.stringify(state));
+    }
+
+    function loadProgress() {
+        const saved = localStorage.getItem('gate8_progress');
+        if (saved) {
+            try {
+                const savedState = JSON.parse(saved);
+                Object.assign(state, savedState);
+                updateScore();
+                document.getElementById('hintsFound').textContent = state.hintsFound + '/3';
+
+                // Restore answered sections
+                Object.keys(state.answered).forEach(qId => {
+                    document.getElementById('section-' + qId).classList.add('correct');
+                    document.getElementById('check-' + qId).classList.add('visible');
+                    const pts = correctAnswers[qId].points;
+                    document.getElementById('badge-' + qId).textContent = pts + '/' + pts + ' pts';
+                    document.getElementById('badge-' + qId).classList.add('earned');
+                    document.querySelectorAll('#section-' + qId + ' .answer-input').forEach(el => el.disabled = true);
+                    const btn = document.querySelector('#section-' + qId + ' .btn-submit');
+                    if (btn) btn.disabled = true;
+                });
+
+                if (state.executed) {
+                    document.getElementById('btnExecute').disabled = true;
+                    document.getElementById('btnExecute').textContent = 'EXECUTION COMPLETE';
+                    document.getElementById('execHint').textContent = 'Re-run not available. Submit your findings below.';
+                    document.getElementById('execStatus').textContent = 'COMPLETE';
+                    document.getElementById('execStatus').style.color = '#4caf50';
+                    document.getElementById('eventsCount').textContent = state.eventsFired + '/' + state.totalEvents;
+                }
+            } catch (e) {
+                console.warn('Failed to load gate8 progress:', e);
+            }
+        }
+    }
+
+    // God Mode
+    document.getElementById('godMode').addEventListener('change', function() {
+        state.godMode = this.checked;
+        if (state.godMode) console.log('%c[Gate 8] God Mode ON', 'color: #ff6b6b;');
+    });
+
+    document.addEventListener('keydown', function(e) {
+        if (e.ctrlKey && e.shiftKey && e.key === 'G') {
+            const cb = document.getElementById('godMode');
+            cb.checked = !cb.checked;
+            state.godMode = cb.checked;
+        }
+    });
+
+    // ========================================================
+    // Initialize
+    // ========================================================
+    window.addEventListener('DOMContentLoaded', function() {
+        renderFileTree();
+        loadProgress();
+    });
+
+    // Console breadcrumb
+    console.log('%c[Gate VIII] Dynamic Analysis Sandbox', 'color: #9370db; font-size: 12px;');
+    console.log('%cExecute. Observe. Classify. Static tells you what it could do. Dynamic tells you what it actually does.', 'color: #6a4a7a; font-size: 10px;');
+    </script>
+<script src="../../../components/FluxCapacitor.js"></script>
+</body>
+</html>

@@ -2141,6 +2141,52 @@ class AchievementSystem {
             if (this.unlock('hexworth_legend')) newAchievements.push(this.ACHIEVEMENTS.hexworth_legend);
         }
 
+        // Auto-generated house milestones + scholar (AchievementRegistry)
+        if (typeof AchievementRegistry !== 'undefined' && typeof ContentCatalog !== 'undefined') {
+            Object.entries(progress.houses || {}).forEach(([houseId, house]) => {
+                const pct = house.progressPercent || 0;
+                // Milestone tiers: 25%, 50%, 75%, 100%
+                [25, 50, 75, 100].forEach(threshold => {
+                    if (pct >= threshold) {
+                        const milestoneId = `house_${houseId}_${threshold}`;
+                        if (AchievementRegistry.unlock(milestoneId)) {
+                            const def = AchievementRegistry.getDefinition(milestoneId);
+                            if (def) {
+                                if (typeof AchievementPanel !== 'undefined') {
+                                    AchievementPanel.queueNotification(def);
+                                }
+                                newAchievements.push(def);
+                            }
+                        }
+                    }
+                });
+
+                // House Scholar: all quizzes with perfect score (100%)
+                const houseModules = ContentCatalog.getHouseModules(houseId);
+                const quizModules = houseModules.filter(m =>
+                    (m.components || []).includes('quiz') && m.status === 'available'
+                );
+                if (quizModules.length > 0) {
+                    const quizHistory = progress.quizHistory || [];
+                    const allPerfect = quizModules.every(qm =>
+                        quizHistory.some(qh => qh.moduleId === qm.id && qh.score >= 100)
+                    );
+                    if (allPerfect) {
+                        const scholarId = `house_${houseId}_all_perfect`;
+                        if (AchievementRegistry.unlock(scholarId)) {
+                            const def = AchievementRegistry.getDefinition(scholarId);
+                            if (def) {
+                                if (typeof AchievementPanel !== 'undefined') {
+                                    AchievementPanel.queueNotification(def);
+                                }
+                                newAchievements.push(def);
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
         return newAchievements;
     }
 

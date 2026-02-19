@@ -130,6 +130,10 @@ const BoxEngine = {
 
         window.addEventListener('beforeunload', () => {
             this.save();
+            // Clean up tutorial auto-hint interval
+            if (this._tutorialAutoHintInterval) {
+                clearInterval(this._tutorialAutoHintInterval);
+            }
             if (!this.state.completed) {
                 this._logEvent('session_abandon', {
                     flagsFound: this.state.flagsFound.length,
@@ -173,6 +177,7 @@ const BoxEngine = {
             events: [],  // Research instrumentation — timestamped action log
             _tutorialStep: 0,
             _tutorialComplete: false,
+            _tutorialStepStartedAt: 0,  // Timestamp when current step started (for auto-hint in Easy)
             // Phase/layer progression (Sprint AR-15)
             activePhases: [],
             completedPhases: [],
@@ -1435,6 +1440,29 @@ const BoxEngine = {
         document.getElementById('hintPanel').classList.remove('active');
     },
 
+    /**
+     * Get the effective hint penalty, adjusted for difficulty tier.
+     * Hard mode doubles hint costs.
+     */
+    _getEffectiveHintPenalty(hint) {
+        const scoring = this.config.scoring || {};
+        const base = hint.penalty || scoring.hintPenalty || -50;
+        const difficulty = this._getEffectiveDifficulty();
+        if (difficulty === 'hard') return base * 2;
+        return base;
+    },
+
+    /**
+     * Resolve the effective difficulty tier.
+     * Returns 'easy', 'normal', or 'hard'. Defaults to 'normal' if not set.
+     */
+    _getEffectiveDifficulty() {
+        const d = (this.config.difficulty || 'normal').toLowerCase();
+        if (d === 'easy' || d.includes('beginner')) return 'easy';
+        if (d === 'hard' || d.includes('expert') || d.includes('advanced')) return 'hard';
+        return 'normal';
+    },
+
     _renderHints() {
         const list = document.getElementById('hintList');
         if (!list) return;
@@ -1444,7 +1472,7 @@ const BoxEngine = {
 
         hints.forEach((hint, idx) => {
             const used = this.state.hintsUsed.includes(hint.id);
-            const penalty = hint.penalty || scoring.hintPenalty || -50;
+            const penalty = this._getEffectiveHintPenalty(hint);
             const isFree = this.state.godMode;
             const item = document.createElement('div');
             item.className = 'hint-item ' + (used ? 'revealed' : 'locked');
@@ -1525,17 +1553,18 @@ const BoxEngine = {
             return;
         }
 
-        // Solo mode: original logic
+        // Solo mode: original logic with difficulty-adjusted penalty
         this.state.hintsUsed.push(hint.id);
+        const effectivePenalty = this._getEffectiveHintPenalty(hint);
 
         if (!this.state.godMode) {
-            this.addScore(hint.penalty, `Hint used: ${hint.id}`);
+            this.addScore(effectivePenalty, `Hint used: ${hint.id}`);
         }
 
         this.save();
-        this._logEvent('hint_reveal', { flagId: hint.forFlag || hint.id, hintIndex: this.state.hintsUsed.length - 1, penalty: this.state.godMode ? 0 : hint.penalty });
-        this._reportHintReveal(hint.id, hint.penalty);
-        this.notify(`Hint revealed. ${this.state.godMode ? 'No penalty (God Mode)' : hint.penalty + ' points'}`, 'warning');
+        this._logEvent('hint_reveal', { flagId: hint.forFlag || hint.id, hintIndex: this.state.hintsUsed.length - 1, penalty: this.state.godMode ? 0 : effectivePenalty });
+        this._reportHintReveal(hint.id, effectivePenalty);
+        this.notify(`Hint revealed. ${this.state.godMode ? 'No penalty (God Mode)' : effectivePenalty + ' points'}`, 'warning');
     },
 
     // ────────────────────────────────────────────────
@@ -2527,22 +2556,37 @@ const BoxEngine = {
 
     // ────────────────────────────────────────────────
     // TUTORIAL MODE (Sprint AR-12)
+    // Difficulty tiers: easy (all steps + tips + auto-hint),
+    //   normal (steps, no tips, normal hints),
+    //   hard (no tutorial, double hint costs, time pressure)
     // ────────────────────────────────────────────────
 
     _initTutorial() {
+        const difficulty = this._getEffectiveDifficulty();
+
+        // Hard mode: no tutorial panel at all
+        if (difficulty === 'hard') return;
+
         if (!this.config.tutorialMode || !this.config.tutorial) return;
 
         this.tutorial = {
             steps: this.config.tutorial.steps || [],
             currentStep: this.state._tutorialStep || 0,
-            completed: this.state._tutorialComplete || false
+            completed: this.state._tutorialComplete || false,
+            difficulty: difficulty
         };
 
         if (this.tutorial.completed) return;
 
+        // Record when current step started (for Easy mode auto-hint)
+        if (!this.state._tutorialStepStartedAt) {
+            this.state._tutorialStepStartedAt = Date.now();
+            this.save();
+        }
+
         // Build tutorial UI
         this._buildTutorialPanel();
-        this._showTutorialStep(this.tutorial.currentStep);
+        this._renderTutorialPanel();
 
         // Wrap _logEvent to auto-advance tutorial steps on matching events
         const self = this;
@@ -2551,18 +2595,31 @@ const BoxEngine = {
             origLog(type, data);
             self._checkTutorialProgress(type, data);
         };
+
+        // Easy mode: start auto-hint timer (checks every 30s if student is stuck)
+        if (difficulty === 'easy') {
+            this._tutorialAutoHintInterval = setInterval(() => {
+                self._checkAutoHint();
+            }, 30000);
+        }
     },
 
     _buildTutorialPanel() {
+        const difficulty = this.tutorial.difficulty;
+        const diffLabel = difficulty === 'easy' ? 'GUIDED' : 'OBJECTIVES';
+        const diffBadgeClass = 'tutorial-difficulty-badge tutorial-diff-' + difficulty;
+
         const panel = document.createElement('div');
         panel.className = 'tutorial-panel';
         panel.id = 'tutorialPanel';
         panel.innerHTML = `
             <div class="tutorial-header">
                 <span class="tutorial-icon">\uD83D\uDCCB</span>
-                <span class="tutorial-title">Objectives</span>
+                <span class="tutorial-title">${diffLabel}</span>
+                <span class="${diffBadgeClass}">${this._escHtml(difficulty.toUpperCase())}</span>
                 <button class="tutorial-toggle" id="tutorialToggle">\u2212</button>
             </div>
+            <div class="tutorial-progress" id="tutorialProgress"></div>
             <div class="tutorial-steps" id="tutorialSteps"></div>
             <div class="tutorial-tip" id="tutorialTip"></div>
         `;
@@ -2574,27 +2631,58 @@ const BoxEngine = {
         });
     },
 
-    _showTutorialStep(index) {
+    /**
+     * Render/refresh the tutorial panel: progress bar, steps, and tip.
+     * Called on init and after each step completion.
+     */
+    _renderTutorialPanel() {
         const stepsEl = document.getElementById('tutorialSteps');
         const tipEl = document.getElementById('tutorialTip');
+        const progressEl = document.getElementById('tutorialProgress');
         if (!stepsEl || !tipEl) return;
 
+        const index = this.tutorial.currentStep;
+        const total = this.tutorial.steps.length;
+        const difficulty = this.tutorial.difficulty;
+        const showAllSteps = difficulty === 'easy';
+        const showTips = difficulty === 'easy';
+
+        // Update progress bar
+        if (progressEl) {
+            const pct = total > 0 ? Math.round((index / total) * 100) : 0;
+            progressEl.innerHTML = `<div class="tutorial-progress-bar"><div class="tutorial-progress-fill" style="width:${pct}%"></div></div><span class="tutorial-progress-label">${index}/${total}</span>`;
+        }
+
+        // Render step list
         stepsEl.innerHTML = '';
         this.tutorial.steps.forEach((step, i) => {
+            const isCompleted = i < index;
+            const isActive = i === index;
+            const isLocked = i > index;
+            const isRevealed = showAllSteps || i <= index;
+
             const el = document.createElement('div');
-            el.className = 'tutorial-step ' + (i < index ? 'completed' : i === index ? 'active' : 'locked');
-            el.innerHTML = `
-                <span class="step-check">${i < index ? '\u2713' : i === index ? '\u25BA' : '\u25CB'}</span>
-                <span class="step-text">${i <= index ? this._escHtml(step.title) : '???'}</span>
-            `;
+            el.className = 'tutorial-step';
+            if (isCompleted) el.classList.add('completed');
+            else if (isActive) el.classList.add('active');
+            else el.classList.add('locked');
+
+            const checkIcon = isCompleted ? '\u2713' : isActive ? '\u25BA' : '\u25CB';
+            const stepText = isRevealed ? this._escHtml(step.title) : '???';
+
+            el.innerHTML = `<span class="step-check">${checkIcon}</span><span class="step-text">${stepText}</span>`;
             stepsEl.appendChild(el);
         });
 
-        // Show tip for current step
-        if (index < this.tutorial.steps.length) {
+        // Show tip for current step (Easy mode always shows, Normal never shows)
+        if (index < total) {
             const step = this.tutorial.steps[index];
-            tipEl.innerHTML = `<strong>Tip:</strong> ${this._escHtml(step.tip || '')}`;
-            tipEl.style.display = step.tip ? 'block' : 'none';
+            if (showTips && step.tip) {
+                tipEl.innerHTML = `<strong>Tip:</strong> ${this._escHtml(step.tip)}`;
+                tipEl.style.display = 'block';
+            } else {
+                tipEl.style.display = 'none';
+            }
         } else {
             tipEl.innerHTML = '<strong>All objectives complete!</strong> Submit your flags.';
             tipEl.style.display = 'block';
@@ -2603,6 +2691,74 @@ const BoxEngine = {
         // Auto-scroll to active step
         const activeStep = stepsEl.querySelector('.tutorial-step.active');
         if (activeStep) activeStep.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    },
+
+    /**
+     * Reveal the next tutorial step with a glow/pulse animation.
+     * Called after a step is completed.
+     */
+    _revealNextStep(newIndex) {
+        // Update the panel
+        this._renderTutorialPanel();
+
+        // Add glow animation to the newly active step
+        const stepsEl = document.getElementById('tutorialSteps');
+        if (!stepsEl) return;
+        const activeStep = stepsEl.querySelector('.tutorial-step.active');
+        if (activeStep) {
+            activeStep.classList.add('tutorial-step-reveal');
+            // Remove animation class after it plays (600ms)
+            setTimeout(() => activeStep.classList.remove('tutorial-step-reveal'), 800);
+        }
+
+        // Pulse the panel border briefly
+        const panel = document.getElementById('tutorialPanel');
+        if (panel) {
+            panel.classList.add('tutorial-panel-pulse');
+            setTimeout(() => panel.classList.remove('tutorial-panel-pulse'), 1200);
+        }
+    },
+
+    /**
+     * Easy mode: auto-reveal the first unused hint after 3 minutes stuck on the same step.
+     * This is a gentler nudge than the hint system — no point penalty.
+     */
+    _checkAutoHint() {
+        if (!this.tutorial || this.tutorial.completed) return;
+        if (this.tutorial.difficulty !== 'easy') return;
+
+        const stepStarted = this.state._tutorialStepStartedAt || Date.now();
+        const elapsed = Date.now() - stepStarted;
+        const AUTO_HINT_THRESHOLD = 180000; // 3 minutes
+
+        if (elapsed >= AUTO_HINT_THRESHOLD) {
+            // Find the first unrevealed hint
+            const hints = this.config.hints || [];
+            const unused = hints.find(h => !this.state.hintsUsed.includes(h.id));
+            if (unused) {
+                // Auto-reveal hint without penalty
+                this.state.hintsUsed.push(unused.id);
+                this.save();
+                this._renderHints();
+                this._logEvent('tutorial_auto_hint', { hintId: unused.id, stepIndex: this.tutorial.currentStep });
+
+                // Show the tip in the tutorial panel as a nudge
+                const tipEl = document.getElementById('tutorialTip');
+                if (tipEl) {
+                    const step = this.tutorial.steps[this.tutorial.currentStep];
+                    tipEl.innerHTML = `<strong>Hint unlocked (free):</strong> ${this._escHtml(unused.text)}`;
+                    tipEl.style.display = 'block';
+                    tipEl.classList.add('tutorial-tip-flash');
+                    setTimeout(() => tipEl.classList.remove('tutorial-tip-flash'), 1500);
+                }
+
+                this.notify('Stuck? A free hint has been unlocked for you.', 'info');
+
+                // Reset the step timer so it doesn't fire again immediately
+                this.state._tutorialStepStartedAt = Date.now();
+                this.save();
+            }
+        }
     },
 
     _checkTutorialProgress(eventType, eventData) {
@@ -2657,19 +2813,30 @@ const BoxEngine = {
         if (matched) {
             this.tutorial.currentStep++;
             this.state._tutorialStep = this.tutorial.currentStep;
+
+            // Reset step timer for auto-hint
+            this.state._tutorialStepStartedAt = Date.now();
             this.save();
 
             this.notify(`Objective ${this.tutorial.currentStep}/${this.tutorial.steps.length} complete!`, 'success');
-            this._logEvent('tutorial_step_complete', { step: this.tutorial.currentStep });
+            this._logEvent('tutorial_step_complete', { step: this.tutorial.currentStep, difficulty: this.tutorial.difficulty });
 
             if (this.tutorial.currentStep >= this.tutorial.steps.length) {
                 this.tutorial.completed = true;
                 this.state._tutorialComplete = true;
                 this.save();
                 this.notify('All tutorial objectives complete! Great work!', 'success');
+                this._logEvent('tutorial_complete', { totalSteps: this.tutorial.steps.length, difficulty: this.tutorial.difficulty });
+
+                // Stop auto-hint timer
+                if (this._tutorialAutoHintInterval) {
+                    clearInterval(this._tutorialAutoHintInterval);
+                    this._tutorialAutoHintInterval = null;
+                }
             }
 
-            this._showTutorialStep(this.tutorial.currentStep);
+            // Animate the reveal of the next step
+            this._revealNextStep(this.tutorial.currentStep);
         }
     }
 };

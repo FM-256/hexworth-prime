@@ -1,3 +1,4 @@
+[STATUS: All issues remain unfixed.]
 # Access Control System Review: AccessGuard.js
 
 ## Date

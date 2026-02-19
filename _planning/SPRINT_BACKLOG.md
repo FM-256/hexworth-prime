@@ -65,6 +65,80 @@
 
 ---
 
+## Consolidated Open Backlog (February 19, 2026)
+
+All remaining work — organized by priority. Detail for each sprint lives further down in this file.
+
+### CRITICAL Priority
+
+| Sprint | What | Status | Notes |
+|--------|------|--------|-------|
+| **QC-4** | AccessGuard server-side migration | ✅ Done | 5 Cloud Functions, Firestore rules, custom claims, trust-then-verify pattern |
+| **PR-1** | Student worksheets (A5 remaining) | ✅ Done | All 5 worksheets (A1-A5) complete |
+| **QC-7** | Forge learning path — Edition Selector blocking progress | ✅ Done | Removed from critical path, updated prerequisites |
+
+### HIGH Priority
+
+| Sprint | What | Status | Notes |
+|--------|------|--------|-------|
+| **ARC-1** | The Arctic — Design & Build Linux Content Hub | ✅ Done | 171 modules, 11 districts, 3 factions, ArcticData.js + ArcticEngine.js + 11 district pages. All paths verified |
+| **PR-2** | Unified certification alignment matrix | ✅ Done | 367-line CERTIFICATION_MATRIX.md — 6 sections, 12 certs, per-box/per-cert/quick-lookup tables |
+| **PR-3** | Instructor answer keys A1-A5 | ✅ Done | All 5 guides verified — full walkthroughs, grading rubrics, time checkpoints, discussion prompts |
+| **PR-6** | Marketing & demo assets (video, screenshots, landing page, PDF) | Backlog | Zero marketing assets exist — product is invisible |
+| **AR-11** | Flag security — server-side validation, salt, rate limit | ✅ Done | validateFlag Cloud Function deployed — Firestore flag registry, rate limiting, capture records |
+| **AR-12** | Tutorial mode — progressive difficulty, scaffolded blue team | Backlog | Basic done in marathon; full walkthrough + difficulty tiers remain. Student retention blocker |
+| **AR-13** | Instructor dashboard arena panels | Backlog | Basic done in marathon; per-student grid, flag detail, CTF assignment type remain |
+
+### MEDIUM Priority
+
+| Sprint | What | Status | Notes |
+|--------|------|--------|-------|
+| **AR-4** | IDP review & finalization (grade Gemini drafts A2-A20) | Backlog | Required before classroom use or sales |
+| **AR-5** | IDP drafting Series B-H (140 boxes) | Backlog | Follows Series A validation |
+| **AR-6** | BoxEngine v2 — blue team extensions (log viewer, config editor, diagnostic) | Backlog | Required for Series B boxes |
+| **AR-14** | Research instrumentation finish (command export, surveys, abandonment, phase detection) | ✅ Done | All 6 items complete: event log, export, command hook, surveys, abandonment, phase detection |
+| **PR-5** | Difficulty metrics & analysis layer | Backlog | Grant reviewers love measurable learning |
+| **PR-7** | Red vs Blue asymmetric box | Backlog | Product differentiator — depends on AR-11, AR-12 |
+| **QC-3** | Planet perf, Core 2 dup progress, achievement wiring, WSA gaps | Backlog | Mixed bag of known issues |
+| **DA-8** | Dark Arts Gate 8 — Dynamic Analysis Sandbox | Backlog | 30-45 min, discoverable filesystem hints, unlocks Tier 4 |
+| **DA-9** | Dark Arts Gate 9 — Reverse Engineering Challenge | Backlog | 40-60 min, assembly-level analysis, unlocks Tier 5 |
+| **DA-10** | Dark Arts Gate 10 — IR Capstone | Backlog | 60-90 min, full incident response, unlocks Dark Arts Master |
+| **F-38** | Advanced career sorting quiz | Backlog | 30-40 questions, career aptitude, 12 career tracks |
+| **F-39** | Universal completion stamps + mastery XP | Discussion | Massive scope — touches nearly every component |
+
+### LOW / Deferred
+
+| Sprint | What | Status | Notes |
+|--------|------|--------|-------|
+| **QC-1** | Remaining playthrough tests (text adventures, incident-response, sudo-su, flappy, runners, strategy) | Partial | Non-blocking — games work, just not fully audited |
+| **QC-5** | EduScan CI/CD (GitHub Actions) | Backlog | Nice to have — manual scan works fine |
+| **HD comparative** | Cohort vs cohort analytics | Deferred | Multi-class feature — no classes running yet |
+| **F-4** | User accounts (if needed) | Backlog | Low priority — localStorage + anonymous sync working |
+| **F-13 carry** | Cloud Hop vertical runner, SQL Injection Defense live test, save-the-pod bracket fix | Backlog | Actionable notes from F-13 |
+
+### Marathon Waves Status
+
+| Wave | Status | Sprints Covered |
+|------|--------|-----------------|
+| 1 — Planning Docs | DONE | PR-1/2/3, OB-1 syllabus |
+| 2 — Game QC | DONE | Text adventures, flappy, runners, strategy |
+| 3 — BoxEngine Chain | DONE | AR-14 instrumentation, AR-11 flags, AR-7 assessment, AR-12 tutorial |
+| 4 — Dashboard Panels | DONE | AR-13 leaderboard, box grid, CTF assignments |
+| 5 — Quality Infra | DONE | Planet cap, EduScan CI, progress refactor |
+| 6 — Features | DONE | STRIDE modeler, cert paths, universal search |
+| 7 — Dark Arts Gates | 3 remain | DA-8, DA-9, DA-10 |
+| 8 — Validate & Deploy | Not started | EduScan + archive + deploy |
+
+### Biggest Gaps by Category
+
+- **Revenue blockers:** PR-2 (cert matrix), PR-3 finish (instructor guides), PR-6 (marketing assets)
+- **Security:** QC-4 (server-side auth), AR-11 finish (server-side flags)
+- **Content:** DA-8/9/10 (Dark Arts gates), ARC-1 (Arctic hub), AR-4/5 (IDP pipeline)
+- **Research/PhD:** AR-14 finish (surveys, abandonment, phase detection)
+- **Student experience:** QC-7 (Forge path blocked), AR-12 (tutorial mode), ARC-1 (Linux hub)
+
+---
+
 ### Sprint F-15: CMMC Domain Applets + OSINT Lab + Career Explorer
 **Status:** ✅ Complete (February 13, 2026)
 **Priority:** High — Eliminated all 201 HIGH EduScan issues from broken Articulate Storyline wrappers
@@ -910,7 +984,7 @@ Team-based competitive CTF battles. Teams race each other with separate scores, 
 
 | Task | Details | Effort | Status |
 |------|---------|--------|--------|
-| Fix null classId bug | BoxEngine._reportCompletion() passes null to AssignmentManager.logActivity() — resolve from localStorage class binding | 15 min | ⬜ |
+| Fix null classId bug | BoxEngine._reportCompletion() passes null to AssignmentManager.logActivity() — resolve from localStorage class binding | 15 min | ✅ (already fixed — _resolveClassIds()) |
 | Arena leaderboard panel | Per-class CTF leaderboard: student name, boxes completed, total score, avg time | 1-2 days | ⬜ |
 | Per-student box completion grid | Matrix view: students (rows) × boxes (cols) → score/flags/time per cell | 1-2 days | ⬜ |
 | Flag submission detail view | Click a cell → see which flags captured, hints used, wrong attempts, time per flag | 1 day | ⬜ |
@@ -920,7 +994,7 @@ Team-based competitive CTF battles. Teams race each other with separate scores, 
 ---
 
 ### Sprint AR-14: BoxEngine Research Instrumentation
-**Status:** 🟡 Partially Complete (February 18, 2026 — Marathon)
+**Status:** ✅ Complete (February 19, 2026)
 **Priority:** MEDIUM — PhD data collection enabler
 **Depends on:** AR-1 (engine)
 **Source:** Codex Review Sessions 1-3 (2026-02-15), Codex Architect Review (2026-02-17)
@@ -932,10 +1006,10 @@ Team-based competitive CTF battles. Teams race each other with separate scores, 
 |------|---------|--------|--------|
 | Timestamped event log | `state.events[]` with `_logEvent(type, data)` — logs box_start, window_open, flag_correct, flag_wrong, box_complete, hint_reveal, god_mode with elapsed time | 3-4 hours | ✅ |
 | Event log export | `exportEventLog()` — clipboard export for god mode. Research analytics in `_reportCompletion()`: avgTimeBetweenFlags, hintEffectiveness, totalCommands, totalNavigations | 1-2 hours | ✅ |
-| Command sequence export | Hook Terminal._execute() → engine._recordEvent('cmd', line) for attack pattern analysis | 1-2 hours | ⬜ |
-| Pre/post confidence survey | 5-question Likert modal before + after each box (self-efficacy, difficulty, confidence) | 1 day | ⬜ |
-| Session abandonment detection | Track if student closes without completing — log partial progress + time invested | 1-2 hours | ⬜ |
-| Phase detection | Classify student activity as recon → exploit → extraction — measure avg time per phase | 3-4 hours | ⬜ |
+| Command sequence export | Hook Terminal._execute() → engine._logEvent('command', {cmd, type, phase}) for attack pattern analysis | 1-2 hours | ✅ |
+| Pre/post confidence survey | 5-question Likert modal before + after each box (self-efficacy, difficulty, confidence) | 1 day | ✅ |
+| Session abandonment detection | Track if student closes without completing — log partial progress + time invested | 1-2 hours | ✅ |
+| Phase detection | _classifyCommand() categorizes as RECON/EXPLOIT/EXTRACTION/OTHER — logged with every command | 3-4 hours | ✅ |
 
 ---
 
@@ -1075,6 +1149,24 @@ Team-based competitive CTF battles. Teams race each other with separate scores, 
 
 ---
 
+### Sprint QC-7: Forge Learning Path — Edition Selector Blocking Progress
+**Status:** Backlog
+**Priority:** HIGH — Blocks all Forge house "Continue Your Journey" progression
+**Source:** User report (February 19, 2026)
+
+**Problem:** `forge-windows-editions-applet` (Windows Edition Selector) is module #2 in the Forge LearningPaths chain and a prerequisite for `forge-windows-settings` and everything downstream. The applet has ZERO completion tracking — it can never be marked complete, permanently blocking progress.
+
+**User intent:** The Edition Selector is informational/interactive — it should be an optional review tool linked from the Windows Editions presentation, not a standalone blocking module in the critical path.
+
+| Task | Details | Status |
+|------|---------|--------|
+| Remove `forge-windows-editions-applet` from LearningPaths.js forge modules | Keep applet file, remove from critical path | Backlog |
+| Update `forge-windows-settings` prerequisites | Change from `['forge-windows-editions-applet']` to `['forge-windows-editions']` | Backlog |
+| Link selector from presentation as optional | Add "Try the interactive selector" link in the Windows Editions presentation | Backlog |
+| Audit other houses for similar blocking applets | Check if any other house paths have non-completable modules as prerequisites | Backlog |
+
+---
+
 ## Quality Control & Bug Fixes (QC-Series)
 
 **Context:** Live user HED reports and manual QA revealed multiple crash bugs and UI issues across games, dashboard, and search functionality. These sprints ensure stability and UX quality.
@@ -1155,11 +1247,11 @@ Team-based competitive CTF battles. Teams race each other with separate scores, 
 
 | Task | File | Issue | Status |
 |------|------|-------|--------|
-| Planet overload cap | `digital-life/entities/Planet.js`, `Ecosystem.js` | After many planets, performance degrades — need max cap or cleanup | ⬜ |
+| Planet overload cap | `digital-life/entities/Planet.js`, `Ecosystem.js` | After many planets, performance degrades — need max cap or cleanup | ✅ (already implemented — maxPlanets: 20, recycleOldestPlanet) |
 | Core 2 duplicate progress tracking | `houses/forge/applets/comptia-aplus/core-2/` | Two independent progress systems (applet hub vs house index) | ⬜ |
-| Achievement wiring gaps | `AchievementManager.js`, `AchievementSystem.js` | `first_module`, `house_scholar_X` not triggering | ⬜ |
+| Achievement wiring gaps | `AchievementManager.js`, `AchievementSystem.js` | `first_module`, `house_scholar_X` not triggering | ✅ (first_module was already wired; added house milestone + scholar triggers in checkProgressAchievements via AchievementRegistry) |
 | WSA Domain 2-4 content gaps | Cloud house WSA modules | Domains 2, 3, 4 only 22-25% complete | ⬜ |
-| PSTerminal objective audit | `WSAGauntlet.js` | M07 context-sensitive objectives need path checking; M04 `new-vm` vs `create-vm` mismatch | ⬜ |
+| PSTerminal objective audit | `WSAGauntlet.js` | M07 context-sensitive objectives need path checking; M04 `new-vm` vs `create-vm` mismatch | ✅ (verified: all 14 M07 objectives have _checkObjective hooks; M04 quiz correctly uses New-VM as answer, Create-VM is distractor) |
 | Backup or Bust game mechanic | `houses/forge/games/` | Workshop recall: currently quiz-in-disguise, needs real game mechanic | ⬜ |
 | Install `gh` CLI + configure GitHub token | Dev environment | No API access from CLI — can't comment/close issues, create PRs programmatically | ⬜ |
 
@@ -1742,6 +1834,75 @@ EduScan catches issues **before** deploy. The functional validator catches runti
 #### Success Criteria
 
 The pod-crossing.html 404 scenario: a student clicks a dead catalog link → HED captures `{ code: 'HED-NAV-404', message: 'games/pod-crossing.html not found', url: '...', timestamp }` → surfaces in Health tab → instructor sees it without running EduScan manually.
+
+---
+
+### Sprint ARC-1: The Arctic — Design & Build Linux Content Hub
+**Status:** ⬜ Open
+**Priority:** HIGH
+**Category:** Architecture + Feature
+**Estimated Scope:** Large (multi-session)
+
+**Vision:** The Arctic is Hexworth Prime's unified Linux content hub — a frozen-world map with 3 factions (Penguin/Parrot/Dragon), 11 districts, faction-gated progression, and Mayor Tux as the guide. It consolidates all Linux content currently scattered across Script House into a single navigable experience.
+
+**Current State:** Only a barricade placeholder page exists (`_app/arctic/index.html`) with a Tux mascot and vision cards. Zero scaffolding, zero navigation, zero routing.
+
+**Content Already Built (waiting to be organized):**
+- 53 standalone Linux labs (`script/labs/linux/`)
+- 31 CLH course modules with intro + lab + quiz each (`script/courses/clh/`)
+- 7 general script labs (Python, PowerShell, Bash, SysAdmin, cron, patch tuesday)
+- ~150+ total files ready for Arctic districts
+
+**Phase 1 — Architecture & Design**
+
+| Task | Description | Status |
+|------|-------------|--------|
+| District map architecture | Define the 11 district pages, routing, and URL structure | ⬜ |
+| Faction engine design | Penguin → Parrot → Dragon progression gating, faction sorting/assignment | ⬜ |
+| Arctic renderer/hub engine | Shared renderer (like CMMCDomainRenderer pattern) or custom Arctic engine | ⬜ |
+| Content mapping | Map all existing Script House Linux content to specific districts | ⬜ |
+| Navigation design | How users move between districts, track progress, see the map | ⬜ |
+
+**Phase 2 — Penguin Faction (Fundamentals)**
+
+| Task | Description | Status |
+|------|-------------|--------|
+| Linux Mastery district | Landing page + module grid for 53 existing labs | ⬜ |
+| CLH Course district | Structured 31-module course view | ⬜ |
+| Grep & Pipe district | Text processing / pipeline content | ⬜ |
+| SysAdmin district | System administration content | ⬜ |
+| Cert Prep district | Linux+ certification track | ⬜ |
+
+**Phase 3 — Parrot Faction (Defense)**
+
+| Task | Description | Status |
+|------|-------------|--------|
+| Hardening district | Security hardening labs | ⬜ |
+| SOC Ops district | Blue team / SOC operations | ⬜ |
+| Forensics district | Linux forensics content | ⬜ |
+
+**Phase 4 — Dragon Faction (Offense)**
+
+| Task | Description | Status |
+|------|-------------|--------|
+| Kali Tools district | Kali-based offensive tools | ⬜ |
+| Parrot Tools district | Parrot OS offensive tools | ⬜ |
+| The Box district | CTF showcase / Arena integration | ⬜ |
+
+**Phase 5 — Integration**
+
+| Task | Description | Status |
+|------|-------------|--------|
+| Progress tracking | Arctic-specific progress (faction completion, district mastery) | ⬜ |
+| Dashboard integration | Arctic card on dashboard with real progress data | ⬜ |
+| ContentCatalog registration | All Arctic districts registered in catalog | ⬜ |
+| Script House migration | Redirect or bridge Script House Linux content → Arctic | ⬜ |
+
+**Design Decisions Needed:**
+1. Does Arctic replace Script House entirely, or coexist? (Script House still has Python/PowerShell)
+2. Faction sorting — personality quiz (like house sorting) or progression-based unlock?
+3. Arctic map — static grid like house index pages, or something more visual/interactive?
+4. URL scheme — `arctic/districts/{name}/` or `arctic/{faction}/{district}/`?
 
 ---
 

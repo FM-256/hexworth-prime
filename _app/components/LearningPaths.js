@@ -215,22 +215,13 @@ class LearningPaths {
                     prerequisites: []
                 },
                 {
-                    id: 'forge-windows-editions-applet',
-                    title: 'Windows Edition Selector',
-                    type: 'applet',
-                    difficulty: 'beginner',
-                    duration: '15 min',
-                    href: 'applets/forge-windows-edition-selector.applet.html',
-                    prerequisites: ['forge-windows-editions']
-                },
-                {
                     id: 'forge-windows-settings',
                     title: 'Windows Settings',
                     type: 'presentation',
                     difficulty: 'beginner',
                     duration: '25 min',
                     href: 'presentations/forge-windows-settings.presentation.html',
-                    prerequisites: ['forge-windows-editions-applet']
+                    prerequisites: ['forge-windows-editions']
                 },
                 {
                     id: 'forge-control-panel',
