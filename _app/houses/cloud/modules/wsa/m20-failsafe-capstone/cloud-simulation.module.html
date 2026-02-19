@@ -878,7 +878,7 @@
                     </div>
 
                     <div style="margin-top: 20px;">
-                        <button class="action-btn success" onclick="deployNewServer()" id="deployBtn">Deploy Replacement Server</button>
+                        <button class="action-btn success" onclick="deployNewServer()" id="deployBtn" disabled>Deploy Replacement Server</button>
                     </div>
                 </div>
             </div>
@@ -1145,7 +1145,8 @@ LESSONS LEARNED:
             fsmoSeized: false,
             metadataCleanedUp: false,
             newDCPromoted: false,
-            backupSelected: null
+            backupSelected: null,
+            recoveryVerified: false
         };
 
         // ========================================
@@ -1340,6 +1341,12 @@ LESSONS LEARNED:
             if (recoveryState.backupSelected) {
                 document.getElementById('startRecoveryBtn').disabled = false;
             }
+
+            // Recovery verified but server not yet deployed — re-enable deploy button
+            if (recoveryState.recoveryVerified && !recoveryState.serverDeployed) {
+                document.getElementById('deployBtn').disabled = false;
+                document.getElementById('startRecoveryBtn').disabled = true;
+            }
         }
 
         // ========================================
@@ -1364,7 +1371,7 @@ LESSONS LEARNED:
 
                 phase.objectives.forEach(obj => {
                     html += `
-                        <div class="objective-item ${obj.completed ? 'completed' : ''}" onclick="toggleObjective('${obj.id}')">
+                        <div class="objective-item ${obj.completed ? 'completed' : ''}" title="${obj.text}">
                             <div class="obj-check">${obj.completed ? '&#10003;' : ''}</div>
                             <span>${obj.text}</span>
                         </div>
@@ -1377,19 +1384,8 @@ LESSONS LEARNED:
             sidebar.innerHTML = html;
         }
 
-        function toggleObjective(objId) {
-            // Non-revocable: once completed, stays completed (matches Gauntlet pattern)
-            phases.forEach(phase => {
-                phase.objectives.forEach(obj => {
-                    if (obj.id === objId && !obj.completed) {
-                        obj.completed = true;
-                    }
-                });
-            });
-            buildObjectivesSidebar();
-            updateProgress();
-            saveState();
-        }
+        // Objectives can only be completed by performing the actual recovery actions.
+        // No sidebar click-to-complete — this is an assessment, not a checklist.
 
         function completeObjective(objId) {
             phases.forEach(phase => {
@@ -1532,6 +1528,10 @@ LESSONS LEARNED:
 
         function deployNewServer() {
             if (recoveryState.serverDeployed) return;
+            if (!recoveryState.recoveryVerified) {
+                addTerminalLine('ERROR: Run backup verification first (Backup & Recovery tab → Start Recovery Process).', 'error');
+                return;
+            }
             addTerminalLine('Deploying replacement server DC02-NEW...', 'info');
             setTimeout(() => {
                 document.getElementById('dc02NewCard').style.display = 'block';
@@ -1677,15 +1677,16 @@ LESSONS LEARNED:
 
             progress.classList.add('show');
             document.getElementById('startRecoveryBtn').disabled = true;
+            addTerminalLine('Starting backup verification and restore preparation...', 'info');
 
             const steps = [
                 { pct: 10, msg: 'Mounting backup volume...' },
                 { pct: 25, msg: 'Verifying backup integrity...' },
                 { pct: 40, msg: 'Preparing restore environment...' },
-                { pct: 60, msg: 'Restoring system state...' },
-                { pct: 80, msg: 'Configuring boot options...' },
-                { pct: 95, msg: 'Finalizing restore...' },
-                { pct: 100, msg: 'Backup verification complete. Deploy new server to proceed.' }
+                { pct: 60, msg: 'Restoring system state data...' },
+                { pct: 80, msg: 'Validating AD database consistency...' },
+                { pct: 95, msg: 'Finalizing verification...' },
+                { pct: 100, msg: 'Verification complete — ready to deploy replacement server.' }
             ];
 
             let step = 0;
@@ -1693,9 +1694,14 @@ LESSONS LEARNED:
                 if (step < steps.length) {
                     fill.style.width = steps[step].pct + '%';
                     status.textContent = steps[step].msg;
+                    addTerminalLine(steps[step].msg, step === steps.length - 1 ? 'success' : 'info');
                     step++;
                 } else {
                     clearInterval(interval);
+                    recoveryState.recoveryVerified = true;
+                    document.getElementById('deployBtn').disabled = false;
+                    addTerminalLine('Backup verification passed. Deploy replacement server when ready.', 'success');
+                    saveState();
                 }
             }, 1000);
         }
@@ -1795,23 +1801,60 @@ LESSONS LEARNED:
             const docs = document.getElementById('docsEditor').value;
             localStorage.setItem('failsafe-docs', docs);
 
-            if (docs.length > 500) {
-                completeObjective('d1');
-                completeObjective('d2');
-            }
-            if (docs.toLowerCase().includes('root cause') || docs.toLowerCase().includes('raid')) {
-                completeObjective('d3');
-            }
-            if (docs.toLowerCase().includes('preventive') || docs.toLowerCase().includes('recommendation')) {
-                completeObjective('p1');
-                completeObjective('p2');
-                completeObjective('p3');
-                completeObjective('p4');
-            }
-            completeObjective('d4');
-            completeObjective('c4');
+            const lower = docs.toLowerCase();
+            const len = docs.length;
+            let earned = 0;
 
-            addTerminalLine('Incident report saved.', 'success');
+            // d1: Document incident timeline — needs timeline-related content (300+ chars)
+            if (len >= 300 && (lower.includes('timeline') || lower.includes('sequence') || (lower.includes('time') && lower.includes('event')))) {
+                completeObjective('d1');
+                earned++;
+            }
+            // d2: Record recovery actions — needs recovery steps documented (300+ chars)
+            if (len >= 300 && (lower.includes('recovery') || lower.includes('restored') || lower.includes('deployed') || lower.includes('failover'))) {
+                completeObjective('d2');
+                earned++;
+            }
+            // d3: Identify root cause — needs root cause analysis
+            if (lower.includes('root cause') || lower.includes('raid') || lower.includes('disk failure') || lower.includes('hardware failure')) {
+                completeObjective('d3');
+                earned++;
+            }
+            // p1: Review backup schedule — needs backup planning content
+            if (lower.includes('backup') && (lower.includes('schedule') || lower.includes('daily') || lower.includes('weekly') || lower.includes('frequency'))) {
+                completeObjective('p1');
+                earned++;
+            }
+            // p2: Configure storage alerts — needs monitoring/alerting content
+            if (lower.includes('alert') || lower.includes('monitor') || lower.includes('threshold') || lower.includes('notification')) {
+                completeObjective('p2');
+                earned++;
+            }
+            // p3: Create DR runbook — needs runbook/procedure content
+            if (lower.includes('runbook') || lower.includes('procedure') || lower.includes('playbook') || lower.includes('step-by-step')) {
+                completeObjective('p3');
+                earned++;
+            }
+            // p4: Schedule DR drill — needs drill/test/exercise content
+            if (lower.includes('drill') || lower.includes('exercise') || lower.includes('tabletop') || lower.includes('test recovery')) {
+                completeObjective('p4');
+                earned++;
+            }
+            // d4: Submit incident report — auto-completes when report has substance (500+ chars)
+            if (len >= 500 && earned >= 3) {
+                completeObjective('d4');
+                earned++;
+            }
+            // c4: Update monitoring systems — earned alongside alerting content
+            if (lower.includes('monitor') || lower.includes('alert') || lower.includes('snmp') || lower.includes('scom')) {
+                completeObjective('c4');
+            }
+
+            if (earned === 0 && len < 300) {
+                addTerminalLine('Report saved. Add more detail to earn documentation objectives (300+ chars, include timeline, root cause, recovery steps, prevention measures).', 'warning');
+            } else {
+                addTerminalLine(`Incident report saved. ${earned} documentation objective${earned !== 1 ? 's' : ''} earned.`, 'success');
+            }
             saveState();
         }
 
