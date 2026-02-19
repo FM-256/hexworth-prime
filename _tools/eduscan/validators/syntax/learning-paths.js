@@ -364,7 +364,16 @@ class LearningPathsValidator {
                 const modules = this.parseModules(modulesContent);
 
                 if (modules.length > 0) {
-                    paths[pathId] = { modules };
+                    const pathEntry = { modules };
+
+                    // Capture courseHref if defined (used by dashboard for path-type resolution)
+                    const beforeModules = afterKey.slice(0, modulesStart);
+                    const courseHrefMatch = beforeModules.match(/courseHref:\s*['"]([^'"]+)['"]/);
+                    if (courseHrefMatch) {
+                        pathEntry.courseHref = courseHrefMatch[1];
+                    }
+
+                    paths[pathId] = pathEntry;
                 }
             }
 

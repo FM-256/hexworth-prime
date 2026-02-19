@@ -199,13 +199,10 @@ class AssignmentLinkValidator {
     /**
      * Check 2: Simulate path-type assignment resolution
      *
-     * Mirrors dashboard.html:5141-5158:
-     *   const firstHref = pathData.modules[0].href;
-     *   const parts = firstHref.split('/');
-     *   const cidIndex = parts.indexOf(assignment.contentId);
-     *   if (cidIndex !== -1) return parts.slice(0, cidIndex + 1).join('/') + '/index.html';
-     *   // fallback:
-     *   return 'houses/' + assignment.contentId + '/index.html';
+     * Mirrors dashboard.html resolveAssignmentHref() for path-type assignments:
+     *   1. If pathData.courseHref exists, return it directly
+     *   2. Otherwise derive from first module href (strip filename, add index.html)
+     *   3. Fallback: 'houses/' + contentId + '/index.html'
      */
     simulatePathAssignments(paths) {
         const issues = [];
@@ -216,6 +213,27 @@ class AssignmentLinkValidator {
             if (!pathData.modules || !Array.isArray(pathData.modules) || pathData.modules.length === 0) continue;
             checked++;
 
+            // Step 1: If courseHref is defined, the dashboard uses it directly — skip derivation
+            if (pathData.courseHref) {
+                const absolutePath = path.resolve(this.rootPath, pathData.courseHref);
+                if (!fs.existsSync(absolutePath)) {
+                    broken++;
+                    issues.push({
+                        code: 'ASGN-003',
+                        severity: 'high',
+                        category: 'assignment-links',
+                        message: `Path '${pathId}' courseHref does not exist: ${pathData.courseHref} (latent 404 if instructor assigns this path)`,
+                        file: this.learningPathsFile,
+                        pathId,
+                        resolvedHref: pathData.courseHref,
+                        derivedFrom: 'courseHref',
+                        fix: `Create ${pathData.courseHref}, or fix the courseHref value in LearningPaths.js`
+                    });
+                }
+                continue;
+            }
+
+            // Step 2: No courseHref — derive from first module href
             const firstModule = pathData.modules[0];
             if (!firstModule.href) {
                 broken++;
@@ -227,7 +245,7 @@ class AssignmentLinkValidator {
                     file: this.learningPathsFile,
                     pathId,
                     moduleId: firstModule.id,
-                    fix: 'Add an href to the first module of this path'
+                    fix: 'Add an href to the first module of this path, or add a courseHref to the path definition'
                 });
                 continue;
             }
@@ -244,7 +262,7 @@ class AssignmentLinkValidator {
                 // contentId NOT found in first module's href
                 // Dashboard falls through to fallback: houses/{contentId}/index.html
                 // For house paths this is expected (relative hrefs don't contain house name as segment)
-                // For cert paths this is notable — primary derivation can't work
+                // For cert paths without courseHref this is a real problem
                 issues.push({
                     code: 'ASGN-002',
                     severity: isHouseFolder ? 'info' : 'medium',
@@ -259,7 +277,7 @@ class AssignmentLinkValidator {
                     branch: 'fallback-used',
                     fix: isHouseFolder
                         ? null
-                        : `Ensure first module's href contains '${pathId}' as a path segment, or verify fallback 'houses/${pathId}/index.html' exists`
+                        : `Add a courseHref to the '${pathId}' path definition, or ensure first module's href contains '${pathId}' as a path segment`
                 });
 
                 // Use the fallback path for ASGN-003 check
@@ -279,7 +297,7 @@ class AssignmentLinkValidator {
                     pathId,
                     resolvedHref,
                     derivedFrom: firstModule.href,
-                    fix: `Create ${resolvedHref}, or update resolveAssignmentHref() to derive a valid landing page for cert paths`
+                    fix: `Create ${resolvedHref}, or add a courseHref to the '${pathId}' path definition in LearningPaths.js`
                 });
             }
         }
