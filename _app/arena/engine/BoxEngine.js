@@ -1266,9 +1266,11 @@ const BoxEngine = {
         const flags = this.config.flags || [];
 
         if (this._coOpMode) {
-            // Co-op: atomic Firestore transaction
+            // Co-op: use hash comparison (AR-11) then submit atomically
             const normalized = raw.toLowerCase().trim();
-            const matchedFlag = flags.find(f => f.value.toLowerCase() === normalized);
+            this._hashFlag(raw, this.state._sessionSeed).then(submittedHash => {
+                const matchedFH = this._flagHashes.find(fh => fh.hash === submittedHash);
+                const matchedFlag = matchedFH ? flags.find(f => f.id === matchedFH.id) : null;
 
             msg.innerHTML = '<span style="color:#3498db;">Submitting...</span>';
 
@@ -1304,6 +1306,7 @@ const BoxEngine = {
                     const color = result.message === 'Flag already submitted' ? '#3498db' : '#e74c3c';
                     msg.innerHTML = `<span style="color:${color};">${result.message}${result.penalty ? '. ' + result.penalty + ' points' : ''}</span>`;
                 }
+            });
             });
             return;
         }
@@ -1535,15 +1538,16 @@ const BoxEngine = {
         if (this.state.hintsUsed.includes(hint.id)) return;
 
         if (this._coOpMode) {
-            // Co-op: atomic Firestore transaction
-            CoOpSync.revealHintAtomically(hint.id, hint.penalty, this.state.godMode).then(result => {
+            // Co-op: atomic Firestore transaction with difficulty-adjusted penalty
+            const effectivePenalty = this._getEffectiveHintPenalty(hint);
+            CoOpSync.revealHintAtomically(hint.id, effectivePenalty, this.state.godMode).then(result => {
                 if (result.success) {
                     this.state = { ...this._defaults(), ...result.newState };
-                    this._logEvent('hint_reveal', { flagId: hint.forFlag || hint.id, hintIndex: this.state.hintsUsed.length - 1, penalty: this.state.godMode ? 0 : hint.penalty });
+                    this._logEvent('hint_reveal', { flagId: hint.forFlag || hint.id, hintIndex: this.state.hintsUsed.length - 1, penalty: this.state.godMode ? 0 : effectivePenalty });
                     this._updateScoreBadge();
                     this._renderHints();
-                    this._reportHintReveal(hint.id, hint.penalty);
-                    this.notify(`Hint revealed. ${this.state.godMode ? 'No penalty (God Mode)' : hint.penalty + ' points'}`, 'warning');
+                    this._reportHintReveal(hint.id, effectivePenalty);
+                    this.notify(`Hint revealed. ${this.state.godMode ? 'No penalty (God Mode)' : effectivePenalty + ' points'}`, 'warning');
                 }
                 // If already used, silently re-render (idempotent)
                 if (result.alreadyUsed) {
@@ -1829,6 +1833,7 @@ const BoxEngine = {
                     score: s.score,
                     flags: s.flagsFound.length,
                     totalFlags: (this.config.flags || []).length,
+                    wrongFlags: s.wrongFlags || 0,
                     hints: s.hintsUsed.length,
                     time: elapsed,
                     mode: this._vsMode ? 'vs' : this._coOpMode ? 'coop' : 'solo',

@@ -4532,7 +4532,7 @@ class LearningPaths {
         for (const module of modules) {
             if (!completedSet.has(module.id)) {
                 // Check if prerequisites are met
-                const prereqsMet = module.prerequisites.every(p => completedSet.has(p));
+                const prereqsMet = (module.prerequisites || []).every(p => completedSet.has(p));
                 if (prereqsMet) {
                     return {
                         ...module,
@@ -4565,7 +4565,7 @@ class LearningPaths {
         if (!module) return false;
 
         const completedSet = new Set(completedModuleIds);
-        return module.prerequisites.every(p => completedSet.has(p));
+        return (module.prerequisites || []).every(p => completedSet.has(p));
     }
 
     /**
@@ -4579,7 +4579,7 @@ class LearningPaths {
         const modules = path.modules.map(module => ({
             ...module,
             completed: completedSet.has(module.id),
-            available: module.prerequisites.every(p => completedSet.has(p)),
+            available: (module.prerequisites || []).every(p => completedSet.has(p)),
             href: this.resolveModuleHref(houseId, module.href)
         }));
 
@@ -4613,6 +4613,7 @@ class LearningPaths {
         let totalMinutes = 0;
 
         modules.forEach(module => {
+            if (!module.duration) return;
             const match = module.duration.match(/(\d+)/);
             if (match) {
                 totalMinutes += parseInt(match[1]);

@@ -217,7 +217,7 @@ function generateGateProof(gateNumber, uid) {
     // in Firestore (flag_registry/gates) and recomputes the same hash.
     // This is set up in the gate pages — see AccessGuard.generateGateProof()
     return crypto
-        .createHmac('sha256', 'hexworth-gate-proof-v1')
+        .createHmac('sha256', FLAG_SECRET)
         .update(`gate${gateNumber}:${uid}`)
         .digest('hex')
         .substring(0, 32);

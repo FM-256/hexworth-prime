@@ -2232,6 +2232,8 @@ const InstructorDashboard = (function() {
      * - Delete source member doc
      */
     async function mergeStudents(sourceUid, targetUid, classId) {
+        const { getFirestore } = window.firebaseFirestore;
+        const db = getFirestore();
         if (!db) throw new Error('Database not available');
 
         const {
