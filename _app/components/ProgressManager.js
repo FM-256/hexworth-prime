@@ -241,7 +241,7 @@ class ProgressManager {
                 const data = JSON.parse(stored);
                 // Merge with defaults to ensure all required fields exist
                 const defaults = this.createDefaultProgress();
-                return {
+                const merged = {
                     ...defaults,
                     ...data,
                     completedModules: data.completedModules || defaults.completedModules,
@@ -250,6 +250,12 @@ class ProgressManager {
                     divergentBranches: data.divergentBranches || defaults.divergentBranches,
                     houses: data.houses || defaults.houses
                 };
+                // Sanitize numeric fields — prevent "[object Object]50" corruption
+                merged.xp = (typeof merged.xp === 'number' && isFinite(merged.xp))
+                    ? merged.xp : (parseInt(String(merged.xp).replace(/[^0-9]/g, ''), 10) || 0);
+                merged.level = (typeof merged.level === 'number' && isFinite(merged.level))
+                    ? merged.level : (parseInt(String(merged.level).replace(/[^0-9]/g, ''), 10) || 1);
+                return merged;
             }
         } catch (e) {
             console.warn('ProgressManager: Error loading progress', e);
@@ -521,9 +527,9 @@ class ProgressManager {
                 result.xpEarned = this.XP_REWARDS.MODULE_COMPLETE;
         }
 
-        // Add XP and check for level up
-        const oldLevel = progress.level;
-        progress.xp += result.xpEarned;
+        // Add XP and check for level up (force numeric to prevent string concatenation)
+        const oldLevel = progress.level || 1;
+        progress.xp = (Number(progress.xp) || 0) + result.xpEarned;
         progress.level = this.calculateLevel(progress.xp);
 
         if (progress.level > oldLevel) {
@@ -775,8 +781,29 @@ class ProgressManager {
         const achievements = (typeof AchievementSystem !== 'undefined')
             ? AchievementSystem.getUnlockedAchievements() : [];
 
-        const xp = progress.xp || 0;
-        const level = progress.level || 1;
+        // Reconcile XP from ALL sources:
+        // 1. progress.xp (from hexworth_progress JSON — ProgressManager writes)
+        // 2. hexworth_xp standalone key (80+ games/labs/presentations write directly)
+        const progressXP = (typeof progress.xp === 'number' && isFinite(progress.xp)) ? progress.xp : 0;
+        const standaloneXP = parseInt(localStorage.getItem('hexworth_xp') || '0', 10) || 0;
+        const xp = Math.max(progressXP, standaloneXP);
+
+        // Recalculate level from reconciled XP (don't trust stored level if XP changed)
+        const computedLevel = this.calculateLevel(xp);
+        const storedLevel = (typeof progress.level === 'number' && isFinite(progress.level) && progress.level >= 1) ? progress.level : 1;
+        const level = Math.max(computedLevel, storedLevel);
+
+        // Sync reconciled values back to both stores so they stay aligned
+        if (xp !== progressXP || level !== storedLevel) {
+            try {
+                progress.xp = xp;
+                progress.level = level;
+                localStorage.setItem(this.STORAGE_KEYS.PROGRESS, JSON.stringify(progress));
+                localStorage.setItem('hexworth_xp', String(xp));
+                localStorage.setItem('hexworth_level', String(level));
+            } catch (e) { /* best-effort sync */ }
+        }
+
         const nextXP = this.getXPForNextLevel(level);
         const tier = this.getLevelTier(level) || { name: 'Initiate', color: '#6b7280' };
         const completion = this.getCompletionStats();
@@ -953,7 +980,7 @@ class ProgressManager {
 
             // Award XP
             const progress = this.getProgress();
-            progress.xp = (progress.xp || 0) + this.HOUSE_MASTERY_XP;
+            progress.xp = (Number(progress.xp) || 0) + this.HOUSE_MASTERY_XP;
             progress.level = this.calculateLevel(progress.xp);
             this.saveProgress(progress);
 

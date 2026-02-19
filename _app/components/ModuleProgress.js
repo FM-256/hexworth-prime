@@ -195,7 +195,7 @@ const ModuleProgress = (function() {
             xpReward = 200;
         }
 
-        progress.xp = (progress.xp || 0) + xpReward;
+        progress.xp = (Number(progress.xp) || 0) + xpReward;
         progress.level = calculateLevelFromXP(progress.xp);
     }
 
