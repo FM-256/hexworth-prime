@@ -90,6 +90,7 @@
                 <p id="loreWave">WAVE: 1</p>
                 <p id="loreLab">LAB: FIREWALL</p>
                 <p id="loreScore">DECRYPTED: 0</p>
+                <p id="loreTarget">TARGET: 0/150</p>
                 <p id="loreCombo">COMBO: 0</p>
             </div>
             <div class="lore-section lore-keys">
@@ -164,6 +165,8 @@ let score = 0, lives = 3, wave = 1, combo = 0, maxCombo = 0;
 let waveTransition = 0;
 let currentLevel = 0; // which layout is active (0-5, rotates)
 let shieldTimer = 0;  // invincibility frames at wave start (180 = 3 sec at 60fps)
+let waveScore = 0;    // score earned this wave
+let spawnTimer = 0;   // ticks until next enemy spawn
 
 // Player (crypto-bot)
 const player = {
@@ -340,45 +343,67 @@ function getDifficulty() {
     };
 }
 
-// Spawn wave — rotates level layout and scales difficulty
-function spawnWave() {
-    // Rotate level every wave
-    currentLevel = (wave - 1) % LEVELS.length;
-    createPlatforms();
+// Score needed to clear a wave
+function getWaveTarget(w) {
+    return 150 + (w - 1) * 75; // Wave 1: 150, Wave 2: 225, Wave 3: 300, etc.
+}
 
-    enemies = [];
+// Max enemies on screen at once for this wave
+function getMaxOnScreen(w) {
     const diff = getDifficulty();
+    return Math.min(4 + Math.floor(w * 0.8) + diff.countBonus, 12);
+}
 
+// Spawn interval (frames between spawns) — gets shorter each wave
+function getSpawnInterval(w) {
+    return Math.max(180 - w * 10, 60); // Wave 1: 170f (~2.8s), shrinks to min 60f (1s)
+}
+
+// Spawn a single enemy on a random non-floor platform
+function spawnOneEnemy() {
+    const diff = getDifficulty();
     const types = ['rot13'];
     if (wave >= 2) types.push('xor');
     if (wave >= 3) types.push('aes');
     if (wave >= 4) types.push('md5');
     if (wave >= 5) types.push('rsa');
 
-    const count = Math.min(3 + wave * 2 + diff.countBonus, 20);
-    // Use non-floor platforms for spawning
+    const type = types[Math.floor(Math.random() * types.length)];
+    const ct = CIPHER_TYPES[type];
     const spawnPlats = platforms.filter(p => p.h < 30);
+    const plat = spawnPlats[Math.floor(Math.random() * spawnPlats.length)];
+    const baseHp = ct.hp + diff.hpBonus;
 
-    for (let i = 0; i < count; i++) {
-        const type = types[Math.floor(Math.random() * types.length)];
-        const ct = CIPHER_TYPES[type];
-        const plat = spawnPlats[Math.floor(Math.random() * spawnPlats.length)];
-        const baseHp = ct.hp + diff.hpBonus;
-        enemies.push({
-            x: plat.x + Math.random() * Math.max(plat.w - 20, 0),
-            y: plat.y - 24,
-            w: 20, h: 20,
-            vx: (Math.random() < 0.5 ? -1 : 1) * ct.speed * diff.speedMul,
-            vy: 0,
-            type, color: ct.color,
-            hp: baseHp, maxHp: baseHp,
-            points: Math.round(ct.points * diff.pointsMul),
-            label: ct.label,
-            onGround: false,
-            dir: 1,
-            bubbled: false,
-            escapeTimer: 0
-        });
+    enemies.push({
+        x: plat.x + Math.random() * Math.max(plat.w - 20, 0),
+        y: plat.y - 24,
+        w: 20, h: 20,
+        vx: (Math.random() < 0.5 ? -1 : 1) * ct.speed * diff.speedMul,
+        vy: 0,
+        type, color: ct.color,
+        hp: baseHp, maxHp: baseHp,
+        points: Math.round(ct.points * diff.pointsMul),
+        label: ct.label,
+        onGround: false,
+        dir: 1,
+        bubbled: false,
+        escapeTimer: 0
+    });
+}
+
+// Spawn wave — rotates level layout, seeds initial enemies
+function spawnWave() {
+    currentLevel = (wave - 1) % LEVELS.length;
+    createPlatforms();
+    enemies = [];
+    bubbles = [];
+    waveScore = 0;
+    spawnTimer = 0;
+
+    // Seed initial batch
+    const initial = Math.min(3 + wave, getMaxOnScreen(wave));
+    for (let i = 0; i < initial; i++) {
+        spawnOneEnemy();
     }
 }
 
@@ -426,6 +451,8 @@ function startGame() {
     combo = 0;
     maxCombo = 0;
     currentLevel = 0;
+    waveScore = 0;
+    spawnTimer = 0;
     player.x = 100;
     player.y = 0;
     player.vx = 0;
@@ -663,10 +690,9 @@ function update() {
         if (e.x + e.w < 0) e.x = W;
         else if (e.x > W) e.x = -e.w;
 
-        // Fall off bottom → reappear at top
-        if (e.y > H + 20) {
-            e.y = -20;
-            e.vy = 0;
+        // Fall off bottom → remove (spawner will replace)
+        if (e.y > H + 40) {
+            e.remove = true;
         }
 
         // XOR erratic movement
@@ -700,6 +726,20 @@ function update() {
         });
     });
 
+    // Remove enemies that fell off the bottom
+    enemies = enemies.filter(e => !e.remove);
+
+    // Continuous spawning — keep enemies coming until wave target is met
+    if (!demoMode && waveTransition === 0) {
+        spawnTimer--;
+        const maxOn = getMaxOnScreen(wave);
+        const activeCount = enemies.length + bubbles.length;
+        if (spawnTimer <= 0 && activeCount < maxOn) {
+            spawnOneEnemy();
+            spawnTimer = getSpawnInterval(wave);
+        }
+    }
+
     // Bubbles
     bubbles.forEach(b => {
         b.y += b.vy;
@@ -726,6 +766,7 @@ function update() {
                     // Enemy destroyed
                     const points = b.enemy.points * (1 + Math.floor(combo / 5));
                     score += points;
+                    waveScore += points;
                     combo++;
                     if (combo > maxCombo) maxCombo = combo;
                     addFloatingText(b.x, b.y, `+${points}`, b.enemy.color);
@@ -791,29 +832,35 @@ function update() {
     });
     floatingTexts = floatingTexts.filter(t => t.life > 0);
 
-    // Wave complete
-    if (enemies.length === 0 && bubbles.length === 0 && !demoMode && waveTransition === 0) {
+    // Wave complete — advance when wave score target is reached
+    if (!demoMode && waveTransition === 0 && waveScore >= getWaveTarget(wave)) {
         wave++;
         waveTransition = 90;
         combo = 0;
         sfxWave();
     }
 
-    // Demo wave cycling — rotates through all layouts
-    if (demoMode && enemies.length === 0 && bubbles.length === 0) {
-        wave = (wave % LEVELS.length) + 1;
-        spawnWave();
+    // Demo: keep enemies on screen and cycle layout periodically
+    if (demoMode) {
+        if (enemies.length + bubbles.length < 4) spawnOneEnemy();
+        if (enemies.length === 0 && bubbles.length === 0) {
+            wave = (wave % LEVELS.length) + 1;
+            spawnWave();
+        }
     }
 
     // UI
     const lvlName = LEVELS[currentLevel % LEVELS.length].name;
+    const target = getWaveTarget(wave);
+    const pct = Math.min(Math.round((waveScore / target) * 100), 100);
     document.getElementById('scoreDisplay').textContent = `SCORE: ${score}`;
-    document.getElementById('waveDisplay').textContent = `WAVE ${wave} \u2014 ${lvlName}`;
+    document.getElementById('waveDisplay').textContent = `WAVE ${wave} \u2014 ${lvlName} [${pct}%]`;
     document.getElementById('livesDisplay').textContent = '\u2665'.repeat(lives);
     document.getElementById('loreWave').textContent = `WAVE: ${wave}`;
     document.getElementById('loreLab').textContent = `LAB: ${lvlName}`;
     document.getElementById('loreScore').textContent = `DECRYPTED: ${score}`;
     document.getElementById('loreCombo').textContent = `COMBO: ${combo}`;
+    document.getElementById('loreTarget').textContent = `TARGET: ${waveScore}/${target}`;
 }
 
 // Draw
