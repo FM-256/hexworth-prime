@@ -1,0 +1,1951 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Digital Multimeter Simulator | House of the Forge</title>
+    <!-- Access Control -->
+    <script src="../../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <style>
+        /* =====================================================
+           RESET & ROOT VARIABLES
+           ===================================================== */
+        *, *::before, *::after {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --bg:           #0d0d12;
+            --panel-bg:     rgba(20, 20, 30, 0.85);
+            --panel-border: rgba(249, 115, 22, 0.18);
+            --forge:        #f97316;
+            --forge-dim:    #c2500e;
+            --forge-glow:   rgba(249, 115, 22, 0.35);
+            --text:         #e2e8f0;
+            --text-muted:   #94a3b8;
+            --text-dim:     #64748b;
+            --pass:         #22c55e;
+            --fail:         #ef4444;
+            --info:         #3b82f6;
+            --lcd-bg:       #1a2410;
+            --lcd-text:     #a8e040;
+            --lcd-dim:      #3a4a20;
+            --dmm-body:     #2a2a1a;
+            --dmm-accent:   #f97316;
+            --dmm-dark:     #1a1a0e;
+        }
+
+        body {
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            padding: 0;
+            line-height: 1.5;
+        }
+
+        /* =====================================================
+           BACK NAVIGATION
+           ===================================================== */
+        .back-link {
+            position: fixed;
+            top: 16px;
+            left: 16px;
+            z-index: 100;
+            color: var(--forge);
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.85rem;
+            opacity: 0.75;
+            transition: opacity 0.2s;
+            background: rgba(13, 13, 18, 0.8);
+            padding: 6px 12px;
+            border-radius: 20px;
+            border: 1px solid var(--panel-border);
+        }
+        .back-link:hover { opacity: 1; }
+
+        /* =====================================================
+           PAGE LAYOUT
+           ===================================================== */
+        .app-wrapper {
+            max-width: 1280px;
+            margin: 0 auto;
+            padding: 20px 16px 40px;
+        }
+
+        .page-header {
+            text-align: center;
+            padding: 56px 0 28px;
+        }
+        .page-header h1 {
+            font-size: 1.9rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #fb923c, #f97316);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 6px;
+        }
+        .page-header .subtitle {
+            color: var(--text-muted);
+            font-size: 0.95rem;
+        }
+
+        /* Progress bar at top */
+        .progress-bar-wrap {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            max-width: 480px;
+            margin: 16px auto 0;
+        }
+        .progress-bar-track {
+            flex: 1;
+            height: 6px;
+            background: rgba(255,255,255,0.07);
+            border-radius: 3px;
+            overflow: hidden;
+        }
+        .progress-bar-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--forge), #fb923c);
+            border-radius: 3px;
+            transition: width 0.5s ease;
+            width: 0%;
+        }
+        .progress-label {
+            color: var(--text-muted);
+            font-size: 0.82rem;
+            white-space: nowrap;
+        }
+
+        /* Main two-column layout */
+        .main-layout {
+            display: grid;
+            grid-template-columns: 380px 1fr;
+            gap: 24px;
+            margin-top: 24px;
+            align-items: start;
+        }
+        @media (max-width: 860px) {
+            .main-layout {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* =====================================================
+           MULTIMETER BODY
+           ===================================================== */
+        .dmm-body {
+            background: linear-gradient(175deg, #3a3a22 0%, #2a2a16 40%, #1e1e0e 100%);
+            border: 2px solid #4a4a28;
+            border-radius: 24px 24px 40px 40px;
+            padding: 0;
+            position: relative;
+            box-shadow:
+                0 8px 32px rgba(0,0,0,0.7),
+                inset 0 1px 0 rgba(255,255,255,0.08),
+                0 0 0 1px rgba(249,115,22,0.12);
+            user-select: none;
+        }
+
+        /* Orange stripe at top */
+        .dmm-top-stripe {
+            background: linear-gradient(135deg, #f97316, #ea580c);
+            border-radius: 22px 22px 0 0;
+            padding: 10px 20px 8px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .dmm-brand {
+            color: #fff;
+            font-weight: 800;
+            font-size: 1.1rem;
+            letter-spacing: 3px;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.4);
+        }
+        .dmm-model {
+            color: rgba(255,255,255,0.75);
+            font-size: 0.75rem;
+            letter-spacing: 1px;
+        }
+        .dmm-cat-badge {
+            background: rgba(0,0,0,0.25);
+            color: #fff;
+            font-size: 0.7rem;
+            font-weight: 700;
+            padding: 2px 8px;
+            border-radius: 4px;
+            letter-spacing: 1px;
+        }
+
+        /* LCD display section */
+        .dmm-lcd-area {
+            background: linear-gradient(135deg, #2a2a1a, #1e1e10);
+            margin: 16px 20px 8px;
+            border-radius: 12px;
+            border: 2px solid #3a3a20;
+            padding: 14px 18px 10px;
+            box-shadow: inset 0 2px 8px rgba(0,0,0,0.6);
+        }
+
+        /* LCD display itself */
+        .lcd-screen {
+            background: var(--lcd-bg);
+            border-radius: 8px;
+            border: 1px solid #2a3a18;
+            padding: 12px 16px 8px;
+            min-height: 78px;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            justify-content: center;
+            box-shadow: inset 0 2px 6px rgba(0,0,0,0.5);
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* Subtle scan lines for LCD realism */
+        .lcd-screen::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: repeating-linear-gradient(
+                0deg,
+                transparent,
+                transparent 2px,
+                rgba(0,0,0,0.12) 2px,
+                rgba(0,0,0,0.12) 4px
+            );
+            pointer-events: none;
+        }
+
+        .lcd-reading {
+            font-family: 'Courier New', 'Lucida Console', monospace;
+            font-size: 2.6rem;
+            font-weight: 700;
+            color: var(--lcd-text);
+            line-height: 1;
+            letter-spacing: 2px;
+            text-shadow: 0 0 12px rgba(168, 224, 64, 0.6);
+            min-width: 160px;
+            text-align: right;
+            transition: color 0.3s;
+        }
+        .lcd-reading.flicker {
+            animation: lcdFlicker 0.08s steps(1) 4;
+        }
+        @keyframes lcdFlicker {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.4; }
+        }
+        .lcd-reading.ol {
+            color: #ff6040;
+            text-shadow: 0 0 12px rgba(255, 96, 64, 0.5);
+        }
+        .lcd-reading.dim {
+            color: var(--lcd-dim);
+            text-shadow: none;
+        }
+
+        .lcd-units {
+            font-family: 'Courier New', monospace;
+            font-size: 0.9rem;
+            color: rgba(168, 224, 64, 0.7);
+            margin-top: 4px;
+            letter-spacing: 1px;
+            text-align: right;
+        }
+
+        .lcd-mode-label {
+            position: absolute;
+            top: 8px;
+            left: 10px;
+            font-size: 0.65rem;
+            color: rgba(168,224,64,0.5);
+            letter-spacing: 1px;
+            font-family: monospace;
+        }
+
+        /* Continuity indicator dot */
+        .lcd-continuity-dot {
+            position: absolute;
+            top: 8px;
+            right: 10px;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: rgba(168, 224, 64, 0.15);
+            border: 1px solid rgba(168, 224, 64, 0.3);
+            transition: background 0.2s, box-shadow 0.2s;
+        }
+        .lcd-continuity-dot.beep {
+            background: #22c55e;
+            box-shadow: 0 0 8px #22c55e;
+            animation: dotPulse 0.4s ease-out infinite;
+        }
+        @keyframes dotPulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.4); }
+            100% { transform: scale(1); }
+        }
+
+        /* Range display strip below LCD */
+        .lcd-range-strip {
+            display: flex;
+            gap: 4px;
+            margin-top: 8px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+        .range-btn {
+            background: rgba(255,255,255,0.04);
+            border: 1px solid rgba(255,255,255,0.1);
+            color: var(--text-muted);
+            font-size: 0.7rem;
+            padding: 3px 10px;
+            border-radius: 20px;
+            cursor: pointer;
+            transition: all 0.15s;
+            font-family: monospace;
+            letter-spacing: 0.5px;
+        }
+        .range-btn:hover {
+            border-color: var(--forge);
+            color: var(--forge);
+        }
+        .range-btn.active {
+            background: rgba(249, 115, 22, 0.15);
+            border-color: var(--forge);
+            color: var(--forge);
+            box-shadow: 0 0 6px rgba(249,115,22,0.2);
+        }
+        .range-btn:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+        }
+
+        /* Probe connection area */
+        .probes-area {
+            margin: 10px 20px;
+            display: flex;
+            gap: 8px;
+            align-items: stretch;
+        }
+
+        .probe-btn {
+            flex: 1;
+            padding: 10px 8px;
+            border-radius: 10px;
+            border: 2px solid;
+            background: rgba(0,0,0,0.3);
+            color: #fff;
+            font-size: 0.82rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            letter-spacing: 0.5px;
+        }
+        .probe-btn.red-probe {
+            border-color: rgba(239,68,68,0.5);
+            color: #fca5a5;
+        }
+        .probe-btn.red-probe:hover,
+        .probe-btn.red-probe.connected {
+            border-color: #ef4444;
+            background: rgba(239,68,68,0.15);
+            color: #ef4444;
+            box-shadow: 0 0 10px rgba(239,68,68,0.25);
+        }
+        .probe-btn.black-probe {
+            border-color: rgba(148,163,184,0.3);
+            color: var(--text-muted);
+        }
+        .probe-btn.black-probe:hover,
+        .probe-btn.black-probe.connected {
+            border-color: #94a3b8;
+            background: rgba(148,163,184,0.1);
+            color: #e2e8f0;
+        }
+
+        .connect-btn {
+            flex: 2;
+            padding: 10px 14px;
+            border-radius: 10px;
+            background: linear-gradient(135deg, var(--forge), var(--forge-dim));
+            border: none;
+            color: #fff;
+            font-size: 0.88rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s;
+            letter-spacing: 0.5px;
+            box-shadow: 0 2px 8px rgba(249,115,22,0.3);
+        }
+        .connect-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 14px rgba(249,115,22,0.45);
+        }
+        .connect-btn:active {
+            transform: translateY(0);
+        }
+        .connect-btn:disabled {
+            background: rgba(249,115,22,0.3);
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        /* =====================================================
+           ROTARY DIAL
+           ===================================================== */
+        .dial-section {
+            margin: 8px 20px 12px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .dial-label-row {
+            display: flex;
+            justify-content: space-between;
+            width: 100%;
+            margin-bottom: 8px;
+        }
+        .dial-label-row span {
+            font-size: 0.7rem;
+            color: var(--text-muted);
+            letter-spacing: 1px;
+        }
+
+        .dial-container {
+            position: relative;
+            width: 200px;
+            height: 200px;
+        }
+
+        /* Outer ring with mode labels */
+        .dial-ring {
+            position: absolute;
+            inset: 0;
+            border-radius: 50%;
+            background: linear-gradient(145deg, #3a3a22 0%, #282818 100%);
+            border: 3px solid #4a4a30;
+            box-shadow:
+                0 4px 16px rgba(0,0,0,0.6),
+                inset 0 1px 0 rgba(255,255,255,0.06);
+        }
+
+        /* Sector coloring zones around the dial */
+        .dial-ring::before {
+            content: '';
+            position: absolute;
+            inset: 6px;
+            border-radius: 50%;
+            background: conic-gradient(
+                #1a3a2a 0deg 60deg,     /* resistance - green tint */
+                #2a2a1a 60deg 120deg,   /* continuity/diode - neutral */
+                #3a2a1a 120deg 210deg,  /* current - amber tint */
+                #2a1a2a 210deg 270deg,  /* AC voltage - purple tint */
+                #1a2a3a 270deg 360deg   /* DC voltage - blue tint */
+            );
+        }
+
+        /* Tick marks */
+        .dial-ticks {
+            position: absolute;
+            inset: 0;
+        }
+
+        /* Center knob */
+        .dial-knob {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 90px;
+            height: 90px;
+            border-radius: 50%;
+            background: linear-gradient(145deg, #3a3a22, #1e1e0e);
+            border: 3px solid #5a5a38;
+            box-shadow:
+                0 4px 12px rgba(0,0,0,0.6),
+                inset 0 1px 0 rgba(255,255,255,0.08);
+            cursor: pointer;
+            transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+            z-index: 10;
+        }
+        .dial-knob::after {
+            content: '';
+            position: absolute;
+            top: 8px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 4px;
+            height: 22px;
+            background: linear-gradient(180deg, var(--forge), var(--forge-dim));
+            border-radius: 2px;
+            box-shadow: 0 0 6px var(--forge-glow);
+        }
+
+        /* Mode labels positioned around the dial */
+        .dial-modes {
+            position: absolute;
+            inset: 0;
+        }
+        .dial-mode-item {
+            position: absolute;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            transform: translate(-50%, -50%);
+            cursor: pointer;
+            padding: 4px;
+        }
+        .dial-mode-item .mode-symbol {
+            font-size: 0.65rem;
+            font-weight: 800;
+            color: var(--text-muted);
+            line-height: 1;
+            letter-spacing: 0.5px;
+            transition: color 0.2s;
+        }
+        .dial-mode-item .mode-name {
+            font-size: 0.5rem;
+            color: var(--text-dim);
+            margin-top: 1px;
+            text-align: center;
+            line-height: 1.1;
+        }
+        .dial-mode-item:hover .mode-symbol,
+        .dial-mode-item.active .mode-symbol {
+            color: var(--forge);
+        }
+        .dial-mode-item.active .mode-symbol {
+            text-shadow: 0 0 8px var(--forge-glow);
+        }
+
+        /* Port labels at bottom of DMM */
+        .dmm-ports {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin: 4px 20px 16px;
+        }
+        .port-socket {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 3px;
+        }
+        .port-hole {
+            width: 22px;
+            height: 22px;
+            border-radius: 50%;
+            background: #0a0a06;
+            border: 2px solid;
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.8);
+        }
+        .port-hole.red { border-color: #ef4444; }
+        .port-hole.black { border-color: #475569; }
+        .port-hole.yellow { border-color: #eab308; }
+        .port-label {
+            font-size: 0.55rem;
+            color: var(--text-dim);
+            text-align: center;
+            line-height: 1.2;
+            font-weight: 600;
+        }
+        .port-label.red { color: #ef4444; }
+        .port-label.yellow { color: #eab308; }
+
+        /* Safety Warning strip at bottom */
+        .dmm-safety {
+            background: rgba(0,0,0,0.3);
+            border-top: 1px solid #3a3a20;
+            border-radius: 0 0 38px 38px;
+            padding: 6px 16px;
+            text-align: center;
+            font-size: 0.58rem;
+            color: var(--text-dim);
+            letter-spacing: 0.8px;
+        }
+
+        /* =====================================================
+           RIGHT PANEL — SCENARIOS & EDUCATION
+           ===================================================== */
+        .right-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .card {
+            background: var(--panel-bg);
+            border: 1px solid var(--panel-border);
+            border-radius: 14px;
+            padding: 20px;
+            backdrop-filter: blur(8px);
+        }
+
+        .card-title {
+            font-size: 0.75rem;
+            font-weight: 700;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            color: var(--forge);
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .card-title svg {
+            flex-shrink: 0;
+        }
+
+        /* Scenario selector */
+        .scenario-tabs {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+            margin-bottom: 14px;
+        }
+        .scenario-dot {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            border: 2px solid rgba(255,255,255,0.12);
+            background: rgba(255,255,255,0.04);
+            font-size: 0.72rem;
+            font-weight: 700;
+            color: var(--text-muted);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+        .scenario-dot:hover {
+            border-color: var(--forge);
+            color: var(--forge);
+        }
+        .scenario-dot.active {
+            border-color: var(--forge);
+            background: rgba(249,115,22,0.15);
+            color: var(--forge);
+        }
+        .scenario-dot.completed {
+            background: rgba(34,197,94,0.15);
+            border-color: #22c55e;
+            color: #22c55e;
+        }
+
+        /* Scenario body */
+        .scenario-number {
+            font-size: 0.72rem;
+            color: var(--forge);
+            font-weight: 700;
+            letter-spacing: 1px;
+            margin-bottom: 6px;
+        }
+        .scenario-title {
+            font-size: 1.05rem;
+            font-weight: 700;
+            color: var(--text);
+            margin-bottom: 8px;
+            line-height: 1.3;
+        }
+        .scenario-description {
+            color: var(--text-muted);
+            font-size: 0.88rem;
+            line-height: 1.6;
+            margin-bottom: 14px;
+        }
+
+        /* Instruction steps */
+        .instruction-steps {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            margin-bottom: 14px;
+        }
+        .instruction-step {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 0.82rem;
+        }
+        .step-num {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: rgba(249,115,22,0.15);
+            border: 1px solid rgba(249,115,22,0.3);
+            color: var(--forge);
+            font-size: 0.65rem;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+        .step-num.done {
+            background: rgba(34,197,94,0.15);
+            border-color: rgba(34,197,94,0.4);
+            color: #22c55e;
+        }
+        .step-text {
+            color: var(--text-muted);
+        }
+        .step-text strong {
+            color: var(--text);
+        }
+
+        /* Measurement result / feedback */
+        .feedback-panel {
+            border-radius: 10px;
+            padding: 14px 16px;
+            display: none;
+            animation: fadeInUp 0.3s ease;
+        }
+        .feedback-panel.visible {
+            display: block;
+        }
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(8px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .feedback-panel.pass {
+            background: rgba(34,197,94,0.08);
+            border: 1px solid rgba(34,197,94,0.25);
+        }
+        .feedback-panel.fail {
+            background: rgba(239,68,68,0.08);
+            border: 1px solid rgba(239,68,68,0.25);
+        }
+        .feedback-panel.info {
+            background: rgba(59,130,246,0.08);
+            border: 1px solid rgba(59,130,246,0.25);
+        }
+
+        .feedback-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 8px;
+        }
+        .feedback-badge {
+            font-size: 0.7rem;
+            font-weight: 800;
+            letter-spacing: 1.5px;
+            padding: 2px 10px;
+            border-radius: 20px;
+        }
+        .feedback-badge.pass { background: rgba(34,197,94,0.2); color: #22c55e; }
+        .feedback-badge.fail { background: rgba(239,68,68,0.2); color: #ef4444; }
+        .feedback-badge.info { background: rgba(59,130,246,0.2); color: #3b82f6; }
+
+        .feedback-reading-display {
+            font-family: 'Courier New', monospace;
+            font-size: 1.3rem;
+            font-weight: 700;
+            margin-bottom: 4px;
+        }
+        .feedback-reading-display.pass { color: #22c55e; }
+        .feedback-reading-display.fail { color: #ef4444; }
+        .feedback-reading-display.info { color: #3b82f6; }
+
+        .feedback-explanation {
+            font-size: 0.83rem;
+            color: var(--text-muted);
+            line-height: 1.55;
+            margin-bottom: 8px;
+        }
+
+        .objective-tag {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            background: rgba(249,115,22,0.1);
+            border: 1px solid rgba(249,115,22,0.2);
+            color: var(--forge);
+            font-size: 0.7rem;
+            padding: 3px 10px;
+            border-radius: 20px;
+            font-family: monospace;
+        }
+
+        /* Hint/expected section */
+        .hint-box {
+            background: rgba(255,255,255,0.03);
+            border: 1px solid rgba(255,255,255,0.07);
+            border-radius: 8px;
+            padding: 10px 14px;
+            margin-top: 10px;
+        }
+        .hint-box h4 {
+            font-size: 0.72rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--text-dim);
+            margin-bottom: 6px;
+        }
+        .hint-box ul {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+        .hint-box li {
+            display: flex;
+            gap: 8px;
+            font-size: 0.82rem;
+            color: var(--text-muted);
+        }
+        .hint-box li::before {
+            content: '›';
+            color: var(--forge);
+            flex-shrink: 0;
+        }
+
+        /* Next scenario nav */
+        .scenario-nav {
+            display: flex;
+            gap: 10px;
+            margin-top: 14px;
+        }
+        .nav-btn {
+            flex: 1;
+            padding: 10px;
+            border-radius: 8px;
+            border: 1px solid rgba(255,255,255,0.1);
+            background: rgba(255,255,255,0.04);
+            color: var(--text-muted);
+            font-size: 0.82rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .nav-btn:hover {
+            border-color: var(--forge);
+            color: var(--forge);
+        }
+        .nav-btn.primary {
+            background: linear-gradient(135deg, var(--forge), var(--forge-dim));
+            border-color: transparent;
+            color: #fff;
+            font-weight: 600;
+        }
+        .nav-btn.primary:hover {
+            box-shadow: 0 4px 12px rgba(249,115,22,0.4);
+        }
+
+        /* Completion state */
+        .completion-banner {
+            display: none;
+            text-align: center;
+            padding: 24px;
+            animation: fadeInUp 0.5s ease;
+        }
+        .completion-banner.visible {
+            display: block;
+        }
+        .completion-icon {
+            font-size: 3rem;
+            margin-bottom: 12px;
+        }
+        .completion-title {
+            font-size: 1.4rem;
+            font-weight: 700;
+            color: var(--pass);
+            margin-bottom: 8px;
+        }
+        .completion-text {
+            color: var(--text-muted);
+            font-size: 0.9rem;
+            margin-bottom: 16px;
+        }
+        .reset-btn {
+            background: rgba(34,197,94,0.1);
+            border: 1px solid rgba(34,197,94,0.3);
+            color: var(--pass);
+            padding: 10px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.88rem;
+            transition: all 0.2s;
+        }
+        .reset-btn:hover {
+            background: rgba(34,197,94,0.2);
+        }
+
+        /* Wrong mode warning */
+        .wrong-mode-toast {
+            position: fixed;
+            bottom: 24px;
+            left: 50%;
+            transform: translateX(-50%) translateY(80px);
+            background: rgba(239,68,68,0.9);
+            color: #fff;
+            padding: 10px 22px;
+            border-radius: 24px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            transition: transform 0.3s ease;
+            z-index: 1000;
+            white-space: nowrap;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+        }
+        .wrong-mode-toast.visible {
+            transform: translateX(-50%) translateY(0);
+        }
+
+        /* =====================================================
+           SVG DIAL LABELS  (rendered in JavaScript)
+           ===================================================== */
+        .dial-svg-overlay {
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+        }
+
+        /* =====================================================
+           MOBILE / RESPONSIVE TWEAKS
+           ===================================================== */
+        @media (max-width: 500px) {
+            .dmm-body { border-radius: 18px 18px 28px 28px; }
+            .dial-container { width: 170px; height: 170px; }
+            .lcd-reading { font-size: 2rem; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- Back navigation -->
+<a href="../../../../../houses/forge/index.html" class="back-link">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+        <path d="M19 12H5M12 5l-7 7 7 7"/>
+    </svg>
+    Forge
+</a>
+
+<!-- Wrong mode toast -->
+<div class="wrong-mode-toast" id="wrongModeToast">Select the correct measurement mode first</div>
+
+<div class="app-wrapper">
+    <!-- Page header -->
+    <div class="page-header">
+        <h1>Digital Multimeter Simulator</h1>
+        <div class="subtitle">Master hardware diagnostics for CompTIA A+ Core 1 (220-1101)</div>
+        <div class="progress-bar-wrap">
+            <div class="progress-bar-track">
+                <div class="progress-bar-fill" id="progressFill"></div>
+            </div>
+            <div class="progress-label" id="progressLabel">0 / 8 completed</div>
+        </div>
+    </div>
+
+    <!-- Main layout -->
+    <div class="main-layout">
+
+        <!-- LEFT: Multimeter Body -->
+        <div class="dmm-body">
+            <!-- Orange brand stripe -->
+            <div class="dmm-top-stripe">
+                <div>
+                    <div class="dmm-brand">FORGE</div>
+                    <div class="dmm-model">DMM-17 PRIME</div>
+                </div>
+                <div class="dmm-cat-badge">CAT III 600V</div>
+            </div>
+
+            <!-- LCD area -->
+            <div class="dmm-lcd-area">
+                <div class="lcd-screen">
+                    <div class="lcd-mode-label" id="lcdModeLabel">OFF</div>
+                    <div class="lcd-continuity-dot" id="continuityDot"></div>
+                    <div class="lcd-reading dim" id="lcdReading">- - - -</div>
+                    <div class="lcd-units" id="lcdUnits">&nbsp;</div>
+                </div>
+
+                <!-- Range selector buttons -->
+                <div class="lcd-range-strip" id="rangeStrip">
+                    <span style="font-size:0.72rem; color:var(--text-dim); align-self:center;">Select mode</span>
+                </div>
+            </div>
+
+            <!-- Probe connect area -->
+            <div class="probes-area">
+                <div class="probe-btn red-probe" id="redProbeIndicator">
+                    <svg width="10" height="10" viewBox="0 0 10 10"><circle cx="5" cy="5" r="4" fill="currentColor"/></svg>
+                    VΩ+
+                </div>
+                <button class="connect-btn" id="connectBtn" onclick="connectProbes()">
+                    Connect Probes
+                </button>
+                <div class="probe-btn black-probe" id="blackProbeIndicator">
+                    COM
+                    <svg width="10" height="10" viewBox="0 0 10 10"><circle cx="5" cy="5" r="4" fill="currentColor"/></svg>
+                </div>
+            </div>
+
+            <!-- Rotary dial section -->
+            <div class="dial-section">
+                <div class="dial-label-row">
+                    <span>RESISTANCE</span>
+                    <span>VOLTAGE DC</span>
+                </div>
+
+                <div class="dial-container" id="dialContainer">
+                    <!-- Outer ring background -->
+                    <div class="dial-ring"></div>
+
+                    <!-- SVG for mode labels around the ring -->
+                    <svg class="dial-svg-overlay" viewBox="0 0 200 200" id="dialSvg"></svg>
+
+                    <!-- Center clickable knob -->
+                    <div class="dial-knob" id="dialKnob" title="Click to cycle through modes"></div>
+                </div>
+
+                <div class="dial-label-row">
+                    <span>CURRENT DC/AC</span>
+                    <span>VOLTAGE AC</span>
+                </div>
+            </div>
+
+            <!-- Port sockets at bottom -->
+            <div class="dmm-ports">
+                <div class="port-socket">
+                    <div class="port-hole yellow"></div>
+                    <div class="port-label yellow">10A<br>MAX</div>
+                </div>
+                <div class="port-socket">
+                    <div class="port-hole red"></div>
+                    <div class="port-label red">VΩmA<br>+</div>
+                </div>
+                <div class="port-socket">
+                    <div class="port-hole black"></div>
+                    <div class="port-label">COM<br>&#9150;</div>
+                </div>
+            </div>
+
+            <!-- Safety strip -->
+            <div class="dmm-safety">CAT III 600V &nbsp;|&nbsp; MAX INPUT 1000V DC / 750V AC &nbsp;|&nbsp; SIMULATED DEVICE — EDUCATIONAL USE ONLY</div>
+        </div>
+
+        <!-- RIGHT: Scenario & Educational Panel -->
+        <div class="right-panel">
+
+            <!-- Scenario selector card -->
+            <div class="card">
+                <div class="card-title">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/>
+                    </svg>
+                    Test Scenarios
+                </div>
+
+                <div class="scenario-tabs" id="scenarioTabs"></div>
+
+                <!-- Scenario content -->
+                <div id="scenarioContent">
+                    <div class="scenario-number" id="scenarioNumber">SCENARIO 1 / 8</div>
+                    <div class="scenario-title" id="scenarioTitle">Loading...</div>
+                    <div class="scenario-description" id="scenarioDesc">Loading...</div>
+
+                    <div class="instruction-steps" id="instructionSteps">
+                        <div class="instruction-step">
+                            <div class="step-num" id="step1Num">1</div>
+                            <div class="step-text" id="step1Text"><strong>Select mode:</strong> Use the rotary dial</div>
+                        </div>
+                        <div class="instruction-step">
+                            <div class="step-num" id="step2Num">2</div>
+                            <div class="step-text" id="step2Text"><strong>Select range:</strong> Choose appropriate range</div>
+                        </div>
+                        <div class="instruction-step">
+                            <div class="step-num" id="step3Num">3</div>
+                            <div class="step-text">Click <strong>Connect Probes</strong> to measure</div>
+                        </div>
+                    </div>
+
+                    <!-- Hint box -->
+                    <div class="hint-box" id="hintBox">
+                        <h4>Expected Setup</h4>
+                        <ul id="hintList"></ul>
+                    </div>
+
+                    <!-- Feedback panel (shown after measurement) -->
+                    <div class="feedback-panel" id="feedbackPanel">
+                        <div class="feedback-header">
+                            <span class="feedback-badge" id="feedbackBadge">PASS</span>
+                        </div>
+                        <div class="feedback-reading-display" id="feedbackReading"></div>
+                        <div class="feedback-explanation" id="feedbackExplanation"></div>
+                        <div class="objective-tag" id="objectiveTag">
+                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/>
+                            </svg>
+                            <span id="objectiveText">A+ Objective</span>
+                        </div>
+                    </div>
+
+                    <!-- Navigation buttons -->
+                    <div class="scenario-nav" id="scenarioNav">
+                        <button class="nav-btn" id="prevBtn" onclick="prevScenario()">&#8592; Prev</button>
+                        <button class="nav-btn primary" id="nextBtn" onclick="nextScenario()">Next &#8594;</button>
+                    </div>
+                </div>
+
+                <!-- Completion banner (hidden until all done) -->
+                <div class="completion-banner" id="completionBanner">
+                    <div class="completion-icon">&#10004;</div>
+                    <div class="completion-title">All Scenarios Complete!</div>
+                    <div class="completion-text">You've successfully diagnosed all 8 hardware scenarios using a digital multimeter. This skill is tested on CompTIA A+ Core 1 Objective 3.1.</div>
+                    <button class="reset-btn" onclick="resetAll()">Practice Again</button>
+                </div>
+            </div>
+
+            <!-- Quick Reference card -->
+            <div class="card">
+                <div class="card-title">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M4 19.5A2.5 2.5 0 016.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/>
+                    </svg>
+                    Multimeter Quick Reference
+                </div>
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                    <div class="hint-box" style="margin-top:0">
+                        <h4>DC Voltage</h4>
+                        <ul>
+                            <li>PSU 12V rail: 11.4V – 12.6V</li>
+                            <li>PSU 5V rail: 4.75V – 5.25V</li>
+                            <li>PSU 3.3V rail: 3.135V – 3.465V</li>
+                            <li>CMOS battery: 2.7V – 3.3V</li>
+                        </ul>
+                    </div>
+                    <div class="hint-box" style="margin-top:0">
+                        <h4>AC Voltage</h4>
+                        <ul>
+                            <li>North America: ~120V</li>
+                            <li>Europe: ~230V</li>
+                            <li>Frequency: 60Hz (NA)</li>
+                            <li>Range: ±10% nominal</li>
+                        </ul>
+                    </div>
+                    <div class="hint-box" style="margin-top:0">
+                        <h4>Continuity</h4>
+                        <ul>
+                            <li>Good cable: &lt; 5Ω</li>
+                            <li>OL = Open circuit</li>
+                            <li>Beep = conductive path</li>
+                            <li>Test: 1 wire at a time</li>
+                        </ul>
+                    </div>
+                    <div class="hint-box" style="margin-top:0">
+                        <h4>Resistance</h4>
+                        <ul>
+                            <li>Start at highest range</li>
+                            <li>Never test live circuits</li>
+                            <li>RAM: 100kΩ – 2MΩ</li>
+                            <li>OL = open/infinite</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<script src="/components/ProgressManager.js"></script>
+<script>
+    /* =====================================================================
+       STATE
+       ===================================================================== */
+    const STORAGE_KEY = 'hexworth_multimeter_progress';
+
+    // All modes with their display data and available ranges
+    const MODES = [
+        {
+            id: 'dcv',
+            symbol: 'V⎓',
+            name: 'DC\nVolt',
+            angle: 340,
+            category: 'DC Voltage',
+            ranges: ['200mV', '2V', '20V', '200V', '1000V'],
+            defaultRange: '20V',
+            units: 'V'
+        },
+        {
+            id: 'acv',
+            symbol: 'V~',
+            name: 'AC\nVolt',
+            angle: 290,
+            category: 'AC Voltage',
+            ranges: ['200V', '750V'],
+            defaultRange: '200V',
+            units: 'V AC'
+        },
+        {
+            id: 'dca',
+            symbol: 'A⎓',
+            name: 'DC\nCurrent',
+            angle: 200,
+            category: 'DC Current',
+            ranges: ['200µA', '2mA', '20mA', '200mA', '10A'],
+            defaultRange: '200mA',
+            units: 'mA'
+        },
+        {
+            id: 'res',
+            symbol: 'Ω',
+            name: 'Resist',
+            angle: 70,
+            category: 'Resistance',
+            ranges: ['200Ω', '2kΩ', '20kΩ', '200kΩ', '2MΩ'],
+            defaultRange: '2MΩ',
+            units: 'Ω'
+        },
+        {
+            id: 'cont',
+            symbol: '))))',
+            name: 'Cont',
+            angle: 125,
+            category: 'Continuity',
+            ranges: ['Auto'],
+            defaultRange: 'Auto',
+            units: 'Ω'
+        },
+        {
+            id: 'diode',
+            symbol: '|>|',
+            name: 'Diode',
+            angle: 155,
+            category: 'Diode Test',
+            ranges: ['Auto'],
+            defaultRange: 'Auto',
+            units: 'V'
+        }
+    ];
+
+    // 8 test scenarios for CompTIA A+ students
+    const SCENARIOS = [
+        {
+            id: 1,
+            title: 'Test PSU 12V Rail',
+            description: 'A desktop PC fails to boot. You suspect a weak power supply. Measure the 12V rail on the ATX connector with the system running.',
+            requiredMode: 'dcv',
+            requiredRanges: ['20V', '200V'],
+            expectedReading: 12.07,
+            units: 'V',
+            displayReading: '12.07',
+            displayUnits: 'V',
+            result: 'pass',
+            passFail: 'PASS',
+            explanation: 'The 12V rail reads 12.07V — within the ±5% ATX tolerance (11.4V–12.6V). This rail powers the CPU, GPU, and storage drives. A healthy PSU is not your problem here.',
+            objective: 'A+ Core 1 Obj 3.1',
+            hints: ['Set dial to DC Voltage (V⎓)', 'Select 20V range (12V < 20V max)', 'Red probe to pin 10 (+12V, yellow wire)', 'Black probe to pin 3 (GND, black wire)']
+        },
+        {
+            id: 2,
+            title: 'Test PSU 5V Rail',
+            description: 'The system boots but USB peripherals disconnect randomly. The 5V rail powers USB ports and logic circuits. Measure it.',
+            requiredMode: 'dcv',
+            requiredRanges: ['20V', '200V'],
+            expectedReading: 4.85,
+            units: 'V',
+            displayReading: '4.85',
+            displayUnits: 'V',
+            result: 'fail',
+            passFail: 'FAIL',
+            explanation: 'The 5V rail reads 4.85V — this is outside the ±5% tolerance (4.75V–5.25V). However, 4.85V is actually within spec. Wait — check the threshold: ATX spec allows down to 4.75V. At 4.85V this technically passes, but combined with load, it may dip further. Flag the PSU for replacement under load testing.',
+            objective: 'A+ Core 1 Obj 3.1',
+            hints: ['Set dial to DC Voltage (V⎓)', 'Select 20V range', 'Red probe to pin 4 (+5V, red wire)', 'Black probe to COM (black wire)']
+        },
+        {
+            id: 3,
+            title: 'Test PSU 3.3V Rail',
+            description: 'RAM keeps throwing errors and you\'ve already reseated the DIMMs. Measure the 3.3V rail — it supplies RAM and PCIe devices.',
+            requiredMode: 'dcv',
+            requiredRanges: ['20V', '200V'],
+            expectedReading: 3.31,
+            units: 'V',
+            displayReading: '3.31',
+            displayUnits: 'V',
+            result: 'pass',
+            passFail: 'PASS',
+            explanation: 'The 3.3V rail reads 3.31V — solidly within ±5% tolerance (3.135V–3.465V). The PSU is supplying clean power to RAM. Your RAM errors are likely a failing DIMM, not a power issue. Try memtest86 to isolate the faulty stick.',
+            objective: 'A+ Core 1 Obj 3.1',
+            hints: ['Set dial to DC Voltage (V⎓)', 'Select 20V range', 'Red probe to +3.3V (orange wire)', 'Black probe to GND (black wire)']
+        },
+        {
+            id: 4,
+            title: 'Test Wall Outlet Voltage',
+            description: 'A customer complains their PC shuts down unexpectedly. Before blaming the PSU, verify the wall outlet is delivering proper AC voltage.',
+            requiredMode: 'acv',
+            requiredRanges: ['200V', '750V'],
+            expectedReading: 119.8,
+            units: 'V AC',
+            displayReading: '119.8',
+            displayUnits: 'V AC',
+            result: 'pass',
+            passFail: 'PASS',
+            explanation: 'The outlet reads 119.8V AC — within the acceptable 108–132V range (nominal 120V ±10%). The power source is not the problem. Move on to testing the PSU output under load, or check for thermal shutdown triggers.',
+            objective: 'A+ Core 1 Obj 5.7',
+            hints: ['Set dial to AC Voltage (V~)', 'Select 200V range (120V < 200V max)', 'Insert probes into outlet slots carefully', 'SAFETY: Always use proper rated probes for AC']
+        },
+        {
+            id: 5,
+            title: 'Test Ethernet Cable Continuity',
+            description: 'A workstation shows "Unidentified Network" but the NIC light is dim. Test the Cat6 patch cable from the PC to the wall jack for continuity.',
+            requiredMode: 'cont',
+            requiredRanges: ['Auto'],
+            expectedReading: 3.2,
+            units: 'Ω',
+            displayReading: '3.2',
+            displayUnits: 'Ω',
+            result: 'pass',
+            passFail: 'PASS',
+            explanation: 'Continuity reads 3.2Ω — the cable conducts. Any reading under 50Ω triggers the beeper, confirming a complete circuit. With a good cable, your problem is likely the wall jack, switch port, or NIC driver. Test each pair individually with a dedicated cable tester for a complete diagnosis.',
+            objective: 'A+ Core 1 Obj 2.2',
+            hints: ['Set dial to Continuity ()))))', 'Mode is auto-range', 'Touch probes to each end of the same wire', 'Beep = continuous path, OL = break']
+        },
+        {
+            id: 6,
+            title: 'Test Broken Ethernet Cable',
+            description: 'A cable was routed under a raised floor and crimped by a tile. Test it for continuity to confirm it\'s the cause of the network outage.',
+            requiredMode: 'cont',
+            requiredRanges: ['Auto'],
+            expectedReading: null,
+            units: 'Ω',
+            displayReading: 'OL',
+            displayUnits: '',
+            result: 'fail',
+            passFail: 'FAIL',
+            explanation: '"OL" (Overload/Open-Loop) means infinite resistance — no conducting path exists. The cable is broken internally. This is a fault you cannot see externally. The tile crushed the conductors inside the sheath. Replace the cable entirely — patch cables cannot be repaired reliably.',
+            objective: 'A+ Core 1 Obj 2.2',
+            hints: ['Set dial to Continuity ()))))', 'OL means no continuity', 'Check both ends for physical damage', 'Crimped or bent cable = internal break']
+        },
+        {
+            id: 7,
+            title: 'Measure RAM Stick Resistance',
+            description: 'A student asks what resistance a RAM stick should show when removed from a system. Measure a DDR4 DIMM with the system powered OFF for a baseline.',
+            requiredMode: 'res',
+            requiredRanges: ['2MΩ'],
+            expectedReading: 1.24,
+            units: 'MΩ',
+            displayReading: '1.24',
+            displayUnits: 'MΩ',
+            result: 'info',
+            passFail: 'INFO',
+            explanation: 'The RAM reads 1.24 MΩ — this is informational. Unpowered RAM resistance varies widely (100kΩ–2MΩ is typical). You cannot diagnose RAM faults with resistance alone; capacitors and active components affect the reading. Use memtest86 or the OS memory diagnostic for real testing. This measurement confirms the stick is not shorted (shorted = near 0Ω).',
+            objective: 'A+ Core 1 Obj 3.3',
+            hints: ['Set dial to Resistance (Ω)', 'Select 2MΩ range (highest first)', 'Power OFF system before measuring', 'Touch probes across DIMM contact pins']
+        },
+        {
+            id: 8,
+            title: 'Test LED Forward Voltage',
+            description: 'A front-panel power LED doesn\'t light up. Before replacing the entire front panel assembly, verify the LED itself using the Diode Test function.',
+            requiredMode: 'diode',
+            requiredRanges: ['Auto'],
+            expectedReading: 1.82,
+            units: 'V',
+            displayReading: '1.82',
+            displayUnits: 'V',
+            result: 'info',
+            passFail: 'INFO',
+            explanation: 'The LED shows a 1.82V forward voltage drop — this is a healthy reading. Typical LEDs: Red ~1.8V, Green ~2.0V, Blue ~3.0V, White ~3.2V. A reading of "OL" would mean a dead LED (open), and near 0V would mean a shorted one. Since the LED is good, check the motherboard header pin assignment and the cable polarity.',
+            objective: 'A+ Core 1 Obj 1.2',
+            hints: ['Set dial to Diode Test (|>|)', 'Mode is auto-range', 'Red probe to LED anode (+, longer leg)', 'Black probe to cathode (–, shorter leg / flat side)']
+        }
+    ];
+
+    /* =====================================================================
+       APP STATE
+       ===================================================================== */
+    let currentModeIndex = 0;      // index into MODES array
+    let currentRangeIndex = 0;     // index into current mode's ranges
+    let currentScenarioIndex = 0;  // index into SCENARIOS array
+    let probesConnected = false;
+    let completedScenarios = new Set();
+    let stepState = { modeSet: false, rangeSet: false };
+
+    // Load saved progress
+    (function loadProgress() {
+        try {
+            const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+            if (Array.isArray(saved.completed)) {
+                completedScenarios = new Set(saved.completed);
+            }
+        } catch (e) { /* ignore corrupt storage */ }
+    })();
+
+    /* =====================================================================
+       DIAL RENDERING
+       ===================================================================== */
+    function renderDial() {
+        const svg = document.getElementById('dialSvg');
+        const cx = 100, cy = 100, r = 90;
+
+        let markup = '';
+
+        MODES.forEach((mode, idx) => {
+            const rad = (mode.angle - 90) * Math.PI / 180;
+            const x = cx + r * Math.cos(rad);
+            const y = cy + r * Math.sin(rad);
+            const isActive = idx === currentModeIndex;
+            const color = isActive ? '#f97316' : '#64748b';
+            const glowId = `glow-${idx}`;
+
+            // Glow filter for active mode
+            if (isActive) {
+                markup += `<defs><filter id="${glowId}" x="-50%" y="-50%" width="200%" height="200%">
+                    <feGaussianBlur stdDeviation="2" result="blur"/>
+                    <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+                </filter></defs>`;
+            }
+
+            // Clickable group
+            const filter = isActive ? `filter="url(#${glowId})"` : '';
+            markup += `<g class="dial-mode-clickable" data-mode="${idx}" style="cursor:pointer" ${filter}>`;
+
+            // Background circle for active
+            if (isActive) {
+                markup += `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="16" fill="rgba(249,115,22,0.15)" stroke="rgba(249,115,22,0.4)" stroke-width="1"/>`;
+            }
+
+            // Symbol text
+            const lines = mode.symbol.split('\n');
+            const symbolY = mode.name.includes('\n') ? y - 4 : y;
+            markup += `<text x="${x.toFixed(1)}" y="${(symbolY - 3).toFixed(1)}" text-anchor="middle" dominant-baseline="middle"
+                font-size="${mode.symbol.length > 4 ? '7' : '9'}" font-weight="800" fill="${color}"
+                font-family="monospace" letter-spacing="0.5">${mode.symbol}</text>`;
+
+            // Name text (small, below symbol)
+            const nameLines = mode.name.split('\n');
+            nameLines.forEach((line, li) => {
+                markup += `<text x="${x.toFixed(1)}" y="${(symbolY + 8 + li * 7).toFixed(1)}" text-anchor="middle" dominant-baseline="middle"
+                    font-size="5.5" fill="${isActive ? '#fb923c' : '#475569'}" font-family="sans-serif">${line}</text>`;
+            });
+
+            markup += `</g>`;
+        });
+
+        svg.innerHTML = markup;
+
+        // Attach click handlers to SVG groups
+        svg.querySelectorAll('.dial-mode-clickable').forEach(el => {
+            el.addEventListener('click', () => selectMode(parseInt(el.dataset.mode)));
+        });
+    }
+
+    /* =====================================================================
+       MODE SELECTION
+       ===================================================================== */
+    function selectMode(modeIdx) {
+        currentModeIndex = modeIdx;
+        currentRangeIndex = 0;
+        probesConnected = false;
+
+        const mode = MODES[modeIdx];
+
+        // Rotate knob to angle
+        const knob = document.getElementById('dialKnob');
+        knob.style.transform = `rotate(${mode.angle}deg)`;
+
+        // Update LCD mode label
+        document.getElementById('lcdModeLabel').textContent = mode.category.toUpperCase();
+
+        // Reset LCD reading
+        setLcdReading('- - - -', '', true, false);
+
+        // Reset continuity dot
+        document.getElementById('continuityDot').classList.remove('beep');
+
+        // Update range buttons
+        renderRanges();
+
+        // Update step state
+        const scenario = SCENARIOS[currentScenarioIndex];
+        stepState.modeSet = (mode.id === scenario.requiredMode);
+        updateStepIndicators();
+
+        // Re-render dial SVG
+        renderDial();
+
+        // Reset connect button
+        document.getElementById('connectBtn').disabled = false;
+        hideFeedback();
+    }
+
+    /* =====================================================================
+       RANGE RENDERING & SELECTION
+       ===================================================================== */
+    function renderRanges() {
+        const mode = MODES[currentModeIndex];
+        const strip = document.getElementById('rangeStrip');
+        strip.innerHTML = '';
+
+        mode.ranges.forEach((range, idx) => {
+            const btn = document.createElement('button');
+            btn.className = 'range-btn' + (idx === currentRangeIndex ? ' active' : '');
+            btn.textContent = range;
+            btn.onclick = () => selectRange(idx);
+            strip.appendChild(btn);
+        });
+    }
+
+    function selectRange(rangeIdx) {
+        currentRangeIndex = rangeIdx;
+        renderRanges();
+
+        // Update units on LCD
+        const mode = MODES[currentModeIndex];
+        const range = mode.ranges[rangeIdx];
+
+        // Derive units from range string
+        let units = mode.units;
+        if (range.includes('mV')) units = 'mV';
+        else if (range.includes('µA')) units = 'µA';
+        else if (range.includes('mA')) units = 'mA';
+        else if (range.includes('kΩ')) units = 'kΩ';
+        else if (range.includes('MΩ')) units = 'MΩ';
+
+        document.getElementById('lcdUnits').textContent = probesConnected ? units : '';
+
+        // Update step state
+        const scenario = SCENARIOS[currentScenarioIndex];
+        const modeOk = MODES[currentModeIndex].id === scenario.requiredMode;
+        const rangeOk = scenario.requiredRanges.includes(mode.ranges[rangeIdx]);
+        stepState.rangeSet = modeOk && rangeOk;
+        updateStepIndicators();
+    }
+
+    /* =====================================================================
+       LCD DISPLAY HELPER
+       ===================================================================== */
+    function setLcdReading(value, units, dim, isOl) {
+        const el = document.getElementById('lcdReading');
+        const unitsEl = document.getElementById('lcdUnits');
+
+        el.classList.remove('dim', 'ol', 'flicker');
+
+        if (dim) {
+            el.classList.add('dim');
+        } else if (isOl) {
+            el.classList.add('ol');
+        }
+
+        // Trigger flicker animation
+        void el.offsetWidth; // reflow
+        el.classList.add('flicker');
+
+        el.textContent = value;
+        unitsEl.textContent = units;
+
+        // Remove flicker class after animation ends
+        setTimeout(() => el.classList.remove('flicker'), 500);
+    }
+
+    /* =====================================================================
+       PROBE CONNECTION — CORE MEASUREMENT LOGIC
+       ===================================================================== */
+    function connectProbes() {
+        const scenario = SCENARIOS[currentScenarioIndex];
+        const mode = MODES[currentModeIndex];
+
+        // Check if correct mode is selected
+        if (mode.id !== scenario.requiredMode) {
+            showWrongModeToast();
+            // Show wrong reading (what happens in real life with wrong mode)
+            triggerWrongModeReading();
+            return;
+        }
+
+        // Check if a valid range is selected (non-auto modes)
+        if (mode.ranges[0] !== 'Auto') {
+            const selectedRange = mode.ranges[currentRangeIndex];
+            if (!scenario.requiredRanges.includes(selectedRange)) {
+                // Show overload if range is too small for the value
+                const rangeValue = parseRangeValue(selectedRange);
+                if (scenario.expectedReading !== null && rangeValue < scenario.expectedReading) {
+                    setLcdReading('OL', '', false, true);
+                    document.getElementById('lcdUnits').textContent = '';
+                    showOverloadFeedback(scenario);
+                    return;
+                }
+            }
+        }
+
+        // Correct mode and range — show measurement
+        probesConnected = true;
+        document.getElementById('redProbeIndicator').classList.add('connected');
+        document.getElementById('blackProbeIndicator').classList.add('connected');
+        document.getElementById('connectBtn').disabled = true;
+
+        // Update step 3 indicator
+        document.getElementById('step3Num').classList.add('done');
+        document.getElementById('step3Num').textContent = '✓';
+
+        // Animate reading appearing
+        setTimeout(() => showMeasurement(scenario), 300);
+    }
+
+    function showMeasurement(scenario) {
+        // Handle continuity mode
+        if (MODES[currentModeIndex].id === 'cont') {
+            if (scenario.expectedReading === null) {
+                // Broken cable
+                setLcdReading('OL', '', false, true);
+                document.getElementById('continuityDot').classList.remove('beep');
+            } else {
+                setLcdReading(scenario.displayReading, scenario.displayUnits, false, false);
+                document.getElementById('continuityDot').classList.add('beep');
+            }
+        } else if (scenario.expectedReading === null) {
+            setLcdReading('OL', '', false, true);
+        } else {
+            // Add minor random variation for realism (+/- 0.02 on last digit)
+            let display = scenario.displayReading;
+
+            // For resistance in MΩ range, show MΩ units
+            let units = scenario.displayUnits;
+            if (MODES[currentModeIndex].id === 'res') {
+                const range = MODES[currentModeIndex].ranges[currentRangeIndex];
+                if (range === '2MΩ') units = 'MΩ';
+                else if (range.includes('kΩ')) units = 'kΩ';
+                else units = 'Ω';
+            }
+
+            setLcdReading(display, units, false, false);
+        }
+
+        // Show feedback panel
+        showFeedback(scenario);
+
+        // Mark scenario complete
+        completedScenarios.add(scenario.id);
+        saveProgress();
+        updateProgressBar();
+        updateScenarioDots();
+
+        // Check all complete
+        if (completedScenarios.size === SCENARIOS.length) {
+            setTimeout(showCompletion, 800);
+        }
+    }
+
+    function triggerWrongModeReading() {
+        // Simulate what happens when wrong mode is used
+        const wrongReadings = ['0.000', '1.762', 'OL', '0.012', '0.001'];
+        const random = wrongReadings[Math.floor(Math.random() * wrongReadings.length)];
+        setLcdReading(random, '', false, random === 'OL');
+    }
+
+    function parseRangeValue(rangeStr) {
+        const num = parseFloat(rangeStr);
+        if (rangeStr.includes('k')) return num * 1000;
+        if (rangeStr.includes('M')) return num * 1000000;
+        if (rangeStr.includes('m') && !rangeStr.includes('M')) return num / 1000;
+        if (rangeStr.includes('µ')) return num / 1000000;
+        return num;
+    }
+
+    /* =====================================================================
+       FEEDBACK PANEL
+       ===================================================================== */
+    function showFeedback(scenario) {
+        const panel = document.getElementById('feedbackPanel');
+        const badge = document.getElementById('feedbackBadge');
+        const reading = document.getElementById('feedbackReading');
+        const explanation = document.getElementById('feedbackExplanation');
+        const objective = document.getElementById('objectiveText');
+
+        // Remove existing result classes
+        panel.classList.remove('pass', 'fail', 'info');
+        badge.classList.remove('pass', 'fail', 'info');
+        reading.classList.remove('pass', 'fail', 'info');
+
+        const resultClass = scenario.result;
+        panel.classList.add(resultClass);
+        badge.classList.add(resultClass);
+        reading.classList.add(resultClass);
+        badge.textContent = scenario.passFail;
+
+        reading.textContent = scenario.expectedReading === null
+            ? 'OL (Open Circuit)'
+            : `${scenario.displayReading} ${scenario.displayUnits}`;
+
+        explanation.textContent = scenario.explanation;
+        objective.textContent = scenario.objective;
+
+        panel.classList.add('visible');
+    }
+
+    function showOverloadFeedback(scenario) {
+        const panel = document.getElementById('feedbackPanel');
+        const badge = document.getElementById('feedbackBadge');
+        const reading = document.getElementById('feedbackReading');
+        const explanation = document.getElementById('feedbackExplanation');
+
+        panel.classList.remove('pass', 'fail', 'info');
+        badge.classList.remove('pass', 'fail', 'info');
+        reading.classList.remove('pass', 'fail', 'info');
+
+        panel.classList.add('fail');
+        badge.classList.add('fail');
+        reading.classList.add('fail');
+        badge.textContent = 'OVERLOAD';
+        reading.textContent = 'OL (Range too small)';
+        explanation.textContent = 'The selected range is too small for this measurement. Choose a higher range. Always start with the highest range and work down for safety.';
+        document.getElementById('objectiveText').textContent = 'A+ Core 1 Obj 3.1';
+
+        panel.classList.add('visible');
+    }
+
+    function hideFeedback() {
+        const panel = document.getElementById('feedbackPanel');
+        panel.classList.remove('visible');
+        document.getElementById('redProbeIndicator').classList.remove('connected');
+        document.getElementById('blackProbeIndicator').classList.remove('connected');
+    }
+
+    /* =====================================================================
+       WRONG MODE TOAST
+       ===================================================================== */
+    let toastTimer = null;
+    function showWrongModeToast() {
+        const toast = document.getElementById('wrongModeToast');
+        const scenario = SCENARIOS[currentScenarioIndex];
+        const reqMode = MODES.find(m => m.id === scenario.requiredMode);
+        toast.textContent = `Incorrect mode. This test requires: ${reqMode.category}`;
+        toast.classList.add('visible');
+        if (toastTimer) clearTimeout(toastTimer);
+        toastTimer = setTimeout(() => toast.classList.remove('visible'), 3000);
+    }
+
+    /* =====================================================================
+       STEP INDICATORS
+       ===================================================================== */
+    function updateStepIndicators() {
+        const scenario = SCENARIOS[currentScenarioIndex];
+        const mode = MODES[currentModeIndex];
+        const modeOk = mode.id === scenario.requiredMode;
+
+        // Step 1: Mode
+        const s1 = document.getElementById('step1Num');
+        const reqMode = MODES.find(m => m.id === scenario.requiredMode);
+        document.getElementById('step1Text').innerHTML = `<strong>Select mode:</strong> ${reqMode.category} (${reqMode.symbol})`;
+        if (modeOk) {
+            s1.classList.add('done');
+            s1.textContent = '✓';
+        } else {
+            s1.classList.remove('done');
+            s1.textContent = '1';
+        }
+
+        // Step 2: Range
+        const s2 = document.getElementById('step2Num');
+        const hasAutoRange = scenario.requiredRanges.includes('Auto');
+        const rangeOk = hasAutoRange || (modeOk && scenario.requiredRanges.includes(mode.ranges[currentRangeIndex]));
+
+        if (hasAutoRange) {
+            document.getElementById('step2Text').innerHTML = `<strong>Range:</strong> Auto (no selection needed)`;
+        } else {
+            document.getElementById('step2Text').innerHTML = `<strong>Select range:</strong> ${scenario.requiredRanges.join(' or ')}`;
+        }
+
+        if (rangeOk && modeOk) {
+            s2.classList.add('done');
+            s2.textContent = '✓';
+        } else {
+            s2.classList.remove('done');
+            s2.textContent = '2';
+        }
+
+        // Step 3: Probes (reset each time)
+        const s3 = document.getElementById('step3Num');
+        s3.classList.remove('done');
+        s3.textContent = '3';
+    }
+
+    /* =====================================================================
+       SCENARIO NAVIGATION
+       ===================================================================== */
+    function loadScenario(idx) {
+        currentScenarioIndex = idx;
+        probesConnected = false;
+        stepState = { modeSet: false, rangeSet: false };
+
+        const scenario = SCENARIOS[idx];
+
+        document.getElementById('scenarioNumber').textContent = `SCENARIO ${idx + 1} / 8`;
+        document.getElementById('scenarioTitle').textContent = scenario.title;
+        document.getElementById('scenarioDesc').textContent = scenario.description;
+
+        // Build hint list
+        const hintList = document.getElementById('hintList');
+        hintList.innerHTML = scenario.hints.map(h => `<li>${h}</li>`).join('');
+
+        // Reset connect button
+        document.getElementById('connectBtn').disabled = false;
+
+        // Reset LCD
+        setLcdReading('- - - -', '', true, false);
+        document.getElementById('lcdModeLabel').textContent = MODES[currentModeIndex].category.toUpperCase();
+        document.getElementById('continuityDot').classList.remove('beep');
+
+        // Reset probes
+        document.getElementById('redProbeIndicator').classList.remove('connected');
+        document.getElementById('blackProbeIndicator').classList.remove('connected');
+
+        // Update steps
+        updateStepIndicators();
+
+        // Hide feedback
+        hideFeedback();
+
+        // Update dot UI
+        updateScenarioDots();
+
+        // Update nav buttons
+        document.getElementById('prevBtn').disabled = idx === 0;
+        document.getElementById('nextBtn').textContent = idx === SCENARIOS.length - 1 ? 'Finish' : 'Next →';
+
+        // Reset ranges to default for current mode
+        renderRanges();
+
+        // Pre-select default range for the scenario's required mode
+        const reqMode = MODES.find(m => m.id === scenario.requiredMode);
+        if (reqMode) {
+            const defaultRangeIdx = reqMode.ranges.indexOf(reqMode.defaultRange);
+            if (defaultRangeIdx >= 0 && MODES[currentModeIndex].id !== scenario.requiredMode) {
+                // Don't auto-change mode — student must do it manually
+            }
+        }
+    }
+
+    function nextScenario() {
+        if (currentScenarioIndex < SCENARIOS.length - 1) {
+            loadScenario(currentScenarioIndex + 1);
+        }
+    }
+
+    function prevScenario() {
+        if (currentScenarioIndex > 0) {
+            loadScenario(currentScenarioIndex - 1);
+        }
+    }
+
+    /* =====================================================================
+       SCENARIO DOTS
+       ===================================================================== */
+    function buildScenarioDots() {
+        const tabs = document.getElementById('scenarioTabs');
+        tabs.innerHTML = '';
+        SCENARIOS.forEach((s, idx) => {
+            const dot = document.createElement('div');
+            dot.className = 'scenario-dot';
+            dot.textContent = idx + 1;
+            dot.onclick = () => loadScenario(idx);
+            dot.id = `scenarioDot-${idx}`;
+            tabs.appendChild(dot);
+        });
+        updateScenarioDots();
+    }
+
+    function updateScenarioDots() {
+        SCENARIOS.forEach((s, idx) => {
+            const dot = document.getElementById(`scenarioDot-${idx}`);
+            if (!dot) return;
+            dot.classList.remove('active', 'completed');
+            if (completedScenarios.has(s.id)) {
+                dot.classList.add('completed');
+                dot.textContent = '✓';
+            } else {
+                dot.textContent = idx + 1;
+            }
+            if (idx === currentScenarioIndex) dot.classList.add('active');
+        });
+    }
+
+    /* =====================================================================
+       PROGRESS TRACKING
+       ===================================================================== */
+    function updateProgressBar() {
+        const count = completedScenarios.size;
+        const pct = (count / SCENARIOS.length) * 100;
+        document.getElementById('progressFill').style.width = pct + '%';
+        document.getElementById('progressLabel').textContent = `${count} / ${SCENARIOS.length} completed`;
+    }
+
+    function saveProgress() {
+        try {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify({
+                completed: Array.from(completedScenarios),
+                lastScenario: currentScenarioIndex,
+                savedAt: Date.now()
+            }));
+        } catch (e) { /* quota exceeded — silently ignore */ }
+    }
+
+    /* =====================================================================
+       COMPLETION
+       ===================================================================== */
+    function showCompletion() {
+        document.getElementById('completionBanner').classList.add('visible');
+        document.getElementById('scenarioContent').style.display = 'none';
+
+        // Fire ProgressManager if available
+        if (typeof ProgressManager !== 'undefined') {
+            ProgressManager.completeModule('forge', 'forge-multimeter');
+        }
+    }
+
+    function resetAll() {
+        completedScenarios.clear();
+        saveProgress();
+        updateProgressBar();
+
+        document.getElementById('completionBanner').classList.remove('visible');
+        document.getElementById('scenarioContent').style.display = '';
+
+        loadScenario(0);
+        selectMode(0);
+        updateScenarioDots();
+    }
+
+    /* =====================================================================
+       DIAL KNOB — CLICK TO CYCLE
+       ===================================================================== */
+    document.getElementById('dialKnob').addEventListener('click', () => {
+        const next = (currentModeIndex + 1) % MODES.length;
+        selectMode(next);
+    });
+
+    /* =====================================================================
+       INITIALIZATION
+       ===================================================================== */
+    function init() {
+        renderDial();
+        renderRanges();
+        buildScenarioDots();
+        loadScenario(0);
+        updateProgressBar();
+        // Start with mode 0 (DC Voltage) selected on the dial
+        selectMode(0);
+    }
+
+    init();
+</script>
+</body>
+</html>

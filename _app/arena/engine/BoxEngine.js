@@ -172,7 +172,11 @@ const BoxEngine = {
             notes: '',
             events: [],  // Research instrumentation — timestamped action log
             _tutorialStep: 0,
-            _tutorialComplete: false
+            _tutorialComplete: false,
+            // Phase/layer progression (Sprint AR-15)
+            activePhases: [],
+            completedPhases: [],
+            phaseTimestamps: {}  // { phaseId: { started: ms, completed: ms } }
         };
     },
 
@@ -489,6 +493,9 @@ const BoxEngine = {
         // Completion overlay
         this._buildCompletionOverlay(arena);
 
+        // Post-completion report overlay
+        this._buildReportOverlay(arena);
+
         // Desktop icons
         this._buildDesktopIcons();
 
@@ -602,7 +609,10 @@ const BoxEngine = {
                 <div class="final-score" id="completionScore"></div>
                 <div class="score-breakdown" id="completionBreakdown"></div>
                 <div class="lore-outro" id="completionLore"></div>
-                <button id="completionClose">Continue</button>
+                <div class="completion-btns">
+                    <button id="completionReport" class="completion-report-btn">View Full Report</button>
+                    <button id="completionClose">Continue</button>
+                </div>
             </div>
         `;
         parent.appendChild(overlay);
@@ -613,6 +623,11 @@ const BoxEngine = {
             if (!this.state.postSurvey) {
                 this._showPostSurvey();
             }
+        });
+
+        document.getElementById('completionReport').addEventListener('click', () => {
+            overlay.classList.remove('active');
+            this._showCompletionReport();
         });
 
         // VS result overlay (hidden by default, shown when VS match ends)
@@ -783,6 +798,9 @@ const BoxEngine = {
     _showDesktop() {
         this._bootEl.style.display = 'none';
         this._desktopEl.classList.add('active');
+
+        // Init phase system (no-op if no phases configured)
+        this._initPhases();
 
         // Fresh session: log box_start and show pre-survey
         if (this.state.events && this.state.events.length === 0 && !this.state.preSurvey) {
@@ -1263,6 +1281,7 @@ const BoxEngine = {
                     this._syncFlagBadges();
                     this._updateScoreBadge();
                     this._reportFlagCapture(matchedFlag?.id, result.points);
+                    this._checkPhaseProgression(matchedFlag?.id);
                     input.value = '';
                     if (result.completed) {
                         this._completionShown = true;
@@ -1314,6 +1333,9 @@ const BoxEngine = {
                     // Update badge
                     const badge = document.getElementById('flagBadge_' + fh.id);
                     if (badge) badge.classList.add('found');
+
+                    // Check phase progression
+                    this._checkPhaseProgression(fh.id);
 
                     input.value = '';
                     this._checkCompletion();
@@ -1417,27 +1439,66 @@ const BoxEngine = {
         const list = document.getElementById('hintList');
         if (!list) return;
         const hints = this.config.hints || [];
+        const scoring = this.config.scoring || {};
         list.innerHTML = '';
 
         hints.forEach((hint, idx) => {
             const used = this.state.hintsUsed.includes(hint.id);
+            const penalty = hint.penalty || scoring.hintPenalty || -50;
+            const isFree = this.state.godMode;
             const item = document.createElement('div');
             item.className = 'hint-item ' + (used ? 'revealed' : 'locked');
-            item.innerHTML = `
-                <div class="hint-item-header">
-                    <span class="hint-item-label">Hint ${idx + 1}</span>
-                    <span class="hint-item-cost">${used ? 'Used' : hint.penalty + ' pts'}</span>
-                </div>
-                ${!used ? '<button class="hint-reveal-btn">Reveal Hint</button>' : ''}
-                <div class="hint-item-text">${used ? this._escHtml(hint.text) : ''}</div>
-            `;
 
-            if (!used) {
-                item.querySelector('.hint-reveal-btn').addEventListener('click', () => {
+            if (used) {
+                // Already revealed — show text and spent cost
+                item.innerHTML = `
+                    <div class="hint-item-header">
+                        <span class="hint-item-label">Hint ${idx + 1}</span>
+                        <span class="hint-item-cost spent">${isFree ? 'Free (God Mode)' : penalty + ' pts spent'}</span>
+                    </div>
+                    <div class="hint-item-text">${this._escHtml(hint.text)}</div>
+                `;
+            } else {
+                // Not yet revealed — show cost preview and confirm button
+                item.innerHTML = `
+                    <div class="hint-item-header">
+                        <span class="hint-item-label">Hint ${idx + 1}</span>
+                        <span class="hint-item-cost">${isFree ? 'Free' : penalty + ' pts'}</span>
+                    </div>
+                    <div class="hint-cost-preview">
+                        ${isFree ? 'No penalty in God Mode' : `This hint costs <strong>${Math.abs(penalty)}</strong> points`}
+                    </div>
+                    <button class="hint-reveal-btn">Reveal Hint (${isFree ? 'free' : penalty + ' pts'})</button>
+                    <div class="hint-confirm" style="display:none;">
+                        <span class="hint-confirm-text">${isFree ? 'Reveal this hint?' : `Are you sure? You will lose ${Math.abs(penalty)} points.`}</span>
+                        <div class="hint-confirm-btns">
+                            <button class="hint-confirm-yes">Yes, reveal</button>
+                            <button class="hint-confirm-no">Cancel</button>
+                        </div>
+                    </div>
+                `;
+
+                const revealBtn = item.querySelector('.hint-reveal-btn');
+                const confirmDiv = item.querySelector('.hint-confirm');
+                const confirmYes = item.querySelector('.hint-confirm-yes');
+                const confirmNo = item.querySelector('.hint-confirm-no');
+
+                revealBtn.addEventListener('click', () => {
+                    revealBtn.style.display = 'none';
+                    confirmDiv.style.display = 'block';
+                });
+
+                confirmYes.addEventListener('click', () => {
                     this._useHint(hint);
                     this._renderHints();
                 });
+
+                confirmNo.addEventListener('click', () => {
+                    confirmDiv.style.display = 'none';
+                    revealBtn.style.display = 'block';
+                });
             }
+
             list.appendChild(item);
         });
     },
@@ -1564,8 +1625,13 @@ const BoxEngine = {
 
     _setupKeys() {
         document.addEventListener('keydown', (e) => {
-            // Escape closes modals
+            // Escape closes modals (in priority order: topmost first)
             if (e.key === 'Escape') {
+                const reportOverlay = document.getElementById('reportOverlay');
+                if (reportOverlay && reportOverlay.classList.contains('active')) {
+                    reportOverlay.classList.remove('active');
+                    return;
+                }
                 const flagModal = document.getElementById('flagModalOverlay');
                 if (flagModal.classList.contains('active')) {
                     this._closeFlagModal();
@@ -1574,6 +1640,11 @@ const BoxEngine = {
                 const hintPanel = document.getElementById('hintPanel');
                 if (hintPanel.classList.contains('active')) {
                     this._closeHints();
+                    return;
+                }
+                const phasePanel = document.getElementById('phasePanel');
+                if (phasePanel && phasePanel.classList.contains('active')) {
+                    this._togglePhasePanel(false);
                     return;
                 }
             }
@@ -1781,6 +1852,621 @@ const BoxEngine = {
                 }
             }
         } catch (e) { /* silent */ }
+    },
+
+    // ────────────────────────────────────────────────
+    // PHASE/LAYER PROGRESSION (Sprint AR-15)
+    // ────────────────────────────────────────────────
+
+    /**
+     * Initialize the phase system from config.phases[].
+     * Called from _showDesktop after DOM is ready.
+     * If no phases defined, this is a no-op (backward compatible).
+     */
+    _initPhases() {
+        const phases = this.config.phases;
+        if (!phases || phases.length === 0) return;
+
+        // Restore state or initialize fresh
+        if (!this.state.activePhases || this.state.activePhases.length === 0) {
+            // First run: activate all unlocked phases (locked !== true)
+            this.state.activePhases = phases.filter(p => !p.locked).map(p => p.id);
+            if (!this.state.phaseTimestamps) this.state.phaseTimestamps = {};
+            this.state.activePhases.forEach(id => {
+                if (!this.state.phaseTimestamps[id]) {
+                    this.state.phaseTimestamps[id] = { started: Date.now() };
+                }
+            });
+            this.save();
+        }
+
+        // Build phase tracker UI in taskbar
+        this._buildPhaseTracker();
+        this._updatePhaseTracker();
+
+        // Build phase detail panel
+        this._buildPhasePanel();
+    },
+
+    /**
+     * Build the phase indicator widget in the taskbar (next to score).
+     */
+    _buildPhaseTracker() {
+        const phases = this.config.phases;
+        if (!phases) return;
+
+        const taskbarRight = this._desktopEl.querySelector('.taskbar-right');
+        if (!taskbarRight) return;
+
+        const tracker = document.createElement('span');
+        tracker.className = 'phase-tracker';
+        tracker.id = 'phaseTracker';
+        tracker.title = 'Click for phase details';
+        tracker.addEventListener('click', () => this._togglePhasePanel());
+
+        // Insert before the score badge
+        const scoreBadge = taskbarRight.querySelector('.taskbar-score');
+        taskbarRight.insertBefore(tracker, scoreBadge);
+    },
+
+    /**
+     * Update the phase tracker display in the taskbar.
+     */
+    _updatePhaseTracker() {
+        const tracker = document.getElementById('phaseTracker');
+        const phases = this.config.phases;
+        if (!tracker || !phases) return;
+
+        const completed = (this.state.completedPhases || []).length;
+        const total = phases.length;
+
+        // Find current active (non-completed) phase
+        const currentPhase = phases.find(p =>
+            this.state.activePhases.includes(p.id) &&
+            !this.state.completedPhases.includes(p.id)
+        );
+
+        if (completed >= total) {
+            tracker.innerHTML = `<span class="phase-tracker-icon">&#9878;</span> <span class="phase-tracker-text">All Phases Complete</span>`;
+            tracker.classList.add('all-complete');
+        } else if (currentPhase) {
+            tracker.innerHTML = `<span class="phase-tracker-icon">${currentPhase.icon || '&#9654;'}</span> <span class="phase-tracker-text">Phase ${completed + 1}/${total}: ${this._escHtml(currentPhase.name)}</span>`;
+            tracker.classList.remove('all-complete');
+        } else {
+            tracker.innerHTML = `<span class="phase-tracker-icon">&#9654;</span> <span class="phase-tracker-text">Phase ${completed}/${total}</span>`;
+            tracker.classList.remove('all-complete');
+        }
+    },
+
+    /**
+     * Build the phase detail panel (slide-down from taskbar).
+     */
+    _buildPhasePanel() {
+        const phases = this.config.phases;
+        if (!phases) return;
+
+        const panel = document.createElement('div');
+        panel.className = 'phase-panel';
+        panel.id = 'phasePanel';
+
+        panel.innerHTML = `
+            <div class="phase-panel-header">
+                <h4>Attack Phases</h4>
+                <button class="phase-panel-close" id="phasePanelClose">&times;</button>
+            </div>
+            <div class="phase-panel-list" id="phasePanelList"></div>
+        `;
+
+        this._desktopEl.appendChild(panel);
+        document.getElementById('phasePanelClose').addEventListener('click', () => this._togglePhasePanel(false));
+
+        this._renderPhasePanel();
+    },
+
+    /**
+     * Toggle the phase detail panel visibility.
+     */
+    _togglePhasePanel(forceState) {
+        const panel = document.getElementById('phasePanel');
+        if (!panel) return;
+
+        const isOpen = panel.classList.contains('active');
+        const shouldOpen = typeof forceState === 'boolean' ? forceState : !isOpen;
+
+        panel.classList.toggle('active', shouldOpen);
+
+        if (shouldOpen) {
+            this._renderPhasePanel();
+            // Close on outside click
+            const closer = (e) => {
+                if (!panel.contains(e.target) && !e.target.closest('.phase-tracker')) {
+                    panel.classList.remove('active');
+                    document.removeEventListener('click', closer);
+                }
+            };
+            setTimeout(() => document.addEventListener('click', closer), 10);
+        }
+    },
+
+    /**
+     * Render the contents of the phase detail panel.
+     */
+    _renderPhasePanel() {
+        const list = document.getElementById('phasePanelList');
+        const phases = this.config.phases;
+        if (!list || !phases) return;
+
+        list.innerHTML = '';
+
+        phases.forEach(phase => {
+            const isCompleted = (this.state.completedPhases || []).includes(phase.id);
+            const isActive = (this.state.activePhases || []).includes(phase.id) && !isCompleted;
+            const isLocked = !isCompleted && !isActive;
+
+            let status = 'locked';
+            let statusLabel = 'LOCKED';
+            if (isCompleted) { status = 'completed'; statusLabel = 'COMPLETE'; }
+            else if (isActive) { status = 'active'; statusLabel = 'ACTIVE'; }
+
+            // Calculate time spent in phase
+            let timeStr = '';
+            const ts = (this.state.phaseTimestamps || {})[phase.id];
+            if (ts) {
+                const end = ts.completed || (isActive ? Date.now() : null);
+                if (end && ts.started) {
+                    const ms = end - ts.started;
+                    const mins = Math.floor(ms / 60000);
+                    const secs = Math.floor((ms % 60000) / 1000);
+                    timeStr = mins > 0 ? `${mins}m ${secs}s` : `${secs}s`;
+                }
+            }
+
+            const el = document.createElement('div');
+            el.className = `phase-item ${status}`;
+            el.innerHTML = `
+                <div class="phase-item-header">
+                    <span class="phase-item-icon">${phase.icon || '&#9654;'}</span>
+                    <span class="phase-item-name">${this._escHtml(phase.name)}</span>
+                    <span class="phase-item-status">${statusLabel}</span>
+                </div>
+                <div class="phase-item-desc">${isLocked ? '???' : this._escHtml(phase.description || '')}</div>
+                ${timeStr ? `<div class="phase-item-time">${timeStr}</div>` : ''}
+                ${(phase.mitre && phase.mitre.length && !isLocked) ? `
+                    <div class="phase-item-mitre">
+                        ${phase.mitre.map(t => `<span class="mitre-tag">${this._escHtml(t)}</span>`).join('')}
+                    </div>
+                ` : ''}
+                ${(phase.requiredFlags && !isLocked) ? `
+                    <div class="phase-item-flags">
+                        ${phase.requiredFlags.map(fId => {
+                            const found = this.state.flagsFound.includes(fId);
+                            return `<span class="phase-flag-badge ${found ? 'found' : ''}">${this._escHtml(fId)}</span>`;
+                        }).join('')}
+                    </div>
+                ` : ''}
+            `;
+            list.appendChild(el);
+        });
+    },
+
+    /**
+     * Check if a flag submission triggers phase completion/unlocking.
+     * Called after a successful flag capture.
+     */
+    _checkPhaseProgression(flagId) {
+        const phases = this.config.phases;
+        if (!phases || phases.length === 0) return;
+
+        phases.forEach(phase => {
+            // Skip if already completed
+            if ((this.state.completedPhases || []).includes(phase.id)) return;
+            // Skip if not active
+            if (!(this.state.activePhases || []).includes(phase.id)) return;
+
+            // Check if all required flags for this phase are now captured
+            const allCaptured = (phase.requiredFlags || []).every(fId =>
+                this.state.flagsFound.includes(fId)
+            );
+
+            if (allCaptured) {
+                // Mark phase complete
+                if (!this.state.completedPhases) this.state.completedPhases = [];
+                this.state.completedPhases.push(phase.id);
+
+                // Record completion timestamp
+                if (!this.state.phaseTimestamps) this.state.phaseTimestamps = {};
+                if (!this.state.phaseTimestamps[phase.id]) {
+                    this.state.phaseTimestamps[phase.id] = { started: this.state.startTime };
+                }
+                this.state.phaseTimestamps[phase.id].completed = Date.now();
+
+                const elapsed = Date.now() - (this.state.phaseTimestamps[phase.id].started || this.state.startTime);
+                this._logEvent('phase_complete', {
+                    phaseId: phase.id,
+                    phaseName: phase.name,
+                    elapsed: elapsed,
+                    mitre: phase.mitre || []
+                });
+
+                this.notify(`Phase complete: ${phase.name}`, 'success');
+
+                // Unlock next phases
+                if (phase.unlocks && phase.unlocks.length) {
+                    phase.unlocks.forEach(nextId => {
+                        if (!this.state.activePhases.includes(nextId)) {
+                            this.state.activePhases.push(nextId);
+                            // Record start timestamp for new phase
+                            if (!this.state.phaseTimestamps[nextId]) {
+                                this.state.phaseTimestamps[nextId] = { started: Date.now() };
+                            }
+                            this._logEvent('phase_unlock', { phaseId: nextId });
+
+                            const nextPhase = phases.find(p => p.id === nextId);
+                            if (nextPhase) {
+                                this.notify(`Phase unlocked: ${nextPhase.name}`, 'info');
+                            }
+                        }
+                    });
+                }
+
+                this.save();
+                this._updatePhaseTracker();
+                this._renderPhasePanel();
+            }
+        });
+    },
+
+    // ────────────────────────────────────────────────
+    // POST-COMPLETION REPORT (Sprint AR-15)
+    // ────────────────────────────────────────────────
+
+    /**
+     * Build the completion report overlay DOM.
+     * Called from _buildDOM.
+     */
+    _buildReportOverlay(parent) {
+        const overlay = document.createElement('div');
+        overlay.className = 'report-overlay';
+        overlay.id = 'reportOverlay';
+        overlay.innerHTML = `
+            <div class="report-card" id="reportCard">
+                <div class="report-header" id="reportHeader"></div>
+                <div class="report-body" id="reportBody"></div>
+                <div class="report-actions">
+                    <button class="report-export-btn" id="reportExportBtn">Export Report</button>
+                    <button class="report-close-btn" id="reportCloseBtn">Close</button>
+                </div>
+            </div>
+        `;
+        parent.appendChild(overlay);
+
+        document.getElementById('reportCloseBtn').addEventListener('click', () => {
+            overlay.classList.remove('active');
+            // Show post-survey if not yet taken
+            if (!this.state.postSurvey) {
+                this._showPostSurvey();
+            }
+        });
+
+        document.getElementById('reportExportBtn').addEventListener('click', () => {
+            this._exportReportMarkdown();
+        });
+    },
+
+    /**
+     * Show the full post-completion report.
+     * Called when box is completed (all flags found).
+     */
+    _showCompletionReport() {
+        const overlay = document.getElementById('reportOverlay');
+        if (!overlay) return;
+
+        const s = this.state;
+        const config = this.config;
+        const scoring = config.scoring || {};
+        const phases = config.phases || [];
+        const flags = config.flags || [];
+        const events = s.events || [];
+        const elapsed = Date.now() - s.startTime;
+        const elapsedMin = Math.round(elapsed / 60000);
+
+        // ── HEADER ──
+        const header = document.getElementById('reportHeader');
+        const maxScore = (scoring.base || 1000) + flags.reduce((sum, f) => sum + (f.points || 0), 0) +
+            (scoring.speedBonus ? scoring.speedBonus.points : 0);
+
+        header.innerHTML = `
+            <div class="report-title">&#9878; BOX COMPLETE</div>
+            <div class="report-box-name">${this._escHtml(config.title || 'CTF Box')}</div>
+            <div class="report-summary-row">
+                <span class="report-summary-item"><strong>${elapsedMin}</strong> min</span>
+                <span class="report-summary-divider">|</span>
+                <span class="report-summary-item"><strong>${s.score}</strong>/${maxScore} pts</span>
+                <span class="report-summary-divider">|</span>
+                <span class="report-summary-item"><strong>${s.flagsFound.length}</strong>/${flags.length} flags</span>
+                ${config.difficulty ? `<span class="report-summary-divider">|</span><span class="report-summary-item">${this._escHtml(config.difficulty)}</span>` : ''}
+            </div>
+        `;
+
+        // ── BODY ──
+        let bodyHtml = '';
+
+        // 1. ATTACK CHAIN
+        bodyHtml += `<div class="report-section"><h4 class="report-section-title">ATTACK CHAIN</h4>`;
+        if (phases.length > 0) {
+            phases.forEach((phase, idx) => {
+                const isCompleted = (s.completedPhases || []).includes(phase.id);
+                const ts = (s.phaseTimestamps || {})[phase.id];
+                let timeStr = '--';
+                if (ts && ts.started && ts.completed) {
+                    const ms = ts.completed - ts.started;
+                    const mins = Math.floor(ms / 60000);
+                    const secs = Math.floor((ms % 60000) / 1000);
+                    timeStr = mins > 0 ? `${mins}m ${secs}s` : `${secs}s`;
+                }
+                bodyHtml += `
+                    <div class="report-chain-step ${isCompleted ? 'completed' : 'incomplete'}">
+                        <span class="report-chain-num">${idx + 1}.</span>
+                        <span class="report-chain-icon">${phase.icon || '&#9654;'}</span>
+                        <span class="report-chain-name">${this._escHtml(phase.name)}</span>
+                        <span class="report-chain-time">[${timeStr}]</span>
+                    </div>
+                `;
+            });
+        } else {
+            // No phases: build chain from flag submission order
+            const flagEvents = events.filter(e => e.type === 'flag_correct');
+            if (flagEvents.length > 0) {
+                flagEvents.forEach((fe, idx) => {
+                    const elapsed = fe.elapsed ? Math.round(fe.elapsed / 1000) : 0;
+                    const mins = Math.floor(elapsed / 60);
+                    const secs = elapsed % 60;
+                    const timeStr = mins > 0 ? `${mins}m ${secs}s` : `${secs}s`;
+                    bodyHtml += `
+                        <div class="report-chain-step completed">
+                            <span class="report-chain-num">${idx + 1}.</span>
+                            <span class="report-chain-icon">&#9873;</span>
+                            <span class="report-chain-name">${this._escHtml(fe.data?.flagId || 'Flag')}</span>
+                            <span class="report-chain-time">[${timeStr}]</span>
+                        </div>
+                    `;
+                });
+            } else {
+                bodyHtml += `<div class="report-chain-empty">No attack chain data available.</div>`;
+            }
+        }
+        bodyHtml += `</div>`;
+
+        // 2. MITRE ATT&CK MAPPING
+        const allMitre = [];
+        if (phases.length > 0) {
+            phases.forEach(p => {
+                (p.mitre || []).forEach(t => {
+                    if (!allMitre.includes(t)) allMitre.push(t);
+                });
+            });
+        }
+        // Also check individual flags for mitre mappings
+        flags.forEach(f => {
+            (f.mitre || []).forEach(t => {
+                if (!allMitre.includes(t)) allMitre.push(t);
+            });
+        });
+
+        if (allMitre.length > 0) {
+            bodyHtml += `<div class="report-section"><h4 class="report-section-title">MITRE ATT&CK</h4>`;
+            bodyHtml += `<div class="report-mitre-list">`;
+            allMitre.forEach(t => {
+                bodyHtml += `<span class="report-mitre-tag">${this._escHtml(t)}</span>`;
+            });
+            bodyHtml += `</div></div>`;
+        }
+
+        // 3. SCORE BREAKDOWN
+        bodyHtml += `<div class="report-section"><h4 class="report-section-title">SCORE BREAKDOWN</h4>`;
+        bodyHtml += `<div class="report-score-table">`;
+        bodyHtml += `<div class="report-score-row"><span>Base score</span><span>${scoring.base || 1000}</span></div>`;
+
+        s.flagsFound.forEach(id => {
+            const flag = flags.find(f => f.id === id);
+            if (flag) bodyHtml += `<div class="report-score-row"><span>${this._escHtml(id)}.txt flag</span><span class="pos">+${flag.points}</span></div>`;
+        });
+
+        // Speed bonus
+        const speedBonus = (scoring.speedBonus && elapsed < scoring.speedBonus.threshold) ? scoring.speedBonus.points : 0;
+        if (speedBonus) {
+            bodyHtml += `<div class="report-score-row"><span>Speed bonus</span><span class="pos">+${speedBonus}</span></div>`;
+        }
+
+        if (s.hintsUsed.length) {
+            const hintPenTotal = s.hintsUsed.length * (scoring.hintPenalty || -50);
+            bodyHtml += `<div class="report-score-row"><span>Hints used (${s.hintsUsed.length})</span><span class="neg">${hintPenTotal}</span></div>`;
+        }
+        if (s.wrongFlags) {
+            const wrongPenTotal = s.wrongFlags * (scoring.wrongFlagPenalty || -25);
+            bodyHtml += `<div class="report-score-row"><span>Wrong flags (${s.wrongFlags})</span><span class="neg">${wrongPenTotal}</span></div>`;
+        }
+
+        bodyHtml += `<div class="report-score-row total"><span>Final Score</span><span>${s.score}</span></div>`;
+        bodyHtml += `</div></div>`;
+
+        // 4. PERFORMANCE METRICS
+        bodyHtml += `<div class="report-section"><h4 class="report-section-title">PERFORMANCE METRICS</h4>`;
+        bodyHtml += `<div class="report-metrics-grid">`;
+
+        // Time per phase
+        if (phases.length > 0) {
+            phases.forEach(phase => {
+                const ts = (s.phaseTimestamps || {})[phase.id];
+                let dur = '--';
+                if (ts && ts.started && ts.completed) {
+                    const ms = ts.completed - ts.started;
+                    dur = Math.round(ms / 60000) + ' min';
+                }
+                bodyHtml += `<div class="report-metric"><span class="report-metric-label">${this._escHtml(phase.name)}</span><span class="report-metric-value">${dur}</span></div>`;
+            });
+        }
+
+        bodyHtml += `<div class="report-metric"><span class="report-metric-label">Total time</span><span class="report-metric-value">${elapsedMin} min</span></div>`;
+        bodyHtml += `<div class="report-metric"><span class="report-metric-label">Hints used</span><span class="report-metric-value">${s.hintsUsed.length}</span></div>`;
+        bodyHtml += `<div class="report-metric"><span class="report-metric-label">Wrong flag attempts</span><span class="report-metric-value">${s.wrongFlags}</span></div>`;
+
+        const totalCommands = events.filter(e => e.type === 'command').length;
+        bodyHtml += `<div class="report-metric"><span class="report-metric-label">Commands executed</span><span class="report-metric-value">${totalCommands}</span></div>`;
+
+        const totalNavs = events.filter(e => e.type === 'navigate').length;
+        bodyHtml += `<div class="report-metric"><span class="report-metric-label">Page navigations</span><span class="report-metric-value">${totalNavs}</span></div>`;
+
+        bodyHtml += `</div></div>`;
+
+        // 5. RECOMMENDATIONS
+        const recs = this._generateRecommendations(s, scoring, phases, flags, events);
+        if (recs.length > 0) {
+            bodyHtml += `<div class="report-section"><h4 class="report-section-title">RECOMMENDATIONS</h4>`;
+            bodyHtml += `<div class="report-recommendations">`;
+            recs.forEach(r => {
+                bodyHtml += `<div class="report-rec-item"><span class="report-rec-icon">${r.icon}</span><span class="report-rec-text">${this._escHtml(r.text)}</span></div>`;
+            });
+            bodyHtml += `</div></div>`;
+        }
+
+        document.getElementById('reportBody').innerHTML = bodyHtml;
+        overlay.classList.add('active');
+    },
+
+    /**
+     * Generate performance-based recommendations.
+     */
+    _generateRecommendations(state, scoring, phases, flags, events) {
+        const recs = [];
+        const elapsed = Date.now() - state.startTime;
+        const elapsedMin = Math.round(elapsed / 60000);
+
+        // Too many hints
+        const hintRatio = flags.length > 0 ? state.hintsUsed.length / flags.length : 0;
+        if (hintRatio > 0.7) {
+            recs.push({ icon: '\uD83D\uDCA1', text: 'You used hints for most flags. Practice enumeration techniques to find more clues independently.' });
+        } else if (hintRatio > 0.3) {
+            recs.push({ icon: '\uD83D\uDCA1', text: 'Good hint usage. Try to reduce reliance on hints for a higher score next time.' });
+        }
+
+        // Too many wrong flags
+        if (state.wrongFlags > flags.length * 2) {
+            recs.push({ icon: '\u26A0', text: 'Many incorrect flag attempts. Read output more carefully and validate findings before submitting.' });
+        } else if (state.wrongFlags > flags.length) {
+            recs.push({ icon: '\u26A0', text: 'Several wrong flag attempts. Double-check flag format and values before submitting.' });
+        }
+
+        // Speed analysis
+        if (scoring.speedBonus && elapsed < scoring.speedBonus.threshold) {
+            recs.push({ icon: '\u26A1', text: 'Excellent speed! You earned the speed bonus. Consider trying a harder difficulty.' });
+        } else if (elapsedMin > 60) {
+            recs.push({ icon: '\u23F1', text: 'This took over an hour. Review your methodology to work more efficiently.' });
+        }
+
+        // Command count analysis
+        const cmdCount = events.filter(e => e.type === 'command').length;
+        if (cmdCount === 0) {
+            recs.push({ icon: '\uD83D\uDCBB', text: 'No terminal commands logged. The terminal is your primary attack tool — practice CLI skills.' });
+        } else if (cmdCount < 5) {
+            recs.push({ icon: '\uD83D\uDCBB', text: 'Very few commands used. Explore more tools and techniques in the terminal.' });
+        }
+
+        // Perfect score
+        if (state.hintsUsed.length === 0 && state.wrongFlags === 0) {
+            recs.push({ icon: '\uD83C\uDFC6', text: 'Perfect run — no hints, no wrong flags! Outstanding work.' });
+        }
+
+        return recs;
+    },
+
+    /**
+     * Export the completion report as markdown to clipboard.
+     */
+    _exportReportMarkdown() {
+        const s = this.state;
+        const config = this.config;
+        const scoring = config.scoring || {};
+        const phases = config.phases || [];
+        const flags = config.flags || [];
+        const events = s.events || [];
+        const elapsed = Date.now() - s.startTime;
+        const elapsedMin = Math.round(elapsed / 60000);
+
+        let md = `# ${config.title || 'CTF Box'} — Completion Report\n\n`;
+        md += `**Time:** ${elapsedMin} min | **Score:** ${s.score} | **Flags:** ${s.flagsFound.length}/${flags.length}\n\n`;
+
+        // Attack chain
+        md += `## Attack Chain\n\n`;
+        if (phases.length > 0) {
+            phases.forEach((phase, idx) => {
+                const isCompleted = (s.completedPhases || []).includes(phase.id);
+                const ts = (s.phaseTimestamps || {})[phase.id];
+                let timeStr = '--';
+                if (ts && ts.started && ts.completed) {
+                    const ms = ts.completed - ts.started;
+                    const mins = Math.floor(ms / 60000);
+                    const secs = Math.floor((ms % 60000) / 1000);
+                    timeStr = mins > 0 ? `${mins}m ${secs}s` : `${secs}s`;
+                }
+                md += `${idx + 1}. ${phase.icon || ''} ${phase.name} [${timeStr}] ${isCompleted ? '(COMPLETE)' : '(INCOMPLETE)'}\n`;
+            });
+        } else {
+            const flagEvents = events.filter(e => e.type === 'flag_correct');
+            flagEvents.forEach((fe, idx) => {
+                const elapsed = fe.elapsed ? Math.round(fe.elapsed / 1000) : 0;
+                const mins = Math.floor(elapsed / 60);
+                const secs = elapsed % 60;
+                md += `${idx + 1}. ${fe.data?.flagId || 'Flag'} [${mins}m ${secs}s]\n`;
+            });
+        }
+
+        // MITRE
+        const allMitre = [];
+        phases.forEach(p => (p.mitre || []).forEach(t => { if (!allMitre.includes(t)) allMitre.push(t); }));
+        flags.forEach(f => (f.mitre || []).forEach(t => { if (!allMitre.includes(t)) allMitre.push(t); }));
+        if (allMitre.length > 0) {
+            md += `\n## MITRE ATT&CK\n\n`;
+            allMitre.forEach(t => { md += `- ${t}\n`; });
+        }
+
+        // Score breakdown
+        md += `\n## Score Breakdown\n\n`;
+        md += `| Item | Points |\n|------|--------|\n`;
+        md += `| Base | ${scoring.base || 1000} |\n`;
+        s.flagsFound.forEach(id => {
+            const flag = flags.find(f => f.id === id);
+            if (flag) md += `| ${id}.txt | +${flag.points} |\n`;
+        });
+        if (s.hintsUsed.length) md += `| Hints (${s.hintsUsed.length}) | ${s.hintsUsed.length * (scoring.hintPenalty || -50)} |\n`;
+        if (s.wrongFlags) md += `| Wrong flags (${s.wrongFlags}) | ${s.wrongFlags * (scoring.wrongFlagPenalty || -25)} |\n`;
+        md += `| **Total** | **${s.score}** |\n`;
+
+        // Performance
+        md += `\n## Performance\n\n`;
+        md += `- Total time: ${elapsedMin} min\n`;
+        md += `- Hints used: ${s.hintsUsed.length}\n`;
+        md += `- Wrong attempts: ${s.wrongFlags}\n`;
+        md += `- Commands: ${events.filter(e => e.type === 'command').length}\n`;
+
+        // Recommendations
+        const recs = this._generateRecommendations(s, scoring, phases, flags, events);
+        if (recs.length > 0) {
+            md += `\n## Recommendations\n\n`;
+            recs.forEach(r => { md += `- ${r.text}\n`; });
+        }
+
+        md += `\n---\n*Generated by Hexworth Prime CTF Arena*\n`;
+
+        if (navigator.clipboard) {
+            navigator.clipboard.writeText(md).then(() => {
+                this.notify('Report copied to clipboard as markdown', 'success');
+            }).catch(() => {
+                this.notify('Failed to copy report', 'warning');
+            });
+        } else {
+            this.notify('Clipboard not available', 'warning');
+        }
     },
 
     // ────────────────────────────────────────────────
