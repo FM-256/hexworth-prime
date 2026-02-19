@@ -1,7 +1,7 @@
 ══════════════════════════════════════════════════════════════════════
                          EDUSCAN REPORT
                     Hexworth Prime Content Map
-                    Scanned: 2026-02-19 9:15:31 AM
+                    Scanned: 2026-02-19 12:06:04 PM
 ══════════════════════════════════════════════════════════════════════
 
 
@@ -13,7 +13,7 @@
 | Files Scanned | 1449 |
 | Directories | 467 |
 | Content Files | 1449 |
-| Scan Duration | 170ms |
+| Scan Duration | 196ms |
 
 ### Content by Type
 
@@ -29,10 +29,10 @@
 
 | Metric | Value |
 |--------|-------|
-| Total Modules | 1351 |
-| Available | 1346 |
+| Total Modules | 1352 |
+| Available | 1347 |
 | Missing Hrefs (CAT-001) | 0 |
-| Undeclared Files (CAT-002) | 1 |
+| Undeclared Files (CAT-002) | 0 |
 | Empty Hrefs (CAT-003) | 0 |
 
 
@@ -41,10 +41,10 @@
 | Severity | Count |
 |----------|-------|
 | Critical | 0 |
-| Suspect | 128 |
+| Suspect | 9 |
 | Warning | 991 |
 | Info | 224 |
-| **Total** | **1925** |
+| **Total** | **1725** |
 
 ### Sync Status
 
@@ -2853,7 +2853,7 @@
 | owasp-top10-lab | presentation | ✓ | 0 |
 | password-attacks-quiz | quiz | ✓ | 0 |
 | privilege-escalation-lab | lab | ✓ | 2 |
-| dark-arts | quiz | ✓ | 1 |
+| dark-arts | quiz | ✓ | 0 |
 | session-hijacking-lab | applet | ✓ | 1 |
 | social-engineering-advanced | applet | ✓ | 1 |
 | sql-injection-lab | presentation | ✓ | 0 |
@@ -2970,210 +2970,14 @@
 ## ISSUES DETECTED
 ══════════════════════════════════════════════════════════════════════
 
-### SUSPECT (128) — heuristic, needs review
+### SUSPECT (9) — heuristic, needs review
 
 **[HEUR-004]** console.log() in inline script (production hygiene)
   File: `admin/audit-tool.html`
   Fix: Remove console.log or replace with proper logging
 
 **[HEUR-004]** console.log() in inline script (production hygiene)
-  File: `dark-arts/ctf-leaderboard.applet.html`
-  Fix: Remove console.log or replace with proper logging
-
-**[HEUR-004]** console.log() in inline script (production hygiene)
-  File: `dark-arts/gate-1.html`
-  Fix: Remove console.log or replace with proper logging
-
-**[HEUR-004]** console.log() in inline script (production hygiene)
-  File: `dark-arts/gates/gate-2.html`
-  Fix: Remove console.log or replace with proper logging
-
-**[HEUR-004]** console.log() in inline script (production hygiene)
-  File: `dark-arts/gates/gate-3.html`
-  Fix: Remove console.log or replace with proper logging
-
-**[HEUR-004]** console.log() in inline script (production hygiene)
-  File: `dark-arts/gates/gate-4.html`
-  Fix: Remove console.log or replace with proper logging
-
-**[HEUR-004]** console.log() in inline script (production hygiene)
-  File: `dark-arts/gates/gate-5.html`
-  Fix: Remove console.log or replace with proper logging
-
-**[HEUR-004]** console.log() in inline script (production hygiene)
-  File: `dark-arts/vault/csrf-attack-lab.html`
-  Fix: Remove console.log or replace with proper logging
-
-**[HEUR-004]** console.log() in inline script (production hygiene)
-  File: `dark-arts/vault/dos-ddos-lab.html`
-  Fix: Remove console.log or replace with proper logging
-
-**[HEUR-004]** console.log() in inline script (production hygiene)
-  File: `dark-arts/vault/footprinting-lab.html`
-  Fix: Remove console.log or replace with proper logging
-
-**[HEUR-004]** console.log() in inline script (production hygiene)
-  File: `dark-arts/vault/gates/gate-10.html`
-  Fix: Remove console.log or replace with proper logging
-
-**[HEUR-004]** console.log() in inline script (production hygiene)
-  File: `dark-arts/vault/gates/gate-6.html`
-  Fix: Remove console.log or replace with proper logging
-
-**[HEUR-004]** console.log() in inline script (production hygiene)
-  File: `dark-arts/vault/gates/gate-7.html`
-  Fix: Remove console.log or replace with proper logging
-
-**[HEUR-004]** console.log() in inline script (production hygiene)
-  File: `dark-arts/vault/gates/gate-8/phone.html`
-  Fix: Remove console.log or replace with proper logging
-
-**[HEUR-004]** console.log() in inline script (production hygiene)
-  File: `dark-arts/vault/gates/gate-8.html`
-  Fix: Remove console.log or replace with proper logging
-
-**[HEUR-004]** console.log() in inline script (production hygiene)
-  File: `dark-arts/vault/gates/gate-9.html`
-  Fix: Remove console.log or replace with proper logging
-
-**[HEUR-004]** console.log() in inline script (production hygiene)
-  File: `dark-arts/vault/idor-attack-lab.html`
-  Fix: Remove console.log or replace with proper logging
-
-**[HEUR-004]** console.log() in inline script (production hygiene)
-  File: `dark-arts/vault/ids-evasion-lab.html`
-  Fix: Remove console.log or replace with proper logging
-
-**[HEUR-004]** console.log() in inline script (production hygiene)
-  File: `dark-arts/vault/index.html`
-  Fix: Remove console.log or replace with proper logging
-
-**[HEUR-004]** console.log() in inline script (production hygiene)
-  File: `dark-arts/vault/jwt-attack-lab.html`
-  Fix: Remove console.log or replace with proper logging
-
-**[HEUR-004]** console.log() in inline script (production hygiene)
-  File: `dark-arts/vault/malware-analysis-lab.html`
-  Fix: Remove console.log or replace with proper logging
-
-**[HEUR-004]** console.log() in inline script (production hygiene)
-  File: `dark-arts/vault/modules/behavioral-analysis.module.html`
-  Fix: Remove console.log or replace with proper logging
-
-**[HEUR-004]** console.log() in inline script (production hygiene)
-  File: `dark-arts/vault/modules/incident-response.module.html`
-  Fix: Remove console.log or replace with proper logging
-
-**[HEUR-004]** console.log() in inline script (production hygiene)
-  File: `dark-arts/vault/nmap-scanning-lab.html`
-  Fix: Remove console.log or replace with proper logging
-
-**[HEUR-005]** Duplicate script include: "https://cdn.example.com/lib.js" loaded 2 times (lines 1775, 1810)
   File: `dark-arts/vault/owasp-top10-lab.html`
-  Fix: Remove duplicate <script src="https://cdn.example.com/lib.js"> tag
-
-**[HEUR-004]** console.log() in inline script (production hygiene)
-  File: `dark-arts/vault/quizzes/dark-arts-quiz.html`
-  Fix: Remove console.log or replace with proper logging
-
-**[HEUR-004]** console.log() in inline script (production hygiene)
-  File: `dark-arts/vault/xss-attacks-lab.html`
-  Fix: Remove console.log or replace with proper logging
-
-**[HEUR-004]** console.log() in inline script (production hygiene)
-  File: `dashboard.html`
-  Fix: Remove console.log or replace with proper logging
-
-**[HEUR-004]** console.log() in inline script (production hygiene)
-  File: `games.html`
-  Fix: Remove console.log or replace with proper logging
-
-**[HEUR-004]** console.log() in inline script (production hygiene)
-  File: `handler-dashboard.html`
-  Fix: Remove console.log or replace with proper logging
-
-**[HEUR-004]** console.log() in inline script (production hygiene)
-  File: `houses/cloud/modules/wsa/m02-active-directory/cloud-guilab.module.html`
-  Fix: Remove console.log or replace with proper logging
-
-**[HEUR-004]** console.log() in inline script (production hygiene)
-  File: `houses/cloud/modules/wsa/m03-storage/cloud-guilab.module.html`
-  Fix: Remove console.log or replace with proper logging
-
-**[HEUR-004]** console.log() in inline script (production hygiene)
-  File: `houses/cloud/modules/wsa/m03-storage/cloud-pslab.module.html`
-  Fix: Remove console.log or replace with proper logging
-
-**[HEUR-004]** console.log() in inline script (production hygiene)
-  File: `houses/cloud/modules/wsa/m04-hyperv/cloud-guilab.module.html`
-  Fix: Remove console.log or replace with proper logging
-
-**[HEUR-004]** console.log() in inline script (production hygiene)
-  File: `houses/cloud/modules/wsa/m08-dns/cloud-pslab.module.html`
-  Fix: Remove console.log or replace with proper logging
-
-**[HEUR-004]** console.log() in inline script (production hygiene)
-  File: `houses/cloud/modules/wsa/m09-dhcp/cloud-pslab.module.html`
-  Fix: Remove console.log or replace with proper logging
-
-**[HEUR-004]** console.log() in inline script (production hygiene)
-  File: `houses/cloud/modules/wsa/m10-group-policy/cloud-pslab.module.html`
-  Fix: Remove console.log or replace with proper logging
-
-**[HEUR-004]** console.log() in inline script (production hygiene)
-  File: `houses/cloud/modules/wsa/m11-iis/cloud-pslab.module.html`
-  Fix: Remove console.log or replace with proper logging
-
-**[HEUR-004]** console.log() in inline script (production hygiene)
-  File: `houses/cloud/modules/wsa/m12-remote-desktop/cloud-pslab.module.html`
-  Fix: Remove console.log or replace with proper logging
-
-**[HEUR-004]** console.log() in inline script (production hygiene)
-  File: `houses/cloud/modules/wsa/m13-certificate-services/cloud-pslab.module.html`
-  Fix: Remove console.log or replace with proper logging
-
-**[HEUR-004]** console.log() in inline script (production hygiene)
-  File: `houses/cloud/modules/wsa/m14-advanced-networking/cloud-pslab.module.html`
-  Fix: Remove console.log or replace with proper logging
-
-**[HEUR-004]** console.log() in inline script (production hygiene)
-  File: `houses/cloud/modules/wsa/m15-ad-sites/cloud-pslab.module.html`
-  Fix: Remove console.log or replace with proper logging
-
-**[HEUR-004]** console.log() in inline script (production hygiene)
-  File: `houses/cloud/modules/wsa/m16-backup-recovery/cloud-pslab.module.html`
-  Fix: Remove console.log or replace with proper logging
-
-**[HEUR-004]** console.log() in inline script (production hygiene)
-  File: `houses/cloud/modules/wsa/m17-firewall-security/cloud-pslab.module.html`
-  Fix: Remove console.log or replace with proper logging
-
-**[HEUR-004]** console.log() in inline script (production hygiene)
-  File: `houses/cloud/modules/wsa/reviews/wsa-review.html`
-  Fix: Remove console.log or replace with proper logging
-
-**[HEUR-004]** console.log() in inline script (production hygiene)
-  File: `houses/cloud/presentations/cloud-concepts.presentation.html`
-  Fix: Remove console.log or replace with proper logging
-
-**[HEUR-005]** Duplicate script include: "../../../components/ModuleProgress.js" loaded 2 times (lines 12, 699)
-  File: `houses/cloud/quizzes/cloud-ch01-cloud-fundamentals.quiz.html`
-  Fix: Remove duplicate <script src="../../../components/ModuleProgress.js"> tag
-
-**[HEUR-005]** Duplicate script include: "../../../components/FluxCapacitor.js" loaded 2 times (lines 445, 911)
-  File: `houses/cloud/quizzes/cloud-cse-module02.quiz.html`
-  Fix: Remove duplicate <script src="../../../components/FluxCapacitor.js"> tag
-
-**[HEUR-005]** Duplicate script include: "../../../components/FluxCapacitor.js" loaded 2 times (lines 97, 178)
-  File: `houses/cloud/quizzes/cloud-cse-module03.quiz.html`
-  Fix: Remove duplicate <script src="../../../components/FluxCapacitor.js"> tag
-
-**[HEUR-004]** console.log() in inline script (production hygiene)
-  File: `houses/cloud/tools/cloud-ch01-cloud-models.tool.html`
-  Fix: Remove console.log or replace with proper logging
-
-**[HEUR-004]** console.log() in inline script (production hygiene)
-  File: `houses/code/applets/code-data-format-converter.applet.html`
   Fix: Remove console.log or replace with proper logging
 
 **[HEUR-003]** TODO marker in script: print("a3f8c2b (You           Fri 4:54 PM) // TODO: Add auth
@@ -3184,305 +2988,25 @@
   File: `houses/code/games/git-bisect.html`
   Fix: Resolve or remove TODO comment
 
-**[HEUR-005]** Duplicate script include: "../../../components/FluxCapacitor.js" loaded 2 times (lines 581, 785)
-  File: `houses/code/labs/code-docker.lab.html`
-  Fix: Remove duplicate <script src="../../../components/FluxCapacitor.js"> tag
-
-**[HEUR-004]** console.log() in inline script (production hygiene)
-  File: `houses/code/tools/code-api.tool.html`
-  Fix: Remove console.log or replace with proper logging
-
-**[HEUR-004]** console.log() in inline script (production hygiene)
-  File: `houses/dark-arts/index.html`
-  Fix: Remove console.log or replace with proper logging
-
-**[HEUR-004]** console.log() in inline script (production hygiene)
-  File: `houses/dark-arts/presentations/dark-arts-feh-01.presentation.html`
-  Fix: Remove console.log or replace with proper logging
-
-**[HEUR-004]** console.log() in inline script (production hygiene)
-  File: `houses/dark-arts/presentations/dark-arts-feh-02.presentation.html`
-  Fix: Remove console.log or replace with proper logging
-
-**[HEUR-004]** console.log() in inline script (production hygiene)
-  File: `houses/eye/applets/cyberops/eye-firewall-data.applet.html`
-  Fix: Remove console.log or replace with proper logging
-
-**[HEUR-004]** console.log() in inline script (production hygiene)
-  File: `houses/eye/labs/eye-correlation.lab.html`
-  Fix: Remove console.log or replace with proper logging
-
 **[HEUR-003]** TODO marker in script: continueBtn.href = '#'; // TODO: Certificate page
   File: `houses/eye/modules/cyberops/index.html`
   Fix: Resolve or remove TODO comment
-
-**[HEUR-005]** Duplicate script include: "../../../components/ModuleProgress.js" loaded 2 times (lines 776, 928)
-  File: `houses/eye/quizzes/eye-hunting.quiz.html`
-  Fix: Remove duplicate <script src="../../../components/ModuleProgress.js"> tag
-
-**[HEUR-004]** console.log() in inline script (production hygiene)
-  File: `houses/eye/reviews/cyberops-review.html`
-  Fix: Remove console.log or replace with proper logging
-
-**[HEUR-004]** console.log() in inline script (production hygiene)
-  File: `houses/eye/tools/eye-correlation.tool.html`
-  Fix: Remove console.log or replace with proper logging
-
-**[HEUR-004]** console.log() in inline script (production hygiene)
-  File: `houses/eye/tools/eye-packet.tool.html`
-  Fix: Remove console.log or replace with proper logging
-
-**[HEUR-004]** console.log() in inline script (production hygiene)
-  File: `houses/forge/applets/comptia-aplus/core-1/chapters/ch06-tcpip/index.html`
-  Fix: Remove console.log or replace with proper logging
-
-**[HEUR-004]** console.log() in inline script (production hygiene)
-  File: `houses/forge/applets/comptia-aplus/core-1/chapters/ch08-cloud/index.html`
-  Fix: Remove console.log or replace with proper logging
-
-**[HEUR-004]** console.log() in inline script (production hygiene)
-  File: `houses/forge/applets/comptia-aplus/core-1/chapters/ch09-laptops/index.html`
-  Fix: Remove console.log or replace with proper logging
-
-**[HEUR-004]** console.log() in inline script (production hygiene)
-  File: `houses/forge/applets/comptia-aplus/core-1/chapters/ch10-mobile/index.html`
-  Fix: Remove console.log or replace with proper logging
-
-**[HEUR-004]** console.log() in inline script (production hygiene)
-  File: `houses/forge/applets/comptia-aplus/core-1/chapters/ch11-troubleshooting/index.html`
-  Fix: Remove console.log or replace with proper logging
-
-**[HEUR-004]** console.log() in inline script (production hygiene)
-  File: `houses/forge/applets/comptia-aplus/core-1/chapters/ch12-hw-network-troubleshooting/index.html`
-  Fix: Remove console.log or replace with proper logging
-
-**[HEUR-004]** console.log() in inline script (production hygiene)
-  File: `houses/forge/applets/comptia-aplus/core-1/labs/forge-cloud-scenarios.lab.html`
-  Fix: Remove console.log or replace with proper logging
-
-**[HEUR-004]** console.log() in inline script (production hygiene)
-  File: `houses/forge/applets/comptia-aplus/core-1/labs/forge-dns-config.lab.html`
-  Fix: Remove console.log or replace with proper logging
-
-**[HEUR-004]** console.log() in inline script (production hygiene)
-  File: `houses/forge/applets/comptia-aplus/core-1/labs/forge-hardware-diagnosis.lab.html`
-  Fix: Remove console.log or replace with proper logging
-
-**[HEUR-004]** console.log() in inline script (production hygiene)
-  File: `houses/forge/applets/comptia-aplus/core-1/labs/forge-mdm-config.lab.html`
-  Fix: Remove console.log or replace with proper logging
-
-**[HEUR-004]** console.log() in inline script (production hygiene)
-  File: `houses/forge/applets/comptia-aplus/core-1/labs/forge-mobile-email.lab.html`
-  Fix: Remove console.log or replace with proper logging
-
-**[HEUR-004]** console.log() in inline script (production hygiene)
-  File: `houses/forge/applets/comptia-aplus/core-1/labs/forge-network-config.lab.html`
-  Fix: Remove console.log or replace with proper logging
-
-**[HEUR-004]** console.log() in inline script (production hygiene)
-  File: `houses/forge/applets/comptia-aplus/core-1/labs/forge-protocol-analysis.lab.html`
-  Fix: Remove console.log or replace with proper logging
-
-**[HEUR-004]** console.log() in inline script (production hygiene)
-  File: `houses/forge/applets/comptia-aplus/core-1/labs/forge-soho-designer.lab.html`
-  Fix: Remove console.log or replace with proper logging
-
-**[HEUR-004]** console.log() in inline script (production hygiene)
-  File: `houses/forge/applets/comptia-aplus/core-1/labs/forge-troubleshooting-flowchart.lab.html`
-  Fix: Remove console.log or replace with proper logging
-
-**[HEUR-004]** console.log() in inline script (production hygiene)
-  File: `houses/forge/applets/comptia-aplus/core-2/labs/forge-admin-tools.lab.html`
-  Fix: Remove console.log or replace with proper logging
-
-**[HEUR-004]** console.log() in inline script (production hygiene)
-  File: `houses/forge/applets/comptia-aplus/core-2/presentations/forge-macos-linux-basics.presentation.html`
-  Fix: Remove console.log or replace with proper logging
-
-**[HEUR-004]** console.log() in inline script (production hygiene)
-  File: `houses/forge/applets/comptia-aplus/core-2/presentations/forge-windows-editions.presentation.html`
-  Fix: Remove console.log or replace with proper logging
-
-**[HEUR-004]** console.log() in inline script (production hygiene)
-  File: `houses/forge/presentations/forge-macos-linux-basics.presentation.html`
-  Fix: Remove console.log or replace with proper logging
-
-**[HEUR-004]** console.log() in inline script (production hygiene)
-  File: `houses/forge/presentations/forge-windows-editions.presentation.html`
-  Fix: Remove console.log or replace with proper logging
-
-**[HEUR-004]** console.log() in inline script (production hygiene)
-  File: `houses/forge/reviews/aplus-core1-review.html`
-  Fix: Remove console.log or replace with proper logging
-
-**[HEUR-004]** console.log() in inline script (production hygiene)
-  File: `houses/forge/reviews/aplus-core2-review.html`
-  Fix: Remove console.log or replace with proper logging
-
-**[HEUR-004]** console.log() in inline script (production hygiene)
-  File: `houses/key/labs/key-ecc.lab.html`
-  Fix: Remove console.log or replace with proper logging
-
-**[HEUR-004]** console.log() in inline script (production hygiene)
-  File: `houses/key/presentations/key-certificates.presentation.html`
-  Fix: Remove console.log or replace with proper logging
-
-**[HEUR-004]** console.log() in inline script (production hygiene)
-  File: `houses/key/presentations/key-elliptic-curve.presentation.html`
-  Fix: Remove console.log or replace with proper logging
-
-**[HEUR-004]** console.log() in inline script (production hygiene)
-  File: `houses/key/quizzes/key-ecc.quiz.html`
-  Fix: Remove console.log or replace with proper logging
-
-**[HEUR-004]** console.log() in inline script (production hygiene)
-  File: `houses/key/tools/key-cert.tool.html`
-  Fix: Remove console.log or replace with proper logging
-
-**[HEUR-004]** console.log() in inline script (production hygiene)
-  File: `houses/key/tools/key-ecc.tool.html`
-  Fix: Remove console.log or replace with proper logging
-
-**[HEUR-004]** console.log() in inline script (production hygiene)
-  File: `houses/script/applets/linux/script-bash-scripting-playground.applet.html`
-  Fix: Remove console.log or replace with proper logging
-
-**[HEUR-004]** console.log() in inline script (production hygiene)
-  File: `houses/script/applets/linux/script-clh-031-blackout.applet.html`
-  Fix: Remove console.log or replace with proper logging
-
-**[HEUR-004]** console.log() in inline script (production hygiene)
-  File: `houses/script/applets/powershell/script-windows-troubleshooting.applet.html`
-  Fix: Remove console.log or replace with proper logging
-
-**[HEUR-005]** Duplicate script include: "../../../components/FluxCapacitor.js" loaded 2 times (lines 249, 337)
-  File: `houses/script/clh/script-clh-012-intro.applet.html`
-  Fix: Remove duplicate <script src="../../../components/FluxCapacitor.js"> tag
-
-**[HEUR-005]** Duplicate script include: "../../../../../../components/FluxCapacitor.js" loaded 2 times (lines 249, 337)
-  File: `houses/script/courses/clh/modules/clh-012/script-intro.module.html`
-  Fix: Remove duplicate <script src="../../../../../../components/FluxCapacitor.js"> tag
-
-**[HEUR-004]** console.log() in inline script (production hygiene)
-  File: `houses/script/courses/clh/modules/clh-031/script-lab.lab.html`
-  Fix: Remove console.log or replace with proper logging
-
-**[HEUR-004]** console.log() in inline script (production hygiene)
-  File: `houses/script/courses/grep-pipe-mastery/script-blacksite-demo.applet.html`
-  Fix: Remove console.log or replace with proper logging
 
 **[HEUR-003]** TODO marker in script: continueBtn.href = '#'; // TODO: Certificate page
   File: `houses/script/modules/python/index.html`
   Fix: Resolve or remove TODO comment
 
-**[HEUR-004]** console.log() in inline script (production hygiene)
-  File: `houses/script/presentations/script-macos-linux-basics.presentation.html`
-  Fix: Remove console.log or replace with proper logging
-
-**[HEUR-004]** console.log() in inline script (production hygiene)
-  File: `houses/script/presentations/script-scripting-basics.presentation.html`
-  Fix: Remove console.log or replace with proper logging
-
-**[HEUR-004]** console.log() in inline script (production hygiene)
-  File: `houses/script/quizzes/script-linux-basics.quiz.html`
-  Fix: Remove console.log or replace with proper logging
-
-**[HEUR-004]** console.log() in inline script (production hygiene)
-  File: `houses/script/reviews/linux-cli-review.html`
-  Fix: Remove console.log or replace with proper logging
-
-**[HEUR-004]** console.log() in inline script (production hygiene)
-  File: `houses/script/tools/script-log-management.tool.html`
-  Fix: Remove console.log or replace with proper logging
-
-**[HEUR-004]** console.log() in inline script (production hygiene)
-  File: `houses/shield/applets/fundamentals/shield-security-governance-dashboard.applet.html`
-  Fix: Remove console.log or replace with proper logging
-
-**[HEUR-004]** console.log() in inline script (production hygiene)
-  File: `houses/shield/presentations/shield-cia-triad.presentation.html`
-  Fix: Remove console.log or replace with proper logging
-
-**[HEUR-004]** console.log() in inline script (production hygiene)
-  File: `houses/shield/presentations/shield-security.presentation.html`
-  Fix: Remove console.log or replace with proper logging
-
-**[HEUR-004]** console.log() in inline script (production hygiene)
-  File: `houses/shield/presentations/shield-social-engineering.presentation.html`
-  Fix: Remove console.log or replace with proper logging
-
-**[HEUR-004]** console.log() in inline script (production hygiene)
-  File: `houses/shield/quizzes/shield-cia-triad.quiz.html`
-  Fix: Remove console.log or replace with proper logging
-
 **[HEUR-001]** Excessive inline scripts: 15 <script> blocks without src (threshold: 8)
   File: `houses/web/quizzes/web-networking-ch7-20.quiz.html`
   Fix: Consider extracting inline scripts to external .js files
-
-**[HEUR-004]** console.log() in inline script (production hygiene)
-  File: `houses/web/quizzes/web-osi.quiz.html`
-  Fix: Remove console.log or replace with proper logging
-
-**[HEUR-004]** console.log() in inline script (production hygiene)
-  File: `houses/web/simulators/web-interactive-network-simulatorv2.simulator.html`
-  Fix: Remove console.log or replace with proper logging
-
-**[HEUR-005]** Duplicate script include: "../../../components/FluxCapacitor.js" loaded 2 times (lines 11051, 11087)
-  File: `houses/web/simulators/web-interactive-network-simulatorv2.simulator.html`
-  Fix: Remove duplicate <script src="../../../components/FluxCapacitor.js"> tag
-
-**[HEUR-004]** console.log() in inline script (production hygiene)
-  File: `houses/web/simulators/web-packet-tracer-lite-v3.simulator.html`
-  Fix: Remove console.log or replace with proper logging
 
 **[HEUR-001]** Excessive inline scripts: 15 <script> blocks without src (threshold: 8)
   File: `houses/web/textbook/web-networking-textbook-ch7-20.textbook.html`
   Fix: Consider extracting inline scripts to external .js files
 
-**[HEUR-004]** console.log() in inline script (production hygiene)
-  File: `index.html`
-  Fix: Remove console.log or replace with proper logging
-
-**[HEUR-004]** console.log() in inline script (production hygiene)
-  File: `oasis/challenge.html`
-  Fix: Remove console.log or replace with proper logging
-
-**[HEUR-004]** console.log() in inline script (production hygiene)
-  File: `oasis/index.html`
-  Fix: Remove console.log or replace with proper logging
-
-**[HEUR-004]** console.log() in inline script (production hygiene)
-  File: `path-view.html`
-  Fix: Remove console.log or replace with proper logging
-
-**[HEUR-004]** console.log() in inline script (production hygiene)
-  File: `sorting.html`
-  Fix: Remove console.log or replace with proper logging
-
-**[HEUR-004]** console.log() in inline script (production hygiene)
-  File: `templates/quiz-template.html`
-  Fix: Remove console.log or replace with proper logging
-
-**[HEUR-004]** console.log() in inline script (production hygiene)
-  File: `terminal.html`
-  Fix: Remove console.log or replace with proper logging
-
 **[HEUR-001]** Excessive inline scripts: 34 <script> blocks without src (threshold: 8)
   File: `test-digital-life-debug.html`
   Fix: Consider extracting inline scripts to external .js files
-
-**[HEUR-004]** console.log() in inline script (production hygiene)
-  File: `test-digital-life-debug.html`
-  Fix: Remove console.log or replace with proper logging
-
-**[HEUR-004]** console.log() in inline script (production hygiene)
-  File: `test-digital-life.html`
-  Fix: Remove console.log or replace with proper logging
-
-**[HEUR-004]** console.log() in inline script (production hygiene)
-  File: `test-rare-only.html`
-  Fix: Remove console.log or replace with proper logging
 
 ### WARNING (991)
 
