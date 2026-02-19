@@ -1872,8 +1872,9 @@
         </div>
         <div class="p-section"><h4>Volumes</h4>
             ${state.storage.volumes.length === 0 ? '<p class="p-empty">No volumes</p>' : `
-            <table class="p-table"><tr><th>Drive</th><th>Label</th><th>FS</th><th>Size</th><th>Disk</th></tr>
-            ${state.storage.volumes.map(v=>`<tr><td>${v.letter}:</td><td>${v.label||''}</td><td>${v.fs}</td><td>${v.size} GB</td><td>Disk ${v.disk}</td></tr>`).join('')}
+            <table class="p-table"><tr><th>Drive</th><th>Label</th><th>FS</th><th>Size</th><th>Disk</th><th>Actions</th></tr>
+            ${state.storage.volumes.map((v,i)=>`<tr><td>${v.letter}:</td><td>${v.label||''}</td><td>${v.fs}</td><td>${v.size} GB</td><td>Disk ${v.disk}</td>
+                <td><button class="p-btn" onclick="showEditVolume(${i})">Properties</button></td></tr>`).join('')}
             </table>`}
         </div>
         <div class="p-section"><h4>Network Shares</h4>
@@ -1934,6 +1935,24 @@
             state.storage.volumes.push({disk, letter, fs, size, label});
             hideModal(); applyAndCheck(); notify('Volume '+letter+': created.');
         }
+    }
+
+    function showEditVolume(idx) {
+        const v = state.storage.volumes[idx];
+        if (!v) return;
+        showModal(`<h3>Volume Properties — ${v.letter}:</h3>
+            <div class="p-form-group"><label>Volume Label</label>
+                <input type="text" id="editVolLabel" value="${v.label||''}" placeholder="e.g. UserData"></div>
+            <div class="g-modal-actions">
+                <button class="p-btn" onclick="hideModal()">Cancel</button>
+                <button class="p-btn primary" onclick="editVolume(${idx})">Apply</button>
+            </div>`);
+    }
+    function editVolume(idx) {
+        const v = state.storage.volumes[idx];
+        if (!v) return;
+        v.label = document.getElementById('editVolLabel').value.trim();
+        hideModal(); applyAndCheck(); renderCurrentTool(); notify('Volume '+v.letter+': label updated.');
     }
 
     function renderSharesConsole() {
@@ -2470,7 +2489,10 @@
             <table class="p-table"><tr><th>Name</th><th>Range</th><th>Mask</th><th>Status</th><th>Actions</th></tr>
             ${state.dhcp.scopes.map(s=>`<tr><td>${s.name}</td><td>${s.start} - ${s.end}</td><td>${s.mask||'N/A'}</td>
                 <td><span class="p-badge ${s.active?'green':'yellow'}">${s.active?'Active':'Inactive'}</span></td>
-                <td>${!s.active?`<button class="p-btn success" onclick="activateScope('${s.name}')">Activate</button>`:''}</td></tr>`).join('')}
+                <td><div class="p-inline-actions">
+                    <button class="p-btn" onclick="showEditScope('${s.name}')">Properties</button>
+                    ${!s.active?`<button class="p-btn success" onclick="activateScope('${s.name}')">Activate</button>`:''}
+                </div></td></tr>`).join('')}
             </table>`}
         </div>
         <div class="p-section"><h4>Scope Options</h4>
@@ -2512,6 +2534,29 @@
     function activateScope(name) {
         const s = state.dhcp.scopes.find(s=>s.name===name);
         if (s) { s.active = true; applyAndCheck(); notify(name+' activated.'); }
+    }
+
+    function showEditScope(name) {
+        const s = state.dhcp.scopes.find(s=>s.name===name);
+        if (!s) return;
+        showModal(`<h3>Scope Properties — ${s.name}</h3>
+            <div class="p-form-row">
+                <div class="p-form-group"><label>Start IP</label><input type="text" id="editScopeStart" value="${s.start||''}"></div>
+                <div class="p-form-group"><label>End IP</label><input type="text" id="editScopeEnd" value="${s.end||''}"></div>
+            </div>
+            <div class="p-form-group"><label>Subnet Mask</label><input type="text" id="editScopeMask" value="${s.mask||''}" placeholder="255.255.255.0"></div>
+            <div class="g-modal-actions">
+                <button class="p-btn" onclick="hideModal()">Cancel</button>
+                <button class="p-btn primary" onclick="editScope('${name}')">Apply</button>
+            </div>`);
+    }
+    function editScope(name) {
+        const s = state.dhcp.scopes.find(s=>s.name===name);
+        if (!s) return;
+        s.start = document.getElementById('editScopeStart').value.trim();
+        s.end = document.getElementById('editScopeEnd').value.trim();
+        s.mask = document.getElementById('editScopeMask').value.trim();
+        hideModal(); applyAndCheck(); renderCurrentTool(); notify('Scope "'+name+'" updated.');
     }
 
     function showScopeOptions() {
@@ -2612,13 +2657,14 @@
         if (gpo && ou) { state.gpo.links.push({gpo,ou}); hideModal(); applyAndCheck(); notify(gpo+' linked to '+ou+'.'); }
     }
 
-    function showEditGPO() {
+    function showEditGPO(gpoName) {
         if (state.gpo.gpos.length===0) { notify('Create a GPO first.'); return; }
-        const gpo = state.gpo.gpos[0];
+        const gpo = gpoName ? state.gpo.gpos.find(g=>g.name===gpoName) : state.gpo.gpos[0];
+        if (!gpo) return;
         const settings = gpo.settings || {};
         showModal(`<h3>Edit GPO Settings</h3>
             <div class="p-form-group"><label>GPO</label>
-                <select id="editGpoName">${state.gpo.gpos.map(g=>`<option value="${g.name}">${g.name}</option>`).join('')}</select></div>
+                <select id="editGpoName" onchange="showEditGPO(this.value)">${state.gpo.gpos.map(g=>`<option value="${g.name}" ${g.name===gpo.name?'selected':''}>${g.name}</option>`).join('')}</select></div>
             <h4 style="color:#f59e0b;font-size:0.85rem;margin:12px 0 8px">Password Policy</h4>
             <div class="p-form-row">
                 <div class="p-form-group"><label>Min Password Length</label>
@@ -2641,7 +2687,7 @@
         const minPw = parseInt(document.getElementById('gpoMinPw').value);
         const maxAge = parseInt(document.getElementById('gpoMaxAge').value);
         const lockout = parseInt(document.getElementById('gpoLockout').value);
-        gpo.settings = {};
+        if (!gpo.settings) gpo.settings = {};
         if (minPw > 0) gpo.settings.minPasswordLength = minPw;
         if (maxAge > 0) gpo.settings.maxPasswordAge = maxAge;
         if (lockout > 0) gpo.settings.lockoutThreshold = lockout;
@@ -2693,7 +2739,10 @@
             <table class="p-table"><tr><th>Name</th><th>Path</th><th>App Pool</th><th>Auth</th><th>Actions</th></tr>
             ${state.iis.sites.map(s=>`<tr><td>${s.name}</td><td>${s.path||'N/A'}</td><td>${s.appPool||'DefaultAppPool'}</td>
                 <td>${s.auth?`Win:${s.auth.windows?'✓':'✗'} Anon:${s.auth.anonymous?'✓':'✗'}`:''}</td>
-                <td>${state.iis.appPools.length>0?`<button class="p-btn" onclick="showAssignPool('${s.name}')">Assign Pool</button>`:''}</td></tr>`).join('')}
+                <td><div class="p-inline-actions">
+                    <button class="p-btn" onclick="showEditSite('${s.name}')">Properties</button>
+                    ${state.iis.appPools.length>0?`<button class="p-btn" onclick="showAssignPool('${s.name}')">Assign Pool</button>`:''}
+                </div></td></tr>`).join('')}
             </table>`}
         </div>
         <div class="p-section"><h4>Application Pools</h4>
@@ -2727,6 +2776,30 @@
         const p = document.getElementById('iisSPath').value.trim();
         const pool = document.getElementById('iisSPool').value;
         if (n) { state.iis.sites.push({name:n,path:p,appPool:pool||'DefaultAppPool',auth:{windows:false,anonymous:true}}); hideModal(); applyAndCheck(); notify('Site "'+n+'" created.'); }
+    }
+
+    function showEditSite(siteName) {
+        const site = state.iis.sites.find(s=>s.name===siteName);
+        if (!site) return;
+        showModal(`<h3>Site Properties — ${siteName}</h3>
+            <div class="p-form-group"><label>Physical Path</label>
+                <input type="text" id="editSitePath" value="${site.path||''}" placeholder="E:\\WebSites\\Intranet"></div>
+            <div class="p-form-group"><label>Application Pool</label>
+                <select id="editSitePool">
+                    <option value="${site.appPool||'DefaultAppPool'}">${site.appPool||'DefaultAppPool'} (current)</option>
+                    ${state.iis.appPools.filter(p=>p.name!==(site.appPool||'DefaultAppPool')).map(p=>`<option value="${p.name}">${p.name}</option>`).join('')}
+                </select></div>
+            <div class="g-modal-actions">
+                <button class="p-btn" onclick="hideModal()">Cancel</button>
+                <button class="p-btn primary" onclick="editSite('${siteName}')">Apply</button>
+            </div>`);
+    }
+    function editSite(siteName) {
+        const site = state.iis.sites.find(s=>s.name===siteName);
+        if (!site) return;
+        site.path = document.getElementById('editSitePath').value.trim();
+        site.appPool = document.getElementById('editSitePool').value;
+        hideModal(); applyAndCheck(); renderCurrentTool(); notify('Site "'+siteName+'" updated.');
     }
 
     function showCreateAppPool() {
@@ -2775,20 +2848,21 @@
         hideModal(); applyAndCheck(); notify('Binding added.');
     }
 
-    function showConfigAuth() {
+    function showConfigAuth(siteName) {
         if (state.iis.sites.length===0) { notify('Create a site first.'); return; }
-        const site = state.iis.sites[0];
+        const site = siteName ? state.iis.sites.find(s=>s.name===siteName) : state.iis.sites[0];
+        if (!site) return;
         showModal(`<h3>Configure Authentication</h3>
             <div class="p-form-group"><label>Site</label>
-                <select id="iisAuthSite" onchange="updateAuthModal()">${state.iis.sites.map(s=>`<option value="${s.name}">${s.name}</option>`).join('')}</select></div>
+                <select id="iisAuthSite" onchange="showConfigAuth(this.value)">${state.iis.sites.map(s=>`<option value="${s.name}" ${s.name===site.name?'selected':''}>${s.name}</option>`).join('')}</select></div>
             <div class="p-checkbox-row">
                 <input type="checkbox" id="iisAuthWin" ${site.auth&&site.auth.windows?'checked':''}>
                 <label for="iisAuthWin">Windows Authentication</label></div>
             <div class="p-checkbox-row">
-                <input type="checkbox" id="iisAuthAnon" ${site.auth&&site.auth.anonymous?'checked':''}  >
+                <input type="checkbox" id="iisAuthAnon" ${site.auth&&site.auth.anonymous?'checked':''}>
                 <label for="iisAuthAnon">Anonymous Authentication</label></div>
             <div class="p-checkbox-row">
-                <input type="checkbox" id="iisAuthBasic">
+                <input type="checkbox" id="iisAuthBasic" ${site.auth&&site.auth.basic?'checked':''}>
                 <label for="iisAuthBasic">Basic Authentication</label></div>
             <div class="g-modal-actions">
                 <button class="p-btn" onclick="hideModal()">Cancel</button>

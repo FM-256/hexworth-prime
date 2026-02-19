@@ -2028,8 +2028,9 @@
         </div>
         <div class="p-section"><h4>Volumes</h4>
             ${s.storage.volumes.length===0?'<p class="p-empty">No volumes</p>':`
-            <table class="p-table"><tr><th>Drive</th><th>Label</th><th>FS</th><th>Size</th><th>Disk</th></tr>
-            ${s.storage.volumes.map(v=>`<tr><td>${v.letter}:</td><td>${v.label||''}</td><td>${v.fs}</td><td>${v.size} GB</td><td>Disk ${v.disk}</td></tr>`).join('')}
+            <table class="p-table"><tr><th>Drive</th><th>Label</th><th>FS</th><th>Size</th><th>Disk</th><th>Actions</th></tr>
+            ${s.storage.volumes.map((v,i)=>`<tr><td>${v.letter}:</td><td>${v.label||''}</td><td>${v.fs}</td><td>${v.size} GB</td><td>Disk ${v.disk}</td>
+                <td><button class="p-btn" onclick="showEditVolume(${i})">Properties</button></td></tr>`).join('')}
             </table>`}
         </div>
         <div class="p-section"><h4>Network Shares</h4>
@@ -2086,6 +2087,23 @@
         const fs=document.getElementById('volFs').value;
         const label=document.getElementById('volLabel').value.trim();
         if (letter&&size>0) { S().storage.volumes.push({disk,letter,fs,size,label}); hideModal(); applyAndCheck(); notify('Volume '+letter+': created.'); }
+    }
+    function showEditVolume(idx) {
+        const v = S().storage.volumes[idx];
+        if (!v) return;
+        showModal(`<h3>Volume Properties — ${v.letter}:</h3>
+            <div class="p-form-group"><label>Volume Label</label>
+                <input type="text" id="editVolLabel" value="${v.label||''}" placeholder="e.g. CertData"></div>
+            <div class="g-modal-actions">
+                <button class="p-btn" onclick="hideModal()">Cancel</button>
+                <button class="p-btn primary" onclick="editVolume(${idx})">Apply</button>
+            </div>`);
+    }
+    function editVolume(idx) {
+        const v = S().storage.volumes[idx];
+        if (!v) return;
+        v.label = document.getElementById('editVolLabel').value.trim();
+        hideModal(); applyAndCheck(); renderCurrentTool(); notify('Volume '+v.letter+': label updated.');
     }
     function showCreateShare() {
         showModal(`<h3>New Network Share</h3>
@@ -2271,7 +2289,7 @@ function renderGPOConsole() {
     <div class="p-section"><h4>GPO Links</h4>
         ${S().gpo.links.length===0?'<p class="p-empty">No links</p>':`
         <table class="p-table"><tr><th>GPO</th><th>Linked To</th><th>Status</th></tr>
-        ${S().gpo.links.map((l,i)=>`<tr><td>${l.gpo}</td><td>${l.target||l.ou}</td><td><span class="p-badge green">Enabled</span></td></tr>`).join('')}
+        ${S().gpo.links.map((l,i)=>`<tr><td>${l.gpo}</td><td>${l.ou||l.target}</td><td><span class="p-badge green">Enabled</span></td></tr>`).join('')}
         </table>`}
     </div>`;
 }
@@ -2308,7 +2326,7 @@ function showLinkGPO() {
 function linkGPO() {
     const gpo = document.getElementById('linkGpo').value;
     const target = document.getElementById('linkTarget').value;
-    if (gpo && target) { S().gpo.links.push({gpo,target}); hideModal(); applyAndCheck(); notify(gpo+' linked to '+target+'.'); }
+    if (gpo && target) { S().gpo.links.push({gpo,ou:target}); hideModal(); applyAndCheck(); notify(gpo+' linked to '+target+'.'); }
 }
 
 function showEditGPO() {
@@ -2359,7 +2377,7 @@ function editGPO() {
     const lockout = parseInt(document.getElementById('gpoLockout').value) || 0;
     const auditEnabled = document.getElementById('gpoAudit').checked;
     const logonScript = document.getElementById('gpoLogonScript').value.trim();
-    gpo.settings = {};
+    if (!gpo.settings) gpo.settings = {};
     if (minPw > 0) gpo.settings.minPasswordLength = minPw;
     if (maxAge > 0) gpo.settings.maxPasswordAge = maxAge;
     if (lockout > 0) gpo.settings.lockoutThreshold = lockout;
@@ -2373,7 +2391,7 @@ function showEditLink() {
     const ouOptions = (S().ad.ous||[]).map(o=>`<option value="${o.name}">${o.name}</option>`).join('');
     showModal(`<h3>Edit GPO Link</h3>
         <div class="p-form-group"><label>Select Link</label>
-            <select id="editLinkIdx">${S().gpo.links.map((l,i)=>`<option value="${i}">${l.gpo} &rarr; ${l.target||l.ou}</option>`).join('')}</select></div>
+            <select id="editLinkIdx">${S().gpo.links.map((l,i)=>`<option value="${i}">${l.gpo} &rarr; ${l.ou||l.target}</option>`).join('')}</select></div>
         <div class="p-form-group"><label>New Target</label>
             <select id="editLinkTarget">
                 <option value="hexworth.local">hexworth.local (Domain Root)</option>
@@ -2388,7 +2406,7 @@ function editLink() {
     const idx = parseInt(document.getElementById('editLinkIdx').value) || 0;
     const target = document.getElementById('editLinkTarget').value;
     if (S().gpo.links[idx] && target) {
-        S().gpo.links[idx].target = target;
+        S().gpo.links[idx].ou = target;
         hideModal(); applyAndCheck(); notify('Link updated to '+target+'.');
     }
 }
