@@ -1,6 +1,6 @@
 # Hexworth Prime - Project State
 
-**Last Updated:** February 17, 2026
+**Last Updated:** February 19, 2026
 **Updated By:** CCode-Opus4.6
 **Version:** 3.11.2 "INTEGRITY"
 
@@ -8,6 +8,7 @@
 
 ## CURRENT STATUS
 
+### 🏆 MILESTONE: GLOBAL GAME SCOREBOARD COMPLETE! (Cloud Function anti-cheat, per-game top 10, Arcade integration)
 ### 🎮 MILESTONE: ARENA SERIES A COMPLETE! (20 boxes, A1-A20, Genesis Collective arc)
 ### 🖥️ MILESTONE: WSA GAUNTLET + OUTPOST FIXES! (State persistence, AD ops, briefings)
 ### 🏷️ MILESTONE: v4.6.0 "THUNDERDOME" RELEASED!
@@ -44,6 +45,51 @@
 ---
 
 ## WHAT JUST HAPPENED (Recent Session Summary)
+
+### February 19, 2026 - GLOBAL GAME SCOREBOARD SYSTEM
+
+```
++======================================================================+
+|         FEATURE: GLOBAL PER-GAME SCOREBOARD                          |
+|         6 files modified/created, 663 lines added                    |
++======================================================================+
+|                                                                       |
+|  CLOUD FUNCTION: submitGameScore (deployed)                           |
+|  - Auth required, rate limited (10/game/user/hour)                   |
+|  - Sanity checks: score 0-1M, session 5s-2h, 100 pts/sec ceiling    |
+|  - Transaction-based top-10 per game in game_scores/{gameId}          |
+|  - One entry per user per game (replaces if higher)                  |
+|  - 10/10 emulator tests passed (anti-cheat, ranking, structure)      |
+|                                                                       |
+|  FIRESTORE RULES: game_scores + score_submissions (deployed)         |
+|  - game_scores: authenticated read, Cloud Function writes             |
+|  - score_submissions: admin-only read (rate limit audit)             |
+|                                                                       |
+|  FIRESTOREMANAGER: 4 new methods                                      |
+|  - submitGameScore() — calls Cloud Function via FirebaseAuth          |
+|  - getGameScoreboard() — reads top 10, 2-min in-memory cache         |
+|  - getGameScoreboards() — batch fetch (parallel, 10 at a time)       |
+|  - getGameScoreThreshold() — min score to qualify                    |
+|                                                                       |
+|  GAMETRACKER: Cloud submission hook                                    |
+|  - _submitToCloud() — fire-and-forget after local high-score logic   |
+|  - Dispatches hexworth:globalHighScore event on qualification         |
+|  - Graceful skip when not authenticated                               |
+|                                                                       |
+|  ARCADESCOREMODAL: New component                                       |
+|  - Self-contained IIFE with injected CSS                              |
+|  - show(gameId, gameTitle, gameHref) — modal overlay                 |
+|  - Global Top 10 (Firestore) + Your Top 5 (localStorage)            |
+|  - Medal icons (gold/silver/bronze), YOU highlight, Play button      |
+|                                                                       |
+|  ARCADE PAGE (games.html):                                             |
+|  - Trophy button on each game card (auth-gated)                      |
+|  - IntersectionObserver lazy-loads #1 global score badge              |
+|  - Badge format: crown @callsign 15,400 (gold-tinted)                |
+|                                                                       |
+|  ALSO: firebase.json emulator port config (avoids 8080 conflict)     |
++----------------------------------------------------------------------+
+```
 
 ### February 17, 2026 - AR-10: ARENA BOXES A11-A20 + WSA/OUTPOST FIXES
 

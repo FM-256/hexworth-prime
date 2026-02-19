@@ -93,9 +93,9 @@
             </div>
             <div class="lore-section lore-keys">
                 <h3>CONTROLS</h3>
-                <p><span>← →</span> Move</p>
-                <p><span>↑</span> Jump</p>
-                <p><span>SPACE</span> Shoot bubble</p>
+                <p><span>← →</span> Move / Aim</p>
+                <p><span>↑</span> Jump / Aim up</p>
+                <p><span>SPACE</span> Shoot</p>
                 <p><span>?</span> Show ciphers</p>
                 <p><span>M</span> Toggle sound</p>
             </div>
@@ -109,7 +109,7 @@
             </div>
         </div>
     </div>
-    <div id="controls">← → MOVE | ↑ JUMP | SPACE SHOOT | ? CIPHER INFO</div>
+    <div id="controls">← → MOVE/AIM | ↑ JUMP/AIM UP | SPACE SHOOT | ? CIPHER INFO</div>
     <div id="movesPanel">
         <h2>🔐 CIPHER DATABASE</h2>
         <div id="movesList"></div>
@@ -347,15 +347,17 @@ function demoAI() {
         player.onGround = false;
     }
     if (Math.random() < 0.05 && player.shootCooldown === 0) {
+        const dir = player.facingRight ? 1 : -1;
         shots.push({
-            x: player.x + (player.facingRight ? 12 : -12),
-            y: player.y,
-            vy: -5,
+            x: player.x + player.w/2 + dir * 12,
+            y: player.y + player.h/2 - 4,
+            vx: dir * 4,
+            vy: -1.5,
             radius: 16,
-            life: 180,
+            life: 120,
             alpha: 0.6
         });
-        player.shootCooldown = 25;
+        player.shootCooldown = 20;
         sfxShoot();
     }
 }
@@ -425,15 +427,30 @@ function update() {
         }
 
         if (keys[' '] && player.shootCooldown === 0) {
-            shots.push({
-                x: player.x + (player.facingRight ? 12 : -12),
-                y: player.y,
-                vy: -5,
-                radius: 16,
-                life: 180,
-                alpha: 0.6
-            });
-            player.shootCooldown = 25;
+            let svx = 0, svy = 0, sx = player.x + player.w/2, sy = player.y + player.h/2 - 4;
+            if (keys['ArrowUp'] || keys['w']) {
+                // Shoot upward
+                svy = -5;
+                sy = player.y - 4;
+            } else if (keys['ArrowLeft'] || keys['a']) {
+                // Shoot left
+                svx = -4;
+                svy = -1.5;
+                sx -= 12;
+            } else if (keys['ArrowRight'] || keys['d']) {
+                // Shoot right
+                svx = 4;
+                svy = -1.5;
+                sx += 12;
+            } else {
+                // Default: shoot in facing direction
+                const dir = player.facingRight ? 1 : -1;
+                svx = dir * 4;
+                svy = -1.5;
+                sx += dir * 12;
+            }
+            shots.push({ x: sx, y: sy, vx: svx, vy: svy, radius: 16, life: 120, alpha: 0.6 });
+            player.shootCooldown = 20;
             sfxShoot();
         }
     }
@@ -452,12 +469,21 @@ function update() {
     // Player platform collision
     checkPlatformCollision(player);
 
-    // Shots (bubbles being fired upward)
+    // Shots (bubbles: up, left, or right — horizontal shots float upward after slowing)
     shots.forEach(s => {
+        s.x += s.vx;
         s.y += s.vy;
+        if (s.vx !== 0) {
+            // Horizontal shot: decelerate, then float upward
+            s.vx *= 0.97;
+            if (Math.abs(s.vx) < 0.3) {
+                s.vx = 0;
+                s.vy = Math.max(s.vy - 0.02, -1.2);
+            }
+        }
         s.life--;
     });
-    shots = shots.filter(s => s.life > 0 && s.y > -50);
+    shots = shots.filter(s => s.life > 0 && s.y > -50 && s.x > -30 && s.x < W + 30);
 
     // Enemies
     enemies.forEach(e => {
