@@ -639,17 +639,12 @@ const ContentDiscovery = (function() {
 
         const currentPath = window.location.pathname;
 
-        // If we're in _app/ or a subdir of _app/
+        // Strip /_app/ prefix if present (local dev), otherwise strip leading /
         const appIndex = currentPath.indexOf('/_app/');
-        if (appIndex !== -1) {
-            // Path from the _app/ root
-            const depth = currentPath.substring(appIndex + 6).split('/').length - 1;
-            const prefix = '../'.repeat(depth);
-            return prefix + mod.fullHref;
-        }
-
-        // Fallback: try relative from current dir
-        return mod.fullHref;
+        const relativePath = appIndex !== -1 ? currentPath.substring(appIndex + 6) : currentPath.substring(1);
+        const depth = relativePath.split('/').length - 1;
+        const prefix = '../'.repeat(depth);
+        return prefix + mod.fullHref;
     }
 
     // ========================================
@@ -978,15 +973,13 @@ const ContentDiscovery = (function() {
     // Global function to navigate to a module in another house
     window.navigateToModule = function(href) {
         var currentPath = window.location.pathname;
+        // Strip /_app/ prefix if present (local dev), otherwise strip leading /
         var appIndex = currentPath.indexOf('/_app/');
-        if (appIndex !== -1) {
-            var depth = currentPath.substring(appIndex + 6).split('/').length - 1;
-            var prefix = '';
-            for (var i = 0; i < depth; i++) prefix += '../';
-            window.location.href = prefix + href;
-        } else {
-            window.location.href = href;
-        }
+        var relativePath = appIndex !== -1 ? currentPath.substring(appIndex + 6) : currentPath.substring(1);
+        var depth = relativePath.split('/').length - 1;
+        var prefix = '';
+        for (var i = 0; i < depth; i++) prefix += '../';
+        window.location.href = prefix + href;
     };
 
     function applyViewMode() {
