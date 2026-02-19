@@ -977,7 +977,16 @@ const ContentDiscovery = (function() {
 
     // Global function to navigate to a module in another house
     window.navigateToModule = function(href) {
-        window.location.href = '../../' + href;
+        var currentPath = window.location.pathname;
+        var appIndex = currentPath.indexOf('/_app/');
+        if (appIndex !== -1) {
+            var depth = currentPath.substring(appIndex + 6).split('/').length - 1;
+            var prefix = '';
+            for (var i = 0; i < depth; i++) prefix += '../';
+            window.location.href = prefix + href;
+        } else {
+            window.location.href = href;
+        }
     };
 
     function applyViewMode() {
