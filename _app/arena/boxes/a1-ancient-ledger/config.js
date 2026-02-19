@@ -18,6 +18,53 @@ const A1Config = {
     trackerKey: 'ctf_a1',
 
     // ═══════════════════════════════════════════════════════
+    // PHASE SYSTEM (Multi-layer attack chain)
+    // ═══════════════════════════════════════════════════════
+
+    phases: [
+        {
+            id: 'recon',
+            name: 'Reconnaissance',
+            icon: '\uD83D\uDD0D',
+            description: 'Discover the target\'s attack surface. Identify open ports and running services.',
+            requiredFlags: [],
+            mitre: ['T1046', 'T1595.002'],
+            unlocks: ['enumeration'],
+            locked: false
+        },
+        {
+            id: 'enumeration',
+            name: 'Web Enumeration',
+            icon: '\uD83C\uDF10',
+            description: 'Explore the web application. Identify input fields and test for vulnerabilities.',
+            requiredFlags: [],
+            mitre: ['T1190', 'T1592.004'],
+            unlocks: ['exploitation'],
+            locked: true
+        },
+        {
+            id: 'exploitation',
+            name: 'SQL Injection',
+            icon: '\uD83D\uDC89',
+            description: 'Exploit the SQL injection vulnerability to extract data from the database.',
+            requiredFlags: ['user'],
+            mitre: ['T1190', 'T1059.004'],
+            unlocks: ['exfiltration'],
+            locked: true
+        },
+        {
+            id: 'exfiltration',
+            name: 'Data Exfiltration',
+            icon: '\uD83D\uDCC2',
+            description: 'Extract classified data from the database. Access the Stellar Forge codes.',
+            requiredFlags: ['root'],
+            mitre: ['T1567', 'T1530'],
+            unlocks: [],
+            locked: true
+        }
+    ],
+
+    // ═══════════════════════════════════════════════════════
     // TUTORIAL MODE (Sprint AR-12)
     // ═══════════════════════════════════════════════════════
 
@@ -68,8 +115,10 @@ const A1Config = {
     certObjectives: {
         certPath: 'SY0-701',
         mappings: [
-            { flagId: 'user', objective: '1.4', description: 'Given a scenario, analyze indicators of malicious activity', skill: 'SQL Injection Discovery' },
-            { flagId: 'root', objective: '1.4', description: 'Given a scenario, analyze indicators of malicious activity', skill: 'SQL Injection Data Extraction' }
+            { flagId: 'user', objective: '1.2', description: 'Given a scenario, analyze indicators of malicious activity — Injection attacks', skill: 'SQL Injection Discovery' },
+            { flagId: 'user', objective: '2.4', description: 'Given a scenario, analyze indicators associated with application attacks', skill: 'Input Validation Testing' },
+            { flagId: 'root', objective: '1.4', description: 'Given a scenario, analyze potential indicators associated with network attacks', skill: 'SQL Injection Data Extraction' },
+            { flagId: 'root', objective: '4.1', description: 'Given a scenario, apply common security techniques to computing resources — Database security', skill: 'Database Exfiltration' }
         ]
     },
 
@@ -175,9 +224,11 @@ const A1Config = {
 
     scoring: {
         base: 1000,
-        hintPenalty: -50,
+        maxScore: 500,
+        hintPenalty: true,
         wrongFlagPenalty: -25,
-        speedBonus: { threshold: 900000, points: 100 }  // 15 minutes
+        speedBonus: { threshold: 900000, points: 100 },  // 15 minutes
+        timeBonusThreshold: 1800  // 30 min — bonus if completed under this
     },
 
     // ═══════════════════════════════════════════════════════
@@ -188,22 +239,26 @@ const A1Config = {
         {
             id: 'hint1',
             text: "The search form doesn't sanitize input. Try entering a single quote (') — SQL errors often reveal the query structure.",
-            penalty: -50
+            cost: 10,
+            penalty: -10
         },
         {
             id: 'hint2',
             text: "Use ORDER BY to find the column count. Try: ' ORDER BY 5-- (error means <5 columns). Then use UNION SELECT to inject your own query.",
-            penalty: -50
+            cost: 25,
+            penalty: -25
         },
         {
             id: 'hint3',
             text: "Query information_schema.tables to discover all database tables: ' UNION SELECT 1,table_name,3,4 FROM information_schema.tables--",
+            cost: 50,
             penalty: -50
         },
         {
             id: 'hint4',
             text: "The stellar_forge_codes table has the root flag. For user.txt, use LOAD_FILE('/home/www-data/user.txt') in a UNION SELECT.",
-            penalty: -50
+            cost: 75,
+            penalty: -75
         }
     ],
 
@@ -212,7 +267,15 @@ const A1Config = {
     // ═══════════════════════════════════════════════════════
 
     lore: {
-        outro: 'The Ancient Ledger has been breached. The Stellar Forge allocation codes are exposed, and the Crimson Dawn Confederacy\'s most guarded secrets are now in your hands. The data-scribe\'s backdoor served its purpose well.'
+        intro: 'The Crimson Dawn Confederacy maintains a resource allocation database known as "The Ancient Ledger." Intelligence suggests a web-based search interface with poor input validation. A disgruntled data scribe may have left a backdoor. Your mission: compromise the database and extract the Stellar Forge allocation codes.',
+        scenario: 'A junior developer at the Crimson Dawn Confederacy deployed a PHP web application without parameterized queries. The CTO approved the deployment despite security review flagging SQL injection risks. "We need to ship fast," they said. "Nobody will find the search page."',
+        outro: 'The Ancient Ledger has been breached. The Stellar Forge allocation codes are exposed, and the Crimson Dawn Confederacy\'s most guarded secrets are now in your hands. The data-scribe\'s backdoor served its purpose well.',
+        ecer: {
+            executive: 'CTO prioritized speed over security, approved unreviewed code deployment',
+            culture: 'No secure development lifecycle (SDLC), no code review enforcement',
+            employee: 'Developer used string concatenation instead of parameterized queries',
+            regulatory: 'No compliance framework required input validation testing'
+        }
     },
 
     // ═══════════════════════════════════════════════════════
@@ -549,7 +612,58 @@ ledger_app:x:1001:1001::/home/ledger_app:/bin/bash</td></tr>
                 },
                 'tmp': {
                     type: 'dir',
-                    children: {}
+                    children: {
+                        'mysql_backup.sql.bak': {
+                            type: 'file',
+                            content: '-- MySQL dump 10.13\n-- Host: localhost\n-- Database: ancient_ledger_db\n--\n-- [CORRUPTED: file truncated at byte 1024]\n-- This backup is from 2019 and predates the current schema.\n-- Table structure has changed significantly since then.'
+                        }
+                    }
+                },
+                'var': {
+                    type: 'dir',
+                    children: {
+                        'log': {
+                            type: 'dir',
+                            children: {
+                                'apache2': {
+                                    type: 'dir',
+                                    children: {
+                                        'access.log': {
+                                            type: 'file',
+                                            content: '10.10.14.2 - - [15/Mar/2024:09:14:02] "GET /ledger/ HTTP/1.1" 200 1842\n10.10.14.2 - - [15/Mar/2024:09:14:08] "GET /ledger/search.php?q=Titanium HTTP/1.1" 200 4096\n10.10.14.3 - - [15/Mar/2024:11:22:45] "GET /ledger/admin/ HTTP/1.1" 403 276\n10.10.14.3 - - [15/Mar/2024:11:22:51] "GET /phpmyadmin/ HTTP/1.1" 404 196\n10.10.14.3 - - [15/Mar/2024:11:23:02] "POST /ledger/login.php HTTP/1.1" 404 196\n10.10.14.7 - - [16/Mar/2024:03:41:19] "GET /ledger/config/db.php HTTP/1.1" 403 276'
+                                        },
+                                        'error.log': {
+                                            type: 'file',
+                                            content: '[Wed Mar 15 09:14:02.123] [notice] Apache/2.4.57 configured -- resuming normal operations\n[Wed Mar 15 11:22:45.891] [error] [client 10.10.14.3] AH01630: client denied by server configuration: /var/www/html/ledger/admin/\n[Wed Mar 15 11:23:02.445] [error] [client 10.10.14.3] File does not exist: /var/www/html/ledger/login.php\n[Thu Mar 16 03:41:19.012] [error] [client 10.10.14.7] AH01630: client denied by server configuration: /var/www/html/ledger/config/'
+                                        }
+                                    }
+                                },
+                                'mysql': {
+                                    type: 'dir',
+                                    children: {
+                                        'error.log': {
+                                            type: 'file',
+                                            content: '2024-03-15T09:14:00.123456Z 0 [Note] /usr/sbin/mysqld: ready for connections.\nVersion: \'8.0.35\'  socket: \'/var/run/mysqld/mysqld.sock\'  port: 3306\n2024-03-15T09:14:00.234567Z 0 [Warning] Insecure configuration for --pid-file\n2024-03-16T03:40:55.789012Z 2 [Warning] IP address \'10.10.14.7\' could not be resolved'
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        'www': {
+                            type: 'dir',
+                            children: {
+                                'html': {
+                                    type: 'dir',
+                                    children: {
+                                        'robots.txt': {
+                                            type: 'file',
+                                            content: 'User-agent: *\nDisallow: /ledger/admin/\nDisallow: /ledger/config/\nDisallow: /ledger/uploads/\nDisallow: /backup/'
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }
