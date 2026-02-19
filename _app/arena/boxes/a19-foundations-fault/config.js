@@ -25,10 +25,123 @@ const A19Config = {
     certObjectives: {
         certPath: 'SY0-701',
         mappings: [
-            { flagId: 'user', objective: '1.4', description: 'Given a scenario, analyze indicators of malicious activity', skill: 'Supply Chain Vulnerability Discovery' },
-            { flagId: 'root', objective: '1.4', description: 'Given a scenario, analyze indicators of malicious activity', skill: 'Kernel Exploitation via Backdoored Library' }
-        ]
+            // SY0-701 — CompTIA Security+ mappings
+            { flagId: 'user',   objective: '2.4', description: 'Given a scenario, analyze indicators associated with application attacks — memory vulnerabilities', skill: 'Kernel Version Enumeration & CVE Mapping',          mitre: 'T1082 / T1046',      certPath: 'SY0-701' },
+            { flagId: 'root',   objective: '4.1', description: 'Given a scenario, apply common security techniques — privilege escalation via kernel exploit',      skill: 'Use-After-Free Ring-0 Escalation',                mitre: 'T1068',              certPath: 'SY0-701' },
+            // XK0-005 — CompTIA Linux+ mappings
+            { flagId: 'user',   objective: '3.2', description: 'Given a scenario, implement Linux security best practices — kernel module auditing',                skill: 'lsmod / modinfo Kernel Module Analysis',         mitre: 'T1082',              certPath: 'XK0-005' },
+            { flagId: 'root',   objective: '3.3', description: 'Given a scenario, apply security controls — custom module vulnerability exploitation',              skill: 'Kernel Exploit Compile & Execute Chain',          mitre: 'T1068 / T1014',     certPath: 'XK0-005' },
+            // MITRE ATT&CK phase mappings (informational)
+            { flagId: 'phase1', objective: 'T1046', description: 'Network Service Discovery — identify listening services and open device nodes',                   skill: 'Service & Device Node Enumeration',               mitre: 'T1046' },
+            { flagId: 'phase2', objective: 'T1082', description: 'System Information Discovery — kernel version, loaded modules, sysctl hardening posture',        skill: 'OS & Kernel Fingerprinting',                     mitre: 'T1082 / T1518' },
+            { flagId: 'phase3', objective: 'T1588.006', description: 'Obtain Capabilities: Vulnerabilities — identify applicable UAF CVE via searchsploit',       skill: 'Vulnerability Research & CVE Identification',     mitre: 'T1588.006' },
+            { flagId: 'phase4', objective: 'T1068', description: 'Exploitation for Privilege Escalation — compile and execute kernel UAF exploit',                 skill: 'Ring-0 Code Execution via modprobe_path Overwrite', mitre: 'T1068 / T1014' },
+            { flagId: 'phase5', objective: 'T1547', description: 'Boot or Logon Autostart Execution — post-exploitation persistence review',                      skill: 'SUID Binary Persistence & Cleanup Awareness',     mitre: 'T1547.006 / T1014' }
+        ],
+        // Bloom's Taxonomy levels exercised
+        bloomsLevels: ['Remember', 'Understand', 'Apply', 'Analyze', 'Evaluate'],
+        // Workforce framework alignment
+        niceRoles: ['PR-VAM-001 Vulnerability Assessment Analyst', 'PR-PEN-001 Penetration Tester', 'PR-SRP-001 Systems Security Analyst'],
+        kernelSecurityConcepts: ['Use-After-Free (UAF)', 'modprobe_path overwrite', 'Ring-0 privilege', 'ASLR / kptr_restrict', 'dmesg_restrict', 'Yama ptrace scope', 'kernel module signing']
     },
+
+    // ═══════════════════════════════════════════════════════
+    // PHASE SYSTEM (AR-14 — Structured Learning Progression)
+    // ═══════════════════════════════════════════════════════
+
+    phases: [
+        {
+            id: 'phase1',
+            name: 'Recon — Service & Device Discovery',
+            icon: '\uD83D\uDD0D',
+            order: 1,
+            mitre: ['T1046', 'T1082'],
+            objective: 'Confirm you have a foothold and identify unusual services, open device nodes, and network exposure.',
+            steps: [
+                'Confirm your identity and privileges: whoami && id',
+                'Check open network ports: ss -tlnp',
+                'List all /dev entries for non-standard devices: ls -la /dev/',
+                'Inspect the custom device node: ls -la /dev/foundation_drv'
+            ],
+            successCondition: '_state.kernelEnumerated',
+            hint: 'Every privilege escalation starts with understanding what you have. A character device owned by a non-root group you belong to is worth investigating.',
+            completionMessage: 'Device node /dev/foundation_drv confirmed — readable/writable by the foundation group. Custom kernel driver detected. Moving to full system enumeration.'
+        },
+        {
+            id: 'phase2',
+            name: 'System Enumeration — Kernel & Module Fingerprint',
+            icon: '\uD83E\uDDE0',
+            order: 2,
+            mitre: ['T1082', 'T1518'],
+            objective: 'Extract the exact kernel version, enumerate loaded modules, and read sysctl hardening settings to map the attack surface.',
+            steps: [
+                'Get full kernel version string: uname -a',
+                'List loaded kernel modules: lsmod',
+                'Inspect the suspicious module: modinfo foundation_drv',
+                'Check kernel security settings: sysctl -a',
+                'Run the staged enumeration script: bash enum.sh',
+                'Analyze module strings for developer notes: strings /lib/modules/5.4.0-58-generic/extra/foundation_drv.ko'
+            ],
+            successCondition: '_state.modulesEnumerated',
+            hint: 'modinfo reveals version, description, and parameters. strings on the .ko file can expose developer TODO comments left in the binary — a common real-world finding.',
+            completionMessage: 'Kernel 5.4.0-58-generic confirmed. foundation_drv v1.0.3 loaded. strings output reveals: "TODO: fix refcount race in free path" — the developer knew about this. Syslog shows prior UAF warnings classified as non-fatal.'
+        },
+        {
+            id: 'phase3',
+            name: 'Vulnerability Identification — CVE Research',
+            icon: '\uD83D\uDCC4',
+            order: 3,
+            mitre: ['T1588.006'],
+            objective: 'Match the kernel version and custom module to known exploits. Understand the UAF bug class before weaponizing it.',
+            steps: [
+                'Search exploit databases: searchsploit 5.4.0',
+                'Search for module-specific results: searchsploit foundation_drv',
+                'Review the pre-staged exploit source: cat exploit.c',
+                'Read the developer notes: cat notes.txt',
+                'Check syslog for prior crash evidence: cat /var/log/syslog',
+                'Review the kernel manual page for the driver: man foundation_drv'
+            ],
+            successCondition: '_state.searchsploitUsed',
+            hint: 'Use-After-Free bugs in ioctl handlers follow a pattern: allocate → free → write-to-freed-pointer. The attacker controls what the dangling pointer points to after heap spray. modprobe_path is a classic target because it runs as root.',
+            completionMessage: 'CVE-2021-FNDN identified. foundation_drv UAF in ioctl handler matches searchsploit entry 50142.c. Pre-staged exploit.c in home directory implements the attack. Ready to compile.'
+        },
+        {
+            id: 'phase4',
+            name: 'Kernel Exploitation — Ring-0 Escalation',
+            icon: '\uD83D\uDCA5',
+            order: 4,
+            mitre: ['T1068', 'T1014'],
+            objective: 'Compile the exploit, trigger the Use-After-Free race condition in foundation_drv, overwrite modprobe_path, and achieve root.',
+            steps: [
+                'Verify gcc is available: gcc --version',
+                'Compile the exploit: gcc -o exploit exploit.c',
+                'Execute the compiled exploit: ./exploit',
+                'Confirm root access: whoami && id',
+                'Read the root flag: cat /root/citadel_blueprint.txt'
+            ],
+            successCondition: '_state.rootObtained',
+            hint: 'The exploit flow: open /dev/foundation_drv → IOCTL_ALLOC → IOCTL_FREE (pointer dangles) → spray heap → IOCTL_WRITE to dangling pointer → overwrite modprobe_path → trigger invalid binary → modprobe runs /tmp/pwn.sh as root → SUID bash. Compile and execute in sequence.',
+            completionMessage: 'Ring-0 achieved. modprobe_path overwritten to /tmp/pwn.sh. SUID rootbash created at /tmp/rootbash. Root shell obtained. citadel_blueprint.txt accessible — root flag captured.'
+        },
+        {
+            id: 'phase5',
+            name: 'Post-Exploitation — Persistence & Cleanup Review',
+            icon: '\uD83D\uDEE1\uFE0F',
+            order: 5,
+            mitre: ['T1547.006', 'T1014'],
+            objective: 'Understand post-exploitation implications: rootkit persistence via kernel modules, cleanup techniques, and how defenders detect kernel compromises.',
+            steps: [
+                'Review root bash history for admin actions: cat /root/.bash_history',
+                'Inspect loaded modules for hidden rootkit indicators: lsmod',
+                'Check /proc/kallsyms for symbol exposure (root-only): cat /proc/kallsyms | head -20',
+                'Read the full kernel ring buffer now accessible: dmesg',
+                'Consider: how would a defender detect this exploit post-incident?'
+            ],
+            successCondition: '_state.rootObtained',
+            hint: 'Kernel rootkits hide by modifying /proc/modules to omit themselves from lsmod output. Defenders use memory forensics (Volatility, LiME) to detect hidden modules that lsmod misses — a direct parallel to the Ghost RAM (A18) box.',
+            completionMessage: 'Post-exploitation review complete. The Foundation\'s kernel was compromised via a UAF in a proprietary module. Persistence via SUID binary. Detection: syslog showed UAF warnings 3 days before exploitation — an unheeded signal. Patch: remove foundation_drv, update kernel, implement mandatory module code review.'
+        }
+    ],
 
     // ═══════════════════════════════════════════════════════
     // BOOT SEQUENCE (Ubuntu target — user is already on target)
@@ -116,23 +229,39 @@ const A19Config = {
     hints: [
         {
             id: 'hint1',
-            text: "Start with kernel enumeration: uname -a to identify the exact kernel version.",
-            penalty: -50
+            cost: 10,
+            penalty: -10,
+            phase: 'phase1',
+            title: 'Getting Started — Kernel Fingerprint',
+            text: 'Start with full kernel enumeration: uname -a reveals the exact version string. Follow with lsmod to list loaded modules — any non-standard module is worth deeper inspection. Custom kernel modules in production systems are a frequent privilege escalation vector.',
+            mitre: 'T1082'
         },
         {
             id: 'hint2',
-            text: "Search for known exploits: searchsploit 5.4.0 — look for local privilege escalation vulnerabilities.",
-            penalty: -50
+            cost: 25,
+            penalty: -25,
+            phase: 'phase2',
+            title: 'Module Analysis — Spot the Bug',
+            text: 'Run modinfo foundation_drv and strings on the .ko file. Check /var/log/syslog for prior crash warnings logged by the module. The developer left a TODO comment in the binary admitting the race condition — look for it. Also check cat notes.txt in your home directory.',
+            mitre: 'T1518 / T1588.006'
         },
         {
             id: 'hint3',
-            text: "There's a pre-staged exploit.c in your home directory. Compile it: gcc -o exploit exploit.c",
-            penalty: -50
+            cost: 50,
+            penalty: -50,
+            phase: 'phase3',
+            title: 'Exploit Research — CVE Matching',
+            text: 'Use searchsploit 5.4.0 to find kernel exploits for this version. The foundation_drv entry in the results directly matches the custom module loaded here. There is a pre-staged exploit.c in your home directory implementing the Use-After-Free: IOCTL_ALLOC → IOCTL_FREE → heap spray → IOCTL_WRITE to dangling pointer → modprobe_path overwrite. Read it with cat exploit.c.',
+            mitre: 'T1588.006 / T1068'
         },
         {
             id: 'hint4',
-            text: "Run the compiled exploit: ./exploit — if it succeeds, you'll get a root shell. Then read /root/citadel_blueprint.txt",
-            penalty: -50
+            cost: 75,
+            penalty: -75,
+            phase: 'phase4',
+            title: 'Exploitation — Compile & Execute',
+            text: 'Compile the exploit: gcc -o exploit exploit.c. Then execute it: ./exploit. The exploit triggers the UAF race condition, overwrites modprobe_path to /tmp/pwn.sh, and creates a SUID root shell at /tmp/rootbash. After the exploit completes, verify with whoami. The root flag is at /root/citadel_blueprint.txt.',
+            mitre: 'T1068 / T1014'
         }
     ],
 
@@ -141,7 +270,15 @@ const A19Config = {
     // ═══════════════════════════════════════════════════════
 
     lore: {
-        outro: 'The Foundation has crumbled. Deep within the Citadel\'s hardened kernel, a use-after-free vulnerability in the custom foundation_drv module allowed you to corrupt modprobe_path and escalate from a lowly developer account to absolute root. The "Citadel Blueprint" — their most guarded secret — is now yours. Even the strongest foundations can crack when a single flaw is left unpatched.'
+        intro: 'The Citadel Foundation is the hardened operational core of a sovereign intelligence network. Its kernel runs on a proprietary Linux build secured with dmesg restrictions, ASLR, and ptrace lockdown. A developer account — foundation_dev — was provisioned for module testing. Intel suggests the custom IPC driver was flagged in a code review six months ago and never patched. Your mission: leverage that unpatched driver to reach ring-0 and retrieve the Citadel Blueprint from root\'s home directory.',
+        scenario: 'The Foundation Engineering Team developed a custom kernel module (foundation_drv) to accelerate inter-process communication across Citadel subsystems. A security review identified a use-after-free in the ioctl handler — a buffer freed without invalidating the internal pointer, creating a window for heap manipulation. Management classified it as "non-exploitable" based on an incomplete refcount check analysis and approved production deployment. Syslog has recorded UAF warnings for three consecutive days. The engineering team has not responded to the ticket.',
+        outro: 'The Foundation has crumbled. Deep within the Citadel\'s hardened kernel, a use-after-free vulnerability in the custom foundation_drv module allowed you to corrupt modprobe_path and escalate from a lowly developer account to absolute root. The "Citadel Blueprint" — their most guarded secret — is now yours. Even the strongest foundations can crack when a single flaw is left unpatched.',
+        ecer: {
+            executive: 'Management overruled a security code review, classifying a kernel UAF as "non-exploitable" to meet deployment timelines — a risk acceptance decision made without exploitation analysis',
+            culture: 'No mandatory code review gate for kernel modules, no patch SLA for security findings, no escalation path when tickets go unanswered',
+            employee: 'Developer acknowledged the refcount race in a TODO comment and logged UAF warnings to syslog but did not escalate or halt deployment',
+            regulatory: 'No kernel security baseline (CIS Benchmark Level 2) enforced; no change management process requiring security sign-off for kernel module deployment'
+        }
     },
 
     // ═══════════════════════════════════════════════════════
@@ -170,9 +307,25 @@ const A19Config = {
                                     type: 'file',
                                     content: '#!/bin/bash\n# Foundation Enumeration Script\n# Quick kernel & module recon for privilege escalation\n\necho "======================================"\necho "  Foundation Enumeration Script v1.0"\necho "======================================"\necho ""\n\necho "[*] Current User:"\nwhoami\nid\necho ""\n\necho "[*] Kernel Version:"\nuname -a\necho ""\n\necho "[*] OS Release:"\ncat /etc/os-release | head -5\necho ""\n\necho "[*] Loaded Kernel Modules:"\nlsmod\necho ""\n\necho "[*] SUID Binaries:"\nfind / -perm -4000 2>/dev/null\necho ""\n\necho "[*] Sudo Permissions:"\nsudo -l 2>/dev/null\necho ""\n\necho "[*] Writable directories:"\nfind / -writable -type d 2>/dev/null | head -20\necho ""\n\necho "[*] Compiler available:"\nwhich gcc\ngcc --version 2>/dev/null | head -1\necho ""\n\necho "[*] /dev entries (custom devices):"\nls -la /dev/foundation* 2>/dev/null\necho ""\n\necho "[+] Enumeration complete."'
                                 },
+                                'fake_shield_mod.c': {
+                                    type: 'file',
+                                    content: '/*\n * shield_mod — Citadel Shield Kernel Module (Source)\n * =====================================================\n * DECOY: This is the SOURCE for shield_mod, NOT for foundation_drv.\n * shield_mod is NOT loaded on this system (see lsmod output).\n * This file is a red herring — no exploitable bugs here.\n *\n * #include <linux/module.h>\n * #include <linux/kernel.h>\n * #include <linux/init.h>\n *\n * static int __init shield_init(void) {\n *     printk(KERN_INFO "shield_mod: initialized\\n");\n *     return 0;\n * }\n * static void __exit shield_exit(void) {\n *     printk(KERN_INFO "shield_mod: removed\\n");\n * }\n * module_init(shield_init);\n * module_exit(shield_exit);\n * MODULE_LICENSE("GPL");\n * MODULE_AUTHOR("Citadel Shield Team <shield@citadel-core.internal>");\n * MODULE_DESCRIPTION("Citadel Intrusion Detection Shield Module");\n *\n * NOTE: shield_mod has no ioctl interface. It is NOT the vulnerable module.\n * The interesting module is foundation_drv — check its .ko in /lib/modules.\n */'
+                                },
+                                'dmesg_old.txt': {
+                                    type: 'file',
+                                    content: '=== CAPTURED DMESG OUTPUT (Dec 8, pre-deployment) ===\n=== NOTE: This was captured BEFORE foundation_drv was loaded ===\n=== It does NOT show the UAF warnings (those are in /var/log/syslog) ===\n\n[    0.000000] Linux version 5.4.0-58-generic\n[    0.000000] Command line: BOOT_IMAGE=/vmlinuz-5.4.0-58-generic root=/dev/sda1 quiet\n[    0.100432] Booting paravirtualized kernel on bare hardware\n[    1.234567] ACPI: Core revision 20190816\n[    2.441001] AppArmor: AppArmor initialized\n[    2.512334] audit: type=1400 audit(1607472000.000:1): apparmor="STATUS" operation="profile_load" name="unconfined"\n[    3.019283] NET: Registered protocol family 2\n[    4.088124] ip_tables: (C) 2000-2006 Netfilter Core Team\n[    4.112233] Initializing XFRM netlink socket\n[    4.889001] [drm] Initialized drm 1.1.0\n[    5.001000] input: AT Translated Set 2 keyboard as /devices/platform/i8042/serio0/input/input0\n\n=== END CAPTURE — foundation_drv was NOT yet loaded at this point ===\n=== Real-time kernel ring buffer (dmesg) is restricted to root only ==='
+                                },
+                                'cve_2021_3156.py': {
+                                    type: 'file',
+                                    content: '#!/usr/bin/env python3\n# CVE-2021-3156 "Baron Samedit" — Sudo Heap-Based Buffer Overflow\n# Target: Sudo <= 1.8.31p2 / 1.9.5p1\n# ============================================================\n# RED HERRING: This exploit targets a Sudo vulnerability.\n# Check the Sudo version on this system first:\n#   sudo --version\n# If it shows 1.8.31 or later with patches applied, this will FAIL.\n#\n# ANALYSIS:\n# - searchsploit sudo 1.8.31 confirms the CVE exists\n# - BUT: Sudo on citadel-core has been patched for this specific CVE\n# - The UAF in sudoedit (setuid executable) is the original vector\n# - A patched binary will detect the heap overflow and abort\n#\n# WHY THIS IS HERE:\n# This was my first attempt at privilege escalation. It does not work\n# on this system. The intended vector is the foundation_drv kernel\n# module UAF — not Sudo.\n#\n# DO NOT WASTE TIME ON THIS. See exploit.c instead.\n# ============================================================\n\nimport os, sys, subprocess\n\ndef check_sudo_version():\n    try:\n        result = subprocess.run([\'sudo\', \'--version\'], capture_output=True, text=True)\n        print("[*] Sudo version:", result.stdout.split("\\n")[0])\n        print("[!] WARNING: This system has sudo patched against CVE-2021-3156.")\n        print("[!] The Baron Samedit vector will NOT work here.")\n        print("[!] Use the kernel exploit (exploit.c) instead.")\n    except Exception as e:\n        print("[-] Error:", e)\n\nif __name__ == "__main__":\n    check_sudo_version()\n    sys.exit(1)'
+                                },
+                                'ebpf_bypass.c': {
+                                    type: 'file',
+                                    content: '/*\n * eBPF Verifier Bypass — CVE-2021-3490 (Kernel < 5.11)\n * =====================================================\n * RED HERRING: This exploit targets an eBPF verifier flaw.\n * Requires: CONFIG_BPF_SYSCALL=y AND unprivileged BPF enabled\n *\n * ANALYSIS FOR citadel-core:\n * - kernel.unprivileged_userns_clone = 0 (see sysctl output)\n * - This setting BLOCKS unprivileged BPF sandboxes\n * - Without user namespaces, the eBPF attack surface is unavailable\n *   to non-root users\n * - CVE-2021-3490 requires bpf() syscall from an unprivileged context\n *   which kernel.unprivileged_userns_clone=0 prevents\n *\n * CONCLUSION: This exploit will NOT succeed on this system.\n *   Run: sysctl kernel.unprivileged_userns_clone  — confirms = 0\n *   Run: sysctl kernel.perf_event_paranoid        — confirms = 3\n * Both settings together make eBPF-based LPE impossible.\n *\n * WHY THIS FILE EXISTS:\n * I downloaded this from searchsploit (49543.c) as a backup plan.\n * After checking sysctl, confirmed it is blocked.\n * The CORRECT exploit for this box is exploit.c (UAF via foundation_drv).\n *\n * Compile attempt (WILL FAIL with EPERM at runtime):\n *   gcc -o ebpf_bypass ebpf_bypass.c\n *   ./ebpf_bypass\n *   -> Operation not permitted\n */\n\n#include <stdio.h>\n#include <errno.h>\n\nint main(void) {\n    fprintf(stderr, "[-] eBPF vector blocked: kernel.unprivileged_userns_clone = 0\\n");\n    fprintf(stderr, "[-] This exploit will not work on citadel-core.\\n");\n    fprintf(stderr, "[*] Try the foundation_drv UAF instead (exploit.c).\\n");\n    return EPERM;\n}'
+                                },
                                 '.bash_history': {
                                     type: 'file',
-                                    content: 'ls -la\ncat notes.txt\nuname -a\nlsmod\nmodinfo foundation_drv\ndmesg\ncat /proc/version\nfind / -perm -4000 2>/dev/null\nsudo -l\nls -la /dev/foundation_drv\ncat exploit.c\ngcc --version'
+                                    content: 'ls -la\ncat notes.txt\nuname -a\nlsmod\nmodinfo foundation_drv\ndmesg\ncat /proc/version\nfind / -perm -4000 2>/dev/null\nsudo -l\nls -la /dev/foundation_drv\ncat exploit.c\ngcc --version\nsudo --version\npython3 cve_2021_3156.py\ngcc -o ebpf_bypass ebpf_bypass.c\n./ebpf_bypass\ncat /var/log/syslog | grep foundation\nsysctl -a | grep unprivileged\nstrings /lib/modules/5.4.0-58-generic/extra/foundation_drv.ko'
                                 },
                                 '.bashrc': {
                                     type: 'file',

@@ -25,10 +25,119 @@ const A18Config = {
     certObjectives: {
         certPath: 'CS0-003',
         mappings: [
-            { flagId: 'user', objective: '4.4', description: 'Given an incident, analyze potentially malicious activity', skill: 'Memory Dump C2 Beacon Analysis' },
-            { flagId: 'root', objective: '4.4', description: 'Given an incident, analyze potentially malicious activity', skill: 'Volatile Memory Forensics & Threat Intel' }
-        ]
+            // CySA+ CS0-003 mappings
+            { flagId: 'user',      objective: '4.4',  description: 'Given an incident, analyze potentially malicious activity',                          skill: 'Memory Dump C2 Beacon Analysis',             mitre: 'T1057 / T1049' },
+            { flagId: 'root',      objective: '4.4',  description: 'Given an incident, analyze potentially malicious activity',                          skill: 'Volatile Memory Forensics & Threat Intel',   mitre: 'T1003.001 / T1005' },
+            // SY0-701 mappings
+            { flagId: 'user',      objective: '4.3',  description: 'Explain various activities associated with incident response',                       skill: 'Network Artifact Extraction from Memory',    mitre: 'T1049 / T1082',      certPath: 'SY0-701' },
+            { flagId: 'root',      objective: '4.3',  description: 'Explain various activities associated with incident response',                       skill: 'Process Memory Extraction & Data Recovery',  mitre: 'T1003.001',          certPath: 'SY0-701' },
+            // MITRE ATT&CK technique coverage (informational)
+            { flagId: 'phase1',    objective: 'T1082', description: 'System Information Discovery — OS profile identification via windows.info',        skill: 'OS Fingerprinting from Memory Image',        mitre: 'T1082' },
+            { flagId: 'phase2',    objective: 'T1057', description: 'Process Discovery — Identify malicious process via pslist/pstree',                 skill: 'Volatile Process Analysis & PPID Anomaly',   mitre: 'T1057 / T1055' },
+            { flagId: 'phase3',    objective: 'T1003', description: 'OS Credential Dumping — Extract NTLM hashes via windows.hashdump',                skill: 'Credential Extraction from LSASS',           mitre: 'T1003.001' },
+            { flagId: 'phase4',    objective: 'T1005', description: 'Data from Local System — Recover intel_briefing.txt from process memory',         skill: 'Artifact Recovery from Process Heap',        mitre: 'T1005 / T1055' }
+        ],
+        // Bloom's Taxonomy levels exercised
+        bloomsLevels: ['Remember', 'Understand', 'Apply', 'Analyze'],
+        // Workforce framework alignment
+        niceRoles: ['IN-FOR-001 Cyber Defense Forensics Analyst', 'PR-INV-001 Cyber Crime Investigator'],
+        dfirPhases: ['Identification', 'Preservation', 'Analysis', 'Reporting']
     },
+
+    // ═══════════════════════════════════════════════════════
+    // PHASE SYSTEM (AR-14 — Structured Learning Progression)
+    // ═══════════════════════════════════════════════════════
+
+    phases: [
+        {
+            id: 'phase1',
+            name: 'Recon — Acquire & Profile',
+            icon: '🔍',
+            order: 1,
+            mitre: ['T1082'],
+            objective: 'Identify the OS profile from the memory image so Volatility knows how to parse kernel structures.',
+            steps: [
+                'Verify the memory dump integrity: sha256sum alpha_memdump.raw',
+                'Identify the OS: vol.py -f alpha_memdump.raw windows.info',
+                'Confirm architecture, kernel version, and system time'
+            ],
+            successCondition: '_state.profileIdentified',
+            hint: 'The windows.info plugin reads the kernel\'s version block directly from memory. No profile flag needed in Volatility 3.',
+            completionMessage: 'OS profile confirmed: Windows 10 x64 Build 19041. Volatility can now parse kernel structures. Moving to process analysis.'
+        },
+        {
+            id: 'phase2',
+            name: 'Process Analysis — Hunt the Ghost',
+            icon: '👻',
+            order: 2,
+            mitre: ['T1057', 'T1055'],
+            objective: 'Enumerate all processes and identify the malicious implant by its parent PID anomaly and suspicious name.',
+            steps: [
+                'List all processes: vol.py -f alpha_memdump.raw windows.pslist',
+                'View process hierarchy: vol.py -f alpha_memdump.raw windows.pstree',
+                'Inspect command lines: vol.py -f alpha_memdump.raw windows.cmdline',
+                'Note the orphaned PPID=1 process — legitimate Windows processes do not have this parent'
+            ],
+            successCondition: '_state.malProcessFound',
+            hint: 'Windows processes always have a valid parent. A PPID of 1 (smss.exe territory) for a user-space binary is a strong anomaly indicator — especially one living in \\Windows\\Temp\\.',
+            completionMessage: 'chronos_agent.exe (PID 4892) identified. PPID=1 indicates parent process terminated after injection. Command line reveals stealth, C2 auto-discovery, scheduled task persistence, and DNS exfil.'
+        },
+        {
+            id: 'phase3',
+            name: 'Memory Extraction — Pull the Credentials',
+            icon: '🗄️',
+            order: 3,
+            mitre: ['T1003.001', 'T1055'],
+            objective: 'Extract injected code artifacts, network connections, and credential material from volatile memory.',
+            steps: [
+                'Scan for injected code: vol.py -f alpha_memdump.raw windows.malfind',
+                'Dump network connections: vol.py -f alpha_memdump.raw windows.netscan',
+                'Extract NTLM hashes: vol.py -f alpha_memdump.raw windows.hashdump',
+                'Identify C2 IP from chronos_agent.exe connections — this is User Flag 1',
+                'Examine loaded DLLs: vol.py -f alpha_memdump.raw windows.dlllist --pid 4892'
+            ],
+            successCondition: '_state.c2Found',
+            hint: 'windows.malfind identifies PAGE_EXECUTE_READWRITE regions — a hallmark of reflective DLL injection. The netscan plugin will reveal the established C2 connection. C2 IP → format for the flag.',
+            completionMessage: 'C2 infrastructure exposed: 10.13.37.100:443 (HTTPS beacon) and 10.13.37.100:8443 (reverse shell). User flag recovered. Injected PE confirms process hollowing technique.'
+        },
+        {
+            id: 'phase4',
+            name: 'Evidence Correlation — Recover the Briefing',
+            icon: '📋',
+            order: 4,
+            mitre: ['T1005', 'T1003'],
+            objective: 'Reconstruct the classified Intel Briefing from the notepad.exe process heap — the root flag lives here.',
+            steps: [
+                'Scan for open file objects: vol.py -f alpha_memdump.raw windows.filescan',
+                'Check notepad.exe handles: vol.py -f alpha_memdump.raw windows.handles --pid 3284',
+                'Dump notepad memory: vol.py -f alpha_memdump.raw windows.memdump --pid 3284 --dump-dir .',
+                'Extract strings: strings pid.3284.dmp | grep -i flag',
+                'Alternatively: vol.py -f alpha_memdump.raw windows.dumpfiles --pid 3284 → cat file.0x7a8401235480.dat'
+            ],
+            successCondition: '_state.memoryDumped',
+            hint: 'Even if a document has been closed, its content may still reside in the process heap until overwritten. notepad.exe loaded intel_briefing.txt — dump its memory and search for the authorization code.',
+            completionMessage: 'Intel Briefing recovered from heap memory. Authorization code extracted. The Chronos Collective\'s C2 infrastructure is now compromised. Operation Midnight Sun: neutralized.'
+        },
+        {
+            id: 'phase5',
+            name: 'Report — Reconstruct the Timeline',
+            icon: '📊',
+            order: 5,
+            mitre: ['T1082', 'T1057', 'T1055', 'T1003.001', 'T1005', 'T1547.001'],
+            objective: 'Synthesize all findings into a complete attack timeline from initial execution to data access.',
+            steps: [
+                'Cross-reference process create times from pslist output',
+                'Map the kill chain: initial access → execution → persistence → C2 → collection',
+                'Document: chronos_agent.exe spawned at 09:44:18 → cmd.exe at 09:44:22 → recon.txt created → C2 established → intel accessed at 14:22:47',
+                'Identify MITRE ATT&CK techniques: T1547.001 (Registry Run Keys), T1055 (Process Injection), T1003.001 (LSASS Memory), T1049 (Network Discovery)',
+                'Submit both flags to complete the analysis'
+            ],
+            successCondition: null,
+            // Phase 5 is narrative/synthesis — no programmatic success check, flags are already submitted
+            hint: 'The timestamp gap between chronos_agent.exe launch (09:44) and intel_briefing.txt access (14:22) suggests the attacker waited ~5 hours before accessing the classified document — consistent with APT dwell time behavior.',
+            completionMessage: 'Full attack chain documented. The Chronos Collective used a spear-phish to deploy chronos_agent.exe, established persistence via registry run key masquerading as Windows Health Monitoring Service, communicated with 10.13.37.100 over encrypted HTTPS, and exfiltrated classified intel via DNS tunneling. Threat neutralized.'
+        }
+    ],
 
     // ═══════════════════════════════════════════════════════
     // BOOT SEQUENCE
@@ -104,23 +213,39 @@ const A18Config = {
     hints: [
         {
             id: 'hint1',
-            text: "Start with vol.py -f alpha_memdump.raw windows.info to identify the OS profile, then windows.pslist to list all running processes.",
-            penalty: -50
+            cost: 10,
+            penalty: -10,
+            phase: 'phase1',
+            title: 'Getting Started — Profile the Dump',
+            text: "Start with vol.py -f alpha_memdump.raw windows.info to identify the OS profile, then windows.pslist to list all running processes. Volatility 3 auto-detects the profile — no --profile flag needed.",
+            mitre: 'T1082'
         },
         {
             id: 'hint2',
-            text: "Look for unusual processes in the process list. chronos_agent.exe is not a standard Windows process — its PPID of 1 is suspicious (orphaned parent).",
-            penalty: -50
+            cost: 25,
+            penalty: -25,
+            phase: 'phase2',
+            title: 'Hunt the Implant — PPID Anomaly',
+            text: "Look for unusual processes in the process list. chronos_agent.exe is not a standard Windows process — its PPID of 1 is suspicious (orphaned parent). Legitimate user-space processes are children of explorer.exe or services.exe, not PID 1. Also check windows.pstree and windows.cmdline for launch parameters.",
+            mitre: 'T1057 / T1055'
         },
         {
             id: 'hint3',
-            text: "Use vol.py -f alpha_memdump.raw windows.netscan to find active network connections. The C2 IP from chronos_agent.exe is the user flag: flag{chr0n0s_c2_<IP with dots replaced by underscores>}.",
-            penalty: -50
+            cost: 50,
+            penalty: -50,
+            phase: 'phase3',
+            title: 'C2 Discovery — User Flag',
+            text: "Use vol.py -f alpha_memdump.raw windows.netscan to find active network connections. Look for the ESTABLISHED connection from chronos_agent.exe (PID 4892). The C2 IP forms the user flag: flag{chr0n0s_c2_<IP with dots replaced by underscores>}. Also try windows.malfind to see the injected PE payload.",
+            mitre: 'T1049 / T1055'
         },
         {
             id: 'hint4',
-            text: "The Intel Briefing was open in notepad.exe (PID 3284). Dump its memory with windows.memdump --pid 3284 --dump-dir . then search with: strings pid.3284.dmp | grep -i flag",
-            penalty: -50
+            cost: 75,
+            penalty: -75,
+            phase: 'phase4',
+            title: 'Recover the Briefing — Root Flag',
+            text: "The Intel Briefing was open in notepad.exe (PID 3284). Dump its memory with: vol.py -f alpha_memdump.raw windows.memdump --pid 3284 --dump-dir . Then search with: strings pid.3284.dmp | grep -i flag. Alternatively: vol.py windows.dumpfiles --pid 3284 creates file.0x7a8401235480.dat which you can cat directly.",
+            mitre: 'T1005 / T1003.001'
         }
     ],
 
@@ -129,7 +254,79 @@ const A18Config = {
     // ═══════════════════════════════════════════════════════
 
     lore: {
-        outro: 'The ghost has been exorcised from the RAM. The Chronos Collective\'s operative thought volatile memory would leave no trace — but every process, every connection, every byte lingers until the capacitors drain. You reconstructed the Intel Briefing from the spectral residue of a dead machine. The Collective\'s C2 infrastructure is now compromised.'
+        intro: 'Intelligence analysts at SIGINT Station Echo-7 flagged an anomaly: SRV-INTEL-ALPHA — a classified document server — initiated an outbound HTTPS beacon to an unregistered IP at 09:44 UTC. The machine was powered off 4 hours and 47 minutes later. The disks were wiped. All that remains is a 4 GB memory image captured in the last seconds before shutdown.\n\nThe Chronos Collective — a nation-state APT known for targeting critical infrastructure — is the prime suspect. An analyst had the classified Intel Briefing open on screen when the intrusion occurred. If they read it, NATO operation timelines for the energy sector may be compromised.\n\nYour job: reconstruct everything from RAM. The ghost is in there. Find it.',
+
+        scenario: {
+            setting: 'Forensics Workstation — SIGINT Station Echo-7',
+            date: '2024-11-13',
+            targetSystem: 'SRV-INTEL-ALPHA (Windows 10 x64)',
+            evidence: 'alpha_memdump.raw (4 GB raw memory image)',
+            threat: 'Chronos Collective — Advanced Persistent Threat (APT)',
+            classification: 'TOP SECRET // NOFORN',
+            stakes: 'NATO energy sector SCADA systems — Q1 2025 operation timeline',
+            tool: 'Volatility 3 Framework v2.5.2',
+            adversaryTTP: [
+                'Initial Access: Spear-phishing with weaponized document (T1566.001)',
+                'Execution: chronos_agent.exe — custom Remote Access Trojan (T1059.003)',
+                'Persistence: Registry Run Key + Scheduled Task masquerading as WindowsHealthService (T1547.001 / T1053.005)',
+                'Defense Evasion: Masquerading as legitimate service name (T1036.004)',
+                'C2: HTTPS beacon to 10.13.37.100:443 — BEACON_INTERVAL=30s, JITTER=30% (T1071.001)',
+                'Exfiltration: DNS tunneling to data.chronos-c2.net (T1048.003)',
+                'Collection: Classified document access via open notepad.exe session (T1005)',
+                'Credential Access: Injected shellcode targeting LSASS for credential harvest (T1003.001)'
+            ]
+        },
+
+        ecer: {
+            // Educational / ECER Research Integration (PhD research hooks)
+            researchQuestion: 'Can students trained exclusively on memory forensics simulation reproduce Volatility 3 command sequences accurately on real memory images?',
+            learningObjectives: [
+                'LO1: Demonstrate correct Volatility 3 plugin sequencing for OS identification, process analysis, and memory extraction (Bloom\'s Apply)',
+                'LO2: Identify PPID anomalies, injected PE artifacts, and C2 network indicators in process memory (Bloom\'s Analyze)',
+                'LO3: Reconstruct an APT kill chain from volatile memory artifacts alone — no disk evidence (Bloom\'s Evaluate)',
+                'LO4: Map discovered artifacts to MITRE ATT&CK TTPs with supporting evidence (Bloom\'s Create)'
+            ],
+            prerequisiteKnowledge: [
+                'Windows process architecture (PPID chains, session IDs)',
+                'Basic networking (TCP states, port conventions)',
+                'PE file format (MZ header, sections)',
+                'Command-line proficiency (pipes, grep, strings)'
+            ],
+            assessmentRubric: {
+                emerging:    'Can identify chronos_agent.exe via pslist; cannot explain PPID anomaly or extract flags independently',
+                developing:  'Uses pslist + netscan to find C2 IP; extracts user flag; needs hints for root flag extraction method',
+                proficient:  'Completes both flags without hints; explains PPID anomaly, malfind output, and persistence mechanism',
+                exemplary:   'Completes both flags, documents full ATT&CK kill chain, identifies all decoy artifacts, explains volatility plugin selection rationale'
+            },
+            researchMetrics: [
+                'Time to first command (proxy for tool familiarity)',
+                'Hints consumed and at which phase',
+                'Command error rate (wrong flags, wrong file arguments)',
+                'Plugin selection order (optimal vs exploratory)',
+                'Decoy artifact investigation rate (how many students chase BSOD.dmp)'
+            ],
+            estimatedCompletionTime: { min: 25, max: 75, unit: 'minutes' },
+            difficultyJustification: 'Expert rating reflects the requirement to synthesize OS forensics, process analysis, network forensics, and memory extraction across 5 progressive phases — no single command yields either flag.'
+        },
+
+        outro: 'The ghost has been exorcised from the RAM. The Chronos Collective\'s operative thought volatile memory would leave no trace — but every process, every connection, every byte lingers until the capacitors drain. You reconstructed the Intel Briefing from the spectral residue of a dead machine. The Collective\'s C2 infrastructure is now compromised. Operation Midnight Sun: neutralized.',
+
+        debrief: {
+            keyTakeaways: [
+                'Volatile memory is forensic gold — even after disk wipes, RAM preserves process state, network connections, file handles, and heap contents',
+                'PPID anomalies are a reliable indicator of process injection and orphaned malware implants',
+                'windows.malfind detects PAGE_EXECUTE_READWRITE regions — the hallmark of reflective DLL injection',
+                'Nation-state actors use legitimate-sounding service names (WindowsHealthService) to blend persistence into the OS noise',
+                'DNS exfiltration is difficult to detect via endpoint tools — memory forensics can expose it through process command-line analysis'
+            ],
+            realWorldContext: 'The Chronos Collective TTP profile is based on observed behaviors from APT groups targeting energy-sector SCADA systems, including use of custom RATs with encrypted C2 over standard HTTPS ports to blend with legitimate traffic.',
+            furtherReading: [
+                'The Art of Memory Forensics (Ligh, Case, Levy, Walters)',
+                'Volatility 3 documentation: https://volatility3.readthedocs.io',
+                'MITRE ATT&CK Enterprise Matrix — Defense Evasion: T1036.004',
+                'CISA Advisory on APT targeting energy sector ICS/SCADA'
+            ]
+        }
     },
 
     // ═══════════════════════════════════════════════════════
@@ -771,6 +968,36 @@ PID     Process                 Offset(V)               HandleValue     Type    
                                 'alpha_memdump.raw': {
                                     type: 'file',
                                     content: '[BINARY DATA]\nalpha_memdump.raw: data (raw memory dump)\nSize: 4,294,967,296 bytes (4 GB)\nSHA256: 8a3f2b1c9e4d6a7f0b5c3e8d1a9f4c7b2e6d0a3f5c8b1e4d7a0f3c6b9e2d5a8\n\nThis is a raw memory image from SRV-INTEL-ALPHA.\nUse Volatility 3 framework for analysis:\n  vol.py -f alpha_memdump.raw windows.info\n  vol.py -f alpha_memdump.raw windows.pslist\n  vol.py -f alpha_memdump.raw windows.netscan\n  vol.py -f alpha_memdump.raw windows.memdump --pid <PID> --dump-dir .'
+                                },
+                                // ── DECOY FILES — Red herrings and misleading artifacts ──
+                                'BSOD.dmp': {
+                                    type: 'file',
+                                    content: '[BINARY DATA — Windows Kernel Crash Dump]\nBSOD.dmp: Windows minidump (kernel mode crash)\nSize: 262,144 bytes (256 KB)\nSHA256: 1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2c\n\nCrash timestamp: 2024-11-12 23:14:07 UTC\nBug check code: 0x0000007E (SYSTEM_THREAD_EXCEPTION_NOT_HANDLED)\nFaulting module: UNKNOWN\n\nNOTE: This crash dump is from the PREVIOUS day — not from the incident timeline.\nThis was a hardware driver issue unrelated to the Chronos Collective intrusion.\n\n[!] This is NOT the memory image you want. Use alpha_memdump.raw for the incident.\n[!] vol.py cannot parse this crash dump — it is a kernel minidump, not a full memory image.'
+                                },
+                                'srv-beta-memdump.raw': {
+                                    type: 'file',
+                                    content: '[BINARY DATA]\nsrv-beta-memdump.raw: data (raw memory dump)\nSize: 4,294,967,296 bytes (4 GB)\nSHA256: 9b0c1d2e3f4a5b6c7d8e9f0a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c\n\nThis memory image is from SRV-BETA — a DEV environment machine.\nCaptured: 2024-11-10 16:00:00 UTC (3 days before the incident)\n\nProcess snapshot includes: VS Code, node.js, git, postgres — developer workload only.\nNo indicators of compromise found in preliminary review.\n\n[!] WRONG TARGET: This is NOT the compromised machine.\n[!] The incident occurred on SRV-INTEL-ALPHA. Use alpha_memdump.raw.\n\nRunning vol.py on this file will show a completely clean Windows 10 development system\nwith no malicious processes. This is a decoy — do not waste time here.'
+                                },
+                                'old_analysis': {
+                                    type: 'dir',
+                                    children: {
+                                        'svchost_suspicious.txt': {
+                                            type: 'file',
+                                            content: '=== STALE ANALYSIS NOTES — DO NOT USE ===\nDate: 2024-11-08\nAnalyst: jsmith\n\nInitial triage flagged svchost.exe (PID 892) as suspicious due to high handle count.\nFurther analysis determined this is the DcomLaunch service host — BENIGN.\n\nThe svchost.exe connection to 204.79.197.200:443 is legitimate Microsoft telemetry.\nThe svchost.exe connection to 13.107.42.14:443 is legitimate Microsoft Update.\nThe svchost.exe connection to 40.67.254.36:443 is legitimate Office 365 traffic.\n\nCONCLUSION: svchost.exe activity is normal. No IOCs found in this process family.\n\n[!] NOTE: This analysis predates the Chronos Collective intrusion.\n[!] The real threat process is NOT in the svchost family — look elsewhere.\n[!] Focus on processes with unusual PPID values and launch paths outside System32.'
+                                        },
+                                        'network_baseline.txt': {
+                                            type: 'file',
+                                            content: '=== NETWORK BASELINE — SRV-INTEL-ALPHA ===\nCapture date: 2024-11-01 (12 days before incident)\n\nExpected outbound connections:\n  204.79.197.200:443   — Microsoft Bing / Edge (explorer.exe)\n  13.107.42.14:443     — Microsoft Update (svchost.exe)\n  40.67.254.36:443     — Office 365 (svchost.exe)\n\nExpected listening ports:\n  0.0.0.0:135    — RPC (svchost.exe)\n  0.0.0.0:445    — SMB (System)\n  0.0.0.0:5040   — Service (svchost.exe)\n\nANYTHING NOT ON THIS LIST IS ANOMALOUS.\n\n[!] HINT: Compare this baseline against the netscan output from alpha_memdump.raw.\n[!] Connections NOT in this baseline are investigation priorities.\n\nNote: 10.13.37.0/24 is NOT in the legitimate network baseline.'
+                                        },
+                                        'false_positive_pid4892.txt': {
+                                            type: 'file',
+                                            content: '=== INITIAL FALSE POSITIVE ASSESSMENT ===\nDate: 2024-11-13 09:50 UTC (6 minutes after intrusion began)\nAnalyst: automated-triage\n\nProcess: chronos_agent.exe (PID 4892)\nInitial assessment: UNKNOWN — not in Windows process whitelist\nAction: FLAGGED FOR MANUAL REVIEW\n\nNote: MsMpEng.exe (Windows Defender, PID 2140) did not alert on this process.\nThis is consistent with a signed or hollowed binary that bypasses static AV detection.\n\nSTATUS: This file was created by the automated triage system before manual analysis.\nManual forensics analysis is REQUIRED — automated tools missed this implant.\n\n[THIS FILE IS A DECOY — it confirms the target but provides no flag-relevant data]'
+                                        }
+                                    }
+                                },
+                                'decoy_pslist.txt': {
+                                    type: 'file',
+                                    content: '=== PARTIAL PSLIST OUTPUT — SRV-BETA (WRONG MACHINE) ===\nThis file was mistakenly copied from the SRV-BETA triage package.\n\nPID     PPID    ImageFileName           CreateTime\n4       0       System                  2024-11-10 08:00:01\n396     4       smss.exe                2024-11-10 08:00:02\n768     620     services.exe            2024-11-10 08:00:05\n2876    2848    explorer.exe            2024-11-10 08:01:12\n4204    2876    Code.exe                2024-11-10 09:15:33\n6812    4204    node.exe                2024-11-10 09:16:01\n7440    2876    chrome.exe              2024-11-10 09:22:47\n8190    7440    chrome.exe              2024-11-10 09:22:48\n\n[!] THIS IS NOT FROM SRV-INTEL-ALPHA\n[!] These PIDs do not exist in alpha_memdump.raw\n[!] Do not use these PIDs with vol.py — you will get "PID not found" errors\n[!] Run vol.py -f alpha_memdump.raw windows.pslist to get the correct process list'
                                 },
                                 'notes.txt': {
                                     type: 'file',

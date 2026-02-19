@@ -18,14 +18,65 @@ const A9Config = {
     trackerKey: 'ctf_a9',
 
     // ═══════════════════════════════════════════════════════
+    // PHASE SYSTEM (Multi-layer attack chain)
+    // ═══════════════════════════════════════════════════════
+
+    phases: [
+        {
+            id: 'recon',
+            name: 'Reconnaissance',
+            icon: '\uD83D\uDD0D',
+            description: 'Discover the target\'s attack surface. Identify open ports, services, and the web application technology stack.',
+            requiredFlags: [],
+            mitre: ['T1046', 'T1595.002'],
+            unlocks: ['app_analysis'],
+            locked: false
+        },
+        {
+            id: 'app_analysis',
+            name: 'Application Analysis',
+            icon: '\uD83D\uDCD6',
+            description: 'Identify serialized data in session tokens. Fingerprint the PHP serialization format and locate deserialization endpoints.',
+            requiredFlags: [],
+            mitre: ['T1190', 'T1592.004'],
+            unlocks: ['deser_exploit'],
+            locked: true
+        },
+        {
+            id: 'deser_exploit',
+            name: 'Deserialization Exploit',
+            icon: '\uD83E\uDDEC',
+            description: 'Craft a malicious PHP serialized payload. Manipulate the session token to escalate role from member to admin.',
+            requiredFlags: ['user'],
+            mitre: ['T1059.004', 'T1134'],
+            unlocks: ['rce_privesc'],
+            locked: true
+        },
+        {
+            id: 'rce_privesc',
+            name: 'Remote Code Execution / Privesc',
+            icon: '\uD83D\uDC80',
+            description: 'Abuse the unauthenticated debug endpoint to inject a gadget chain RCE object. Execute commands as root and retrieve the root flag.',
+            requiredFlags: ['root'],
+            mitre: ['T1068', 'T1059', 'T1548'],
+            unlocks: [],
+            locked: true
+        }
+    ],
+
+    // ═══════════════════════════════════════════════════════
     // CERT OBJECTIVES (Assessment Mode — AR-7)
     // ═══════════════════════════════════════════════════════
 
     certObjectives: {
         certPath: 'SY0-701',
         mappings: [
-            { flagId: 'user', objective: '2.4', description: 'Given a scenario, analyze indicators associated with authentication attacks', skill: 'Insecure Deserialization Discovery' },
-            { flagId: 'root', objective: '2.4', description: 'Given a scenario, analyze indicators associated with authentication attacks', skill: 'Session Token Forgery via Serialization' }
+            { flagId: 'user', objective: '2.3', description: 'Given a scenario, analyze potential indicators associated with application attacks — Insecure deserialization', skill: 'PHP Serialization Format Analysis' },
+            { flagId: 'user', objective: '2.4', description: 'Given a scenario, analyze indicators associated with authentication attacks — Session token manipulation', skill: 'Insecure Deserialization Discovery' },
+            { flagId: 'user', objective: '3.2', description: 'Given a scenario, implement host or application security solutions — Input validation and secure deserialization', skill: 'Session Token Forgery via Serialization' },
+            { flagId: 'root', objective: '2.4', description: 'Given a scenario, analyze indicators associated with application attacks — RCE via magic method gadget chain', skill: 'PHP Unserialize RCE Exploitation' },
+            { flagId: 'root', objective: '4.1', description: 'Given a scenario, apply common security techniques — Principle of least privilege and debug endpoint hardening', skill: 'Privilege Escalation via Unauthenticated Debug Console' },
+            { flagId: 'root', objective: '1.2', description: 'Given a scenario, analyze indicators of malicious activity — Command execution via deserialization gadget chain', skill: 'Gadget Chain Identification' }
         ]
     },
 
@@ -105,22 +156,26 @@ const A9Config = {
         {
             id: 'hint1',
             text: 'After logging in, notice the session token displayed below the form. It is Base64-encoded. Try decoding it to see the serialized PHP object inside.',
-            penalty: -50
+            cost: 10,
+            penalty: -10
         },
         {
             id: 'hint2',
             text: 'The serialized object contains a \'role\' field set to \'member\'. Change it to \'admin\' and update the string length: s:5:"admin" not s:6:"member". The length prefix must match the string length exactly.',
-            penalty: -50
+            cost: 25,
+            penalty: -25
         },
         {
             id: 'hint3',
             text: 'After modifying the serialized object, re-encode it to Base64 and paste the result into the Session Token field on the dashboard page. The server will deserialize it and grant you the corresponding role.',
+            cost: 50,
             penalty: -50
         },
         {
             id: 'hint4',
             text: 'The debug console accepts serialized PHP objects. Create an RCE object: O:3:"RCE":1:{s:3:"cmd";s:22:"cat /root/root.txt";} — the string length (s:22) must match the cmd string length exactly.',
-            penalty: -50
+            cost: 75,
+            penalty: -75
         }
     ],
 
@@ -129,7 +184,15 @@ const A9Config = {
     // ═══════════════════════════════════════════════════════
 
     lore: {
-        outro: 'The Rusted Lock has been shattered. The Forge Remnants\' trusted session tokens were nothing but rust — a serialized object any apprentice could reshape. With the debug console wide open to arbitrary deserialization, their entire server yielded to you. The guild\'s master keys are yours.'
+        intro: 'The Forge Remnants guild maintains a legacy member portal built on PHP — a relic from an era before secure session management. Intelligence indicates the portal serializes user objects directly into Base64-encoded session tokens passed in plaintext. No signature. No integrity check. A debug console left open for "engineers." Your mission: exploit the insecure deserialization chain, escalate from guild member to root.',
+        scenario: 'A decade-old PHP application written by a guild engineer who "didn\'t trust databases" stores session state entirely in client-side tokens. A junior apprentice discovered the Base64 string in their browser\'s developer tools, decoded it, and posted on an internal forum: "lol it\'s just a PHP object." The security team archived the ticket as low severity. The debug console has been "temporarily" exposed since a firmware migration in 2019.',
+        outro: 'The Rusted Lock has been shattered. The Forge Remnants\' trusted session tokens were nothing but rust — a serialized object any apprentice could reshape. With the debug console wide open to arbitrary deserialization, their entire server yielded to you. The guild\'s master keys are yours.',
+        ecer: {
+            executive: 'CTO deferred security refactor of legacy PHP portal for three consecutive annual cycles, citing "no active exploits in production"',
+            culture: 'No secure development lifecycle for legacy code; new features shipped on top of unreviewed PHP 5-era session handler without regression testing',
+            employee: 'Developer trusted client-supplied Base64 tokens without signing or encrypting them; debug console deployed with root-level PHP-FPM context and no authentication gate',
+            regulatory: 'No application security scanning in CI/CD pipeline; deserialization risk was never flagged in annual pen-test scope because the debug endpoint was undocumented'
+        }
     },
 
     // ═══════════════════════════════════════════════════════
@@ -763,6 +826,27 @@ const A9Config = {
                                 '.bash_history': {
                                     type: 'file',
                                     content: 'nmap 10.10.14.28\ncurl http://10.10.14.28/forge/\nfirefox http://10.10.14.28/forge/\npython3 tools/serialize.py\necho -n "test" | base64\nbase64 -d <<< "Tzo0OiJVc2VyIg=="'
+                                },
+                                'decoys': {
+                                    type: 'dir',
+                                    children: {
+                                        'java_serial.bin': {
+                                            type: 'file',
+                                            content: '[BINARY] Java serialized object — 0xACED 0x0005 magic bytes detected\nClass: com.forge.legacy.SessionManager\nFields: userId (int), sessionId (String), expiresAt (long)\n\nNOTE: This is a Java serialization artifact from a legacy migration.\nThe current portal runs PHP — this binary is a red herring from an\nabandoned Java servlet container (Tomcat 7) decommissioned in 2021.\nydnwqZ3K+fake+java+serial+data/notrelevant==\n\nIf you are seeing this file, you are likely over-thinking the recon.\nFocus on the PHP application at http://10.10.14.28/forge/'
+                                        },
+                                        'forge_config_backup.xml': {
+                                            type: 'file',
+                                            content: '<?xml version="1.0" encoding="UTF-8"?>\n<!-- Forge Remnants Legacy Config Backup — DO NOT USE IN PRODUCTION -->\n<forge-config version="1.4.2">\n    <database>\n        <!-- OLD CREDENTIALS — ROTATED 2022-03-14 -->\n        <host>192.168.1.100</host>\n        <port>3307</port>\n        <name>forge_legacy</name>\n        <user>forge_ro</user>\n        <pass>F0rg3_L3g4cy_R0_2019!</pass>\n    </database>\n    <session>\n        <!-- Java HMAC config — NOT used by PHP portal -->\n        <engine>javax.xml.bind.DatatypeConverter</engine>\n        <algo>HS256</algo>\n        <secret>THIS_KEY_IS_EXPIRED_AND_UNUSED</secret>\n    </session>\n    <debug>\n        <!-- Port 9090 debug interface — firewall rule blocks external access -->\n        <enabled>true</enabled>\n        <bindAddress>127.0.0.1</bindAddress>\n        <port>9090</port>\n    </debug>\n</forge-config>\n<!-- This XML config is NOT the PHP config. The PHP session handler does\n     NOT use HMAC signing. It uses raw unserialize(base64_decode($token)). -->'
+                                        },
+                                        'error_log_2024-11.txt': {
+                                            type: 'file',
+                                            content: '[2024-11-03 02:14:55] ERROR: forge_backup.sh — rsync: connection refused to 192.168.1.100:22\n[2024-11-03 02:14:55] ERROR: Backup target unreachable. Skipping.\n[2024-11-10 14:32:11] WARNING: PHP session token decode failed for user agent: sqlmap/1.7.8\n[2024-11-10 14:32:11] INFO: Request blocked by WAF rule SER-001 (serialized payload detected)\n[2024-11-10 14:32:14] WARNING: Repeated invalid session tokens from 172.16.0.45 — possible token replay\n[2024-11-17 09:45:02] ERROR: MySQL connection timeout — retry in 30s\n[2024-11-17 09:45:33] INFO: MySQL reconnected\n[2024-11-28 23:59:59] INFO: cron — purge-logs.sh completed (14 MB freed)\n\nNOTE: WAF was DISABLED on 2024-12-01 ("causes false positives with legitimate admin serialization").\nSee ticket FRG-4412 for justification. This means the session endpoint\nat /forge/dashboard/ is currently unprotected by WAF rule SER-001.'
+                                        },
+                                        'README.decoys': {
+                                            type: 'file',
+                                            content: '=== OPERATOR NOTES (INTERNAL — DO NOT LEAVE ON TARGET) ===\nThese files are intentional red herrings placed by the box author.\n\njava_serial.bin     — Java object, irrelevant to PHP exploit path\nforge_config_backup.xml — Old credentials (rotated), Java HMAC (not used by PHP)\nerror_log_2024-11.txt  — WAF disabled note is REAL lore; Java references are noise\n\nThe actual attack path:\n  1. Login → get Base64 token\n  2. Decode → PHP serialized User object\n  3. Modify role field: s:6:"member" → s:5:"admin"\n  4. Re-encode → load on /forge/dashboard/ → user flag\n  5. Navigate to /forge/debug/ → inject RCE gadget → root flag\n\nDo not be distracted by port 9090 (firewalled), Java artifacts, or the\nold XML config. The PHP unserialize() path is the only live vector.'
+                                        }
+                                    }
                                 }
                             }
                         }

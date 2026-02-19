@@ -24,10 +24,71 @@ const A5Config = {
     certObjectives: {
         certPath: 'PT0-002',
         mappings: [
-            { flagId: 'user', objective: '3.1', description: 'Given a scenario, apply attacks and exploits', skill: 'Windows Service Enumeration' },
-            { flagId: 'root', objective: '3.1', description: 'Given a scenario, apply attacks and exploits', skill: 'Windows Privilege Escalation via Unquoted Service Path' }
+            // Reconnaissance — T1046 Network Service Scanning
+            { flagId: null,   phase: 'recon',       objective: '3.1',  description: 'Given a scenario, apply attacks and exploits — Network Scanning', skill: 'Windows Port & Service Discovery (T1046)' },
+            { flagId: null,   phase: 'recon',       objective: '3.2',  description: 'Given a scenario, perform post-exploitation techniques — OS fingerprinting', skill: 'Windows OS & Build Identification (T1082)' },
+            // Service Enumeration — T1069, T1087, T1574
+            { flagId: null,   phase: 'service_enum', objective: '3.3', description: 'Given a scenario, use appropriate tools to perform a penetration test — Windows enumeration', skill: 'Windows Service Configuration Enumeration (T1069.001)' },
+            { flagId: null,   phase: 'service_enum', objective: '3.3', description: 'Given a scenario, use appropriate tools to perform a penetration test — Unquoted path analysis', skill: 'Unquoted Service Path Identification (T1574.009)' },
+            { flagId: null,   phase: 'service_enum', objective: '3.1', description: 'Given a scenario, apply attacks and exploits — Permission auditing', skill: 'icacls / accesschk Write Permission Verification (T1222)' },
+            // Initial Access — T1078
+            { flagId: 'user', phase: 'access',       objective: '3.1', description: 'Given a scenario, apply attacks and exploits — Credential-based access', skill: 'Windows Service Account Foothold (T1078.003)' },
+            // Privilege Escalation — T1574.009, T1547.001, T1053.005
+            { flagId: 'root', phase: 'privesc',      objective: '3.1', description: 'Given a scenario, apply attacks and exploits — Privilege escalation', skill: 'Unquoted Service Path Binary Hijacking (T1574.009)' },
+            { flagId: 'root', phase: 'privesc',      objective: '3.1', description: 'Given a scenario, apply attacks and exploits — Service restart for payload execution', skill: 'Service Start/Stop for Exploitation (T1569.002)' },
+            // CompTIA Security+ SY0-701 crossover
+            { flagId: 'user', phase: 'access',       objective: '4.3', description: 'SY0-701: Explain the importance of security policies — Least privilege', skill: 'Identifying Overly Permissive Service Account Rights' },
+            { flagId: 'root', phase: 'privesc',      objective: '3.2', description: 'SY0-701: Given a scenario, apply cybersecurity solutions — Windows service hardening', skill: 'Quoting Service Paths & Write ACL Tightening' },
+            { flagId: 'root', phase: 'privesc',      objective: '4.5', description: 'SY0-701: Explain the security implications of proper hardware, software, and data asset management', skill: 'Third-Party Software Deployment Security Review' }
         ]
     },
+
+    // ═══════════════════════════════════════════════════════
+    // PHASE SYSTEM (Multi-layer attack chain)
+    // ═══════════════════════════════════════════════════════
+
+    phases: [
+        {
+            id: 'recon',
+            name: 'Reconnaissance',
+            icon: '\uD83D\uDD0D',
+            description: 'Enumerate the jump server — discover open ports, running services, OS version, and user context. Map the attack surface before you touch anything.',
+            requiredFlags: [],
+            mitre: ['T1046', 'T1082', 'T1595.001'],
+            unlocks: ['service_enum'],
+            locked: false
+        },
+        {
+            id: 'service_enum',
+            name: 'Service Enumeration',
+            icon: '\uD83D\uDCCB',
+            description: 'Enumerate every Windows service. Use sc, wmic, and PowerShell to pull binary paths. Look for paths that contain spaces but lack quotes — Windows resolves them left-to-right, creating a hijack window.',
+            requiredFlags: [],
+            mitre: ['T1069.001', 'T1087.001', 'T1574.009', 'T1222'],
+            unlocks: ['access'],
+            locked: true
+        },
+        {
+            id: 'access',
+            name: 'Initial Access',
+            icon: '\uD83D\uDD13',
+            description: 'Confirm your foothold as svc_backup. Verify your privileges with whoami /priv and net user. Read the user flag from the Desktop. Document your current permission set before escalating.',
+            requiredFlags: [],
+            mitre: ['T1078.003', 'T1059.003'],
+            unlocks: ['privesc'],
+            locked: true
+        },
+        {
+            id: 'privesc',
+            name: 'Windows Privilege Escalation',
+            icon: '\uD83D\uDD17',
+            description: 'Escalate from svc_backup to NT AUTHORITY\\SYSTEM. The unquoted path for AdvancedMonitoring means Windows will try C:\\Program Files\\Advanced.exe before the real binary. The directory is writable by BUILTIN\\Users. Copy your payload, restart the service, and claim SYSTEM.',
+            requiredFlags: ['user'],
+            mitre: ['T1574.009', 'T1569.002', 'T1547.001', 'T1053.005'],
+            unlocks: [],
+            locked: true
+        }
+    ],
 
     // ═══════════════════════════════════════════════════════
     // BOOT SEQUENCE (Windows Server)
@@ -112,23 +173,27 @@ const A5Config = {
     hints: [
         {
             id: 'hint1',
-            text: "Start enumeration: `whoami /priv`, `systeminfo`, `net user`, `sc query`. Look for service misconfigurations.",
-            penalty: -50
+            text: "Start with your own identity: `whoami /priv`, `systeminfo`, `net user svc_backup`. Then list services: `sc query` and `tasklist /svc`. Get your bearings before you look for vectors.",
+            cost: 10,
+            penalty: -10
         },
         {
             id: 'hint2',
-            text: "Use `sc qc AdvancedMonitoring` or `wmic service get name,pathname,startmode`. Notice anything about the binary path? It's UNQUOTED with spaces!",
-            penalty: -50
+            text: "Pull the full service configuration: `sc qc AdvancedMonitoring` or `wmic service get name,pathname,startmode`. Stare at the BINARY_PATH_NAME. It has spaces and it is NOT quoted — that is the vulnerability.",
+            cost: 25,
+            penalty: -25
         },
         {
             id: 'hint3',
-            text: "The unquoted path `C:\\Program Files\\Advanced Monitoring\\service.exe` means Windows tries `C:\\Program Files\\Advanced.exe` first. Check write permissions with `icacls \"C:\\Program Files\"`.",
+            text: "Windows resolves unquoted paths left-to-right. For `C:\\Program Files\\Advanced Monitoring\\service.exe`, Windows tries `C:\\Program Files\\Advanced.exe` first. Run `icacls \"C:\\Program Files\"` — BUILTIN\\Users has write access. That write permission is your ticket.",
+            cost: 50,
             penalty: -50
         },
         {
             id: 'hint4',
-            text: "Copy an exploit to the hijack location: `copy C:\\Users\\svc_backup\\Desktop\\exploit.exe \"C:\\Program Files\\Advanced.exe\"` then restart the service: `sc stop AdvancedMonitoring && sc start AdvancedMonitoring`",
-            penalty: -50
+            text: "Copy the exploit to the hijack location: `copy C:\\Users\\svc_backup\\Desktop\\exploit.exe \"C:\\Program Files\\Advanced.exe\"` — then restart the service: `sc stop AdvancedMonitoring` followed by `sc start AdvancedMonitoring`. The service runs as LocalSystem, so your payload runs as SYSTEM.",
+            cost: 75,
+            penalty: -75
         }
     ],
 
@@ -137,7 +202,15 @@ const A5Config = {
     // ═══════════════════════════════════════════════════════
 
     lore: {
-        outro: 'The Custodian\'s Key has been turned. A misconfigured service on the corporate jump server \u2014 an unquoted path, a writable directory \u2014 was all it took. From a humble backup service account to NT AUTHORITY\\SYSTEM. The custodian never saw it coming.'
+        intro: 'CORP-JUMP-01 is the gateway into the corp.local domain — the one server every administrator touches. Intel has surfaced a service account credential for svc_backup, a backup operator with just enough privilege to be dangerous. Your mission: use this foothold to escalate to SYSTEM and extract proof of compromise from the Administrator\'s desktop.',
+        scenario: 'The CorpIT team deployed a third-party monitoring agent — "Advanced Monitoring Service" — on a tight deadline before a compliance audit. The vendor\'s installer required the binary to live in a path with spaces. A sysadmin who had never heard of unquoted service path vulnerabilities approved the deployment. The icacls audit showed BUILTIN\\Users had write access to C:\\Program Files\\ — an inheritance artifact from a legacy application that was never cleaned up. The TODO note in admin_notes.txt says "Review unquoted service paths" and has been there for six months.',
+        outro: 'The Custodian\'s Key has been turned. A misconfigured service on the corporate jump server — an unquoted path, a writable directory — was all it took. From a humble backup service account to NT AUTHORITY\\SYSTEM. The custodian never saw it coming.',
+        ecer: {
+            executive: 'Compliance pressure drove an accelerated deployment timeline — the monitoring agent was installed without a security review because the audit deadline was immovable, and leadership treated "get it running" as the only success criterion',
+            culture: 'No change management process required security sign-off on third-party service installations; write permissions inherited from a legacy application sat unreviewed in icacls for years because no one owned the periodic ACL audit',
+            employee: 'The sysadmin who installed the service was unaware of the unquoted service path attack vector — a knowledge gap that is common but catastrophic on SYSTEM-context services',
+            regulatory: 'A CIS Benchmark L1 or STIG check for unquoted service paths would have flagged this automatically; the compliance audit that triggered the rushed deployment ironically would have caught the very vulnerability the rush created'
+        }
     },
 
     // ═══════════════════════════════════════════════════════
@@ -172,6 +245,14 @@ const A5Config = {
                                         'backup_log.txt': {
                                             type: 'file',
                                             content: '=== Backup Log - CORP-JUMP-01 ===\n2024-01-14 02:00:01 [INFO] Starting incremental backup\n2024-01-14 02:00:03 [INFO] Backing up C:\\Users\\*\n2024-01-14 02:15:22 [INFO] Backing up C:\\Program Files\\*\n2024-01-14 02:30:45 [WARN] Skipped locked file: C:\\Windows\\System32\\config\\SAM\n2024-01-14 02:31:01 [INFO] Backup completed. 4,231 files processed.\n2024-01-14 02:31:02 [INFO] Next scheduled: 2024-01-15 02:00:00'
+                                        },
+                                        'registry_export_HKLM_Installer.reg': {
+                                            type: 'file',
+                                            content: 'Windows Registry Editor Version 5.00\n\n; [DECOY] AlwaysInstallElevated is NOT set — this is a red herring\n; Exported: 2024-01-10 by svc_backup (checking for AIE privesc)\n\n[HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\Installer]\n; Key exists but AlwaysInstallElevated value is absent = not enabled\n; This path is NOT your escalation vector\n\n[HKEY_CURRENT_USER\\SOFTWARE\\Policies\\Microsoft\\Windows\\Installer]\n; Same — AIE not set for current user\n; Dead end. Look elsewhere.\n\n; Hint: AIE requires BOTH HKLM and HKCU to be set to 1\n; Neither is set here. Move on.'
+                                        },
+                                        'token_dump_attempt.txt': {
+                                            type: 'file',
+                                            content: 'TOKEN IMPERSONATION ATTEMPT LOG\n================================\nDate: 2024-01-13\nTool: custom token_grabber.exe\nStatus: FAILED\n\nError: SeImpersonatePrivilege not available to svc_backup\nError: Cannot impersonate named pipe tokens without SeImpersonate\n\nPotato attacks attempted:\n  - JuicyPotato: FAILED (no SeImpersonate)\n  - RoguePotato: FAILED (no SeImpersonate)\n  - PrintSpoofer: FAILED (no SeImpersonate)\n\n[NOTE] svc_backup has SeBackupPrivilege and SeRestorePrivilege\nbut NOT SeImpersonatePrivilege. Potato attacks are a dead end here.\n\nSeBackupPrivilege abuse (SAM dump) also blocked — SAM is locked\nand requires Volume Shadow Copy access not available to this account.\n\n>> Try a different angle. Look at the services running on this box.'
                                         }
                                     }
                                 },
@@ -185,6 +266,14 @@ const A5Config = {
                                         'readme.txt': {
                                             type: 'file',
                                             content: 'SVC_BACKUP ACCOUNT DOCUMENTATION\n=================================\nThis service account is used for automated backup operations.\n\nPermissions:\n- SeBackupPrivilege (read any file regardless of ACL)\n- SeRestorePrivilege (write any file regardless of ACL)\n- Member of Backup Operators group\n\nDo NOT add this account to Administrators group.\nDo NOT grant interactive logon rights in production.\n\nFor questions, contact: sysadmin@corp.local'
+                                        },
+                                        'scheduled_tasks_export.txt': {
+                                            type: 'file',
+                                            content: '=== Scheduled Tasks Export — CORP-JUMP-01 ===\n[DECOY] No writable task scripts found — this is a dead end\n\nTaskName: \\Microsoft\\Windows\\WindowsUpdate\\Scheduled Start\n  Run As: SYSTEM\n  Action: %windir%\\system32\\svchost.exe -k netsvcs -p\n  Writable: NO (C:\\Windows\\System32 — not writable by svc_backup)\n\nTaskName: \\CorpIT\\BackupCheck\n  Run As: CORP-JUMP-01\\svc_backup\n  Action: C:\\Users\\svc_backup\\AppData\\Local\\Temp\\backup_check.ps1\n  Writable: YES — but runs as svc_backup, not SYSTEM\n  NOTE: Modifying this script only gets you svc_backup-level execution\n        Not useful for privilege escalation. Dead end.\n\nTaskName: \\CorpIT\\MonitoringHeartbeat\n  Run As: SYSTEM\n  Action: "C:\\Program Files\\Advanced Monitoring\\service.exe" --heartbeat\n  Writable: NO (script not writable)\n\n>> Scheduled task abuse is not the path. The service binary path is.'
+                                        },
+                                        'laps_query_attempt.txt': {
+                                            type: 'file',
+                                            content: 'LAPS (Local Administrator Password Solution) Query\n==================================================\nDate: 2024-01-12\nAttempted by: svc_backup\n\nCommand: Get-AdComputer CORP-JUMP-01 -Properties ms-Mcs-AdmPwd\nResult: Access Denied — svc_backup not in LAPS Readers group\n\nCommand: reg query \\\\CORP-JUMP-01\\HKLM\\SECURITY\\SAM\nResult: Access Denied — remote registry blocked for non-admins\n\nCommand: ldapsearch ms-Mcs-AdmPwd\nResult: No LDAP read rights for this attribute\n\n[NOTE] LAPS is deployed but svc_backup cannot read it.\nThe local Administrator password is not recoverable this way.\nThis dead end was fully expected. Look at service configurations instead.'
                                         }
                                     }
                                 },
@@ -196,7 +285,31 @@ const A5Config = {
                                             children: {
                                                 'Temp': {
                                                     type: 'dir',
-                                                    children: {}
+                                                    children: {
+                                                        'backup_check.ps1': {
+                                                            type: 'file',
+                                                            content: '# Backup health check — runs via Task Scheduler\n# Author: svc_backup auto-generated\n\n$services = Get-Service | Where-Object { $_.Name -like "*backup*" }\n$services | ForEach-Object {\n    Write-Output ("Service: " + $_.Name + " Status: " + $_.Status)\n}\n\n# AlwaysInstallElevated check (disabled)\n# $aie = Get-ItemProperty HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\Installer -Name AlwaysInstallElevated -EA SilentlyContinue\n# Write-Output "AIE: $($aie.AlwaysInstallElevated)"\n\n# TODO: add registry-based configuration sync\n# reg query "HKLM\\SOFTWARE\\Corp\\BackupAgent" /v SecretKey'
+                                                        }
+                                                    }
+                                                },
+                                                'Microsoft': {
+                                                    type: 'dir',
+                                                    children: {
+                                                        'Windows': {
+                                                            type: 'dir',
+                                                            children: {
+                                                                'PowerShell': {
+                                                                    type: 'dir',
+                                                                    children: {
+                                                                        'ConsoleHost_history.txt': {
+                                                                            type: 'file',
+                                                                            content: '# PowerShell command history — svc_backup\n# [DECOY] These are common dead ends; the real vector is service configuration\n\nGet-Service\nGet-Service | Where-Object {$_.StartType -eq "Automatic"}\nGet-ItemProperty HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\Installer\nreg query HKLM\\SYSTEM\\CurrentControlSet\\Services\nGet-LocalUser\nGet-LocalGroupMember Administrators\nTest-Path "C:\\Program Files (x86)\\CorpAgent\\agent.exe"\nGet-ScheduledTask | Where-Object {$_.TaskPath -like "*Corp*"}\nInvoke-WebRequest http://file.corp.local/tools/sysmon.exe -OutFile C:\\Temp\\sysmon.exe\n# Above failed — server not reachable from svc_backup context\nGet-Acl "C:\\Windows\\Tasks"\n# Tasks dir not writable — dead end\nGet-ItemProperty HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run\n# AdvMonitor key present but binary path is full — no hijack here\nGet-Process | Sort-Object CPU -Descending | Select-Object -First 10'
+                                                                        }
+                                                                    }
+                                                                }
+                                                            }
+                                                        }
+                                                    }
                                                 }
                                             }
                                         }

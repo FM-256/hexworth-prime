@@ -18,14 +18,65 @@ const A7Config = {
     trackerKey: 'ctf_a7',
 
     // ═══════════════════════════════════════════════════════
+    // PHASE SYSTEM (Multi-layer attack chain)
+    // ═══════════════════════════════════════════════════════
+
+    phases: [
+        {
+            id: 'recon',
+            name: 'Reconnaissance',
+            icon: '\uD83D\uDD0D',
+            description: 'Scan the target for open ports and fingerprint services. Identify the technology stack and confirm that a NoSQL backend is in use.',
+            requiredFlags: [],
+            mitre: ['T1046', 'T1595.002', 'T1592.004'],
+            unlocks: ['enumeration'],
+            locked: false
+        },
+        {
+            id: 'enumeration',
+            name: 'Web App Enumeration',
+            icon: '\uD83C\uDF10',
+            description: 'Map the web application. Discover the authentication endpoint, read the API documentation, and understand how the JSON query body is passed directly to the MongoDB engine.',
+            requiredFlags: [],
+            mitre: ['T1190', 'T1083', 'T1213'],
+            unlocks: ['exploitation'],
+            locked: true
+        },
+        {
+            id: 'exploitation',
+            name: 'NoSQL Injection',
+            icon: '\uD83D\uDC89',
+            description: 'Bypass authentication by injecting MongoDB operator objects into the login form. Use $ne, $gt, or $regex to craft a query that always evaluates true and grants admin access.',
+            requiredFlags: ['user'],
+            mitre: ['T1190', 'T1078', 'T1212'],
+            unlocks: ['exfiltration'],
+            locked: true
+        },
+        {
+            id: 'exfiltration',
+            name: 'Data Exfiltration',
+            icon: '\uD83D\uDDC3\uFE0F',
+            description: 'Query the vault_keys collection from the admin panel. Extract the Master Encryption Key and capture the root flag hidden inside the classified document.',
+            requiredFlags: ['root'],
+            mitre: ['T1530', 'T1213', 'T1005'],
+            unlocks: [],
+            locked: true
+        }
+    ],
+
+    // ═══════════════════════════════════════════════════════
     // CERT OBJECTIVES (Assessment Mode — AR-7)
     // ═══════════════════════════════════════════════════════
 
     certObjectives: {
         certPath: 'SY0-701',
         mappings: [
-            { flagId: 'user', objective: '1.4', description: 'Given a scenario, analyze indicators of malicious activity', skill: 'NoSQL Injection Auth Bypass' },
-            { flagId: 'root', objective: '1.4', description: 'Given a scenario, analyze indicators of malicious activity', skill: 'NoSQL Data Exfiltration' }
+            { flagId: 'user', objective: '1.2', description: 'Given a scenario, analyze indicators of malicious activity — Injection attacks (NoSQL)', skill: 'NoSQL Injection Auth Bypass via MongoDB Operators' },
+            { flagId: 'user', objective: '1.4', description: 'Given a scenario, analyze indicators of malicious activity', skill: 'NoSQL Query Operator Exploitation' },
+            { flagId: 'user', objective: '2.7', description: 'Explain the importance of security concepts in an enterprise environment — Input validation', skill: 'Unsanitized JSON Input Identification' },
+            { flagId: 'root', objective: '1.4', description: 'Given a scenario, analyze indicators of malicious activity', skill: 'NoSQL Data Exfiltration from Document Store' },
+            { flagId: 'root', objective: '2.3', description: 'Explain the importance of security concepts in an enterprise environment — Application security', skill: 'Database Access Control and Privilege Escalation' },
+            { flagId: 'root', objective: '4.1', description: 'Given a scenario, apply common security techniques to computing resources — Application hardening', skill: 'NoSQL Injection Mitigation and Parameterized Queries' }
         ]
     },
 
@@ -124,22 +175,26 @@ const A7Config = {
         {
             id: 'hint1',
             text: "This isn't SQL — it's MongoDB (NoSQL). SQL injection won't work here. Think JSON operators.",
-            penalty: -50
+            cost: 10,
+            penalty: -10
         },
         {
             id: 'hint2',
             text: 'MongoDB query operators like $ne (not equal), $gt (greater than), and $regex can bypass authentication if the input isn\'t sanitized.',
-            penalty: -50
+            cost: 25,
+            penalty: -25
         },
         {
             id: 'hint3',
             text: 'Try setting the password field to a MongoDB operator: {"$ne":""} means \'password is not empty\' — which is always true.',
+            cost: 50,
             penalty: -50
         },
         {
             id: 'hint4',
             text: 'After logging in as admin, search the vault_keys collection. The API documentation at /hollow/api/ reveals the query format.',
-            penalty: -50
+            cost: 75,
+            penalty: -75
         }
     ],
 
@@ -148,7 +203,15 @@ const A7Config = {
     // ═══════════════════════════════════════════════════════
 
     lore: {
-        outro: "The Hollow Database has been cracked open. The Void Collective's master encryption key is yours — their entire cryptographic infrastructure is compromised. The Overseer's complacency with unsanitized JSON inputs has cost them everything."
+        intro: 'The Void Collective runs the Citizen Registry — a MongoDB-backed portal that authenticates operatives and stores classified vault keys. A code review four months ago flagged the auth endpoint as unsafe: the JSON body is passed directly to db.citizens.findOne() without sanitization. The ticket was closed as "low priority." Your mission: exploit that unfixed vulnerability, bypass authentication as admin, and extract the Master Encryption Key from the vault.',
+        scenario: 'A former contractor built the Citizen Registry in three weeks and never added server-side query validation — he trusted the front-end JavaScript to handle that. When a security engineer raised the NoSQL injection risk in a post-sprint review, the Overseer dismissed it: "Who\'s going to send JSON operators to a login form?" The ticket was deprioritized, then forgotten. Port 27017 is now firewalled from outside, but the web API still passes the raw request body directly to the database engine.',
+        outro: "The Hollow Database has been cracked open. The Void Collective's master encryption key is yours — their entire cryptographic infrastructure is compromised. The Overseer's complacency with unsanitized JSON inputs has cost them everything. The Void Collective has gone dark; their secure channels are broken.",
+        ecer: {
+            executive: 'The Overseer dismissed a formal security finding logged in the post-sprint review, calling the NoSQL injection risk theoretical. No risk-acceptance process existed, no compensating controls were applied, and no follow-up review was scheduled — a single executive judgment call left the entire cryptographic vault exposed.',
+            culture: 'Security reviews were held after development was already complete and changes were treated as optional. The phrase "who would do that?" substituted for threat modeling. There was no secure development lifecycle, no mandatory remediation SLA for HIGH findings, and no champion for application security within the Void Collective\'s engineering team.',
+            employee: 'The original contractor trusted the front-end to sanitize input and had no awareness that MongoDB evaluates operator objects embedded in query documents. The code pattern — db.collection.findOne(req.body) — is a textbook NoSQL injection anti-pattern but was never flagged in code review because reviewers also lacked NoSQL security training.',
+            regulatory: 'No application security standard (OWASP ASVS, NIST SP 800-53 SI-10) was enforced. Parameterized queries or schema validation (e.g., Mongoose strict mode) would have neutralized this vulnerability entirely, but no compliance framework required their adoption. An external penetration test mandated annually would have caught this before deployment reached production.'
+        }
     },
 
     // ═══════════════════════════════════════════════════════
@@ -736,6 +799,23 @@ const A7Config = {
                                 '.bash_history': {
                                     type: 'file',
                                     content: 'nmap 10.10.14.20\ncurl http://10.10.14.20/hollow/\ncurl http://10.10.14.20/hollow/api/\nfirefox http://10.10.14.20/hollow/'
+                                },
+                                'loot': {
+                                    type: 'dir',
+                                    children: {
+                                        'mongod.conf': {
+                                            type: 'file',
+                                            content: '# MongoDB Configuration — RETRIEVED FROM TARGET\n# WARNING: This is a DECOY copy left in /tmp on the target.\n# The real mongod.conf has authentication enabled.\n#\n# net:\n#   port: 27017\n#   bindIp: 127.0.0.1     <-- loopback only — direct shell access blocked\n# security:\n#   authorization: enabled\n#\n# Key insight: port 27017 is firewalled externally.\n# The web application is the only entry vector.\n# Direct mongo/mongosh connections will always fail.\n# Attack through the web API — not the database socket.'
+                                        },
+                                        'citizens_dump.json': {
+                                            type: 'file',
+                                            content: '// DECOY — This dump was recovered from an old backup.\n// Passwords shown here are HASHED (bcrypt) in the backup.\n// The live database stores them in PLAINTEXT — a separate vulnerability.\n// Do NOT try to crack these hashes — they are from the archived system.\n[\n  {"_id":"5f3a...","username":"admin","password":"$2b$12$REDACTED","role":"admin"},\n  {"_id":"5f3b...","username":"guest","password":"$2b$12$REDACTED","role":"citizen"},\n  {"_id":"5f3c...","username":"archivist","password":"$2b$12$REDACTED","role":"archivist"}\n]\n// NOTE: Attempting SQLmap or hash cracking on this file is a dead end.\n// The live auth endpoint does NOT use hashed passwords — inject instead.'
+                                        },
+                                        'api_token.txt': {
+                                            type: 'file',
+                                            content: '=== RED HERRING — API Bearer Token ===\nBearer: eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJzdWIiOiJhZG1pbiIsInJvbGUiOiJhZG1pbiJ9.\n\nStatus: REVOKED — token was rotated after suspected leak.\nThis token will NOT authenticate to any live endpoint.\nThe Citizen Registry does not use JWT-based auth at all.\nThe auth mechanism is session-based (server-side).\n\nDead end. Go back to the login form and think: how does\nthe server validate credentials? It passes the JSON body\ndirectly to the database query engine.'
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -779,6 +859,24 @@ const A7Config = {
                         'passwd': {
                             type: 'file',
                             content: 'root:x:0:0:root:/root:/bin/bash\ndaemon:x:1:1:daemon:/usr/sbin:/usr/sbin/nologin\nkali:x:1000:1000:Kali,,,:/home/kali:/bin/bash'
+                        },
+                        'hosts': {
+                            type: 'file',
+                            content: '127.0.0.1       localhost\n127.0.1.1       kali\n\n# DECOY INTEL — previous operator left these notes:\n# 10.10.14.20    hollow.void-collective.ctf\n# 10.10.14.21    backup.void-collective.ctf   <-- offline, do not scan\n# 10.10.14.22    admin.void-collective.ctf    <-- firewall blocks all traffic\n#\n# NOTE: Only 10.10.14.20 is reachable on this range.'
+                        }
+                    }
+                },
+                'var': {
+                    type: 'dir',
+                    children: {
+                        'log': {
+                            type: 'dir',
+                            children: {
+                                'hollow_access.log': {
+                                    type: 'file',
+                                    content: '=== DECOY LOG — Recovered from previous engagement ===\n10.10.14.5  - - [15/Feb/2026:22:11:02] "GET /hollow/backup/ HTTP/1.1" 403 0\n10.10.14.5  - - [15/Feb/2026:22:11:09] "GET /hollow/export/ HTTP/1.1" 404 0\n10.10.14.5  - - [15/Feb/2026:22:11:17] "GET /hollow/admin/ HTTP/1.1" 302 0\n10.10.14.5  - - [15/Feb/2026:22:12:44] "POST /api/citizens/auth HTTP/1.1" 401 0\n10.10.14.5  - - [15/Feb/2026:22:12:44] "POST /api/citizens/auth HTTP/1.1" 401 0\n10.10.14.5  - - [15/Feb/2026:22:13:01] "POST /api/citizens/auth HTTP/1.1" 200 0\n#\n# ANALYSIS: Prior operator tried /backup/ and /export/ — both dead ends.\n# /hollow/admin/ redirects to login (302). Direct admin URL does nothing.\n# The successful 200 on the auth endpoint is where the real attack lives.'
+                                }
+                            }
                         }
                     }
                 },

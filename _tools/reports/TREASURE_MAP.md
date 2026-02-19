@@ -1,7 +1,7 @@
 ══════════════════════════════════════════════════════════════════════
                          EDUSCAN REPORT
                     Hexworth Prime Content Map
-                    Scanned: 2026-02-18 1:22:43 PM
+                    Scanned: 2026-02-19 10:30:02 PM
 ══════════════════════════════════════════════════════════════════════
 
 
@@ -10,29 +10,29 @@
 
 | Metric | Value |
 |--------|-------|
-| Files Scanned | 1495 |
-| Directories | 569 |
-| Content Files | 1495 |
-| Scan Duration | 206ms |
+| Files Scanned | 1437 |
+| Directories | 455 |
+| Content Files | 1437 |
+| Scan Duration | 147ms |
 
 ### Content by Type
 
 | Type | Count |
 |------|-------|
-| html | 646 |
-| presentation | 403 |
+| html | 612 |
+| presentation | 383 |
 | lab | 237 |
-| applet | 194 |
+| applet | 190 |
 | quiz | 15 |
 
 ### ContentCatalog Validation
 
 | Metric | Value |
 |--------|-------|
-| Total Modules | 1407 |
-| Available | 1402 |
+| Total Modules | 1351 |
+| Available | 1346 |
 | Missing Hrefs (CAT-001) | 0 |
-| Undeclared Files (CAT-002) | 2 |
+| Undeclared Files (CAT-002) | 1 |
 | Empty Hrefs (CAT-003) | 0 |
 
 
@@ -42,17 +42,17 @@
 |----------|-------|
 | Critical | 0 |
 | Suspect | 125 |
-| Warning | 984 |
-| Info | 409 |
-| **Total** | **2102** |
+| Warning | 960 |
+| Info | 404 |
+| **Total** | **2071** |
 
 ### Sync Status
 
 | Status | Count |
 |--------|-------|
-| Ready | 635 |
-| Not Ready | 214 |
-| Unknown | 646 |
+| Ready | 612 |
+| Not Ready | 213 |
+| Unknown | 612 |
 
 
 ## FILE HIERARCHY
@@ -154,7 +154,6 @@
 │       │   │       ├── 📄 interview-colleague.html
 │       │   │       ├── 📄 interview-neighbor.html
 │       │   │       └── 📄 police-report.html
-│       │   ├── 📄 gate-8.html
 │       │   └── 📄 gate-9.html
 │       ├── 🔬 idor-attack-lab.html
 │       ├── 🔬 ids-evasion-lab.html
@@ -457,11 +456,7 @@
 │   │   │   ├── 📄 code-data-format-converter.applet.html
 │   │   │   ├── 📄 code-docker-playground.applet.html
 │   │   │   ├── 📄 code-kubernetes-cluster-sim.applet.html
-│   │   │   ├── 📄 code-pipeline-builder.applet.html
-│   │   │   └── 📁 config_management [applets]
-│   │   │       ├── 📁 ConfigMgmt.hyperesources [applets]
-│   │   │       ├── 📄 code-config-management.applet.html
-│   │   │       └── 📄 code-config-mgmt.applet.html
+│   │   │   └── 📄 code-pipeline-builder.applet.html
 │   │   ├── 📁 docs
 │   │   ├── 📁 games
 │   │   │   ├── 📄 build-breaker.html
@@ -884,10 +879,7 @@
 │   │   │       ├── 📄 forge-backup-strategy-planner.applet.html
 │   │   │       ├── 📄 forge-hardware-trainer.applet.html
 │   │   │       ├── 📁 hard_drive_geometry [applets]
-│   │   │       │   ├── 📄 forge-hard-drive-geometry-native.applet.html
-│   │   │       │   ├── 📄 forge-hard-drive-geometry.applet.html
-│   │   │       │   ├── 📄 forge-hard-drive-geometry1.applet.html
-│   │   │       │   └── 📁 hard_drive_geometry1.hyperesources [applets]
+│   │   │       │   └── 📄 forge-hard-drive-geometry-native.applet.html
 │   │   │       ├── 📁 laptop_hardware [applets]
 │   │   │       │   └── 📄 forge-laptop-hardware.applet.html
 │   │   │       ├── 📁 mobile_accessories [applets]
@@ -895,9 +887,7 @@
 │   │   │       ├── 📁 motherboards [applets]
 │   │   │       │   └── 📄 forge-motherboards.applet.html
 │   │   │       ├── 📁 multimeter [applets]
-│   │   │       │   ├── 📄 forge-multimeter-jedit-v1.applet.html
-│   │   │       │   ├── 📄 forge-multimeter.applet.html
-│   │   │       │   └── 📁 multimeter_jedit_v1.hyperesources [applets]
+│   │   │       │   └── 📄 forge-multimeter-jedit-v1.applet.html
 │   │   │       ├── 📁 network_cables [applets]
 │   │   │       │   └── 📄 forge-network-cables.applet.html
 │   │   │       ├── 📁 network_ports [applets]
@@ -1459,13 +1449,10 @@
 │   │   ├── 📁 applets [applets]
 │   │   │   ├── 📁 access [applets]
 │   │   │   │   ├── 📁 access_control [applets]
-│   │   │   │   │   ├── 📁 access_control.hyperesources [applets]
 │   │   │   │   │   └── 📄 shield-access-control.applet.html
 │   │   │   │   ├── 📁 biometrics [applets]
-│   │   │   │   │   ├── 📁 Biometrics.hyperesources [applets]
 │   │   │   │   │   └── 📄 shield-biometrics.applet.html
 │   │   │   │   ├── 📁 kerberos [applets]
-│   │   │   │   │   ├── 📁 kerberos.hyperesources [applets]
 │   │   │   │   │   └── 📄 shield-kerberos.applet.html
 │   │   │   │   └── 📄 shield-access-control-models.applet.html
 │   │   │   ├── 📁 compliance [applets]
@@ -1477,13 +1464,8 @@
 │   │   │   │   │   └── 📄 shield-cmmc-at.applet.html
 │   │   │   │   ├── 📁 cmmc_config_management [applets]
 │   │   │   │   │   └── 📄 shield-cmmc-cm.applet.html
-│   │   │   │   ├── 📁 cmmc_cui [applets]
-│   │   │   │   │   ├── 📁 CUI_2.hyperesources [applets]
-│   │   │   │   │   └── 📄 shield-cui-2.applet.html
 │   │   │   │   ├── 📁 cmmc_framework [applets]
-│   │   │   │   │   ├── 📁 CMMCFrameworkv2.hyperesources [applets]
-│   │   │   │   │   ├── 📄 shield-cmmc-framework.applet.html
-│   │   │   │   │   └── 📄 shield-cmmc-frameworkv2.applet.html
+│   │   │   │   │   └── 📄 shield-cmmc-framework.applet.html
 │   │   │   │   ├── 📁 cmmc_identification_auth [applets]
 │   │   │   │   │   └── 📄 shield-cmmc-ia.applet.html
 │   │   │   │   ├── 📁 cmmc_incident_response [applets]
@@ -1499,10 +1481,8 @@
 │   │   │   │   ├── 📁 cmmc_physical_protection [applets]
 │   │   │   │   │   └── 📄 shield-cmmc-pe.applet.html
 │   │   │   │   ├── 📁 cmmc_quiz [applets]
-│   │   │   │   │   ├── 📁 CMMCTestKnowledge2.hyperesources [applets]
 │   │   │   │   │   ├── ❓ shield-cmmc-comprehensive.quiz.html
-│   │   │   │   │   ├── ❓ shield-cmmc-quiz.applet.html
-│   │   │   │   │   └── 📄 shield-cmmc-test-knowledge2.applet.html
+│   │   │   │   │   └── ❓ shield-cmmc-quiz.applet.html
 │   │   │   │   ├── 📁 cmmc_risk_assessment [applets]
 │   │   │   │   │   └── 📄 shield-cmmc-ra.applet.html
 │   │   │   │   ├── 📁 cmmc_security_assessment [applets]
@@ -1511,7 +1491,6 @@
 │   │   │   │   │   └── 📄 shield-cmmc-sc.applet.html
 │   │   │   │   ├── 📁 cmmc_system_info_integrity [applets]
 │   │   │   │   │   └── 📄 shield-cmmc-si.applet.html
-│   │   │   │   ├── 📁 cui [applets]
 │   │   │   │   ├── 📁 cui_overview [applets]
 │   │   │   │   │   └── 📄 shield-cui-overview.applet.html
 │   │   │   │   ├── 📄 shield-framework-selector.applet.html
@@ -1521,50 +1500,22 @@
 │   │   │   │   │   └── 📄 shield-crypto-aes.applet.html
 │   │   │   │   ├── 📁 block_ciphers [applets]
 │   │   │   │   │   └── 📄 shield-crypto-block-ciphers.applet.html
-│   │   │   │   ├── 📁 block_mode [applets]
-│   │   │   │   │   ├── 📁 Block.hyperesources [applets]
-│   │   │   │   │   └── 📄 shield-block.applet.html
 │   │   │   │   ├── 📁 blockchain [applets]
-│   │   │   │   │   ├── 📁 blockchain.hyperesources [applets]
-│   │   │   │   │   ├── 📄 shield-blockchain.applet.html
 │   │   │   │   │   └── 📄 shield-crypto-blockchain.applet.html
 │   │   │   │   ├── 📁 caesar [applets]
 │   │   │   │   │   └── 📄 shield-crypto-caesar.applet.html
 │   │   │   │   ├── 📁 crypto_protocols [applets]
 │   │   │   │   │   └── 📄 shield-crypto-crypto-protocols.applet.html
-│   │   │   │   ├── 📁 cryptography [applets]
-│   │   │   │   │   ├── 📁 cryptography.hyperesources [applets]
-│   │   │   │   │   └── 📄 shield-cryptography.applet.html
 │   │   │   │   ├── 📁 cryptography_intro [applets]
 │   │   │   │   │   └── 📄 shield-crypto-cryptography-intro.applet.html
-│   │   │   │   ├── 📁 cryptomatch [applets]
-│   │   │   │   │   ├── 📁 CryptoMatch.hyperesources [applets]
-│   │   │   │   │   └── 📄 shield-crypto-match.applet.html
 │   │   │   │   ├── 📁 diffie_hellman [applets]
-│   │   │   │   │   ├── 📁 diffie_hellman.hyperesources [applets]
-│   │   │   │   │   ├── 📄 shield-crypto-diffie-hellman.applet.html
-│   │   │   │   │   └── 📄 shield-diffie-hellman.applet.html
+│   │   │   │   │   └── 📄 shield-crypto-diffie-hellman.applet.html
 │   │   │   │   ├── 📁 digital_signatures [applets]
-│   │   │   │   │   ├── 📁 DigitalSignature.hyperesources [applets]
-│   │   │   │   │   ├── 📄 shield-crypto-digital-signatures.applet.html
-│   │   │   │   │   └── 📄 shield-digital-signature.applet.html
+│   │   │   │   │   └── 📄 shield-crypto-digital-signatures.applet.html
 │   │   │   │   ├── 📁 encrypt_data [applets]
-│   │   │   │   │   ├── 📁 EncryptData.hyperesources [applets]
-│   │   │   │   │   ├── 📄 shield-crypto-encryption.applet.html
-│   │   │   │   │   └── 📄 shield-encrypt-data.applet.html
-│   │   │   │   ├── 📁 encryption [applets]
-│   │   │   │   │   ├── 📁 encryption_jedit_6_1.hyperesources [applets]
-│   │   │   │   │   └── 📄 shield-encryption-jedit-6-1.applet.html
-│   │   │   │   ├── 📁 factor_prime [applets]
-│   │   │   │   │   ├── 📁 FactorPrime.hyperesources [applets]
-│   │   │   │   │   └── 📄 shield-factor-prime.applet.html
+│   │   │   │   │   └── 📄 shield-crypto-encryption.applet.html
 │   │   │   │   ├── 📁 hashing [applets]
-│   │   │   │   │   ├── 📁 Hashing.hyperesources [applets]
-│   │   │   │   │   ├── 📄 shield-crypto-hashing.applet.html
-│   │   │   │   │   └── 📄 shield-hashing.applet.html
-│   │   │   │   ├── 📁 hashing_narrated [applets]
-│   │   │   │   │   ├── 📁 Hashing_vo.hyperesources [applets]
-│   │   │   │   │   └── 📄 shield-hashing-vo.applet.html
+│   │   │   │   │   └── 📄 shield-crypto-hashing.applet.html
 │   │   │   │   ├── 📁 hashing_steganography [applets]
 │   │   │   │   │   ├── 📄 shield-encryption-ii.applet.html
 │   │   │   │   │   ├── 📄 shield-encryption-task.applet.html
@@ -1577,15 +1528,11 @@
 │   │   │   │   ├── 📁 key_exchange [applets]
 │   │   │   │   │   └── 📄 shield-crypto-key-exchange.applet.html
 │   │   │   │   ├── 📁 pki [applets]
-│   │   │   │   │   ├── 📁 pki.hyperesources [applets]
-│   │   │   │   │   ├── 📄 shield-crypto-pki.applet.html
-│   │   │   │   │   └── 📄 shield-pki.applet.html
+│   │   │   │   │   └── 📄 shield-crypto-pki.applet.html
 │   │   │   │   ├── 📁 prime_factorization [applets]
 │   │   │   │   │   └── 📄 shield-crypto-prime-factorization.applet.html
 │   │   │   │   ├── 📁 rsa [applets]
-│   │   │   │   │   ├── 📁 RSA.hyperesources [applets]
-│   │   │   │   │   ├── 📄 shield-crypto-rsa.applet.html
-│   │   │   │   │   └── 📄 shield-rsa.applet.html
+│   │   │   │   │   └── 📄 shield-crypto-rsa.applet.html
 │   │   │   │   ├── 📄 shield-checksum-verifier.applet.html
 │   │   │   │   ├── 📄 shield-crypto-aes.applet.html
 │   │   │   │   ├── 📄 shield-crypto-block-ciphers.applet.html
@@ -1613,91 +1560,64 @@
 │   │   │   │   ├── 📁 career_exploration [applets]
 │   │   │   │   │   └── 📄 shield-career-explorer.applet.html
 │   │   │   │   ├── 📁 cybersecurity_controls [applets]
-│   │   │   │   │   ├── 📁 cybersecurity_controls.hyperesources [applets]
 │   │   │   │   │   └── 📄 shield-cybersecurity-controls.applet.html
 │   │   │   │   ├── 📁 data_roles [applets]
-│   │   │   │   │   ├── 📁 dataroles.hyperesources [applets]
 │   │   │   │   │   └── 📄 shield-dataroles.applet.html
 │   │   │   │   ├── 📁 design_principles [applets]
-│   │   │   │   │   ├── 📁 cybersecuritydesignprinciples.hyperesources [applets]
 │   │   │   │   │   └── 📄 shield-cybersecuritydesignprinciples.applet.html
 │   │   │   │   ├── 📁 ethics_challenge [applets]
-│   │   │   │   │   ├── 📁 ethics_challenge.hyperesources [applets]
 │   │   │   │   │   └── 📄 shield-ethics-challenge.applet.html
 │   │   │   │   ├── 📁 ethics_conduct [applets]
-│   │   │   │   │   ├── 📁 EthicsProfConduct.hyperesources [applets]
 │   │   │   │   │   └── 📄 shield-ethics-prof-conduct.applet.html
 │   │   │   │   ├── 📁 five_pillars [applets]
-│   │   │   │   │   ├── 📁 FivePillars.hyperesources [applets]
 │   │   │   │   │   └── 📄 shield-five-pillars.applet.html
 │   │   │   │   ├── 📁 physical_protection [applets]
-│   │   │   │   │   ├── 📁 physical_environmental.hyperesources [applets]
 │   │   │   │   │   └── 📄 shield-physical-environmental.applet.html
 │   │   │   │   ├── 📁 privacy [applets]
-│   │   │   │   │   ├── 📁 privacy.hyperesources [applets]
 │   │   │   │   │   └── 📄 shield-privacy.applet.html
 │   │   │   │   ├── 📄 shield-asset-classification-wizard.applet.html
 │   │   │   │   ├── 📄 shield-secure-sdlc-framework.applet.html
 │   │   │   │   ├── 📄 shield-security-best-practices.applet.html
 │   │   │   │   ├── 📄 shield-security-governance-dashboard.applet.html
 │   │   │   │   └── 📁 the_cube [applets]
-│   │   │   │       ├── 📁 cube.hyperesources [applets]
 │   │   │   │       └── 📄 shield-cube.applet.html
 │   │   │   ├── 📁 games [applets]
 │   │   │   │   ├── 📁 cookie_caper [applets]
-│   │   │   │   │   ├── 📁 cookies.hyperesources [applets]
-│   │   │   │   │   ├── 📄 shield-cookies-native.applet.html
-│   │   │   │   │   └── 📄 shield-cookies.applet.html
+│   │   │   │   │   └── 📄 shield-cookies-native.applet.html
 │   │   │   │   ├── 📁 crypto_match [applets]
 │   │   │   │   │   └── 📄 shield-cryptomatch-native.applet.html
 │   │   │   │   ├── 📁 cyber_hat_match [applets]
-│   │   │   │   │   ├── 📁 hatmatch.hyperesources [applets]
-│   │   │   │   │   ├── 📄 shield-hatmatch-native.applet.html
-│   │   │   │   │   └── 📄 shield-hatmatch.applet.html
+│   │   │   │   │   └── 📄 shield-hatmatch-native.applet.html
 │   │   │   │   ├── 📁 cyber_scramble [applets]
-│   │   │   │   │   ├── 📁 cyberscramble.hyperesources [applets]
-│   │   │   │   │   ├── 📄 shield-cyberscramble-native.applet.html
-│   │   │   │   │   └── 📄 shield-cyberscramble.applet.html
+│   │   │   │   │   └── 📄 shield-cyberscramble-native.applet.html
 │   │   │   │   ├── 📁 ethical_hacking_case [applets]
 │   │   │   │   │   ├── 📁 EH_exam_1A.hyperesources [applets]
 │   │   │   │   │   └── 📍 index.html
 │   │   │   │   ├── 📁 hacker_hangman [applets]
-│   │   │   │   │   ├── 📁 hangman.hyperesources [applets]
-│   │   │   │   │   ├── 📄 shield-hangman-native.applet.html
-│   │   │   │   │   └── 📄 shield-hangman.applet.html
+│   │   │   │   │   └── 📄 shield-hangman-native.applet.html
 │   │   │   │   └── 📁 whats_my_crime [applets]
-│   │   │   │       ├── 📁 crime.hyperesources [applets]
-│   │   │   │       ├── 📄 shield-crime-native.applet.html
-│   │   │   │       └── 📄 shield-crime.applet.html
+│   │   │   │       └── 📄 shield-crime-native.applet.html
 │   │   │   ├── 📁 governance [applets]
 │   │   │   │   └── 📄 shield-cism-management-dashboard.applet.html
 │   │   │   ├── 📁 network [applets]
 │   │   │   │   ├── 📁 eap [applets]
-│   │   │   │   │   ├── 📁 EAP.hyperesources [applets]
 │   │   │   │   │   └── 📄 shield-eap.applet.html
 │   │   │   │   ├── 📁 firewalls [applets]
-│   │   │   │   │   ├── 📁 Filrewalls_NCYTE.hyperesources [applets]
 │   │   │   │   │   └── 📄 shield-firewalls.applet.html
 │   │   │   │   ├── 📁 ids_ips [applets]
-│   │   │   │   │   ├── 📁 IDS_IPS.hyperesources [applets]
 │   │   │   │   │   └── 📄 shield-ids-ips.applet.html
 │   │   │   │   ├── 📁 nat_pat [applets]
-│   │   │   │   │   ├── 📁 NAT.hyperesources [applets]
 │   │   │   │   │   └── 📄 shield-nat.applet.html
 │   │   │   │   ├── 📁 protocol_analysis [applets]
-│   │   │   │   │   ├── 📁 ProtocolAnalysis.hyperesources [applets]
 │   │   │   │   │   └── 📄 shield-protocol-analysis.applet.html
 │   │   │   │   ├── 📄 shield-browser-security-hardening.applet.html
 │   │   │   │   ├── 📄 shield-home-network-security.applet.html
 │   │   │   │   ├── 📄 shield-linux-firewall-builder.applet.html
 │   │   │   │   ├── 📁 threeway_handshake [applets]
-│   │   │   │   │   ├── 📄 shield-threeway-handshake1-audio.applet.html
-│   │   │   │   │   └── 📁 threeway_handshake1_audio.hyperesources [applets]
+│   │   │   │   │   └── 📄 shield-threeway-handshake1-audio.applet.html
 │   │   │   │   ├── 📁 vpn [applets]
-│   │   │   │   │   ├── 📄 shield-vpn.applet.html
-│   │   │   │   │   └── 📁 vpn.hyperesources [applets]
+│   │   │   │   │   └── 📄 shield-vpn.applet.html
 │   │   │   │   └── 📁 wireless_security [applets]
-│   │   │   │       ├── 📁 WirelessSecurity.hyperesources [applets]
 │   │   │   │       └── 📄 shield-wireless-security.applet.html
 │   │   │   ├── 📁 operations [applets]
 │   │   │   │   ├── 📄 shield-cfr-310-incident-response.applet.html
@@ -1707,19 +1627,14 @@
 │   │   │   │   └── 📄 shield-pentest-plus-toolkit.applet.html
 │   │   │   ├── 📁 risk [applets]
 │   │   │   │   ├── 📁 config_management [applets]
-│   │   │   │   │   ├── 📁 ConfigMgmt.hyperesources [applets]
 │   │   │   │   │   └── 📄 shield-config-mgmt.applet.html
 │   │   │   │   ├── 📁 cybersecurity_scenario [applets]
-│   │   │   │   │   ├── 📁 cyber_scenario.hyperesources [applets]
 │   │   │   │   │   └── 📄 shield-cyber-scenario.applet.html
 │   │   │   │   ├── 📁 pspg [applets]
-│   │   │   │   │   ├── 📁 PSPG.hyperesources [applets]
 │   │   │   │   │   └── 📄 shield-pspg.applet.html
 │   │   │   │   ├── 📁 risk_analysis [applets]
-│   │   │   │   │   ├── 📁 risk_analysis.hyperesources [applets]
 │   │   │   │   │   └── 📄 shield-risk-analysis.applet.html
 │   │   │   │   ├── 📁 risk_management [applets]
-│   │   │   │   │   ├── 📁 risk_management.hyperesources [applets]
 │   │   │   │   │   └── 📄 shield-risk-management.applet.html
 │   │   │   │   ├── 📄 shield-business-continuity-planner.applet.html
 │   │   │   │   └── 📄 shield-change-management.applet.html
@@ -1727,24 +1642,13 @@
 │   │   │       ├── 📁 apt [applets]
 │   │   │       │   └── 📄 shield-threat-apt.applet.html
 │   │   │       ├── 📁 attacks_malware [applets]
-│   │   │       │   ├── 📁 attacks.hyperesources [applets]
-│   │   │       │   ├── 📄 shield-attacks.applet.html
 │   │   │       │   └── 📄 shield-threat-attacks-malware.applet.html
 │   │   │       ├── 📁 botnets [applets]
 │   │   │       │   └── 📄 shield-threat-botnets.applet.html
-│   │   │       ├── 📁 buffer_overflow [applets]
-│   │   │       │   ├── 📁 bufferoverflow.hyperesources [applets]
-│   │   │       │   └── 📄 shield-bufferoverflow.applet.html
 │   │   │       ├── 📁 buffer_overflow_attack [applets]
 │   │   │       │   └── 📄 shield-threat-buffer-overflow.applet.html
-│   │   │       ├── 📁 code_injection [applets]
-│   │   │       │   ├── 📁 codeinjection.hyperesources [applets]
-│   │   │       │   └── 📄 shield-codeinjection.applet.html
 │   │   │       ├── 📁 code_injection_attack [applets]
 │   │   │       │   └── 📄 shield-threat-code-injection.applet.html
-│   │   │       ├── 📁 cross_site_scripting [applets]
-│   │   │       │   ├── 📁 crosssitescripting.hyperesources [applets]
-│   │   │       │   └── 📄 shield-crosssitescripting.applet.html
 │   │   │       ├── 📁 cryptojacking [applets]
 │   │   │       │   └── 📄 shield-threat-cryptojacking.applet.html
 │   │   │       ├── 📁 ddos [applets]
@@ -1752,12 +1656,7 @@
 │   │   │       ├── 📁 dns_attacks [applets]
 │   │   │       │   └── 📄 shield-threat-dns-attacks.applet.html
 │   │   │       ├── 📁 google_hacking [applets]
-│   │   │       │   ├── 📁 googlehacking.hyperesources [applets]
-│   │   │       │   ├── 📄 shield-googlehacking.applet.html
 │   │   │       │   └── 📄 shield-threat-google-hacking.applet.html
-│   │   │       ├── 📁 heartbleed [applets]
-│   │   │       │   ├── 📁 heartbleed.hyperesources [applets]
-│   │   │       │   └── 📄 shield-heartbleed.applet.html
 │   │   │       ├── 📁 heartbleed_attack [applets]
 │   │   │       │   └── 📄 shield-threat-heartbleed.applet.html
 │   │   │       ├── 📁 insider_threats [applets]
@@ -1765,67 +1664,35 @@
 │   │   │       ├── 📁 iot_threats [applets]
 │   │   │       │   └── 📄 shield-threat-iot-threats.applet.html
 │   │   │       ├── 📁 meltdown_spectre [applets]
-│   │   │       │   ├── 📁 meltdown_spectre.hyperesources [applets]
-│   │   │       │   ├── 📄 shield-meltdown-spectre.applet.html
 │   │   │       │   └── 📄 shield-threat-meltdown-spectre.applet.html
 │   │   │       ├── 📁 mitm [applets]
 │   │   │       │   └── 📄 shield-threat-mitm.applet.html
-│   │   │       ├── 📁 os_command_injection [applets]
-│   │   │       │   ├── 📁 oscommandinjection.hyperesources [applets]
-│   │   │       │   └── 📄 shield-oscommandinjection.applet.html
-│   │   │       ├── 📁 osint [applets]
-│   │   │       │   ├── 📁 OSINT.hyperesources [applets]
-│   │   │       │   └── 📄 shield-osint.applet.html
 │   │   │       ├── 📁 osint_challenge [applets]
 │   │   │       │   └── 🔬 shield-osint-lab.applet.html
-│   │   │       ├── 📁 pen_testing [applets]
-│   │   │       │   ├── 📁 pen_testing.hyperesources [applets]
-│   │   │       │   └── 📄 shield-pen-testing.applet.html
 │   │   │       ├── 📁 pen_testing_methodology [applets]
 │   │   │       │   └── 📄 shield-threat-pen-testing.applet.html
 │   │   │       ├── 📁 phishing [applets]
 │   │   │       │   └── 📄 shield-threat-phishing.applet.html
-│   │   │       ├── 📁 phishing_mystery [applets]
-│   │   │       │   ├── 📁 phishing.hyperesources [applets]
-│   │   │       │   └── 📄 shield-phishing.applet.html
 │   │   │       ├── 📁 privilege_escalation [applets]
 │   │   │       │   └── 📄 shield-threat-privilege-escalation.applet.html
-│   │   │       ├── 📁 ransomware [applets]
-│   │   │       │   ├── 📁 RansomwareAttack.hyperesources [applets]
-│   │   │       │   └── 📄 shield-ransomware-attack.applet.html
 │   │   │       ├── 📁 ransomware_attack [applets]
 │   │   │       │   └── 📄 shield-threat-ransomware.applet.html
 │   │   │       ├── 📁 rootkits [applets]
 │   │   │       │   └── 📄 shield-threat-rootkits.applet.html
 │   │   │       ├── 📄 shield-malware-types.applet.html
-│   │   │       ├── 📁 social_engineering [applets]
-│   │   │       │   ├── 📄 shield-social-engineering.applet.html
-│   │   │       │   └── 📁 social_engineering.hyperesources [applets]
 │   │   │       ├── 📁 social_engineering_attack [applets]
 │   │   │       │   └── 📄 shield-threat-social-engineering.applet.html
 │   │   │       ├── 📁 social_engineering_tactics [applets]
-│   │   │       │   ├── 📁 SocialEngineeringTactics.hyperesources [applets]
-│   │   │       │   ├── 📄 shield-social-engineering-tactics.applet.html
 │   │   │       │   └── 📄 shield-threat-social-engineering-tactics.applet.html
-│   │   │       ├── 📁 spoofing [applets]
-│   │   │       │   ├── 📄 shield-spoofing1.applet.html
-│   │   │       │   └── 📁 spoofing1.hyperesources [applets]
 │   │   │       ├── 📁 spoofing_attacks [applets]
 │   │   │       │   └── 📄 shield-threat-spoofing.applet.html
-│   │   │       ├── 📁 sql_injection [applets]
-│   │   │       │   ├── 📁 SQLinjection.hyperesources [applets]
-│   │   │       │   └── 📄 shield-sq-linjection.applet.html
 │   │   │       ├── 📁 sql_injection_attack [applets]
 │   │   │       │   └── 📄 shield-threat-sql-injection.applet.html
 │   │   │       ├── 📁 stuxnet [applets]
-│   │   │       │   ├── 📄 shield-stuxnet.applet.html
-│   │   │       │   ├── 📄 shield-threat-stuxnet.applet.html
-│   │   │       │   └── 📁 stuxnet.hyperesources [applets]
+│   │   │       │   └── 📄 shield-threat-stuxnet.applet.html
 │   │   │       ├── 📁 supply_chain [applets]
 │   │   │       │   └── 📄 shield-threat-supply-chain.applet.html
 │   │   │       ├── 📁 threat_actors [applets]
-│   │   │       │   ├── 📁 ThreatActors.hyperesources [applets]
-│   │   │       │   ├── 📄 shield-threat-actors.applet.html
 │   │   │       │   └── 📄 shield-threat-threat-actors.applet.html
 │   │   │       ├── 📁 xss [applets]
 │   │   │       │   └── 📄 shield-threat-xss.applet.html
@@ -1913,37 +1780,10 @@
 │   └── 🏠 web [house:web]
 │       ├── 📁 applets [applets]
 │       │   ├── 📁 ip-addressing [applets]
-│       │   │   ├── 📁 IPv6 [applets]
-│       │   │   │   ├── 📁 IPv6.hyperesources [applets]
-│       │   │   │   └── 📄 web-ipv6.applet.html
-│       │   │   ├── 📁 IPv6Challenge [applets]
-│       │   │   │   ├── 📁 IPv6Challenge.hyperesources [applets]
-│       │   │   │   └── 📄 web-ipv6-challenge.applet.html
-│       │   │   ├── 📁 NAT [applets]
-│       │   │   │   ├── 📁 NAT.hyperesources [applets]
-│       │   │   │   └── 📄 web-nat.applet.html
-│       │   │   ├── 📁 VLSM [applets]
-│       │   │   │   ├── 📁 VLSM.hyperesources [applets]
-│       │   │   │   └── 📄 web-vlsm.applet.html
-│       │   │   ├── 📁 VLSM_challenge [applets]
-│       │   │   │   ├── 📁 VLSM_challenge.hyperesources [applets]
-│       │   │   │   └── 📄 web-vlsm-challenge.applet.html
 │       │   │   ├── 📁 binary-ip [applets]
 │       │   │   │   └── 📄 web-ip-binary-ip.applet.html
-│       │   │   ├── 📁 binaryIP [applets]
-│       │   │   │   ├── 📁 binaryIP.hyperesources [applets]
-│       │   │   │   └── 📄 web-binary-ip.applet.html
 │       │   │   ├── 📁 cidr-notation [applets]
 │       │   │   │   └── 📄 web-ip-cidr-notation.applet.html
-│       │   │   ├── 📁 classA [applets]
-│       │   │   │   ├── 📁 classA.hyperesources [applets]
-│       │   │   │   └── 📄 web-class-a.applet.html
-│       │   │   ├── 📁 classB [applets]
-│       │   │   │   ├── 📁 classB.hyperesources [applets]
-│       │   │   │   └── 📄 web-class-b.applet.html
-│       │   │   ├── 📁 intro_subnetting [applets]
-│       │   │   │   ├── 📁 intro_subnetting.hyperesources [applets]
-│       │   │   │   └── 📄 web-intro-subnetting.applet.html
 │       │   │   ├── 📁 ipv4-classes [applets]
 │       │   │   │   └── 📄 web-ip-ipv4-classes.applet.html
 │       │   │   ├── 📁 ipv6-addressing [applets]
@@ -1952,28 +1792,16 @@
 │       │   │   │   └── 📄 web-ip-ipv6-challenge.applet.html
 │       │   │   ├── 📁 mac-addressing [applets]
 │       │   │   │   └── 📄 web-ip-mac-addressing.applet.html
-│       │   │   ├── 📁 macaddressing [applets]
-│       │   │   │   ├── 📁 EMate_pizzaparty_exercise_102918.hyperesources [applets]
-│       │   │   │   └── 📄 web-emate-pizzaparty-exercise-102918.applet.html
 │       │   │   ├── 📁 nat-pat [applets]
 │       │   │   │   └── 📄 web-ip-nat-pat.applet.html
 │       │   │   ├── 📁 network-classes [applets]
 │       │   │   │   └── 📄 web-ip-network-classes.applet.html
-│       │   │   ├── 📁 network_classes2 [applets]
-│       │   │   │   ├── 📁 network_classes2.hyperesources [applets]
-│       │   │   │   └── 📄 web-network-classes2.applet.html
-│       │   │   ├── 📁 networkaddressing [applets]
-│       │   │   │   ├── 📁 EMate_understanding_addresses.hyperesources [applets]
-│       │   │   │   └── 📄 web-emate-understanding-addresses.applet.html
 │       │   │   ├── 📁 private-public-ip [applets]
 │       │   │   │   └── 📄 web-ip-private-public-ip.applet.html
 │       │   │   ├── 📁 subnet-calculator [applets]
 │       │   │   │   └── 📄 web-ip-subnet-calculator.applet.html
 │       │   │   ├── 📁 subnet-masks [applets]
 │       │   │   │   └── 📄 web-ip-subnet-masks.applet.html
-│       │   │   ├── 📁 subnetting [applets]
-│       │   │   │   ├── 📁 subnetting.hyperesources [applets]
-│       │   │   │   └── 📄 web-subnetting.applet.html
 │       │   │   ├── 📁 subnetting-practice [applets]
 │       │   │   │   └── 📄 web-ip-subnetting-practice.applet.html
 │       │   │   ├── 📁 supernetting [applets]
@@ -2254,7 +2082,6 @@
 |---------|------|------|--------|
 | code-docker-playground.applet | applet | ✓ | 1 |
 | code-kubernetes-cluster-sim.applet | applet | ✓ | 1 |
-| code-config-management.applet | applet | ✓ | 1 |
 | git-blame | applet | ✓ | 1 |
 | kubernetes-rescue | presentation | ✓ | 0 |
 | code-cicd.lab | presentation | ✓ | 0 |
@@ -2459,8 +2286,7 @@
 | forge-system-tools-sim.applet | presentation | ✓ | 1 |
 | forge-windows-edition-selector.applet | presentation | ✓ | 0 |
 | forge-hard-drive-geometry-native.applet | applet | ✓ | 1 |
-| forge-hard-drive-geometry.applet | applet | ✓ | 1 |
-| forge-multimeter.applet | applet | ✓ | 1 |
+| forge-multimeter-jedit-v1.applet | presentation | ✓ | 0 |
 | forge-peripheral-devices.applet | applet | ✓ | 1 |
 | forge-admin-tools.lab | lab | ✓ | 2 |
 | forge-control-panel.lab | lab | ✓ | 2 |
@@ -2785,40 +2611,19 @@
 | ID/Name | Type | Sync | Issues |
 |---------|------|------|--------|
 | shield-access-control-models.applet | presentation | ✓ | 1 |
-| shield-cui-2.applet | presentation | ✓ | 0 |
-| shield-cmmc-frameworkv2.applet | presentation | ✓ | 0 |
 | cmmc-comprehensive | quiz | ✓ | 0 |
-| shield-cmmc-test-knowledge2.applet | presentation | ✓ | 0 |
 | shield-cui-overview.applet | applet | ✓ | 1 |
 | shield-laws-regulations.applet | presentation | ✓ | 0 |
-| shield-block.applet | presentation | ✓ | 0 |
-| shield-blockchain.applet | presentation | ✓ | 0 |
-| shield-cryptography.applet | presentation | ✓ | 0 |
-| shield-crypto-match.applet | presentation | ✓ | 0 |
-| shield-diffie-hellman.applet | presentation | ✓ | 0 |
-| shield-digital-signature.applet | presentation | ✓ | 0 |
-| shield-encrypt-data.applet | presentation | ✓ | 0 |
-| shield-encryption-jedit-6-1.applet | presentation | ✓ | 0 |
-| shield-factor-prime.applet | presentation | ✓ | 0 |
-| shield-hashing.applet | presentation | ✓ | 0 |
-| shield-hashing-vo.applet | presentation | ✓ | 0 |
 | shield-encryption-ii.applet | applet | ✓ | 1 |
 | shield-encryption-task.applet | applet | ✓ | 1 |
 | shield-hash-v3.applet | presentation | ✓ | 1 |
 | shield-stego.applet | presentation | ✓ | 1 |
-| shield-pki.applet | presentation | ✓ | 0 |
-| shield-rsa.applet | presentation | ✓ | 0 |
 | shield-checksum-verifier.applet | presentation | ✓ | 0 |
 | shield-secure-sdlc-framework.applet | presentation | ✓ | 1 |
 | shield-security-best-practices.applet | presentation | ✓ | 1 |
 | shield-security-governance-dashboard.applet | presentation | ✓ | 0 |
-| shield-cookies.applet | presentation | ✓ | 1 |
-| shield-hatmatch.applet | presentation | ✓ | 0 |
-| shield-cyberscramble.applet | presentation | ✓ | 0 |
 | index | presentation | ✓ | 0 |
 | shield-hangman-native.applet | applet | ✓ | 1 |
-| shield-hangman.applet | presentation | ✓ | 0 |
-| shield-crime.applet | presentation | ✓ | 0 |
 | shield-browser-security-hardening.applet | applet | ✓ | 1 |
 | shield-home-network-security.applet | applet | ✓ | 1 |
 | shield-linux-firewall-builder.applet | applet | ✓ | 1 |
@@ -2889,7 +2694,6 @@
 | gate-11 | applet | ✓ | 1 |
 | gate-6 | presentation | ✓ | 0 |
 | gate-7 | presentation | ✓ | 0 |
-| gate-8 | applet | ✓ | 1 |
 | idor-attack-lab | lab | ✓ | 2 |
 | ids-evasion-lab | applet | ✓ | 1 |
 | index | applet | ✓ | 1 |
@@ -3538,7 +3342,7 @@
   File: `test-rare-only.html`
   Fix: Remove console.log or replace with proper logging
 
-### WARNING (984)
+### WARNING (960)
 
 **[REG-001]** Content file is not registered in content-registry.js
   File: `admin/audit-tool.html`
@@ -3602,10 +3406,6 @@
 
 **[REG-001]** Content file is not registered in content-registry.js
   File: `dark-arts/vault/gates/gate-7.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `dark-arts/vault/gates/gate-8.html`
   Fix: Add entry to content-registry.js
 
 **[TRACK-003]** Lab has no visible progress tracking mechanism
@@ -4489,10 +4289,6 @@
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/applets/config_management/code-config-management.applet.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
   File: `houses/code/games/git-blame.html`
   Fix: Add entry to content-registry.js
 
@@ -5313,11 +5109,7 @@
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/forge/applets/hardware/hard_drive_geometry/forge-hard-drive-geometry.applet.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/forge/applets/hardware/multimeter/forge-multimeter.applet.html`
+  File: `houses/forge/applets/hardware/multimeter/forge-multimeter-jedit-v1.applet.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
@@ -6737,19 +6529,7 @@
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/applets/compliance/cmmc_cui/shield-cui-2.applet.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/applets/compliance/cmmc_framework/shield-cmmc-frameworkv2.applet.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
   File: `houses/shield/applets/compliance/cmmc_quiz/shield-cmmc-comprehensive.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/applets/compliance/cmmc_quiz/shield-cmmc-test-knowledge2.applet.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
@@ -6758,50 +6538,6 @@
 
 **[REG-001]** Content file is not registered in content-registry.js
   File: `houses/shield/applets/compliance/shield-laws-regulations.applet.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/applets/crypto/block_mode/shield-block.applet.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/applets/crypto/blockchain/shield-blockchain.applet.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/applets/crypto/cryptography/shield-cryptography.applet.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/applets/crypto/cryptomatch/shield-crypto-match.applet.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/applets/crypto/diffie_hellman/shield-diffie-hellman.applet.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/applets/crypto/digital_signatures/shield-digital-signature.applet.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/applets/crypto/encrypt_data/shield-encrypt-data.applet.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/applets/crypto/encryption/shield-encryption-jedit-6-1.applet.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/applets/crypto/factor_prime/shield-factor-prime.applet.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/applets/crypto/hashing/shield-hashing.applet.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/applets/crypto/hashing_narrated/shield-hashing-vo.applet.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
@@ -6821,14 +6557,6 @@
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/applets/crypto/pki/shield-pki.applet.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/applets/crypto/rsa/shield-rsa.applet.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
   File: `houses/shield/applets/crypto/shield-checksum-verifier.applet.html`
   Fix: Add entry to content-registry.js
 
@@ -6845,27 +6573,7 @@
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/applets/games/cookie_caper/shield-cookies.applet.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/applets/games/cyber_hat_match/shield-hatmatch.applet.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/applets/games/cyber_scramble/shield-cyberscramble.applet.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
   File: `houses/shield/applets/games/hacker_hangman/shield-hangman-native.applet.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/applets/games/hacker_hangman/shield-hangman.applet.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/applets/games/whats_my_crime/shield-crime.applet.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
@@ -7476,7 +7184,7 @@
   File: `workshop/a2-shadow-encoder/current.html`
   Fix: Add entry to content-registry.js
 
-### INFO (409)
+### INFO (404)
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `admin/audit-tool.html`
@@ -7520,10 +7228,6 @@
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `dark-arts/vault/gates/gate-11.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `dark-arts/vault/gates/gate-8.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
@@ -7792,10 +7496,6 @@
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `houses/code/applets/code-kubernetes-cluster-sim.applet.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/code/applets/config_management/code-config-management.applet.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
@@ -8236,14 +7936,6 @@
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `houses/forge/applets/hardware/hard_drive_geometry/forge-hard-drive-geometry-native.applet.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/forge/applets/hardware/hard_drive_geometry/forge-hard-drive-geometry.applet.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/forge/applets/hardware/multimeter/forge-multimeter.applet.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
@@ -8795,10 +8487,6 @@
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/shield/applets/games/cookie_caper/shield-cookies.applet.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `houses/shield/applets/games/hacker_hangman/shield-hangman-native.applet.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
@@ -9110,7 +8798,7 @@
 ## REGISTRY GAPS
 ══════════════════════════════════════════════════════════════════════
 
-### Unregistered Content (800)
+### Unregistered Content (776)
 
 | Path | Type | House |
 |------|------|-------|
@@ -9127,7 +8815,6 @@
 | dark-arts/vault/gates/gate-11.html | applet | - |
 | dark-arts/vault/gates/gate-6.html | presentation | - |
 | dark-arts/vault/gates/gate-7.html | presentation | - |
-| dark-arts/vault/gates/gate-8.html | applet | - |
 | dark-arts/vault/idor-attack-lab.html | lab | - |
 | dark-arts/vault/ids-evasion-lab.html | applet | - |
 | dark-arts/vault/iot-security-lab.html | applet | - |
@@ -9280,7 +8967,6 @@
 | houses/cloud/tools/cloud-cloud.tool.html | presentation | cloud |
 | houses/code/applets/code-docker-playground.applet.html | applet | code |
 | houses/code/applets/code-kubernetes-cluster-sim.applet.html | applet | code |
-| houses/code/applets/config_management/code-config-management.applet.html | applet | code |
 | houses/code/games/git-blame.html | applet | code |
 | houses/code/games/kubernetes-rescue.html | presentation | code |
 | houses/code/labs/code-cicd.lab.html | presentation | code |
@@ -9456,8 +9142,7 @@
 | houses/forge/applets/forge-system-tools-sim.applet.html | presentation | forge |
 | houses/forge/applets/forge-windows-edition-selector.applet.html | presentation | forge |
 | houses/forge/applets/hardware/hard_drive_geometry/forge-hard-drive-geometry-native.applet.html | applet | forge |
-| houses/forge/applets/hardware/hard_drive_geometry/forge-hard-drive-geometry.applet.html | applet | forge |
-| houses/forge/applets/hardware/multimeter/forge-multimeter.applet.html | applet | forge |
+| houses/forge/applets/hardware/multimeter/forge-multimeter-jedit-v1.applet.html | presentation | forge |
 | houses/forge/applets/hardware/peripheral_devices/forge-peripheral-devices.applet.html | applet | forge |
 | houses/forge/labs/forge-admin-tools.lab.html | lab | forge |
 | houses/forge/labs/forge-control-panel.lab.html | lab | forge |
@@ -9759,39 +9444,18 @@
 | houses/script/tools/script-process-management.tool.html | presentation | script |
 | houses/script/tools/script-windows-registry.tool.html | applet | script |
 | houses/shield/applets/access/shield-access-control-models.applet.html | presentation | shield |
-| houses/shield/applets/compliance/cmmc_cui/shield-cui-2.applet.html | presentation | shield |
-| houses/shield/applets/compliance/cmmc_framework/shield-cmmc-frameworkv2.applet.html | presentation | shield |
 | houses/shield/applets/compliance/cmmc_quiz/shield-cmmc-comprehensive.quiz.html | quiz | shield |
-| houses/shield/applets/compliance/cmmc_quiz/shield-cmmc-test-knowledge2.applet.html | presentation | shield |
 | houses/shield/applets/compliance/cui_overview/shield-cui-overview.applet.html | applet | shield |
 | houses/shield/applets/compliance/shield-laws-regulations.applet.html | presentation | shield |
-| houses/shield/applets/crypto/block_mode/shield-block.applet.html | presentation | shield |
-| houses/shield/applets/crypto/blockchain/shield-blockchain.applet.html | presentation | shield |
-| houses/shield/applets/crypto/cryptography/shield-cryptography.applet.html | presentation | shield |
-| houses/shield/applets/crypto/cryptomatch/shield-crypto-match.applet.html | presentation | shield |
-| houses/shield/applets/crypto/diffie_hellman/shield-diffie-hellman.applet.html | presentation | shield |
-| houses/shield/applets/crypto/digital_signatures/shield-digital-signature.applet.html | presentation | shield |
-| houses/shield/applets/crypto/encrypt_data/shield-encrypt-data.applet.html | presentation | shield |
-| houses/shield/applets/crypto/encryption/shield-encryption-jedit-6-1.applet.html | presentation | shield |
-| houses/shield/applets/crypto/factor_prime/shield-factor-prime.applet.html | presentation | shield |
-| houses/shield/applets/crypto/hashing/shield-hashing.applet.html | presentation | shield |
-| houses/shield/applets/crypto/hashing_narrated/shield-hashing-vo.applet.html | presentation | shield |
 | houses/shield/applets/crypto/hashing_steganography/shield-encryption-ii.applet.html | applet | shield |
 | houses/shield/applets/crypto/hashing_steganography/shield-encryption-task.applet.html | applet | shield |
 | houses/shield/applets/crypto/hashing_steganography/shield-hash-v3.applet.html | presentation | shield |
 | houses/shield/applets/crypto/hashing_steganography/shield-stego.applet.html | presentation | shield |
-| houses/shield/applets/crypto/pki/shield-pki.applet.html | presentation | shield |
-| houses/shield/applets/crypto/rsa/shield-rsa.applet.html | presentation | shield |
 | houses/shield/applets/crypto/shield-checksum-verifier.applet.html | presentation | shield |
 | houses/shield/applets/fundamentals/shield-secure-sdlc-framework.applet.html | presentation | shield |
 | houses/shield/applets/fundamentals/shield-security-best-practices.applet.html | presentation | shield |
 | houses/shield/applets/fundamentals/shield-security-governance-dashboard.applet.html | presentation | shield |
-| houses/shield/applets/games/cookie_caper/shield-cookies.applet.html | presentation | shield |
-| houses/shield/applets/games/cyber_hat_match/shield-hatmatch.applet.html | presentation | shield |
-| houses/shield/applets/games/cyber_scramble/shield-cyberscramble.applet.html | presentation | shield |
 | houses/shield/applets/games/hacker_hangman/shield-hangman-native.applet.html | applet | shield |
-| houses/shield/applets/games/hacker_hangman/shield-hangman.applet.html | presentation | shield |
-| houses/shield/applets/games/whats_my_crime/shield-crime.applet.html | presentation | shield |
 | houses/shield/applets/network/shield-browser-security-hardening.applet.html | applet | shield |
 | houses/shield/applets/network/shield-home-network-security.applet.html | applet | shield |
 | houses/shield/applets/network/shield-linux-firewall-builder.applet.html | applet | shield |

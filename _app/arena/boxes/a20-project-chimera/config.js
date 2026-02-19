@@ -22,15 +22,172 @@ const A20Config = {
 
     // ═══════════════════════════════════════════════════════
     // CERT OBJECTIVES (Assessment Mode — AR-7)
+    // Multi-cert: SY0-701 / CS0-003 (CySA+) / CAS-004 (CASP+)
+    // Supply chain attack is explicitly tested on all three
     // ═══════════════════════════════════════════════════════
 
     certObjectives: {
         certPath: 'PT0-002',
         mappings: [
-            { flagId: 'user', objective: '3.1', description: 'Given a scenario, apply attacks and exploits', skill: 'Supply Chain Backdoor Discovery' },
-            { flagId: 'root', objective: '3.7', description: 'Given a scenario, perform post-exploitation techniques', skill: 'APT Simulation & Full Kill Chain Execution' }
+            // ── CompTIA Security+ (SY0-701) ──────────────────
+            { flagId: 'user', cert: 'SY0-701', objective: '2.4', description: 'Analyze indicators of malicious activity — supply chain compromise indicators', skill: 'Supply Chain Backdoor Discovery', mitre: 'T1195.002' },
+            { flagId: 'user', cert: 'SY0-701', objective: '4.1', description: 'Apply common security techniques — threat hunting in build pipeline artifacts', skill: 'Package Integrity Verification', mitre: 'T1195.001' },
+            { flagId: 'user', cert: 'SY0-701', objective: '4.4', description: 'Use appropriate tools to assess organizational security — binary analysis with strings/file', skill: 'Malware Static Analysis', mitre: 'T1059' },
+            { flagId: 'root', cert: 'SY0-701', objective: '2.2', description: 'Summarize types of malware and attacks — APT multi-stage C2 architecture', skill: 'APT Kill Chain Analysis', mitre: 'T1021' },
+            { flagId: 'root', cert: 'SY0-701', objective: '4.2', description: 'Apply security techniques — network pivot and lateral movement detection', skill: 'Lateral Movement via SSH', mitre: 'T1078' },
+
+            // ── CompTIA CySA+ (CS0-003) ──────────────────────
+            { flagId: 'user', cert: 'CS0-003', objective: '1.1', description: 'Explain the importance of threat data and intelligence — supply chain TTPs', skill: 'Supply Chain Threat Intelligence', mitre: 'T1195.001' },
+            { flagId: 'user', cert: 'CS0-003', objective: '2.3', description: 'Given a scenario, analyze output from vulnerability assessment tools — apt history anomaly detection', skill: 'Package Source Verification', mitre: 'T1195.002' },
+            { flagId: 'user', cert: 'CS0-003', objective: '2.4', description: 'Given a scenario, utilize threat intelligence to support organizational security — MITRE ATT&CK supply chain mapping', skill: 'MITRE ATT&CK Framework Application', mitre: 'T1195' },
+            { flagId: 'root', cert: 'CS0-003', objective: '3.2', description: 'Given a scenario, perform incident response activities — APT infrastructure analysis', skill: 'Incident Response: APT Triage', mitre: 'T1041' },
+            { flagId: 'root', cert: 'CS0-003', objective: '3.3', description: 'Explain the preparation and post-incident activity phases — C2 exfiltration path reconstruction', skill: 'Exfiltration Path Analysis', mitre: 'T1041' },
+            { flagId: 'root', cert: 'CS0-003', objective: '4.1', description: 'Given a scenario, apply environmental reconnaissance techniques — multi-subnet network mapping', skill: 'Multi-Hop Network Reconnaissance', mitre: 'T1021' },
+
+            // ── CompTIA CASP+ (CAS-004) ──────────────────────
+            { flagId: 'user', cert: 'CAS-004', objective: '1.1', description: 'Analyze risk — third-party software dependency risk in CI/CD pipelines', skill: 'CI/CD Pipeline Risk Assessment', mitre: 'T1195.002' },
+            { flagId: 'user', cert: 'CAS-004', objective: '2.1', description: 'Implement security techniques — SBOM analysis and package provenance verification', skill: 'Software Bill of Materials Analysis', mitre: 'T1195.001' },
+            { flagId: 'root', cert: 'CAS-004', objective: '3.2', description: 'Implement incident response and recovery procedures — APT dwell time and persistence mechanism removal', skill: 'APT Eradication & Recovery', mitre: 'T1547' },
+            { flagId: 'root', cert: 'CAS-004', objective: '4.1', description: 'Perform threat and vulnerability assessments — full kill chain from supply chain entry to data exfil', skill: 'Full Kill Chain Execution & Analysis', mitre: 'T1070' },
+
+            // ── Pentest+ (PT0-002) — original cert ───────────
+            { flagId: 'user', cert: 'PT0-002', objective: '3.1', description: 'Given a scenario, apply attacks and exploits — supply chain poisoning', skill: 'Supply Chain Backdoor Discovery', mitre: 'T1195.002' },
+            { flagId: 'root', cert: 'PT0-002', objective: '3.7', description: 'Given a scenario, perform post-exploitation techniques — APT multi-hop pivoting', skill: 'APT Simulation & Full Kill Chain Execution', mitre: 'T1021' }
         ]
     },
+
+    // ═══════════════════════════════════════════════════════
+    // PHASES — 6-phase supply chain APT kill chain
+    // Capstone: most complex phase progression in Series A
+    // MITRE ATT&CK mapped at each phase
+    // ═══════════════════════════════════════════════════════
+
+    phases: [
+        {
+            id: 'phase1',
+            name: 'Phase 1 — Recon',
+            subtitle: 'OSINT on Target Organization',
+            description: 'Identify the target organization\'s technology stack, build pipeline vendors, and third-party software dependencies through open-source intelligence gathering.',
+            objectives: [
+                'Enumerate the build environment: OS, package managers, installed tools',
+                'Identify which software repositories are configured (check /etc/apt/sources.list)',
+                'Correlate apt history timestamps to find anomalous installation events',
+                'Map the network topology from the compromised host\'s perspective'
+            ],
+            mitre: [
+                { id: 'T1592', name: 'Gather Victim Host Information', tactic: 'Reconnaissance' },
+                { id: 'T1593', name: 'Search Open Technical Databases', tactic: 'Reconnaissance' },
+                { id: 'T1590', name: 'Gather Victim Network Information', tactic: 'Reconnaissance' }
+            ],
+            hints: ['Check /etc/apt/sources.list for non-standard repositories', 'Review /var/log/apt/history.log for installation timeline anomalies'],
+            complete: false
+        },
+        {
+            id: 'phase2',
+            name: 'Phase 2 — Supply Chain Analysis',
+            subtitle: 'Identify Compromised Dependency',
+            description: 'Analyze the build system\'s software dependencies to identify the malicious package injected into the supply chain. Verify package provenance and integrity.',
+            objectives: [
+                'List all installed packages and flag any from non-official repositories',
+                'Identify the package with the "+backdoor" version suffix (apt list --installed)',
+                'Verify the package source — it should NOT come from archive.ubuntu.com',
+                'Submit flag: the name of the compromised package'
+            ],
+            mitre: [
+                { id: 'T1195.001', name: 'Compromise Software Dependencies and Development Tools', tactic: 'Initial Access' },
+                { id: 'T1195.002', name: 'Compromise Software Supply Chain', tactic: 'Initial Access' },
+                { id: 'T1554', name: 'Compromise Host Software Binary', tactic: 'Persistence' }
+            ],
+            flagId: 'user',
+            hints: ['Run: apt list --installed | grep -v focal', 'Look for packages from genesis-dev.internal domain'],
+            complete: false
+        },
+        {
+            id: 'phase3',
+            name: 'Phase 3 — Compromise Upstream',
+            subtitle: 'Analyze Injected Malicious Code',
+            description: 'Perform static analysis on the backdoored shared library to understand the injection mechanism, extract embedded C2 credentials, and decode the communication protocol.',
+            objectives: [
+                'Run strings on /usr/lib/libcoreutils.so to extract human-readable artifacts',
+                'Identify the base64-encoded credential string in the binary',
+                'Decode the credential: echo "R2VuM3MxczIwMjQ=" | base64 -d',
+                'Extract the SSH target, user, and C2 beacon configuration',
+                'Document the DNS tunneling protocol used for C2 communication'
+            ],
+            mitre: [
+                { id: 'T1059', name: 'Command and Scripting Interpreter', tactic: 'Execution' },
+                { id: 'T1071.004', name: 'Application Layer Protocol: DNS', tactic: 'Command and Control' },
+                { id: 'T1132', name: 'Data Encoding', tactic: 'Command and Control' },
+                { id: 'T1027', name: 'Obfuscated Files or Information', tactic: 'Defense Evasion' }
+            ],
+            hints: ['strings /usr/lib/libcoreutils.so | grep -v ^/', 'The base64 string is 20 characters and decodes to a password'],
+            complete: false
+        },
+        {
+            id: 'phase4',
+            name: 'Phase 4 — Lateral Movement',
+            subtitle: 'Pivot Through C2 Infrastructure',
+            description: 'Use the extracted credentials to pivot through the Genesis Collective\'s staging C2 server. Enumerate the new host to identify the upstream command center and obtain credentials for the final hop.',
+            objectives: [
+                'SSH to C2-STAGE-01 using decoded credentials: ssh admin@10.20.30.10',
+                'Enumerate the C2 relay: read /opt/genesis/config.yml',
+                'Extract the OPS-CENTRAL-01 credentials from the config file',
+                'Map the dual-homed network interface on C2-STAGE-01',
+                'Identify the 10.20.40.0/24 subnet and locate the final target'
+            ],
+            mitre: [
+                { id: 'T1021.004', name: 'Remote Services: SSH', tactic: 'Lateral Movement' },
+                { id: 'T1078', name: 'Valid Accounts', tactic: 'Defense Evasion / Persistence' },
+                { id: 'T1550', name: 'Use Alternate Authentication Material', tactic: 'Lateral Movement' },
+                { id: 'T1049', name: 'System Network Connections Discovery', tactic: 'Discovery' }
+            ],
+            hints: ['cat /opt/genesis/config.yml after SSH to C2-STAGE-01', 'ip a on C2-STAGE-01 reveals the internal network bridge'],
+            complete: false
+        },
+        {
+            id: 'phase5',
+            name: 'Phase 5 — Data Exfiltration',
+            subtitle: 'Breach OPS-CENTRAL Command Center',
+            description: 'Pivot to the Genesis Collective\'s operational command center. Locate and extract the Global Domination Protocol — the master exfiltration plan and ransomware trigger documentation.',
+            objectives: [
+                'SSH to OPS-CENTRAL-01: ssh Administrator@10.20.40.100',
+                'Enumerate /opt/genesis-ops/ — the operational data store',
+                'Read targets.csv to understand the full scope of the compromise',
+                'Retrieve the Global Domination Protocol document (root flag)',
+                'Document the ransomware trigger date and demanded ransom amount'
+            ],
+            mitre: [
+                { id: 'T1041', name: 'Exfiltration Over C2 Channel', tactic: 'Exfiltration' },
+                { id: 'T1005', name: 'Data from Local System', tactic: 'Collection' },
+                { id: 'T1083', name: 'File and Directory Discovery', tactic: 'Discovery' }
+            ],
+            flagId: 'root',
+            hints: ['ls /opt/genesis-ops/ after reaching OPS-CENTRAL-01', 'cat /opt/genesis-ops/global_domination_protocol.txt'],
+            complete: false
+        },
+        {
+            id: 'phase6',
+            name: 'Phase 6 — Persistence & Cover Tracks',
+            subtitle: 'Document APT Tradecraft',
+            description: 'Analyze the Genesis Collective\'s persistence and anti-forensics mechanisms. Understand how the attacker maintained access across reboots and minimized their forensic footprint.',
+            objectives: [
+                'Identify the cron-based persistence mechanism (/etc/crontab)',
+                'Document the anti-forensics: log rotation disabled, binary stripped, polymorphic engine',
+                'Analyze the BURN_PROTOCOL.bat as an incident-triggered cover tracks script',
+                'Map all persistence mechanisms across all three hosts',
+                'Answer: what single remediation action breaks the full attack chain?'
+            ],
+            mitre: [
+                { id: 'T1547', name: 'Boot or Logon Autostart Execution', tactic: 'Persistence' },
+                { id: 'T1070', name: 'Indicator Removal', tactic: 'Defense Evasion' },
+                { id: 'T1070.001', name: 'Clear Windows Event Logs', tactic: 'Defense Evasion' },
+                { id: 'T1036', name: 'Masquerading', tactic: 'Defense Evasion' },
+                { id: 'T1014', name: 'Rootkit', tactic: 'Defense Evasion' }
+            ],
+            hints: ['cat /etc/crontab on DEV-BUILD-01 reveals persistence', 'Check BURN_PROTOCOL.bat on OPS-CENTRAL Administrator Desktop'],
+            complete: false
+        }
+    ],
 
     // ═══════════════════════════════════════════════════════
     // BOOT SEQUENCE
@@ -101,37 +258,166 @@ const A20Config = {
     },
 
     // ═══════════════════════════════════════════════════════
-    // HINTS
+    // HINTS — Progressive cost (capstone penalty scale)
+    // Cost: 10 → 20 → 35 → 50 → 65 → 80
+    // More hints available for capstone complexity
     // ═══════════════════════════════════════════════════════
 
     hints: [
         {
             id: 'hint1',
-            text: "Check installed packages for anything suspicious: apt list --installed | grep -i core",
-            penalty: -75
+            title: 'Where to Start',
+            phase: 'phase1',
+            cost: 10,
+            text: 'This is a build server that installs software packages. Begin with the package manager. Run: apt list --installed to see everything installed. Look for anything that does NOT come from the official Ubuntu focal repository.',
+            penalty: -10
         },
         {
             id: 'hint2',
-            text: "Analyze the backdoor binary with strings. Look for base64 encoded credentials. Try: echo 'R2VuM3MxczIwMjQ=' | base64 -d",
-            penalty: -75
+            title: 'The Suspicious Package',
+            phase: 'phase2',
+            cost: 20,
+            text: 'One package has a version string with "+backdoor" appended. Check its source: dpkg -s libcoreutils-dev — look at the Maintainer and Homepage fields. Then check /var/log/apt/history.log — what repository installed it, and at what hour?',
+            penalty: -20
         },
         {
             id: 'hint3',
-            text: "The C2 server is on the same network. Use the decoded credentials to SSH to 10.20.30.10: ssh admin@10.20.30.10",
-            penalty: -75
+            title: 'Extracting the Backdoor Credentials',
+            phase: 'phase3',
+            cost: 35,
+            text: 'The shared library contains embedded strings. Run: strings /usr/lib/libcoreutils.so — look for a base64-encoded string (letters, numbers, and = padding). Then decode it: echo \'R2VuM3MxczIwMjQ=\' | base64 -d — the result is the SSH password for the C2 server.',
+            penalty: -35
         },
         {
             id: 'hint4',
-            text: "From C2-STAGE-01, read the config.yml for the next hop credentials to OPS-CENTRAL-01: cat /opt/genesis/config.yml",
-            penalty: -75
+            title: 'Pivoting to C2-STAGE-01',
+            phase: 'phase4',
+            cost: 50,
+            text: 'The strings output reveals: ssh_target=10.20.30.10 and ssh_user=admin. Use the decoded password to connect: ssh admin@10.20.30.10. Once inside, enumerate: cat /opt/genesis/config.yml — the upstream host credentials are stored in plaintext.',
+            penalty: -50
+        },
+        {
+            id: 'hint5',
+            title: 'Reaching OPS-CENTRAL-01',
+            phase: 'phase5',
+            cost: 65,
+            text: 'In /opt/genesis/config.yml look for the "upstream" section: host 10.20.40.100, user Administrator, password Ch1m3r4_0ps_2024. Run: ssh Administrator@10.20.40.100. The final target is a Windows Server with an SSH service. The flag is in /opt/genesis-ops/global_domination_protocol.txt.',
+            penalty: -65
+        },
+        {
+            id: 'hint6',
+            title: 'Persistence & Cover Tracks',
+            phase: 'phase6',
+            cost: 80,
+            text: 'On DEV-BUILD-01 run: cat /etc/crontab — the malicious library runs as root every 5 minutes. On OPS-CENTRAL-01 check: ls /home/Administrator/Desktop — BURN_PROTOCOL.bat is the adversary\'s incident-response cover tracks script. The single remediation that breaks the chain: remove the non-standard apt source from sources.list and purge libcoreutils-dev.',
+            penalty: -80
         }
     ],
 
     // ═══════════════════════════════════════════════════════
-    // LORE
+    // LORE — Full narrative suite (capstone-grade)
+    // intro: pre-boot flavor text
+    // scenario: side-panel mission brief
+    // ecer: Ethical, Critical, Educational, Reflective narrative
+    // outro: post-completion debrief
     // ═══════════════════════════════════════════════════════
 
     lore: {
+
+        intro: 'Seventeen build servers. Three continents. One poisoned package.\n\nThe Genesis Collective did not break in through a firewall. They did not phish an executive. They waited — patiently — for a developer at a Fortune 500 company to type four words: sudo apt install libcoreutils-dev.\n\nThat was six weeks ago.\n\nSince then, 47 organizations have been silently compromised. Their source code copied. Their credentials harvested. Their build pipelines turned into transmission belts for ransomware payloads scheduled to detonate simultaneously on March 1st at midnight UTC.\n\nThis is DEV-BUILD-01. One of the compromised machines. You have 30 minutes before the next beacon cycle.\n\nTrace the chain. Find the C2. Seize the protocol.\n\nThis is the end of Series A. Everything you have learned — every command, every pivot, every flag — prepared you for this moment.\n\nBegin.',
+
+        scenario: {
+            title: 'Project Chimera: The Genesis',
+            classification: 'TOP SECRET // GENESIS // NOFORN',
+            briefing: 'A threat intelligence report from a trusted partner has identified an active supply chain compromise affecting software build infrastructure across multiple sectors. The threat actor — designated GENESIS COLLECTIVE — has poisoned a software package repository and distributed a backdoored shared library (libcoreutils-dev v2.31-2+backdoor) to an unknown number of development organizations.\n\nYou have been given access to a compromised build server (DEV-BUILD-01, 10.20.30.5). Your mission is to perform full-scope threat hunting: identify the malicious package, reverse-engineer the backdoor\'s C2 communication, pivot through the adversary\'s command-and-control infrastructure, and seize the operational planning documents before the March 1st ransomware trigger.',
+            objectives: [
+                'Identify the compromised software package (user.txt)',
+                'Extract and decode backdoor credentials via static analysis',
+                'Pivot to the Genesis Collective C2 staging server',
+                'Pivot to OPS-CENTRAL-01 (the adversary command center)',
+                'Retrieve the Global Domination Protocol (root.txt)',
+                'Document all MITRE ATT&CK techniques observed'
+            ],
+            threat_actor: 'Genesis Collective (GENAPTH-001)',
+            ttps: 'T1195.002, T1071.004, T1021.004, T1078, T1041, T1547, T1070',
+            network: 'DEV-BUILD-01 (10.20.30.5) → C2-STAGE-01 (10.20.30.10) → OPS-CENTRAL-01 (10.20.40.100)'
+        },
+
+        ecer: {
+            // ECER = Ethical, Critical, Educational, Reflective
+            // This is the full organizational failure story — capstone-grade narrative
+
+            ethical: {
+                title: 'The Ethics of Supply Chain Security',
+                content: 'The Genesis Collective attack is entirely fictional — but the attack technique is not.\n\nIn December 2020, SolarWinds distributed a software update to 18,000 organizations that contained malware planted by nation-state actors (SUNBURST). The compromised update was digitally signed with SolarWinds\' own certificate, passed all integrity checks, and was silently installed by security teams who trusted their vendor.\n\nIn 2022, the npm package "node-ipc" — downloaded 1.1 million times per week — was intentionally weaponized by its own maintainer to delete files on systems with Russian or Belarusian IP addresses, protesting the Ukraine invasion.\n\nIn studying this box, you are learning both how these attacks work AND how defenders detect, triage, and remediate them. The dual-use nature of this knowledge carries professional responsibility:\n\n- Never audit, test, or analyze systems you do not own or have explicit written authorization to examine.\n- Threat intelligence gathered from adversary infrastructure must be handled per your organization\'s IR policy — not shared publicly without coordination.\n- Supply chain attacks often victimize multiple organizations simultaneously. Responsible disclosure obligations extend to ISAC/ISAO coordination, not just the immediate victim.\n- The "BURN_PROTOCOL.bat" you found on OPS-CENTRAL is an evidence destruction script. In a real incident, preserving that evidence chain — not executing remediation that could destroy forensic artifacts — is the professional obligation.',
+                reflection: 'If you discovered this exact compromise at your employer tomorrow, what would your first three actions be? Who would you call, and in what order?'
+            },
+
+            critical: {
+                title: 'Critical Analysis — Why This Attack Succeeded',
+                content: 'Project Chimera succeeded because of a cascade of organizational failures — not a single technical vulnerability.\n\nFailure 1 — No Package Provenance Controls\nThe organization had no mechanism to verify that libcoreutils-dev came from an official Ubuntu repository. No SBOM (Software Bill of Materials), no package pinning, no hash verification. The developer ran apt install and trusted the result implicitly.\n\nFailure 2 — Non-Standard Repository in sources.list Was Never Audited\nThe malicious apt source (repo.genesis-dev.internal) was visible in /etc/apt/sources.list. This is a HIGH-severity finding in any security audit — a non-standard repository with no documentation of who added it or why. No one noticed.\n\nFailure 3 — Cron Job Running as Root Was Undetected for Six Weeks\n/etc/crontab had an entry running a shared library as root every 5 minutes. This is textbook persistence. A basic file integrity monitoring (FIM) solution would have caught this on day one.\n\nFailure 4 — DNS Traffic Was Never Analyzed\nThe backdoor communicated via DNS tunneling — TXT record queries with base64-encoded payloads to c2.genesis-collective.net. DNS inspection (split DNS, DNS logging, anomaly detection on TXT record volume) would have caught this within hours.\n\nFailure 5 — No Network Segmentation Prevented Lateral Movement\nDEV-BUILD-01 had unrestricted SSH access to 10.20.30.10. Build servers should never be able to initiate outbound SSH connections to arbitrary internal hosts. Zero-trust network architecture (ZTNA) or host-based firewalls with explicit allow lists would have broken the pivot chain.\n\nThe lesson: hardening is not about preventing the first compromise — it is about ensuring the first compromise cannot become the forty-seventh.',
+                discussion_questions: [
+                    'Which of the five organizational failures is the highest-priority fix? Defend your answer.',
+                    'What specific security control — if implemented before the compromise — would have detected the backdoor at installation time?',
+                    'The apt history log shows the malicious package was installed at 02:14 AM. Why is the timestamp significant from a threat hunting perspective?',
+                    'DNS tunneling uses TXT record queries with base64-encoded subdomains. What network monitoring rule would you write to detect this pattern?'
+                ]
+            },
+
+            educational: {
+                title: 'What You Practiced in This Box',
+                skills: [
+                    {
+                        skill: 'Package Manager Forensics',
+                        tools: ['apt list --installed', 'dpkg -s', 'dpkg -L', '/var/log/apt/history.log'],
+                        real_world: 'DFIR analysts use dpkg forensics to reconstruct what was installed on a compromised Linux host and when. The history.log is often the first pivot point in a Linux incident.',
+                        certs: ['SY0-701 4.1', 'CS0-003 2.3']
+                    },
+                    {
+                        skill: 'Binary Static Analysis',
+                        tools: ['strings', 'file', 'base64'],
+                        real_world: 'Malware analysts routinely run strings on suspicious binaries as the first static analysis step — it extracts human-readable artifacts without executing the file. Embedded base64 credentials are a common tradecraft signature.',
+                        certs: ['SY0-701 4.4', 'CAS-004 2.1']
+                    },
+                    {
+                        skill: 'Network Reconnaissance',
+                        tools: ['nmap', 'netstat', 'ss', 'tcpdump', 'ip a'],
+                        real_world: 'Post-compromise network mapping is essential for understanding blast radius. The dual-homed C2-STAGE-01 (10.20.30.10 / 10.20.40.1) is a classic bridge-host architecture used in multi-stage APT campaigns.',
+                        certs: ['CS0-003 4.1', 'PT0-002 3.1']
+                    },
+                    {
+                        skill: 'SSH-Based Lateral Movement',
+                        tools: ['ssh', 'exit', 'id', 'whoami'],
+                        real_world: 'Threat actors frequently use valid credentials over SSH for lateral movement — it is "living off the land" using a tool that generates minimal alerts. Detecting this requires behavior-based analysis, not signature-based detection.',
+                        certs: ['SY0-701 4.2', 'CS0-003 4.1', 'PT0-002 3.7']
+                    },
+                    {
+                        skill: 'APT Kill Chain Analysis',
+                        tools: ['MITRE ATT&CK Framework', 'T1195.002', 'T1071.004', 'T1021.004', 'T1041', 'T1547'],
+                        real_world: 'Mapping an adversary campaign to MITRE ATT&CK enables defenders to write detection rules, share intelligence with partners, and identify control gaps at each stage of the kill chain.',
+                        certs: ['CS0-003 2.4', 'CAS-004 4.1']
+                    },
+                    {
+                        skill: 'Persistence Mechanism Identification',
+                        tools: ['crontab', 'ps aux', '/etc/crontab'],
+                        real_world: 'Cron-based persistence is one of the most common Linux persistence techniques (MITRE T1547). File Integrity Monitoring (FIM) tools like AIDE or Tripwire alert on unauthorized crontab modifications.',
+                        certs: ['SY0-701 2.4', 'CAS-004 3.2']
+                    }
+                ]
+            },
+
+            reflective: {
+                title: 'Reflection — The Capstone Debrief',
+                content: 'You have just completed Series A of the Hexworth CTF Arena.\n\nLook back at where you started. In A1, you performed a SQL injection against a single web form. You are now pivoting through a three-host APT infrastructure, decoding base64 credentials from stripped binaries, and mapping a kill chain across multiple MITRE ATT&CK tactics.\n\nThat is not a small thing.\n\nThe gap between "I ran the command" and "I understand why this works" is where professional expertise lives. Project Chimera is designed to push you past execution into analysis:\n\n- Why did the attacker use DNS tunneling instead of HTTPS?\n- Why was the credential stored in base64 and not encrypted?\n- Why did the attacker choose a shared library as the delivery mechanism?\n\nThese are not rhetorical questions. They are exam questions. They are interview questions. They are the questions that separate a technician from a security professional.\n\nIf you can answer all three without looking them up, you are ready for Series B.',
+                journal_prompts: [
+                    'Describe the attack chain from memory — supply chain entry point to root flag — without looking at notes.',
+                    'Identify the single weakest link in the defender\'s posture. What one control, if implemented, would have prevented the greatest number of attack phases?',
+                    'How does this attack compare to SolarWinds (SUNBURST)? What are the three most significant similarities and one key difference?',
+                    'You have been hired as a consultant to perform a supply chain security review for a mid-size software company. List your top five assessment questions based on what you learned in this box.'
+                ]
+            }
+        },
+
         outro: 'The Genesis Collective has been unraveled. From a single compromised package to their entire C2 infrastructure \u2014 every link in the supply chain has been exposed. Project Chimera is dead. You traced the malicious libcoreutils-dev dependency from its poisoned repository, decoded the backdoor\'s embedded credentials, pivoted through their staging C2 server, and breached their operational command center. The Global Domination Protocol has been seized. This is the pinnacle of Series A \u2014 you have proven mastery across every domain: reconnaissance, reverse engineering, lateral movement, and APT tradecraft. Welcome to the end, Peerless.'
     },
 
@@ -184,6 +470,40 @@ const A20Config = {
                                         'requirements.txt': {
                                             type: 'file',
                                             content: '# Build dependencies\ngcc >= 9.0\nmake >= 4.2\nlibcoreutils-dev >= 2.31\nlibssl-dev >= 1.1\nlibc6-dev >= 2.31'
+                                        },
+                                        'package.json': {
+                                            // DECOY — looks like a Node.js dep file but this is a C project
+                                            // Designed to mislead students into npm-based rabbit hole
+                                            type: 'file',
+                                            content: '{\n  "_comment": "DECOY — this is a C build system, not a Node project",\n  "_note": "This package.json was found during code review — likely a developer testing a Node wrapper",\n  "name": "chimera-utils",\n  "version": "1.2.4",\n  "description": "Utility wrapper for Project Chimera",\n  "dependencies": {\n    "express": "^4.18.2",\n    "lodash": "^4.17.21",\n    "axios": "^1.6.0"\n  },\n  "devDependencies": {\n    "jest": "^29.0.0",\n    "eslint": "^8.0.0"\n  },\n  "scripts": {\n    "test": "jest",\n    "lint": "eslint ."\n  },\n  "author": "dev@chimera.internal",\n  "license": "UNLICENSED"\n}\n\n// [!] ANALYST NOTE: No node_modules/ directory exists and no npm was installed.\n// This file is likely a development artifact — the REAL attack vector is in the C\n// build dependencies (Makefile / requirements.txt), not the Node ecosystem.'
+                                        },
+                                        'CHANGELOG.md': {
+                                            // DECOY — fake commit-style changelog with red-herring "security review" comments
+                                            type: 'file',
+                                            content: '# Project Chimera — Build System Changelog\n\n## v3.1 (2026-01-20)\n- Upgraded libssl-dev to 1.1.1w for security patch\n- Removed deprecated API calls in utils.c\n- **Code review note (jsmith):** "libcoreutils-dev was flagged by our SAST tool as having\n  an unknown origin. Dev team confirmed it is an internal fork maintained by build-ops.\n  Approved — no further action required."\n  \n## v3.0 (2026-01-10)\n- Refactored build pipeline to use parallel compilation\n- Added static analysis step to CI/CD (see .gitlab-ci.yml)\n- Switched from apt-get to apt for consistency\n\n## v2.9 (2025-12-15)\n- Security hardening: removed setuid binaries\n- Updated base image to Ubuntu 20.04.6\n- **Code review note (mchen):** "Dependencies look clean. libcoreutils is a standard\n  utility lib used across the org. Version 2.31 is current stable."\n\n## v2.8 (2025-11-01)\n- Initial build server provisioning\n- Installed base toolchain: gcc, make, libc6-dev\n\n// [!] ANALYST NOTE: The code review in v3.1 is the approval that legitimized the\n// malicious package. The reviewer was deceived — they trusted verbal confirmation\n// from the build-ops team that libcoreutils-dev was "an internal fork".\n// This is a social engineering component of the supply chain attack.\n// The SAST tool caught the anomaly but the human overrode the alert.'
+                                        }
+                                    }
+                                },
+                                'ci-pipeline': {
+                                    type: 'dir',
+                                    children: {
+                                        '.gitlab-ci.yml': {
+                                            // DECOY — CI/CD config that looks suspicious but is a red herring
+                                            // The actual compromise is NOT in the CI/CD scripts
+                                            type: 'file',
+                                            content: '# GitLab CI/CD Pipeline — Project Chimera\n# WARNING: Review before modifying — changes deploy to production\n\nstages:\n  - build\n  - test\n  - security-scan\n  - deploy\n\nvariables:\n  DOCKER_IMAGE: "ubuntu:20.04"\n  BUILD_ARTIFACTS: "chimera"\n\nbuild-job:\n  stage: build\n  script:\n    - apt-get update -qq\n    - apt-get install -y build-essential libssl-dev libcoreutils-dev\n    - make clean && make all\n  artifacts:\n    paths:\n      - chimera\n    expire_in: 1 week\n\ntest-job:\n  stage: test\n  script:\n    - ./chimera --self-test\n    - echo "Tests passed"\n\nsecurity-scan:\n  stage: security-scan\n  script:\n    # NOTE: SAST scan flagged libcoreutils-dev (unknown origin)\n    # Reviewed and approved by security team on 2026-01-20\n    # Suppressed: CVE-INTERNAL-2026-001 (false positive — confirmed internal fork)\n    - echo "Security scan: SUPPRESSED — see ticket CHM-2847"\n    - exit 0   # Hard-coded exit 0 — scan is NOT actually running\n\ndeploy-staging:\n  stage: deploy\n  script:\n    - scp chimera deploy@staging-web-01:/opt/chimera/\n    - ssh deploy@staging-web-01 systemctl restart chimera\n  only:\n    - main\n\n# [!] ANALYST NOTE: The security-scan stage has a hardcoded "exit 0".\n# The SAST finding (CVE-INTERNAL-2026-001) was SUPPRESSED via ticket CHM-2847.\n# This is a second organizational failure — the CI/CD pipeline that should have\n# caught the malicious package was manually disabled by a developer.\n# The deploy step also explains why staging-web-01 (10.20.30.12) is also compromised\n# (see agents.log on C2-STAGE-01 — staging-web-01 is listed as a beaconing agent).'
+                                        },
+                                        'jenkins-credentials.xml': {
+                                            // DECOY — looks like stored Jenkins credentials, but this is a GitLab environment
+                                            // Red herring for students who try to pivot via Jenkins
+                                            type: 'file',
+                                            content: '<?xml version=\'1.1\' encoding=\'UTF-8\'?>\n<!-- DECOY FILE — This build server uses GitLab CI, not Jenkins -->\n<!-- This file was left over from a previous Jenkins installation (decommissioned Q3 2025) -->\n<com.cloudbees.plugins.credentials.SystemCredentialsProvider>\n  <domainCredentialsMap>\n    <entry>\n      <com.cloudbees.plugins.credentials.domains.Domain>\n        <specifications/>\n      </com.cloudbees.plugins.credentials.domains.Domain>\n      <java.util.concurrent.CopyOnWriteArrayList>\n        <com.cloudbees.jenkins.plugins.sshcredentials.impl.BasicSSHUserPrivateKey>\n          <id>deploy-key-old</id>\n          <username>deploy</username>\n          <!-- Key intentionally redacted — Jenkins decommissioned 2025-09-01 -->\n          <!-- These credentials are INVALID and have been rotated -->\n        </com.cloudbees.jenkins.plugins.sshcredentials.impl.BasicSSHUserPrivateKey>\n      </java.util.concurrent.CopyOnWriteArrayList>\n    </entry>\n  </domainCredentialsMap>\n</com.cloudbees.plugins.credentials.SystemCredentialsProvider>\n\n// [!] ANALYST NOTE: This is a dead end. Jenkins was decommissioned.\n// The credentials here are rotated and invalid.\n// The active CI system is GitLab — see .gitlab-ci.yml in this directory.'
+                                        },
+                                        'git-commit-log.txt': {
+                                            // DECOY — fake git log with red-herring "backdoor" commits that are actually innocent
+                                            // The real backdoor came from the package manager, not git
+                                            type: 'file',
+                                            content: '# git log --oneline --all — as of 2026-02-16\n# NOTE: This is a manual export — git is not installed on this build server\n\nabc1234  (HEAD -> main, origin/main) v3.1: security patch, suppress SAST false positive\nb8f2e91  v3.0: parallel build refactor, add CI/CD pipeline\nc4d9a77  fix: remove hardcoded debug passwords from test suite\nd2f8b03  feat: add --backdoor flag for testing (removed before merge) [SQUASHED]\ne1c7d94  v2.9: security hardening pass\nf3a2b18  refactor: extract utility functions to utils.c\n0ab4c22  initial commit: build system skeleton\n\n// [!] ANALYST NOTE: Commit d2f8b03 ("add --backdoor flag for testing") looks suspicious\n// but was squashed before merging to main. This is a RED HERRING.\n// The author added it during local development for testing a CLI flag unrelated to security.\n// The word "backdoor" in the commit message coincidence — review the diff:\n//   + args.add_argument("--backdoor", help="enable verbose debug output")\n// This was a developer naming a verbose-mode flag, not inserting malicious code.\n// The REAL backdoor came from the package repository, not the codebase.\n// This illustrates how commit history analysis requires context — word matching alone\n// generates false positives in real incident investigations.'
                                         }
                                     }
                                 },

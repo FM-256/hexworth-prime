@@ -25,10 +25,119 @@ const A13Config = {
     certObjectives: {
         certPath: 'SY0-701',
         mappings: [
-            { flagId: 'user', objective: '1.4', description: 'Given a scenario, analyze indicators of malicious activity', skill: 'IoT Default Credential Exploitation' },
-            { flagId: 'root', objective: '1.4', description: 'Given a scenario, analyze indicators of malicious activity', skill: 'IoT Network Pivot & Lateral Movement' }
+            // Phase 1 — Reconnaissance & Network Scanning
+            { flagId: 'user', objective: '4.4', description: 'Given a scenario, implement penetration testing techniques', skill: 'Network Service Scanning (nmap, service enumeration)', mitre: 'T1046' },
+            { flagId: 'user', objective: '1.4', description: 'Given a scenario, analyze indicators of malicious activity', skill: 'IoT Device Fingerprinting via Web Interface', mitre: 'T1592.002' },
+            // Phase 2 — IoT Device Enumeration
+            { flagId: 'user', objective: '3.2', description: 'Given a scenario, implement host or application security solutions — Embedded/IoT hardening', skill: 'Embedded Linux Firmware Version Enumeration', mitre: 'T1592' },
+            { flagId: 'user', objective: '2.1', description: 'Summarize vulnerability and risk management concepts — IoT/embedded attack surface', skill: 'Unauthenticated Debug Interface Discovery (Telnet)', mitre: 'T1078.001' },
+            // Phase 3 — IoT Exploitation
+            { flagId: 'user', objective: '1.4', description: 'Given a scenario, analyze indicators of malicious activity', skill: 'IoT Default Credential Exploitation (admin:admin)', mitre: 'T1078.001' },
+            { flagId: 'user', objective: '2.4', description: 'Given a scenario, analyze indicators associated with application attacks', skill: 'Embedded Device Information Disclosure via Admin Panel', mitre: 'T1592.004' },
+            // Phase 4 — Network Pivot
+            { flagId: 'root', objective: '4.4', description: 'Given a scenario, implement penetration testing techniques', skill: 'SSH Local Port Forwarding for Internal Network Pivot', mitre: 'T1021.004' },
+            { flagId: 'root', objective: '1.4', description: 'Given a scenario, analyze indicators of malicious activity', skill: 'Lateral Movement via Dual-Homed IoT Bridge', mitre: 'T1021' },
+            { flagId: 'root', objective: '3.1', description: 'Given a scenario, implement secure network architecture — Network segmentation failures', skill: 'Adversary-in-the-Middle via Pivoted Network Segment', mitre: 'T1557' },
+            // Phase 5 — Data Exfiltration
+            { flagId: 'root', objective: '1.4', description: 'Given a scenario, analyze indicators of malicious activity', skill: 'Unauthenticated MongoDB Data Exfiltration', mitre: 'T1530' },
+            { flagId: 'root', objective: '2.1', description: 'Summarize vulnerability and risk management concepts — Missing authentication controls', skill: 'NoSQL Database Exploitation Without Credentials', mitre: 'T1213' }
         ]
     },
+
+    // ═══════════════════════════════════════════════════════
+    // PHASES — Progressive IoT attack chain (5 stages)
+    // ═══════════════════════════════════════════════════════
+
+    phases: [
+        {
+            id: 'recon',
+            name: 'Reconnaissance',
+            label: 'Phase 1 — Reconnaissance',
+            icon: '\uD83D\uDD0D',
+            description: 'Scan the IoT network segment to identify the sensor node and enumerate exposed services. Understand what is running before you touch it.',
+            objectives: [
+                'Run nmap against 192.168.2.0/24 to discover live hosts',
+                'Run a targeted nmap scan against 192.168.2.100 to identify open ports and service versions',
+                'Note the three exposed services: SSH (22), Telnet (23), HTTP (80)',
+                'Browse to http://192.168.2.100 and review the sensor dashboard for model and firmware info'
+            ],
+            mitre: ['T1046 — Network Service Scanning', 'T1592 — Gather Victim Host Information'],
+            hints: ['Start with: nmap 192.168.2.0/24', 'Then: nmap 192.168.2.100 for full detail', 'Browse http://192.168.2.100 — the web dashboard leaks firmware and model info'],
+            completionTrigger: 'nmap_run',
+            locked: false
+        },
+        {
+            id: 'enumeration',
+            name: 'Device Enumeration',
+            label: 'Phase 2 — Device Enumeration',
+            icon: '\uD83D\uDCF6',
+            description: 'Identify IoT-specific attack surfaces: protocol exposure, firmware version, debug interfaces, and network topology. The sensor node reveals more than it should.',
+            objectives: [
+                'Browse /config/ on the web interface to identify network interfaces (dual-homed: eth0 external, eth1 internal)',
+                'Note eth1 connects to an internal 10.10.2.0/24 segment and a DATA-HUB-01 device',
+                'Run gobuster or nikto to enumerate web paths — find /admin/, /config/, /firmware/, /debug/',
+                'Telnet to port 23 — confirm the unauthenticated debug console is active',
+                'Review Telnet output: note SSH credentials and hub configuration in the debug dump'
+            ],
+            mitre: ['T1592.002 — Gather Victim Host Information: Software', 'T1078.001 — Default Accounts', 'T1046 — Network Service Scanning'],
+            hints: ['Try: telnet 192.168.2.100 — no password required', 'Try: gobuster with /usr/share/wordlists/dirb/common.txt', 'The /config/ web page shows network layout — two NICs mean a pivot opportunity'],
+            completionTrigger: 'telnet_run',
+            locked: true
+        },
+        {
+            id: 'exploitation',
+            name: 'IoT Exploitation',
+            label: 'Phase 3 — IoT Exploitation',
+            icon: '\uD83D\uDEA8',
+            description: 'Exploit the default credentials and firmware vulnerabilities on the sensor node. Gain shell access and retrieve the user flag.',
+            objectives: [
+                'SSH to 192.168.2.100 using the default credentials discovered during enumeration',
+                'Confirm dual-homed network configuration with: ip a',
+                'Read /etc/arboreal/hub.conf to get DATA-HUB connection details',
+                'Locate and capture user.txt from the admin home directory',
+                'Note the MongoDB endpoint: 10.10.2.10:27017 (no authentication)'
+            ],
+            mitre: ['T1078.001 — Default Accounts', 'T1592.004 — Gather Victim Host Information: Network Topology', 'T1083 — File and Directory Discovery'],
+            hints: ['SSH: ssh admin@192.168.2.100  (password: admin)', 'Once in: cat /etc/arboreal/hub.conf', 'cat /home/admin/user.txt for the first flag'],
+            completionTrigger: 'flag_user',
+            locked: true
+        },
+        {
+            id: 'pivot',
+            name: 'Network Pivot',
+            label: 'Phase 4 — Network Pivot',
+            icon: '\uD83D\uDD17',
+            description: 'Use the dual-homed sensor node as a tunnel to reach the internal 10.10.2.0/24 network. Establish SSH port forwarding to access DATA-HUB-01.',
+            objectives: [
+                'Set up SSH local port forwarding: ssh -L 27017:10.10.2.10:27017 admin@192.168.2.100',
+                'Confirm tunnel is active: 127.0.0.1:27017 now routes to 10.10.2.10:27017 through the sensor',
+                'Optionally scan through tunnel: nmap 10.10.2.10 — confirm ports 8080 and 27017',
+                'Understand that you are now operating inside the internal IoT collection network'
+            ],
+            mitre: ['T1021.004 — Remote Services: SSH', 'T1021 — Remote Services: Lateral Tool Transfer', 'T1557 — Adversary-in-the-Middle'],
+            hints: ['Port forward: ssh -L 27017:10.10.2.10:27017 admin@192.168.2.100', 'Alternatively: ssh -D 1080 admin@192.168.2.100 (SOCKS proxy)', 'After tunnel: nmap 10.10.2.10 to confirm internal services'],
+            completionTrigger: 'pivot_established',
+            locked: true
+        },
+        {
+            id: 'exfiltration',
+            name: 'Data Exfiltration',
+            label: 'Phase 5 — Data Exfiltration',
+            icon: '\uD83D\uDCC2',
+            description: 'Access the unauthenticated MongoDB instance on DATA-HUB-01 through your tunnel. Retrieve the Bio-Manifest and capture the root flag.',
+            objectives: [
+                'Connect to MongoDB via tunnel: mongo 127.0.0.1:27017/arboreal',
+                'List collections: show collections — find manifests, sensor_readings, device_registry',
+                'Query the manifests collection: db.manifests.find()',
+                'Extract the Bio-Manifest for Operation Canopy and capture the root flag',
+                'Optionally query db.device_registry.find() to enumerate all sensor nodes in the collective'
+            ],
+            mitre: ['T1530 — Data from Cloud Storage', 'T1213 — Data from Information Repositories', 'T1005 — Data from Local System'],
+            hints: ['Connect: mongo 127.0.0.1:27017/arboreal', 'Then: db.manifests.find() to retrieve all manifest records', 'Root flag is embedded in the Operation Canopy manifest document'],
+            completionTrigger: 'flag_root',
+            locked: true
+        }
+    ],
 
     // ═══════════════════════════════════════════════════════
     // STATE MACHINE — Two-host pivot tracking
@@ -116,23 +225,43 @@ const A13Config = {
     hints: [
         {
             id: 'hint1',
-            text: "The sensor node has default credentials. Try admin:admin on SSH or Telnet. The Telnet debug console doesn't even require authentication.",
-            penalty: -50
+            phase: 'recon',
+            title: 'Start Your Scan',
+            text: "Begin with a subnet sweep: nmap 192.168.2.0/24 to find live hosts, then target the sensor directly: nmap 192.168.2.100. Three services will appear — SSH (22), Telnet (23), and HTTP (80). Browse the web dashboard at http://192.168.2.100 — it leaks firmware version and model number without any authentication.",
+            cost: 10,
+            penalty: -10
         },
         {
             id: 'hint2',
-            text: "Once on the sensor node, check the network interfaces — it has two NICs. eth0 faces you (192.168.2.100), eth1 connects to the internal network (10.10.2.1). Check /etc/arboreal/hub.conf for DATA-HUB connection details.",
-            penalty: -50
+            phase: 'enumeration',
+            title: 'The Debug Console is Wide Open',
+            text: "Port 23 (Telnet) runs an unauthenticated debug console — no password required. Run: telnet 192.168.2.100 and the console dumps everything: SSH credentials, network interfaces, and hub configuration. The /config/ web page also reveals two network interfaces (eth0 external, eth1 internal) and a DATA-HUB-01 at 10.10.2.10.",
+            cost: 25,
+            penalty: -25
         },
         {
             id: 'hint3',
-            text: "Use SSH port forwarding to reach the internal network: ssh -L 27017:10.10.2.10:27017 admin@192.168.2.100 — this tunnels MongoDB through the sensor.",
+            phase: 'exploitation',
+            title: 'Default Credentials — SSH Access',
+            text: "The sensor node uses default credentials: admin:admin. SSH in with: ssh admin@192.168.2.100. Once on the device, run 'ip a' to confirm the dual-homed setup and 'cat /etc/arboreal/hub.conf' to get the DATA-HUB connection details. The user flag is at /home/admin/user.txt.",
+            cost: 50,
             penalty: -50
         },
         {
             id: 'hint4',
-            text: "MongoDB on DATA-HUB has no authentication. After establishing the tunnel, connect with: mongo 127.0.0.1:27017/arboreal and then run db.manifests.find() to retrieve the Bio-Manifest.",
-            penalty: -50
+            phase: 'pivot',
+            title: 'Tunnel Through the Sensor',
+            text: "Use SSH local port forwarding to reach the internal network through the sensor node: ssh -L 27017:10.10.2.10:27017 admin@192.168.2.100. This binds 127.0.0.1:27017 on your Kali machine to DATA-HUB-01's MongoDB port through the sensor as a bridge. Alternatively use -D 1080 for a SOCKS proxy and proxychains.",
+            cost: 75,
+            penalty: -75
+        },
+        {
+            id: 'hint5',
+            phase: 'exfiltration',
+            title: 'MongoDB Has No Authentication',
+            text: "After establishing the SSH tunnel, connect to MongoDB: mongo 127.0.0.1:27017/arboreal. The database has no authentication enforced ('trusted network' assumption). Run: db.manifests.find() to retrieve the Bio-Manifest for Operation Canopy — the root flag is embedded inside the document.",
+            cost: 75,
+            penalty: -75
         }
     ],
 
@@ -141,7 +270,15 @@ const A13Config = {
     // ═══════════════════════════════════════════════════════
 
     lore: {
-        outro: 'The Rogue Sensor Node has been compromised. What the Arboreal Collective believed was security through obscurity — a hidden sensor deep in the urban jungle — turned out to be a wide-open door. Default credentials on an IoT device, a dual-homed network bridge, and an unauthenticated database: the trifecta of embedded system negligence. The Bio-Manifest is yours.'
+        intro: 'The Arboreal Collective has deployed a mesh of environmental sensor nodes across urban sector 7-G. These ARM-based IoT devices quietly monitor soil, air, and humidity — feeding data to a central hub deep inside the collective\'s network. Intel suggests at least one node, SENSOR-NODE-01, bridges two network segments. Your mission: compromise the sensor, pivot through it, and recover the Bio-Manifest — the operational blueprint for Operation Canopy.',
+        scenario: 'The Arboreal Collective\'s lead engineer deployed 50 sensor nodes using the factory-default firmware image. "They\'re air-gapped enough," he told the board. The Telnet debug interface — left enabled for field diagnostics — was never disabled in production. The DATA-HUB was placed on a "trusted" internal segment with MongoDB authentication turned off because "the sensor nodes can\'t handle TLS overhead." The security team filed a risk exception request six months ago. It was never acted on.',
+        outro: 'The Rogue Sensor Node has been compromised. What the Arboreal Collective believed was security through obscurity — a hidden sensor deep in the urban jungle — turned out to be a wide-open door. Default credentials on an IoT device, a dual-homed network bridge, and an unauthenticated database: the trifecta of embedded system negligence. The Bio-Manifest is yours.',
+        ecer: {
+            executive: 'Board-level decision to fast-track sensor deployment without a security review cycle. Risk exception filed by the security team was deprioritized — "operational continuity" was cited as the reason. The assumption that physical obscurity equals network security drove the architecture decision.',
+            culture: 'No IoT security baseline existed. Factory-default firmware was accepted as "good enough." Authentication was disabled on the data hub as a performance optimization without threat modeling. The culture treated embedded devices as infrastructure, not as attack surface.',
+            employee: 'Field engineer left the Telnet debug interface enabled in all production units — it was documented as a "temporary diagnostic tool" in the deployment guide but never removed. MongoDB was configured without credentials because a 2019 internal doc said "trusted VLAN = no auth needed." Neither decision was ever reviewed.',
+            regulatory: 'No NIST SP 800-213 (IoT Device Cybersecurity) baseline was applied. No NERC CIP equivalent for environmental IoT. The absence of any embedded device security policy meant there was no framework requiring password rotation, port hardening, or encryption for the sensor tier.'
+        }
     },
 
     // ═══════════════════════════════════════════════════════
@@ -534,6 +671,36 @@ eth1: &lt;BROADCAST,MULTICAST,UP&gt;
                                 '.bash_history': {
                                     type: 'file',
                                     content: 'nmap 192.168.2.0/24\nnmap 192.168.2.100\ncurl http://192.168.2.100/\nssh admin@192.168.2.100\ntelnet 192.168.2.100'
+                                },
+                                'recon': {
+                                    type: 'dir',
+                                    children: {
+                                        'sensor-fw-extract.md': {
+                                            type: 'file',
+                                            content: '# Firmware Extraction Notes\n\n## Target: ARB-SN100 Rev 3.2 — Firmware v2.1.4-arboreal\n\nFirmware binaries are served at /firmware/ but the endpoint returns HTTP 403.\nThe gobuster scan reveals the path exists but is access-restricted.\n\n## DECOY: Zigbee Channel Scan\nA previous operator left Zigbee scan output here.\nZigbee PAN IDs found: 0x1A2B, 0x3C4D (inactive — not relevant to this target).\nDo NOT chase the Zigbee rabbit hole — SENSOR-NODE-01 does not run Zigbee.\nIt communicates via Ethernet only (eth0/eth1).\n\n## DECOY: Z-Wave Frequency Sniff\nZ-Wave devices detected at 908.42 MHz in a prior engagement.\nAgain — NOT this target. Red herring planted by the Collective\'s counterintel team.\n\n## Actual Attack Path:\nSSH/Telnet on ports 22/23 using default credentials.\nNo firmware extraction needed — direct shell access is simpler.'
+                                        },
+                                        'mqtt-broker-scan.txt': {
+                                            type: 'file',
+                                            content: '# MQTT Broker Scan Results — 192.168.2.0/24\n# Tool: mosquitto_sub / nmap --script mqtt-subscribe\n\n[DECOY] This scan was run against a PREVIOUS engagement target, not SENSOR-NODE-01.\n\nHost 192.168.2.50: No MQTT broker found (port 1883 closed)\nHost 192.168.2.100: No MQTT broker found (port 1883 closed)\n\nConclusion: SENSOR-NODE-01 does NOT use MQTT.\nIt uses a direct MongoDB TCP connection to DATA-HUB-01 on 10.10.2.10:27017.\nDo not spend time fuzzing MQTT — it is not in scope for this target.\n\n[Note] The /firmware/mqtt_config.json shown in a previous engagement was a\ndifferent device family (ARB-SN50 series). ARB-SN100 uses raw TCP/MongoDB.'
+                                        },
+                                        'zigbee-sniff.pcap.notes': {
+                                            type: 'file',
+                                            content: '# Zigbee Packet Capture — Field Notes\n# Captured near urban sector 7-G perimeter\n\n[DECOY] Zigbee traffic was detected but does NOT belong to SENSOR-NODE-01.\nThe Arboreal Collective uses Zigbee for some auxiliary sensors (soil mesh),\nbut the primary sensor nodes (ARB-SN100 series) are Ethernet-only.\n\nZigbee PAN ID: 0x1A2B\nChannel: 15 (2425 MHz)\nDevices: 12 endpoints (soil moisture sub-sensors, not the main node)\n\nPivot path: These Zigbee devices do not have IP connectivity.\nThey report back to SENSOR-NODE-01 over serial (UART), not network.\nIgnore this vector — attack surface is the IP stack on port 22/23/80.'
+                                        }
+                                    }
+                                },
+                                'intel': {
+                                    type: 'dir',
+                                    children: {
+                                        'firmware-hashes.txt': {
+                                            type: 'file',
+                                            content: '# Arboreal Collective — Known Firmware Hashes (from prior OSINT)\n\nARB-SN50 v1.9.2:  sha256:4d8e2f1a9c3b7e56d2f1a9c3b7e564d8e2f1a9c3b7e56d2f1a9c3b7e564d8e\nARB-SN100 v2.0.1: sha256:a7b3c9d1e5f2a8b4c0d6e3f1a9b5c7d2e4f6a8b3c1d5e7f2a4b6c8d0e3f5a7\nARB-SN100 v2.1.4: sha256:UNKNOWN — firmware not publicly available\n\n[DECOY DEAD END] Firmware hash comparison is not the attack path here.\nAttempting to flash custom firmware requires physical USB access (confirmed by admin panel: "Firmware Update: Manual (USB only)").\nDo not attempt firmware extraction via the web interface — /firmware/ returns 403 and no bypass exists.\n\nAttack path is credential-based (port 22/23), not firmware-based.',
+                                        },
+                                        'prior-cve-research.txt': {
+                                            type: 'file',
+                                            content: '# CVE Research — ARB-SN100 Firmware v2.1.4-arboreal\n\nCVE-2023-XXXX (DECOY): Stack overflow in BusyBox telnetd v1.35 — affects versions prior to 1.36.\nStatus: PATCHED in v2.1.4. The telnetd on this target is NOT vulnerable to buffer overflow.\nDo not attempt heap spray or telnetd exploit — the auth bypass is simpler (no auth at all).\n\nCVE-2022-YYYY (DECOY): lighttpd/1.4.59 SSRF via Host header manipulation.\nStatus: Requires a backend service to proxy to. DATA-HUB is not accessible via the lighttpd backend.\nThis CVE does not apply — the web server is a static dashboard only.\n\n[ACTUAL VULN]: No CVE needed. Default credentials (admin:admin) and unauthenticated debug console.\nThe vulnerability is configuration, not code.'
+                                        }
+                                    }
                                 }
                             }
                         }

@@ -18,6 +18,61 @@ const A12Config = {
     trackerKey: 'ctf_a12',
 
     // ═══════════════════════════════════════════════════════
+    // PHASES (Progressive unlock system)
+    // ═══════════════════════════════════════════════════════
+
+    phases: [
+        {
+            id: 'recon',
+            name: 'Reconnaissance',
+            icon: '🔭',
+            description: 'Identify the target application, gather metadata, and map the attack surface. Examine the APK file, enumerate permissions, and review the network status page for intel.',
+            requiredFlags: [],
+            mitre: ['T1422', 'T1418'],
+            // T1422: System Network Configuration Discovery (mobile)
+            // T1418: Software Discovery (mobile — enumerating installed apps/APK metadata)
+            unlocks: ['APK metadata', 'Network status page', 'ADB device enumeration'],
+            locked: false
+        },
+        {
+            id: 'apk-analysis',
+            name: 'APK Analysis',
+            icon: '🔬',
+            description: 'Decompile the APK using apktool and jadx. Examine AndroidManifest.xml for exported components, dangerous permissions, and security misconfigurations. Review network security config.',
+            requiredFlags: [],
+            mitre: ['T1409', 'T1406'],
+            // T1409: Access Stored Application Data (mobile — accessing unprotected data stores)
+            // T1406: Obfuscated Files or Information: Software Packing (mobile — reverse engineering packed DEX)
+            unlocks: ['Decompiled Java source', 'AndroidManifest.xml', 'network_security_config.xml'],
+            locked: true
+        },
+        {
+            id: 'secret-extraction',
+            name: 'Code Review / Secret Extraction',
+            icon: '🗝️',
+            description: 'Analyze decompiled Java source for hardcoded credentials, API keys, and insecure data storage patterns. Extract secrets from SharedPreferences and identify the XOR cipher weakness.',
+            requiredFlags: [],
+            mitre: ['T1552', 'T1417'],
+            // T1552: Unsecured Credentials (enterprise — hardcoded secrets in source)
+            // T1417: Input Capture (mobile — MODE_WORLD_READABLE SharedPreferences exposure)
+            unlocks: ['User flag (hardcoded API key)', 'Auth token', 'XOR key material'],
+            locked: true
+        },
+        {
+            id: 'backend-exploitation',
+            name: 'Backend Exploitation',
+            icon: '💀',
+            description: 'Use extracted API credentials to authenticate against the Digital Nomads API. Exploit the unguarded ContentProvider to dump the safehouse manifest database and retrieve the root flag.',
+            requiredFlags: ['user'],
+            mitre: ['T1059', 'T1190'],
+            // T1059: Command and Scripting Interpreter (ADB shell content queries)
+            // T1190: Exploit Public-Facing Application (unauthenticated ContentProvider access)
+            unlocks: ['Root flag (safehouse manifest)', 'Full safehouse database', 'API endpoint access'],
+            locked: true
+        }
+    ],
+
+    // ═══════════════════════════════════════════════════════
     // CERT OBJECTIVES (Assessment Mode — AR-7)
     // ═══════════════════════════════════════════════════════
 
@@ -25,7 +80,11 @@ const A12Config = {
         certPath: 'SY0-701',
         mappings: [
             { flagId: 'user', objective: '1.4', description: 'Given a scenario, analyze indicators of malicious activity', skill: 'Hardcoded API Key Discovery' },
-            { flagId: 'root', objective: '1.4', description: 'Given a scenario, analyze indicators of malicious activity', skill: 'Android Content Provider Exploitation' }
+            { flagId: 'root', objective: '1.4', description: 'Given a scenario, analyze indicators of malicious activity', skill: 'Android Content Provider Exploitation' },
+            { flagId: 'user', objective: '2.7', description: 'Explain the importance of using appropriate cryptographic solutions', skill: 'Identifying Weak/Absent Mobile Encryption (XOR, MODE_WORLD_READABLE)' },
+            { flagId: 'root', objective: '4.4', description: 'Given a scenario, use appropriate tools or techniques to determine malicious activity', skill: 'Mobile App Static Analysis with jadx / apktool' },
+            { flagId: 'user', objective: '3.2', description: 'Given a scenario, apply security principles to secure enterprise infrastructure', skill: 'Secure Coding: Secrets Management and Android Keystore' },
+            { flagId: 'root', objective: '1.3', description: 'Compare and contrast types of vulnerabilities', skill: 'Android Insecure Data Storage — ContentProvider, SharedPreferences, SQLite' }
         ]
     },
 
@@ -540,23 +599,27 @@ public class CryptoUtil {
     hints: [
         {
             id: 'hint1',
+            cost: 10,
             text: "Start by decompiling the APK with apktool or jadx to see the source code. Try: jadx -d output Voyager.apk",
-            penalty: -50
+            penalty: -10
         },
         {
             id: 'hint2',
+            cost: 25,
             text: "Search the decompiled source for hardcoded credentials: grep -r \"API_KEY\" output/",
-            penalty: -50
+            penalty: -25
         },
         {
             id: 'hint3',
+            cost: 50,
             text: "The app stores sensitive data in SharedPreferences. Pull it with: adb pull /data/data/com.nomads.voyager/shared_prefs/voyager_prefs.xml",
             penalty: -50
         },
         {
             id: 'hint4',
+            cost: 75,
             text: "An exported ContentProvider at content://com.nomads.voyager.provider/ allows direct queries. Try: adb shell content query --uri content://com.nomads.voyager.provider/safehouse",
-            penalty: -50
+            penalty: -75
         }
     ],
 
@@ -565,7 +628,18 @@ public class CryptoUtil {
     // ═══════════════════════════════════════════════════════
 
     lore: {
-        outro: "The Voyager app has been completely compromised. A hardcoded API key in the source code gave you initial access, and an exported ContentProvider with zero permission checks exposed the entire Nomad Manifest. The Digital Nomads' trust in mobile obscurity was their undoing — the Scapegoat wasn't the app, it was their security model."
+        intro: "An encrypted collective known as the Digital Nomads operates a global safehouse network through a custom Android app called Voyager. Intel suggests the APK contains secrets that could expose their entire operation — your mission is to extract them.",
+
+        scenario: "The Digital Nomads contracted a small dev shop to build Voyager on a tight deadline. The lead developer hardcoded the API key 'just for testing' and promised to move it to Android Keystore before the v3.0 release — that release never came. A separate junior developer added the SafehouseProvider component and exported it without permissions because 'only our app runs on these devices anyway.' The XOR cipher in CryptoUtil was copy-pasted from a Stack Overflow answer dated 2014. Each decision was made in isolation, each one defensible in the moment. Together they form a chain that gives any attacker with the APK total control over the network.",
+
+        outro: "The Voyager app has been completely compromised. A hardcoded API key in the source code gave you initial access, and an exported ContentProvider with zero permission checks exposed the entire Nomad Manifest. The Digital Nomads' trust in mobile obscurity was their undoing — the Scapegoat wasn't the app, it was their security model.",
+
+        ecer: {
+            executive: "A critical security incident resulted in the full exposure of the Voyager mobile application's authentication credentials and the complete Digital Nomads safehouse network manifest. The root cause was a hardcoded API key and an unprotected data access interface (ContentProvider) shipped in a production release. Estimated impact: all 5 registered safehouses are considered compromised pending rotation of credentials and relocation of NOMAD-PRIME.",
+            culture: "The development team operated under a 'ship it now, secure it later' culture reinforced by deadline pressure and lack of mandatory security review gates. Developers were not trained on Android-specific secure coding practices such as Android Keystore usage, ContentProvider permission modeling, or SharedPreferences encryption. No mobile security checklist existed in the release pipeline, and code comments explicitly deferred known vulnerabilities to a future version that was never prioritized.",
+            employee: "The primary developer who hardcoded API_KEY in ApiClient.java documented the issue with a TODO comment and was never held accountable for resolving it. The developer who implemented SafehouseProvider did not have sufficient knowledge of Android ContentProvider security semantics — the exported=true flag requires explicit readPermission and writePermission attributes to prevent public access. No peer code review was conducted on either component prior to production deployment.",
+            regulatory: "This incident may constitute a reportable data breach under applicable privacy regulations if any personally identifiable information was stored in the safehouses table or accessible via the compromised API. The use of MODE_WORLD_READABLE SharedPreferences (deprecated since Android API 17) and cleartext traffic permitted in network_security_config.xml represent violations of Android security best practices and may conflict with organizational data handling policies. Organizations operating in regulated industries (healthcare, finance, government) should treat hardcoded credentials in distributed mobile applications as an automatic compliance failure requiring immediate incident response."
+        }
     },
 
     // ═══════════════════════════════════════════════════════
@@ -723,6 +797,41 @@ content://com.nomads.voyager.provider/safehouse/{id}</pre>
                                 '.bash_history': {
                                     type: 'file',
                                     content: 'file Voyager.apk\nstrings Voyager.apk | head -50\nadb devices\nadb install Voyager.apk\napktool d Voyager.apk\njadx -d output Voyager.apk\ngrep -r "API_KEY" output/\nadb shell\nsqlite3 voyager.db'
+                                },
+
+                                // ── DECOY FILES — red herrings for student exploration ──
+
+                                'signing': {
+                                    type: 'dir',
+                                    children: {
+                                        'debug.keystore': {
+                                            type: 'file',
+                                            content: '=== Android Debug Keystore ===\nAlias:  androiddebugkey\nType:   JKS\nIssuer: CN=Android Debug, O=Android, C=US\nSerial: 0x1\nValid:  2020-01-01 to 2050-01-01\n\nPassword: android\n\nNOTE: This is the standard Android debug signing certificate.\nIt is NOT the production release key. Release APKs are signed\nwith a separate keystore that is stored offline.\n\nThis keystore is used during development and testing only.\nThe signature on Voyager.apk matches the release certificate\nstored at /opt/nomads-release.jks (not on this machine).\n\nFingerprint (SHA-256):\n  AA:BB:CC:DD:EE:FF:00:11:22:33:44:55:66:77:88:99:\n  10:21:32:43:54:65:76:87:98:A9:BA:CB:DC:ED:FE:0F\n\n[Dead end — the real signing key is stored offline, not in the APK]'
+                                        },
+                                        'cert-verify.sh': {
+                                            type: 'file',
+                                            content: '#!/bin/bash\n# Verify APK signature against known cert fingerprint\n# This is used to confirm the APK is authentic before distribution\n\nAPK="$1"\nEXPECTED="AA:BB:CC:DD:EE:FF:00:11:22:33:44:55:66:77:88:99"\n\nif [ -z "$APK" ]; then\n    echo "Usage: $0 <apk_file>"\n    exit 1\nfi\n\necho "[*] Extracting signing certificate from $APK..."\necho "[*] Certificate fingerprint: $EXPECTED"\necho "[*] Status: VERIFIED (debug cert)"\necho ""\necho "NOTE: Signing certificate does not contain user data or API keys."\necho "      The vulnerability is in the APK source code, not the signature."\necho "      Keep looking inside the DEX classes."'
+                                        }
+                                    }
+                                },
+
+                                'decompiled-fragments': {
+                                    type: 'dir',
+                                    children: {
+                                        'LoginActivity.java.bak': {
+                                            type: 'file',
+                                            content: '// Partial decompile of LoginActivity — DO NOT USE (corrupted output)\n// This fragment is from an older version of the APK (v1.8.2)\n// It no longer reflects the current codebase\n\npackage com.nomads.voyager.ui;\n\npublic class LoginActivity extends Activity {\n\n    // OUTDATED: This was the v1.x login mechanism\n    // The credential check was server-side in v1.x\n    // NOTE: hardcoded backup PIN was REMOVED in v2.0\n    // private static final String BACKUP_PIN = "142857"; // <- REMOVED\n\n    // In v2.x, authentication is token-based via ApiClient\n    // This file is an artifact from an older jadx run and is not accurate\n\n    // The current auth flow is:\n    //   1. User enters Nomad ID + PIN\n    //   2. POST /v2/auth with credentials\n    //   3. JWT stored in voyager_prefs.xml via PrefsManager\n    //   See the current ApiClient.java for the real API key\n\n    @Override\n    protected void onCreate(Bundle savedInstanceState) {\n        // PLACEHOLDER — this decompile output is incomplete\n    }\n}'
+                                        },
+                                        'obfuscation-notes.txt': {
+                                            type: 'file',
+                                            content: '=== APK Obfuscation Analysis Notes ===\nDate: 2026-02-16\nAnalyst: prev_operator\n\nObfuscation level: LOW\nProGuard: disabled (build.gradle: minifyEnabled false)\nR8: not configured\n\nClass names are fully readable — no renaming applied.\nThis makes jadx output very clean and easy to follow.\n\nSuspicious string at offset 0x2A4F8:\n  GCcWTh4NBRUGGAoTBQ==\n  -> Base64-decode: [binary garbage — XOR encrypted with N0m4dK3y!]\n  -> XOR decrypt attempt 1: "passphrase: nomad_operati..." [truncated]\n  -> Full XOR decrypt requires the key from CryptoUtil.java\n\nNote: The encrypted_passphrase in SharedPreferences is XOR-encoded\nwith "N0m4dK3y!" from CryptoUtil. This is NOT the API key.\nIt appears to be an encrypted local storage passphrase — not a flag.\nDo not waste time here; the flags are elsewhere.'
+                                        }
+                                    }
+                                },
+
+                                'config-dump.json': {
+                                    type: 'file',
+                                    content: '{\n  "_comment": "Extracted from assets/config.json inside Voyager.apk (via unzip)",\n  "version": "2.4.1",\n  "environment": "production",\n  "api": {\n    "base_url": "https://api.digitalnomads.net/v2",\n    "timeout_ms": 30000,\n    "retry_count": 3\n  },\n  "features": {\n    "location_tracking": true,\n    "offline_mode": true,\n    "debug_logging": true,\n    "_comment": "debug_logging should be false in production — another oversight"\n  },\n  "maps": {\n    "provider": "Google",\n    "api_key_source": "strings.xml",\n    "_comment": "maps_api_key in strings.xml is redacted (AIzaSyD-REDACTED). Not the target key."\n  },\n  "_note": "The Google Maps API key here is a separate, non-sensitive key for map tiles only. The authentication API key is hardcoded in the Java source — see ApiClient.java."\n}'
                                 }
                             }
                         }

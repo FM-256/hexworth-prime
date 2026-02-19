@@ -18,14 +18,81 @@ const A16Config = {
     trackerKey: 'ctf_a16',
 
     // ═══════════════════════════════════════════════════════
+    // PHASE SYSTEM (Malware analysis kill chain)
+    // ═══════════════════════════════════════════════════════
+
+    phases: [
+        {
+            id: 'triage',
+            name: 'Triage',
+            icon: '\uD83E\uDDE0',
+            description: 'Confirm the file is malicious. Identify type, hash, and initial indicators before committing to deeper analysis.',
+            requiredFlags: [],
+            mitre: ['T1027', 'T1027.002'],
+            unlocks: ['static'],
+            locked: false
+        },
+        {
+            id: 'static',
+            name: 'Static Analysis',
+            icon: '\uD83D\uDD0E',
+            description: 'Examine the binary without executing it. Extract strings, inspect ELF headers, review imported functions, and identify obfuscation techniques.',
+            requiredFlags: [],
+            mitre: ['T1027', 'T1059', 'T1071', 'T1622'],
+            unlocks: ['dynamic'],
+            locked: true
+        },
+        {
+            id: 'dynamic',
+            name: 'Dynamic Analysis',
+            icon: '\uD83C\uDFD7\uFE0F',
+            description: 'Execute the sample in a controlled sandbox. Observe system calls, network connections, file system changes, and anti-analysis evasion attempts.',
+            requiredFlags: ['user'],
+            mitre: ['T1071.001', 'T1105', 'T1547', 'T1622'],
+            unlocks: ['ioc'],
+            locked: true
+        },
+        {
+            id: 'ioc',
+            name: 'Indicator Extraction',
+            icon: '\uD83D\uDCCD',
+            description: 'Extract all actionable IOCs: C2 addresses, domain names, protocol signatures, file hashes, and persistence artifacts.',
+            requiredFlags: ['user'],
+            mitre: ['T1071', 'T1105', 'T1547.001'],
+            unlocks: ['remediation'],
+            locked: true
+        },
+        {
+            id: 'remediation',
+            name: 'Remediation Report',
+            icon: '\uD83D\uDCCB',
+            description: 'Recover the decryption key, decrypt the payload, document the full attack chain, and produce a remediation report.',
+            requiredFlags: ['root'],
+            mitre: ['T1027.013'],
+            unlocks: [],
+            locked: true
+        }
+    ],
+
+    // ═══════════════════════════════════════════════════════
     // CERT OBJECTIVES (Assessment Mode — AR-7)
     // ═══════════════════════════════════════════════════════
 
     certObjectives: {
         certPath: 'CS0-003',
+        secondaryCerts: ['SY0-701'],
         mappings: [
-            { flagId: 'user', objective: '4.3', description: 'Given an incident, analyze the indicators of compromise', skill: 'Malware C2 Beacon Identification' },
-            { flagId: 'root', objective: '4.3', description: 'Given an incident, analyze the indicators of compromise', skill: 'Firmware Backdoor Decryption Key Recovery' }
+            // CySA+ CS0-003 mappings
+            { flagId: 'user', objective: '2.5', description: 'Given a scenario, use appropriate tools or techniques to determine malicious activity — Static analysis', skill: 'String Obfuscation Detection (base64 C2 encoding)', cert: 'CS0-003' },
+            { flagId: 'user', objective: '2.5', description: 'Given a scenario, use appropriate tools or techniques to determine malicious activity — Network indicators', skill: 'C2 Beacon Identification via PCAP Analysis', cert: 'CS0-003' },
+            { flagId: 'user', objective: '4.3', description: 'Given an incident, analyze the indicators of compromise — Malware indicators', skill: 'Malware C2 Beacon Identification (IP / Port / Protocol)', cert: 'CS0-003' },
+            { flagId: 'root', objective: '2.5', description: 'Given a scenario, use appropriate tools or techniques to determine malicious activity — Dynamic analysis', skill: 'Anti-Debug Bypass via ptrace NOP Patch in GDB', cert: 'CS0-003' },
+            { flagId: 'root', objective: '4.3', description: 'Given an incident, analyze the indicators of compromise — Encrypted payload decryption', skill: 'XOR Decryption Key Recovery via GDB Register Inspection', cert: 'CS0-003' },
+            // CompTIA Security+ SY0-701 mappings
+            { flagId: 'user', objective: '2.4', description: 'Given a scenario, analyze indicators of malicious activity — Malware types', skill: 'RAT/Backdoor Classification and C2 Channel Analysis', cert: 'SY0-701' },
+            { flagId: 'user', objective: '4.3', description: 'Given an incident, use the appropriate data sources to support an investigation — Packet capture', skill: 'Network Forensics: Custom Binary Protocol Identification', cert: 'SY0-701' },
+            { flagId: 'root', objective: '2.4', description: 'Given a scenario, analyze indicators of malicious activity — Obfuscated malware', skill: 'XOR Obfuscation and Payload Encryption Analysis', cert: 'SY0-701' },
+            { flagId: 'root', objective: '4.4', description: 'Given an incident, apply mitigation techniques or controls to secure an environment', skill: 'Firmware Backdoor Decryption Key Recovery and Payload Documentation', cert: 'SY0-701' }
         ]
     },
 
@@ -105,22 +172,26 @@ const A16Config = {
         {
             id: 'hint1',
             text: "Run 'strings' on the binary — look for base64-encoded strings that might hide the C2 address. The string 'MTkyLjE2OC4xMy4zNw==' stands out.",
-            penalty: -50
+            cost: 10,
+            penalty: -10
         },
         {
             id: 'hint2',
             text: "The C2 IP is base64 encoded. Decode it: echo 'MTkyLjE2OC4xMy4zNw==' | base64 -d — that gives you the user flag IP.",
-            penalty: -50
+            cost: 25,
+            penalty: -25
         },
         {
             id: 'hint3',
             text: "The binary has anti-debug protection using ptrace. In GDB, NOP out the check: set *(int*)0x401090 = 0x90909090",
+            cost: 50,
             penalty: -50
         },
         {
             id: 'hint4',
             text: "Set a breakpoint at the XOR decryption routine (0x4011a0) and examine the key with 'x/s $rdi' — then use decrypt.py with that key.",
-            penalty: -50
+            cost: 75,
+            penalty: -75
         }
     ],
 
@@ -129,7 +200,84 @@ const A16Config = {
     // ═══════════════════════════════════════════════════════
 
     lore: {
-        outro: 'The Crimson Ghost has been dissected. Its obfuscated C2 channel — a base64-encoded IP hidden in plain sight — crumbled under static analysis. Its ptrace anti-debug trap, meant to blind your debugger, was patched with four NOPs. And the Ghost Protocol — its encrypted payload and decryption key — surrendered to a breakpoint at the XOR loop. The corrupted core is corrupted no more.'
+        intro: 'A forensics team at Nexarion Defense has isolated a binary from a compromised endpoint. The sample — codenamed Crimson Ghost — was recovered from a contractor\'s workstation that was quietly beaconing outbound. No AV alert fired. No SIEM rule triggered. Just a silent, steady heartbeat on port 4443. Your job: tear it apart.',
+        scenario: 'A Nexarion Defense contractor received a spearphishing email with a subject line: "Revised project timeline — please review." The attached file, disguised as a PDF viewer, dropped the Crimson Ghost implant. The malware was compiled with debug-detection enabled and a stripped symbol table to frustrate analysis. The C2 address was base64-encoded inline to evade string-based AV signatures. The payload — a second-stage backdoor — was XOR-encrypted and delivered over a custom binary protocol on port 4443. The SOC analyst who initially triaged the machine found nothing unusual. Static heuristics missed the obfuscated C2. The endpoint had been compromised for 11 days before behavioral analytics finally flagged the outbound connection.',
+        outro: 'The Crimson Ghost has been dissected. Its obfuscated C2 channel — a base64-encoded IP hidden in plain sight — crumbled under static analysis. Its ptrace anti-debug trap, meant to blind your debugger, was patched with four NOPs. And the Ghost Protocol — its encrypted payload and decryption key — surrendered to a breakpoint at the XOR loop. The corrupted core is corrupted no more.',
+        ecer: {
+            executive: 'Nexarion Defense leadership had no malware analysis capability in-house and relied entirely on commercial AV products that had not been updated to detect behavioral obfuscation. The CISO had deprioritized a sandbox deployment for three budget cycles.',
+            culture: 'The security team operated in a reactive posture — waiting for AV alerts rather than hunting proactively. There was no defined incident response playbook for endpoint compromise, and analysts lacked the tooling and training to perform static or dynamic malware analysis.',
+            employee: 'The contractor opened a spearphishing attachment despite security awareness training completed just 60 days earlier. The email spoofed a known project manager\'s address. The contractor did not verify via out-of-band communication before opening the file.',
+            regulatory: 'The organization had no CMMC Level 2 compliance requirement and operated under a self-attested cybersecurity posture. No third-party pen test had been conducted in over two years. The absence of a mandatory sandbox analysis requirement allowed the implant to operate undetected for nearly two weeks.'
+        }
+    },
+
+    // ═══════════════════════════════════════════════════════
+    // DECOYS — Misleading artifacts to reward careful analysis
+    // Red-herring files, fake PDB paths, and benign samples
+    // that look suspicious but lead nowhere.
+    // ═══════════════════════════════════════════════════════
+
+    decoys: {
+
+        // Fake malware samples — benign content, suspicious names
+        fakesamples: [
+            {
+                path: '/home/kali/samples/svchost_backup.exe',
+                fileType: 'PE32 executable (GUI) Intel 80386, for MS Windows',
+                sha256: '3b4e6f7a8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2c3d4e5f',
+                strings_hint: 'Contains standard Windows API calls: CreateFile, RegOpenKey, GetSystemInfo. No network calls.',
+                note: 'Benign Windows system utility. PDB path suggests custom build: C:\\\\builds\\\\sysutils\\\\svchost_backup.pdb — but the binary is clean. Red herring.'
+            },
+            {
+                path: '/home/kali/samples/updater.sh',
+                fileType: 'POSIX shell script, ASCII text executable',
+                sha256: '9a8b7c6d5e4f3a2b1c0d9e8f7a6b5c4d3e2f1a0b9c8d7e6f5a4b3c2d1e0f9a8b',
+                strings_hint: 'apt-get update, apt-get upgrade -y, systemctl restart cron — standard update script.',
+                note: 'Legitimate maintenance script found in /home/kali/samples/. Looks suspicious at first glance due to crontab modification, but the cron entry is for routine updates only. Not related to Crimson Ghost.'
+            },
+            {
+                path: '/home/kali/samples/netmon.bin',
+                fileType: 'ELF 64-bit LSB executable, x86-64, statically linked, stripped',
+                sha256: 'f1e2d3c4b5a6978869504132231405f6e7d8c9b0a1f2e3d4c5b6a7988970615243',
+                strings_hint: 'libpcap strings present. "Monitoring interface eth0". No suspicious network destinations.',
+                note: 'Statically linked packet sniffer. Stripped binary looks alarming — but strings reveal only local monitoring activity. Sha256 does not match any known malware families. Not the sample you are looking for.'
+            }
+        ],
+
+        // Misleading PDB paths embedded in the Crimson Ghost binary
+        fakePdbPaths: [
+            {
+                offset: '0x20e0',
+                value: 'C:\\\\Users\\\\developer\\\\Documents\\\\projects\\\\network_tool\\\\Release\\\\net_helper.pdb',
+                analysis: 'PDB path suggests a benign "network helper" tool. This is intentional misdirection embedded by the malware author. The actual project name and build path have been spoofed to look like legitimate developer tooling.'
+            },
+            {
+                offset: '0x20f8',
+                value: 'D:\\\\workspace\\\\system_updater\\\\x64\\\\system_update_service.pdb',
+                analysis: 'Secondary fake PDB path disguising the payload as a "system update service". Windows-style path in a Linux ELF binary is a clear indicator of cross-compilation with deliberate obfuscation.'
+            }
+        ],
+
+        // Red-herring registry artifacts (simulated for Windows pivot context)
+        registryArtifacts: [
+            {
+                key: 'HKLM\\\\SOFTWARE\\\\Microsoft\\\\Windows\\\\CurrentVersion\\\\Run\\\\SysUpdateHelper',
+                value: 'C:\\\\Windows\\\\System32\\\\svchost_backup.exe',
+                analysis: 'This registry key appears to point to a persistence mechanism — but svchost_backup.exe is the benign utility in /home/kali/samples/. The threat actor may have planted this key as a decoy to waste analyst time while the real persistence mechanism (crontab via the Stage 2 payload) runs undetected.'
+            },
+            {
+                key: 'HKCU\\\\SOFTWARE\\\\CrimsonSoft\\\\Updater',
+                value: 'version=2.1.0;last_check=2024-11-30T09:14:22Z',
+                analysis: 'Appears to be a legitimate software updater registry key. "CrimsonSoft" is a real software vendor. This key was present before the compromise. Not IOC-relevant — included in the forensic image as noise.'
+            }
+        ],
+
+        // Notes for instructor/assessment mode — which decoys were inspected
+        _decoyState: {
+            fakeSamplesInspected: [],
+            fakePdbFound: false,
+            registryDecoyNoted: false
+        }
     },
 
     // ═══════════════════════════════════════════════════════
@@ -347,6 +495,27 @@ PID 1842  crimson_ghost<br>
                                 'analysis': {
                                     type: 'dir',
                                     children: {}
+                                },
+                                'samples': {
+                                    type: 'dir',
+                                    children: {
+                                        'svchost_backup.exe': {
+                                            type: 'file',
+                                            content: '[PE32 binary — use file/strings to examine — collected from DFIR case 2024-11-28]'
+                                        },
+                                        'updater.sh': {
+                                            type: 'file',
+                                            content: '#!/bin/bash\n# System maintenance updater — collected alongside crimson_ghost sample\napt-get update -qq\napt-get upgrade -y -qq\nsystemctl restart cron\necho "[*] Update complete: $(date)"'
+                                        },
+                                        'netmon.bin': {
+                                            type: 'file',
+                                            content: '[ELF 64-bit statically linked binary — suspected network monitor — collected from same endpoint as crimson_ghost]'
+                                        },
+                                        'README.txt': {
+                                            type: 'file',
+                                            content: 'DFIR Sample Collection — Case 2024-CG-0091\n\nFiles recovered from compromised endpoint alongside primary sample (crimson_ghost).\nNote: Not all files in this directory are malicious. Part of the analysis task\nis to determine which samples are relevant to the Crimson Ghost campaign.\n\nApply the same triage methodology to each file before drawing conclusions.'
+                                        }
+                                    }
                                 },
                                 '.bash_history': {
                                     type: 'file',

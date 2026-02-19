@@ -18,6 +18,53 @@ const A10Config = {
     trackerKey: 'ctf_a10',
 
     // ═══════════════════════════════════════════════════════
+    // PHASE SYSTEM (Multi-layer attack chain)
+    // ═══════════════════════════════════════════════════════
+
+    phases: [
+        {
+            id: 'recon',
+            name: 'Reconnaissance',
+            icon: '\uD83D\uDD0D',
+            description: 'Discover the target\'s attack surface. Identify open ports, running services, and exposed endpoints.',
+            requiredFlags: [],
+            mitre: ['T1046', 'T1595.002'],
+            unlocks: ['enumeration'],
+            locked: false
+        },
+        {
+            id: 'enumeration',
+            name: 'Web Enumeration',
+            icon: '\uD83C\uDF10',
+            description: 'Explore the web application. Locate the URL-fetching functionality and understand how the server processes external requests.',
+            requiredFlags: [],
+            mitre: ['T1190', 'T1592.004'],
+            unlocks: ['exploitation'],
+            locked: true
+        },
+        {
+            id: 'exploitation',
+            name: 'SSRF Exploitation',
+            icon: '\uD83D\uDC89',
+            description: 'Abuse the server-side request functionality to reach internal services not accessible from the public network.',
+            requiredFlags: ['user'],
+            mitre: ['T1190', 'T1090'],
+            unlocks: ['exfiltration'],
+            locked: true
+        },
+        {
+            id: 'exfiltration',
+            name: 'Internal Pivot / Data Exfiltration',
+            icon: '\uD83D\uDCC2',
+            description: 'Pivot deeper into the internal network. Extract cached credentials and configuration secrets from internal services.',
+            requiredFlags: ['root'],
+            mitre: ['T1530', 'T1213'],
+            unlocks: [],
+            locked: true
+        }
+    ],
+
+    // ═══════════════════════════════════════════════════════
     // CERT OBJECTIVES (Assessment Mode — AR-7)
     // ═══════════════════════════════════════════════════════
 
@@ -25,7 +72,11 @@ const A10Config = {
         certPath: 'SY0-701',
         mappings: [
             { flagId: 'user', objective: '1.4', description: 'Given a scenario, analyze indicators of malicious activity', skill: 'SSRF Internal Service Discovery' },
-            { flagId: 'root', objective: '1.4', description: 'Given a scenario, analyze indicators of malicious activity', skill: 'SSRF Pivot to Internal Admin Panel' }
+            { flagId: 'user', objective: '1.3', description: 'Given a scenario, analyze indicators associated with application attacks — SSRF', skill: 'Loopback Filter Bypass via SSRF' },
+            { flagId: 'user', objective: '4.1', description: 'Given a scenario, apply the appropriate tool to assess organizational security — web app security', skill: 'URL Parameter Abuse for SSRF' },
+            { flagId: 'root', objective: '1.4', description: 'Given a scenario, analyze indicators of malicious activity', skill: 'SSRF Pivot to Internal Admin Panel' },
+            { flagId: 'root', objective: '3.2', description: 'Given a scenario, implement secure protocols and network architecture — access control', skill: 'Internal Redis Credential Exposure via SSRF' },
+            { flagId: 'root', objective: '2.5', description: 'Given a scenario, analyze indicators associated with application attacks — injection', skill: 'Cloud Metadata Exfiltration via SSRF' }
         ]
     },
 
@@ -105,22 +156,26 @@ const A10Config = {
         {
             id: 'hint1',
             text: "The URL inspector fetches URLs server-side. What happens if you point it at internal services? Check /corridor/status/ for the internal service ports.",
-            penalty: -50
+            cost: 10,
+            penalty: -10
         },
         {
             id: 'hint2',
             text: "Try http://127.0.0.1:8080/ — the server can access its own internal admin panel even though you cannot reach it directly from your Kali machine.",
-            penalty: -50
+            cost: 25,
+            penalty: -25
         },
         {
             id: 'hint3',
             text: "The service also supports file:// protocol. Try file:///etc/passwd to confirm local file read capability, then file:///home/corridor/user.txt for the user flag.",
+            cost: 50,
             penalty: -50
         },
         {
             id: 'hint4',
             text: "Redis is running on port 6379. SSRF to http://127.0.0.1:6379/ exposes the cache contents. The root flag is stored under the key config:master_key.",
-            penalty: -50
+            cost: 75,
+            penalty: -75
         }
     ],
 
@@ -129,7 +184,15 @@ const A10Config = {
     // ═══════════════════════════════════════════════════════
 
     lore: {
-        outro: 'The Glass Tunnel has shattered. The Corridor\'s transparent proxy — designed to watch others — became the very opening that let you peer inward. Internal admin panels, cached credentials, cloud metadata: all exposed through a server that trusted itself too much.'
+        intro: 'The Glass Corridor is a link inspector service used by the Vantablack Syndicate to audit outbound traffic. It fetches any URL server-side and returns a structured inspection report. Intelligence confirms it runs unauthenticated internal services on loopback — hidden from the public network but reachable through the inspector itself. Your mission: use the Corridor\'s own transparency against it.',
+        scenario: 'A mid-size proxy network vendor shipped the Glass Corridor as a "DevOps diagnostic tool" — never intended for production. When the Vantablack Syndicate\'s operations team needed a quick link validator, they deployed it without security review. The block-list was copy-pasted from a blog post. Nobody thought to include 127.0.0.1.',
+        outro: 'The Glass Tunnel has shattered. The Corridor\'s transparent proxy — designed to watch others — became the very opening that let you peer inward. Internal admin panels, cached credentials, cloud metadata: all exposed through a server that trusted itself too much.',
+        ecer: {
+            executive: 'Operations leadership deployed a diagnostic tool as a production service without architectural review or threat modeling',
+            culture: 'No application security gate in the deployment pipeline; block-lists treated as security controls rather than defense-in-depth',
+            employee: 'Developer never validated that loopback bypass was possible; copy-pasted block-list excluded 127.0.0.1 and all alias forms',
+            regulatory: 'No web application firewall, no SSRF-specific controls, and no network segmentation review required before deployment'
+        }
     },
 
     // ═══════════════════════════════════════════════════════
@@ -742,6 +805,27 @@ kali:x:1000:1000:Kali:/home/kali:/bin/bash`);
                                 '.bash_history': {
                                     type: 'file',
                                     content: 'nmap 10.10.14.32\ncurl http://10.10.14.32/corridor/\nfirefox http://10.10.14.32/corridor/'
+                                },
+                                'decoys': {
+                                    type: 'dir',
+                                    children: {
+                                        'internal-service-map.txt': {
+                                            type: 'file',
+                                            content: '=== INTERNAL SERVICE MAP (UNVERIFIED INTEL) ===\n\nNote: This diagram was intercepted before the op. It may not reflect\nthe current state of the target. Use at your own risk.\n\n  10.10.14.32\n    |\n    +-- :80   → HTTP public app (confirmed)\n    |\n    +-- :443  → HTTPS (unconfirmed — may be a secondary vhost)\n    |\n    +-- :2222 → SSH alternate port (unconfirmed — may be honeypot)\n    |\n    +-- :8443 → Admin panel SSL (unconfirmed)\n\n[!] The intel source claimed internal services run on non-standard\n    ports (8443, 2222). This conflicts with our nmap scan showing\n    8080 and 6379 filtered. Treat with caution.\n\n[!] The 10.10.14.33 machine listed below may be a decoy host:\n    10.10.14.33 — "backup-corridor" — unknown function\n\nFocus on what is confirmed: port 80 is the attack surface.'
+                                        },
+                                        'aws-metadata-research.txt': {
+                                            type: 'file',
+                                            content: '=== AWS IMDS RESEARCH NOTES ===\n\nIMDSv1 endpoint: http://169.254.169.254/latest/meta-data/\n\nThe cloud metadata service is a known SSRF pivot target.\nHowever, the Glass Corridor may be running on bare metal or a\nprivate VMware cluster — not on AWS EC2.\n\nIMDSv1 will return credential data IF the target is an EC2 instance:\n  http://169.254.169.254/latest/meta-data/iam/security-credentials/\n\nIMDSv2 (token-based) would block this without a PUT pre-request.\n\n[!] LIKELY DEAD END: If the corridor is not on EC2, the 169.254.169.254\n    address will time out or return nothing useful. Do not spend time\n    on this path until simpler internal service attacks are exhausted.\n\nFallback: loopback services (127.0.0.1) are always valid on any host.'
+                                        },
+                                        'network-diagram.txt': {
+                                            type: 'file',
+                                            content: '=== NETWORK TOPOLOGY (STALE — FROM 6 MONTHS AGO) ===\n\n  [Your Kali]  ←VPN→  [10.10.14.0/24 subnet]\n                            |\n                    +-----------------+\n                    | 10.10.14.32     |\n                    | glass-corridor  |\n                    | nginx:80 (pub)  |\n                    | admin:8080 (lo) |\n                    | redis:6379 (lo) |\n                    | elastic:9200(lo)|\n                    +-----------------+\n                            |\n                    +-----------------+\n                    | 10.10.14.33     |\n                    | backup-server   |\n                    | (offline)       |\n                    +-----------------+\n\n[!] STALE INTEL: The 10.10.14.33 backup server was decommissioned.\n    Attempts to reach it will fail. The diagram also shows a\n    "management VLAN" at 192.168.99.0/24 — that range is blocked\n    by the target\'s filter and is unreachable regardless.\n\n    The only reachable host is 10.10.14.32. Focus there.\n\n[!] The admin panel was previously on port 8443 (SSL). It moved to\n    8080 (plain HTTP internal) in a "security simplification" rollout.\n    Old payloads pointing to :8443 will not work.'
+                                        },
+                                        'fake-credentials.txt': {
+                                            type: 'file',
+                                            content: '=== CREDENTIALS FOUND IN PRIOR RECON (UNVERIFIED) ===\n\nSource: leaked pastebin from 2023 — may be outdated\n\n  Service     : Glass Corridor Admin\n  Username    : corridor_admin\n  Password    : C0rr1d0r@2023!  ← may be rotated\n\n  Service     : Redis\n  Password    : gl4ss_r3d1s_p4ss  ← may be default (no auth)\n\n[!] DO NOT rely on these. The Redis instance may have no auth\n    (common misconfiguration). The admin panel login page, if it\n    exists externally, will likely have rotated credentials.\n\n[!] The real attack surface is not credential stuffing —\n    the Link Inspector parameter is the entry point.\n    These credentials are a distraction.\n\nFocus: SSRF via the url= parameter, not credential brute-force.'
+                                        }
+                                    }
                                 }
                             }
                         }

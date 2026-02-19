@@ -18,14 +18,65 @@ const A17Config = {
     trackerKey: 'ctf_a17',
 
     // ═══════════════════════════════════════════════════════
+    // PHASE SYSTEM (Multi-layer steganographic analysis chain)
+    // ═══════════════════════════════════════════════════════
+
+    phases: [
+        {
+            id: 'recon',
+            name: 'Reconnaissance',
+            icon: '\uD83D\uDD0D',
+            description: 'Identify suspicious media files distributed by The Whispering Eye. Triage the evidence directory — inspect file types, sizes, metadata, and anomalies that hint at concealed content.',
+            requiredFlags: [],
+            mitre: ['T1036', 'T1564', 'T1027.003'],
+            unlocks: ['carrier-analysis'],
+            locked: false
+        },
+        {
+            id: 'carrier-analysis',
+            name: 'Carrier Analysis',
+            icon: '\uD83D\uDDBC\uFE0F',
+            description: 'Examine the image and audio carriers for signs of steganographic embedding. Inspect bit-planes, statistical anomalies, EXIF metadata, and spectral fingerprints to confirm data is hidden inside.',
+            requiredFlags: [],
+            mitre: ['T1027.003', 'T1001.002', 'T1564.004'],
+            unlocks: ['data-extraction'],
+            locked: true
+        },
+        {
+            id: 'data-extraction',
+            name: 'Data Extraction',
+            icon: '\uD83E\uDDF2',
+            description: 'Deploy steganographic analysis tools to recover the hidden payload. Extract the LSB-encoded passphrase from the image and use it to unlock the steghide-embedded audio secret.',
+            requiredFlags: ['user'],
+            mitre: ['T1027.003', 'T1001.002', 'T1119'],
+            unlocks: ['payload-analysis'],
+            locked: true
+        },
+        {
+            id: 'payload-analysis',
+            name: 'Payload Analysis',
+            icon: '\uD83D\uDCC4',
+            description: 'Decode the extracted payload and follow the evidence chain to its end. Use the audio secret to unlock the encrypted archive and recover The Whispering Eye\'s final Whisper Code.',
+            requiredFlags: ['root'],
+            mitre: ['T1027', 'T1027.010', 'T1119'],
+            unlocks: [],
+            locked: true
+        }
+    ],
+
+    // ═══════════════════════════════════════════════════════
     // CERT OBJECTIVES (Assessment Mode — AR-7)
     // ═══════════════════════════════════════════════════════
 
     certObjectives: {
         certPath: 'SY0-701',
         mappings: [
-            { flagId: 'user', objective: '1.1', description: 'Compare and contrast various types of social engineering techniques', skill: 'Steganographic LSB Data Extraction' },
-            { flagId: 'root', objective: '1.1', description: 'Compare and contrast various types of social engineering techniques', skill: 'Covert Communication Channel Analysis' }
+            { flagId: 'user', objective: '2.3', description: 'Explain the importance of security concepts in an enterprise environment — Data concealment techniques', skill: 'LSB Steganography Detection and Extraction via zsteg/stegsolve' },
+            { flagId: 'user', objective: '1.2', description: 'Given a scenario, analyze indicators of malicious activity — Covert channels', skill: 'Bit-Plane Analysis of PNG Carrier Images' },
+            { flagId: 'user', objective: '4.1', description: 'Given a scenario, apply common security techniques to computing resources — Digital forensics', skill: 'EXIF Metadata Forensics and Anomaly Detection' },
+            { flagId: 'root', objective: '4.4', description: 'Summarize the importance of policies, processes, and procedures for incident response — Evidence acquisition', skill: 'Chained Steganographic Evidence Extraction (Image → Audio → Archive)' },
+            { flagId: 'root', objective: '2.3', description: 'Explain the importance of security concepts in an enterprise environment — Data concealment techniques', skill: 'Spectrogram Steganography Analysis and Steghide Decryption' },
+            { flagId: 'root', objective: '4.1', description: 'Given a scenario, apply common security techniques to computing resources — Digital forensics', skill: 'Encrypted Archive Recovery via Evidence Chain' }
         ]
     },
 
@@ -105,22 +156,26 @@ const A17Config = {
         {
             id: 'hint1',
             text: "Start with the image. Use zsteg to check for LSB steganography in the PNG. The tool analyzes least-significant-bit channels for hidden data.",
-            penalty: -50
+            cost: 10,
+            penalty: -10
         },
         {
             id: 'hint2',
             text: "The audio file has a hidden message in its spectrogram. Use Audacity's spectrogram view to visualize frequencies above 15kHz. The message points you back to the image.",
-            penalty: -50
+            cost: 25,
+            penalty: -25
         },
         {
             id: 'hint3',
             text: "The user flag from the image is also the passphrase for steghide extraction from the audio file. Try: steghide extract -sf audio_nature.wav -p \"flag{...}\"",
+            cost: 50,
             penalty: -50
         },
         {
             id: 'hint4',
             text: "The extracted audio secret is the password for archive.zip. Unzip it with that password to get the Whisper Code — the root flag.",
-            penalty: -50
+            cost: 75,
+            penalty: -75
         }
     ],
 
@@ -129,7 +184,15 @@ const A17Config = {
     // ═══════════════════════════════════════════════════════
 
     lore: {
-        outro: 'The Whisper Campaign is silenced. Hidden in plain sight across images, audio, and documents, The Whispering Eye believed their steganographic channels were invisible. But bit-plane analysis, spectrogram inspection, and forensic extraction revealed every secret they thought the noise would conceal. The Whisper Code is yours — their entire operation, decoded.'
+        intro: 'The Whispering Eye is a decentralized propaganda collective that communicates exclusively through public-facing media. They distribute images, audio recordings, and documents that look completely ordinary — but intelligence analysts suspect each release contains hidden operational directives. Your mission: triage the latest media drop, recover the concealed payload chain, and extract the Whisper Code before Cycle 48 activates.',
+        scenario: 'The Whispering Eye\'s founder studied signals intelligence during a prior career and applied those tradecraft principles to steganography. Every public release is a multi-layered dead drop: an image that carries the passphrase, an audio file that holds the archive key, and a password-locked archive containing the next cycle\'s operational manifest. The chain is designed so that removing any single artifact makes the others useless — a perfect evidence dependency trap for anyone trying to intercept their communications.',
+        outro: 'The Whisper Campaign is silenced. Hidden in plain sight across images, audio, and documents, The Whispering Eye believed their steganographic channels were invisible. But bit-plane analysis, spectrogram inspection, and forensic extraction revealed every secret they thought the noise would conceal. The Whisper Code is yours — their entire operation, decoded.',
+        ecer: {
+            executive: 'The Founder — an OSINT/SIGINT-trained operative — designed the multi-layer steg chain with operational discipline, but underestimated modern forensic tooling (zsteg, steghide, spectral analysis)',
+            culture: 'The collective prioritized tradecraft elegance over defense-in-depth; each carrier artifact relied on the obscurity of the overall chain rather than independent cryptographic protection',
+            employee: 'Cell members published raw carrier files to a clearnet .onion mirror without stripping metadata; exiftool revealed authorship fingerprints ("WE_Archivist") and software signatures (Adobe Photoshop, Audacity)',
+            regulatory: 'No operational security review process; decoys (cityscape.png, backup_audio.mp3) were added as an afterthought and lacked the statistical noise profiles needed to fool dedicated bit-plane analysis'
+        }
     },
 
     // ═══════════════════════════════════════════════════════
@@ -297,6 +360,18 @@ const A17Config = {
                                         'archive.zip': {
                                             type: 'file',
                                             content: '[ZIP ARCHIVE — Encrypted, AES-256]\n[Binary content: 4,812 bytes]\n[Password: Wh1sp3r_3y3_2024]\n[Contents: whisper_code.txt]'
+                                        },
+                                        'cityscape.png': {
+                                            type: 'file',
+                                            content: '[PNG IMAGE DATA — 2560x1440 RGBA — "Downtown Dusk"]\n[Binary content: 4,194,304 bytes]\n[LSB Channel: CLEAN — no embedded data detected]\n[EXIF Comment: "Standard stock photo"]\n[Statistical analysis: normal LSB distribution — chi-square p=0.91]\n[zsteg result: no hidden data found]\n[NOTE: decoy file — included in public drop to increase noise]'
+                                        },
+                                        'backup_audio.mp3': {
+                                            type: 'file',
+                                            content: '[MP3 AUDIO DATA — 320kbps, Stereo, 44100 Hz]\n[Binary content: 22,118,400 bytes — 9:12 runtime]\n[Format: MPEG Layer III — steghide does not support MP3]\n[Spectrogram: clean — all energy below 20kHz, no anomalous patterns]\n[Metadata ID3v2: Artist=WE_Media, Title=Ambient Loop 03, Comment=Royalty-free]\n[NOTE: decoy file — format incompatible with steghide; spectrogram shows no embedded text]'
+                                        },
+                                        'notes_draft.txt': {
+                                            type: 'file',
+                                            content: 'Cycle 47 public release — QA notes\n\nFiles distributed:\n  - landscape.png   (approved)\n  - audio_nature.wav (approved)\n  - historical_text.pdf (approved)\n  - archive.zip     (approved — members only)\n  - cityscape.png   (filler — no payload)\n  - backup_audio.mp3 (filler — no payload)\n\nReminder: only landscape.png and audio_nature.wav carry active layers.\nDo not embed in MP3 files — format not supported by our toolchain.\narchive.zip password: see the chain.\n\n— WE_QA'
                                         }
                                     }
                                 },
@@ -409,6 +484,15 @@ const A17Config = {
                 }
                 return `file: cannot open '${target}' (No such file or directory)`;
             }
+            if (lower.includes('cityscape') && lower.includes('png')) {
+                return 'cityscape.png: PNG image data, 2560 x 1440, 8-bit/color RGBA, non-interlaced';
+            }
+            if (lower.includes('backup_audio') && lower.includes('mp3')) {
+                return 'backup_audio.mp3: Audio file with ID3 version 2.3.0, contains: MPEG ADTS, layer III, v1, 320 kbps, 44100 Hz, JntStereo';
+            }
+            if (lower.includes('notes_draft') && lower.includes('txt')) {
+                return 'notes_draft.txt: ASCII text';
+            }
 
             return `file: cannot open '${target}' (No such file or directory)`;
         },
@@ -501,6 +585,47 @@ Zip Compressed Size             : 3841
 Zip Uncompressed Size           : 4096
 Zip File Name                   : whisper_code.txt
 Warning                         : AES encrypted — password required`;
+            }
+
+            if (lower.includes('cityscape') && lower.includes('png')) {
+                return `ExifTool Version Number         : 12.76
+File Name                       : cityscape.png
+Directory                       : /home/kali/evidence
+File Size                       : 4.0 MB
+File Modification Date/Time     : 2024:10:16 09:44:02+00:00
+File Type                       : PNG
+File Type Extension             : png
+MIME Type                       : image/png
+Image Width                     : 2560
+Image Height                    : 1440
+Bit Depth                       : 8
+Color Type                      : RGB with Alpha
+Compression                     : Deflate/Inflate
+Filter                          : Adaptive
+Interlace                       : Noninterlaced
+Comment                         : Standard stock photo
+Software                        : GIMP 2.10.36`;
+            }
+
+            if (lower.includes('backup_audio') && lower.includes('mp3')) {
+                return `ExifTool Version Number         : 12.76
+File Name                       : backup_audio.mp3
+Directory                       : /home/kali/evidence
+File Size                       : 21 MB
+File Modification Date/Time     : 2024:10:17 13:22:48+00:00
+File Type                       : MP3
+File Type Extension             : mp3
+MIME Type                       : audio/mpeg
+MPEG Audio Version              : 1
+Audio Layer                     : 3
+Sample Rate                     : 44100
+Channel Mode                    : Joint Stereo
+Bit Rate                        : 320
+Duration                        : 0:09:12
+ID3 Version                     : 2.3.0
+Artist                          : WE_Media
+Title                           : Ambient Loop 03
+Comment                         : Royalty-free`;
             }
 
             return `File not found: ${target}`;
@@ -625,7 +750,19 @@ b4,rgb,lsb,xy       .. file: data
 [*] Confidence: HIGH — clear ASCII text detected in bit-plane 1`;
             }
 
-            if (lower.includes('wav') || lower.includes('pdf') || lower.includes('zip')) {
+            if (lower.includes('cityscape') && lower.includes('png')) {
+                return `b1,rgb,lsb,xy       .. text: "\\x00\\x00\\x00\\x00"
+b1,r,lsb,xy         .. file: data
+b1,g,lsb,xy         .. file: data
+b1,b,lsb,xy         .. file: data
+b2,rgb,lsb,xy       .. file: data
+b3,rgb,lsb,xy       .. file: data
+
+[*] No readable ASCII text found in any bit-plane
+[*] LSB distribution: p=0.91 (normal — no steganography detected)`;
+            }
+
+            if (lower.includes('wav') || lower.includes('mp3') || lower.includes('pdf') || lower.includes('zip')) {
                 return `zsteg: unsupported file format. zsteg only supports PNG and BMP files.
 Try: steghide (for WAV/JPEG) or binwalk (for embedded files)`;
             }
@@ -761,7 +898,20 @@ Note: steghide supports JPEG, BMP, WAV, AU formats.
 For PNG steganography, use zsteg or stegsolve instead.`;
                 }
 
+                if (lower.includes('backup_audio') && lower.includes('mp3')) {
+                    return `steghide: the file format of "backup_audio.mp3" is not supported.
+Note: steghide supports JPEG, BMP, WAV, AU formats. MP3 is not supported.
+Use the correct WAV file: audio_nature.wav`;
+                }
+
                 return `steghide: could not open "${stegFile}" — file not found or unsupported format`;
+            }
+
+            if (cmd === 'info') {
+                if (lower.includes('backup_audio') && lower.includes('mp3')) {
+                    return `steghide: the file format of "backup_audio.mp3" is not supported.
+Note: steghide supports JPEG, BMP, WAV, AU formats.`;
+                }
             }
 
             return `steghide: unknown command "${cmd}". Use: embed, extract, or info`;
@@ -827,6 +977,25 @@ Extracted to: _landscape.png.extracted/
 
 [*] Single encrypted entry: whisper_code.txt
 [*] Password required to extract`;
+            }
+
+            if (lower.includes('cityscape') && lower.includes('png')) {
+                return `DECIMAL       HEXADECIMAL     DESCRIPTION
+--------------------------------------------------------------------------------
+0             0x0             PNG image, 2560 x 1440, 8-bit/color RGBA, non-interlaced
+
+[*] Standard PNG structure — no trailing data after IEND chunk
+[*] No embedded files detected`;
+            }
+
+            if (lower.includes('backup_audio') && lower.includes('mp3')) {
+                return `DECIMAL       HEXADECIMAL     DESCRIPTION
+--------------------------------------------------------------------------------
+0             0x0             MPEG ADTS, layer III, v1, 320 kbps, 44100 Hz, JntStereo
+5242880       0x500000        MPEG ADTS, layer III, v1, 320 kbps, 44100 Hz, JntStereo
+
+[*] Standard MP3 frame structure — no embedded files detected
+[*] Note: steghide does not support MP3 — this file cannot carry steghide payloads`;
             }
 
             return `binwalk: cannot open '${target}' — No such file or directory`;

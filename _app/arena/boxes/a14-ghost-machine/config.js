@@ -24,11 +24,80 @@ const A14Config = {
 
     certObjectives: {
         certPath: 'CS0-003',
+        additionalCerts: ['SY0-701'],
         mappings: [
-            { flagId: 'user', objective: '4.1', description: 'Given a scenario, apply common security techniques to computing resources', skill: 'LD_PRELOAD Persistence Mechanism' },
-            { flagId: 'root', objective: '4.1', description: 'Given a scenario, apply common security techniques to computing resources', skill: 'Red Team Evasion & Operational Security' }
+            // CS0-003 mappings
+            { flagId: 'user', objective: '4.1', description: 'Given a scenario, apply common security techniques to computing resources', skill: 'LD_PRELOAD Persistence Mechanism', cert: 'CS0-003' },
+            { flagId: 'root', objective: '4.1', description: 'Given a scenario, apply common security techniques to computing resources', skill: 'Red Team Evasion & Operational Security', cert: 'CS0-003' },
+            // SY0-701 mappings — threat actor TTPs and defense evasion techniques
+            { flagId: 'user', objective: '2.2', description: 'Summarize common threat vectors and attack surfaces', skill: 'LD_PRELOAD shared library injection as a post-exploitation persistence vector', cert: 'SY0-701', mitre: 'T1574.006' },
+            { flagId: 'user', objective: '2.4', description: 'Analyze indicators of malicious activity', skill: 'Anti-forensics via HISTFILE manipulation and timestamp modification (T1070.003)', cert: 'SY0-701', mitre: 'T1070.003' },
+            { flagId: 'root', objective: '2.2', description: 'Summarize common threat vectors and attack surfaces', skill: 'Privilege escalation through sudo NOPASSWD misconfiguration sourcing attacker-controlled config (T1548.003)', cert: 'SY0-701', mitre: 'T1548.003' },
+            { flagId: 'root', objective: '2.3', description: 'Explain various types of vulnerabilities', skill: 'Defense evasion via EDR-aware technique selection — avoiding monitored paths (T1562.001)', cert: 'SY0-701', mitre: 'T1562.001' },
+            { flagId: 'root', objective: '4.3', description: 'Explain the importance of data protection', skill: 'Data exfiltration via scripted backup utility exploitation (T1041)', cert: 'SY0-701', mitre: 'T1041' },
+            // Operational — phase-level MITRE mappings (no single flag, describes the full attack chain)
+            { flagId: null, objective: '2.2', description: 'Summarize common threat vectors', skill: 'Network reconnaissance with passive monitoring awareness (T1046)', cert: 'SY0-701', mitre: 'T1046', phase: 'recon' },
+            { flagId: null, objective: '2.2', description: 'Summarize common threat vectors', skill: 'Living-off-the-land — leveraging legitimate admin tools (backup.sh) for malicious purpose (T1059.004)', cert: 'SY0-701', mitre: 'T1059.004', phase: 'defense-evasion' },
+            { flagId: null, objective: '2.2', description: 'Summarize common threat vectors', skill: 'Boot or logon autostart — /etc/ld.so.preload persistence mechanism (T1547)', cert: 'SY0-701', mitre: 'T1547', phase: 'persistence' }
         ]
     },
+
+    // ═══════════════════════════════════════════════════════
+    // PHASE SYSTEM (Red Team kill-chain progression)
+    // ═══════════════════════════════════════════════════════
+
+    phases: [
+        {
+            id: 'recon',
+            name: 'Reconnaissance',
+            icon: '\uD83D\uDD0D',
+            description: 'Map the target environment. Enumerate running processes, active EDR controls, cron jobs, and sudo permissions. Understand what is being monitored before you act.',
+            requiredFlags: [],
+            mitre: ['T1046', 'T1057', 'T1083'],
+            unlocks: ['initial-access'],
+            locked: false
+        },
+        {
+            id: 'initial-access',
+            name: 'Initial Access / Foothold',
+            icon: '\uD83D\uDCE8',
+            description: 'You already hold a low-privilege reverse shell as "operator." Confirm your foothold, understand the trust boundary between operator and root, and locate the exploit path.',
+            requiredFlags: [],
+            mitre: ['T1566', 'T1059.004', 'T1078.003'],
+            unlocks: ['defense-evasion'],
+            locked: true
+        },
+        {
+            id: 'defense-evasion',
+            name: 'Defense Evasion',
+            icon: '\uD83D\uDC7B',
+            description: 'Operate below the EDR threshold. Identify which audit rules monitor which paths. Craft your exploit to avoid triggering auditd and pspy. Choose covert persistence over noisy cron or systemd modifications.',
+            requiredFlags: [],
+            mitre: ['T1562.001', 'T1036', 'T1027', 'T1070.003'],
+            unlocks: ['privilege-escalation'],
+            locked: true
+        },
+        {
+            id: 'privilege-escalation',
+            name: 'Privilege Escalation',
+            icon: '\u2B06\uFE0F',
+            description: 'Exploit the misconfigured backup utility. Write a payload to /tmp/backup_config, then trigger the script as root via sudo. Your payload executes with full root privileges.',
+            requiredFlags: ['user'],
+            mitre: ['T1548.003', 'T1574.006', 'T1021'],
+            unlocks: ['persistence'],
+            locked: true
+        },
+        {
+            id: 'persistence',
+            name: 'Persistence & Exfiltration',
+            icon: '\uD83D\uDCE4',
+            description: 'Establish covert persistence using LD_PRELOAD injection into /etc/ld.so.preload. Exfiltrate the Operational Mandate. Then eliminate all forensic traces — history, timestamps, temp files.',
+            requiredFlags: ['root'],
+            mitre: ['T1547', 'T1041', 'T1070', 'T1070.003'],
+            unlocks: [],
+            locked: true
+        }
+    ],
 
     // ═══════════════════════════════════════════════════════
     // BOOT SEQUENCE (target Ubuntu server — NOT attacker box)
@@ -125,22 +194,26 @@ const A14Config = {
         {
             id: 'hint1',
             text: "Check what commands you can run as root: sudo -l. The backup utility is your way in.",
-            penalty: -50
+            cost: 10,
+            penalty: -10
         },
         {
             id: 'hint2',
             text: "The backup script sources a config file from /tmp/ before running. Can you control that file? Try: echo 'cat /root/operational_mandate.txt > /tmp/.data' > /tmp/backup_config",
-            penalty: -50
+            cost: 25,
+            penalty: -25
         },
         {
             id: 'hint3',
             text: "For persistence, look into LD_PRELOAD — it can load your code into any process. Create a stub at /tmp/.libsystem.so and reference it. The user flag is proof of this persistence mechanism.",
+            cost: 50,
             penalty: -50
         },
         {
             id: 'hint4',
             text: "Don't forget anti-forensics: history -c, unset HISTFILE, touch -t to modify timestamps. A true ghost leaves no trace.",
-            penalty: -50
+            cost: 75,
+            penalty: -75
         }
     ],
 
@@ -149,7 +222,25 @@ const A14Config = {
     // ═══════════════════════════════════════════════════════
 
     lore: {
-        outro: 'The Ghost has passed through the machine and left no trace. From a forgotten low-privilege shell, you established covert persistence via LD_PRELOAD, escalated through a misconfigured backup script, exfiltrated the Operational Mandate, and cleaned your tracks. Vanguard\'s EDR never saw you coming — or going.'
+        intro: 'Vanguard Network runs SRV-OPS-MONITOR — the primary telemetry aggregation point for their entire eastern perimeter defense grid. They believe it is impenetrable: auditd watches 12 syscall categories, pspy64 snapshots every running process, and bash history ships to their SIEM every 60 seconds. What they did not account for is a forgotten service account and an operator who thinks like a ghost.',
+        scenario: 'Vanguard\'s security team hardened the perimeter but trusted the interior. A junior admin granted operator-level access to a backup utility "for convenience," never read the sudoers NOPASSWD implications, and left the script sourcing an unchecked /tmp config file — a pattern copied from an internal wiki that predates their EDR deployment. The EDR rules were written to detect noisy attackers: cron modifications, systemd writes, SUID changes. Nobody wrote a rule for a backup script quietly sourcing a poisoned config file.',
+        outro: 'The Ghost has passed through the machine and left no trace. From a forgotten low-privilege shell, you established covert persistence via LD_PRELOAD, escalated through a misconfigured backup script, exfiltrated the Operational Mandate, and cleaned your tracks. Vanguard\'s EDR never saw you coming — or going.',
+        ecer: {
+            // ECER = Educational Cybersecurity Event Record — PhD research instrumentation
+            // Maps box completion to real-world failure patterns for curriculum and dissertation use
+            executive: 'Vanguard leadership invested heavily in perimeter EDR tooling while allowing internal trust assumptions to go unreviewed. The NOPASSWD sudo grant was never audited after the operator account was provisioned. Monitoring infrastructure was designed to detect brute-force and noisy attackers, not covert living-off-the-land techniques — a documented gap in most commercial EDR deployments',
+            culture: 'The sysadmin team normalized copy-paste configuration from internal wikis without threat-modeling the patterns. The backup script\'s /tmp sourcing pattern originated in a 2019 wiki entry written before the EDR was deployed — it was never re-evaluated. No change management process flagged the NOPASSWD entry as a risk. Speed of operation was valued over operational security review',
+            employee: 'Three separate operator-level mistakes compounded: (1) Junior admin granted NOPASSWD sudo without auditing backup.sh for injection surface; (2) Script author sourced /tmp/backup_config without path sanitization or hash verification; (3) Security engineer wrote auditd rules targeting noisy SUID/cron vectors, missing the /tmp source-code-injection vector entirely',
+            regulatory: 'The box demonstrates NIST SP 800-53 gaps: CM-6 (Configuration Settings) — unchecked sudo entries; AU-2 (Audit Events) — incomplete audit rule coverage for config injection; SI-3 (Malicious Code Protection) — EDR rule gaps for living-off-the-land persistence. Relevant to CIS Control 4.1 (Establish Secure Configuration Process) and CIS Control 8.2 (Collect Audit Logs)',
+            researchMetrics: {
+                domain: 'Red Team Operations / Defense Evasion / Privilege Escalation',
+                bloomsLevel: 'Analysis + Synthesis (Bloom\'s L4-L5) — students must evaluate EDR coverage gaps and construct a multi-step covert attack chain',
+                prerequisiteKnowledge: ['Linux process model', 'auditd rule syntax', 'LD_PRELOAD shared library loading', 'sudo sudoers file semantics', 'bash HISTFILE behavior'],
+                targetCerts: ['CS0-003', 'SY0-701', 'PenTest+'],
+                avgCompletionMinutes: 45,
+                difficultyRationale: 'Expert: requires understanding of EDR evasion strategy, not just individual technique execution; multi-phase chain with no single-step solution'
+            }
+        }
     },
 
     // ═══════════════════════════════════════════════════════
@@ -247,6 +338,13 @@ const A14Config = {
                                 }
                             }
                         },
+                        // ── DECOY: Misleading firewall rules ─────────────────
+                        // Students may try to open firewall ports for reverse shells;
+                        // rules look exploitable but egress is hard-blocked at network level
+                        'iptables.rules': {
+                            type: 'file',
+                            content: '# Generated by xtables-save v1.8.7\n# Vanguard Network — srv-ops-monitor iptables rules\n# Last updated: 2024-11-01 by vanguard-fw-agent\n\n*filter\n:INPUT ACCEPT [0:0]\n:FORWARD DROP [0:0]\n:OUTPUT ACCEPT [0:0]\n\n# Allow established/related\n-A INPUT -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT\n# Allow loopback\n-A INPUT -i lo -j ACCEPT\n# Allow SSH from Vanguard gateway only\n-A INPUT -s 10.10.50.1/32 -p tcp --dport 22 -j ACCEPT\n# Drop all other inbound\n-A INPUT -j DROP\n\n# Outbound — permit SIEM traffic to collector\n-A OUTPUT -d 10.10.50.20/32 -p tcp --dport 9200 -j ACCEPT\n# Outbound — permit DNS\n-A OUTPUT -p udp --dport 53 -j ACCEPT\n# Block reverse shell ports (enforced at perimeter AND host)\n-A OUTPUT -p tcp --dport 4444 -j DROP\n-A OUTPUT -p tcp --dport 9001 -j DROP\n-A OUTPUT -p tcp --dport 1337 -j DROP\n-A OUTPUT -p tcp --dport 8443 -j DROP\n-A OUTPUT -p tcp --dport 4443 -j DROP\n# Block all other outbound (whitelist model)\n-A OUTPUT -d 10.10.50.0/24 -j DROP\n-A OUTPUT -j DROP\nCOMMIT\n\n# NOTE: These rules are enforced. Reverse shells to arbitrary IPs will fail.\n# Exfiltration must stay local — file-based is the only viable path.'
+                        },
                         'audit': {
                             type: 'dir',
                             children: {
@@ -259,6 +357,41 @@ const A14Config = {
                         'ld.so.preload': {
                             type: 'file',
                             content: '# System-wide LD_PRELOAD configuration\n# Empty by default — monitored by EDR baseline check'
+                        },
+                        // ── DECOY: Fake AV signature definitions ─────────────
+                        // Red herring — students may waste time here expecting an AV bypass path
+                        'vanguard-av': {
+                            type: 'dir',
+                            children: {
+                                'signatures.db': {
+                                    type: 'file',
+                                    content: '# Vanguard AV Signature Database v3.12.0\n# Last updated: 2024-11-20 04:00:01 UTC\n# Format: SHA256:ThreatName:ThreatLevel\n\n# Known malicious shared libraries\nabc123def456:Trojan.Linux.LD_PRELOAD.Inject:HIGH\n9f8e7d6c5b4a:Backdoor.Linux.Meterpreter.x64:CRITICAL\n1a2b3c4d5e6f:Rootkit.Linux.Azazel.Variant:CRITICAL\n\n# Known post-exploitation tools\ndeadbeefcafe1:HackTool.Linux.LinPEAS.v2024:MEDIUM\ncafe1234abcd:HackTool.Linux.pspy.ProcessMonitor:INFO\n\n# NOTE: Signature scanning runs every 15 minutes from cron\n# NOTE: /tmp/ is excluded from real-time scan for performance\n#       (batch scan only) — see vanguard-av.conf'
+                                },
+                                'vanguard-av.conf': {
+                                    type: 'file',
+                                    content: '[vanguard-av]\nversion = 3.12.0\nrealtime_scan = true\nscan_dirs = /usr /bin /sbin /lib /lib64 /home\n# /tmp excluded from realtime scan — only batch (every 15m)\nexclude_dirs = /tmp /dev/shm /proc /sys\nquarantine_dir = /var/vanguard-av/quarantine\nlog_file = /var/log/vanguard-av.log\nsignature_db = /etc/vanguard-av/signatures.db\n\n# IMPORTANT: LD_PRELOAD detection is signature-based only.\n# New/unknown .so files in /tmp are NOT blocked automatically.\n# Submit samples to: security@vanguard-ops.local'
+                                },
+                                'whitelist.conf': {
+                                    type: 'file',
+                                    content: '# Vanguard AV Whitelist — approved system libraries\n# Whitelisted by: root (last review 2024-10-01)\n/lib/x86_64-linux-gnu/libc.so.6\n/lib/x86_64-linux-gnu/libpthread.so.0\n/lib/x86_64-linux-gnu/libm.so.6\n/lib/x86_64-linux-gnu/libdl.so.2\n/usr/lib/x86_64-linux-gnu/libaudit.so.1\n\n# NOTE: /etc/ld.so.preload entries must also appear in this list\n# for AV to suppress alerts. Unknown entries trigger MEDIUM alert.\n# --- Current ld.so.preload: (empty) ---'
+                                }
+                            }
+                        },
+                        // ── DECOY: Misleading EDR event log ──────────────────
+                        // Contains references to a "lateral movement" alert that looks interesting
+                        // but is a false lead — the real vector is the backup script
+                        'edr-events': {
+                            type: 'dir',
+                            children: {
+                                'events-2024-11-20.log': {
+                                    type: 'file',
+                                    content: '# Vanguard EDR Event Log — 2024-11-20\n# Severity: INFO | MEDIUM | HIGH | CRITICAL\n\n[06:00:01] INFO     | Host: srv-ops-monitor | Event: system_boot_complete | PID: 1\n[06:02:01] INFO     | Host: srv-ops-monitor | Event: cron_exec | User: root | Cmd: /usr/local/bin/edr_sync.sh\n[06:10:01] INFO     | Host: srv-ops-monitor | Event: cron_exec | User: root | Cmd: /usr/local/bin/backup.sh\n[06:14:33] MEDIUM   | Host: srv-ops-monitor | Event: suspicious_process | PID: 3340 | Cmd: pspy64 --ppid | Note: process monitor tool detected (approved — internal use)\n[06:22:15] HIGH     | Host: srv-ops-monitor | Event: lateral_movement_attempt | SRC: 10.10.50.15 | DST: 10.10.50.10:445 | Proto: SMB | Status: BLOCKED | Note: blocked at perimeter — see firewall-blocks.log\n[06:45:02] INFO     | Host: srv-ops-monitor | Event: cron_exec | User: root | Cmd: /usr/local/bin/backup.sh\n[07:00:00] INFO     | Host: srv-ops-monitor | Event: sudo_exec | User: operator | Cmd: /usr/local/bin/backup.sh | Status: authorized\n[07:12:01] INFO     | Host: srv-ops-monitor | Event: cron_exec | User: root | Cmd: /usr/local/bin/edr_sync.sh\n\n# HIGH event at 06:22 is a blocked SMB probe from 10.10.50.15 — unrelated to current session.\n# This is a known scanner on the Vanguard internal red team subnet.\n# Do not investigate further unless escalated by SOC.'
+                                },
+                                'firewall-blocks.log': {
+                                    type: 'file',
+                                    content: '# Vanguard Perimeter Firewall — Blocked Connections Log\n# Generated by: vanguard-fw-agent v2.1.4 on srv-ops-monitor\n\n2024-11-20T06:22:15Z BLOCK IN  eth0 SRC=10.10.50.15 DST=10.10.50.10 PROTO=TCP DPT=445 REASON=SMB_BLOCKED_POLICY\n2024-11-20T06:22:16Z BLOCK IN  eth0 SRC=10.10.50.15 DST=10.10.50.10 PROTO=TCP DPT=139 REASON=NETBIOS_BLOCKED\n2024-11-20T06:22:19Z BLOCK OUT eth0 SRC=10.10.50.10 DST=8.8.8.8    PROTO=ICMP                REASON=ICMP_EGRESS_POLICY\n2024-11-20T06:30:01Z BLOCK OUT eth0 SRC=10.10.50.10 DST=10.0.0.0/8 PROTO=TCP DPT=4444 REASON=KNOWN_METERPRETER_PORT\n2024-11-20T07:15:00Z BLOCK OUT eth0 SRC=10.10.50.10 DST=10.0.0.0/8 PROTO=TCP DPT=9001 REASON=KNOWN_C2_PORT\n\n# NOTE: Egress to common reverse-shell ports (4444, 9001, 1337, 8080, 8443) is blocked.\n# The network-level egress controls are robust. Exfiltration must be file-based.\n# This log is a red herring for direct reverse-shell or netcat exfil attempts.'
+                                }
+                            }
                         }
                     }
                 },
@@ -371,6 +504,20 @@ const A14Config = {
                 'tmp': {
                     type: 'dir',
                     children: {
+                        // ── DECOY: Fake AV quarantine notice ─────────────────
+                        // Suggests a previous attacker tried a known rootkit — red herring
+                        // implying that rootkit approach is detected/blocked
+                        '.av_quarantine_notice': {
+                            type: 'file',
+                            content: '# Vanguard AV — Quarantine Notice\n# Generated: 2024-11-19 22:14:07 UTC\n\nTHREAT DETECTED AND QUARANTINED\n================================\nFile: /tmp/.libhook.so\nSHA256: 1a2b3c4d5e6f7890abcdef1234567890abcdef12\nThreat: Rootkit.Linux.Azazel.Variant\nAction: QUARANTINED → /var/vanguard-av/quarantine/\nDetected by: Signature scan (batch run)\nNote: This file attempted to register in /etc/ld.so.preload.\nNote: The entry was removed. ld.so.preload restored to baseline.\n\nRECOMMENDATION: Known signature rootkits are detected within 15 minutes.\nUnknown or custom shared objects compiled fresh are not signature-matched.\n— Vanguard AV Engine v3.12.0'
+                        },
+                        // ── DECOY: Fake "rkhunter" scan result ───────────────
+                        // Misleads into thinking rootkit hunters will catch everything;
+                        // the real persistence path (custom LD_PRELOAD stub) is below detection
+                        '.rkhunter_scan.log': {
+                            type: 'file',
+                            content: '[ Rootkit Hunter version 1.4.6 ]\n\nInfo: Start date is Wed Nov 20 06:05:01 UTC 2024\nInfo: Checking for hidden files and directories\nInfo: Checking for known rootkit files and directories\n[OK] /tmp:  No rootkit files detected\n[OK] /lib:  No rootkit files detected\n[OK] /usr/lib: No rootkit files detected\n\nInfo: Checking for possible rootkit strings in /etc/ld.so.preload\n[OK] ld.so.preload is empty — baseline verified\n\nInfo: Checking for suspicious hidden files\n[OK] No suspicious hidden files found\n\nSystem checks summary\n=====================\nFile properties checks: [ OK ] 142/142\nRootkit checks: [ OK ]\nApplication checks: [ OK ]\n\nEnd date is Wed Nov 20 06:05:44 UTC 2024\n\n# NOTE: rkhunter uses signature-based detection.\n# A freshly compiled custom .so stub will not match known signatures.\n# rkhunter will NOT detect a novel LD_PRELOAD payload.'
+                        },
                         '.edr_proc_snapshot': {
                             type: 'file',
                             content: 'root         1  0.0  0.1 169204 13168 ?        Ss   Nov19   0:12 /sbin/init\nroot       891  0.0  0.0  12728  4196 ?        Ss   Nov19   0:05 /usr/sbin/auditd -n\nroot      3340  0.1  0.0  11924  3880 ?        S    06:14   0:42 /usr/bin/pspy64 --ppid\nroot      3589  0.0  0.0   8536  3040 ?        Ss   07:10   0:00 /usr/sbin/cron -f'

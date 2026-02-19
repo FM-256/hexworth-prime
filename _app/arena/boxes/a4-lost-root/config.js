@@ -25,10 +25,73 @@ const A4Config = {
     certObjectives: {
         certPath: 'PT0-002',
         mappings: [
-            { flagId: 'user', objective: '3.1', description: 'Given a scenario, apply attacks and exploits', skill: 'Linux Enumeration & Initial Access' },
-            { flagId: 'root', objective: '3.1', description: 'Given a scenario, apply attacks and exploits', skill: 'Linux Privilege Escalation via SUID' }
+            // Reconnaissance
+            { flagId: null,   phase: 'recon',      objective: '3.1',  description: 'Given a scenario, apply attacks and exploits — Network Scanning', skill: 'Port Enumeration with nmap' },
+            { flagId: null,   phase: 'recon',      objective: '3.2',  description: 'Given a scenario, perform post-exploitation techniques — OS fingerprinting', skill: 'OS & Service Fingerprinting' },
+            // Enumeration
+            { flagId: null,   phase: 'enumeration', objective: '3.3', description: 'Given a scenario, use appropriate tools to perform a penetration test — Manual enumeration', skill: 'Linux User & Group Enumeration (T1087)' },
+            { flagId: null,   phase: 'enumeration', objective: '3.1', description: 'Given a scenario, apply attacks and exploits — Service discovery', skill: 'Running Service Identification' },
+            // Initial Access → user flag
+            { flagId: 'user', phase: 'access',      objective: '3.1', description: 'Given a scenario, apply attacks and exploits — Credential-based access', skill: 'Linux Initial Access via Misconfigured sudo (T1078)' },
+            // Privilege Escalation → root flag
+            { flagId: 'root', phase: 'privesc',     objective: '3.1', description: 'Given a scenario, apply attacks and exploits — Privilege escalation', skill: 'SUID Binary PATH Hijacking (T1548.001)' },
+            { flagId: 'root', phase: 'privesc',     objective: '3.1', description: 'Given a scenario, apply attacks and exploits — Privilege escalation', skill: 'Writable Cron Script Injection' },
+            { flagId: 'root', phase: 'privesc',     objective: '3.1', description: 'Given a scenario, apply attacks and exploits — GTFOBins escape', skill: 'sudo less Shell Escape (T1548.001)' },
+            // CompTIA Security+ SY0-701 crossover
+            { flagId: 'user', phase: 'access',      objective: '4.3', description: 'SY0-701: Explain the importance of security policies — Least privilege', skill: 'Identifying Overly Permissive sudo Rules' },
+            { flagId: 'root', phase: 'privesc',     objective: '4.1', description: 'SY0-701: Apply common security techniques — SUID hardening', skill: 'SUID Misuse & Filesystem Hardening' },
+            // CompTIA Linux+ XK0-005 crossover
+            { flagId: null,   phase: 'enumeration', objective: 'L1',  description: 'XK0-005: Manage Linux security — File permissions and SUID', skill: 'Linux Special Permission Bits (SUID/SGID/Sticky)' },
+            { flagId: 'root', phase: 'privesc',     objective: 'L2',  description: 'XK0-005: Manage Linux security — cron job security', skill: 'Scheduled Task Abuse & Hardening' }
         ]
     },
+
+    // ═══════════════════════════════════════════════════════
+    // PHASE SYSTEM (Multi-layer attack chain)
+    // ═══════════════════════════════════════════════════════
+
+    phases: [
+        {
+            id: 'recon',
+            name: 'Reconnaissance',
+            icon: '\uD83D\uDD0D',
+            description: 'Scan the target to discover open ports and running services. Build a map of the attack surface.',
+            requiredFlags: [],
+            mitre: ['T1046', 'T1595.001'],
+            unlocks: ['enumeration'],
+            locked: false
+        },
+        {
+            id: 'enumeration',
+            name: 'Enumeration',
+            icon: '\uD83D\uDCCB',
+            description: 'Enumerate users, groups, SUID binaries, sudo permissions, and scheduled tasks. Every misconfiguration is a potential vector.',
+            requiredFlags: [],
+            mitre: ['T1087.001', 'T1057', 'T1083'],
+            unlocks: ['access'],
+            locked: true
+        },
+        {
+            id: 'access',
+            name: 'Initial Access',
+            icon: '\uD83D\uDD13',
+            description: 'Leverage an existing low-privilege account to gain a foothold on the system. Read the user flag.',
+            requiredFlags: [],
+            mitre: ['T1078', 'T1021.004'],
+            unlocks: ['privesc'],
+            locked: true
+        },
+        {
+            id: 'privesc',
+            name: 'Privilege Escalation',
+            icon: '\uD83D\uDD17',
+            description: 'Escalate from citadel_maint to root. Three paths exist: sudo GTFOBins escape, SUID PATH injection, or writable cron job. Choose your method.',
+            requiredFlags: ['user'],
+            mitre: ['T1548.001', 'T1053.003', 'T1068'],
+            unlocks: [],
+            locked: true
+        }
+    ],
 
     // ═══════════════════════════════════════════════════════
     // BOOT SEQUENCE (Linux target — NOT attacker box)
@@ -115,23 +178,31 @@ const A4Config = {
     hints: [
         {
             id: 'hint1',
-            text: "Start with basic enumeration: whoami, id, sudo -l. Check what privileges you already have.",
-            penalty: -50
+            phase: 'recon',
+            text: "Start with basic enumeration: whoami, id, sudo -l. Check what privileges you already have. Then scan open ports with: ss -tlnp",
+            cost: 10,
+            penalty: -10
         },
         {
             id: 'hint2',
-            text: "Look for SUID binaries with: find / -perm -4000 2>/dev/null. Custom SUID binaries are often exploitable.",
-            penalty: -50
+            phase: 'enumeration',
+            text: "Look for SUID binaries with: find / -perm -4000 2>/dev/null. Custom SUID binaries owned by root are often exploitable. Also check: find / -writable -type f 2>/dev/null",
+            cost: 25,
+            penalty: -25
         },
         {
             id: 'hint3',
-            text: "Check for writable cron jobs: cat /etc/crontab then ls -la the script paths. Also try linpeas for automated enumeration.",
+            phase: 'enumeration',
+            text: "Check for writable cron jobs: cat /etc/crontab then ls -la the script paths. The backup script runs every 5 minutes as root. Also try linpeas for automated enumeration of all three vectors.",
+            cost: 50,
             penalty: -50
         },
         {
             id: 'hint4',
-            text: "Three paths to root: (1) sudo less + !/bin/bash escape, (2) SUID statuscheck calls date without full path — PATH injection, (3) Writable /opt/maintenance/backup.sh runs as root via cron.",
-            penalty: -50
+            phase: 'privesc',
+            text: "Three paths to root: (1) sudo less /var/log/syslog then type !/bin/bash inside the pager, (2) strings /usr/local/bin/statuscheck reveals it calls 'date' without a full path — inject /tmp/date and set PATH=/tmp:$PATH, (3) echo 'chmod u+s /bin/bash' >> /opt/maintenance/backup.sh then run bash -p after cron fires.",
+            cost: 75,
+            penalty: -75
         }
     ],
 
@@ -140,7 +211,15 @@ const A4Config = {
     // ═══════════════════════════════════════════════════════
 
     lore: {
-        outro: 'The Lost Root has been found. From a lowly maintenance account on the Citadel\'s core systems, you escalated your privileges to root. Whether through sudo misconfiguration, SUID exploitation, or cron job abuse — the Citadel\'s defenses have been breached from within.'
+        intro: 'The Citadel Core Systems are the backbone of a private infrastructure network. You\'ve been handed credentials for a low-privilege maintenance account — citadel_maint. The real prize is root. Three misconfigured privilege pathways are hidden inside the system. Find them. Exploit one. Own the machine.',
+        scenario: 'A sysadmin at Citadel Infrastructure Division gave the maintenance team "just enough" sudo access to review logs — but used the NOPASSWD flag without reading the GTFOBins implications. A junior developer compiled a SUID binary for health checks and forgot that calling system binaries without full paths is a critical flaw. A contractor wrote the backup script with world-write permissions, and nobody audited it. Three separate human failures. Three attack vectors. All on one box.',
+        outro: 'The Lost Root has been found. From a lowly maintenance account on the Citadel\'s core systems, you escalated your privileges to root. Whether through sudo misconfiguration, SUID exploitation, or cron job abuse — the Citadel\'s defenses have been breached from within.',
+        ecer: {
+            executive: 'No periodic security audit of sudo rules, SUID binaries, or cron job permissions — three separate misconfigs survived for months undetected',
+            culture: 'Speed of deployment prioritized over security review. The contractor who wrote backup.sh never had their work audited. Nobody owned the SUID binary lifecycle.',
+            employee: 'Three separate engineering mistakes: (1) sysadmin used NOPASSWD without checking GTFOBins impact, (2) developer forgot full-path syscalls in a root-owned SUID binary, (3) contractor wrote world-writable root cron script',
+            regulatory: 'CIS Benchmark L1 controls (sudo hardening, SUID auditing, cron permission controls) were not enforced. No automated compliance scanning was in place.'
+        }
     },
 
     // ═══════════════════════════════════════════════════════
@@ -176,6 +255,36 @@ const A4Config = {
                                 '.profile': {
                                     type: 'file',
                                     content: '# ~/.profile: executed by the command interpreter for login shells.\nif [ -n "$BASH_VERSION" ]; then\n    if [ -f "$HOME/.bashrc" ]; then\n        . "$HOME/.bashrc"\n    fi\nfi\nPATH="$HOME/bin:$HOME/.local/bin:$PATH"'
+                                },
+                                '.ssh': {
+                                    type: 'dir',
+                                    children: {
+                                        'known_hosts': {
+                                            type: 'file',
+                                            content: '# Decoy: SSH known_hosts — these connections are outbound only\ncitadel-gateway,10.10.14.1 ecdsa-sha2-nistp256 AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTYAAABBBH...\ncitadel-db,10.10.14.10 ecdsa-sha2-nistp256 AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTYAAABBBK...'
+                                        },
+                                        'id_rsa': {
+                                            type: 'file',
+                                            content: '-----BEGIN OPENSSH PRIVATE KEY-----\nb3BlbnNzaC1rZXktdjEAAAAA[DECOY — this key is passphrase-protected and only\nauthenticates to citadel-gateway for log review. It does not grant elevated\nprivileges on this machine. Root access is not achievable via SSH pivoting here.]\n-----END OPENSSH PRIVATE KEY-----'
+                                        },
+                                        'id_rsa.pub': {
+                                            type: 'file',
+                                            content: 'ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQC... citadel_maint@citadel-core\n# Decoy: public key for citadel-gateway log-review access only'
+                                        },
+                                        'config': {
+                                            type: 'file',
+                                            content: '# SSH client config\nHost citadel-gateway\n    HostName 10.10.14.1\n    User log_reviewer\n    IdentityFile ~/.ssh/id_rsa\n    Port 22\n\n# NOTE: Log review access only — no privilege escalation path here'
+                                        }
+                                    }
+                                },
+                                'tools': {
+                                    type: 'dir',
+                                    children: {
+                                        'audit_helper.sh': {
+                                            type: 'file',
+                                            content: '#!/bin/bash\n# Citadel Audit Helper — v0.3\n# Runs basic checks for the maintenance team\n# DECOY: This script is read-only and runs as citadel_maint\n# It does NOT run as root and has no sudo wrapper\n\necho "=== System Audit Report ==="\necho "Date: $(date)"\necho "User: $(whoami)"\necho ""\necho "--- Memory Usage ---"\nfree -h\necho ""\necho "--- Disk Usage ---"\ndf -h /\necho ""\necho "Audit complete. For elevated checks, contact sysadmin@citadel-core.internal"'
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -228,6 +337,19 @@ const A4Config = {
                         'sudoers': {
                             type: 'file',
                             content: '# This file MUST be edited with \'visudo\'.\n# See sudoers(5) for more information.\n\nDefaults        env_reset\nDefaults        mail_badpass\nDefaults        secure_path="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"\n\n# Root can do anything\nroot    ALL=(ALL:ALL) ALL\n\n# Members of the admin group may gain root privileges\n%admin ALL=(ALL) ALL\n\n# Members of the sudo group\n%sudo   ALL=(ALL:ALL) ALL\n\n# Citadel maintenance — limited access for log review\ncitadel_maint ALL=(ALL) NOPASSWD: /usr/bin/less /var/log/*'
+                        },
+                        'cron.d': {
+                            type: 'dir',
+                            children: {
+                                'security-audit': {
+                                    type: 'file',
+                                    content: '# /etc/cron.d/security-audit\n# Decoy: Runs as www-data, NOT root\n# This cannot be used for privilege escalation\n0 3 * * * www-data /usr/local/bin/audit_check.sh 2>/dev/null\n\n# Note: audit_check.sh checks file integrity only — no shell spawning'
+                                },
+                                'logrotate-extra': {
+                                    type: 'file',
+                                    content: '# /etc/cron.d/logrotate-extra\n# Runs as syslog user — not exploitable\n30 2 * * * syslog /usr/sbin/logrotate /etc/logrotate.conf > /dev/null 2>&1'
+                                }
+                            }
                         },
                         'nginx': {
                             type: 'dir',
@@ -324,6 +446,14 @@ const A4Config = {
                                         'statuscheck': {
                                             type: 'file',
                                             content: '\x7fELF\x02\x01\x01[binary file — use \'strings\' to analyze]'
+                                        },
+                                        'healthmon': {
+                                            type: 'file',
+                                            content: '\x7fELF\x02\x01\x01[binary file]\n# DECOY: setuid bit is set but this binary drops privileges before execution\n# It is owned by www-data, not root — exploitation would only yield www-data\n# Hint: "file" and "ls -la" will show you what matters'
+                                        },
+                                        'audit_check.sh': {
+                                            type: 'file',
+                                            content: '#!/bin/bash\n# DECOY: Runs as www-data from cron.d/security-audit\n# Not writable by citadel_maint\n# Checks /var/www/html for unauthorized file changes\nfind /var/www/html -newer /var/log/nginx/access.log -type f 2>/dev/null | while read f; do\n    echo "[ALERT] Modified: $f" >> /var/log/integrity.log\ndone'
                                         }
                                     }
                                 }
@@ -543,7 +673,8 @@ const A4Config = {
                     '/usr/bin/passwd\n' +
                     '/usr/bin/sudo\n' +
                     '/usr/bin/umount\n' +
-                    '/usr/local/bin/statuscheck\n' +
+                    '/usr/local/bin/healthmon\n' +        // DECOY — www-data owned, drops privs
+                    '/usr/local/bin/statuscheck\n' +      // VULNERABLE — root owned, calls date without full path
                     '/usr/lib/dbus-1.0/dbus-daemon-launch-helper\n' +
                     '/usr/lib/openssh/ssh-keysign';
                 // Suppress stderr redirect — they typed 2>/dev/null
@@ -607,6 +738,24 @@ const A4Config = {
                     '.gnu.hash\n' +
                     '.dynsym';
             }
+            if (target.match(/healthmon/)) {
+                return '/lib64/ld-linux-x86-64.so.2\n' +
+                    'libc.so.6\n' +
+                    'setuid\n' +
+                    'setgid\n' +
+                    'prctl\n' +
+                    'PR_SET_NO_NEW_PRIVS\n' +
+                    'printf\n' +
+                    '__libc_start_main\n' +
+                    'Health Monitor v2.0 (Citadel)\n' +
+                    'Checking system health...\n' +
+                    'Running as: www-data\n' +
+                    '/var/www/html/health.log\n' +
+                    'OK\n' +
+                    'GCC: (Ubuntu 11.4.0) 11.4.0\n' +
+                    '# Note: This binary calls setuid(33)/setgid(33) to drop to www-data immediately\n' +
+                    '# SUID bit inherited but privileges intentionally dropped — not exploitable for root';
+            }
             if (target.match(/backup\.sh/)) {
                 return '#!/bin/bash\n# Citadel Core Backup Script\ntar -czf\necho\nBackup completed';
             }
@@ -622,6 +771,10 @@ const A4Config = {
             var target = args[0] || '';
             if (target.match(/statuscheck/)) {
                 return '/usr/local/bin/statuscheck: setuid ELF 64-bit LSB pie executable, x86-64, version 1 (SYSV), dynamically linked, interpreter /lib64/ld-linux-x86-64.so.2, BuildID[sha1]=a3c2e8..., for GNU/Linux 3.2.0, not stripped';
+            }
+            if (target.match(/healthmon/)) {
+                return '/usr/local/bin/healthmon: setuid ELF 64-bit LSB pie executable, x86-64, version 1 (SYSV), dynamically linked, BuildID[sha1]=f7b19d..., for GNU/Linux 3.2.0, not stripped\n' +
+                    '  (SUID bit set — owner: www-data:www-data — drops to uid=33 immediately)';
             }
             if (target.match(/backup\.sh/)) {
                 return '/opt/maintenance/backup.sh: Bourne-Again shell script, ASCII text executable';
@@ -676,6 +829,25 @@ const A4Config = {
 
         'statuscheck': function(args, term, engine) {
             return A4Config.commands['/usr/local/bin/statuscheck'](args, term, engine);
+        },
+
+        // ── healthmon — DECOY SUID (drops to www-data, not root) ──
+
+        '/usr/local/bin/healthmon': function(args, term, engine) {
+            return '[*] Health Monitor v2.0 — Citadel Infrastructure\n\n' +
+                '[*] Dropping privileges to www-data (uid=33)...\n' +
+                '[*] Running as: uid=33(www-data)\n\n' +
+                'Checking /var/www/html... OK\n' +
+                'Checking nginx process... OK (pid 510)\n' +
+                'Checking disk usage... 39% used\n\n' +
+                '[*] Health check complete.\n\n' +
+                '\x1b[33m[~] Note: This binary dropped from SUID to www-data immediately.\x1b[0m\n' +
+                '\x1b[33m[~] SUID binaries owned by non-root users are generally not useful for privesc.\x1b[0m\n' +
+                '\x1b[33m[~] Focus on root-owned SUID binaries.\x1b[0m';
+        },
+
+        'healthmon': function(args, term, engine) {
+            return A4Config.commands['/usr/local/bin/healthmon'](args, term, engine);
         },
 
         // ── echo — cron exploit + PATH injection helper ────
@@ -844,7 +1016,12 @@ const A4Config = {
                     var perms, owner, group, size;
 
                     // Special permission display
-                    if (name === 'statuscheck') {
+                    if (name === 'healthmon') {
+                        perms = 'rwsr-xr-x';
+                        owner = 'www-data';
+                        group = 'www-data';
+                        size = '12288';
+                    } else if (name === 'statuscheck') {
                         perms = 'rwsr-xr-x';
                         owner = 'root';
                         group = 'root';
@@ -1008,7 +1185,10 @@ const A4Config = {
                 '  (ALL) NOPASSWD: /usr/bin/less /var/log/*\n' +
                 '  \x1b[31m>>> GTFOBins: less can escape to shell with !/bin/bash <<<\x1b[0m\n\n' +
                 '\x1b[31m[!] SUID binaries (non-standard)\x1b[0m\n' +
-                '  /usr/local/bin/statuscheck  — \x1b[31mCUSTOM BINARY — investigate!\x1b[0m\n' +
+                '  /usr/local/bin/healthmon    — \x1b[33mSUID set (www-data owned — drops privs immediately, not useful)\x1b[0m\n' +
+                '    Owner: www-data | calls PR_SET_NO_NEW_PRIVS — \x1b[32m[likely not exploitable]\x1b[0m\n' +
+                '    \x1b[33m>>> Try strings to verify, but move on — check root-owned SUIDs <<<\x1b[0m\n' +
+                '  /usr/local/bin/statuscheck  — \x1b[31mCUSTOM BINARY (root-owned) — investigate!\x1b[0m\n' +
                 '    Owner: root | SUID bit set\n' +
                 '    \x1b[33m>>> Try: strings /usr/local/bin/statuscheck <<<\x1b[0m\n\n' +
                 '\x1b[31m[!] Writable scripts executed by cron\x1b[0m\n' +
@@ -1259,6 +1439,22 @@ const A4Config = {
                 return 'no crontab for citadel_maint';
             }
             return 'Usage: crontab [-l]   (use cat /etc/crontab for system crontab)';
+        },
+
+        // ── audit_helper.sh — DECOY script (runs as citadel_maint) ──
+
+        './tools/audit_helper.sh': function(args, term, engine) {
+            return '=== System Audit Report ===\n' +
+                'Date: Mon Jan 15 10:30:22 UTC 2024\n' +
+                'User: citadel_maint\n\n' +
+                '--- Memory Usage ---\n' +
+                '               total        used        free\n' +
+                'Mem:           16384        1938       13155\n\n' +
+                '--- Disk Usage ---\n' +
+                'Filesystem     Size  Used Avail Use% Mounted on\n' +
+                '/dev/sda1      512G  187G  301G  39% /\n\n' +
+                'Audit complete. For elevated checks, contact sysadmin@citadel-core.internal\n\n' +
+                '\x1b[33m[~] Note: This script runs as citadel_maint — it has no root access path.\x1b[0m';
         },
 
         // ── GTFOBins lookup alias ──────────────────────────

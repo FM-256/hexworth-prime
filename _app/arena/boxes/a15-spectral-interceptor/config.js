@@ -19,14 +19,67 @@ const A15Config = {
     trackerKey: 'ctf_a15',
 
     // ═══════════════════════════════════════════════════════
+    // PHASE SYSTEM (Multi-layer RF attack chain)
+    // ═══════════════════════════════════════════════════════
+
+    phases: [
+        {
+            id: 'recon',
+            name: 'RF Reconnaissance',
+            icon: '\uD83D\uDCE1',
+            description: 'Scan the RF spectrum to locate the target transmission. Identify carrier frequency, bandwidth, and signal presence.',
+            requiredFlags: [],
+            mitre: ['T1040', 'T1595'],
+            unlocks: ['identification'],
+            locked: false
+        },
+        {
+            id: 'identification',
+            name: 'Signal Identification',
+            icon: '\uD83D\uDD2C',
+            description: 'Analyze the captured IQ file to decode the modulation scheme, baud rate, and bit encoding. Confirm the protocol family.',
+            requiredFlags: [],
+            mitre: ['T1040', 'T1557'],
+            unlocks: ['interception'],
+            locked: true
+        },
+        {
+            id: 'interception',
+            name: 'Signal Interception',
+            icon: '\uD83D\uDCF6',
+            description: 'Demodulate the raw IQ data and reconstruct the digital bitstream. Identify packet framing, preamble, and sync word.',
+            requiredFlags: ['user'],
+            mitre: ['T1123', 'T1040', 'T1557.002'],
+            unlocks: ['extraction'],
+            locked: true
+        },
+        {
+            id: 'extraction',
+            name: 'Data Extraction',
+            icon: '\uD83D\uDD13',
+            description: 'Reverse-engineer the proprietary protocol and decrypt the XOR-ciphered payload. Recover the Courier Manifest from the captured signal.',
+            requiredFlags: ['root'],
+            mitre: ['T1020', 'T1119', 'T1027'],
+            unlocks: [],
+            locked: true
+        }
+    ],
+
+    // ═══════════════════════════════════════════════════════
     // CERT OBJECTIVES (Assessment Mode — AR-7)
     // ═══════════════════════════════════════════════════════
 
     certObjectives: {
-        certPath: 'CS0-003',
+        certPath: 'SY0-701',
         mappings: [
-            { flagId: 'user', objective: '1.4', description: 'Given a scenario, analyze indicators of compromise', skill: 'Signal Interception & Protocol Decoding' },
-            { flagId: 'root', objective: '1.4', description: 'Given a scenario, analyze indicators of compromise', skill: 'Covert Channel Manifest Extraction' }
+            // SY0-701 — CompTIA Security+
+            { flagId: 'user', objective: '2.4', description: 'Given a scenario, analyze indicators associated with network attacks — Wireless/RF interception', skill: 'RF Spectrum Analysis & Modulation Identification' },
+            { flagId: 'user', objective: '3.2', description: 'Given a scenario, implement host or application security solutions — wireless protocols', skill: 'GFSK Signal Demodulation & Baud Rate Analysis' },
+            { flagId: 'root', objective: '1.4', description: 'Given a scenario, analyze potential indicators associated with network attacks — eavesdropping', skill: 'Protocol Reverse Engineering & XOR Decryption' },
+            { flagId: 'root', objective: '4.4', description: 'Given a scenario, implement public key infrastructure — encryption weaknesses', skill: 'Covert Channel Detection & Cipher Recovery' },
+            // CS0-003 — CompTIA CySA+
+            { flagId: 'user', objective: '1.4', description: 'Given a scenario, analyze indicators of compromise — signal intelligence', skill: 'Signal Interception & Protocol Decoding', certPath: 'CS0-003' },
+            { flagId: 'root', objective: '1.4', description: 'Given a scenario, analyze indicators of compromise — covert channels', skill: 'Covert Channel Manifest Extraction', certPath: 'CS0-003' }
         ]
     },
 
@@ -108,22 +161,26 @@ const A15Config = {
         {
             id: 'hint1',
             text: "Start by examining the IQ file: file silent_broadcast.iq, then cat freq_info.txt for signal parameters.",
-            penalty: -50
+            cost: 10,
+            penalty: -10
         },
         {
             id: 'hint2',
             text: "Use inspectrum to visualize the signal \u2014 look for two frequency peaks indicating FSK modulation.",
-            penalty: -50
+            cost: 25,
+            penalty: -25
         },
         {
             id: 'hint3',
             text: "After demodulation, examine the bitstream for repeating patterns. The preamble is 0xAA bytes.",
+            cost: 50,
             penalty: -50
         },
         {
             id: 'hint4',
             text: "The payload is XOR encrypted with key 0x42. The first bytes of plaintext are 'COURIER:'.",
-            penalty: -50
+            cost: 75,
+            penalty: -75
         }
     ],
 
@@ -132,7 +189,15 @@ const A15Config = {
     // ═══════════════════════════════════════════════════════
 
     lore: {
-        outro: 'The Silent Broadcast has been silenced. A custom modulation scheme, a proprietary protocol, a trivial XOR cipher \u2014 three layers of obscurity that crumbled under disciplined signal analysis. The couriers believed their RF fortress was impenetrable because no one had ever looked. You looked. The Manifest is yours.'
+        intro: 'A ghost frequency in the 433 MHz ISM band. No registered operator. No FCC filing. A short burst transmission repeating on a 12-hour cycle \u2014 invisible to commercial scanners, ignored by automated spectrum monitors as ordinary IoT noise. Your RTL-SDR caught it at 03:00 during a routine sweep. Now it is yours to break.',
+        scenario: 'The courier network operates entirely off-grid. Their engineers chose the 433 MHz ISM band deliberately: a sea of garage-door openers, weather sensors, and cheap RF remotes. The signal drowns in the noise floor until you know what to look for. A CC1101-based embedded device, a proprietary framing protocol cobbled together from a datasheet weekend, and a single-byte XOR cipher the lead engineer called "good enough." He was wrong.',
+        outro: 'The Silent Broadcast has been silenced. A custom modulation scheme, a proprietary protocol, a trivial XOR cipher \u2014 three layers of obscurity that crumbled under disciplined signal analysis. The couriers believed their RF fortress was impenetrable because no one had ever looked. You looked. The Manifest is yours.',
+        ecer: {
+            executive: 'Network leadership chose ISM-band RF to avoid licensed spectrum oversight, incorrectly assuming physical obscurity would substitute for cryptographic security',
+            culture: 'No security engineering review of the RF protocol design. The embedded firmware team operated without threat modeling or red-team input',
+            employee: 'Firmware developer implemented XOR encryption with a static single-byte key, citing "sufficient for short-range transmissions" in internal notes',
+            regulatory: 'No regulatory framework mandates RF protocol security for unlicensed ISM-band devices; the gap allowed a production covert channel to operate undetected'
+        }
     },
 
     // ═══════════════════════════════════════════════════════
@@ -363,6 +428,40 @@ Sync word purpose: frame alignment / start-of-packet marker
                                 '.bash_history': {
                                     type: 'file',
                                     content: 'rtl_sdr -f 433920000 -s 2400000 -n 12994560 silent_broadcast.iq\nfile silent_broadcast.iq\ncat freq_info.txt\nls tools/'
+                                },
+                                'captures': {
+                                    type: 'dir',
+                                    children: {
+                                        'ambient_sweep_868mhz.iq': {
+                                            type: 'file',
+                                            content: '[Binary IQ data — 868.3 MHz LoRa spectrum sweep]\nFormat: Complex float32, interleaved I/Q\nCapture device: HackRF One\nSample rate: 10 MSps\nCenter frequency: 868.3 MHz (EU LoRa band)\nDuration: 30 seconds\n\nFindings: Multiple LoRa end-device uplinks detected. Standard Semtech SX1276\nspread-spectrum chirps (SF7-SF12). No proprietary or anomalous signals.\nThis capture is NOT the target signal.\n\n[ANALYST NOTE] Red herring — routine LoRa traffic. Target is on 433.92 MHz.'
+                                        },
+                                        'wifi_2ghz_passive.iq': {
+                                            type: 'file',
+                                            content: '[Binary IQ data — 2.4 GHz 802.11 passive capture]\nFormat: Complex float32, interleaved I/Q\nCapture device: HackRF One (direct sampling mode)\nSample rate: 20 MSps\nCenter frequency: 2.437 GHz (Wi-Fi channel 6)\nDuration: 5 seconds\n\nFindings: Standard 802.11n beacon frames, probe requests, data frames.\nAll traffic consistent with normal WLAN environment. No anomalies.\n\n[ANALYST NOTE] Wrong frequency band entirely. The target is ISM 433 MHz.'
+                                        },
+                                        'ook_remote_test.iq': {
+                                            type: 'file',
+                                            content: '[Binary IQ data — 433 MHz OOK remote capture (test file)]\nFormat: Complex float32, interleaved I/Q\nCapture device: RTL-SDR V3\nSample rate: 2.4 MSps\nCenter frequency: 433.92 MHz\nDuration: 0.8 seconds\n\nFindings: OOK-modulated signal (On-Off Keying), NOT FSK/GFSK.\nConsistent with common 433 MHz remote controls (rolling code, 1-button press).\nCode length: 24 bits. Encoding: Manchester.\nNo preamble structure matching target.\n\n[ANALYST NOTE] Wrong modulation type. Target uses GFSK, not OOK.\n               This file was captured from a standard key fob during sweep calibration.'
+                                        }
+                                    }
+                                },
+                                'analysis_notes': {
+                                    type: 'dir',
+                                    children: {
+                                        'hypothesis_log.txt': {
+                                            type: 'file',
+                                            content: '=== SIGNAL HYPOTHESIS LOG ===\nAnalyst: kali\nDate: 2024-01-14\n\nHYPOTHESIS 1: LoRa sensor network\n  Test: Check 868 MHz LoRa band\n  Result: NEGATIVE — only standard LoRa devices, all Semtech stacks\n  Status: RULED OUT\n\nHYPOTHESIS 2: Z-Wave home automation\n  Test: Check 908.42 MHz (US Z-Wave)\n  Result: NEGATIVE — no Z-Wave frame headers\n  Status: RULED OUT\n\nHYPOTHESIS 3: Zigbee 2.4 GHz mesh\n  Test: Check 2.4 GHz 802.15.4\n  Result: NEGATIVE — adjacent channel APs only\n  Status: RULED OUT\n\nHYPOTHESIS 4: Custom CC1101-based ISM device\n  Test: Check 433.92 MHz with GFSK demodulation\n  Result: POSITIVE — silent_broadcast.iq confirmed\n  Status: ACTIVE INVESTIGATION\n\n[NOTE] The 433 MHz burst at T+0.3s is NOT a standard product. Protocol is\ncustom — no match in URH signature database. Manual reverse engineering required.'
+                                        },
+                                        'false_positives.txt': {
+                                            type: 'file',
+                                            content: '=== FALSE POSITIVE SIGNALS DISMISSED ===\n\n1. 433.850 MHz — commercial weather station (Oregon Scientific)\n   Identified by: OOK modulation + standard Manchester encoding\n   Action: Filtered from analysis scope\n\n2. 433.875 MHz — automotive TPMS (tire pressure monitor)\n   Identified by: Short burst, TPMS packet structure (wheel ID + pressure bytes)\n   Action: Filtered from analysis scope\n\n3. 433.950 MHz — generic remote control (OOK, 24-bit rolling code)\n   Identified by: ook_remote_test.iq capture, code replay not relevant\n   Action: Filtered from analysis scope\n\nTARGET SIGNAL: 433.920 MHz — GFSK, 4800 baud, unknown custom protocol\n   This is the only anomaly in the sweep. Proceed with analysis.'
+                                        },
+                                        'modulation_test_results.txt': {
+                                            type: 'file',
+                                            content: '=== MODULATION IDENTIFICATION TESTS ===\nFile: silent_broadcast.iq\n\nTEST 1: AM/OOK detection\n  Method: Envelope detection (abs(IQ))\n  Result: Signal envelope is CONSTANT — rules out AM/OOK\n  CONCLUSION: Not AM or OOK\n\nTEST 2: FM detection\n  Method: Phase discriminator angle(z[n]*conj(z[n-1]))\n  Result: Phase transitions detected — FM family confirmed\n  CONCLUSION: FM-class modulation\n\nTEST 3: FSK vs GFSK\n  Method: Instantaneous frequency histogram\n  Result: Two frequency clusters with Gaussian probability density\n  Peak separation: 9.6 kHz\n  Transition smoothing: Gaussian BT=0.5 (standard CC1101 default)\n  CONCLUSION: GFSK (Gaussian FSK), NOT hard FSK\n\nTEST 4: BPSK/QPSK check\n  Method: Constellation diagram (I vs Q plot)\n  Result: Points cluster on real axis, no phase rotation pattern\n  CONCLUSION: Not PSK\n\nFINAL: GFSK, ±4.8 kHz deviation, 4800 baud\n       Matches CC1101 default configuration exactly.'
+                                        }
+                                    }
                                 }
                             }
                         }

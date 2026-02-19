@@ -18,14 +18,65 @@ const A6Config = {
     trackerKey: 'ctf_a6',
 
     // ═══════════════════════════════════════════════════════
+    // PHASE SYSTEM (Multi-layer attack chain)
+    // ═══════════════════════════════════════════════════════
+
+    phases: [
+        {
+            id: 'recon',
+            name: 'Reconnaissance',
+            icon: '\uD83D\uDD0D',
+            description: 'Map the target\'s attack surface. Identify open ports, running services, and exposed web endpoints on the Silent Cipher Order platform.',
+            requiredFlags: [],
+            mitre: ['T1046', 'T1595.002', 'T1592.004'],
+            unlocks: ['crypto_analysis'],
+            locked: false
+        },
+        {
+            id: 'crypto_analysis',
+            name: 'Crypto Analysis',
+            icon: '\uD83D\uDD13',
+            description: 'Examine the encrypted message board. Identify which weak algorithms are in use — ROT13, Base64, and single-byte XOR — and analyze their ciphertexts.',
+            requiredFlags: [],
+            mitre: ['T1040', 'T1557', 'T1600'],
+            unlocks: ['key_recovery'],
+            locked: true
+        },
+        {
+            id: 'key_recovery',
+            name: 'Key Recovery / Cipher Break',
+            icon: '\uD83D\uDDDD\uFE0F',
+            description: 'Break each cipher to recover the API key and the XOR-encrypted user flag. Exploit the absence of computational hardness in all three algorithms.',
+            requiredFlags: ['user'],
+            mitre: ['T1557', 'T1573', 'T1600.001'],
+            unlocks: ['data_decryption'],
+            locked: true
+        },
+        {
+            id: 'data_decryption',
+            name: 'Data Decryption',
+            icon: '\uD83D\uDCDC',
+            description: 'Authenticate to the admin panel with the recovered API key, locate the vault master key on the server filesystem, and unseal the classified archives.',
+            requiredFlags: ['root'],
+            mitre: ['T1552', 'T1530', 'T1567'],
+            unlocks: [],
+            locked: true
+        }
+    ],
+
+    // ═══════════════════════════════════════════════════════
     // CERT OBJECTIVES (Assessment Mode — AR-7)
     // ═══════════════════════════════════════════════════════
 
     certObjectives: {
         certPath: 'SY0-701',
         mappings: [
-            { flagId: 'user', objective: '1.4', description: 'Given a scenario, analyze indicators of malicious activity', skill: 'Weak Cipher Identification' },
-            { flagId: 'root', objective: '1.4', description: 'Given a scenario, analyze indicators of malicious activity', skill: 'Cryptographic Key Recovery' }
+            { flagId: 'user', objective: '1.4', description: 'Given a scenario, analyze indicators of malicious activity — weak cipher identification', skill: 'Weak Cipher Identification' },
+            { flagId: 'user', objective: '2.4', description: 'Given a scenario, analyze indicators associated with application attacks — cryptographic weaknesses', skill: 'Single-Byte XOR Decryption' },
+            { flagId: 'user', objective: '2.3', description: 'Summarize various types of vulnerabilities — insecure cryptographic implementations', skill: 'ROT13 and Base64 Encoding Recognition' },
+            { flagId: 'root', objective: '1.4', description: 'Given a scenario, analyze indicators of malicious activity — cryptographic key recovery', skill: 'Cryptographic Key Recovery' },
+            { flagId: 'root', objective: '2.4', description: 'Given a scenario, analyze indicators associated with application attacks — API key exposure', skill: 'API Key Extraction from Encoded Messages' },
+            { flagId: 'root', objective: '3.7', description: 'Explain the importance of cryptography and PKI — symmetric key weaknesses', skill: 'Symmetric Cipher Weakness Analysis' }
         ]
     },
 
@@ -105,22 +156,26 @@ const A6Config = {
         {
             id: 'hint1',
             text: "Look at the encryption methods used. ROT13 and Base64 are trivially reversible — no key needed. Start with the messages labeled 'ROT13' and 'Base64'.",
-            penalty: -50
+            cost: 10,
+            penalty: -10
         },
         {
             id: 'hint2',
             text: "Message #3 contains a Base64-encoded API key. Try decoding: Q2lwaGVyS2V5OiBTMWwzbnRfMHJkM3I= — that decoded value (after 'CipherKey: ') is your admin panel password.",
-            penalty: -50
+            cost: 25,
+            penalty: -25
         },
         {
             id: 'hint3',
             text: "The XOR-encrypted message (#2) uses key 0x42. XOR every byte of the ciphertext with 0x42. The decryption oracle will handle this if you paste the hex: 37 31 27 30 62 24 2e 23 25 78 62 24 2e 23 25 39 31 73 2e 71 2c 36 1d 72 30 26 71 30 1d 21 30 76 21 29 71 26 1d 21 73 32 2a 71 30 3f",
+            cost: 50,
             penalty: -50
         },
         {
             id: 'hint4',
             text: "The admin panel at /cipher/admin/ reveals the vault location. Authenticate with the decoded API key. The vault master key IS the root flag — submit it directly.",
-            penalty: -50
+            cost: 75,
+            penalty: -75
         }
     ],
 
@@ -129,7 +184,15 @@ const A6Config = {
     // ═══════════════════════════════════════════════════════
 
     lore: {
-        outro: "The Silent Cipher Order\'s encrypted communications have been laid bare. Their faith in ROT13 and Base64 — centuries weaker than what their name implies — proved their undoing. The vault master key is yours. The Order will reckon with this breach for years to come."
+        intro: 'The Silent Cipher Order is a secretive collective that routes encrypted communications through a self-hosted messaging vault. Intelligence intercepts suggest they use legacy cipher algorithms — none of which provide real confidentiality. Your mission: penetrate their Cipher Vault, crack their weak cryptography, and extract the vault master key from their classified archives.',
+        scenario: 'The Order\'s founding charter demanded encryption for all communications, but their Technical Warden implemented ROT13 and Base64 as their "encryption" suite in 2011 and never revisited the decision. A junior member pushed XOR as an "upgrade" in 2019, choosing a single-byte key of 0x42 — the ASCII code for \'B\'. All three algorithms were deployed side-by-side. No cryptographer was ever consulted. The API key was Base64-encoded and posted directly to the message board. "Security through obscurity," the Warden wrote in the deployment notes. "Only members know to look."',
+        outro: "The Silent Cipher Order\'s encrypted communications have been laid bare. Their faith in ROT13 and Base64 — centuries weaker than what their name implies — proved their undoing. The vault master key is yours. The Order will reckon with this breach for years to come.",
+        ecer: {
+            executive: 'The Grand Cipher approved the "encryption" suite without consulting a cryptographer. Leadership conflated encoding with encryption and treated obscurity as an acceptable security posture — a decision that left all Order communications trivially readable to any attacker who found the platform',
+            culture: 'No cryptographic review process existed. The team promoted algorithms by seniority and familiarity rather than by security analysis. ROT13 and Base64 were never questioned because they had always been used — cargo-cult security at its most literal',
+            employee: 'The Technical Warden implemented ROT13 and Base64 as encryption primitives. A junior member introduced single-byte XOR without key management. The API key was Base64-encoded and published on the message board with no access control, treating encoding as protection',
+            regulatory: 'No compliance framework (NIST SP 800-111, FIPS 140-3, or PCI-DSS) was applied to the communication platform. All three algorithms fail every modern cryptographic standard: ROT13 and Base64 provide zero confidentiality, and single-byte XOR is broken by trivial frequency analysis — none would survive a cursory cryptographic audit'
+        }
     },
 
     // ═══════════════════════════════════════════════════════
@@ -562,6 +625,27 @@ const A6Config = {
                                     type: 'file',
                                     content: '=== MISSION BRIEFING ===\nTarget: 10.10.14.16 (The Silent Cipher Order)\nObjective: Exploit weak cryptography in their messaging platform\n\nIntel:\n- Target is running an encrypted communications board\n- Known weak ciphers in use: ROT13, Base64, XOR with single-byte key\n- Admin panel protected by an API key — reportedly embedded in the messages\n- A vault holds classified archives behind a master key\n\nRecon steps:\n1. nmap scan to identify open services\n2. Browse http://10.10.14.16/cipher/ — read the messages\n3. Use the decryption oracle or your tools to crack each cipher\n4. Decode the Base64 API key and authenticate to /cipher/admin/\n5. Follow the admin panel clues to the vault master key (root flag)\n\nGood luck, operator.'
                                 },
+                                'decoys': {
+                                    type: 'dir',
+                                    children: {
+                                        'intercepted_key.bin': {
+                                            type: 'file',
+                                            content: '[ Binary blob — 256 bytes ]\n\n00000000: d4 3f 8a 11 bc 7e 29 f0 a3 55 6d 2c 91 e8 04 7b\n00000010: 3a b6 c5 08 74 de 5f 12 a9 60 fb 3d 88 27 4e c1\n00000020: 57 9e 06 bb 43 17 e2 8c 7f 2a d0 95 61 f4 1b 39\n...\n[NOTE: This was intercepted from the target. AES-256-CBC suspected. Requires key — probably not the right approach. The Order doesn\'t use AES internally.]'
+                                        },
+                                        'order_cert.pem': {
+                                            type: 'file',
+                                            content: '-----BEGIN CERTIFICATE-----\nMIICpDCCAYwCCQDK2f4Zr8xTlDANBgkqhkiG9w0BAQsFADAUMRIwEAYDVQQDDAls\nb2NhbGhvc3QwHhcNMjQwMTAxMDAwMDAwWhcNMjUwMTAxMDAwMDAwWjAUMRIwEAYD\nVQQDDAlsb2NhbGhvc3QwggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAwggEKAoIBAQC7\n[...truncated — 2048-bit RSA — Silent Cipher Order self-signed cert]\n-----END CERTIFICATE-----\n\n[RED HERRING: This is the TLS certificate from port 443. It does not contain the master key. O=Silent Cipher Order, CN=cipher-vault.ctf.local]'
+                                        },
+                                        'aes_attempt.txt': {
+                                            type: 'file',
+                                            content: '# Failed AES decryption attempts — do NOT waste time here\n# The Order does NOT use AES. Their crypto suite is:\n#   - ROT13 (Caesar-13)\n#   - Base64 (encoding, not encryption)\n#   - XOR single-byte\n# All three are trivially reversible without a strong key.\n# The vault master key is NOT encrypted with AES.\n# Focus on the message board at http://10.10.14.16/cipher/'
+                                        },
+                                        'fake_flag.txt': {
+                                            type: 'file',
+                                            content: 'flag{th1s_1s_n0t_th3_r34l_fl4g_k33p_l00k1ng}\n\n[This stub was planted by a previous operator. Do not submit — it will score zero.\nThe real flags are inside the Cipher Vault web application.]'
+                                        }
+                                    }
+                                },
                                 'tools': {
                                     type: 'dir',
                                     children: {
@@ -622,6 +706,34 @@ const A6Config = {
                 'tmp': {
                     type: 'dir',
                     children: {}
+                },
+                'vault': {
+                    // Decoy server-side vault directory (mirrored on attacker box for reference)
+                    // Real vault master key is served via the web app at /cipher/vault/
+                    type: 'dir',
+                    children: {
+                        'key_archive': {
+                            type: 'dir',
+                            children: {
+                                'key_2022.enc': {
+                                    type: 'file',
+                                    content: '[ Encrypted — legacy key from 2022 rotation cycle ]\nCipher: XOR-0x19 (deprecated)\nBytes: 2f 58 4b 61 74 1f 60 4b 7e 1f 60 67 1f 4b 65 71\n\n[DECOY: This is the 2022 key rotation artifact. It decrypts to "Old_Key_R0t4t10n" — not the current master key. The live vault uses a different key entirely.]'
+                                },
+                                'key_2023.enc': {
+                                    type: 'file',
+                                    content: '[ Encrypted — 2023 rotation cycle — XOR-0x35 ]\nBytes: 7f 57 46 3d 4b 56 72 57 41 3d 53 72 57 40 4b\n\n[DECOY: Decodes to "Cycle47_MasterK" — this was the key used during Cycle 47 memo referenced on the vault page. No longer valid — the Order rotated again.]'
+                                }
+                            }
+                        },
+                        'master.key.bak': {
+                            type: 'file',
+                            content: '[ BACKUP — DO NOT USE — superseded 2026-01-01 ]\nflag{0ld_v4ult_k3y_n0t_v4l1d_4nym0r3}\n\n[DECOY: This backup key was invalidated after the January rotation. The current master key must be retrieved via the web vault interface — the admin panel reveals where.]'
+                        },
+                        'README.txt': {
+                            type: 'file',
+                            content: '=== VAULT KEY MANAGEMENT ===\nGenerated by: vault-keyd v3.1 (Silent Cipher Order internal tool)\n\nDirectory layout:\n  master.key     — LIVE key (rotated quarterly, access-controlled)\n  master.key.bak — Previous key (invalidated, kept 90 days then purged)\n  key_archive/   — Historical rotation records (XOR-encrypted, keys in KMS)\n\nIMPORTANT: master.key is NOT stored in plaintext on disk.\nIt is rendered only through the authenticated vault web interface.\nAccess path: http://10.10.14.16/cipher/vault/\nAuthentication: Requires valid admin API key from /cipher/admin/'
+                        }
+                    }
                 }
             }
         }
