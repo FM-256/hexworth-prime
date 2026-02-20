@@ -69,6 +69,7 @@ const MapRenderer = (() => {
     let _svg = null;
     let _contentG = null;
     let _corridorG = null;
+    let _trailG = null;
     let _roomG = null;
     let _playerG = null;
     let _mapData = null;
@@ -158,10 +159,12 @@ const MapRenderer = (() => {
 
         // Layer groups
         _corridorG = _createSVG('g', { class: 'hive-corridors' });
+        _trailG = _createSVG('g', { class: 'hive-trail' });
         _roomG = _createSVG('g', { class: 'hive-rooms' });
         _playerG = _createSVG('g', { class: 'hive-player' });
 
         _contentG.appendChild(_corridorG);
+        _contentG.appendChild(_trailG);
         _contentG.appendChild(_roomG);
         _contentG.appendChild(_playerG);
         _svg.appendChild(_contentG);
@@ -484,6 +487,31 @@ const MapRenderer = (() => {
                 c.line.setAttribute('stroke-dasharray', bothVisited ? 'none' : '4,4');
             } else {
                 c.line.style.display = 'none';
+            }
+        }
+
+        // Draw movement trail
+        _trailG.innerHTML = '';
+        const history = state.moveHistory || [];
+        if (history.length >= 2) {
+            // Build points from last N moves (cap at 30 to avoid clutter)
+            const trail = history.slice(-30);
+            const points = [];
+            for (const rid of trail) {
+                const re = _roomEls[rid];
+                if (re) points.push(re.cx + ',' + re.cy);
+            }
+            if (points.length >= 2) {
+                const polyline = _createSVG('polyline', {
+                    points: points.join(' '),
+                    fill: 'none',
+                    stroke: 'rgba(204,0,0,0.2)',
+                    'stroke-width': '2',
+                    'stroke-dasharray': '3,5',
+                    'stroke-linecap': 'round',
+                    'stroke-linejoin': 'round'
+                });
+                _trailG.appendChild(polyline);
             }
         }
 

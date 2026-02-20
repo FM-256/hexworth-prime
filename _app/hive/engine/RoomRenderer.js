@@ -636,6 +636,21 @@ const RoomRenderer = (() => {
         }
 
         _exitPanel.appendChild(exitList);
+
+        // Back button (if there's history)
+        if (state.moveHistory && state.moveHistory.length >= 2) {
+            const backBtn = document.createElement('button');
+            backBtn.className = 'hive-exit-btn';
+            backBtn.style.marginTop = '6px';
+            backBtn.style.opacity = '0.5';
+            backBtn.innerHTML = '<span class="hive-exit-dir">\u2190</span> <span class="hive-exit-name">Go Back</span><span class="hive-exit-key">Bksp</span>';
+            backBtn.onclick = () => {
+                if (window.HiveEngine && window.HiveEngine.goBack) {
+                    window.HiveEngine.goBack();
+                }
+            };
+            _exitPanel.appendChild(backBtn);
+        }
     }
 
     function _getTargetRoomName(roomId) {

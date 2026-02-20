@@ -50,6 +50,7 @@ var HiveEngine = (() => {
             puzzlesSolved: [],
             puzzleProgress: {},
             moveCount: 0,
+            moveHistory: ['entry'],
             startedAt: new Date().toISOString(),
             lastSavedAt: new Date().toISOString(),
             floorComplete: false,
@@ -282,6 +283,13 @@ var HiveEngine = (() => {
 
             if (_activePuzzle) return;
 
+            // Backspace to go back
+            if (e.key === 'Backspace') {
+                e.preventDefault();
+                goBack();
+                return;
+            }
+
             const dir = KEY_MAP[e.key];
             if (!dir || !_state || !_mapData) return;
 
@@ -336,6 +344,8 @@ var HiveEngine = (() => {
         const isFirstVisit = !_state.visited.includes(roomId);
         _state.currentRoom = roomId;
         _state.moveCount++;
+        if (!_state.moveHistory) _state.moveHistory = [];
+        _state.moveHistory.push(roomId);
 
         if (isFirstVisit) {
             _state.visited.push(roomId);
@@ -790,12 +800,37 @@ var HiveEngine = (() => {
     }
 
     // -------------------------------------------------------------------------
+    // Go back
+    // -------------------------------------------------------------------------
+
+    function goBack() {
+        if (_activePuzzle) return;
+        if (!_state || !_state.moveHistory || _state.moveHistory.length < 2) {
+            RoomRenderer.showMessage('Nowhere to go back to.', 1500);
+            return;
+        }
+        // Pop current room, peek at previous
+        _state.moveHistory.pop();
+        const prevRoom = _state.moveHistory[_state.moveHistory.length - 1];
+        if (!prevRoom || !_mapData.rooms[prevRoom]) return;
+
+        _state.currentRoom = prevRoom;
+        _state.moveCount++;
+
+        MapRenderer.update(_state);
+        MapRenderer.centerOnRoom(prevRoom);
+        _enterRoom(prevRoom, false);
+        _save();
+    }
+
+    // -------------------------------------------------------------------------
     // Public API
     // -------------------------------------------------------------------------
 
     return {
         init,
         moveTo,
+        goBack,
         startPuzzle,
         puzzleSolved,
         completeFloor,
