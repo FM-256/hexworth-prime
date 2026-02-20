@@ -917,10 +917,85 @@
             background: rgba(255, 255, 255, 0.04);
         }
 
+        .profile-badge-item.earned {
+            cursor: pointer;
+        }
+
         .profile-badge-item.earned:hover {
             border-color: var(--house-primary);
             background: rgba(255, 255, 255, 0.07);
             transform: translateY(-2px);
+        }
+
+        /* Badge detail popover */
+        .profile-badge-popover {
+            position: fixed;
+            z-index: 9999;
+            width: 240px;
+            background: #1a1a2e;
+            border: 1px solid #444;
+            border-radius: 12px;
+            padding: 16px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.6);
+            animation: badgePopIn 0.15s ease-out;
+            pointer-events: auto;
+        }
+
+        @keyframes badgePopIn {
+            from { opacity: 0; transform: scale(0.9); }
+            to   { opacity: 1; transform: scale(1); }
+        }
+
+        .profile-badge-popover-icon {
+            font-size: 2.2rem;
+            text-align: center;
+            margin-bottom: 8px;
+        }
+
+        .profile-badge-popover-name {
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: #eee;
+            text-align: center;
+            margin-bottom: 6px;
+        }
+
+        .profile-badge-popover-desc {
+            font-size: 0.75rem;
+            color: #999;
+            text-align: center;
+            line-height: 1.4;
+            margin-bottom: 10px;
+        }
+
+        .profile-badge-popover-meta {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.65rem;
+            color: #666;
+            border-top: 1px solid #333;
+            padding-top: 8px;
+        }
+
+        .profile-badge-popover-points {
+            color: #4ade80;
+            font-weight: 600;
+        }
+
+        .profile-badge-popover-close {
+            position: absolute;
+            top: 6px;
+            right: 10px;
+            background: none;
+            border: none;
+            color: #666;
+            font-size: 1rem;
+            cursor: pointer;
+            padding: 2px 6px;
+        }
+
+        .profile-badge-popover-close:hover {
+            color: #ccc;
         }
 
         .profile-badge-item.locked {
@@ -4023,7 +4098,17 @@
                     const a = earned[i];
                     const emoji = a.icon || iconMap[a.type] || '🏆';
                     const desc = a.description || a.name;
-                    html += `<div class="profile-badge-item earned" title="${escapeHtml(desc)}">
+                    const pts = a.points || 0;
+                    const cat = a.category || a.type || '';
+                    const achId = a.id || '';
+                    html += `<div class="profile-badge-item earned"
+                        data-ach-id="${escapeHtml(achId)}"
+                        data-ach-icon="${emoji}"
+                        data-ach-name="${escapeHtml(a.name)}"
+                        data-ach-desc="${escapeHtml(desc)}"
+                        data-ach-pts="${pts}"
+                        data-ach-cat="${escapeHtml(cat)}"
+                        onclick="showBadgePopover(event, this)">
                         <div class="profile-badge-emoji">${emoji}</div>
                         <div class="profile-badge-name">${escapeHtml(a.name)}</div>
                     </div>`;
@@ -4035,6 +4120,74 @@
                 }
             }
             return html;
+        }
+
+        /**
+         * showBadgePopover(event, el)
+         * Shows a detail popover when an earned badge is clicked.
+         */
+        function showBadgePopover(event, el) {
+            event.stopPropagation();
+
+            // Remove existing popover
+            const existing = document.querySelector('.profile-badge-popover');
+            if (existing) existing.remove();
+
+            const icon = el.dataset.achIcon;
+            const name = el.dataset.achName;
+            const desc = el.dataset.achDesc;
+            const pts = el.dataset.achPts;
+            const cat = el.dataset.achCat;
+            const achId = el.dataset.achId;
+
+            // Get unlock date from v2 storage
+            let dateStr = '';
+            try {
+                const v2 = JSON.parse(localStorage.getItem('hexworth_achievements_v2') || '{}');
+                const ts = v2?.unlocked?.[achId]?.unlockedAt;
+                if (ts) dateStr = new Date(ts).toLocaleDateString();
+            } catch {}
+
+            const popover = document.createElement('div');
+            popover.className = 'profile-badge-popover';
+            popover.innerHTML = `
+                <button class="profile-badge-popover-close" onclick="this.parentElement.remove()">&times;</button>
+                <div class="profile-badge-popover-icon">${icon}</div>
+                <div class="profile-badge-popover-name">${name}</div>
+                <div class="profile-badge-popover-desc">${desc}</div>
+                <div class="profile-badge-popover-meta">
+                    <span>${cat}</span>
+                    <span class="profile-badge-popover-points">+${pts} pts</span>
+                </div>
+                ${dateStr ? `<div style="text-align:center;font-size:0.6rem;color:#555;margin-top:6px;">Earned ${dateStr}</div>` : ''}
+            `;
+
+            document.body.appendChild(popover);
+
+            // Position near the clicked badge
+            const rect = el.getBoundingClientRect();
+            const popW = 240;
+            const popH = popover.offsetHeight;
+
+            let left = rect.left + (rect.width / 2) - (popW / 2);
+            let top = rect.top - popH - 8;
+
+            // Keep within viewport
+            if (top < 10) top = rect.bottom + 8;
+            if (left < 10) left = 10;
+            if (left + popW > window.innerWidth - 10) left = window.innerWidth - popW - 10;
+
+            popover.style.left = left + 'px';
+            popover.style.top = top + 'px';
+
+            // Close on outside click
+            function closeHandler(e) {
+                if (!popover.contains(e.target) && !el.contains(e.target)) {
+                    popover.remove();
+                    document.removeEventListener('click', closeHandler);
+                }
+            }
+            setTimeout(() => document.addEventListener('click', closeHandler), 0);
         }
 
         /**
