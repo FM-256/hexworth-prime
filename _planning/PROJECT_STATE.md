@@ -1,13 +1,17 @@
 # Hexworth Prime - Project State
 
-**Last Updated:** February 19, 2026
+**Last Updated:** February 19, 2026 (Session 3)
 **Updated By:** CCode-Opus4.6
-**Version:** 3.11.2 "INTEGRITY"
+**Version:** 4.7.0 "CONTAINMENT BREACH"
 
 ---
 
 ## CURRENT STATUS
 
+### 🐝 MILESTONE: v4.7.0 "CONTAINMENT BREACH" RELEASED! (The Hive Phase 2A — dungeon crawler engine + B-1 floor)
+### 🏰 NEW: THE HIVE PLANNED! (Underground facility escape rooms — 10 floors + Queen's Chamber, Resident Evil inspired)
+### 🎮 MILESTONE: CIPHER BUBBLES OVERHAUL! (Directional shooting, 6 rotating levels, continuous spawning, spawn shield)
+### 🔧 FIX: A+ CORE 2 Ch20-24 completion tracking (array lab storage + missing quiz checks)
 ### 🏆 MILESTONE: GLOBAL GAME SCOREBOARD COMPLETE! (Cloud Function anti-cheat, per-game top 10, Arcade integration)
 ### 🎮 MILESTONE: ARENA SERIES A COMPLETE! (20 boxes, A1-A20, Genesis Collective arc)
 ### 🖥️ MILESTONE: WSA GAUNTLET + OUTPOST FIXES! (State persistence, AD ops, briefings)
@@ -46,7 +50,173 @@
 
 ## WHAT JUST HAPPENED (Recent Session Summary)
 
-### February 19, 2026 - GLOBAL GAME SCOREBOARD SYSTEM
+### February 19, 2026 (Session 3) - THE HIVE PHASE 2A: CONTAINMENT BREACH
+
+```
++======================================================================+
+|         SESSION: THE HIVE — PHASE 2A IMPLEMENTATION                   |
+|         v4.7.0 "CONTAINMENT BREACH"                                  |
++======================================================================+
+|                                                                       |
+|  BUILT: Full dungeon crawler engine — 4 new JS modules (~2600 lines) |
+|  - HiveEngine.js: core game loop, save/load, puzzle integration       |
+|  - MapRenderer.js: SVG fog-of-war map, pan/zoom, player dot          |
+|  - RoomRenderer.js: room panel, typewriter, exit compass              |
+|  - Copied: RedQueen.js, PuzzleRenderer.js, compression-vault.json    |
+|                                                                       |
+|  B-1 FLOOR: 19-room underground facility                              |
+|  - Atmospheric horror writing (firstVisit/revisit/lore documents)     |
+|  - Room types: empty, puzzle, supply, locked, lore, elevator          |
+|  - Compression Vault puzzle wired into lab-2                          |
+|  - Lock system: locked-storage unlocks when puzzle solved             |
+|  - Critical path: 7 moves, entry → elevator                          |
+|                                                                       |
+|  21 QOL POLISH ITEMS (7 batches):                                     |
+|  1. Click-skip typewriter, lock tags, entry flash                     |
+|  2. ESC exits puzzle, adjacent pulse, discovery toast                 |
+|  3. Dismiss Red Queen, type-colored borders, reset view               |
+|  4. Controls hint, autosave flash, hover brighten                     |
+|  5. Tab title, header progress, blinking cursor                       |
+|  6. CRT scan lines, movement trail, back button                      |
+|  7. Ambient Red Queen, room fade, CRT flicker                        |
+|                                                                       |
+|  DASHBOARD: Hive card added to both normal + divergent user paths     |
+|                                                                       |
+|  NEXT: B-2 floor, inventory/supply mechanics, audio atmosphere,       |
+|        or new feature direction                                       |
++======================================================================+
+```
+
+### February 19, 2026 (Session 2) - THE HIVE PLANNING
+
+```
++======================================================================+
+|         SESSION: THE HIVE — FEATURE PLANNING                         |
+|         5 planning files created, 0 code changes                     |
++======================================================================+
+|                                                                       |
+|  CONCEPT: "The Hive" — standalone destination area (like Arctic,    |
+|  Arena, Arcade). Underground multi-level facility inspired by        |
+|  Resident Evil's Hive. Cross-section hub view, 10 floors + hidden   |
+|  Queen's Chamber. Each floor = escape room with timed puzzles.       |
+|                                                                       |
+|  SOURCE: Compression Basics Overview.pdf (47 pages)                  |
+|  - Full educational content: RLE, Huffman, LZW, image/audio/video    |
+|    compression, lossless vs lossy, compression ratios, GPU NVENC     |
+|  - 2 pre-designed escape rooms with puzzle sequences + answer keys   |
+|                                                                       |
+|  FLOOR PLAN:                                                          |
+|  B-1  Compression Vault (Forge) ........ Beginner                    |
+|  B-2  Cipher Break (Key) ............... Beginner                    |
+|  B-3  Packet Panic (Shield) ............ Intermediate                |
+|  B-4  Logic Lockdown (Script) .......... Intermediate                |
+|  B-5  Media Rescue (Forge/Cloud) ....... Intermediate                |
+|  B-6  Cloud Breach (Cloud/Key) ......... Advanced                    |
+|  B-7  Huffman's Vault (Forge/Script) ... Advanced                    |
+|  B-8  The Hash Heist (Key) ............. Advanced                    |
+|  B-9  Web Trap (Web/Key) ............... Advanced                    |
+|  B-10 Incident Response (All) .......... Expert                      |
+|  ???  Queen's Chamber .................. Elite (hidden)               |
+|                                                                       |
+|  RED QUEEN: Antagonist AI narrator — delivers puzzles, taunts on     |
+|  wrong answers, warns on timer. Terminal-style typewriter text.       |
+|                                                                       |
+|  ── PLANNING FILES (_planning/_Escape_rooms/) ───────────────────    |
+|                                                                       |
+|  1. ESCAPE_ROOMS_VISION.md → "The Hive" feature vision               |
+|     - Cross-section hub page, floor unlock progression                |
+|     - Dashboard destination card + footer link                        |
+|     - Red Queen antagonist design                                     |
+|     - Achievement series (First Descent → Queen Slayer)              |
+|                                                                       |
+|  2. COMPRESSION_VAULT.md → Floor B-1 (Forge)                        |
+|     - 5 puzzles: RLE encode/decode, compression targets, bandwidth   |
+|     - Final code: 5-1-3-13-1                                         |
+|     - CompTIA A+ Core 1 objective mapping                            |
+|                                                                       |
+|  3. CIPHER_BREAK.md → Floor B-2 (Key)                               |
+|     - 5 puzzles: Caesar cipher, binary, MD5, encryption types, HTTPS |
+|     - Final code: 5-2-8-2-3                                          |
+|     - CompTIA Security+ objective mapping                            |
+|                                                                       |
+|  4. IMPLEMENTATION_PLAN.md                                            |
+|     - Data-driven JSON floor definitions (one engine, many floors)   |
+|     - 4 components: HiveEngine, PuzzleRenderer, FloorBuilder,        |
+|       RedQueen                                                        |
+|     - File structure: _app/hive/ (follows Arena/Arctic pattern)      |
+|     - 4 phases: Hub+Engine → Unlock+Polish → B3-B5 → B6-B10+Queen  |
+|                                                                       |
+|  5. CONTENT_MAP.md                                                    |
+|     - PDF topic → floor mapping (used vs unused content)             |
+|     - 3 additional floor candidates from unused PDF material         |
+|     - Cross-house floor ideas + difficulty progression                |
+|                                                                       |
++----------------------------------------------------------------------+
+```
+
+### February 19, 2026 - SCOREBOARD + CIPHER BUBBLES + CORE 2 FIXES
+
+```
++======================================================================+
+|         SESSION: SCOREBOARD, GAME OVERHAUL, BUG FIXES                |
+|         10 files modified/created, 8 commits, 3 deploys              |
++======================================================================+
+|                                                                       |
+|  ── CIPHER BUBBLES OVERHAUL ─────────────────────────────────────    |
+|                                                                       |
+|  DIRECTIONAL SHOOTING:                                                |
+|  - Arrow + SPACE shoots up, left, or right                           |
+|  - Horizontal shots decelerate then float upward (Bubble Bobble arc) |
+|  - SPACE alone shoots in facing direction                             |
+|                                                                       |
+|  MARIO BROS ARCADE LAYOUT:                                            |
+|  - Screen wrapping: walk off left edge, appear on right (and vice    |
+|    versa) — applies to player, enemies, and shots                    |
+|  - Fall off bottom → reappear at top (player wraps, enemies removed) |
+|  - Split floor with gaps for vertical movement                       |
+|                                                                       |
+|  6 ROTATING LEVELS (cycle every wave):                                |
+|  - FIREWALL (gold) — split floor, wide tiers                        |
+|  - HONEYPOT (green) — dual staircases, center bridges                |
+|  - DMZ (blue) — triple-split floor, column platforms                 |
+|  - SANDBOX (purple) — side-only floor, zigzag platforms              |
+|  - DARKNET (red) — narrow center floor, ring layout                  |
+|  - ZERO DAY (orange) — fragmented floor, scattered small platforms   |
+|  - Platform accent color matches current level                       |
+|                                                                       |
+|  DIFFICULTY SCALING (per full cycle through all 6):                   |
+|  - Enemy speed +15%, bubble escape timer -8% (min 50%)               |
+|  - Enemy count +2 (cap 20), HP +1 after 2 cycles                    |
+|  - Points +25% per cycle to reward survival                          |
+|  - "CYCLE X — DIFFICULTY UP" warning on wave transition              |
+|                                                                       |
+|  CONTINUOUS SPAWNING (score-target wave system):                      |
+|  - Waves advance when wave score target is reached, not kill-all     |
+|  - Targets: 150 + 75 per wave (Wave 1: 150, Wave 5: 450, etc.)     |
+|  - Enemies continuously spawn to maintain on-screen cap              |
+|  - Fallen enemies removed and replaced by spawner                    |
+|  - UI shows wave completion %: WAVE 3 — DMZ [62%]                   |
+|  - Lore panel shows TARGET: 180/300                                  |
+|                                                                       |
+|  SPAWN SHIELD:                                                        |
+|  - 3-second invincibility at start of every wave                     |
+|  - Blue pulsing bubble visual, blinks in last second                 |
+|  - Enemy collisions ignored while active                             |
+|                                                                       |
+|  ── A+ CORE 2 COMPLETION FIX ────────────────────────────────────    |
+|                                                                       |
+|  BUG: Ch20-24 not marking complete on course index                   |
+|  ROOT CAUSE (2 issues):                                               |
+|  1. checkKey() only recognized { completed: true } but labs store    |
+|     { completed: [1,2,3,...] } — fixed to accept arrays              |
+|  2. Ch20-24 missing quiz fallback checks — quizzes store in          |
+|     hexworth_progress.forge but index never checked that path        |
+|  FIX: All 12 chapters (13-24) now detect lab, index button, or quiz |
+|                                                                       |
++----------------------------------------------------------------------+
+```
+
+#### GLOBAL GAME SCOREBOARD SYSTEM
 
 ```
 +======================================================================+
