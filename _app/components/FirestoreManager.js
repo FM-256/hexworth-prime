@@ -493,13 +493,20 @@ const FirestoreManager = (function() {
 
     /**
      * Mark user as grandfathered (founding member)
+     * NOTE: tier/grandfathered are protected fields — this requires admin context.
+     * Call from Firebase console or a Cloud Function, not from client-side code.
      */
     async function grandfatherUser(uid) {
-        return await setUserProfile(uid, {
-            tier: TIERS.FOUNDING_MEMBER,
-            grandfathered: true,
-            grandfatheredAt: new Date().toISOString()
-        });
+        if (typeof FirebaseAuth !== 'undefined' && FirebaseAuth.isSignedIn()) {
+            try {
+                await FirebaseAuth.callFunction('syncProgress', {
+                    // syncProgress won't write tier/grandfathered, but this is a
+                    // placeholder. A dedicated CF should be created for grandfathering.
+                });
+            } catch (e) { /* ignore */ }
+        }
+        console.warn('[FirestoreManager] grandfatherUser requires admin SDK — use Firebase console');
+        return false;
     }
 
     /**

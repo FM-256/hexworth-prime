@@ -675,9 +675,16 @@ exports.syncProgress = onCall(cfOptions, async (request) => {
     const localData = request.data || {};
 
     // Validate arrays to prevent injection
-    const sanitizeArray = (arr) => {
+    const sanitizeStringArray = (arr) => {
         if (!Array.isArray(arr)) return [];
         return arr.filter(item => typeof item === 'string').slice(0, 1000);
+    };
+
+    const sanitizeFavorites = (arr) => {
+        if (!Array.isArray(arr)) return [];
+        return arr.filter(f => f && typeof f === 'object' && typeof f.id === 'string')
+            .map(f => ({ id: f.id, title: String(f.title || ''), addedAt: String(f.addedAt || '') }))
+            .slice(0, 500);
     };
 
     const sanitizeQuizzes = (obj) => {
@@ -694,13 +701,13 @@ exports.syncProgress = onCall(cfOptions, async (request) => {
         return clean;
     };
 
-    const localModules = sanitizeArray(localData.modulesCompleted);
-    const localLabs = sanitizeArray(localData.labsCompleted);
-    const localAchievements = sanitizeArray(localData.achievements);
+    const localModules = sanitizeStringArray(localData.modulesCompleted);
+    const localLabs = sanitizeStringArray(localData.labsCompleted);
+    const localAchievements = sanitizeStringArray(localData.achievements);
     const localQuizzes = sanitizeQuizzes(localData.quizzes);
     const localXP = Math.max(0, Math.min(1000000, parseInt(localData.xp) || 0));
     const localStreak = Math.max(0, Math.min(10000, parseInt(localData.streak) || 0));
-    const localFavorites = sanitizeArray(localData.favorites);
+    const localFavorites = sanitizeFavorites(localData.favorites);
 
     // Get cloud profile
     const userRef = db.doc(`users/${uid}`);
@@ -722,11 +729,23 @@ exports.syncProgress = onCall(cfOptions, async (request) => {
         }
     }
 
+    // Merge favorites (union by ID)
+    const cloudFavorites = Array.isArray(cloudData.favorites) ? cloudData.favorites : [];
+    const favIdSet = new Set(cloudFavorites.map(f => f && f.id).filter(Boolean));
+    const mergedFavorites = [...cloudFavorites];
+    for (const fav of localFavorites) {
+        if (!favIdSet.has(fav.id)) {
+            favIdSet.add(fav.id);
+            mergedFavorites.push(fav);
+        }
+    }
+
     await userRef.set({
         modulesCompleted: mergedModules,
         labsCompleted: mergedLabs,
         achievements: mergedAchievements,
         quizzes: mergedQuizzes,
+        favorites: mergedFavorites,
         xp: mergedXP,
         streak: mergedStreak,
         updatedAt: FieldValue.serverTimestamp()
