@@ -58,9 +58,12 @@ const AccessGuard = (function() {
         if (appIndex !== -1) {
             return path.substring(0, appIndex + 6);  // Include /_app/
         }
-        // Fallback: count directory depth
-        const depth = (path.match(/\//g) || []).length - 1;
-        return '../'.repeat(Math.max(0, depth - 1));
+        // Fallback: count directory segments above the file
+        // /workshop/index.html → 1 dir up → '../'
+        // /workshop/           → 1 dir up → '../'
+        // /dark-arts/vault/x   → 2 dirs up → '../../'
+        const segments = path.replace(/\/[^/]*$/, '').split('/').filter(Boolean);
+        return segments.length > 0 ? '../'.repeat(segments.length) : './';
     }
 
     // Check if user has God Mode (bypasses all checks)
