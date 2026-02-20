@@ -100,6 +100,17 @@ const RoomRenderer = (() => {
                 min-height: 60px;
             }
 
+            /* Typewriter cursor */
+            @keyframes hive-cursor-blink {
+                0%, 100% { opacity: 1; }
+                50%      { opacity: 0; }
+            }
+            .hive-cursor {
+                display: inline;
+                color: #cc0000;
+                animation: hive-cursor-blink 0.7s step-end infinite;
+            }
+
             /* Lore documents */
             .hive-lore-doc {
                 margin-top: 16px;
@@ -684,28 +695,34 @@ const RoomRenderer = (() => {
 
         let index = 0;
         let done = false;
-        el.textContent = '';
+        el.innerHTML = '';
 
-        // Click anywhere in desc panel to skip
-        function skipHandler() {
+        // Blinking cursor element
+        const cursor = document.createElement('span');
+        cursor.className = 'hive-cursor';
+        cursor.textContent = '\u258A';
+        el.appendChild(cursor);
+
+        function _finish() {
             if (done) return;
             done = true;
             _clearTypewriter();
-            el.textContent = text;
+            el.textContent = text;  // removes cursor
             _descPanel.removeEventListener('click', skipHandler);
             if (onDone) onDone();
         }
+
+        // Click anywhere in desc panel to skip
+        function skipHandler() { _finish(); }
         _descPanel.addEventListener('click', skipHandler);
 
         _typewriterTimer = setInterval(() => {
             if (index < text.length) {
-                el.textContent += text[index];
+                // Insert character before cursor
+                cursor.before(text[index]);
                 index++;
             } else {
-                done = true;
-                _clearTypewriter();
-                _descPanel.removeEventListener('click', skipHandler);
-                if (onDone) onDone();
+                _finish();
             }
         }, TYPEWRITER_SPEED);
     }

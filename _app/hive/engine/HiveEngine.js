@@ -380,6 +380,14 @@ var HiveEngine = (() => {
         // Show room
         RoomRenderer.showRoom(roomWithId, isFirstVisit, _state);
 
+        // Update browser tab + header progress
+        document.title = 'The Hive \u2014 ' + (room.name || roomId);
+        const headerDepth = document.querySelector('.hive-header-depth');
+        if (headerDepth) {
+            const total = Object.keys(_mapData.rooms).length;
+            headerDepth.textContent = _state.visited.length + '/' + total + ' EXPLORED';
+        }
+
         // Update map
         MapRenderer.update(_state);
     }
