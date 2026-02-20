@@ -117,8 +117,8 @@ const AccessGuard = (function() {
 
             if (!FirebaseAuth.isSignedIn()) return null; // can't verify unsigned users
 
-            const claims = await FirebaseAuth.getCustomClaims();
-            return claims.admin === true;
+            // Use FirebaseAuth's resolved admin status (claims + email allowlist)
+            return FirebaseAuth.isAdmin();
         } catch (e) {
             console.warn('[AccessGuard] Admin verification error:', e);
             return null; // inconclusive — don't punish on error

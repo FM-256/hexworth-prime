@@ -144,8 +144,11 @@ const FirebaseAuth = (function() {
                 const tokenResult = await user.getIdTokenResult();
                 isAdmin = tokenResult.claims.admin === true;
             } catch (e) {
-                // Fallback: email allowlist (offline / first-time before claims set)
-                isAdmin = user.email ? config.adminEmails.includes(user.email.toLowerCase()) : false;
+                isAdmin = false;
+            }
+            // Email allowlist fallback (covers period before Cloud Function sets claims)
+            if (!isAdmin && user.email) {
+                isAdmin = config.adminEmails.includes(user.email.toLowerCase());
             }
 
             // Cache to localStorage for file:// persistence and sync AccessGuard checks
