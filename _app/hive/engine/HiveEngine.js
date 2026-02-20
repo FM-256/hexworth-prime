@@ -13,7 +13,7 @@
  *   HiveEngine._onHintUsed(cost)         — PuzzleRenderer callback
  */
 
-const HiveEngine = (() => {
+var HiveEngine = (() => {
 
     // -------------------------------------------------------------------------
     // Constants
