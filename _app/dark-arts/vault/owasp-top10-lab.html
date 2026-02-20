@@ -2876,7 +2876,7 @@ app.get('/api/preview', async (req, res) => {
     }
 
     // Show quiz question
-    function showQuizQuestion() {
+    async function showQuizQuestion() {
       const qIndex = appState.currentQuizQuestion;
       const question = quizQuestions[qIndex];
       const userAnswer = appState.quizAnswers[qIndex];
@@ -2887,27 +2887,32 @@ app.get('/api/preview', async (req, res) => {
       document.getElementById('quizProgressFill').style.width = progress + '%';
       document.getElementById('quizProgressFill').textContent = Math.round(progress) + '%';
 
+      // Build options HTML with async hash checks
+      let optionsHtml = '';
+      for (let i = 0; i < question.options.length; i++) {
+        const option = question.options[i];
+        let className = 'option';
+        if (userAnswer && appState.quizSubmitted) {
+          if (await _sha256(qIndex + ':' + i) === question.correctHash) className += ' correct';
+          else if (i === userAnswer.selected) className += ' incorrect';
+        } else if (userAnswer && i === userAnswer.selected) {
+          className += ' selected';
+        }
+        optionsHtml += `
+          <div class="${className}" onclick="selectQuizOption(${i})">
+            <div class="option-letter">${String.fromCharCode(65 + i)}</div>
+            <span>${option}</span>
+          </div>
+        `;
+      }
+
       const container = document.getElementById('quizQuestions');
       container.innerHTML = `
         <div class="question-card">
           <div class="question-number">Question ${qIndex + 1} - ${question.category}</div>
           <div class="question-text">${question.question}</div>
           <div class="options">
-            ${question.options.map((option, i) => {
-              let className = 'option';
-              if (userAnswer && appState.quizSubmitted) {
-                if (await _sha256(index + ':' + i) === question.correctHash) className += ' correct';
-                else if (i === userAnswer.selected) className += ' incorrect';
-              } else if (userAnswer && i === userAnswer.selected) {
-                className += ' selected';
-              }
-              return `
-                <div class="${className}" onclick="selectQuizOption(${i})">
-                  <div class="option-letter">${String.fromCharCode(65 + i)}</div>
-                  <span>${option}</span>
-                </div>
-              `;
-            }).join('')}
+            ${optionsHtml}
           </div>
         </div>
       `;
@@ -2919,7 +2924,7 @@ app.get('/api/preview', async (req, res) => {
     }
 
     // Select quiz option
-    function selectQuizOption(optionIndex) {
+    async function selectQuizOption(optionIndex) {
       if (appState.quizSubmitted) return;
 
       const qIndex = appState.currentQuizQuestion;
