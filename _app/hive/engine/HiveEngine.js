@@ -89,9 +89,6 @@ const HiveEngine = (() => {
             RedQueen.init(_mapData.depthTier || 'pristine');
         }
 
-        // Initialize RoomRenderer
-        RoomRenderer.init(_roomContainer);
-
         // Check for existing save
         const saved = _loadSave();
         if (saved && saved.floor === FLOOR_ID && !saved.floorComplete) {
@@ -161,6 +158,7 @@ const HiveEngine = (() => {
         resumeBtn.onmouseout = () => { resumeBtn.style.background = 'transparent'; };
         resumeBtn.onclick = () => {
             _state = savedState;
+            RoomRenderer.init(_roomContainer);
             _initializeMap();
             _enterRoom(_state.currentRoom, false);
             MapRenderer.centerOnRoom(_state.currentRoom);
@@ -210,6 +208,7 @@ const HiveEngine = (() => {
 
     function _startFresh() {
         _state = _newState();
+        RoomRenderer.init(_roomContainer);
         _initializeMap();
         _enterRoom('entry', true);
         MapRenderer.centerOnRoom('entry');
