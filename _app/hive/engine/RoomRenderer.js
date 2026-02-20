@@ -246,6 +246,20 @@ const RoomRenderer = (() => {
                 color: rgba(255,255,255,0.2);
                 margin-left: auto;
             }
+            .hive-exit-lock {
+                color: #ff4444;
+                font-size: 0.7rem;
+                margin-left: 4px;
+            }
+
+            /* Room entry flash */
+            @keyframes hive-room-flash {
+                0%   { border-left-color: #ff2222; box-shadow: inset 3px 0 12px rgba(204,0,0,0.3); }
+                100% { border-left-color: #cc0000; box-shadow: none; }
+            }
+            .hive-desc-text.flash {
+                animation: hive-room-flash 0.5s ease-out;
+            }
 
             /* Message overlay */
             .hive-message-overlay {
@@ -413,6 +427,11 @@ const RoomRenderer = (() => {
         const descEl = document.createElement('div');
         descEl.className = 'hive-desc-text';
         _descPanel.appendChild(descEl);
+
+        // Flash on first visit
+        if (isFirstVisit) {
+            descEl.classList.add('flash');
+        }
 
         // Choose text based on visit status
         let descText;
@@ -582,7 +601,12 @@ const RoomRenderer = (() => {
             const roomName = _getTargetRoomName(targetId);
             const visited = (state.visited || []).includes(targetId);
 
-            btn.innerHTML = `<span class="hive-exit-dir">${dirLabel}</span> <span class="hive-exit-name">${roomName}</span>${visited ? ' <span class="hive-exit-visited">\u2713</span>' : ''}<span class="hive-exit-key">${keyHints[dir] || ''}</span>`;
+            // Check if target room is locked
+            const targetRoom = (window.HiveMapData && window.HiveMapData.rooms) ? window.HiveMapData.rooms[targetId] : null;
+            const isLocked = targetRoom && targetRoom.type === 'locked' && !_isUnlocked(targetRoom, state);
+            const lockIcon = isLocked ? '<span class="hive-exit-lock">[LOCKED]</span>' : '';
+
+            btn.innerHTML = `<span class="hive-exit-dir">${dirLabel}</span> <span class="hive-exit-name">${roomName}</span>${lockIcon}${visited ? ' <span class="hive-exit-visited">\u2713</span>' : ''}<span class="hive-exit-key">${keyHints[dir] || ''}</span>`;
 
             btn.onclick = () => {
                 if (window.HiveEngine && window.HiveEngine.moveTo) {
@@ -659,14 +683,28 @@ const RoomRenderer = (() => {
         _clearTypewriter();
 
         let index = 0;
+        let done = false;
         el.textContent = '';
+
+        // Click anywhere in desc panel to skip
+        function skipHandler() {
+            if (done) return;
+            done = true;
+            _clearTypewriter();
+            el.textContent = text;
+            _descPanel.removeEventListener('click', skipHandler);
+            if (onDone) onDone();
+        }
+        _descPanel.addEventListener('click', skipHandler);
 
         _typewriterTimer = setInterval(() => {
             if (index < text.length) {
                 el.textContent += text[index];
                 index++;
             } else {
+                done = true;
                 _clearTypewriter();
+                _descPanel.removeEventListener('click', skipHandler);
                 if (onDone) onDone();
             }
         }, TYPEWRITER_SPEED);
