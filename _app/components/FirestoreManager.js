@@ -61,6 +61,163 @@ const FirestoreManager = (function() {
         favorites: 'hexworth_favorites'
     };
 
+    // Gate localStorage keys (not in LOCALSTORAGE_KEYS because they use a different pattern)
+    const GATE_STORAGE_PREFIX = 'gate';
+    const GATE_STORAGE_SUFFIX = '_complete';
+    const DARK_ARTS_UNLOCKED_KEY = 'dark_arts_unlocked';
+
+    // ─── Bulk localStorage Sync (Cross-Device Persistence) ───────────
+    // Keys matching these prefixes/exact names are EXCLUDED from sync
+    // (device-local, session, cache, or migration-specific)
+    const SYNC_EXCLUDED_KEYS = new Set([
+        'hexworth_firebase_user', 'hexworth_firebase_admin', 'hexworth_uid',
+        'hexworth_device_id', 'hexworth_migrated_to_firestore', 'hexworth_gt_v2',
+        'hexworth_progress_migrated', 'hexworth_auto_backup', 'hexworth_backup_offered',
+        'hexworth_active_tab', 'hexworth_retake_sorting', 'hexworth_synced_activity',
+        'hexworth_sync_queue', 'hexworth_version_cache', 'hexworth_start_times',
+        'hexworth_github_token', 'hexworth_github_client_id', 'hexworth_github_gist_id',
+        'hexworth_enrolled_classes', 'glitch_firefly_spawned',
+        'hexworth_hed_log', 'hexworth_hed_enabled', 'hexworth_hed_pending'
+    ]);
+    const SYNC_EXCLUDED_PREFIXES = [
+        'hexworth_house_tab_', 'skill-tree-', 'clh031-panel-',
+        'leaderboard_cache_', 'ring_', 'oasis_'
+    ];
+    const SYNC_MAX_VALUE_SIZE = 10000;  // 10KB per value
+    const SYNC_MAX_KEYS = 300;
+
+    /**
+     * Restore gate completion progress from Firestore subcollection to localStorage.
+     * Reads users/{uid}/gates/* and sets gate{N}_complete + dark_arts_unlocked flags.
+     * Called by restoreFromCloud and syncBidirectional.
+     *
+     * @param {string} uid - Firebase UID
+     * @returns {object} - { gatesRestored: number, maxGate: number }
+     */
+    async function _restoreGateProgress(uid) {
+        try {
+            const { collection, doc, getDocs } = window.firebaseFirestore;
+            const gatesRef = collection(doc(db, COLLECTIONS.USERS, uid), 'gates');
+            const snapshot = await getDocs(gatesRef);
+
+            let gatesRestored = 0;
+            let maxGate = 0;
+
+            snapshot.forEach(gateDoc => {
+                const data = gateDoc.data();
+                if (data.completed) {
+                    const gateNum = data.gateNumber || parseInt(gateDoc.id.replace('gate', ''));
+                    if (gateNum) {
+                        localStorage.setItem(`${GATE_STORAGE_PREFIX}${gateNum}${GATE_STORAGE_SUFFIX}`, 'true');
+                        gatesRestored++;
+                        if (gateNum > maxGate) maxGate = gateNum;
+                    }
+                }
+            });
+
+            // If gate 5 or higher is completed, unlock the Dark Arts vault
+            if (maxGate >= 5) {
+                localStorage.setItem(DARK_ARTS_UNLOCKED_KEY, 'true');
+            }
+
+            if (gatesRestored > 0) {
+                console.log(`[FirestoreManager] Restored ${gatesRestored} gate(s) from cloud (max: gate ${maxGate})`);
+            }
+
+            return { gatesRestored, maxGate };
+        } catch (error) {
+            console.warn('[FirestoreManager] Gate progress restore failed:', error.message);
+            return { gatesRestored: 0, maxGate: 0 };
+        }
+    }
+
+    /**
+     * Check if a localStorage key should be synced across devices.
+     */
+    function _isSyncableKey(key) {
+        if (!key || typeof key !== 'string') return false;
+        if (SYNC_EXCLUDED_KEYS.has(key)) return false;
+        for (const prefix of SYNC_EXCLUDED_PREFIXES) {
+            if (key.startsWith(prefix)) return false;
+        }
+        return true;
+    }
+
+    /**
+     * Collect all syncable localStorage key-value pairs.
+     * Returns a plain object suitable for Firestore storage.
+     */
+    function _collectSyncableState() {
+        const state = {};
+        let count = 0;
+        for (let i = 0; i < localStorage.length && count < SYNC_MAX_KEYS; i++) {
+            const key = localStorage.key(i);
+            if (!_isSyncableKey(key)) continue;
+            const value = localStorage.getItem(key);
+            if (value !== null && value.length <= SYNC_MAX_VALUE_SIZE) {
+                state[key] = value;
+                count++;
+            }
+        }
+        return state;
+    }
+
+    /**
+     * Write bulk localStorage sync blob to Firestore.
+     * Stored at users/{uid}/sync/localStorage for clean separation.
+     */
+    async function _writeSyncBlob(uid) {
+        try {
+            const { doc, setDoc, serverTimestamp } = window.firebaseFirestore;
+            const syncRef = doc(db, COLLECTIONS.USERS, uid, 'sync', 'localStorage');
+            const state = _collectSyncableState();
+            await setDoc(syncRef, {
+                data: state,
+                keyCount: Object.keys(state).length,
+                syncedAt: serverTimestamp()
+            });
+            console.log(`[FirestoreManager] Sync blob written (${Object.keys(state).length} keys)`);
+        } catch (error) {
+            console.warn('[FirestoreManager] Sync blob write failed:', error.message);
+        }
+    }
+
+    /**
+     * Restore bulk localStorage from Firestore sync blob.
+     * Only restores keys that don't already exist locally (no overwrite).
+     */
+    async function _restoreSyncBlob(uid) {
+        try {
+            const { doc, getDoc } = window.firebaseFirestore;
+            const syncRef = doc(db, COLLECTIONS.USERS, uid, 'sync', 'localStorage');
+            const snapshot = await getDoc(syncRef);
+
+            if (!snapshot.exists()) {
+                console.log('[FirestoreManager] No sync blob found');
+                return 0;
+            }
+
+            const { data } = snapshot.data();
+            if (!data || typeof data !== 'object') return 0;
+
+            let restored = 0;
+            for (const [key, value] of Object.entries(data)) {
+                if (typeof value !== 'string') continue;
+                // Only restore keys that are missing locally
+                if (localStorage.getItem(key) === null) {
+                    localStorage.setItem(key, value);
+                    restored++;
+                }
+            }
+
+            console.log(`[FirestoreManager] Sync blob restored (${restored} new keys from ${Object.keys(data).length} total)`);
+            return restored;
+        } catch (error) {
+            console.warn('[FirestoreManager] Sync blob restore failed:', error.message);
+            return 0;
+        }
+    }
+
     /**
      * Initialize Firestore
      */
@@ -790,6 +947,10 @@ const FirestoreManager = (function() {
 
             console.log('[FirestoreManager] Restoring from cloud:', profile);
 
+            // First: restore bulk sync blob (sets ALL syncable keys from last device)
+            // This runs first so specific field restores below can override if needed
+            const bulkRestored = await _restoreSyncBlob(uid);
+
             // Restore house
             if (profile.house) {
                 localStorage.setItem(LOCALSTORAGE_KEYS.house, profile.house);
@@ -886,6 +1047,9 @@ const FirestoreManager = (function() {
                 console.log('[FirestoreManager] Existing progress found, not overwriting:', existingProgress);
             }
 
+            // Restore gate completion progress from subcollection
+            const gateResult = await _restoreGateProgress(uid);
+
             console.log('[FirestoreManager] Cloud data restored to localStorage');
 
             return {
@@ -893,7 +1057,8 @@ const FirestoreManager = (function() {
                 house: profile.house || null,
                 theme: theme,
                 profile: profile,
-                hasHouse: !!profile.house
+                hasHouse: !!profile.house,
+                gatesRestored: gateResult.gatesRestored
             };
         } catch (error) {
             console.error('[FirestoreManager] Failed to restore from cloud:', error);
@@ -1046,6 +1211,10 @@ const FirestoreManager = (function() {
                 localStorage.setItem(LOCALSTORAGE_KEYS.house, cloudProfile.house);
             }
 
+            // 6b. Restore gate completion progress from subcollection
+            const gateResult = await _restoreGateProgress(uid);
+            if (gateResult.gatesRestored > 0) addedToLocal += gateResult.gatesRestored;
+
             // 7. Write merged data to Firestore via Cloud Function (server authority)
             if (typeof FirebaseAuth !== 'undefined' && FirebaseAuth.isSignedIn()) {
                 try {
@@ -1062,6 +1231,9 @@ const FirestoreManager = (function() {
                     console.warn('[FirestoreManager] Cloud sync failed, data saved locally:', syncErr.message);
                 }
             }
+
+            // 8. Write bulk localStorage sync blob (captures ALL syncable state)
+            await _writeSyncBlob(uid);
 
             console.log(`[FirestoreManager] Bidirectional sync complete: +${addedToLocal} to local, +${addedToCloud} to cloud`);
 

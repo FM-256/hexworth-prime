@@ -337,8 +337,8 @@ exports.submitGameScore = onCall(cfOptions, async (request) => {
 // To generate: echo -n "YOUR-CODE" | sha256sum
 // Set via: firebase functions:secrets:set HANDLER_CODE_HASH / ADMIN_CODE_HASH
 // Fallback: hardcoded hashes below (replace with secrets for production)
-const HANDLER_CODE_HASH = 'b0f3dc25c18a7e0e138e4e30e3f3f3d3c17c2d3e7e8f7a6d5c4b3a2918070615';
-const ADMIN_CODE_HASH = 'a1e2d3c4b5a6978869504132231405060708091011121314151617181920212223';
+const HANDLER_CODE_HASH = '2868c7d1501fc994c6ebd8c607d2caf015f868bb90f719572ab22a1520a35703';
+const ADMIN_CODE_HASH = 'f7887a0e7faed00e12d68921e3403fe1fd17c70aa44319267b952dd709e39e75';
 
 /**
  * validateActivationCode — Server-side handler/admin code validation.
