@@ -447,21 +447,27 @@ exports.validateGateAnswer = onCall(cfOptions, async (request) => {
 
     // ── Rate limiting: 5 attempts per gate per 60 seconds ──
     const attemptsRef = db.collection(`users/${uid}/gate_attempts`);
-    const recentAttempts = await attemptsRef
-        .where('gateNumber', '==', gateNum)
-        .where('timestamp', '>', new Date(Date.now() - 60000))
-        .get();
+    try {
+        const recentAttempts = await attemptsRef
+            .where('gateNumber', '==', gateNum)
+            .where('timestamp', '>', new Date(Date.now() - 60000))
+            .get();
 
-    if (recentAttempts.size >= 5) {
-        throw new HttpsError('resource-exhausted',
-            'Too many attempts. Wait 60 seconds before trying again.');
+        if (recentAttempts.size >= 5) {
+            throw new HttpsError('resource-exhausted',
+                'Too many attempts. Wait 60 seconds before trying again.');
+        }
+    } catch (e) {
+        // Rethrow rate-limit errors, swallow index-not-ready errors
+        if (e instanceof HttpsError) throw e;
+        console.warn('Rate limit query failed (index may be building):', e.message);
     }
 
-    // Log the attempt
-    await attemptsRef.add({
+    // Log the attempt (non-blocking — don't let this fail the validation)
+    attemptsRef.add({
         gateNumber: gateNum,
         timestamp: FieldValue.serverTimestamp()
-    });
+    }).catch(e => console.warn('Attempt log failed:', e.message));
 
     // ── Determine cipher set (monthly rotation) ──
     const setIndex = new Date().getMonth() % 4;

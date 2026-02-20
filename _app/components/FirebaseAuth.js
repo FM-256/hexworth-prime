@@ -93,12 +93,14 @@ const FirebaseAuth = (function() {
                 app = getApps()[0];
             }
 
-            // Initialize App Check (HTTPS only — skip on file:// protocol)
-            if (window.firebaseAppCheck && window.location.protocol === 'https:') {
+            // Initialize App Check (HTTPS only — skip on file:// and skip if no real key)
+            const RECAPTCHA_KEY = 'RECAPTCHA_SITE_KEY_PLACEHOLDER';
+            if (window.firebaseAppCheck && window.location.protocol === 'https:'
+                && RECAPTCHA_KEY !== 'RECAPTCHA_SITE_KEY' + '_PLACEHOLDER') {
                 try {
                     const { initializeAppCheck, ReCaptchaV3Provider } = window.firebaseAppCheck;
                     initializeAppCheck(app, {
-                        provider: new ReCaptchaV3Provider('RECAPTCHA_SITE_KEY_PLACEHOLDER'),
+                        provider: new ReCaptchaV3Provider(RECAPTCHA_KEY),
                         isTokenAutoRefreshEnabled: true
                     });
                     console.log('[FirebaseAuth] App Check initialized');

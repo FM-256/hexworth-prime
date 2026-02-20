@@ -51,6 +51,17 @@ const GATE_CIPHER = (() => {
      * Falls back to client-side check if user is not authenticated.
      */
     async function checkAnswerServer(gateNumber, input) {
+        // Auto-initialize Firebase Auth if available but not yet initialized
+        // (gate pages load FirebaseAuth.js but don't call init())
+        if (typeof FirebaseAuth !== 'undefined' && !FirebaseAuth.isSignedIn()) {
+            try {
+                await FirebaseAuth.init();
+                await FirebaseAuth.waitForAuth();
+            } catch (e) {
+                // init failed — fall through to null (offline fallback)
+            }
+        }
+
         // If FirebaseAuth is available and user is signed in, use server
         if (typeof FirebaseAuth !== 'undefined' && FirebaseAuth.isSignedIn()) {
             try {
@@ -115,11 +126,7 @@ const GATE_CIPHER = (() => {
 
     return {
         VERSION,
-        SETS,
-        sha256,
         checkAnswerServer,
-        checkAnswer,
-        checkBindingWord,
         getSetIndex,
         getCurrentSet,
         checkVersion

@@ -164,19 +164,34 @@ const FirestoreManager = (function() {
 
     /**
      * Write bulk localStorage sync blob to Firestore.
+     * Merges with existing cloud data so a sparse device can't overwrite a full device's blob.
      * Stored at users/{uid}/sync/localStorage for clean separation.
      */
     async function _writeSyncBlob(uid) {
         try {
-            const { doc, setDoc, serverTimestamp } = window.firebaseFirestore;
+            const { doc, setDoc, getDoc, serverTimestamp } = window.firebaseFirestore;
             const syncRef = doc(db, COLLECTIONS.USERS, uid, 'sync', 'localStorage');
-            const state = _collectSyncableState();
+
+            // Read existing blob to preserve data from other devices
+            let existingData = {};
+            try {
+                const existing = await getDoc(syncRef);
+                if (existing.exists() && existing.data().data) {
+                    existingData = existing.data().data;
+                }
+            } catch (e) { /* ignore read failures */ }
+
+            const localState = _collectSyncableState();
+
+            // Merge: cloud data as base, local data overlays (local wins on conflicts)
+            const merged = { ...existingData, ...localState };
+
             await setDoc(syncRef, {
-                data: state,
-                keyCount: Object.keys(state).length,
+                data: merged,
+                keyCount: Object.keys(merged).length,
                 syncedAt: serverTimestamp()
             });
-            console.log(`[FirestoreManager] Sync blob written (${Object.keys(state).length} keys)`);
+            console.log(`[FirestoreManager] Sync blob written (${Object.keys(merged).length} merged keys: ${Object.keys(localState).length} local + ${Object.keys(existingData).length} cloud)`);
         } catch (error) {
             console.warn('[FirestoreManager] Sync blob write failed:', error.message);
         }
