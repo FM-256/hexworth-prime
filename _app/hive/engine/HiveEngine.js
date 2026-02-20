@@ -281,16 +281,9 @@ var HiveEngine = (() => {
             return;
         }
 
-        // Check if target room is locked
-        const targetRoom = _mapData.rooms[roomId];
-        if (targetRoom.type === 'locked') {
-            const unlocked = _checkLock(targetRoom);
-            if (!unlocked) {
-                RoomRenderer.showMessage('This area is locked.', 2000);
-                MapRenderer.highlightRoom(roomId);
-                return;
-            }
-        }
+        // Check if target room is locked (allow entry — room shows locked/unlocked text)
+        // Locked rooms don't block entry; they show their locked description.
+        // The lock prevents further travel THROUGH them (handled by their exits).
 
         // Move
         const isFirstVisit = !_state.visited.includes(roomId);

@@ -391,6 +391,7 @@ const MapRenderer = (() => {
                 c.line.style.display = '';
                 const bothVisited = visited.has(c.roomA) && visited.has(c.roomB);
                 c.line.setAttribute('stroke', bothVisited ? COLORS.corridorLit : COLORS.corridor);
+                c.line.setAttribute('stroke-dasharray', bothVisited ? 'none' : '4,4');
             } else {
                 c.line.style.display = 'none';
             }

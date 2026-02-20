@@ -515,7 +515,7 @@ const RoomRenderer = (() => {
             btn.textContent = '[ ACCESS TERMINAL ]';
             btn.onclick = () => {
                 if (window.HiveEngine && window.HiveEngine.startPuzzle) {
-                    window.HiveEngine.startPuzzle(room.id || _getRoomId(room));
+                    window.HiveEngine.startPuzzle(room.id || room._id || '');
                 }
             };
             _eventPanel.appendChild(btn);
@@ -624,7 +624,7 @@ const RoomRenderer = (() => {
 
         // Update status bar
         const nameEl = _statusBar.querySelector('.hive-status-name');
-        if (nameEl) nameEl.textContent = 'COMPRESSION VAULT — ACTIVE';
+        if (nameEl) nameEl.textContent = (puzzleData.title || 'TERMINAL') + ' — ACTIVE';
 
         // Create dark-themed puzzle wrapper
         const wrapper = document.createElement('div');
