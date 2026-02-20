@@ -217,6 +217,41 @@ var HiveEngine = (() => {
         MapRenderer.centerOnRoom('entry');
         _save();
         _initialized = true;
+        _showControlsHint();
+    }
+
+    function _showControlsHint() {
+        const HINT_KEY = 'hexworth_hive_controls_seen';
+        if (localStorage.getItem(HINT_KEY)) return;
+        localStorage.setItem(HINT_KEY, '1');
+
+        const hint = document.createElement('div');
+        hint.style.cssText = `
+            position: fixed;
+            bottom: 24px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 12px 24px;
+            background: rgba(0,0,0,0.85);
+            border: 1px solid rgba(204,0,0,0.4);
+            border-radius: 6px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.75rem;
+            color: rgba(255,255,255,0.7);
+            letter-spacing: 0.05em;
+            line-height: 1.6;
+            text-align: center;
+            z-index: 500;
+            opacity: 1;
+            transition: opacity 0.8s ease;
+            pointer-events: none;
+            white-space: nowrap;
+        `;
+        hint.innerHTML = 'WASD / Arrows to move &nbsp;&bull;&nbsp; ESC to exit puzzles &nbsp;&bull;&nbsp; Click text to skip';
+        document.body.appendChild(hint);
+
+        setTimeout(() => { hint.style.opacity = '0'; }, 5000);
+        setTimeout(() => { hint.remove(); }, 6000);
     }
 
     // -------------------------------------------------------------------------
@@ -705,14 +740,33 @@ var HiveEngine = (() => {
     // Save / Load
     // -------------------------------------------------------------------------
 
+    let _saveFlashTimer = null;
+
     function _save() {
         if (!_state) return;
         _state.lastSavedAt = new Date().toISOString();
         try {
             localStorage.setItem(SAVE_KEY, JSON.stringify(_state));
+            _flashSaveIndicator();
         } catch (e) {
             console.warn('HiveEngine: save failed', e);
         }
+    }
+
+    function _flashSaveIndicator() {
+        const depthEl = _roomContainer && _roomContainer.querySelector('.hive-status-depth');
+        if (!depthEl) return;
+        if (_saveFlashTimer) clearTimeout(_saveFlashTimer);
+
+        const orig = depthEl.textContent;
+        depthEl.textContent = '\u2713 SAVED';
+        depthEl.style.color = 'rgba(76,175,80,0.7)';
+
+        _saveFlashTimer = setTimeout(() => {
+            depthEl.textContent = orig;
+            depthEl.style.color = '';
+            _saveFlashTimer = null;
+        }, 800);
     }
 
     function _loadSave() {

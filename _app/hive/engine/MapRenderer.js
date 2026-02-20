@@ -140,6 +140,13 @@ const MapRenderer = (() => {
                 .hive-room.adjacent rect {
                     animation: hive-adjacent-pulse 2.5s ease-in-out infinite;
                 }
+                .hive-room:hover rect {
+                    filter: brightness(1.6);
+                    transition: filter 0.15s ease;
+                }
+                .hive-room rect {
+                    transition: filter 0.15s ease;
+                }
             `;
             document.head.appendChild(style);
         }
