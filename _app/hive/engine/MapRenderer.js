@@ -90,6 +90,7 @@ const MapRenderer = (() => {
     let _playerGlowEl = null;
     let _toastEl = null;
     let _toastTimer = null;
+    let _lastCurrentRoom = null;
 
     // Animation
     let _pulseAnim = null;
@@ -165,6 +166,39 @@ const MapRenderer = (() => {
 
         // Attach to container
         container.appendChild(_svg);
+
+        // Reset view button
+        const resetBtn = document.createElement('button');
+        resetBtn.textContent = '\u2316';  // position indicator
+        resetBtn.title = 'Re-center on current room';
+        resetBtn.style.cssText = `
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            width: 32px;
+            height: 32px;
+            background: rgba(0,0,0,0.6);
+            border: 1px solid rgba(255,255,255,0.15);
+            border-radius: 4px;
+            color: rgba(255,255,255,0.5);
+            font-size: 16px;
+            cursor: pointer;
+            z-index: 10;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.15s;
+            padding: 0;
+            font-family: monospace;
+        `;
+        resetBtn.onmouseover = () => { resetBtn.style.borderColor = '#cc0000'; resetBtn.style.color = '#cc0000'; };
+        resetBtn.onmouseout = () => { resetBtn.style.borderColor = 'rgba(255,255,255,0.15)'; resetBtn.style.color = 'rgba(255,255,255,0.5)'; };
+        resetBtn.onclick = () => {
+            if (window.HiveEngine && _lastCurrentRoom) {
+                centerOnRoom(_lastCurrentRoom);
+            }
+        };
+        container.appendChild(resetBtn);
 
         // Discovery toast overlay
         _toastEl = document.createElement('div');
@@ -357,6 +391,7 @@ const MapRenderer = (() => {
 
         const visited = new Set(state.visited || []);
         const currentRoom = state.currentRoom;
+        _lastCurrentRoom = currentRoom;
         const rooms = _mapData.rooms;
         const puzzlesSolved = new Set(state.puzzlesSolved || []);
 
@@ -380,15 +415,19 @@ const MapRenderer = (() => {
                 el.group.style.display = '';
                 el.group.classList.remove('adjacent');
                 el.rect.setAttribute('fill', COLORS.roomVisited);
-                el.rect.setAttribute('stroke', COLORS.roomStroke);
-                el.rect.setAttribute('stroke-width', id === currentRoom ? '2.5' : '1.5');
                 el.rect.setAttribute('stroke-dasharray', 'none');
                 el.text.style.display = '';
                 el.icon.style.display = '';
 
-                // Color the stroke by type for current room
+                // Current room gets player color + thick border
                 if (id === currentRoom) {
                     el.rect.setAttribute('stroke', COLORS.player);
+                    el.rect.setAttribute('stroke-width', '2.5');
+                } else {
+                    // Visited rooms get subtle type-colored border
+                    const typeCol = _typeColor(room.type);
+                    el.rect.setAttribute('stroke', typeCol !== 'transparent' ? typeCol : COLORS.roomStroke);
+                    el.rect.setAttribute('stroke-width', '1.5');
                 }
 
                 // Update icon for solved puzzles

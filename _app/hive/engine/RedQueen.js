@@ -57,6 +57,7 @@ const RedQueen = (() => {
     let _typewriterTimer = null;
     let _glitchTimer = null;
     let _dismissTimer = null;
+    let _keyDismissHandler = null;
 
     // -------------------------------------------------------------------------
     // Private helpers
@@ -116,10 +117,32 @@ const RedQueen = (() => {
         _createPanel();
         _updatePanelColors();
         _panel.style.opacity = '1';
+        _panel.style.pointerEvents = 'auto';
+        _panel.style.cursor = 'pointer';
+
+        // Click to dismiss
+        _panel.onclick = () => dismiss();
+
+        // Any key to dismiss
+        if (_keyDismissHandler) document.removeEventListener('keydown', _keyDismissHandler);
+        _keyDismissHandler = (e) => {
+            // Don't dismiss if typing in an input
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+            dismiss();
+        };
+        document.addEventListener('keydown', _keyDismissHandler);
     }
 
     function _hidePanel() {
-        if (_panel) _panel.style.opacity = '0';
+        if (_panel) {
+            _panel.style.opacity = '0';
+            _panel.style.pointerEvents = 'none';
+            _panel.onclick = null;
+        }
+        if (_keyDismissHandler) {
+            document.removeEventListener('keydown', _keyDismissHandler);
+            _keyDismissHandler = null;
+        }
     }
 
     function _clearTimers() {
