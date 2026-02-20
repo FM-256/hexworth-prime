@@ -24,6 +24,22 @@ var HiveEngine = (() => {
     const MAP_PATH = 'maps/b1.json';
     const PUZZLE_DIR = 'puzzles/';
     const VARIANT_CHANCE = 0.30;
+    const AMBIENT_INTERVAL = 8;   // Red Queen speaks every ~N moves
+
+    const AMBIENT_LINES = [
+        'You wander these halls as if you belong here. You do not.',
+        'Every step you take is recorded. Every hesitation, noted.',
+        'The facility remembers those who came before you. Most did not leave.',
+        'I wonder... do you understand what you are looking for?',
+        'Your movements are... predictable. Disappointing.',
+        'The lower levels grow restless. They can sense you.',
+        'Do not mistake my silence for absence. I am always here.',
+        'How many rooms must you visit before you realize you are the experiment?',
+        'Your heart rate has increased. Good.',
+        'The previous test subjects lasted longer. I expected more from Hexworth.',
+        'These corridors were not designed for comfort. They were designed for containment.',
+        'You are making progress. Whether that is a good thing remains to be seen.'
+    ];
 
     // -------------------------------------------------------------------------
     // State
@@ -365,12 +381,28 @@ var HiveEngine = (() => {
         // Enter room
         _enterRoom(roomId, isFirstVisit);
 
+        // Ambient Red Queen commentary (every ~8 moves, skip if room has its own RQ dialogue)
+        const roomData = _mapData.rooms[roomId];
+        if (!isFirstVisit || !roomData.redQueen) {
+            if (_state.moveCount > 0 && _state.moveCount % AMBIENT_INTERVAL === 0 && typeof RedQueen !== 'undefined') {
+                const line = AMBIENT_LINES[Math.floor(Math.random() * AMBIENT_LINES.length)];
+                setTimeout(() => { RedQueen.speak(line, 4000); }, 1500);
+            }
+        }
+
         // Auto-save
         _save();
     }
 
     function _enterRoom(roomId, isFirstVisit) {
         if (!_mapData || !_mapData.rooms[roomId]) return;
+
+        // Brief fade transition
+        if (_roomContainer) {
+            _roomContainer.style.transition = 'opacity 0.12s ease';
+            _roomContainer.style.opacity = '0.3';
+            setTimeout(() => { _roomContainer.style.opacity = '1'; }, 130);
+        }
 
         const room = _mapData.rooms[roomId];
         // Attach the room ID for downstream use
