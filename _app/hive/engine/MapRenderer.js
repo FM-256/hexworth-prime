@@ -32,7 +32,7 @@ const MapRenderer = (() => {
         roomFill:     'rgba(255,255,255,0.04)',
         roomVisited:  'rgba(255,255,255,0.08)',
         roomText:     'rgba(255,255,255,0.8)',
-        adjacent:     'rgba(255,255,255,0.18)',
+        adjacent:     'rgba(255,255,255,0.35)',
         corridor:     'rgba(255,255,255,0.2)',
         corridorLit:  'rgba(255,255,255,0.45)',
         player:       '#cc0000',
@@ -335,6 +335,7 @@ const MapRenderer = (() => {
                 el.rect.setAttribute('fill', COLORS.roomVisited);
                 el.rect.setAttribute('stroke', COLORS.roomStroke);
                 el.rect.setAttribute('stroke-width', id === currentRoom ? '2.5' : '1.5');
+                el.rect.setAttribute('stroke-dasharray', 'none');
                 el.text.style.display = '';
                 el.icon.style.display = '';
 
@@ -361,11 +362,12 @@ const MapRenderer = (() => {
                 el.group.style.cursor = 'pointer';
 
             } else if (adjacent.has(id)) {
-                // Adjacent but not visited — outline only
+                // Adjacent but not visited — outline only, with pulse
                 el.group.style.display = '';
-                el.rect.setAttribute('fill', 'transparent');
+                el.rect.setAttribute('fill', 'rgba(255,255,255,0.02)');
                 el.rect.setAttribute('stroke', COLORS.adjacent);
-                el.rect.setAttribute('stroke-width', '1');
+                el.rect.setAttribute('stroke-width', '1.5');
+                el.rect.setAttribute('stroke-dasharray', '4,3');
                 el.text.style.display = 'none';
                 el.icon.style.display = 'none';
                 el.group.style.cursor = 'pointer';
