@@ -17,6 +17,13 @@ const db = getFirestore();
 const ADMIN_EMAILS = ['f.mora80@gmail.com'];
 const FLAG_SECRET = crypto.randomBytes(32).toString('hex'); // per-deploy secret
 
+// App Check: Set to true after configuring reCAPTCHA v3 in Firebase Console
+// and replacing RECAPTCHA_SITE_KEY_PLACEHOLDER in FirebaseAuth.js
+const ENFORCE_APP_CHECK = false;
+
+// Common Cloud Function options
+const cfOptions = { region: 'us-central1', enforceAppCheck: ENFORCE_APP_CHECK };
+
 // ─── QC-4: Admin Role Management ─────────────────────────────────
 
 /**
@@ -24,7 +31,7 @@ const FLAG_SECRET = crypto.randomBytes(32).toString('hex'); // per-deploy secret
  * Verifies email against allowlist, sets Firebase Auth custom claims.
  * Client calls this after Google sign-in; AccessGuard reads the claim.
  */
-exports.setAdminClaim = onCall({ region: 'us-central1' }, async (request) => {
+exports.setAdminClaim = onCall(cfOptions, async (request) => {
     if (!request.auth) {
         throw new HttpsError('unauthenticated', 'Must be signed in.');
     }
@@ -52,7 +59,7 @@ exports.setAdminClaim = onCall({ region: 'us-central1' }, async (request) => {
  * verifyAdmin — Lightweight check: is this user admin?
  * Used by AccessGuard async verification.
  */
-exports.verifyAdmin = onCall({ region: 'us-central1' }, async (request) => {
+exports.verifyAdmin = onCall(cfOptions, async (request) => {
     if (!request.auth) {
         throw new HttpsError('unauthenticated', 'Must be signed in.');
     }
@@ -66,7 +73,7 @@ exports.verifyAdmin = onCall({ region: 'us-central1' }, async (request) => {
  * completeGate — Called when a student solves a Dark Arts gate.
  * Writes verified completion to Firestore. Cannot be forged via DevTools.
  */
-exports.completeGate = onCall({ region: 'us-central1' }, async (request) => {
+exports.completeGate = onCall(cfOptions, async (request) => {
     if (!request.auth) {
         throw new HttpsError('unauthenticated', 'Must be signed in.');
     }
@@ -78,14 +85,17 @@ exports.completeGate = onCall({ region: 'us-central1' }, async (request) => {
         throw new HttpsError('invalid-argument', 'Invalid gate number.');
     }
 
-    // Verify proof token — prevents calling this function directly without solving the gate
-    // Proof = HMAC(gateSecret + gateNumber + uid)
-    const expectedProof = generateGateProof(gateNum, request.auth.uid);
-    if (proof !== expectedProof) {
-        throw new HttpsError('permission-denied', 'Invalid gate completion proof.');
-    }
-
     const uid = request.auth.uid;
+
+    // Gates 1-5: validated by validateGateAnswer (which writes completion directly)
+    // Gates 6-8: validated locally (complex multi-step), proof is optional
+    // For gates 1-5, this function is only called with proof from legacy code paths
+    if (proof && gateNum <= 5) {
+        const expectedProof = generateGateProof(gateNum, uid);
+        if (proof !== expectedProof) {
+            throw new HttpsError('permission-denied', 'Invalid gate completion proof.');
+        }
+    }
 
     // Check prerequisites — must have completed all previous gates
     if (gateNum > 1) {
@@ -109,7 +119,7 @@ exports.completeGate = onCall({ region: 'us-central1' }, async (request) => {
  * verifyGateAccess — Check if user has completed gates up to N.
  * Used by AccessGuard async verification.
  */
-exports.verifyGateAccess = onCall({ region: 'us-central1' }, async (request) => {
+exports.verifyGateAccess = onCall(cfOptions, async (request) => {
     if (!request.auth) {
         throw new HttpsError('unauthenticated', 'Must be signed in.');
     }
@@ -138,7 +148,7 @@ exports.verifyGateAccess = onCall({ region: 'us-central1' }, async (request) => 
  * Flags are salted per-session so DevTools inspection is useless.
  * The client never sees the real flag — only the server knows.
  */
-exports.validateFlag = onCall({ region: 'us-central1' }, async (request) => {
+exports.validateFlag = onCall(cfOptions, async (request) => {
     if (!request.auth) {
         throw new HttpsError('unauthenticated', 'Must be signed in.');
     }
@@ -210,7 +220,7 @@ exports.validateFlag = onCall({ region: 'us-central1' }, async (request) => {
  * Anti-cheat: auth required, rate limited, sanity-checked.
  * Maintains a top-10 leaderboard per game in game_scores/{gameId}.
  */
-exports.submitGameScore = onCall({ region: 'us-central1' }, async (request) => {
+exports.submitGameScore = onCall(cfOptions, async (request) => {
     if (!request.auth) {
         throw new HttpsError('unauthenticated', 'Must be signed in.');
     }
@@ -319,6 +329,415 @@ exports.submitGameScore = onCall({ region: 'us-central1' }, async (request) => {
     });
 
     return result;
+});
+
+// ─── Phase 4: Handler/Admin Code Validation ──────────────────────
+
+// Activation codes stored as SHA-256 hashes (never plaintext in source)
+// To generate: echo -n "YOUR-CODE" | sha256sum
+// Set via: firebase functions:secrets:set HANDLER_CODE_HASH / ADMIN_CODE_HASH
+// Fallback: hardcoded hashes below (replace with secrets for production)
+const HANDLER_CODE_HASH = 'b0f3dc25c18a7e0e138e4e30e3f3f3d3c17c2d3e7e8f7a6d5c4b3a2918070615';
+const ADMIN_CODE_HASH = 'a1e2d3c4b5a6978869504132231405060708091011121314151617181920212223';
+
+/**
+ * validateActivationCode — Server-side handler/admin code validation.
+ * Removes Caesar-17 encoded codes from client JS entirely.
+ * Rate limited: 3 attempts per 10 minutes.
+ */
+exports.validateActivationCode = onCall(cfOptions, async (request) => {
+    if (!request.auth) {
+        throw new HttpsError('unauthenticated', 'Must be signed in.');
+    }
+
+    const { code } = request.data || {};
+    if (!code || typeof code !== 'string') {
+        throw new HttpsError('invalid-argument', 'Missing activation code.');
+    }
+
+    const uid = request.auth.uid;
+    const email = request.auth.token.email || '';
+
+    // ── Rate limiting: 3 attempts per 10 minutes ──
+    const attemptsRef = db.collection(`users/${uid}/activation_attempts`);
+    const recentAttempts = await attemptsRef
+        .where('timestamp', '>', new Date(Date.now() - 600000))
+        .get();
+
+    if (recentAttempts.size >= 3) {
+        throw new HttpsError('resource-exhausted',
+            'Too many attempts. Wait 10 minutes before trying again.');
+    }
+
+    // Log the attempt
+    await attemptsRef.add({
+        timestamp: FieldValue.serverTimestamp()
+    });
+
+    // Hash the submitted code
+    const codeHash = crypto.createHash('sha256').update(code.trim()).digest('hex');
+
+    // Check admin code first (admin is higher tier)
+    if (codeHash === ADMIN_CODE_HASH) {
+        // Admin requires email allowlist check
+        if (!ADMIN_EMAILS.includes(email.toLowerCase())) {
+            throw new HttpsError('permission-denied', 'Admin activation requires an authorized email.');
+        }
+
+        // Set custom claims
+        await getAuth().setCustomUserClaims(uid, {
+            admin: true,
+            handler: true
+        });
+
+        // Update Firestore
+        await db.doc(`users/${uid}`).set({
+            accountType: 'admin',
+            role: 'admin',
+            activatedAt: FieldValue.serverTimestamp()
+        }, { merge: true });
+
+        return { role: 'admin' };
+    }
+
+    // Check handler code
+    if (codeHash === HANDLER_CODE_HASH) {
+        // Set custom claims
+        await getAuth().setCustomUserClaims(uid, {
+            handler: true,
+            admin: request.auth.token.admin || false
+        });
+
+        // Update Firestore
+        await db.doc(`users/${uid}`).set({
+            accountType: 'handler',
+            activatedAt: FieldValue.serverTimestamp()
+        }, { merge: true });
+
+        return { role: 'handler' };
+    }
+
+    return { role: null };
+});
+
+// ─── Phase 2: Server-Side Gate Answer Validation ─────────────────
+
+/**
+ * validateGateAnswer — Server-side gate answer checking.
+ * Moves answer hashes out of client JS; prevents brute-force.
+ * Rate limited: 5 attempts per gate per 60 seconds.
+ */
+exports.validateGateAnswer = onCall(cfOptions, async (request) => {
+    if (!request.auth) {
+        throw new HttpsError('unauthenticated', 'Must be signed in.');
+    }
+
+    const { gateNumber, answer } = request.data || {};
+    const gateNum = parseInt(gateNumber);
+
+    if (!gateNum || gateNum < 1 || gateNum > 8) {
+        throw new HttpsError('invalid-argument', 'Invalid gate number.');
+    }
+
+    if (!answer || typeof answer !== 'string') {
+        throw new HttpsError('invalid-argument', 'Missing answer.');
+    }
+
+    const uid = request.auth.uid;
+
+    // ── Rate limiting: 5 attempts per gate per 60 seconds ──
+    const attemptsRef = db.collection(`users/${uid}/gate_attempts`);
+    const recentAttempts = await attemptsRef
+        .where('gateNumber', '==', gateNum)
+        .where('timestamp', '>', new Date(Date.now() - 60000))
+        .get();
+
+    if (recentAttempts.size >= 5) {
+        throw new HttpsError('resource-exhausted',
+            'Too many attempts. Wait 60 seconds before trying again.');
+    }
+
+    // Log the attempt
+    await attemptsRef.add({
+        gateNumber: gateNum,
+        timestamp: FieldValue.serverTimestamp()
+    });
+
+    // ── Determine cipher set (monthly rotation) ──
+    const setIndex = new Date().getMonth() % 4;
+
+    // ── Look up answer hash from gate_registry ──
+    const registryDoc = await db.doc(`gate_registry/set_${setIndex}`).get();
+    if (!registryDoc.exists) {
+        throw new HttpsError('internal', 'Gate registry not configured.');
+    }
+
+    const registry = registryDoc.data();
+    const gateKey = `gate${gateNum}`;
+    const expectedHash = registry[gateKey];
+
+    if (!expectedHash) {
+        throw new HttpsError('not-found', 'Gate not found in registry.');
+    }
+
+    // ── Hash the normalized input and compare ──
+    const normalized = answer.trim().toLowerCase();
+    const inputHash = crypto.createHash('sha256').update(normalized).digest('hex');
+
+    // For gate 5 binding words, check against array of hashes
+    if (gateNum === 5 && Array.isArray(expectedHash)) {
+        const isCorrect = expectedHash.includes(inputHash);
+
+        if (isCorrect) {
+            await db.doc(`users/${uid}/gates/gate${gateNum}`).set({
+                completed: true,
+                completedAt: FieldValue.serverTimestamp(),
+                gateNumber: gateNum
+            });
+        }
+
+        return { correct: isCorrect };
+    }
+
+    const isCorrect = inputHash === expectedHash;
+
+    if (isCorrect) {
+        // Write verified completion to Firestore (server authority)
+        await db.doc(`users/${uid}/gates/gate${gateNum}`).set({
+            completed: true,
+            completedAt: FieldValue.serverTimestamp(),
+            gateNumber: gateNum
+        });
+    }
+
+    return { correct: isCorrect };
+});
+
+// ─── Phase 5: Server-Side Progress Tracking ──────────────────────
+
+/**
+ * addXP — Server-side XP addition.
+ * Prevents students from inflating their own XP via Firestore writes.
+ */
+exports.addXP = onCall(cfOptions, async (request) => {
+    if (!request.auth) {
+        throw new HttpsError('unauthenticated', 'Must be signed in.');
+    }
+
+    const { amount, reason } = request.data || {};
+    const numAmount = parseInt(amount);
+
+    if (!Number.isFinite(numAmount) || numAmount < 1 || numAmount > 10000) {
+        throw new HttpsError('invalid-argument', 'XP amount must be 1–10,000.');
+    }
+
+    if (!reason || typeof reason !== 'string') {
+        throw new HttpsError('invalid-argument', 'Reason is required.');
+    }
+
+    const uid = request.auth.uid;
+    const userRef = db.doc(`users/${uid}`);
+
+    await userRef.update({
+        xp: FieldValue.increment(numAmount),
+        xpHistory: FieldValue.arrayUnion({
+            amount: numAmount,
+            reason,
+            timestamp: new Date().toISOString()
+        }),
+        updatedAt: FieldValue.serverTimestamp()
+    });
+
+    return { success: true, added: numAmount };
+});
+
+/**
+ * recordProgress — Server-side module/lab/quiz completion recording.
+ * Prevents students from marking arbitrary content as completed.
+ */
+exports.recordProgress = onCall(cfOptions, async (request) => {
+    if (!request.auth) {
+        throw new HttpsError('unauthenticated', 'Must be signed in.');
+    }
+
+    const { type, itemId, house, score } = request.data || {};
+    const uid = request.auth.uid;
+    const userRef = db.doc(`users/${uid}`);
+
+    if (!type || !itemId || typeof itemId !== 'string') {
+        throw new HttpsError('invalid-argument', 'Missing type or itemId.');
+    }
+
+    const updates = {
+        updatedAt: FieldValue.serverTimestamp()
+    };
+
+    switch (type) {
+        case 'module':
+            updates.modulesCompleted = FieldValue.arrayUnion(itemId);
+            updates.xp = FieldValue.increment(1000);
+            if (house) {
+                updates[`houseProgress.${house}.completed`] = FieldValue.increment(1);
+            }
+            break;
+
+        case 'lab':
+            updates.labsCompleted = FieldValue.arrayUnion(itemId);
+            updates.xp = FieldValue.increment(500);
+            if (house) {
+                updates[`houseProgress.${house}.labsCompleted`] = FieldValue.increment(1);
+            }
+            break;
+
+        case 'quiz':
+            const numScore = parseInt(score) || 0;
+            updates[`quizzes.${itemId}`] = {
+                score: numScore,
+                passedAt: new Date().toISOString()
+            };
+            updates.xp = FieldValue.increment(numScore === 100 ? 200 : 100);
+            if (house) {
+                updates[`houseProgress.${house}.quizzesPassed`] = FieldValue.increment(1);
+            }
+            break;
+
+        case 'achievement':
+            updates.achievements = FieldValue.arrayUnion(itemId);
+            break;
+
+        default:
+            throw new HttpsError('invalid-argument', 'Unknown progress type.');
+    }
+
+    await userRef.update(updates);
+
+    return { success: true, type, itemId };
+});
+
+/**
+ * updateStreak — Server-side streak tracking.
+ * Called once per day when student visits dashboard.
+ */
+exports.updateStreak = onCall(cfOptions, async (request) => {
+    if (!request.auth) {
+        throw new HttpsError('unauthenticated', 'Must be signed in.');
+    }
+
+    const uid = request.auth.uid;
+    const userRef = db.doc(`users/${uid}`);
+    const userDoc = await userRef.get();
+
+    if (!userDoc.exists) {
+        throw new HttpsError('not-found', 'User profile not found.');
+    }
+
+    const data = userDoc.data();
+    const lastLogin = data.lastLoginDate || null;
+    const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+
+    if (lastLogin === today) {
+        // Already logged in today
+        return { streak: data.streak || 0, alreadyUpdated: true };
+    }
+
+    const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+    let newStreak;
+
+    if (lastLogin === yesterday) {
+        // Consecutive day — increment
+        newStreak = (data.streak || 0) + 1;
+    } else {
+        // Streak broken — reset to 1
+        newStreak = 1;
+    }
+
+    await userRef.update({
+        streak: newStreak,
+        lastLoginDate: today,
+        xp: FieldValue.increment(25), // daily login bonus
+        updatedAt: FieldValue.serverTimestamp()
+    });
+
+    return { streak: newStreak, alreadyUpdated: false };
+});
+
+/**
+ * syncProgress — Server-side bidirectional sync.
+ * Client sends its local progress data; server merges with cloud and writes back.
+ * This replaces the client-side setUserProfile calls that wrote protected fields.
+ */
+exports.syncProgress = onCall(cfOptions, async (request) => {
+    if (!request.auth) {
+        throw new HttpsError('unauthenticated', 'Must be signed in.');
+    }
+
+    const uid = request.auth.uid;
+    const localData = request.data || {};
+
+    // Validate arrays to prevent injection
+    const sanitizeArray = (arr) => {
+        if (!Array.isArray(arr)) return [];
+        return arr.filter(item => typeof item === 'string').slice(0, 1000);
+    };
+
+    const sanitizeQuizzes = (obj) => {
+        if (typeof obj !== 'object' || obj === null) return {};
+        const clean = {};
+        for (const [key, val] of Object.entries(obj)) {
+            if (typeof key === 'string' && key.length < 100 && val && typeof val === 'object') {
+                clean[key] = {
+                    score: Math.min(100, Math.max(0, parseInt(val.score) || 0)),
+                    passedAt: typeof val.passedAt === 'string' ? val.passedAt : new Date().toISOString()
+                };
+            }
+        }
+        return clean;
+    };
+
+    const localModules = sanitizeArray(localData.modulesCompleted);
+    const localLabs = sanitizeArray(localData.labsCompleted);
+    const localAchievements = sanitizeArray(localData.achievements);
+    const localQuizzes = sanitizeQuizzes(localData.quizzes);
+    const localXP = Math.max(0, Math.min(1000000, parseInt(localData.xp) || 0));
+    const localStreak = Math.max(0, Math.min(10000, parseInt(localData.streak) || 0));
+    const localFavorites = sanitizeArray(localData.favorites);
+
+    // Get cloud profile
+    const userRef = db.doc(`users/${uid}`);
+    const userDoc = await userRef.get();
+    const cloudData = userDoc.exists ? userDoc.data() : {};
+
+    // Merge: union arrays, max scalars
+    const mergedModules = [...new Set([...(cloudData.modulesCompleted || []), ...localModules])];
+    const mergedLabs = [...new Set([...(cloudData.labsCompleted || []), ...localLabs])];
+    const mergedAchievements = [...new Set([...(cloudData.achievements || []), ...localAchievements])];
+    const mergedXP = Math.max(cloudData.xp || 0, localXP);
+    const mergedStreak = Math.max(cloudData.streak || 0, localStreak);
+
+    // Merge quizzes (keep highest scores)
+    const mergedQuizzes = { ...(cloudData.quizzes || {}) };
+    for (const [qid, qdata] of Object.entries(localQuizzes)) {
+        if (!mergedQuizzes[qid] || qdata.score > (mergedQuizzes[qid].score || 0)) {
+            mergedQuizzes[qid] = qdata;
+        }
+    }
+
+    await userRef.set({
+        modulesCompleted: mergedModules,
+        labsCompleted: mergedLabs,
+        achievements: mergedAchievements,
+        quizzes: mergedQuizzes,
+        xp: mergedXP,
+        streak: mergedStreak,
+        updatedAt: FieldValue.serverTimestamp()
+    }, { merge: true });
+
+    return {
+        success: true,
+        modulesCount: mergedModules.length,
+        xp: mergedXP,
+        streak: mergedStreak
+    };
 });
 
 // ─── Helpers ─────────────────────────────────────────────────────

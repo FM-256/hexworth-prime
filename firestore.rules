@@ -9,12 +9,19 @@ service cloud.firestore {
     }
 
     // Users collection — authenticated users can read/write their own doc
-    // Cloud Functions (setAdminClaim) also writes role/claimsUpdatedAt via admin SDK (bypasses rules)
+    // Cloud Functions (setAdminClaim, addXP, recordProgress) use admin SDK (bypasses rules)
     match /users/{userId} {
       allow read: if request.auth != null;
-      // Users can write own doc EXCEPT the role field (only Cloud Functions can set role)
-      allow write: if request.auth != null && request.auth.uid == userId
-        && (!('role' in request.resource.data) || request.resource.data.role == resource.data.role);
+
+      // Users can create their own doc (first sign-in)
+      allow create: if request.auth != null && request.auth.uid == userId;
+
+      // Users can update only safe fields — XP, role, achievements, progress are server-only
+      allow update: if request.auth != null && request.auth.uid == userId
+        && request.resource.data.diff(resource.data).affectedKeys()
+           .hasOnly(['callsign', 'callsignLower', 'displayName', 'photoURL',
+                     'house', 'theme', 'favorites', 'settings', 'updatedAt',
+                     'deviceId', 'accountType']);
 
       // Gate completions subcollection — written by Cloud Functions (completeGate)
       // Students can read their own, admins can read any
@@ -33,6 +40,16 @@ service cloud.firestore {
         allow read: if isAdmin();
       }
 
+      // Gate attempt rate-limiting — written by Cloud Functions (validateGateAnswer)
+      match /gate_attempts/{attemptId} {
+        allow read: if isAdmin();
+      }
+
+      // Activation code attempt rate-limiting — written by Cloud Functions (validateActivationCode)
+      match /activation_attempts/{attemptId} {
+        allow read: if isAdmin();
+      }
+
       // Score submission rate-limiting — written by Cloud Functions (submitGameScore)
       match /score_submissions/{submissionId} {
         allow read: if isAdmin();
@@ -41,6 +58,12 @@ service cloud.firestore {
 
     // Flag registry — server-side only (admin SDK writes, no client access)
     match /flag_registry/{boxId} {
+      allow read: if false;
+      allow write: if false;
+    }
+
+    // Gate answer registry — server-side only (admin SDK writes, no client access)
+    match /gate_registry/{setId} {
       allow read: if false;
       allow write: if false;
     }

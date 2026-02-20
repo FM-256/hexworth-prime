@@ -233,6 +233,7 @@
 
     <div class="footer-whisper">GATE II</div>
 
+    <script src="../../components/FirebaseAuth.js"></script>
     <script src="../gate-cipher.js"></script>
     <script>
         // Skip if already completed — return to vault
@@ -270,26 +271,39 @@
 
         async function checkAnswer() {
             const answer = input.value.trim().toLowerCase();
+            if (!answer) return;
 
-            const set = GATE_CIPHER.getCurrentSet();
-            const isCorrect = await GATE_CIPHER.checkAnswer(answer, set.gate2.hash);
+            try {
+                const serverResult = await GATE_CIPHER.checkAnswerServer(2, answer);
+                const isCorrect = serverResult !== null ? serverResult : false;
 
-            if (isCorrect) {
-                container.classList.add('unlocked');
-                localStorage.setItem('gate2_complete', 'true');
-                localStorage.setItem('gate2_timestamp', Date.now().toString());
-                if (typeof AchievementSystem !== 'undefined') AchievementSystem.unlockDarkArtsGate(2);
+                if (isCorrect) {
+                    container.classList.add('unlocked');
+                    localStorage.setItem('gate2_complete', 'true');
+                    localStorage.setItem('gate2_timestamp', Date.now().toString());
+                    if (typeof AchievementSystem !== 'undefined') AchievementSystem.unlockDarkArtsGate(2);
 
-                setTimeout(() => {
-                    window.location.href = '../vault/index.html';
-                }, 1500);
-            } else if (answer.length > 0) {
-                error.classList.add('show');
-                input.value = '';
-
-                setTimeout(() => {
-                    error.classList.remove('show');
-                }, 3000);
+                    setTimeout(() => {
+                        window.location.href = '../vault/index.html';
+                    }, 1500);
+                } else {
+                    error.classList.add('show');
+                    input.value = '';
+                    setTimeout(() => { error.classList.remove('show'); }, 3000);
+                }
+            } catch (err) {
+                if (err.code === 'functions/resource-exhausted') {
+                    error.textContent = 'Too many attempts. Wait 60 seconds.';
+                    error.classList.add('show');
+                    input.disabled = true;
+                    submit.disabled = true;
+                    setTimeout(() => {
+                        error.classList.remove('show');
+                        error.textContent = 'ACCESS DENIED';
+                        input.disabled = false;
+                        submit.disabled = false;
+                    }, 60000);
+                }
             }
         }
 

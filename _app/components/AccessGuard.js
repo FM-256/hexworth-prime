@@ -126,10 +126,32 @@ const AccessGuard = (function() {
     }
 
     /**
+     * QC-4: Async gate verification via Cloud Function.
+     * Returns: true (verified), false (forged), null (inconclusive)
+     */
+    async function _verifyGateAsync(gateNumber) {
+        try {
+            if (typeof FirebaseAuth === 'undefined') return null;
+
+            await FirebaseAuth.waitForAuth();
+
+            if (!FirebaseAuth.isSignedIn()) return null;
+
+            const result = await FirebaseAuth.callFunction('verifyGateAccess', {
+                gateNumber: gateNumber
+            });
+            return result.data.authorized;
+        } catch (e) {
+            console.warn('[AccessGuard] Gate verification error:', e);
+            return null; // inconclusive — don't punish on error
+        }
+    }
+
+    /**
      * QC-4: Schedule background async verification.
      * If verification returns false (forged), hide content and redirect.
      */
-    function _scheduleAsyncVerification(type) {
+    function _scheduleAsyncVerification(type, param) {
         if (type === 'admin') {
             _verifyAdminAsync().then(result => {
                 if (result === false) {
@@ -140,6 +162,20 @@ const AccessGuard = (function() {
                 }
                 // result === true → legitimate admin, keep showing
                 // result === null → inconclusive (offline/not signed in), keep showing
+            });
+        } else if (type === 'gate') {
+            const gateNum = parseInt(param) || 1;
+            _verifyGateAsync(gateNum).then(result => {
+                if (result === false) {
+                    console.warn(`[AccessGuard] ASYNC GATE ${gateNum} VERIFICATION FAILED — forged localStorage detected`);
+                    // Strip forged localStorage flags
+                    for (let i = 1; i <= gateNum; i++) {
+                        localStorage.removeItem(`gate${i}_complete`);
+                    }
+                    localStorage.removeItem('dark_arts_unlocked');
+                    hideContent();
+                    redirect('dark-arts-gate', `Gate ${gateNum} completion could not be verified.`);
+                }
             });
         }
     }
@@ -539,6 +575,8 @@ const AccessGuard = (function() {
                     message = `You must pass Gate ${gateNum} to access this content.`;
                 } else {
                     authorized = true;
+                    // Async server verification for authenticated users
+                    _scheduleAsyncVerification('gate', gateNum);
                 }
                 break;
 
@@ -550,6 +588,8 @@ const AccessGuard = (function() {
                     message = 'You must complete all Five Gates to enter the Vault.';
                 } else {
                     authorized = true;
+                    // Async server verification for authenticated users
+                    _scheduleAsyncVerification('gate', 5);
                 }
                 break;
 

@@ -45,10 +45,8 @@ const AccountFrame = (function() {
 
     const STORAGE_KEY = 'hexworth_account_type';
 
-    // Authorization codes encoded with PathCipher.encode()
-    // Plaintext never appears in source
-    const ENCODED_HANDLER_CODE = 'YREUCVI-GIZDV';
-    const ENCODED_ADMIN_CODE = 'TWDNFIKY-GIZDV'; // Admin code
+    // Codes are validated server-side via validateActivationCode Cloud Function.
+    // No encoded codes stored in client JS.
 
     // Tier hierarchy for permission checks
     const TIER_LEVELS = { operative: 0, handler: 1, admin: 2 };
@@ -194,15 +192,37 @@ const AccountFrame = (function() {
     }
 
     /**
-     * Validate an authorization code against stored encoded constants
+     * Validate an authorization code via Cloud Function.
+     * Server-side validation — no codes stored in client JS.
      * @param {string} input - User-entered code
-     * @returns {'handler'|'admin'|false} - Returns the role type if valid, false otherwise
+     * @returns {Promise<'handler'|'admin'|false>} - Returns the role type if valid, false otherwise
      */
-    function validateCode(input) {
-        if (!input || typeof PathCipher === 'undefined') return false;
-        const encoded = PathCipher.encode(input.trim());
-        if (encoded === ENCODED_ADMIN_CODE) return 'admin';
-        if (encoded === ENCODED_HANDLER_CODE) return 'handler';
+    async function validateCode(input) {
+        if (!input) return false;
+
+        // Server-side validation for authenticated users
+        if (typeof FirebaseAuth !== 'undefined' && FirebaseAuth.isSignedIn()) {
+            try {
+                const result = await FirebaseAuth.callFunction('validateActivationCode', {
+                    code: input.trim()
+                });
+                const role = result.data.role;
+                if (role === 'admin' || role === 'handler') {
+                    // Refresh token to pick up new custom claims
+                    await FirebaseAuth.refreshToken();
+                    return role;
+                }
+                return false;
+            } catch (err) {
+                if (err.code === 'functions/resource-exhausted') {
+                    throw err; // Let caller handle rate limit
+                }
+                console.warn('[AccountFrame] Server validation failed:', err.message);
+                return false;
+            }
+        }
+
+        // Not signed in — cannot validate
         return false;
     }
 
@@ -350,7 +370,7 @@ const AccountFrame = (function() {
         });
 
         // Auth handler
-        const authenticate = () => {
+        const authenticate = async () => {
             const code = input.value;
             if (!code) {
                 input.classList.add('af-shake');
@@ -358,29 +378,60 @@ const AccountFrame = (function() {
                 return;
             }
 
-            const validatedRole = validateCode(code);
-            if (validatedRole) {
-                // Success
-                errorMsg.style.display = 'none';
-                input.style.display = 'none';
-                authBtn.style.display = 'none';
-                successMsg.textContent = validatedRole === 'admin' ? 'ADMIN STATUS GRANTED' : 'HANDLER STATUS GRANTED';
-                successMsg.style.display = 'block';
-                modal.classList.add(validatedRole === 'admin' ? 'af-admin-flash' : 'af-success-flash');
-
-                setAccountType(validatedRole);
-                refreshAll();
-
-                setTimeout(close, 1500);
-            } else {
-                // Failure
+            // Check if user is signed in
+            if (typeof FirebaseAuth === 'undefined' || !FirebaseAuth.isSignedIn()) {
+                errorMsg.textContent = 'SIGN IN REQUIRED';
                 errorMsg.style.display = 'block';
                 input.classList.add('af-shake');
+                setTimeout(() => input.classList.remove('af-shake'), 500);
+                return;
+            }
+
+            // Disable inputs during server call
+            authBtn.disabled = true;
+            input.disabled = true;
+            authBtn.textContent = 'VERIFYING...';
+
+            try {
+                const validatedRole = await validateCode(code);
+                if (validatedRole) {
+                    // Success
+                    errorMsg.style.display = 'none';
+                    input.style.display = 'none';
+                    authBtn.style.display = 'none';
+                    successMsg.textContent = validatedRole === 'admin' ? 'ADMIN STATUS GRANTED' : 'HANDLER STATUS GRANTED';
+                    successMsg.style.display = 'block';
+                    modal.classList.add(validatedRole === 'admin' ? 'af-admin-flash' : 'af-success-flash');
+
+                    setAccountType(validatedRole);
+                    refreshAll();
+
+                    setTimeout(close, 1500);
+                } else {
+                    // Failure
+                    errorMsg.textContent = 'ACCESS DENIED';
+                    errorMsg.style.display = 'block';
+                    input.classList.add('af-shake');
+                    input.value = '';
+                    authBtn.disabled = false;
+                    input.disabled = false;
+                    authBtn.textContent = 'AUTHENTICATE';
+                    setTimeout(() => {
+                        input.classList.remove('af-shake');
+                        input.focus();
+                    }, 500);
+                }
+            } catch (err) {
+                if (err.code === 'functions/resource-exhausted') {
+                    errorMsg.textContent = 'TOO MANY ATTEMPTS — WAIT 10 MINUTES';
+                } else {
+                    errorMsg.textContent = 'VERIFICATION FAILED';
+                }
+                errorMsg.style.display = 'block';
                 input.value = '';
-                setTimeout(() => {
-                    input.classList.remove('af-shake');
-                    input.focus();
-                }, 500);
+                authBtn.disabled = false;
+                input.disabled = false;
+                authBtn.textContent = 'AUTHENTICATE';
             }
         };
 

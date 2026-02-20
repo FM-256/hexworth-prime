@@ -226,28 +226,20 @@ const FirestoreManager = (function() {
     // ═══════════════════════════════════════════════════════════════
 
     /**
-     * Add XP to user
+     * Add XP to user via Cloud Function (server authority)
      */
     async function addXP(uid, amount, reason) {
-        if (!initialized) await init();
-        if (!db) return false;
-
         try {
-            const { doc, updateDoc, increment, arrayUnion, serverTimestamp } = window.firebaseFirestore;
-            const userRef = doc(db, COLLECTIONS.USERS, uid);
-
-            await updateDoc(userRef, {
-                xp: increment(amount),
-                xpHistory: arrayUnion({
-                    amount,
-                    reason,
-                    timestamp: new Date().toISOString()
-                }),
-                updatedAt: serverTimestamp()
-            });
-
-            console.log(`[FirestoreManager] Added ${amount} XP to ${uid}: ${reason}`);
-            return true;
+            if (typeof FirebaseAuth !== 'undefined' && FirebaseAuth.isSignedIn()) {
+                const result = await FirebaseAuth.callFunction('addXP', {
+                    amount: amount,
+                    reason: reason || 'unspecified'
+                });
+                console.log(`[FirestoreManager] Added ${amount} XP via CF: ${reason}`);
+                return true;
+            }
+            console.warn('[FirestoreManager] addXP skipped — not signed in');
+            return false;
         } catch (error) {
             console.error('[FirestoreManager] Failed to add XP:', error);
             return false;
@@ -255,25 +247,21 @@ const FirestoreManager = (function() {
     }
 
     /**
-     * Record module completion
+     * Record module completion via Cloud Function (server authority)
      */
     async function completeModule(uid, moduleId, house) {
-        if (!initialized) await init();
-        if (!db) return false;
-
         try {
-            const { doc, updateDoc, arrayUnion, increment, serverTimestamp } = window.firebaseFirestore;
-            const userRef = doc(db, COLLECTIONS.USERS, uid);
-
-            await updateDoc(userRef, {
-                modulesCompleted: arrayUnion(moduleId),
-                xp: increment(XP_VALUES.MODULE_COMPLETE),
-                [`houseProgress.${house}.completed`]: increment(1),
-                updatedAt: serverTimestamp()
-            });
-
-            console.log(`[FirestoreManager] Module completed: ${moduleId}`);
-            return true;
+            if (typeof FirebaseAuth !== 'undefined' && FirebaseAuth.isSignedIn()) {
+                await FirebaseAuth.callFunction('recordProgress', {
+                    type: 'module',
+                    itemId: moduleId,
+                    house: house || null
+                });
+                console.log(`[FirestoreManager] Module completed via CF: ${moduleId}`);
+                return true;
+            }
+            console.warn('[FirestoreManager] completeModule skipped — not signed in');
+            return false;
         } catch (error) {
             console.error('[FirestoreManager] Failed to record module completion:', error);
             return false;
@@ -281,30 +269,21 @@ const FirestoreManager = (function() {
     }
 
     /**
-     * Record quiz pass
+     * Record quiz pass via Cloud Function (server authority)
      */
     async function passQuiz(uid, quizId, score, house) {
-        if (!initialized) await init();
-        if (!db) return false;
-
         try {
-            const { doc, updateDoc, increment, serverTimestamp } = window.firebaseFirestore;
-            const userRef = doc(db, COLLECTIONS.USERS, uid);
-
-            // Award more XP for perfect scores
-            const xpReward = score === 100 ? XP_VALUES.QUIZ_PERFECT : XP_VALUES.QUIZ_PASS;
-
-            await updateDoc(userRef, {
-                [`quizzes.${quizId}`]: {
-                    score,
-                    passedAt: new Date().toISOString()
-                },
-                xp: increment(xpReward),
-                [`houseProgress.${house}.quizzesPassed`]: increment(1),
-                updatedAt: serverTimestamp()
-            });
-
-            return true;
+            if (typeof FirebaseAuth !== 'undefined' && FirebaseAuth.isSignedIn()) {
+                await FirebaseAuth.callFunction('recordProgress', {
+                    type: 'quiz',
+                    itemId: quizId,
+                    score: score,
+                    house: house || null
+                });
+                return true;
+            }
+            console.warn('[FirestoreManager] passQuiz skipped — not signed in');
+            return false;
         } catch (error) {
             console.error('[FirestoreManager] Failed to record quiz pass:', error);
             return false;
@@ -312,24 +291,20 @@ const FirestoreManager = (function() {
     }
 
     /**
-     * Record lab completion
+     * Record lab completion via Cloud Function (server authority)
      */
     async function completeLab(uid, labId, house) {
-        if (!initialized) await init();
-        if (!db) return false;
-
         try {
-            const { doc, updateDoc, arrayUnion, increment, serverTimestamp } = window.firebaseFirestore;
-            const userRef = doc(db, COLLECTIONS.USERS, uid);
-
-            await updateDoc(userRef, {
-                labsCompleted: arrayUnion(labId),
-                xp: increment(XP_VALUES.LAB_COMPLETE),
-                [`houseProgress.${house}.labsCompleted`]: increment(1),
-                updatedAt: serverTimestamp()
-            });
-
-            return true;
+            if (typeof FirebaseAuth !== 'undefined' && FirebaseAuth.isSignedIn()) {
+                await FirebaseAuth.callFunction('recordProgress', {
+                    type: 'lab',
+                    itemId: labId,
+                    house: house || null
+                });
+                return true;
+            }
+            console.warn('[FirestoreManager] completeLab skipped — not signed in');
+            return false;
         } catch (error) {
             console.error('[FirestoreManager] Failed to record lab completion:', error);
             return false;
@@ -419,32 +394,34 @@ const FirestoreManager = (function() {
         // Check if user already has Firestore data
         const existingProfile = await getUserProfile(uid);
 
-        if (existingProfile && existingProfile.xp > 0) {
-            // Merge: take the higher values
-            const mergedData = mergeProgress(existingProfile, localData);
-            await setUserProfile(uid, mergedData);
-            console.log('[FirestoreManager] Merged local + cloud data');
-            return { migrated: true, reason: 'merged' };
+        // Use Cloud Function for migration (writes protected fields)
+        if (typeof FirebaseAuth !== 'undefined' && FirebaseAuth.isSignedIn()) {
+            try {
+                await FirebaseAuth.callFunction('syncProgress', {
+                    modulesCompleted: localData.modulesCompleted || [],
+                    labsCompleted: localData.labsCompleted || [],
+                    xp: localData.xp || 0,
+                    streak: localData.streak || 0,
+                    achievements: localData.achievements || [],
+                    quizzes: localData.quizzes || {}
+                });
+
+                // Also write safe fields directly (house, email)
+                if (localData.house) {
+                    await setUserProfile(uid, {
+                        house: localData.house
+                    });
+                }
+
+                console.log('[FirestoreManager] Migrated localStorage to Firestore via CF');
+                return { migrated: true, reason: existingProfile ? 'merged' : 'fresh_migration' };
+            } catch (err) {
+                console.warn('[FirestoreManager] Migration via CF failed:', err.message);
+                return { migrated: false, reason: 'cf_error' };
+            }
         } else {
-            // Fresh migration
-            const { serverTimestamp } = window.firebaseFirestore;
-
-            await setUserProfile(uid, {
-                email,
-                house: localData.house,
-                xp: localData.xp || 0,
-                streak: localData.streak || 0,
-                modulesCompleted: localData.modulesCompleted || [],
-                labsCompleted: localData.labsCompleted || [],
-                achievements: localData.achievements || [],
-                quizzes: localData.quizzes || {},
-                migratedFromLocalStorage: true,
-                migratedAt: new Date().toISOString(),
-                createdAt: serverTimestamp()
-            });
-
-            console.log('[FirestoreManager] Migrated localStorage to Firestore');
-            return { migrated: true, reason: 'fresh_migration' };
+            console.warn('[FirestoreManager] Migration skipped — not signed in');
+            return { migrated: false, reason: 'not_signed_in' };
         }
     }
 
@@ -1062,16 +1039,22 @@ const FirestoreManager = (function() {
                 localStorage.setItem(LOCALSTORAGE_KEYS.house, cloudProfile.house);
             }
 
-            // 7. Write merged data to Firestore
-            await setUserProfile(uid, {
-                modulesCompleted: [...allModuleIds],
-                labsCompleted: [...allLabIds],
-                xp: mergedXP,
-                streak: mergedStreak,
-                achievements: mergedAchievementIds,
-                quizzes: mergedQuizzes,
-                favorites: mergedFavorites
-            });
+            // 7. Write merged data to Firestore via Cloud Function (server authority)
+            if (typeof FirebaseAuth !== 'undefined' && FirebaseAuth.isSignedIn()) {
+                try {
+                    await FirebaseAuth.callFunction('syncProgress', {
+                        modulesCompleted: [...allModuleIds],
+                        labsCompleted: [...allLabIds],
+                        xp: mergedXP,
+                        streak: mergedStreak,
+                        achievements: mergedAchievementIds,
+                        quizzes: mergedQuizzes,
+                        favorites: mergedFavorites
+                    });
+                } catch (syncErr) {
+                    console.warn('[FirestoreManager] Cloud sync failed, data saved locally:', syncErr.message);
+                }
+            }
 
             console.log(`[FirestoreManager] Bidirectional sync complete: +${addedToLocal} to local, +${addedToCloud} to cloud`);
 
@@ -1224,8 +1207,14 @@ const FirestoreManager = (function() {
             labs: localData.labsCompleted?.length || 0
         });
 
-        // Update Firestore
-        await setUserProfile(uid, { xp: totalXP });
+        // Update Firestore via Cloud Function (xp is a protected field)
+        if (typeof FirebaseAuth !== 'undefined' && FirebaseAuth.isSignedIn()) {
+            try {
+                await FirebaseAuth.callFunction('syncProgress', { xp: totalXP });
+            } catch (err) {
+                console.warn('[FirestoreManager] XP sync via CF failed:', err.message);
+            }
+        }
 
         return { success: true, xp: totalXP };
     }

@@ -388,6 +388,7 @@
 
     <div class="footer-whisper">THE FINAL GATE</div>
 
+    <script src="../../components/FirebaseAuth.js"></script>
     <script src="../gate-cipher.js"></script>
     <script>
         // Version check — clears stale progress on rotation
@@ -426,28 +427,46 @@
         async function checkAnswer() {
             const code = codeInput.value.trim();
             const phrase = phraseInput.value.trim().toLowerCase();
+            if (!code && !phrase) return;
 
-            const set = GATE_CIPHER.getCurrentSet();
-            const codeCorrect = await GATE_CIPHER.checkAnswer(code, set.gate4.hash);
-            const wordCorrect = await GATE_CIPHER.checkBindingWord(phrase);
+            try {
+                // Validate code (gate 4 answer) and binding word (gate 5) via server
+                const codeResult = await GATE_CIPHER.checkAnswerServer(4, code);
+                const wordResult = await GATE_CIPHER.checkAnswerServer(5, phrase);
 
-            if (codeCorrect && wordCorrect) {
-                // Success!
-                synthesis.style.display = 'none';
-                portal.classList.add('revealed');
+                const codeCorrect = codeResult !== null ? codeResult : false;
+                const wordCorrect = wordResult !== null ? wordResult : false;
 
-                localStorage.setItem('gate5_complete', 'true');
-                localStorage.setItem('gate5_timestamp', Date.now().toString());
-                localStorage.setItem('dark_arts_unlocked', 'true');
-                if (typeof AchievementSystem !== 'undefined') {
-                    AchievementSystem.unlockDarkArtsGate(5);
-                    AchievementSystem.unlockDarkArtsVault();
+                if (codeCorrect && wordCorrect) {
+                    synthesis.style.display = 'none';
+                    portal.classList.add('revealed');
+
+                    localStorage.setItem('gate5_complete', 'true');
+                    localStorage.setItem('gate5_timestamp', Date.now().toString());
+                    localStorage.setItem('dark_arts_unlocked', 'true');
+                    if (typeof AchievementSystem !== 'undefined') {
+                        AchievementSystem.unlockDarkArtsGate(5);
+                        AchievementSystem.unlockDarkArtsVault();
+                    }
+                } else {
+                    error.classList.add('show');
+                    setTimeout(() => { error.classList.remove('show'); }, 3000);
                 }
-            } else if (code.length > 0 || phrase.length > 0) {
-                error.classList.add('show');
-                setTimeout(() => {
-                    error.classList.remove('show');
-                }, 3000);
+            } catch (err) {
+                if (err.code === 'functions/resource-exhausted') {
+                    error.textContent = 'Too many attempts. Wait 60 seconds.';
+                    error.classList.add('show');
+                    codeInput.disabled = true;
+                    phraseInput.disabled = true;
+                    submit.disabled = true;
+                    setTimeout(() => {
+                        error.classList.remove('show');
+                        error.textContent = 'The synthesis is not yet complete.';
+                        codeInput.disabled = false;
+                        phraseInput.disabled = false;
+                        submit.disabled = false;
+                    }, 60000);
+                }
             }
         }
 

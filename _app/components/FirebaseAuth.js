@@ -44,7 +44,7 @@ const FirebaseAuth = (function() {
     const _authReadyPromise = new Promise(resolve => { _authReadyResolve = resolve; });
 
     /**
-     * Load Firebase SDK dynamically (App + Auth + Functions)
+     * Load Firebase SDK dynamically (App + Auth + Functions + App Check)
      */
     async function loadFirebaseSDK() {
         if (window.firebaseApp && window.firebaseAuth) {
@@ -55,12 +55,14 @@ const FirebaseAuth = (function() {
             const modules = await Promise.all([
                 import('https://www.gstatic.com/firebasejs/12.7.0/firebase-app.js'),
                 import('https://www.gstatic.com/firebasejs/12.7.0/firebase-auth.js'),
-                import('https://www.gstatic.com/firebasejs/12.7.0/firebase-functions.js')
+                import('https://www.gstatic.com/firebasejs/12.7.0/firebase-functions.js'),
+                import('https://www.gstatic.com/firebasejs/12.7.0/firebase-app-check.js')
             ]);
 
             window.firebaseApp = modules[0];
             window.firebaseAuth = modules[1];
             window.firebaseFunctions = modules[2];
+            window.firebaseAppCheck = modules[3];
             return true;
         } catch (error) {
             console.error('[FirebaseAuth] Failed to load Firebase SDK:', error);
@@ -89,6 +91,20 @@ const FirebaseAuth = (function() {
                 app = initializeApp(config.firebase);
             } else {
                 app = getApps()[0];
+            }
+
+            // Initialize App Check (HTTPS only — skip on file:// protocol)
+            if (window.firebaseAppCheck && window.location.protocol === 'https:') {
+                try {
+                    const { initializeAppCheck, ReCaptchaV3Provider } = window.firebaseAppCheck;
+                    initializeAppCheck(app, {
+                        provider: new ReCaptchaV3Provider('RECAPTCHA_SITE_KEY_PLACEHOLDER'),
+                        isTokenAutoRefreshEnabled: true
+                    });
+                    console.log('[FirebaseAuth] App Check initialized');
+                } catch (e) {
+                    console.warn('[FirebaseAuth] App Check initialization failed:', e);
+                }
             }
 
             // Initialize Auth
