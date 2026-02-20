@@ -88,6 +88,8 @@ const MapRenderer = (() => {
     let _corridorEls = []; // { line, roomA, roomB }
     let _playerDot = null;
     let _playerGlowEl = null;
+    let _toastEl = null;
+    let _toastTimer = null;
 
     // Animation
     let _pulseAnim = null;
@@ -114,7 +116,7 @@ const MapRenderer = (() => {
             style: `width:100%;height:100%;background:${COLORS.bg};display:block;`
         });
 
-        // Defs — player glow filter
+        // Defs — player glow filter + adjacent pulse animation
         const defs = _createSVG('defs');
         defs.innerHTML = `
             <filter id="hive-glow" x="-50%" y="-50%" width="200%" height="200%">
@@ -125,6 +127,21 @@ const MapRenderer = (() => {
                 </feMerge>
             </filter>
         `;
+        // Inject CSS animation for adjacent rooms
+        if (!document.getElementById('hive-map-styles')) {
+            const style = document.createElement('style');
+            style.id = 'hive-map-styles';
+            style.textContent = `
+                @keyframes hive-adjacent-pulse {
+                    0%, 100% { opacity: 0.5; }
+                    50%      { opacity: 1; }
+                }
+                .hive-room.adjacent rect {
+                    animation: hive-adjacent-pulse 2.5s ease-in-out infinite;
+                }
+            `;
+            document.head.appendChild(style);
+        }
         _svg.appendChild(defs);
 
         // Content group (pan/zoom target)
@@ -148,6 +165,30 @@ const MapRenderer = (() => {
 
         // Attach to container
         container.appendChild(_svg);
+
+        // Discovery toast overlay
+        _toastEl = document.createElement('div');
+        _toastEl.style.cssText = `
+            position: absolute;
+            bottom: 16px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 6px 16px;
+            background: rgba(0,0,0,0.8);
+            border: 1px solid rgba(255,255,255,0.15);
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.7rem;
+            letter-spacing: 0.08em;
+            color: rgba(255,255,255,0.6);
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            z-index: 10;
+            white-space: nowrap;
+        `;
+        container.style.position = 'relative';
+        container.appendChild(_toastEl);
 
         // Input handlers
         _attachInputHandlers();
@@ -337,6 +378,7 @@ const MapRenderer = (() => {
             if (visited.has(id)) {
                 // Fully visible
                 el.group.style.display = '';
+                el.group.classList.remove('adjacent');
                 el.rect.setAttribute('fill', COLORS.roomVisited);
                 el.rect.setAttribute('stroke', COLORS.roomStroke);
                 el.rect.setAttribute('stroke-width', id === currentRoom ? '2.5' : '1.5');
@@ -369,6 +411,7 @@ const MapRenderer = (() => {
             } else if (adjacent.has(id)) {
                 // Adjacent but not visited — outline only, with pulse
                 el.group.style.display = '';
+                el.group.classList.add('adjacent');
                 el.rect.setAttribute('fill', 'rgba(255,255,255,0.02)');
                 el.rect.setAttribute('stroke', COLORS.adjacent);
                 el.rect.setAttribute('stroke-width', '1.5');
@@ -380,6 +423,7 @@ const MapRenderer = (() => {
             } else {
                 // Hidden
                 el.group.style.display = 'none';
+                el.group.classList.remove('adjacent');
             }
         }
 
@@ -638,6 +682,17 @@ const MapRenderer = (() => {
         return name.slice(0, maxLen - 1) + '\u2026';
     }
 
+    function showToast(text, duration) {
+        if (!_toastEl) return;
+        if (_toastTimer) clearTimeout(_toastTimer);
+        _toastEl.textContent = text;
+        _toastEl.style.opacity = '1';
+        _toastTimer = setTimeout(() => {
+            _toastEl.style.opacity = '0';
+            _toastTimer = null;
+        }, duration || 2000);
+    }
+
     function _checkLockCondition(condition, state) {
         if (!condition) return true;
         if (condition.type === 'puzzle-solved') {
@@ -654,7 +709,8 @@ const MapRenderer = (() => {
         init,
         update,
         highlightRoom,
-        centerOnRoom
+        centerOnRoom,
+        showToast
     };
 
 })();

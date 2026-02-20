@@ -233,6 +233,18 @@ var HiveEngine = (() => {
         document.addEventListener('keydown', (e) => {
             // Don't capture if typing in an input
             if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+
+            // ESC to leave puzzle terminal
+            if (e.key === 'Escape' && _activePuzzle) {
+                e.preventDefault();
+                const abandonBtn = document.querySelector('.hive-puzzle-wrapper')
+                    ?.parentElement?.querySelector('button');
+                if (abandonBtn && abandonBtn.textContent.includes('LEAVE')) {
+                    abandonBtn.click();
+                }
+                return;
+            }
+
             if (_activePuzzle) return;
 
             const dir = KEY_MAP[e.key];
@@ -298,6 +310,12 @@ var HiveEngine = (() => {
         MapRenderer.update(_state);
         MapRenderer.centerOnRoom(roomId);
         MapRenderer.highlightRoom(roomId);
+
+        // Discovery toast on new rooms
+        if (isFirstVisit) {
+            const total = Object.keys(_mapData.rooms).length;
+            MapRenderer.showToast(_state.visited.length + ' / ' + total + ' ROOMS DISCOVERED', 2500);
+        }
 
         // Enter room
         _enterRoom(roomId, isFirstVisit);
