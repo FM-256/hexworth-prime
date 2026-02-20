@@ -52,7 +52,9 @@ class OrphanDetector {
             'houses/cloud/index.html',
             'houses/code/index.html',
             'houses/key/index.html',
-            'houses/eye/index.html'
+            'houses/eye/index.html',
+            'dark-arts/index.html',
+            'dark-arts/vault/index.html'
         ];
 
         // Patterns to extract references from files
@@ -65,8 +67,8 @@ class OrphanDetector {
             /PageTransition\.navigateTo\s*\(\s*["']([^"']+)["']/gi,
             // window.location assignments
             /window\.location(?:\.href)?\s*=\s*["']([^"']+)["']/gi,
-            // Component paths in objects
-            /(?:presentation|lab|quiz|applet|tool):\s*["']([^"']+)["']/gi,
+            // Component/navigation paths in JS objects
+            /(?:presentation|lab|quiz|applet|tool|href|gateHref):\s*["']([^"']+)["']/gi,
             // Generic path references
             /['"](?:houses\/[^'"]+\.html)["']/gi,
             // src attributes for scripts/iframes
@@ -375,7 +377,7 @@ class OrphanDetector {
         }
 
         if (entry.raw) {
-            const componentPattern = /(?:presentation|lab|quiz|applet|tool|index):\s*["']([^"']+)["']/gi;
+            const componentPattern = /(?:presentation|lab|quiz|applet|tool|index|href|gateHref):\s*["']([^"']+)["']/gi;
             let match;
             while ((match = componentPattern.exec(entry.raw)) !== null) {
                 paths.push(match[1]);

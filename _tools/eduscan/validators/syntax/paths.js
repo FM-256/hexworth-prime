@@ -624,45 +624,53 @@ class PathValidator {
     checkAnchorPaths(file, fileDir) {
         const issues = [];
         const content = file.content;
-        const anchorPattern = /<a[^>]*\shref\s*=\s*["']([^"'#]+\.html)["'][^>]*>/gi;
-        let match;
 
-        while ((match = anchorPattern.exec(content)) !== null) {
-            const href = match[1];
-            const line = this.getLineNumber(content, match.index);
+        // Pattern 1: Standard <a href="..."> tags
+        // Pattern 2: JS object href/gateHref properties (e.g., vault LEVELS config)
+        const patterns = [
+            /<a[^>]*\shref\s*=\s*["']([^"'#]+\.html)["'][^>]*>/gi,
+            /(?:href|gateHref):\s*["']([^"'#]+\.html)["']/gi
+        ];
 
-            if (this.shouldSkipUrl(href)) {
-                continue;
-            }
+        for (const anchorPattern of patterns) {
+            let match;
+            while ((match = anchorPattern.exec(content)) !== null) {
+                const href = match[1];
+                const line = this.getLineNumber(content, match.index);
 
-            // Check for dynamic path construction
-            if (this.isDynamicPath(href)) {
-                issues.push(this.createDynamicIssue(file, href, line, 'PATH-004', 'link'));
-                continue;
-            }
+                if (this.shouldSkipUrl(href)) {
+                    continue;
+                }
 
-            const resolved = this.resolvePath(href, fileDir);
-            const exists = this.checkExists(resolved);
+                // Check for dynamic path construction
+                if (this.isDynamicPath(href)) {
+                    issues.push(this.createDynamicIssue(file, href, line, 'PATH-004', 'link'));
+                    continue;
+                }
 
-            if (!exists) {
-                const analysis = this.analyzePathIssue(href, resolved, fileDir, file.path, '.html');
-                issues.push({
-                    code: 'PATH-004',
-                    severity: 'low',
-                    category: 'path',
-                    bucket: analysis.bucket,
-                    message: `Linked page not found: ${href}`,
-                    file: file.path,
-                    line,
-                    missingPath: href,
-                    resolvedPath: resolved,
-                    suggestion: analysis.suggestion,
-                    autoFixable: analysis.autoFixable,
-                    fix: analysis.suggestion
-                        ? `Change path to: ${analysis.suggestion.path}`
-                        : `Create ${href} or fix the link`,
-                    suggestions: analysis.allMatches || []
-                });
+                const resolved = this.resolvePath(href, fileDir);
+                const exists = this.checkExists(resolved);
+
+                if (!exists) {
+                    const analysis = this.analyzePathIssue(href, resolved, fileDir, file.path, '.html');
+                    issues.push({
+                        code: 'PATH-004',
+                        severity: 'low',
+                        category: 'path',
+                        bucket: analysis.bucket,
+                        message: `Linked page not found: ${href}`,
+                        file: file.path,
+                        line,
+                        missingPath: href,
+                        resolvedPath: resolved,
+                        suggestion: analysis.suggestion,
+                        autoFixable: analysis.autoFixable,
+                        fix: analysis.suggestion
+                            ? `Change path to: ${analysis.suggestion.path}`
+                            : `Create ${href} or fix the link`,
+                        suggestions: analysis.allMatches || []
+                    });
+                }
             }
         }
 
