@@ -1232,7 +1232,8 @@ const FirestoreManager = (function() {
                 }
             }
 
-            // 8. Write bulk localStorage sync blob (captures ALL syncable state)
+            // 8. Restore bulk sync blob from other devices, THEN write updated state
+            await _restoreSyncBlob(uid);
             await _writeSyncBlob(uid);
 
             console.log(`[FirestoreManager] Bidirectional sync complete: +${addedToLocal} to local, +${addedToCloud} to cloud`);
