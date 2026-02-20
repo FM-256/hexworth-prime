@@ -12,6 +12,93 @@ const A5Config = {
 
     title: 'The Custodian\'s Key',
     subtitle: 'Windows Privilege Escalation — Corporate Jump Server',
+
+    // Tutorial mode (AR-12)
+    tutorialMode: true,
+    tutorial: {
+            "steps": [
+                    {
+                            "title": "Enumerate the system",
+                            "tip": "Run systeminfo, whoami /priv, and net user to understand the Windows environment.",
+                            "trigger": {
+                                    "event": "command",
+                                    "match": {
+                                            "cmd": "contains:whoami"
+                                    },
+                                    "alt": [
+                                            {
+                                                    "event": "command",
+                                                    "match": {
+                                                            "cmd": "contains:systeminfo"
+                                                    }
+                                            }
+                                    ]
+                            }
+                    },
+                    {
+                            "title": "Find escalation vectors",
+                            "tip": "Check for unquoted service paths, weak permissions, scheduled tasks, or stored credentials.",
+                            "trigger": {
+                                    "event": "command",
+                                    "match": {
+                                            "cmd": "contains:sc query"
+                                    },
+                                    "alt": [
+                                            {
+                                                    "event": "command",
+                                                    "match": {
+                                                            "cmd": "contains:icacls"
+                                                    }
+                                            },
+                                            {
+                                                    "event": "command",
+                                                    "match": {
+                                                            "cmd": "contains:schtasks"
+                                                    }
+                                            }
+                                    ]
+                            }
+                    },
+                    {
+                            "title": "Extract credentials",
+                            "tip": "Look in registry, config files, or use tools to dump cached credentials.",
+                            "trigger": {
+                                    "event": "command",
+                                    "match": {
+                                            "cmd": "contains:reg query"
+                                    },
+                                    "alt": [
+                                            {
+                                                    "event": "command",
+                                                    "match": {
+                                                            "cmd": "contains:type"
+                                                    }
+                                            }
+                                    ]
+                            }
+                    },
+                    {
+                            "title": "Capture the user flag",
+                            "tip": "Find the user flag file on the compromised Windows system.",
+                            "trigger": {
+                                    "event": "flag_correct",
+                                    "match": {
+                                            "flagId": "user"
+                                    }
+                            }
+                    },
+                    {
+                            "title": "Escalate to admin",
+                            "tip": "Use the escalation vector to gain SYSTEM or Administrator access and capture the root flag.",
+                            "trigger": {
+                                    "event": "flag_correct",
+                                    "match": {
+                                            "flagId": "root"
+                                    }
+                            }
+                    }
+            ]
+    },
     difficulty: 'Intermediate',
     accent: '#3498db',
     storageKey: 'hexworth_ctf_a5',

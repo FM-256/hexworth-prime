@@ -12,6 +12,74 @@ const A7Config = {
 
     title: 'The Hollow Database',
     subtitle: 'NoSQL Injection — Void Collective',
+
+    // Tutorial mode (AR-12)
+    tutorialMode: true,
+    tutorial: {
+            "steps": [
+                    {
+                            "title": "Scan the target network",
+                            "tip": "Open the Terminal and run nmap against the target IP to discover open ports and services.",
+                            "trigger": {
+                                    "event": "command",
+                                    "match": {
+                                            "cmd": "contains:nmap"
+                                    }
+                            }
+                    },
+                    {
+                            "title": "Explore the web application",
+                            "tip": "Open Firefox and browse to the target web app. Look for input forms and login pages.",
+                            "trigger": {
+                                    "event": "navigate"
+                            }
+                    },
+                    {
+                            "title": "Test for SQL injection",
+                            "tip": "Try entering a single quote (') in form fields. Watch for database error messages that reveal injection points.",
+                            "trigger": {
+                                    "event": "command",
+                                    "match": {
+                                            "phase": "EXPLOIT"
+                                    },
+                                    "alt": [
+                                            {
+                                                    "event": "command",
+                                                    "match": {
+                                                            "cmd": "contains:'"
+                                                    }
+                                            },
+                                            {
+                                                    "event": "command",
+                                                    "match": {
+                                                            "cmd": "contains:sqlmap"
+                                                    }
+                                            }
+                                    ]
+                            }
+                    },
+                    {
+                            "title": "Extract user-level data",
+                            "tip": "Use your injection to extract credentials or sensitive data from the database.",
+                            "trigger": {
+                                    "event": "flag_correct",
+                                    "match": {
+                                            "flagId": "user"
+                                    }
+                            }
+                    },
+                    {
+                            "title": "Escalate to root access",
+                            "tip": "Look for admin credentials, SSH keys, or privilege escalation paths in the extracted data.",
+                            "trigger": {
+                                    "event": "flag_correct",
+                                    "match": {
+                                            "flagId": "root"
+                                    }
+                            }
+                    }
+            ]
+    },
     difficulty: 'Intermediate',
     accent: '#1abc9c',
     storageKey: 'hexworth_ctf_a7',

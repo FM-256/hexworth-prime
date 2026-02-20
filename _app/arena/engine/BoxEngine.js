@@ -37,6 +37,10 @@ const BoxEngine = {
                     this.config.coOpMode = true;
                     this.config.vsMode = true;
                 }
+                // Store player's difficulty choice for _getEffectiveDifficulty()
+                if (result.difficulty) {
+                    this._difficultyOverride = result.difficulty;
+                }
                 this._initWithMode();
             });
         } else {
@@ -1460,6 +1464,13 @@ const BoxEngine = {
      * Returns 'easy', 'normal', or 'hard'. Defaults to 'normal' if not set.
      */
     _getEffectiveDifficulty() {
+        // Player override via lobby selection, URL param, or saved state
+        const params = new URLSearchParams(window.location.search);
+        const override = this._difficultyOverride || params.get('difficulty') || (this.state && this.state._difficultyOverride);
+        if (override) {
+            const o = override.toLowerCase();
+            if (o === 'easy' || o === 'normal' || o === 'hard') return o;
+        }
         const d = (this.config.difficulty || 'normal').toLowerCase();
         if (d === 'easy' || d.includes('beginner')) return 'easy';
         if (d === 'hard' || d.includes('expert') || d.includes('advanced')) return 'hard';

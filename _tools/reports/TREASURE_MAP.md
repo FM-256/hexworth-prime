@@ -1,7 +1,7 @@
 ══════════════════════════════════════════════════════════════════════
                          EDUSCAN REPORT
                     Hexworth Prime Content Map
-                    Scanned: 2026-02-20 11:18:55 PM
+                    Scanned: 2026-02-20 12:16:56 AM
 ══════════════════════════════════════════════════════════════════════
 
 
@@ -10,16 +10,16 @@
 
 | Metric | Value |
 |--------|-------|
-| Files Scanned | 1498 |
+| Files Scanned | 1500 |
 | Directories | 474 |
-| Content Files | 1498 |
-| Scan Duration | 363ms |
+| Content Files | 1500 |
+| Scan Duration | 186ms |
 
 ### Content by Type
 
 | Type | Count |
 |------|-------|
-| html | 545 |
+| html | 547 |
 | presentation | 402 |
 | lab | 237 |
 | applet | 188 |
@@ -29,8 +29,8 @@
 
 | Metric | Value |
 |--------|-------|
-| Total Modules | 1353 |
-| Available | 1348 |
+| Total Modules | 1355 |
+| Available | 1350 |
 | Missing Hrefs (CAT-001) | 0 |
 | Undeclared Files (CAT-002) | 0 |
 | Empty Hrefs (CAT-003) | 0 |
@@ -41,10 +41,10 @@
 | Severity | Count |
 |----------|-------|
 | Critical | 0 |
-| Suspect | 9 |
+| Suspect | 7 |
 | Warning | 1012 |
 | Info | 246 |
-| **Total** | **1267** |
+| **Total** | **1265** |
 
 ### Sync Status
 
@@ -52,7 +52,7 @@
 |--------|-------|
 | Ready | 881 |
 | Not Ready | 72 |
-| Unknown | 545 |
+| Unknown | 547 |
 
 
 ## FILE HIERARCHY
@@ -720,6 +720,7 @@
 │   │   │   └── 🔬 eye-traffic.lab.html
 │   │   ├── 📁 modules [modules]
 │   │   │   └── 📁 cyberops [modules]
+│   │   │       ├── 📄 eye-certificate.module.html
 │   │   │       └── 📍 index.html
 │   │   ├── 📁 presentations [presentations]
 │   │   │   ├── 📊 eye-log-basics.presentation.html
@@ -1458,6 +1459,7 @@
 │   │   │   │   └── 📄 script-lm-53-next-steps.module.html
 │   │   │   └── 📁 python [modules]
 │   │   │       ├── 📍 index.html
+│   │   │       ├── 📄 script-certificate.module.html
 │   │   │       ├── 📄 script-python-immersive-chapter1.module.html
 │   │   │       ├── 📄 script-python-immersive-chapter2.module.html
 │   │   │       ├── 📄 script-python-immersive-chapter3.module.html
@@ -3048,7 +3050,7 @@
 ## ISSUES DETECTED
 ══════════════════════════════════════════════════════════════════════
 
-### SUSPECT (9) — heuristic, needs review
+### SUSPECT (7) — heuristic, needs review
 
 **[HEUR-004]** console.log() in inline script (production hygiene)
   File: `admin/audit-tool.html`
@@ -3064,14 +3066,6 @@
 
 **[HEUR-003]** TODO marker in script: { type: 'deletion', line: '-  // TODO: add pagination' },
   File: `houses/code/games/code-git-bisect.html`
-  Fix: Resolve or remove TODO comment
-
-**[HEUR-003]** TODO marker in script: continueBtn.href = '#'; // TODO: Certificate page
-  File: `houses/eye/modules/cyberops/index.html`
-  Fix: Resolve or remove TODO comment
-
-**[HEUR-003]** TODO marker in script: continueBtn.href = '#'; // TODO: Certificate page
-  File: `houses/script/modules/python/index.html`
   Fix: Resolve or remove TODO comment
 
 **[HEUR-001]** Excessive inline scripts: 15 <script> blocks without src (threshold: 8)

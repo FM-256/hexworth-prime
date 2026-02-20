@@ -13,6 +13,93 @@ const A4Config = {
 
     title: 'The Lost Root',
     subtitle: 'Linux Privilege Escalation — Citadel Maintenance',
+
+    // Tutorial mode (AR-12)
+    tutorialMode: true,
+    tutorial: {
+            "steps": [
+                    {
+                            "title": "Enumerate the system",
+                            "tip": "Run basic recon: whoami, id, uname -a. Understand what user you are and what system this is.",
+                            "trigger": {
+                                    "event": "command",
+                                    "match": {
+                                            "cmd": "contains:whoami"
+                                    },
+                                    "alt": [
+                                            {
+                                                    "event": "command",
+                                                    "match": {
+                                                            "cmd": "contains:id"
+                                                    }
+                                            }
+                                    ]
+                            }
+                    },
+                    {
+                            "title": "Find escalation vectors",
+                            "tip": "Look for SUID binaries (find / -perm -4000), writable configs, cron jobs, or sudo permissions.",
+                            "trigger": {
+                                    "event": "command",
+                                    "match": {
+                                            "cmd": "contains:find"
+                                    },
+                                    "alt": [
+                                            {
+                                                    "event": "command",
+                                                    "match": {
+                                                            "cmd": "contains:sudo"
+                                                    }
+                                            },
+                                            {
+                                                    "event": "command",
+                                                    "match": {
+                                                            "cmd": "contains:cron"
+                                                    }
+                                            }
+                                    ]
+                            }
+                    },
+                    {
+                            "title": "Read sensitive files",
+                            "tip": "Check /etc/passwd, /etc/shadow (if readable), home directories, and config files for credentials.",
+                            "trigger": {
+                                    "event": "command",
+                                    "match": {
+                                            "cmd": "contains:cat"
+                                    },
+                                    "alt": [
+                                            {
+                                                    "event": "command",
+                                                    "match": {
+                                                            "cmd": "contains:less"
+                                                    }
+                                            }
+                                    ]
+                            }
+                    },
+                    {
+                            "title": "Capture the user flag",
+                            "tip": "Find and submit the user-level flag from the compromised service or user directory.",
+                            "trigger": {
+                                    "event": "flag_correct",
+                                    "match": {
+                                            "flagId": "user"
+                                    }
+                            }
+                    },
+                    {
+                            "title": "Escalate to root",
+                            "tip": "Exploit the privilege escalation vector you found to gain root access and capture the final flag.",
+                            "trigger": {
+                                    "event": "flag_correct",
+                                    "match": {
+                                            "flagId": "root"
+                                    }
+                            }
+                    }
+            ]
+    },
     difficulty: 'Intermediate',
     accent: '#f39c12',
     storageKey: 'hexworth_ctf_a4',

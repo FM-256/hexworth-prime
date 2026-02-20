@@ -86,8 +86,8 @@ All remaining work — organized by priority. Detail for each sprint lives furth
 | **PR-3** | Instructor answer keys A1-A5 | ✅ Done | All 5 guides verified — full walkthroughs, grading rubrics, time checkpoints, discussion prompts |
 | **PR-6** | Marketing & demo assets (video, screenshots, landing page, PDF) | Backlog | Zero marketing assets exist — product is invisible |
 | **AR-11** | Flag security — server-side validation, salt, rate limit | ✅ Done | validateFlag Cloud Function deployed — Firestore flag registry, rate limiting, capture records |
-| **AR-12** | Tutorial mode — progressive difficulty, scaffolded blue team | Backlog | Basic done in marathon; full walkthrough + difficulty tiers remain. Student retention blocker |
-| **AR-13** | Instructor dashboard arena panels | Backlog | Basic done in marathon; per-student grid, flag detail, CTF assignment type remain |
+| **AR-12** | Tutorial mode — progressive difficulty, scaffolded blue team | ✅ Done | 5 attack-type templates (SQL, XSS, CmdInj, LinPrivEsc, WinPrivEsc) + default. 19 boxes configured. Easy/Normal/Hard difficulty selector in CoOpLobby. |
+| **AR-13** | Instructor dashboard arena panels | ✅ Done | Leaderboard, per-student grid, flag detail view, CTF assignment type, CSV export — all already implemented in InstructorDashboard.js |
 
 ### MEDIUM Priority
 
@@ -99,10 +99,10 @@ All remaining work — organized by priority. Detail for each sprint lives furth
 | **AR-14** | Research instrumentation finish (command export, surveys, abandonment, phase detection) | ✅ Done | All 6 items complete: event log, export, command hook, surveys, abandonment, phase detection |
 | **PR-5** | Difficulty metrics & analysis layer | Backlog | Grant reviewers love measurable learning |
 | **PR-7** | Red vs Blue asymmetric box | Backlog | Product differentiator — depends on AR-11, AR-12 |
-| **QC-3** | Planet perf, Core 2 dup progress, achievement wiring, WSA gaps | Backlog | Mixed bag of known issues |
-| **DA-8** | Dark Arts Gate 8 — Dynamic Analysis Sandbox | Backlog | 30-45 min, discoverable filesystem hints, unlocks Tier 4 |
-| **DA-9** | Dark Arts Gate 9 — Reverse Engineering Challenge | Backlog | 40-60 min, assembly-level analysis, unlocks Tier 5 |
-| **DA-10** | Dark Arts Gate 10 — IR Capstone | Backlog | 60-90 min, full incident response, unlocks Dark Arts Master |
+| **QC-3** | Planet perf, Core 2 dup progress, achievement wiring, WSA gaps | Partial | Planet cap ✅, achievements ✅, Core 2 dup ✅ (Forge index now reads both legacy + hexworth_progress). WSA gaps + Backup or Bust remain (content authoring). |
+| **DA-8** | Dark Arts Gate 8 — Dynamic Analysis Sandbox | ✅ Done | Operation Gone Dark: multi-device forensic investigation. Desktop/laptop/phone interfaces, caseboard, datadrill, evidence tracking. Full state engine (shared.js). |
+| **DA-9** | Dark Arts Gate 9 — Reverse Engineering Challenge | ✅ Done | IDA/Ghidra-style disassembly viewer, string decryption, API mapping, control flow analysis. Prerequisite: gate 8. Achievement wired. |
+| **DA-10** | Dark Arts Gate 10 — IR Capstone | ✅ Done | Full incident response: SIEM alert, triage, containment, evidence collection, root cause, eradication, lessons learned. Prerequisite: gate 9. Achievement + Grandmaster rank wired. |
 | **F-38** | Advanced career sorting quiz | Backlog | 30-40 questions, career aptitude, 12 career tracks |
 | **F-39** | Universal completion stamps + mastery XP | Discussion | Massive scope — touches nearly every component |
 
@@ -110,6 +110,7 @@ All remaining work — organized by priority. Detail for each sprint lives furth
 
 | Sprint | What | Status | Notes |
 |--------|------|--------|-------|
+| **F-40** | Certificate / completion pages (Eye CyberOps + Script Python) | ✅ Done | Shared CertificateRenderer.js + certificate-styles.css, printable gold-border cert with completion stats. Buttons wired. |
 | **QC-1** | Remaining playthrough tests (text adventures, incident-response, sudo-su, flappy, runners, strategy) | Partial | Non-blocking — games work, just not fully audited |
 | **QC-5** | EduScan CI/CD (GitHub Actions) | Backlog | Nice to have — manual scan works fine |
 | **HD comparative** | Cohort vs cohort analytics | Deferred | Multi-class feature — no classes running yet |
@@ -131,11 +132,10 @@ All remaining work — organized by priority. Detail for each sprint lives furth
 
 ### Biggest Gaps by Category
 
-- **Revenue blockers:** PR-2 (cert matrix), PR-3 finish (instructor guides), PR-6 (marketing assets)
-- **Security:** QC-4 (server-side auth), AR-11 finish (server-side flags)
-- **Content:** DA-8/9/10 (Dark Arts gates), ARC-1 (Arctic hub), AR-4/5 (IDP pipeline)
-- **Research/PhD:** AR-14 finish (surveys, abandonment, phase detection)
-- **Student experience:** QC-7 (Forge path blocked), AR-12 (tutorial mode), ARC-1 (Linux hub)
+- **Revenue blockers:** PR-6 (marketing assets — zero exist)
+- **Content:** DA-8/9/10 (Dark Arts gates 8-10), AR-4/5 (IDP pipeline)
+- **Polish:** QC-3 remainder (WSA gaps, Backup or Bust), F-38 (career quiz)
+- **Barricades remaining:** 18 links across 8 files (pwsh applets ×5, sysadmin applets ×5, forge chapters ×5, misc ×3) — genuinely missing content
 
 ---
 
@@ -1248,7 +1248,7 @@ Team-based competitive CTF battles. Teams race each other with separate scores, 
 | Task | File | Issue | Status |
 |------|------|-------|--------|
 | Planet overload cap | `digital-life/entities/Planet.js`, `Ecosystem.js` | After many planets, performance degrades — need max cap or cleanup | ✅ (already implemented — maxPlanets: 20, recycleOldestPlanet) |
-| Core 2 duplicate progress tracking | `houses/forge/applets/comptia-aplus/core-2/` | Two independent progress systems (applet hub vs house index) | ⬜ |
+| Core 2 duplicate progress tracking | `houses/forge/index.html` | Forge index now reads both legacy `aplus-core2-progress` AND `hexworth_progress.forge` keys | ✅ |
 | Achievement wiring gaps | `AchievementManager.js`, `AchievementSystem.js` | `first_module`, `house_scholar_X` not triggering | ✅ (first_module was already wired; added house milestone + scholar triggers in checkProgressAchievements via AchievementRegistry) |
 | WSA Domain 2-4 content gaps | Cloud house WSA modules | Domains 2, 3, 4 only 22-25% complete | ⬜ |
 | PSTerminal objective audit | `WSAGauntlet.js` | M07 context-sensitive objectives need path checking; M04 `new-vm` vs `create-vm` mismatch | ✅ (verified: all 14 M07 objectives have _checkObjective hooks; M04 quiz correctly uses New-VM as answer, Create-VM is distractor) |

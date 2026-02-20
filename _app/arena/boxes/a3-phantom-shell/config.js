@@ -12,6 +12,74 @@ const A3Config = {
 
     title: 'The Phantom Shell',
     subtitle: 'Command Injection — Iron Bastion',
+
+    // Tutorial mode (AR-12)
+    tutorialMode: true,
+    tutorial: {
+            "steps": [
+                    {
+                            "title": "Scan the target",
+                            "tip": "Use nmap to enumerate open ports and identify services on the target machine.",
+                            "trigger": {
+                                    "event": "command",
+                                    "match": {
+                                            "cmd": "contains:nmap"
+                                    }
+                            }
+                    },
+                    {
+                            "title": "Find the web interface",
+                            "tip": "Browse to the web application. Look for forms that might execute system commands.",
+                            "trigger": {
+                                    "event": "navigate"
+                            }
+                    },
+                    {
+                            "title": "Test for command injection",
+                            "tip": "Try appending shell operators (;, |, &&) to form inputs. Check if OS commands execute.",
+                            "trigger": {
+                                    "event": "command",
+                                    "match": {
+                                            "phase": "EXPLOIT"
+                                    },
+                                    "alt": [
+                                            {
+                                                    "event": "command",
+                                                    "match": {
+                                                            "cmd": "contains:;"
+                                                    }
+                                            },
+                                            {
+                                                    "event": "command",
+                                                    "match": {
+                                                            "cmd": "contains:|"
+                                                    }
+                                            }
+                                    ]
+                            }
+                    },
+                    {
+                            "title": "Capture the user flag",
+                            "tip": "Use command injection to read files or extract credentials from the target system.",
+                            "trigger": {
+                                    "event": "flag_correct",
+                                    "match": {
+                                            "flagId": "user"
+                                    }
+                            }
+                    },
+                    {
+                            "title": "Escalate to root",
+                            "tip": "Check for SUID binaries, weak permissions, or sudo misconfigurations to escalate privileges.",
+                            "trigger": {
+                                    "event": "flag_correct",
+                                    "match": {
+                                            "flagId": "root"
+                                    }
+                            }
+                    }
+            ]
+    },
     difficulty: 'Intermediate',
     accent: '#2ecc71',
     storageKey: 'hexworth_ctf_a3',

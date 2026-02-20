@@ -68,16 +68,34 @@ const CoOpLobby = (function() {
                         <span class="coop-mode-desc">Team vs team. Race to pwn.</span>
                     </button>
                 </div>
+                <div class="coop-difficulty-row">
+                    <span class="coop-difficulty-label">Difficulty:</span>
+                    <div class="coop-difficulty-options">
+                        <button class="coop-diff-btn coop-diff-easy" data-diff="easy" title="Tutorial guidance, free hints after 3 min">Easy</button>
+                        <button class="coop-diff-btn coop-diff-normal coop-diff-active" data-diff="normal" title="Standard challenge, hints available">Normal</button>
+                        <button class="coop-diff-btn coop-diff-hard" data-diff="hard" title="No tutorial, double hint penalties">Hard</button>
+                    </div>
+                </div>
                 <div class="coop-lobby-stage" id="coopLobbyStage"></div>
             </div>
         `;
 
         document.body.appendChild(_overlayEl);
 
+        // Difficulty selector
+        let _selectedDifficulty = 'normal';
+        _overlayEl.querySelectorAll('.coop-diff-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                _overlayEl.querySelectorAll('.coop-diff-btn').forEach(b => b.classList.remove('coop-diff-active'));
+                btn.classList.add('coop-diff-active');
+                _selectedDifficulty = btn.dataset.diff;
+            });
+        });
+
         document.getElementById('coopBtnSolo').addEventListener('click', () => {
             _gameMode = 'solo';
             _close();
-            _onStart({ mode: 'solo' });
+            _onStart({ mode: 'solo', difficulty: _selectedDifficulty });
         });
 
         document.getElementById('coopBtnCoop').addEventListener('click', () => {

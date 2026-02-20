@@ -128,8 +128,11 @@ const GATE_CIPHER = (() => {
     function checkVersion() {
         const stored = localStorage.getItem('gate_version');
         if (stored !== VERSION) {
-            for (let i = 1; i <= 5; i++) {
+            for (let i = 1; i <= 10; i++) {
                 localStorage.removeItem('gate' + i + '_complete');
+                localStorage.removeItem('gate' + i + '_score');
+                localStorage.removeItem('gate' + i + '_timestamp');
+                localStorage.removeItem('gate' + i + '_progress');
             }
             localStorage.removeItem('dark_arts_unlocked');
             localStorage.removeItem('gate4_code');

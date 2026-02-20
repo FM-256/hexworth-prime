@@ -1082,6 +1082,51 @@ class AchievementSystem {
             points: 300,
             secret: true
         },
+        dark_arts_gate6: {
+            id: 'dark_arts_gate6',
+            name: 'Analyst',
+            description: 'Complete the static analysis challenge',
+            icon: '🔬',
+            category: 'dark_arts',
+            points: 400,
+            secret: true
+        },
+        dark_arts_gate7: {
+            id: 'dark_arts_gate7',
+            name: 'Sentinel',
+            description: 'Complete the threat intelligence challenge',
+            icon: '🛡️',
+            category: 'dark_arts',
+            points: 400,
+            secret: true
+        },
+        dark_arts_gate8: {
+            id: 'dark_arts_gate8',
+            name: 'Master Investigator',
+            description: 'Complete Operation Gone Dark',
+            icon: '🕵️',
+            category: 'dark_arts',
+            points: 500,
+            secret: true
+        },
+        dark_arts_gate9: {
+            id: 'dark_arts_gate9',
+            name: 'Phantom',
+            description: 'Complete the reverse engineering challenge',
+            icon: '👁',
+            category: 'dark_arts',
+            points: 500,
+            secret: true
+        },
+        dark_arts_gate10: {
+            id: 'dark_arts_gate10',
+            name: 'Grandmaster',
+            description: 'Complete the incident response capstone',
+            icon: '💀',
+            category: 'dark_arts',
+            points: 1000,
+            secret: true
+        },
         dark_arts_vault: {
             id: 'dark_arts_vault',
             name: 'Vault Keeper',
@@ -2656,7 +2701,12 @@ class AchievementSystem {
             2: 'dark_arts_gate2',
             3: 'dark_arts_gate3',
             4: 'dark_arts_gate4',
-            5: 'dark_arts_gate5'
+            5: 'dark_arts_gate5',
+            6: 'dark_arts_gate6',
+            7: 'dark_arts_gate7',
+            8: 'dark_arts_gate8',
+            9: 'dark_arts_gate9',
+            10: 'dark_arts_gate10'
         };
 
         const achievementId = gateMap[gateNumber];
@@ -2664,8 +2714,8 @@ class AchievementSystem {
             this.unlock(achievementId);
         }
 
-        // Check if all 5 gates complete -> Dark Arts Master
-        const allGates = [1, 2, 3, 4, 5].every(g =>
+        // Check if all 10 gates complete -> Dark Arts Grandmaster
+        const allGates = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10].every(g =>
             this.isUnlocked(gateMap[g])
         );
         if (allGates) {

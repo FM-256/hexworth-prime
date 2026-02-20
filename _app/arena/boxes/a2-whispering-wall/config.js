@@ -12,6 +12,74 @@ const A2Config = {
 
     title: 'The Whispering Wall',
     subtitle: 'Cross-Site Scripting — Obsidian Hand',
+
+    // Tutorial mode (AR-12)
+    tutorialMode: true,
+    tutorial: {
+            "steps": [
+                    {
+                            "title": "Scan the target network",
+                            "tip": "Run nmap to discover the web server and any other services running on the target.",
+                            "trigger": {
+                                    "event": "command",
+                                    "match": {
+                                            "cmd": "contains:nmap"
+                                    }
+                            }
+                    },
+                    {
+                            "title": "Explore the web application",
+                            "tip": "Browse the target site. Look for user input fields, comment sections, or search bars.",
+                            "trigger": {
+                                    "event": "navigate"
+                            }
+                    },
+                    {
+                            "title": "Test for XSS vulnerabilities",
+                            "tip": "Try injecting <script> tags or event handlers into input fields. Watch if your code executes.",
+                            "trigger": {
+                                    "event": "command",
+                                    "match": {
+                                            "phase": "EXPLOIT"
+                                    },
+                                    "alt": [
+                                            {
+                                                    "event": "command",
+                                                    "match": {
+                                                            "cmd": "contains:script"
+                                                    }
+                                            },
+                                            {
+                                                    "event": "command",
+                                                    "match": {
+                                                            "cmd": "contains:alert"
+                                                    }
+                                            }
+                                    ]
+                            }
+                    },
+                    {
+                            "title": "Capture the user flag",
+                            "tip": "Use your XSS to steal session tokens, cookies, or extract hidden data.",
+                            "trigger": {
+                                    "event": "flag_correct",
+                                    "match": {
+                                            "flagId": "user"
+                                    }
+                            }
+                    },
+                    {
+                            "title": "Escalate to root",
+                            "tip": "Leverage the stolen credentials or session to access admin functionality.",
+                            "trigger": {
+                                    "event": "flag_correct",
+                                    "match": {
+                                            "flagId": "root"
+                                    }
+                            }
+                    }
+            ]
+    },
     difficulty: 'Beginner-Intermediate',
     accent: '#e67e22',
     storageKey: 'hexworth_ctf_a2',

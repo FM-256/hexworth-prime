@@ -13,6 +13,68 @@ const A18Config = {
 
     title: 'The Ghost in the RAM',
     subtitle: 'Memory Forensics — Chronos Collective',
+
+    // Tutorial mode (AR-12)
+    tutorialMode: true,
+    tutorial: {
+            "steps": [
+                    {
+                            "title": "Reconnaissance",
+                            "tip": "Start by scanning the target with nmap to discover services and potential attack vectors.",
+                            "trigger": {
+                                    "event": "command",
+                                    "match": {
+                                            "cmd": "contains:nmap"
+                                    }
+                            }
+                    },
+                    {
+                            "title": "Explore the target",
+                            "tip": "Investigate the services you found. Browse web apps, check service versions, read documentation.",
+                            "trigger": {
+                                    "event": "navigate",
+                                    "alt": [
+                                            {
+                                                    "event": "command",
+                                                    "match": {
+                                                            "phase": "RECON"
+                                                    }
+                                            }
+                                    ]
+                            }
+                    },
+                    {
+                            "title": "Find the vulnerability",
+                            "tip": "Look for misconfigurations, weak inputs, or known CVEs in the services you discovered.",
+                            "trigger": {
+                                    "event": "command",
+                                    "match": {
+                                            "phase": "EXPLOIT"
+                                    }
+                            }
+                    },
+                    {
+                            "title": "Capture the user flag",
+                            "tip": "Exploit the vulnerability to gain initial access and retrieve the user flag.",
+                            "trigger": {
+                                    "event": "flag_correct",
+                                    "match": {
+                                            "flagId": "user"
+                                    }
+                            }
+                    },
+                    {
+                            "title": "Escalate to root",
+                            "tip": "Use what you found to escalate privileges and capture the root flag.",
+                            "trigger": {
+                                    "event": "flag_correct",
+                                    "match": {
+                                            "flagId": "root"
+                                    }
+                            }
+                    }
+            ]
+    },
     difficulty: 'Expert',
     accent: '#1a5276',
     storageKey: 'hexworth_ctf_a18',
