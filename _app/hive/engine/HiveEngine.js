@@ -89,6 +89,9 @@ var HiveEngine = (() => {
             RedQueen.init(_mapData.depthTier || 'pristine');
         }
 
+        // Keyboard controls
+        _initKeyboard();
+
         // Check for existing save
         const saved = _loadSave();
         if (saved && saved.floor === FLOOR_ID && !saved.floorComplete) {
@@ -217,11 +220,43 @@ var HiveEngine = (() => {
     }
 
     // -------------------------------------------------------------------------
+    // Keyboard navigation
+    // -------------------------------------------------------------------------
+
+    function _initKeyboard() {
+        const KEY_MAP = {
+            'ArrowUp': 'north', 'ArrowDown': 'south', 'ArrowLeft': 'west', 'ArrowRight': 'east',
+            'w': 'north', 's': 'south', 'a': 'west', 'd': 'east',
+            'W': 'north', 'S': 'south', 'A': 'west', 'D': 'east'
+        };
+
+        document.addEventListener('keydown', (e) => {
+            // Don't capture if typing in an input
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+            if (_activePuzzle) return;
+
+            const dir = KEY_MAP[e.key];
+            if (!dir || !_state || !_mapData) return;
+
+            const room = _mapData.rooms[_state.currentRoom];
+            if (!room) return;
+
+            const targetId = room.exits[dir];
+            if (targetId) {
+                e.preventDefault();
+                moveTo(targetId);
+            }
+        });
+    }
+
+    // -------------------------------------------------------------------------
     // Map initialization
     // -------------------------------------------------------------------------
 
     function _initializeMap() {
         if (!_mapData) return;
+        // Expose map data for RoomRenderer room name lookups
+        window.HiveMapData = _mapData;
         MapRenderer.init(_mapContainer, _mapData);
         MapRenderer.update(_state);
     }

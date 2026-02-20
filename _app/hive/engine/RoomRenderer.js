@@ -188,9 +188,9 @@ const RoomRenderer = (() => {
                 margin-bottom: 10px;
             }
 
-            /* Exit compass */
+            /* Exit list */
             .hive-exit-panel {
-                padding: 16px 20px 20px;
+                padding: 12px 20px 16px;
                 border-top: 1px solid rgba(255,255,255,0.1);
                 flex-shrink: 0;
             }
@@ -199,40 +199,52 @@ const RoomRenderer = (() => {
                 letter-spacing: 0.15em;
                 color: rgba(255,255,255,0.3);
                 text-transform: uppercase;
-                margin-bottom: 10px;
+                margin-bottom: 8px;
             }
-            .hive-compass {
-                display: grid;
-                grid-template-columns: 1fr 1fr 1fr;
-                grid-template-rows: auto auto auto;
-                gap: 6px;
-                max-width: 220px;
-                margin: 0 auto;
+            .hive-exit-list {
+                display: flex;
+                flex-direction: column;
+                gap: 4px;
             }
-            .hive-compass-btn {
-                padding: 10px 0;
-                background: rgba(255,255,255,0.04);
-                color: rgba(255,255,255,0.7);
-                border: 1px solid rgba(255,255,255,0.15);
+            .hive-exit-btn {
+                display: flex;
+                align-items: center;
+                gap: 10px;
+                padding: 10px 14px;
+                background: rgba(255,255,255,0.03);
+                border: 1px solid rgba(255,255,255,0.1);
                 border-radius: 4px;
                 font-family: 'Courier New', monospace;
                 font-size: 0.8rem;
-                font-weight: bold;
+                color: rgba(255,255,255,0.7);
                 cursor: pointer;
-                transition: all 0.2s;
-                text-align: center;
+                transition: all 0.15s;
+                text-align: left;
+                width: 100%;
             }
-            .hive-compass-btn:hover:not(:disabled) {
-                background: rgba(204,0,0,0.15);
+            .hive-exit-btn:hover {
+                background: rgba(204,0,0,0.12);
                 border-color: #cc0000;
                 color: #cc0000;
             }
-            .hive-compass-btn:disabled {
-                opacity: 0.15;
-                cursor: default;
+            .hive-exit-dir {
+                display: inline-block;
+                width: 18px;
+                font-weight: bold;
+                color: #cc0000;
+                flex-shrink: 0;
             }
-            .hive-compass-spacer {
-                /* empty grid cell */
+            .hive-exit-name {
+                flex: 1;
+            }
+            .hive-exit-visited {
+                color: #4caf50;
+                font-size: 0.7rem;
+            }
+            .hive-exit-key {
+                font-size: 0.6rem;
+                color: rgba(255,255,255,0.2);
+                margin-left: auto;
             }
 
             /* Message overlay */
@@ -393,7 +405,7 @@ const RoomRenderer = (() => {
         const nameEl = _statusBar.querySelector('.hive-status-name');
         const depthEl = _statusBar.querySelector('.hive-status-depth');
         if (nameEl) nameEl.textContent = room.name;
-        if (depthEl) depthEl.textContent = 'DEPTH: ' + (state.depthTier || 'PRISTINE').toUpperCase();
+        if (depthEl) depthEl.textContent = 'MOVES: ' + (state.moveCount || 0) + '  \u2022  ' + (state.visited ? state.visited.length : 0) + ' EXPLORED';
 
         // Description text
         _descPanel.innerHTML = '';
@@ -553,45 +565,51 @@ const RoomRenderer = (() => {
         label.textContent = '[ Exits ]';
         _exitPanel.appendChild(label);
 
-        const compass = document.createElement('div');
-        compass.className = 'hive-compass';
+        // Exit list with room names + key hints
+        const exitList = document.createElement('div');
+        exitList.className = 'hive-exit-list';
 
         const exits = room.exits || {};
-        const directions = ['north', 'south', 'east', 'west'];
+        const keyHints = { north: 'W / \u2191', south: 'S / \u2193', east: 'D / \u2192', west: 'A / \u2190' };
 
-        // Grid layout: [empty, N, empty], [W, empty, E], [empty, S, empty]
-        const grid = [
-            null,    'north', null,
-            'west',  null,    'east',
-            null,    'south', null
-        ];
+        for (const [dir, targetId] of Object.entries(exits)) {
+            if (!targetId) continue;
 
-        grid.forEach((dir) => {
-            if (dir === null) {
-                const spacer = document.createElement('div');
-                spacer.className = 'hive-compass-spacer';
-                compass.appendChild(spacer);
-            } else {
-                const btn = document.createElement('button');
-                btn.className = 'hive-compass-btn';
-                btn.textContent = DIR_LABELS[dir];
-                const targetId = exits[dir];
+            const btn = document.createElement('button');
+            btn.className = 'hive-exit-btn';
 
-                if (targetId) {
-                    btn.onclick = () => {
-                        if (window.HiveEngine && window.HiveEngine.moveTo) {
-                            window.HiveEngine.moveTo(targetId);
-                        }
-                    };
-                } else {
-                    btn.disabled = true;
+            const dirLabel = DIR_LABELS[dir] || dir[0].toUpperCase();
+            const roomName = _getTargetRoomName(targetId);
+            const visited = (state.visited || []).includes(targetId);
+
+            btn.innerHTML = `<span class="hive-exit-dir">${dirLabel}</span> <span class="hive-exit-name">${roomName}</span>${visited ? ' <span class="hive-exit-visited">\u2713</span>' : ''}<span class="hive-exit-key">${keyHints[dir] || ''}</span>`;
+
+            btn.onclick = () => {
+                if (window.HiveEngine && window.HiveEngine.moveTo) {
+                    window.HiveEngine.moveTo(targetId);
                 }
+            };
 
-                compass.appendChild(btn);
-            }
-        });
+            exitList.appendChild(btn);
+        }
 
-        _exitPanel.appendChild(compass);
+        if (Object.keys(exits).length === 0) {
+            const noExit = document.createElement('div');
+            noExit.style.cssText = 'color: rgba(255,255,255,0.3); font-size: 0.8rem; padding: 8px 0;';
+            noExit.textContent = 'No exits.';
+            exitList.appendChild(noExit);
+        }
+
+        _exitPanel.appendChild(exitList);
+    }
+
+    function _getTargetRoomName(roomId) {
+        // Try to get room name from map data via HiveEngine
+        if (window.HiveMapData && window.HiveMapData.rooms && window.HiveMapData.rooms[roomId]) {
+            return window.HiveMapData.rooms[roomId].name;
+        }
+        // Fallback: format the ID
+        return roomId.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
     }
 
     // -------------------------------------------------------------------------

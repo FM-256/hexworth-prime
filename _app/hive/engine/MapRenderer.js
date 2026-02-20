@@ -213,6 +213,11 @@ const MapRenderer = (() => {
             icon.textContent = _typeIcon(room.type);
             group.appendChild(icon);
 
+            // Tooltip on hover
+            const tooltip = _createSVG('title');
+            tooltip.textContent = room.name;
+            group.appendChild(tooltip);
+
             // Click handler
             group.addEventListener('click', () => {
                 if (window.HiveEngine && window.HiveEngine.moveTo) {
