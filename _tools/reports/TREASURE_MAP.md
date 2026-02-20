@@ -1,7 +1,7 @@
 ══════════════════════════════════════════════════════════════════════
                          EDUSCAN REPORT
                     Hexworth Prime Content Map
-                    Scanned: 2026-02-19 12:06:04 PM
+                    Scanned: 2026-02-20 11:18:55 PM
 ══════════════════════════════════════════════════════════════════════
 
 
@@ -10,27 +10,27 @@
 
 | Metric | Value |
 |--------|-------|
-| Files Scanned | 1449 |
-| Directories | 467 |
-| Content Files | 1449 |
-| Scan Duration | 196ms |
+| Files Scanned | 1498 |
+| Directories | 474 |
+| Content Files | 1498 |
+| Scan Duration | 363ms |
 
 ### Content by Type
 
 | Type | Count |
 |------|-------|
-| html | 518 |
+| html | 545 |
 | presentation | 402 |
 | lab | 237 |
-| applet | 166 |
+| applet | 188 |
 | quiz | 126 |
 
 ### ContentCatalog Validation
 
 | Metric | Value |
 |--------|-------|
-| Total Modules | 1352 |
-| Available | 1347 |
+| Total Modules | 1353 |
+| Available | 1348 |
 | Missing Hrefs (CAT-001) | 0 |
 | Undeclared Files (CAT-002) | 0 |
 | Empty Hrefs (CAT-003) | 0 |
@@ -42,17 +42,17 @@
 |----------|-------|
 | Critical | 0 |
 | Suspect | 9 |
-| Warning | 991 |
-| Info | 224 |
-| **Total** | **1725** |
+| Warning | 1012 |
+| Info | 246 |
+| **Total** | **1267** |
 
 ### Sync Status
 
 | Status | Count |
 |--------|-------|
-| Ready | 859 |
+| Ready | 881 |
 | Not Ready | 72 |
-| Unknown | 518 |
+| Unknown | 545 |
 
 
 ## FILE HIERARCHY
@@ -173,6 +173,7 @@
 │       │   │   └── 📁 reports
 │       │   │       ├── 📄 case-summary.html
 │       │   │       ├── 📄 debrief.html
+│       │   │       ├── 📍 index.html
 │       │   │       ├── 📄 interview-bartender.html
 │       │   │       ├── 📄 interview-colleague.html
 │       │   │       ├── 📄 interview-neighbor.html
@@ -198,7 +199,8 @@
 │       │       ├── 🔬 da-linux-post-exploitation.lab.html
 │       │       ├── 🔬 da-linux-privesc.lab.html
 │       │       ├── 🔬 da-linux-recon-drill.lab.html
-│       │       └── 🔬 da-linux-reverse-shells.lab.html
+│       │       ├── 🔬 da-linux-reverse-shells.lab.html
+│       │       └── 📍 index.html
 │       ├── 🔬 malware-analysis-lab.html
 │       ├── 🔬 mobile-security-lab.html
 │       ├── 📁 modules [modules]
@@ -207,6 +209,7 @@
 │       │   ├── 📄 behavioral-analysis.module.html
 │       │   ├── 📄 dynamic-analysis.module.html
 │       │   ├── 📄 incident-response.module.html
+│       │   ├── 📍 index.html
 │       │   ├── 📄 malware-families.module.html
 │       │   ├── 📄 redteam.barricade.html
 │       │   ├── 📄 reverse-engineering.module.html
@@ -248,6 +251,11 @@
 ├── 📄 faq.html
 ├── 📄 games.html
 ├── 📄 handler-dashboard.html
+├── 📁 hive
+│   ├── 📁 engine
+│   ├── 📍 index.html
+│   ├── 📁 maps
+│   └── 📁 puzzles
 ├── 📁 houses
 │   ├── 📁 aplus-core1
 │   │   └── 📍 index.html
@@ -270,16 +278,16 @@
 │   │   │   └── 📁 fundamentals [applets]
 │   │   │       └── 📄 cloud-provider-comparison.applet.html
 │   │   ├── 📁 games
-│   │   │   ├── 📄 ad-attack-path.html
-│   │   │   ├── 📄 aws-sts.html
+│   │   │   ├── 📄 cloud-ad-attack-path.applet.html
 │   │   │   ├── 📄 cloud-architect.html
-│   │   │   ├── 📄 cloud-destroyer.html
+│   │   │   ├── 📄 cloud-aws-sts.html
+│   │   │   ├── 📄 cloud-destroyer.applet.html
+│   │   │   ├── 📄 cloud-dont-check-the-bill.html
+│   │   │   ├── 📄 cloud-dont-lose-your-domain.html
 │   │   │   ├── 📄 cloud-flap.html
-│   │   │   ├── 📄 cloud-hop.html
-│   │   │   ├── 📄 dont-check-the-bill.html
-│   │   │   ├── 📄 dont-lose-your-domain.html
-│   │   │   ├── 📄 iam-debugger.html
-│   │   │   └── 📄 text-adventure-whoami.html
+│   │   │   ├── 📄 cloud-hop.applet.html
+│   │   │   ├── 📄 cloud-iam-debugger.html
+│   │   │   └── 📄 cloud-text-adventure-whoami.html
 │   │   ├── 📍 index.html
 │   │   ├── 📁 labs [labs]
 │   │   │   ├── 🔬 cloud-architecture.lab.html
@@ -300,7 +308,7 @@
 │   │   │   └── 📁 wsa [modules]
 │   │   │       ├── 📄 cloud-gui-style-samples.module.html
 │   │   │       ├── 📁 games [modules]
-│   │   │       │   └── 📄 save-the-pod.html
+│   │   │       │   └── 📄 cloud-save-the-pod.module.html
 │   │   │       ├── 📁 gauntlet [modules]
 │   │   │       │   ├── 📄 cloud-gauntlet.module.html
 │   │   │       │   └── 📍 index.html
@@ -312,97 +320,116 @@
 │   │   │       │   ├── 🔬 cloud-guilab.module.html
 │   │   │       │   ├── 📊 cloud-presentation.module.html
 │   │   │       │   ├── 🔬 cloud-pslab.module.html
-│   │   │       │   └── ❓ cloud-quizquiz.module.html
+│   │   │       │   ├── ❓ cloud-quizquiz.module.html
+│   │   │       │   └── 📍 index.html
 │   │   │       ├── 📁 m02-active-directory [modules]
 │   │   │       │   ├── 🔬 cloud-guilab.module.html
 │   │   │       │   ├── 📊 cloud-presentation.module.html
 │   │   │       │   ├── 🔬 cloud-pslab.module.html
-│   │   │       │   └── ❓ cloud-quizquiz.module.html
+│   │   │       │   ├── ❓ cloud-quizquiz.module.html
+│   │   │       │   └── 📍 index.html
 │   │   │       ├── 📁 m03-storage [modules]
 │   │   │       │   ├── 🔬 cloud-guilab.module.html
 │   │   │       │   ├── 📊 cloud-presentation.module.html
 │   │   │       │   ├── 🔬 cloud-pslab.module.html
-│   │   │       │   └── ❓ cloud-quizquiz.module.html
+│   │   │       │   ├── ❓ cloud-quizquiz.module.html
+│   │   │       │   └── 📍 index.html
 │   │   │       ├── 📁 m04-hyperv [modules]
 │   │   │       │   ├── 🔬 cloud-guilab.module.html
 │   │   │       │   ├── 📊 cloud-presentation.module.html
 │   │   │       │   ├── 🔬 cloud-pslab.module.html
-│   │   │       │   └── ❓ cloud-quizquiz.module.html
+│   │   │       │   ├── ❓ cloud-quizquiz.module.html
+│   │   │       │   └── 📍 index.html
 │   │   │       ├── 📁 m05-containers [modules]
 │   │   │       │   ├── 🔬 cloud-guilab.module.html
 │   │   │       │   ├── 📊 cloud-presentation.module.html
 │   │   │       │   ├── 🔬 cloud-pslab.module.html
-│   │   │       │   └── ❓ cloud-quizquiz.module.html
+│   │   │       │   ├── ❓ cloud-quizquiz.module.html
+│   │   │       │   └── 📍 index.html
 │   │   │       ├── 📁 m06-clustering [modules]
 │   │   │       │   ├── 🔬 cloud-guilab.module.html
 │   │   │       │   ├── 📊 cloud-presentation.module.html
 │   │   │       │   ├── 🔬 cloud-pslab.module.html
-│   │   │       │   └── ❓ cloud-quizquiz.module.html
+│   │   │       │   ├── ❓ cloud-quizquiz.module.html
+│   │   │       │   └── 📍 index.html
 │   │   │       ├── 📁 m07-monitoring [modules]
 │   │   │       │   ├── 🔬 cloud-guilab.module.html
 │   │   │       │   ├── 📊 cloud-presentation.module.html
 │   │   │       │   ├── 🔬 cloud-pslab.module.html
-│   │   │       │   └── ❓ cloud-quizquiz.module.html
+│   │   │       │   ├── ❓ cloud-quizquiz.module.html
+│   │   │       │   └── 📍 index.html
 │   │   │       ├── 📁 m08-dns [modules]
 │   │   │       │   ├── 🔬 cloud-guilab.module.html
 │   │   │       │   ├── 📊 cloud-presentation.module.html
 │   │   │       │   ├── 🔬 cloud-pslab.module.html
-│   │   │       │   └── ❓ cloud-quizquiz.module.html
+│   │   │       │   ├── ❓ cloud-quizquiz.module.html
+│   │   │       │   └── 📍 index.html
 │   │   │       ├── 📁 m09-dhcp [modules]
 │   │   │       │   ├── 🔬 cloud-guilab.module.html
 │   │   │       │   ├── 📊 cloud-presentation.module.html
 │   │   │       │   ├── 🔬 cloud-pslab.module.html
-│   │   │       │   └── ❓ cloud-quizquiz.module.html
+│   │   │       │   ├── ❓ cloud-quizquiz.module.html
+│   │   │       │   └── 📍 index.html
 │   │   │       ├── 📁 m10-group-policy [modules]
 │   │   │       │   ├── 🔬 cloud-guilab.module.html
 │   │   │       │   ├── 📊 cloud-presentation.module.html
 │   │   │       │   ├── 🔬 cloud-pslab.module.html
-│   │   │       │   └── ❓ cloud-quizquiz.module.html
+│   │   │       │   ├── ❓ cloud-quizquiz.module.html
+│   │   │       │   └── 📍 index.html
 │   │   │       ├── 📁 m11-iis [modules]
 │   │   │       │   ├── 🔬 cloud-guilab.module.html
 │   │   │       │   ├── 📊 cloud-presentation.module.html
 │   │   │       │   ├── 🔬 cloud-pslab.module.html
-│   │   │       │   └── ❓ cloud-quizquiz.module.html
+│   │   │       │   ├── ❓ cloud-quizquiz.module.html
+│   │   │       │   └── 📍 index.html
 │   │   │       ├── 📁 m12-remote-desktop [modules]
 │   │   │       │   ├── 🔬 cloud-guilab.module.html
 │   │   │       │   ├── 📊 cloud-presentation.module.html
 │   │   │       │   ├── 🔬 cloud-pslab.module.html
-│   │   │       │   └── ❓ cloud-quizquiz.module.html
+│   │   │       │   ├── ❓ cloud-quizquiz.module.html
+│   │   │       │   └── 📍 index.html
 │   │   │       ├── 📁 m13-certificate-services [modules]
 │   │   │       │   ├── 🔬 cloud-guilab.module.html
 │   │   │       │   ├── 📊 cloud-presentation.module.html
 │   │   │       │   ├── 🔬 cloud-pslab.module.html
-│   │   │       │   └── ❓ cloud-quizquiz.module.html
+│   │   │       │   ├── ❓ cloud-quizquiz.module.html
+│   │   │       │   └── 📍 index.html
 │   │   │       ├── 📁 m14-advanced-networking [modules]
 │   │   │       │   ├── 🔬 cloud-guilab.module.html
 │   │   │       │   ├── 📊 cloud-presentation.module.html
 │   │   │       │   ├── 🔬 cloud-pslab.module.html
-│   │   │       │   └── ❓ cloud-quizquiz.module.html
+│   │   │       │   ├── ❓ cloud-quizquiz.module.html
+│   │   │       │   └── 📍 index.html
 │   │   │       ├── 📁 m15-ad-sites [modules]
 │   │   │       │   ├── 🔬 cloud-guilab.module.html
 │   │   │       │   ├── 📊 cloud-presentation.module.html
 │   │   │       │   ├── 🔬 cloud-pslab.module.html
-│   │   │       │   └── ❓ cloud-quizquiz.module.html
+│   │   │       │   ├── ❓ cloud-quizquiz.module.html
+│   │   │       │   └── 📍 index.html
 │   │   │       ├── 📁 m16-backup-recovery [modules]
 │   │   │       │   ├── 🔬 cloud-guilab.module.html
 │   │   │       │   ├── 📊 cloud-presentation.module.html
 │   │   │       │   ├── 🔬 cloud-pslab.module.html
-│   │   │       │   └── ❓ cloud-quizquiz.module.html
+│   │   │       │   ├── ❓ cloud-quizquiz.module.html
+│   │   │       │   └── 📍 index.html
 │   │   │       ├── 📁 m17-firewall-security [modules]
 │   │   │       │   ├── 🔬 cloud-guilab.module.html
 │   │   │       │   ├── 📊 cloud-presentation.module.html
 │   │   │       │   ├── 🔬 cloud-pslab.module.html
-│   │   │       │   └── ❓ cloud-quizquiz.module.html
+│   │   │       │   ├── ❓ cloud-quizquiz.module.html
+│   │   │       │   └── 📍 index.html
 │   │   │       ├── 📁 m18-powershell-automation [modules]
 │   │   │       │   ├── 🔬 cloud-guilab.module.html
 │   │   │       │   ├── 📊 cloud-presentation.module.html
 │   │   │       │   ├── 🔬 cloud-pslab.module.html
-│   │   │       │   └── ❓ cloud-quizquiz.module.html
+│   │   │       │   ├── ❓ cloud-quizquiz.module.html
+│   │   │       │   └── 📍 index.html
 │   │   │       ├── 📁 m19-troubleshooting-migration [modules]
 │   │   │       │   ├── 🔬 cloud-guilab.module.html
 │   │   │       │   ├── 📊 cloud-presentation.module.html
 │   │   │       │   ├── 🔬 cloud-pslab.module.html
-│   │   │       │   └── ❓ cloud-quizquiz.module.html
+│   │   │       │   ├── ❓ cloud-quizquiz.module.html
+│   │   │       │   └── 📍 index.html
 │   │   │       ├── 📁 m20-failsafe-capstone [modules]
 │   │   │       │   ├── 📄 cloud-simulation.module.html
 │   │   │       │   └── 📍 index.html
@@ -410,7 +437,7 @@
 │   │   │       │   ├── 📄 cloud-simulation.module.html
 │   │   │       │   └── 📍 index.html
 │   │   │       └── 📁 reviews [modules]
-│   │   │           └── 📄 wsa-review.html
+│   │   │           └── 📄 cloud-wsa-review.module.html
 │   │   ├── 📁 presentations [presentations]
 │   │   │   ├── 📊 cloud-aws-fundamentals.presentation.html
 │   │   │   ├── 📊 cloud-azure-fundamentals.presentation.html
@@ -480,18 +507,19 @@
 │   │   │   ├── 📄 code-data-format-converter.applet.html
 │   │   │   ├── 📄 code-docker-playground.applet.html
 │   │   │   ├── 📄 code-kubernetes-cluster-sim.applet.html
-│   │   │   └── 📄 code-pipeline-builder.applet.html
+│   │   │   ├── 📄 code-pipeline-builder.applet.html
+│   │   │   └── 📍 index.html
 │   │   ├── 📁 docs
 │   │   ├── 📁 games
-│   │   │   ├── 📄 build-breaker.html
-│   │   │   ├── 📄 docker-escape.html
-│   │   │   ├── 📄 dont-deploy-on-friday.html
-│   │   │   ├── 📄 git-bisect.html
-│   │   │   ├── 📄 git-blame.html
-│   │   │   ├── 📄 kill-nine.html
-│   │   │   ├── 📄 kubernetes-rescue.html
-│   │   │   ├── 📄 pipeline-panic.html
-│   │   │   └── 📄 text-adventure-rmrf.html
+│   │   │   ├── 📄 code-build-breaker.applet.html
+│   │   │   ├── 📄 code-docker-escape.html
+│   │   │   ├── 📄 code-dont-deploy-on-friday.html
+│   │   │   ├── 📄 code-git-bisect.html
+│   │   │   ├── 📄 code-git-blame.html
+│   │   │   ├── 📄 code-kill-nine.applet.html
+│   │   │   ├── 📄 code-kubernetes-rescue.applet.html
+│   │   │   ├── 📄 code-pipeline-panic.html
+│   │   │   └── 📄 code-text-adventure-rmrf.html
 │   │   ├── 📁 guides
 │   │   ├── 📍 index.html
 │   │   ├── 📁 labs [labs]
@@ -609,17 +637,17 @@
 │   │   │   │   │   ├── 🔬 eye-lab-3-2-11-windows-internals.lab.html
 │   │   │   │   │   └── 🔬 eye-lab-3-3-10-user-accounts.lab.html
 │   │   │   │   ├── 📁 week1 [applets]
-│   │   │   │   │   ├── 📄 evaluation.html
+│   │   │   │   │   ├── 📄 eye-evaluation.applet.html
 │   │   │   │   │   └── 📍 index.html
 │   │   │   │   ├── 📁 week2 [applets]
-│   │   │   │   │   ├── 📄 evaluation.html
+│   │   │   │   │   ├── 📄 eye-evaluation.applet.html
 │   │   │   │   │   ├── 📍 index.html
 │   │   │   │   │   └── 📁 labs [labs]
 │   │   │   │   │       ├── 🔬 eye-linux-servers.lab.html
 │   │   │   │   │       ├── 🔬 eye-windows-system-resources.lab.html
 │   │   │   │   │       └── 🔬 eye-windows-task-manager.lab.html
 │   │   │   │   ├── 📁 week3 [applets]
-│   │   │   │   │   ├── 📄 evaluation.html
+│   │   │   │   │   ├── 📄 eye-evaluation.applet.html
 │   │   │   │   │   ├── 📍 index.html
 │   │   │   │   │   └── 📁 labs [labs]
 │   │   │   │   │       ├── 🔬 eye-exploring-nmap.lab.html
@@ -629,7 +657,7 @@
 │   │   │   │   │       ├── 🔬 eye-wireshark-intro.lab.html
 │   │   │   │   │       └── 🔬 eye-wireshark-tcp-handshake.lab.html
 │   │   │   │   ├── 📁 week4 [applets]
-│   │   │   │   │   ├── 📄 evaluation.html
+│   │   │   │   │   ├── 📄 eye-evaluation.applet.html
 │   │   │   │   │   ├── 📍 index.html
 │   │   │   │   │   └── 📁 labs [labs]
 │   │   │   │   │       ├── 🔬 eye-acl-demo.lab.html
@@ -638,7 +666,7 @@
 │   │   │   │   │       ├── 🔬 eye-wireshark-tcp-udp.lab.html
 │   │   │   │   │       └── 🔬 eye-wireshark-udp-dns.lab.html
 │   │   │   │   ├── 📁 week5 [applets]
-│   │   │   │   │   ├── 📄 evaluation.html
+│   │   │   │   │   ├── 📄 eye-evaluation.applet.html
 │   │   │   │   │   ├── 📍 index.html
 │   │   │   │   │   └── 📁 labs [labs]
 │   │   │   │   │       ├── 🔬 eye-dns-traffic.lab.html
@@ -648,7 +676,7 @@
 │   │   │   │   │       ├── 🔬 eye-soc-triage.lab.html
 │   │   │   │   │       └── 🔬 eye-whats-going-on.lab.html
 │   │   │   │   ├── 📁 week6 [applets]
-│   │   │   │   │   ├── 📄 evaluation.html
+│   │   │   │   │   ├── 📄 eye-evaluation.applet.html
 │   │   │   │   │   ├── 📍 index.html
 │   │   │   │   │   └── 📁 labs [labs]
 │   │   │   │   │       ├── 🔬 eye-asymmetric-encryption.lab.html
@@ -660,7 +688,7 @@
 │   │   │   │   │       ├── 🔬 eye-vpn-fundamentals.lab.html
 │   │   │   │   │       └── 🔬 eye-wireshark-crypto.lab.html
 │   │   │   │   └── 📁 week7 [applets]
-│   │   │   │       ├── 📄 evaluation.html
+│   │   │   │       ├── 📄 eye-evaluation.applet.html
 │   │   │   │       ├── 📍 index.html
 │   │   │   │       └── 📁 labs [labs]
 │   │   │   │           ├── 🔬 eye-chain-of-custody.lab.html
@@ -674,22 +702,22 @@
 │   │   │   └── 📁 osint [applets]
 │   │   │       └── 📄 eye-google-dorking.applet.html
 │   │   ├── 📁 games
-│   │   │   ├── 📄 alert-triage.html
-│   │   │   ├── 📄 dont-feed-the-troll.html
-│   │   │   ├── 📄 grep-noir.html
-│   │   │   ├── 📄 log-centipede.html
-│   │   │   ├── 📄 memory-forensics.html
-│   │   │   ├── 📄 text-adventure-wireshark.html
-│   │   │   └── 📄 threat-modeler.html
+│   │   │   ├── 📄 eye-alert-triage.html
+│   │   │   ├── 📄 eye-dont-feed-the-troll.html
+│   │   │   ├── 📄 eye-grep-noir.html
+│   │   │   ├── 📄 eye-log-centipede.applet.html
+│   │   │   ├── 📄 eye-memory-forensics.applet.html
+│   │   │   ├── 📄 eye-text-adventure-wireshark.html
+│   │   │   └── 📄 eye-threat-modeler.html
 │   │   ├── 📍 index.html
 │   │   ├── 📁 labs [labs]
 │   │   │   ├── 🔬 eye-correlation.lab.html
 │   │   │   ├── 🔬 eye-hunting.lab.html
+│   │   │   ├── 🔬 eye-incident-timeline.lab.html
+│   │   │   ├── 🔬 eye-log-detective.lab.html
 │   │   │   ├── 🔬 eye-siem.lab.html
 │   │   │   ├── 🔬 eye-soc.lab.html
-│   │   │   ├── 🔬 eye-traffic.lab.html
-│   │   │   ├── 📄 incident-timeline.html
-│   │   │   └── 📄 log-detective.html
+│   │   │   └── 🔬 eye-traffic.lab.html
 │   │   ├── 📁 modules [modules]
 │   │   │   └── 📁 cyberops [modules]
 │   │   │       └── 📍 index.html
@@ -707,7 +735,8 @@
 │   │   │   ├── ❓ eye-soc.quiz.html
 │   │   │   └── ❓ eye-traffic.quiz.html
 │   │   ├── 📁 reviews
-│   │   │   └── 📄 cyberops-review.html
+│   │   │   ├── 📄 eye-cyberops-review.html
+│   │   │   └── 📍 index.html
 │   │   └── 📁 tools
 │   │       ├── 📄 eye-correlation.tool.html
 │   │       ├── 📄 eye-hunt.tool.html
@@ -893,53 +922,54 @@
 │   │   │   ├── 📄 forge-windows-edition-selector.applet.html
 │   │   │   ├── 📄 forge-windows-shortcuts.applet.html
 │   │   │   ├── 📄 forge-windows10-components.applet.html
-│   │   │   └── 📁 hardware [applets]
-│   │   │       ├── 📁 cpu_architecture [applets]
-│   │   │       │   └── 📄 forge-cpu-architecture.applet.html
-│   │   │       ├── 📁 display_types [applets]
-│   │   │       │   └── 📄 forge-display-types.applet.html
-│   │   │       ├── 📁 expansion_cards [applets]
-│   │   │       │   └── 📄 forge-expansion-cards.applet.html
-│   │   │       ├── 📄 forge-backup-strategy-planner.applet.html
-│   │   │       ├── 📄 forge-hardware-trainer.applet.html
-│   │   │       ├── 📁 hard_drive_geometry [applets]
-│   │   │       │   └── 📄 forge-hard-drive-geometry-native.applet.html
-│   │   │       ├── 📁 laptop_hardware [applets]
-│   │   │       │   └── 📄 forge-laptop-hardware.applet.html
-│   │   │       ├── 📁 mobile_accessories [applets]
-│   │   │       │   └── 📄 forge-mobile-accessories.applet.html
-│   │   │       ├── 📁 motherboards [applets]
-│   │   │       │   └── 📄 forge-motherboards.applet.html
-│   │   │       ├── 📁 multimeter [applets]
-│   │   │       │   └── 📄 forge-multimeter-jedit-v1.applet.html
-│   │   │       ├── 📁 network_cables [applets]
-│   │   │       │   └── 📄 forge-network-cables.applet.html
-│   │   │       ├── 📁 network_ports [applets]
-│   │   │       │   └── 📄 forge-network-ports.applet.html
-│   │   │       ├── 📁 peripheral_devices [applets]
-│   │   │       │   └── 📄 forge-peripheral-devices.applet.html
-│   │   │       ├── 📁 power_supplies [applets]
-│   │   │       │   └── 📄 forge-power-supplies.applet.html
-│   │   │       ├── 📁 printers [applets]
-│   │   │       │   └── 📄 forge-printers.applet.html
-│   │   │       ├── 📁 raid_storage [applets]
-│   │   │       │   └── 📄 forge-raid-storage.applet.html
-│   │   │       ├── 📁 ram_types [applets]
-│   │   │       │   └── 📄 forge-ram-types.applet.html
-│   │   │       ├── 📁 storage_devices [applets]
-│   │   │       │   └── 📄 forge-storage-devices.applet.html
-│   │   │       ├── 📁 virtualization [applets]
-│   │   │       │   └── 📄 forge-virtualization.applet.html
-│   │   │       └── 📁 wireless_networking [applets]
-│   │   │           └── 📄 forge-wireless-networking.applet.html
+│   │   │   ├── 📁 hardware [applets]
+│   │   │   │   ├── 📁 cpu_architecture [applets]
+│   │   │   │   │   └── 📄 forge-cpu-architecture.applet.html
+│   │   │   │   ├── 📁 display_types [applets]
+│   │   │   │   │   └── 📄 forge-display-types.applet.html
+│   │   │   │   ├── 📁 expansion_cards [applets]
+│   │   │   │   │   └── 📄 forge-expansion-cards.applet.html
+│   │   │   │   ├── 📄 forge-backup-strategy-planner.applet.html
+│   │   │   │   ├── 📄 forge-hardware-trainer.applet.html
+│   │   │   │   ├── 📁 hard_drive_geometry [applets]
+│   │   │   │   │   └── 📄 forge-hard-drive-geometry-native.applet.html
+│   │   │   │   ├── 📁 laptop_hardware [applets]
+│   │   │   │   │   └── 📄 forge-laptop-hardware.applet.html
+│   │   │   │   ├── 📁 mobile_accessories [applets]
+│   │   │   │   │   └── 📄 forge-mobile-accessories.applet.html
+│   │   │   │   ├── 📁 motherboards [applets]
+│   │   │   │   │   └── 📄 forge-motherboards.applet.html
+│   │   │   │   ├── 📁 multimeter [applets]
+│   │   │   │   │   └── 📄 forge-multimeter-jedit-v1.applet.html
+│   │   │   │   ├── 📁 network_cables [applets]
+│   │   │   │   │   └── 📄 forge-network-cables.applet.html
+│   │   │   │   ├── 📁 network_ports [applets]
+│   │   │   │   │   └── 📄 forge-network-ports.applet.html
+│   │   │   │   ├── 📁 peripheral_devices [applets]
+│   │   │   │   │   └── 📄 forge-peripheral-devices.applet.html
+│   │   │   │   ├── 📁 power_supplies [applets]
+│   │   │   │   │   └── 📄 forge-power-supplies.applet.html
+│   │   │   │   ├── 📁 printers [applets]
+│   │   │   │   │   └── 📄 forge-printers.applet.html
+│   │   │   │   ├── 📁 raid_storage [applets]
+│   │   │   │   │   └── 📄 forge-raid-storage.applet.html
+│   │   │   │   ├── 📁 ram_types [applets]
+│   │   │   │   │   └── 📄 forge-ram-types.applet.html
+│   │   │   │   ├── 📁 storage_devices [applets]
+│   │   │   │   │   └── 📄 forge-storage-devices.applet.html
+│   │   │   │   ├── 📁 virtualization [applets]
+│   │   │   │   │   └── 📄 forge-virtualization.applet.html
+│   │   │   │   └── 📁 wireless_networking [applets]
+│   │   │   │       └── 📄 forge-wireless-networking.applet.html
+│   │   │   └── 📍 index.html
 │   │   ├── 📁 games
-│   │   │   ├── 📄 bit-dash.html
-│   │   │   ├── 📄 chip-match.html
-│   │   │   ├── 📄 dont-anger-the-printer.html
-│   │   │   ├── 📄 dont-brick-the-pc.html
-│   │   │   ├── 📄 fsck.html
-│   │   │   ├── 📄 rack-stack.html
-│   │   │   └── 📄 raid-calculator.html
+│   │   │   ├── 📄 forge-bit-dash.applet.html
+│   │   │   ├── 📄 forge-chip-match.applet.html
+│   │   │   ├── 📄 forge-dont-anger-the-printer.html
+│   │   │   ├── 📄 forge-dont-brick-the-pc.html
+│   │   │   ├── 📄 forge-fsck.html
+│   │   │   ├── 📄 forge-rack-stack.applet.html
+│   │   │   └── 📄 forge-raid-calculator.applet.html
 │   │   ├── 📍 index.html
 │   │   ├── 📁 labs [labs]
 │   │   │   ├── 🔬 forge-admin-tools.lab.html
@@ -963,11 +993,12 @@
 │   │   │   ├── ❓ forge-hardware-essentials.quiz.html
 │   │   │   └── ❓ forge-windows-admin.quiz.html
 │   │   ├── 📁 reviews
-│   │   │   ├── 📄 aplus-core1-review.html
-│   │   │   ├── 📄 aplus-core2-review.html
-│   │   │   ├── 📄 backup-or-bust.html
-│   │   │   ├── 📄 binary-blitz.html
-│   │   │   └── 📄 forge-aplus-jeopardy.applet.html
+│   │   │   ├── 📄 forge-aplus-core1-review.html
+│   │   │   ├── 📄 forge-aplus-core2-review.html
+│   │   │   ├── 📄 forge-aplus-jeopardy.applet.html
+│   │   │   ├── 📄 forge-backup-or-bust.html
+│   │   │   ├── 📄 forge-binary-blitz.html
+│   │   │   └── 📍 index.html
 │   │   ├── 📁 tools
 │   │   │   ├── 📄 forge-admin-tools.tool.html
 │   │   │   ├── 📄 forge-control-panel.tool.html
@@ -980,26 +1011,27 @@
 │   │   └── 📁 tutorials
 │   ├── 🏠 key [house:key]
 │   │   ├── 📁 games
-│   │   │   ├── 📄 cipher-bubbles.html
-│   │   │   ├── 📄 cipher-cracker.html
-│   │   │   ├── 📄 crypto-flap.html
-│   │   │   ├── 📄 crypto-pong.html
-│   │   │   ├── 📄 dont-leak-the-key.html
-│   │   │   └── 📄 gpg-decrypt.html
+│   │   │   ├── 📄 key-cipher-bubbles.applet.html
+│   │   │   ├── 📊 key-cipher-cracker.presentation.html
+│   │   │   ├── 📄 key-crypto-flap.html
+│   │   │   ├── 📄 key-crypto-pong.applet.html
+│   │   │   ├── 📄 key-dont-leak-the-key.html
+│   │   │   └── 📄 key-gpg-decrypt.html
 │   │   ├── 📍 index.html
 │   │   ├── 📁 labs [labs]
-│   │   │   ├── 📄 firewall-builder.html
 │   │   │   ├── 🔬 key-aes.lab.html
 │   │   │   ├── 🔬 key-attack.lab.html
 │   │   │   ├── 🔬 key-cert.lab.html
 │   │   │   ├── 🔬 key-cryptanalysis.lab.html
 │   │   │   ├── 🔬 key-crypto-stego.lab.html
 │   │   │   ├── 🔬 key-ecc.lab.html
+│   │   │   ├── 🔬 key-firewall-builder.lab.html
 │   │   │   ├── 🔬 key-hmac.lab.html
 │   │   │   ├── 🔬 key-hsm.lab.html
 │   │   │   ├── 🔬 key-kdf.lab.html
 │   │   │   └── 🔬 key-pqc.lab.html
 │   │   ├── 📁 modules [modules]
+│   │   │   ├── 📍 index.html
 │   │   │   └── 📄 key-hash-stego-intro.module.html
 │   │   ├── 📁 presentations [presentations]
 │   │   │   ├── 📊 key-advanced-symmetric.presentation.html
@@ -1023,7 +1055,8 @@
 │   │   │   ├── ❓ key-pqc.quiz.html
 │   │   │   └── ❓ key-symmetric.quiz.html
 │   │   ├── 📁 reviews
-│   │   │   └── 📄 hash-cracker.html
+│   │   │   ├── 📍 index.html
+│   │   │   └── 📄 key-hash-cracker.html
 │   │   └── 📁 tools
 │   │       ├── 📄 key-aes.tool.html
 │   │       ├── 📄 key-cert.tool.html
@@ -1087,6 +1120,7 @@
 │   │   │       ├── 📄 script-python-chapter7-file-handling.applet.html
 │   │   │       └── 📄 script-python-chapter8-oop.applet.html
 │   │   ├── 📁 clh
+│   │   │   ├── 📍 index.html
 │   │   │   ├── 📄 script-clh-001-intro.applet.html
 │   │   │   ├── ❓ script-clh-001.quiz.html
 │   │   │   ├── 📄 script-clh-002-intro.applet.html
@@ -1277,6 +1311,7 @@
 │   │   │       ├── 📍 index.html
 │   │   │       └── 📄 script-blacksite-demo.applet.html
 │   │   ├── 📁 exams
+│   │   │   ├── 📍 index.html
 │   │   │   ├── 📄 script-python-exam-chapter1.exam.html
 │   │   │   ├── 📄 script-python-exam-chapter2.exam.html
 │   │   │   ├── 📄 script-python-exam-chapter3.exam.html
@@ -1286,16 +1321,16 @@
 │   │   │   ├── 📄 script-python-exam-chapter7.exam.html
 │   │   │   └── 📄 script-python-exam-chapter8.exam.html
 │   │   ├── 📁 games
-│   │   │   ├── 📄 dont-kill-the-server.html
-│   │   │   ├── 📄 pipe-snake.html
-│   │   │   ├── 📄 shell-sprint.html
-│   │   │   ├── 📄 sudo-flap.html
-│   │   │   ├── 📄 sudo-su.html
-│   │   │   └── 📄 text-adventure-chmod777.html
+│   │   │   ├── 📄 script-dont-kill-the-server.html
+│   │   │   ├── 📄 script-pipe-snake.applet.html
+│   │   │   ├── 📄 script-shell-sprint.applet.html
+│   │   │   ├── 📄 script-sudo-flap.html
+│   │   │   ├── 📄 script-sudo-su.html
+│   │   │   └── 📄 script-text-adventure-chmod777.html
 │   │   ├── 📍 index.html
 │   │   ├── 📁 labs [labs]
-│   │   │   ├── 📄 cron-builder.html
 │   │   │   ├── 📁 linux [labs]
+│   │   │   │   ├── 📍 index.html
 │   │   │   │   ├── 🔬 script-bash-arrays.lab.html
 │   │   │   │   ├── 🔬 script-bash-basics.lab.html
 │   │   │   │   ├── 🔬 script-bash-conditionals.lab.html
@@ -1343,13 +1378,15 @@
 │   │   │   │   ├── 🔬 script-linux-users.lab.html
 │   │   │   │   ├── 🔬 script-linux-viewing-drill.lab.html
 │   │   │   │   └── 🔬 script-linux-wildcards.lab.html
-│   │   │   ├── 📄 patch-tuesday.html
+│   │   │   ├── 🔬 script-cron-builder.lab.html
 │   │   │   ├── 🔬 script-lab.lab.html
 │   │   │   ├── 🔬 script-linux-bash.lab.html
+│   │   │   ├── 🔬 script-patch-tuesday.lab.html
 │   │   │   ├── 🔬 script-powershell.lab.html
 │   │   │   ├── 🔬 script-python.lab.html
 │   │   │   └── 🔬 script-sysadmin.lab.html
 │   │   ├── 📁 linux
+│   │   │   ├── 📍 index.html
 │   │   │   ├── 📁 labs [labs]
 │   │   │   │   ├── 🔬 script-mission-file-operations.lab.html
 │   │   │   │   ├── 🔬 script-mission-file-search.lab.html
@@ -1431,6 +1468,7 @@
 │   │   │       └── 📄 script-python-immersive-chapter8.module.html
 │   │   ├── 📁 presentations [presentations]
 │   │   │   ├── 📁 python [presentations]
+│   │   │   │   ├── 📍 index.html
 │   │   │   │   ├── 📊 script-python-chapter1.presentation.html
 │   │   │   │   ├── 📊 script-python-chapter2.presentation.html
 │   │   │   │   ├── 📊 script-python-chapter3.presentation.html
@@ -1450,10 +1488,11 @@
 │   │   │   ├── ❓ script-quiz.quiz.html
 │   │   │   └── ❓ script-sysadmin.quiz.html
 │   │   ├── 📁 reviews
-│   │   │   ├── 📄 linux-cli-review.html
-│   │   │   ├── 📄 permission-puzzle.html
-│   │   │   ├── 📄 regex-runner.html
-│   │   │   └── 📄 terminal-velocity.html
+│   │   │   ├── 📍 index.html
+│   │   │   ├── 📄 script-linux-cli-review.html
+│   │   │   ├── 📄 script-permission-puzzle.html
+│   │   │   ├── 📄 script-regex-runner.html
+│   │   │   └── 📄 script-terminal-velocity.html
 │   │   ├── 📁 tools
 │   │   │   ├── 📄 script-automation.tool.html
 │   │   │   ├── 📄 script-linux-command.tool.html
@@ -1541,6 +1580,7 @@
 │   │   │   │   ├── 📁 hashing [applets]
 │   │   │   │   │   └── 📄 shield-crypto-hashing.applet.html
 │   │   │   │   ├── 📁 hashing_steganography [applets]
+│   │   │   │   │   ├── 📍 index.html
 │   │   │   │   │   ├── 📄 shield-encryption-ii.applet.html
 │   │   │   │   │   ├── 📄 shield-encryption-task.applet.html
 │   │   │   │   │   ├── 📄 shield-hash-v3.applet.html
@@ -1723,24 +1763,27 @@
 │   │   │       └── 📁 zero_day [applets]
 │   │   │           └── 📄 shield-threat-zero-day.applet.html
 │   │   ├── 📁 challenges
+│   │   │   ├── 📍 index.html
 │   │   │   └── 📄 shield-attack-vector-challenge.applet.html
 │   │   ├── 📁 exams
+│   │   │   ├── 📍 index.html
 │   │   │   └── 📄 shield-eh-exam-1-a.exam.html
 │   │   ├── 📁 games
-│   │   │   ├── 📄 dont-get-phished.html
-│   │   │   ├── 📄 dr-malware.html
-│   │   │   ├── 📄 exploit-flap.html
-│   │   │   ├── 📄 incident-response.html
-│   │   │   ├── 📄 malware-zoo.html
-│   │   │   ├── 📄 social-engineer.html
-│   │   │   ├── 📄 sql-injection-defense.html
-│   │   │   ├── 📄 text-adventure-hydra.html
-│   │   │   ├── 📄 threat-runner.html
-│   │   │   ├── 📄 threat-swarm.html
-│   │   │   └── 📄 tor-darkweb.html
+│   │   │   ├── 📄 shield-dont-get-phished.html
+│   │   │   ├── 📄 shield-dr-malware.applet.html
+│   │   │   ├── 📄 shield-exploit-flap.html
+│   │   │   ├── 📄 shield-incident-response.html
+│   │   │   ├── 🔬 shield-malware-zoo.lab.html
+│   │   │   ├── 📄 shield-social-engineer.html
+│   │   │   ├── 📄 shield-sql-injection-defense.html
+│   │   │   ├── 📄 shield-text-adventure-hydra.html
+│   │   │   ├── 📄 shield-threat-runner.applet.html
+│   │   │   ├── 📄 shield-threat-swarm.applet.html
+│   │   │   └── 📄 shield-tor-darkweb.html
 │   │   ├── 📍 index.html
 │   │   ├── 📁 labs [labs]
 │   │   │   ├── 📁 linux [labs]
+│   │   │   │   ├── 📍 index.html
 │   │   │   │   ├── 🔬 shield-linux-audit-drill.lab.html
 │   │   │   │   ├── 🔬 shield-linux-audit.lab.html
 │   │   │   │   ├── 🔬 shield-linux-file-integrity.lab.html
@@ -1787,7 +1830,8 @@
 │   │   │   ├── ❓ shield-security-fundamentals.quiz.html
 │   │   │   └── ❓ shield-threats.quiz.html
 │   │   ├── 📁 reviews
-│   │   │   └── 📄 feh-review.html
+│   │   │   ├── 📍 index.html
+│   │   │   └── 📄 shield-feh-review.html
 │   │   ├── 📁 speaker-notes
 │   │   ├── 📁 tools
 │   │   │   ├── 📄 shield-aaa-flow.tool.html
@@ -1803,6 +1847,7 @@
 │   │   └── 📁 tutorials
 │   └── 🏠 web [house:web]
 │       ├── 📁 applets [applets]
+│       │   ├── 📍 index.html
 │       │   ├── 📁 ip-addressing [applets]
 │       │   │   ├── 📁 binary-ip [applets]
 │       │   │   │   └── 📄 web-ip-binary-ip.applet.html
@@ -1841,17 +1886,18 @@
 │       │   │   └── 📄 web-smb-file-sharing.applet.html
 │       │   └── 📄 web-networking-interactive.applet.html
 │       ├── 📁 exams
+│       │   ├── 📍 index.html
 │       │   ├── 📄 web-networking-exam-flashcards.exam.html
 │       │   └── 📄 web-networking-midterm.exam.html
 │       ├── 📁 games
-│       │   ├── 📄 dont-drop-the-packet.html
-│       │   ├── 📄 network-architect.html
-│       │   ├── 📄 nmap.html
-│       │   ├── 📄 packet-flap.html
-│       │   ├── 📄 packet-invaders.html
-│       │   ├── 📄 packet-run.html
-│       │   ├── 📄 packet-sniffer.html
-│       │   └── 📄 wireless-warzone.html
+│       │   ├── 📄 web-dont-drop-the-packet.html
+│       │   ├── 📄 web-network-architect.applet.html
+│       │   ├── 📄 web-nmap.html
+│       │   ├── 📄 web-packet-flap.html
+│       │   ├── 📄 web-packet-invaders.applet.html
+│       │   ├── 📄 web-packet-run.applet.html
+│       │   ├── 📄 web-packet-sniffer.applet.html
+│       │   └── 📄 web-wireless-warzone.applet.html
 │       ├── 📁 handouts
 │       ├── 📍 index.html
 │       ├── 📁 labs [labs]
@@ -1864,6 +1910,7 @@
 │       │   ├── 🔬 web-troubleshooting.lab.html
 │       │   └── 🔬 web-vlan-config.lab.html
 │       ├── 📁 modules [modules]
+│       │   ├── 📍 index.html
 │       │   ├── 📄 web-ip-addressing-ch7-10.module.html
 │       │   └── 📄 web-networking-flashcards.module.html
 │       ├── 📁 presentations [presentations]
@@ -1902,15 +1949,18 @@
 │       │   ├── ❓ web-subnetting.quiz.html
 │       │   └── ❓ web-week3.quiz.html
 │       ├── 📁 reviews
-│       │   ├── 📄 api-interceptor.html
-│       │   ├── 📄 dns-resolver-race.html
-│       │   ├── 📄 protocol-stack.html
-│       │   └── 📄 subnet-siege.html
+│       │   ├── 📍 index.html
+│       │   ├── 📄 web-api-interceptor.html
+│       │   ├── 📄 web-dns-resolver-race.html
+│       │   ├── 📄 web-protocol-stack.html
+│       │   └── 📄 web-subnet-siege.html
 │       ├── 📁 simulators
+│       │   ├── 📍 index.html
 │       │   ├── 📄 web-interactive-network-simulatorv2.simulator.html
 │       │   └── 📄 web-packet-tracer-lite-v3.simulator.html
 │       ├── 📁 speaker-notes
 │       ├── 📁 textbook
+│       │   ├── 📍 index.html
 │       │   └── 📄 web-networking-textbook-ch7-20.textbook.html
 │       ├── 📁 tools
 │       │   ├── 📄 web-acl.tool.html
@@ -1941,6 +1991,7 @@
 │       │   ├── 📄 web-wireless-architecture.tool.html
 │       │   └── 📄 web-wireless.tool.html
 │       ├── 📁 troubleshooting
+│       │   ├── 📍 index.html
 │       │   └── 🔬 web-lab-troubleshooting.reference.html
 │       └── 📁 tutorials
 ├── 📍 index.html
@@ -1973,8 +2024,13 @@
     ├── 📁 backup-or-bust
     │   └── 📄 current.html
     ├── 📍 index.html
-    └── 📁 network-forensics-lab
-        └── 📄 current.html
+    ├── 📁 network-forensics-lab
+    │   └── 📄 current.html
+    └── 📁 old-hive
+        ├── 📁 engine
+        ├── 📁 floors
+        ├── 📍 index.html
+        └── 📄 player.html
 ```
 
 
@@ -1988,8 +2044,10 @@
 |---------|------|------|--------|
 | cloud-architecture-designer.applet | presentation | ✓ | 0 |
 | cloud-provider-comparison.applet | presentation | ✓ | 0 |
-| ad-attack-path | presentation | ✓ | 0 |
+| cloud-ad-attack-path.applet | presentation | ✓ | 0 |
 | cloud-architect | presentation | ✓ | 0 |
+| cloud-destroyer.applet | applet | ✓ | 1 |
+| cloud-hop.applet | applet | ✓ | 1 |
 | index | applet | ✓ | 1 |
 | cloud-architecture.lab | lab | ✓ | 0 |
 | cloud-aws-services.lab | lab | ✓ | 0 |
@@ -2122,8 +2180,10 @@
 |---------|------|------|--------|
 | code-docker-playground.applet | applet | ✓ | 1 |
 | code-kubernetes-cluster-sim.applet | applet | ✓ | 1 |
-| git-blame | applet | ✓ | 1 |
-| kubernetes-rescue | presentation | ✓ | 0 |
+| code-build-breaker.applet | applet | ✓ | 1 |
+| code-git-blame | applet | ✓ | 1 |
+| code-kill-nine.applet | applet | ✓ | 1 |
+| code-kubernetes-rescue.applet | presentation | ✓ | 0 |
 | code-cicd.lab | presentation | ✓ | 0 |
 | code-cloudformation.lab | presentation | ✓ | 0 |
 | code-docker.lab | presentation | ✓ | 0 |
@@ -2211,8 +2271,10 @@
 | eye-pcap-forensics.lab | lab | ✓ | 0 |
 | eye-snort-rules.lab | lab | ✓ | 0 |
 | eye-threat-actor-profiling.lab | lab | ✓ | 0 |
-| alert-triage | applet | ✓ | 1 |
-| threat-modeler | applet | ✓ | 1 |
+| eye-alert-triage | applet | ✓ | 1 |
+| eye-log-centipede.applet | applet | ✓ | 1 |
+| eye-memory-forensics.applet | applet | ✓ | 1 |
+| eye-threat-modeler | applet | ✓ | 1 |
 | eye-hunting.lab | presentation | ✓ | 0 |
 | eye-siem.lab | applet | ✓ | 1 |
 | index | presentation | ✓ | 0 |
@@ -2343,6 +2405,10 @@
 | forge-hard-drive-geometry-native.applet | applet | ✓ | 1 |
 | forge-multimeter-jedit-v1.applet | presentation | ✓ | 0 |
 | forge-peripheral-devices.applet | applet | ✓ | 1 |
+| forge-bit-dash.applet | applet | ✓ | 1 |
+| forge-chip-match.applet | applet | ✓ | 1 |
+| forge-rack-stack.applet | applet | ✓ | 1 |
+| forge-raid-calculator.applet | applet | ✓ | 1 |
 | forge-admin-tools.lab | lab | ✓ | 2 |
 | forge-control-panel.lab | lab | ✓ | 2 |
 | forge-hardware-essentials.lab | lab | ✓ | 0 |
@@ -2357,7 +2423,7 @@
 | forge-windows-settings.presentation | presentation | ✓ | 0 |
 | aplus-core2-quiz | quiz | ✓ | 0 |
 | windows-admin | quiz | ✓ | 0 |
-| backup-or-bust | applet | ✓ | 1 |
+| forge-backup-or-bust | applet | ✓ | 1 |
 | forge-admin-tools.tool | presentation | ✓ | 0 |
 | forge-control-panel.tool | presentation | ✓ | 0 |
 | forge-os-core.tool | presentation | ✓ | 0 |
@@ -2371,8 +2437,10 @@
 
 | ID/Name | Type | Sync | Issues |
 |---------|------|------|--------|
-| cipher-cracker | presentation | ✓ | 0 |
-| dont-leak-the-key | applet | ✓ | 1 |
+| key-cipher-bubbles.applet | applet | ✓ | 1 |
+| key-cipher-cracker.presentation | presentation | ✓ | 0 |
+| key-crypto-pong.applet | applet | ✓ | 1 |
+| key-dont-leak-the-key | applet | ✓ | 1 |
 | key-aes.lab | presentation | ✓ | 0 |
 | key-attack.lab | presentation | ✓ | 0 |
 | key-cert.lab | presentation | ✓ | 0 |
@@ -2403,7 +2471,7 @@
 | mac-quiz | quiz | ✓ | 0 |
 | pqc-quiz | quiz | ✓ | 0 |
 | symmetric-quiz | quiz | ✓ | 0 |
-| hash-cracker | presentation | ✓ | 0 |
+| key-hash-cracker | presentation | ✓ | 0 |
 | key-aes.tool | presentation | ✓ | 0 |
 | key-cert.tool | presentation | ✓ | 0 |
 | key-ecc.tool | presentation | ✓ | 0 |
@@ -2586,7 +2654,9 @@
 | clh-030-quiz | quiz | ✓ | 0 |
 | script-lab.lab | lab | ✓ | 1 |
 | index | applet | ✓ | 1 |
-| dont-kill-the-server | applet | ✓ | 1 |
+| script-dont-kill-the-server | applet | ✓ | 1 |
+| script-pipe-snake.applet | applet | ✓ | 1 |
+| script-shell-sprint.applet | applet | ✓ | 1 |
 | index | applet | ✓ | 1 |
 | script-bash-arrays.lab | lab | ✓ | 1 |
 | script-bash-basics.lab | lab | ✓ | 1 |
@@ -2711,8 +2781,8 @@
 | script-linux-bash.quiz | presentation | ✓ | 0 |
 | linux-basics | quiz | ✓ | 0 |
 | clh-001-quiz | quiz | ✓ | 0 |
-| linux-cli-review | applet | ✓ | 1 |
-| permission-puzzle | presentation | ✓ | 0 |
+| script-linux-cli-review | applet | ✓ | 1 |
+| script-permission-puzzle | presentation | ✓ | 0 |
 | script-automation.tool | applet | ✓ | 1 |
 | script-linux-command.tool | applet | ✓ | 1 |
 | script-linux-permissions.tool | applet | ✓ | 1 |
@@ -2750,7 +2820,10 @@
 | shield-change-management.applet | presentation | ✓ | 0 |
 | shield-malware-types.applet | applet | ✓ | 1 |
 | shield-eh-exam-1-a.exam | presentation | ✓ | 0 |
-| malware-zoo | lab | ✓ | 1 |
+| shield-dr-malware.applet | applet | ✓ | 1 |
+| shield-malware-zoo.lab | lab | ✓ | 1 |
+| shield-threat-runner.applet | applet | ✓ | 1 |
+| shield-threat-swarm.applet | applet | ✓ | 1 |
 | shield-linux-audit-drill.lab | lab | ✓ | 0 |
 | shield-linux-audit.lab | lab | ✓ | 0 |
 | shield-linux-file-integrity.lab | lab | ✓ | 0 |
@@ -2892,7 +2965,11 @@
 | web-server-comparison.applet | applet | ✓ | 1 |
 | networking-interactive-guide | quiz | ✓ | 0 |
 | web-networking-midterm.exam | applet | ✓ | 1 |
-| packet-sniffer | presentation | ✓ | 0 |
+| web-network-architect.applet | applet | ✓ | 1 |
+| web-packet-invaders.applet | applet | ✓ | 1 |
+| web-packet-run.applet | applet | ✓ | 1 |
+| web-packet-sniffer.applet | presentation | ✓ | 0 |
+| web-wireless-warzone.applet | applet | ✓ | 1 |
 | index | applet | ✓ | 1 |
 | web-dns-troubleshooting.lab | lab | ✓ | 0 |
 | web-firewall-rules.lab | lab | ✓ | 0 |
@@ -2934,8 +3011,9 @@
 | osi-quiz | quiz | ✓ | 0 |
 | subnetting | quiz | ✓ | 0 |
 | web-week3-quiz | quiz | ✓ | 0 |
-| dns-resolver-race | presentation | ✓ | 0 |
-| subnet-siege | presentation | ✓ | 0 |
+| web-dns-resolver-race | presentation | ✓ | 0 |
+| web-subnet-siege | presentation | ✓ | 0 |
+| index | applet | ✓ | 1 |
 | web-interactive-network-simulatorv2.simulator | presentation | ✓ | 0 |
 | web-packet-tracer-lite-v3.simulator | applet | ✓ | 1 |
 | web-networking-textbook-ch7-20.textbook | applet | ✓ | 1 |
@@ -2981,11 +3059,11 @@
   Fix: Remove console.log or replace with proper logging
 
 **[HEUR-003]** TODO marker in script: print("a3f8c2b (You           Fri 4:54 PM) // TODO: Add auth
-  File: `houses/code/games/dont-deploy-on-friday.html`
+  File: `houses/code/games/code-dont-deploy-on-friday.html`
   Fix: Resolve or remove TODO comment
 
 **[HEUR-003]** TODO marker in script: { type: 'deletion', line: '-  // TODO: add pagination' },
-  File: `houses/code/games/git-bisect.html`
+  File: `houses/code/games/code-git-bisect.html`
   Fix: Resolve or remove TODO comment
 
 **[HEUR-003]** TODO marker in script: continueBtn.href = '#'; // TODO: Certificate page
@@ -3008,7 +3086,7 @@
   File: `test-digital-life-debug.html`
   Fix: Consider extracting inline scripts to external .js files
 
-### WARNING (991)
+### WARNING (1012)
 
 **[REG-001]** Content file is not registered in content-registry.js
   File: `admin/audit-tool.html`
@@ -3291,11 +3369,19 @@
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/cloud/games/ad-attack-path.html`
+  File: `houses/cloud/games/cloud-ad-attack-path.applet.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
   File: `houses/cloud/games/cloud-architect.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/games/cloud-destroyer.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/games/cloud-hop.applet.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
@@ -4019,11 +4105,19 @@
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/games/git-blame.html`
+  File: `houses/code/games/code-build-breaker.applet.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/code/games/kubernetes-rescue.html`
+  File: `houses/code/games/code-git-blame.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/games/code-kill-nine.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/code/games/code-kubernetes-rescue.applet.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
@@ -4411,11 +4505,19 @@
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/eye/games/alert-triage.html`
+  File: `houses/eye/games/eye-alert-triage.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/eye/games/threat-modeler.html`
+  File: `houses/eye/games/eye-log-centipede.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/eye/games/eye-memory-forensics.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/eye/games/eye-threat-modeler.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
@@ -4826,6 +4928,22 @@
   File: `houses/forge/applets/hardware/peripheral_devices/forge-peripheral-devices.applet.html`
   Fix: Add entry to content-registry.js
 
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/forge/games/forge-bit-dash.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/forge/games/forge-chip-match.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/forge/games/forge-rack-stack.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/forge/games/forge-raid-calculator.applet.html`
+  Fix: Add entry to content-registry.js
+
 **[TRACK-003]** Lab has no visible progress tracking mechanism
   File: `houses/forge/labs/forge-admin-tools.lab.html`
   Fix: Add ProgressManager.completeModule() call to track lab completion
@@ -4899,7 +5017,7 @@
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/forge/reviews/backup-or-bust.html`
+  File: `houses/forge/reviews/forge-backup-or-bust.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
@@ -4931,11 +5049,19 @@
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/key/games/cipher-cracker.html`
+  File: `houses/key/games/key-cipher-bubbles.applet.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/key/games/dont-leak-the-key.html`
+  File: `houses/key/games/key-cipher-cracker.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/key/games/key-crypto-pong.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/key/games/key-dont-leak-the-key.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
@@ -5031,7 +5157,7 @@
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/key/reviews/hash-cracker.html`
+  File: `houses/key/reviews/key-hash-cracker.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
@@ -5623,7 +5749,15 @@
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/games/dont-kill-the-server.html`
+  File: `houses/script/games/script-dont-kill-the-server.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/games/script-pipe-snake.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/script/games/script-shell-sprint.applet.html`
   Fix: Add entry to content-registry.js
 
 **[TRACK-003]** Lab has no visible progress tracking mechanism
@@ -6263,11 +6397,11 @@
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/reviews/linux-cli-review.html`
+  File: `houses/script/reviews/script-linux-cli-review.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/script/reviews/permission-puzzle.html`
+  File: `houses/script/reviews/script-permission-puzzle.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
@@ -6398,12 +6532,24 @@
   File: `houses/shield/exams/shield-eh-exam-1-a.exam.html`
   Fix: Add entry to content-registry.js
 
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/games/shield-dr-malware.applet.html`
+  Fix: Add entry to content-registry.js
+
 **[TRACK-003]** Lab has no visible progress tracking mechanism
-  File: `houses/shield/games/malware-zoo.html`
+  File: `houses/shield/games/shield-malware-zoo.lab.html`
   Fix: Add ProgressManager.completeModule() call to track lab completion
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/shield/games/malware-zoo.html`
+  File: `houses/shield/games/shield-malware-zoo.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/games/shield-threat-runner.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/shield/games/shield-threat-swarm.applet.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
@@ -6587,7 +6733,23 @@
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/games/packet-sniffer.html`
+  File: `houses/web/games/web-network-architect.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/games/web-packet-invaders.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/games/web-packet-run.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/games/web-packet-sniffer.applet.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/web/games/web-wireless-warzone.applet.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
@@ -6843,11 +7005,11 @@
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/reviews/dns-resolver-race.html`
+  File: `houses/web/reviews/web-dns-resolver-race.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/web/reviews/subnet-siege.html`
+  File: `houses/web/reviews/web-subnet-siege.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
@@ -6974,7 +7136,7 @@
   File: `workshop/a2-shadow-encoder/current.html`
   Fix: Add entry to content-registry.js
 
-### INFO (224)
+### INFO (246)
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `admin/audit-tool.html`
@@ -7089,6 +7251,14 @@
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/cloud/games/cloud-destroyer.applet.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/cloud/games/cloud-hop.applet.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `houses/cloud/index.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
@@ -7185,7 +7355,15 @@
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/code/games/git-blame.html`
+  File: `houses/code/games/code-build-breaker.applet.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/code/games/code-git-blame.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/code/games/code-kill-nine.applet.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
@@ -7313,11 +7491,19 @@
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/eye/games/alert-triage.html`
+  File: `houses/eye/games/eye-alert-triage.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/eye/games/threat-modeler.html`
+  File: `houses/eye/games/eye-log-centipede.applet.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/eye/games/eye-memory-forensics.applet.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/eye/games/eye-threat-modeler.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
@@ -7385,6 +7571,22 @@
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/forge/games/forge-bit-dash.applet.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/forge/games/forge-chip-match.applet.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/forge/games/forge-rack-stack.applet.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/forge/games/forge-raid-calculator.applet.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `houses/forge/labs/forge-admin-tools.lab.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
@@ -7409,7 +7611,7 @@
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/forge/reviews/backup-or-bust.html`
+  File: `houses/forge/reviews/forge-backup-or-bust.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
@@ -7417,7 +7619,15 @@
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/key/games/dont-leak-the-key.html`
+  File: `houses/key/games/key-cipher-bubbles.applet.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/key/games/key-crypto-pong.applet.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/key/games/key-dont-leak-the-key.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
@@ -7609,7 +7819,15 @@
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/script/games/dont-kill-the-server.html`
+  File: `houses/script/games/script-dont-kill-the-server.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/script/games/script-pipe-snake.applet.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/script/games/script-shell-sprint.applet.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
@@ -7665,7 +7883,7 @@
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/script/reviews/linux-cli-review.html`
+  File: `houses/script/reviews/script-linux-cli-review.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
@@ -7733,6 +7951,18 @@
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/shield/games/shield-dr-malware.applet.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/shield/games/shield-threat-runner.applet.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/shield/games/shield-threat-swarm.applet.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `houses/shield/labs/shield-osint-google-dorking.lab.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
@@ -7762,6 +7992,22 @@
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `houses/web/exams/web-networking-midterm.exam.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/web/games/web-network-architect.applet.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/web/games/web-packet-invaders.applet.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/web/games/web-packet-run.applet.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/web/games/web-wireless-warzone.applet.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
@@ -7821,6 +8067,10 @@
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/web/simulators/index.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `houses/web/simulators/web-packet-tracer-lite-v3.simulator.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
@@ -7868,7 +8118,7 @@
 ## REGISTRY GAPS
 ══════════════════════════════════════════════════════════════════════
 
-### Unregistered Content (824)
+### Unregistered Content (845)
 
 | Path | Type | House |
 |------|------|-------|
@@ -7934,8 +8184,10 @@
 | faq.html | applet | - |
 | houses/cloud/applets/architecture/cloud-architecture-designer.applet.html | presentation | cloud |
 | houses/cloud/applets/fundamentals/cloud-provider-comparison.applet.html | presentation | cloud |
-| houses/cloud/games/ad-attack-path.html | presentation | cloud |
+| houses/cloud/games/cloud-ad-attack-path.applet.html | presentation | cloud |
 | houses/cloud/games/cloud-architect.html | presentation | cloud |
+| houses/cloud/games/cloud-destroyer.applet.html | applet | cloud |
+| houses/cloud/games/cloud-hop.applet.html | applet | cloud |
 | houses/cloud/labs/cloud-architecture.lab.html | lab | cloud |
 | houses/cloud/labs/cloud-aws-services.lab.html | lab | cloud |
 | houses/cloud/labs/cloud-cse-module01.lab.html | lab | cloud |
@@ -8053,8 +8305,10 @@
 | houses/cloud/tools/cloud-cloud.tool.html | presentation | cloud |
 | houses/code/applets/code-docker-playground.applet.html | applet | code |
 | houses/code/applets/code-kubernetes-cluster-sim.applet.html | applet | code |
-| houses/code/games/git-blame.html | applet | code |
-| houses/code/games/kubernetes-rescue.html | presentation | code |
+| houses/code/games/code-build-breaker.applet.html | applet | code |
+| houses/code/games/code-git-blame.html | applet | code |
+| houses/code/games/code-kill-nine.applet.html | applet | code |
+| houses/code/games/code-kubernetes-rescue.applet.html | presentation | code |
 | houses/code/labs/code-cicd.lab.html | presentation | code |
 | houses/code/labs/code-cloudformation.lab.html | presentation | code |
 | houses/code/labs/code-docker.lab.html | presentation | code |
@@ -8139,8 +8393,10 @@
 | houses/eye/applets/cyberops/week7/labs/eye-pcap-forensics.lab.html | lab | eye |
 | houses/eye/applets/cyberops/week7/labs/eye-snort-rules.lab.html | lab | eye |
 | houses/eye/applets/cyberops/week7/labs/eye-threat-actor-profiling.lab.html | lab | eye |
-| houses/eye/games/alert-triage.html | applet | eye |
-| houses/eye/games/threat-modeler.html | applet | eye |
+| houses/eye/games/eye-alert-triage.html | applet | eye |
+| houses/eye/games/eye-log-centipede.applet.html | applet | eye |
+| houses/eye/games/eye-memory-forensics.applet.html | applet | eye |
+| houses/eye/games/eye-threat-modeler.html | applet | eye |
 | houses/eye/labs/eye-hunting.lab.html | presentation | eye |
 | houses/eye/labs/eye-siem.lab.html | applet | eye |
 | houses/eye/presentations/eye-log-basics.presentation.html | presentation | eye |
@@ -8236,6 +8492,10 @@
 | houses/forge/applets/hardware/hard_drive_geometry/forge-hard-drive-geometry-native.applet.html | applet | forge |
 | houses/forge/applets/hardware/multimeter/forge-multimeter-jedit-v1.applet.html | presentation | forge |
 | houses/forge/applets/hardware/peripheral_devices/forge-peripheral-devices.applet.html | applet | forge |
+| houses/forge/games/forge-bit-dash.applet.html | applet | forge |
+| houses/forge/games/forge-chip-match.applet.html | applet | forge |
+| houses/forge/games/forge-rack-stack.applet.html | applet | forge |
+| houses/forge/games/forge-raid-calculator.applet.html | applet | forge |
 | houses/forge/labs/forge-admin-tools.lab.html | lab | forge |
 | houses/forge/labs/forge-control-panel.lab.html | lab | forge |
 | houses/forge/labs/forge-hardware-essentials.lab.html | lab | forge |
@@ -8248,7 +8508,7 @@
 | houses/forge/presentations/forge-system-tools.presentation.html | presentation | forge |
 | houses/forge/presentations/forge-windows-editions.presentation.html | presentation | forge |
 | houses/forge/presentations/forge-windows-settings.presentation.html | presentation | forge |
-| houses/forge/reviews/backup-or-bust.html | applet | forge |
+| houses/forge/reviews/forge-backup-or-bust.html | applet | forge |
 | houses/forge/tools/forge-admin-tools.tool.html | presentation | forge |
 | houses/forge/tools/forge-control-panel.tool.html | presentation | forge |
 | houses/forge/tools/forge-os-core.tool.html | presentation | forge |
@@ -8256,8 +8516,10 @@
 | houses/forge/tools/forge-settings.tool.html | presentation | forge |
 | houses/forge/tools/forge-system-tools-sim.tool.html | presentation | forge |
 | houses/forge/tools/forge-windows-edition-selector.tool.html | presentation | forge |
-| houses/key/games/cipher-cracker.html | presentation | key |
-| houses/key/games/dont-leak-the-key.html | applet | key |
+| houses/key/games/key-cipher-bubbles.applet.html | applet | key |
+| houses/key/games/key-cipher-cracker.presentation.html | presentation | key |
+| houses/key/games/key-crypto-pong.applet.html | applet | key |
+| houses/key/games/key-dont-leak-the-key.html | applet | key |
 | houses/key/labs/key-aes.lab.html | presentation | key |
 | houses/key/labs/key-attack.lab.html | presentation | key |
 | houses/key/labs/key-cert.lab.html | presentation | key |
@@ -8281,7 +8543,7 @@
 | houses/key/presentations/key-post-quantum.presentation.html | presentation | key |
 | houses/key/presentations/key-tls-ssl.presentation.html | presentation | key |
 | houses/key/quizzes/key-cert.quiz.html | quiz | key |
-| houses/key/reviews/hash-cracker.html | presentation | key |
+| houses/key/reviews/key-hash-cracker.html | presentation | key |
 | houses/key/tools/key-aes.tool.html | presentation | key |
 | houses/key/tools/key-cert.tool.html | presentation | key |
 | houses/key/tools/key-ecc.tool.html | presentation | key |
@@ -8428,7 +8690,9 @@
 | houses/script/courses/clh/modules/clh-030/script-lab.lab.html | lab | script |
 | houses/script/courses/clh/modules/clh-030/script-quiz.quiz.html | quiz | script |
 | houses/script/courses/clh/modules/clh-031/script-lab.lab.html | lab | script |
-| houses/script/games/dont-kill-the-server.html | applet | script |
+| houses/script/games/script-dont-kill-the-server.html | applet | script |
+| houses/script/games/script-pipe-snake.applet.html | applet | script |
+| houses/script/games/script-shell-sprint.applet.html | applet | script |
 | houses/script/labs/linux/script-bash-arrays.lab.html | lab | script |
 | houses/script/labs/linux/script-bash-basics.lab.html | lab | script |
 | houses/script/labs/linux/script-bash-conditionals.lab.html | lab | script |
@@ -8549,8 +8813,8 @@
 | houses/script/presentations/script-macos-linux-basics.presentation.html | presentation | script |
 | houses/script/presentations/script-scripting-basics.presentation.html | presentation | script |
 | houses/script/quizzes/script-linux-bash.quiz.html | presentation | script |
-| houses/script/reviews/linux-cli-review.html | applet | script |
-| houses/script/reviews/permission-puzzle.html | presentation | script |
+| houses/script/reviews/script-linux-cli-review.html | applet | script |
+| houses/script/reviews/script-permission-puzzle.html | presentation | script |
 | houses/script/tools/script-automation.tool.html | applet | script |
 | houses/script/tools/script-linux-command.tool.html | applet | script |
 | houses/script/tools/script-linux-permissions.tool.html | applet | script |
@@ -8581,7 +8845,10 @@
 | houses/shield/applets/risk/shield-change-management.applet.html | presentation | shield |
 | houses/shield/applets/threats/shield-malware-types.applet.html | applet | shield |
 | houses/shield/exams/shield-eh-exam-1-a.exam.html | presentation | shield |
-| houses/shield/games/malware-zoo.html | lab | shield |
+| houses/shield/games/shield-dr-malware.applet.html | applet | shield |
+| houses/shield/games/shield-malware-zoo.lab.html | lab | shield |
+| houses/shield/games/shield-threat-runner.applet.html | applet | shield |
+| houses/shield/games/shield-threat-swarm.applet.html | applet | shield |
 | houses/shield/labs/linux/shield-linux-audit-drill.lab.html | lab | shield |
 | houses/shield/labs/linux/shield-linux-audit.lab.html | lab | shield |
 | houses/shield/labs/linux/shield-linux-file-integrity.lab.html | lab | shield |
@@ -8624,7 +8891,11 @@
 | houses/web/applets/services/web-server-comparison.applet.html | applet | web |
 | houses/web/applets/web-networking-interactive.applet.html | quiz | web |
 | houses/web/exams/web-networking-midterm.exam.html | applet | web |
-| houses/web/games/packet-sniffer.html | presentation | web |
+| houses/web/games/web-network-architect.applet.html | applet | web |
+| houses/web/games/web-packet-invaders.applet.html | applet | web |
+| houses/web/games/web-packet-run.applet.html | applet | web |
+| houses/web/games/web-packet-sniffer.applet.html | presentation | web |
+| houses/web/games/web-wireless-warzone.applet.html | applet | web |
 | houses/web/labs/web-dns-troubleshooting.lab.html | lab | web |
 | houses/web/labs/web-firewall-rules.lab.html | lab | web |
 | houses/web/labs/web-networking-fundamentals.lab.html | lab | web |
@@ -8663,8 +8934,8 @@
 | houses/web/quizzes/web-networking-ch7-20.quiz.html | applet | web |
 | houses/web/quizzes/web-subnetting.quiz.html | quiz | web |
 | houses/web/quizzes/web-week3.quiz.html | quiz | web |
-| houses/web/reviews/dns-resolver-race.html | presentation | web |
-| houses/web/reviews/subnet-siege.html | presentation | web |
+| houses/web/reviews/web-dns-resolver-race.html | presentation | web |
+| houses/web/reviews/web-subnet-siege.html | presentation | web |
 | houses/web/simulators/web-interactive-network-simulatorv2.simulator.html | presentation | web |
 | houses/web/simulators/web-packet-tracer-lite-v3.simulator.html | applet | web |
 | houses/web/textbook/web-networking-textbook-ch7-20.textbook.html | applet | web |
