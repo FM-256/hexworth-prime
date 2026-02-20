@@ -132,7 +132,11 @@ class NamingFixer {
             seenPaths.add(issue.file);
 
             // Build rename operation
-            const oldPath = issue.file;
+            // Strip leading 'houses/' prefix since RenameApplier prepends it
+            let oldPath = issue.file;
+            if (oldPath.startsWith('houses/')) {
+                oldPath = oldPath.substring('houses/'.length);
+            }
             const directory = path.dirname(oldPath);
             const newPath = path.join(directory, issue.suggestedFilename);
 

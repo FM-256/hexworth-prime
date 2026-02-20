@@ -67,7 +67,19 @@ const EXCLUDE_PATTERNS = [
     /\/config\//,                // Config directories
     /\/assets\//,                // Asset directories
     /\/vendor\//,                // Vendor directories
-    /\/lib\//                    // Library directories
+    /\/lib\//,                   // Library directories
+    /\/templates?\//,            // Template directories
+    /^templates?\//,             // Top-level templates
+    /\.barricade\.html$/,        // Dark Arts gate barricade files
+    /^dark-arts\//,              // Dark Arts has its own naming convention
+    /^hive\//,                   // Hive dungeon files
+    /^dashboard\.html$/,         // System: main dashboard
+    /^games\.html$/,             // System: game hub
+    /^handler-dashboard\.html$/, // System: handler dashboard
+    /^sorting\.html$/,           // System: house sorting
+    /^terminal\.html$/,          // System: matrix terminal
+    /^connect\.html$/,           // System: connection page
+    /^(quiz|lab)-template\.html$/ // File templates
 ];
 
 // Patterns that indicate wrong case (camelCase or PascalCase)
@@ -164,16 +176,18 @@ class NamingValidator {
     detectContentType(filePath, content) {
         const filename = path.basename(filePath);
 
-        // 1. Check path patterns first (most reliable)
-        for (const [type, pattern] of Object.entries(PATH_TYPE_PATTERNS)) {
-            if (pattern.test(filePath)) {
+        // 1. Check filename suffix FIRST — if a file explicitly declares its type
+        //    via .lab.html, .quiz.html, .tool.html etc., that takes priority over
+        //    the directory it lives in (e.g. a .lab.html inside /modules/ is still a lab)
+        for (const [type, pattern] of Object.entries(FILENAME_TYPE_PATTERNS)) {
+            if (pattern.test(filename)) {
                 return type;
             }
         }
 
-        // 2. Check filename suffix patterns
-        for (const [type, pattern] of Object.entries(FILENAME_TYPE_PATTERNS)) {
-            if (pattern.test(filename)) {
+        // 2. Check path patterns (directory-based detection)
+        for (const [type, pattern] of Object.entries(PATH_TYPE_PATTERNS)) {
+            if (pattern.test(filePath)) {
                 return type;
             }
         }
@@ -422,6 +436,7 @@ class NamingValidator {
 
     /**
      * Convert string to kebab-case
+     * Preserves dots that separate type suffixes (e.g. script-lab.lab stays as-is)
      * @param {string} str - Input string
      * @returns {string} kebab-case string
      */
@@ -433,8 +448,8 @@ class NamingValidator {
             .replace(/[_\s]+/g, '-')
             // Convert to lowercase
             .toLowerCase()
-            // Remove any non-alphanumeric characters except hyphens
-            .replace(/[^a-z0-9-]/g, '')
+            // Remove any non-alphanumeric characters except hyphens and dots
+            .replace(/[^a-z0-9.\-]/g, '')
             // Remove consecutive hyphens
             .replace(/--+/g, '-')
             // Remove leading/trailing hyphens
