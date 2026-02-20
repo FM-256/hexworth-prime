@@ -116,8 +116,8 @@ const ArcticEngine = (() => {
         aurora.className = 'ae-aurora';
         body.appendChild(aurora);
 
-        // Header
-        body.appendChild(_buildHeader('The Arctic', 'Linux Content Hub', null, null));
+        // Header with back-to-dashboard
+        body.appendChild(_buildHeader('The Arctic', 'Linux Content Hub', 'Dashboard', '../dashboard.html'));
 
         // Main wrapper
         const main = document.createElement('main');
