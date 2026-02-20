@@ -3993,23 +3993,37 @@
                 'gate': '🚪', 'special': '💎', 'time': '⏱', 'mastery': '🎓'
             };
             const lockedEmojis = ['🔒', '🔐', '🔑', '🔒', '🔐', '🔑', '🔒', '🔐', '🔑', '🔒', '🔐', '🔑'];
+            const hasRegistry = typeof AchievementRegistry !== 'undefined';
 
-            // Normalize achievement objects (mixed format: string IDs or objects)
-            const earned = achievements.slice(-MAX).reverse().map((a, i) => {
-                const isObj = typeof a === 'object' && a !== null;
-                return {
-                    name: isObj ? (a.name || a.id || `Achievement ${i + 1}`) : String(a),
-                    type: isObj ? (a.type || 'module') : 'module',
-                    icon: isObj ? (a.icon || null) : null
-                };
-            });
+            // Build earned list — prefer v2 registry data, fall back to v1 array
+            let earned;
+            if (hasRegistry) {
+                // Pull from v2 registry: full definitions with proper icons
+                const unlockedIds = AchievementRegistry.getUnlockedIds();
+                earned = unlockedIds.slice(-MAX).reverse().map(id => {
+                    const def = AchievementRegistry.getDefinition(id);
+                    return def || { name: id, icon: '🏆', type: 'module', description: '' };
+                });
+            } else {
+                // Legacy v1 fallback
+                earned = achievements.slice(-MAX).reverse().map((a, i) => {
+                    const isObj = typeof a === 'object' && a !== null;
+                    return {
+                        name: isObj ? (a.name || a.id || `Achievement ${i + 1}`) : String(a),
+                        type: isObj ? (a.type || 'module') : 'module',
+                        icon: isObj ? (a.icon || null) : null,
+                        description: ''
+                    };
+                });
+            }
 
             let html = '';
             for (let i = 0; i < MAX; i++) {
                 if (i < earned.length) {
                     const a = earned[i];
                     const emoji = a.icon || iconMap[a.type] || '🏆';
-                    html += `<div class="profile-badge-item earned" title="${escapeHtml(a.name)}">
+                    const desc = a.description || a.name;
+                    html += `<div class="profile-badge-item earned" title="${escapeHtml(desc)}">
                         <div class="profile-badge-emoji">${emoji}</div>
                         <div class="profile-badge-name">${escapeHtml(a.name)}</div>
                     </div>`;
@@ -4114,7 +4128,9 @@
             // ── Gather data ──────────────────────────────────────────────
             const type = (typeof AccountFrame !== 'undefined' && AccountFrame.getAccountType)
                 ? AccountFrame.getAccountType() : 'operative';
-            const achievements = JSON.parse(localStorage.getItem('hexworth_achievements') || '[]');
+            const achievements = (typeof AchievementRegistry !== 'undefined')
+                ? AchievementRegistry.getUnlockedIds()
+                : JSON.parse(localStorage.getItem('hexworth_achievements') || '[]');
             const xp = parseInt(localStorage.getItem('hexworth_xp') || '0') || 0;
             const level = parseInt(localStorage.getItem('hexworth_level') || '1') || 1;
             const streak = parseInt(localStorage.getItem('hexworth_streak') || '0') || 0;
