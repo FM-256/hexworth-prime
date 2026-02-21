@@ -84,7 +84,7 @@ class UpdateManager {
                 // New version detected - show What's New
                 const seenWhatsNew = localStorage.getItem(this.options.storageKeys.seenWhatsNew);
                 if (seenWhatsNew !== currentVersion) {
-                    await this.showWhatsNew();
+                    await this.showWhatsNew({ autoTriggered: true });
                 }
             }
 
@@ -595,12 +595,18 @@ class UpdateManager {
     /**
      * Show What's New modal for new version
      */
-    async showWhatsNew() {
+    async showWhatsNew(options = {}) {
         this.injectStyles();
+
+        // Ensure local version is loaded
+        if (!this.localVersion) {
+            await this.loadLocalVersion();
+        }
 
         const version = this.localVersion.version;
         const codename = this.localVersion.codename || '';
         const changelog = this.localVersion.changelog || this.localVersion.features || [];
+        const isAuto = options.autoTriggered === true;
 
         this.modal = document.createElement('div');
         this.modal.className = 'update-modal-overlay whatsnew-modal';
@@ -614,7 +620,7 @@ class UpdateManager {
 
                 <div class="update-modal-body">
                     <div class="whatsnew-intro">
-                        Thanks for updating! Here's what's new:
+                        ${isAuto ? "Thanks for updating! Here's what's new:" : "Here's what's in this version:"}
                     </div>
 
                     <div class="whatsnew-features">
@@ -635,14 +641,16 @@ class UpdateManager {
 
                 <div class="update-modal-footer">
                     <button class="update-btn update-btn-primary" id="whatsNewContinue">
-                        Let's Go! 🚀
+                        ${isAuto ? "Let's Go! 🚀" : 'Close'}
                     </button>
                 </div>
             </div>
         `;
 
         this.modal.querySelector('#whatsNewContinue').addEventListener('click', () => {
-            localStorage.setItem(this.options.storageKeys.seenWhatsNew, version);
+            if (isAuto) {
+                localStorage.setItem(this.options.storageKeys.seenWhatsNew, version);
+            }
             this.closeModal();
         });
 
