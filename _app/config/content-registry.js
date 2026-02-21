@@ -19914,8 +19914,8 @@ const ContentRegistry = {
         // ─── EYE HOUSE — CompTIA CySA+ (CS0-003) ───
         'eye-cysa-ch01-pres': {
             id: 'eye-cysa-ch01-pres',
-            title: 'CySA+ Ch 1: Today's Cybersecurity Analyst',
-            description: 'CompTIA CySA+ Chapter 1 — Today's Cybersecurity Analyst',
+            title: 'CySA+ Ch 1: Today\u2019s Cybersecurity Analyst',
+            description: 'CompTIA CySA+ Chapter 1 \u2014 Today\u2019s Cybersecurity Analyst',
             house: 'eye',
             type: 'presentation',
             difficulty: 'intermediate',
@@ -19930,8 +19930,8 @@ const ContentRegistry = {
         },
         'eye-cysa-ch01-quiz': {
             id: 'eye-cysa-ch01-quiz',
-            title: 'CySA+ Ch 1 Quiz: Today's Cybersecurity Analyst',
-            description: 'Quiz on CySA+ Chapter 1 — Today's Cybersecurity Analyst',
+            title: 'CySA+ Ch 1 Quiz: Today\u2019s Cybersecurity Analyst',
+            description: 'Quiz on CySA+ Chapter 1 \u2014 Today\u2019s Cybersecurity Analyst',
             house: 'eye',
             type: 'quiz',
             difficulty: 'intermediate',
@@ -19946,8 +19946,8 @@ const ContentRegistry = {
         },
         'eye-cysa-ch01-lab': {
             id: 'eye-cysa-ch01-lab',
-            title: 'CySA+ Ch 1 Lab: Today's Cybersecurity Analyst',
-            description: 'Hands-on lab for CySA+ Chapter 1 — Today's Cybersecurity Analyst',
+            title: 'CySA+ Ch 1 Lab: Today\u2019s Cybersecurity Analyst',
+            description: 'Hands-on lab for CySA+ Chapter 1 \u2014 Today\u2019s Cybersecurity Analyst',
             house: 'eye',
             type: 'lab',
             difficulty: 'intermediate',
