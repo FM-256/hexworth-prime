@@ -58,6 +58,8 @@ function parseArgs(args) {
         enableSyntax: true,         // Syntax validation enabled by default
         syntaxProfile: 'ci',        // 'ci', 'strict', or 'inventory'
         coverageOnly: false,        // Only run coverage analysis
+        flowOnly: false,            // Only run flow validation
+        enableFlow: true,           // Flow validation enabled by default
         remediation: false,         // Generate remediation plan
         reachabilityMode: 'links',  // 'links' or 'links+registry'
         failOn: null,               // 'critical', 'critical,high', etc.
@@ -152,6 +154,15 @@ function parseArgs(args) {
                 options.coverageOnly = true;
                 break;
 
+            case '--flow':
+            case '--flow-only':
+                options.flowOnly = true;
+                break;
+
+            case '--no-flow':
+                options.enableFlow = false;
+                break;
+
             case '--remediation':
             case '--patch-plan':
                 options.remediation = true;
@@ -238,6 +249,8 @@ Options:
                            inventory Collect all stats, never fail (exit code 0)
   --no-syntax            Disable syntax validation in full scans
   --coverage             Run coverage analysis (modules without quizzes/labs)
+  --flow                 Run flow validation only (unchained content detection)
+  --no-flow              Disable flow validation in full scans
   --remediation          Generate PATCH_PLAN.md/json with grouped fixes
   --reachability <mode>  Reachability mode: links (default), links+registry
   --fail-on <severities> Exit with error if issues found (e.g., "critical,high")
@@ -265,6 +278,7 @@ Examples:
   eduscan --syntax=inventory         # Collect stats only, no failures
   eduscan --no-syntax                # Skip syntax validation
   eduscan --coverage                 # Analyze curriculum coverage gaps
+  eduscan --flow                     # Detect unchained content (no learning path)
   eduscan --remediation              # Generate PATCH_PLAN with fix batches
   eduscan --syntax-only --remediation  # Syntax scan + remediation plan
   eduscan --fail-on critical         # CI gate: fail only on critical
@@ -299,6 +313,7 @@ Issue Codes:
   ENG-*          Missing engine/library (undefined globals)
   PATH-*         Broken paths (404 resources)
   COV-*          Coverage gaps (missing quizzes, labs, assessments)
+  FLOW-*         Unchained content (not in any learning progression)
   FUNC-*         Functional issues (runtime errors, smoke test failures)
 
 Orphan Reason Codes (with --deep):
@@ -438,6 +453,31 @@ function main() {
 
             // Determine exit code based on syntax issues
             const exitCode = determineExitCode(results.syntax.issues, options);
+            if (exitCode !== 0) {
+                process.exit(exitCode);
+            }
+        } else if (options.flowOnly) {
+            // Flow-only scan
+            const results = scanner.flowScan();
+
+            if (options.jsonOutput) {
+                console.log(JSON.stringify(results.flow, null, 2));
+            }
+
+            // Generate remediation plan if requested
+            if (options.remediation) {
+                const plan = remediationPlanner.generatePlan(results);
+                const saved = remediationPlanner.savePlan(plan);
+                if (!options.quiet) {
+                    console.log(remediationPlanner.formatForConsole(plan, colorFn));
+                    console.log(`  Saved: ${saved.json.path}`);
+                    console.log(`  Saved: ${saved.markdown.path}`);
+                    console.log('');
+                }
+            }
+
+            // Determine exit code based on flow issues
+            const exitCode = determineExitCode(results.flow.issues, options);
             if (exitCode !== 0) {
                 process.exit(exitCode);
             }
@@ -611,6 +651,13 @@ function runScanCycle(options, colorFn) {
             remediationPlanner.savePlan(plan);
         }
         exitCode = determineExitCode(results.syntax.issues, options);
+    } else if (options.flowOnly) {
+        results = scanner.flowScan();
+        if (options.remediation && remediationPlanner) {
+            const plan = remediationPlanner.generatePlan(results);
+            remediationPlanner.savePlan(plan);
+        }
+        exitCode = determineExitCode(results.flow.issues, options);
     } else if (options.coverageOnly) {
         results = scanner.coverageScan();
         if (options.remediation && remediationPlanner) {

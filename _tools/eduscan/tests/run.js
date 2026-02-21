@@ -122,6 +122,47 @@ console.log('');
 console.log('── Global Validators ──');
 console.log('');
 
+// FlowValidator: structure test — returns valid shape
+{
+    const FlowValidator = require(path.join(EDUSCAN_DIR, 'validators/flow-validator'));
+    const Scanner = require(path.join(EDUSCAN_DIR, 'scanner'));
+    const ParserOrchestrator = require(path.join(EDUSCAN_DIR, 'parsers'));
+    const ValidatorOrchestrator = require(path.join(EDUSCAN_DIR, 'validators'));
+
+    const scanner = new Scanner({ rootPath: ROOT_PATH, verbose: false });
+    const parser = new ParserOrchestrator({ verbose: false });
+    const validatorOrch = new ValidatorOrchestrator({ verbose: false });
+
+    const scanResult = scanner.scan();
+    const content = parser.parseAll(scanResult.files);
+    const registry = validatorOrch.loadRegistry();
+
+    const flowValidator = new FlowValidator({ rootPath: ROOT_PATH, verbose: false });
+    const flowResult = flowValidator.detect(content, registry);
+
+    const hasIssues = Array.isArray(flowResult.issues);
+    const hasUnchained = Array.isArray(flowResult.unchained);
+    const hasSummary = flowResult.summary && typeof flowResult.summary.totalTrackable === 'number';
+
+    if (hasIssues && hasUnchained && hasSummary) {
+        console.log(`  \u2713 FlowValidator — returns valid { issues, unchained, summary } (${flowResult.summary.totalTrackable} trackable, ${flowResult.summary.unchained} unchained)`);
+        passed++;
+    } else {
+        console.log(`  \u2717 FlowValidator — invalid return shape (issues: ${hasIssues}, unchained: ${hasUnchained}, summary: ${hasSummary})`);
+        failed++;
+    }
+
+    // FlowValidator: all emitted issues use FLOW-001 code
+    const nonFlowCodes = flowResult.issues.filter(i => i.code !== 'FLOW-001');
+    if (nonFlowCodes.length === 0) {
+        console.log(`  \u2713 FlowValidator — all ${flowResult.issues.length} issues use FLOW-001 code`);
+        passed++;
+    } else {
+        console.log(`  \u2717 FlowValidator — found ${nonFlowCodes.length} issues with non-FLOW-001 codes: ${[...new Set(nonFlowCodes.map(i => i.code))].join(', ')}`);
+        failed++;
+    }
+}
+
 // ContentCatalog: zero dead links regression (CAT-001 count must be 0)
 {
     const catValidator = new ContentCatalogValidator({ rootPath: ROOT_PATH });

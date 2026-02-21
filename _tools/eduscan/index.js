@@ -12,6 +12,7 @@ const Scanner = require('./scanner');
 const ParserOrchestrator = require('./parsers');
 const ValidatorOrchestrator = require('./validators');
 const OrphanDetector = require('./validators/orphans');
+const FlowValidator = require('./validators/flow-validator');
 const SyntaxValidator = require('./validators/syntax');
 const CoverageAnalyzer = require('./validators/coverage');
 const JSONReporter = require('./reporters/json');
@@ -35,6 +36,8 @@ class EduScan {
             syntaxOnly: options.syntaxOnly || false,
             enableSyntax: options.enableSyntax !== false,  // Syntax validation enabled by default
             syntaxProfile: options.syntaxProfile || 'ci',  // 'ci', 'strict', or 'inventory'
+            enableFlow: options.enableFlow !== false,       // Flow validation enabled by default
+            flowOnly: options.flowOnly || false,            // Only run flow validation
             failOn: options.failOn || null,                // Severities that cause exit code 1
             warnOnly: options.warnOnly || false            // Never fail (exit code always 0)
         };
@@ -59,6 +62,11 @@ class EduScan {
             verbose: this.options.verbose,
             deep: this.options.deepOrphans,
             reachabilityMode: this.options.reachabilityMode || 'links'
+        });
+
+        this.flowValidator = new FlowValidator({
+            rootPath: this.options.path,
+            verbose: this.options.verbose
         });
 
         this.syntaxValidator = new SyntaxValidator({
@@ -158,6 +166,21 @@ class EduScan {
             console.log(`[ORPHAN] Found ${orphans.summary.registryOrphans} registry orphans, ${orphans.summary.filesystemOrphans} filesystem orphans`);
         }
 
+        // Phase 4b: Flow Validation (if enabled)
+        let flow = { issues: [], unchained: [], chained: [], summary: {} };
+        if (this.options.enableFlow) {
+            if (this.options.verbose) {
+                console.log('[FLOW] Detecting unchained content...');
+            }
+
+            flow = this.flowValidator.detect(content, registry);
+            validation.issues.push(...flow.issues);
+
+            if (this.options.verbose) {
+                console.log(`[FLOW] Found ${flow.summary.unchained || 0} unchained files`);
+            }
+        }
+
         // Phase 5: Syntax Validation (if enabled)
         let syntax = { issues: [], summary: {} };
         if (this.options.enableSyntax) {
@@ -188,6 +211,7 @@ class EduScan {
             validation,
             registry,
             orphans,
+            flow,
             syntax,
             scanStats: {
                 ...scanResult.stats,
@@ -250,6 +274,12 @@ class EduScan {
         // Include orphan detection
         const orphans = this.orphanDetector.detect(content, registry);
         validation.issues.push(...orphans.issues);
+
+        // Include flow validation if enabled
+        if (this.options.enableFlow) {
+            const flow = this.flowValidator.detect(content, registry);
+            validation.issues.push(...flow.issues);
+        }
 
         // Include syntax validation if enabled
         if (this.options.enableSyntax) {
@@ -595,6 +625,96 @@ class EduScan {
     }
 
     /**
+     * Flow-only scan - detects unchained content
+     * @returns {Object} Flow detection results
+     */
+    flowScan() {
+        const startTime = Date.now();
+
+        if (!this.options.quiet) {
+            this.console.printHeader();
+            console.log(this.console.c('[FLOW]', 'cyan') + ' Detecting unchained content...\n');
+        }
+
+        // Scan and parse files
+        const scanResult = this.scanner.scan();
+        const content = this.parser.parseAll(scanResult.files);
+        const registry = this.validator.loadRegistry();
+
+        // Run flow detection
+        const flow = this.flowValidator.detect(content, registry);
+
+        if (!this.options.quiet) {
+            this.printFlowSummary(flow);
+        }
+
+        return {
+            flow,
+            scanStats: {
+                filesScanned: scanResult.stats.filesScanned,
+                contentParsed: content.length,
+                duration: Date.now() - startTime
+            }
+        };
+    }
+
+    /**
+     * Print flow summary to console
+     */
+    printFlowSummary(flow) {
+        const c = (text, ...colors) => this.console.c(text, ...colors);
+
+        console.log(c('─'.repeat(60), 'dim'));
+        console.log(c(' FLOW VALIDATION RESULTS', 'bright', 'cyan'));
+        console.log(c('─'.repeat(60), 'dim'));
+        console.log('');
+
+        console.log(c('  Trackable Files:', 'dim') + ` ${flow.summary.totalTrackable}`);
+        console.log(`  ${c('Chained:', 'green')} ${flow.summary.chained}  ${c('Unchained:', 'yellow')} ${flow.summary.unchained}`);
+        console.log('');
+
+        // Per-house breakdown
+        if (Object.keys(flow.summary.byHouse).length > 0) {
+            console.log(c('  Unchained by House:', 'bright'));
+            const sortedHouses = Object.entries(flow.summary.byHouse)
+                .sort((a, b) => b[1] - a[1]);
+            for (const [house, count] of sortedHouses) {
+                console.log(`    ${c(house, 'yellow')}: ${count}`);
+            }
+            console.log('');
+        }
+
+        // Per-type breakdown
+        if (Object.keys(flow.summary.byType).length > 0) {
+            console.log(c('  Unchained by Type:', 'bright'));
+            const sortedTypes = Object.entries(flow.summary.byType)
+                .sort((a, b) => b[1] - a[1]);
+            for (const [type, count] of sortedTypes) {
+                console.log(`    ${c(type, 'cyan')}: ${count}`);
+            }
+            console.log('');
+        }
+
+        // Top unchained files
+        if (flow.unchained.length > 0) {
+            console.log(c('  Unchained Files:', 'dim'));
+            for (const file of flow.unchained.slice(0, 10)) {
+                console.log(`    ${c('[FLOW-001]', 'yellow')} ${file.path}`);
+            }
+            if (flow.unchained.length > 10) {
+                console.log(c(`    ... and ${flow.unchained.length - 10} more`, 'dim'));
+            }
+            console.log('');
+        } else {
+            console.log(c('  All trackable content is chained to a learning path.', 'green'));
+            console.log('');
+        }
+
+        console.log(c('─'.repeat(60), 'dim'));
+        console.log('');
+    }
+
+    /**
      * Coverage scan - analyzes curriculum coverage metrics
      * @returns {Object} Coverage analysis results
      */
@@ -662,6 +782,14 @@ class EduScan {
     static syntaxScan(options = {}) {
         const scanner = new EduScan(options);
         return scanner.syntaxScan();
+    }
+
+    /**
+     * Static flow scan
+     */
+    static flowScan(options = {}) {
+        const scanner = new EduScan(options);
+        return scanner.flowScan();
     }
 
     /**
