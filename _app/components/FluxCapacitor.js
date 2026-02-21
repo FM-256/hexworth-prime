@@ -20,6 +20,17 @@
         }
     })();
 
+    // ── GlobalSearch.js (Ctrl+K Search Overlay) ──
+    (function() {
+        var cs = document.currentScript;
+        if (cs && cs.src) {
+            var s = document.createElement('script');
+            s.src = cs.src.replace('FluxCapacitor.js', 'GlobalSearch.js');
+            s.async = true;
+            document.head.appendChild(s);
+        }
+    })();
+
     // ═══════════════════════════════════════════════════════════════
     // CONFIGURATION
     // ═══════════════════════════════════════════════════════════════
