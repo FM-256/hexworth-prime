@@ -1,0 +1,843 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Managing Updates Lab - MD-101</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            min-height: 100vh;
+            background: #0c0c0c;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: #e0d0c0;
+        }
+
+        .lab-header {
+            padding: 15px 30px;
+            background: rgba(10, 10, 15, 0.95);
+            border-bottom: 1px solid rgba(234, 88, 12, 0.2);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .header-left { display: flex; align-items: center; gap: 20px; }
+
+        .back-btn {
+            padding: 8px 16px;
+            background: rgba(234, 88, 12, 0.1);
+            border: 1px solid rgba(234, 88, 12, 0.3);
+            border-radius: 6px;
+            color: #f97316;
+            text-decoration: none;
+            font-size: 0.85rem;
+            transition: all 0.2s ease;
+        }
+        .back-btn:hover { background: rgba(234, 88, 12, 0.2); }
+
+        .lab-title { font-size: 1rem; color: #f5e6d0; font-weight: 500; }
+
+        .lab-badge {
+            padding: 4px 12px;
+            background: rgba(234, 88, 12, 0.15);
+            border: 1px solid rgba(234, 88, 12, 0.3);
+            border-radius: 12px;
+            font-size: 0.7rem;
+            color: #ea580c;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+        }
+
+        .task-progress { display: flex; align-items: center; gap: 10px; font-size: 0.85rem; color: #9a8070; }
+        .task-count { color: #f97316; font-weight: 600; }
+
+        .lab-container {
+            display: grid;
+            grid-template-columns: 350px 1fr;
+            min-height: calc(100vh - 61px);
+        }
+
+        .task-panel {
+            background: rgba(15, 12, 8, 0.95);
+            border-right: 1px solid rgba(234, 88, 12, 0.15);
+            padding: 20px;
+            overflow-y: auto;
+            position: sticky;
+            top: 61px;
+            height: calc(100vh - 61px);
+        }
+
+        .panel-heading {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: #ea580c;
+            margin-bottom: 15px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid rgba(234, 88, 12, 0.2);
+        }
+
+        .task-item {
+            background: rgba(234, 88, 12, 0.04);
+            border: 1px solid rgba(234, 88, 12, 0.1);
+            border-radius: 8px;
+            padding: 14px;
+            margin-bottom: 10px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .task-item:hover { background: rgba(234, 88, 12, 0.08); border-color: rgba(234, 88, 12, 0.25); }
+        .task-item.active { border-left: 3px solid #ea580c; background: rgba(234, 88, 12, 0.1); }
+        .task-item.completed { border-color: rgba(34, 197, 94, 0.4); background: rgba(34, 197, 94, 0.04); }
+        .task-item.completed .task-title::before { content: '\2713 '; color: #22c55e; }
+
+        .task-title { font-size: 0.88rem; color: #f5e6d0; margin-bottom: 4px; font-weight: 500; }
+        .task-desc { font-size: 0.75rem; color: #7a6a5a; }
+
+        .main-content { padding: 30px; overflow-y: auto; }
+
+        .exercise-section { display: none; }
+        .exercise-section.active { display: block; }
+
+        .exercise-title { font-size: 1.2rem; color: #f97316; margin-bottom: 8px; font-weight: 600; }
+        .exercise-intro { font-size: 0.9rem; color: #9a8070; margin-bottom: 25px; line-height: 1.6; }
+
+        .scenario-card {
+            background: rgba(234, 88, 12, 0.06);
+            border: 1px solid rgba(234, 88, 12, 0.2);
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        .scenario-card h4 { color: #f97316; font-size: 0.85rem; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.05em; }
+        .scenario-card p { font-size: 0.9rem; color: #c0b0a0; line-height: 1.5; }
+
+        .options-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 15px; }
+        .options-list { display: flex; flex-direction: column; gap: 8px; margin-top: 15px; }
+
+        .option-btn {
+            padding: 12px 16px;
+            background: rgba(30, 25, 20, 0.8);
+            border: 1px solid rgba(234, 88, 12, 0.2);
+            border-radius: 8px;
+            color: #c0b0a0;
+            font-size: 0.85rem;
+            cursor: pointer;
+            text-align: left;
+            transition: all 0.2s ease;
+            font-family: inherit;
+        }
+        .option-btn:hover:not(:disabled) { background: rgba(234, 88, 12, 0.12); border-color: rgba(234, 88, 12, 0.4); color: #f5e6d0; }
+        .option-btn.correct { background: rgba(34, 197, 94, 0.12); border-color: #22c55e; color: #86efac; }
+        .option-btn.incorrect { background: rgba(220, 38, 38, 0.12); border-color: #dc2626; color: #fca5a5; }
+        .option-btn:disabled { cursor: default; }
+
+        .feedback-box {
+            margin-top: 15px;
+            padding: 14px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            line-height: 1.5;
+            display: none;
+        }
+        .feedback-box.correct { background: rgba(34, 197, 94, 0.1); border: 1px solid rgba(34, 197, 94, 0.3); color: #86efac; }
+        .feedback-box.incorrect { background: rgba(220, 38, 38, 0.1); border: 1px solid rgba(220, 38, 38, 0.3); color: #fca5a5; }
+        .feedback-box.show { display: block; }
+
+        .info-callout {
+            background: rgba(96, 165, 250, 0.08);
+            border-left: 3px solid rgba(96, 165, 250, 0.5);
+            border-radius: 4px;
+            padding: 12px 16px;
+            margin: 15px 0;
+            font-size: 0.82rem;
+            color: #93c5fd;
+            line-height: 1.5;
+        }
+
+        /* Form elements for ring config */
+        .rule-form {
+            background: rgba(20, 16, 12, 0.8);
+            border: 1px solid rgba(234, 88, 12, 0.2);
+            border-radius: 10px;
+            padding: 20px;
+            margin-top: 15px;
+        }
+        .rule-form h4 { color: #f97316; font-size: 0.85rem; margin-bottom: 15px; }
+        .form-row { display: grid; grid-template-columns: 200px 1fr; gap: 10px; align-items: center; margin-bottom: 12px; }
+        .form-label { font-size: 0.82rem; color: #9a8070; }
+        .form-select, .form-input {
+            background: rgba(30, 25, 20, 0.9);
+            border: 1px solid rgba(234, 88, 12, 0.25);
+            border-radius: 6px;
+            color: #c0b0a0;
+            padding: 8px 10px;
+            font-size: 0.85rem;
+            font-family: 'Consolas', monospace;
+            width: 100%;
+        }
+        .form-select:focus, .form-input:focus { outline: none; border-color: #f97316; }
+        .form-select.correct, .form-input.correct { border-color: #22c55e; color: #86efac; }
+        .form-select.incorrect, .form-input.incorrect { border-color: #dc2626; color: #fca5a5; }
+
+        .submit-btn {
+            margin-top: 20px;
+            padding: 12px 28px;
+            background: linear-gradient(135deg, #ea580c, #c2410c);
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            font-family: inherit;
+            transition: all 0.2s ease;
+        }
+        .submit-btn:hover { transform: translateY(-1px); box-shadow: 0 4px 15px rgba(234, 88, 12, 0.3); }
+        .submit-btn:disabled { opacity: 0.5; cursor: default; transform: none; }
+
+        /* Config steps */
+        .config-steps { margin-top: 15px; }
+        .cfg-step {
+            border: 1px solid rgba(234, 88, 12, 0.2);
+            border-radius: 10px;
+            margin-bottom: 15px;
+            overflow: hidden;
+        }
+        .cfg-step-header {
+            padding: 12px 16px;
+            background: rgba(234, 88, 12, 0.08);
+            font-size: 0.85rem;
+            color: #f97316;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .cfg-step-num {
+            width: 24px;
+            height: 24px;
+            background: rgba(234, 88, 12, 0.3);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.75rem;
+            flex-shrink: 0;
+        }
+        .cfg-step-body { padding: 15px 16px; }
+        .cfg-step-body p { font-size: 0.85rem; color: #9a8070; margin-bottom: 10px; }
+        .cfg-step.locked .cfg-step-body { display: none; }
+        .cfg-step.completed-step .cfg-step-header { background: rgba(34, 197, 94, 0.1); }
+        .cfg-step.completed-step .cfg-step-header .cfg-step-num { background: #22c55e; }
+
+        /* Toggle switches */
+        .toggle-grid { display: flex; flex-direction: column; gap: 10px; margin-top: 15px; }
+        .toggle-rule {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 16px;
+            background: rgba(30, 25, 20, 0.8);
+            border: 1px solid rgba(234, 88, 12, 0.15);
+            border-radius: 8px;
+            gap: 15px;
+        }
+        .toggle-rule-name { font-size: 0.85rem; color: #c0b0a0; flex: 1; }
+        .toggle-set { display: flex; gap: 6px; }
+        .toggle-btn {
+            padding: 5px 14px;
+            border-radius: 20px;
+            font-size: 0.78rem;
+            cursor: pointer;
+            border: 1px solid;
+            font-family: inherit;
+            transition: all 0.2s ease;
+        }
+        .toggle-btn.enable { background: transparent; border-color: rgba(34, 197, 94, 0.4); color: #9a8070; }
+        .toggle-btn.disable { background: transparent; border-color: rgba(220, 38, 38, 0.3); color: #9a8070; }
+        .toggle-btn.enable.active { background: rgba(34, 197, 94, 0.2); color: #86efac; border-color: #22c55e; }
+        .toggle-btn.disable.active { background: rgba(220, 38, 38, 0.2); color: #fca5a5; border-color: #dc2626; }
+
+        .complete-section {
+            display: none;
+            margin-top: 40px;
+            padding: 30px;
+            background: rgba(34, 197, 94, 0.06);
+            border: 1px solid rgba(34, 197, 94, 0.2);
+            border-radius: 12px;
+            text-align: center;
+        }
+        .complete-section.show { display: block; }
+        .complete-section h3 { color: #22c55e; font-size: 1.2rem; margin-bottom: 10px; }
+        .complete-section p { color: #9a8070; font-size: 0.9rem; margin-bottom: 20px; }
+
+        .complete-btn {
+            padding: 14px 32px;
+            background: linear-gradient(135deg, #22c55e, #16a34a);
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-size: 1rem;
+            font-weight: 700;
+            cursor: pointer;
+            font-family: inherit;
+            transition: all 0.2s ease;
+        }
+        .complete-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(34, 197, 94, 0.35); }
+
+        @keyframes taskPulse {
+            0%, 100% { box-shadow: none; }
+            50% { box-shadow: 0 0 12px rgba(34, 197, 94, 0.5); }
+        }
+        .task-item.just-completed { animation: taskPulse 0.6s ease; }
+
+        @media (max-width: 900px) {
+            .lab-container { grid-template-columns: 1fr; }
+            .task-panel { position: static; height: auto; }
+            .options-grid { grid-template-columns: 1fr; }
+            .form-row { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+
+    <header class="lab-header">
+        <div class="header-left">
+            <a href="../index.html" class="back-btn">&larr; Back to MD-101</a>
+            <span class="lab-title">Module 9 Lab: Managing Updates</span>
+            <span class="lab-badge">Forge Lab</span>
+        </div>
+        <div class="task-progress">
+            <span>Tasks:</span>
+            <span class="task-count" id="taskCount">0 / 6</span>
+        </div>
+    </header>
+
+    <div class="lab-container">
+
+        <aside class="task-panel">
+            <div class="panel-heading">Lab Tasks</div>
+            <div class="task-item active" data-task="1" onclick="showTask(1)">
+                <div class="task-title">1. WUfB Update Rings</div>
+                <div class="task-desc">Configure Windows Update for Business deployment rings</div>
+            </div>
+            <div class="task-item" data-task="2" onclick="showTask(2)">
+                <div class="task-title">2. Deferral Policies</div>
+                <div class="task-desc">Set quality and feature update deferral periods</div>
+            </div>
+            <div class="task-item" data-task="3" onclick="showTask(3)">
+                <div class="task-title">3. Update Compliance</div>
+                <div class="task-desc">Create update compliance and reporting dashboards</div>
+            </div>
+            <div class="task-item" data-task="4" onclick="showTask(4)">
+                <div class="task-title">4. Delivery Optimization</div>
+                <div class="task-desc">Configure peer-to-peer delivery optimization</div>
+            </div>
+            <div class="task-item" data-task="5" onclick="showTask(5)">
+                <div class="task-title">5. Servicing Channels</div>
+                <div class="task-desc">Plan Windows servicing channel strategy</div>
+            </div>
+            <div class="task-item" data-task="6" onclick="showTask(6)">
+                <div class="task-title">6. Troubleshoot Updates</div>
+                <div class="task-desc">Diagnose and resolve Windows Update failures</div>
+            </div>
+        </aside>
+
+        <main class="main-content">
+
+            <!-- Task 1: WUfB Update Rings -->
+            <section class="exercise-section active" id="task-1">
+                <div class="exercise-title">Task 1: Configure Windows Update for Business Rings</div>
+                <div class="exercise-intro">Your organization has 4,000 devices and wants to implement a phased update rollout strategy using Windows Update for Business in Intune. Configure the update ring for the "Broad Deployment" group.</div>
+
+                <div class="info-callout">
+                    Ring Strategy: <strong>Preview</strong> (IT/early adopters, 50 devices, 0-day deferral) &rarr; <strong>Pilot</strong> (mixed departments, 200 devices, 3-day deferral) &rarr; <strong>Broad</strong> (general population, 3,500 devices, 7-day deferral) &rarr; <strong>Critical</strong> (manufacturing/kiosk, 250 devices, 14-day deferral)
+                </div>
+
+                <div class="rule-form">
+                    <h4>Update Ring Configuration - Broad Deployment Group (3,500 devices)</h4>
+
+                    <div class="form-row">
+                        <span class="form-label">Quality update deferral</span>
+                        <select id="ring-quality" class="form-select">
+                            <option value="">-- Select --</option>
+                            <option>0 days</option>
+                            <option>3 days</option>
+                            <option>7 days</option>
+                            <option>14 days</option>
+                            <option>30 days</option>
+                        </select>
+                    </div>
+                    <div class="form-row">
+                        <span class="form-label">Feature update deferral</span>
+                        <select id="ring-feature" class="form-select">
+                            <option value="">-- Select --</option>
+                            <option>0 days</option>
+                            <option>30 days</option>
+                            <option>60 days</option>
+                            <option>90 days</option>
+                            <option>120 days</option>
+                        </select>
+                    </div>
+                    <div class="form-row">
+                        <span class="form-label">Automatic update behavior</span>
+                        <select id="ring-behavior" class="form-select">
+                            <option value="">-- Select --</option>
+                            <option>Auto install and restart at scheduled time</option>
+                            <option>Auto install and restart at maintenance time</option>
+                            <option>Auto install and notify for restart</option>
+                            <option>Notify to download and install</option>
+                        </select>
+                    </div>
+                    <div class="form-row">
+                        <span class="form-label">Active hours</span>
+                        <select id="ring-hours" class="form-select">
+                            <option value="">-- Select --</option>
+                            <option>8 AM - 5 PM (business hours)</option>
+                            <option>12 AM - 6 AM (overnight only)</option>
+                            <option>User-configured active hours</option>
+                            <option>No active hours restriction</option>
+                        </select>
+                    </div>
+
+                    <button class="submit-btn" id="ring-btn" onclick="checkRing()">Apply Configuration</button>
+                    <div class="feedback-box" id="ring-feedback"></div>
+                </div>
+            </section>
+
+            <!-- Task 2: Deferral Policies -->
+            <section class="exercise-section" id="task-2">
+                <div class="exercise-title">Task 2: Update Deferral Strategy</div>
+                <div class="exercise-intro">Configure the correct deferral settings for different update types and organizational requirements.</div>
+
+                <div class="scenario-card">
+                    <h4>Scenario: Quality vs. Feature Updates</h4>
+                    <p>A manager asks: "Why do we defer quality updates by only 7 days but feature updates by 60+ days? Aren't all updates the same?" Select the best explanation.</p>
+                </div>
+                <div class="options-list" id="t2a-options">
+                    <button class="option-btn" onclick="checkDeferral('A', 'wrong', this)">They are the same; we should defer both by the same amount of time</button>
+                    <button class="option-btn" onclick="checkDeferral('A', 'correct', this)">Quality updates are monthly security/reliability patches (small, low risk) that need rapid deployment to close vulnerabilities. Feature updates are major OS upgrades (large, higher risk of app compatibility issues) that need extended testing. Short deferral on quality updates protects against threats; longer deferral on feature updates protects against disruption</button>
+                    <button class="option-btn" onclick="checkDeferral('A', 'wrong', this)">Feature updates are deferred longer because they are larger downloads and we need time for bandwidth management</button>
+                    <button class="option-btn" onclick="checkDeferral('A', 'wrong', this)">Quality updates cannot be deferred at all; the 7-day period is just for scheduling</button>
+                </div>
+                <div class="feedback-box" id="t2a-feedback"></div>
+
+                <div class="scenario-card" style="margin-top:25px;">
+                    <h4>Scenario: Deadline Configuration</h4>
+                    <p>Some users consistently postpone reboots after updates, leaving their devices unpatched for weeks. Security mandates that quality updates must be installed within 5 days of availability (after deferral period ends). How do you enforce this?</p>
+                </div>
+                <div class="options-list" id="t2b-options">
+                    <button class="option-btn" onclick="checkDeferral('B', 'wrong', this)">Send reminder emails to users asking them to restart their devices</button>
+                    <button class="option-btn" onclick="checkDeferral('B', 'correct', this)">Configure the "Deadline for quality updates" setting in the update ring to 5 days. After the deadline, Windows will force a restart outside of active hours, with a configurable grace period to save work. Enable "Deadline grace period" for user-friendly enforcement</button>
+                    <button class="option-btn" onclick="checkDeferral('B', 'wrong', this)">Create a PowerShell script that forcibly restarts devices every Friday night</button>
+                    <button class="option-btn" onclick="checkDeferral('B', 'wrong', this)">Reduce the quality update deferral to 0 days so updates install immediately</button>
+                </div>
+                <div class="feedback-box" id="t2b-feedback"></div>
+
+                <div class="scenario-card" style="margin-top:25px;">
+                    <h4>Scenario: Pause Updates</h4>
+                    <p>A critical LOB application breaks after the latest quality update. You need to immediately stop all devices from receiving this update while the vendor works on a fix. What action should you take?</p>
+                </div>
+                <div class="options-list" id="t2c-options">
+                    <button class="option-btn" onclick="checkDeferral('C', 'wrong', this)">Increase the quality update deferral to 365 days on all rings</button>
+                    <button class="option-btn" onclick="checkDeferral('C', 'correct', this)">Use the "Pause quality updates" setting in the update ring. This immediately stops quality updates from being offered for up to 35 days, giving time for the vendor fix. Monitor the pause expiration date and resume when ready</button>
+                    <button class="option-btn" onclick="checkDeferral('C', 'wrong', this)">Uninstall the update from all devices using a PowerShell script pushed via Intune</button>
+                    <button class="option-btn" onclick="checkDeferral('C', 'wrong', this)">Switch all devices from Windows Update for Business to WSUS immediately</button>
+                </div>
+                <div class="feedback-box" id="t2c-feedback"></div>
+            </section>
+
+            <!-- Task 3: Update Compliance -->
+            <section class="exercise-section" id="task-3">
+                <div class="exercise-title">Task 3: Update Compliance Reporting</div>
+                <div class="exercise-intro">Set up update compliance monitoring to track patch status across your organization.</div>
+
+                <div class="scenario-card">
+                    <h4>Scenario: Compliance Dashboard Setup</h4>
+                    <p>Management needs a dashboard showing how many devices are current on quality updates, how many are behind, and which devices failed to install updates. Which Microsoft solution provides this visibility for WUfB-managed devices?</p>
+                </div>
+                <div class="options-list" id="t3a-options">
+                    <button class="option-btn" onclick="checkCompliance('A', 'wrong', this)">Use WSUS reporting console to track all WUfB-managed devices</button>
+                    <button class="option-btn" onclick="checkCompliance('A', 'correct', this)">Use Windows Update for Business reports in Intune (or the Update Compliance solution in Azure Monitor/Log Analytics). It collects Windows diagnostic data to provide update status, deployment progress, and failure insights across all WUfB-managed devices</button>
+                    <button class="option-btn" onclick="checkCompliance('A', 'wrong', this)">Query each device individually using PowerShell remoting to check update status</button>
+                    <button class="option-btn" onclick="checkCompliance('A', 'wrong', this)">Check Windows Event Viewer on each device for update installation events</button>
+                </div>
+                <div class="feedback-box" id="t3a-feedback"></div>
+
+                <div class="scenario-card" style="margin-top:25px;">
+                    <h4>Scenario: Compliance Data Requirements</h4>
+                    <p>The Update Compliance solution requires devices to send diagnostic data to Microsoft. What is the minimum diagnostic data level required?</p>
+                </div>
+                <div class="options-list" id="t3b-options">
+                    <button class="option-btn" onclick="checkCompliance('B', 'wrong', this)">Security (diagnostic data off) - minimum for enterprise environments</button>
+                    <button class="option-btn" onclick="checkCompliance('B', 'correct', this)">Required (formerly Basic) - this level includes update-specific telemetry needed for compliance reporting. Devices set to "Optional" also work, but Required is the minimum</button>
+                    <button class="option-btn" onclick="checkCompliance('B', 'wrong', this)">Optional (formerly Full) - maximum data collection is required</button>
+                    <button class="option-btn" onclick="checkCompliance('B', 'wrong', this)">No diagnostic data is required; compliance data is collected via Intune directly</button>
+                </div>
+                <div class="feedback-box" id="t3b-feedback"></div>
+            </section>
+
+            <!-- Task 4: Delivery Optimization -->
+            <section class="exercise-section" id="task-4">
+                <div class="exercise-title">Task 4: Configure Delivery Optimization</div>
+                <div class="exercise-intro">Your organization has offices connected by limited WAN bandwidth. Configure Delivery Optimization to minimize bandwidth impact during update deployments.</div>
+
+                <div class="scenario-card">
+                    <h4>Scenario: Multi-Site Deployment</h4>
+                    <p>Your company has 10 offices, each with 200-500 devices on local subnets. WAN links between offices are 100 Mbps, and the internet connection at each site is 500 Mbps. A feature update (3+ GB per device) is being deployed to all sites simultaneously. How should you configure Delivery Optimization?</p>
+                </div>
+                <div class="options-list" id="t4a-options">
+                    <button class="option-btn" onclick="checkDO('A', 'wrong', this)">Download Mode: HTTP Only (0) - each device downloads directly from Microsoft, no peer sharing</button>
+                    <button class="option-btn" onclick="checkDO('A', 'correct', this)">Download Mode: LAN (1) or Group (2) - devices on the same LAN/group share update content peer-to-peer. Only one device per site downloads from Microsoft, then peers distribute locally, drastically reducing WAN and internet bandwidth usage</button>
+                    <button class="option-btn" onclick="checkDO('A', 'wrong', this)">Download Mode: Internet (3) - devices share with any peer on the internet for maximum distribution</button>
+                    <button class="option-btn" onclick="checkDO('A', 'wrong', this)">Disable Delivery Optimization entirely and use BITS for background downloading</button>
+                </div>
+                <div class="feedback-box" id="t4a-feedback"></div>
+
+                <div class="scenario-card" style="margin-top:25px;">
+                    <h4>Scenario: Bandwidth Throttling</h4>
+                    <p>Even with peer-to-peer sharing, you need to ensure that update downloads do not consume more than 50% of available bandwidth during business hours (8 AM - 6 PM). Which Delivery Optimization settings address this?</p>
+                </div>
+                <div class="options-list" id="t4b-options">
+                    <button class="option-btn" onclick="checkDO('B', 'wrong', this)">Configure QoS policies on the network switches to throttle Windows Update traffic</button>
+                    <button class="option-btn" onclick="checkDO('B', 'correct', this)">Configure "Maximum foreground download bandwidth %" and "Maximum background download bandwidth %" settings in the Delivery Optimization profile, or use the business hours bandwidth limits to set different thresholds for peak and off-peak hours</button>
+                    <button class="option-btn" onclick="checkDO('B', 'wrong', this)">Schedule all updates to install only outside business hours using maintenance windows</button>
+                    <button class="option-btn" onclick="checkDO('B', 'wrong', this)">Block Windows Update URLs in the firewall during business hours</button>
+                </div>
+                <div class="feedback-box" id="t4b-feedback"></div>
+
+                <div class="scenario-card" style="margin-top:25px;">
+                    <h4>Scenario: Group ID Configuration</h4>
+                    <p>Devices across different subnets at the same physical office should share content with each other but NOT with devices at other offices. How do you achieve this with Delivery Optimization Group mode?</p>
+                </div>
+                <div class="options-list" id="t4c-options">
+                    <button class="option-btn" onclick="checkDO('C', 'wrong', this)">Use Download Mode: LAN - it automatically restricts to same-subnet peers</button>
+                    <button class="option-btn" onclick="checkDO('C', 'correct', this)">Set Download Mode to Group (2) and configure a unique Group ID (GUID) for each office location. All devices with the same Group ID can share peer-to-peer, even across subnets. Different offices get different Group IDs to prevent cross-WAN peering</button>
+                    <button class="option-btn" onclick="checkDO('C', 'wrong', this)">Configure VLAN tagging on the network to isolate update traffic per office</button>
+                    <button class="option-btn" onclick="checkDO('C', 'wrong', this)">Set up a WSUS server at each office as a local content cache</button>
+                </div>
+                <div class="feedback-box" id="t4c-feedback"></div>
+            </section>
+
+            <!-- Task 5: Servicing Channels -->
+            <section class="exercise-section" id="task-5">
+                <div class="exercise-title">Task 5: Windows Servicing Channel Strategy</div>
+                <div class="exercise-intro">Plan the correct servicing channel assignments for different device groups in your organization.</div>
+
+                <div class="scenario-card">
+                    <h4>Scenario: Channel Selection</h4>
+                    <p>Match each device group to the correct Windows servicing approach. Your organization has general office workers, a point-of-sale (POS) system, and an R&amp;D team that needs early access to new features.</p>
+                </div>
+
+                <div class="info-callout">
+                    Windows Servicing Channels: <strong>General Availability Channel</strong> (formerly Semi-Annual Channel) receives feature updates annually. <strong>Long-Term Servicing Channel (LTSC)</strong> receives only quality updates for 5+ years, no feature updates. <strong>Windows Insider</strong> provides pre-release builds.
+                </div>
+
+                <div class="scenario-card" style="margin-top:15px;">
+                    <h4>Device Group: Point-of-Sale Kiosks (50 devices)</h4>
+                    <p>These embedded POS devices run a single application 24/7. They must be extremely stable, cannot tolerate UI changes, and only need security patches. The application vendor certifies their software for specific Windows builds only.</p>
+                </div>
+                <div class="options-grid" id="t5a-options">
+                    <button class="option-btn" onclick="checkChannel('A', 'LTSC', this)">LTSC</button>
+                    <button class="option-btn" onclick="checkChannel('A', 'GAC', this)">General Availability</button>
+                    <button class="option-btn" onclick="checkChannel('A', 'Insider', this)">Windows Insider</button>
+                    <button class="option-btn" onclick="checkChannel('A', 'None', this)">No servicing needed</button>
+                </div>
+                <div class="feedback-box" id="t5a-feedback"></div>
+
+                <div class="scenario-card" style="margin-top:25px;">
+                    <h4>Device Group: General Office Workers (3,000 devices)</h4>
+                    <p>Standard office workers using Microsoft 365, web browsers, and LOB apps. They need current features, security updates, and Microsoft 365 Apps compatibility.</p>
+                </div>
+                <div class="options-grid" id="t5b-options">
+                    <button class="option-btn" onclick="checkChannel('B', 'LTSC', this)">LTSC</button>
+                    <button class="option-btn" onclick="checkChannel('B', 'GAC', this)">General Availability</button>
+                    <button class="option-btn" onclick="checkChannel('B', 'Insider', this)">Windows Insider</button>
+                    <button class="option-btn" onclick="checkChannel('B', 'None', this)">No servicing needed</button>
+                </div>
+                <div class="feedback-box" id="t5b-feedback"></div>
+
+                <div class="scenario-card" style="margin-top:25px;">
+                    <h4>Device Group: IT R&amp;D Team (20 devices)</h4>
+                    <p>IT staff who test new Windows features, validate app compatibility before broad deployment, and provide feedback to Microsoft on pre-release builds. They accept the risk of potential instability.</p>
+                </div>
+                <div class="options-grid" id="t5c-options">
+                    <button class="option-btn" onclick="checkChannel('C', 'LTSC', this)">LTSC</button>
+                    <button class="option-btn" onclick="checkChannel('C', 'GAC', this)">General Availability</button>
+                    <button class="option-btn" onclick="checkChannel('C', 'Insider', this)">Windows Insider</button>
+                    <button class="option-btn" onclick="checkChannel('C', 'None', this)">No servicing needed</button>
+                </div>
+                <div class="feedback-box" id="t5c-feedback"></div>
+            </section>
+
+            <!-- Task 6: Troubleshoot Updates -->
+            <section class="exercise-section" id="task-6">
+                <div class="exercise-title">Task 6: Troubleshoot Windows Update Failures</div>
+                <div class="exercise-intro">Diagnose update issues based on error scenarios and select the correct resolution approach.</div>
+
+                <div class="scenario-card">
+                    <h4>Failure A: Error 0x80073712</h4>
+                    <p>Multiple devices report Windows Update error <code style="color:#f97316; font-family:Consolas">0x80073712</code> when attempting to install the latest cumulative update. The error description indicates "A file needed by Windows Update is damaged or missing." Previous updates installed successfully.</p>
+                </div>
+                <div class="options-list" id="t6a-options">
+                    <button class="option-btn" onclick="checkUpdateFix('A', 'wrong', this)">Reinstall Windows on all affected devices</button>
+                    <button class="option-btn" onclick="checkUpdateFix('A', 'correct', this)">Run the DISM /Online /Cleanup-Image /RestoreHealth command to repair the component store, followed by sfc /scannow to verify system file integrity. Then retry Windows Update. The CBS (Component-Based Servicing) store has corrupted manifests that need rebuilding</button>
+                    <button class="option-btn" onclick="checkUpdateFix('A', 'wrong', this)">Clear the Windows Update cache by stopping wuauserv and deleting the SoftwareDistribution folder only</button>
+                    <button class="option-btn" onclick="checkUpdateFix('A', 'wrong', this)">Disable Windows Update entirely and manually download patches from the Microsoft Update Catalog</button>
+                </div>
+                <div class="feedback-box" id="t6a-feedback"></div>
+
+                <div class="scenario-card" style="margin-top:25px;">
+                    <h4>Failure B: Feature Update Rolls Back</h4>
+                    <p>A Windows 10 22H2 feature update starts installing, reaches 75%, and then automatically rolls back to the previous version. The device is a Dell Latitude with 128 GB SSD, 4 GB RAM, and 8 GB free disk space. The rollback happens on 3 identical models.</p>
+                </div>
+                <div class="options-list" id="t6b-options">
+                    <button class="option-btn" onclick="checkUpdateFix('B', 'correct', this)">Insufficient disk space is the likely cause. Feature updates require approximately 20 GB of free space. Free up disk space using Storage Sense or Disk Cleanup, or examine the setupact.log under $WINDOWS.~BT for the specific rollback reason. Also check if drivers for this Dell model are compatible</button>
+                    <button class="option-btn" onclick="checkUpdateFix('B', 'wrong', this)">The 4 GB RAM is insufficient; upgrade all devices to 8 GB before retrying</button>
+                    <button class="option-btn" onclick="checkUpdateFix('B', 'wrong', this)">Dell Latitude models are incompatible with Windows 10 22H2; switch to HP hardware</button>
+                    <button class="option-btn" onclick="checkUpdateFix('B', 'wrong', this)">Reset Windows Update components by running the Windows Update Troubleshooter</button>
+                </div>
+                <div class="feedback-box" id="t6b-feedback"></div>
+
+                <div class="scenario-card" style="margin-top:25px;">
+                    <h4>Failure C: Updates Stuck at "Pending Restart"</h4>
+                    <p>50 devices in the "Broad" update ring show updates in "Pending Restart" state for over 2 weeks. Users report they have not been prompted to restart. The update ring has a 5-day deadline configured, and active hours are set to 8 AM - 5 PM.</p>
+                </div>
+                <div class="options-list" id="t6c-options">
+                    <button class="option-btn" onclick="checkUpdateFix('C', 'wrong', this)">The deadline is working correctly; 2 weeks is within the expected timeframe</button>
+                    <button class="option-btn" onclick="checkUpdateFix('C', 'correct', this)">Check if the devices are actually reaching the deadline - they may never be powered on outside active hours for the restart to occur. Verify the "Engaged restart" settings, ensure devices are not being shut down nightly (which prevents pending restarts), and consider enabling "Auto-restart before deadline" or adjusting active hours</button>
+                    <button class="option-btn" onclick="checkUpdateFix('C', 'wrong', this)">Increase the deadline to 14 days to give users more time</button>
+                    <button class="option-btn" onclick="checkUpdateFix('C', 'wrong', this)">Remove these 50 devices from the update ring and let them update manually</button>
+                </div>
+                <div class="feedback-box" id="t6c-feedback"></div>
+            </section>
+
+            <!-- Complete Module -->
+            <div class="complete-section" id="completeSection">
+                <h3>All Tasks Complete</h3>
+                <p>You have demonstrated proficiency in Windows Update for Business ring configuration, deferral policy management, update compliance reporting, Delivery Optimization configuration, servicing channel planning, and update troubleshooting.</p>
+                <button class="complete-btn" onclick="completeModule()">Complete Module &amp; Return</button>
+            </div>
+
+        </main>
+    </div>
+
+    <script>
+        const totalTasks = 6;
+        const completedTasks = new Set();
+
+        function showTask(num) {
+            document.querySelectorAll('.exercise-section').forEach(s => s.classList.remove('active'));
+            document.getElementById('task-' + num).classList.add('active');
+            document.querySelectorAll('.task-item').forEach(t => t.classList.remove('active'));
+            document.querySelector('[data-task="' + num + '"]').classList.add('active');
+        }
+
+        function markTaskComplete(num) {
+            if (completedTasks.has(num)) return;
+            completedTasks.add(num);
+            const item = document.querySelector('[data-task="' + num + '"]');
+            item.classList.add('completed', 'just-completed');
+            setTimeout(() => item.classList.remove('just-completed'), 700);
+            document.getElementById('taskCount').textContent = completedTasks.size + ' / ' + totalTasks;
+            if (completedTasks.size === totalTasks) {
+                document.getElementById('completeSection').classList.add('show');
+                document.getElementById('completeSection').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            }
+        }
+
+        // --- Task 1: Update Rings ---
+        function checkRing() {
+            const quality = document.getElementById('ring-quality').value;
+            const feature = document.getElementById('ring-feature').value;
+            const behavior = document.getElementById('ring-behavior').value;
+            const hours = document.getElementById('ring-hours').value;
+            const fb = document.getElementById('ring-feedback');
+
+            let score = 0;
+            const fields = [
+                { el: document.getElementById('ring-quality'), correct: '7 days' },
+                { el: document.getElementById('ring-feature'), correct: '60 days' },
+                { el: document.getElementById('ring-behavior'), correct: 'Auto install and restart at scheduled time' },
+                { el: document.getElementById('ring-hours'), correct: '8 AM - 5 PM (business hours)' }
+            ];
+
+            fields.forEach(f => {
+                f.el.classList.remove('correct', 'incorrect');
+                f.el.disabled = true;
+                if (f.el.value === f.correct) {
+                    f.el.classList.add('correct');
+                    score++;
+                } else {
+                    f.el.classList.add('incorrect');
+                }
+            });
+
+            document.getElementById('ring-btn').disabled = true;
+
+            if (score === 4) {
+                fb.className = 'feedback-box correct show';
+                fb.textContent = 'Perfect configuration! The Broad ring uses 7-day quality deferral (matching the ring strategy), 60-day feature deferral for thorough testing, auto-install with scheduled restart for predictability, and business hours protection to avoid disrupting workers.';
+                markTaskComplete(1);
+            } else {
+                fb.className = 'feedback-box incorrect show';
+                fb.textContent = score + '/4 correct. The Broad ring should have: 7-day quality deferral (per the ring strategy), 60-day feature deferral (allowing Preview and Pilot rings to validate first), auto-install at scheduled time (predictable for users), and business hours set to 8 AM - 5 PM (prevents restarts during work).';
+            }
+        }
+
+        // --- Task 2: Deferral Policies ---
+        const deferralDone = { A: false, B: false, C: false };
+        const deferralExplanations = {
+            A: 'Quality updates (monthly cumulative patches) address security vulnerabilities and bugs - they are smaller and thoroughly tested, so short deferrals minimize exposure windows. Feature updates are major OS changes that can cause application compatibility issues, warranting extended validation periods before broad deployment.',
+            B: 'The deadline setting in WUfB update rings forces installation after a specified number of days. Combined with the grace period setting, it gives users advance warning before an automatic restart occurs. This enforces compliance while respecting the user experience with configurable notification periods.',
+            C: 'The pause feature immediately halts update deployment for up to 35 days. This is the correct emergency response when an update causes issues - it stops further exposure while maintaining your existing ring strategy. When the issue is resolved, simply resume updates.'
+        };
+
+        function checkDeferral(scenario, result, btn) {
+            const optionsId = 't2' + scenario.toLowerCase() + '-options';
+            const feedbackId = 't2' + scenario.toLowerCase() + '-feedback';
+            document.querySelectorAll('#' + optionsId + ' .option-btn').forEach(b => b.disabled = true);
+            const fb = document.getElementById(feedbackId);
+
+            if (result === 'correct') {
+                btn.classList.add('correct');
+                fb.className = 'feedback-box correct show';
+                fb.textContent = 'Correct! ' + deferralExplanations[scenario];
+                deferralDone[scenario] = true;
+            } else {
+                btn.classList.add('incorrect');
+                fb.className = 'feedback-box incorrect show';
+                fb.textContent = 'Incorrect. ' + deferralExplanations[scenario];
+            }
+            if (deferralDone.A && deferralDone.B && deferralDone.C) markTaskComplete(2);
+        }
+
+        // --- Task 3: Update Compliance ---
+        const complianceDone = { A: false, B: false };
+        const complianceExplanations = {
+            A: 'Windows Update for Business reports (and Update Compliance in Azure Monitor) collect diagnostic telemetry from devices to provide a centralized dashboard showing update deployment status, failure rates, device-level details, and safeguard hold information. This is the native solution for WUfB environments.',
+            B: 'The Required (Basic) diagnostic data level is the minimum for Update Compliance. This level includes update-specific telemetry such as update status, installation results, and rollback information. The Security level does not send enough data for update compliance reporting.'
+        };
+
+        function checkCompliance(scenario, result, btn) {
+            const optionsId = 't3' + scenario.toLowerCase() + '-options';
+            const feedbackId = 't3' + scenario.toLowerCase() + '-feedback';
+            document.querySelectorAll('#' + optionsId + ' .option-btn').forEach(b => b.disabled = true);
+            const fb = document.getElementById(feedbackId);
+
+            if (result === 'correct') {
+                btn.classList.add('correct');
+                fb.className = 'feedback-box correct show';
+                fb.textContent = 'Correct! ' + complianceExplanations[scenario];
+                complianceDone[scenario] = true;
+            } else {
+                btn.classList.add('incorrect');
+                fb.className = 'feedback-box incorrect show';
+                fb.textContent = 'Incorrect. ' + complianceExplanations[scenario];
+            }
+            if (complianceDone.A && complianceDone.B) markTaskComplete(3);
+        }
+
+        // --- Task 4: Delivery Optimization ---
+        const doDone = { A: false, B: false, C: false };
+        const doExplanations = {
+            A: 'LAN mode (1) restricts peer sharing to the same subnet, while Group mode (2) allows sharing within a defined group across subnets. Both dramatically reduce external bandwidth by having one device download content and then distributing it locally via peer-to-peer, turning a 3 GB x 500 download into a single 3 GB download per site.',
+            B: 'Delivery Optimization has built-in bandwidth throttling controls. The percentage-based limits cap DO bandwidth relative to available bandwidth. Business hours limits allow different thresholds for peak vs. off-peak, ensuring update traffic does not impact critical business applications during work hours.',
+            C: 'Group mode with unique Group IDs (GUIDs) per office creates logical peering groups that span multiple subnets within a site but do not cross WAN links. This is more flexible than LAN mode (which is subnet-only) and more controlled than Internet mode (which peers globally).'
+        };
+
+        function checkDO(scenario, result, btn) {
+            const optionsId = 't4' + scenario.toLowerCase() + '-options';
+            const feedbackId = 't4' + scenario.toLowerCase() + '-feedback';
+            document.querySelectorAll('#' + optionsId + ' .option-btn').forEach(b => b.disabled = true);
+            const fb = document.getElementById(feedbackId);
+
+            if (result === 'correct') {
+                btn.classList.add('correct');
+                fb.className = 'feedback-box correct show';
+                fb.textContent = 'Correct! ' + doExplanations[scenario];
+                doDone[scenario] = true;
+            } else {
+                btn.classList.add('incorrect');
+                fb.className = 'feedback-box incorrect show';
+                fb.textContent = 'Incorrect. ' + doExplanations[scenario];
+            }
+            if (doDone.A && doDone.B && doDone.C) markTaskComplete(4);
+        }
+
+        // --- Task 5: Servicing Channels ---
+        const channelAnswers = { A: 'LTSC', B: 'GAC', C: 'Insider' };
+        const channelDone = {};
+        const channelExplanations = {
+            A: 'LTSC is designed for mission-critical, fixed-function devices like POS kiosks, medical equipment, and ATMs. It provides only security and reliability updates for 5+ years without feature updates, ensuring maximum stability for single-purpose devices.',
+            B: 'General Availability Channel is the standard for knowledge workers. It receives annual feature updates that include new capabilities, security features, and Microsoft 365 Apps compatibility. This is where Microsoft concentrates mainstream support and feature development.',
+            C: 'Windows Insider for Business is ideal for IT teams that need early access to pre-release builds for compatibility testing, feature validation, and providing feedback to Microsoft. It accepts higher risk of instability in exchange for early visibility into upcoming changes.'
+        };
+
+        function checkChannel(scenario, answer, btn) {
+            const optionsId = 't5' + scenario.toLowerCase() + '-options';
+            const feedbackId = 't5' + scenario.toLowerCase() + '-feedback';
+            document.querySelectorAll('#' + optionsId + ' .option-btn').forEach(b => b.disabled = true);
+            const fb = document.getElementById(feedbackId);
+
+            if (answer === channelAnswers[scenario]) {
+                btn.classList.add('correct');
+                fb.className = 'feedback-box correct show';
+                fb.textContent = 'Correct! ' + channelExplanations[scenario];
+                channelDone[scenario] = true;
+            } else {
+                btn.classList.add('incorrect');
+                fb.className = 'feedback-box incorrect show';
+                fb.textContent = 'Incorrect. The correct answer is ' + channelAnswers[scenario] + '. ' + channelExplanations[scenario];
+            }
+            if (channelDone['A'] && channelDone['B'] && channelDone['C']) markTaskComplete(5);
+        }
+
+        // --- Task 6: Troubleshoot Updates ---
+        const updateFixDone = { A: false, B: false, C: false };
+        const updateFixExplanations = {
+            A: 'Error 0x80073712 indicates corruption in the Component-Based Servicing (CBS) store. DISM /RestoreHealth repairs the component store using Windows Update as the source. Following with sfc /scannow verifies system file integrity. This is the standard repair sequence for component store corruption.',
+            B: 'Feature updates require approximately 20 GB of free space for the upgrade process. With only 8 GB free on a 128 GB SSD, the update will fail and roll back. The setupact.log in $WINDOWS.~BT\\Sources\\Panther will confirm with a space-related error code. Disk Cleanup or Storage Sense can free space by removing previous Windows installations, temp files, and delivery optimization cache.',
+            C: 'Devices stuck at "Pending Restart" for weeks despite a 5-day deadline often indicates the device is never available outside active hours for the restart. If devices are shut down at 5 PM (end of active hours), there is no opportunity for the forced restart. Solutions include enabling auto-restart before the deadline, adjusting active hours, or ensuring devices remain powered on (sleep mode, not shutdown) outside active hours.'
+        };
+
+        function checkUpdateFix(scenario, result, btn) {
+            const optionsId = 't6' + scenario.toLowerCase() + '-options';
+            const feedbackId = 't6' + scenario.toLowerCase() + '-feedback';
+            document.querySelectorAll('#' + optionsId + ' .option-btn').forEach(b => b.disabled = true);
+            const fb = document.getElementById(feedbackId);
+
+            if (result === 'correct') {
+                btn.classList.add('correct');
+                fb.className = 'feedback-box correct show';
+                fb.textContent = 'Correct! ' + updateFixExplanations[scenario];
+                updateFixDone[scenario] = true;
+            } else {
+                btn.classList.add('incorrect');
+                fb.className = 'feedback-box incorrect show';
+                fb.textContent = 'Incorrect. ' + updateFixExplanations[scenario];
+            }
+            if (updateFixDone.A && updateFixDone.B && updateFixDone.C) markTaskComplete(6);
+        }
+
+        // --- Complete Module ---
+        function completeModule() {
+            ModuleProgress.complete('forge', 'forge-md101-m09-lab', {
+                returnUrl: '../index.html'
+            });
+        }
+    </script>
+
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <script src="../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>
