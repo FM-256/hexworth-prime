@@ -9,12 +9,20 @@
  * - LP-001: Module href points to non-existent file
  * - LP-002: Path has no houseFolder and uses relative hrefs (design issue)
  * - LP-003: Duplicate module IDs across paths
+ * - LP-004: Broken prerequisite reference (prereq ID not found in any path)
+ * - LP-005: Circular prerequisite chain (DFS cycle detected)
+ * - LP-006: LearningPaths module not found in ContentCatalog
+ * - LP-007: ContentCatalog course module not in any LearningPath
+ * - LP-008: Module type/href mismatch (e.g., type: 'quiz' but href in presentations/)
+ * - LP-009: courseHref points to non-existent file
+ * - LP-010: Prerequisite module has non-available catalog status (blocks progression)
  *
  * Created: 2026-02-07 (after comptia-linux 404 bug)
  */
 
 const fs = require('fs');
 const path = require('path');
+const vm = require('vm');
 const PathValidator = require('./paths');
 const ModuleRegistryGenerator = require('../../registry/module-registry');
 
@@ -30,6 +38,9 @@ class LearningPathsValidator {
         this.rootPath = options.rootPath || './_app';
         this.learningPathsFile = options.learningPathsFile || './components/LearningPaths.js';
         this.registryPath = options.registryPath || './_tools/reports/MODULE_REGISTRY.json';
+
+        this.catalogFile = options.catalogFile || 'components/ContentCatalog.js';
+        this._catalogCache = null;
 
         // Reuse PathValidator's file indexing capability
         this.pathValidator = new PathValidator({
@@ -228,7 +239,11 @@ class LearningPathsValidator {
             validModules: 0,
             invalidModules: 0,
             certificationPaths: 0,
-            housePaths: 0
+            housePaths: 0,
+            brokenPrereqs: 0,
+            circularChains: 0,
+            missingFromCatalog: 0,
+            unchainedModules: 0
         };
 
         const seenIds = new Map(); // For duplicate detection
@@ -311,13 +326,173 @@ class LearningPathsValidator {
                         fix: validation.fix
                     });
                 }
+
+                // LP-008: Module type/href mismatch
+                if (module.type && module.href) {
+                    const expectedType = this.detectExpectedType(module.href);
+                    if (expectedType && module.type !== expectedType) {
+                        issues.push({
+                            code: 'LP-008',
+                            severity: 'medium',
+                            category: 'learning-paths',
+                            message: `Module '${module.id}' declares type '${module.type}' but href points to ${expectedType} content: '${module.href}'`,
+                            file: this.learningPathsFile,
+                            pathId,
+                            moduleId: module.id,
+                            declaredType: module.type,
+                            detectedType: expectedType,
+                            href: module.href,
+                            fix: `Change type to '${expectedType}' or move the file to the correct directory`
+                        });
+                    }
+                }
             }
+        }
+
+        // LP-009: courseHref points to non-existent file
+        for (const [pathId, pathData] of Object.entries(paths)) {
+            if (!pathData.courseHref) continue;
+
+            const courseHref = pathData.courseHref;
+            const resolvedPath = path.resolve(this.rootPath, courseHref);
+
+            if (!fs.existsSync(resolvedPath)) {
+                issues.push({
+                    code: 'LP-009',
+                    severity: 'high',
+                    category: 'learning-paths',
+                    message: `Path '${pathId}' courseHref '${courseHref}' does not resolve to an existing file`,
+                    file: this.learningPathsFile,
+                    pathId,
+                    courseHref,
+                    expectedPath: resolvedPath.replace(path.resolve(this.rootPath) + '/', ''),
+                    fix: `Create the file at '${courseHref}' or fix the courseHref path`
+                });
+            }
+        }
+
+        // LP-004: Broken prerequisite references
+        const prereqGraph = this._buildPrerequisiteGraph(paths);
+        for (const [moduleId, prereqs] of prereqGraph) {
+            for (const prereqId of prereqs) {
+                if (!seenIds.has(prereqId)) {
+                    stats.brokenPrereqs++;
+                    issues.push({
+                        code: 'LP-004',
+                        severity: 'high',
+                        category: 'learning-paths',
+                        message: `Module '${moduleId}' lists prerequisite '${prereqId}' which does not exist in any learning path`,
+                        file: this.learningPathsFile,
+                        moduleId,
+                        prerequisiteId: prereqId,
+                        pathId: seenIds.get(moduleId),
+                        fix: `Fix the prerequisite ID '${prereqId}' in module '${moduleId}' or add the missing module`
+                    });
+                }
+            }
+        }
+
+        // LP-005: Circular prerequisite chains
+        const cycles = this._detectCycles(prereqGraph);
+        for (const cycle of cycles) {
+            stats.circularChains++;
+            issues.push({
+                code: 'LP-005',
+                severity: 'high',
+                category: 'learning-paths',
+                message: `Circular prerequisite chain detected: ${cycle.join(' -> ')}`,
+                file: this.learningPathsFile,
+                cycle,
+                fix: `Break the circular dependency in the chain: ${cycle.join(' -> ')}`
+            });
+        }
+
+        // LP-006 & LP-007: Cross-reference with ContentCatalog
+        const catalog = this._loadContentCatalog();
+        if (catalog) {
+            const catalogIds = new Set(catalog.MODULES.map(m => m.id));
+
+            // LP-006: LP module not in ContentCatalog
+            for (const [moduleId] of seenIds) {
+                if (!catalogIds.has(moduleId)) {
+                    stats.missingFromCatalog++;
+                    issues.push({
+                        code: 'LP-006',
+                        severity: 'medium',
+                        category: 'learning-paths',
+                        message: `LearningPaths module '${moduleId}' has no matching entry in ContentCatalog`,
+                        file: this.learningPathsFile,
+                        moduleId,
+                        pathId: seenIds.get(moduleId),
+                        fix: `Add module '${moduleId}' to ContentCatalog.js or remove it from LearningPaths`
+                    });
+                }
+            }
+
+            // LP-007: ContentCatalog course module not in any LP
+            // Only flag modules with a category (course-structured content)
+            // Exclude non-sequential content: review games, standalone games, index pages, tools, certificates
+            const NON_SEQUENTIAL_COMPONENTS = ['review', 'game', 'reference'];
+            for (const module of catalog.MODULES) {
+                if (!module.category) continue;
+                // Skip modules whose components are entirely non-sequential
+                if (module.components && module.components.length > 0 &&
+                    module.components.every(c => NON_SEQUENTIAL_COMPONENTS.includes(c))) {
+                    continue;
+                }
+                // Skip house index pages and certificate modules
+                if (module.href && (module.href.endsWith('index.html') || module.id.endsWith('-certificate'))) {
+                    continue;
+                }
+                if (!seenIds.has(module.id)) {
+                    stats.unchainedModules++;
+                    issues.push({
+                        code: 'LP-007',
+                        severity: 'low',
+                        category: 'learning-paths',
+                        message: `ContentCatalog module '${module.id}' (${module.house}) is not in any learning path`,
+                        file: this.learningPathsFile,
+                        moduleId: module.id,
+                        house: module.house,
+                        catalogCategory: module.category,
+                        fix: `Add module '${module.id}' to the appropriate learning path or mark it as standalone`
+                    });
+                }
+            }
+            // LP-010: Prerequisite module has non-available catalog status (blocks progression)
+            const catalogStatusMap = new Map();
+            for (const mod of catalog.MODULES) {
+                catalogStatusMap.set(mod.id, mod.status);
+            }
+
+            // Find modules referenced as prerequisites whose catalog status is not 'available'
+            const prereqGraphForStatus = this._buildPrerequisiteGraph(paths);
+            for (const [moduleId, prereqs] of prereqGraphForStatus) {
+                for (const prereqId of prereqs) {
+                    const status = catalogStatusMap.get(prereqId);
+                    if (status && status !== 'available') {
+                        issues.push({
+                            code: 'LP-010',
+                            severity: 'medium',
+                            category: 'learning-paths',
+                            message: `Prerequisite '${prereqId}' has catalog status '${status}' — blocks progression for '${moduleId}'`,
+                            file: this.learningPathsFile,
+                            moduleId,
+                            prerequisiteId: prereqId,
+                            catalogStatus: status,
+                            fix: `Set module '${prereqId}' status to 'available' in ContentCatalog or remove it from the prerequisite chain`
+                        });
+                    }
+                }
+            }
+        } else if (this.verbose) {
+            console.log('[LP] ContentCatalog not available, skipping LP-006/LP-007/LP-010');
         }
 
         // Sort by severity
         issues.sort((a, b) => {
-            const order = { critical: 0, high: 1, warning: 2, suspect: 3, info: 4 };
-            return (order[a.severity] || 5) - (order[b.severity] || 5);
+            const order = { critical: 0, high: 1, medium: 2, low: 3, warning: 4, suspect: 5, info: 6 };
+            return (order[a.severity] || 7) - (order[b.severity] || 7);
         });
 
         return { issues, stats };
@@ -404,10 +579,22 @@ class LearningPathsValidator {
             const idMatch = block.match(/id:\s*['"]([^'"]+)['"]/);
             const hrefMatch = block.match(/href:\s*['"]([^'"]+)['"]/);
 
+            // Extract prerequisites array
+            const prereqMatch = block.match(/prerequisites:\s*\[([^\]]*)\]/);
+            const prerequisites = prereqMatch
+                ? prereqMatch[1].match(/'([^']+)'/g)?.map(s => s.replace(/'/g, '')) || []
+                : [];
+
+            // Extract type field (e.g., type: 'quiz')
+            const typeMatch = block.match(/type:\s*['"]([^'"]+)['"]/);
+            const type = typeMatch ? typeMatch[1] : null;
+
             if (idMatch && hrefMatch) {
                 modules.push({
                     id: idMatch[1],
-                    href: hrefMatch[1]
+                    href: hrefMatch[1],
+                    type,
+                    prerequisites
                 });
             } else if (hrefMatch) {
                 // Some modules might have href but different id format
@@ -415,7 +602,9 @@ class LearningPathsValidator {
                 modules.push({
                     id: titleMatch ? titleMatch[1] : 'unknown',
                     href: hrefMatch[1],
-                    title: titleMatch ? titleMatch[1] : undefined
+                    type,
+                    title: titleMatch ? titleMatch[1] : undefined,
+                    prerequisites
                 });
             }
         }
@@ -660,6 +849,114 @@ class LearningPathsValidator {
         matches.sort((a, b) => b.similarity - a.similarity);
 
         return matches.slice(0, 10);
+    }
+
+    /**
+     * Load ContentCatalog.js in a VM sandbox (cached)
+     * @returns {Object|null} { HOUSES, MODULES } or null on failure
+     */
+    _loadContentCatalog() {
+        if (this._catalogCache !== null) return this._catalogCache;
+
+        const absolutePath = path.resolve(this.rootPath, this.catalogFile);
+
+        if (!fs.existsSync(absolutePath)) {
+            if (this.verbose) {
+                console.log(`[LP] ContentCatalog.js not found at ${absolutePath}`);
+            }
+            this._catalogCache = false;
+            return null;
+        }
+
+        try {
+            const code = fs.readFileSync(absolutePath, 'utf8');
+            const context = vm.createContext({ window: {} });
+            vm.runInContext(code, context);
+
+            const catalog = context.window.ContentCatalog;
+            if (!catalog || !catalog.HOUSES || !catalog.MODULES) {
+                if (this.verbose) {
+                    console.log('[LP] ContentCatalog loaded but missing HOUSES or MODULES');
+                }
+                this._catalogCache = false;
+                return null;
+            }
+
+            if (this.verbose) {
+                console.log(`[LP] Loaded ContentCatalog: ${catalog.MODULES.length} modules`);
+            }
+
+            this._catalogCache = catalog;
+            return catalog;
+        } catch (err) {
+            if (this.verbose) {
+                console.log(`[LP] Failed to load ContentCatalog: ${err.message}`);
+            }
+            this._catalogCache = false;
+            return null;
+        }
+    }
+
+    /**
+     * Build a prerequisite graph from parsed learning paths
+     * @param {Object} paths - Parsed paths object from parseLearningPaths()
+     * @returns {Map} moduleId -> [prerequisiteIds]
+     */
+    _buildPrerequisiteGraph(paths) {
+        const graph = new Map();
+        for (const pathData of Object.values(paths)) {
+            if (!pathData.modules) continue;
+            for (const module of pathData.modules) {
+                if (module.id && module.prerequisites && module.prerequisites.length > 0) {
+                    graph.set(module.id, module.prerequisites);
+                }
+            }
+        }
+        return graph;
+    }
+
+    /**
+     * Detect cycles in a prerequisite graph using DFS
+     * @param {Map} graph - moduleId -> [prerequisiteIds]
+     * @returns {Array} Array of cycle paths (e.g., ['a', 'b', 'c', 'a'])
+     */
+    _detectCycles(graph) {
+        const cycles = [];
+        const visited = new Set();
+        const inStack = new Set();
+
+        const dfs = (node, pathStack) => {
+            if (inStack.has(node)) {
+                // Found a cycle — extract it from where the repeat starts
+                const cycleStart = pathStack.indexOf(node);
+                cycles.push([...pathStack.slice(cycleStart), node]);
+                return;
+            }
+            if (visited.has(node)) return;
+
+            visited.add(node);
+            inStack.add(node);
+            pathStack.push(node);
+
+            const prereqs = graph.get(node) || [];
+            for (const prereq of prereqs) {
+                // Only follow edges that exist in the graph (valid module IDs)
+                if (graph.has(prereq) || inStack.has(prereq)) {
+                    dfs(prereq, pathStack);
+                }
+            }
+
+            pathStack.pop();
+            inStack.delete(node);
+        };
+
+        for (const node of graph.keys()) {
+            if (!visited.has(node)) {
+                dfs(node, []);
+            }
+        }
+
+        return cycles;
     }
 
     /**

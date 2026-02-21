@@ -8,6 +8,8 @@
  * - CAT-001: Module status 'available' but href file doesn't exist on disk (CRITICAL)
  * - CAT-002: HTML file in house directory not declared in any catalog module (MEDIUM)
  * - CAT-003: Module status 'available' with empty/missing href (HIGH)
+ * - CAT-004: Module status not 'available' but href doesn't exist on disk (WARNING)
+ * - CAT-005: Duplicate module IDs in ContentCatalog (HIGH)
  *
  * Created: 2026-02-13 (after pod-crossing 404 bug)
  */
@@ -113,33 +115,57 @@ class ContentCatalogValidator {
 
     /**
      * Check all module hrefs resolve to existing files
-     * Emits CAT-001 (missing file) and CAT-003 (empty href)
+     * Emits CAT-001 (missing file), CAT-003 (empty href), CAT-005 (duplicate IDs)
      */
     _checkHrefs(catalog, issues, summary) {
+        // CAT-005: Detect duplicate module IDs
+        const seenIds = new Map(); // id -> { index, house, title }
+        for (let i = 0; i < catalog.MODULES.length; i++) {
+            const module = catalog.MODULES[i];
+            if (!module.id) continue;
+
+            if (seenIds.has(module.id)) {
+                const first = seenIds.get(module.id);
+                issues.push({
+                    code: 'CAT-005',
+                    severity: 'high',
+                    category: 'content-catalog',
+                    message: `Duplicate module ID '${module.id}' — first in '${first.house}' (${first.title}), duplicate in '${module.house}' (${module.title})`,
+                    file: this.catalogFile,
+                    moduleId: module.id,
+                    firstHouse: first.house,
+                    duplicateHouse: module.house,
+                    fix: `Give module '${module.id}' a unique ID in one of its occurrences`
+                });
+            } else {
+                seenIds.set(module.id, { index: i, house: module.house, title: module.title });
+            }
+        }
+
         for (const module of catalog.MODULES) {
             summary.totalModules++;
 
-            // Only check available modules
-            if (module.status !== 'available') {
-                summary.skipped++;
-                continue;
+            const isAvailable = module.status === 'available';
+
+            if (isAvailable) {
+                summary.available++;
             }
 
-            summary.available++;
-
-            // CAT-003: empty/missing href
+            // CAT-003: available module with empty/missing href
             if (!module.href || !module.href.trim()) {
-                summary.emptyHrefs++;
-                issues.push({
-                    code: 'CAT-003',
-                    severity: 'high',
-                    category: 'content-catalog',
-                    message: `Module '${module.id}' (${module.title}) has empty/missing href`,
-                    file: this.catalogFile,
-                    moduleId: module.id,
-                    house: module.house,
-                    fix: 'Add a valid href path to this module'
-                });
+                if (isAvailable) {
+                    summary.emptyHrefs++;
+                    issues.push({
+                        code: 'CAT-003',
+                        severity: 'high',
+                        category: 'content-catalog',
+                        message: `Module '${module.id}' (${module.title}) has empty/missing href`,
+                        file: this.catalogFile,
+                        moduleId: module.id,
+                        house: module.house,
+                        fix: 'Add a valid href path to this module'
+                    });
+                }
                 continue;
             }
 
@@ -161,19 +187,37 @@ class ContentCatalogValidator {
             const resolvedPath = path.resolve(this.rootPath, house.basePath, module.href);
 
             if (!fs.existsSync(resolvedPath)) {
-                summary.missingHrefs++;
-                issues.push({
-                    code: 'CAT-001',
-                    severity: 'critical',
-                    category: 'content-catalog',
-                    message: `Module '${module.id}' href '${module.href}' does not exist on disk`,
-                    file: this.catalogFile,
-                    moduleId: module.id,
-                    house: module.house,
-                    href: module.href,
-                    expectedPath: resolvedPath.replace(path.resolve(this.rootPath) + '/', ''),
-                    fix: `Create the file or fix the href for module '${module.id}'`
-                });
+                if (isAvailable) {
+                    // CAT-001: available module with dead href (CRITICAL)
+                    summary.missingHrefs++;
+                    issues.push({
+                        code: 'CAT-001',
+                        severity: 'critical',
+                        category: 'content-catalog',
+                        message: `Module '${module.id}' href '${module.href}' does not exist on disk`,
+                        file: this.catalogFile,
+                        moduleId: module.id,
+                        house: module.house,
+                        href: module.href,
+                        expectedPath: resolvedPath.replace(path.resolve(this.rootPath) + '/', ''),
+                        fix: `Create the file or fix the href for module '${module.id}'`
+                    });
+                } else {
+                    // CAT-004: non-available module with dead href (WARNING)
+                    issues.push({
+                        code: 'CAT-004',
+                        severity: 'warning',
+                        category: 'content-catalog',
+                        message: `Module '${module.id}' (status: ${module.status}) href '${module.href}' does not exist on disk`,
+                        file: this.catalogFile,
+                        moduleId: module.id,
+                        house: module.house,
+                        status: module.status,
+                        href: module.href,
+                        expectedPath: resolvedPath.replace(path.resolve(this.rootPath) + '/', ''),
+                        fix: `Create the file before setting status to 'available', or remove the dead href`
+                    });
+                }
             }
         }
     }

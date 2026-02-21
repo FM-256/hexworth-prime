@@ -14,7 +14,9 @@
 | **DL-** | Digital Life | Firefly ecosystem evolution |
 | **M-** | Migration | Moving Academy content to Prime |
 | **F-** | Feature | New Prime-specific features |
-| **DA-** | Dark Arts | Security training content |
+| **DA-** | Dark Arts | Security training content (legacy flat IDs) |
+| **DA-EHE-** | Dark Arts: EHE | Ethical Hacking Essentials course |
+| **F-MD100-** | Feature: MD-100 | MD-100 interactive GUISimulator labs |
 | **L-** | Linux | Linux tutorials and interactive labs |
 | **MX-** | Matrix | Matrix/Operator path enhancements |
 | **HD-** | Handler Dashboard | Instructor class management system |
@@ -23,6 +25,8 @@
 | **AR-** | Arena | CTF Arena engine, box builds, and Instructional Design Packets |
 | **PR-** | Product Readiness | Monetization gaps: worksheets, cert matrix, instructor kits, marketing, flag security |
 | **QC-** | Quality Control | Bug fixes, crash fixes, UI/UX issues, search bar coverage, performance |
+
+> **Sprint naming convention (adopted 2026-02-21):** New course-specific sprints use hierarchical IDs: `{category}-{course}-{number}` (e.g., `DA-EHE-1`). Existing flat IDs (`DA-1`, `M-7`, `F-12`) are grandfathered.
 
 ---
 
@@ -93,6 +97,11 @@ All remaining work — organized by priority. Detail for each sprint lives furth
 
 | Sprint | What | Status | Notes |
 |--------|------|--------|-------|
+| **DA-EHE-1** | EHE course scaffolding + Modules 00–02 | Backlog | Course home, Module 00 presentation, M01 pres+quiz, M02 pres+quiz+recon lab. See `_planning/EHE_COURSE_PLAN.md` |
+| **F-MD100-1** | MD-100 interactive labs 01–03 (Install, Auth, Config) | Backlog | Lab skeleton template + 3 GUISimulator labs. See `_planning/MD100_LAB_DESIGN.md` |
+| **F-MD100-2** | MD-100 interactive labs 04–06 (Network, Storage, Perms) | Backlog | Network adapter, Disk Mgmt extension, NTFS permissions editor |
+| **F-MD100-3** | MD-100 interactive labs 07–09 (Apps, Security, Perf) | Backlog | Windows Update, Security Center, Task Manager, Event Viewer |
+| **F-MD100-4** | MD-100 interactive labs 10–11 + polish (Recovery, Hardware) | Backlog | WinRE, BSOD analysis, Device Manager diagnostics, narrative polish |
 | **AR-4** | IDP review & finalization (grade Gemini drafts A2-A20) | Backlog | Required before classroom use or sales |
 | **AR-5** | IDP drafting Series B-H (140 boxes) | Backlog | Follows Series A validation |
 | **AR-6** | BoxEngine v2 — blue team extensions (log viewer, config editor, diagnostic) | Backlog | Required for Series B boxes |
@@ -2786,111 +2795,55 @@ Content audit (Feb 8) confirmed no gaps remain.
 
 ## Planned Sprints (Backlog)
 
-### F-12: Universal Search — Every Page Gets a Search Bar
-**Status:** Planned
+### F-12: Global Search (Ctrl+K Overlay)
+**Status:** ✅ Complete (February 21, 2026)
 **Priority:** High
-**Rationale:** Search exists in the 9 main house index pages via ContentCatalog + ContentDiscovery, but coverage is incomplete. The Dark Arts Vault (30+ labs/tools), Matrix (doesn't exist yet), and Factionless (dashboard divergent state) have no search at all. ContentDiscovery.js needs to become a true universal component — drop it in anywhere and it works.
+**Approach:** Instead of refactoring ContentDiscovery per-page (original 4-phase plan), implemented a single global overlay accessible from every page via Ctrl+K. This solves the core problem — search from any of the 1,700+ content pages — with 2 files instead of touching dozens.
 
-#### Current State Audit
+#### What Was Built
 
-| Location | Has Search? | Implementation | Gap |
-|----------|-------------|----------------|-----|
-| 9 house index pages (Eye, Code, Key, Shield, Script, Cloud, Web, Forge, Dark Arts) | Yes | ContentCatalog + ContentDiscovery + local `filterModules()` | Consistent but ContentDiscovery loads as secondary — local filter does the actual work |
-| Dark Arts Vault (`vault/index.html`) | **No** | No search — 30+ labs/tools in flat grid, 4 tiered module sections | Needs search bar that filters across tiers + tools |
-| Dark Arts house index (`houses/dark-arts/index.html`) | Partial | ContentCatalog + ContentDiscovery loaded but **no visible search input** | Wire up the search bar UI |
-| Dashboard Explore tab | Partial | Custom `exploreSearchInput` — not ContentDiscovery | Should use ContentDiscovery for consistency |
-| Games page (`games.html`) | Custom | Own filter with `search-input` ID | Works but not unified with ContentDiscovery |
-| Matrix / Operator path | **Doesn't exist** | No dedicated page — MX-1 through MX-6 are pending | Page creation is MX-1 scope; search should be wired in from day one |
-| Factionless (dashboard divergent) | **No** | FileTreeExplorer only — no search bar | Needs search across all houses (factionless = access everything) |
-| Cert path landing pages (8) | **No** | CertPathRenderer.js — module list only | Optional — small content sets, search adds less value |
+| File | Action | Details |
+|------|--------|--------|
+| `_app/components/GlobalSearch.js` | **Created** | ~790 lines, 27KB. IIFE with lazy-load ContentCatalog, overlay UI, search, keyboard nav, type filter chips |
+| `_app/components/FluxCapacitor.js` | **Modified** | +8 lines. Auto-load block (same pattern as HED.js) — loads GlobalSearch on every page |
+| `_tools/eduscan/validators/syntax/content-catalog.js` | **Modified** | Added CAT-004 rule — flags non-available modules with dead hrefs |
 
-#### Phase 1: Universal Search Component
+#### Key Design Decisions
 
-Upgrade ContentDiscovery.js into a drop-in universal search component that auto-configures based on context.
+| Decision | Choice | Rationale |
+|----------|--------|-----------|
+| Lazy-load ContentCatalog.js | Only on first Ctrl+K press | 509KB too heavy for every page load. Subsequent opens instant (cached in memory) |
+| Filter to `status: 'available'` only | Yes | Prevents users clicking coming-soon modules → 404 |
+| Z-index 100000 | Above HED (99999) and FluxCapacitor (9999) | Overlay must sit on top of everything |
+| Type filter chips | All / Slides / Labs / Quizzes / Games | Covers the most common search intents |
 
-| Task | Details | Status |
-|------|---------|--------|
-| Refactor ContentDiscovery.js into self-initializing component | Auto-detect page context (house index, vault, dashboard, games). No need for SAMPLE_MODULES — pull from ContentCatalog directly. | ⬜ |
-| Add fuzzy search | Levenshtein distance or simple token matching — "encryptin" finds "Encryption Basics", "nmap" finds "Nmap Scanning Lab" | ⬜ |
-| Add tag-based discovery | ContentCatalog modules already have `tags[]` — surface them as clickable filter chips below search bar | ⬜ |
-| Add content type filter chips | Filter by: presentation, lab, quiz, applet, game, tool — visual chips, AND logic with search text | ⬜ |
-| Add cross-house toggle | "Search this house" vs "Search all houses" toggle. Default: current house. Global shows house badges on results. | ⬜ |
-| Keyboard shortcut | `/` or `Ctrl+K` focuses search bar from anywhere on the page | ⬜ |
+#### Features
 
-#### Phase 2: Wire Search Into Every Page
+- **Ctrl+K / Cmd+K** to open/close from any page
+- **Type filter chips** — All, Slides, Labs, Quizzes, Games
+- **Results grouped by house** with colored left-border headers
+- **Keyboard nav** — Arrow keys, Enter to open, Escape to close
+- **200ms debounced** search, max 30 results
+- **Match highlighting** — yellow `<mark>` on search terms
+- **Primary component badge** on each result (Slides, Labs, etc.)
+- **Skips** when user is in input/textarea/contenteditable
+- **Dark overlay** consistent with FluxCapacitor (`rgba(0,0,0,0.92)`, `backdrop-filter: blur(12px)`)
 
-| Page | Task | Status |
-|------|------|--------|
-| **Dark Arts Vault** (`vault/index.html`) | Add search bar above tier sections. Filters across all tiers + tools section. Results show tier badge + module status. | ⬜ |
-| **Dark Arts house index** (`houses/dark-arts/index.html`) | Wire up visible search input — scripts already loaded, just needs the UI element + `filterModules()` | ⬜ |
-| **Factionless (dashboard divergent)** | Add search bar to factionless explorer section. Uses ContentCatalog global search across all 9 houses. Results grouped by house with house icon badges. | ⬜ |
-| **Matrix page** (when MX-1 creates it) | Include ContentDiscovery from day one. Search across operator-path-specific content. | ⬜ |
-| **Dashboard Explore tab** | Replace custom `exploreSearchInput` with ContentDiscovery component for consistency | ⬜ |
-| **Games page** (`games.html`) | Replace custom filter with ContentDiscovery component filtered to `type: game` | ⬜ |
-| **9 house index pages** | Replace local `filterModules()` with ContentDiscovery component — same UI, unified backend | ⬜ |
+#### EduScan CAT-004 (New Rule)
 
-#### Phase 3: ContentCatalog Completeness
+Previous validator skipped all non-available modules. Now flags `coming-soon`/`planned` modules whose hrefs point to nonexistent files as warnings. Currently catches 4:
+- `clh-001` + `script-clh-001` (duplicate) — `script/courses/clh/modules/clh-001/script-lab.lab.html`
+- `key-hashing` — `key/applets/hashing-lab.html`
+- `code-pod-crossing` — `code/games/pod-crossing.html`
 
-| Task | Details | Status |
-|------|---------|--------|
-| Audit ContentCatalog entries against actual files | Currently 180 modules indexed — but 1,176+ HTML files exist. After R-1/R-2 registration, re-audit. | ⬜ |
-| Index Dark Arts Vault content | 30+ labs/tools not in ContentCatalog (SQL injection lab, XSS lab, Nmap training, etc.) — add them | ⬜ |
-| Index games | 56 games exist but most aren't in ContentCatalog — add with `type: 'game'` | ⬜ |
-| Verify all hrefs resolve | Every ContentCatalog entry's href must point to an existing file — EduScan REG-001 catches mismatches | ⬜ |
-| Add missing tags | Ensure every module has 3-5 meaningful tags for tag-based discovery | ⬜ |
+#### Future Enhancements (Not in Scope)
 
-#### Phase 4: Search UX Polish
-
-| Task | Details | Status |
-|------|---------|--------|
-| Recent searches | Store last 5 searches in localStorage, show as suggestions on focus | ⬜ |
-| "No results" state | Helpful message with suggestions: "Try searching for 'encryption' or 'linux'" + link to browse all | ⬜ |
-| Search analytics | Track what users search for (localStorage counter) — helps identify content gaps | ⬜ |
-| Highlight matches | Bold the matching text in search results | ⬜ |
-| Responsive design | Search bar collapses to icon on mobile, expands on tap | ⬜ |
-
-#### Technical Notes
-
-**ContentDiscovery.js upgrade pattern:**
-```javascript
-// Current: requires SAMPLE_MODULES and CATEGORIES on the page
-// New: auto-detects context and pulls from ContentCatalog
-ContentDiscovery.init({
-    scope: 'house',        // 'house' | 'vault' | 'global' | 'games'
-    house: 'shield',       // auto-detected from URL if not provided
-    container: '#searchArea', // where to inject the search UI
-    showTags: true,        // tag chip filters
-    showTypeFilter: true,  // content type chips
-    globalToggle: true     // show "search all houses" toggle
-});
-```
-
-**Vault-specific search considerations:**
-- Must search across locked AND unlocked tiers (show lock icon on locked results)
-- Tools section content isn't in ContentCatalog yet — needs indexing first
-- Gate entries should not appear in search results (they're challenges, not content)
-
-**Factionless search considerations:**
-- Always global scope (factionless = all houses)
-- Results grouped by house with color-coded badges
-- Should feel like the "power user" search — show everything
-
-#### Dependencies
-
-| Dependency | Required For | Sprint |
-|------------|-------------|--------|
-| Dark Arts Vault content indexed in ContentCatalog | Phase 2 (vault search) | R-2 or this sprint |
-| Games indexed in ContentCatalog | Phase 2 (games search) | R-1/R-2 or this sprint |
-| Matrix page exists | Phase 2 (matrix search) | MX-1 |
-| R-1/R-2 content registration | Phase 3 (completeness audit) | R-1, R-2 |
-
-#### Sprint Sequencing
-
-Phase 1 (component upgrade) and Phase 2 (wire into pages) can be done together — that's the core sprint. Phase 3 depends on R-series registration work. Phase 4 is polish that can come later.
-
-**Recommendation:** Phases 1+2 as Sprint F-12. Phase 3 folds into R-10 (final verification). Phase 4 as optional follow-up or folded into a future UX sprint.
-
-**Scope:** ContentCatalog.js, ContentDiscovery.js, vault/index.html, dashboard.html, games.html, all 9 house index pages, Dark Arts house index
+These remain in the backlog for a future UX polish sprint:
+- Recent searches (localStorage)
+- Search analytics (track popular queries)
+- Fuzzy search / Levenshtein matching
+- Per-page search bar upgrades (vault, factionless, games) — existing local search bars are untouched
+- Tag-based discovery chips
 
 ---
 

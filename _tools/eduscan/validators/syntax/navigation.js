@@ -7,12 +7,17 @@
  * Rules:
  * - NAV-001: Content page has no back/return navigation
  * - NAV-002: House/course index page has no dashboard link
+ * - NAV-003: Content page inside a course subdirectory has returnUrl that skips course home
  */
+
+const fs = require('fs');
+const path = require('path');
 
 class NavigationValidator {
     constructor(options = {}) {
         this.verbose = options.verbose || false;
         this.profile = options.profile || 'ci';
+        this.rootPath = options.rootPath || './_app';
     }
 
     /**
@@ -40,6 +45,12 @@ class NavigationValidator {
             issues.push(...this._checkDashboardLink(file));
             return issues;
         }
+
+        // NAV-003: content inside course subdirectory with returnUrl skipping course home
+        // Pattern: houses/{house}/{course}/{subdir}/file.html where {course} has its own index.html
+        // e.g., houses/forge/md-100/presentations/file.html with returnUrl: '../../index.html'
+        // should use '../index.html' to return to the course home, not the house index
+        issues.push(...this._checkCourseReturnUrl(file));
 
         // NAV-001: content pages missing back navigation
         const isContentRole = role.startsWith('content-');
@@ -154,6 +165,78 @@ class NavigationValidator {
             house: file.house,
             fix: 'Add a link back to the dashboard (e.g., href="../../dashboard.html")'
         }];
+    }
+    /**
+     * NAV-003: Check if content inside a course subdirectory has a returnUrl
+     * that skips the course home and goes directly to the house index.
+     *
+     * Detects: houses/{house}/{course}/{subdir}/file.html with returnUrl: '../../index.html'
+     * The correct returnUrl should be '../index.html' (course home).
+     *
+     * Only triggers when the course directory actually contains an index.html.
+     *
+     * @param {Object} file - File object with content and path
+     * @returns {Array} Issues found
+     */
+    _checkCourseReturnUrl(file) {
+        const content = file.content || '';
+        const filePath = (file.path || '').replace(/\\/g, '/');
+
+        // Match files at depth: houses/{house}/{course}/{subdir}/file.html
+        // where {course} is not a standard flat directory (presentations, labs, quizzes, etc.)
+        const courseMatch = filePath.match(
+            /^houses\/([^/]+)\/([^/]+)\/(presentations|labs|quizzes|applets|modules|games|reviews|tools)\/[^/]+\.html$/i
+        );
+        if (!courseMatch) return [];
+
+        const house = courseMatch[1];
+        const courseDir = courseMatch[2];
+
+        // Standard house-level directories are not course subdirectories
+        const standardDirs = [
+            'presentations', 'labs', 'quizzes', 'applets',
+            'modules', 'games', 'reviews', 'tools', 'courses'
+        ];
+        if (standardDirs.includes(courseDir.toLowerCase())) return [];
+
+        // Check if the course directory has its own index.html
+        const rootPath = this.rootPath || './_app';
+        const courseIndexPath = path.resolve(rootPath, 'houses', house, courseDir, 'index.html');
+        if (!fs.existsSync(courseIndexPath)) return [];
+
+        const issues = [];
+
+        // Check 1: returnUrl in JS config that skips the course home
+        // Pattern: returnUrl: '../../index.html' (goes to house index, not course home)
+        if (/returnUrl\s*:\s*['"]\.\.\/\.\.\/index\.html['"]/i.test(content)) {
+            issues.push({
+                code: 'NAV-003',
+                severity: 'high',
+                category: 'navigation',
+                message: `returnUrl skips course home — goes to house index instead of ${courseDir}/index.html`,
+                file: filePath,
+                house: file.house,
+                courseDir: courseDir,
+                fix: `Change returnUrl from '../../index.html' to '../index.html' to return to the course home`
+            });
+        }
+
+        // Check 2: <a href> back buttons that skip the course home
+        // Pattern: <a href="../../index.html" ...> (goes to house index, not course home)
+        if (/<a\b[^>]*href\s*=\s*["']\.\.\/\.\.\/index\.html["']/i.test(content)) {
+            issues.push({
+                code: 'NAV-003',
+                severity: 'high',
+                category: 'navigation',
+                message: `Back button href skips course home — links to house index instead of ${courseDir}/index.html`,
+                file: filePath,
+                house: file.house,
+                courseDir: courseDir,
+                fix: `Change href from '../../index.html' to '../index.html' to link to the course home`
+            });
+        }
+
+        return issues;
     }
 }
 

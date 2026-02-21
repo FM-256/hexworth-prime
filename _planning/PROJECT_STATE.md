@@ -1,13 +1,19 @@
 # Hexworth Prime - Project State
 
-**Last Updated:** February 19, 2026 (Session 3)
+**Last Updated:** February 21, 2026 (Session 5)
 **Updated By:** CCode-Opus4.6
-**Version:** 4.7.0 "CONTAINMENT BREACH"
+**Version:** 4.7.2
 
 ---
 
 ## CURRENT STATUS
 
+### 🔧 EDUSCAN: 5 NEW RULES (LP-008, LP-009, LP-010, CAT-005, NAV-003 expansion) + 28/28 tests
+### 🔧 FIX: MD-100 back buttons (33 files — ../../index.html → ../index.html)
+### 📋 NEW: EHE COURSE PLANNED! (Ethical Hacking Essentials — 12 modules, EC-Council EHEv1 slides, `_planning/EHE_COURSE_PLAN.md`)
+### 📋 NEW: MD-100 LAB DESIGN! (Operation: Forge Deployment — 11 interactive GUISimulator labs, Meridian Industries lore, `_planning/MD100_LAB_DESIGN.md`)
+### 📋 NEW: Hierarchical sprint naming convention adopted (DA-EHE-1, F-MD100-1, etc.)
+### 🔍 MILESTONE: F-12 GLOBAL SEARCH COMPLETE! (Ctrl+K overlay — search 1,551 modules from any page)
 ### 🐝 MILESTONE: v4.7.0 "CONTAINMENT BREACH" RELEASED! (The Hive Phase 2A — dungeon crawler engine + B-1 floor)
 ### 🏰 NEW: THE HIVE PLANNED! (Underground facility escape rooms — 10 floors + Queen's Chamber, Resident Evil inspired)
 ### 🎮 MILESTONE: CIPHER BUBBLES OVERHAUL! (Directional shooting, 6 rotating levels, continuous spawning, spawn shield)
@@ -49,6 +55,87 @@
 ---
 
 ## WHAT JUST HAPPENED (Recent Session Summary)
+
+### February 21, 2026 (Session 5) - EDUSCAN RULES + EHE/MD100 PLANNING
+
+```
++======================================================================+
+|     SESSION: EDUSCAN NEW RULES + COURSE PLANNING                     |
+|     v4.7.2                                                           |
++======================================================================+
+|                                                                       |
+|  EDUSCAN — 5 NEW VALIDATION RULES:                                   |
+|  - LP-008: Module type/href mismatch (catches copy-paste bugs)       |
+|  - LP-009: courseHref points to non-existent file                    |
+|  - LP-010: Prerequisite with non-available catalog status            |
+|  - CAT-005: Duplicate module IDs in ContentCatalog                   |
+|  - NAV-003 expanded: now checks <a href> back buttons too            |
+|  - Tests: 28/28 passing (13 fixture + 15 global/positive)           |
+|  - LP-008 already found 3 real type/href bugs in LearningPaths.js   |
+|  - NAV-003 already flagging 5 script/linux files with bad back links|
+|                                                                       |
+|  MD-100 FIX — 33 FILES:                                              |
+|  - All labs, presentations, quizzes: ../../ → ../index.html          |
+|  - Back button text normalized to "← Back to MD-100"                |
+|  - Quiz completion nav: "MD-100 Course →"                            |
+|                                                                       |
+|  PLANNING — EHE COURSE (Dark Arts house):                            |
+|  - Analyzed 14 EC-Council EHEv1 slide decks (572 slides total)      |
+|  - Created _planning/EHE_COURSE_PLAN.md                              |
+|    - 12 modules + bonus intro, lab designs per module                |
+|    - Engine assignments (LinuxTerminal, GUISimulator, SecurityTerm)  |
+|    - 20+ vault files mapped for integration                          |
+|    - 6-sprint roadmap (DA-EHE-1 through DA-EHE-6)                   |
+|                                                                       |
+|  PLANNING — MD-100 INTERACTIVE LABS:                                 |
+|  - Created _planning/MD100_LAB_DESIGN.md                              |
+|    - "Operation: Forge Deployment" — Meridian Industries lore        |
+|    - 11 labs, 8-12 objectives each (115 total objectives)            |
+|    - Full narrative arc: Day 1 (deploy) → Day 11 (hardware triage)  |
+|    - Characters: Sarah Chen, James Park, Diana Torres, Marcus Webb   |
+|    - GUISimulator component inventory (14 new components identified) |
+|    - 4-sprint roadmap (F-MD100-1 through F-MD100-4)                  |
+|                                                                       |
+|  SPRINT CONVENTION:                                                   |
+|  - Adopted hierarchical sprint IDs: {category}-{course}-{number}    |
+|  - Examples: DA-EHE-1, F-MD100-1, M-LM-8                            |
+|  - Existing flat IDs (DA-1, M-7, F-12) grandfathered                |
+|  - SPRINT_BACKLOG.md updated with convention + DA-EHE-1 registered  |
+|                                                                       |
++======================================================================+
+```
+
+### February 21, 2026 (Session 4) - F-12: GLOBAL SEARCH
+
+```
++======================================================================+
+|         SESSION: F-12 — GLOBAL SEARCH (Ctrl+K OVERLAY)               |
+|         v4.7.1                                                       |
++======================================================================+
+|                                                                       |
+|  CREATED: GlobalSearch.js (~790 lines, 27KB)                          |
+|  - Ctrl+K / Cmd+K overlay accessible from every content page          |
+|  - Lazy-loads ContentCatalog.js (509KB) on first keypress only        |
+|  - Type filter chips (All / Slides / Labs / Quizzes / Games)          |
+|  - Results grouped by house with colored left-border headers          |
+|  - Arrow key navigation, Enter to open, Escape to close              |
+|  - 200ms debounced search, max 30 results                            |
+|  - Dark theme overlay (z-index 100000, above HED + FluxCapacitor)    |
+|  - Reuses ContentDiscovery visual patterns (TYPE_CONFIG, highlights)  |
+|                                                                       |
+|  MODIFIED: FluxCapacitor.js (+8 lines)                                |
+|  - Auto-loads GlobalSearch.js on every page (same pattern as HED.js)  |
+|                                                                       |
+|  FIXED: GlobalSearch filters to status: 'available' only              |
+|  - Prevents users from clicking coming-soon modules → 404             |
+|                                                                       |
+|  EDUSCAN: Added CAT-004 rule                                          |
+|  - Flags non-available modules with dead hrefs (warning severity)     |
+|  - Old validator skipped coming-soon modules entirely                 |
+|  - Now catches 4 dead hrefs: clh-001 (×2), key-hashing, pod-crossing |
+|                                                                       |
++======================================================================+
+```
 
 ### February 19, 2026 (Session 3) - THE HIVE PHASE 2A: CONTAINMENT BREACH
 

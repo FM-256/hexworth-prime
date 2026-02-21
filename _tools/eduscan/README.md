@@ -15,7 +15,7 @@ npm run scan
 # Quick issue check (quiet mode)
 npm run scan:quick
 
-# Signature test suite (12 fixture tests + global regression)
+# Signature test suite (13 fixture tests + 15 global/positive detection tests)
 npm run scan:test
 
 # Headless browser validation (runtime errors + smoke tests)
@@ -74,7 +74,7 @@ Requires Puppeteer (`npm install` to install).
 
 | Script | Description |
 |--------|-------------|
-| `npm run scan:test` | Signature test suite — 12 fixture tests + global regressions |
+| `npm run scan:test` | Signature test suite — 28 tests (13 fixture + 15 global/positive detection) |
 
 ### Deploy
 
@@ -99,13 +99,14 @@ Requires Puppeteer (`npm install` to install).
 | **Naming** | `naming.js` | Enforces `{house}-{name}.{type}.html` naming convention |
 | **Heuristics** | `heuristics.js` | Anomaly detection — excessive inline scripts, TODO markers, console.log, duplicate includes, unguarded parseInt, localStorage coercion |
 | **Dependency** | `dependency-check.js` | "Wired but not plugged in" — code calls ProgressManager/GameTracker but never loads the script |
+| **Navigation** | `navigation.js` | Back navigation checks — missing back buttons, dashboard links, and back links that skip course home |
 
 ### Static Validation (Global)
 
 | Validator | File | Description |
 |-----------|------|-------------|
 | **ContentCatalog** | `content-catalog.js` | Validates all 1400+ module hrefs in ContentCatalog.js resolve to real files |
-| **LearningPaths** | `learning-paths.js` | Validates cert path hrefs, duplicate module IDs, house folder mapping |
+| **LearningPaths** | `learning-paths.js` | Validates cert path hrefs, duplicate module IDs, prerequisite chains, and cross-references with ContentCatalog |
 | **AssignmentLinks** | `assignment-links.js` | Simulates student assignment clicks — verifies resolved URLs hit real files |
 | **RendererLinks** | `heuristics.js` | Scans shared JS renderers for hardcoded relative hrefs (fragile back links) |
 | **MissingIndexes** | `index.js` | Flags content directories with 3+ HTML files but no `index.html` |
@@ -263,6 +264,8 @@ Runs 8 targeted tests against core platform systems in a real browser.
 | CAT-001 | critical | Module status `available` but href file doesn't exist on disk |
 | CAT-002 | medium | HTML content file on disk not declared in any catalog module |
 | CAT-003 | high | Module status `available` with empty or missing href |
+| CAT-004 | warning | Module status not `available` but href doesn't exist on disk |
+| CAT-005 | high | Duplicate module IDs in ContentCatalog |
 
 ### LearningPaths Validator
 
@@ -271,6 +274,13 @@ Runs 8 targeted tests against core platform systems in a real browser.
 | LP-001 | high | Module href points to non-existent file |
 | LP-002 | medium | Path has no houseFolder and uses relative hrefs |
 | LP-003 | medium | Duplicate module IDs across paths |
+| LP-004 | high | Broken prerequisite reference — prereq ID not found in any path |
+| LP-005 | high | Circular prerequisite chain (DFS cycle detected) |
+| LP-006 | medium | LearningPaths module not found in ContentCatalog |
+| LP-007 | low | ContentCatalog course module not in any learning path |
+| LP-008 | medium | Module type/href mismatch (e.g., `type: 'quiz'` but href in `presentations/`) |
+| LP-009 | high | `courseHref` points to non-existent file |
+| LP-010 | medium | Prerequisite module has non-available catalog status (blocks progression) |
 
 ### Assignment Link Validator
 
@@ -292,6 +302,14 @@ Runs 8 targeted tests against core platform systems in a real browser.
 | DEP-003 | medium | Calls `GameTracker.record()` but `GameTracker.js` not loaded |
 | DEP-004 | high | Calls `ModuleProgress.complete()` but `ModuleProgress.js` not loaded |
 | DEP-005 | medium | Calls `AchievementSystem.unlock()` but no Achievement script loaded |
+
+### Navigation Validator
+
+| Code | Severity | Description |
+|------|----------|-------------|
+| NAV-001 | medium | Content page has no back/return navigation |
+| NAV-002 | medium | House/course index page has no dashboard link |
+| NAV-003 | high | Content page inside course subdirectory has returnUrl or back button href that skips course home |
 
 ### Legacy / Registry Codes
 
@@ -368,7 +386,7 @@ npm run scan:test
 
 ### How It Works
 
-The test runner (`tests/run.js`) loads 12 fixture HTML files from `tests/fixtures/`, runs validators against each, and compares detected issue codes against expected codes in `tests/expectations.js`.
+The test runner (`tests/run.js`) loads fixture files from `tests/fixtures/`, runs validators against each, and compares detected issue codes against expected codes in `tests/expectations.js`.
 
 ### Fixture Files
 
@@ -391,6 +409,11 @@ The test runner (`tests/run.js`) loads 12 fixture HTML files from `tests/fixture
 
 Beyond fixture tests, the suite also runs:
 - **ContentCatalog zero-dead-links**: Validates all `available` modules in ContentCatalog.js resolve to real files (catches CAT-001 regressions)
+- **ContentCatalog zero-duplicate-IDs**: Verifies no duplicate module IDs exist (catches CAT-005 regressions)
+- **LearningPaths prerequisite integrity**: Verifies zero broken prereq refs (LP-004) and zero circular chains (LP-005) on the live codebase
+- **LearningPaths valid codes**: Confirms all emitted LP issues use recognized LP codes
+- **LearningPaths positive detection**: Fixture-based tests for LP-004, LP-005, LP-006, LP-008, LP-009
+- **NAV-003 positive detection**: Simulates a course subdirectory file with bad back button href
 
 ---
 
@@ -546,8 +569,9 @@ _tools/eduscan/
 │   │   ├── naming.js               # NAME-001 through NAME-004
 │   │   ├── heuristics.js           # HEUR-001 through HEUR-006, MATH-001, DATA-001
 │   │   ├── csp.js                  # CSP-001
-│   │   ├── content-catalog.js      # CAT-001 through CAT-003
-│   │   ├── learning-paths.js       # LP-001 through LP-003
+│   │   ├── content-catalog.js      # CAT-001 through CAT-005
+│   │   ├── learning-paths.js       # LP-001 through LP-010
+│   │   ├── navigation.js           # NAV-001 through NAV-003
 │   │   ├── assignment-links.js     # ASGN-001 through ASGN-006
 │   │   └── dependency-check.js     # DEP-001 through DEP-005
 │   └── functional/                 # Headless browser validators
@@ -573,7 +597,7 @@ _tools/eduscan/
 │   ├── json.js
 │   └── markdown.js
 ├── tests/                          # Signature test suite
-│   ├── run.js                      # Test runner (12 fixtures + global)
+│   ├── run.js                      # Test runner (13 fixtures + global)
 │   ├── expectations.js             # Expected codes per fixture
 │   └── fixtures/                   # 16 test HTML files
 │       ├── clean.html
