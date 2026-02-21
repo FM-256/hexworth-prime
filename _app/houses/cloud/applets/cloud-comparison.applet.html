@@ -1,0 +1,934 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cloud Provider Comparison | Cloud House</title>
+
+    <!-- Access control: user must have completed house sorting -->
+    <script src="../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../components/AchievementManager.js"></script>
+    <script src="../../../components/ModuleProgress.js"></script>
+
+    <style>
+        /* ── CSS Custom Properties: Cloud House Theme ── */
+        :root {
+            --cloud-primary:   #38bdf8;
+            --cloud-secondary: #0ea5e9;
+            --cloud-dark:      #0c4a6e;
+            --cloud-glow:      rgba(56, 189, 248, 0.3);
+            --bg-primary:      #0a0a0f;
+            --bg-secondary:    #12121a;
+            --bg-tertiary:     #1a1a24;
+            --text-primary:    #e2e8f0;
+            --text-secondary:  #94a3b8;
+            --success:         #22c55e;
+            --warning:         #f59e0b;
+            --danger:          #ef4444;
+
+            /* Provider brand colors */
+            --aws:   #ff9900;
+            --azure: #0089d6;
+            --gcp:   #4285f4;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            line-height: 1.6;
+        }
+
+        /* ── Page Layout ── */
+        .page-container {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        .back-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            color: var(--cloud-primary);
+            text-decoration: none;
+            margin-bottom: 1.25rem;
+            font-size: 0.95rem;
+            transition: transform 0.2s ease, color 0.2s ease;
+        }
+        .back-link:hover { color: #60a5fa; transform: translateX(-4px); }
+
+        /* ── Header ── */
+        .page-header {
+            text-align: center;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            background: linear-gradient(135deg, var(--bg-secondary), var(--bg-tertiary));
+            border-radius: 16px;
+            border: 1px solid var(--cloud-primary);
+            box-shadow: 0 0 30px var(--cloud-glow);
+        }
+
+        .page-header h1 {
+            font-size: 2.2rem;
+            margin-bottom: 0.4rem;
+            background: linear-gradient(135deg, var(--cloud-primary), #60a5fa);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .page-header .subtitle {
+            color: var(--text-secondary);
+            font-size: 1rem;
+        }
+
+        /* ── Progress tracker (categories viewed) ── */
+        .progress-bar-wrap {
+            background: var(--bg-secondary);
+            border: 1px solid rgba(56, 189, 248, 0.2);
+            border-radius: 12px;
+            padding: 1rem 1.5rem;
+            margin-bottom: 1.75rem;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .progress-label {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            white-space: nowrap;
+        }
+
+        .progress-track {
+            flex: 1;
+            height: 8px;
+            background: var(--bg-tertiary);
+            border-radius: 4px;
+            min-width: 120px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--cloud-primary), var(--success));
+            border-radius: 4px;
+            transition: width 0.5s ease;
+            width: 0%;
+        }
+
+        .progress-count {
+            color: var(--cloud-primary);
+            font-size: 0.9rem;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+
+        /* ── Provider Selector ── */
+        .provider-selector {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin-bottom: 1.75rem;
+        }
+
+        .provider-btn {
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+            padding: 0.65rem 1.4rem;
+            border-radius: 10px;
+            border: 2px solid transparent;
+            background: var(--bg-secondary);
+            color: var(--text-secondary);
+            font-size: 0.95rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.22s ease;
+            letter-spacing: 0.02em;
+        }
+
+        .provider-btn:hover { color: var(--text-primary); transform: translateY(-2px); }
+
+        .provider-btn.active.aws   { border-color: var(--aws);   color: var(--aws);   background: rgba(255,153,0,0.08); }
+        .provider-btn.active.azure { border-color: var(--azure); color: var(--azure); background: rgba(0,137,214,0.08); }
+        .provider-btn.active.gcp   { border-color: var(--gcp);   color: var(--gcp);   background: rgba(66,133,244,0.08); }
+
+        .provider-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            display: inline-block;
+        }
+        .dot-aws   { background: var(--aws); }
+        .dot-azure { background: var(--azure); }
+        .dot-gcp   { background: var(--gcp); }
+
+        /* ── Mode Toggle ── */
+        .mode-toggle {
+            display: flex;
+            justify-content: center;
+            gap: 0.5rem;
+            margin-bottom: 1.75rem;
+        }
+
+        .mode-btn {
+            padding: 0.5rem 1.2rem;
+            border-radius: 8px;
+            border: 1px solid rgba(56,189,248,0.3);
+            background: var(--bg-secondary);
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .mode-btn.active {
+            background: var(--cloud-secondary);
+            border-color: var(--cloud-primary);
+            color: white;
+        }
+
+        /* ── Category Tabs ── */
+        .category-tabs {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+            margin-bottom: 1.5rem;
+            border-bottom: 1px solid rgba(56,189,248,0.15);
+            padding-bottom: 0.75rem;
+        }
+
+        .cat-tab {
+            padding: 0.45rem 1rem;
+            border-radius: 8px 8px 0 0;
+            border: 1px solid rgba(56,189,248,0.2);
+            border-bottom: none;
+            background: var(--bg-secondary);
+            color: var(--text-secondary);
+            font-size: 0.88rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            position: relative;
+        }
+
+        .cat-tab:hover { color: var(--cloud-primary); border-color: var(--cloud-primary); }
+
+        .cat-tab.active {
+            background: var(--bg-tertiary);
+            color: var(--cloud-primary);
+            border-color: var(--cloud-primary);
+            font-weight: 600;
+        }
+
+        /* Small viewed badge */
+        .cat-tab.viewed::after {
+            content: '';
+            position: absolute;
+            top: 6px;
+            right: 6px;
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: var(--success);
+        }
+
+        /* ── Comparison Table View ── */
+        .view-panel { display: none; }
+        .view-panel.visible { display: block; }
+
+        .comparison-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 1.5rem;
+            font-size: 0.92rem;
+        }
+
+        .comparison-table th {
+            padding: 0.8rem 1rem;
+            background: var(--bg-tertiary);
+            border: 1px solid rgba(56,189,248,0.2);
+            font-weight: 600;
+            text-align: left;
+        }
+
+        .comparison-table th.col-service { color: var(--text-secondary); }
+        .comparison-table th.col-aws     { color: var(--aws); }
+        .comparison-table th.col-azure   { color: var(--azure); }
+        .comparison-table th.col-gcp     { color: var(--gcp); }
+
+        .comparison-table td {
+            padding: 0.75rem 1rem;
+            border: 1px solid rgba(56,189,248,0.1);
+            vertical-align: top;
+        }
+
+        .comparison-table tr:nth-child(even) td { background: rgba(255,255,255,0.02); }
+
+        /* Dim a column when provider filter is active */
+        .comparison-table td.dimmed { opacity: 0.25; }
+
+        /* Highlight active provider cell */
+        .comparison-table td.highlighted {
+            background: rgba(56,189,248,0.05);
+        }
+
+        .service-type {
+            color: var(--text-secondary);
+            font-size: 0.82rem;
+            font-weight: 400;
+        }
+
+        .service-name {
+            color: var(--text-primary);
+            font-weight: 500;
+        }
+
+        /* Color-coded badges per provider */
+        .badge {
+            display: inline-block;
+            padding: 0.2rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+        .badge-aws   { background: rgba(255,153,0,0.15);   color: var(--aws); }
+        .badge-azure { background: rgba(0,137,214,0.15);   color: var(--azure); }
+        .badge-gcp   { background: rgba(66,133,244,0.15);  color: var(--gcp); }
+
+        /* ── Quick Compare View ── */
+        .quick-compare-controls {
+            display: grid;
+            grid-template-columns: 1fr 1fr auto;
+            gap: 1rem;
+            align-items: end;
+            margin-bottom: 1.5rem;
+            background: var(--bg-secondary);
+            padding: 1.25rem;
+            border-radius: 12px;
+            border: 1px solid rgba(56,189,248,0.2);
+        }
+
+        .qc-field label {
+            display: block;
+            font-size: 0.82rem;
+            color: var(--text-secondary);
+            margin-bottom: 0.4rem;
+        }
+
+        .qc-field select {
+            width: 100%;
+            padding: 0.55rem 0.9rem;
+            background: var(--bg-tertiary);
+            border: 1px solid rgba(56,189,248,0.3);
+            border-radius: 8px;
+            color: var(--text-primary);
+            font-size: 0.92rem;
+            cursor: pointer;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        .qc-field select:focus { border-color: var(--cloud-primary); }
+
+        .qc-go-btn {
+            padding: 0.55rem 1.4rem;
+            background: linear-gradient(135deg, var(--cloud-primary), var(--cloud-secondary));
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-size: 0.95rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            white-space: nowrap;
+        }
+
+        .qc-go-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px var(--cloud-glow); }
+
+        /* Side-by-side comparison cards */
+        .compare-cards {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.25rem;
+        }
+
+        .compare-card {
+            background: var(--bg-secondary);
+            border-radius: 14px;
+            border: 1px solid rgba(56,189,248,0.2);
+            overflow: hidden;
+            transition: box-shadow 0.25s ease;
+        }
+
+        .compare-card:hover { box-shadow: 0 0 24px var(--cloud-glow); }
+
+        .compare-card-header {
+            padding: 1rem 1.25rem;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .compare-card-header.header-aws   { background: rgba(255,153,0,0.1);  border-bottom: 2px solid var(--aws);   }
+        .compare-card-header.header-azure { background: rgba(0,137,214,0.1);  border-bottom: 2px solid var(--azure); }
+        .compare-card-header.header-gcp   { background: rgba(66,133,244,0.1); border-bottom: 2px solid var(--gcp);   }
+
+        .compare-card-header .provider-name {
+            font-size: 0.78rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+        }
+
+        .header-aws   .provider-name { color: var(--aws); }
+        .header-azure .provider-name { color: var(--azure); }
+        .header-gcp   .provider-name { color: var(--gcp); }
+
+        .compare-card-header .service-label {
+            font-size: 1.05rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .compare-card-body { padding: 1.25rem; }
+
+        .detail-row {
+            display: flex;
+            flex-direction: column;
+            gap: 0.15rem;
+            margin-bottom: 1rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+        }
+
+        .detail-row:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
+
+        .detail-key {
+            font-size: 0.77rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.07em;
+            color: var(--text-secondary);
+        }
+
+        .detail-val {
+            font-size: 0.9rem;
+            color: var(--text-primary);
+        }
+
+        .empty-qc {
+            text-align: center;
+            padding: 3rem;
+            color: var(--text-secondary);
+            font-size: 0.95rem;
+        }
+
+        /* ── Completion button ── */
+        .completion-wrap { margin-top: 2rem; }
+
+        .completion-btn {
+            width: 100%;
+            padding: 1rem 2rem;
+            background: linear-gradient(135deg, var(--cloud-primary), var(--cloud-secondary));
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 1.05rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.25s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+        }
+
+        .completion-btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px var(--cloud-glow);
+        }
+
+        .completion-btn:disabled {
+            opacity: 0.45;
+            cursor: not-allowed;
+            background: var(--bg-tertiary);
+            color: var(--text-secondary);
+        }
+
+        .completion-btn.done { background: var(--success); cursor: default; }
+        .completion-btn.done:hover { transform: none; box-shadow: none; }
+
+        .need-more-hint {
+            text-align: center;
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            margin-top: 0.6rem;
+        }
+
+        /* ── Responsive ── */
+        @media (max-width: 700px) {
+            .page-container { padding: 1rem; }
+            .page-header h1 { font-size: 1.6rem; }
+            .compare-cards { grid-template-columns: 1fr; }
+            .quick-compare-controls { grid-template-columns: 1fr; }
+            .comparison-table { font-size: 0.82rem; }
+        }
+    </style>
+</head>
+<body>
+<div class="page-container">
+
+    <a href="../index.html" class="back-link">&#8592; Back to Cloud House</a>
+
+    <header class="page-header">
+        <h1>&#9729;&#65039; Cloud Provider Comparison</h1>
+        <p class="subtitle">Interactive service mapping across AWS, Azure, and Google Cloud</p>
+    </header>
+
+    <!-- Progress tracker -->
+    <div class="progress-bar-wrap">
+        <span class="progress-label">Categories explored:</span>
+        <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+        <span class="progress-count" id="progressCount">0 / 7</span>
+    </div>
+
+    <!-- Provider toggle buttons -->
+    <div class="provider-selector">
+        <button class="provider-btn active aws"   data-provider="aws"   onclick="toggleProvider('aws')">
+            <span class="provider-dot dot-aws"></span> AWS
+        </button>
+        <button class="provider-btn active azure" data-provider="azure" onclick="toggleProvider('azure')">
+            <span class="provider-dot dot-azure"></span> Azure
+        </button>
+        <button class="provider-btn active gcp"   data-provider="gcp"   onclick="toggleProvider('gcp')">
+            <span class="provider-dot dot-gcp"></span> GCP
+        </button>
+    </div>
+
+    <!-- View mode toggle -->
+    <div class="mode-toggle">
+        <button class="mode-btn active" id="btnBrowse"  onclick="setMode('browse')">Browse Table</button>
+        <button class="mode-btn"        id="btnCompare" onclick="setMode('compare')">Quick Compare</button>
+    </div>
+
+    <!-- ── BROWSE MODE ── -->
+    <div id="browseView" class="view-panel visible">
+        <div class="category-tabs" id="categoryTabs"></div>
+        <div id="tableContainer"></div>
+    </div>
+
+    <!-- ── QUICK COMPARE MODE ── -->
+    <div id="compareView" class="view-panel">
+        <div class="quick-compare-controls">
+            <div class="qc-field">
+                <label>Provider A</label>
+                <select id="qcProviderA">
+                    <option value="aws">AWS</option>
+                    <option value="azure">Azure</option>
+                    <option value="gcp">GCP</option>
+                </select>
+            </div>
+            <div class="qc-field">
+                <label>Provider B</label>
+                <select id="qcProviderB">
+                    <option value="aws">AWS</option>
+                    <option value="azure" selected>Azure</option>
+                    <option value="gcp">GCP</option>
+                </select>
+            </div>
+            <button class="qc-go-btn" onclick="runQuickCompare()">Compare</button>
+        </div>
+        <!-- Category selector for quick compare -->
+        <div class="qc-field" style="margin-bottom:1.25rem;">
+            <label style="font-size:0.82rem;color:var(--text-secondary);display:block;margin-bottom:0.4rem;">Service Category</label>
+            <select id="qcCategory" style="width:100%;padding:0.55rem 0.9rem;background:var(--bg-tertiary);border:1px solid rgba(56,189,248,0.3);border-radius:8px;color:var(--text-primary);font-size:0.92rem;outline:none;">
+                <option value="compute">Compute</option>
+                <option value="storage">Storage</option>
+                <option value="database">Database</option>
+                <option value="networking">Networking</option>
+                <option value="security">Security</option>
+                <option value="aiml">AI / ML</option>
+                <option value="serverless">Serverless</option>
+            </select>
+        </div>
+        <div id="compareResult"><div class="empty-qc">Select two providers and a category, then click Compare.</div></div>
+    </div>
+
+    <!-- Completion button -->
+    <div class="completion-wrap">
+        <button class="completion-btn" id="completeBtn" onclick="markComplete()" disabled>
+            Mark as Complete
+        </button>
+        <p class="need-more-hint" id="completeHint">Explore at least 4 categories to unlock completion.</p>
+    </div>
+
+</div><!-- /page-container -->
+
+<!-- ───────────────────────────────────────────────── JavaScript ── -->
+<script>
+    /* ──────────────────────────────────────────
+     * DATA: Service categories and equivalents
+     * Each service row: { type, aws, azure, gcp }
+     * Quick-compare detail data keyed by category then provider
+     * ────────────────────────────────────────── */
+    const CATEGORIES = [
+        { id: 'compute',    label: 'Compute' },
+        { id: 'storage',    label: 'Storage' },
+        { id: 'database',   label: 'Database' },
+        { id: 'networking', label: 'Networking' },
+        { id: 'security',   label: 'Security' },
+        { id: 'aiml',       label: 'AI / ML' },
+        { id: 'serverless', label: 'Serverless' }
+    ];
+
+    /* Table rows per category */
+    const TABLE_DATA = {
+        compute: [
+            { type: 'Virtual Machines',    aws: 'EC2',                  azure: 'Virtual Machines',    gcp: 'Compute Engine' },
+            { type: 'Functions / FaaS',    aws: 'Lambda',               azure: 'Functions',           gcp: 'Cloud Functions' },
+            { type: 'Managed Containers',  aws: 'ECS',                  azure: 'Container Instances', gcp: 'Cloud Run' },
+            { type: 'Kubernetes Service',  aws: 'EKS',                  azure: 'AKS',                 gcp: 'GKE' }
+        ],
+        storage: [
+            { type: 'Object Storage',      aws: 'S3',                   azure: 'Blob Storage',        gcp: 'Cloud Storage' },
+            { type: 'Block Storage',       aws: 'EBS',                  azure: 'Managed Disks',       gcp: 'Persistent Disk' },
+            { type: 'File Storage',        aws: 'EFS',                  azure: 'Azure Files',         gcp: 'Filestore' }
+        ],
+        database: [
+            { type: 'Relational (managed)',aws: 'RDS',                  azure: 'Azure SQL',           gcp: 'Cloud SQL' },
+            { type: 'NoSQL / Document',    aws: 'DynamoDB',             azure: 'Cosmos DB',           gcp: 'Firestore' },
+            { type: 'In-Memory Cache',     aws: 'ElastiCache',          azure: 'Cache for Redis',     gcp: 'Memorystore' }
+        ],
+        networking: [
+            { type: 'Virtual Network',     aws: 'VPC',                  azure: 'VNet',                gcp: 'VPC' },
+            { type: 'DNS Service',         aws: 'Route 53',             azure: 'Azure DNS',           gcp: 'Cloud DNS' },
+            { type: 'CDN',                 aws: 'CloudFront',           azure: 'Azure CDN',           gcp: 'Cloud CDN' },
+            { type: 'Load Balancer',       aws: 'ELB',                  azure: 'Load Balancer',       gcp: 'Cloud Load Balancing' }
+        ],
+        security: [
+            { type: 'Identity & Access',   aws: 'IAM',                  azure: 'Azure AD / Entra ID', gcp: 'Cloud IAM' },
+            { type: 'Key Management',      aws: 'KMS',                  azure: 'Key Vault',           gcp: 'Cloud KMS' },
+            { type: 'Web App Firewall',    aws: 'WAF',                  azure: 'Web App Firewall',    gcp: 'Cloud Armor' }
+        ],
+        aiml: [
+            { type: 'ML Platform',         aws: 'SageMaker',            azure: 'Azure Machine Learning', gcp: 'Vertex AI' },
+            { type: 'Computer Vision',     aws: 'Rekognition',          azure: 'Computer Vision',     gcp: 'Vision AI' },
+            { type: 'NLP / Language',      aws: 'Comprehend',           azure: 'Language Service',    gcp: 'Natural Language AI' }
+        ],
+        serverless: [
+            { type: 'Functions / FaaS',    aws: 'Lambda',               azure: 'Functions',           gcp: 'Cloud Functions' },
+            { type: 'API Management',      aws: 'API Gateway',          azure: 'API Management',      gcp: 'API Gateway' },
+            { type: 'Workflow Orchestration', aws: 'Step Functions',    azure: 'Logic Apps',          gcp: 'Workflows' }
+        ]
+    };
+
+    /* Quick-compare deep detail per category + provider
+     * Fields: service, freeTier, pricing, differentiator, bestFor */
+    const QC_DATA = {
+        compute: {
+            aws:   { service:'EC2 (Elastic Compute Cloud)', freeTier:'750 hrs/mo t2.micro for 12 months', pricing:'On-demand, reserved (1-3yr), spot, savings plans', differentiator:'Broadest instance family (700+ types), Graviton ARM chips', bestFor:'Any general workload; enterprises needing max choice' },
+            azure: { service:'Azure Virtual Machines',       freeTier:'750 hrs/mo B1s for 12 months',        pricing:'Pay-as-you-go, reserved, spot, hybrid benefit (BYOL)', differentiator:'Seamless Active Directory and Windows Server licensing', bestFor:'Windows-heavy shops and enterprise hybrid environments' },
+            gcp:   { service:'Compute Engine',               freeTier:'1 e2-micro instance/mo (US regions)',   pricing:'Per-second billing, committed use discounts (1-3yr)', differentiator:'Custom machine types, automatic sustained-use discounts', bestFor:'Cost-sensitive workloads; orgs using GKE / data products' }
+        },
+        storage: {
+            aws:   { service:'Amazon S3',             freeTier:'5 GB standard, 20K GET, 2K PUT/mo (12 months)', pricing:'Pay-per-GB + per-request fees; intelligent tiering available', differentiator:'Largest ecosystem: S3 Select, Glacier, Object Lock, 11 nines durability', bestFor:'Any web-scale object storage; data lake foundations' },
+            azure: { service:'Azure Blob Storage',     freeTier:'5 GB LRS hot / 12 months',                       pricing:'Pay-per-GB; access tiers (hot/cool/archive)', differentiator:'Native Azure Data Lake Storage Gen2 overlay, AD RBAC', bestFor:'Azure-native applications; data lake with AD security' },
+            gcp:   { service:'Cloud Storage',          freeTier:'5 GB regional / month (always free)',              pricing:'Pay-per-GB; nearline/coldline/archive tiers', differentiator:'Strong global consistency, direct BigQuery and Dataflow integration', bestFor:'Analytics pipelines feeding BigQuery; globally consistent reads' }
+        },
+        database: {
+            aws:   { service:'Amazon RDS / Aurora', freeTier:'750 hrs db.t2.micro + 20 GB storage (12 mo)', pricing:'Instance + storage + I/O; Aurora Serverless v2 by ACU', differentiator:'Aurora is up to 5x faster than MySQL with multi-master option', bestFor:'MySQL/PostgreSQL workloads needing high throughput without ops overhead' },
+            azure: { service:'Azure SQL Database',   freeTier:'250 GB / month serverless tier',               pricing:'DTU or vCore model; serverless auto-pause on idle', differentiator:'Best SQL Server compatibility; built-in intelligent query tuning', bestFor:'Migrating on-prem SQL Server; developers wanting managed DB with familiar tooling' },
+            gcp:   { service:'Cloud SQL',             freeTier:'No always-free tier; 90-day $300 credit',       pricing:'Per-hour instance + storage; HA doubles cost', differentiator:'Tight Cloud Spanner path for global scale, strong Postgres extensions support', bestFor:'GCP-native apps; teams planning scale-out path to Cloud Spanner' }
+        },
+        networking: {
+            aws:   { service:'Amazon VPC', freeTier:'Free (VPC itself); data transfer costs apply', pricing:'NAT Gateway: $0.045/hr + $0.045/GB; VPC peering free within region', differentiator:'Most mature feature set: Transit Gateway, PrivateLink, Network Firewall', bestFor:'Complex multi-account architectures using AWS Organizations' },
+            azure: { service:'Azure VNet',  freeTier:'Free; peering and gateway costs apply',         pricing:'VNet peering: $0.01/GB; VPN Gateway from $0.04/hr',           differentiator:'ExpressRoute for on-premises; native AD integration with VNets',      bestFor:'Hybrid enterprise linking on-prem AD and Azure services' },
+            gcp:   { service:'VPC (Google Cloud)', freeTier:'Free VPC; egress costs apply',           pricing:'GCP charges for premium-tier egress; internal traffic free', differentiator:'Global VPC spans all regions by default; no subnet-per-region required', bestFor:'Apps serving a global user base from a single VPC' }
+        },
+        security: {
+            aws:   { service:'AWS IAM', freeTier:'Free (no limits on IAM)', pricing:'Free; GuardDuty/Security Hub add cost', differentiator:'Organizations SCPs for multi-account governance; fine-grained condition keys', bestFor:'Multi-account AWS environments needing policy at scale' },
+            azure: { service:'Azure AD / Entra ID', freeTier:'Free tier includes basic SSO and MFA', pricing:'P1 $6/user/mo; P2 $9/user/mo for Identity Protection', differentiator:'Best-in-class hybrid identity bridging on-prem Active Directory', bestFor:'Enterprises using M365 and on-prem AD wanting unified identity' },
+            gcp:   { service:'Cloud IAM', freeTier:'Free', pricing:'Free; BeyondCorp/Chronicle add cost', differentiator:'Resource-based access model; Workload Identity Federation for OIDC', bestFor:'Zero-trust architectures; GCP workloads needing granular project-level control' }
+        },
+        aiml: {
+            aws:   { service:'Amazon SageMaker', freeTier:'2 months free for Studio/notebooks (limited)', pricing:'Per instance-hour for training/hosting; Savings Plans available', differentiator:'End-to-end MLOps: Feature Store, Model Registry, Clarify (bias), Pipelines', bestFor:'Teams wanting a fully managed, batteries-included ML platform' },
+            azure: { service:'Azure Machine Learning', freeTier:'Free workspace; compute billed separately', pricing:'Per compute cluster hour; AML serverless Spark pricing', differentiator:'Responsible AI dashboard built-in; tight Power BI and Azure Data Factory ties', bestFor:'Enterprise data science teams with governance/compliance requirements' },
+            gcp:   { service:'Vertex AI', freeTier:'$300 credit; some predictions free per month', pricing:'Training per node-hour; prediction per node-hour or per request', differentiator:'Backed by Google Research (BERT, PaLM); best TPU access; AutoML strong', bestFor:'Cutting-edge model training; teams wanting Google Research model access' }
+        },
+        serverless: {
+            aws:   { service:'AWS Lambda', freeTier:'1M requests + 400K GB-sec/mo forever', pricing:'$0.20 per 1M requests; $0.0000166667 per GB-sec', differentiator:'Largest ecosystem of event sources (200+ integrations); SnapStart for JVM', bestFor:'Event-driven microservices at any scale across the AWS ecosystem' },
+            azure: { service:'Azure Functions', freeTier:'1M executions + 400K GB-sec/mo forever', pricing:'$0.20 per 1M executions; Flex Consumption plan for cold-start control', differentiator:'Durable Functions for long-running workflows; deep Azure DevOps CI/CD', bestFor:'Azure-native event pipelines; .NET/C# teams wanting serverless' },
+            gcp:   { service:'Cloud Functions (2nd Gen)', freeTier:'2M invocations + 400K GB-sec/mo forever', pricing:'$0.40 per 1M invocations; $0.0000025 per GB-sec', differentiator:'Built on Cloud Run; up to 60-minute timeouts; traffic splitting for canary', bestFor:'GCP event-driven workloads; teams wanting container portability under the hood' }
+        }
+    };
+
+    /* ── State ── */
+    let activeProviders  = new Set(['aws', 'azure', 'gcp']);
+    let activeCategory   = 'compute';
+    let viewedCategories = new Set();
+    let currentMode      = 'browse';
+    let isCompleted      = false;
+
+    /* ── Provider Toggle ── */
+    function toggleProvider(id) {
+        /* Always keep at least one active */
+        if (activeProviders.has(id) && activeProviders.size === 1) return;
+
+        if (activeProviders.has(id)) {
+            activeProviders.delete(id);
+        } else {
+            activeProviders.add(id);
+        }
+
+        /* Update button styles */
+        document.querySelectorAll('.provider-btn').forEach(btn => {
+            const p = btn.dataset.provider;
+            if (activeProviders.has(p)) {
+                btn.classList.add('active', p);
+            } else {
+                btn.classList.remove('active', p);
+            }
+        });
+
+        renderTable();
+    }
+
+    /* ── Mode Switch ── */
+    function setMode(mode) {
+        currentMode = mode;
+        document.getElementById('browseView').classList.toggle('visible', mode === 'browse');
+        document.getElementById('compareView').classList.toggle('visible', mode === 'compare');
+        document.getElementById('btnBrowse').classList.toggle('active',  mode === 'browse');
+        document.getElementById('btnCompare').classList.toggle('active', mode === 'compare');
+    }
+
+    /* ── Category Tabs ── */
+    function buildTabs() {
+        const container = document.getElementById('categoryTabs');
+        container.innerHTML = '';
+        CATEGORIES.forEach(cat => {
+            const btn = document.createElement('button');
+            btn.className = 'cat-tab' +
+                (cat.id === activeCategory   ? ' active'  : '') +
+                (viewedCategories.has(cat.id) ? ' viewed' : '');
+            btn.textContent = cat.label;
+            btn.setAttribute('data-id', cat.id);
+            btn.onclick = () => selectCategory(cat.id);
+            container.appendChild(btn);
+        });
+    }
+
+    function selectCategory(id) {
+        activeCategory = id;
+        viewedCategories.add(id);
+        buildTabs();
+        renderTable();
+        updateProgress();
+    }
+
+    /* ── Comparison Table Renderer ── */
+    function renderTable() {
+        const rows = TABLE_DATA[activeCategory];
+        const showAws   = activeProviders.has('aws');
+        const showAzure = activeProviders.has('azure');
+        const showGcp   = activeProviders.has('gcp');
+
+        let html = '<table class="comparison-table">';
+
+        /* Header row */
+        html += '<thead><tr>';
+        html += '<th class="col-service">Service Type</th>';
+        if (showAws)   html += '<th class="col-aws">AWS</th>';
+        if (showAzure) html += '<th class="col-azure">Azure</th>';
+        if (showGcp)   html += '<th class="col-gcp">GCP</th>';
+        html += '</tr></thead>';
+
+        /* Data rows */
+        html += '<tbody>';
+        rows.forEach(row => {
+            html += '<tr>';
+            html += `<td class="service-type">${escHtml(row.type)}</td>`;
+            if (showAws)   html += `<td><span class="badge badge-aws">${escHtml(row.aws)}</span></td>`;
+            if (showAzure) html += `<td><span class="badge badge-azure">${escHtml(row.azure)}</span></td>`;
+            if (showGcp)   html += `<td><span class="badge badge-gcp">${escHtml(row.gcp)}</span></td>`;
+            html += '</tr>';
+        });
+        html += '</tbody></table>';
+
+        document.getElementById('tableContainer').innerHTML = html;
+    }
+
+    /* ── Quick Compare ── */
+    function runQuickCompare() {
+        const pA  = document.getElementById('qcProviderA').value;
+        const pB  = document.getElementById('qcProviderB').value;
+        const cat = document.getElementById('qcCategory').value;
+
+        if (pA === pB) {
+            document.getElementById('compareResult').innerHTML =
+                '<div class="empty-qc">Please select two <em>different</em> providers to compare.</div>';
+            return;
+        }
+
+        /* Track viewed category for progress */
+        viewedCategories.add(cat);
+        updateProgress();
+        buildTabs();
+
+        const dA = QC_DATA[cat][pA];
+        const dB = QC_DATA[cat][pB];
+
+        const providerLabel = { aws: 'AWS', azure: 'Azure', gcp: 'GCP' };
+        const catLabel      = CATEGORIES.find(c => c.id === cat).label;
+
+        function card(data, provider) {
+            const cls = `header-${provider}`;
+            return `
+            <div class="compare-card">
+                <div class="compare-card-header ${cls}">
+                    <div>
+                        <div class="provider-name">${escHtml(providerLabel[provider])}</div>
+                        <div class="service-label">${escHtml(data.service)}</div>
+                    </div>
+                </div>
+                <div class="compare-card-body">
+                    <div class="detail-row">
+                        <span class="detail-key">Free Tier</span>
+                        <span class="detail-val">${escHtml(data.freeTier)}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-key">Pricing Model</span>
+                        <span class="detail-val">${escHtml(data.pricing)}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-key">Key Differentiator</span>
+                        <span class="detail-val">${escHtml(data.differentiator)}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-key">Best For</span>
+                        <span class="detail-val">${escHtml(data.bestFor)}</span>
+                    </div>
+                </div>
+            </div>`;
+        }
+
+        document.getElementById('compareResult').innerHTML = `
+            <p style="text-align:center;color:var(--text-secondary);margin-bottom:1rem;font-size:0.88rem;">
+                Comparing <strong style="color:var(--text-primary)">${catLabel}</strong> services
+            </p>
+            <div class="compare-cards">
+                ${card(dA, pA)}
+                ${card(dB, pB)}
+            </div>`;
+    }
+
+    /* ── Progress Tracking ── */
+    function updateProgress() {
+        const viewed  = viewedCategories.size;
+        const total   = CATEGORIES.length;        /* 7 */
+        const percent = Math.round((viewed / total) * 100);
+
+        document.getElementById('progressFill').style.width = percent + '%';
+        document.getElementById('progressCount').textContent = `${viewed} / ${total}`;
+
+        /* Unlock completion after 4 categories */
+        const btn  = document.getElementById('completeBtn');
+        const hint = document.getElementById('completeHint');
+
+        if (!isCompleted) {
+            if (viewed >= 4) {
+                btn.disabled = false;
+                hint.textContent = 'You\'ve explored enough to mark this complete!';
+            } else {
+                btn.disabled = true;
+                const remaining = 4 - viewed;
+                hint.textContent = `Explore ${remaining} more categor${remaining === 1 ? 'y' : 'ies'} to unlock completion.`;
+            }
+        }
+
+        saveState();
+    }
+
+    /* ── Completion Handler ── */
+    function markComplete() {
+        if (isCompleted) return;
+        isCompleted = true;
+
+        const btn  = document.getElementById('completeBtn');
+        const hint = document.getElementById('completeHint');
+        btn.classList.add('done');
+        btn.disabled = true;
+        btn.textContent = 'Complete!';
+        hint.textContent = 'Great work exploring cloud provider services.';
+
+        saveState();
+
+        /* Notify ModuleProgress system */
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('cloud', 'cloud-comparison', { returnUrl: '../index.html' });
+        }
+    }
+
+    /* ── Persistence (localStorage) ── */
+    const STORAGE_KEY = 'cloud_comparison_state';
+
+    function saveState() {
+        try {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify({
+                viewed:      Array.from(viewedCategories),
+                completed:   isCompleted
+            }));
+        } catch (e) { /* storage unavailable — silently ignore */ }
+    }
+
+    function loadState() {
+        try {
+            const raw = localStorage.getItem(STORAGE_KEY);
+            if (!raw) return;
+            const data = JSON.parse(raw);
+            if (Array.isArray(data.viewed)) {
+                data.viewed.forEach(id => viewedCategories.add(id));
+            }
+            if (data.completed) {
+                isCompleted = true;
+                const btn  = document.getElementById('completeBtn');
+                const hint = document.getElementById('completeHint');
+                btn.classList.add('done');
+                btn.disabled = true;
+                btn.textContent = 'Complete!';
+                hint.textContent = 'Great work exploring cloud provider services.';
+            }
+        } catch (e) { /* parse error — start fresh */ }
+    }
+
+    /* ── Utility: Safe HTML escaping ── */
+    function escHtml(str) {
+        const map = { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' };
+        return String(str).replace(/[&<>"']/g, c => map[c]);
+    }
+
+    /* ── Initialise ── */
+    (function init() {
+        loadState();
+
+        /* Seed first category as viewed if resuming */
+        viewedCategories.add(activeCategory);
+
+        buildTabs();
+        renderTable();
+        updateProgress();
+    })();
+</script>
+
+<!-- FluxCapacitor: platform-level event bus / analytics -->
+<script src="../../../components/FluxCapacitor.js"></script>
+</body>
+</html>

@@ -950,6 +950,27 @@ const ContentRegistry = {
             ]
         },
 
+        'cloud-comparison': {
+            id: 'cloud-comparison',
+            title: 'Cloud Provider Comparison',
+            description: 'Interactive AWS vs Azure vs GCP service comparison tool',
+            house: 'cloud',
+            type: 'applet',
+            difficulty: 'intermediate',
+            duration: 30,
+            topics: ['aws', 'azure', 'gcp', 'multi-cloud', 'comparison'],
+            paths: ['aws-ccp'],
+            components: {
+                applet: 'houses/cloud/applets/cloud-comparison.applet.html'
+            },
+            prerequisites: ['cloud-concepts'],
+            objectives: [
+                'Compare equivalent services across AWS, Azure, and GCP',
+                'Identify provider strengths by service category',
+                'Map service names between cloud providers'
+            ]
+        },
+
         'cloud-aws-account': {
             id: 'cloud-aws-account',
             title: 'AWS Account Structure',
@@ -11180,6 +11201,29 @@ const ContentRegistry = {
             prerequisites: [],
             objectives: []
         },
+        'forge-mobile-troubleshoot': {
+            id: 'forge-mobile-troubleshoot',
+            title: 'Mobile Device Troubleshooting Lab',
+            description: 'Diagnose 8 mobile device issues: battery, WiFi, touchscreen, overheating, cellular, app crashes, Bluetooth, GPS',
+            house: 'forge',
+            type: 'lab',
+            difficulty: 'intermediate',
+            duration: 35,
+            topics: ['mobile', 'troubleshooting', 'hardware', 'battery', 'wifi', 'bluetooth', 'gps'],
+            paths: ['aplus-core1'],
+            components: {
+                lab: 'houses/forge/applets/comptia-aplus/core-1/labs/forge-mobile-troubleshoot.lab.html'
+            },
+            prerequisites: [],
+            objectives: [
+                'Diagnose common mobile device battery and power issues',
+                'Troubleshoot wireless connectivity problems on mobile devices',
+                'Identify touchscreen and display failures',
+                'Resolve mobile app crashes and storage issues',
+                'Diagnose Bluetooth and GPS problems'
+            ]
+        },
+
         'forge-multimeter-jedit-v1': {
             id: 'forge-multimeter-jedit-v1',
             title: 'Digital Multimeter Simulator',
