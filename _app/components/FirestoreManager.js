@@ -216,17 +216,50 @@ const FirestoreManager = (function() {
             if (!data || typeof data !== 'object') return 0;
 
             let restored = 0;
+            let merged = 0;
             for (const [key, value] of Object.entries(data)) {
                 if (typeof value !== 'string') continue;
-                // Only restore keys that are missing locally
-                if (localStorage.getItem(key) === null) {
+                const local = localStorage.getItem(key);
+                if (local === null) {
+                    // Key missing locally — restore from cloud
                     localStorage.setItem(key, value);
                     restored++;
+                } else if (local !== value) {
+                    // Key exists locally with different value — try to merge JSON objects/arrays
+                    try {
+                        const cloudParsed = JSON.parse(value);
+                        const localParsed = JSON.parse(local);
+                        // Both are arrays: union them
+                        if (Array.isArray(cloudParsed) && Array.isArray(localParsed)) {
+                            const unionSet = new Set([...localParsed, ...cloudParsed]);
+                            localStorage.setItem(key, JSON.stringify([...unionSet]));
+                            merged++;
+                        // Both are objects: deep merge one level (cloud as base, local wins per-key)
+                        } else if (cloudParsed && localParsed
+                                   && typeof cloudParsed === 'object' && typeof localParsed === 'object'
+                                   && !Array.isArray(cloudParsed) && !Array.isArray(localParsed)) {
+                            const mergedObj = { ...cloudParsed };
+                            for (const [k, v] of Object.entries(localParsed)) {
+                                if (v && typeof v === 'object' && !Array.isArray(v)
+                                    && mergedObj[k] && typeof mergedObj[k] === 'object' && !Array.isArray(mergedObj[k])) {
+                                    // Nested objects: merge keys (cloud fills gaps, local wins)
+                                    mergedObj[k] = { ...mergedObj[k], ...v };
+                                } else {
+                                    mergedObj[k] = v;
+                                }
+                            }
+                            localStorage.setItem(key, JSON.stringify(mergedObj));
+                            merged++;
+                        }
+                        // Scalars or type mismatch: keep local (no overwrite)
+                    } catch (e) {
+                        // Not JSON — keep local value
+                    }
                 }
             }
 
-            console.log(`[FirestoreManager] Sync blob restored (${restored} new keys from ${Object.keys(data).length} total)`);
-            return restored;
+            console.log(`[FirestoreManager] Sync blob restored (${restored} new + ${merged} merged from ${Object.keys(data).length} total)`);
+            return restored + merged;
         } catch (error) {
             console.warn('[FirestoreManager] Sync blob restore failed:', error.message);
             return 0;
@@ -1117,7 +1150,7 @@ const FirestoreManager = (function() {
             cloudModules.forEach(moduleId => {
                 const { house, key } = parseModuleId(moduleId);
                 if (!house || !key) return;
-                if (!localProgress[house]) localProgress[house] = {};
+                if (!localProgress[house] || typeof localProgress[house] !== 'object') localProgress[house] = {};
                 if (!localProgress[house][key] || !localProgress[house][key].completed) {
                     localProgress[house][key] = {
                         completed: true,
@@ -1131,7 +1164,7 @@ const FirestoreManager = (function() {
             cloudLabs.forEach(labId => {
                 const { house, key } = parseModuleId(labId);
                 if (!house || !key) return;
-                if (!localProgress[house]) localProgress[house] = {};
+                if (!localProgress[house] || typeof localProgress[house] !== 'object') localProgress[house] = {};
                 if (!localProgress[house][key] || !localProgress[house][key].completed) {
                     localProgress[house][key] = {
                         completed: true,
@@ -1221,6 +1254,29 @@ const FirestoreManager = (function() {
             localStorage.setItem(LOCALSTORAGE_KEYS.quizScores, JSON.stringify(mergedQuizzes));
             localStorage.setItem(LOCALSTORAGE_KEYS.favorites, JSON.stringify(mergedFavorites));
 
+            // 6a. Update AchievementRegistry v2 storage (old key is for compat, v2 is what the UI reads)
+            try {
+                const V2_KEY = 'hexworth_achievements_v2';
+                const v2Raw = localStorage.getItem(V2_KEY);
+                const v2 = v2Raw ? JSON.parse(v2Raw) : null;
+                const v2Data = (v2 && v2.version === 2 && v2.unlocked)
+                    ? v2
+                    : { version: 2, unlocked: {}, migratedAt: Date.now() };
+                let v2Added = 0;
+                for (const id of mergedAchievementIds) {
+                    if (!v2Data.unlocked[id]) {
+                        v2Data.unlocked[id] = { unlockedAt: null, source: 'cloud_sync' };
+                        v2Added++;
+                    }
+                }
+                if (v2Added > 0 || !v2Raw) {
+                    localStorage.setItem(V2_KEY, JSON.stringify(v2Data));
+                    console.log(`[FirestoreManager] Achievements v2 updated: +${v2Added} from cloud (${Object.keys(v2Data.unlocked).length} total)`);
+                }
+            } catch (e) {
+                console.warn('[FirestoreManager] Achievements v2 update failed:', e.message);
+            }
+
             // Restore house if missing locally
             if (cloudProfile.house && !localStorage.getItem(LOCALSTORAGE_KEYS.house)) {
                 localStorage.setItem(LOCALSTORAGE_KEYS.house, cloudProfile.house);
@@ -1248,7 +1304,8 @@ const FirestoreManager = (function() {
             }
 
             // 8. Restore bulk sync blob from other devices, THEN write updated state
-            await _restoreSyncBlob(uid);
+            const blobRestored = await _restoreSyncBlob(uid);
+            addedToLocal += blobRestored;
             await _writeSyncBlob(uid);
 
             console.log(`[FirestoreManager] Bidirectional sync complete: +${addedToLocal} to local, +${addedToCloud} to cloud`);
