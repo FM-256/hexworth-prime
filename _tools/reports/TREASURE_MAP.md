@@ -1,7 +1,7 @@
 ══════════════════════════════════════════════════════════════════════
                          EDUSCAN REPORT
                     Hexworth Prime Content Map
-                    Scanned: 2026-02-21 6:50:40 AM
+                    Scanned: 2026-02-21 9:43:04 AM
 ══════════════════════════════════════════════════════════════════════
 
 
@@ -10,27 +10,27 @@
 
 | Metric | Value |
 |--------|-------|
-| Files Scanned | 1669 |
+| Files Scanned | 1683 |
 | Directories | 499 |
-| Content Files | 1669 |
-| Scan Duration | 206ms |
+| Content Files | 1683 |
+| Scan Duration | 309ms |
 
 ### Content by Type
 
 | Type | Count |
 |------|-------|
-| presentation | 718 |
-| html | 559 |
-| lab | 251 |
+| presentation | 741 |
+| html | 550 |
+| lab | 252 |
 | quiz | 130 |
-| applet | 11 |
+| applet | 10 |
 
 ### ContentCatalog Validation
 
 | Metric | Value |
 |--------|-------|
-| Total Modules | 1511 |
-| Available | 1506 |
+| Total Modules | 1521 |
+| Available | 1516 |
 | Missing Hrefs (CAT-001) | 0 |
 | Undeclared Files (CAT-002) | 0 |
 | Empty Hrefs (CAT-003) | 0 |
@@ -42,17 +42,17 @@
 |----------|-------|
 | Critical | 0 |
 | Suspect | 2 |
-| Warning | 0 |
-| Info | 17 |
-| **Total** | **180** |
+| Warning | 1 |
+| Info | 16 |
+| **Total** | **19** |
 
 ### Sync Status
 
 | Status | Count |
 |--------|-------|
-| Ready | 1110 |
+| Ready | 1133 |
 | Not Ready | 0 |
-| Unknown | 559 |
+| Unknown | 550 |
 
 
 ## FILE HIERARCHY
@@ -133,6 +133,7 @@
 │   │       └── 📍 index.html
 │   ├── 📁 engine
 │   └── 📍 index.html
+├── ❓ career-quiz.html
 ├── 📁 components
 │   └── 📁 styles [styles]
 ├── 📁 config
@@ -275,12 +276,14 @@
 │   │   ├── 📁 applets [applets]
 │   │   │   ├── 📁 architecture [applets]
 │   │   │   │   └── 📄 cloud-architecture-designer.applet.html
-│   │   │   └── 📁 fundamentals [applets]
-│   │   │       └── 📄 cloud-provider-comparison.applet.html
+│   │   │   ├── 📄 cloud-comparison.applet.html
+│   │   │   ├── 📁 fundamentals [applets]
+│   │   │   │   └── 📄 cloud-provider-comparison.applet.html
+│   │   │   └── 📍 index.html
 │   │   ├── 📁 cse
 │   │   │   ├── 📍 index.html
 │   │   │   └── 📁 reviews
-│   │   │       └── 📄 cse-comprehensive-review.html
+│   │   │       └── 📄 cloud-cse-comprehensive-review.html
 │   │   ├── 📁 games
 │   │   │   ├── 📄 cloud-ad-attack-path.applet.html
 │   │   │   ├── 📄 cloud-architect.html
@@ -445,21 +448,21 @@
 │   │   ├── 📁 openstack
 │   │   │   ├── 📍 index.html
 │   │   │   ├── 📁 labs [labs]
-│   │   │   │   ├── 🔬 openstack-advanced-ops.lab.html
-│   │   │   │   ├── 🔬 openstack-install.lab.html
-│   │   │   │   └── 🔬 openstack-launch-vm.lab.html
+│   │   │   │   ├── 🔬 cloud-openstack-advanced-ops.lab.html
+│   │   │   │   ├── 🔬 cloud-openstack-install.lab.html
+│   │   │   │   └── 🔬 cloud-openstack-launch-vm.lab.html
 │   │   │   ├── 📁 presentations [presentations]
-│   │   │   │   ├── 📊 openstack-installation.presentation.html
-│   │   │   │   ├── 📊 openstack-intro-environment.presentation.html
-│   │   │   │   ├── 📊 openstack-operation.presentation.html
-│   │   │   │   └── 📊 openstack-projects.presentation.html
+│   │   │   │   ├── 📊 cloud-openstack-installation.presentation.html
+│   │   │   │   ├── 📊 cloud-openstack-intro-environment.presentation.html
+│   │   │   │   ├── 📊 cloud-openstack-operation.presentation.html
+│   │   │   │   └── 📊 cloud-openstack-projects.presentation.html
 │   │   │   ├── 📁 quizzes [quizzes]
-│   │   │   │   ├── ❓ openstack-install-quiz.quiz.html
-│   │   │   │   ├── ❓ openstack-intro-quiz.quiz.html
-│   │   │   │   ├── ❓ openstack-operation-quiz.quiz.html
-│   │   │   │   └── ❓ openstack-projects-quiz.quiz.html
+│   │   │   │   ├── ❓ cloud-openstack-install-quiz.quiz.html
+│   │   │   │   ├── ❓ cloud-openstack-intro-quiz.quiz.html
+│   │   │   │   ├── ❓ cloud-openstack-operation-quiz.quiz.html
+│   │   │   │   └── ❓ cloud-openstack-projects-quiz.quiz.html
 │   │   │   └── 📁 reviews
-│   │   │       └── 📄 openstack-comprehensive-review.html
+│   │   │       └── 📄 cloud-openstack-comprehensive-review.html
 │   │   ├── 📁 presentations [presentations]
 │   │   │   ├── 📊 cloud-aws-fundamentals.presentation.html
 │   │   │   ├── 📊 cloud-azure-fundamentals.presentation.html
@@ -726,58 +729,58 @@
 │   │   ├── 📁 cysa
 │   │   │   ├── 📍 index.html
 │   │   │   ├── 📁 labs [labs]
-│   │   │   │   ├── 🔬 cysa-ch01-analyst.lab.html
-│   │   │   │   ├── 🔬 cysa-ch02-threat-intel.lab.html
-│   │   │   │   ├── 🔬 cysa-ch03-recon.lab.html
-│   │   │   │   ├── 🔬 cysa-ch04-vuln-mgmt.lab.html
-│   │   │   │   ├── 🔬 cysa-ch05-vuln-scans.lab.html
-│   │   │   │   ├── 🔬 cysa-ch06-cloud.lab.html
-│   │   │   │   ├── 🔬 cysa-ch07-infra.lab.html
-│   │   │   │   ├── 🔬 cysa-ch08-iam.lab.html
-│   │   │   │   ├── 🔬 cysa-ch09-dev-security.lab.html
-│   │   │   │   ├── 🔬 cysa-ch10-secops.lab.html
-│   │   │   │   ├── 🔬 cysa-ch11-ir.lab.html
-│   │   │   │   ├── 🔬 cysa-ch12-ioc.lab.html
-│   │   │   │   ├── 🔬 cysa-ch13-forensics.lab.html
-│   │   │   │   ├── 🔬 cysa-ch14-recovery.lab.html
-│   │   │   │   ├── 🔬 cysa-ch15-risk.lab.html
-│   │   │   │   └── 🔬 cysa-ch16-compliance.lab.html
+│   │   │   │   ├── 🔬 eye-cysa-ch01-analyst.lab.html
+│   │   │   │   ├── 🔬 eye-cysa-ch02-threat-intel.lab.html
+│   │   │   │   ├── 🔬 eye-cysa-ch03-recon.lab.html
+│   │   │   │   ├── 🔬 eye-cysa-ch04-vuln-mgmt.lab.html
+│   │   │   │   ├── 🔬 eye-cysa-ch05-vuln-scans.lab.html
+│   │   │   │   ├── 🔬 eye-cysa-ch06-cloud.lab.html
+│   │   │   │   ├── 🔬 eye-cysa-ch07-infra.lab.html
+│   │   │   │   ├── 🔬 eye-cysa-ch08-iam.lab.html
+│   │   │   │   ├── 🔬 eye-cysa-ch09-dev-security.lab.html
+│   │   │   │   ├── 🔬 eye-cysa-ch10-secops.lab.html
+│   │   │   │   ├── 🔬 eye-cysa-ch11-ir.lab.html
+│   │   │   │   ├── 🔬 eye-cysa-ch12-ioc.lab.html
+│   │   │   │   ├── 🔬 eye-cysa-ch13-forensics.lab.html
+│   │   │   │   ├── 🔬 eye-cysa-ch14-recovery.lab.html
+│   │   │   │   ├── 🔬 eye-cysa-ch15-risk.lab.html
+│   │   │   │   └── 🔬 eye-cysa-ch16-compliance.lab.html
 │   │   │   ├── 📁 presentations [presentations]
-│   │   │   │   ├── 📊 cysa-ch01-analyst.presentation.html
-│   │   │   │   ├── 📊 cysa-ch02-threat-intel.presentation.html
-│   │   │   │   ├── 📊 cysa-ch03-recon.presentation.html
-│   │   │   │   ├── 📊 cysa-ch04-vuln-mgmt.presentation.html
-│   │   │   │   ├── 📊 cysa-ch05-vuln-scans.presentation.html
-│   │   │   │   ├── 📊 cysa-ch06-cloud.presentation.html
-│   │   │   │   ├── 📊 cysa-ch07-infra.presentation.html
-│   │   │   │   ├── 📊 cysa-ch08-iam.presentation.html
-│   │   │   │   ├── 📊 cysa-ch09-dev-security.presentation.html
-│   │   │   │   ├── 📊 cysa-ch10-secops.presentation.html
-│   │   │   │   ├── 📊 cysa-ch11-ir.presentation.html
-│   │   │   │   ├── 📊 cysa-ch12-ioc.presentation.html
-│   │   │   │   ├── 📊 cysa-ch13-forensics.presentation.html
-│   │   │   │   ├── 📊 cysa-ch14-recovery.presentation.html
-│   │   │   │   ├── 📊 cysa-ch15-risk.presentation.html
-│   │   │   │   └── 📊 cysa-ch16-compliance.presentation.html
+│   │   │   │   ├── 📊 eye-cysa-ch01-analyst.presentation.html
+│   │   │   │   ├── 📊 eye-cysa-ch02-threat-intel.presentation.html
+│   │   │   │   ├── 📊 eye-cysa-ch03-recon.presentation.html
+│   │   │   │   ├── 📊 eye-cysa-ch04-vuln-mgmt.presentation.html
+│   │   │   │   ├── 📊 eye-cysa-ch05-vuln-scans.presentation.html
+│   │   │   │   ├── 📊 eye-cysa-ch06-cloud.presentation.html
+│   │   │   │   ├── 📊 eye-cysa-ch07-infra.presentation.html
+│   │   │   │   ├── 📊 eye-cysa-ch08-iam.presentation.html
+│   │   │   │   ├── 📊 eye-cysa-ch09-dev-security.presentation.html
+│   │   │   │   ├── 📊 eye-cysa-ch10-secops.presentation.html
+│   │   │   │   ├── 📊 eye-cysa-ch11-ir.presentation.html
+│   │   │   │   ├── 📊 eye-cysa-ch12-ioc.presentation.html
+│   │   │   │   ├── 📊 eye-cysa-ch13-forensics.presentation.html
+│   │   │   │   ├── 📊 eye-cysa-ch14-recovery.presentation.html
+│   │   │   │   ├── 📊 eye-cysa-ch15-risk.presentation.html
+│   │   │   │   └── 📊 eye-cysa-ch16-compliance.presentation.html
 │   │   │   ├── 📁 quizzes [quizzes]
-│   │   │   │   ├── ❓ cysa-ch01-quiz.quiz.html
-│   │   │   │   ├── ❓ cysa-ch02-quiz.quiz.html
-│   │   │   │   ├── ❓ cysa-ch03-quiz.quiz.html
-│   │   │   │   ├── ❓ cysa-ch04-quiz.quiz.html
-│   │   │   │   ├── ❓ cysa-ch05-quiz.quiz.html
-│   │   │   │   ├── ❓ cysa-ch06-quiz.quiz.html
-│   │   │   │   ├── ❓ cysa-ch07-quiz.quiz.html
-│   │   │   │   ├── ❓ cysa-ch08-quiz.quiz.html
-│   │   │   │   ├── ❓ cysa-ch09-quiz.quiz.html
-│   │   │   │   ├── ❓ cysa-ch10-quiz.quiz.html
-│   │   │   │   ├── ❓ cysa-ch11-quiz.quiz.html
-│   │   │   │   ├── ❓ cysa-ch12-quiz.quiz.html
-│   │   │   │   ├── ❓ cysa-ch13-quiz.quiz.html
-│   │   │   │   ├── ❓ cysa-ch14-quiz.quiz.html
-│   │   │   │   ├── ❓ cysa-ch15-quiz.quiz.html
-│   │   │   │   └── ❓ cysa-ch16-quiz.quiz.html
+│   │   │   │   ├── ❓ eye-cysa-ch01-quiz.quiz.html
+│   │   │   │   ├── ❓ eye-cysa-ch02-quiz.quiz.html
+│   │   │   │   ├── ❓ eye-cysa-ch03-quiz.quiz.html
+│   │   │   │   ├── ❓ eye-cysa-ch04-quiz.quiz.html
+│   │   │   │   ├── ❓ eye-cysa-ch05-quiz.quiz.html
+│   │   │   │   ├── ❓ eye-cysa-ch06-quiz.quiz.html
+│   │   │   │   ├── ❓ eye-cysa-ch07-quiz.quiz.html
+│   │   │   │   ├── ❓ eye-cysa-ch08-quiz.quiz.html
+│   │   │   │   ├── ❓ eye-cysa-ch09-quiz.quiz.html
+│   │   │   │   ├── ❓ eye-cysa-ch10-quiz.quiz.html
+│   │   │   │   ├── ❓ eye-cysa-ch11-quiz.quiz.html
+│   │   │   │   ├── ❓ eye-cysa-ch12-quiz.quiz.html
+│   │   │   │   ├── ❓ eye-cysa-ch13-quiz.quiz.html
+│   │   │   │   ├── ❓ eye-cysa-ch14-quiz.quiz.html
+│   │   │   │   ├── ❓ eye-cysa-ch15-quiz.quiz.html
+│   │   │   │   └── ❓ eye-cysa-ch16-quiz.quiz.html
 │   │   │   └── 📁 reviews
-│   │   │       └── 📄 cysa-comprehensive-review.html
+│   │   │       └── 📄 eye-cysa-comprehensive-review.html
 │   │   ├── 📁 games
 │   │   │   ├── 📄 eye-alert-triage.html
 │   │   │   ├── 📄 eye-dont-feed-the-troll.html
@@ -879,6 +882,7 @@
 │   │   │   │   │       ├── 🔬 forge-mobile-email.lab.html
 │   │   │   │   │       ├── 🔬 forge-mobile-identifier.lab.html
 │   │   │   │   │       ├── 🔬 forge-mobile-sync.lab.html
+│   │   │   │   │       ├── 🔬 forge-mobile-troubleshoot.lab.html
 │   │   │   │   │       ├── 🔬 forge-network-commands.lab.html
 │   │   │   │   │       ├── 🔬 forge-network-config.lab.html
 │   │   │   │   │       ├── 🔬 forge-network-design.lab.html
@@ -1062,45 +1066,46 @@
 │   │   ├── 📁 md-100
 │   │   │   ├── 📍 index.html
 │   │   │   ├── 📁 labs [labs]
-│   │   │   │   ├── 🔬 md100-m01-install.lab.html
-│   │   │   │   ├── 🔬 md100-m02-auth.lab.html
-│   │   │   │   ├── 🔬 md100-m03-config.lab.html
-│   │   │   │   ├── 🔬 md100-m04-networking.lab.html
-│   │   │   │   ├── 🔬 md100-m05-storage.lab.html
-│   │   │   │   ├── 🔬 md100-m06-data-access.lab.html
-│   │   │   │   ├── 🔬 md100-m07-apps.lab.html
-│   │   │   │   ├── 🔬 md100-m08-security.lab.html
-│   │   │   │   ├── 🔬 md100-m09-support.lab.html
-│   │   │   │   ├── 🔬 md100-m10-troubleshoot.lab.html
-│   │   │   │   └── 🔬 md100-m11-hardware.lab.html
+│   │   │   │   ├── 🔬 forge-md100-m01-install.lab.html
+│   │   │   │   ├── 🔬 forge-md100-m02-auth.lab.html
+│   │   │   │   ├── 🔬 forge-md100-m03-config.lab.html
+│   │   │   │   ├── 🔬 forge-md100-m04-networking.lab.html
+│   │   │   │   ├── 🔬 forge-md100-m05-storage.lab.html
+│   │   │   │   ├── 🔬 forge-md100-m06-data-access.lab.html
+│   │   │   │   ├── 🔬 forge-md100-m07-apps.lab.html
+│   │   │   │   ├── 🔬 forge-md100-m08-security.lab.html
+│   │   │   │   ├── 🔬 forge-md100-m09-support.lab.html
+│   │   │   │   ├── 🔬 forge-md100-m10-troubleshoot.lab.html
+│   │   │   │   └── 🔬 forge-md100-m11-hardware.lab.html
 │   │   │   ├── 📁 presentations [presentations]
-│   │   │   │   ├── 📊 md100-m01-install-windows.presentation.html
-│   │   │   │   ├── 📊 md100-m02-auth-authorization.presentation.html
-│   │   │   │   ├── 📊 md100-m03-post-install-config.presentation.html
-│   │   │   │   ├── 📊 md100-m04-networking.presentation.html
-│   │   │   │   ├── 📊 md100-m05-storage.presentation.html
-│   │   │   │   ├── 📊 md100-m06-data-access.presentation.html
-│   │   │   │   ├── 📊 md100-m07-apps-updates.presentation.html
-│   │   │   │   ├── 📊 md100-m08-threat-protection.presentation.html
-│   │   │   │   ├── 📊 md100-m09-support-environment.presentation.html
-│   │   │   │   ├── 📊 md100-m10-troubleshoot-os-apps.presentation.html
-│   │   │   │   └── 📊 md100-m11-troubleshoot-hardware.presentation.html
+│   │   │   │   ├── 📊 forge-md100-m01-install-windows.presentation.html
+│   │   │   │   ├── 📊 forge-md100-m02-auth-authorization.presentation.html
+│   │   │   │   ├── 📊 forge-md100-m03-post-install-config.presentation.html
+│   │   │   │   ├── 📊 forge-md100-m04-networking.presentation.html
+│   │   │   │   ├── 📊 forge-md100-m05-storage.presentation.html
+│   │   │   │   ├── 📊 forge-md100-m06-data-access.presentation.html
+│   │   │   │   ├── 📊 forge-md100-m07-apps-updates.presentation.html
+│   │   │   │   ├── 📊 forge-md100-m08-threat-protection.presentation.html
+│   │   │   │   ├── 📊 forge-md100-m09-support-environment.presentation.html
+│   │   │   │   ├── 📊 forge-md100-m10-troubleshoot-os-apps.presentation.html
+│   │   │   │   └── 📊 forge-md100-m11-troubleshoot-hardware.presentation.html
 │   │   │   ├── 📁 quizzes [quizzes]
-│   │   │   │   ├── ❓ md100-m01-quiz.quiz.html
-│   │   │   │   ├── ❓ md100-m02-quiz.quiz.html
-│   │   │   │   ├── ❓ md100-m03-quiz.quiz.html
-│   │   │   │   ├── ❓ md100-m04-quiz.quiz.html
-│   │   │   │   ├── ❓ md100-m05-quiz.quiz.html
-│   │   │   │   ├── ❓ md100-m06-quiz.quiz.html
-│   │   │   │   ├── ❓ md100-m07-quiz.quiz.html
-│   │   │   │   ├── ❓ md100-m08-quiz.quiz.html
-│   │   │   │   ├── ❓ md100-m09-quiz.quiz.html
-│   │   │   │   ├── ❓ md100-m10-quiz.quiz.html
-│   │   │   │   └── ❓ md100-m11-quiz.quiz.html
+│   │   │   │   ├── ❓ forge-md100-m01-quiz.quiz.html
+│   │   │   │   ├── ❓ forge-md100-m02-quiz.quiz.html
+│   │   │   │   ├── ❓ forge-md100-m03-quiz.quiz.html
+│   │   │   │   ├── ❓ forge-md100-m04-quiz.quiz.html
+│   │   │   │   ├── ❓ forge-md100-m05-quiz.quiz.html
+│   │   │   │   ├── ❓ forge-md100-m06-quiz.quiz.html
+│   │   │   │   ├── ❓ forge-md100-m07-quiz.quiz.html
+│   │   │   │   ├── ❓ forge-md100-m08-quiz.quiz.html
+│   │   │   │   ├── ❓ forge-md100-m09-quiz.quiz.html
+│   │   │   │   ├── ❓ forge-md100-m10-quiz.quiz.html
+│   │   │   │   └── ❓ forge-md100-m11-quiz.quiz.html
 │   │   │   └── 📁 reviews
-│   │   │       ├── 📄 md100-comprehensive-review.html
-│   │   │       ├── 📄 md100-final-review.html
-│   │   │       └── 📄 md100-midterm-review.html
+│   │   │       ├── 📄 forge-md100-comprehensive-review.html
+│   │   │       ├── 📄 forge-md100-final-review.html
+│   │   │       ├── 📄 forge-md100-midterm-review.html
+│   │   │       └── 📍 index.html
 │   │   ├── 📁 presentations [presentations]
 │   │   │   ├── 📊 forge-admin-tools.presentation.html
 │   │   │   ├── 📊 forge-control-panel.presentation.html
@@ -1191,6 +1196,7 @@
 │   │       └── 📄 key-pqc.tool.html
 │   ├── 🏠 script [house:script]
 │   │   ├── 📁 applets [applets]
+│   │   │   ├── 📍 index.html
 │   │   │   ├── 📁 linux [applets]
 │   │   │   │   ├── 📄 script-bash-scripting-playground.applet.html
 │   │   │   │   ├── 📄 script-clh-001-intro-to-hacker-cli.applet.html
@@ -1234,15 +1240,23 @@
 │   │   │   │   ├── 📄 script-powershell-playground.applet.html
 │   │   │   │   ├── 📄 script-windows-cli-tools.applet.html
 │   │   │   │   └── 📄 script-windows-troubleshooting.applet.html
-│   │   │   └── 📁 python [applets]
-│   │   │       ├── 📄 script-python-chapter1.applet.html
-│   │   │       ├── 📄 script-python-chapter2-strings.applet.html
-│   │   │       ├── 📄 script-python-chapter3-flow-control.applet.html
-│   │   │       ├── 📄 script-python-chapter4-functions.applet.html
-│   │   │       ├── 📄 script-python-chapter5-collections.applet.html
-│   │   │       ├── 📄 script-python-chapter6-dictionaries.applet.html
-│   │   │       ├── 📄 script-python-chapter7-file-handling.applet.html
-│   │   │       └── 📄 script-python-chapter8-oop.applet.html
+│   │   │   ├── 📁 python [applets]
+│   │   │   │   ├── 📄 script-python-chapter1.applet.html
+│   │   │   │   ├── 📄 script-python-chapter2-strings.applet.html
+│   │   │   │   ├── 📄 script-python-chapter3-flow-control.applet.html
+│   │   │   │   ├── 📄 script-python-chapter4-functions.applet.html
+│   │   │   │   ├── 📄 script-python-chapter5-collections.applet.html
+│   │   │   │   ├── 📄 script-python-chapter6-dictionaries.applet.html
+│   │   │   │   ├── 📄 script-python-chapter7-file-handling.applet.html
+│   │   │   │   └── 📄 script-python-chapter8-oop.applet.html
+│   │   │   ├── 📄 script-automation-intro.applet.html
+│   │   │   ├── 📄 script-backup-strategies.applet.html
+│   │   │   ├── 📄 script-log-analysis.applet.html
+│   │   │   ├── 📄 script-pwsh-admin.applet.html
+│   │   │   ├── 📄 script-pwsh-fundamentals.applet.html
+│   │   │   ├── 📄 script-pwsh-pipeline.applet.html
+│   │   │   ├── 📄 script-pwsh-scripting.applet.html
+│   │   │   └── 📄 script-reporting-automation.applet.html
 │   │   ├── 📁 clh
 │   │   │   ├── 📍 index.html
 │   │   │   ├── 📄 script-clh-001-intro.applet.html
@@ -1512,18 +1526,18 @@
 │   │   ├── 📁 linux
 │   │   │   ├── 📍 index.html
 │   │   │   ├── 📁 labs [labs]
-│   │   │   │   ├── 🔬 la-ch01-intro.lab.html
-│   │   │   │   ├── 🔬 la-ch02-distros.lab.html
-│   │   │   │   ├── 🔬 la-ch03-grep-pipes.lab.html
-│   │   │   │   ├── 🔬 la-ch04-processes.lab.html
-│   │   │   │   ├── 🔬 la-ch05-daemons.lab.html
-│   │   │   │   ├── 🔬 la-ch06-init-xwindows.lab.html
-│   │   │   │   ├── 🔬 la-ch07-display-mgr.lab.html
-│   │   │   │   ├── 🔬 la-ch08-network.lab.html
-│   │   │   │   ├── 🔬 la-ch09-ipv4.lab.html
-│   │   │   │   ├── 🔬 la-ch10-compression.lab.html
-│   │   │   │   ├── 🔬 la-ch11-encryption.lab.html
-│   │   │   │   ├── 🔬 la-ch12-compile.lab.html
+│   │   │   │   ├── 🔬 script-la-ch01-intro.lab.html
+│   │   │   │   ├── 🔬 script-la-ch02-distros.lab.html
+│   │   │   │   ├── 🔬 script-la-ch03-grep-pipes.lab.html
+│   │   │   │   ├── 🔬 script-la-ch04-processes.lab.html
+│   │   │   │   ├── 🔬 script-la-ch05-daemons.lab.html
+│   │   │   │   ├── 🔬 script-la-ch06-init-xwindows.lab.html
+│   │   │   │   ├── 🔬 script-la-ch07-display-mgr.lab.html
+│   │   │   │   ├── 🔬 script-la-ch08-network.lab.html
+│   │   │   │   ├── 🔬 script-la-ch09-ipv4.lab.html
+│   │   │   │   ├── 🔬 script-la-ch10-compression.lab.html
+│   │   │   │   ├── 🔬 script-la-ch11-encryption.lab.html
+│   │   │   │   ├── 🔬 script-la-ch12-compile.lab.html
 │   │   │   │   ├── 🔬 script-mission-file-operations.lab.html
 │   │   │   │   ├── 🔬 script-mission-file-search.lab.html
 │   │   │   │   ├── 🔬 script-mission-permissions.lab.html
@@ -1531,33 +1545,33 @@
 │   │   │   │   ├── 🔬 script-template-warmup.lab.html
 │   │   │   │   └── 🔬 script-warmup-navigation.lab.html
 │   │   │   ├── 📁 presentations [presentations]
-│   │   │   │   ├── 📊 la-ch01-intro.presentation.html
-│   │   │   │   ├── 📊 la-ch02-distros.presentation.html
-│   │   │   │   ├── 📊 la-ch03-grep-pipes.presentation.html
-│   │   │   │   ├── 📊 la-ch04-processes.presentation.html
-│   │   │   │   ├── 📊 la-ch05-daemons.presentation.html
-│   │   │   │   ├── 📊 la-ch06-init-xwindows.presentation.html
-│   │   │   │   ├── 📊 la-ch07-display-mgr.presentation.html
-│   │   │   │   ├── 📊 la-ch08-network.presentation.html
-│   │   │   │   ├── 📊 la-ch09-ipv4.presentation.html
-│   │   │   │   ├── 📊 la-ch10-compression.presentation.html
-│   │   │   │   ├── 📊 la-ch11-encryption.presentation.html
-│   │   │   │   └── 📊 la-ch12-compile.presentation.html
+│   │   │   │   ├── 📊 script-la-ch01-intro.presentation.html
+│   │   │   │   ├── 📊 script-la-ch02-distros.presentation.html
+│   │   │   │   ├── 📊 script-la-ch03-grep-pipes.presentation.html
+│   │   │   │   ├── 📊 script-la-ch04-processes.presentation.html
+│   │   │   │   ├── 📊 script-la-ch05-daemons.presentation.html
+│   │   │   │   ├── 📊 script-la-ch06-init-xwindows.presentation.html
+│   │   │   │   ├── 📊 script-la-ch07-display-mgr.presentation.html
+│   │   │   │   ├── 📊 script-la-ch08-network.presentation.html
+│   │   │   │   ├── 📊 script-la-ch09-ipv4.presentation.html
+│   │   │   │   ├── 📊 script-la-ch10-compression.presentation.html
+│   │   │   │   ├── 📊 script-la-ch11-encryption.presentation.html
+│   │   │   │   └── 📊 script-la-ch12-compile.presentation.html
 │   │   │   ├── 📁 quizzes [quizzes]
-│   │   │   │   ├── ❓ la-ch01-quiz.quiz.html
-│   │   │   │   ├── ❓ la-ch02-quiz.quiz.html
-│   │   │   │   ├── ❓ la-ch03-quiz.quiz.html
-│   │   │   │   ├── ❓ la-ch04-quiz.quiz.html
-│   │   │   │   ├── ❓ la-ch05-quiz.quiz.html
-│   │   │   │   ├── ❓ la-ch06-quiz.quiz.html
-│   │   │   │   ├── ❓ la-ch07-quiz.quiz.html
-│   │   │   │   ├── ❓ la-ch08-quiz.quiz.html
-│   │   │   │   ├── ❓ la-ch09-quiz.quiz.html
-│   │   │   │   ├── ❓ la-ch10-quiz.quiz.html
-│   │   │   │   ├── ❓ la-ch11-quiz.quiz.html
-│   │   │   │   └── ❓ la-ch12-quiz.quiz.html
+│   │   │   │   ├── ❓ script-la-ch01-quiz.quiz.html
+│   │   │   │   ├── ❓ script-la-ch02-quiz.quiz.html
+│   │   │   │   ├── ❓ script-la-ch03-quiz.quiz.html
+│   │   │   │   ├── ❓ script-la-ch04-quiz.quiz.html
+│   │   │   │   ├── ❓ script-la-ch05-quiz.quiz.html
+│   │   │   │   ├── ❓ script-la-ch06-quiz.quiz.html
+│   │   │   │   ├── ❓ script-la-ch07-quiz.quiz.html
+│   │   │   │   ├── ❓ script-la-ch08-quiz.quiz.html
+│   │   │   │   ├── ❓ script-la-ch09-quiz.quiz.html
+│   │   │   │   ├── ❓ script-la-ch10-quiz.quiz.html
+│   │   │   │   ├── ❓ script-la-ch11-quiz.quiz.html
+│   │   │   │   └── ❓ script-la-ch12-quiz.quiz.html
 │   │   │   ├── 📁 reviews
-│   │   │   │   └── 📄 la-comprehensive-review.html
+│   │   │   │   └── 📄 script-la-comprehensive-review.html
 │   │   │   ├── 📄 script-quick.reference.html
 │   │   │   └── 📁 tools
 │   │   │       ├── 📄 script-directory.tool.html
@@ -1933,34 +1947,34 @@
 │   │   ├── 📁 cyber-framework
 │   │   │   ├── 📍 index.html
 │   │   │   ├── 📁 labs [labs]
-│   │   │   │   ├── 🔬 cf-mm01-intro.lab.html
-│   │   │   │   ├── 🔬 cf-mm02-gov-agencies.lab.html
-│   │   │   │   ├── 🔬 cf-mm03-legislation.lab.html
-│   │   │   │   ├── 🔬 cf-mm04-regulatory.lab.html
-│   │   │   │   ├── 🔬 cf-mm05-nist-cip.lab.html
-│   │   │   │   ├── 🔬 cf-mm06-encryption.lab.html
-│   │   │   │   ├── 🔬 cf-mm07-breach-litigation.lab.html
-│   │   │   │   └── 🔬 cf-mm08-cyber-war.lab.html
+│   │   │   │   ├── 🔬 shield-cf-mm01-intro.lab.html
+│   │   │   │   ├── 🔬 shield-cf-mm02-gov-agencies.lab.html
+│   │   │   │   ├── 🔬 shield-cf-mm03-legislation.lab.html
+│   │   │   │   ├── 🔬 shield-cf-mm04-regulatory.lab.html
+│   │   │   │   ├── 🔬 shield-cf-mm05-nist-cip.lab.html
+│   │   │   │   ├── 🔬 shield-cf-mm06-encryption.lab.html
+│   │   │   │   ├── 🔬 shield-cf-mm07-breach-litigation.lab.html
+│   │   │   │   └── 🔬 shield-cf-mm08-cyber-war.lab.html
 │   │   │   ├── 📁 presentations [presentations]
-│   │   │   │   ├── 📊 cf-mm01-intro.presentation.html
-│   │   │   │   ├── 📊 cf-mm02-gov-agencies.presentation.html
-│   │   │   │   ├── 📊 cf-mm03-legislation.presentation.html
-│   │   │   │   ├── 📊 cf-mm04-regulatory.presentation.html
-│   │   │   │   ├── 📊 cf-mm05-nist-cip.presentation.html
-│   │   │   │   ├── 📊 cf-mm06-encryption.presentation.html
-│   │   │   │   ├── 📊 cf-mm07-breach-litigation.presentation.html
-│   │   │   │   └── 📊 cf-mm08-cyber-war.presentation.html
+│   │   │   │   ├── 📊 shield-cf-mm01-intro.presentation.html
+│   │   │   │   ├── 📊 shield-cf-mm02-gov-agencies.presentation.html
+│   │   │   │   ├── 📊 shield-cf-mm03-legislation.presentation.html
+│   │   │   │   ├── 📊 shield-cf-mm04-regulatory.presentation.html
+│   │   │   │   ├── 📊 shield-cf-mm05-nist-cip.presentation.html
+│   │   │   │   ├── 📊 shield-cf-mm06-encryption.presentation.html
+│   │   │   │   ├── 📊 shield-cf-mm07-breach-litigation.presentation.html
+│   │   │   │   └── 📊 shield-cf-mm08-cyber-war.presentation.html
 │   │   │   ├── 📁 quizzes [quizzes]
-│   │   │   │   ├── ❓ cf-mm01-quiz.quiz.html
-│   │   │   │   ├── ❓ cf-mm02-quiz.quiz.html
-│   │   │   │   ├── ❓ cf-mm03-quiz.quiz.html
-│   │   │   │   ├── ❓ cf-mm04-quiz.quiz.html
-│   │   │   │   ├── ❓ cf-mm05-quiz.quiz.html
-│   │   │   │   ├── ❓ cf-mm06-quiz.quiz.html
-│   │   │   │   ├── ❓ cf-mm07-quiz.quiz.html
-│   │   │   │   └── ❓ cf-mm08-quiz.quiz.html
+│   │   │   │   ├── ❓ shield-cf-mm01-quiz.quiz.html
+│   │   │   │   ├── ❓ shield-cf-mm02-quiz.quiz.html
+│   │   │   │   ├── ❓ shield-cf-mm03-quiz.quiz.html
+│   │   │   │   ├── ❓ shield-cf-mm04-quiz.quiz.html
+│   │   │   │   ├── ❓ shield-cf-mm05-quiz.quiz.html
+│   │   │   │   ├── ❓ shield-cf-mm06-quiz.quiz.html
+│   │   │   │   ├── ❓ shield-cf-mm07-quiz.quiz.html
+│   │   │   │   └── ❓ shield-cf-mm08-quiz.quiz.html
 │   │   │   └── 📁 reviews
-│   │   │       └── 📄 cf-comprehensive-review.html
+│   │   │       └── 📄 shield-cf-comprehensive-review.html
 │   │   ├── 📁 exams
 │   │   │   ├── 📍 index.html
 │   │   │   └── 📄 shield-eh-exam-1-a.exam.html
@@ -2239,8 +2253,10 @@
 | ID/Name | Type | Sync | Issues |
 |---------|------|------|--------|
 | cloud-architecture-designer.applet | presentation | ✓ | 0 |
+| cloud-comparison.applet | presentation | ✓ | 0 |
 | cloud-provider-comparison.applet | presentation | ✓ | 0 |
-| cse-comprehensive-review | presentation | ✓ | 0 |
+| index | applet | ✓ | 1 |
+| cloud-cse-comprehensive-review | presentation | ✓ | 0 |
 | cloud-ad-attack-path.applet | presentation | ✓ | 0 |
 | cloud-architect | presentation | ✓ | 0 |
 | cloud-destroyer.applet | presentation | ✓ | 0 |
@@ -2316,13 +2332,13 @@
 | cloud-pslab.module | lab | ✓ | 0 |
 | cloud-presentation.module | presentation | ✓ | 0 |
 | cloud-pslab.module | lab | ✓ | 0 |
-| openstack-advanced-ops.lab | presentation | ✓ | 0 |
-| openstack-install.lab | presentation | ✓ | 0 |
-| openstack-launch-vm.lab | presentation | ✓ | 0 |
-| openstack-installation.presentation | presentation | ✓ | 0 |
-| openstack-intro-environment.presentation | presentation | ✓ | 0 |
-| openstack-operation.presentation | presentation | ✓ | 0 |
-| openstack-projects.presentation | presentation | ✓ | 0 |
+| cloud-openstack-advanced-ops.lab | presentation | ✓ | 0 |
+| cloud-openstack-install.lab | presentation | ✓ | 0 |
+| cloud-openstack-launch-vm.lab | presentation | ✓ | 0 |
+| cloud-openstack-installation.presentation | presentation | ✓ | 0 |
+| cloud-openstack-intro-environment.presentation | presentation | ✓ | 0 |
+| cloud-openstack-operation.presentation | presentation | ✓ | 0 |
+| cloud-openstack-projects.presentation | presentation | ✓ | 0 |
 | openstack-install-quiz | quiz | ✓ | 0 |
 | openstack-intro-quiz | quiz | ✓ | 0 |
 | openstack-operation-quiz | quiz | ✓ | 0 |
@@ -2479,55 +2495,55 @@
 | eye-pcap-forensics.lab | lab | ✓ | 0 |
 | eye-snort-rules.lab | lab | ✓ | 0 |
 | eye-threat-actor-profiling.lab | lab | ✓ | 0 |
-| cysa-ch01-analyst.lab | presentation | ✓ | 0 |
-| cysa-ch02-threat-intel.lab | presentation | ✓ | 0 |
-| cysa-ch03-recon.lab | presentation | ✓ | 0 |
-| cysa-ch04-vuln-mgmt.lab | presentation | ✓ | 0 |
-| cysa-ch05-vuln-scans.lab | presentation | ✓ | 0 |
-| cysa-ch06-cloud.lab | presentation | ✓ | 0 |
-| cysa-ch07-infra.lab | presentation | ✓ | 0 |
-| cysa-ch08-iam.lab | presentation | ✓ | 0 |
-| cysa-ch09-dev-security.lab | presentation | ✓ | 0 |
-| cysa-ch10-secops.lab | presentation | ✓ | 0 |
-| cysa-ch11-ir.lab | presentation | ✓ | 0 |
-| cysa-ch12-ioc.lab | presentation | ✓ | 0 |
-| cysa-ch13-forensics.lab | presentation | ✓ | 0 |
-| cysa-ch14-recovery.lab | presentation | ✓ | 0 |
-| cysa-ch15-risk.lab | presentation | ✓ | 0 |
-| cysa-ch16-compliance.lab | presentation | ✓ | 0 |
-| cysa-ch01-analyst.presentation | presentation | ✓ | 0 |
-| cysa-ch02-threat-intel.presentation | presentation | ✓ | 0 |
-| cysa-ch03-recon.presentation | presentation | ✓ | 0 |
-| cysa-ch04-vuln-mgmt.presentation | presentation | ✓ | 0 |
-| cysa-ch05-vuln-scans.presentation | presentation | ✓ | 0 |
-| cysa-ch06-cloud.presentation | presentation | ✓ | 0 |
-| cysa-ch07-infra.presentation | presentation | ✓ | 0 |
-| cysa-ch08-iam.presentation | presentation | ✓ | 0 |
-| cysa-ch09-dev-security.presentation | presentation | ✓ | 0 |
-| cysa-ch10-secops.presentation | presentation | ✓ | 0 |
-| cysa-ch11-ir.presentation | presentation | ✓ | 0 |
-| cysa-ch12-ioc.presentation | presentation | ✓ | 0 |
-| cysa-ch13-forensics.presentation | presentation | ✓ | 0 |
-| cysa-ch14-recovery.presentation | presentation | ✓ | 0 |
-| cysa-ch15-risk.presentation | presentation | ✓ | 0 |
-| cysa-ch16-compliance.presentation | presentation | ✓ | 0 |
-| cysa-ch01-quiz.quiz | presentation | ✓ | 0 |
-| cysa-ch02-quiz.quiz | presentation | ✓ | 0 |
-| cysa-ch03-quiz.quiz | presentation | ✓ | 0 |
-| cysa-ch04-quiz.quiz | presentation | ✓ | 0 |
-| cysa-ch05-quiz.quiz | presentation | ✓ | 0 |
-| cysa-ch06-quiz.quiz | presentation | ✓ | 0 |
-| cysa-ch07-quiz.quiz | presentation | ✓ | 0 |
-| cysa-ch08-quiz.quiz | presentation | ✓ | 0 |
-| cysa-ch09-quiz.quiz | presentation | ✓ | 0 |
-| cysa-ch10-quiz.quiz | presentation | ✓ | 0 |
-| cysa-ch11-quiz.quiz | presentation | ✓ | 0 |
-| cysa-ch12-quiz.quiz | presentation | ✓ | 0 |
-| cysa-ch13-quiz.quiz | presentation | ✓ | 0 |
-| cysa-ch14-quiz.quiz | presentation | ✓ | 0 |
-| cysa-ch15-quiz.quiz | presentation | ✓ | 0 |
-| cysa-ch16-quiz.quiz | presentation | ✓ | 0 |
-| cysa-comprehensive-review | presentation | ✓ | 0 |
+| eye-cysa-ch01-analyst.lab | presentation | ✓ | 0 |
+| eye-cysa-ch02-threat-intel.lab | presentation | ✓ | 0 |
+| eye-cysa-ch03-recon.lab | presentation | ✓ | 0 |
+| eye-cysa-ch04-vuln-mgmt.lab | presentation | ✓ | 0 |
+| eye-cysa-ch05-vuln-scans.lab | presentation | ✓ | 0 |
+| eye-cysa-ch06-cloud.lab | presentation | ✓ | 0 |
+| eye-cysa-ch07-infra.lab | presentation | ✓ | 0 |
+| eye-cysa-ch08-iam.lab | presentation | ✓ | 0 |
+| eye-cysa-ch09-dev-security.lab | presentation | ✓ | 0 |
+| eye-cysa-ch10-secops.lab | presentation | ✓ | 0 |
+| eye-cysa-ch11-ir.lab | presentation | ✓ | 0 |
+| eye-cysa-ch12-ioc.lab | presentation | ✓ | 0 |
+| eye-cysa-ch13-forensics.lab | presentation | ✓ | 0 |
+| eye-cysa-ch14-recovery.lab | presentation | ✓ | 0 |
+| eye-cysa-ch15-risk.lab | presentation | ✓ | 0 |
+| eye-cysa-ch16-compliance.lab | presentation | ✓ | 0 |
+| eye-cysa-ch01-analyst.presentation | presentation | ✓ | 0 |
+| eye-cysa-ch02-threat-intel.presentation | presentation | ✓ | 0 |
+| eye-cysa-ch03-recon.presentation | presentation | ✓ | 0 |
+| eye-cysa-ch04-vuln-mgmt.presentation | presentation | ✓ | 0 |
+| eye-cysa-ch05-vuln-scans.presentation | presentation | ✓ | 0 |
+| eye-cysa-ch06-cloud.presentation | presentation | ✓ | 0 |
+| eye-cysa-ch07-infra.presentation | presentation | ✓ | 0 |
+| eye-cysa-ch08-iam.presentation | presentation | ✓ | 0 |
+| eye-cysa-ch09-dev-security.presentation | presentation | ✓ | 0 |
+| eye-cysa-ch10-secops.presentation | presentation | ✓ | 0 |
+| eye-cysa-ch11-ir.presentation | presentation | ✓ | 0 |
+| eye-cysa-ch12-ioc.presentation | presentation | ✓ | 0 |
+| eye-cysa-ch13-forensics.presentation | presentation | ✓ | 0 |
+| eye-cysa-ch14-recovery.presentation | presentation | ✓ | 0 |
+| eye-cysa-ch15-risk.presentation | presentation | ✓ | 0 |
+| eye-cysa-ch16-compliance.presentation | presentation | ✓ | 0 |
+| eye-cysa-ch01-quiz.quiz | presentation | ✓ | 0 |
+| eye-cysa-ch02-quiz.quiz | presentation | ✓ | 0 |
+| eye-cysa-ch03-quiz.quiz | presentation | ✓ | 0 |
+| eye-cysa-ch04-quiz.quiz | presentation | ✓ | 0 |
+| eye-cysa-ch05-quiz.quiz | presentation | ✓ | 0 |
+| eye-cysa-ch06-quiz.quiz | presentation | ✓ | 0 |
+| eye-cysa-ch07-quiz.quiz | presentation | ✓ | 0 |
+| eye-cysa-ch08-quiz.quiz | presentation | ✓ | 0 |
+| eye-cysa-ch09-quiz.quiz | presentation | ✓ | 0 |
+| eye-cysa-ch10-quiz.quiz | presentation | ✓ | 0 |
+| eye-cysa-ch11-quiz.quiz | presentation | ✓ | 0 |
+| eye-cysa-ch12-quiz.quiz | presentation | ✓ | 0 |
+| eye-cysa-ch13-quiz.quiz | presentation | ✓ | 0 |
+| eye-cysa-ch14-quiz.quiz | presentation | ✓ | 0 |
+| eye-cysa-ch15-quiz.quiz | presentation | ✓ | 0 |
+| eye-cysa-ch16-quiz.quiz | presentation | ✓ | 0 |
+| eye-cysa-comprehensive-review | presentation | ✓ | 0 |
 | eye-alert-triage | presentation | ✓ | 0 |
 | eye-log-centipede.applet | presentation | ✓ | 0 |
 | eye-memory-forensics.applet | presentation | ✓ | 0 |
@@ -2586,6 +2602,7 @@
 | forge-mobile-email.lab | lab | ✓ | 0 |
 | forge-mobile-identifier.lab | presentation | ✓ | 0 |
 | forge-mobile-sync.lab | lab | ✓ | 0 |
+| forge-mobile-troubleshoot.lab | lab | ✓ | 0 |
 | forge-network-commands.lab | lab | ✓ | 0 |
 | forge-network-config.lab | lab | ✓ | 0 |
 | forge-network-design.lab | lab | ✓ | 0 |
@@ -2675,32 +2692,42 @@
 | forge-system-tools.lab | lab | ✓ | 0 |
 | forge-windows-editions.lab | lab | ✓ | 0 |
 | forge-windows-settings.lab | lab | ✓ | 0 |
-| md100-m01-install.lab | lab | ✓ | 0 |
-| md100-m02-auth.lab | lab | ✓ | 0 |
-| md100-m03-config.lab | lab | ✓ | 0 |
-| md100-m04-networking.lab | lab | ✓ | 0 |
-| md100-m05-storage.lab | lab | ✓ | 0 |
-| md100-m06-data-access.lab | lab | ✓ | 0 |
-| md100-m07-apps.lab | lab | ✓ | 0 |
-| md100-m08-security.lab | lab | ✓ | 0 |
-| md100-m09-support.lab | lab | ✓ | 0 |
-| md100-m10-troubleshoot.lab | lab | ✓ | 0 |
-| md100-m11-hardware.lab | lab | ✓ | 0 |
-| md100-m01-install-windows.presentation | presentation | ✓ | 0 |
-| md100-m02-auth-authorization.presentation | presentation | ✓ | 0 |
-| md100-m03-post-install-config.presentation | presentation | ✓ | 0 |
-| md100-m04-networking.presentation | presentation | ✓ | 0 |
-| md100-m05-storage.presentation | presentation | ✓ | 0 |
-| md100-m06-data-access.presentation | presentation | ✓ | 0 |
-| md100-m07-apps-updates.presentation | presentation | ✓ | 0 |
-| md100-m08-threat-protection.presentation | presentation | ✓ | 0 |
-| md100-m09-support-environment.presentation | presentation | ✓ | 0 |
-| md100-m10-troubleshoot-os-apps.presentation | presentation | ✓ | 0 |
-| md100-m11-troubleshoot-hardware.presentation | presentation | ✓ | 0 |
-| md100-m01-quiz.quiz | applet | ✓ | 1 |
-| md100-m04-quiz.quiz | applet | ✓ | 1 |
-| md100-comprehensive-review | applet | ✓ | 1 |
-| md100-midterm-review | applet | ✓ | 1 |
+| forge-md100-m01-install.lab | lab | ✓ | 0 |
+| forge-md100-m02-auth.lab | lab | ✓ | 0 |
+| forge-md100-m03-config.lab | lab | ✓ | 0 |
+| forge-md100-m04-networking.lab | lab | ✓ | 0 |
+| forge-md100-m05-storage.lab | lab | ✓ | 0 |
+| forge-md100-m06-data-access.lab | lab | ✓ | 0 |
+| forge-md100-m07-apps.lab | lab | ✓ | 0 |
+| forge-md100-m08-security.lab | lab | ✓ | 0 |
+| forge-md100-m09-support.lab | lab | ✓ | 0 |
+| forge-md100-m10-troubleshoot.lab | lab | ✓ | 0 |
+| forge-md100-m11-hardware.lab | lab | ✓ | 0 |
+| forge-md100-m01-install-windows.presentation | presentation | ✓ | 0 |
+| forge-md100-m02-auth-authorization.presentation | presentation | ✓ | 0 |
+| forge-md100-m03-post-install-config.presentation | presentation | ✓ | 0 |
+| forge-md100-m04-networking.presentation | presentation | ✓ | 0 |
+| forge-md100-m05-storage.presentation | presentation | ✓ | 0 |
+| forge-md100-m06-data-access.presentation | presentation | ✓ | 0 |
+| forge-md100-m07-apps-updates.presentation | presentation | ✓ | 0 |
+| forge-md100-m08-threat-protection.presentation | presentation | ✓ | 0 |
+| forge-md100-m09-support-environment.presentation | presentation | ✓ | 0 |
+| forge-md100-m10-troubleshoot-os-apps.presentation | presentation | ✓ | 0 |
+| forge-md100-m11-troubleshoot-hardware.presentation | presentation | ✓ | 0 |
+| forge-md100-m01-quiz.quiz | presentation | ✓ | 0 |
+| forge-md100-m02-quiz.quiz | presentation | ✓ | 0 |
+| forge-md100-m03-quiz.quiz | presentation | ✓ | 0 |
+| forge-md100-m04-quiz.quiz | presentation | ✓ | 0 |
+| forge-md100-m05-quiz.quiz | presentation | ✓ | 0 |
+| forge-md100-m06-quiz.quiz | presentation | ✓ | 0 |
+| forge-md100-m07-quiz.quiz | presentation | ✓ | 0 |
+| forge-md100-m08-quiz.quiz | presentation | ✓ | 0 |
+| forge-md100-m09-quiz.quiz | presentation | ✓ | 0 |
+| forge-md100-m10-quiz.quiz | presentation | ✓ | 0 |
+| forge-md100-m11-quiz.quiz | presentation | ✓ | 0 |
+| forge-md100-comprehensive-review | presentation | ✓ | 0 |
+| forge-md100-final-review | presentation | ✓ | 0 |
+| forge-md100-midterm-review | presentation | ✓ | 0 |
 | forge-admin-tools.presentation | presentation | ✓ | 0 |
 | forge-control-panel.presentation | presentation | ✓ | 0 |
 | forge-macos-linux-basics.presentation | presentation | ✓ | 0 |
@@ -2774,6 +2801,7 @@
 
 | ID/Name | Type | Sync | Issues |
 |---------|------|------|--------|
+| index | applet | ✓ | 1 |
 | script-bash-scripting-playground.applet | presentation | ✓ | 0 |
 | script-clh-001-intro-to-hacker-cli.applet | presentation | ✓ | 0 |
 | script-clh-002-navigation-recon.applet | presentation | ✓ | 0 |
@@ -2821,6 +2849,14 @@
 | script-python-chapter6-dictionaries.applet | presentation | ✓ | 0 |
 | script-python-chapter7-file-handling.applet | presentation | ✓ | 0 |
 | script-python-chapter8-oop.applet | presentation | ✓ | 0 |
+| script-automation-intro.applet | presentation | ✓ | 0 |
+| script-backup-strategies.applet | presentation | ✓ | 0 |
+| script-log-analysis.applet | presentation | ✓ | 0 |
+| script-pwsh-admin.applet | presentation | ✓ | 0 |
+| script-pwsh-fundamentals.applet | presentation | ✓ | 0 |
+| script-pwsh-pipeline.applet | presentation | ✓ | 0 |
+| script-pwsh-scripting.applet | presentation | ✓ | 0 |
+| script-reporting-automation.applet | presentation | ✓ | 0 |
 | script-clh-001-intro.applet | presentation | ✓ | 0 |
 | clh-001-quiz | quiz | ✓ | 0 |
 | script-clh-002-intro.applet | presentation | ✓ | 0 |
@@ -2998,49 +3034,49 @@
 | script-powershell.lab | lab | ✓ | 0 |
 | script-python.lab | lab | ✓ | 0 |
 | script-sysadmin.lab | lab | ✓ | 0 |
-| la-ch01-intro.lab | presentation | ✓ | 0 |
-| la-ch02-distros.lab | presentation | ✓ | 0 |
-| la-ch03-grep-pipes.lab | presentation | ✓ | 0 |
-| la-ch04-processes.lab | presentation | ✓ | 0 |
-| la-ch05-daemons.lab | presentation | ✓ | 0 |
-| la-ch06-init-xwindows.lab | presentation | ✓ | 0 |
-| la-ch07-display-mgr.lab | presentation | ✓ | 0 |
-| la-ch08-network.lab | presentation | ✓ | 0 |
-| la-ch09-ipv4.lab | presentation | ✓ | 0 |
-| la-ch10-compression.lab | lab | ✓ | 0 |
-| la-ch11-encryption.lab | lab | ✓ | 0 |
-| la-ch12-compile.lab | lab | ✓ | 0 |
+| script-la-ch01-intro.lab | presentation | ✓ | 0 |
+| script-la-ch02-distros.lab | presentation | ✓ | 0 |
+| script-la-ch03-grep-pipes.lab | presentation | ✓ | 0 |
+| script-la-ch04-processes.lab | presentation | ✓ | 0 |
+| script-la-ch05-daemons.lab | presentation | ✓ | 0 |
+| script-la-ch06-init-xwindows.lab | presentation | ✓ | 0 |
+| script-la-ch07-display-mgr.lab | presentation | ✓ | 0 |
+| script-la-ch08-network.lab | presentation | ✓ | 0 |
+| script-la-ch09-ipv4.lab | presentation | ✓ | 0 |
+| script-la-ch10-compression.lab | lab | ✓ | 0 |
+| script-la-ch11-encryption.lab | lab | ✓ | 0 |
+| script-la-ch12-compile.lab | lab | ✓ | 0 |
 | script-mission-file-operations.lab | lab | ✓ | 0 |
 | script-mission-file-search.lab | lab | ✓ | 0 |
 | script-mission-permissions.lab | lab | ✓ | 0 |
 | script-mission-text-viewing.lab | lab | ✓ | 0 |
 | script-template-warmup.lab | presentation | ✓ | 0 |
 | script-warmup-navigation.lab | lab | ✓ | 0 |
-| la-ch01-intro.presentation | presentation | ✓ | 0 |
-| la-ch02-distros.presentation | presentation | ✓ | 0 |
-| la-ch03-grep-pipes.presentation | presentation | ✓ | 0 |
-| la-ch04-processes.presentation | presentation | ✓ | 0 |
-| la-ch05-daemons.presentation | presentation | ✓ | 0 |
-| la-ch06-init-xwindows.presentation | presentation | ✓ | 0 |
-| la-ch07-display-mgr.presentation | presentation | ✓ | 0 |
-| la-ch08-network.presentation | presentation | ✓ | 0 |
-| la-ch09-ipv4.presentation | presentation | ✓ | 0 |
-| la-ch10-compression.presentation | presentation | ✓ | 0 |
-| la-ch11-encryption.presentation | presentation | ✓ | 0 |
-| la-ch12-compile.presentation | presentation | ✓ | 0 |
-| la-ch01-quiz.quiz | presentation | ✓ | 0 |
-| la-ch02-quiz.quiz | presentation | ✓ | 0 |
-| la-ch03-quiz.quiz | presentation | ✓ | 0 |
-| la-ch04-quiz.quiz | presentation | ✓ | 0 |
-| la-ch05-quiz.quiz | presentation | ✓ | 0 |
-| la-ch06-quiz.quiz | presentation | ✓ | 0 |
-| la-ch07-quiz.quiz | presentation | ✓ | 0 |
-| la-ch08-quiz.quiz | presentation | ✓ | 0 |
-| la-ch09-quiz.quiz | presentation | ✓ | 0 |
-| la-ch10-quiz.quiz | presentation | ✓ | 0 |
-| la-ch11-quiz.quiz | presentation | ✓ | 0 |
-| la-ch12-quiz.quiz | presentation | ✓ | 0 |
-| la-comprehensive-review | presentation | ✓ | 0 |
+| script-la-ch01-intro.presentation | presentation | ✓ | 0 |
+| script-la-ch02-distros.presentation | presentation | ✓ | 0 |
+| script-la-ch03-grep-pipes.presentation | presentation | ✓ | 0 |
+| script-la-ch04-processes.presentation | presentation | ✓ | 0 |
+| script-la-ch05-daemons.presentation | presentation | ✓ | 0 |
+| script-la-ch06-init-xwindows.presentation | presentation | ✓ | 0 |
+| script-la-ch07-display-mgr.presentation | presentation | ✓ | 0 |
+| script-la-ch08-network.presentation | presentation | ✓ | 0 |
+| script-la-ch09-ipv4.presentation | presentation | ✓ | 0 |
+| script-la-ch10-compression.presentation | presentation | ✓ | 0 |
+| script-la-ch11-encryption.presentation | presentation | ✓ | 0 |
+| script-la-ch12-compile.presentation | presentation | ✓ | 0 |
+| script-la-ch01-quiz.quiz | presentation | ✓ | 0 |
+| script-la-ch02-quiz.quiz | presentation | ✓ | 0 |
+| script-la-ch03-quiz.quiz | presentation | ✓ | 0 |
+| script-la-ch04-quiz.quiz | presentation | ✓ | 0 |
+| script-la-ch05-quiz.quiz | presentation | ✓ | 0 |
+| script-la-ch06-quiz.quiz | presentation | ✓ | 0 |
+| script-la-ch07-quiz.quiz | presentation | ✓ | 0 |
+| script-la-ch08-quiz.quiz | presentation | ✓ | 0 |
+| script-la-ch09-quiz.quiz | presentation | ✓ | 0 |
+| script-la-ch10-quiz.quiz | presentation | ✓ | 0 |
+| script-la-ch11-quiz.quiz | presentation | ✓ | 0 |
+| script-la-ch12-quiz.quiz | presentation | ✓ | 0 |
+| script-la-comprehensive-review | presentation | ✓ | 0 |
 | script-quick.reference | presentation | ✓ | 0 |
 | script-directory.tool | presentation | ✓ | 0 |
 | script-permission.tool | presentation | ✓ | 0 |
@@ -3146,31 +3182,31 @@
 | shield-change-management.applet | presentation | ✓ | 0 |
 | shield-malware-types.applet | presentation | ✓ | 0 |
 | index | applet | ✓ | 1 |
-| cf-mm01-intro.lab | presentation | ✓ | 0 |
-| cf-mm02-gov-agencies.lab | presentation | ✓ | 0 |
-| cf-mm03-legislation.lab | presentation | ✓ | 0 |
-| cf-mm04-regulatory.lab | presentation | ✓ | 0 |
-| cf-mm05-nist-cip.lab | presentation | ✓ | 0 |
-| cf-mm06-encryption.lab | presentation | ✓ | 0 |
-| cf-mm07-breach-litigation.lab | presentation | ✓ | 0 |
-| cf-mm08-cyber-war.lab | presentation | ✓ | 0 |
-| cf-mm01-intro.presentation | presentation | ✓ | 0 |
-| cf-mm02-gov-agencies.presentation | presentation | ✓ | 0 |
-| cf-mm03-legislation.presentation | presentation | ✓ | 0 |
-| cf-mm04-regulatory.presentation | presentation | ✓ | 0 |
-| cf-mm05-nist-cip.presentation | presentation | ✓ | 0 |
-| cf-mm06-encryption.presentation | presentation | ✓ | 0 |
-| cf-mm07-breach-litigation.presentation | presentation | ✓ | 0 |
-| cf-mm08-cyber-war.presentation | presentation | ✓ | 0 |
-| cf-mm01-quiz.quiz | presentation | ✓ | 0 |
-| cf-mm02-quiz.quiz | presentation | ✓ | 0 |
-| cf-mm03-quiz.quiz | presentation | ✓ | 0 |
-| cf-mm04-quiz.quiz | presentation | ✓ | 0 |
-| cf-mm05-quiz.quiz | presentation | ✓ | 0 |
-| cf-mm06-quiz.quiz | presentation | ✓ | 0 |
-| cf-mm07-quiz.quiz | presentation | ✓ | 0 |
-| cf-mm08-quiz.quiz | presentation | ✓ | 0 |
-| cf-comprehensive-review | presentation | ✓ | 0 |
+| shield-cf-mm01-intro.lab | presentation | ✓ | 0 |
+| shield-cf-mm02-gov-agencies.lab | presentation | ✓ | 0 |
+| shield-cf-mm03-legislation.lab | presentation | ✓ | 0 |
+| shield-cf-mm04-regulatory.lab | presentation | ✓ | 0 |
+| shield-cf-mm05-nist-cip.lab | presentation | ✓ | 0 |
+| shield-cf-mm06-encryption.lab | presentation | ✓ | 0 |
+| shield-cf-mm07-breach-litigation.lab | presentation | ✓ | 0 |
+| shield-cf-mm08-cyber-war.lab | presentation | ✓ | 0 |
+| shield-cf-mm01-intro.presentation | presentation | ✓ | 0 |
+| shield-cf-mm02-gov-agencies.presentation | presentation | ✓ | 0 |
+| shield-cf-mm03-legislation.presentation | presentation | ✓ | 0 |
+| shield-cf-mm04-regulatory.presentation | presentation | ✓ | 0 |
+| shield-cf-mm05-nist-cip.presentation | presentation | ✓ | 0 |
+| shield-cf-mm06-encryption.presentation | presentation | ✓ | 0 |
+| shield-cf-mm07-breach-litigation.presentation | presentation | ✓ | 0 |
+| shield-cf-mm08-cyber-war.presentation | presentation | ✓ | 0 |
+| shield-cf-mm01-quiz.quiz | presentation | ✓ | 0 |
+| shield-cf-mm02-quiz.quiz | presentation | ✓ | 0 |
+| shield-cf-mm03-quiz.quiz | presentation | ✓ | 0 |
+| shield-cf-mm04-quiz.quiz | presentation | ✓ | 0 |
+| shield-cf-mm05-quiz.quiz | presentation | ✓ | 0 |
+| shield-cf-mm06-quiz.quiz | presentation | ✓ | 0 |
+| shield-cf-mm07-quiz.quiz | presentation | ✓ | 0 |
+| shield-cf-mm08-quiz.quiz | presentation | ✓ | 0 |
+| shield-cf-comprehensive-review | presentation | ✓ | 0 |
 | shield-eh-exam-1-a.exam | presentation | ✓ | 0 |
 | shield-dr-malware.applet | presentation | ✓ | 0 |
 | shield-malware-zoo.lab | lab | ✓ | 0 |
@@ -3231,6 +3267,7 @@
 | ID/Name | Type | Sync | Issues |
 |---------|------|------|--------|
 | audit-tool | applet | ✓ | 1 |
+| career-quiz | applet | ✓ | 1 |
 | ctf-leaderboard.applet | presentation | ✓ | 0 |
 | botnet-architecture.presentation | presentation | ✓ | 0 |
 | buffer-overflow-lab | presentation | ✓ | 0 |
@@ -3411,10 +3448,20 @@
   File: `components/HouseRenderer.js`
   Fix: Use absolute path from site root (e.g., /houses/shield/index.html) instead of relative path
 
-### INFO (17)
+### WARNING (1)
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `career-quiz.html`
+  Fix: Add entry to content-registry.js
+
+### INFO (16)
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `admin/audit-tool.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `career-quiz.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
@@ -3422,19 +3469,11 @@
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/forge/md-100/quizzes/md100-m01-quiz.quiz.html`
+  File: `houses/cloud/applets/index.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/forge/md-100/quizzes/md100-m04-quiz.quiz.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/forge/md-100/reviews/md100-comprehensive-review.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/forge/md-100/reviews/md100-midterm-review.html`
+  File: `houses/script/applets/index.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
@@ -3477,9 +3516,11 @@
 ## REGISTRY GAPS
 ══════════════════════════════════════════════════════════════════════
 
-### Unregistered Content (0)
+### Unregistered Content (1)
 
-All content files are registered.
+| Path | Type | House |
+|------|------|-------|
+| career-quiz.html | applet | - |
 
 ### Orphaned Registry Entries (0)
 
