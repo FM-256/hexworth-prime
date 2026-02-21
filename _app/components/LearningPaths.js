@@ -767,6 +767,14 @@ class LearningPaths {
         },
 
         // DevOps Fundamentals Path (accessible from Script House)
+        'python-fundamentals': {
+            name: 'Python Programming',
+            description: 'Python fundamentals — strings, flow control, functions, GUI, dictionaries, OOP',
+            icon: '🐍',
+            color: '#3b82f6',
+            modules: []
+        },
+
         'devops-fundamentals': {
             name: 'DevOps Fundamentals',
             description: 'Master CI/CD, containerization, and infrastructure as code',
