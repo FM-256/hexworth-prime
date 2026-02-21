@@ -1,0 +1,1049 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <!-- Access Control -->
+    <script src="../../../components/AccessGuard.js"></script>
+    <script>
+        AccessGuard.require('sorted');
+    </script>
+    <!-- Progress & Achievements -->
+    <script src="../../../components/AchievementManager.js"></script>
+    <script src="../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Encryption Lab — ASCII ↔ Binary ↔ Hex • DH • RSA - House of the Key</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --house-color: #f59e0b;
+            --house-glow: rgba(245, 158, 11, 0.4);
+            --bg-dark: #0a0a12;
+            --bg-card: rgba(15, 15, 25, 0.8);
+            --text-primary: #e8e8f0;
+            --text-secondary: #8888aa;
+            --success-green: #10b981;
+            --warning-red: #ef4444;
+            /* Mapped from original variables */
+            --bg: var(--bg-dark);
+            --panel: var(--bg-card);
+            --text: var(--text-primary);
+            --muted: var(--text-secondary);
+            --accent: var(--house-color);
+            --accent-2: #fbbf24;
+            --ok: var(--success-green);
+            --warn: #f59e0b;
+            --err: var(--warning-red);
+            --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+            --border: rgba(245, 158, 11, 0.2);
+            --border-solid: rgba(245, 158, 11, 0.35);
+            --shadow: 0 6px 22px rgba(0, 0, 0, 0.6);
+        }
+
+        html, body {
+            height: 100%;
+        }
+
+        body {
+            background: var(--bg-dark);
+            color: var(--text-primary);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* ── Header ── */
+        .module-header {
+            padding: 16px 30px;
+            background: rgba(10, 10, 18, 0.97);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 2px 20px rgba(245, 158, 11, 0.08);
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .back-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
+            background: rgba(245, 158, 11, 0.1);
+            border: 1px solid var(--border);
+            color: var(--house-color);
+            text-decoration: none;
+            font-size: 18px;
+            transition: background 0.2s, box-shadow 0.2s;
+        }
+
+        .back-btn:hover {
+            background: rgba(245, 158, 11, 0.2);
+            box-shadow: 0 0 10px var(--house-glow);
+        }
+
+        .header-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .house-badge {
+            background: rgba(245, 158, 11, 0.1);
+            color: var(--house-color);
+            padding: 4px 14px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            border: 1px solid var(--border-solid);
+            letter-spacing: 0.04em;
+        }
+
+        /* ── Layout ── */
+        .container {
+            max-width: 1100px;
+            margin: 32px auto;
+            padding: 0 20px;
+        }
+
+        .card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            box-shadow: var(--shadow);
+            padding: 24px;
+            backdrop-filter: blur(8px);
+        }
+
+        h1 {
+            font-size: 24px;
+            margin: 0 0 8px;
+            letter-spacing: 0.2px;
+            color: var(--text-primary);
+        }
+
+        h2 {
+            font-size: 18px;
+            margin: 18px 0 10px;
+            color: var(--house-color);
+        }
+
+        p.muted {
+            color: var(--muted);
+            margin: 6px 0 18px;
+            font-size: 14px;
+        }
+
+        .row {
+            display: grid;
+            gap: 16px;
+        }
+
+        @media (min-width: 900px) {
+            .row.cols-2 { grid-template-columns: 1fr 1fr; }
+            .row.cols-3 { grid-template-columns: 1fr 1fr 1fr; }
+        }
+
+        /* ── Form Elements ── */
+        .input,
+        textarea,
+        select {
+            width: 100%;
+            box-sizing: border-box;
+            background: rgba(10, 10, 18, 0.7);
+            border: 1px solid var(--border-solid);
+            color: var(--text-primary);
+            border-radius: 10px;
+            padding: 11px 14px;
+            outline: none;
+            font-family: inherit;
+            font-size: 14px;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+
+        .input:focus,
+        textarea:focus,
+        select:focus {
+            border-color: var(--house-color);
+            box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.15);
+        }
+
+        select option {
+            background: #0f0f1a;
+            color: var(--text-primary);
+        }
+
+        textarea {
+            min-height: 86px;
+            resize: vertical;
+        }
+
+        /* ── Buttons ── */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: var(--house-color);
+            color: #000;
+            border: none;
+            padding: 10px 16px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: 700;
+            font-size: 14px;
+            letter-spacing: 0.02em;
+            transition: background 0.2s, box-shadow 0.2s, transform 0.1s;
+        }
+
+        .btn:hover {
+            background: #fbbf24;
+            box-shadow: 0 0 14px rgba(245, 158, 11, 0.45);
+            transform: translateY(-1px);
+        }
+
+        .btn.ghost {
+            background: transparent;
+            color: var(--house-color);
+            border: 1px solid var(--border-solid);
+        }
+
+        .btn.ghost:hover {
+            background: rgba(245, 158, 11, 0.08);
+            box-shadow: 0 0 10px rgba(245, 158, 11, 0.2);
+        }
+
+        .btn.small {
+            padding: 5px 10px;
+            font-size: 12px;
+            border-radius: 7px;
+        }
+
+        /* ── Utility classes ── */
+        .bar {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .muted-badge {
+            display: inline-block;
+            font-size: 12px;
+            color: var(--muted);
+        }
+
+        /* Output boxes */
+        .output {
+            font-family: var(--mono);
+            background: rgba(5, 5, 12, 0.7);
+            border: 1px dashed var(--border-solid);
+            padding: 12px;
+            border-radius: 10px;
+            line-height: 1.6;
+            word-break: break-word;
+            white-space: pre-wrap;
+            color: #c8d6e5;
+            font-size: 13px;
+            min-height: 40px;
+        }
+
+        /* Tags / badges */
+        .tag {
+            font-family: var(--mono);
+            font-size: 12px;
+            background: rgba(245, 158, 11, 0.12);
+            color: var(--house-color);
+            padding: 2px 7px;
+            border-radius: 5px;
+            border: 1px solid rgba(245, 158, 11, 0.25);
+        }
+
+        .grid {
+            display: grid;
+            gap: 8px;
+        }
+
+        /* Hex key table */
+        .keytable {
+            width: 100%;
+            border-collapse: collapse;
+            font-family: var(--mono);
+            font-size: 13px;
+        }
+
+        .keytable th,
+        .keytable td {
+            border: 1px solid var(--border);
+            padding: 8px;
+            text-align: center;
+            color: var(--text-primary);
+        }
+
+        .keytable th {
+            background: rgba(245, 158, 11, 0.1);
+            color: var(--house-color);
+            font-weight: 600;
+        }
+
+        .keytable tr:nth-child(even) td {
+            background: rgba(245, 158, 11, 0.03);
+        }
+
+        .hint {
+            font-size: 13px;
+            color: var(--muted);
+        }
+
+        /* Dark-mode toggle (kept, starts in dark state) */
+        .switch {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .switch input {
+            display: none;
+        }
+
+        .switch .pill {
+            width: 44px;
+            height: 24px;
+            background: var(--border-solid);
+            border-radius: 999px;
+            position: relative;
+            transition: 0.2s;
+        }
+
+        .switch .dot {
+            width: 18px;
+            height: 18px;
+            background: var(--bg-dark);
+            border-radius: 50%;
+            position: absolute;
+            top: 3px;
+            left: 3px;
+            transition: 0.2s;
+        }
+
+        .switch input:checked + .pill {
+            background: var(--house-color);
+        }
+
+        .switch input:checked + .pill .dot {
+            left: 23px;
+        }
+
+        .pill-note {
+            font-family: var(--mono);
+            font-size: 12px;
+            color: var(--muted);
+        }
+
+        /* Accordions */
+        .accordion {
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            overflow: hidden;
+        }
+
+        .acc-item + .acc-item {
+            border-top: 1px solid var(--border);
+        }
+
+        .acc-head {
+            background: rgba(245, 158, 11, 0.04);
+            cursor: pointer;
+            padding: 12px 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            color: var(--text-primary);
+            font-size: 14px;
+            transition: background 0.2s;
+        }
+
+        .acc-head:hover {
+            background: rgba(245, 158, 11, 0.08);
+        }
+
+        .acc-body {
+            padding: 14px 16px;
+            display: none;
+            background: rgba(5, 5, 12, 0.4);
+        }
+
+        .acc-item.open .acc-body {
+            display: block;
+        }
+
+        .help {
+            color: var(--accent-2);
+            text-decoration: underline dotted;
+            cursor: help;
+        }
+
+        .copy {
+            margin-left: auto;
+        }
+
+        .small {
+            font-size: 12px;
+        }
+
+        .kbd {
+            font-family: var(--mono);
+            background: rgba(245, 158, 11, 0.1);
+            color: var(--house-color);
+            padding: 2px 6px;
+            border-radius: 5px;
+            border: 1px solid rgba(245, 158, 11, 0.25);
+            font-size: 12px;
+        }
+
+        .flex {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .right {
+            margin-left: auto;
+        }
+
+        .divider {
+            height: 1px;
+            background: var(--border);
+            margin: 16px 0;
+        }
+
+        .caps {
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            font-size: 11px;
+            color: var(--muted);
+            font-weight: 600;
+            margin-bottom: 4px;
+            display: block;
+        }
+
+        /* Math step blocks */
+        .step {
+            padding: 9px 12px;
+            border-radius: 9px;
+            background: rgba(245, 158, 11, 0.05);
+            border: 1px solid rgba(245, 158, 11, 0.15);
+            font-family: var(--mono);
+            font-size: 13px;
+            color: #c8d6e5;
+        }
+
+        .note {
+            font-size: 12px;
+            color: var(--muted);
+        }
+
+        /* Section spacer */
+        .section-gap {
+            height: 24px;
+        }
+
+        /* Lab title bar */
+        .lab-title-bar {
+            margin-bottom: 20px;
+        }
+
+        .lab-title-bar h1 {
+            color: var(--house-color);
+            font-size: 22px;
+            margin-bottom: 4px;
+        }
+
+        code {
+            font-family: var(--mono);
+        }
+    </style>
+</head>
+<body>
+
+<!-- ── Page Header ── -->
+<header class="module-header">
+    <div class="header-left">
+        <a href="../index.html" class="back-btn" title="Back to House of the Key">←</a>
+        <span class="header-title">Encryption Lab — ASCII ↔ Binary ↔ Hex · DH · RSA</span>
+    </div>
+    <span class="house-badge">🔑 House of the Key</span>
+</header>
+
+<div class="container">
+
+    <!-- ── Lab title ── -->
+    <div class="lab-title-bar">
+        <h1>Encryption Lab — ASCII ↔ Binary ↔ Hex · Diffie–Hellman · RSA</h1>
+        <p class="muted">Explore how computers represent text at the byte level, how XOR works as a symmetric cipher, and how asymmetric key exchange and RSA number theory operate under the hood.</p>
+    </div>
+
+    <!-- ── Section 1: Input & Live Conversion ── -->
+    <div class="card">
+        <h2>1) Input &amp; Live Conversion</h2>
+        <p class="muted">Type text to see how computers represent it at the byte level. Hover the <span class="help" title="Hex numbers often use the 0x prefix to indicate base 16. Example: 0x41 is decimal 65.">0x</span> badges for tips.</p>
+
+        <div class="row cols-2">
+            <div>
+                <label class="caps">Plaintext</label>
+                <textarea id="txt" placeholder="Type here — e.g., Hello, World!"></textarea>
+                <div class="bar" style="margin-top:10px">
+                    <button class="btn" id="convertBtn">Convert</button>
+                    <button class="btn ghost" id="clearBtn">Reset</button>
+                    <span class="hint">Press <span class="kbd">Ctrl+Enter</span> to convert.</span>
+                </div>
+            </div>
+            <div class="grid">
+                <div>
+                    <div class="bar">
+                        <span class="caps">ASCII (decimal)</span>
+                        <button class="btn small ghost copy" data-copy="asciiOut">Copy</button>
+                    </div>
+                    <div id="asciiOut" class="output" aria-live="polite"></div>
+                </div>
+                <div>
+                    <div class="bar">
+                        <span class="caps">Binary (8-bit)</span>
+                        <button class="btn small ghost copy" data-copy="binOut">Copy</button>
+                    </div>
+                    <div id="binOut" class="output" aria-live="polite"></div>
+                </div>
+                <div>
+                    <div class="bar">
+                        <span class="caps">Hexadecimal <span class="tag" title="Hex literal prefix (base 16)">0x</span></span>
+                        <button class="btn small ghost copy" data-copy="hexOut">Copy</button>
+                    </div>
+                    <div id="hexOut" class="output" aria-live="polite"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="divider"></div>
+
+        <!-- ── Section 2: How Hex Works ── -->
+        <h2>2) How Hex Works <span class="hint" style="font-size:13px; font-weight:400;">Each 4 bits (nibble) = 1 hex digit</span></h2>
+        <div class="accordion" id="hexAccordion">
+            <div class="acc-item open">
+                <div class="acc-head"><strong>Live nibble grouping</strong><span>▾</span></div>
+                <div class="acc-body">
+                    <p class="small" style="color:var(--muted); margin-bottom:10px;">For each character, we split the 8-bit binary into two nibbles and map them to hex.</p>
+                    <div id="nibbleOut" class="output"></div>
+                </div>
+            </div>
+            <div class="acc-item">
+                <div class="acc-head"><strong>Hex Key Table</strong><span>▾</span></div>
+                <div class="acc-body">
+                    <table class="keytable" aria-label="Hex key table">
+                        <thead>
+                            <tr><th>Decimal</th><th>Binary (4-bit)</th><th>Hex</th></tr>
+                        </thead>
+                        <tbody id="hexKeyBody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="section-gap"></div>
+
+    <!-- ── Section 3: XOR Encryption ── -->
+    <div class="card">
+        <h2>3) XOR Encryption (Interactive)</h2>
+        <p class="muted">XOR is reversible: <code class="tag">C = P XOR K</code> and <code class="tag">P = C XOR K</code>. Try a one-character key first.</p>
+        <div class="row cols-2">
+            <div>
+                <label class="caps">XOR Key <span class="hint">single char or byte (e.g., P)</span></label>
+                <input class="input" id="xorKey" placeholder="Enter key, e.g., P" />
+                <div class="bar" style="margin-top:10px">
+                    <button class="btn" id="xorBtn">Encrypt / Decrypt</button>
+                    <button class="btn ghost" id="xorClear">Clear</button>
+                </div>
+                <p class="hint" style="margin-top:8px;">Same operation decrypts it because XOR is its own inverse.</p>
+            </div>
+            <div class="grid">
+                <div>
+                    <div class="caps">Plaintext (Hex)</div>
+                    <div id="ptHex" class="output"></div>
+                </div>
+                <div>
+                    <div class="caps">Key (Hex)</div>
+                    <div id="keyHex" class="output"></div>
+                </div>
+                <div>
+                    <div class="caps">Ciphertext (Hex)</div>
+                    <div id="ctHex" class="output"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="divider"></div>
+
+        <div class="accordion" id="xorAccordion">
+            <div class="acc-item open">
+                <div class="acc-head"><strong>Show byte-by-byte steps</strong><span>▾</span></div>
+                <div class="acc-body">
+                    <div id="xorSteps" class="grid"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="section-gap"></div>
+
+    <!-- ── Section 4: Diffie–Hellman ── -->
+    <div class="card">
+        <h2>4) Diffie–Hellman Key Exchange (Interactive)</h2>
+        <p class="muted">Two parties agree on a public prime <code class="tag">p</code> and generator <code class="tag">g</code>. They keep private secrets <code class="tag">a</code> and <code class="tag">b</code>, exchange public values, and derive the same shared key: <code class="tag">K = g^{ab} mod p</code>.</p>
+        <div class="row cols-3">
+            <div>
+                <label class="caps">Prime p</label>
+                <input class="input" id="dhP" value="23" />
+            </div>
+            <div>
+                <label class="caps">Generator g</label>
+                <input class="input" id="dhG" value="5" />
+            </div>
+            <div class="flex" style="align-items:flex-end">
+                <button class="btn" id="dhPreset" style="width:100%">Use demo preset (p=23, g=5, a=6, b=15)</button>
+            </div>
+        </div>
+        <div class="row cols-2" style="margin-top:12px">
+            <div>
+                <label class="caps">Alice private a</label>
+                <input class="input" id="dhA" value="6" />
+                <div class="small note" style="margin-top:5px;">Alice public A = g^a mod p</div>
+            </div>
+            <div>
+                <label class="caps">Bob private b</label>
+                <input class="input" id="dhB" value="15" />
+                <div class="small note" style="margin-top:5px;">Bob public B = g^b mod p</div>
+            </div>
+        </div>
+        <div class="bar" style="margin-top:12px">
+            <button class="btn" id="dhCompute">Compute Exchange</button>
+            <button class="btn ghost" id="dhClear">Clear</button>
+        </div>
+        <div class="row cols-3" style="margin-top:12px">
+            <div>
+                <div class="caps">A = g^a mod p</div>
+                <div id="dhPubA" class="output"></div>
+            </div>
+            <div>
+                <div class="caps">B = g^b mod p</div>
+                <div id="dhPubB" class="output"></div>
+            </div>
+            <div>
+                <div class="caps">Shared key K</div>
+                <div id="dhKey" class="output"></div>
+            </div>
+        </div>
+        <div class="note" style="margin-top:10px;">Alice computes K = B^a mod p; Bob computes K = A^b mod p — both match.</div>
+    </div>
+
+    <div class="section-gap"></div>
+
+    <!-- ── Section 5: RSA ── -->
+    <div class="card">
+        <h2>5) RSA (Interactive Mini-Demo)</h2>
+        <p class="muted">Choose small primes p and q to build <code class="tag">n=p·q</code> and <code class="tag">φ=(p−1)(q−1)</code>, pick <code class="tag">e</code> coprime with φ, compute <code class="tag">d ≡ e⁻¹ (mod φ)</code>, then encrypt/decrypt <code class="tag">m</code> with <code class="tag">c=m^e mod n</code>, <code class="tag">m=c^d mod n</code>.</p>
+        <div class="row cols-3">
+            <div>
+                <label class="caps">Prime p</label>
+                <input class="input" id="rsaP" value="61" />
+            </div>
+            <div>
+                <label class="caps">Prime q</label>
+                <input class="input" id="rsaQ" value="53" />
+            </div>
+            <div>
+                <label class="caps">Public exponent e</label>
+                <select id="rsaE" class="input">
+                    <option value="65537" selected>65537 (common)</option>
+                    <option value="17">17</option>
+                    <option value="3">3</option>
+                </select>
+            </div>
+        </div>
+        <div class="bar" style="margin-top:12px">
+            <button class="btn" id="rsaGen">Generate Keys</button>
+            <button class="btn ghost" id="rsaClear">Clear</button>
+            <span class="hint">For teaching only — small numbers, not secure.</span>
+        </div>
+        <div class="row cols-3" style="margin-top:12px">
+            <div>
+                <div class="caps">n = p·q</div>
+                <div id="rsaN" class="output"></div>
+            </div>
+            <div>
+                <div class="caps">φ = (p−1)(q−1)</div>
+                <div id="rsaPhi" class="output"></div>
+            </div>
+            <div>
+                <div class="caps">Private d = e⁻¹ mod φ</div>
+                <div id="rsaD" class="output"></div>
+            </div>
+        </div>
+
+        <div class="divider"></div>
+
+        <div class="row cols-2">
+            <div>
+                <label class="caps">Message m (integer &lt; n)</label>
+                <input class="input" id="rsaM" value="65" />
+                <div class="note" style="margin-top:5px;">Tip: Try 65 (letter 'A'). Multi-char encoding is beyond this mini-demo.</div>
+                <div class="bar" style="margin-top:10px">
+                    <button class="btn" id="rsaEnc">Encrypt m → c</button>
+                    <button class="btn ghost" id="rsaDec">Decrypt c → m</button>
+                </div>
+            </div>
+            <div class="grid">
+                <div>
+                    <div class="caps">Cipher c = m^e mod n</div>
+                    <div id="rsaC" class="output"></div>
+                </div>
+                <div>
+                    <div class="caps">Recovered m = c^d mod n</div>
+                    <div id="rsaMRec" class="output"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="accordion" id="rsaAccordion" style="margin-top:12px">
+            <div class="acc-item open">
+                <div class="acc-head"><strong>Show math steps</strong><span>▾</span></div>
+                <div class="acc-body">
+                    <div id="rsaSteps" class="grid"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="note" style="margin-top:12px;">In real RSA, primes are hundreds of bits and messages are padded/encoded. This demo illustrates the number theory only.</div>
+    </div>
+
+    <div class="section-gap"></div>
+
+    <!-- ── Section 6: Notes ── -->
+    <div class="card">
+        <h2>6) Notes &amp; Tips</h2>
+        <ul class="hint" style="padding-left:18px; line-height:2;">
+            <li><span class="help" title="ASCII uses one byte per character (0–127 typical). Unicode/UTF-8 can use multiple bytes.">ASCII vs Unicode</span>: this app focuses on plain ASCII for clarity.</li>
+            <li>Uppercase and lowercase differ by one bit in ASCII (the 0x20 bit).</li>
+            <li>Two hex digits = one byte. Example: <code class="tag">0x41</code> = decimal 65 = <code class="tag">01000001</code>.</li>
+            <li>DH and RSA sections are for demonstration — do not use these small numbers for real security.</li>
+        </ul>
+    </div>
+
+</div><!-- /.container -->
+
+<script>
+    // ── Accordion toggle ──────────────────────────────────────────────────────
+    document.querySelectorAll('.acc-head').forEach(h => {
+        h.addEventListener('click', () => h.parentElement.classList.toggle('open'));
+    });
+
+    // ── Clipboard copy buttons ────────────────────────────────────────────────
+    document.querySelectorAll('.copy').forEach(btn => {
+        btn.addEventListener('click', async () => {
+            const id = btn.getAttribute('data-copy');
+            const text = document.getElementById(id).textContent.trim();
+            if (!text) return;
+            try {
+                await navigator.clipboard.writeText(text);
+                btn.textContent = 'Copied';
+                setTimeout(() => btn.textContent = 'Copy', 1200);
+            } catch (e) {
+                alert('Copy failed');
+            }
+        });
+    });
+
+    // ── Hex key table (0–15) ─────────────────────────────────────────────────
+    const hexKeyBody = document.getElementById('hexKeyBody');
+    const pad4 = n => n.toString(2).padStart(4, '0');
+    for (let i = 0; i < 16; i++) {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td>${i}</td><td>${pad4(i)}</td><td>0x${i.toString(16).toUpperCase()}</td>`;
+        hexKeyBody.appendChild(tr);
+    }
+
+    // ── Core conversion helpers ───────────────────────────────────────────────
+    function toAsciiCodes(s) {
+        const arr = [];
+        for (const ch of s) { arr.push(ch.codePointAt(0)); }
+        return arr;
+    }
+    const toBin = n => n.toString(2).padStart(8, '0');
+    const toHex = n => '0x' + n.toString(16).toUpperCase().padStart(2, '0');
+
+    // DOM refs for Section 1
+    const txt       = document.getElementById('txt');
+    const asciiOut  = document.getElementById('asciiOut');
+    const binOut    = document.getElementById('binOut');
+    const hexOut    = document.getElementById('hexOut');
+    const nibbleOut = document.getElementById('nibbleOut');
+    const ptHex     = document.getElementById('ptHex');
+    const keyHex    = document.getElementById('keyHex');
+    const ctHex     = document.getElementById('ctHex');
+    const xorKey    = document.getElementById('xorKey');
+    const xorSteps  = document.getElementById('xorSteps');
+
+    /**
+     * Converts the current plaintext to ASCII, binary, and hex representations
+     * and renders the nibble grouping view.
+     */
+    function renderConversions() {
+        const s = txt.value || '';
+        const codes = toAsciiCodes(s);
+        asciiOut.textContent = codes.join(' ');
+        binOut.textContent   = codes.map(toBin).join(' ');
+        hexOut.textContent   = codes.map(toHex).join(' ');
+
+        // Nibble grouping: split each byte into two 4-bit nibbles and map to hex
+        const lines = [];
+        codes.forEach((c, idx) => {
+            const bin   = toBin(c);
+            const left  = bin.slice(0, 4);
+            const right = bin.slice(4);
+            const hx    = c.toString(16).toUpperCase().padStart(2, '0');
+            const ch    = s[idx] === ' ' ? '␠' : s[idx];
+            lines.push(`Char: ${ch}   ASCII: ${c}\n${left} ${right}  →  0x${hx[0]} 0x${hx[1]} (== 0x${hx})\n`);
+        });
+        nibbleOut.textContent = lines.join('\n');
+
+        // Keep plaintext hex in sync for the XOR section
+        ptHex.textContent  = codes.map(toHex).join(' ');
+        keyHex.textContent = '';
+        ctHex.textContent  = '';
+        xorSteps.innerHTML = '';
+    }
+
+    /**
+     * Performs XOR encryption/decryption of the current plaintext with the
+     * given key, then renders the byte-by-byte step breakdown.
+     */
+    function doXor() {
+        const s   = txt.value || '';
+        const key = xorKey.value || '';
+        if (!key) { alert('Enter an XOR key (try a single letter like P)'); return; }
+        const keyCodes = toAsciiCodes(key);
+        const sCodes   = toAsciiCodes(s);
+        keyHex.textContent = sCodes.map((_, i) => toHex(keyCodes[i % keyCodes.length])).join(' ');
+        const ct = sCodes.map((c, i) => c ^ keyCodes[i % keyCodes.length]);
+        ctHex.textContent  = ct.map(toHex).join(' ');
+        xorSteps.innerHTML = '';
+        sCodes.forEach((p, i) => {
+            const k    = keyCodes[i % keyCodes.length];
+            const c    = p ^ k;
+            const step = document.createElement('div');
+            step.className   = 'step';
+            step.textContent = `#${i + 1}  P=${toHex(p)} (${toBin(p)})  XOR  K=${toHex(k)} (${toBin(k)})  →  C=${toHex(c)} (${toBin(c)})`;
+            xorSteps.appendChild(step);
+        });
+    }
+
+    document.getElementById('convertBtn').addEventListener('click', renderConversions);
+    document.getElementById('clearBtn').addEventListener('click', () => { txt.value = ''; renderConversions(); });
+    document.getElementById('xorBtn').addEventListener('click', doXor);
+    document.getElementById('xorClear').addEventListener('click', () => {
+        xorKey.value = '';
+        keyHex.textContent = '';
+        ctHex.textContent  = '';
+        xorSteps.innerHTML = '';
+    });
+    txt.addEventListener('keydown', e => {
+        if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); renderConversions(); }
+    });
+
+    // Run once on page load so output boxes show initial state
+    renderConversions();
+
+    // ── Diffie–Hellman ────────────────────────────────────────────────────────
+    const dhP      = document.getElementById('dhP');
+    const dhG      = document.getElementById('dhG');
+    const dhA      = document.getElementById('dhA');
+    const dhB      = document.getElementById('dhB');
+    const dhPubA   = document.getElementById('dhPubA');
+    const dhPubB   = document.getElementById('dhPubB');
+    const dhKey    = document.getElementById('dhKey');
+
+    /**
+     * Fast modular exponentiation using BigInt to avoid integer overflow.
+     * Computes base^exp mod mod for arbitrarily large integers.
+     */
+    function modPow(base, exp, mod) {
+        let res = 1n;
+        let b   = BigInt(base) % BigInt(mod);
+        let e   = BigInt(exp);
+        const m = BigInt(mod);
+        while (e > 0n) {
+            if (e & 1n) res = (res * b) % m;
+            b = (b * b) % m;
+            e >>= 1n;
+        }
+        return Number(res);
+    }
+
+    function computeDH() {
+        const p = Number(dhP.value);
+        const g = Number(dhG.value);
+        const a = Number(dhA.value);
+        const b = Number(dhB.value);
+        if (!(p > 2 && g > 1 && a > 0 && b > 0)) {
+            alert('Enter positive numbers for p, g, a, b');
+            return;
+        }
+        const A  = modPow(g, a, p);
+        const B  = modPow(g, b, p);
+        const Ka = modPow(B, a, p);
+        const Kb = modPow(A, b, p);
+        dhPubA.textContent = A;
+        dhPubB.textContent = B;
+        dhKey.textContent  = `${Ka}  ${Ka === Kb ? '✓ (matches)' : '✗ (mismatch)'}`;
+    }
+
+    document.getElementById('dhCompute').addEventListener('click', computeDH);
+    document.getElementById('dhClear').addEventListener('click', () => {
+        dhP.value = ''; dhG.value = ''; dhA.value = ''; dhB.value = '';
+        dhPubA.textContent = ''; dhPubB.textContent = ''; dhKey.textContent = '';
+    });
+    document.getElementById('dhPreset').addEventListener('click', () => {
+        dhP.value = 23; dhG.value = 5; dhA.value = 6; dhB.value = 15;
+        computeDH();
+    });
+
+    // ── RSA ───────────────────────────────────────────────────────────────────
+    const rsaP    = document.getElementById('rsaP');
+    const rsaQ    = document.getElementById('rsaQ');
+    const rsaE    = document.getElementById('rsaE');
+    const rsaN    = document.getElementById('rsaN');
+    const rsaPhi  = document.getElementById('rsaPhi');
+    const rsaD    = document.getElementById('rsaD');
+    const rsaM    = document.getElementById('rsaM');
+    const rsaC    = document.getElementById('rsaC');
+    const rsaMRec = document.getElementById('rsaMRec');
+    const rsaSteps = document.getElementById('rsaSteps');
+
+    /** Extended Euclidean algorithm (returns [gcd, x, y] such that a*x + b*y = gcd). */
+    function egcd(a, b) {
+        if (b === 0n) return [a, 1n, 0n];
+        const [g, x1, y1] = egcd(b, a % b);
+        return [g, y1, x1 - (a / b) * y1];
+    }
+
+    /** Modular inverse of e mod phi using extended Euclidean. Returns null if none exists. */
+    function modInv(e, phi) {
+        e = ((e % phi) + phi) % phi;
+        const [g, x] = egcd(e, phi);
+        if (g !== 1n) return null;
+        let inv = x % phi;
+        if (inv < 0n) inv += phi;
+        return inv;
+    }
+
+    /** BigInt modular exponentiation (handles numbers too large for Number). */
+    function modPowBig(base, exp, mod) {
+        base %= mod;
+        let res = 1n;
+        let b   = base % mod;
+        let e   = exp;
+        while (e > 0n) {
+            if (e & 1n) res = (res * b) % mod;
+            b = (b * b) % mod;
+            e >>= 1n;
+        }
+        return res;
+    }
+
+    // Holds generated RSA key material between operations
+    let RSA = { n: 0n, phi: 0n, e: 0n, d: 0n };
+
+    /** Creates a styled math-step element for the RSA step log. */
+    function stepEl(text) {
+        const el = document.createElement('div');
+        el.className   = 'step';
+        el.textContent = text;
+        return el;
+    }
+
+    function genRSA() {
+        rsaSteps.innerHTML = '';
+        const p = BigInt(rsaP.value);
+        const q = BigInt(rsaQ.value);
+        const e = BigInt(rsaE.value);
+        if (p <= 1n || q <= 1n) { alert('p and q must be primes > 1 (teaching demo)'); return; }
+        const n   = p * q;
+        const phi = (p - 1n) * (q - 1n);
+        function gcd(a, b) { while (b) { const t = a % b; a = b; b = t; } return a; }
+        if (gcd(Number(e), Number(phi)) !== 1) { alert('Choose e coprime with φ'); return; }
+        const d = modInv(e, phi);
+        if (d === null) { alert('No modular inverse for chosen e; pick a different e'); return; }
+        RSA = { n, phi, e, d };
+        rsaN.textContent   = String(n);
+        rsaPhi.textContent = String(phi);
+        rsaD.textContent   = String(d);
+        rsaC.textContent   = '';
+        rsaMRec.textContent = '';
+        rsaSteps.appendChild(stepEl(`n = p·q = ${p} · ${q} = ${n}`));
+        rsaSteps.appendChild(stepEl(`φ = (p−1)(q−1) = ${p - 1n} · ${q - 1n} = ${phi}`));
+        rsaSteps.appendChild(stepEl(`e = ${e}, gcd(e,φ) = 1`));
+        rsaSteps.appendChild(stepEl(`d = e⁻¹ mod φ = ${d}`));
+    }
+
+    function encRSA() {
+        if (!RSA.n) { alert('Generate keys first'); return; }
+        const m = BigInt(rsaM.value);
+        if (m <= 0n || m >= RSA.n) { alert('m must be an integer with 0 < m < n'); return; }
+        const c = modPowBig(m, RSA.e, RSA.n);
+        rsaC.textContent = String(c);
+        rsaSteps.appendChild(stepEl(`Encrypt: c = m^e mod n = ${m}^${RSA.e} mod ${RSA.n} = ${c}`));
+    }
+
+    function decRSA() {
+        if (!RSA.n) { alert('Generate keys first'); return; }
+        const cStr = rsaC.textContent.trim();
+        if (!cStr) { alert('No ciphertext to decrypt'); return; }
+        const c = BigInt(cStr);
+        const m = modPowBig(c, RSA.d, RSA.n);
+        rsaMRec.textContent = String(m);
+        rsaSteps.appendChild(stepEl(`Decrypt: m = c^d mod n = ${c}^${RSA.d} mod ${RSA.n} = ${m}`));
+    }
+
+    document.getElementById('rsaGen').addEventListener('click', genRSA);
+    document.getElementById('rsaClear').addEventListener('click', () => {
+        RSA = { n: 0n, phi: 0n, e: 0n, d: 0n };
+        rsaN.textContent = ''; rsaPhi.textContent = ''; rsaD.textContent = '';
+        rsaC.textContent = ''; rsaMRec.textContent = ''; rsaSteps.innerHTML = '';
+    });
+    document.getElementById('rsaEnc').addEventListener('click', encRSA);
+    document.getElementById('rsaDec').addEventListener('click', decRSA);
+</script>
+
+    <div style="text-align:center; padding:20px; margin-top:10px;">
+        <button onclick="ModuleProgress.complete('key', 'key-encryption-dh-rsa', { returnUrl: '../index.html' })" style="background:#f59e0b; color:#000; border:none; padding:12px 32px; border-radius:8px; font-size:1rem; cursor:pointer; box-shadow:0 2px 8px rgba(245,158,11,0.3); font-weight:600;">Complete Module ✓</button>
+    </div>
+<script src="../../../components/FluxCapacitor.js"></script>
+    <footer style="background: rgba(10, 10, 18, 0.9); color: rgba(255,255,255,0.7); text-align: center; padding: 12px; font-size: 12px;">
+        <p>House of the Key - Encryption Lab | <a href="../index.html" style="color: #f59e0b; text-decoration: none;">← Back to House</a></p>
+    </footer>
+</body>
+</html>

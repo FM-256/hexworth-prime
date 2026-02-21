@@ -16999,6 +16999,67 @@ const ContentRegistry = {
             objectives: []
         },
 
+        'key-encryption-ascii-binary': {
+            id: 'key-encryption-ascii-binary',
+            title: 'Encryption Lab: ASCII, Binary & Hex',
+            description: 'Interactive ASCII, Binary, and Hex conversion with XOR encryption',
+            house: 'key',
+            type: 'lab',
+            difficulty: 'beginner',
+            duration: 30,
+            topics: ['encryption', 'ascii', 'binary', 'hex', 'xor'],
+            paths: ['key'],
+            components: {
+                lab: 'houses/key/labs/key-encryption-ascii-binary.lab.html'
+            },
+            prerequisites: [],
+            objectives: [
+                'Convert between ASCII, Binary, and Hex representations',
+                'Understand XOR encryption fundamentals',
+                'Analyze hex key tables and character encoding'
+            ]
+        },
+        'key-encryption-dh-rsa': {
+            id: 'key-encryption-dh-rsa',
+            title: 'Encryption Lab: Diffie-Hellman & RSA',
+            description: 'Hands-on Diffie-Hellman key exchange and RSA encryption/decryption',
+            house: 'key',
+            type: 'lab',
+            difficulty: 'intermediate',
+            duration: 45,
+            topics: ['encryption', 'diffie-hellman', 'rsa', 'asymmetric', 'key-exchange'],
+            paths: ['key'],
+            components: {
+                lab: 'houses/key/labs/key-encryption-dh-rsa.lab.html'
+            },
+            prerequisites: ['key-encryption-ascii-binary'],
+            objectives: [
+                'Simulate Diffie-Hellman key exchange',
+                'Encrypt and decrypt messages using RSA',
+                'Understand public/private key relationships'
+            ]
+        },
+        'key-hashing-algorithms': {
+            id: 'key-hashing-algorithms',
+            title: 'Hashing Algorithms Lab: MD5 to SHA-512',
+            description: 'Interactive hashing lab covering MD5, SHA-1, SHA-256, SHA-384, and SHA-512',
+            house: 'key',
+            type: 'lab',
+            difficulty: 'beginner',
+            duration: 30,
+            topics: ['hashing', 'md5', 'sha', 'integrity', 'cryptography'],
+            paths: ['key'],
+            components: {
+                lab: 'houses/key/labs/key-hashing-algorithms.lab.html'
+            },
+            prerequisites: [],
+            objectives: [
+                'Generate and compare hashes using multiple algorithms',
+                'Understand the avalanche effect in hashing',
+                'Identify hash types from their output format'
+            ]
+        },
+
         // ─── CODE HOUSE (auto-generated) ───
         'code-build-breaker': {
             id: 'code-build-breaker',
