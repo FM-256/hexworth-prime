@@ -19,6 +19,7 @@ const PathValidator   = require(path.join(EDUSCAN_DIR, 'validators/syntax/paths'
 const NamingValidator = require(path.join(EDUSCAN_DIR, 'validators/syntax/naming'));
 const HeuristicsValidator = require(path.join(EDUSCAN_DIR, 'validators/syntax/heuristics'));
 const ContentCatalogValidator = require(path.join(EDUSCAN_DIR, 'validators/syntax/content-catalog'));
+const NavigationValidator = require(path.join(EDUSCAN_DIR, 'validators/syntax/navigation'));
 
 // ── Import expectations ──────────────────────────────────────────────
 const expectations = require('./expectations');
@@ -29,7 +30,8 @@ const PATH_OVERRIDES = {
     'path-depth-issues.html':  'houses/eye/index.html',
     'naming-issues.html':      'houses/shield/presentations/bad-name.html',
     'path-strict-issues.html': 'houses/web/path-strict-issues.html',
-    'naming-full-issues.html': 'houses/web/labs/MyBadFile.html'
+    'naming-full-issues.html': 'houses/web/labs/MyBadFile.html',
+    'nav-issues.html':         'houses/web/modules/test-nav.module.html'
 };
 
 // ── Instantiate validators ──────────────────────────────────────────
@@ -41,7 +43,8 @@ const validators = [
     new EngineValidator({ profile: 'strict', rootPath: ROOT_PATH }),
     new PathValidator({ profile: 'strict', rootPath: ROOT_PATH }),
     new NamingValidator({ rootPath: ROOT_PATH, strictMode: true }),
-    new HeuristicsValidator({ profile: 'strict', rootPath: ROOT_PATH })
+    new HeuristicsValidator({ profile: 'strict', rootPath: ROOT_PATH }),
+    new NavigationValidator({ profile: 'strict' })
 ];
 
 // ── Run ──────────────────────────────────────────────────────────────
@@ -159,6 +162,39 @@ console.log('');
         passed++;
     } else {
         console.log(`  \u2717 FlowValidator — found ${nonFlowCodes.length} issues with non-FLOW-001 codes: ${[...new Set(nonFlowCodes.map(i => i.code))].join(', ')}`);
+        failed++;
+    }
+}
+
+// NavigationValidator: all emitted issues use NAV-001 or NAV-002 codes
+{
+    const navValidator = new NavigationValidator({ profile: 'strict' });
+    const Scanner = require(path.join(EDUSCAN_DIR, 'scanner'));
+    const ParserOrchestrator = require(path.join(EDUSCAN_DIR, 'parsers'));
+
+    const navScanner = new Scanner({ rootPath: ROOT_PATH, verbose: false });
+    const navParser = new ParserOrchestrator({ verbose: false });
+    const navScanResult = navScanner.scan();
+    const navContent = navParser.parseAll(navScanResult.files);
+
+    const navIssues = [];
+    for (const file of navContent) {
+        if (!file.path.endsWith('.html')) continue;
+        let content = file.content;
+        if (!content) {
+            try { content = fs.readFileSync(path.resolve(ROOT_PATH, file.path), 'utf8'); } catch (_) { continue; }
+        }
+        const result = navValidator.validate({ ...file, content });
+        navIssues.push(...result);
+    }
+
+    const validCodes = ['NAV-001', 'NAV-002'];
+    const badCodes = navIssues.filter(i => !validCodes.includes(i.code));
+    if (badCodes.length === 0) {
+        console.log(`  \u2713 NavigationValidator — all ${navIssues.length} issues use NAV-001/NAV-002 codes`);
+        passed++;
+    } else {
+        console.log(`  \u2717 NavigationValidator — found ${badCodes.length} issues with invalid codes: ${[...new Set(badCodes.map(i => i.code))].join(', ')}`);
         failed++;
     }
 }

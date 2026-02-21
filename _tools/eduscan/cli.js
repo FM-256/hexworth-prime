@@ -314,6 +314,7 @@ Issue Codes:
   PATH-*         Broken paths (404 resources)
   COV-*          Coverage gaps (missing quizzes, labs, assessments)
   FLOW-*         Unchained content (not in any learning progression)
+  NAV-*          Navigation issues (missing back buttons, dashboard links)
   FUNC-*         Functional issues (runtime errors, smoke test failures)
 
 Orphan Reason Codes (with --deep):

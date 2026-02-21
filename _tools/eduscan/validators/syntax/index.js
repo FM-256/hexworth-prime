@@ -18,6 +18,7 @@ const HeuristicsValidator = require('./heuristics');
 const ContentCatalogValidator = require('./content-catalog');
 const DependencyCheckValidator = require('./dependency-check');
 const CSPValidator = require('./csp');
+const NavigationValidator = require('./navigation');
 
 class SyntaxValidator {
     constructor(options = {}) {
@@ -73,6 +74,10 @@ class SyntaxValidator {
             verbose: this.verbose,
             rootPath: this.rootPath
         });
+        this.navigationValidator = new NavigationValidator({
+            verbose: this.verbose,
+            profile: this.profile
+        });
     }
 
     /**
@@ -98,6 +103,7 @@ class SyntaxValidator {
                 heuristicErrors: 0,
                 contentCatalogErrors: 0,
                 dependencyErrors: 0,
+                navigationErrors: 0,
                 // Severity counts (populated at end)
                 bySeverity: {
                     critical: 0,
@@ -185,6 +191,7 @@ class SyntaxValidator {
             const namingIssues = this.namingValidator.validate(fileWithContent);
             const heuristicIssues = this.heuristicsValidator.validate(fileWithContent);
             const dependencyIssues = this.dependencyCheckValidator.validate(fileWithContent);
+            const navIssues = this.navigationValidator.validate(fileWithContent);
 
             // Collect issues
             results.issues.push(...htmlIssues);
@@ -194,6 +201,7 @@ class SyntaxValidator {
             results.issues.push(...namingIssues);
             results.issues.push(...heuristicIssues);
             results.issues.push(...dependencyIssues);
+            results.issues.push(...navIssues);
 
             // Update counts
             results.summary.htmlErrors += htmlIssues.length;
@@ -203,6 +211,7 @@ class SyntaxValidator {
             results.summary.namingErrors += namingIssues.length;
             results.summary.heuristicErrors += heuristicIssues.length;
             results.summary.dependencyErrors += dependencyIssues.length;
+            results.summary.navigationErrors += navIssues.length;
         }
 
         // Post-scan: check for content directories missing index.html
