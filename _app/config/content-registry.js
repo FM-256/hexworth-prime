@@ -21476,6 +21476,22 @@ const ContentRegistry = {
             prerequisites: [],
             objectives: []
         },
+        'code-devops-comprehensive-review': {
+            id: 'code-devops-comprehensive-review',
+            title: 'DevOps Comprehensive Review',
+            description: 'Jeopardy-style review game — 30 questions across Git, Docker, Kubernetes, CI/CD, IaC, and DevOps culture',
+            house: 'code',
+            type: 'quiz',
+            difficulty: 'intermediate',
+            duration: 40,
+            topics: ['git', 'docker', 'kubernetes', 'cicd', 'terraform', 'devops', 'review'],
+            paths: ['devops-fundamentals'],
+            components: {
+                quiz: 'houses/code/reviews/code-devops-comprehensive-review.html'
+            },
+            prerequisites: [],
+            objectives: ['Review all DevOps topics', 'Test knowledge across 6 categories']
+        },
         // ─── GENERAL / NON-HOUSE (remaining REG-001 fixes) ───
         'general-audit-tool': {
             id: 'general-audit-tool',

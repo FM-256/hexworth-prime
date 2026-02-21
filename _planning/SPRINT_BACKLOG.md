@@ -65,7 +65,7 @@
 
 ---
 
-## Consolidated Open Backlog (February 19, 2026)
+## Consolidated Open Backlog (February 21, 2026)
 
 All remaining work — organized by priority. Detail for each sprint lives further down in this file.
 
@@ -75,7 +75,7 @@ All remaining work — organized by priority. Detail for each sprint lives furth
 |--------|------|--------|-------|
 | **QC-4** | AccessGuard server-side migration | ✅ Done | 5 Cloud Functions, Firestore rules, custom claims, trust-then-verify pattern |
 | **PR-1** | Student worksheets (A5 remaining) | ✅ Done | All 5 worksheets (A1-A5) complete |
-| **QC-7** | Forge learning path — Edition Selector blocking progress | ✅ Done | Removed from critical path, updated prerequisites |
+| **QC-7** | Forge learning path — Edition Selector blocking progress | ✅ Done | Investigated: not actually blocking (presentation+lab have ModuleProgress.complete). Added applet/lab links to presentation. |
 
 ### HIGH Priority
 
@@ -99,11 +99,11 @@ All remaining work — organized by priority. Detail for each sprint lives furth
 | **AR-14** | Research instrumentation finish (command export, surveys, abandonment, phase detection) | ✅ Done | All 6 items complete: event log, export, command hook, surveys, abandonment, phase detection |
 | **PR-5** | Difficulty metrics & analysis layer | Backlog | Grant reviewers love measurable learning |
 | **PR-7** | Red vs Blue asymmetric box | Backlog | Product differentiator — depends on AR-11, AR-12 |
-| **QC-3** | Planet perf, Core 2 dup progress, achievement wiring, WSA gaps | Partial | Planet cap ✅, achievements ✅, Core 2 dup ✅ (Forge index now reads both legacy + hexworth_progress). WSA gaps + Backup or Bust remain (content authoring). |
+| **QC-3** | Planet perf, Core 2 dup progress, achievement wiring, WSA gaps | ✅ Done | Planet cap ✅, achievements ✅, Core 2 dup ✅, Backup or Bust ✅ rebuilt as simulation game. WSA audit confirmed all 20 modules (M01-M19 + M20 capstone) are complete — no gaps remain. |
 | **DA-8** | Dark Arts Gate 8 — Dynamic Analysis Sandbox | ✅ Done | Operation Gone Dark: multi-device forensic investigation. Desktop/laptop/phone interfaces, caseboard, datadrill, evidence tracking. Full state engine (shared.js). |
 | **DA-9** | Dark Arts Gate 9 — Reverse Engineering Challenge | ✅ Done | IDA/Ghidra-style disassembly viewer, string decryption, API mapping, control flow analysis. Prerequisite: gate 8. Achievement wired. |
 | **DA-10** | Dark Arts Gate 10 — IR Capstone | ✅ Done | Full incident response: SIEM alert, triage, containment, evidence collection, root cause, eradication, lessons learned. Prerequisite: gate 9. Achievement + Grandmaster rank wired. |
-| **F-38** | Advanced career sorting quiz | Backlog | 30-40 questions, career aptitude, 12 career tracks |
+| **F-38** | Advanced career sorting quiz | ✅ Done | 35 questions, 7 categories, 12 career tracks, weighted scoring, dashboard footer link. career-quiz.html (1911 lines) |
 | **F-39** | Universal completion stamps + mastery XP | Discussion | Massive scope — touches nearly every component |
 
 ### LOW / Deferred
@@ -115,7 +115,7 @@ All remaining work — organized by priority. Detail for each sprint lives furth
 | **QC-5** | EduScan CI/CD (GitHub Actions) | Backlog | Nice to have — manual scan works fine |
 | **HD comparative** | Cohort vs cohort analytics | Deferred | Multi-class feature — no classes running yet |
 | **F-4** | User accounts (if needed) | Backlog | Low priority — localStorage + anonymous sync working |
-| **F-13 carry** | Cloud Hop vertical runner, SQL Injection Defense live test, save-the-pod bracket fix | Backlog | Actionable notes from F-13 |
+| **F-13 carry** | Cloud Hop vertical runner, SQL Injection Defense live test | Partial | save-the-pod brackets ✅ fixed, CSE module05 script ✅ fixed, progress.js paths ✅ verified. Cloud Hop vertical + SQL Injection need live browser testing. |
 
 ### Marathon Waves Status
 
@@ -127,15 +127,16 @@ All remaining work — organized by priority. Detail for each sprint lives furth
 | 4 — Dashboard Panels | DONE | AR-13 leaderboard, box grid, CTF assignments |
 | 5 — Quality Infra | DONE | Planet cap, EduScan CI, progress refactor |
 | 6 — Features | DONE | STRIDE modeler, cert paths, universal search |
-| 7 — Dark Arts Gates | 3 remain | DA-8, DA-9, DA-10 |
+| 7 — Dark Arts Gates | DONE | DA-8, DA-9, DA-10 |
 | 8 — Validate & Deploy | Not started | EduScan + archive + deploy |
 
 ### Biggest Gaps by Category
 
 - **Revenue blockers:** PR-6 (marketing assets — zero exist)
-- **Content:** DA-8/9/10 (Dark Arts gates 8-10), AR-4/5 (IDP pipeline)
-- **Polish:** QC-3 remainder (WSA gaps, Backup or Bust), F-38 (career quiz)
-- **Barricades remaining:** 18 links across 8 files (pwsh applets ×5, sysadmin applets ×5, forge chapters ×5, misc ×3) — genuinely missing content
+- **Content:** AR-4/5 (IDP pipeline — grade Gemini drafts, then draft Series B-H)
+- **Polish:** QC-3 ✅ Complete (WSA audit confirmed all modules are fully implemented)
+- **Barricades remaining:** 0 — all barricade links resolved
+- **EduScan:** Zero actionable issues — 0 CRITICAL, 0 HIGH, 0 MEDIUM, 2 SUSPECT (confirmed false positives). 1683 files, 1522 catalog modules, all hrefs valid.
 
 ---
 
@@ -1160,10 +1161,10 @@ Team-based competitive CTF battles. Teams race each other with separate scores, 
 
 | Task | Details | Status |
 |------|---------|--------|
-| Remove `forge-windows-editions-applet` from LearningPaths.js forge modules | Keep applet file, remove from critical path | Backlog |
-| Update `forge-windows-settings` prerequisites | Change from `['forge-windows-editions-applet']` to `['forge-windows-editions']` | Backlog |
-| Link selector from presentation as optional | Add "Try the interactive selector" link in the Windows Editions presentation | Backlog |
-| Audit other houses for similar blocking applets | Check if any other house paths have non-completable modules as prerequisites | Backlog |
+| Remove `forge-windows-editions-applet` from LearningPaths.js forge modules | Already done — ID is now `forge-windows-editions` | ✅ |
+| Update `forge-windows-settings` prerequisites | Already correct — prereq is `['forge-windows-editions']` | ✅ |
+| Link selector from presentation as optional | Already done via QC-7 commit — applet/lab links added to presentation | ✅ |
+| Audit other houses for similar blocking applets | No other blocking applets found in any house path | ✅ |
 
 ---
 
@@ -1250,9 +1251,9 @@ Team-based competitive CTF battles. Teams race each other with separate scores, 
 | Planet overload cap | `digital-life/entities/Planet.js`, `Ecosystem.js` | After many planets, performance degrades — need max cap or cleanup | ✅ (already implemented — maxPlanets: 20, recycleOldestPlanet) |
 | Core 2 duplicate progress tracking | `houses/forge/index.html` | Forge index now reads both legacy `aplus-core2-progress` AND `hexworth_progress.forge` keys | ✅ |
 | Achievement wiring gaps | `AchievementManager.js`, `AchievementSystem.js` | `first_module`, `house_scholar_X` not triggering | ✅ (first_module was already wired; added house milestone + scholar triggers in checkProgressAchievements via AchievementRegistry) |
-| WSA Domain 2-4 content gaps | Cloud house WSA modules | Domains 2, 3, 4 only 22-25% complete | ⬜ |
+| WSA Domain 2-4 content gaps | Cloud house WSA modules | Audit confirmed: all 20 modules complete, no gaps | ✅ |
 | PSTerminal objective audit | `WSAGauntlet.js` | M07 context-sensitive objectives need path checking; M04 `new-vm` vs `create-vm` mismatch | ✅ (verified: all 14 M07 objectives have _checkObjective hooks; M04 quiz correctly uses New-VM as answer, Create-VM is distractor) |
-| Backup or Bust game mechanic | `houses/forge/games/` | Workshop recall: currently quiz-in-disguise, needs real game mechanic | ⬜ |
+| Backup or Bust game mechanic | `houses/forge/reviews/` | Rebuilt as 10-day simulation game (2258 lines). Token budget, 7 disaster types, server fleet growth, S/A/B/C/BUST ranking. | ✅ |
 | Install `gh` CLI + configure GitHub token | Dev environment | No API access from CLI — can't comment/close issues, create PRs programmatically | ⬜ |
 
 ---
@@ -3322,56 +3323,61 @@ Completing a standalone presentation (e.g., `forge-windows-editions.presentation
 ---
 
 ### SPRINT M-6: CySA+ (Eye House)
-**Status:** Queued
-**Scope:** SOC analyst curriculum — 16 chapters + OSINT module
+**Status:** ✅ Complete (February 21, 2026)
+**Commit:** `70010602`
+**Scope:** SOC analyst curriculum — 16 chapters
 
-| # | Item | House | What |
-|---|------|-------|------|
-| 1 | Ch 1-4 presentations + labs + quizzes | Eye | Analyst intro, Threat Intel, OSINT, Vuln Management |
-| 2 | Ch 5-8 presentations + labs + quizzes | Eye | Vuln Scanning, Cloud Security, SOC topics |
-| 3 | Ch 9-12 presentations + labs + quizzes | Eye | Continued SOC topics |
-| 4 | Ch 13-16 presentations + labs + quizzes | Eye | Advanced SOC topics |
-| 5 | ISSUE-014: OSINT Browser Extensions module | Eye | 50+ tools (ties into Ch 3) |
-| 6 | Build review games | Eye | Chapter reviews + comprehensive final |
-| 7 | Learning path + registry | Eye | Wire CySA+ path into system |
+| # | Item | House | Status |
+|---|------|-------|--------|
+| 1 | Ch 1-4 presentations + labs + quizzes | Eye | ✅ 12 files |
+| 2 | Ch 5-8 presentations + labs + quizzes | Eye | ✅ 12 files |
+| 3 | Ch 9-12 presentations + labs + quizzes | Eye | ✅ 12 files |
+| 4 | Ch 13-16 presentations + labs + quizzes | Eye | ✅ 12 files |
+| 5 | ISSUE-014: OSINT Browser Extensions module | Eye | ⬜ Deferred |
+| 6 | Build review games | Eye | ✅ 1 comprehensive Jeopardy review |
+| 7 | Learning path + registry | Eye | ✅ cysa path + 49 registry entries |
 
+**Deliverables:** 50 content files, 1 course index, cysa learning path, 49 registry entries
 **Source:** `Training/Comptia/CySA/Slides/`
 
 ---
 
 ### SPRINT M-7: Linux Curriculum (Script House)
-**Status:** Queued
-**Scope:** 16 chapters + 50 presentations + SSH labs + specialized labs
+**Status:** 🟡 Partially Complete (February 21, 2026)
+**Commit:** `57042a12`
+**Scope:** Linux Administration course — 12 chapters from USB PPTX material
 
-| # | Item | House | What |
-|---|------|-------|------|
-| 1 | CLI Intro entry module | Script | Gateway module from lesson plan |
-| 2 | Convert Linux Ch 1-8 exercises + presentations | Script | Fundamentals |
-| 3 | Convert Linux Ch 9-16 exercises + presentations | Script | Admin + Advanced |
-| 4 | Convert remaining Linux PPTX presentations | Script | Deep-dive topic presentations |
-| 5 | SSH Labs (basic + bonus) | Script | Hands-on SSH practice |
-| 6 | Import labs (Anonymity 1-3, GPG, Checksum, Compression, htop) | Script | Specialized labs |
-| 7 | Build quizzes + review games per chapter | Script | Full assessment scaffolding |
-| 8 | Title progression | Script | Linux Recruit → Coder → Specialist → Engineer → Architect |
-| 9 | Learning path + registry | Script | Wire Linux path into system |
+| # | Item | House | Status |
+|---|------|-------|--------|
+| 1 | Linux Admin Ch 1-6 presentations + quizzes + labs | Script | ✅ 18 files |
+| 2 | Linux Admin Ch 7-12 presentations + quizzes + labs | Script | ✅ 18 files |
+| 3 | Comprehensive review game | Script | ✅ 1 Jeopardy review |
+| 4 | Course index page | Script | ✅ |
+| 5 | Learning path + registry | Script | ✅ linux-admin path + 37 entries |
+| 6 | SSH Labs (basic + advanced) | Script | ✅ script-ssh-basics + script-ssh-advanced |
+| 7 | Bonus labs (Anonymity 1-3, GPG, Checksum, htop) | Script | ✅ 6 interactive labs (10,535 lines) |
+| 8 | Title progression | Script | ⬜ Deferred |
 
-**Source:** `Linux/`, `Training/Linux/`, `Command line/`, `Keiser Idrive/` PPTX files
+**Deliverables:** 38 content files, 1 course index, linux-admin learning path, 37 registry entries
+**Source:** `Keiser Idrive/` PPTX files (13 presentations)
 
 ---
 
 ### SPRINT M-8: OpenStack (Cloud House)
-**Status:** Queued
-**Scope:** Complete curriculum — 4 presentations, 3 labs, 4 quizzes (source ready to convert)
+**Status:** ✅ Complete (February 21, 2026)
+**Commit:** `99830935`
+**Scope:** Complete curriculum — 4 presentations, 3 labs, 4 quizzes, 1 review
 
-| # | Item | House | What |
-|---|------|-------|------|
-| 1 | Convert 4 PPTX presentations | Cloud | Intro, Projects, Install, Operations |
-| 2 | Convert 3 labs with solutions | Cloud | Install, Launch VM, Advanced Ops |
-| 3 | Convert 4 homework sets to quizzes | Cloud | Assessment per module |
-| 4 | Build review game | Cloud | OpenStack comprehensive review |
-| 5 | Learning path + registry | Cloud | Wire OpenStack path into system |
+| # | Item | House | Status |
+|---|------|-------|--------|
+| 1 | Convert 4 PPTX presentations | Cloud | ✅ 4 presentations (685-1035 lines) |
+| 2 | Convert 3 labs | Cloud | ✅ 3 interactive labs (1081-1466 lines) |
+| 3 | Convert 4 homework sets to quizzes | Cloud | ✅ 4 quizzes (15 questions each) |
+| 4 | Build review game | Cloud | ✅ Comprehensive Jeopardy review |
+| 5 | Learning path + registry | Cloud | ✅ openstack path + 12 registry entries |
 
-**Source:** `cloud security/Open Metal/OpenStack based hands-on experimentation infrastructure/`
+**Deliverables:** 13 content files, 1 course index, openstack learning path, 12 registry entries
+**Source:** USB PPTX slides (4 lessons, ~120 slides total)
 
 ---
 
@@ -3393,18 +3399,20 @@ Completing a standalone presentation (e.g., `forge-windows-editions.presentation
 ---
 
 ### SPRINT M-9: Shield Policy + Compliance
-**Status:** Queued
+**Status:** 🟡 Partially Complete (February 21, 2026)
+**Commit:** `87712eee`
 **Scope:** Regulatory and framework content + extracted certification material
 
-| # | Item | House | What |
-|---|------|-------|------|
-| 1 | Cyber Framework MM1-MM4 | Shield | Intro, Government, CFAA, Regulatory |
-| 2 | Cyber Framework MM5-MM8 | Shield | NIST, Encryption Law, Breach Litigation, Cyber War |
-| 3 | Build labs + quizzes per micromodule | Shield | Full scaffolding |
-| 4 | Extracted MDs (CISSP/CRISC/CASP+) → modules | Shield | 295 files → reference modules |
-| 5 | DevOps Automation (50 MDs) → modules | Code | Reference material conversion |
-| 6 | Learning paths + registry | Shield/Code | Wire paths into system |
+| # | Item | House | Status |
+|---|------|-------|--------|
+| 1 | Cyber Framework MM1-MM4 | Shield | ✅ 4 presentations |
+| 2 | Cyber Framework MM5-MM8 | Shield | ✅ 4 presentations |
+| 3 | Build labs + quizzes per micromodule | Shield | ✅ 8 labs + 8 quizzes + 1 comprehensive review |
+| 4 | Extracted MDs (CISSP/CRISC/CASP+) → modules | Shield | ⬜ 295 files → reference modules |
+| 5 | DevOps Automation (50 MDs) → modules | Code | ⬜ Reference material conversion |
+| 6 | Learning paths + registry | Shield/Code | ✅ cyber-framework path + 25 registry entries |
 
+**Deliverables (items 1-3,6):** 26 content files, 1 course index page, cyber-framework learning path, 25 registry entries
 **Source:** `Cyber Framework/`, `extracted-guides/shield-*/`, `extracted-guides/code-devops-automation/`
 
 ---
