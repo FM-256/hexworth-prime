@@ -1,0 +1,1765 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <!-- Progress & Achievements -->
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Operation: Dark Subnet — MD-100 Networking Sim</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            min-height: 100vh;
+            background: #0c0c0c;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: #e0d0c0;
+            overflow: hidden;
+        }
+
+        /* ── Header ───────────────────────────────────────────────── */
+        .lab-header {
+            padding: 12px 24px;
+            background: rgba(10, 10, 15, 0.97);
+            border-bottom: 1px solid rgba(234, 88, 12, 0.25);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky; top: 0; z-index: 200;
+        }
+        .header-left { display: flex; align-items: center; gap: 16px; }
+        .back-btn {
+            padding: 7px 15px;
+            background: rgba(234, 88, 12, 0.1);
+            border: 1px solid rgba(234, 88, 12, 0.3);
+            border-radius: 6px;
+            color: #f97316;
+            text-decoration: none;
+            font-size: 0.82rem;
+            transition: background 0.2s;
+        }
+        .back-btn:hover { background: rgba(234, 88, 12, 0.2); }
+        .lab-title { font-size: 0.95rem; color: #f5e6d3; font-weight: 600; }
+        .lab-badge {
+            padding: 3px 11px;
+            background: rgba(234, 88, 12, 0.15);
+            border: 1px solid rgba(234, 88, 12, 0.3);
+            border-radius: 12px;
+            font-size: 0.66rem;
+            color: #ea580c;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+        }
+        .task-progress { font-size: 0.82rem; color: #8a7060; }
+        .task-count { color: #f97316; font-weight: 600; }
+
+        /* ── Main Layout ──────────────────────────────────────────── */
+        .lab-container {
+            display: grid;
+            grid-template-columns: 320px 1fr;
+            height: calc(100vh - 50px);
+        }
+
+        /* ── Objectives Panel ─────────────────────────────────────── */
+        .obj-panel {
+            background: rgba(12, 10, 8, 0.97);
+            border-right: 1px solid rgba(234, 88, 12, 0.12);
+            overflow-y: auto;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+        }
+        .obj-panel::-webkit-scrollbar { width: 5px; }
+        .obj-panel::-webkit-scrollbar-thumb { background: rgba(234,88,12,0.2); border-radius: 3px; }
+
+        .mission-brief {
+            padding: 16px 18px;
+            background: rgba(234,88,12,0.06);
+            border-bottom: 1px solid rgba(234,88,12,0.15);
+        }
+        .brief-from { font-size: 0.68rem; color: #ea580c; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 6px; }
+        .brief-text { font-size: 0.82rem; color: #c0b0a0; line-height: 1.55; }
+        .brief-text em { color: #f97316; font-style: normal; font-weight: 500; }
+
+        .sticky-note {
+            margin: 12px 16px;
+            padding: 12px 14px;
+            background: #3a3520;
+            border: 1px solid #5a5030;
+            border-radius: 4px;
+            font-family: 'Comic Sans MS', 'Segoe UI', cursive;
+            font-size: 0.78rem;
+            color: #d4c878;
+            transform: rotate(-0.5deg);
+            box-shadow: 2px 2px 6px rgba(0,0,0,0.3);
+        }
+        .sticky-note .sticky-author { display: block; margin-top: 6px; font-size: 0.7rem; color: #a09860; }
+
+        .obj-section-title {
+            font-size: 0.66rem;
+            color: #6b5040;
+            letter-spacing: 0.14em;
+            text-transform: uppercase;
+            padding: 12px 18px 6px;
+        }
+
+        .obj-list { padding: 0 12px 16px; flex: 1; overflow-y: auto; }
+
+        .obj-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            padding: 9px 10px;
+            margin-bottom: 3px;
+            border-radius: 7px;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: 1px solid transparent;
+        }
+        .obj-item:hover { background: rgba(234,88,12,0.06); }
+        .obj-item.active { background: rgba(234,88,12,0.1); border-color: rgba(234,88,12,0.25); }
+        .obj-item.completed .obj-check { background: #22c55e; border-color: #22c55e; color: #fff; }
+        .obj-item.completed .obj-label { color: #6b7060; text-decoration: line-through; }
+
+        .obj-check {
+            width: 22px; height: 22px; min-width: 22px;
+            border: 2px solid rgba(234,88,12,0.3);
+            border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 0.65rem; color: transparent;
+            margin-top: 1px;
+            transition: all 0.3s;
+        }
+        .obj-num { font-size: 0.65rem; color: #ea580c; font-weight: 700; margin-top: 2px; min-width: 18px; }
+        .obj-label { font-size: 0.8rem; color: #c0b0a0; line-height: 1.4; }
+
+        /* ── GUI Workspace ────────────────────────────────────────── */
+        .gui-workspace {
+            background: #0a0a0f;
+            overflow-y: auto;
+            padding: 20px;
+            position: relative;
+        }
+        .gui-workspace::-webkit-scrollbar { width: 6px; }
+        .gui-workspace::-webkit-scrollbar-thumb { background: rgba(234,88,12,0.15); border-radius: 3px; }
+
+        /* ── Windows-Style Panels ─────────────────────────────────── */
+        .win-panel {
+            background: #1a1a2e;
+            border: 1px solid #2a2a4e;
+            border-radius: 8px;
+            margin-bottom: 16px;
+            overflow: hidden;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+        }
+        .win-panel.hidden { display: none; }
+
+        .win-titlebar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 8px 14px;
+            background: #252540;
+            border-bottom: 1px solid #2a2a4e;
+        }
+        .win-titlebar-left { display: flex; align-items: center; gap: 10px; }
+        .win-titlebar-icon { font-size: 0.9rem; }
+        .win-titlebar-text { font-size: 0.82rem; color: #c0c0e0; font-weight: 500; }
+        .win-controls { display: flex; gap: 6px; }
+        .win-ctrl-btn {
+            width: 14px; height: 14px; border-radius: 50%;
+            border: none; cursor: pointer; opacity: 0.7;
+        }
+        .win-ctrl-min { background: #f5c542; }
+        .win-ctrl-max { background: #42f560; }
+        .win-ctrl-close { background: #f54242; }
+
+        .win-body { padding: 16px; }
+
+        /* ── Tabs ─────────────────────────────────────────────────── */
+        .win-tabs {
+            display: flex;
+            border-bottom: 1px solid #2a2a4e;
+            background: #1e1e36;
+        }
+        .win-tab {
+            padding: 8px 18px;
+            font-size: 0.78rem;
+            color: #8080a0;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            transition: all 0.2s;
+            background: none;
+            border-top: none;
+            border-left: none;
+            border-right: none;
+        }
+        .win-tab:hover { color: #b0b0d0; }
+        .win-tab.active { color: #f97316; border-bottom-color: #f97316; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+
+        /* ── Network Form ─────────────────────────────────────────── */
+        .net-form { display: flex; flex-direction: column; gap: 12px; }
+        .form-row { display: flex; align-items: center; gap: 12px; }
+        .form-label {
+            font-size: 0.78rem; color: #8080a0; min-width: 140px; text-align: right;
+        }
+        .form-input {
+            flex: 1; max-width: 200px;
+            padding: 6px 10px;
+            background: #12122a;
+            border: 1px solid #3a3a5e;
+            border-radius: 4px;
+            color: #d0d0f0;
+            font-family: 'Consolas', monospace;
+            font-size: 0.85rem;
+            outline: none;
+        }
+        .form-input:focus { border-color: #f97316; }
+        .form-input.correct { border-color: #22c55e; color: #22c55e; background: rgba(34,197,94,0.08); }
+        .form-input.incorrect { border-color: #ef4444; color: #ef4444; background: rgba(239,68,68,0.08); }
+        .form-input:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        .radio-group { display: flex; gap: 16px; align-items: center; }
+        .radio-label {
+            display: flex; align-items: center; gap: 6px;
+            font-size: 0.8rem; color: #a0a0c0; cursor: pointer;
+        }
+        .radio-label input[type="radio"] { accent-color: #f97316; }
+
+        /* ── Command Prompt ────────────────────────────────────────── */
+        .cmd-window {
+            background: #0c0c0c;
+            border: 1px solid #333;
+            border-radius: 6px;
+            overflow: hidden;
+        }
+        .cmd-titlebar {
+            padding: 5px 12px;
+            background: #1a1a1a;
+            border-bottom: 1px solid #333;
+            display: flex; align-items: center; gap: 8px;
+        }
+        .cmd-titlebar-text { font-size: 0.75rem; color: #aaa; font-family: 'Consolas', monospace; }
+        .cmd-body {
+            padding: 12px;
+            max-height: 320px;
+            overflow-y: auto;
+            font-family: 'Consolas', monospace;
+            font-size: 0.82rem;
+            line-height: 1.6;
+        }
+        .cmd-body::-webkit-scrollbar { width: 5px; }
+        .cmd-body::-webkit-scrollbar-thumb { background: #444; border-radius: 3px; }
+        .cmd-output { color: #ccc; white-space: pre-wrap; word-break: break-all; }
+        .cmd-output .highlight { color: #f97316; font-weight: 600; }
+        .cmd-output .error { color: #ef4444; }
+        .cmd-output .success { color: #22c55e; }
+
+        .cmd-input-line {
+            display: flex; align-items: center; gap: 0; margin-top: 6px;
+        }
+        .cmd-prompt { color: #ccc; white-space: nowrap; }
+        .cmd-input-field {
+            flex: 1;
+            background: transparent;
+            border: none;
+            color: #f0f0f0;
+            font-family: 'Consolas', monospace;
+            font-size: 0.82rem;
+            outline: none;
+            padding: 2px 4px;
+        }
+
+        /* ── Firewall Panel ───────────────────────────────────────── */
+        .fw-rule-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.78rem;
+        }
+        .fw-rule-table th {
+            text-align: left;
+            padding: 8px 10px;
+            background: #1e1e36;
+            color: #8080a0;
+            border-bottom: 1px solid #2a2a4e;
+            font-weight: 500;
+        }
+        .fw-rule-table td {
+            padding: 7px 10px;
+            color: #c0c0d0;
+            border-bottom: 1px solid rgba(42,42,78,0.5);
+        }
+        .fw-rule-table tr.new-rule { background: rgba(234,88,12,0.1); }
+
+        .fw-form { display: flex; flex-direction: column; gap: 10px; padding: 12px 0; }
+        .fw-form-row { display: flex; gap: 12px; align-items: center; }
+        .fw-form-label { font-size: 0.78rem; color: #8080a0; min-width: 100px; }
+        .fw-select {
+            padding: 5px 10px;
+            background: #12122a;
+            border: 1px solid #3a3a5e;
+            border-radius: 4px;
+            color: #d0d0f0;
+            font-size: 0.8rem;
+            outline: none;
+        }
+        .fw-select:focus { border-color: #f97316; }
+
+        /* ── VPN Dialog ────────────────────────────────────────────── */
+        .vpn-form { display: flex; flex-direction: column; gap: 14px; padding: 8px 0; }
+
+        /* ── Action Buttons ────────────────────────────────────────── */
+        .action-btn {
+            padding: 8px 20px;
+            background: linear-gradient(135deg, #ea580c, #c2410c);
+            border: none;
+            border-radius: 6px;
+            color: #fff;
+            font-size: 0.84rem;
+            cursor: pointer;
+            transition: all 0.25s;
+        }
+        .action-btn:hover { box-shadow: 0 3px 14px rgba(234,88,12,0.35); transform: translateY(-1px); }
+        .action-btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; box-shadow: none; }
+        .action-btn.success { background: linear-gradient(135deg, #22c55e, #16a34a); }
+
+        .secondary-btn {
+            padding: 6px 14px;
+            background: rgba(234,88,12,0.12);
+            border: 1px solid rgba(234,88,12,0.3);
+            border-radius: 5px;
+            color: #f97316;
+            font-size: 0.78rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .secondary-btn:hover { background: rgba(234,88,12,0.22); }
+
+        /* ── Toast Notifications ──────────────────────────────────── */
+        .toast-container {
+            position: fixed;
+            top: 60px; right: 20px;
+            z-index: 999;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            pointer-events: none;
+        }
+        .toast {
+            padding: 12px 18px;
+            background: #1a1a2e;
+            border: 1px solid #2a2a4e;
+            border-left: 4px solid #f97316;
+            border-radius: 6px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+            max-width: 360px;
+            animation: toastIn 0.35s ease-out, toastOut 0.4s ease-in 4.5s forwards;
+            pointer-events: auto;
+        }
+        .toast.success { border-left-color: #22c55e; }
+        .toast.warning { border-left-color: #eab308; }
+        .toast.error { border-left-color: #ef4444; }
+        .toast-from { font-size: 0.68rem; color: #ea580c; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 4px; }
+        .toast-msg { font-size: 0.82rem; color: #c0c0d0; line-height: 1.45; }
+        @keyframes toastIn { from { opacity: 0; transform: translateX(60px); } to { opacity: 1; transform: translateX(0); } }
+        @keyframes toastOut { from { opacity: 1; } to { opacity: 0; transform: translateX(60px); } }
+
+        /* ── Status Bar ────────────────────────────────────────────── */
+        .status-indicator {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 3px 10px;
+            border-radius: 12px;
+            font-size: 0.72rem;
+            font-weight: 500;
+        }
+        .status-indicator.offline { background: rgba(239,68,68,0.15); color: #ef4444; }
+        .status-indicator.online { background: rgba(34,197,94,0.15); color: #22c55e; }
+        .status-indicator.warning { background: rgba(234,179,8,0.15); color: #eab308; }
+        .status-dot {
+            width: 7px; height: 7px; border-radius: 50%;
+        }
+        .status-dot.offline { background: #ef4444; }
+        .status-dot.online { background: #22c55e; }
+        .status-dot.warning { background: #eab308; }
+
+        /* ── Network Diagram ──────────────────────────────────────── */
+        .net-diagram {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 16px;
+            padding: 16px;
+            background: rgba(12,12,30,0.6);
+            border: 1px solid #2a2a4e;
+            border-radius: 8px;
+            margin-bottom: 16px;
+            flex-wrap: wrap;
+        }
+        .net-node {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+            padding: 10px 14px;
+            background: #1e1e36;
+            border: 1px solid #3a3a5e;
+            border-radius: 6px;
+            min-width: 90px;
+            transition: all 0.3s;
+        }
+        .net-node.error { border-color: #ef4444; background: rgba(239,68,68,0.08); }
+        .net-node.ok { border-color: #22c55e; background: rgba(34,197,94,0.08); }
+        .net-node-icon { font-size: 1.4rem; }
+        .net-node-label { font-size: 0.7rem; color: #a0a0c0; text-align: center; }
+        .net-node-ip { font-size: 0.68rem; color: #6b6b8b; font-family: 'Consolas', monospace; }
+        .net-link { font-size: 1.2rem; color: #3a3a5e; }
+
+        /* ── Wireless Panel ────────────────────────────────────────── */
+        .wifi-list { display: flex; flex-direction: column; gap: 6px; }
+        .wifi-item {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 10px 14px;
+            background: #12122a;
+            border: 1px solid #2a2a4e;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .wifi-item:hover { border-color: #3a3a5e; }
+        .wifi-item.connected { border-color: #22c55e; background: rgba(34,197,94,0.06); }
+        .wifi-item.selected { border-color: #f97316; background: rgba(234,88,12,0.06); }
+        .wifi-name { font-size: 0.84rem; color: #c0c0d0; }
+        .wifi-detail { font-size: 0.72rem; color: #6b6b8b; }
+        .wifi-signal { display: flex; gap: 2px; align-items: flex-end; }
+        .wifi-bar { width: 4px; background: #3a3a5e; border-radius: 1px; }
+        .wifi-bar.active { background: #22c55e; }
+
+        /* ── Completion Banner ─────────────────────────────────────── */
+        .complete-banner {
+            display: none;
+            text-align: center;
+            padding: 32px 20px;
+            background: rgba(34,197,94,0.06);
+            border: 1px solid rgba(34,197,94,0.2);
+            border-radius: 10px;
+            margin-top: 20px;
+        }
+        .complete-banner.show { display: block; }
+        .complete-banner h3 { color: #22c55e; font-size: 1.1rem; margin-bottom: 8px; }
+        .complete-banner p { color: #8a8a70; font-size: 0.88rem; margin-bottom: 18px; line-height: 1.5; }
+        .complete-btn {
+            padding: 12px 32px;
+            background: #22c55e;
+            border: none;
+            border-radius: 8px;
+            color: #fff;
+            font-size: 0.95rem;
+            cursor: pointer;
+            box-shadow: 0 3px 12px rgba(34,197,94,0.3);
+            transition: background 0.2s;
+        }
+        .complete-btn:hover { background: #16a34a; }
+
+        /* ── Progress Bar ──────────────────────────────────────────── */
+        .progress-bar {
+            width: 100%; height: 6px;
+            background: #1a1a2e;
+            border-radius: 3px;
+            overflow: hidden;
+            margin: 8px 0;
+        }
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #ea580c, #f97316);
+            border-radius: 3px;
+            transition: width 0.4s ease;
+        }
+
+        /* ── Duplicate IP Warning ──────────────────────────────────── */
+        .ip-conflict-banner {
+            display: none;
+            padding: 10px 16px;
+            background: rgba(239,68,68,0.1);
+            border: 1px solid rgba(239,68,68,0.3);
+            border-radius: 6px;
+            font-size: 0.82rem;
+            color: #fca5a5;
+            margin-bottom: 12px;
+            align-items: center;
+            gap: 10px;
+        }
+        .ip-conflict-banner.show { display: flex; }
+
+        /* ── Responsive ────────────────────────────────────────────── */
+        @media (max-width: 900px) {
+            .lab-container { grid-template-columns: 1fr; }
+            .obj-panel { max-height: 200px; }
+        }
+    </style>
+</head>
+<body>
+
+<header class="lab-header">
+    <div class="header-left">
+        <a href="../index.html" class="back-btn">&larr; Back to MD-100</a>
+        <span class="lab-title">Operation: Dark Subnet</span>
+        <span class="lab-badge">GUI SIMULATOR</span>
+    </div>
+    <div class="task-progress">
+        Objectives: <span class="task-count" id="objProgress">0 / 12</span>
+    </div>
+</header>
+
+<div class="toast-container" id="toastContainer"></div>
+
+<div class="lab-container">
+    <!-- ── Objectives Panel ──────────────────────────────────── -->
+    <aside class="obj-panel">
+        <div class="mission-brief">
+            <div class="brief-from">Mission Brief &mdash; Sarah Chen, IT Director</div>
+            <div class="brief-text">
+                "Building B went dark 20 minutes ago. <em>Thirty workstations</em>, no network. The switch is fine &mdash; I checked. It's a configuration issue. Ray was doing 'testing' on the subnet last week and never reverted. Building B houses <em>Legal and Compliance</em> &mdash; they cannot be offline during audit season."
+            </div>
+        </div>
+
+        <div class="sticky-note">
+            "Testing new subnet scheme. Will revert Monday. -R"
+            <span class="sticky-author">Dated: 3 months ago. Taped to Building B switch.</span>
+        </div>
+
+        <div class="obj-section-title">Objectives</div>
+        <div class="obj-list" id="objList">
+            <div class="obj-item active" data-obj="1" onclick="activateObj(1)">
+                <div class="obj-check" id="chk-1">&#10003;</div>
+                <div class="obj-num">01</div>
+                <div class="obj-label">Diagnose the outage with ipconfig /all</div>
+            </div>
+            <div class="obj-item" data-obj="2" onclick="activateObj(2)">
+                <div class="obj-check" id="chk-2">&#10003;</div>
+                <div class="obj-num">02</div>
+                <div class="obj-label">Fix workstation 1 &mdash; switch to DHCP</div>
+            </div>
+            <div class="obj-item" data-obj="3" onclick="activateObj(3)">
+                <div class="obj-check" id="chk-3">&#10003;</div>
+                <div class="obj-num">03</div>
+                <div class="obj-label">Verify DNS resolution</div>
+            </div>
+            <div class="obj-item" data-obj="4" onclick="activateObj(4)">
+                <div class="obj-check" id="chk-4">&#10003;</div>
+                <div class="obj-num">04</div>
+                <div class="obj-label">Configure static IP on print server</div>
+            </div>
+            <div class="obj-item" data-obj="5" onclick="activateObj(5)">
+                <div class="obj-check" id="chk-5">&#10003;</div>
+                <div class="obj-num">05</div>
+                <div class="obj-label">Flush DNS cache</div>
+            </div>
+            <div class="obj-item" data-obj="6" onclick="activateObj(6)">
+                <div class="obj-check" id="chk-6">&#10003;</div>
+                <div class="obj-num">06</div>
+                <div class="obj-label">Test end-to-end with tracert</div>
+            </div>
+            <div class="obj-item" data-obj="7" onclick="activateObj(7)">
+                <div class="obj-check" id="chk-7">&#10003;</div>
+                <div class="obj-num">07</div>
+                <div class="obj-label">Fix IPv6 conflict</div>
+            </div>
+            <div class="obj-item" data-obj="8" onclick="activateObj(8)">
+                <div class="obj-check" id="chk-8">&#10003;</div>
+                <div class="obj-num">08</div>
+                <div class="obj-label">Configure wireless for conference room</div>
+            </div>
+            <div class="obj-item" data-obj="9" onclick="activateObj(9)">
+                <div class="obj-check" id="chk-9">&#10003;</div>
+                <div class="obj-num">09</div>
+                <div class="obj-label">Create firewall exception (port 8443)</div>
+            </div>
+            <div class="obj-item" data-obj="10" onclick="activateObj(10)">
+                <div class="obj-check" id="chk-10">&#10003;</div>
+                <div class="obj-num">10</div>
+                <div class="obj-label">Configure IKEv2 VPN connection</div>
+            </div>
+            <div class="obj-item" data-obj="11" onclick="activateObj(11)">
+                <div class="obj-check" id="chk-11">&#10003;</div>
+                <div class="obj-num">11</div>
+                <div class="obj-label">Verify network isolation (Guest WiFi)</div>
+            </div>
+            <div class="obj-item" data-obj="12" onclick="activateObj(12)">
+                <div class="obj-check" id="chk-12">&#10003;</div>
+                <div class="obj-num">12</div>
+                <div class="obj-label">Document subnet configuration</div>
+            </div>
+        </div>
+    </aside>
+
+    <!-- ── GUI Workspace ─────────────────────────────────────── -->
+    <main class="gui-workspace" id="workspace">
+
+        <!-- ═════ OBJECTIVE 1: Diagnose with ipconfig ═════ -->
+        <div class="obj-view active" id="view-1">
+            <div class="net-diagram" id="netDiagram1">
+                <div class="net-node error" id="node-ws1">
+                    <div class="net-node-icon">&#128187;</div>
+                    <div class="net-node-label">WS-B01</div>
+                    <div class="net-node-ip" id="ws1-ip">10.0.1.101</div>
+                </div>
+                <div class="net-link">&mdash; &#10007; &mdash;</div>
+                <div class="net-node" id="node-switch">
+                    <div class="net-node-icon">&#127760;</div>
+                    <div class="net-node-label">Switch B</div>
+                    <div class="net-node-ip">OK</div>
+                </div>
+                <div class="net-link">&mdash;&mdash;&mdash;</div>
+                <div class="net-node ok" id="node-gw">
+                    <div class="net-node-icon">&#128225;</div>
+                    <div class="net-node-label">Gateway</div>
+                    <div class="net-node-ip">10.0.2.1</div>
+                </div>
+                <div class="net-link">&mdash;&mdash;&mdash;</div>
+                <div class="net-node ok">
+                    <div class="net-node-icon">&#128451;</div>
+                    <div class="net-node-label">DC01</div>
+                    <div class="net-node-ip">10.0.2.10</div>
+                </div>
+            </div>
+
+            <div class="win-panel">
+                <div class="win-titlebar">
+                    <div class="win-titlebar-left">
+                        <span class="win-titlebar-icon">&#9646;</span>
+                        <span class="win-titlebar-text">Command Prompt &mdash; WS-B01</span>
+                    </div>
+                    <div class="win-controls">
+                        <button class="win-ctrl-btn win-ctrl-min"></button>
+                        <button class="win-ctrl-btn win-ctrl-max"></button>
+                        <button class="win-ctrl-btn win-ctrl-close"></button>
+                    </div>
+                </div>
+                <div class="cmd-window" style="border:none; border-radius:0;">
+                    <div class="cmd-body" id="cmd1-body">
+                        <div class="cmd-output">Microsoft Windows [Version 10.0.19045.3803]
+(c) Microsoft Corporation. All rights reserved.
+
+C:\Users\Forge1&gt;</div>
+                    </div>
+                    <div class="cmd-input-line" style="padding: 0 12px 10px;">
+                        <span class="cmd-prompt">C:\Users\Forge1&gt; </span>
+                        <input class="cmd-input-field" id="cmd1-input" placeholder="Type a command..." spellcheck="false" autocomplete="off">
+                    </div>
+                </div>
+            </div>
+            <p style="font-size:0.76rem; color:#6b5040; margin-top:4px;">
+                Hint: Run <code style="color:#f97316;">ipconfig /all</code> to diagnose the workstation's network configuration.
+            </p>
+        </div>
+
+        <!-- ═════ OBJECTIVE 2: Fix WS1 — Switch to DHCP ═════ -->
+        <div class="obj-view" id="view-2" style="display:none;">
+            <div class="ip-conflict-banner show" id="conflictBanner">
+                &#9888; <strong>IP Address Conflict Detected</strong> &mdash; Another device on the network is using 10.0.1.101. This must be resolved before connectivity is possible.
+            </div>
+
+            <div class="win-panel">
+                <div class="win-titlebar">
+                    <div class="win-titlebar-left">
+                        <span class="win-titlebar-icon">&#9881;</span>
+                        <span class="win-titlebar-text">Ethernet Properties &mdash; WS-B01</span>
+                    </div>
+                    <div class="win-controls">
+                        <button class="win-ctrl-btn win-ctrl-min"></button>
+                        <button class="win-ctrl-btn win-ctrl-max"></button>
+                        <button class="win-ctrl-btn win-ctrl-close"></button>
+                    </div>
+                </div>
+                <div class="win-tabs">
+                    <button class="win-tab active">Internet Protocol Version 4 (TCP/IPv4)</button>
+                    <button class="win-tab" style="opacity:0.5;">IPv6</button>
+                </div>
+                <div class="win-body">
+                    <div class="net-form">
+                        <div class="radio-group">
+                            <label class="radio-label">
+                                <input type="radio" name="ws1-method" value="dhcp" id="ws1-dhcp" onchange="updateWS1Method()">
+                                Obtain an IP address automatically (DHCP)
+                            </label>
+                            <label class="radio-label">
+                                <input type="radio" name="ws1-method" value="static" id="ws1-static" checked onchange="updateWS1Method()">
+                                Use the following IP address:
+                            </label>
+                        </div>
+                        <div id="ws1-static-fields">
+                            <div class="form-row">
+                                <span class="form-label">IP Address:</span>
+                                <input class="form-input" id="ws1-ip-field" value="10.0.1.101" disabled>
+                            </div>
+                            <div class="form-row">
+                                <span class="form-label">Subnet Mask:</span>
+                                <input class="form-input" id="ws1-mask-field" value="255.255.255.0" disabled>
+                            </div>
+                            <div class="form-row">
+                                <span class="form-label">Default Gateway:</span>
+                                <input class="form-input" id="ws1-gw-field" value="10.0.1.1" disabled>
+                            </div>
+                            <div class="form-row">
+                                <span class="form-label">Preferred DNS:</span>
+                                <input class="form-input" id="ws1-dns-field" value="10.0.1.10" disabled>
+                            </div>
+                        </div>
+                        <div style="margin-top:8px; padding:10px; background:rgba(239,68,68,0.08); border-radius:6px; font-size:0.78rem; color:#fca5a5;">
+                            <strong>Current problem:</strong> Ray set static IPs in subnet 10.0.<span style="color:#ef4444;">1</span>.x &mdash; but Building B's gateway and DHCP server are on 10.0.<span style="color:#22c55e;">2</span>.x. The workstation can't reach the gateway.
+                        </div>
+                        <button class="action-btn" id="ws1-apply" onclick="applyWS1()">Apply Changes</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ═════ OBJECTIVE 3: Verify DNS ═════ -->
+        <div class="obj-view" id="view-3" style="display:none;">
+            <div class="win-panel">
+                <div class="win-titlebar">
+                    <div class="win-titlebar-left">
+                        <span class="win-titlebar-icon">&#9646;</span>
+                        <span class="win-titlebar-text">Command Prompt &mdash; WS-B01 (Connected)</span>
+                    </div>
+                    <div class="win-controls">
+                        <button class="win-ctrl-btn win-ctrl-min"></button>
+                        <button class="win-ctrl-btn win-ctrl-max"></button>
+                        <button class="win-ctrl-btn win-ctrl-close"></button>
+                    </div>
+                </div>
+                <div class="cmd-window" style="border:none; border-radius:0;">
+                    <div class="cmd-body" id="cmd3-body">
+                        <div class="cmd-output">C:\Users\Forge1&gt;</div>
+                    </div>
+                    <div class="cmd-input-line" style="padding: 0 12px 10px;">
+                        <span class="cmd-prompt">C:\Users\Forge1&gt; </span>
+                        <input class="cmd-input-field" id="cmd3-input" placeholder="Verify DNS with nslookup..." spellcheck="false" autocomplete="off">
+                    </div>
+                </div>
+            </div>
+            <p style="font-size:0.76rem; color:#6b5040; margin-top:4px;">
+                Run <code style="color:#f97316;">nslookup meridian-dc01.meridian.local</code> to verify DNS resolution.
+            </p>
+        </div>
+
+        <!-- ═════ OBJECTIVE 4: Static IP for Print Server ═════ -->
+        <div class="obj-view" id="view-4" style="display:none;">
+            <div class="win-panel">
+                <div class="win-titlebar">
+                    <div class="win-titlebar-left">
+                        <span class="win-titlebar-icon">&#128424;</span>
+                        <span class="win-titlebar-text">Ethernet Properties &mdash; LEGAL-PRINT (Print Server)</span>
+                    </div>
+                    <div class="win-controls">
+                        <button class="win-ctrl-btn win-ctrl-min"></button>
+                        <button class="win-ctrl-btn win-ctrl-max"></button>
+                        <button class="win-ctrl-btn win-ctrl-close"></button>
+                    </div>
+                </div>
+                <div class="win-tabs">
+                    <button class="win-tab active">Internet Protocol Version 4 (TCP/IPv4)</button>
+                </div>
+                <div class="win-body">
+                    <p style="font-size:0.82rem; color:#a0a0c0; margin-bottom:14px;">
+                        Legal's print server requires a static IP. Configure the correct network settings for subnet 10.0.2.0/24.
+                    </p>
+                    <div class="net-form">
+                        <div class="radio-group">
+                            <label class="radio-label">
+                                <input type="radio" name="ps-method" value="static" checked disabled>
+                                Use the following IP address:
+                            </label>
+                        </div>
+                        <div class="form-row">
+                            <span class="form-label">IP Address:</span>
+                            <input class="form-input" id="ps-ip" placeholder="x.x.x.x" spellcheck="false">
+                        </div>
+                        <div class="form-row">
+                            <span class="form-label">Subnet Mask:</span>
+                            <input class="form-input" id="ps-mask" placeholder="x.x.x.x" spellcheck="false">
+                        </div>
+                        <div class="form-row">
+                            <span class="form-label">Default Gateway:</span>
+                            <input class="form-input" id="ps-gw" placeholder="x.x.x.x" spellcheck="false">
+                        </div>
+                        <div class="form-row">
+                            <span class="form-label">Preferred DNS:</span>
+                            <input class="form-input" id="ps-dns" placeholder="x.x.x.x" spellcheck="false">
+                        </div>
+                        <button class="action-btn" onclick="applyPrintServer()">Apply Configuration</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ═════ OBJECTIVE 5: Flush DNS ═════ -->
+        <div class="obj-view" id="view-5" style="display:none;">
+            <div class="win-panel">
+                <div class="win-titlebar">
+                    <div class="win-titlebar-left">
+                        <span class="win-titlebar-icon">&#9646;</span>
+                        <span class="win-titlebar-text">Command Prompt &mdash; WS-B03 (DNS Issue)</span>
+                    </div>
+                    <div class="win-controls">
+                        <button class="win-ctrl-btn win-ctrl-min"></button>
+                        <button class="win-ctrl-btn win-ctrl-max"></button>
+                        <button class="win-ctrl-btn win-ctrl-close"></button>
+                    </div>
+                </div>
+                <div class="cmd-window" style="border:none; border-radius:0;">
+                    <div class="cmd-body" id="cmd5-body">
+                        <div class="cmd-output">C:\Users\Forge1&gt; nslookup meridian-fs01.meridian.local
+Server:  meridian-dc01.meridian.local
+Address:  10.0.2.10
+
+<span class="error">*** meridian-dc01.meridian.local can't find meridian-fs01.meridian.local: Non-existent domain</span>
+
+<span class="highlight">Note: DNS settings were corrected on this machine, but the local DNS cache
+still holds the stale NXDOMAIN record from when it was on the wrong subnet.</span>
+
+C:\Users\Forge1&gt;</div>
+                    </div>
+                    <div class="cmd-input-line" style="padding: 0 12px 10px;">
+                        <span class="cmd-prompt">C:\Users\Forge1&gt; </span>
+                        <input class="cmd-input-field" id="cmd5-input" placeholder="Flush the DNS cache..." spellcheck="false" autocomplete="off">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ═════ OBJECTIVE 6: Tracert ═════ -->
+        <div class="obj-view" id="view-6" style="display:none;">
+            <div class="win-panel">
+                <div class="win-titlebar">
+                    <div class="win-titlebar-left">
+                        <span class="win-titlebar-icon">&#9646;</span>
+                        <span class="win-titlebar-text">Command Prompt &mdash; End-to-End Test</span>
+                    </div>
+                    <div class="win-controls">
+                        <button class="win-ctrl-btn win-ctrl-min"></button>
+                        <button class="win-ctrl-btn win-ctrl-max"></button>
+                        <button class="win-ctrl-btn win-ctrl-close"></button>
+                    </div>
+                </div>
+                <div class="cmd-window" style="border:none; border-radius:0;">
+                    <div class="cmd-body" id="cmd6-body">
+                        <div class="cmd-output">C:\Users\Forge1&gt;</div>
+                    </div>
+                    <div class="cmd-input-line" style="padding: 0 12px 10px;">
+                        <span class="cmd-prompt">C:\Users\Forge1&gt; </span>
+                        <input class="cmd-input-field" id="cmd6-input" placeholder="Trace the route to the file server..." spellcheck="false" autocomplete="off">
+                    </div>
+                </div>
+            </div>
+            <p style="font-size:0.76rem; color:#6b5040; margin-top:4px;">
+                Use <code style="color:#f97316;">tracert meridian-fs01.meridian.local</code> to verify the routing path is correct (should be 2 hops).
+            </p>
+        </div>
+
+        <!-- ═════ OBJECTIVE 7: Fix IPv6 ═════ -->
+        <div class="obj-view" id="view-7" style="display:none;">
+            <div class="win-panel">
+                <div class="win-titlebar">
+                    <div class="win-titlebar-left">
+                        <span class="win-titlebar-icon">&#9881;</span>
+                        <span class="win-titlebar-text">Ethernet Properties &mdash; WS-B07 (IPv6 Conflict)</span>
+                    </div>
+                    <div class="win-controls">
+                        <button class="win-ctrl-btn win-ctrl-min"></button>
+                        <button class="win-ctrl-btn win-ctrl-max"></button>
+                        <button class="win-ctrl-btn win-ctrl-close"></button>
+                    </div>
+                </div>
+                <div class="win-tabs">
+                    <button class="win-tab" style="opacity:0.5;">IPv4</button>
+                    <button class="win-tab active">Internet Protocol Version 6 (TCP/IPv6)</button>
+                </div>
+                <div class="win-body">
+                    <div style="padding:10px; background:rgba(239,68,68,0.08); border-radius:6px; font-size:0.8rem; color:#fca5a5; margin-bottom:14px;">
+                        <strong>&#9888; IPv6 Conflict:</strong> This workstation has a manually-set IPv6 address <code>fd00::1:101</code> that conflicts with another device. Ray assigned static IPv6 addresses during his "testing."
+                    </div>
+                    <div class="net-form">
+                        <div class="radio-group" style="flex-direction:column; align-items:flex-start;">
+                            <label class="radio-label">
+                                <input type="radio" name="ipv6-method" value="auto" id="ipv6-auto">
+                                Obtain an IPv6 address automatically (SLAAC)
+                            </label>
+                            <label class="radio-label">
+                                <input type="radio" name="ipv6-method" value="manual" id="ipv6-manual" checked>
+                                Use the following IPv6 address:
+                            </label>
+                        </div>
+                        <div id="ipv6-manual-fields">
+                            <div class="form-row">
+                                <span class="form-label">IPv6 Address:</span>
+                                <input class="form-input" value="fd00::1:101" disabled style="color:#ef4444;">
+                            </div>
+                            <div class="form-row">
+                                <span class="form-label">Prefix Length:</span>
+                                <input class="form-input" value="64" disabled>
+                            </div>
+                        </div>
+                        <button class="action-btn" id="ipv6-apply" onclick="applyIPv6()">Apply Changes</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ═════ OBJECTIVE 8: Wireless Config ═════ -->
+        <div class="obj-view" id="view-8" style="display:none;">
+            <div class="win-panel">
+                <div class="win-titlebar">
+                    <div class="win-titlebar-left">
+                        <span class="win-titlebar-icon">&#128246;</span>
+                        <span class="win-titlebar-text">Network &amp; Internet &mdash; Wi-Fi</span>
+                    </div>
+                    <div class="win-controls">
+                        <button class="win-ctrl-btn win-ctrl-min"></button>
+                        <button class="win-ctrl-btn win-ctrl-max"></button>
+                        <button class="win-ctrl-btn win-ctrl-close"></button>
+                    </div>
+                </div>
+                <div class="win-body">
+                    <p style="font-size:0.82rem; color:#a0a0c0; margin-bottom:14px;">
+                        Conference room laptop. Currently connected to the wrong network. Connect to <strong style="color:#f97316;">Meridian-Corp</strong> (WPA2-Enterprise).
+                    </p>
+                    <div class="wifi-list" id="wifiList">
+                        <div class="wifi-item connected" id="wifi-guest" onclick="selectWifi('guest')">
+                            <div>
+                                <div class="wifi-name">Meridian-Guest</div>
+                                <div class="wifi-detail">Connected &mdash; Open Network (No Security)</div>
+                            </div>
+                            <div class="status-indicator online"><span class="status-dot online"></span> Connected</div>
+                        </div>
+                        <div class="wifi-item" id="wifi-corp" onclick="selectWifi('corp')">
+                            <div>
+                                <div class="wifi-name">Meridian-Corp</div>
+                                <div class="wifi-detail">WPA2-Enterprise &mdash; Secured</div>
+                            </div>
+                            <div class="wifi-signal">
+                                <div class="wifi-bar active" style="height:6px;"></div>
+                                <div class="wifi-bar active" style="height:10px;"></div>
+                                <div class="wifi-bar active" style="height:14px;"></div>
+                                <div class="wifi-bar active" style="height:18px;"></div>
+                            </div>
+                        </div>
+                        <div class="wifi-item" style="opacity:0.5;">
+                            <div>
+                                <div class="wifi-name">DIRECT-printer-B2</div>
+                                <div class="wifi-detail">WPA2-Personal</div>
+                            </div>
+                            <div class="wifi-signal">
+                                <div class="wifi-bar active" style="height:6px;"></div>
+                                <div class="wifi-bar active" style="height:10px;"></div>
+                                <div class="wifi-bar" style="height:14px;"></div>
+                                <div class="wifi-bar" style="height:18px;"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="wifi-actions" style="display:none; margin-top:14px;">
+                        <div style="padding:12px; background:#12122a; border-radius:6px; border:1px solid #3a3a5e;">
+                            <div style="font-size:0.82rem; color:#c0c0d0; margin-bottom:10px;">Connect to <strong style="color:#f97316;">Meridian-Corp</strong></div>
+                            <div style="display:flex; flex-direction:column; gap:8px;">
+                                <label style="display:flex; align-items:center; gap:8px; font-size:0.78rem; color:#a0a0c0;">
+                                    <input type="checkbox" id="wifi-autoconnect" style="accent-color:#f97316;"> Connect automatically
+                                </label>
+                                <label style="display:flex; align-items:center; gap:8px; font-size:0.78rem; color:#a0a0c0;">
+                                    <input type="checkbox" id="wifi-metered" style="accent-color:#f97316;"> Set as metered connection
+                                </label>
+                                <div id="wifi-forget-msg" style="display:none; font-size:0.76rem; color:#eab308; padding:6px 8px; background:rgba(234,179,8,0.08); border-radius:4px;">
+                                    &#9888; You must forget the "Meridian-Guest" network first to prevent automatic reconnection to the open network.
+                                </div>
+                                <div style="display:flex; gap:8px; margin-top:6px;">
+                                    <button class="secondary-btn" id="wifi-forget-btn" onclick="forgetGuest()">Forget Meridian-Guest</button>
+                                    <button class="action-btn" id="wifi-connect-btn" onclick="connectCorp()" disabled>Connect</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ═════ OBJECTIVE 9: Firewall Exception ═════ -->
+        <div class="obj-view" id="view-9" style="display:none;">
+            <div class="win-panel">
+                <div class="win-titlebar">
+                    <div class="win-titlebar-left">
+                        <span class="win-titlebar-icon">&#128737;</span>
+                        <span class="win-titlebar-text">Windows Defender Firewall with Advanced Security</span>
+                    </div>
+                    <div class="win-controls">
+                        <button class="win-ctrl-btn win-ctrl-min"></button>
+                        <button class="win-ctrl-btn win-ctrl-max"></button>
+                        <button class="win-ctrl-btn win-ctrl-close"></button>
+                    </div>
+                </div>
+                <div class="win-tabs">
+                    <button class="win-tab active" onclick="switchFWTab('inbound')">Inbound Rules</button>
+                    <button class="win-tab" onclick="switchFWTab('outbound')">Outbound Rules</button>
+                </div>
+                <div class="win-body">
+                    <p style="font-size:0.82rem; color:#a0a0c0; margin-bottom:12px;">
+                        Legal's case management software needs <strong style="color:#f97316;">port 8443</strong> open for inbound connections. Create a new inbound rule.
+                    </p>
+
+                    <table class="fw-rule-table" style="margin-bottom:16px;">
+                        <thead>
+                            <tr><th>Name</th><th>Protocol</th><th>Port</th><th>Action</th><th>Enabled</th></tr>
+                        </thead>
+                        <tbody id="fwRuleTable">
+                            <tr><td>Core Networking - DNS (UDP-Out)</td><td>UDP</td><td>53</td><td>Allow</td><td>Yes</td></tr>
+                            <tr><td>Core Networking - DHCP (UDP-Out)</td><td>UDP</td><td>67,68</td><td>Allow</td><td>Yes</td></tr>
+                            <tr><td>File and Printer Sharing (SMB-In)</td><td>TCP</td><td>445</td><td>Allow</td><td>Yes</td></tr>
+                            <tr><td>Remote Desktop (TCP-In)</td><td>TCP</td><td>3389</td><td>Allow</td><td>Yes</td></tr>
+                            <tr><td>World Wide Web (HTTP)</td><td>TCP</td><td>80</td><td>Allow</td><td>Yes</td></tr>
+                            <tr><td>World Wide Web (HTTPS)</td><td>TCP</td><td>443</td><td>Allow</td><td>Yes</td></tr>
+                        </tbody>
+                    </table>
+
+                    <div style="border-top:1px solid #2a2a4e; padding-top:14px;">
+                        <div style="font-size:0.82rem; color:#c0c0d0; margin-bottom:10px;">New Inbound Rule Wizard</div>
+                        <div class="fw-form">
+                            <div class="fw-form-row">
+                                <span class="fw-form-label">Rule Name:</span>
+                                <input class="form-input" id="fw-name" placeholder="e.g., Legal Case Management" spellcheck="false" style="max-width:220px;">
+                            </div>
+                            <div class="fw-form-row">
+                                <span class="fw-form-label">Rule Type:</span>
+                                <select class="fw-select" id="fw-type">
+                                    <option value="">-- Select --</option>
+                                    <option value="port">Port</option>
+                                    <option value="program">Program</option>
+                                    <option value="predefined">Predefined</option>
+                                </select>
+                            </div>
+                            <div class="fw-form-row">
+                                <span class="fw-form-label">Protocol:</span>
+                                <select class="fw-select" id="fw-protocol">
+                                    <option value="">-- Select --</option>
+                                    <option value="tcp">TCP</option>
+                                    <option value="udp">UDP</option>
+                                </select>
+                            </div>
+                            <div class="fw-form-row">
+                                <span class="fw-form-label">Port:</span>
+                                <input class="form-input" id="fw-port" placeholder="Port number" spellcheck="false" style="max-width:120px;">
+                            </div>
+                            <div class="fw-form-row">
+                                <span class="fw-form-label">Action:</span>
+                                <select class="fw-select" id="fw-action">
+                                    <option value="">-- Select --</option>
+                                    <option value="allow">Allow the connection</option>
+                                    <option value="block">Block the connection</option>
+                                </select>
+                            </div>
+                            <button class="action-btn" onclick="createFWRule()">Create Rule</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ═════ OBJECTIVE 10: VPN Configuration ═════ -->
+        <div class="obj-view" id="view-10" style="display:none;">
+            <div class="win-panel">
+                <div class="win-titlebar">
+                    <div class="win-titlebar-left">
+                        <span class="win-titlebar-icon">&#128274;</span>
+                        <span class="win-titlebar-text">Settings &mdash; VPN</span>
+                    </div>
+                    <div class="win-controls">
+                        <button class="win-ctrl-btn win-ctrl-min"></button>
+                        <button class="win-ctrl-btn win-ctrl-max"></button>
+                        <button class="win-ctrl-btn win-ctrl-close"></button>
+                    </div>
+                </div>
+                <div class="win-body">
+                    <p style="font-size:0.82rem; color:#a0a0c0; margin-bottom:14px;">
+                        Configure a VPN connection for the Legal attorney who works remotely. Use IKEv2 with certificate authentication.
+                    </p>
+                    <div style="padding:14px; background:#12122a; border:1px solid #3a3a5e; border-radius:6px;">
+                        <div style="font-size:0.85rem; color:#c0c0d0; margin-bottom:12px; font-weight:500;">Add a VPN Connection</div>
+                        <div class="vpn-form">
+                            <div class="form-row">
+                                <span class="form-label">VPN Provider:</span>
+                                <select class="fw-select" id="vpn-provider" style="flex:1; max-width:220px;">
+                                    <option value="">-- Select --</option>
+                                    <option value="builtin">Windows (built-in)</option>
+                                    <option value="other">Third-party</option>
+                                </select>
+                            </div>
+                            <div class="form-row">
+                                <span class="form-label">Connection Name:</span>
+                                <input class="form-input" id="vpn-name" placeholder="e.g., Meridian VPN" spellcheck="false">
+                            </div>
+                            <div class="form-row">
+                                <span class="form-label">Server Address:</span>
+                                <input class="form-input" id="vpn-server" placeholder="vpn.example.com" spellcheck="false">
+                            </div>
+                            <div class="form-row">
+                                <span class="form-label">VPN Type:</span>
+                                <select class="fw-select" id="vpn-type" style="flex:1; max-width:220px;">
+                                    <option value="">-- Select --</option>
+                                    <option value="auto">Automatic</option>
+                                    <option value="pptp">PPTP</option>
+                                    <option value="l2tp">L2TP/IPsec</option>
+                                    <option value="sstp">SSTP</option>
+                                    <option value="ikev2">IKEv2</option>
+                                </select>
+                            </div>
+                            <div class="form-row">
+                                <span class="form-label">Authentication:</span>
+                                <select class="fw-select" id="vpn-auth" style="flex:1; max-width:220px;">
+                                    <option value="">-- Select --</option>
+                                    <option value="userpass">Username and password</option>
+                                    <option value="cert">Certificate</option>
+                                    <option value="smartcard">Smart card</option>
+                                    <option value="eap">EAP</option>
+                                </select>
+                            </div>
+                            <button class="action-btn" onclick="saveVPN()">Save VPN Connection</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ═════ OBJECTIVE 11: Verify Network Isolation ═════ -->
+        <div class="obj-view" id="view-11" style="display:none;">
+            <div class="win-panel">
+                <div class="win-titlebar">
+                    <div class="win-titlebar-left">
+                        <span class="win-titlebar-icon">&#9646;</span>
+                        <span class="win-titlebar-text">Command Prompt &mdash; Network Isolation Test</span>
+                    </div>
+                    <div class="win-controls">
+                        <button class="win-ctrl-btn win-ctrl-min"></button>
+                        <button class="win-ctrl-btn win-ctrl-max"></button>
+                        <button class="win-ctrl-btn win-ctrl-close"></button>
+                    </div>
+                </div>
+                <div class="cmd-window" style="border:none; border-radius:0;">
+                    <div class="cmd-body" id="cmd11-body">
+                        <div class="cmd-output">C:\Users\Forge1&gt; <span class="highlight">Network Isolation Verification</span>
+Verify that Corporate machines CANNOT reach the Guest Wi-Fi subnet.
+
+C:\Users\Forge1&gt;</div>
+                    </div>
+                    <div class="cmd-input-line" style="padding: 0 12px 10px;">
+                        <span class="cmd-prompt">C:\Users\Forge1&gt; </span>
+                        <input class="cmd-input-field" id="cmd11-input" placeholder="Ping the guest subnet to verify isolation..." spellcheck="false" autocomplete="off">
+                    </div>
+                </div>
+            </div>
+            <p style="font-size:0.76rem; color:#6b5040; margin-top:4px;">
+                Ping any address in the Guest subnet (10.0.99.x) &mdash; for example <code style="color:#f97316;">ping 10.0.99.1</code>. It should fail, confirming isolation.
+            </p>
+        </div>
+
+        <!-- ═════ OBJECTIVE 12: Document Subnet ═════ -->
+        <div class="obj-view" id="view-12" style="display:none;">
+            <div class="win-panel">
+                <div class="win-titlebar">
+                    <div class="win-titlebar-left">
+                        <span class="win-titlebar-icon">&#128196;</span>
+                        <span class="win-titlebar-text">Subnet Documentation &mdash; Building B</span>
+                    </div>
+                    <div class="win-controls">
+                        <button class="win-ctrl-btn win-ctrl-min"></button>
+                        <button class="win-ctrl-btn win-ctrl-max"></button>
+                        <button class="win-ctrl-btn win-ctrl-close"></button>
+                    </div>
+                </div>
+                <div class="win-body">
+                    <p style="font-size:0.82rem; color:#a0a0c0; margin-bottom:14px;">
+                        Complete the network documentation for Building B. Fill in the correct values based on the work you've done today.
+                    </p>
+                    <div class="net-form">
+                        <div style="font-size:0.82rem; color:#ea580c; font-weight:500; margin-bottom:6px;">Building B Subnet Summary</div>
+                        <div class="form-row">
+                            <span class="form-label">Network Address:</span>
+                            <input class="form-input" id="doc-network" placeholder="x.x.x.x/xx" spellcheck="false">
+                        </div>
+                        <div class="form-row">
+                            <span class="form-label">Default Gateway:</span>
+                            <input class="form-input" id="doc-gw" placeholder="x.x.x.x" spellcheck="false">
+                        </div>
+                        <div class="form-row">
+                            <span class="form-label">DNS Server:</span>
+                            <input class="form-input" id="doc-dns" placeholder="x.x.x.x" spellcheck="false">
+                        </div>
+                        <div class="form-row">
+                            <span class="form-label">Print Server IP:</span>
+                            <input class="form-input" id="doc-ps" placeholder="x.x.x.x" spellcheck="false">
+                        </div>
+                        <div class="form-row">
+                            <span class="form-label">DHCP Range:</span>
+                            <select class="fw-select" id="doc-dhcp" style="flex:1; max-width:260px;">
+                                <option value="">-- Select --</option>
+                                <option value="correct">10.0.2.100 - 10.0.2.200</option>
+                                <option value="wrong1">10.0.1.100 - 10.0.1.200</option>
+                                <option value="wrong2">10.0.2.1 - 10.0.2.50</option>
+                                <option value="wrong3">192.168.1.100 - 192.168.1.200</option>
+                            </select>
+                        </div>
+                        <div class="form-row">
+                            <span class="form-label">Issue Root Cause:</span>
+                            <select class="fw-select" id="doc-cause" style="flex:1; max-width:260px;">
+                                <option value="">-- Select --</option>
+                                <option value="correct">Static IPs in wrong subnet (10.0.1.x vs 10.0.2.x)</option>
+                                <option value="wrong1">DHCP server failure</option>
+                                <option value="wrong2">Physical switch port failure</option>
+                                <option value="wrong3">DNS server outage</option>
+                            </select>
+                        </div>
+                        <button class="action-btn" onclick="submitDocumentation()">Submit Documentation</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="complete-banner" id="completeBanner">
+                <h3>Operation: Dark Subnet &mdash; Complete</h3>
+                <p>
+                    Building B is back online. All 30 workstations restored, print server configured, firewall exception created, VPN set up, and the subnet properly documented.
+                    <br><br>
+                    <em>"Building B is back. Legal says you saved their audit prep. Here's the thing &mdash; while you were over there, I got a call about the file server. Storage alert. See you at 7am."</em>
+                    <br>&mdash; Sarah Chen
+                </p>
+                <button class="complete-btn" onclick="completeModule()">Complete Module</button>
+            </div>
+        </div>
+
+    </main>
+</div>
+
+<script>
+// ══════════════════════════════════════════════════════════════════════════
+// STATE
+// ══════════════════════════════════════════════════════════════════════════
+const totalObjectives = 12;
+const completed = new Set();
+let currentObj = 1;
+let guestForgotten = false;
+
+// ══════════════════════════════════════════════════════════════════════════
+// NAVIGATION
+// ══════════════════════════════════════════════════════════════════════════
+function activateObj(n) {
+    currentObj = n;
+    document.querySelectorAll('.obj-item').forEach(el => el.classList.remove('active'));
+    const item = document.querySelector('.obj-item[data-obj="' + n + '"]');
+    if (item) item.classList.add('active');
+    document.querySelectorAll('.obj-view').forEach(v => { v.style.display = 'none'; v.classList.remove('active'); });
+    const view = document.getElementById('view-' + n);
+    if (view) { view.style.display = 'block'; view.classList.add('active'); }
+}
+
+function markComplete(n) {
+    if (completed.has(n)) return;
+    completed.add(n);
+    const item = document.querySelector('.obj-item[data-obj="' + n + '"]');
+    if (item) item.classList.add('completed');
+    document.getElementById('objProgress').textContent = completed.size + ' / ' + totalObjectives;
+
+    if (completed.size === totalObjectives) {
+        document.getElementById('completeBanner').classList.add('show');
+    }
+}
+
+function advanceToNext(current) {
+    setTimeout(function() {
+        if (current < totalObjectives) {
+            activateObj(current + 1);
+        }
+    }, 800);
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+// TOAST SYSTEM
+// ══════════════════════════════════════════════════════════════════════════
+function showToast(from, msg, type) {
+    type = type || '';
+    var container = document.getElementById('toastContainer');
+    var toast = document.createElement('div');
+    toast.className = 'toast ' + type;
+    toast.innerHTML = '<div class="toast-from">' + from + '</div><div class="toast-msg">' + msg + '</div>';
+    container.appendChild(toast);
+    setTimeout(function() { if (toast.parentNode) toast.parentNode.removeChild(toast); }, 5200);
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+// OBJECTIVE 1: Diagnose with ipconfig
+// ══════════════════════════════════════════════════════════════════════════
+document.getElementById('cmd1-input').addEventListener('keydown', function(e) {
+    if (e.key !== 'Enter') return;
+    var val = this.value.trim().toLowerCase();
+    var body = document.getElementById('cmd1-body');
+    var output = '';
+
+    if (val === 'ipconfig /all' || val === 'ipconfig/all') {
+        output = '\nC:\\Users\\Forge1> ipconfig /all\n\n' +
+            'Windows IP Configuration\n\n' +
+            '   Host Name . . . . . . . . . : WS-B01\n' +
+            '   Primary Dns Suffix  . . . . : meridian.local\n' +
+            '   Node Type . . . . . . . . . : Hybrid\n\n' +
+            'Ethernet adapter Ethernet:\n\n' +
+            '   Connection-specific DNS Suffix: meridian.local\n' +
+            '   Description . . . . . . . . : Intel(R) I219-V\n' +
+            '   Physical Address  . . . . . : 00-1A-2B-3C-4D-5E\n' +
+            '   DHCP Enabled  . . . . . . . : <span class="error">No</span>\n' +
+            '   Autoconfiguration Enabled . : Yes\n' +
+            '   IPv4 Address  . . . . . . . : <span class="error">10.0.1.101</span> (Wrong Subnet!)\n' +
+            '   Subnet Mask  . . . . . . . : 255.255.255.0\n' +
+            '   Default Gateway . . . . . . : <span class="error">10.0.1.1</span> (Unreachable)\n' +
+            '   DNS Servers . . . . . . . . : <span class="error">10.0.1.10</span> (Wrong)\n\n' +
+            '<span class="highlight">ANALYSIS: Static IP in 10.0.1.x subnet. Building B gateway is 10.0.2.1.</span>\n' +
+            '<span class="highlight">Root cause: Ray\'s "subnet scheme" was never reverted.</span>\n';
+
+        var div = document.createElement('div');
+        div.className = 'cmd-output';
+        div.innerHTML = output;
+        body.appendChild(div);
+        this.value = '';
+        markComplete(1);
+        showToast('Marcus Webb', 'All 30 workstations have the same problem &mdash; static IPs in the 10.0.1.x range. The whole building is pointed at a gateway that doesn\'t exist.', 'warning');
+        advanceToNext(1);
+    } else if (val === 'ipconfig') {
+        output = '\nC:\\Users\\Forge1> ipconfig\n\n' +
+            'Ethernet adapter Ethernet:\n' +
+            '   IPv4 Address  . . . . . . . : 10.0.1.101\n' +
+            '   Subnet Mask  . . . . . . . : 255.255.255.0\n' +
+            '   Default Gateway . . . . . . : 10.0.1.1\n\n' +
+            '<span class="highlight">Try: ipconfig /all for the full picture.</span>\n';
+        var div = document.createElement('div');
+        div.className = 'cmd-output';
+        div.innerHTML = output;
+        body.appendChild(div);
+        this.value = '';
+    } else {
+        body.innerHTML += '<div class="cmd-output">\nC:\\Users\\Forge1> ' + this.value + '\n<span class="error">\'' + val.split(' ')[0] + '\' is not recognized or not the command needed here.</span>\n</div>';
+        this.value = '';
+    }
+    body.scrollTop = body.scrollHeight;
+});
+
+// ══════════════════════════════════════════════════════════════════════════
+// OBJECTIVE 2: Fix WS1 - Switch to DHCP
+// ══════════════════════════════════════════════════════════════════════════
+function updateWS1Method() {
+    var isDHCP = document.getElementById('ws1-dhcp').checked;
+    document.getElementById('ws1-static-fields').style.opacity = isDHCP ? '0.4' : '1';
+}
+
+function applyWS1() {
+    if (!document.getElementById('ws1-dhcp').checked) {
+        showToast('System', 'The workstation is still using a static IP in the wrong subnet. Select DHCP to obtain the correct address from the 10.0.2.x scope.', 'error');
+        return;
+    }
+    document.getElementById('conflictBanner').classList.remove('show');
+    document.getElementById('ws1-ip-field').value = '10.0.2.115 (DHCP)';
+    document.getElementById('ws1-mask-field').value = '255.255.255.0';
+    document.getElementById('ws1-gw-field').value = '10.0.2.1';
+    document.getElementById('ws1-dns-field').value = '10.0.2.10';
+    ['ws1-ip-field','ws1-mask-field','ws1-gw-field','ws1-dns-field'].forEach(function(id) {
+        document.getElementById(id).classList.add('correct');
+    });
+    document.getElementById('ws1-apply').disabled = true;
+    document.getElementById('ws1-apply').classList.add('success');
+    document.getElementById('ws1-apply').textContent = 'Applied Successfully';
+    markComplete(2);
+    showToast('Sarah Chen', 'WS-B01 is back online. One down, twenty-nine to go. Check DNS next.', 'success');
+
+    // Update network diagram
+    var wsNode = document.getElementById('node-ws1');
+    wsNode.classList.remove('error');
+    wsNode.classList.add('ok');
+    document.getElementById('ws1-ip').textContent = '10.0.2.115';
+
+    advanceToNext(2);
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+// OBJECTIVE 3: Verify DNS
+// ══════════════════════════════════════════════════════════════════════════
+document.getElementById('cmd3-input').addEventListener('keydown', function(e) {
+    if (e.key !== 'Enter') return;
+    var val = this.value.trim().toLowerCase();
+    var body = document.getElementById('cmd3-body');
+
+    if (val.indexOf('nslookup') === 0 && val.indexOf('meridian-dc01') > -1) {
+        var output = '\nC:\\Users\\Forge1> nslookup meridian-dc01.meridian.local\n' +
+            'Server:  meridian-dc01.meridian.local\n' +
+            'Address:  10.0.2.10\n\n' +
+            'Name:    meridian-dc01.meridian.local\n' +
+            'Address:  <span class="success">10.0.2.10</span>\n\n' +
+            '<span class="success">DNS resolution: SUCCESSFUL</span>\n';
+        body.innerHTML += '<div class="cmd-output">' + output + '</div>';
+        this.value = '';
+        markComplete(3);
+        showToast('System', 'DNS is resolving correctly through 10.0.2.10. The domain controller is reachable.', 'success');
+        advanceToNext(3);
+    } else if (val.indexOf('nslookup') === 0) {
+        body.innerHTML += '<div class="cmd-output">\nC:\\Users\\Forge1> ' + this.value + '\n<span class="highlight">Try: nslookup meridian-dc01.meridian.local</span>\n</div>';
+        this.value = '';
+    } else {
+        body.innerHTML += '<div class="cmd-output">\nC:\\Users\\Forge1> ' + this.value + '\n<span class="error">Use nslookup to verify DNS resolution.</span>\n</div>';
+        this.value = '';
+    }
+    body.scrollTop = body.scrollHeight;
+});
+
+// ══════════════════════════════════════════════════════════════════════════
+// OBJECTIVE 4: Static IP for Print Server
+// ══════════════════════════════════════════════════════════════════════════
+function applyPrintServer() {
+    var ip = document.getElementById('ps-ip').value.trim();
+    var mask = document.getElementById('ps-mask').value.trim();
+    var gw = document.getElementById('ps-gw').value.trim();
+    var dns = document.getElementById('ps-dns').value.trim();
+
+    var correct = {
+        ip: '10.0.2.50', mask: '255.255.255.0', gw: '10.0.2.1', dns: '10.0.2.10'
+    };
+
+    var fields = { ip: 'ps-ip', mask: 'ps-mask', gw: 'ps-gw', dns: 'ps-dns' };
+    var values = { ip: ip, mask: mask, gw: gw, dns: dns };
+    var allCorrect = true;
+
+    Object.keys(fields).forEach(function(k) {
+        var el = document.getElementById(fields[k]);
+        el.classList.remove('correct', 'incorrect');
+        if (values[k] === correct[k]) {
+            el.classList.add('correct');
+        } else {
+            el.classList.add('incorrect');
+            allCorrect = false;
+        }
+    });
+
+    if (allCorrect) {
+        markComplete(4);
+        showToast('Marcus Webb', 'Print server is online at 10.0.2.50. Legal can print again. They look relieved.', 'success');
+        advanceToNext(4);
+    } else {
+        showToast('System', 'Some values are incorrect. Print server needs: IP 10.0.2.50, Mask 255.255.255.0, Gateway 10.0.2.1, DNS 10.0.2.10', 'error');
+    }
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+// OBJECTIVE 5: Flush DNS
+// ══════════════════════════════════════════════════════════════════════════
+document.getElementById('cmd5-input').addEventListener('keydown', function(e) {
+    if (e.key !== 'Enter') return;
+    var val = this.value.trim().toLowerCase();
+    var body = document.getElementById('cmd5-body');
+
+    if (val === 'ipconfig /flushdns' || val === 'ipconfig/flushdns') {
+        var output = '\nC:\\Users\\Forge1> ipconfig /flushdns\n\n' +
+            'Windows IP Configuration\n\n' +
+            '<span class="success">Successfully flushed the DNS Resolver Cache.</span>\n\n' +
+            'C:\\Users\\Forge1> nslookup meridian-fs01.meridian.local\n' +
+            'Server:  meridian-dc01.meridian.local\n' +
+            'Address:  10.0.2.10\n\n' +
+            'Name:    meridian-fs01.meridian.local\n' +
+            'Address:  <span class="success">10.0.2.20</span>\n\n' +
+            '<span class="success">DNS now resolving correctly after cache flush.</span>\n';
+        body.innerHTML += '<div class="cmd-output">' + output + '</div>';
+        this.value = '';
+        markComplete(5);
+        showToast('James Park', 'Good catch on the DNS cache. That stale NXDOMAIN would have kept causing failures until the TTL expired. Flushing was the right call.', 'success');
+        advanceToNext(5);
+    } else {
+        body.innerHTML += '<div class="cmd-output">\nC:\\Users\\Forge1> ' + this.value + '\n<span class="error">The DNS cache needs to be flushed. Use ipconfig /flushdns</span>\n</div>';
+        this.value = '';
+    }
+    body.scrollTop = body.scrollHeight;
+});
+
+// ══════════════════════════════════════════════════════════════════════════
+// OBJECTIVE 6: Tracert
+// ══════════════════════════════════════════════════════════════════════════
+document.getElementById('cmd6-input').addEventListener('keydown', function(e) {
+    if (e.key !== 'Enter') return;
+    var val = this.value.trim().toLowerCase();
+    var body = document.getElementById('cmd6-body');
+
+    if (val.indexOf('tracert') === 0 && (val.indexOf('meridian-fs01') > -1 || val.indexOf('10.0.2.20') > -1)) {
+        var output = '\nC:\\Users\\Forge1> tracert meridian-fs01.meridian.local\n\n' +
+            'Tracing route to meridian-fs01.meridian.local [10.0.2.20]\n' +
+            'over a maximum of 30 hops:\n\n' +
+            '  1    <1 ms    <1 ms    <1 ms  <span class="success">10.0.2.1</span>       [Gateway]\n' +
+            '  2     1 ms     1 ms     1 ms  <span class="success">10.0.2.20</span>      [meridian-fs01]\n\n' +
+            'Trace complete.\n\n' +
+            '<span class="success">RESULT: 2 hops as expected. Routing is correct.</span>\n' +
+            '<span class="highlight">Hop 1: Building B gateway (10.0.2.1)</span>\n' +
+            '<span class="highlight">Hop 2: File server (10.0.2.20) - direct on same subnet</span>\n';
+        body.innerHTML += '<div class="cmd-output">' + output + '</div>';
+        this.value = '';
+        markComplete(6);
+        showToast('Sarah Chen', 'Routing looks clean &mdash; two hops, no detours. The subnet is working as intended now.', 'success');
+        advanceToNext(6);
+    } else if (val.indexOf('tracert') === 0) {
+        body.innerHTML += '<div class="cmd-output">\nC:\\Users\\Forge1> ' + this.value + '\n<span class="highlight">Trace the route to the file server: tracert meridian-fs01.meridian.local</span>\n</div>';
+        this.value = '';
+    } else {
+        body.innerHTML += '<div class="cmd-output">\nC:\\Users\\Forge1> ' + this.value + '\n<span class="error">Use tracert to test the route to the file server.</span>\n</div>';
+        this.value = '';
+    }
+    body.scrollTop = body.scrollHeight;
+});
+
+// ══════════════════════════════════════════════════════════════════════════
+// OBJECTIVE 7: Fix IPv6
+// ══════════════════════════════════════════════════════════════════════════
+function applyIPv6() {
+    if (!document.getElementById('ipv6-auto').checked) {
+        showToast('System', 'The manual IPv6 address is causing a conflict. Select "Obtain an IPv6 address automatically" to let SLAAC assign a correct address.', 'error');
+        return;
+    }
+    document.getElementById('ipv6-manual-fields').innerHTML =
+        '<div class="form-row"><span class="form-label">IPv6 Address:</span>' +
+        '<input class="form-input correct" value="fe80::1a2b:3c4d:5e6f (SLAAC)" disabled></div>' +
+        '<div class="form-row"><span class="form-label">Status:</span>' +
+        '<span class="status-indicator online"><span class="status-dot online"></span> Auto-configured, no conflicts</span></div>';
+    document.getElementById('ipv6-apply').disabled = true;
+    document.getElementById('ipv6-apply').classList.add('success');
+    document.getElementById('ipv6-apply').textContent = 'Applied';
+    markComplete(7);
+    showToast('James Park', 'IPv6 conflict resolved. SLAAC auto-configuration is the correct approach for workstations &mdash; static IPv6 is almost never needed on clients.', 'success');
+    advanceToNext(7);
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+// OBJECTIVE 8: Wireless Configuration
+// ══════════════════════════════════════════════════════════════════════════
+var wifiSelected = null;
+
+function selectWifi(network) {
+    if (network === 'corp') {
+        wifiSelected = 'corp';
+        document.getElementById('wifi-corp').classList.add('selected');
+        document.getElementById('wifi-actions').style.display = 'block';
+        document.getElementById('wifi-forget-msg').style.display = 'block';
+    }
+}
+
+function forgetGuest() {
+    guestForgotten = true;
+    var guestEl = document.getElementById('wifi-guest');
+    guestEl.classList.remove('connected');
+    guestEl.innerHTML = '<div><div class="wifi-name" style="text-decoration:line-through; opacity:0.5;">Meridian-Guest</div>' +
+        '<div class="wifi-detail" style="color:#ef4444;">Forgotten</div></div>' +
+        '<div class="status-indicator offline"><span class="status-dot offline"></span> Removed</div>';
+    document.getElementById('wifi-forget-btn').disabled = true;
+    document.getElementById('wifi-forget-btn').textContent = 'Forgotten';
+    document.getElementById('wifi-forget-msg').style.display = 'none';
+    document.getElementById('wifi-connect-btn').disabled = false;
+    showToast('System', 'Meridian-Guest network profile removed. The laptop will no longer auto-connect to the open network.', 'success');
+}
+
+function connectCorp() {
+    if (!guestForgotten) {
+        showToast('System', 'Forget the Meridian-Guest network first to prevent automatic reconnection to the unsecured network.', 'warning');
+        return;
+    }
+    var autoConnect = document.getElementById('wifi-autoconnect').checked;
+    var metered = document.getElementById('wifi-metered').checked;
+
+    if (!autoConnect || !metered) {
+        var missing = [];
+        if (!autoConnect) missing.push('auto-connect');
+        if (!metered) missing.push('metered connection');
+        showToast('System', 'Enable both options: ' + missing.join(' and ') + '. Conference room laptops need auto-connect, and metered prevents background data usage.', 'warning');
+        return;
+    }
+
+    document.getElementById('wifi-corp').classList.remove('selected');
+    document.getElementById('wifi-corp').classList.add('connected');
+    document.getElementById('wifi-corp').querySelector('.wifi-detail').textContent = 'Connected - WPA2-Enterprise - Metered';
+    document.getElementById('wifi-connect-btn').disabled = true;
+    document.getElementById('wifi-connect-btn').classList.add('success');
+    document.getElementById('wifi-connect-btn').textContent = 'Connected';
+    markComplete(8);
+    showToast('Marcus Webb', 'Conference room laptop is on Meridian-Corp now. WPA2-Enterprise with auto-connect and metered &mdash; perfect setup.', 'success');
+    advanceToNext(8);
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+// OBJECTIVE 9: Firewall Exception
+// ══════════════════════════════════════════════════════════════════════════
+function createFWRule() {
+    var name = document.getElementById('fw-name').value.trim();
+    var type = document.getElementById('fw-type').value;
+    var protocol = document.getElementById('fw-protocol').value;
+    var port = document.getElementById('fw-port').value.trim();
+    var action = document.getElementById('fw-action').value;
+
+    var errors = [];
+    if (!name) errors.push('Rule must have a name');
+    if (type !== 'port') errors.push('Rule type should be "Port"');
+    if (protocol !== 'tcp') errors.push('Protocol should be TCP');
+    if (port !== '8443') errors.push('Port must be 8443');
+    if (action !== 'allow') errors.push('Action should be "Allow" for the case management software');
+
+    if (errors.length > 0) {
+        showToast('System', 'Rule validation failed: ' + errors.join('. ') + '.', 'error');
+        return;
+    }
+
+    var table = document.getElementById('fwRuleTable');
+    var row = document.createElement('tr');
+    row.className = 'new-rule';
+    row.innerHTML = '<td style="color:#f97316;">' + name + '</td><td>TCP</td><td>8443</td><td style="color:#22c55e;">Allow</td><td>Yes</td>';
+    table.appendChild(row);
+
+    document.querySelectorAll('#view-9 .fw-form input, #view-9 .fw-form select').forEach(function(el) { el.disabled = true; });
+    document.querySelector('#view-9 .action-btn').disabled = true;
+    document.querySelector('#view-9 .action-btn').classList.add('success');
+    document.querySelector('#view-9 .action-btn').textContent = 'Rule Created';
+
+    markComplete(9);
+    showToast('James Park', 'Firewall exception created. Port 8443 inbound for Legal case management. I verified it\'s only TCP &mdash; good, no unnecessary UDP exposure.', 'success');
+    advanceToNext(9);
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+// OBJECTIVE 10: VPN Configuration
+// ══════════════════════════════════════════════════════════════════════════
+function saveVPN() {
+    var provider = document.getElementById('vpn-provider').value;
+    var name = document.getElementById('vpn-name').value.trim();
+    var server = document.getElementById('vpn-server').value.trim().toLowerCase();
+    var type = document.getElementById('vpn-type').value;
+    var auth = document.getElementById('vpn-auth').value;
+
+    var errors = [];
+    if (provider !== 'builtin') errors.push('Use "Windows (built-in)" provider');
+    if (!name) errors.push('Connection needs a name');
+    if (server !== 'vpn.meridian.com') errors.push('Server should be vpn.meridian.com');
+    if (type !== 'ikev2') errors.push('VPN type must be IKEv2');
+    if (auth !== 'cert') errors.push('Authentication should be Certificate');
+
+    if (errors.length > 0) {
+        showToast('System', errors.join('. ') + '.', 'error');
+        return;
+    }
+
+    document.querySelectorAll('#view-10 .vpn-form input, #view-10 .vpn-form select').forEach(function(el) { el.disabled = true; });
+    var btn = document.querySelector('#view-10 .action-btn');
+    btn.disabled = true;
+    btn.classList.add('success');
+    btn.textContent = 'VPN Saved';
+
+    markComplete(10);
+    showToast('Sarah Chen', 'VPN connection configured. IKEv2 with certificates &mdash; exactly what we need. The Legal attorney can connect securely from home now.', 'success');
+    advanceToNext(10);
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+// OBJECTIVE 11: Verify Network Isolation
+// ══════════════════════════════════════════════════════════════════════════
+document.getElementById('cmd11-input').addEventListener('keydown', function(e) {
+    if (e.key !== 'Enter') return;
+    var val = this.value.trim().toLowerCase();
+    var body = document.getElementById('cmd11-body');
+
+    if (val.indexOf('ping') === 0 && val.indexOf('10.0.99.') > -1) {
+        var target = val.replace('ping ', '').replace('ping', '').trim().split(' ')[0];
+        var output = '\nC:\\Users\\Forge1> ping ' + target + '\n\n' +
+            'Pinging ' + target + ' with 32 bytes of data:\n' +
+            '<span class="error">Request timed out.</span>\n' +
+            '<span class="error">Request timed out.</span>\n' +
+            '<span class="error">Request timed out.</span>\n' +
+            '<span class="error">Request timed out.</span>\n\n' +
+            'Ping statistics for ' + target + ':\n' +
+            '    Packets: Sent = 4, Received = 0, Lost = 4 (100% loss)\n\n' +
+            '<span class="success">ISOLATION VERIFIED: Corporate subnet (10.0.2.x) cannot reach Guest subnet (10.0.99.x).</span>\n' +
+            '<span class="success">Firewall rules are correctly blocking cross-subnet traffic.</span>\n';
+        body.innerHTML += '<div class="cmd-output">' + output + '</div>';
+        this.value = '';
+        markComplete(11);
+        showToast('James Park', 'Network isolation confirmed. Guest Wi-Fi is properly segmented. No unauthorized lateral movement possible between subnets.', 'success');
+        advanceToNext(11);
+    } else {
+        body.innerHTML += '<div class="cmd-output">\nC:\\Users\\Forge1> ' + this.value + '\n<span class="highlight">Ping an address in the Guest subnet (10.0.99.x) to verify isolation.</span>\n</div>';
+        this.value = '';
+    }
+    body.scrollTop = body.scrollHeight;
+});
+
+// ══════════════════════════════════════════════════════════════════════════
+// OBJECTIVE 12: Document Subnet
+// ══════════════════════════════════════════════════════════════════════════
+function submitDocumentation() {
+    var network = document.getElementById('doc-network').value.trim();
+    var gw = document.getElementById('doc-gw').value.trim();
+    var dns = document.getElementById('doc-dns').value.trim();
+    var ps = document.getElementById('doc-ps').value.trim();
+    var dhcp = document.getElementById('doc-dhcp').value;
+    var cause = document.getElementById('doc-cause').value;
+
+    var correct = {
+        network: '10.0.2.0/24',
+        gw: '10.0.2.1',
+        dns: '10.0.2.10',
+        ps: '10.0.2.50',
+        dhcp: 'correct',
+        cause: 'correct'
+    };
+    var values = { network: network, gw: gw, dns: dns, ps: ps, dhcp: dhcp, cause: cause };
+    var fields = { network: 'doc-network', gw: 'doc-gw', dns: 'doc-dns', ps: 'doc-ps' };
+
+    var allCorrect = true;
+
+    Object.keys(fields).forEach(function(k) {
+        var el = document.getElementById(fields[k]);
+        el.classList.remove('correct', 'incorrect');
+        if (values[k] === correct[k]) {
+            el.classList.add('correct');
+        } else {
+            el.classList.add('incorrect');
+            allCorrect = false;
+        }
+    });
+
+    if (dhcp !== 'correct' || cause !== 'correct') allCorrect = false;
+
+    if (allCorrect) {
+        markComplete(12);
+        showToast('Sarah Chen', 'Documentation complete. Building B is fully restored and properly documented. Outstanding work, Forge-1.', 'success');
+    } else {
+        showToast('System', 'Some documentation fields are incorrect. Review the network values from your work today.', 'error');
+    }
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+// MODULE COMPLETE
+// ══════════════════════════════════════════════════════════════════════════
+function completeModule() {
+    ModuleProgress.complete('forge', 'forge-md100-m04-lab', {
+        returnUrl: '../index.html'
+    });
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+// INITIAL TOAST
+// ══════════════════════════════════════════════════════════════════════════
+setTimeout(function() {
+    showToast('Sarah Chen', 'Building B is completely dark. Start with WS-B01 &mdash; run ipconfig /all and tell me what Ray did.', 'warning');
+}, 800);
+</script>
+
+<script src="../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>

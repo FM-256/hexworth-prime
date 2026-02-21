@@ -1,0 +1,1460 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <!-- Progress & Achievements -->
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Operation: Lockdown - MD-100 Sim Lab</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            min-height: 100vh;
+            background: #0c0c0c;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: #e0d0c0;
+        }
+
+        /* ── Header ─────────────────────────────────────────────── */
+        .lab-header {
+            padding: 14px 28px;
+            background: rgba(10, 10, 15, 0.95);
+            border-bottom: 1px solid rgba(234, 88, 12, 0.2);
+            display: flex; justify-content: space-between; align-items: center;
+            position: sticky; top: 0; z-index: 100;
+        }
+        .header-left { display: flex; align-items: center; gap: 18px; }
+        .back-btn {
+            padding: 7px 15px; background: rgba(234, 88, 12, 0.1);
+            border: 1px solid rgba(234, 88, 12, 0.3); border-radius: 6px;
+            color: #f97316; text-decoration: none; font-size: 0.83rem; transition: background 0.2s;
+        }
+        .back-btn:hover { background: rgba(234, 88, 12, 0.2); }
+        .lab-title { font-size: 0.98rem; color: #f5e6d3; font-weight: 500; }
+        .lab-badge {
+            padding: 3px 11px; background: rgba(234, 88, 12, 0.15);
+            border: 1px solid rgba(234, 88, 12, 0.3); border-radius: 12px;
+            font-size: 0.68rem; color: #ea580c; letter-spacing: 0.06em;
+        }
+        .task-progress { font-size: 0.83rem; color: #8a7060; }
+        .task-count { color: #f97316; font-weight: 600; }
+
+        /* ── Layout ─────────────────────────────────────────────── */
+        .lab-container {
+            display: grid; grid-template-columns: 320px 1fr;
+            height: calc(100vh - 54px);
+        }
+
+        /* ── Mission Brief ──────────────────────────────────────── */
+        .mission-brief {
+            background: linear-gradient(135deg, rgba(234, 88, 12, 0.08), rgba(234, 88, 12, 0.02));
+            border: 1px solid rgba(234, 88, 12, 0.2); border-radius: 10px;
+            padding: 18px 22px; margin-bottom: 20px;
+        }
+        .brief-header { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+        .brief-avatar {
+            width: 36px; height: 36px; border-radius: 50%;
+            background: linear-gradient(135deg, #ea580c, #c2410c);
+            display: flex; align-items: center; justify-content: center;
+            font-weight: 700; font-size: 0.8rem; color: #fff;
+        }
+        .brief-name { color: #f97316; font-weight: 600; font-size: 0.85rem; }
+        .brief-role { color: #6b5040; font-size: 0.75rem; }
+        .brief-text {
+            color: #c0b0a0; font-size: 0.88rem; line-height: 1.6;
+            font-style: italic; border-left: 3px solid rgba(234, 88, 12, 0.3); padding-left: 14px;
+        }
+
+        /* ── Objectives Panel ───────────────────────────────────── */
+        .objectives-panel {
+            background: rgba(15, 12, 8, 0.95);
+            border-right: 1px solid rgba(234, 88, 12, 0.12);
+            overflow-y: auto; padding: 20px;
+        }
+        .panel-title {
+            font-size: 0.68rem; color: #6b5040; letter-spacing: 0.14em;
+            text-transform: uppercase; margin-bottom: 12px;
+        }
+        .objective-item {
+            background: rgba(20, 15, 10, 0.8);
+            border: 1px solid rgba(234, 88, 12, 0.12); border-radius: 10px;
+            padding: 10px 12px; margin-bottom: 6px; cursor: pointer;
+            transition: all 0.25s; display: flex; gap: 8px; align-items: flex-start;
+        }
+        .objective-item:hover { border-color: rgba(234, 88, 12, 0.35); }
+        .objective-item.active { border-left: 3px solid #ea580c; background: rgba(234, 88, 12, 0.08); }
+        .objective-item.completed { border-color: rgba(34, 197, 94, 0.35); }
+        .obj-check {
+            width: 20px; height: 20px; min-width: 20px; border-radius: 50%;
+            border: 2px solid rgba(234, 88, 12, 0.3);
+            display: flex; align-items: center; justify-content: center;
+            font-size: 0.65rem; color: transparent; transition: all 0.3s; margin-top: 1px;
+        }
+        .objective-item.completed .obj-check {
+            border-color: #22c55e; background: rgba(34, 197, 94, 0.2); color: #22c55e;
+        }
+        .obj-number { font-size: 0.62rem; color: #ea580c; }
+        .obj-name { font-size: 0.82rem; color: #f5e6d3; font-weight: 500; }
+        .obj-desc { font-size: 0.72rem; color: #8a7060; line-height: 1.35; }
+
+        /* ── GUI Workspace ──────────────────────────────────────── */
+        .gui-workspace { overflow-y: auto; padding: 24px 28px; background: #0a0a0a; }
+
+        /* ── Windows Chrome ─────────────────────────────────────── */
+        .win-window {
+            background: #1e1e1e; border: 1px solid #3c3c3c; border-radius: 8px;
+            overflow: hidden; margin-bottom: 20px; box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+        }
+        .win-titlebar {
+            background: #1a1a2e; padding: 8px 14px;
+            display: flex; justify-content: space-between; align-items: center;
+            border-bottom: 1px solid #2a2a3e; user-select: none;
+        }
+        .win-titlebar-text { font-size: 0.82rem; color: #c0c0c0; display: flex; align-items: center; gap: 8px; }
+        .win-controls { display: flex; gap: 6px; }
+        .win-ctrl-btn { width: 14px; height: 14px; border-radius: 50%; border: none; cursor: default; }
+        .win-ctrl-min { background: #f59e0b; }
+        .win-ctrl-max { background: #22c55e; }
+        .win-ctrl-close { background: #ef4444; }
+        .win-body { padding: 20px; color: #d0d0d0; }
+
+        /* ── Console Pattern (MMC-style) ────────────────────────── */
+        .console-layout { display: grid; grid-template-columns: 220px 1fr; min-height: 350px; }
+        .console-tree {
+            background: #1a1a1a; border-right: 1px solid #333; padding: 12px;
+            overflow-y: auto;
+        }
+        .tree-node {
+            padding: 5px 8px; font-size: 0.8rem; color: #aaa; cursor: pointer;
+            border-radius: 4px; margin-bottom: 2px; display: flex; align-items: center; gap: 6px;
+            transition: all 0.15s;
+        }
+        .tree-node:hover { background: rgba(0,120,212,0.1); color: #fff; }
+        .tree-node.active { background: rgba(0,120,212,0.2); color: #70b8ff; }
+        .tree-node.nested { padding-left: 24px; }
+        .tree-icon { font-size: 0.85rem; }
+        .console-content { padding: 16px; overflow-y: auto; }
+
+        /* ── User List Table ────────────────────────────────────── */
+        .user-table {
+            width: 100%; border-collapse: collapse; font-size: 0.82rem; margin-bottom: 16px;
+        }
+        .user-table th {
+            background: rgba(0, 120, 212, 0.15); color: #70b8ff;
+            padding: 8px 12px; text-align: left; font-weight: 600;
+        }
+        .user-table td {
+            padding: 8px 12px; border-bottom: 1px solid #2a2a2e; color: #c0c0c0;
+        }
+        .user-table tr:hover td { background: rgba(0,120,212,0.05); }
+        .user-table tr.highlight td { background: rgba(239,68,68,0.08); }
+        .status-active { color: #22c55e; }
+        .status-disabled { color: #888; }
+        .status-warn { color: #f59e0b; }
+        .status-bad { color: #ef4444; }
+
+        /* ── Context Menu ───────────────────────────────────────── */
+        .context-menu {
+            display: none; position: absolute; background: #252526;
+            border: 1px solid #444; border-radius: 6px; padding: 6px 0;
+            min-width: 200px; z-index: 50; box-shadow: 0 6px 20px rgba(0,0,0,0.6);
+        }
+        .context-menu.show { display: block; }
+        .ctx-item {
+            padding: 7px 16px; font-size: 0.82rem; color: #c0c0c0;
+            cursor: pointer; transition: background 0.15s;
+        }
+        .ctx-item:hover { background: rgba(0,120,212,0.2); color: #fff; }
+        .ctx-divider { height: 1px; background: #444; margin: 4px 0; }
+
+        /* ── Form Elements ──────────────────────────────────────── */
+        .form-group { margin-bottom: 14px; }
+        .form-label { display: block; font-size: 0.82rem; color: #aaa; margin-bottom: 5px; }
+        .form-select, .form-input {
+            width: 100%; padding: 9px 12px; background: #252526;
+            border: 1px solid #3c3c3c; border-radius: 6px; color: #e0e0e0;
+            font-size: 0.88rem; font-family: inherit; outline: none; transition: border-color 0.2s;
+        }
+        .form-select:focus, .form-input:focus { border-color: #0078d4; }
+        .form-checkbox-label {
+            display: flex; align-items: center; gap: 8px;
+            font-size: 0.84rem; color: #c0c0c0; cursor: pointer;
+            padding: 4px 0;
+        }
+        .form-checkbox-label input[type="checkbox"] {
+            width: 16px; height: 16px; accent-color: #0078d4;
+        }
+
+        /* ── Policy Table ───────────────────────────────────────── */
+        .policy-table {
+            width: 100%; border-collapse: collapse; font-size: 0.82rem; margin-bottom: 16px;
+        }
+        .policy-table th {
+            background: rgba(234, 88, 12, 0.12); color: #f97316;
+            padding: 8px 12px; text-align: left; font-weight: 600;
+        }
+        .policy-table td {
+            padding: 8px 12px; border-bottom: 1px solid #2a2a2e; color: #c0c0c0;
+        }
+        .policy-input {
+            padding: 5px 8px; background: #1a1a1a; border: 1px solid #3c3c3c;
+            border-radius: 4px; color: #e0e0e0; font-size: 0.82rem; width: 100px;
+            outline: none; font-family: inherit;
+        }
+        .policy-input:focus { border-color: #0078d4; }
+        .policy-toggle {
+            padding: 4px 14px; border-radius: 4px; border: 1px solid #555;
+            background: #333; color: #888; cursor: pointer; font-size: 0.78rem;
+            transition: all 0.2s;
+        }
+        .policy-toggle.on { background: rgba(34,197,94,0.15); border-color: #22c55e; color: #22c55e; }
+
+        /* ── UAC Slider ─────────────────────────────────────────── */
+        .uac-slider-container { padding: 12px 0; }
+        .uac-slider {
+            width: 100%; -webkit-appearance: none; appearance: none;
+            height: 8px; background: #333; border-radius: 4px; outline: none;
+        }
+        .uac-slider::-webkit-slider-thumb {
+            -webkit-appearance: none; width: 20px; height: 20px;
+            background: #0078d4; border-radius: 50%; cursor: pointer;
+        }
+        .uac-labels {
+            display: flex; justify-content: space-between;
+            font-size: 0.72rem; color: #888; margin-top: 6px;
+        }
+        .uac-current {
+            text-align: center; font-size: 0.88rem; margin-top: 10px;
+            padding: 8px 14px; background: #1a1a1a; border-radius: 6px;
+            border: 1px solid #333;
+        }
+
+        /* ── Create User Dialog ─────────────────────────────────── */
+        .modal-overlay {
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.6); z-index: 200;
+            justify-content: center; align-items: center;
+        }
+        .modal-overlay.show { display: flex; }
+        .modal-dialog {
+            background: #1e1e1e; border: 1px solid #444; border-radius: 10px;
+            width: 460px; max-width: 95vw; box-shadow: 0 12px 40px rgba(0,0,0,0.7);
+        }
+        .modal-header {
+            padding: 14px 18px; border-bottom: 1px solid #333;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .modal-title { font-size: 0.95rem; color: #e0e0e0; font-weight: 600; }
+        .modal-close {
+            background: none; border: none; color: #888; font-size: 1.2rem;
+            cursor: pointer; padding: 4px;
+        }
+        .modal-close:hover { color: #ef4444; }
+        .modal-body { padding: 18px; }
+        .modal-footer {
+            padding: 12px 18px; border-top: 1px solid #333;
+            display: flex; justify-content: flex-end; gap: 8px;
+        }
+
+        /* ── Buttons ────────────────────────────────────────────── */
+        .btn-primary {
+            padding: 9px 22px; background: #0078d4; border: none; border-radius: 6px;
+            color: #fff; font-size: 0.86rem; cursor: pointer; transition: all 0.2s;
+        }
+        .btn-primary:hover { background: #1a8ae8; }
+        .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; }
+        .btn-secondary {
+            padding: 9px 22px; background: transparent; border: 1px solid #555;
+            border-radius: 6px; color: #c0c0c0; font-size: 0.86rem; cursor: pointer;
+        }
+        .btn-secondary:hover { border-color: #888; color: #fff; }
+        .btn-forge {
+            padding: 10px 26px; background: linear-gradient(135deg, #ea580c, #c2410c);
+            border: none; border-radius: 8px; color: #fff; font-size: 0.9rem;
+            cursor: pointer; transition: all 0.25s;
+        }
+        .btn-forge:hover { box-shadow: 0 4px 16px rgba(234,88,12,0.35); transform: translateY(-1px); }
+        .btn-forge:disabled { opacity: 0.4; cursor: not-allowed; transform: none; box-shadow: none; }
+        .btn-danger {
+            padding: 9px 22px; background: rgba(239,68,68,0.15); border: 1px solid rgba(239,68,68,0.4);
+            border-radius: 6px; color: #ef4444; font-size: 0.86rem; cursor: pointer;
+        }
+        .btn-danger:hover { background: rgba(239,68,68,0.25); }
+        .btn-row { display: flex; gap: 10px; margin-top: 16px; }
+
+        /* ── Toast Notifications ────────────────────────────────── */
+        .toast-container {
+            position: fixed; top: 70px; right: 20px; z-index: 999;
+            display: flex; flex-direction: column; gap: 10px; pointer-events: none;
+        }
+        .toast {
+            background: #1a1a2e; border: 1px solid #3c3c3c; border-radius: 10px;
+            padding: 14px 18px; min-width: 320px; max-width: 420px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.5); animation: toastIn 0.3s ease-out;
+            pointer-events: auto;
+        }
+        .toast.warning { border-color: #f59e0b; }
+        .toast.success { border-color: #22c55e; }
+        .toast.error { border-color: #ef4444; }
+        .toast-header { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+        .toast-avatar {
+            width: 28px; height: 28px; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-weight: 700; font-size: 0.65rem; color: #fff;
+        }
+        .toast-name { font-size: 0.8rem; font-weight: 600; color: #f5e6d3; }
+        .toast-body { font-size: 0.82rem; color: #a09080; line-height: 1.5; }
+        @keyframes toastIn { from { opacity: 0; transform: translateX(40px); } to { opacity: 1; transform: translateX(0); } }
+        @keyframes toastOut { from { opacity: 1; } to { opacity: 0; transform: translateX(40px); } }
+
+        /* ── Section Dividers ───────────────────────────────────── */
+        .section-divider {
+            display: none; padding-bottom: 12px; margin-bottom: 18px;
+            border-bottom: 1px solid rgba(234, 88, 12, 0.15);
+        }
+        .section-divider.active { display: block; }
+        .section-divider h2 { font-size: 1.1rem; color: #f97316; margin-bottom: 4px; }
+        .section-divider p { font-size: 0.85rem; color: #9a8070; }
+
+        /* ── Change Log ─────────────────────────────────────────── */
+        .changelog-table {
+            width: 100%; border-collapse: collapse; font-size: 0.82rem;
+        }
+        .changelog-table th {
+            background: rgba(234, 88, 12, 0.12); color: #f97316;
+            padding: 8px 12px; text-align: left; font-weight: 600;
+        }
+        .changelog-table td { padding: 8px 12px; border-bottom: 1px solid #2a2a2e; color: #c0c0c0; }
+        .changelog-entry { color: #22c55e; font-weight: 500; }
+
+        /* ── Completion Banner ───────────────────────────────────── */
+        .completion-banner {
+            display: none;
+            background: linear-gradient(135deg, rgba(34, 197, 94, 0.08), rgba(34, 197, 94, 0.02));
+            border: 1px solid rgba(34, 197, 94, 0.3); border-radius: 10px;
+            padding: 24px; margin-top: 24px; text-align: center;
+        }
+        .completion-banner.show { display: block; }
+        .completion-banner h3 { color: #22c55e; font-size: 1.1rem; margin-bottom: 10px; }
+        .completion-banner p { color: #a09080; font-size: 0.9rem; line-height: 1.6; margin-bottom: 16px; }
+        .complete-btn {
+            padding: 13px 36px; background: #22c55e; border: none; border-radius: 9px;
+            color: #fff; font-size: 1rem; cursor: pointer;
+            box-shadow: 0 3px 12px rgba(34, 197, 94, 0.3); transition: all 0.25s;
+        }
+        .complete-btn:hover { background: #16a34a; }
+
+        .hidden { display: none !important; }
+        @media (max-width: 900px) {
+            .lab-container { grid-template-columns: 1fr; }
+            .objectives-panel { max-height: 200px; }
+            .console-layout { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="toast-container" id="toastContainer"></div>
+
+<!-- Create User Modal -->
+<div class="modal-overlay" id="createUserModal">
+    <div class="modal-dialog">
+        <div class="modal-header">
+            <div class="modal-title">New User</div>
+            <button class="modal-close" onclick="closeModal('createUserModal')">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div class="form-group">
+                <label class="form-label">Username</label>
+                <input type="text" class="form-input" id="new-user-name" placeholder="e.g. jdoe">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Full Name</label>
+                <input type="text" class="form-input" id="new-user-fullname" placeholder="e.g. Jane Doe">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Password</label>
+                <input type="password" class="form-input" id="new-user-pass" placeholder="Enter password (12+ chars recommended)">
+            </div>
+            <div class="form-checkbox-label">
+                <input type="checkbox" id="new-user-mustchange" checked>
+                User must change password at next logon
+            </div>
+            <div class="form-group" style="margin-top:10px;">
+                <label class="form-label">Add to Group</label>
+                <select class="form-select" id="new-user-group">
+                    <option value="Users">Users</option>
+                    <option value="Administrators">Administrators</option>
+                </select>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn-secondary" onclick="closeModal('createUserModal')">Cancel</button>
+            <button class="btn-primary" onclick="createUser()">Create</button>
+        </div>
+    </div>
+</div>
+
+<!-- Scheduled Task Warning Modal -->
+<div class="modal-overlay" id="scheduledTaskModal">
+    <div class="modal-dialog">
+        <div class="modal-header">
+            <div class="modal-title" style="color:#f59e0b;">Warning: Scheduled Tasks</div>
+            <button class="modal-close" onclick="closeModal('scheduledTaskModal')">&times;</button>
+        </div>
+        <div class="modal-body">
+            <p style="font-size:0.88rem; color:#c0c0c0; margin-bottom:14px;">
+                The account <strong>MeridianGeneric</strong> is configured to run the following scheduled tasks:
+            </p>
+            <table class="user-table">
+                <thead><tr><th>Task</th><th>Schedule</th><th>Status</th></tr></thead>
+                <tbody>
+                    <tr><td>BackupScript.bat</td><td>Daily 2:00 AM</td><td class="status-active">Active</td></tr>
+                    <tr><td>InventorySync.ps1</td><td>Every 4 hours</td><td class="status-active">Active</td></tr>
+                    <tr><td>PrinterCleanup.cmd</td><td>Weekly Sunday</td><td class="status-active">Active</td></tr>
+                </tbody>
+            </table>
+            <p style="font-size:0.82rem; color:#f59e0b;">
+                Disabling this account will prevent these tasks from running. Reassign them to a service account first.
+            </p>
+            <div class="form-group" style="margin-top:12px;">
+                <label class="form-label">Reassign tasks to:</label>
+                <select class="form-select" id="task-reassign">
+                    <option value="">-- Select Account --</option>
+                    <option value="system">SYSTEM (Local System Account)</option>
+                    <option value="network">NETWORK SERVICE</option>
+                    <option value="skip">Skip (disable tasks)</option>
+                </select>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn-secondary" onclick="closeModal('scheduledTaskModal')">Cancel</button>
+            <button class="btn-primary" id="reassign-btn" onclick="reassignTasks()">Reassign &amp; Disable Account</button>
+        </div>
+    </div>
+</div>
+
+<!-- Active Session Warning Modal -->
+<div class="modal-overlay" id="sessionWarningModal">
+    <div class="modal-dialog">
+        <div class="modal-header">
+            <div class="modal-title" style="color:#ef4444;">Active Session Warning</div>
+            <button class="modal-close" onclick="closeModal('sessionWarningModal')">&times;</button>
+        </div>
+        <div class="modal-body">
+            <p style="font-size:0.88rem; color:#c0c0c0; margin-bottom:12px;">
+                User <strong>dtorres</strong> (Diana Torres) is currently logged in to <strong>MERIDIAN-WS-EXEC</strong>.
+                Removing admin rights while the session is active will take effect at next logon.
+            </p>
+            <p style="font-size:0.82rem; color:#888;">
+                The user will not be interrupted, but elevated operations in the current session may still work until logoff.
+            </p>
+        </div>
+        <div class="modal-footer">
+            <button class="btn-secondary" onclick="closeModal('sessionWarningModal')">Cancel</button>
+            <button class="btn-primary" onclick="confirmRemoveAdmin()">Proceed &mdash; Apply at Next Logon</button>
+        </div>
+    </div>
+</div>
+
+<header class="lab-header">
+    <div class="header-left">
+        <a href="../index.html" class="back-btn">&larr; Back to MD-100</a>
+        <span class="lab-title">Operation: Lockdown</span>
+        <span class="lab-badge">SIM LAB</span>
+    </div>
+    <div class="task-progress">
+        Objectives: <span class="task-count" id="objProgress">0/10 Complete</span>
+    </div>
+</header>
+
+<div class="lab-container">
+    <!-- ── Objectives Panel ─────────────────────────────────── -->
+    <aside class="objectives-panel">
+        <div class="panel-title">Mission Objectives</div>
+
+        <div class="objective-item active" data-obj="1" onclick="navObj(1)">
+            <div class="obj-check">&#10003;</div>
+            <div><div class="obj-number">OBJ 1</div><div class="obj-name">Audit Existing Accounts</div><div class="obj-desc">Identify shared account, disabled admin, password issues</div></div>
+        </div>
+        <div class="objective-item" data-obj="2" onclick="navObj(2)">
+            <div class="obj-check">&#10003;</div>
+            <div><div class="obj-number">OBJ 2</div><div class="obj-name">Disable Shared Account</div><div class="obj-desc">Disable MeridianGeneric after reassigning tasks</div></div>
+        </div>
+        <div class="objective-item" data-obj="3" onclick="navObj(3)">
+            <div class="obj-check">&#10003;</div>
+            <div><div class="obj-number">OBJ 3</div><div class="obj-name">Create Individual Accounts</div><div class="obj-desc">Replace shared login with 3 individual user accounts</div></div>
+        </div>
+        <div class="objective-item" data-obj="4" onclick="navObj(4)">
+            <div class="obj-check">&#10003;</div>
+            <div><div class="obj-number">OBJ 4</div><div class="obj-name">Set Password Policy</div><div class="obj-desc">Configure min length, complexity, max age, lockout</div></div>
+        </div>
+        <div class="objective-item" data-obj="5" onclick="navObj(5)">
+            <div class="obj-check">&#10003;</div>
+            <div><div class="obj-number">OBJ 5</div><div class="obj-name">Remove Unnecessary Admin</div><div class="obj-desc">Remove standard users from Administrators group</div></div>
+        </div>
+        <div class="objective-item" data-obj="6" onclick="navObj(6)">
+            <div class="obj-check">&#10003;</div>
+            <div><div class="obj-number">OBJ 6</div><div class="obj-name">Configure UAC</div><div class="obj-desc">Set UAC from Never Notify to Always Notify</div></div>
+        </div>
+        <div class="objective-item" data-obj="7" onclick="navObj(7)">
+            <div class="obj-check">&#10003;</div>
+            <div><div class="obj-number">OBJ 7</div><div class="obj-name">Enable Windows Hello PIN</div><div class="obj-desc">Configure PIN for Diana Torres (unlink MS account first)</div></div>
+        </div>
+        <div class="objective-item" data-obj="8" onclick="navObj(8)">
+            <div class="obj-check">&#10003;</div>
+            <div><div class="obj-number">OBJ 8</div><div class="obj-name">Configure Account Lockout</div><div class="obj-desc">Set lockout duration, threshold, reset counter</div></div>
+        </div>
+        <div class="objective-item" data-obj="9" onclick="navObj(9)">
+            <div class="obj-check">&#10003;</div>
+            <div><div class="obj-number">OBJ 9</div><div class="obj-name">Verify Group Memberships</div><div class="obj-desc">IT staff = Admin, everyone else = Users only</div></div>
+        </div>
+        <div class="objective-item" data-obj="10" onclick="navObj(10)">
+            <div class="obj-check">&#10003;</div>
+            <div><div class="obj-number">OBJ 10</div><div class="obj-name">Document Changes</div><div class="obj-desc">Complete the change log for the auditor</div></div>
+        </div>
+    </aside>
+
+    <!-- ── GUI Workspace ────────────────────────────────────── -->
+    <main class="gui-workspace">
+
+        <!-- Mission Brief -->
+        <div class="mission-brief">
+            <div class="brief-header">
+                <div class="brief-avatar">SC</div>
+                <div>
+                    <div class="brief-name">Sarah Chen</div>
+                    <div class="brief-role">IT Director, Meridian Industries</div>
+                </div>
+            </div>
+            <div class="brief-text">
+                "The compliance auditor flagged our user accounts. Ray gave everyone local admin rights. Half the machines have no password policy. Three users share a single login. I need you to audit and lock down the user situation on these workstations before the auditor comes back Friday."
+            </div>
+        </div>
+
+        <!-- ═══════ OBJ 1: Audit Accounts ═══════ -->
+        <div class="section-divider active" id="obj-1-section">
+            <h2>Objective 1: Audit Existing Accounts</h2>
+            <p>Open Computer Management and review Local Users and Groups. Identify the problems.</p>
+        </div>
+        <div id="obj-1-content">
+            <div class="win-window">
+                <div class="win-titlebar">
+                    <div class="win-titlebar-text"><span style="font-size:0.9rem;">&#128187;</span> Computer Management &mdash; Local Users and Groups &gt; Users</div>
+                    <div class="win-controls">
+                        <button class="win-ctrl-btn win-ctrl-min"></button>
+                        <button class="win-ctrl-btn win-ctrl-max"></button>
+                        <button class="win-ctrl-btn win-ctrl-close"></button>
+                    </div>
+                </div>
+                <div class="win-body" style="padding:0;">
+                    <div class="console-layout">
+                        <div class="console-tree">
+                            <div class="tree-node"><span class="tree-icon">&#128187;</span> Computer Management</div>
+                            <div class="tree-node nested active"><span class="tree-icon">&#128101;</span> Users</div>
+                            <div class="tree-node nested"><span class="tree-icon">&#128101;</span> Groups</div>
+                            <div class="tree-node"><span class="tree-icon">&#128190;</span> Disk Management</div>
+                            <div class="tree-node"><span class="tree-icon">&#9881;</span> Services</div>
+                            <div class="tree-node"><span class="tree-icon">&#128196;</span> Event Viewer</div>
+                        </div>
+                        <div class="console-content">
+                            <table class="user-table" id="user-list-table">
+                                <thead>
+                                    <tr><th>Username</th><th>Full Name</th><th>Status</th><th>Groups</th><th>Flags</th></tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td>Administrator</td><td>Built-in Admin</td>
+                                        <td class="status-disabled">Disabled</td>
+                                        <td>Administrators</td>
+                                        <td>Password Never Expires</td>
+                                    </tr>
+                                    <tr class="highlight">
+                                        <td><strong>MeridianGeneric</strong></td><td>Shared Account</td>
+                                        <td class="status-bad">Active (SHARED)</td>
+                                        <td>Administrators</td>
+                                        <td class="status-bad">Password Never Expires, Shared by 3 users</td>
+                                    </tr>
+                                    <tr>
+                                        <td>schen</td><td>Sarah Chen</td>
+                                        <td class="status-active">Active</td>
+                                        <td class="status-bad">Administrators</td>
+                                        <td>&mdash;</td>
+                                    </tr>
+                                    <tr>
+                                        <td>mwebb</td><td>Marcus Webb</td>
+                                        <td class="status-active">Active</td>
+                                        <td class="status-bad">Administrators</td>
+                                        <td>&mdash;</td>
+                                    </tr>
+                                    <tr>
+                                        <td>dtorres</td><td>Diana Torres</td>
+                                        <td class="status-active">Active</td>
+                                        <td class="status-bad">Administrators</td>
+                                        <td class="status-warn">MS Account Linked</td>
+                                    </tr>
+                                    <tr>
+                                        <td>jpark</td><td>James Park</td>
+                                        <td class="status-active">Active</td>
+                                        <td>Administrators</td>
+                                        <td>&mdash;</td>
+                                    </tr>
+                                    <tr>
+                                        <td>Guest</td><td>Built-in Guest</td>
+                                        <td class="status-disabled">Disabled</td>
+                                        <td>Guests</td>
+                                        <td>Password Not Required</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                            <p style="font-size:0.78rem; color:#888; padding:0 12px;">
+                                Audit findings: Identify the issues in the table above, then click below to acknowledge.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <p style="font-size:0.85rem; color:#aaa; margin-bottom:12px;">Select all issues you identified:</p>
+            <div style="display:flex; flex-direction:column; gap:6px; margin-bottom:16px;" id="audit-checks">
+                <label class="form-checkbox-label"><input type="checkbox" data-issue="shared"> MeridianGeneric is a shared account used by 3 people</label>
+                <label class="form-checkbox-label"><input type="checkbox" data-issue="admin"> All users have local Administrator rights (violates least privilege)</label>
+                <label class="form-checkbox-label"><input type="checkbox" data-issue="pwexpiry"> MeridianGeneric and Administrator have "Password Never Expires"</label>
+                <label class="form-checkbox-label"><input type="checkbox" data-issue="msaccount"> Diana Torres has a Microsoft Account linked to a local machine</label>
+                <label class="form-checkbox-label"><input type="checkbox" data-issue="decoy"> Guest account is disabled (this is correct and expected)</label>
+            </div>
+            <button class="btn-forge" id="audit-submit-btn" onclick="submitAudit()">Submit Audit Findings</button>
+            <div id="audit-feedback" style="margin-top:12px;"></div>
+        </div>
+
+        <!-- ═══════ OBJ 2: Disable Shared Account ═══════ -->
+        <div class="section-divider" id="obj-2-section">
+            <h2>Objective 2: Disable the Shared Account</h2>
+            <p>Right-click MeridianGeneric and disable it. But first, handle the scheduled tasks running under it.</p>
+        </div>
+        <div id="obj-2-content" class="hidden">
+            <div class="win-window">
+                <div class="win-titlebar">
+                    <div class="win-titlebar-text"><span style="font-size:0.9rem;">&#128101;</span> Computer Management &mdash; MeridianGeneric</div>
+                    <div class="win-controls">
+                        <button class="win-ctrl-btn win-ctrl-min"></button>
+                        <button class="win-ctrl-btn win-ctrl-max"></button>
+                        <button class="win-ctrl-btn win-ctrl-close"></button>
+                    </div>
+                </div>
+                <div class="win-body">
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:16px;">
+                        <div>
+                            <div class="form-label">Username</div>
+                            <div style="font-size:0.9rem; color:#e0e0e0;">MeridianGeneric</div>
+                        </div>
+                        <div>
+                            <div class="form-label">Full Name</div>
+                            <div style="font-size:0.9rem; color:#e0e0e0;">Shared Account</div>
+                        </div>
+                        <div>
+                            <div class="form-label">Member Of</div>
+                            <div style="font-size:0.9rem; color:#ef4444;">Administrators</div>
+                        </div>
+                        <div>
+                            <div class="form-label">Account Status</div>
+                            <div style="font-size:0.9rem; color:#22c55e;" id="generic-status">Active</div>
+                        </div>
+                    </div>
+                    <div class="form-label">Description</div>
+                    <div style="font-size:0.82rem; color:#888; margin-bottom:16px;">
+                        Created by Ray Nguyen. Used by: Maria Santos, Tom Baker, Lisa Chang (Reception desk)
+                    </div>
+                    <div class="btn-row">
+                        <button class="btn-danger" id="disable-generic-btn" onclick="attemptDisableGeneric()">Disable Account</button>
+                    </div>
+                    <div id="disable-feedback" style="margin-top:12px;"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ═══════ OBJ 3: Create Individual Accounts ═══════ -->
+        <div class="section-divider" id="obj-3-section">
+            <h2>Objective 3: Create Individual Accounts</h2>
+            <p>Create 3 replacement user accounts for the people who were sharing MeridianGeneric.</p>
+        </div>
+        <div id="obj-3-content" class="hidden">
+            <div class="win-window">
+                <div class="win-titlebar">
+                    <div class="win-titlebar-text"><span style="font-size:0.9rem;">&#128101;</span> Local Users and Groups &mdash; Create New Users</div>
+                    <div class="win-controls">
+                        <button class="win-ctrl-btn win-ctrl-min"></button>
+                        <button class="win-ctrl-btn win-ctrl-max"></button>
+                        <button class="win-ctrl-btn win-ctrl-close"></button>
+                    </div>
+                </div>
+                <div class="win-body">
+                    <p style="font-size:0.85rem; color:#aaa; margin-bottom:14px;">
+                        Create accounts for the three reception staff who were sharing MeridianGeneric:
+                        <strong>Maria Santos</strong>, <strong>Tom Baker</strong>, and <strong>Lisa Chang</strong>.
+                    </p>
+                    <div id="created-users-list" style="margin-bottom:14px;"></div>
+                    <div id="create-users-area">
+                        <button class="btn-primary" onclick="openModal('createUserModal')" id="create-user-btn">
+                            + Create New User (<span id="users-remaining">3</span> remaining)
+                        </button>
+                    </div>
+                    <div id="create-users-feedback" style="margin-top:12px;"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ═══════ OBJ 4: Password Policy ═══════ -->
+        <div class="section-divider" id="obj-4-section">
+            <h2>Objective 4: Set Password Policy</h2>
+            <p>Open Local Security Policy (secpol.msc) and configure password requirements.</p>
+        </div>
+        <div id="obj-4-content" class="hidden">
+            <div class="win-window">
+                <div class="win-titlebar">
+                    <div class="win-titlebar-text"><span style="font-size:0.9rem;">&#128274;</span> Local Security Policy &mdash; Account Policies &gt; Password Policy</div>
+                    <div class="win-controls">
+                        <button class="win-ctrl-btn win-ctrl-min"></button>
+                        <button class="win-ctrl-btn win-ctrl-max"></button>
+                        <button class="win-ctrl-btn win-ctrl-close"></button>
+                    </div>
+                </div>
+                <div class="win-body" style="padding:0;">
+                    <div class="console-layout">
+                        <div class="console-tree">
+                            <div class="tree-node"><span class="tree-icon">&#128274;</span> Security Settings</div>
+                            <div class="tree-node nested active"><span class="tree-icon">&#128273;</span> Password Policy</div>
+                            <div class="tree-node nested"><span class="tree-icon">&#128274;</span> Account Lockout</div>
+                            <div class="tree-node nested"><span class="tree-icon">&#128196;</span> Audit Policy</div>
+                            <div class="tree-node nested"><span class="tree-icon">&#128274;</span> User Rights</div>
+                        </div>
+                        <div class="console-content">
+                            <table class="policy-table">
+                                <thead><tr><th>Policy</th><th>Current Setting</th><th>New Setting</th></tr></thead>
+                                <tbody>
+                                    <tr>
+                                        <td>Minimum password length</td>
+                                        <td class="status-bad">0 characters</td>
+                                        <td><input type="number" class="policy-input" id="pol-min-length" min="0" max="20" value="0" placeholder="12"> characters</td>
+                                    </tr>
+                                    <tr>
+                                        <td>Password must meet complexity requirements</td>
+                                        <td class="status-bad">Disabled</td>
+                                        <td><button class="policy-toggle" id="pol-complexity" onclick="togglePolicy('pol-complexity')">Disabled</button></td>
+                                    </tr>
+                                    <tr>
+                                        <td>Maximum password age</td>
+                                        <td class="status-bad">0 days (never expires)</td>
+                                        <td><input type="number" class="policy-input" id="pol-max-age" min="0" max="365" value="0" placeholder="90"> days</td>
+                                    </tr>
+                                    <tr>
+                                        <td>Minimum password age</td>
+                                        <td>0 days</td>
+                                        <td><input type="number" class="policy-input" id="pol-min-age" min="0" max="30" value="0" placeholder="1"> days</td>
+                                    </tr>
+                                    <tr>
+                                        <td>Enforce password history</td>
+                                        <td class="status-bad">0 passwords</td>
+                                        <td><input type="number" class="policy-input" id="pol-history" min="0" max="24" value="0" placeholder="5"> passwords</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                            <div class="btn-row">
+                                <button class="btn-primary" onclick="applyPasswordPolicy()">Apply Policy</button>
+                            </div>
+                            <div id="policy-feedback" style="margin-top:12px; padding:0 12px;"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ═══════ OBJ 5: Remove Admin Rights ═══════ -->
+        <div class="section-divider" id="obj-5-section">
+            <h2>Objective 5: Remove Unnecessary Admin Rights</h2>
+            <p>For each standard user, remove from Administrators group. IT staff (Sarah, James) keep admin access.</p>
+        </div>
+        <div id="obj-5-content" class="hidden">
+            <div class="win-window">
+                <div class="win-titlebar">
+                    <div class="win-titlebar-text"><span style="font-size:0.9rem;">&#128101;</span> Group Membership Management</div>
+                    <div class="win-controls">
+                        <button class="win-ctrl-btn win-ctrl-min"></button>
+                        <button class="win-ctrl-btn win-ctrl-max"></button>
+                        <button class="win-ctrl-btn win-ctrl-close"></button>
+                    </div>
+                </div>
+                <div class="win-body">
+                    <p style="font-size:0.82rem; color:#888; margin-bottom:14px;">
+                        Review each user. IT staff (Sarah Chen, James Park) should remain Administrators. Everyone else should be standard Users only.
+                    </p>
+                    <table class="user-table" id="admin-rights-table">
+                        <thead><tr><th>User</th><th>Role</th><th>Current Group</th><th>Action</th></tr></thead>
+                        <tbody>
+                            <tr>
+                                <td>schen (Sarah Chen)</td><td>IT Director</td>
+                                <td class="status-active">Administrators</td>
+                                <td><button class="btn-secondary" style="padding:4px 12px; font-size:0.78rem;" disabled>Keep Admin</button></td>
+                            </tr>
+                            <tr>
+                                <td>jpark (James Park)</td><td>Security Officer</td>
+                                <td class="status-active">Administrators</td>
+                                <td><button class="btn-secondary" style="padding:4px 12px; font-size:0.78rem;" disabled>Keep Admin</button></td>
+                            </tr>
+                            <tr id="mwebb-row">
+                                <td>mwebb (Marcus Webb)</td><td>Help Desk Lead</td>
+                                <td class="status-bad" id="mwebb-group">Administrators</td>
+                                <td><button class="btn-danger" style="padding:4px 12px; font-size:0.78rem;" onclick="removeAdmin('mwebb')" id="mwebb-btn">Remove Admin</button></td>
+                            </tr>
+                            <tr id="dtorres-row">
+                                <td>dtorres (Diana Torres)</td><td>CFO</td>
+                                <td class="status-bad" id="dtorres-group">Administrators</td>
+                                <td><button class="btn-danger" style="padding:4px 12px; font-size:0.78rem;" onclick="removeAdmin('dtorres')" id="dtorres-btn">Remove Admin</button></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    <div id="admin-feedback" style="margin-top:12px;"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ═══════ OBJ 6: Configure UAC ═══════ -->
+        <div class="section-divider" id="obj-6-section">
+            <h2>Objective 6: Configure UAC</h2>
+            <p>User Account Control is currently set to "Never Notify" (Ray's doing). Fix it.</p>
+        </div>
+        <div id="obj-6-content" class="hidden">
+            <div class="win-window">
+                <div class="win-titlebar">
+                    <div class="win-titlebar-text"><span style="font-size:0.9rem;">&#128274;</span> User Account Control Settings</div>
+                    <div class="win-controls">
+                        <button class="win-ctrl-btn win-ctrl-min"></button>
+                        <button class="win-ctrl-btn win-ctrl-max"></button>
+                        <button class="win-ctrl-btn win-ctrl-close"></button>
+                    </div>
+                </div>
+                <div class="win-body">
+                    <p style="font-size:0.85rem; color:#aaa; margin-bottom:16px;">
+                        Choose when to be notified about changes to your computer.
+                    </p>
+                    <div class="uac-slider-container">
+                        <input type="range" class="uac-slider" id="uac-slider" min="0" max="3" value="0" oninput="updateUACLabel()">
+                        <div class="uac-labels">
+                            <span>Never notify</span>
+                            <span>Notify (no dim)</span>
+                            <span>Default</span>
+                            <span>Always notify</span>
+                        </div>
+                    </div>
+                    <div class="uac-current" id="uac-current">
+                        <div style="color:#ef4444; font-weight:600;">Never notify</div>
+                        <div style="font-size:0.78rem; color:#888; margin-top:4px;">
+                            You will never be notified when apps try to make changes. This is NOT recommended.
+                        </div>
+                    </div>
+                    <div class="btn-row">
+                        <button class="btn-primary" id="uac-apply-btn" onclick="applyUAC()">Apply</button>
+                    </div>
+                    <div id="uac-feedback" style="margin-top:12px;"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ═══════ OBJ 7: Windows Hello PIN ═══════ -->
+        <div class="section-divider" id="obj-7-section">
+            <h2>Objective 7: Enable Windows Hello PIN</h2>
+            <p>Configure a PIN for Diana Torres. She refuses to type long passwords. But her MS Account must be unlinked first.</p>
+        </div>
+        <div id="obj-7-content" class="hidden">
+            <div class="win-window">
+                <div class="win-titlebar">
+                    <div class="win-titlebar-text"><span style="font-size:0.9rem;">&#9881;</span> Settings &gt; Accounts &gt; Sign-in Options &mdash; dtorres</div>
+                    <div class="win-controls">
+                        <button class="win-ctrl-btn win-ctrl-min"></button>
+                        <button class="win-ctrl-btn win-ctrl-max"></button>
+                        <button class="win-ctrl-btn win-ctrl-close"></button>
+                    </div>
+                </div>
+                <div class="win-body">
+                    <div id="hello-step1">
+                        <div style="padding:12px 16px; border-radius:8px; background:rgba(245,158,11,0.1); border:1px solid rgba(245,158,11,0.3); color:#fde68a; font-size:0.85rem; margin-bottom:16px;">
+                            <strong>Warning:</strong> This account has a Microsoft Account linked (<code>dtorres@outlook.com</code>). Windows Hello PIN must be configured for a local account. Unlink the Microsoft Account first.
+                        </div>
+                        <div style="display:flex; align-items:center; gap:12px; margin-bottom:16px;">
+                            <div style="width:48px; height:48px; border-radius:50%; background:linear-gradient(135deg,#6b21a8,#9333ea); display:flex; align-items:center; justify-content:center; color:#fff; font-weight:700;">DT</div>
+                            <div>
+                                <div style="font-size:0.95rem; color:#e0e0e0;">Diana Torres</div>
+                                <div style="font-size:0.78rem; color:#888;">dtorres@outlook.com (Microsoft Account)</div>
+                            </div>
+                        </div>
+                        <button class="btn-primary" onclick="unlinkMSAccount()">Unlink Microsoft Account &rarr; Switch to Local</button>
+                    </div>
+                    <div id="hello-step2" class="hidden">
+                        <div style="display:flex; align-items:center; gap:12px; margin-bottom:16px;">
+                            <div style="width:48px; height:48px; border-radius:50%; background:linear-gradient(135deg,#6b21a8,#9333ea); display:flex; align-items:center; justify-content:center; color:#fff; font-weight:700;">DT</div>
+                            <div>
+                                <div style="font-size:0.95rem; color:#e0e0e0;">Diana Torres</div>
+                                <div style="font-size:0.78rem; color:#22c55e;">Local Account (dtorres)</div>
+                            </div>
+                        </div>
+                        <p style="font-size:0.85rem; color:#aaa; margin-bottom:14px;">Windows Hello PIN &mdash; Set up a quick sign-in PIN for this account.</p>
+                        <div class="form-group">
+                            <label class="form-label">New PIN (minimum 6 digits)</label>
+                            <input type="password" class="form-input" id="hello-pin" placeholder="Enter PIN" style="max-width:220px;">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Confirm PIN</label>
+                            <input type="password" class="form-input" id="hello-pin-confirm" placeholder="Confirm PIN" style="max-width:220px;">
+                        </div>
+                        <div class="form-checkbox-label">
+                            <input type="checkbox" id="hello-letters"> Include letters and symbols
+                        </div>
+                        <div class="btn-row">
+                            <button class="btn-primary" onclick="setupPIN()">Set Up PIN</button>
+                        </div>
+                        <div id="hello-feedback" style="margin-top:12px;"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ═══════ OBJ 8: Account Lockout ═══════ -->
+        <div class="section-divider" id="obj-8-section">
+            <h2>Objective 8: Configure Account Lockout</h2>
+            <p>Set lockout policies in Local Security Policy to prevent brute-force attacks.</p>
+        </div>
+        <div id="obj-8-content" class="hidden">
+            <div class="win-window">
+                <div class="win-titlebar">
+                    <div class="win-titlebar-text"><span style="font-size:0.9rem;">&#128274;</span> Local Security Policy &mdash; Account Lockout Policy</div>
+                    <div class="win-controls">
+                        <button class="win-ctrl-btn win-ctrl-min"></button>
+                        <button class="win-ctrl-btn win-ctrl-max"></button>
+                        <button class="win-ctrl-btn win-ctrl-close"></button>
+                    </div>
+                </div>
+                <div class="win-body">
+                    <table class="policy-table">
+                        <thead><tr><th>Policy</th><th>Current Setting</th><th>New Setting</th></tr></thead>
+                        <tbody>
+                            <tr>
+                                <td>Account lockout threshold</td>
+                                <td class="status-bad">0 (disabled)</td>
+                                <td><input type="number" class="policy-input" id="lock-threshold" min="0" max="10" value="0" placeholder="5"> invalid attempts</td>
+                            </tr>
+                            <tr>
+                                <td>Account lockout duration</td>
+                                <td class="status-bad">Not applicable</td>
+                                <td><input type="number" class="policy-input" id="lock-duration" min="0" max="60" value="0" placeholder="30"> minutes</td>
+                            </tr>
+                            <tr>
+                                <td>Reset lockout counter after</td>
+                                <td class="status-bad">Not applicable</td>
+                                <td><input type="number" class="policy-input" id="lock-reset" min="0" max="60" value="0" placeholder="15"> minutes</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    <div class="btn-row">
+                        <button class="btn-primary" onclick="applyLockout()">Apply Lockout Policy</button>
+                    </div>
+                    <div id="lockout-feedback" style="margin-top:12px;"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ═══════ OBJ 9: Verify Groups ═══════ -->
+        <div class="section-divider" id="obj-9-section">
+            <h2>Objective 9: Verify Group Memberships</h2>
+            <p>Final check: confirm IT staff are Administrators, all others are standard Users.</p>
+        </div>
+        <div id="obj-9-content" class="hidden">
+            <div class="win-window">
+                <div class="win-titlebar">
+                    <div class="win-titlebar-text"><span style="font-size:0.9rem;">&#128101;</span> Group Membership Verification</div>
+                    <div class="win-controls">
+                        <button class="win-ctrl-btn win-ctrl-min"></button>
+                        <button class="win-ctrl-btn win-ctrl-max"></button>
+                        <button class="win-ctrl-btn win-ctrl-close"></button>
+                    </div>
+                </div>
+                <div class="win-body">
+                    <table class="user-table">
+                        <thead><tr><th>User</th><th>Role</th><th>Group</th><th>Status</th></tr></thead>
+                        <tbody>
+                            <tr><td>schen</td><td>IT Director</td><td>Administrators</td><td class="status-active">Correct</td></tr>
+                            <tr><td>jpark</td><td>Security Officer</td><td>Administrators</td><td class="status-active">Correct</td></tr>
+                            <tr><td>mwebb</td><td>Help Desk Lead</td><td id="verify-mwebb">--</td><td id="verify-mwebb-status">--</td></tr>
+                            <tr><td>dtorres</td><td>CFO</td><td id="verify-dtorres">--</td><td id="verify-dtorres-status">--</td></tr>
+                            <tr><td>msantos</td><td>Reception</td><td id="verify-msantos">--</td><td id="verify-msantos-status">--</td></tr>
+                            <tr><td>tbaker</td><td>Reception</td><td id="verify-tbaker">--</td><td id="verify-tbaker-status">--</td></tr>
+                            <tr><td>lchang</td><td>Reception</td><td id="verify-lchang">--</td><td id="verify-lchang-status">--</td></tr>
+                            <tr><td>MeridianGeneric</td><td>Shared</td><td id="verify-generic">--</td><td id="verify-generic-status">--</td></tr>
+                        </tbody>
+                    </table>
+                    <button class="btn-forge" id="verify-groups-btn" onclick="verifyGroups()">Run Verification</button>
+                    <div id="verify-feedback" style="margin-top:12px;"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ═══════ OBJ 10: Change Log ═══════ -->
+        <div class="section-divider" id="obj-10-section">
+            <h2>Objective 10: Document Changes</h2>
+            <p>Complete the change log for the auditor. Record what was changed and why.</p>
+        </div>
+        <div id="obj-10-content" class="hidden">
+            <div class="win-window">
+                <div class="win-titlebar">
+                    <div class="win-titlebar-text"><span style="font-size:0.9rem;">&#128196;</span> Meridian IT Change Log &mdash; Compliance Documentation</div>
+                    <div class="win-controls">
+                        <button class="win-ctrl-btn win-ctrl-min"></button>
+                        <button class="win-ctrl-btn win-ctrl-max"></button>
+                        <button class="win-ctrl-btn win-ctrl-close"></button>
+                    </div>
+                </div>
+                <div class="win-body">
+                    <table class="changelog-table" id="changelog-table">
+                        <thead><tr><th>Change</th><th>Details</th><th>Reason</th></tr></thead>
+                        <tbody id="changelog-body"></tbody>
+                    </table>
+                    <button class="btn-forge" id="submit-changelog-btn" onclick="submitChangelog()">Submit Change Log to Auditor</button>
+                    <div id="changelog-feedback" style="margin-top:12px;"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ═══════ Completion Banner ═══════ -->
+        <div class="completion-banner" id="completion-banner">
+            <div class="brief-header" style="justify-content:center; margin-bottom:14px;">
+                <div class="brief-avatar" style="background:linear-gradient(135deg,#22c55e,#16a34a);">JP</div>
+                <div style="text-align:left;">
+                    <div class="brief-name">James Park</div>
+                    <div class="brief-role">Mission Debrief</div>
+                </div>
+            </div>
+            <h3>Operation: Lockdown &mdash; Complete</h3>
+            <p style="font-style:italic;">
+                "Finally. I've been asking for this for six months. The auditor's going to be impressed. Sarah said you're tackling Diana's machine tomorrow &mdash; good luck with that one."
+            </p>
+            <button class="complete-btn" onclick="completeModule()">Complete Module &amp; Continue</button>
+            <div style="margin-top:12px;">
+                <a href="forge-md100-m03-sim.lab.html" style="color:#f97316; font-size:0.85rem; text-decoration:none;">
+                    Next: Operation Executive Suite (Day 3) &rarr;
+                </a>
+            </div>
+        </div>
+    </main>
+</div>
+
+<script>
+// ══════════════════════════════════════════════════════════════════
+// STATE
+// ══════════════════════════════════════════════════════════════════
+const S = {
+    objectives: {}, completedCount: 0,
+    genericDisabled: false, tasksReassigned: false,
+    usersCreated: [], adminRemoved: { mwebb: false, dtorres: false },
+    uacLevel: 0, msAccountUnlinked: false, pinSet: false,
+    policySet: false, lockoutSet: false, changeLog: []
+};
+for (let i = 1; i <= 10; i++) S.objectives[i] = false;
+
+// ══════════════════════════════════════════════════════════════════
+// NAVIGATION
+// ══════════════════════════════════════════════════════════════════
+function navObj(n) {
+    document.querySelectorAll('.objective-item').forEach(el => el.classList.remove('active'));
+    const item = document.querySelector('[data-obj="'+n+'"]');
+    if (item) item.classList.add('active');
+    const sec = document.getElementById('obj-'+n+'-section');
+    if (sec) sec.scrollIntoView({ behavior:'smooth', block:'start' });
+}
+
+function showSection(n) {
+    const s = document.getElementById('obj-'+n+'-section');
+    const c = document.getElementById('obj-'+n+'-content');
+    if (s) s.classList.add('active');
+    if (c) c.classList.remove('hidden');
+}
+
+function markObj(n) {
+    if (S.objectives[n]) return;
+    S.objectives[n] = true;
+    S.completedCount++;
+    document.getElementById('objProgress').textContent = S.completedCount + '/10 Complete';
+    const item = document.querySelector('[data-obj="'+n+'"]');
+    if (item) item.classList.add('completed');
+    if (S.completedCount === 10) document.getElementById('completion-banner').classList.add('show');
+}
+
+function openModal(id) { document.getElementById(id).classList.add('show'); }
+function closeModal(id) { document.getElementById(id).classList.remove('show'); }
+
+function showToast(name, initials, color, message, type, duration) {
+    const c = document.getElementById('toastContainer');
+    const t = document.createElement('div');
+    t.className = 'toast ' + (type||'');
+    t.innerHTML = '<div class="toast-header"><div class="toast-avatar" style="background:'+color+';">'+initials+'</div><span class="toast-name">'+name+'</span></div><div class="toast-body">'+message+'</div>';
+    c.appendChild(t);
+    setTimeout(() => { t.style.animation = 'toastOut 0.3s ease-in forwards'; setTimeout(() => t.remove(), 300); }, duration||5000);
+}
+
+// ══════════════════════════════════════════════════════════════════
+// OBJ 1: Audit
+// ══════════════════════════════════════════════════════════════════
+function submitAudit() {
+    const checks = document.querySelectorAll('#audit-checks input[type="checkbox"]');
+    const fb = document.getElementById('audit-feedback');
+    const checked = {};
+    checks.forEach(c => { if (c.checked) checked[c.dataset.issue] = true; });
+
+    const correctIssues = ['shared','admin','pwexpiry','msaccount'];
+    const isDecoyChecked = checked['decoy'];
+    const allCorrect = correctIssues.every(i => checked[i]) && !isDecoyChecked;
+
+    if (isDecoyChecked) {
+        fb.innerHTML = '<div style="padding:10px 14px; border-radius:8px; background:rgba(245,158,11,0.1); border:1px solid rgba(245,158,11,0.3); color:#fde68a; font-size:0.82rem;">The Guest account being disabled is <strong>correct behavior</strong> and is not a problem. Uncheck that one.</div>';
+        return;
+    }
+    if (!allCorrect) {
+        fb.innerHTML = '<div style="padding:10px 14px; border-radius:8px; background:rgba(239,68,68,0.1); border:1px solid rgba(239,68,68,0.3); color:#fca5a5; font-size:0.82rem;">You missed some issues. Look at the table again &mdash; check for shared accounts, admin rights, password policies, and linked accounts.</div>';
+        return;
+    }
+
+    fb.innerHTML = '<div style="padding:10px 14px; border-radius:8px; background:rgba(34,197,94,0.1); border:1px solid rgba(34,197,94,0.3); color:#86efac; font-size:0.82rem;"><strong>Audit complete.</strong> 4 critical issues identified. Now let\'s start fixing them.</div>';
+    checks.forEach(c => c.disabled = true);
+    document.getElementById('audit-submit-btn').disabled = true;
+    S.changeLog.push({ change:'Account audit', details:'Identified 4 issues', reason:'Compliance requirement' });
+    markObj(1);
+    showToast('James Park', 'JP', '#22c55e', 'Good eye. That shared account is the worst offender. Kill it first.', 'success', 4000);
+    setTimeout(() => { showSection(2); navObj(2); }, 1500);
+}
+
+// ══════════════════════════════════════════════════════════════════
+// OBJ 2: Disable Shared Account
+// ══════════════════════════════════════════════════════════════════
+function attemptDisableGeneric() {
+    // Show scheduled task warning first
+    openModal('scheduledTaskModal');
+}
+
+function reassignTasks() {
+    const target = document.getElementById('task-reassign').value;
+    if (!target) { return; }
+    if (target === 'skip') {
+        showToast('James Park', 'JP', '#f59e0b', 'Skipping task reassignment means those backup and sync jobs will stop running. Not ideal, but acceptable for now.', 'warning', 5000);
+    } else {
+        showToast('System', 'SYS', '#22c55e', 'Scheduled tasks reassigned to ' + (target === 'system' ? 'Local System' : 'Network Service') + ' account.', 'success', 3000);
+    }
+    closeModal('scheduledTaskModal');
+    S.tasksReassigned = true;
+    S.genericDisabled = true;
+    document.getElementById('generic-status').textContent = 'Disabled';
+    document.getElementById('generic-status').style.color = '#888';
+    document.getElementById('disable-generic-btn').disabled = true;
+    document.getElementById('disable-generic-btn').textContent = 'Account Disabled';
+    S.changeLog.push({ change:'Disabled MeridianGeneric', details:'Shared account disabled, tasks reassigned to '+target, reason:'Shared accounts violate audit policy' });
+    markObj(2);
+    showToast('James Park', 'JP', '#22c55e', 'The shared account is gone. Thank you. Six months I have been asking Ray to do this.', 'success', 5000);
+    setTimeout(() => { showSection(3); navObj(3); }, 1500);
+}
+
+// ══════════════════════════════════════════════════════════════════
+// OBJ 3: Create Users
+// ══════════════════════════════════════════════════════════════════
+const requiredUsers = ['msantos','tbaker','lchang'];
+const requiredNames = ['Maria Santos','Tom Baker','Lisa Chang'];
+
+function createUser() {
+    const uname = document.getElementById('new-user-name').value.trim().toLowerCase();
+    const fname = document.getElementById('new-user-fullname').value.trim();
+    const pass = document.getElementById('new-user-pass').value;
+    const mustChange = document.getElementById('new-user-mustchange').checked;
+    const group = document.getElementById('new-user-group').value;
+
+    if (!uname || !fname || !pass) {
+        showToast('System', 'SYS', '#ef4444', 'All fields are required.', 'error', 3000);
+        return;
+    }
+    if (pass.length < 8) {
+        showToast('System', 'SYS', '#f59e0b', 'Password is weak. Minimum 8 characters recommended for compliance.', 'warning', 3000);
+        return;
+    }
+    if (group === 'Administrators') {
+        showToast('James Park', 'JP', '#ef4444', 'Do NOT add new users to Administrators. These are reception staff. Users group only.', 'error', 5000);
+        return;
+    }
+
+    S.usersCreated.push({ username: uname, fullname: fname, mustChange: mustChange, group: group });
+    const list = document.getElementById('created-users-list');
+    const card = document.createElement('div');
+    card.style.cssText = 'padding:10px 14px; background:#1a1a1a; border:1px solid #333; border-radius:6px; margin-bottom:6px; display:flex; justify-content:space-between; align-items:center;';
+    card.innerHTML = '<div><strong style="color:#e0e0e0;">'+uname+'</strong> <span style="color:#888;">('+fname+')</span></div><div style="font-size:0.75rem; color:#22c55e;">Created &mdash; Group: '+group+(mustChange?' &mdash; Must change PW':'')+'</div>';
+    list.appendChild(card);
+
+    S.changeLog.push({ change:'Created user: '+uname, details:fname+', group: '+group, reason:'Replace shared MeridianGeneric account' });
+
+    // Reset form
+    document.getElementById('new-user-name').value = '';
+    document.getElementById('new-user-fullname').value = '';
+    document.getElementById('new-user-pass').value = '';
+    closeModal('createUserModal');
+
+    const remaining = 3 - S.usersCreated.length;
+    document.getElementById('users-remaining').textContent = remaining;
+
+    if (S.usersCreated.length >= 3) {
+        document.getElementById('create-user-btn').disabled = true;
+        document.getElementById('create-users-feedback').innerHTML = '<div style="padding:10px 14px; border-radius:8px; background:rgba(34,197,94,0.1); border:1px solid rgba(34,197,94,0.3); color:#86efac; font-size:0.82rem;"><strong>All 3 individual accounts created.</strong> Each user now has their own credentials with password change required at first logon.</div>';
+        markObj(3);
+        showToast('Marcus Webb', 'MW', '#6b5040', 'Nice. I will let the reception team know they each have their own login now.', 'success', 4000);
+        setTimeout(() => { showSection(4); navObj(4); }, 1500);
+    }
+}
+
+// ══════════════════════════════════════════════════════════════════
+// OBJ 4: Password Policy
+// ══════════════════════════════════════════════════════════════════
+function togglePolicy(id) {
+    const btn = document.getElementById(id);
+    const isOn = btn.classList.contains('on');
+    if (isOn) { btn.classList.remove('on'); btn.textContent = 'Disabled'; }
+    else { btn.classList.add('on'); btn.textContent = 'Enabled'; }
+}
+
+function applyPasswordPolicy() {
+    const minLen = parseInt(document.getElementById('pol-min-length').value);
+    const complex = document.getElementById('pol-complexity').classList.contains('on');
+    const maxAge = parseInt(document.getElementById('pol-max-age').value);
+    const fb = document.getElementById('policy-feedback');
+
+    let issues = [];
+    if (minLen < 12) issues.push('Minimum length should be at least 12 characters (compliance requirement).');
+    if (!complex) issues.push('Password complexity must be enabled.');
+    if (maxAge === 0 || maxAge > 90) issues.push('Maximum password age should be 90 days or less.');
+
+    if (issues.length > 0) {
+        fb.innerHTML = '<div style="padding:10px 14px; border-radius:8px; background:rgba(239,68,68,0.1); border:1px solid rgba(239,68,68,0.3); color:#fca5a5; font-size:0.82rem;"><strong>Policy not sufficient:</strong><ul style="margin:6px 0 0 16px;">'+issues.map(i=>'<li>'+i+'</li>').join('')+'</ul></div>';
+        return;
+    }
+
+    fb.innerHTML = '<div style="padding:10px 14px; border-radius:8px; background:rgba(34,197,94,0.1); border:1px solid rgba(34,197,94,0.3); color:#86efac; font-size:0.82rem;"><strong>Password policy applied.</strong> Min length: '+minLen+', Complexity: Enabled, Max age: '+maxAge+' days.</div>';
+    S.policySet = true;
+    S.changeLog.push({ change:'Password policy configured', details:'Min '+minLen+' chars, complexity on, max age '+maxAge+' days', reason:'Compliance: strong password requirements' });
+    markObj(4);
+    setTimeout(() => { showSection(5); navObj(5); }, 1500);
+}
+
+// ══════════════════════════════════════════════════════════════════
+// OBJ 5: Remove Admin Rights
+// ══════════════════════════════════════════════════════════════════
+function removeAdmin(user) {
+    if (user === 'dtorres') {
+        openModal('sessionWarningModal');
+        return;
+    }
+    // mwebb
+    document.getElementById('mwebb-group').textContent = 'Users';
+    document.getElementById('mwebb-group').className = 'status-active';
+    document.getElementById('mwebb-btn').disabled = true;
+    document.getElementById('mwebb-btn').textContent = 'Users';
+    document.getElementById('mwebb-btn').className = 'btn-secondary';
+    document.getElementById('mwebb-btn').style.cssText = 'padding:4px 12px; font-size:0.78rem;';
+    S.adminRemoved.mwebb = true;
+    S.changeLog.push({ change:'Removed admin: mwebb', details:'Moved to Users group', reason:'Help Desk does not require local admin' });
+    checkAdminComplete();
+}
+
+function confirmRemoveAdmin() {
+    closeModal('sessionWarningModal');
+    document.getElementById('dtorres-group').textContent = 'Users';
+    document.getElementById('dtorres-group').className = 'status-active';
+    document.getElementById('dtorres-btn').disabled = true;
+    document.getElementById('dtorres-btn').textContent = 'Users';
+    document.getElementById('dtorres-btn').className = 'btn-secondary';
+    document.getElementById('dtorres-btn').style.cssText = 'padding:4px 12px; font-size:0.78rem;';
+    S.adminRemoved.dtorres = true;
+    S.changeLog.push({ change:'Removed admin: dtorres', details:'Moved to Users, active session will reflect at next logon', reason:'CFO does not require local admin' });
+    showToast('System', 'SYS', '#0078d4', 'Diana Torres removed from Administrators. Changes apply at next logon (active session in progress).', '', 4000);
+    checkAdminComplete();
+}
+
+function checkAdminComplete() {
+    if (S.adminRemoved.mwebb && S.adminRemoved.dtorres) {
+        document.getElementById('admin-feedback').innerHTML = '<div style="padding:10px 14px; border-radius:8px; background:rgba(34,197,94,0.1); border:1px solid rgba(34,197,94,0.3); color:#86efac; font-size:0.82rem;"><strong>All unnecessary admin rights removed.</strong> Only IT staff (schen, jpark) retain Administrator access.</div>';
+        markObj(5);
+        setTimeout(() => { showSection(6); navObj(6); }, 1500);
+    }
+}
+
+// ══════════════════════════════════════════════════════════════════
+// OBJ 6: UAC
+// ══════════════════════════════════════════════════════════════════
+const uacDescriptions = [
+    { label: 'Never notify', color: '#ef4444', desc: 'You will never be notified when apps try to make changes. This is NOT recommended.' },
+    { label: 'Notify without dimming', color: '#f59e0b', desc: 'Notifies but does not switch to secure desktop. Less secure than default.' },
+    { label: 'Default', color: '#0078d4', desc: 'Notifies when apps try to make changes. Uses secure desktop.' },
+    { label: 'Always notify', color: '#22c55e', desc: 'Always notifies on any system change, including your own settings. Most secure.' }
+];
+
+function updateUACLabel() {
+    const val = parseInt(document.getElementById('uac-slider').value);
+    S.uacLevel = val;
+    const desc = uacDescriptions[val];
+    document.getElementById('uac-current').innerHTML = '<div style="color:'+desc.color+'; font-weight:600;">'+desc.label+'</div><div style="font-size:0.78rem; color:#888; margin-top:4px;">'+desc.desc+'</div>';
+}
+
+function applyUAC() {
+    const fb = document.getElementById('uac-feedback');
+    if (S.uacLevel < 3) {
+        fb.innerHTML = '<div style="padding:10px 14px; border-radius:8px; background:rgba(245,158,11,0.1); border:1px solid rgba(245,158,11,0.3); color:#fde68a; font-size:0.82rem;">James Park requires <strong>Always notify</strong> (maximum security). Move the slider all the way to the right.</div>';
+        showToast('James Park', 'JP', '#ef4444', 'Always Notify. That is the only acceptable setting after what Ray did. Crank it up.', 'warning', 5000);
+        return;
+    }
+    fb.innerHTML = '<div style="padding:10px 14px; border-radius:8px; background:rgba(34,197,94,0.1); border:1px solid rgba(34,197,94,0.3); color:#86efac; font-size:0.82rem;"><strong>UAC set to Always Notify.</strong> Users will be prompted for every system change. This prevents unauthorized modifications.</div>';
+    document.getElementById('uac-apply-btn').disabled = true;
+    S.changeLog.push({ change:'UAC set to Always Notify', details:'Was: Never Notify (Ray\'s setting)', reason:'Prevent unauthorized elevation' });
+    markObj(6);
+    setTimeout(() => { showSection(7); navObj(7); }, 1500);
+}
+
+// ══════════════════════════════════════════════════════════════════
+// OBJ 7: Windows Hello PIN
+// ══════════════════════════════════════════════════════════════════
+function unlinkMSAccount() {
+    S.msAccountUnlinked = true;
+    document.getElementById('hello-step1').classList.add('hidden');
+    document.getElementById('hello-step2').classList.remove('hidden');
+    S.changeLog.push({ change:'Unlinked MS Account from dtorres', details:'Switched to local account', reason:'Local accounts required for corporate PIN policy' });
+    showToast('System', 'SYS', '#0078d4', 'Microsoft Account unlinked. Diana Torres is now a local account. Proceed to set up Windows Hello PIN.', '', 4000);
+}
+
+function setupPIN() {
+    const pin = document.getElementById('hello-pin').value;
+    const confirm = document.getElementById('hello-pin-confirm').value;
+    const fb = document.getElementById('hello-feedback');
+
+    if (pin.length < 6) {
+        fb.innerHTML = '<div style="padding:8px 12px; border-radius:6px; background:rgba(239,68,68,0.1); border:1px solid rgba(239,68,68,0.3); color:#fca5a5; font-size:0.82rem;">PIN must be at least 6 digits.</div>';
+        return;
+    }
+    if (pin !== confirm) {
+        fb.innerHTML = '<div style="padding:8px 12px; border-radius:6px; background:rgba(239,68,68,0.1); border:1px solid rgba(239,68,68,0.3); color:#fca5a5; font-size:0.82rem;">PINs do not match.</div>';
+        return;
+    }
+
+    fb.innerHTML = '<div style="padding:8px 12px; border-radius:6px; background:rgba(34,197,94,0.1); border:1px solid rgba(34,197,94,0.3); color:#86efac; font-size:0.82rem;"><strong>Windows Hello PIN configured for Diana Torres.</strong> She can now sign in with a quick PIN instead of typing a password.</div>';
+    S.pinSet = true;
+    S.changeLog.push({ change:'Configured Windows Hello PIN for dtorres', details:'6+ digit PIN set', reason:'Diana requested quick sign-in method' });
+    markObj(7);
+    showToast('Diana Torres', 'DT', '#9333ea', 'A PIN? Finally, something simple. Thank you.', 'success', 4000);
+    setTimeout(() => { showSection(8); navObj(8); }, 1500);
+}
+
+// ══════════════════════════════════════════════════════════════════
+// OBJ 8: Account Lockout
+// ══════════════════════════════════════════════════════════════════
+function applyLockout() {
+    const threshold = parseInt(document.getElementById('lock-threshold').value);
+    const duration = parseInt(document.getElementById('lock-duration').value);
+    const reset = parseInt(document.getElementById('lock-reset').value);
+    const fb = document.getElementById('lockout-feedback');
+
+    let issues = [];
+    if (threshold < 3 || threshold > 10) issues.push('Threshold should be 3-10 attempts. 5 is recommended.');
+    if (duration < 15) issues.push('Lockout duration should be at least 15 minutes. 30 is recommended.');
+    if (reset < 10) issues.push('Reset counter should be at least 10 minutes. 15 is recommended.');
+    if (reset > duration && duration > 0) issues.push('Reset counter cannot exceed lockout duration.');
+
+    if (issues.length > 0) {
+        fb.innerHTML = '<div style="padding:10px 14px; border-radius:8px; background:rgba(239,68,68,0.1); border:1px solid rgba(239,68,68,0.3); color:#fca5a5; font-size:0.82rem;"><strong>Policy issue:</strong><ul style="margin:6px 0 0 16px;">'+issues.map(i=>'<li>'+i+'</li>').join('')+'</ul></div>';
+        return;
+    }
+
+    fb.innerHTML = '<div style="padding:10px 14px; border-radius:8px; background:rgba(34,197,94,0.1); border:1px solid rgba(34,197,94,0.3); color:#86efac; font-size:0.82rem;"><strong>Account lockout policy applied.</strong> Lockout after '+threshold+' failed attempts, locked for '+duration+' minutes, counter resets after '+reset+' minutes.</div>';
+    S.lockoutSet = true;
+    S.changeLog.push({ change:'Account lockout configured', details:'Threshold: '+threshold+', Duration: '+duration+'min, Reset: '+reset+'min', reason:'Prevent brute-force attacks' });
+    markObj(8);
+    setTimeout(() => { showSection(9); navObj(9); }, 1500);
+}
+
+// ══════════════════════════════════════════════════════════════════
+// OBJ 9: Verify Groups
+// ══════════════════════════════════════════════════════════════════
+function verifyGroups() {
+    // Fill in verification table based on state
+    const setVerify = (id, group, ok) => {
+        document.getElementById('verify-'+id).textContent = group;
+        document.getElementById('verify-'+id+'-status').textContent = ok ? 'Correct' : 'ISSUE';
+        document.getElementById('verify-'+id+'-status').className = ok ? 'status-active' : 'status-bad';
+    };
+
+    setVerify('mwebb', S.adminRemoved.mwebb ? 'Users' : 'Administrators', S.adminRemoved.mwebb);
+    setVerify('dtorres', S.adminRemoved.dtorres ? 'Users' : 'Administrators', S.adminRemoved.dtorres);
+    setVerify('generic', S.genericDisabled ? 'Disabled' : 'Administrators', S.genericDisabled);
+
+    // New users
+    const newUserNames = ['msantos','tbaker','lchang'];
+    newUserNames.forEach(n => {
+        const found = S.usersCreated.length >= 3;
+        setVerify(n, found ? 'Users' : 'Not Created', found);
+    });
+
+    const allGood = S.adminRemoved.mwebb && S.adminRemoved.dtorres && S.genericDisabled && S.usersCreated.length >= 3;
+    const fb = document.getElementById('verify-feedback');
+    if (allGood) {
+        fb.innerHTML = '<div style="padding:10px 14px; border-radius:8px; background:rgba(34,197,94,0.1); border:1px solid rgba(34,197,94,0.3); color:#86efac; font-size:0.82rem;"><strong>Verification passed.</strong> All group memberships are correct. IT staff are administrators, standard users are in Users group, shared account is disabled.</div>';
+        markObj(9);
+        setTimeout(() => { showSection(10); navObj(10); }, 1500);
+    } else {
+        fb.innerHTML = '<div style="padding:10px 14px; border-radius:8px; background:rgba(239,68,68,0.1); border:1px solid rgba(239,68,68,0.3); color:#fca5a5; font-size:0.82rem;">Some issues remain. Complete the previous objectives first.</div>';
+    }
+}
+
+// ══════════════════════════════════════════════════════════════════
+// OBJ 10: Change Log
+// ══════════════════════════════════════════════════════════════════
+function populateChangelog() {
+    const body = document.getElementById('changelog-body');
+    body.innerHTML = '';
+    S.changeLog.forEach(entry => {
+        const row = document.createElement('tr');
+        row.innerHTML = '<td class="changelog-entry">'+entry.change+'</td><td>'+entry.details+'</td><td>'+entry.reason+'</td>';
+        body.appendChild(row);
+    });
+}
+
+// Watch for section 10 becoming visible
+const obs10 = new MutationObserver(() => {
+    const content = document.getElementById('obj-10-content');
+    if (!content.classList.contains('hidden')) populateChangelog();
+});
+const target10 = document.getElementById('obj-10-content');
+if (target10) obs10.observe(target10, { attributes: true, attributeFilter: ['class'] });
+
+function submitChangelog() {
+    if (S.changeLog.length < 5) {
+        document.getElementById('changelog-feedback').innerHTML = '<div style="padding:10px 14px; border-radius:8px; background:rgba(239,68,68,0.1); border:1px solid rgba(239,68,68,0.3); color:#fca5a5; font-size:0.82rem;">Change log is incomplete. Complete more objectives to generate entries.</div>';
+        return;
+    }
+    document.getElementById('changelog-feedback').innerHTML = '<div style="padding:10px 14px; border-radius:8px; background:rgba(34,197,94,0.1); border:1px solid rgba(34,197,94,0.3); color:#86efac; font-size:0.82rem;"><strong>Change log submitted.</strong> '+S.changeLog.length+' changes documented for the compliance auditor.</div>';
+    document.getElementById('submit-changelog-btn').disabled = true;
+    markObj(10);
+    showToast('James Park', 'JP', '#22c55e', 'Finally. I have been asking for this for six months. The auditor is going to be impressed.', 'success', 5000);
+}
+
+// ══════════════════════════════════════════════════════════════════
+// MODULE COMPLETE
+// ══════════════════════════════════════════════════════════════════
+function completeModule() {
+    ModuleProgress.complete('forge', 'forge-md100-m02-lab', { returnUrl: '../index.html' });
+}
+</script>
+
+<script src="../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>
