@@ -39,7 +39,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 45, // minutes
             topics: ['windows', 'operating-systems', 'licensing'],
-            paths: ['comptia-aplus', 'windows-admin'],
+            paths: ['forge'],
             components: {
                 presentation: 'houses/forge/presentations/forge-windows-editions.presentation.html',
                 applet: 'houses/forge/applets/forge-windows-edition-selector.applet.html',
@@ -62,7 +62,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 40,
             topics: ['windows', 'configuration', 'user-interface'],
-            paths: ['comptia-aplus', 'windows-admin'],
+            paths: ['forge'],
             components: {
                 presentation: 'houses/forge/presentations/forge-windows-settings.presentation.html',
                 applet: 'houses/forge/applets/forge-settings.tool.html',
@@ -85,7 +85,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 35,
             topics: ['windows', 'configuration', 'legacy'],
-            paths: ['comptia-aplus', 'windows-admin'],
+            paths: ['forge'],
             components: {
                 presentation: 'houses/forge/presentations/forge-control-panel.presentation.html',
                 applet: 'houses/forge/applets/forge-control-panel.tool.html',
@@ -108,7 +108,7 @@ const ContentRegistry = {
             difficulty: 'intermediate',
             duration: 50,
             topics: ['windows', 'administration', 'mmc'],
-            paths: ['comptia-aplus', 'windows-admin'],
+            paths: ['forge'],
             components: {
                 presentation: 'houses/forge/presentations/forge-admin-tools.presentation.html',
                 applet: 'houses/forge/applets/forge-admin-tools.tool.html',
@@ -131,7 +131,7 @@ const ContentRegistry = {
             difficulty: 'intermediate',
             duration: 45,
             topics: ['windows', 'troubleshooting', 'performance'],
-            paths: ['comptia-aplus', 'windows-admin'],
+            paths: ['forge'],
             components: {
                 presentation: 'houses/forge/presentations/forge-system-tools.presentation.html',
                 applet: 'houses/forge/applets/forge-system-tools-sim.applet.html',
@@ -154,7 +154,7 @@ const ContentRegistry = {
             difficulty: 'intermediate',
             duration: 60,
             topics: ['macos', 'linux', 'operating-systems', 'command-line'],
-            paths: ['comptia-aplus'],
+            paths: ['forge'],
             components: {
                 presentation: 'houses/forge/presentations/forge-macos-linux-basics.presentation.html',
                 applet: 'houses/forge/applets/forge-command-translator.applet.html',
@@ -178,7 +178,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 90,
             topics: ['hardware', 'cpu', 'ram', 'storage', 'motherboard'],
-            paths: ['comptia-aplus'],
+            paths: ['aplus-core1'],
             components: {
                 applet: 'houses/forge/applets/hardware/forge-hardware-trainer.applet.html'
             },
@@ -199,7 +199,7 @@ const ContentRegistry = {
             difficulty: 'intermediate',
             duration: 45,
             topics: ['storage', 'raid', 'hard-drives', 'ssd'],
-            paths: ['comptia-aplus'],
+            paths: ['aplus-core1'],
             components: {
                 applet: 'houses/forge/tools/forge-raid-level.tool.html'
             },
@@ -220,7 +220,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 40,
             topics: ['peripherals', 'expansion-cards', 'displays', 'printers'],
-            paths: ['comptia-aplus'],
+            paths: ['aplus-core1'],
             components: {
                 applet: 'houses/forge/applets/hardware/forge-hardware-trainer.applet.html'
             },
@@ -244,7 +244,7 @@ const ContentRegistry = {
             difficulty: 'intermediate',
             duration: 15,
             topics: ['assessment', 'certification', 'aplus'],
-            paths: ['comptia-aplus'],
+            paths: ['forge'],
             components: {
                 quiz: 'houses/forge/quizzes/forge-aplus-core2.quiz.html'
             },
@@ -6953,7 +6953,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['systems'],
-            paths: ['comptia-aplus', 'sysadmin-essentials'],
+            paths: ['forge'],
             components: {
                 applet: 'houses/forge/applets/forge-admin-tools.tool.html'
             },
@@ -6969,7 +6969,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['systems'],
-            paths: ['comptia-aplus', 'sysadmin-essentials'],
+            paths: ['forge'],
             components: {
                 applet: 'houses/forge/applets/forge-command-translator.applet.html'
             },
@@ -6985,7 +6985,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['systems'],
-            paths: ['comptia-aplus', 'sysadmin-essentials'],
+            paths: ['forge'],
             components: {
                 applet: 'houses/forge/applets/forge-control-panel.tool.html'
             },
@@ -7001,7 +7001,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['systems'],
-            paths: ['comptia-aplus', 'sysadmin-essentials'],
+            paths: ['forge'],
             components: {
                 applet: 'houses/forge/applets/forge-settings.tool.html'
             },
@@ -7017,7 +7017,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['systems'],
-            paths: ['comptia-aplus', 'sysadmin-essentials'],
+            paths: ['forge'],
             components: {
                 applet: 'houses/forge/applets/forge-system-tools-sim.applet.html'
             },
@@ -7033,7 +7033,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['systems', 'windows'],
-            paths: ['comptia-aplus', 'sysadmin-essentials'],
+            paths: ['forge'],
             components: {
                 applet: 'houses/forge/applets/forge-windows-edition-selector.applet.html'
             },
@@ -7049,7 +7049,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['systems'],
-            paths: ['comptia-aplus', 'sysadmin-essentials'],
+            paths: ['aplus-core1'],
             components: {
                 applet: 'houses/forge/applets/hardware/forge-backup-strategy-planner.applet.html'
             },
@@ -7065,7 +7065,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['systems'],
-            paths: ['comptia-aplus', 'sysadmin-essentials'],
+            paths: ['aplus-core1'],
             components: {
                 applet: 'houses/forge/applets/hardware/cpu_architecture/forge-cpu-architecture.applet.html'
             },
@@ -7081,7 +7081,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['systems'],
-            paths: ['comptia-aplus', 'sysadmin-essentials'],
+            paths: ['aplus-core1'],
             components: {
                 applet: 'houses/forge/applets/hardware/display_types/forge-display-types.applet.html'
             },
@@ -7097,7 +7097,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['systems'],
-            paths: ['comptia-aplus', 'sysadmin-essentials'],
+            paths: ['aplus-core1'],
             components: {
                 applet: 'houses/forge/applets/hardware/hard_drive_geometry/forge-hard-drive-geometry-native.applet.html'
             },
@@ -7113,7 +7113,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['systems'],
-            paths: ['comptia-aplus', 'sysadmin-essentials'],
+            paths: ['aplus-core1'],
             components: {
                 applet: 'houses/forge/applets/hardware/laptop_hardware/forge-laptop-hardware.applet.html'
             },
@@ -7129,7 +7129,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['systems'],
-            paths: ['comptia-aplus', 'sysadmin-essentials'],
+            paths: ['aplus-core1'],
             components: {
                 applet: 'houses/forge/applets/hardware/mobile_accessories/forge-mobile-accessories.applet.html'
             },
@@ -7145,7 +7145,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['systems'],
-            paths: ['comptia-aplus', 'sysadmin-essentials', 'aws-ccp'],
+            paths: ['aplus-core1'],
             components: {
                 applet: 'houses/forge/applets/hardware/motherboards/forge-motherboards.applet.html'
             },
@@ -7161,7 +7161,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['systems', 'networking'],
-            paths: ['comptia-aplus', 'sysadmin-essentials', 'comptia-network'],
+            paths: ['aplus-core1'],
             components: {
                 applet: 'houses/forge/applets/hardware/network_cables/forge-network-cables.applet.html'
             },
@@ -7177,7 +7177,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['systems', 'networking'],
-            paths: ['comptia-aplus', 'sysadmin-essentials', 'comptia-network'],
+            paths: ['aplus-core1'],
             components: {
                 applet: 'houses/forge/applets/hardware/network_ports/forge-network-ports.applet.html'
             },
@@ -7193,7 +7193,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['systems'],
-            paths: ['comptia-aplus', 'sysadmin-essentials'],
+            paths: ['aplus-core1'],
             components: {
                 applet: 'houses/forge/applets/hardware/peripheral_devices/forge-peripheral-devices.applet.html'
             },
@@ -7209,7 +7209,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['systems'],
-            paths: ['comptia-aplus', 'sysadmin-essentials'],
+            paths: ['aplus-core1'],
             components: {
                 applet: 'houses/forge/applets/hardware/power_supplies/forge-power-supplies.applet.html'
             },
@@ -7225,7 +7225,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['systems'],
-            paths: ['comptia-aplus', 'sysadmin-essentials'],
+            paths: ['aplus-core1'],
             components: {
                 applet: 'houses/forge/applets/hardware/printers/forge-printers.applet.html'
             },
@@ -7241,7 +7241,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['systems'],
-            paths: ['comptia-aplus', 'sysadmin-essentials'],
+            paths: ['aplus-core1'],
             components: {
                 applet: 'houses/forge/applets/hardware/raid_storage/forge-raid-storage.applet.html'
             },
@@ -7257,7 +7257,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['systems'],
-            paths: ['comptia-aplus', 'sysadmin-essentials'],
+            paths: ['aplus-core1'],
             components: {
                 applet: 'houses/forge/applets/hardware/ram_types/forge-ram-types.applet.html'
             },
@@ -7273,7 +7273,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['systems'],
-            paths: ['comptia-aplus', 'sysadmin-essentials'],
+            paths: ['aplus-core1'],
             components: {
                 applet: 'houses/forge/applets/hardware/storage_devices/forge-storage-devices.applet.html'
             },
@@ -7289,7 +7289,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['systems'],
-            paths: ['comptia-aplus', 'sysadmin-essentials'],
+            paths: ['aplus-core1'],
             components: {
                 applet: 'houses/forge/applets/hardware/virtualization/forge-virtualization.applet.html'
             },
@@ -7305,7 +7305,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['systems', 'networking'],
-            paths: ['comptia-aplus', 'sysadmin-essentials', 'comptia-network'],
+            paths: ['aplus-core1'],
             components: {
                 applet: 'houses/forge/applets/hardware/wireless_networking/forge-wireless-networking.applet.html'
             },
@@ -7321,7 +7321,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 45,
             topics: ['systems'],
-            paths: ['comptia-aplus', 'sysadmin-essentials'],
+            paths: ['forge'],
             components: {
                 lab: 'houses/forge/labs/forge-admin-tools.lab.html'
             },
@@ -7337,7 +7337,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 45,
             topics: ['systems'],
-            paths: ['comptia-aplus', 'sysadmin-essentials'],
+            paths: ['forge'],
             components: {
                 lab: 'houses/forge/labs/forge-control-panel.lab.html'
             },
@@ -7353,7 +7353,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 45,
             topics: ['systems', 'linux'],
-            paths: ['comptia-aplus', 'sysadmin-essentials', 'comptia-linux'],
+            paths: ['forge'],
             components: {
                 lab: 'houses/forge/labs/forge-lab-macos-linux.lab.html'
             },
@@ -7369,7 +7369,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 45,
             topics: ['systems'],
-            paths: ['comptia-aplus', 'sysadmin-essentials'],
+            paths: ['forge'],
             components: {
                 lab: 'houses/forge/labs/forge-system-tools.lab.html'
             },
@@ -7385,7 +7385,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 45,
             topics: ['systems', 'windows'],
-            paths: ['comptia-aplus', 'sysadmin-essentials'],
+            paths: ['forge'],
             components: {
                 lab: 'houses/forge/labs/forge-windows-editions.lab.html'
             },
@@ -7401,7 +7401,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 45,
             topics: ['systems', 'windows'],
-            paths: ['comptia-aplus', 'sysadmin-essentials'],
+            paths: ['forge'],
             components: {
                 lab: 'houses/forge/labs/forge-windows-settings.lab.html'
             },
@@ -7417,7 +7417,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 15,
             topics: ['systems', 'windows'],
-            paths: ['comptia-aplus', 'sysadmin-essentials'],
+            paths: ['forge'],
             components: {
                 quiz: 'houses/forge/quizzes/forge-windows-admin.quiz.html'
             },
@@ -7433,7 +7433,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 15,
             topics: ['systems'],
-            paths: ['comptia-aplus', 'sysadmin-essentials'],
+            paths: ['aplus-core2'],
             components: {
                 quiz: 'houses/forge/quizzes/forge-aplus-core2-ch19-22.quiz.html'
             },
@@ -7449,7 +7449,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 15,
             topics: ['windows', 'editions', 'licensing', 'comptia'],
-            paths: ['comptia-aplus'],
+            paths: ['aplus-core2'],
             components: {
                 quiz: 'houses/forge/applets/comptia-aplus/core-2/quizzes/forge-ch13.quiz.html'
             },
@@ -7464,7 +7464,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 15,
             topics: ['windows', 'settings', 'control-panel', 'comptia'],
-            paths: ['comptia-aplus'],
+            paths: ['aplus-core2'],
             components: {
                 quiz: 'houses/forge/applets/comptia-aplus/core-2/quizzes/forge-ch14.quiz.html'
             },
@@ -7479,7 +7479,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 15,
             topics: ['windows', 'administration', 'mmc', 'comptia'],
-            paths: ['comptia-aplus'],
+            paths: ['aplus-core2'],
             components: {
                 quiz: 'houses/forge/applets/comptia-aplus/core-2/quizzes/forge-ch15.quiz.html'
             },
@@ -7494,7 +7494,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 15,
             topics: ['windows', 'system-tools', 'troubleshooting', 'comptia'],
-            paths: ['comptia-aplus'],
+            paths: ['aplus-core2'],
             components: {
                 quiz: 'houses/forge/applets/comptia-aplus/core-2/quizzes/forge-ch16.quiz.html'
             },
@@ -7509,7 +7509,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 15,
             topics: ['macos', 'linux', 'operating-systems', 'comptia'],
-            paths: ['comptia-aplus'],
+            paths: ['aplus-core2'],
             components: {
                 quiz: 'houses/forge/applets/comptia-aplus/core-2/quizzes/forge-ch17.quiz.html'
             },
@@ -7524,7 +7524,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 15,
             topics: ['users', 'groups', 'permissions', 'comptia'],
-            paths: ['comptia-aplus'],
+            paths: ['aplus-core2'],
             components: {
                 quiz: 'houses/forge/applets/comptia-aplus/core-2/quizzes/forge-ch18.quiz.html'
             },
@@ -7539,7 +7539,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 15,
             topics: ['security', 'authentication', 'comptia'],
-            paths: ['comptia-aplus'],
+            paths: ['aplus-core2'],
             components: {
                 quiz: 'houses/forge/applets/comptia-aplus/core-2/quizzes/forge-ch19.quiz.html'
             },
@@ -7554,7 +7554,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 15,
             topics: ['malware', 'security', 'comptia'],
-            paths: ['comptia-aplus'],
+            paths: ['aplus-core2'],
             components: {
                 quiz: 'houses/forge/applets/comptia-aplus/core-2/quizzes/forge-ch20.quiz.html'
             },
@@ -7569,7 +7569,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 15,
             topics: ['physical-security', 'security', 'comptia'],
-            paths: ['comptia-aplus'],
+            paths: ['aplus-core2'],
             components: {
                 quiz: 'houses/forge/applets/comptia-aplus/core-2/quizzes/forge-ch21.quiz.html'
             },
@@ -7584,7 +7584,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 15,
             topics: ['incident-response', 'procedures', 'comptia'],
-            paths: ['comptia-aplus'],
+            paths: ['aplus-core2'],
             components: {
                 quiz: 'houses/forge/applets/comptia-aplus/core-2/quizzes/forge-ch22.quiz.html'
             },
@@ -7599,7 +7599,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 15,
             topics: ['change-management', 'procedures', 'comptia'],
-            paths: ['comptia-aplus'],
+            paths: ['aplus-core2'],
             components: {
                 quiz: 'houses/forge/applets/comptia-aplus/core-2/quizzes/forge-ch23.quiz.html'
             },
@@ -7614,7 +7614,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 15,
             topics: ['documentation', 'professionalism', 'comptia'],
-            paths: ['comptia-aplus'],
+            paths: ['aplus-core2'],
             components: {
                 quiz: 'houses/forge/applets/comptia-aplus/core-2/quizzes/forge-ch24.quiz.html'
             },
@@ -7629,7 +7629,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 30,
             topics: ['systems'],
-            paths: ['comptia-aplus', 'sysadmin-essentials'],
+            paths: ['aplus-core2'],
             components: {
                 applet: 'houses/forge/reviews/forge-aplus-jeopardy.applet.html'
             },
@@ -7645,7 +7645,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 30,
             topics: ['systems'],
-            paths: ['comptia-aplus', 'sysadmin-essentials'],
+            paths: ['forge'],
             components: {
                 applet: 'houses/forge/applets/forge-cpu-architecture.applet.html'
             },
@@ -7661,9 +7661,10 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 30,
             topics: ['systems', 'windows'],
-            paths: ['comptia-aplus', 'sysadmin-essentials'],
+            paths: ['forge'],
             components: {
-                applet: 'houses/forge/applets/forge-windows-shortcuts.applet.html'
+                applet: 'houses/forge/applets/forge-windows-shortcuts.applet.html',
+                module: 'houses/forge/applets/comptia-aplus/forge-windows-shortcuts.applet.html'
             },
             prerequisites: [],
             objectives: []
@@ -7677,7 +7678,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 45,
             topics: ['systems'],
-            paths: ['comptia-aplus', 'sysadmin-essentials'],
+            paths: ['aplus-core1'],
             components: {
                 lab: 'houses/forge/labs/forge-hardware-essentials.lab.html'
             },
@@ -7698,7 +7699,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 15,
             topics: ['systems'],
-            paths: ['comptia-aplus', 'sysadmin-essentials'],
+            paths: ['aplus-core1'],
             components: {
                 quiz: 'houses/forge/quizzes/forge-hardware-essentials.quiz.html'
             },
@@ -10596,7 +10597,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['bit', 'dash', 'hardware', 'systems'],
-            paths: [],
+            paths: ['forge'],
             components: {
                 applet: 'houses/forge/games/forge-bit-dash.applet.html'
             },
@@ -10612,7 +10613,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 30,
             topics: ['bluetooth', 'pairing', 'hardware', 'systems'],
-            paths: [],
+            paths: ['aplus-core1'],
             components: {
                 lab: 'houses/forge/applets/comptia-aplus/core-1/labs/forge-bluetooth-pairing.lab.html'
             },
@@ -10628,7 +10629,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 30,
             topics: ['cable', 'matching', 'hardware', 'systems'],
-            paths: [],
+            paths: ['aplus-core1'],
             components: {
                 lab: 'houses/forge/applets/comptia-aplus/core-1/labs/forge-cable-matching.lab.html'
             },
@@ -10644,7 +10645,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 45,
             topics: ['change', 'management', 'hardware', 'systems'],
-            paths: [],
+            paths: ['aplus-core2'],
             components: {
                 lab: 'houses/forge/applets/comptia-aplus/core-2/labs/forge-change-management.lab.html',
                 presentation: 'houses/forge/applets/comptia-aplus/core-2/presentations/forge-change-management.presentation.html'
@@ -10661,7 +10662,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['chip', 'match', 'hardware', 'systems'],
-            paths: [],
+            paths: ['forge'],
             components: {
                 applet: 'houses/forge/games/forge-chip-match.applet.html'
             },
@@ -10677,7 +10678,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 30,
             topics: ['cloud', 'service', 'scenarios', 'hardware', 'systems'],
-            paths: [],
+            paths: ['aplus-core1'],
             components: {
                 lab: 'houses/forge/applets/comptia-aplus/core-1/labs/forge-cloud-scenarios.lab.html'
             },
@@ -10693,7 +10694,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 30,
             topics: ['command', 'line', 'hardware', 'systems'],
-            paths: [],
+            paths: ['aplus-core1'],
             components: {
                 lab: 'houses/forge/applets/comptia-aplus/core-1/labs/forge-command-line.lab.html'
             },
@@ -10709,7 +10710,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 15,
             topics: ['core', 'midterm', 'exam', 'hardware', 'systems'],
-            paths: [],
+            paths: ['aplus-core2'],
             components: {
                 quiz: 'houses/forge/applets/comptia-aplus/core-2/quizzes/forge-core2-midterm.quiz.html'
             },
@@ -10725,7 +10726,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 45,
             topics: ['comptia', 'certification', 'chapters', 'hardware', 'systems'],
-            paths: [],
+            paths: ['aplus-core2'],
             components: {
                 quiz: 'houses/forge/applets/comptia-aplus/core-2/quizzes/forge-core2-quiz-ch19-22.quiz.html',
                 applet: 'houses/forge/applets/comptia-aplus/forge-core2-quiz-ch19-22.applet.html'
@@ -10742,7 +10743,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 45,
             topics: ['core', 'roleplay', 'hardware', 'systems'],
-            paths: [],
+            paths: ['aplus-core2'],
             components: {
                 lab: 'houses/forge/labs/forge-core2-roleplay.lab.html'
             },
@@ -10758,7 +10759,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 30,
             topics: ['cpu', 'socket', 'identification', 'hardware', 'systems'],
-            paths: [],
+            paths: ['aplus-core1'],
             components: {
                 lab: 'houses/forge/applets/comptia-aplus/core-1/labs/forge-cpu-sockets.lab.html'
             },
@@ -10774,7 +10775,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 30,
             topics: ['hardware', 'diagnostic', 'tools', 'systems'],
-            paths: [],
+            paths: ['aplus-core1'],
             components: {
                 lab: 'houses/forge/applets/comptia-aplus/core-1/labs/forge-diagnostic-tools.lab.html'
             },
@@ -10790,7 +10791,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 30,
             topics: ['display', 'troubleshooting', 'hardware', 'systems'],
-            paths: [],
+            paths: ['aplus-core1'],
             components: {
                 lab: 'houses/forge/applets/comptia-aplus/core-1/labs/forge-display-troubleshoot.lab.html'
             },
@@ -10806,7 +10807,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 30,
             topics: ['dns', 'configuration', 'hardware', 'systems'],
-            paths: [],
+            paths: ['aplus-core1'],
             components: {
                 lab: 'houses/forge/applets/comptia-aplus/core-1/labs/forge-dns-config.lab.html'
             },
@@ -10822,7 +10823,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 30,
             topics: ['docking', 'station', 'configuration', 'hardware', 'systems'],
-            paths: [],
+            paths: ['aplus-core1'],
             components: {
                 lab: 'houses/forge/applets/comptia-aplus/core-1/labs/forge-docking-config.lab.html'
             },
@@ -10838,7 +10839,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 45,
             topics: ['documentation', 'professionalism', 'hardware', 'systems'],
-            paths: [],
+            paths: ['aplus-core2'],
             components: {
                 lab: 'houses/forge/applets/comptia-aplus/core-2/labs/forge-documentation.lab.html',
                 presentation: 'houses/forge/applets/comptia-aplus/core-2/presentations/forge-documentation.presentation.html'
@@ -10855,7 +10856,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 30,
             topics: ['mobile', 'email', 'configuration', 'hardware', 'systems'],
-            paths: [],
+            paths: ['aplus-core1'],
             components: {
                 lab: 'houses/forge/applets/comptia-aplus/core-1/labs/forge-email-config.lab.html'
             },
@@ -10871,7 +10872,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 30,
             topics: ['esd-safe', 'workspace', 'setup', 'hardware', 'systems'],
-            paths: [],
+            paths: ['aplus-core1'],
             components: {
                 lab: 'houses/forge/applets/comptia-aplus/core-1/labs/forge-esd-workspace.lab.html'
             },
@@ -10887,7 +10888,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['expansion', 'cards', 'interfaces', 'hardware', 'systems'],
-            paths: [],
+            paths: ['aplus-core1'],
             components: {
                 applet: 'houses/forge/applets/hardware/expansion_cards/forge-expansion-cards.applet.html'
             },
@@ -10903,7 +10904,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 30,
             topics: ['hardware', 'diagnosis', 'simulator', 'systems'],
-            paths: [],
+            paths: ['aplus-core1'],
             components: {
                 lab: 'houses/forge/applets/comptia-aplus/core-1/labs/forge-hardware-diagnosis.lab.html'
             },
@@ -10919,7 +10920,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 45,
             topics: ['incident', 'response', 'hardware', 'systems'],
-            paths: [],
+            paths: ['aplus-core2'],
             components: {
                 lab: 'houses/forge/applets/comptia-aplus/core-2/labs/forge-incident-response.lab.html',
                 presentation: 'houses/forge/applets/comptia-aplus/core-2/presentations/forge-incident-response.presentation.html'
@@ -10936,7 +10937,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 30,
             topics: ['laptop', 'memory', 'upgrade', 'hardware', 'systems'],
-            paths: [],
+            paths: ['aplus-core1'],
             components: {
                 lab: 'houses/forge/applets/comptia-aplus/core-1/labs/forge-laptop-memory.lab.html'
             },
@@ -10952,7 +10953,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 45,
             topics: ['malware', 'social', 'engineering', 'hardware', 'systems'],
-            paths: [],
+            paths: ['aplus-core2'],
             components: {
                 lab: 'houses/forge/applets/comptia-aplus/core-2/labs/forge-malware.lab.html',
                 presentation: 'houses/forge/applets/comptia-aplus/core-2/presentations/forge-malware.presentation.html'
@@ -10969,7 +10970,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 30,
             topics: ['mdm', 'policy', 'configuration', 'hardware', 'systems'],
-            paths: [],
+            paths: ['aplus-core1'],
             components: {
                 lab: 'houses/forge/applets/comptia-aplus/core-1/labs/forge-mdm-config.lab.html'
             },
@@ -10985,7 +10986,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 30,
             topics: ['mobile', 'email', 'configuration', 'hardware', 'systems'],
-            paths: [],
+            paths: ['aplus-core1'],
             components: {
                 lab: 'houses/forge/applets/comptia-aplus/core-1/labs/forge-mobile-email.lab.html'
             },
@@ -11001,7 +11002,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 30,
             topics: ['mobile', 'device', 'identifiers', 'hardware', 'systems'],
-            paths: [],
+            paths: ['aplus-core1'],
             components: {
                 lab: 'houses/forge/applets/comptia-aplus/core-1/labs/forge-mobile-identifier.lab.html'
             },
@@ -11017,7 +11018,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 30,
             topics: ['mobile', 'sync', 'troubleshooting', 'hardware', 'systems'],
-            paths: [],
+            paths: ['aplus-core1'],
             components: {
                 lab: 'houses/forge/applets/comptia-aplus/core-1/labs/forge-mobile-sync.lab.html'
             },
@@ -11033,7 +11034,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['digital', 'multimeter', 'simulator', 'hardware', 'systems'],
-            paths: [],
+            paths: ['aplus-core1'],
             components: {
                 applet: 'houses/forge/applets/hardware/multimeter/forge-multimeter-jedit-v1.applet.html'
             },
@@ -11049,7 +11050,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 30,
             topics: ['network', 'commands', 'hardware', 'systems'],
-            paths: [],
+            paths: ['aplus-core1'],
             components: {
                 lab: 'houses/forge/applets/comptia-aplus/core-1/labs/forge-network-commands.lab.html'
             },
@@ -11065,7 +11066,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 30,
             topics: ['network', 'configuration', 'hardware', 'systems'],
-            paths: [],
+            paths: ['aplus-core1'],
             components: {
                 lab: 'houses/forge/applets/comptia-aplus/core-1/labs/forge-network-config.lab.html'
             },
@@ -11081,7 +11082,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 30,
             topics: ['network', 'designer', 'hardware', 'systems'],
-            paths: [],
+            paths: ['aplus-core1'],
             components: {
                 lab: 'houses/forge/applets/comptia-aplus/core-1/labs/forge-network-design.lab.html'
             },
@@ -11097,9 +11098,11 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['instruction', 'set', '32-bit', 'hardware', 'systems'],
-            paths: [],
+            paths: ['forge'],
             components: {
-                applet: 'houses/forge/tools/forge-os-core.tool.html'
+                applet: 'houses/forge/tools/forge-os-core.tool.html',
+                tool: 'houses/forge/applets/comptia-aplus/core-2/tools/forge-os-core.tool.html',
+                module: 'houses/forge/applets/comptia-aplus/forge-os-core.applet.html'
             },
             prerequisites: [],
             objectives: []
@@ -11113,7 +11116,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 30,
             topics: ['builder', 'simulator', 'hardware', 'systems'],
-            paths: [],
+            paths: ['aplus-core1'],
             components: {
                 lab: 'houses/forge/applets/comptia-aplus/core-1/labs/forge-pc-builder.lab.html'
             },
@@ -11129,7 +11132,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 30,
             topics: ['components', 'identification', 'hardware', 'systems'],
-            paths: [],
+            paths: ['aplus-core1'],
             components: {
                 lab: 'houses/forge/applets/comptia-aplus/core-1/labs/forge-pc-components.lab.html'
             },
@@ -11145,7 +11148,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 45,
             topics: ['physical', 'security', 'hardware', 'systems'],
-            paths: [],
+            paths: ['aplus-core2'],
             components: {
                 lab: 'houses/forge/applets/comptia-aplus/core-2/labs/forge-physical-security.lab.html',
                 presentation: 'houses/forge/applets/comptia-aplus/core-2/presentations/forge-physical-security.presentation.html'
@@ -11162,7 +11165,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 30,
             topics: ['port', 'identification', 'hardware', 'systems'],
-            paths: [],
+            paths: ['aplus-core1'],
             components: {
                 lab: 'houses/forge/applets/comptia-aplus/core-1/labs/forge-port-identification.lab.html'
             },
@@ -11178,7 +11181,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 30,
             topics: ['post', 'beep', 'codes', 'hardware', 'systems'],
-            paths: [],
+            paths: ['aplus-core1'],
             components: {
                 lab: 'houses/forge/applets/comptia-aplus/core-1/labs/forge-post-beep-codes.lab.html'
             },
@@ -11194,7 +11197,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 30,
             topics: ['printer', 'troubleshooting', 'simulator', 'hardware', 'systems'],
-            paths: [],
+            paths: ['aplus-core1'],
             components: {
                 lab: 'houses/forge/applets/comptia-aplus/core-1/labs/forge-printer-troubleshoot.lab.html'
             },
@@ -11210,7 +11213,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 30,
             topics: ['protocol', 'analysis', 'hardware', 'systems'],
-            paths: [],
+            paths: ['aplus-core1'],
             components: {
                 lab: 'houses/forge/applets/comptia-aplus/core-1/labs/forge-protocol-analysis.lab.html'
             },
@@ -11226,7 +11229,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 30,
             topics: ['psu', 'connectors', 'hardware', 'systems'],
-            paths: [],
+            paths: ['aplus-core1'],
             components: {
                 lab: 'houses/forge/applets/comptia-aplus/core-1/labs/forge-psu-connectors.lab.html'
             },
@@ -11242,7 +11245,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['rack', 'stack', 'hardware', 'systems'],
-            paths: [],
+            paths: ['forge'],
             components: {
                 applet: 'houses/forge/games/forge-rack-stack.applet.html'
             },
@@ -11258,7 +11261,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['raid', 'puzzle', 'hardware', 'systems'],
-            paths: [],
+            paths: ['forge'],
             components: {
                 applet: 'houses/forge/games/forge-raid-calculator.applet.html'
             },
@@ -11274,7 +11277,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 30,
             topics: ['raid', 'configuration', 'builder', 'hardware', 'systems'],
-            paths: [],
+            paths: ['aplus-core1'],
             components: {
                 lab: 'houses/forge/applets/comptia-aplus/core-1/labs/forge-raid-config.lab.html'
             },
@@ -11290,7 +11293,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 30,
             topics: ['ram', 'identification', 'hardware', 'systems'],
-            paths: [],
+            paths: ['aplus-core1'],
             components: {
                 lab: 'houses/forge/applets/comptia-aplus/core-1/labs/forge-ram-identification.lab.html'
             },
@@ -11306,7 +11309,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 30,
             topics: ['soho', 'router', 'configuration', 'hardware', 'systems'],
-            paths: [],
+            paths: ['aplus-core1'],
             components: {
                 lab: 'houses/forge/applets/comptia-aplus/core-1/labs/forge-router-config.lab.html'
             },
@@ -11322,7 +11325,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 45,
             topics: ['security', 'hardware', 'systems'],
-            paths: [],
+            paths: ['aplus-core2'],
             components: {
                 lab: 'houses/forge/applets/comptia-aplus/core-2/labs/forge-security-fundamentals.lab.html',
                 presentation: 'houses/forge/applets/comptia-aplus/core-2/presentations/forge-security-fundamentals.presentation.html'
@@ -11339,7 +11342,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 30,
             topics: ['server', 'role', 'identification', 'hardware', 'systems'],
-            paths: [],
+            paths: ['aplus-core1'],
             components: {
                 lab: 'houses/forge/applets/comptia-aplus/core-1/labs/forge-server-roles.lab.html'
             },
@@ -11355,7 +11358,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['windows', 'settings', 'explorer', 'hardware', 'systems'],
-            paths: [],
+            paths: ['forge'],
             components: {
                 applet: 'houses/forge/tools/forge-settings.tool.html'
             },
@@ -11371,7 +11374,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 30,
             topics: ['soho', 'network', 'designer', 'hardware', 'systems'],
-            paths: [],
+            paths: ['aplus-core1'],
             components: {
                 lab: 'houses/forge/applets/comptia-aplus/core-1/labs/forge-soho-designer.lab.html'
             },
@@ -11387,7 +11390,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 30,
             topics: ['soho', 'rescue', 'network', 'hardware', 'systems'],
-            paths: [],
+            paths: ['aplus-core1'],
             components: {
                 lab: 'houses/forge/applets/comptia-aplus/core-1/labs/forge-soho-rescue.lab.html'
             },
@@ -11403,7 +11406,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 30,
             topics: ['laptop', 'storage', 'upgrade', 'hardware', 'systems'],
-            paths: [],
+            paths: ['aplus-core1'],
             components: {
                 lab: 'houses/forge/applets/comptia-aplus/core-1/labs/forge-storage-upgrade.lab.html'
             },
@@ -11419,7 +11422,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 30,
             topics: ['subnet', 'calculator', 'hardware', 'systems'],
-            paths: [],
+            paths: ['aplus-core1'],
             components: {
                 lab: 'houses/forge/applets/comptia-aplus/core-1/labs/forge-subnet-calculator.lab.html'
             },
@@ -11435,7 +11438,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 30,
             topics: ['network', 'topology', 'builder', 'hardware', 'systems'],
-            paths: [],
+            paths: ['aplus-core1'],
             components: {
                 lab: 'houses/forge/applets/comptia-aplus/core-1/labs/forge-topology-builder.lab.html'
             },
@@ -11451,7 +11454,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 30,
             topics: ['troubleshooting', 'methodology', 'hardware', 'systems'],
-            paths: [],
+            paths: ['aplus-core1'],
             components: {
                 lab: 'houses/forge/applets/comptia-aplus/core-1/labs/forge-troubleshooting.lab.html'
             },
@@ -11467,7 +11470,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 30,
             topics: ['troubleshooting', 'flowchart', 'hardware', 'systems'],
-            paths: [],
+            paths: ['aplus-core1'],
             components: {
                 lab: 'houses/forge/applets/comptia-aplus/core-1/labs/forge-troubleshooting-flowchart.lab.html'
             },
@@ -11483,7 +11486,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 45,
             topics: ['users', 'groups', 'permissions', 'hardware', 'systems'],
-            paths: [],
+            paths: ['aplus-core2'],
             components: {
                 lab: 'houses/forge/applets/comptia-aplus/core-2/labs/forge-users-groups.lab.html',
                 presentation: 'houses/forge/applets/comptia-aplus/core-2/presentations/forge-users-groups.presentation.html'
@@ -11500,7 +11503,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 30,
             topics: ['virtual', 'machine', 'setup', 'hardware', 'systems'],
-            paths: [],
+            paths: ['aplus-core1'],
             components: {
                 lab: 'houses/forge/applets/comptia-aplus/core-1/labs/forge-vm-setup.lab.html'
             },
@@ -11516,9 +11519,10 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['windows', 'security', 'components', 'hardware', 'systems'],
-            paths: [],
+            paths: ['forge'],
             components: {
-                applet: 'houses/forge/tools/forge-windows10-components.tool.html'
+                applet: 'houses/forge/tools/forge-windows10-components.tool.html',
+                module: 'houses/forge/applets/forge-windows10-components.applet.html'
             },
             prerequisites: [],
             objectives: []
@@ -11532,7 +11536,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 30,
             topics: ['wireless', 'security', 'configuration', 'hardware', 'systems'],
-            paths: [],
+            paths: ['aplus-core1'],
             components: {
                 lab: 'houses/forge/applets/comptia-aplus/core-1/labs/forge-wireless-security.lab.html'
             },
@@ -17060,7 +17064,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 45,
             topics: ['comptia', 'certification', 'chapters', 'hardware', 'systems'],
-            paths: [],
+            paths: ['aplus-core2'],
             components: {
                 quiz: 'houses/forge/applets/comptia-aplus/core-2/quizzes/forge-aplus-core2.quiz.html',
                 'aplus-core2': 'houses/forge/quizzes/forge-aplus-core2.quiz.html'
@@ -17077,7 +17081,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 45,
             topics: ['core', 'chapters', '19-22', 'hardware', 'systems'],
-            paths: [],
+            paths: ['aplus-core2'],
             components: {
                 quiz: 'houses/forge/applets/comptia-aplus/core-2/quizzes/forge-aplus-core2-ch19-22.quiz.html',
                 'aplus-core2-ch19-22': 'houses/forge/quizzes/forge-aplus-core2-ch19-22.quiz.html'
@@ -17094,7 +17098,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 45,
             topics: ['macos', 'linux', 'hardware', 'systems'],
-            paths: [],
+            paths: ['aplus-core2'],
             components: {
                 lab: 'houses/forge/applets/comptia-aplus/core-2/labs/forge-lab-macos-linux.lab.html',
                 'lab-macos-linux': 'houses/forge/labs/forge-lab-macos-linux.lab.html'
@@ -17664,7 +17668,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 45,
             topics: ['administrative', 'tools', 'hardware', 'systems'],
-            paths: [],
+            paths: ['aplus-core2'],
             components: {
                 lab: 'houses/forge/applets/comptia-aplus/core-2/labs/forge-admin-tools.lab.html',
                 presentation: 'houses/forge/applets/comptia-aplus/core-2/presentations/forge-admin-tools.presentation.html'
@@ -17681,7 +17685,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 45,
             topics: ['control', 'panel', 'hardware', 'systems'],
-            paths: [],
+            paths: ['aplus-core2'],
             components: {
                 lab: 'houses/forge/applets/comptia-aplus/core-2/labs/forge-control-panel.lab.html',
                 presentation: 'houses/forge/applets/comptia-aplus/core-2/presentations/forge-control-panel.presentation.html'
@@ -17698,7 +17702,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 30,
             topics: ['roleplay', 'support', 'scenarios', 'hardware', 'systems'],
-            paths: [],
+            paths: ['aplus-core2'],
             components: {
                 lab: 'houses/forge/applets/comptia-aplus/core-2/labs/forge-core2-roleplay.lab.html'
             },
@@ -17714,7 +17718,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 45,
             topics: ['system', 'tools', 'hardware', 'systems'],
-            paths: [],
+            paths: ['aplus-core2'],
             components: {
                 lab: 'houses/forge/applets/comptia-aplus/core-2/labs/forge-system-tools.lab.html',
                 presentation: 'houses/forge/applets/comptia-aplus/core-2/presentations/forge-system-tools.presentation.html'
@@ -17731,7 +17735,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 45,
             topics: ['windows', 'editions', 'hardware', 'systems'],
-            paths: [],
+            paths: ['aplus-core2'],
             components: {
                 lab: 'houses/forge/applets/comptia-aplus/core-2/labs/forge-windows-editions.lab.html',
                 presentation: 'houses/forge/applets/comptia-aplus/core-2/presentations/forge-windows-editions.presentation.html'
@@ -17748,7 +17752,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 45,
             topics: ['windows', 'settings', 'hardware', 'systems'],
-            paths: [],
+            paths: ['aplus-core2'],
             components: {
                 lab: 'houses/forge/applets/comptia-aplus/core-2/labs/forge-windows-settings.lab.html',
                 presentation: 'houses/forge/applets/comptia-aplus/core-2/presentations/forge-windows-settings.presentation.html'
@@ -17765,7 +17769,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['macos', 'linux', 'basics', 'hardware', 'systems'],
-            paths: [],
+            paths: ['aplus-core2'],
             components: {
                 presentation: 'houses/forge/applets/comptia-aplus/core-2/presentations/forge-macos-linux-basics.presentation.html'
             },
@@ -17781,7 +17785,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['windows', 'keyboard', 'shortcuts', 'hardware', 'systems'],
-            paths: [],
+            paths: ['aplus-core2'],
             components: {
                 applet: 'houses/forge/applets/comptia-aplus/core-2/reference/forge-windows-shortcuts.applet.html'
             },
@@ -17797,7 +17801,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['backup', 'bust', 'under', 'hardware', 'systems'],
-            paths: [],
+            paths: ['forge'],
             components: {
                 tool: 'houses/forge/reviews/forge-backup-or-bust.html'
             },
@@ -17813,7 +17817,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['administrative', 'tools', 'explorer', 'hardware', 'systems'],
-            paths: [],
+            paths: ['forge'],
             components: {
                 tool: 'houses/forge/tools/forge-admin-tools.tool.html'
             },
@@ -17829,7 +17833,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['control', 'panel', 'explorer', 'hardware', 'systems'],
-            paths: [],
+            paths: ['forge'],
             components: {
                 tool: 'houses/forge/tools/forge-control-panel.tool.html'
             },
@@ -17845,7 +17849,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['system', 'tools', 'simulator', 'hardware', 'systems'],
-            paths: [],
+            paths: ['forge'],
             components: {
                 tool: 'houses/forge/tools/forge-system-tools-sim.tool.html'
             },
@@ -17861,7 +17865,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['windows', 'edition', 'selector', 'hardware', 'systems'],
-            paths: [],
+            paths: ['forge'],
             components: {
                 tool: 'houses/forge/tools/forge-windows-edition-selector.tool.html'
             },
