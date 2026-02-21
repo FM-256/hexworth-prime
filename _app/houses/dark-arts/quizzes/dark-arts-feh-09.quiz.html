@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../components/AchievementManager.js"></script>
+    <script src="../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FEH-09: Cryptography & Steganography — Dark Arts</title>
+    <style>
+        :root {
+            --house-primary: #6b21a8; --house-accent: #9333ea;
+            --correct: #00ff41; --incorrect: #ef4444; --info: #38bdf8;
+            --bg: #0a0a0a; --card: rgba(15,5,25,0.85); --border: rgba(107,33,168,0.3);
+            --text: #d4d4d8; --muted: #71717a;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { min-height: 100vh; background: var(--bg); font-family: 'Courier New', monospace; color: var(--text); }
+        body::after { content: ''; position: fixed; top: 0; left: 0; right: 0; height: 2px;
+            background: linear-gradient(90deg, transparent, var(--house-accent), transparent);
+            opacity: 0.25; animation: scan 10s linear infinite; pointer-events: none; z-index: 999; }
+        @keyframes scan { from { top: 0; } to { top: 100%; } }
+
+        .header { padding: 16px 28px; background: rgba(10,0,20,0.95); border-bottom: 1px solid var(--border);
+            display: flex; align-items: center; gap: 14px; position: sticky; top: 0; z-index: 100; }
+        .back-btn { width: 32px; height: 32px; border: 1px solid var(--border); background: transparent;
+            color: var(--house-accent); cursor: pointer; border-radius: 6px; font-size: 1rem;
+            display: flex; align-items: center; justify-content: center; text-decoration: none; transition: all 0.2s; }
+        .back-btn:hover { background: rgba(147,51,234,0.15); }
+        .header-title { font-size: 0.95rem; color: var(--text); }
+        .house-badge { margin-left: auto; font-size: 0.65rem; padding: 3px 10px;
+            background: rgba(107,33,168,0.2); border: 1px solid var(--border); border-radius: 20px;
+            color: var(--house-accent); letter-spacing: 0.1em; }
+
+        .progress-wrap { padding: 14px 28px; background: rgba(10,0,20,0.7); }
+        .progress-label { font-size: 0.72rem; color: var(--muted); margin-bottom: 6px; }
+        .progress-bar { height: 4px; background: rgba(255,255,255,0.08); border-radius: 4px; overflow: hidden; }
+        .progress-fill { height: 100%; background: linear-gradient(90deg, var(--house-primary), var(--house-accent));
+            border-radius: 4px; transition: width 0.4s ease; }
+
+        .container { max-width: 820px; margin: 0 auto; padding: 36px 24px; }
+
+        .intro { text-align: center; padding: 40px 20px; }
+        .intro-icon { font-size: 2.8rem; margin-bottom: 14px; }
+        .intro-title { font-size: 1.8rem; font-weight: 300; margin-bottom: 10px;
+            background: linear-gradient(135deg, #fff, var(--house-accent));
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+        .intro-sub { color: var(--muted); margin-bottom: 24px; line-height: 1.6; font-size: 0.9rem; }
+        .stats-row { display: flex; justify-content: center; gap: 36px; margin-bottom: 28px; }
+        .stat-box { text-align: center; }
+        .stat-val { font-size: 1.6rem; font-weight: 700; color: var(--house-accent); }
+        .stat-lbl { font-size: 0.7rem; color: var(--muted); letter-spacing: 0.08em; }
+
+        .q-card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 26px; margin-bottom: 20px; }
+        .q-meta { display: flex; justify-content: space-between; font-size: 0.72rem; color: var(--house-accent);
+            margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid rgba(255,255,255,0.07); }
+        .q-text { font-size: 1rem; line-height: 1.6; margin-bottom: 18px; color: var(--text); }
+
+        .options { display: flex; flex-direction: column; gap: 10px; }
+        .opt { display: flex; align-items: flex-start; gap: 12px; padding: 13px 16px;
+            background: rgba(0,0,0,0.35); border: 2px solid rgba(255,255,255,0.08);
+            border-radius: 7px; cursor: pointer; transition: all 0.18s; }
+        .opt:hover:not(.locked) { border-color: rgba(147,51,234,0.5); background: rgba(147,51,234,0.07); }
+        .opt.selected { border-color: var(--house-accent); background: rgba(147,51,234,0.12); }
+        .opt.correct { border-color: var(--correct); background: rgba(0,255,65,0.07); }
+        .opt.wrong { border-color: var(--incorrect); background: rgba(239,68,68,0.08); }
+        .opt.locked { cursor: default; }
+        .opt-radio { width: 16px; height: 16px; flex-shrink: 0; margin-top: 2px; accent-color: var(--house-accent); }
+        .opt-label { font-size: 0.88rem; line-height: 1.5; color: var(--muted); }
+        .opt.selected .opt-label, .opt.correct .opt-label, .opt.wrong .opt-label { color: var(--text); }
+
+        .feedback { display: none; margin-top: 14px; padding: 12px 16px;
+            border-left: 3px solid var(--info); background: rgba(56,189,248,0.07); border-radius: 6px; }
+        .feedback.show { display: block; animation: fadeIn 0.3s ease; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: translateY(0); } }
+        .feedback-verdict { font-size: 0.78rem; font-weight: 700; margin-bottom: 5px; }
+        .feedback-verdict.ok { color: var(--correct); }
+        .feedback-verdict.bad { color: var(--incorrect); }
+        .feedback-txt { font-size: 0.82rem; color: var(--muted); line-height: 1.55; }
+
+        .nav-row { display: flex; justify-content: center; gap: 12px; margin: 24px 0; }
+        .btn { padding: 10px 24px; border: none; border-radius: 7px; font-size: 0.88rem;
+            font-family: 'Courier New', monospace; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+        .btn-primary { background: linear-gradient(135deg, var(--house-primary), var(--house-accent)); color: #fff; }
+        .btn-primary:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 4px 16px rgba(107,33,168,0.5); }
+        .btn-primary:disabled { opacity: 0.45; cursor: not-allowed; }
+        .btn-secondary { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: var(--text); }
+        .btn-secondary:hover { background: rgba(255,255,255,0.1); }
+        .btn-green { background: linear-gradient(135deg, #16a34a, #15803d); color: #fff; }
+        .btn-green:hover { transform: translateY(-2px); box-shadow: 0 4px 16px rgba(22,163,74,0.4); }
+
+        .results { display: none; background: var(--card); border: 1px solid var(--border);
+            border-radius: 10px; padding: 40px; text-align: center; }
+        .results.show { display: block; animation: fadeIn 0.5s ease; }
+        .r-icon { font-size: 3.5rem; margin-bottom: 16px; }
+        .r-title { font-size: 1.6rem; margin-bottom: 10px; }
+        .r-score { font-size: 3rem; font-weight: 700; margin: 16px 0; }
+        .r-score.pass { color: var(--correct); }
+        .r-score.fail { color: var(--incorrect); }
+        .r-msg { color: var(--muted); font-size: 0.88rem; line-height: 1.7; margin-bottom: 24px; }
+        .r-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 14px; margin: 20px 0; }
+        .r-cell { background: rgba(0,0,0,0.3); border-radius: 7px; padding: 16px; }
+        .r-val { font-size: 1.8rem; font-weight: 700; margin-bottom: 4px; }
+        .r-lbl { font-size: 0.7rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
+
+        @media (max-width: 640px) { .stats-row { gap: 18px; } .r-grid { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+
+<header class="header">
+    <a class="back-btn" href="../index.html">&#8592;</a>
+    <span class="header-title">FEH-09: Cryptography &amp; Steganography</span>
+    <span class="house-badge">DARK ARTS</span>
+</header>
+
+<div class="progress-wrap" id="progress-wrap" style="display:none">
+    <div class="progress-label" id="progress-label">Question 1 of 15</div>
+    <div class="progress-bar"><div class="progress-fill" id="progress-fill" style="width:0%"></div></div>
+</div>
+
+<div class="container">
+    <div id="intro" class="intro">
+        <div class="intro-icon">&#x1F511;</div>
+        <h2 class="intro-title">Cryptography &amp; Steganography</h2>
+        <p class="intro-sub">Symmetric/asymmetric encryption, hashing, PKI, TLS, steganography, key exchange, and cryptographic attacks.<br>
+            The mathematics of secrecy — understood by few, exploited by fewer.</p>
+        <div class="stats-row">
+            <div class="stat-box"><div class="stat-val">15</div><div class="stat-lbl">QUESTIONS</div></div>
+            <div class="stat-box"><div class="stat-val">70%</div><div class="stat-lbl">PASSING</div></div>
+            <div class="stat-box"><div class="stat-val">~15m</div><div class="stat-lbl">DURATION</div></div>
+        </div>
+        <button class="btn btn-primary" onclick="startQuiz()">[ INITIALIZE QUIZ ]</button>
+    </div>
+
+    <div id="quiz-area" style="display:none"></div>
+    <div id="nav-row" class="nav-row" style="display:none">
+        <button class="btn btn-secondary" id="prev-btn" onclick="goTo(state.idx - 1)">&#8592; Prev</button>
+        <button class="btn btn-primary"   id="next-btn" onclick="advanceOrSubmit()">Next &#8594;</button>
+    </div>
+
+    <div class="results" id="results">
+        <div class="r-icon" id="r-icon"></div>
+        <div class="r-title" id="r-title"></div>
+        <div class="r-score" id="r-score"></div>
+        <div class="r-msg" id="r-msg"></div>
+        <div class="r-grid">
+            <div class="r-cell"><div class="r-val" id="r-correct" style="color:var(--correct)"></div><div class="r-lbl">Correct</div></div>
+            <div class="r-cell"><div class="r-val" id="r-wrong" style="color:var(--incorrect)"></div><div class="r-lbl">Incorrect</div></div>
+            <div class="r-cell"><div class="r-val" id="r-total" style="color:var(--house-accent)">15</div><div class="r-lbl">Total</div></div>
+        </div>
+        <div class="nav-row">
+            <button class="btn btn-secondary" onclick="reviewMode()">Review Answers</button>
+            <button class="btn btn-primary" onclick="location.href='../index.html'">Return to House</button>
+        </div>
+    </div>
+</div>
+
+<script>
+const RAW_QUESTIONS = [
+    { q: "What is the fundamental difference between symmetric and asymmetric encryption?",
+      opts: ["Symmetric is quantum-resistant; asymmetric is not","Symmetric uses the same key to encrypt and decrypt; asymmetric uses a mathematically related key pair (public/private)","Symmetric is used only for hashing; asymmetric for encryption","Asymmetric is faster but less secure than symmetric"],
+      ans: 1, exp: "Symmetric (AES, 3DES): one shared secret key — fast, used for bulk data. Asymmetric (RSA, ECC): public key encrypts, private key decrypts — slow, used for key exchange and signatures. TLS combines both: asymmetric for handshake, symmetric for session data." },
+    { q: "AES is preferred over DES in modern systems primarily because:",
+      opts: ["AES is patented and therefore legally safer to use","DES uses a 56-bit key that can be brute-forced in hours with modern hardware; AES uses 128/192/256-bit keys","AES operates in stream cipher mode which DES cannot","DES lacks block cipher modes while AES supports all modes"],
+      ans: 1, exp: "DES's 56-bit key space (~7.2 x 10^16 combinations) was demonstrated breakable in 22 hours in 1999 (EFF DES Cracker). 3DES applies DES three times but is slow. AES (Rijndael) with 128+ bit keys remains computationally unbreakable by brute force today." },
+    { q: "Triple DES (3DES) applies DES encryption three times. Why does it not achieve 3x DES's key strength?",
+      opts: ["The third DES pass decrypts the output of the second pass, reducing effective security","Meet-in-the-middle attacks reduce 3DES's effective security to approximately 112 bits, not 168","3DES uses the same key for all three passes by default","3DES operates on 32-bit blocks instead of 64-bit blocks"],
+      ans: 1, exp: "With three independent 56-bit keys (168 bits total), meet-in-the-middle attacks reduce effective security to ~112 bits. Standard 3DES (EDE: Encrypt-Decrypt-Encrypt) uses K1, K2, K3. When K1=K3, it degrades to 2-key 3DES (~80 bits). NIST deprecated 3DES in 2017." },
+    { q: "RSA encryption security relies on the computational difficulty of:",
+      opts: ["Solving discrete logarithm problems over elliptic curves","Factoring the product of two large prime numbers","Computing SHA-256 hashes in reverse","Solving the Travelling Salesman Problem"],
+      ans: 1, exp: "RSA: n = p * q where p and q are large primes. The public key is (n, e); the private key is d (the modular inverse). Breaking RSA requires factoring n to find p and q — a problem with no known efficient classical algorithm for large n (2048+ bits)." },
+    { q: "ECC (Elliptic Curve Cryptography) achieves equivalent security to RSA with:",
+      opts: ["Larger key sizes, making it more secure","Much smaller key sizes — a 256-bit ECC key is roughly equivalent to a 3072-bit RSA key","The same key sizes but faster operations","Larger key sizes but faster hardware support"],
+      ans: 1, exp: "ECC's security is based on the Elliptic Curve Discrete Logarithm Problem (ECDLP), which is harder to solve than integer factorization. A 256-bit ECC key ≈ 3072-bit RSA key. Smaller keys mean faster operations and lower power consumption — critical for IoT and mobile." },
+    { q: "MD5 is considered cryptographically broken primarily because:",
+      opts: ["Its hash output (128 bits) is too short for modern storage","Collision attacks can be performed quickly — two different inputs can produce the same MD5 hash","It has been superseded by a faster algorithm","MD5 is symmetric, not a true hash function"],
+      ans: 1, exp: "MD5 collision attacks were first demonstrated in 2004 (Wang et al.). By 2008, researchers created a rogue CA certificate using MD5 collisions. MD5 should never be used for integrity verification or digital signatures. Use SHA-256 or SHA-3 for security-critical hashing." },
+    { q: "A digital signature using RSA works by:",
+      opts: ["Encrypting the message with the recipient's public key","Hashing the message and encrypting the hash with the sender's private key; recipients verify by decrypting with the sender's public key","Hashing the message with a shared symmetric key","Encrypting both the message and hash with the sender's public key"],
+      ans: 1, exp: "RSA signatures: sender computes H = hash(message), then signature S = H^d mod n (private key operation). Recipient computes H' = S^e mod n (public key operation) and compares with hash(message). Only the private key holder can produce a valid signature." },
+    { q: "In a PKI (Public Key Infrastructure), what is the role of a Certificate Authority (CA)?",
+      opts: ["To store encrypted private keys for all users","To digitally sign public key certificates, binding identities to public keys and establishing a chain of trust","To manage symmetric key distribution between servers","To encrypt all web traffic passing through the network"],
+      ans: 1, exp: "A CA signs X.509 certificates with its own private key, asserting that the public key within belongs to the named subject. Browsers and OSes ship with trusted root CA certificates. This chain of trust allows HTTPS without prior knowledge of server keys." },
+    { q: "During a TLS 1.3 handshake, what happens after the ClientHello message?",
+      opts: ["The server sends its private key to establish encryption","Both parties use the Server's public key and Diffie-Hellman key shares to derive session keys; all data after ServerHello is encrypted","The client and server negotiate which version of TLS to downgrade to","The server requests the client's private key for mutual authentication"],
+      ans: 1, exp: "TLS 1.3 reduced the handshake to 1 RTT. The ServerHello includes a key share for ECDHE. Both sides independently derive the same symmetric session keys. ServerHello and beyond are encrypted immediately. TLS 1.3 removed RSA key exchange, requiring forward secrecy via ephemeral DH." },
+    { q: "LSB (Least Significant Bit) steganography conceals data by:",
+      opts: ["Replacing the most significant bits of pixel color values, drastically changing image appearance","Replacing the least significant bits of pixel values with message bits — changes are imperceptible to the human eye","Encoding data in image EXIF metadata fields","Compressing the carrier image and embedding data in the compression headers"],
+      ans: 1, exp: "Each pixel's color value (0-255) has 8 bits. Changing the LSB changes the color by 1 unit — invisible to humans. A 1 MB image can hide ~128KB of data. Steganalysis tools like StegSolve or zsteg detect LSB steganography via statistical analysis of bit plane distributions." },
+    { q: "DCT (Discrete Cosine Transform) steganography is primarily used in:",
+      opts: ["PNG images by modifying color palette tables","JPEG images by modifying DCT coefficients in the frequency domain after compression","MP3 audio files by altering temporal frame headers","PDF documents by hiding data in unused object streams"],
+      ans: 1, exp: "JPEG uses DCT to transform pixel blocks into frequency coefficients. DCT steganography (e.g., JSteg, OutGuess, F5) embeds data in DCT coefficients during or after compression. It's more robust than LSB since JPEG re-compression would destroy LSB-embedded data." },
+    { q: "The Diffie-Hellman key exchange allows two parties to:",
+      opts: ["Authenticate each other's identities before encryption","Establish a shared secret over an insecure channel without transmitting the secret itself","Share their private keys securely using RSA","Generate identical one-time pads from separate random seeds"],
+      ans: 1, exp: "DH: Both agree on public parameters (prime p, generator g). Each generates a private key (a, b) and sends g^a mod p and g^b mod p. The shared secret is g^(ab) mod p, computable by both but not derivable by an eavesdropper who only sees g^a and g^b (discrete log problem)." },
+    { q: "A birthday attack against a hash function exploits:",
+      opts: ["The attacker's knowledge of the plaintext to reverse the hash","The probability that two random inputs share the same hash output — significantly lower work than expected due to the birthday paradox","The cyclical nature of hash function output distributions","The use of the same hash for multiple files in the same directory"],
+      ans: 1, exp: "The birthday paradox: finding a collision in a hash with n-bit output requires approximately 2^(n/2) operations, not 2^n. For MD5 (128-bit): ~2^64 operations; SHA-256: ~2^128. This is why SHA-1 (160-bit, 2^80 effective) was deprecated — demonstrated collisions (SHAttered, 2017)." },
+    { q: "Rainbow table attacks precompute:",
+      opts: ["All possible hash outputs in a network topology diagram","Hash-to-plaintext chains allowing fast password hash reversal, defeated by using unique salts per password","A dictionary of common passwords with their encrypted forms","Statistical frequency tables of characters in hashed output"],
+      ans: 1, exp: "Rainbow tables precompute chains of hash-then-reduce operations, creating compact lookup tables. Given a hash, an attacker looks up the chain endpoint to find the plaintext. Salting (prepending/appending random bytes per user) invalidates rainbow tables since each salt creates a unique hash space." },
+    { q: "Which attack against RSA is possible when the same message is encrypted with the same public key exponent e=3 for three different recipients?",
+      opts: ["Factorization attack using the repeated public key","Hastad's Broadcast Attack — using the Chinese Remainder Theorem to recover the plaintext without factoring any modulus","Padding oracle attack on RSA-OAEP implementations","Timing attack measuring decryption operation duration"],
+      ans: 1, exp: "Hastad's Broadcast Attack: if m^3 < n1*n2*n3, CRT recovers m^3 directly from the three ciphertexts, then a cube root gives m. Defense: use randomized padding (OAEP) so even the same plaintext produces different ciphertexts, and use e=65537 instead of small exponents." }
+];
+
+const state = { questions: [], answers: [], answered: [], idx: 0, submitted: false };
+
+function shuffle(arr) { return arr.slice().sort(() => Math.random() - 0.5); }
+
+function startQuiz() {
+    state.questions = shuffle(RAW_QUESTIONS).map(q => {
+        const indices = shuffle([0,1,2,3]);
+        return { q: q.q, opts: indices.map(i => q.opts[i]), ans: indices.indexOf(q.ans), exp: q.exp };
+    });
+    state.answers = new Array(15).fill(null);
+    state.answered = new Array(15).fill(false);
+    state.idx = 0; state.submitted = false;
+    document.getElementById('intro').style.display = 'none';
+    document.getElementById('progress-wrap').style.display = 'block';
+    document.getElementById('nav-row').style.display = 'flex';
+    render();
+}
+
+function render() {
+    const q = state.questions[state.idx];
+    const locked = state.answered[state.idx] || state.submitted;
+    updateProgress();
+    document.getElementById('quiz-area').style.display = 'block';
+    document.getElementById('quiz-area').innerHTML = `
+        <div class="q-card">
+            <div class="q-meta"><span>QUESTION ${state.idx+1} / 15</span><span>1 POINT</span></div>
+            <div class="q-text">${q.q}</div>
+            <div class="options">
+                ${q.opts.map((o,i) => {
+                    let cls = 'opt';
+                    if (locked) { cls+=' locked'; if(i===q.ans) cls+=' correct'; else if(i===state.answers[state.idx]&&i!==q.ans) cls+=' wrong'; }
+                    else if (state.answers[state.idx]===i) cls+=' selected';
+                    return `<div class="${cls}" onclick="pick(${i})">
+                        <input class="opt-radio" type="radio" name="q${state.idx}" ${state.answers[state.idx]===i?'checked':''} ${locked?'disabled':''}>
+                        <span class="opt-label">${o}</span></div>`;
+                }).join('')}
+            </div>
+            <div class="feedback ${locked?'show':''}">
+                <div class="feedback-verdict ${state.answers[state.idx]===q.ans?'ok':'bad'}">${state.answers[state.idx]===q.ans?'CORRECT':'INCORRECT'}</div>
+                <div class="feedback-txt">${q.exp}</div>
+            </div>
+        </div>`;
+    updateNav();
+}
+
+function pick(i) { if(state.answered[state.idx]||state.submitted) return; state.answers[state.idx]=i; state.answered[state.idx]=true; render(); }
+function updateProgress() { document.getElementById('progress-fill').style.width=((state.idx+1)/15*100)+'%'; document.getElementById('progress-label').textContent=`Question ${state.idx+1} of 15`; }
+function updateNav() {
+    document.getElementById('prev-btn').style.visibility=state.idx===0?'hidden':'visible';
+    const nb=document.getElementById('next-btn');
+    if(state.idx===14){nb.textContent='[ SUBMIT QUIZ ]';nb.classList.remove('btn-primary');nb.classList.add('btn-green');}
+    else{nb.textContent='Next \u2192';nb.classList.remove('btn-green');nb.classList.add('btn-primary');}
+}
+function goTo(i){if(i<0||i>14)return;state.idx=i;render();}
+function advanceOrSubmit(){if(state.idx<14)goTo(state.idx+1);else submitQuiz();}
+
+function submitQuiz() {
+    const unanswered=state.answers.filter(a=>a===null).length;
+    if(unanswered>0&&!confirm(`${unanswered} unanswered question(s). Submit anyway?`))return;
+    state.submitted=true;
+    const correct=state.answers.filter((a,i)=>a===state.questions[i].ans).length;
+    const pct=Math.round((correct/15)*100);
+    const passed=pct>=70;
+    document.getElementById('quiz-area').style.display='none';
+    document.getElementById('nav-row').style.display='none';
+    document.getElementById('progress-wrap').style.display='none';
+    document.getElementById('r-icon').textContent=passed?'\uD83C\uDFC6':'\uD83D\uDCDA';
+    document.getElementById('r-title').textContent=passed?'ACCESS GRANTED':'AUTHENTICATION FAILED';
+    const sc=document.getElementById('r-score');
+    sc.textContent=pct+'%';sc.className='r-score '+(passed?'pass':'fail');
+    document.getElementById('r-msg').innerHTML=passed
+        ?`You answered <strong>${correct}</strong> of 15 correctly. Cryptographic principles confirmed.`
+        :`You answered <strong>${correct}</strong> of 15 correctly. The cipher resists you — review and retry.`;
+    document.getElementById('r-correct').textContent=correct;
+    document.getElementById('r-wrong').textContent=15-correct;
+    document.getElementById('results').classList.add('show');
+    if(passed) ModuleProgress.complete('dark-arts','dark-arts-feh-09',{returnUrl:'../index.html'});
+}
+
+function reviewMode(){
+    document.getElementById('results').classList.remove('show');
+    document.getElementById('quiz-area').style.display='block';
+    document.getElementById('nav-row').style.display='flex';
+    document.getElementById('progress-wrap').style.display='block';
+    state.idx=0;render();
+}
+</script>
+<script src="../../../components/FluxCapacitor.js"></script>
+</body>
+</html>

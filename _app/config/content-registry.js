@@ -10390,7 +10390,9 @@ const ContentRegistry = {
             topics: ['ethical-hacking', 'methodology'],
             paths: [],
             components: {
-                presentation: 'houses/dark-arts/presentations/dark-arts-feh-01.presentation.html'
+                presentation: 'houses/dark-arts/presentations/dark-arts-feh-01.presentation.html',
+                quiz: 'houses/dark-arts/quizzes/dark-arts-feh-01.quiz.html',
+                lab: 'houses/dark-arts/labs/dark-arts-feh-01.lab.html'
             },
             prerequisites: [],
             objectives: ['Understand ethical hacking principles', 'Explain the Cyber Kill Chain']
@@ -10406,7 +10408,9 @@ const ContentRegistry = {
             topics: ['reconnaissance', 'osint'],
             paths: [],
             components: {
-                presentation: 'houses/dark-arts/presentations/dark-arts-feh-02.presentation.html'
+                presentation: 'houses/dark-arts/presentations/dark-arts-feh-02.presentation.html',
+                quiz: 'houses/dark-arts/quizzes/dark-arts-feh-02.quiz.html',
+                lab: 'houses/dark-arts/labs/dark-arts-feh-02.lab.html'
             },
             prerequisites: ['dark-arts-feh-01'],
             objectives: ['Perform passive reconnaissance', 'Use OSINT tools and techniques']
@@ -10422,7 +10426,9 @@ const ContentRegistry = {
             topics: ['scanning', 'enumeration', 'nmap'],
             paths: [],
             components: {
-                presentation: 'houses/dark-arts/presentations/dark-arts-feh-03.presentation.html'
+                presentation: 'houses/dark-arts/presentations/dark-arts-feh-03.presentation.html',
+                quiz: 'houses/dark-arts/quizzes/dark-arts-feh-03.quiz.html',
+                lab: 'houses/dark-arts/labs/dark-arts-feh-03.lab.html'
             },
             prerequisites: ['dark-arts-feh-02'],
             objectives: ['Perform network scanning with Nmap', 'Enumerate services and hosts']
@@ -10438,7 +10444,9 @@ const ContentRegistry = {
             topics: ['vulnerabilities', 'risk-assessment'],
             paths: [],
             components: {
-                presentation: 'houses/dark-arts/presentations/dark-arts-feh-04.presentation.html'
+                presentation: 'houses/dark-arts/presentations/dark-arts-feh-04.presentation.html',
+                quiz: 'houses/dark-arts/quizzes/dark-arts-feh-04.quiz.html',
+                lab: 'houses/dark-arts/labs/dark-arts-feh-04.lab.html'
             },
             prerequisites: ['dark-arts-feh-03'],
             objectives: ['Understand CVE and CVSS', 'Prioritize vulnerabilities by risk']
@@ -10454,7 +10462,9 @@ const ContentRegistry = {
             topics: ['exploitation', 'privilege-escalation'],
             paths: [],
             components: {
-                presentation: 'houses/dark-arts/presentations/dark-arts-feh-05.presentation.html'
+                presentation: 'houses/dark-arts/presentations/dark-arts-feh-05.presentation.html',
+                quiz: 'houses/dark-arts/quizzes/dark-arts-feh-05.quiz.html',
+                lab: 'houses/dark-arts/labs/dark-arts-feh-05.lab.html'
             },
             prerequisites: ['dark-arts-feh-04'],
             objectives: ['Understand exploitation methodology', 'Identify privilege escalation vectors']
@@ -10470,7 +10480,9 @@ const ContentRegistry = {
             topics: ['web-security', 'owasp'],
             paths: [],
             components: {
-                presentation: 'houses/dark-arts/presentations/dark-arts-feh-06.presentation.html'
+                presentation: 'houses/dark-arts/presentations/dark-arts-feh-06.presentation.html',
+                quiz: 'houses/dark-arts/quizzes/dark-arts-feh-06.quiz.html',
+                lab: 'houses/dark-arts/labs/dark-arts-feh-06.lab.html'
             },
             prerequisites: ['dark-arts-feh-05'],
             objectives: ['Understand OWASP Top 10', 'Identify web application vulnerabilities']
@@ -10486,7 +10498,9 @@ const ContentRegistry = {
             topics: ['network-attacks', 'defense'],
             paths: [],
             components: {
-                presentation: 'houses/dark-arts/presentations/dark-arts-feh-07.presentation.html'
+                presentation: 'houses/dark-arts/presentations/dark-arts-feh-07.presentation.html',
+                quiz: 'houses/dark-arts/quizzes/dark-arts-feh-07.quiz.html',
+                lab: 'houses/dark-arts/labs/dark-arts-feh-07.lab.html'
             },
             prerequisites: ['dark-arts-feh-06'],
             objectives: ['Understand network attack techniques', 'Apply network defense strategies']
@@ -10502,7 +10516,9 @@ const ContentRegistry = {
             topics: ['social-engineering', 'human-factors'],
             paths: [],
             components: {
-                presentation: 'houses/dark-arts/presentations/dark-arts-feh-08.presentation.html'
+                presentation: 'houses/dark-arts/presentations/dark-arts-feh-08.presentation.html',
+                quiz: 'houses/dark-arts/quizzes/dark-arts-feh-08.quiz.html',
+                lab: 'houses/dark-arts/labs/dark-arts-feh-08.lab.html'
             },
             prerequisites: ['dark-arts-feh-07'],
             objectives: ['Identify social engineering techniques', 'Build security awareness programs']
@@ -10518,7 +10534,9 @@ const ContentRegistry = {
             topics: ['cryptography', 'steganography'],
             paths: [],
             components: {
-                presentation: 'houses/dark-arts/presentations/dark-arts-feh-09.presentation.html'
+                presentation: 'houses/dark-arts/presentations/dark-arts-feh-09.presentation.html',
+                quiz: 'houses/dark-arts/quizzes/dark-arts-feh-09.quiz.html',
+                lab: 'houses/dark-arts/labs/dark-arts-feh-09.lab.html'
             },
             prerequisites: ['dark-arts-feh-08'],
             objectives: ['Understand encryption algorithms', 'Identify cryptographic weaknesses']
@@ -10534,10 +10552,28 @@ const ContentRegistry = {
             topics: ['malware', 'analysis', 'reverse-engineering'],
             paths: [],
             components: {
-                presentation: 'houses/dark-arts/presentations/dark-arts-feh-10.presentation.html'
+                presentation: 'houses/dark-arts/presentations/dark-arts-feh-10.presentation.html',
+                quiz: 'houses/dark-arts/quizzes/dark-arts-feh-10.quiz.html',
+                lab: 'houses/dark-arts/labs/dark-arts-feh-10.lab.html'
             },
             prerequisites: ['dark-arts-feh-09'],
             objectives: ['Classify malware types', 'Perform basic static and dynamic analysis']
+        },
+        'dark-arts-feh-comprehensive-review': {
+            id: 'dark-arts-feh-comprehensive-review',
+            title: 'FEH Comprehensive Review',
+            description: 'Jeopardy-style review game covering all 10 FEH modules: methodology, recon, exploitation, web/network attacks, social engineering, crypto, and malware analysis',
+            house: 'dark-arts',
+            type: 'review',
+            difficulty: 'intermediate',
+            duration: 45,
+            topics: ['ethical-hacking', 'comprehensive-review'],
+            paths: [],
+            components: {
+                review: 'houses/dark-arts/reviews/dark-arts-feh-comprehensive-review.html'
+            },
+            prerequisites: ['dark-arts-feh-10'],
+            objectives: ['Review all FEH course topics', 'Prepare for ethical hacking certification']
         },
 
         // ─────────────────────────────────────────────────────────────

@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <script src="../../../components/AccessGuard.js"></script>
+  <script>AccessGuard.require('sorted');</script>
+  <script src="../../../components/AchievementManager.js"></script>
+  <script src="../../../components/ModuleProgress.js"></script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FEH-10: Malware Analysis Lab — Dark Arts</title>
+  <style>
+    :root{--hp:#6b21a8;--ha:#9333ea;--hg:rgba(107,33,168,.25);--tg:#00ff41;--bg:#0a0a0a;--card:#0d1117;--border:rgba(147,51,234,.3);--text:#c9d1d9;--muted:#8b949e;}
+    *{margin:0;padding:0;box-sizing:border-box;}
+    body{background:var(--bg);color:var(--text);font-family:'Courier New',monospace;min-height:100vh;}
+    .header{padding:14px 24px;background:#0d1117;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:14px;position:sticky;top:0;z-index:100;}
+    .back-btn{color:var(--ha);text-decoration:none;font-size:1.2rem;padding:4px 8px;border:1px solid var(--border);border-radius:6px;transition:background .2s;}
+    .back-btn:hover{background:var(--hg);}
+    h1{font-size:.95rem;font-weight:600;color:#e6edf3;}
+    .badge{font-size:.65rem;padding:3px 10px;background:rgba(107,33,168,.15);border:1px solid var(--border);border-radius:20px;color:var(--ha);letter-spacing:.08em;}
+    .progress-bar{margin-left:auto;font-size:.75rem;color:var(--muted);}
+    .main{max-width:1000px;margin:0 auto;padding:24px;}
+    .tabs{display:flex;gap:6px;margin-bottom:20px;flex-wrap:wrap;}
+    .tab{padding:8px 16px;border:1px solid var(--border);border-radius:8px;background:transparent;color:var(--muted);cursor:pointer;font-family:inherit;font-size:.8rem;transition:all .2s;}
+    .tab.active{background:var(--hg);border-color:var(--ha);color:var(--ha);}
+    .tab.done{border-color:#10b981;color:#10b981;}
+    .ex{display:none;} .ex.active{display:block;}
+    .ex-title{font-size:1.1rem;color:#e6edf3;margin-bottom:6px;}
+    .ex-desc{font-size:.82rem;color:var(--muted);margin-bottom:16px;line-height:1.6;}
+    .hint-btn{padding:6px 14px;border:1px solid #e3b341;border-radius:6px;background:transparent;color:#e3b341;cursor:pointer;font-family:inherit;font-size:.75rem;margin-right:8px;}
+    .hint-box{background:#161b22;border:1px solid #e3b341;border-radius:6px;padding:10px 14px;margin-top:8px;font-size:.78rem;color:#e3b341;display:none;}
+    .hint-box.visible{display:block;}
+    .complete-btn{width:100%;padding:12px;background:linear-gradient(135deg,var(--hp),var(--ha));border:none;border-radius:8px;color:#fff;cursor:pointer;font-family:inherit;font-size:.85rem;font-weight:600;margin-top:16px;transition:opacity .2s;}
+    .complete-btn:hover{opacity:.85;} .complete-btn:disabled{opacity:.4;cursor:default;}
+    .malware-card{background:#0d1117;border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:10px;}
+    .malware-desc{font-size:.8rem;color:var(--text);margin-bottom:8px;line-height:1.5;}
+    .class-row{display:flex;flex-wrap:wrap;gap:6px;}
+    .class-btn{padding:4px 12px;border:1px solid var(--border);border-radius:6px;background:transparent;color:var(--muted);cursor:pointer;font-family:inherit;font-size:.73rem;transition:all .2s;}
+    .class-btn:hover{border-color:var(--ha);color:var(--ha);}
+    .class-btn.correct{border-color:#10b981;color:#10b981;background:rgba(16,185,129,.08);}
+    .class-btn.wrong{border-color:#f85149;color:#f85149;background:rgba(248,81,73,.08);}
+    .verdict{font-size:.72rem;margin-top:4px;min-height:16px;}
+    .terminal{background:var(--card);border:1px solid var(--border);border-radius:10px;overflow:hidden;margin-bottom:14px;}
+    .term-bar{background:#161b22;padding:8px 14px;display:flex;align-items:center;gap:6px;border-bottom:1px solid var(--border);}
+    .dot{width:10px;height:10px;border-radius:50%;}
+    .term-label{font-size:.72rem;color:var(--muted);margin-left:8px;}
+    .term-out{padding:14px;min-height:140px;max-height:240px;overflow-y:auto;font-size:.78rem;line-height:1.8;}
+    .term-line{color:var(--tg);}
+    .term-err{color:#f85149;}
+    .term-info{color:#58a6ff;}
+    .term-warn{color:#e3b341);}
+    .term-warn{color:#e3b341;}
+    .term-input-row{display:flex;align-items:center;gap:8px;padding:10px 14px;border-top:1px solid var(--border);background:#0d1117;}
+    .prompt{color:var(--ha);font-size:.82rem;white-space:nowrap;}
+    .term-input{flex:1;background:transparent;border:none;outline:none;color:var(--tg);font-family:inherit;font-size:.82rem;}
+    .row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;}
+    .payload-btn{padding:5px 12px;border:1px solid var(--border);border-radius:6px;background:transparent;color:var(--muted);cursor:pointer;font-family:inherit;font-size:.75rem;transition:all .2s;}
+    .payload-btn:hover{border-color:var(--ha);color:var(--ha);}
+    .ioc-table{width:100%;border-collapse:collapse;font-size:.76rem;margin:10px 0;}
+    .ioc-table th{background:#161b22;color:var(--ha);padding:6px 10px;text-align:left;border:1px solid var(--border);}
+    .ioc-table td{padding:6px 10px;border:1px solid rgba(147,51,234,.15);color:var(--text);}
+    .ioc-table tr:nth-child(even) td{background:rgba(147,51,234,.03);}
+    .api-danger{color:#f85149;}
+    .api-warn{color:#e3b341;}
+    .yara-editor{width:100%;background:#161b22;border:1px solid var(--border);border-radius:6px;padding:10px;color:var(--tg);font-family:inherit;font-size:.78rem;min-height:120px;resize:vertical;}
+    .yara-result{background:#0d1117;border:1px solid var(--border);border-radius:6px;padding:10px;font-size:.78rem;margin-top:8px;min-height:40px;}
+    .sandbox-event{padding:5px 10px;border-left:3px solid var(--border);margin-bottom:4px;font-size:.76rem;}
+    .sandbox-event.net{border-color:#58a6ff;}
+    .sandbox-event.file{border-color:#e3b341;}
+    .sandbox-event.reg{border-color:#9333ea;}
+    .sandbox-event.proc{border-color:#f85149;}
+  </style>
+</head>
+<body>
+<div class="header">
+  <a href="../index.html" class="back-btn">&#8592;</a>
+  <h1>FEH-10 &mdash; Malware Analysis Lab</h1>
+  <span class="badge">DARK ARTS</span>
+  <span class="progress-bar" id="prog-label">0 / 4 complete</span>
+</div>
+
+<div class="main">
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab(0)">Ex 1: Classification</button>
+    <button class="tab" onclick="switchTab(1)">Ex 2: Static Analysis</button>
+    <button class="tab" onclick="switchTab(2)">Ex 3: Dynamic Analysis</button>
+    <button class="tab" onclick="switchTab(3)">Ex 4: YARA Rules</button>
+  </div>
+
+  <!-- Exercise 1: Classification -->
+  <div class="ex active" id="ex0">
+    <div class="ex-title">Exercise 1: Malware Classification</div>
+    <div class="ex-desc">Read each behavior description. Select the correct malware type. You must correctly classify at least 6 of 8 samples.</div>
+    <div id="mal-list">
+      <!-- Sample 1 -->
+      <div class="malware-card">
+        <div class="malware-desc">Sample A: Attaches itself to legitimate .exe files. When infected executable runs, it replicates into other .exe files in the same directory. Does not spread over network.</div>
+        <div class="class-row">
+          <button class="class-btn" onclick="classify(0,this,'virus')">Virus</button>
+          <button class="class-btn" onclick="classify(0,this,'worm')">Worm</button>
+          <button class="class-btn" onclick="classify(0,this,'trojan')">Trojan</button>
+          <button class="class-btn" onclick="classify(0,this,'ransomware')">Ransomware</button>
+        </div>
+        <div class="verdict" id="vd0"></div>
+      </div>
+      <!-- Sample 2 -->
+      <div class="malware-card">
+        <div class="malware-desc">Sample B: Scans network for SMB vulnerabilities. Exploits EternalBlue to copy itself to remote systems without any user interaction. Spreads exponentially.</div>
+        <div class="class-row">
+          <button class="class-btn" onclick="classify(1,this,'virus')">Virus</button>
+          <button class="class-btn" onclick="classify(1,this,'worm')">Worm</button>
+          <button class="class-btn" onclick="classify(1,this,'rootkit')">Rootkit</button>
+          <button class="class-btn" onclick="classify(1,this,'fileless')">Fileless</button>
+        </div>
+        <div class="verdict" id="vd1"></div>
+      </div>
+      <!-- Sample 3 -->
+      <div class="malware-card">
+        <div class="malware-desc">Sample C: Disguised as a free game download. Once installed, silently opens a reverse shell to C2 server. Does not replicate. User-initiated installation.</div>
+        <div class="class-row">
+          <button class="class-btn" onclick="classify(2,this,'worm')">Worm</button>
+          <button class="class-btn" onclick="classify(2,this,'trojan')">Trojan</button>
+          <button class="class-btn" onclick="classify(2,this,'spyware')">Spyware</button>
+          <button class="class-btn" onclick="classify(2,this,'rootkit')">Rootkit</button>
+        </div>
+        <div class="verdict" id="vd2"></div>
+      </div>
+      <!-- Sample 4 -->
+      <div class="malware-card">
+        <div class="malware-desc">Sample D: Encrypts all files on disk and mapped network drives. Appends .LOCKED extension. Drops ransom note. Deletes Volume Shadow Copies via vssadmin.</div>
+        <div class="class-row">
+          <button class="class-btn" onclick="classify(3,this,'virus')">Virus</button>
+          <button class="class-btn" onclick="classify(3,this,'spyware')">Spyware</button>
+          <button class="class-btn" onclick="classify(3,this,'ransomware')">Ransomware</button>
+          <button class="class-btn" onclick="classify(3,this,'rootkit')">Rootkit</button>
+        </div>
+        <div class="verdict" id="vd3"></div>
+      </div>
+      <!-- Sample 5 -->
+      <div class="malware-card">
+        <div class="malware-desc">Sample E: Hooks system calls in kernel. Hides its own process from Task Manager, files from Explorer, and registry keys from regedit. Survives reboots via MBR modification.</div>
+        <div class="class-row">
+          <button class="class-btn" onclick="classify(4,this,'trojan')">Trojan</button>
+          <button class="class-btn" onclick="classify(4,this,'ransomware')">Ransomware</button>
+          <button class="class-btn" onclick="classify(4,this,'rootkit')">Rootkit</button>
+          <button class="class-btn" onclick="classify(4,this,'fileless')">Fileless</button>
+        </div>
+        <div class="verdict" id="vd4"></div>
+      </div>
+      <!-- Sample 6 -->
+      <div class="malware-card">
+        <div class="malware-desc">Sample F: Logs every keystroke and periodically screenshots the desktop. Sends logs to attacker via email using SMTP. No system modification. Runs silently in background.</div>
+        <div class="class-row">
+          <button class="class-btn" onclick="classify(5,this,'trojan')">Trojan</button>
+          <button class="class-btn" onclick="classify(5,this,'spyware')">Spyware</button>
+          <button class="class-btn" onclick="classify(5,this,'worm')">Worm</button>
+          <button class="class-btn" onclick="classify(5,this,'rootkit')">Rootkit</button>
+        </div>
+        <div class="verdict" id="vd5"></div>
+      </div>
+      <!-- Sample 7 -->
+      <div class="malware-card">
+        <div class="malware-desc">Sample G: Runs entirely in RAM. Uses PowerShell to download payload and inject into legitimate process (lsass.exe). Leaves no files on disk. Cleaned by reboot alone.</div>
+        <div class="class-row">
+          <button class="class-btn" onclick="classify(6,this,'virus')">Virus</button>
+          <button class="class-btn" onclick="classify(6,this,'rootkit')">Rootkit</button>
+          <button class="class-btn" onclick="classify(6,this,'fileless')">Fileless</button>
+          <button class="class-btn" onclick="classify(6,this,'ransomware')">Ransomware</button>
+        </div>
+        <div class="verdict" id="vd6"></div>
+      </div>
+      <!-- Sample 8 -->
+      <div class="malware-card">
+        <div class="malware-desc">Sample H: Communicates with C2 over DNS. Exfiltrates data in DNS query subdomains. Beacons every 30 min. Part of a large botnet. Receives commands via TXT records.</div>
+        <div class="class-row">
+          <button class="class-btn" onclick="classify(7,this,'virus')">Virus</button>
+          <button class="class-btn" onclick="classify(7,this,'trojan')">Trojan</button>
+          <button class="class-btn" onclick="classify(7,this,'spyware')">Spyware</button>
+          <button class="class-btn" onclick="classify(7,this,'worm')">Worm</button>
+        </div>
+        <div class="verdict" id="vd7"></div>
+      </div>
+    </div>
+    <div style="font-size:.78rem;color:var(--muted);margin-top:8px;">Correct: <span id="class-correct">0</span>/8</div>
+    <div class="hints" style="margin-top:8px;">
+      <button class="hint-btn" onclick="showHint('h1a')">Hint 1</button>
+      <div class="hint-box" id="h1a">Key distinctions: Virus=infects host files, needs execution. Worm=self-replicates over network, no host needed. Trojan=disguised as legit software. Rootkit=hides presence via OS-level hooks. Fileless=lives in memory/registry only. Spyware=monitors without ransoming.</div>
+    </div>
+    <button class="complete-btn" id="c0" onclick="markDone(0)" disabled>Mark Exercise Complete</button>
+  </div>
+
+  <!-- Exercise 2: Static Analysis -->
+  <div class="ex" id="ex1">
+    <div class="ex-title">Exercise 2: Static Analysis</div>
+    <div class="ex-desc">Analyze a simulated PE (Portable Executable) file without running it. Examine the file hash, strings, and import table to identify suspicious capabilities.</div>
+    <div class="terminal">
+      <div class="term-bar"><div class="dot" style="background:#ff5f56;"></div><div class="dot" style="background:#ffbd2e;"></div><div class="dot" style="background:#27c93f;"></div><span class="term-label">analyst@remnux &mdash; static analysis</span></div>
+      <div class="term-out" id="static-out"><span class="term-info">// Run analysis commands below. Start with file hash.</span></div>
+      <div class="term-input-row">
+        <span class="prompt">analyst@remnux:~$</span>
+        <input class="term-input" id="static-cmd" placeholder="md5sum sample.exe" onkeydown="if(event.key==='Enter')runStatic()">
+      </div>
+    </div>
+    <div class="row">
+      <button class="payload-btn" onclick="setC('static-cmd','md5sum sample.exe')">md5sum</button>
+      <button class="payload-btn" onclick="setC('static-cmd','strings sample.exe | head -40')">strings</button>
+      <button class="payload-btn" onclick="setC('static-cmd','objdump -p sample.exe | grep DLL')">imports</button>
+      <button class="payload-btn" onclick="setC('static-cmd','pecheck sample.exe')">pecheck</button>
+    </div>
+    <div class="hints">
+      <button class="hint-btn" onclick="showHint('h2a')">Hint 1</button>
+      <button class="hint-btn" onclick="showHint('h2b')">Hint 2</button>
+      <div class="hint-box" id="h2a">Suspicious API calls: CreateRemoteThread (inject code into other processes), VirtualAllocEx (allocate memory in remote process), WriteProcessMemory (write to remote process memory). Together these form the "process injection triad."</div>
+      <div class="hint-box" id="h2b">The strings command reveals hardcoded IPs, domains, registry keys, and error messages that malware authors forgot to obfuscate. Also look for: cmd.exe, powershell, reg add, schtasks — all common in malware.</div>
+    </div>
+    <button class="complete-btn" id="c1" onclick="markDone(1)" disabled>Mark Exercise Complete</button>
+  </div>
+
+  <!-- Exercise 3: Dynamic Analysis -->
+  <div class="ex" id="ex2">
+    <div class="ex-title">Exercise 3: Dynamic Analysis (Sandbox)</div>
+    <div class="ex-desc">Execute the malware sample in a simulated sandbox. Observe behaviors across four categories: network, filesystem, registry, and process. Build an IOC report.</div>
+    <div class="terminal">
+      <div class="term-bar"><div class="dot" style="background:#ff5f56;"></div><div class="dot" style="background:#ffbd2e;"></div><div class="dot" style="background:#27c93f;"></div><span class="term-label">sandbox &mdash; cuckoo analysis</span></div>
+      <div class="term-out" id="sandbox-out"><span class="term-info">// Submit sample to sandbox or run observation commands</span></div>
+      <div class="term-input-row">
+        <span class="prompt">cuckoo$</span>
+        <input class="term-input" id="sandbox-cmd" placeholder="submit sample.exe" onkeydown="if(event.key==='Enter')runSandbox()">
+      </div>
+    </div>
+    <div class="row">
+      <button class="payload-btn" onclick="setC('sandbox-cmd','submit sample.exe')">submit</button>
+      <button class="payload-btn" onclick="setC('sandbox-cmd','observe network')">network</button>
+      <button class="payload-btn" onclick="setC('sandbox-cmd','observe filesystem')">filesystem</button>
+      <button class="payload-btn" onclick="setC('sandbox-cmd','observe registry')">registry</button>
+      <button class="payload-btn" onclick="setC('sandbox-cmd','observe processes')">processes</button>
+      <button class="payload-btn" onclick="setC('sandbox-cmd','export ioc')">export IOC</button>
+    </div>
+    <div id="ioc-section" style="display:none;">
+      <div style="font-size:.8rem;color:var(--muted);margin-bottom:8px;">Generated IOC Report:</div>
+      <table class="ioc-table">
+        <tr><th>Type</th><th>Indicator</th><th>Context</th></tr>
+        <tr><td>IP</td><td>185.220.101.34</td><td>C2 beacon (port 443)</td></tr>
+        <tr><td>Domain</td><td>update-srv-cdn.net</td><td>DGA-generated C2 domain</td></tr>
+        <tr><td>File Hash</td><td>a3f8b2c1d4e5...</td><td>Dropper MD5</td></tr>
+        <tr><td>File Path</td><td>%APPDATA%\svchost32.exe</td><td>Persistence copy</td></tr>
+        <tr><td>Registry</td><td>HKCU\...\Run\WindowsUpdate</td><td>Autorun key</td></tr>
+        <tr><td>Mutex</td><td>Global\MalwareMutex_v2</td><td>Prevents double infection</td></tr>
+      </table>
+    </div>
+    <div class="hints">
+      <button class="hint-btn" onclick="showHint('h3a')">Hint 1</button>
+      <div class="hint-box" id="h3a">IOCs (Indicators of Compromise) are artifacts that identify malicious activity: IP addresses, domains, file hashes, registry keys, mutex names. IOCs are shared via STIX/TAXII protocols or threat intel platforms like MISP and VirusTotal.</div>
+    </div>
+    <button class="complete-btn" id="c2" onclick="markDone(2)" disabled>Mark Exercise Complete</button>
+  </div>
+
+  <!-- Exercise 4: YARA Rules -->
+  <div class="ex" id="ex3">
+    <div class="ex-title">Exercise 4: YARA Rule Writing</div>
+    <div class="ex-desc">Write YARA rules to detect malware samples. Use the known patterns from Exercises 2 and 3. Test your rules against a simulated file set.</div>
+    <div style="background:#0d1117;border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:12px;font-size:.76rem;">
+      <div style="color:var(--ha);margin-bottom:6px;">Known malware patterns (from static analysis):</div>
+      <div style="color:var(--tg);">Strings found: "update-srv-cdn.net" | "svchost32.exe" | "MalwareMutex_v2"</div>
+      <div style="color:var(--tg);">Imports: CreateRemoteThread | VirtualAllocEx | WriteProcessMemory</div>
+      <div style="color:var(--tg);">File header: MZ (PE) | Section entropy &gt; 7.0 (packed)</div>
+    </div>
+    <div class="row">
+      <button class="payload-btn" onclick="insertYara('basic')">Insert Basic Template</button>
+      <button class="payload-btn" onclick="insertYara('network')">Insert Network IoC Rule</button>
+      <button class="payload-btn" onclick="insertYara('injection')">Insert Process Injection Rule</button>
+    </div>
+    <textarea class="yara-editor" id="yara-editor" placeholder="rule MyRule {
+  meta:
+    description = &quot;...&quot;
+  strings:
+    $s1 = &quot;suspicious string&quot;
+  condition:
+    $s1
+}"></textarea>
+    <div style="margin-top:8px;">
+      <button class="payload-btn" onclick="testYara()" style="padding:8px 20px;border-color:var(--ha);color:var(--ha);">Test Rule Against File Set</button>
+    </div>
+    <div class="yara-result" id="yara-result"><span style="color:var(--muted);">// Test results appear here</span></div>
+    <div class="hints" style="margin-top:8px;">
+      <button class="hint-btn" onclick="showHint('h4a')">Hint 1</button>
+      <button class="hint-btn" onclick="showHint('h4b')">Hint 2</button>
+      <div class="hint-box" id="h4a">YARA rule structure: rule name { meta: (optional metadata) strings: (patterns to find) condition: (boolean logic combining string matches) }. Use 'all of them', 'any of ($s*)', or arithmetic like '2 of ($net*)' for flexible matching.</div>
+      <div class="hint-box" id="h4b">Good YARA rules balance precision (low false positives) with recall (low false negatives). Too specific and you miss variants. Too generic and you alert on legitimate software. Use multiple unique strings combined with AND logic for best results.</div>
+    </div>
+    <button class="complete-btn" id="c3" onclick="markDone(3)" disabled>Mark Exercise Complete</button>
+  </div>
+</div>
+
+<script src="../../../components/FluxCapacitor.js"></script>
+<script>
+  const done=[false,false,false,false];
+  const tabs=document.querySelectorAll('.tab');
+  const exs=document.querySelectorAll('.ex');
+
+  function switchTab(i){tabs.forEach((t,idx)=>t.classList.toggle('active',idx===i));exs.forEach((e,idx)=>e.classList.toggle('active',idx===i));}
+  function updateProgress(){const n=done.filter(Boolean).length;document.getElementById('prog-label').textContent=n+' / 4 complete';tabs.forEach((t,i)=>{if(done[i])t.classList.add('done');});if(n===4)ModuleProgress.complete('dark-arts','dark-arts-feh-10',{returnUrl:'../index.html'});}
+  function markDone(i){done[i]=true;document.getElementById('c'+i).disabled=true;document.getElementById('c'+i).textContent='Completed';updateProgress();}
+  function showHint(id){document.getElementById(id).classList.toggle('visible');}
+  function setC(id,val){document.getElementById(id).value=val;}
+
+  // Ex1: Classification
+  const malwareAnswers=['virus','worm','trojan','ransomware','rootkit','spyware','fileless','trojan'];
+  const malwareExplain=[
+    'Virus: requires host file, spreads via execution. Does NOT self-propagate over network.',
+    'Worm: autonomous network spread via EternalBlue/SMB. WannaCry exhibited this behavior.',
+    'Trojan: user installs it willingly thinking it is legitimate. Hidden payload opens C2.',
+    'Ransomware: encrypts data, demands payment. VSS deletion = destroying backups.',
+    'Rootkit: kernel-level hooks hide its presence. MBR modification = persistent.',
+    'Spyware: monitors and exfiltrates data without user knowledge. No system modification.',
+    'Fileless: memory-only, PowerShell LOLBin attack. Very evasion-effective.',
+    'Trojan with C2 (DNS tunneling). Categorized as trojan due to its remote access/botnet function.'
+  ];
+  let classCorrect=0;
+  const classedCorrectly=new Array(8).fill(false);
+  function classify(i,btn,type){
+    const correct=type===malwareAnswers[i];
+    const row=btn.parentElement;
+    row.querySelectorAll('.class-btn').forEach(b=>b.classList.remove('correct','wrong'));
+    btn.classList.add(correct?'correct':'wrong');
+    const vd=document.getElementById('vd'+i);
+    vd.style.color=correct?'#10b981':'#f85149';
+    vd.textContent=(correct?'Correct: ':'Incorrect — Answer is '+malwareAnswers[i]+'. ')+malwareExplain[i];
+    if(correct&&!classedCorrectly[i]){classedCorrectly[i]=true;classCorrect++;document.getElementById('class-correct').textContent=classCorrect+'/8';}
+    if(classCorrect>=6) document.getElementById('c0').disabled=false;
+  }
+
+  // Ex2: Static
+  let staticDone=new Set();
+  function runStatic(){
+    const cmd=document.getElementById('static-cmd').value.trim();
+    const out=document.getElementById('static-out');
+    let html=`<span class="term-warn">analyst@remnux:~$ ${escT(cmd)}</span><br>`;
+    if(cmd.includes('md5sum')){
+      html+=`<span class="term-line">a3f8b2c1d4e56789012345678abcdef01  sample.exe</span><br>`;
+      html+=`<span class="term-info">// Hash on VirusTotal: 47/68 engines detect as malicious</span><br>`;
+      staticDone.add('hash');
+    } else if(cmd.includes('strings')){
+      html+=`<span class="term-line">MZ</span><br><span class="term-line">!This program cannot be run in DOS mode.</span><br>`;
+      html+=`<span class="term-err">update-srv-cdn.net</span><br>`;
+      html+=`<span class="term-err">svchost32.exe</span><br>`;
+      html+=`<span class="term-err">MalwareMutex_v2</span><br>`;
+      html+=`<span class="term-err">cmd.exe /c vssadmin delete shadows /all</span><br>`;
+      html+=`<span class="term-warn">HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Run</span><br>`;
+      html+=`<span class="term-line">Software\\Microsoft\\Windows NT\\CurrentVersion\\Windows</span><br>`;
+      staticDone.add('strings');
+    } else if(cmd.includes('objdump')||cmd.includes('imports')){
+      html+=`<span class="term-line">Import Table:</span><br>`;
+      html+=`<span class="term-err">kernel32.dll: CreateRemoteThread VirtualAllocEx WriteProcessMemory</span><br>`;
+      html+=`<span class="term-warn">kernel32.dll: CreateProcess OpenProcess ReadProcessMemory</span><br>`;
+      html+=`<span class="term-line">wininet.dll: InternetOpenUrl InternetReadFile</span><br>`;
+      html+=`<span class="term-err">// ALERT: Process injection triad detected</span><br>`;
+      staticDone.add('imports');
+    } else if(cmd.includes('pecheck')){
+      html+=`<span class="term-line">File type: PE32 executable (Windows)</span><br>`;
+      html+=`<span class="term-line">Compilation timestamp: 2025-11-03 (recent)</span><br>`;
+      html+=`<span class="term-warn">Section entropy: .text=7.8 (packed/encrypted)</span><br>`;
+      html+=`<span class="term-err">High entropy sections suggest packer/obfuscation</span><br>`;
+      staticDone.add('pecheck');
+    } else {
+      html+=`<span class="term-err">command not found: ${escT(cmd.split(' ')[0])}</span><br>`;
+    }
+    out.innerHTML+=html;out.scrollTop=out.scrollHeight;
+    document.getElementById('static-cmd').value='';
+    if(staticDone.size>=3) document.getElementById('c1').disabled=false;
+  }
+
+  // Ex3: Sandbox
+  let sandboxDone=new Set();
+  function runSandbox(){
+    const cmd=document.getElementById('sandbox-cmd').value.trim();
+    const out=document.getElementById('sandbox-out');
+    let html=`<span class="term-warn">cuckoo$ ${escT(cmd)}</span><br>`;
+    if(cmd.includes('submit')){
+      html+=`<span class="term-line">Submitting sample.exe to sandbox...</span><br>`;
+      html+=`<span class="term-line">Analysis ID: 8472 | VM: Windows10-x64</span><br>`;
+      html+=`<span class="term-line">Detonating in isolated environment...</span><br>`;
+      html+=`<span class="term-warn">Sample executed. Monitoring for 120 seconds.</span><br>`;
+      sandboxDone.add('submit');
+    } else if(cmd.includes('network')){
+      html+=`<span class="term-info">[NETWORK]</span><br>`;
+      html+=`<div class="sandbox-event net">DNS query: update-srv-cdn.net → 185.220.101.34</div>`;
+      html+=`<div class="sandbox-event net">TCP connect: 185.220.101.34:443 (C2 beacon)</div>`;
+      html+=`<div class="sandbox-event net">HTTP POST: /gate.php (data exfiltration, 4.2KB)</div>`;
+      sandboxDone.add('network');
+    } else if(cmd.includes('filesystem')){
+      html+=`<span class="term-info">[FILESYSTEM]</span><br>`;
+      html+=`<div class="sandbox-event file">WRITE: %APPDATA%\\svchost32.exe (self-copy)</div>`;
+      html+=`<div class="sandbox-event file">CREATE: %TEMP%\\dropper.bat</div>`;
+      html+=`<div class="sandbox-event file">EXEC: vssadmin delete shadows /all (backup destruction)</div>`;
+      sandboxDone.add('filesystem');
+    } else if(cmd.includes('registry')){
+      html+=`<span class="term-info">[REGISTRY]</span><br>`;
+      html+=`<div class="sandbox-event reg">SET: HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run\\WindowsUpdate</div>`;
+      html+=`<div class="sandbox-event reg">SET: HKLM\\SYSTEM\\CurrentControlSet\\Services\\[new_service]</div>`;
+      sandboxDone.add('registry');
+    } else if(cmd.includes('processes')){
+      html+=`<span class="term-info">[PROCESSES]</span><br>`;
+      html+=`<div class="sandbox-event proc">SPAWN: cmd.exe (PID 4821, parent: sample.exe)</div>`;
+      html+=`<div class="sandbox-event proc">INJECT: lsass.exe (CreateRemoteThread detected)</div>`;
+      html+=`<div class="sandbox-event proc">SPAWN: powershell.exe -enc [base64 payload]</div>`;
+      sandboxDone.add('processes');
+    } else if(cmd.includes('ioc')){
+      document.getElementById('ioc-section').style.display='block';
+      html+=`<span class="term-line">IOC report exported. See table below.</span><br>`;
+      sandboxDone.add('ioc');
+    } else {
+      html+=`<span class="term-err">Unknown command</span><br>`;
+    }
+    out.innerHTML+=html;out.scrollTop=out.scrollHeight;
+    document.getElementById('sandbox-cmd').value='';
+    if(sandboxDone.size>=4) document.getElementById('c2').disabled=false;
+  }
+
+  // Ex4: YARA
+  const yaraTemplates={
+    basic:`rule SampleMalware {
+  meta:
+    description = "Detects malware from FEH-10 static analysis"
+    author = "student"
+    date = "2026-02-21"
+  strings:
+    $s1 = "update-srv-cdn.net"
+    $s2 = "MalwareMutex_v2"
+    $s3 = "svchost32.exe"
+  condition:
+    2 of ($s*)
+}`,
+    network:`rule MalwareNetworkIOC {
+  meta:
+    description = "Detects network C2 indicators"
+  strings:
+    $domain = "update-srv-cdn.net"
+    $ip = "185.220.101.34"
+    $path = "/gate.php"
+  condition:
+    any of them
+}`,
+    injection:`rule ProcessInjectionMalware {
+  meta:
+    description = "Detects process injection capability"
+  strings:
+    $api1 = "CreateRemoteThread"
+    $api2 = "VirtualAllocEx"
+    $api3 = "WriteProcessMemory"
+    $mz = { 4D 5A }  // PE header
+  condition:
+    $mz at 0 and 2 of ($api*)
+}`
+  };
+  let yaraTestRun=false;
+  function insertYara(type){document.getElementById('yara-editor').value=yaraTemplates[type];}
+  function testYara(){
+    const rule=document.getElementById('yara-editor').value;
+    const result=document.getElementById('yara-result');
+    if(rule.trim().length<20){result.innerHTML='<span style="color:#f85149">Error: rule is empty or too short</span>';return;}
+    const hasStrings=rule.includes('strings:');
+    const hasCondition=rule.includes('condition:');
+    const hasRule=rule.includes('rule ');
+    if(!hasRule||!hasCondition){result.innerHTML='<span style="color:#f85149">Syntax error: missing rule declaration or condition block</span>';return;}
+    let matches=0,nonMatches=0;
+    const files=['sample.exe','calc.exe','notepad.exe','malware_v2.exe','update_helper.exe'];
+    const malFiles=['sample.exe','malware_v2.exe','update_helper.exe'];
+    let html=`<span style="color:var(--tg)">YARA rule compiled successfully.</span><br><br>`;
+    html+=`<span style="color:var(--muted)">Testing against ${files.length} files...</span><br><br>`;
+    files.forEach(f=>{
+      const isMal=malFiles.includes(f);
+      const hit=isMal&&(rule.includes('"update-srv-cdn.net"')||rule.includes('CreateRemoteThread')||rule.includes('MalwareMutex')||rule.includes('svchost32'));
+      if(hit){html+=`<span style="color:#f85149">[MATCH] ${f}</span><br>`;matches++;}
+      else{html+=`<span style="color:var(--tg)">[  OK ] ${f}</span><br>`;if(!isMal)nonMatches++;}
+    });
+    html+=`<br><span style="color:var(--muted)">Matches: ${matches} | Clean: ${nonMatches} | False positives: ${files.length-matches-nonMatches-matches>0?'yes':'none detected'}</span>`;
+    result.innerHTML=html;
+    yaraTestRun=true;
+    if(matches>=2) document.getElementById('c3').disabled=false;
+  }
+
+  function escT(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+</script>
+</body>
+</html>

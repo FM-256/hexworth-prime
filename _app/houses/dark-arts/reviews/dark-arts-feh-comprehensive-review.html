@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <script src="../../../components/AccessGuard.js"></script>
+  <script>AccessGuard.require('sorted');</script>
+  <script src="../../../components/AchievementManager.js"></script>
+  <script src="../../../components/ModuleProgress.js"></script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FEH Comprehensive Review — Dark Arts | Hexworth Prime</title>
+  <style>
+    :root {
+      --hp: #6b21a8; --ha: #9333ea; --hg: rgba(107,33,168,.35);
+      --tg: #00ff41; --err: #ff4444; --ok: #22c55e;
+      --bg: #0a0a0a; --panel: #111118; --border: rgba(147,51,234,.25);
+    }
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:'Courier New',monospace;background:var(--bg);color:#d4d4d4;min-height:100vh;overflow-x:hidden}
+    body::before{content:'';position:fixed;inset:0;background:
+      radial-gradient(ellipse at 10% 10%,rgba(107,33,168,.06) 0%,transparent 45%),
+      radial-gradient(ellipse at 90% 90%,rgba(88,28,135,.04) 0%,transparent 45%);pointer-events:none;z-index:0}
+
+    /* ── HEADER ── */
+    header{position:relative;z-index:10;display:flex;align-items:center;gap:16px;
+      padding:14px 24px;background:rgba(17,17,24,.95);border-bottom:1px solid var(--border);
+      backdrop-filter:blur(8px)}
+    .back-link{color:var(--ha);text-decoration:none;font-size:1.1rem;padding:4px 8px;
+      border:1px solid var(--border);border-radius:4px;transition:all .2s}
+    .back-link:hover{background:var(--hg);box-shadow:0 0 10px var(--hg)}
+    header h1{font-size:1.05rem;color:var(--ha);letter-spacing:.15em;text-shadow:0 0 12px var(--hg);flex:1}
+    .hdr-badge{font-size:.7rem;color:#888;border:1px solid #333;padding:2px 8px;border-radius:3px}
+
+    /* ── SCOREBOARD ── */
+    #scoreboard{position:relative;z-index:10;display:flex;gap:12px;justify-content:center;
+      flex-wrap:wrap;padding:14px 20px;background:rgba(17,17,24,.8)}
+    .team-card{background:var(--panel);border:1px solid var(--border);border-radius:8px;
+      padding:10px 18px;text-align:center;min-width:160px;position:relative}
+    .team-name-input{background:transparent;border:none;border-bottom:1px solid #333;
+      color:var(--ha);font-family:inherit;font-size:.85rem;text-align:center;width:120px;
+      outline:none;transition:border-color .2s}
+    .team-name-input:focus{border-bottom-color:var(--ha)}
+    .team-score{font-size:1.8rem;font-weight:bold;color:#fff;margin-top:4px;
+      text-shadow:0 0 10px var(--hg)}
+    .team-score.pos{color:var(--ok);text-shadow:0 0 10px rgba(34,197,94,.4)}
+    .team-score.neg{color:var(--err);text-shadow:0 0 10px rgba(255,68,68,.4)}
+    .active-team{border-color:var(--ha);box-shadow:0 0 14px var(--hg)}
+    .team-btn-row{display:flex;gap:6px;margin-top:8px;justify-content:center}
+    .tbtn{border:1px solid #333;background:transparent;color:#888;font-family:inherit;
+      font-size:.65rem;padding:3px 8px;border-radius:3px;cursor:pointer;transition:all .15s}
+    .tbtn:hover{border-color:var(--ha);color:var(--ha)}
+    .tbtn.correct{border-color:var(--ok);color:var(--ok)}
+    .tbtn.correct:hover{background:rgba(34,197,94,.15)}
+    .tbtn.wrong{border-color:var(--err);color:var(--err)}
+    .tbtn.wrong:hover{background:rgba(255,68,68,.15)}
+
+    /* ── PROGRESS BAR ── */
+    #prog-bar{position:relative;z-index:10;padding:8px 24px;background:rgba(10,10,10,.9);
+      display:flex;align-items:center;gap:12px;font-size:.75rem;color:#666}
+    .prog-track{flex:1;height:5px;background:#1a1a1a;border-radius:3px;overflow:hidden}
+    .prog-fill{height:100%;background:linear-gradient(90deg,var(--hp),var(--ha));
+      border-radius:3px;transition:width .5s ease}
+    #prog-label{color:var(--ha);min-width:80px;text-align:right}
+
+    /* ── BOARD ── */
+    #board-wrap{position:relative;z-index:10;padding:20px;max-width:1100px;margin:0 auto}
+    #board{display:grid;grid-template-columns:repeat(6,1fr);gap:8px}
+    .cat-header{background:linear-gradient(135deg,var(--hp),#3b0764);color:#e9d5ff;
+      text-align:center;padding:14px 6px;border-radius:6px;font-size:.7rem;
+      font-weight:bold;letter-spacing:.08em;text-transform:uppercase;
+      border:1px solid rgba(147,51,234,.4);text-shadow:0 0 8px var(--hg);line-height:1.4}
+    .q-cell{background:linear-gradient(145deg,#1a0a2e,#0f0618);border:1px solid var(--border);
+      border-radius:6px;text-align:center;padding:18px 8px;font-size:1.1rem;font-weight:bold;
+      color:#c4b5fd;cursor:pointer;transition:all .2s;min-height:72px;
+      display:flex;align-items:center;justify-content:center;
+      text-shadow:0 0 10px rgba(196,181,253,.3);user-select:none}
+    .q-cell:hover:not(.answered){background:linear-gradient(145deg,#2d1457,#1a0a2e);
+      border-color:var(--ha);box-shadow:0 0 18px var(--hg);transform:translateY(-2px)}
+    .q-cell.answered{background:#0d0d0d;border-color:#1a1a1a;color:#2a2a2a;
+      cursor:default;transform:none;box-shadow:none;text-shadow:none}
+
+    /* ── MODAL ── */
+    #modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.88);
+      z-index:100;align-items:center;justify-content:center;padding:20px}
+    #modal-overlay.open{display:flex}
+    #modal{background:var(--panel);border:1px solid var(--ha);border-radius:12px;
+      max-width:640px;width:100%;padding:28px;position:relative;
+      box-shadow:0 0 40px var(--hg),0 0 80px rgba(107,33,168,.15)}
+    .modal-cat{font-size:.7rem;color:var(--ha);letter-spacing:.15em;text-transform:uppercase;margin-bottom:6px}
+    .modal-val{font-size:.8rem;color:#888;margin-bottom:16px}
+    .modal-q{font-size:1.05rem;color:#e9d5ff;line-height:1.6;margin-bottom:22px;
+      border-left:3px solid var(--ha);padding-left:14px}
+    .modal-hint{font-size:.75rem;color:#555;font-style:italic;margin-bottom:16px}
+
+    /* Timer */
+    #timer-wrap{display:flex;align-items:center;gap:10px;margin-bottom:20px}
+    #timer-bar{flex:1;height:6px;background:#1a1a1a;border-radius:3px;overflow:hidden}
+    #timer-fill{height:100%;background:linear-gradient(90deg,var(--ok),var(--ha));
+      border-radius:3px;transition:width .1s linear}
+    #timer-fill.warn{background:linear-gradient(90deg,#f59e0b,var(--err))}
+    #timer-num{font-size:1.1rem;color:var(--ha);min-width:28px;text-align:right}
+
+    /* Answer reveal */
+    #answer-section{display:none;margin-top:16px;padding:14px;
+      border:1px solid #333;border-radius:6px;background:rgba(0,0,0,.4)}
+    #answer-section.correct{border-color:var(--ok);box-shadow:0 0 12px rgba(34,197,94,.3)}
+    #answer-section.wrong{border-color:var(--err);box-shadow:0 0 12px rgba(255,68,68,.3)}
+    .ans-label{font-size:.7rem;color:#666;margin-bottom:6px;text-transform:uppercase;letter-spacing:.1em}
+    .ans-text{color:#86efac;font-size:.95rem;line-height:1.5}
+
+    /* Buttons */
+    .btn-row{display:flex;gap:10px;flex-wrap:wrap;margin-top:18px}
+    .btn{border:1px solid #444;background:transparent;color:#aaa;font-family:inherit;
+      font-size:.8rem;padding:8px 16px;border-radius:5px;cursor:pointer;transition:all .2s}
+    .btn:hover{border-color:var(--ha);color:var(--ha)}
+    .btn-reveal{border-color:var(--ha);color:var(--ha)}
+    .btn-reveal:hover{background:rgba(147,51,234,.15)}
+    .btn-close{margin-left:auto}
+
+    /* ── COMPLETE BANNER ── */
+    #complete-banner{display:none;position:relative;z-index:10;margin:0 auto 20px;
+      max-width:700px;background:linear-gradient(135deg,rgba(107,33,168,.3),rgba(147,51,234,.2));
+      border:1px solid var(--ha);border-radius:10px;padding:22px 28px;text-align:center}
+    #complete-banner h2{color:var(--ha);font-size:1.2rem;letter-spacing:.15em;margin-bottom:8px}
+    #complete-banner p{color:#888;font-size:.85rem;margin-bottom:14px}
+    .btn-complete{border:1px solid var(--ok);color:var(--ok);background:transparent;
+      font-family:inherit;font-size:.85rem;padding:9px 20px;border-radius:5px;cursor:pointer;
+      transition:all .2s}
+    .btn-complete:hover{background:rgba(34,197,94,.15);box-shadow:0 0 12px rgba(34,197,94,.3)}
+
+    /* Feedback flash */
+    @keyframes flash-ok{0%{box-shadow:0 0 0 0 rgba(34,197,94,.8)}100%{box-shadow:0 0 30px 0 transparent}}
+    @keyframes flash-err{0%{box-shadow:0 0 0 0 rgba(255,68,68,.8)}100%{box-shadow:0 0 30px 0 transparent}}
+    .flash-correct{animation:flash-ok .6s ease-out}
+    .flash-wrong{animation:flash-err .6s ease-out}
+
+    footer{text-align:center;padding:20px;font-size:.65rem;color:#333;position:relative;z-index:10}
+  </style>
+</head>
+<body>
+
+<header>
+  <a href="../index.html" class="back-link" title="Back to Dark Arts">&#8592;</a>
+  <h1>// FEH COMPREHENSIVE REVIEW // JEOPARDY MODE</h1>
+  <span class="hdr-badge">DARK ARTS</span>
+</header>
+
+<!-- Scoreboard -->
+<div id="scoreboard">
+  <div class="team-card" id="tc0">
+    <input class="team-name-input" id="tn0" value="Team Alpha" maxlength="16">
+    <div class="team-score" id="ts0">$0</div>
+    <div class="team-btn-row">
+      <button class="tbtn correct" onclick="awardTeam(0,1)">+Correct</button>
+      <button class="tbtn wrong" onclick="awardTeam(0,-1)">-Wrong</button>
+    </div>
+  </div>
+  <div class="team-card" id="tc1">
+    <input class="team-name-input" id="tn1" value="Team Bravo" maxlength="16">
+    <div class="team-score" id="ts1">$0</div>
+    <div class="team-btn-row">
+      <button class="tbtn correct" onclick="awardTeam(1,1)">+Correct</button>
+      <button class="tbtn wrong" onclick="awardTeam(1,-1)">-Wrong</button>
+    </div>
+  </div>
+  <div class="team-card" id="tc2">
+    <input class="team-name-input" id="tn2" value="Team Delta" maxlength="16">
+    <div class="team-score" id="ts2">$0</div>
+    <div class="team-btn-row">
+      <button class="tbtn correct" onclick="awardTeam(2,1)">+Correct</button>
+      <button class="tbtn wrong" onclick="awardTeam(2,-1)">-Wrong</button>
+    </div>
+  </div>
+</div>
+
+<!-- Progress -->
+<div id="prog-bar">
+  <span>QUESTIONS ANSWERED</span>
+  <div class="prog-track"><div class="prog-fill" id="prog-fill" style="width:0%"></div></div>
+  <span id="prog-label">0 / 30</span>
+</div>
+
+<!-- Board -->
+<div id="board-wrap">
+  <div id="board"></div>
+</div>
+
+<!-- Completion Banner -->
+<div id="complete-banner">
+  <h2>// BOARD CLEARED //</h2>
+  <p>All 30 questions answered. Knowledge confirmed. Darkness mastered.</p>
+  <button class="btn-complete" onclick="markComplete()">Mark Complete &amp; Return</button>
+</div>
+
+<!-- Question Modal -->
+<div id="modal-overlay">
+  <div id="modal">
+    <div class="modal-cat" id="m-cat"></div>
+    <div class="modal-val" id="m-val"></div>
+    <div id="timer-wrap">
+      <div id="timer-bar"><div id="timer-fill"></div></div>
+      <div id="timer-num">30</div>
+    </div>
+    <div class="modal-q" id="m-question"></div>
+    <div class="modal-hint" id="m-hint"></div>
+    <div id="answer-section">
+      <div class="ans-label">Correct Answer:</div>
+      <div class="ans-text" id="m-answer"></div>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-reveal" id="btn-reveal" onclick="revealAnswer()">Reveal Answer</button>
+      <button class="btn btn-close" onclick="closeModal()">Dismiss</button>
+    </div>
+  </div>
+</div>
+
+<footer>Hexworth Prime &mdash; Dark Arts // FEH Comprehensive Review &mdash; 30 Questions</footer>
+
+<script>
+// ── DATA ────────────────────────────────────────────────────────────────────
+const CATEGORIES = [
+  'Methodology',
+  'Recon & Scanning',
+  'Exploitation',
+  'Web & Network',
+  'Social & Human',
+  'Crypto & Malware'
+];
+
+const VALUES = [200, 400, 600, 800, 1000];
+
+// [question, answer, hint?]
+const QUESTIONS = {
+  'Methodology': [
+    ['This 7-phase cyber kill chain model, developed by Lockheed Martin, begins with Reconnaissance and ends with Actions on Objectives. Name the framework.',
+     'What is the Lockheed Martin Cyber Kill Chain?',
+     'Think: Recon → Weaponize → Deliver → Exploit → Install → C2 → Act'],
+    ['MITRE ATT&CK organizes adversary behavior into these two top-level constructs — one describes the "why" and the other describes the "how."',
+     'What are Tactics and Techniques?',
+     'Tactics = goal; Techniques = method'],
+    ['This pentesting phase occurs immediately after scoping and defines the written permission to test, acceptable hours, and IP ranges. It is captured in this document.',
+     'What is the Rules of Engagement (RoE)?',
+     'Without this, you are committing a crime.'],
+    ['In the pentesting lifecycle, this phase bridges exploitation and reporting — the tester cleans up artifacts, removes shells, and restores systems to their original state.',
+     'What is the Cleanup / Remediation phase?',
+     'Also called post-engagement or sanitization'],
+    ['This ethical principle requires a pentester to stop, notify the client, and document findings the moment a test risks causing unintended harm to third-party systems.',
+     'What is the duty to halt and disclose (or responsible disclosure)?',
+     'Ethics > thoroughness'],
+  ],
+  'Recon & Scanning': [
+    ['This Google dork operator restricts results to a specific website domain. For example, finding login pages on a target.',
+     'What is site: (the site: operator)?',
+     'site:target.com inurl:login'],
+    ['Nmap scan type that completes the full TCP three-way handshake — the noisiest but most reliable connection scan.',
+     'What is a TCP Connect scan (-sT)?',
+     'Contrast with SYN stealth scan'],
+    ['This passive OSINT technique involves reading publicly registered DNS records to map mail servers, zone information, and subdomains without touching the target.',
+     'What is DNS enumeration (or DNS reconnaissance)?',
+     'Tools: dig, nslookup, dnsenum'],
+    ['Banner grabbing from this well-known port often reveals web server type and version — a critical step in vulnerability mapping.',
+     'What is port 80 (or 443 / HTTP/HTTPS banner grabbing)?',
+     'curl -I http://target or netcat'],
+    ['This advanced Nmap flag enables OS fingerprinting, version detection, script scanning, and traceroute simultaneously — the "kitchen sink" scan.',
+     'What is nmap -A (aggressive scan)?',
+     '-A = -O -sV -sC --traceroute'],
+  ],
+  'Exploitation': [
+    ['In Metasploit, this command searches for, selects, and prepares an exploit module before you set RHOSTS and run.',
+     'What is "use [exploit/path]"?',
+     'Then: set RHOSTS, set PAYLOAD, run'],
+    ['This privilege escalation technique exploits a misconfigured SUID binary on Linux, allowing a low-privilege user to execute commands as root.',
+     'What is SUID binary exploitation?',
+     'find / -perm -4000 -type f'],
+    ['Password attack method that tries every possible character combination up to a defined length — guaranteed to crack given enough time and compute.',
+     'What is a brute-force attack?',
+     'Contrast with dictionary attack'],
+    ['After gaining a shell, this post-exploitation task involves extracting the /etc/passwd and /etc/shadow files on Linux for offline password cracking.',
+     'What is credential harvesting (or shadow file extraction)?',
+     'Pair with John the Ripper or Hashcat'],
+    ['Metasploit\'s post-exploitation framework session type that provides advanced capabilities including pivoting, keylogging, and memory-resident execution.',
+     'What is a Meterpreter session?',
+     'Runs entirely in memory — harder to detect'],
+  ],
+  'Web & Network': [
+    ['OWASP Top 10 vulnerability where an attacker injects hostile SQL statements into an input field, bypassing authentication or exfiltrating database records.',
+     'What is SQL Injection (SQLi)?',
+     'Classic: \' OR \'1\'=\'1'],
+    ['This Layer 2 attack poisons ARP caches on a local network segment, associating the attacker\'s MAC with a victim\'s IP to intercept traffic.',
+     'What is ARP Poisoning (ARP Spoofing)?',
+     'Enables MITM on local LANs'],
+    ['Cross-Site Scripting (XSS) variant where the injected script is permanently stored on the server and served to every user who visits the affected page.',
+     'What is Stored (Persistent) XSS?',
+     'vs. Reflected XSS (one-time, URL-based)'],
+    ['This OWASP Top 10 category covers broken access control issues including Insecure Direct Object References (IDOR), where changing a URL parameter exposes another user\'s data.',
+     'What is Broken Access Control (OWASP A01)?',
+     '#1 on OWASP Top 10 (2021)'],
+    ['Network sniffing attack where an attacker inserts themselves between two communicating parties without either party knowing. Enables decryption, injection, and replay.',
+     'What is a Man-in-the-Middle (MITM) attack?',
+     'Setup: ARP poison → forward traffic → capture'],
+  ],
+  'Social & Human': [
+    ['Social engineering attack delivered via phone call where the attacker impersonates a trusted entity — IT support, bank, or government — to extract credentials.',
+     'What is vishing (voice phishing)?',
+     'Voice + phishing = vishing'],
+    ['This pretexting scenario involves an attacker fabricating an elaborate backstory — such as posing as a new IT contractor — to gain physical access to a secured facility.',
+     'What is pretexting (or tailgating/piggybacking when physical)?',
+     'Pretext = false scenario to justify access'],
+    ['Security awareness training metric that measures the percentage of employees who click a simulated phishing link. Industry average hovers near this number.',
+     'What is the click rate (approximately 30% industry average)?',
+     'Good training target: under 5%'],
+    ['This physical security control requires each person to authenticate independently at a secured entry point, preventing unauthorized individuals from entering behind legitimate users.',
+     'What is a mantrap (or anti-tailgating / airlock)?',
+     'Badge in → door 1 closes → badge again → door 2 opens'],
+    ['Spear phishing emails that appear to come from the CEO or CFO, targeting finance employees to authorize fraudulent wire transfers, are classified as this specific attack.',
+     'What is whaling (or Business Email Compromise / BEC)?',
+     'High-value targets = whaling'],
+  ],
+  'Crypto & Malware': [
+    ['This hashing algorithm produces a 256-bit digest and is used in Bitcoin, TLS certificates, and file integrity verification. Considered cryptographically secure.',
+     'What is SHA-256?',
+     'SHA-2 family; not to be confused with SHA-1 (deprecated)'],
+    ['Malware that encrypts victim files and demands payment — typically in cryptocurrency — for the decryption key. Has caused billions in global damages.',
+     'What is ransomware?',
+     'Examples: WannaCry, REvil, LockBit'],
+    ['YARA rules are used in this type of malware analysis where the analyst examines file contents, strings, and signatures without executing the sample.',
+     'What is static analysis?',
+     'No execution = safe; pair with dynamic (sandbox) analysis'],
+    ['This steganography technique embeds secret data in the least significant bits of image pixels, producing visually imperceptible changes to the carrier image.',
+     'What is LSB (Least Significant Bit) steganography?',
+     'Tool: steghide, zsteg, stegsolve'],
+    ['Symmetric encryption algorithm that operates on 128-bit blocks with key sizes of 128, 192, or 256 bits. Replaced DES as the US federal standard.',
+     'What is AES (Advanced Encryption Standard)?',
+     'NIST adopted AES in 2001; Rijndael algorithm'],
+  ]
+};
+
+// ── STATE ────────────────────────────────────────────────────────────────────
+const state = {
+  answered: new Set(),
+  scores: [0, 0, 0],
+  activeQuestion: null,
+  timerInterval: null,
+  timerLeft: 30,
+  _moduleCompleted: false
+};
+
+// Load persisted scores
+(function loadScores() {
+  const saved = localStorage.getItem('feh-review-scores');
+  if (saved) {
+    try { const d = JSON.parse(saved); state.scores = d.scores || [0,0,0]; } catch(e) {}
+  }
+  const savedAnswered = localStorage.getItem('feh-review-answered');
+  if (savedAnswered) {
+    try { const d = JSON.parse(savedAnswered); d.forEach(k => state.answered.add(k)); } catch(e) {}
+  }
+})();
+
+function saveState() {
+  localStorage.setItem('feh-review-scores', JSON.stringify({ scores: state.scores }));
+  localStorage.setItem('feh-review-answered', JSON.stringify([...state.answered]));
+}
+
+// ── BUILD BOARD ──────────────────────────────────────────────────────────────
+function buildBoard() {
+  const board = document.getElementById('board');
+  board.innerHTML = '';
+
+  // Category headers
+  CATEGORIES.forEach(cat => {
+    const h = document.createElement('div');
+    h.className = 'cat-header';
+    h.textContent = cat;
+    board.appendChild(h);
+  });
+
+  // Question cells (row by row)
+  VALUES.forEach(val => {
+    CATEGORIES.forEach(cat => {
+      const key = `${cat}|${val}`;
+      const cell = document.createElement('div');
+      cell.className = 'q-cell' + (state.answered.has(key) ? ' answered' : '');
+      cell.textContent = state.answered.has(key) ? '' : `$${val}`;
+      cell.dataset.cat = cat;
+      cell.dataset.val = val;
+      if (!state.answered.has(key)) {
+        cell.addEventListener('click', () => openQuestion(cat, val));
+      }
+      board.appendChild(cell);
+    });
+  });
+
+  updateProgress();
+  renderScores();
+}
+
+// ── QUESTION MODAL ───────────────────────────────────────────────────────────
+function openQuestion(cat, val) {
+  const key = `${cat}|${val}`;
+  if (state.answered.has(key)) return;
+
+  const valIdx = VALUES.indexOf(Number(val));
+  const qData = QUESTIONS[cat][valIdx];
+
+  state.activeQuestion = { cat, val: Number(val), key, qData };
+
+  document.getElementById('m-cat').textContent = cat;
+  document.getElementById('m-val').textContent = `$${val}`;
+  document.getElementById('m-question').textContent = qData[0];
+  document.getElementById('m-hint').textContent = qData[2] ? `Hint: ${qData[2]}` : '';
+  document.getElementById('m-answer').textContent = qData[1];
+
+  const ansSection = document.getElementById('answer-section');
+  ansSection.style.display = 'none';
+  ansSection.className = '';
+
+  document.getElementById('btn-reveal').style.display = 'inline-block';
+  document.getElementById('modal-overlay').classList.add('open');
+
+  startTimer();
+}
+
+function revealAnswer() {
+  stopTimer();
+  const ansSection = document.getElementById('answer-section');
+  ansSection.style.display = 'block';
+  document.getElementById('btn-reveal').style.display = 'none';
+}
+
+function closeModal() {
+  stopTimer();
+  if (state.activeQuestion) {
+    markAnswered(state.activeQuestion.key);
+  }
+  document.getElementById('modal-overlay').classList.remove('open');
+  state.activeQuestion = null;
+}
+
+function markAnswered(key) {
+  if (state.answered.has(key)) return;
+  state.answered.add(key);
+  saveState();
+
+  // Update cell
+  document.querySelectorAll('.q-cell').forEach(cell => {
+    if (`${cell.dataset.cat}|${cell.dataset.val}` === key) {
+      cell.classList.add('answered');
+      cell.textContent = '';
+      cell.replaceWith(cell.cloneNode(true)); // remove listener
+    }
+  });
+
+  updateProgress();
+  checkCompletion();
+}
+
+// ── TIMER ────────────────────────────────────────────────────────────────────
+function startTimer() {
+  state.timerLeft = 30;
+  updateTimerUI();
+  clearInterval(state.timerInterval);
+  state.timerInterval = setInterval(() => {
+    state.timerLeft--;
+    updateTimerUI();
+    if (state.timerLeft <= 0) {
+      stopTimer();
+      revealAnswer(); // auto-reveal on timeout
+    }
+  }, 1000);
+}
+
+function stopTimer() { clearInterval(state.timerInterval); }
+
+function updateTimerUI() {
+  const pct = (state.timerLeft / 30) * 100;
+  const fill = document.getElementById('timer-fill');
+  fill.style.width = pct + '%';
+  fill.className = state.timerLeft <= 8 ? 'warn' : '';
+  document.getElementById('timer-num').textContent = state.timerLeft;
+}
+
+// ── SCORES ───────────────────────────────────────────────────────────────────
+function awardTeam(teamIdx, direction) {
+  if (!state.activeQuestion) return;
+  const delta = direction * state.activeQuestion.val;
+  state.scores[teamIdx] += delta;
+  saveState();
+  renderScores();
+
+  // Visual feedback on modal
+  const modal = document.getElementById('modal');
+  modal.classList.remove('flash-correct', 'flash-wrong');
+  void modal.offsetWidth; // reflow
+  modal.classList.add(direction > 0 ? 'flash-correct' : 'flash-wrong');
+}
+
+function renderScores() {
+  [0, 1, 2].forEach(i => {
+    const s = state.scores[i];
+    const el = document.getElementById(`ts${i}`);
+    el.textContent = (s < 0 ? '-$' : '$') + Math.abs(s).toLocaleString();
+    el.className = 'team-score' + (s > 0 ? ' pos' : s < 0 ? ' neg' : '');
+  });
+}
+
+// ── PROGRESS ─────────────────────────────────────────────────────────────────
+function updateProgress() {
+  const done = state.answered.size;
+  const total = 30;
+  const pct = (done / total) * 100;
+  document.getElementById('prog-fill').style.width = pct + '%';
+  document.getElementById('prog-label').textContent = `${done} / ${total}`;
+}
+
+function checkCompletion() {
+  if (state.answered.size >= 30) {
+    document.getElementById('complete-banner').style.display = 'block';
+    document.getElementById('complete-banner').scrollIntoView({ behavior: 'smooth' });
+    // Auto-call ModuleProgress
+    if (!state._moduleCompleted && typeof ModuleProgress !== 'undefined') {
+      state._moduleCompleted = true;
+      ModuleProgress.complete('dark-arts', 'dark-arts-feh-comprehensive-review', {
+        returnUrl: '../index.html'
+      });
+    }
+  }
+}
+
+function markComplete() {
+  if (!state._moduleCompleted && typeof ModuleProgress !== 'undefined') {
+    state._moduleCompleted = true;
+    ModuleProgress.complete('dark-arts', 'dark-arts-feh-comprehensive-review', {
+      returnUrl: '../index.html'
+    });
+  } else {
+    window.location.href = '../index.html';
+  }
+}
+
+// ── INIT ──────────────────────────────────────────────────────────────────────
+buildBoard();
+
+// Check if already at completion on load (restored session)
+if (state.answered.size >= 30) {
+  document.getElementById('complete-banner').style.display = 'block';
+}
+
+// Persist team name edits
+document.querySelectorAll('.team-name-input').forEach((inp, i) => {
+  const saved = localStorage.getItem(`feh-team-name-${i}`);
+  if (saved) inp.value = saved;
+  inp.addEventListener('input', () => {
+    localStorage.setItem(`feh-team-name-${i}`, inp.value);
+  });
+});
+</script>
+
+<script src="../../../components/FluxCapacitor.js"></script>
+</body>
+</html>

@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../components/AchievementManager.js"></script>
+    <script src="../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FEH-07: Network Attacks & Defense — Dark Arts</title>
+    <style>
+        :root {
+            --house-primary: #6b21a8; --house-accent: #9333ea;
+            --correct: #00ff41; --incorrect: #ef4444; --info: #38bdf8;
+            --bg: #0a0a0a; --card: rgba(15,5,25,0.85); --border: rgba(107,33,168,0.3);
+            --text: #d4d4d8; --muted: #71717a;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { min-height: 100vh; background: var(--bg); font-family: 'Courier New', monospace; color: var(--text); }
+        body::after { content: ''; position: fixed; top: 0; left: 0; right: 0; height: 2px;
+            background: linear-gradient(90deg, transparent, var(--house-accent), transparent);
+            opacity: 0.25; animation: scan 10s linear infinite; pointer-events: none; z-index: 999; }
+        @keyframes scan { from { top: 0; } to { top: 100%; } }
+
+        .header { padding: 16px 28px; background: rgba(10,0,20,0.95); border-bottom: 1px solid var(--border);
+            display: flex; align-items: center; gap: 14px; position: sticky; top: 0; z-index: 100; }
+        .back-btn { width: 32px; height: 32px; border: 1px solid var(--border); background: transparent;
+            color: var(--house-accent); cursor: pointer; border-radius: 6px; font-size: 1rem;
+            display: flex; align-items: center; justify-content: center; text-decoration: none; transition: all 0.2s; }
+        .back-btn:hover { background: rgba(147,51,234,0.15); }
+        .header-title { font-size: 0.95rem; color: var(--text); }
+        .house-badge { margin-left: auto; font-size: 0.65rem; padding: 3px 10px;
+            background: rgba(107,33,168,0.2); border: 1px solid var(--border); border-radius: 20px;
+            color: var(--house-accent); letter-spacing: 0.1em; }
+
+        .progress-wrap { padding: 14px 28px; background: rgba(10,0,20,0.7); }
+        .progress-label { font-size: 0.72rem; color: var(--muted); margin-bottom: 6px; }
+        .progress-bar { height: 4px; background: rgba(255,255,255,0.08); border-radius: 4px; overflow: hidden; }
+        .progress-fill { height: 100%; background: linear-gradient(90deg, var(--house-primary), var(--house-accent));
+            border-radius: 4px; transition: width 0.4s ease; }
+
+        .container { max-width: 820px; margin: 0 auto; padding: 36px 24px; }
+
+        .intro { text-align: center; padding: 40px 20px; }
+        .intro-icon { font-size: 2.8rem; margin-bottom: 14px; }
+        .intro-title { font-size: 1.8rem; font-weight: 300; margin-bottom: 10px;
+            background: linear-gradient(135deg, #fff, var(--house-accent));
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+        .intro-sub { color: var(--muted); margin-bottom: 24px; line-height: 1.6; font-size: 0.9rem; }
+        .stats-row { display: flex; justify-content: center; gap: 36px; margin-bottom: 28px; }
+        .stat-box { text-align: center; }
+        .stat-val { font-size: 1.6rem; font-weight: 700; color: var(--house-accent); }
+        .stat-lbl { font-size: 0.7rem; color: var(--muted); letter-spacing: 0.08em; }
+
+        .q-card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 26px; margin-bottom: 20px; }
+        .q-meta { display: flex; justify-content: space-between; font-size: 0.72rem; color: var(--house-accent);
+            margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid rgba(255,255,255,0.07); }
+        .q-text { font-size: 1rem; line-height: 1.6; margin-bottom: 18px; color: var(--text); }
+
+        .options { display: flex; flex-direction: column; gap: 10px; }
+        .opt { display: flex; align-items: flex-start; gap: 12px; padding: 13px 16px;
+            background: rgba(0,0,0,0.35); border: 2px solid rgba(255,255,255,0.08);
+            border-radius: 7px; cursor: pointer; transition: all 0.18s; }
+        .opt:hover:not(.locked) { border-color: rgba(147,51,234,0.5); background: rgba(147,51,234,0.07); }
+        .opt.selected { border-color: var(--house-accent); background: rgba(147,51,234,0.12); }
+        .opt.correct { border-color: var(--correct); background: rgba(0,255,65,0.07); }
+        .opt.wrong { border-color: var(--incorrect); background: rgba(239,68,68,0.08); }
+        .opt.locked { cursor: default; }
+        .opt-radio { width: 16px; height: 16px; flex-shrink: 0; margin-top: 2px; accent-color: var(--house-accent); }
+        .opt-label { font-size: 0.88rem; line-height: 1.5; color: var(--muted); }
+        .opt.selected .opt-label, .opt.correct .opt-label, .opt.wrong .opt-label { color: var(--text); }
+
+        .feedback { display: none; margin-top: 14px; padding: 12px 16px;
+            border-left: 3px solid var(--info); background: rgba(56,189,248,0.07); border-radius: 6px; }
+        .feedback.show { display: block; animation: fadeIn 0.3s ease; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: translateY(0); } }
+        .feedback-verdict { font-size: 0.78rem; font-weight: 700; margin-bottom: 5px; }
+        .feedback-verdict.ok { color: var(--correct); }
+        .feedback-verdict.bad { color: var(--incorrect); }
+        .feedback-txt { font-size: 0.82rem; color: var(--muted); line-height: 1.55; }
+
+        .nav-row { display: flex; justify-content: center; gap: 12px; margin: 24px 0; }
+        .btn { padding: 10px 24px; border: none; border-radius: 7px; font-size: 0.88rem;
+            font-family: 'Courier New', monospace; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+        .btn-primary { background: linear-gradient(135deg, var(--house-primary), var(--house-accent)); color: #fff; }
+        .btn-primary:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 4px 16px rgba(107,33,168,0.5); }
+        .btn-primary:disabled { opacity: 0.45; cursor: not-allowed; }
+        .btn-secondary { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: var(--text); }
+        .btn-secondary:hover { background: rgba(255,255,255,0.1); }
+        .btn-green { background: linear-gradient(135deg, #16a34a, #15803d); color: #fff; }
+        .btn-green:hover { transform: translateY(-2px); box-shadow: 0 4px 16px rgba(22,163,74,0.4); }
+
+        .results { display: none; background: var(--card); border: 1px solid var(--border);
+            border-radius: 10px; padding: 40px; text-align: center; }
+        .results.show { display: block; animation: fadeIn 0.5s ease; }
+        .r-icon { font-size: 3.5rem; margin-bottom: 16px; }
+        .r-title { font-size: 1.6rem; margin-bottom: 10px; }
+        .r-score { font-size: 3rem; font-weight: 700; margin: 16px 0; }
+        .r-score.pass { color: var(--correct); }
+        .r-score.fail { color: var(--incorrect); }
+        .r-msg { color: var(--muted); font-size: 0.88rem; line-height: 1.7; margin-bottom: 24px; }
+        .r-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 14px; margin: 20px 0; }
+        .r-cell { background: rgba(0,0,0,0.3); border-radius: 7px; padding: 16px; }
+        .r-val { font-size: 1.8rem; font-weight: 700; margin-bottom: 4px; }
+        .r-lbl { font-size: 0.7rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
+
+        @media (max-width: 640px) { .stats-row { gap: 18px; } .r-grid { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+
+<header class="header">
+    <a class="back-btn" href="../index.html">&#8592;</a>
+    <span class="header-title">FEH-07: Network Attacks &amp; Defense</span>
+    <span class="house-badge">DARK ARTS</span>
+</header>
+
+<div class="progress-wrap" id="progress-wrap" style="display:none">
+    <div class="progress-label" id="progress-label">Question 1 of 15</div>
+    <div class="progress-bar"><div class="progress-fill" id="progress-fill" style="width:0%"></div></div>
+</div>
+
+<div class="container">
+    <div id="intro" class="intro">
+        <div class="intro-icon">&#x1F4E1;</div>
+        <h2 class="intro-title">Network Attacks &amp; Defense</h2>
+        <p class="intro-sub">Packet sniffing, ARP poisoning, MITM, DNS attacks, IDS/IPS, firewalls, and more.<br>
+            Each answer reveals immediate feedback and explanation.</p>
+        <div class="stats-row">
+            <div class="stat-box"><div class="stat-val">15</div><div class="stat-lbl">QUESTIONS</div></div>
+            <div class="stat-box"><div class="stat-val">70%</div><div class="stat-lbl">PASSING</div></div>
+            <div class="stat-box"><div class="stat-val">~15m</div><div class="stat-lbl">DURATION</div></div>
+        </div>
+        <button class="btn btn-primary" onclick="startQuiz()">[ INITIALIZE QUIZ ]</button>
+    </div>
+
+    <div id="quiz-area" style="display:none"></div>
+    <div id="nav-row" class="nav-row" style="display:none">
+        <button class="btn btn-secondary" id="prev-btn" onclick="goTo(state.idx - 1)">&#8592; Prev</button>
+        <button class="btn btn-primary"   id="next-btn" onclick="advanceOrSubmit()">Next &#8594;</button>
+    </div>
+
+    <div class="results" id="results">
+        <div class="r-icon" id="r-icon"></div>
+        <div class="r-title" id="r-title"></div>
+        <div class="r-score" id="r-score"></div>
+        <div class="r-msg" id="r-msg"></div>
+        <div class="r-grid">
+            <div class="r-cell"><div class="r-val" id="r-correct" style="color:var(--correct)"></div><div class="r-lbl">Correct</div></div>
+            <div class="r-cell"><div class="r-val" id="r-wrong" style="color:var(--incorrect)"></div><div class="r-lbl">Incorrect</div></div>
+            <div class="r-cell"><div class="r-val" id="r-total" style="color:var(--house-accent)">15</div><div class="r-lbl">Total</div></div>
+        </div>
+        <div class="nav-row">
+            <button class="btn btn-secondary" onclick="reviewMode()">Review Answers</button>
+            <button class="btn btn-primary" onclick="location.href='../index.html'">Return to House</button>
+        </div>
+    </div>
+</div>
+
+<script>
+const RAW_QUESTIONS = [
+    { q: "Packet sniffing on a switched network is most effectively performed using which technique?",
+      opts: ["Port mirroring (SPAN port) or ARP poisoning","Plugging a hub into any switch port","Broadcasting ICMP packets across the subnet","Exploiting VLAN trunking directly"],
+      ans: 0, exp: "Switches forward frames only to the destination port, so passive sniffing fails. Attackers use ARP poisoning to redirect traffic through their machine, or administrators use SPAN/mirror ports on managed switches for legitimate capture." },
+    { q: "ARP poisoning attacks exploit which fundamental design flaw in ARP?",
+      opts: ["ARP uses UDP which is unreliable","ARP has no authentication — any host can send gratuitous ARP replies claiming any IP-MAC mapping","ARP is encrypted with weak DES by default","ARP requests are broadcast only on IPv6 networks"],
+      ans: 1, exp: "ARP is stateless and unauthenticated. Attackers send unsolicited (gratuitous) ARP replies associating their MAC with the gateway's IP. Hosts update their cache without verification, redirecting traffic through the attacker — a classic MITM setup." },
+    { q: "In a Man-in-the-Middle (MITM) attack over HTTPS, what technique allows the attacker to intercept encrypted traffic?",
+      opts: ["Breaking AES-256 encryption in real time","SSL stripping — downgrading HTTPS to HTTP, or presenting a forged certificate the victim accepts","Injecting JavaScript into HTTPS responses","Exploiting Diffie-Hellman key exchange weaknesses directly"],
+      ans: 1, exp: "SSL stripping (Moxie Marlinspike, 2009) downgrades HTTPS to HTTP between the attacker and victim while maintaining HTTPS to the server. HSTS counters this. Alternatively, attackers present fake certificates — only accepted if the victim ignores browser warnings." },
+    { q: "DNS poisoning (cache poisoning) attacks target:",
+      opts: ["The authoritative DNS server's zone file","The resolver's cache, inserting forged DNS records to redirect users to attacker-controlled IPs","The victim's local hosts file","BGP route tables that affect DNS resolution"],
+      ans: 1, exp: "DNS cache poisoning injects fraudulent records into a recursive resolver's cache. Because resolvers serve millions of users, a single poisoned entry can redirect all of them. The Kaminsky attack (2008) demonstrated high-speed cache poisoning via transaction ID guessing." },
+    { q: "What is the key difference between DNS poisoning and DNS spoofing?",
+      opts: ["DNS poisoning is on IPv6; DNS spoofing is on IPv4","DNS poisoning corrupts a resolver's cache affecting many users; DNS spoofing intercepts and forges individual query responses in transit","DNS spoofing requires physical network access; poisoning is remote","They are identical attacks with different names"],
+      ans: 1, exp: "DNS spoofing typically refers to intercepting an individual DNS response and replacing it with a forged one (requires MITM position). DNS poisoning corrupts the resolver's persistent cache, creating widespread long-term redirection for all clients using that resolver." },
+    { q: "Session hijacking attacks succeed by:",
+      opts: ["Breaking the TLS session key through brute force","Stealing or predicting the session token to impersonate an authenticated user","Exploiting HTTP/2 multiplexing headers","Replaying Kerberos tickets on non-Windows systems"],
+      ans: 1, exp: "Session tokens (cookies, URL parameters) represent authenticated state. Attackers steal them via XSS, network sniffing, or predict them if they're weakly generated. Once obtained, the attacker sends requests with the stolen token and the server treats them as the legitimate user." },
+    { q: "VLAN hopping via switch spoofing exploits:",
+      opts: ["Misconfigured ACLs on routed VLAN interfaces","A switch port left in dynamic trunking mode — an attacker's device negotiates a trunk and accesses all VLANs","Weak VLAN IDs that are easily guessable","ARP broadcasts that cross VLAN boundaries"],
+      ans: 1, exp: "If a port is set to DTP auto/desirable, an attacker can send DTP negotiation frames and establish a trunk. Once trunking, they tag frames with any VLAN ID and access traffic across all VLANs. Defense: disable DTP, set unused ports to access mode, use a dedicated native VLAN." },
+    { q: "MAC flooding attacks are designed to:",
+      opts: ["Exhaust the switch's CAM (MAC address) table, forcing it to broadcast all frames like a hub","Spoof the gateway MAC to enable MITM attacks","Flood DHCP with fake MAC addresses to exhaust the IP pool","Disable 802.1X port authentication"],
+      ans: 0, exp: "CAM table flooding sends thousands of frames with random source MACs. When the CAM table fills, the switch fails-open and broadcasts frames to all ports (acts as a hub), allowing passive sniffing. Port security with MAC address limits mitigates this." },
+    { q: "What distinguishes a DDoS attack from a DoS attack?",
+      opts: ["DDoS uses encrypted traffic; DoS uses plaintext","DDoS originates from multiple distributed sources (botnet) making attribution and blocking harder; DoS is from a single source","DDoS targets the application layer only; DoS targets the network layer","DDoS requires insider access; DoS is external"],
+      ans: 1, exp: "A DoS attack from a single IP can be blocked with a firewall rule. DDoS coordinates thousands of compromised hosts (botnet) to overwhelm targets simultaneously from globally distributed IPs, making source-based blocking impractical." },
+    { q: "In a SYN flood attack, the attacker sends:",
+      opts: ["Malformed TCP segments that crash the server OS","Thousands of SYN packets with spoofed source IPs, exhausting server connection state (half-open connections)","ICMP PING packets at maximum bandwidth","UDP packets to all ports simultaneously"],
+      ans: 1, exp: "TCP's three-way handshake requires servers to allocate resources for each SYN. A SYN flood sends SYN packets with forged source IPs — the server sends SYN-ACKs that never receive ACK responses. The backlog fills, denying service to legitimate clients. SYN cookies mitigate this." },
+    { q: "The primary functional difference between an IDS and an IPS is:",
+      opts: ["IDS works on encrypted traffic; IPS only works on plaintext","IDS detects and alerts on suspicious traffic; IPS can actively block or modify malicious traffic in real time","IDS is host-based only; IPS is network-based only","IPS requires human approval for each block; IDS blocks automatically"],
+      ans: 1, exp: "An Intrusion Detection System (IDS) is passive — it monitors and alerts. An Intrusion Prevention System (IPS) is inline — it sits in the traffic path and can drop packets, reset connections, or block IPs automatically. IPS introduces latency risk but provides active defense." },
+    { q: "Firewall Access Control Lists (ACLs) filter traffic based on:",
+      opts: ["Deep packet inspection of Layer 7 application payloads only","Packet headers — source/destination IP, port, and protocol (stateless) or connection state (stateful)","DNS resolution results for each connection","Behavioral analysis of traffic patterns over time"],
+      ans: 1, exp: "Standard ACLs filter on source IP. Extended ACLs add destination IP, port, and protocol. Stateless firewalls check each packet independently. Stateful firewalls track connection state tables, allowing return traffic automatically. Next-gen firewalls add L7 application awareness." },
+    { q: "DNSSEC prevents DNS cache poisoning by:",
+      opts: ["Encrypting DNS queries so attackers cannot read responses","Digitally signing DNS records with asymmetric cryptography so resolvers can verify authenticity","Rate-limiting DNS queries per client IP","Replacing UDP with TCP for all DNS communications"],
+      ans: 1, exp: "DNSSEC adds digital signatures (RRSIG records) to DNS data. Resolvers with DNSSEC validation verify signatures against the zone's public key. A poisoned response without a valid signature is rejected. Note: DNSSEC authenticates but does NOT encrypt DNS queries." },
+    { q: "Which technique is most effective at detecting ARP poisoning on a network segment?",
+      opts: ["Monitoring for unusual DNS query volume","Dynamic ARP Inspection (DAI) on managed switches, which validates ARP packets against a DHCP snooping binding table","Configuring static routes on all routers","Running frequent ICMP sweeps across the subnet"],
+      ans: 1, exp: "Dynamic ARP Inspection (DAI) intercepts all ARP packets on untrusted ports and validates them against the DHCP snooping binding table (IP-MAC-port mappings). Invalid ARP replies (from ARP poisoning) are dropped. It requires a managed switch that supports DHCP snooping." },
+    { q: "In a session hijacking attack, what makes httpOnly cookies more resistant than standard cookies?",
+      opts: ["httpOnly cookies are encrypted with server-side keys","httpOnly cookies cannot be accessed by JavaScript, preventing XSS-based theft — the attacker must intercept the cookie at the network level","httpOnly cookies expire after each request","httpOnly cookies contain a digital signature that servers verify"],
+      ans: 1, exp: "The httpOnly flag prevents JavaScript from reading the cookie (document.cookie returns nothing). This stops XSS-based session hijacking. The attacker must instead intercept the cookie in transit (requires no TLS or MITM), which is why combining httpOnly with Secure and SameSite flags is the defense standard." }
+];
+
+const state = { questions: [], answers: [], answered: [], idx: 0, submitted: false };
+
+function shuffle(arr) { return arr.slice().sort(() => Math.random() - 0.5); }
+
+function startQuiz() {
+    state.questions = shuffle(RAW_QUESTIONS).map(q => {
+        const indices = shuffle([0,1,2,3]);
+        return { q: q.q, opts: indices.map(i => q.opts[i]), ans: indices.indexOf(q.ans), exp: q.exp };
+    });
+    state.answers = new Array(15).fill(null);
+    state.answered = new Array(15).fill(false);
+    state.idx = 0; state.submitted = false;
+    document.getElementById('intro').style.display = 'none';
+    document.getElementById('progress-wrap').style.display = 'block';
+    document.getElementById('nav-row').style.display = 'flex';
+    render();
+}
+
+function render() {
+    const q = state.questions[state.idx];
+    const locked = state.answered[state.idx] || state.submitted;
+    updateProgress();
+    document.getElementById('quiz-area').style.display = 'block';
+    document.getElementById('quiz-area').innerHTML = `
+        <div class="q-card">
+            <div class="q-meta"><span>QUESTION ${state.idx+1} / 15</span><span>1 POINT</span></div>
+            <div class="q-text">${q.q}</div>
+            <div class="options">
+                ${q.opts.map((o,i) => {
+                    let cls = 'opt';
+                    if (locked) { cls += ' locked'; if (i===q.ans) cls+=' correct'; else if (i===state.answers[state.idx]&&i!==q.ans) cls+=' wrong'; }
+                    else if (state.answers[state.idx]===i) cls+=' selected';
+                    return `<div class="${cls}" onclick="pick(${i})">
+                        <input class="opt-radio" type="radio" name="q${state.idx}" ${state.answers[state.idx]===i?'checked':''} ${locked?'disabled':''}>
+                        <span class="opt-label">${o}</span></div>`;
+                }).join('')}
+            </div>
+            <div class="feedback ${locked?'show':''}">
+                <div class="feedback-verdict ${state.answers[state.idx]===q.ans?'ok':'bad'}">${state.answers[state.idx]===q.ans?'CORRECT':'INCORRECT'}</div>
+                <div class="feedback-txt">${q.exp}</div>
+            </div>
+        </div>`;
+    updateNav();
+}
+
+function pick(i) {
+    if (state.answered[state.idx] || state.submitted) return;
+    state.answers[state.idx] = i; state.answered[state.idx] = true; render();
+}
+
+function updateProgress() {
+    document.getElementById('progress-fill').style.width = ((state.idx+1)/15*100)+'%';
+    document.getElementById('progress-label').textContent = `Question ${state.idx+1} of 15`;
+}
+
+function updateNav() {
+    document.getElementById('prev-btn').style.visibility = state.idx===0?'hidden':'visible';
+    const nb = document.getElementById('next-btn');
+    if (state.idx===14) { nb.textContent='[ SUBMIT QUIZ ]'; nb.classList.remove('btn-primary'); nb.classList.add('btn-green'); }
+    else { nb.textContent='Next \u2192'; nb.classList.remove('btn-green'); nb.classList.add('btn-primary'); }
+}
+
+function goTo(i) { if (i<0||i>14) return; state.idx=i; render(); }
+function advanceOrSubmit() { if (state.idx<14) goTo(state.idx+1); else submitQuiz(); }
+
+function submitQuiz() {
+    const unanswered = state.answers.filter(a=>a===null).length;
+    if (unanswered>0 && !confirm(`${unanswered} unanswered question(s). Submit anyway?`)) return;
+    state.submitted = true;
+    const correct = state.answers.filter((a,i)=>a===state.questions[i].ans).length;
+    const pct = Math.round((correct/15)*100);
+    const passed = pct>=70;
+    document.getElementById('quiz-area').style.display='none';
+    document.getElementById('nav-row').style.display='none';
+    document.getElementById('progress-wrap').style.display='none';
+    document.getElementById('r-icon').textContent = passed?'\uD83C\uDFC6':'\uD83D\uDCDA';
+    document.getElementById('r-title').textContent = passed?'ACCESS GRANTED':'AUTHENTICATION FAILED';
+    const sc = document.getElementById('r-score');
+    sc.textContent = pct+'%'; sc.className = 'r-score '+(passed?'pass':'fail');
+    document.getElementById('r-msg').innerHTML = passed
+        ? `You answered <strong>${correct}</strong> of 15 correctly. Network defense concepts confirmed.`
+        : `You answered <strong>${correct}</strong> of 15 correctly. Review network attack vectors and retry.`;
+    document.getElementById('r-correct').textContent = correct;
+    document.getElementById('r-wrong').textContent = 15-correct;
+    document.getElementById('results').classList.add('show');
+    if (passed) ModuleProgress.complete('dark-arts','dark-arts-feh-07',{returnUrl:'../index.html'});
+}
+
+function reviewMode() {
+    document.getElementById('results').classList.remove('show');
+    document.getElementById('quiz-area').style.display='block';
+    document.getElementById('nav-row').style.display='flex';
+    document.getElementById('progress-wrap').style.display='block';
+    state.idx=0; render();
+}
+</script>
+<script src="../../../components/FluxCapacitor.js"></script>
+</body>
+</html>

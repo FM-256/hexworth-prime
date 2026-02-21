@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../components/AchievementManager.js"></script>
+    <script src="../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FEH-02: Reconnaissance & OSINT - Dark Arts</title>
+    <style>
+        *{margin:0;padding:0;box-sizing:border-box;}
+        :root{
+            --hp:#6b21a8;--ha:#9333ea;--hg:rgba(107,33,168,0.3);
+            --bg:#0a0a0a;--card:rgba(15,8,25,0.9);
+            --green:#00ff41;--red:#ef4444;--blue:#38bdf8;
+            --txt:#d4d4d8;--dim:#71717a;
+        }
+        body{min-height:100vh;background:var(--bg);font-family:'Courier New',monospace;color:var(--txt);overflow-x:hidden;}
+        body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellipse at 20% 20%,rgba(107,33,168,0.06) 0%,transparent 50%),radial-gradient(ellipse at 80% 80%,rgba(147,51,234,0.04) 0%,transparent 50%);pointer-events:none;z-index:0;}
+        header{position:sticky;top:0;z-index:100;padding:14px 24px;background:rgba(10,4,18,0.97);border-bottom:1px solid rgba(107,33,168,0.3);display:flex;justify-content:space-between;align-items:center;}
+        .hd-left{display:flex;align-items:center;gap:12px;}
+        .back-btn{display:flex;align-items:center;justify-content:center;width:34px;height:34px;border:1px solid rgba(147,51,234,0.4);border-radius:6px;background:transparent;color:var(--ha);cursor:pointer;font-family:'Courier New',monospace;font-size:1rem;text-decoration:none;transition:all 0.2s;}
+        .back-btn:hover{background:rgba(147,51,234,0.15);}
+        .hd-title{font-size:0.95rem;color:var(--txt);letter-spacing:0.03em;}
+        .badge{font-size:0.65rem;padding:3px 10px;background:rgba(107,33,168,0.2);border:1px solid rgba(107,33,168,0.4);border-radius:20px;color:var(--ha);letter-spacing:0.1em;}
+        .container{max-width:860px;margin:0 auto;padding:32px 24px;position:relative;z-index:1;}
+        .intro{text-align:center;padding:20px 0 32px;}
+        .intro-glyph{font-size:2.8rem;margin-bottom:12px;filter:drop-shadow(0 0 12px var(--hp));}
+        .intro-title{font-size:1.7rem;font-weight:300;margin-bottom:8px;background:linear-gradient(135deg,#fff,var(--ha));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+        .intro-sub{color:var(--dim);margin-bottom:20px;font-size:0.9rem;line-height:1.6;}
+        .quiz-meta{display:flex;justify-content:center;gap:32px;margin:16px 0;}
+        .meta-item{display:flex;flex-direction:column;align-items:center;gap:4px;}
+        .meta-val{font-size:1.4rem;font-weight:700;color:var(--ha);}
+        .meta-lbl{font-size:0.7rem;color:var(--dim);letter-spacing:0.08em;}
+        .progress-wrap{margin:20px 0;background:rgba(255,255,255,0.07);border-radius:4px;height:4px;overflow:hidden;}
+        .progress-fill{height:100%;background:linear-gradient(90deg,var(--hp),var(--ha));border-radius:4px;transition:width 0.4s ease;}
+        .progress-label{display:flex;justify-content:space-between;font-size:0.72rem;color:var(--dim);margin-bottom:6px;}
+        .q-card{background:var(--card);border:1px solid rgba(107,33,168,0.25);border-radius:10px;padding:26px;}
+        .q-num{font-size:0.78rem;color:var(--ha);letter-spacing:0.08em;margin-bottom:14px;}
+        .q-text{font-size:1rem;color:var(--txt);line-height:1.65;margin-bottom:18px;}
+        .q-text code{background:rgba(255,255,255,0.06);padding:1px 6px;border-radius:3px;color:var(--green);font-family:'Courier New',monospace;}
+        .options{display:flex;flex-direction:column;gap:10px;}
+        .opt{display:flex;align-items:flex-start;gap:10px;padding:12px 16px;border:1px solid rgba(255,255,255,0.08);border-radius:7px;cursor:pointer;transition:all 0.18s;}
+        .opt:hover:not(.locked){border-color:rgba(147,51,234,0.5);background:rgba(147,51,234,0.07);}
+        .opt.selected{border-color:var(--ha);background:rgba(147,51,234,0.12);}
+        .opt.correct{border-color:var(--green);background:rgba(0,255,65,0.08);}
+        .opt.wrong{border-color:var(--red);background:rgba(239,68,68,0.08);}
+        .opt-letter{min-width:22px;height:22px;border-radius:4px;border:1px solid rgba(255,255,255,0.15);display:flex;align-items:center;justify-content:center;font-size:0.75rem;color:var(--dim);transition:all 0.18s;}
+        .opt.selected .opt-letter{border-color:var(--ha);color:var(--ha);}
+        .opt.correct .opt-letter{border-color:var(--green);color:var(--green);}
+        .opt.wrong .opt-letter{border-color:var(--red);color:var(--red);}
+        .opt-text{flex:1;font-size:0.88rem;color:var(--txt);line-height:1.5;}
+        .opt-text code{background:rgba(255,255,255,0.06);padding:1px 5px;border-radius:3px;color:var(--green);}
+        .feedback{margin-top:14px;padding:12px 16px;border-radius:7px;border-left:3px solid;font-size:0.83rem;line-height:1.55;display:none;animation:fadeIn 0.3s ease;}
+        .feedback.show{display:block;}
+        .feedback.ok{border-color:var(--green);background:rgba(0,255,65,0.06);color:#86efac;}
+        .feedback.ok::before{content:'[+] ';}
+        .feedback.bad{border-color:var(--red);background:rgba(239,68,68,0.06);color:#fca5a5;}
+        .feedback.bad::before{content:'[-] ';}
+        @keyframes fadeIn{from{opacity:0;transform:translateY(-6px);}to{opacity:1;transform:translateY(0);}}
+        .nav-row{display:flex;justify-content:center;gap:12px;margin-top:22px;}
+        .btn{padding:10px 26px;border:none;border-radius:7px;font-family:'Courier New',monospace;font-size:0.85rem;cursor:pointer;transition:all 0.2s;}
+        .btn-ghost{background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);color:var(--txt);}
+        .btn-ghost:hover{background:rgba(255,255,255,0.1);}
+        .btn-primary{background:linear-gradient(135deg,var(--hp),var(--ha));color:#fff;}
+        .btn-primary:hover{transform:translateY(-2px);box-shadow:0 4px 18px var(--hg);}
+        .btn-primary:disabled{opacity:0.4;cursor:not-allowed;transform:none;}
+        .btn-start{padding:12px 36px;font-size:0.95rem;}
+        .results{display:none;background:var(--card);border:1px solid rgba(107,33,168,0.3);border-radius:10px;padding:36px;text-align:center;}
+        .results.show{display:block;animation:fadeIn 0.5s ease;}
+        .r-icon{font-size:3.5rem;margin-bottom:16px;}
+        .r-title{font-size:1.6rem;margin-bottom:8px;color:var(--txt);}
+        .r-score{font-size:3rem;font-weight:700;margin:14px 0;}
+        .r-score.pass{color:var(--green);text-shadow:0 0 20px rgba(0,255,65,0.4);}
+        .r-score.fail{color:var(--red);}
+        .r-sub{color:var(--dim);margin-bottom:24px;line-height:1.7;font-size:0.88rem;}
+        .r-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin:20px 0;}
+        .r-stat{background:rgba(0,0,0,0.35);border-radius:8px;padding:16px;}
+        .r-stat-val{font-size:1.8rem;font-weight:700;margin-bottom:4px;}
+        .r-stat-lbl{font-size:0.7rem;color:var(--dim);letter-spacing:0.07em;text-transform:uppercase;}
+        .complete-btn{display:inline-flex;align-items:center;gap:8px;padding:11px 28px;background:linear-gradient(135deg,#16a34a,#15803d);border:none;border-radius:7px;color:#fff;font-family:'Courier New',monospace;font-size:0.9rem;cursor:pointer;transition:all 0.2s;margin-top:8px;}
+        .complete-btn:hover:not(:disabled){transform:translateY(-2px);box-shadow:0 4px 16px rgba(22,163,74,0.4);}
+        .complete-btn:disabled{opacity:0.6;cursor:not-allowed;}
+    </style>
+</head>
+<body>
+<header>
+    <div class="hd-left">
+        <a href="../index.html" class="back-btn">&#8592;</a>
+        <span class="hd-title">FEH-02 &mdash; Reconnaissance &amp; OSINT</span>
+    </div>
+    <div class="badge">DARK ARTS</div>
+</header>
+
+<main class="container">
+    <div id="intro">
+        <div class="intro">
+            <div class="intro-glyph">&#x1F50D;</div>
+            <h1 class="intro-title">Reconnaissance &amp; OSINT</h1>
+            <p class="intro-sub">Passive vs active recon, Google dorking, WHOIS, DNS enumeration,<br>Shodan, theHarvester, Maltego, ExifTool, and social media OSINT.</p>
+            <div class="quiz-meta">
+                <div class="meta-item"><span class="meta-val">15</span><span class="meta-lbl">QUESTIONS</span></div>
+                <div class="meta-item"><span class="meta-val">70%</span><span class="meta-lbl">TO PASS</span></div>
+                <div class="meta-item"><span class="meta-val">~15min</span><span class="meta-lbl">DURATION</span></div>
+            </div>
+            <div class="nav-row" style="margin-top:24px;">
+                <button class="btn btn-primary btn-start" onclick="startQuiz()">Initialize Quiz</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="quiz" style="display:none;">
+        <div class="progress-label">
+            <span id="prog-text">Question 1 of 15</span>
+            <span id="prog-pct">0%</span>
+        </div>
+        <div class="progress-wrap"><div class="progress-fill" id="prog-fill" style="width:0%"></div></div>
+        <div class="q-card" id="q-card"></div>
+        <div class="nav-row">
+            <button class="btn btn-ghost" id="prev-btn" onclick="navigate(-1)" style="display:none;">&#8592; Prev</button>
+            <button class="btn btn-primary" id="next-btn" onclick="navigate(1)" disabled>Next &#8594;</button>
+            <button class="btn btn-primary" id="submit-btn" onclick="submitQuiz()" style="display:none;" disabled>Submit Quiz</button>
+        </div>
+    </div>
+
+    <div id="results" class="results">
+        <div class="r-icon" id="r-icon"></div>
+        <h2 class="r-title" id="r-title"></h2>
+        <div class="r-score" id="r-score"></div>
+        <p class="r-sub" id="r-sub"></p>
+        <div class="r-grid">
+            <div class="r-stat"><div class="r-stat-val" id="r-correct" style="color:var(--green)"></div><div class="r-stat-lbl">Correct</div></div>
+            <div class="r-stat"><div class="r-stat-val" id="r-wrong" style="color:var(--red)"></div><div class="r-stat-lbl">Incorrect</div></div>
+            <div class="r-stat"><div class="r-stat-val" id="r-total" style="color:var(--ha)"></div><div class="r-stat-lbl">Total</div></div>
+        </div>
+        <div class="nav-row" style="flex-wrap:wrap;">
+            <button class="btn btn-ghost" onclick="reviewAnswers()">Review Answers</button>
+            <button class="btn btn-ghost" onclick="window.location.href='../index.html'">Back to Dark Arts</button>
+            <button class="complete-btn" id="complete-btn" onclick="markComplete()" style="display:none;">&#10003; Mark Complete</button>
+        </div>
+    </div>
+</main>
+
+<script>
+const BANK = [
+    {q:"Which type of reconnaissance involves directly interacting with target systems, potentially leaving traces in their logs?",opts:["Passive reconnaissance","Active reconnaissance","OSINT gathering","Social engineering"],c:1,e:"Active reconnaissance sends packets to or queries target systems directly (port scans, banner grabbing), generating log entries. Passive recon uses publicly available data sources without ever touching the target."},
+    {q:"A penetration tester uses the Google dork <code>site:target.com filetype:pdf</code>. What is the purpose of this query?",opts:["Find all subdomains of target.com","Locate PDF documents hosted on target.com","Search for target.com in PDF metadata","List all Google-indexed pages on target.com"],c:1,e:"The <code>filetype:</code> operator restricts results to a specific file type. PDFs, Excel files, and Word documents often contain sensitive metadata, internal paths, and employee names — valuable OSINT without touching the target."},
+    {q:"Which Google dork operator returns pages whose &lt;title&gt; tag contains a specific keyword?",opts:["<code>inurl:</code>","<code>intext:</code>","<code>intitle:</code>","<code>cache:</code>"],c:2,e:"<code>intitle:</code> searches within the HTML title tag. Useful for finding admin panels (<code>intitle:\"admin login\"</code>), exposed dashboards, or misconfigured services that reveal their purpose in the page title."},
+    {q:"Passive reconnaissance best describes which activity?",opts:["Running Nmap against a target subnet","Querying public WHOIS records for domain registration info","Sending crafted packets to identify open ports","Using Metasploit to fingerprint services"],c:1,e:"WHOIS queries public registration databases — no packets are sent to the target. This is classic passive recon: gathering intelligence using data the target itself published or that third parties maintain."},
+    {q:"A WHOIS lookup for a domain reveals the registrar, registration dates, and name servers. Which additional piece of information is most valuable to an attacker?",opts:["The domain's PageRank","Registrant contact information (name, email, phone)","The domain's SSL certificate expiry","The number of DNS records"],c:1,e:"Registrant contact info provides employee names, email formats, and sometimes physical addresses — directly fueling spear-phishing and social engineering. Many attackers use this before any technical attack."},
+    {q:"DNS enumeration using a zone transfer (AXFR) attempt is considered which type of recon?",opts:["Passive — it only reads public DNS records","Active — it sends a query directly to the target's DNS server","Neither — it requires physical access","Passive — it uses a third-party DNS resolver"],c:1,e:"AXFR queries are sent directly to the target's authoritative name server, making them active recon. A successful zone transfer hands the attacker the entire DNS zone — hostnames, IPs, mail servers, and more. Most modern DNS servers reject unauthorized AXFR requests."},
+    {q:"Shodan is best described as:",opts:["A social media OSINT aggregation platform","A search engine that indexes internet-connected devices and their banners","A DNS enumeration tool","A credential dumping utility"],c:1,e:"Shodan continuously scans the internet and indexes service banners from exposed devices — routers, cameras, SCADA systems, databases. Attackers use it to find vulnerable internet-facing systems without scanning them directly."},
+    {q:"Which Shodan query would find Apache servers on port 80 running in Germany?",opts:["<code>port:80 country:DE Apache</code>","<code>ip:0.0.0.0/0 port=80 country=germany</code>","<code>find:apache location:germany</code>","<code>scan port:80 header:apache geo:DE</code>"],c:0,e:"Shodan uses filter syntax: <code>port:80</code>, <code>country:DE</code>, and keyword terms separated by spaces. This is passive recon since Shodan already indexed the data — you're searching a database, not scanning the target."},
+    {q:"theHarvester is primarily used to collect:",opts:["Password hashes from target systems","Email addresses, subdomains, and open ports from public sources","Packet captures from network traffic","Social media profile images"],c:1,e:"theHarvester scrapes search engines, certificate transparency logs, and public APIs to enumerate email addresses, employee names, subdomains, and IP addresses — all without touching the target. It's a staple first-phase OSINT tool."},
+    {q:"Maltego is best known for its ability to:",opts:["Perform automated exploitation of discovered services","Visualize and correlate relationships between OSINT data entities","Capture network packets in promiscuous mode","Brute-force web application login forms"],c:1,e:"Maltego uses 'transforms' to pivot between data entities (domains, emails, IPs, people, companies) and visualize their relationships as a graph. This link analysis is invaluable for understanding the attack surface's structure."},
+    {q:"A JPEG photo posted on social media contains GPS coordinates, camera model, and timestamp embedded in it. What tool extracts this metadata?",opts:["Nmap","ExifTool","Wireshark","theHarvester"],c:1,e:"ExifTool reads and writes metadata embedded in image files (EXIF, IPTC, XMP). GPS coordinates in unstripped photos have de-anonymized targets, revealed safe house locations, and exposed military positions in real-world incidents."},
+    {q:"Footprinting specifically refers to:",opts:["Installing monitoring software on target systems","Creating a comprehensive map of the target's digital presence before attacking","Performing exploitation after gaining access","Analyzing memory dumps for credentials"],c:1,e:"Footprinting (a subset of recon) is the systematic process of profiling a target: gathering network ranges, domain info, employee data, technology stack details, and physical locations. It forms the intelligence foundation for every subsequent attack phase."},
+    {q:"When conducting social media OSINT against a target organization, which platform is most valuable for mapping employee professional relationships and org structure?",opts:["Instagram","Twitter/X","LinkedIn","TikTok"],c:2,e:"LinkedIn exposes org charts, job titles, reporting structures, technology stacks (from job postings), and employee names. Job postings alone reveal internal software, security tools, and infrastructure details that inform attack planning."},
+    {q:"The Google dork <code>inurl:admin site:target.com</code> is designed to:",opts:["Find pages where 'admin' appears in the body text","Find pages on target.com with 'admin' in the URL","List all admin users registered on target.com","Search Google's cache of target.com's admin page"],c:1,e:"<code>inurl:</code> restricts results to pages where the specified term appears in the URL path. Admin panels, login pages, and configuration interfaces indexed by Google are common high-value targets discovered this way."},
+    {q:"Certificate Transparency (CT) logs are useful for OSINT reconnaissance because they:",opts:["Reveal private keys associated with SSL certificates","Enumerate subdomains by logging all issued SSL/TLS certificates publicly","Show the internal network topology of a target","Contain hashed passwords from web applications"],c:1,e:"Every publicly-trusted SSL certificate is logged in CT logs (RFC 6962). Tools like crt.sh and Sublist3r query these logs to discover subdomains the organization may have thought were private — entirely passive, no target interaction required."}
+];
+
+let questions=[], cur=0, answered=[], submitted=false;
+function shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
+
+function startQuiz(){
+    questions=shuffle([...BANK]).slice(0,15).map(q=>{
+        const ct=q.opts[q.c];const opts=shuffle([...q.opts]);
+        return {...q,opts,c:opts.indexOf(ct)};
+    });
+    answered=new Array(questions.length).fill(null);
+    cur=0;submitted=false;
+    document.getElementById('intro').style.display='none';
+    document.getElementById('quiz').style.display='block';
+    renderQ();
+}
+
+function renderQ(){
+    const q=questions[cur];
+    const letters=['A','B','C','D'];
+    const sel=answered[cur];
+    const locked=submitted||(sel!==null);
+    const pct=Math.round(((cur+1)/questions.length)*100);
+    document.getElementById('prog-text').textContent=`Question ${cur+1} of ${questions.length}`;
+    document.getElementById('prog-pct').textContent=pct+'%';
+    document.getElementById('prog-fill').style.width=pct+'%';
+    document.getElementById('prev-btn').style.display=cur>0?'inline-block':'none';
+    const isLast=cur===questions.length-1;
+    document.getElementById('next-btn').style.display=isLast?'none':'inline-block';
+    document.getElementById('submit-btn').style.display=isLast?'inline-block':'none';
+    document.getElementById('next-btn').disabled=sel===null&&!submitted;
+    document.getElementById('submit-btn').disabled=answered.some(a=>a===null)&&!submitted;
+
+    const optsHtml=q.opts.map((o,i)=>{
+        let cls='opt';
+        if(sel!==null||submitted){if(i===q.c)cls+=' correct';else if(i===sel)cls+=' wrong';}
+        else if(sel===i)cls+=' selected';
+        return `<div class="${cls}${locked?' locked':''}" ${!locked?`onclick="pick(${i})"`:''}><span class="opt-letter">${letters[i]}</span><span class="opt-text">${o}</span></div>`;
+    }).join('');
+
+    let fb='';
+    if(sel!==null||submitted){
+        const ok=sel===q.c;
+        fb=`<div class="feedback ${ok?'ok':'bad'} show">${ok?'Correct! ':'Wrong. Correct: <strong>'+q.opts[q.c]+'</strong>. '}${q.e}</div>`;
+    }
+    document.getElementById('q-card').innerHTML=`<div class="q-num">QUESTION ${cur+1} / ${questions.length}</div><div class="q-text">${q.q}</div><div class="options">${optsHtml}</div>${fb}`;
+}
+
+function pick(i){
+    if(answered[cur]!==null||submitted)return;
+    answered[cur]=i;
+    document.getElementById('next-btn').disabled=false;
+    document.getElementById('submit-btn').disabled=answered.some(a=>a===null);
+    renderQ();
+}
+function navigate(dir){cur=Math.max(0,Math.min(questions.length-1,cur+dir));renderQ();}
+
+function submitQuiz(){
+    const u=answered.filter(a=>a===null).length;
+    if(u>0&&!confirm(`${u} question(s) unanswered. Submit anyway?`))return;
+    submitted=true;showResults();
+}
+
+function showResults(){
+    document.getElementById('quiz').style.display='none';
+    const correct=answered.reduce((s,a,i)=>s+(a===questions[i].c?1:0),0);
+    const pct=Math.round((correct/questions.length)*100);
+    const pass=pct>=70;
+    document.getElementById('r-icon').textContent=pass?'&#x1F3AF;':'&#x1F4DA;';
+    document.getElementById('r-title').textContent=pass?'Intel Acquired':'Recon Incomplete';
+    document.getElementById('r-score').textContent=pct+'%';
+    document.getElementById('r-score').className='r-score '+(pass?'pass':'fail');
+    document.getElementById('r-sub').innerHTML=`You answered <strong>${correct}</strong> of <strong>${questions.length}</strong> correctly.<br>${pass?'Strong OSINT fundamentals. Move to Scanning & Enumeration.':'Review passive/active techniques and tool capabilities, then retry.'}`;
+    document.getElementById('r-correct').textContent=correct;
+    document.getElementById('r-wrong').textContent=questions.length-correct;
+    document.getElementById('r-total').textContent=questions.length;
+    document.getElementById('results').classList.add('show');
+    if(pass)document.getElementById('complete-btn').style.display='inline-flex';
+    ModuleProgress.complete('dark-arts','dark-arts-feh-02',{returnUrl:'../index.html'});
+}
+function reviewAnswers(){
+    document.getElementById('results').classList.remove('show');
+    document.getElementById('quiz').style.display='block';
+    cur=0;renderQ();
+}
+function markComplete(){
+    const btn=document.getElementById('complete-btn');
+    btn.textContent='&#10003; Completed!';btn.disabled=true;
+}
+</script>
+<script src="../../../components/FluxCapacitor.js"></script>
+</body>
+</html>

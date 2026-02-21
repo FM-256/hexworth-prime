@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../components/AchievementManager.js"></script>
+    <script src="../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FEH-01: The Hacker Mindset - Dark Arts</title>
+    <style>
+        *{margin:0;padding:0;box-sizing:border-box;}
+        :root{
+            --hp:#6b21a8;--ha:#9333ea;--hg:rgba(107,33,168,0.3);
+            --bg:#0a0a0a;--card:rgba(15,8,25,0.9);
+            --green:#00ff41;--red:#ef4444;--blue:#38bdf8;
+            --txt:#d4d4d8;--dim:#71717a;
+        }
+        body{min-height:100vh;background:var(--bg);font-family:'Courier New',monospace;color:var(--txt);overflow-x:hidden;}
+        body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellipse at 20% 20%,rgba(107,33,168,0.06) 0%,transparent 50%),radial-gradient(ellipse at 80% 80%,rgba(147,51,234,0.04) 0%,transparent 50%);pointer-events:none;z-index:0;}
+        header{position:sticky;top:0;z-index:100;padding:14px 24px;background:rgba(10,4,18,0.97);border-bottom:1px solid rgba(107,33,168,0.3);display:flex;justify-content:space-between;align-items:center;}
+        .hd-left{display:flex;align-items:center;gap:12px;}
+        .back-btn{display:flex;align-items:center;justify-content:center;width:34px;height:34px;border:1px solid rgba(147,51,234,0.4);border-radius:6px;background:transparent;color:var(--ha);cursor:pointer;font-family:'Courier New',monospace;font-size:1rem;text-decoration:none;transition:all 0.2s;}
+        .back-btn:hover{background:rgba(147,51,234,0.15);}
+        .hd-title{font-size:0.95rem;color:var(--txt);letter-spacing:0.03em;}
+        .badge{font-size:0.65rem;padding:3px 10px;background:rgba(107,33,168,0.2);border:1px solid rgba(107,33,168,0.4);border-radius:20px;color:var(--ha);letter-spacing:0.1em;}
+        .container{max-width:860px;margin:0 auto;padding:32px 24px;position:relative;z-index:1;}
+        /* Intro */
+        .intro{text-align:center;padding:20px 0 32px;}
+        .intro-glyph{font-size:2.8rem;margin-bottom:12px;filter:drop-shadow(0 0 12px var(--hp));}
+        .intro-title{font-size:1.7rem;font-weight:300;margin-bottom:8px;background:linear-gradient(135deg,#fff,var(--ha));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+        .intro-sub{color:var(--dim);margin-bottom:20px;font-size:0.9rem;line-height:1.6;}
+        .quiz-meta{display:flex;justify-content:center;gap:32px;margin:16px 0;}
+        .meta-item{display:flex;flex-direction:column;align-items:center;gap:4px;}
+        .meta-val{font-size:1.4rem;font-weight:700;color:var(--ha);}
+        .meta-lbl{font-size:0.7rem;color:var(--dim);letter-spacing:0.08em;}
+        /* Progress bar */
+        .progress-wrap{margin:20px 0;background:rgba(255,255,255,0.07);border-radius:4px;height:4px;overflow:hidden;}
+        .progress-fill{height:100%;background:linear-gradient(90deg,var(--hp),var(--ha));border-radius:4px;transition:width 0.4s ease;}
+        .progress-label{display:flex;justify-content:space-between;font-size:0.72rem;color:var(--dim);margin-bottom:6px;}
+        /* Question card */
+        .q-card{background:var(--card);border:1px solid rgba(107,33,168,0.25);border-radius:10px;padding:26px;}
+        .q-num{font-size:0.78rem;color:var(--ha);letter-spacing:0.08em;margin-bottom:14px;}
+        .q-text{font-size:1rem;color:var(--txt);line-height:1.65;margin-bottom:18px;}
+        .options{display:flex;flex-direction:column;gap:10px;}
+        .opt{display:flex;align-items:flex-start;gap:10px;padding:12px 16px;border:1px solid rgba(255,255,255,0.08);border-radius:7px;cursor:pointer;transition:all 0.18s;}
+        .opt:hover:not(.locked){border-color:rgba(147,51,234,0.5);background:rgba(147,51,234,0.07);}
+        .opt.selected{border-color:var(--ha);background:rgba(147,51,234,0.12);}
+        .opt.correct{border-color:var(--green);background:rgba(0,255,65,0.08);}
+        .opt.wrong{border-color:var(--red);background:rgba(239,68,68,0.08);}
+        .opt-letter{min-width:22px;height:22px;border-radius:4px;border:1px solid rgba(255,255,255,0.15);display:flex;align-items:center;justify-content:center;font-size:0.75rem;color:var(--dim);transition:all 0.18s;}
+        .opt.selected .opt-letter{border-color:var(--ha);color:var(--ha);}
+        .opt.correct .opt-letter{border-color:var(--green);color:var(--green);}
+        .opt.wrong .opt-letter{border-color:var(--red);color:var(--red);}
+        .opt-text{flex:1;font-size:0.88rem;color:var(--txt);line-height:1.5;}
+        /* Feedback */
+        .feedback{margin-top:14px;padding:12px 16px;border-radius:7px;border-left:3px solid;font-size:0.83rem;line-height:1.55;display:none;animation:fadeIn 0.3s ease;}
+        .feedback.show{display:block;}
+        .feedback.ok{border-color:var(--green);background:rgba(0,255,65,0.06);color:#86efac;}
+        .feedback.ok::before{content:'[+] ';}
+        .feedback.bad{border-color:var(--red);background:rgba(239,68,68,0.06);color:#fca5a5;}
+        .feedback.bad::before{content:'[-] ';}
+        @keyframes fadeIn{from{opacity:0;transform:translateY(-6px);}to{opacity:1;transform:translateY(0);}}
+        /* Nav buttons */
+        .nav-row{display:flex;justify-content:center;gap:12px;margin-top:22px;}
+        .btn{padding:10px 26px;border:none;border-radius:7px;font-family:'Courier New',monospace;font-size:0.85rem;cursor:pointer;transition:all 0.2s;}
+        .btn-ghost{background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);color:var(--txt);}
+        .btn-ghost:hover{background:rgba(255,255,255,0.1);}
+        .btn-primary{background:linear-gradient(135deg,var(--hp),var(--ha));color:#fff;}
+        .btn-primary:hover{transform:translateY(-2px);box-shadow:0 4px 18px var(--hg);}
+        .btn-primary:disabled{opacity:0.4;cursor:not-allowed;transform:none;}
+        .btn-start{padding:12px 36px;font-size:0.95rem;}
+        /* Results */
+        .results{display:none;background:var(--card);border:1px solid rgba(107,33,168,0.3);border-radius:10px;padding:36px;text-align:center;}
+        .results.show{display:block;animation:fadeIn 0.5s ease;}
+        .r-icon{font-size:3.5rem;margin-bottom:16px;filter:drop-shadow(0 0 14px var(--hg));}
+        .r-title{font-size:1.6rem;margin-bottom:8px;color:var(--txt);}
+        .r-score{font-size:3rem;font-weight:700;margin:14px 0;}
+        .r-score.pass{color:var(--green);text-shadow:0 0 20px rgba(0,255,65,0.4);}
+        .r-score.fail{color:var(--red);}
+        .r-sub{color:var(--dim);margin-bottom:24px;line-height:1.7;font-size:0.88rem;}
+        .r-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin:20px 0;}
+        .r-stat{background:rgba(0,0,0,0.35);border-radius:8px;padding:16px;}
+        .r-stat-val{font-size:1.8rem;font-weight:700;margin-bottom:4px;}
+        .r-stat-lbl{font-size:0.7rem;color:var(--dim);letter-spacing:0.07em;text-transform:uppercase;}
+        .complete-btn{display:inline-flex;align-items:center;gap:8px;padding:11px 28px;background:linear-gradient(135deg,#16a34a,#15803d);border:none;border-radius:7px;color:#fff;font-family:'Courier New',monospace;font-size:0.9rem;cursor:pointer;transition:all 0.2s;margin-top:8px;}
+        .complete-btn:hover:not(:disabled){transform:translateY(-2px);box-shadow:0 4px 16px rgba(22,163,74,0.4);}
+        .complete-btn:disabled{opacity:0.6;cursor:not-allowed;}
+    </style>
+</head>
+<body>
+<header>
+    <div class="hd-left">
+        <a href="../index.html" class="back-btn">&#8592;</a>
+        <span class="hd-title">FEH-01 &mdash; The Hacker Mindset</span>
+    </div>
+    <div class="badge">DARK ARTS</div>
+</header>
+
+<main class="container">
+    <!-- Intro -->
+    <div id="intro">
+        <div class="intro">
+            <div class="intro-glyph">&#9760;</div>
+            <h1 class="intro-title">The Hacker Mindset</h1>
+            <p class="intro-sub">Ethics, legality, hacker types, the Cyber Kill Chain, MITRE ATT&amp;CK,<br>penetration testing methodology, rules of engagement, and scope documents.</p>
+            <div class="quiz-meta">
+                <div class="meta-item"><span class="meta-val">15</span><span class="meta-lbl">QUESTIONS</span></div>
+                <div class="meta-item"><span class="meta-val">70%</span><span class="meta-lbl">TO PASS</span></div>
+                <div class="meta-item"><span class="meta-val">~15min</span><span class="meta-lbl">DURATION</span></div>
+            </div>
+            <div class="nav-row" style="margin-top:24px;">
+                <button class="btn btn-primary btn-start" onclick="startQuiz()">Initialize Quiz</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quiz -->
+    <div id="quiz" style="display:none;">
+        <div class="progress-label">
+            <span id="prog-text">Question 1 of 15</span>
+            <span id="prog-pct">0%</span>
+        </div>
+        <div class="progress-wrap"><div class="progress-fill" id="prog-fill" style="width:0%"></div></div>
+        <div class="q-card" id="q-card"></div>
+        <div class="nav-row">
+            <button class="btn btn-ghost" id="prev-btn" onclick="navigate(-1)" style="display:none;">&#8592; Prev</button>
+            <button class="btn btn-primary" id="next-btn" onclick="navigate(1)" disabled>Next &#8594;</button>
+            <button class="btn btn-primary" id="submit-btn" onclick="submitQuiz()" style="display:none;" disabled>Submit Quiz</button>
+        </div>
+    </div>
+
+    <!-- Results -->
+    <div id="results" class="results">
+        <div class="r-icon" id="r-icon"></div>
+        <h2 class="r-title" id="r-title"></h2>
+        <div class="r-score" id="r-score"></div>
+        <p class="r-sub" id="r-sub"></p>
+        <div class="r-grid">
+            <div class="r-stat"><div class="r-stat-val" id="r-correct" style="color:var(--green)"></div><div class="r-stat-lbl">Correct</div></div>
+            <div class="r-stat"><div class="r-stat-val" id="r-wrong" style="color:var(--red)"></div><div class="r-stat-lbl">Incorrect</div></div>
+            <div class="r-stat"><div class="r-stat-val" id="r-total" style="color:var(--ha)"></div><div class="r-stat-lbl">Total</div></div>
+        </div>
+        <div class="nav-row" style="flex-wrap:wrap;">
+            <button class="btn btn-ghost" onclick="reviewAnswers()">Review Answers</button>
+            <button class="btn btn-ghost" onclick="window.location.href='../index.html'">Back to Dark Arts</button>
+            <button class="complete-btn" id="complete-btn" onclick="markComplete()" style="display:none;">&#10003; Mark Complete</button>
+        </div>
+    </div>
+</main>
+
+<script>
+// ── Question bank ──────────────────────────────────────────────────────────
+const BANK = [
+    {q:"Which hacker category operates with explicit permission from system owners and follows legal boundaries at all times?",opts:["Black hat","Grey hat","White hat","Script kiddie"],c:2,e:"White hat hackers (ethical hackers) always have documented authorization before testing. They operate within legal and contractual boundaries — the foundation of ethical hacking."},
+    {q:"A grey hat hacker differs from a black hat hacker primarily because the grey hat:",opts:["Uses more sophisticated tools","Hacks without permission but typically reports vulnerabilities afterward","Always works for government agencies","Never causes any damage"],c:1,e:"Grey hats operate without explicit authorization (which is still illegal) but usually disclose what they find rather than exploit it for personal gain. The critical issue: lack of written permission makes their actions criminal regardless of intent."},
+    {q:"In the Cyber Kill Chain, which phase involves the attacker researching the target and gathering intelligence before any attack is launched?",opts:["Weaponization","Exploitation","Reconnaissance","Command & Control"],c:2,e:"Reconnaissance is Phase 1 of the Kill Chain — the attacker collects information (OSINT, scanning, social engineering) to plan the attack. Understanding this phase helps defenders detect early attacker behavior."},
+    {q:"The Cyber Kill Chain Phase 2 (Weaponization) refers to:",opts:["Gaining administrator access to a system","Coupling malware with an exploit into a deliverable payload","Sending a phishing email to the target","Moving laterally across the internal network"],c:1,e:"Weaponization occurs entirely off-network — the attacker builds the weapon (e.g., embeds shellcode into a PDF). Defenders rarely see this phase directly, making Delivery detection critical."},
+    {q:"Which Cyber Kill Chain phase occurs when a user opens a malicious attachment and the exploit code executes on their machine?",opts:["Delivery","Installation","Exploitation","Actions on Objectives"],c:2,e:"Exploitation (Phase 4) is when the weapon triggers and code executes — typically by leveraging a software vulnerability, misconfig, or human action. This is the moment of compromise."},
+    {q:"MITRE ATT&CK differs from the Cyber Kill Chain primarily because ATT&CK:",opts:["Only covers network-based attacks","Provides a high-level 7-step model","Catalogs specific adversary techniques and sub-techniques with real-world examples","Was developed by the US military"],c:2,e:"MITRE ATT&CK is a knowledge base of adversary tactics, techniques, and procedures (TTPs) mapped to real threat actors. It goes far deeper than Kill Chain's 7 phases — covering hundreds of specific techniques used in the wild."},
+    {q:"A penetration test Rules of Engagement (ROE) document would most likely specify:",opts:["The attacker's preferred programming language","Which systems are in-scope, testing hours, and emergency contacts","The client's internal password policy","A list of all known vulnerabilities in the target"],c:1,e:"The ROE defines authorized scope, timing windows, emergency halt procedures, and communication protocols. It protects both the tester (legal cover) and the client (prevents unintended outages)."},
+    {q:"What document defines the legal boundaries of an engagement and protects the penetration tester from criminal prosecution?",opts:["Non-Disclosure Agreement (NDA)","Statement of Work (SOW)","Written Authorization / Scope Document","Incident Response Plan"],c:2,e:"Written authorization (scope document / letter of authorization) explicitly grants the tester permission to attack defined systems. Without it, identical technical actions constitute unauthorized computer access — a felony in most jurisdictions."},
+    {q:"During a pentest, a tester discovers an in-scope server is also hosting a critical production database not mentioned in the scope. The correct action is:",opts:["Exploit the database since it is on an in-scope host","Immediately halt testing and notify the client","Document it and continue with the original scope","Report it only in the final deliverable"],c:1,e:"Scope creep — discovering systems outside authorization — requires immediate notification. Proceeding without updated written authorization creates criminal liability. Always pause and communicate before expanding scope."},
+    {q:"Which phase of a penetration test methodology involves analyzing results and delivering findings to the client?",opts:["Reconnaissance","Exploitation","Reporting","Post-exploitation"],c:2,e:"Reporting is the final and arguably most important phase for the client. A pentest that isn't communicated clearly provides no business value. Reports typically include executive summary, technical findings, risk ratings, and remediation guidance."},
+    {q:"The primary legal basis that makes unauthorized computer access a federal crime in the United States is:",opts:["HIPAA","The Computer Fraud and Abuse Act (CFAA)","The Digital Millennium Copyright Act (DMCA)","SOX"],c:1,e:"The CFAA (18 U.S.C. § 1030) is the primary US federal statute criminalizing unauthorized access to computers. This is why written authorization is non-negotiable — the CFAA has no 'good intent' exception."},
+    {q:"A 'script kiddie' is best characterized as:",opts:["A professional penetration tester who uses automated tools","An attacker who uses pre-written tools without understanding the underlying techniques","A developer who writes exploit code for research","A government-sponsored advanced persistent threat actor"],c:1,e:"Script kiddies use tools written by others without understanding the underlying vulnerabilities or techniques. While technically less sophisticated, they can still cause significant damage using readily available exploit frameworks."},
+    {q:"In MITRE ATT&CK terminology, a 'Tactic' represents:",opts:["A specific technical implementation of an attack","The adversary's technical goal or 'why' behind a set of techniques","A named threat actor group","A defensive countermeasure"],c:1,e:"Tactics in ATT&CK represent the adversary's objective (the 'why') — e.g., Persistence, Privilege Escalation, Lateral Movement. Techniques describe 'how' the tactic is achieved. This distinction helps defenders prioritize detection strategies."},
+    {q:"Which statement about black hat hackers is most accurate?",opts:["They operate with implied consent from system owners","They only target government systems","They exploit systems for personal gain, espionage, or malice without authorization","They always disclose vulnerabilities to vendors before publishing"],c:2,e:"Black hat hackers operate without authorization and with malicious or self-serving intent — financial theft, espionage, sabotage, or vandalism. Their activities are criminal regardless of the technical sophistication involved."},
+    {q:"The MITRE ATT&CK framework's 'Actions on Objectives' maps most closely to which Kill Chain phase?",opts:["Reconnaissance","Weaponization","Command and Control","Actions on Objectives — it maps directly as both models share this phase name"],c:3,e:"Both models share the 'Actions on Objectives' phase name. This phase represents the attacker achieving their ultimate goal — data exfiltration, ransomware deployment, destructive wiper execution, or persistent access establishment."}
+];
+
+// ── State ──────────────────────────────────────────────────────────────────
+let questions=[], cur=0, answered=[], submitted=false;
+
+function shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
+
+function startQuiz(){
+    questions=shuffle([...BANK]).slice(0,15).map(q=>{
+        // shuffle options while tracking correct answer text
+        const correctText=q.opts[q.c];
+        const opts=shuffle([...q.opts]);
+        return {...q,opts,c:opts.indexOf(correctText)};
+    });
+    answered=new Array(questions.length).fill(null);
+    cur=0;submitted=false;
+    document.getElementById('intro').style.display='none';
+    document.getElementById('quiz').style.display='block';
+    renderQ();
+}
+
+function renderQ(){
+    const q=questions[cur];
+    const letters=['A','B','C','D'];
+    const sel=answered[cur];
+    const locked=submitted||(sel!==null);
+
+    // Progress
+    const pct=Math.round(((cur+1)/questions.length)*100);
+    document.getElementById('prog-text').textContent=`Question ${cur+1} of ${questions.length}`;
+    document.getElementById('prog-pct').textContent=pct+'%';
+    document.getElementById('prog-fill').style.width=pct+'%';
+
+    // Nav buttons
+    document.getElementById('prev-btn').style.display=cur>0?'inline-block':'none';
+    const isLast=cur===questions.length-1;
+    document.getElementById('next-btn').style.display=isLast?'none':'inline-block';
+    document.getElementById('submit-btn').style.display=isLast?'inline-block':'none';
+
+    const nextDisabled=sel===null&&!submitted;
+    document.getElementById('next-btn').disabled=nextDisabled;
+    document.getElementById('submit-btn').disabled=answered.some(a=>a===null)&&!submitted;
+
+    // Build card HTML
+    const optsHtml=q.opts.map((o,i)=>{
+        let cls='opt';
+        if(sel!==null||submitted){
+            if(i===q.c) cls+=' correct';
+            else if(i===sel) cls+=' wrong';
+        } else if(sel===i) cls+=' selected';
+        const clickable=(!locked)?`onclick="pick(${i})"`:'';
+        return `<div class="${cls}${locked?' locked':''}" ${clickable}>
+            <span class="opt-letter">${letters[i]}</span>
+            <span class="opt-text">${o}</span>
+        </div>`;
+    }).join('');
+
+    let feedbackHtml='';
+    if(sel!==null||submitted){
+        const ok=sel===q.c;
+        feedbackHtml=`<div class="feedback ${ok?'ok':'bad'} show">${ok?'Correct! ':'Wrong. Correct: <strong>'+q.opts[q.c]+'</strong>. '}${q.e}</div>`;
+    }
+
+    document.getElementById('q-card').innerHTML=`
+        <div class="q-num">QUESTION ${cur+1} / ${questions.length}</div>
+        <div class="q-text">${q.q}</div>
+        <div class="options">${optsHtml}</div>
+        ${feedbackHtml}`;
+}
+
+function pick(i){
+    if(answered[cur]!==null||submitted) return;
+    answered[cur]=i;
+    document.getElementById('next-btn').disabled=false;
+    document.getElementById('submit-btn').disabled=answered.some(a=>a===null);
+    renderQ();
+}
+
+function navigate(dir){
+    cur+=dir;
+    if(cur<0) cur=0;
+    if(cur>=questions.length) cur=questions.length-1;
+    renderQ();
+}
+
+function submitQuiz(){
+    const unanswered=answered.filter(a=>a===null).length;
+    if(unanswered>0&&!confirm(`${unanswered} question(s) unanswered. Submit anyway?`)) return;
+    submitted=true;
+    showResults();
+}
+
+function showResults(){
+    document.getElementById('quiz').style.display='none';
+    const correct=answered.reduce((sum,a,i)=>sum+(a===questions[i].c?1:0),0);
+    const pct=Math.round((correct/questions.length)*100);
+    const pass=pct>=70;
+    document.getElementById('r-icon').textContent=pass?'&#x1F3AF;':'&#x1F4DA;';
+    document.getElementById('r-title').textContent=pass?'Access Granted':'Insufficient Clearance';
+    document.getElementById('r-score').textContent=pct+'%';
+    document.getElementById('r-score').className='r-score '+(pass?'pass':'fail');
+    document.getElementById('r-sub').innerHTML=`You answered <strong>${correct}</strong> of <strong>${questions.length}</strong> correctly.<br>${pass?'Solid grasp of ethical hacking foundations. Proceed to Recon.':'Review the material and re-engage. 70% required to pass.'}`;
+    document.getElementById('r-correct').textContent=correct;
+    document.getElementById('r-wrong').textContent=questions.length-correct;
+    document.getElementById('r-total').textContent=questions.length;
+    const res=document.getElementById('results');
+    res.classList.add('show');
+    if(pass) document.getElementById('complete-btn').style.display='inline-flex';
+    // Register completion
+    ModuleProgress.complete('dark-arts','dark-arts-feh-01',{returnUrl:'../index.html'});
+}
+
+function reviewAnswers(){
+    document.getElementById('results').classList.remove('show');
+    document.getElementById('quiz').style.display='block';
+    cur=0;renderQ();
+}
+
+function markComplete(){
+    const btn=document.getElementById('complete-btn');
+    btn.textContent='&#10003; Completed!';btn.disabled=true;
+}
+</script>
+<script src="../../../components/FluxCapacitor.js"></script>
+</body>
+</html>

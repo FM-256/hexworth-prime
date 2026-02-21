@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../components/AchievementManager.js"></script>
+    <script src="../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FEH-03: Scanning & Enumeration - Dark Arts</title>
+    <style>
+        *{margin:0;padding:0;box-sizing:border-box;}
+        :root{
+            --hp:#6b21a8;--ha:#9333ea;--hg:rgba(107,33,168,0.3);
+            --bg:#0a0a0a;--card:rgba(15,8,25,0.9);
+            --green:#00ff41;--red:#ef4444;--blue:#38bdf8;
+            --txt:#d4d4d8;--dim:#71717a;
+        }
+        body{min-height:100vh;background:var(--bg);font-family:'Courier New',monospace;color:var(--txt);overflow-x:hidden;}
+        body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellipse at 20% 20%,rgba(107,33,168,0.06) 0%,transparent 50%),radial-gradient(ellipse at 80% 80%,rgba(147,51,234,0.04) 0%,transparent 50%);pointer-events:none;z-index:0;}
+        header{position:sticky;top:0;z-index:100;padding:14px 24px;background:rgba(10,4,18,0.97);border-bottom:1px solid rgba(107,33,168,0.3);display:flex;justify-content:space-between;align-items:center;}
+        .hd-left{display:flex;align-items:center;gap:12px;}
+        .back-btn{display:flex;align-items:center;justify-content:center;width:34px;height:34px;border:1px solid rgba(147,51,234,0.4);border-radius:6px;background:transparent;color:var(--ha);cursor:pointer;font-family:'Courier New',monospace;font-size:1rem;text-decoration:none;transition:all 0.2s;}
+        .back-btn:hover{background:rgba(147,51,234,0.15);}
+        .hd-title{font-size:0.95rem;color:var(--txt);letter-spacing:0.03em;}
+        .badge{font-size:0.65rem;padding:3px 10px;background:rgba(107,33,168,0.2);border:1px solid rgba(107,33,168,0.4);border-radius:20px;color:var(--ha);letter-spacing:0.1em;}
+        .container{max-width:860px;margin:0 auto;padding:32px 24px;position:relative;z-index:1;}
+        .intro{text-align:center;padding:20px 0 32px;}
+        .intro-glyph{font-size:2.8rem;margin-bottom:12px;filter:drop-shadow(0 0 12px var(--hp));}
+        .intro-title{font-size:1.7rem;font-weight:300;margin-bottom:8px;background:linear-gradient(135deg,#fff,var(--ha));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+        .intro-sub{color:var(--dim);margin-bottom:20px;font-size:0.9rem;line-height:1.6;}
+        .quiz-meta{display:flex;justify-content:center;gap:32px;margin:16px 0;}
+        .meta-item{display:flex;flex-direction:column;align-items:center;gap:4px;}
+        .meta-val{font-size:1.4rem;font-weight:700;color:var(--ha);}
+        .meta-lbl{font-size:0.7rem;color:var(--dim);letter-spacing:0.08em;}
+        .progress-wrap{margin:20px 0;background:rgba(255,255,255,0.07);border-radius:4px;height:4px;overflow:hidden;}
+        .progress-fill{height:100%;background:linear-gradient(90deg,var(--hp),var(--ha));border-radius:4px;transition:width 0.4s ease;}
+        .progress-label{display:flex;justify-content:space-between;font-size:0.72rem;color:var(--dim);margin-bottom:6px;}
+        .q-card{background:var(--card);border:1px solid rgba(107,33,168,0.25);border-radius:10px;padding:26px;}
+        .q-num{font-size:0.78rem;color:var(--ha);letter-spacing:0.08em;margin-bottom:14px;}
+        .q-text{font-size:1rem;color:var(--txt);line-height:1.65;margin-bottom:18px;}
+        .q-text code,.opt-text code{background:rgba(255,255,255,0.06);padding:1px 6px;border-radius:3px;color:var(--green);font-family:'Courier New',monospace;}
+        .options{display:flex;flex-direction:column;gap:10px;}
+        .opt{display:flex;align-items:flex-start;gap:10px;padding:12px 16px;border:1px solid rgba(255,255,255,0.08);border-radius:7px;cursor:pointer;transition:all 0.18s;}
+        .opt:hover:not(.locked){border-color:rgba(147,51,234,0.5);background:rgba(147,51,234,0.07);}
+        .opt.selected{border-color:var(--ha);background:rgba(147,51,234,0.12);}
+        .opt.correct{border-color:var(--green);background:rgba(0,255,65,0.08);}
+        .opt.wrong{border-color:var(--red);background:rgba(239,68,68,0.08);}
+        .opt-letter{min-width:22px;height:22px;border-radius:4px;border:1px solid rgba(255,255,255,0.15);display:flex;align-items:center;justify-content:center;font-size:0.75rem;color:var(--dim);transition:all 0.18s;}
+        .opt.selected .opt-letter{border-color:var(--ha);color:var(--ha);}
+        .opt.correct .opt-letter{border-color:var(--green);color:var(--green);}
+        .opt.wrong .opt-letter{border-color:var(--red);color:var(--red);}
+        .opt-text{flex:1;font-size:0.88rem;color:var(--txt);line-height:1.5;}
+        .feedback{margin-top:14px;padding:12px 16px;border-radius:7px;border-left:3px solid;font-size:0.83rem;line-height:1.55;display:none;animation:fadeIn 0.3s ease;}
+        .feedback.show{display:block;}
+        .feedback.ok{border-color:var(--green);background:rgba(0,255,65,0.06);color:#86efac;}
+        .feedback.ok::before{content:'[+] ';}
+        .feedback.bad{border-color:var(--red);background:rgba(239,68,68,0.06);color:#fca5a5;}
+        .feedback.bad::before{content:'[-] ';}
+        @keyframes fadeIn{from{opacity:0;transform:translateY(-6px);}to{opacity:1;transform:translateY(0);}}
+        .nav-row{display:flex;justify-content:center;gap:12px;margin-top:22px;}
+        .btn{padding:10px 26px;border:none;border-radius:7px;font-family:'Courier New',monospace;font-size:0.85rem;cursor:pointer;transition:all 0.2s;}
+        .btn-ghost{background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);color:var(--txt);}
+        .btn-ghost:hover{background:rgba(255,255,255,0.1);}
+        .btn-primary{background:linear-gradient(135deg,var(--hp),var(--ha));color:#fff;}
+        .btn-primary:hover{transform:translateY(-2px);box-shadow:0 4px 18px var(--hg);}
+        .btn-primary:disabled{opacity:0.4;cursor:not-allowed;transform:none;}
+        .btn-start{padding:12px 36px;font-size:0.95rem;}
+        .results{display:none;background:var(--card);border:1px solid rgba(107,33,168,0.3);border-radius:10px;padding:36px;text-align:center;}
+        .results.show{display:block;animation:fadeIn 0.5s ease;}
+        .r-icon{font-size:3.5rem;margin-bottom:16px;}
+        .r-title{font-size:1.6rem;margin-bottom:8px;color:var(--txt);}
+        .r-score{font-size:3rem;font-weight:700;margin:14px 0;}
+        .r-score.pass{color:var(--green);text-shadow:0 0 20px rgba(0,255,65,0.4);}
+        .r-score.fail{color:var(--red);}
+        .r-sub{color:var(--dim);margin-bottom:24px;line-height:1.7;font-size:0.88rem;}
+        .r-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin:20px 0;}
+        .r-stat{background:rgba(0,0,0,0.35);border-radius:8px;padding:16px;}
+        .r-stat-val{font-size:1.8rem;font-weight:700;margin-bottom:4px;}
+        .r-stat-lbl{font-size:0.7rem;color:var(--dim);letter-spacing:0.07em;text-transform:uppercase;}
+        .complete-btn{display:inline-flex;align-items:center;gap:8px;padding:11px 28px;background:linear-gradient(135deg,#16a34a,#15803d);border:none;border-radius:7px;color:#fff;font-family:'Courier New',monospace;font-size:0.9rem;cursor:pointer;transition:all 0.2s;margin-top:8px;}
+        .complete-btn:hover:not(:disabled){transform:translateY(-2px);box-shadow:0 4px 16px rgba(22,163,74,0.4);}
+        .complete-btn:disabled{opacity:0.6;cursor:not-allowed;}
+    </style>
+</head>
+<body>
+<header>
+    <div class="hd-left">
+        <a href="../index.html" class="back-btn">&#8592;</a>
+        <span class="hd-title">FEH-03 &mdash; Scanning &amp; Enumeration</span>
+    </div>
+    <div class="badge">DARK ARTS</div>
+</header>
+
+<main class="container">
+    <div id="intro">
+        <div class="intro">
+            <div class="intro-glyph">&#x1F4E1;</div>
+            <h1 class="intro-title">Scanning &amp; Enumeration</h1>
+            <p class="intro-sub">Nmap scan types, port states, service/OS detection, NSE scripts,<br>TCP 3-way handshake, UDP scanning, banner grabbing, SMB/SNMP/LDAP enumeration.</p>
+            <div class="quiz-meta">
+                <div class="meta-item"><span class="meta-val">15</span><span class="meta-lbl">QUESTIONS</span></div>
+                <div class="meta-item"><span class="meta-val">70%</span><span class="meta-lbl">TO PASS</span></div>
+                <div class="meta-item"><span class="meta-val">~15min</span><span class="meta-lbl">DURATION</span></div>
+            </div>
+            <div class="nav-row" style="margin-top:24px;">
+                <button class="btn btn-primary btn-start" onclick="startQuiz()">Initialize Quiz</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="quiz" style="display:none;">
+        <div class="progress-label">
+            <span id="prog-text">Question 1 of 15</span>
+            <span id="prog-pct">0%</span>
+        </div>
+        <div class="progress-wrap"><div class="progress-fill" id="prog-fill" style="width:0%"></div></div>
+        <div class="q-card" id="q-card"></div>
+        <div class="nav-row">
+            <button class="btn btn-ghost" id="prev-btn" onclick="navigate(-1)" style="display:none;">&#8592; Prev</button>
+            <button class="btn btn-primary" id="next-btn" onclick="navigate(1)" disabled>Next &#8594;</button>
+            <button class="btn btn-primary" id="submit-btn" onclick="submitQuiz()" style="display:none;" disabled>Submit Quiz</button>
+        </div>
+    </div>
+
+    <div id="results" class="results">
+        <div class="r-icon" id="r-icon"></div>
+        <h2 class="r-title" id="r-title"></h2>
+        <div class="r-score" id="r-score"></div>
+        <p class="r-sub" id="r-sub"></p>
+        <div class="r-grid">
+            <div class="r-stat"><div class="r-stat-val" id="r-correct" style="color:var(--green)"></div><div class="r-stat-lbl">Correct</div></div>
+            <div class="r-stat"><div class="r-stat-val" id="r-wrong" style="color:var(--red)"></div><div class="r-stat-lbl">Incorrect</div></div>
+            <div class="r-stat"><div class="r-stat-val" id="r-total" style="color:var(--ha)"></div><div class="r-stat-lbl">Total</div></div>
+        </div>
+        <div class="nav-row" style="flex-wrap:wrap;">
+            <button class="btn btn-ghost" onclick="reviewAnswers()">Review Answers</button>
+            <button class="btn btn-ghost" onclick="window.location.href='../index.html'">Back to Dark Arts</button>
+            <button class="complete-btn" id="complete-btn" onclick="markComplete()" style="display:none;">&#10003; Mark Complete</button>
+        </div>
+    </div>
+</main>
+
+<script>
+const BANK = [
+    {q:"What does Nmap's <code>-sS</code> flag perform, and why is it considered 'stealthy'?",opts:["A full TCP connect scan that completes the 3-way handshake","A SYN scan that sends SYN packets but never completes the handshake","A UDP scan that sends empty datagrams","A null scan that sends packets with no TCP flags set"],c:1,e:"The SYN scan (<code>-sS</code>) sends a SYN, waits for SYN-ACK (open) or RST (closed), then sends RST to tear down — never completing the connection. This avoids application-layer logging since no established session is created. Requires raw socket privileges (root/admin)."},
+    {q:"Which Nmap scan type completes the full TCP 3-way handshake and is used when the tester lacks raw socket privileges?",opts:["<code>-sS</code> (SYN scan)","<code>-sT</code> (TCP connect scan)","<code>-sU</code> (UDP scan)","<code>-sN</code> (Null scan)"],c:1,e:"The TCP connect scan (<code>-sT</code>) uses the OS's connect() system call to complete the full handshake. No special privileges are required, but it is louder — target applications and firewalls see complete connections and log them."},
+    {q:"A port appears as 'filtered' in an Nmap scan. This most likely means:",opts:["The port is open and accepting connections","A service is listening but rejecting unauthenticated requests","A firewall or ACL is silently dropping packets to that port","The host is offline"],c:2,e:"Filtered ports produce no response — packets are being dropped by a firewall, ACL, or host-based rule. Nmap can't determine open vs. closed. Compare with 'closed': closed ports return a RST, actively confirming they're not in use."},
+    {q:"The TCP 3-way handshake sequence for establishing a connection is:",opts:["SYN → ACK → SYN-ACK","SYN → SYN-ACK → ACK","ACK → SYN → FIN","RST → SYN → ACK"],c:1,e:"Client sends SYN (sequence number), server responds SYN-ACK (acknowledges client's SYN, sends its own SYN), client sends ACK to complete. This establishes sequence numbers for reliable, ordered delivery — the foundation of TCP's reliability guarantees."},
+    {q:"Which Nmap flag enables service version detection, attempting to identify the exact software and version running on open ports?",opts:["<code>-O</code>","<code>-A</code>","<code>-sV</code>","<code>-sC</code>"],c:2,e:"<code>-sV</code> probes open ports with service-specific payloads and matches responses against Nmap's version database. Knowing that a service is 'Apache 2.4.49' versus just 'port 80 open' is the difference between knowing a CVE applies and guessing."},
+    {q:"Nmap's <code>-O</code> flag performs OS fingerprinting. Which technique does it primarily rely on?",opts:["Analyzing service banner strings","Sending ICMP echo requests and measuring TTL","Examining subtle differences in TCP/IP stack implementation (packet timing, TTL, window size)","Reading the /etc/os-release file remotely"],c:2,e:"Each OS implements TCP/IP slightly differently — initial TTL values, TCP window sizes, IP ID fields, ICMP responses. Nmap compares these values against its fingerprint database. This is called 'passive' fingerprinting (without interaction) vs. active (with probes)."},
+    {q:"The Nmap Scripting Engine (NSE) flag <code>-sC</code> runs:",opts:["All available NSE scripts","Only DoS and exploit scripts","The default script category — safe, commonly useful scripts","Only scripts against open ports 80 and 443"],c:2,e:"<code>-sC</code> is equivalent to <code>--script=default</code> and runs scripts categorized as 'default' — safe, informational scripts like banner grabbing, HTTP title extraction, and common vulnerability checks. The aggressive script categories require explicit invocation."},
+    {q:"Why is UDP scanning (<code>-sU</code>) slower and less reliable than TCP scanning?",opts:["UDP uses encryption by default","UDP has no handshake — open ports may simply not respond, making it hard to distinguish open from filtered","UDP ports are always filtered by default firewalls","Nmap doesn't support UDP scanning natively"],c:1,e:"UDP is connectionless — no SYN/SYN-ACK. An open UDP port may not reply to a probe (depending on the service), while closed ports return ICMP 'port unreachable'. Open vs. filtered is often indistinguishable, requiring retransmissions and making scans very slow."},
+    {q:"What is 'banner grabbing' in the context of enumeration?",opts:["Capturing screenshots of web applications","Retrieving service identification strings that a server sends upon connection","Extracting usernames from LDAP directories","Downloading file system listings via FTP"],c:1,e:"Banner grabbing captures the service announcement text (e.g., 'Apache/2.4.51 (Ubuntu)') that many services send immediately upon connection. This reveals software names, versions, and sometimes OS details — directly informing vulnerability research."},
+    {q:"Which protocol/port is targeted during SMB enumeration, and what information can be obtained?",opts:["Port 161/UDP — system uptime and interface statistics","Port 445/TCP — shares, users, OS version, domain membership","Port 389/TCP — certificate authorities and policy objects","Port 25/TCP — email server usernames and relay configuration"],c:1,e:"SMB (Server Message Block) on port 445 can expose network share listings, user accounts, groups, OS version, domain/workgroup name, and sometimes password policies — all without authentication if misconfigured (null sessions or guest access enabled)."},
+    {q:"An Nmap NSE script run with <code>--script smb-vuln-ms17-010</code> is testing for:",opts:["A denial-of-service vulnerability in Apache","EternalBlue — the SMB vulnerability exploited by WannaCry and NotPetya","An SMB authentication bypass in Samba","A buffer overflow in the Windows Print Spooler"],c:1,e:"MS17-010 is EternalBlue — a critical SMB buffer overflow in Windows' handling of SMBv1 transaction requests. It allowed unauthenticated remote code execution and powered the WannaCry ransomware and NotPetya wiper incidents of 2017."},
+    {q:"SNMP enumeration over UDP port 161 can expose which type of information?",opts:["Web application usernames and session tokens","Routing tables, ARP tables, running processes, and interface statistics","Active Directory user passwords","SSL certificate private keys"],c:1,e:"SNMPv1/v2c with default community strings ('public', 'private') expose a treasure trove of network information: device type, OS, running processes, network interfaces, routing tables, and ARP caches. SNMPv3 adds authentication and encryption to address these exposures."},
+    {q:"LDAP enumeration on port 389 is most useful for extracting:",opts:["Open ports and running services from network devices","User accounts, groups, OUs, and policy information from Active Directory","Web server configuration files","Database table schemas"],c:1,e:"LDAP (Lightweight Directory Access Protocol) is the query language for Active Directory and other directory services. Unauthenticated or authenticated LDAP queries can enumerate usernames, email addresses, group memberships, and organizational structure."},
+    {q:"A penetration tester runs <code>nmap -sN 192.168.1.1</code>. What makes this scan distinctive?",opts:["It sends SYN packets with the ACK flag also set","It sends TCP packets with no flags set (Null scan)","It uses ICMP only to determine host liveness","It scans all 65535 ports simultaneously"],c:1,e:"A Null scan sends TCP packets with zero flags set. RFC 793 specifies that closed ports must respond with RST; open ports should ignore the probe. This can bypass some simple packet filters but is less reliable than SYN scans and doesn't work against Windows (which ignores Null scans entirely)."},
+    {q:"The Nmap command <code>nmap -A -p- 10.0.0.1</code> performs:",opts:["A stealthy SYN scan of the top 1000 ports with OS detection","An aggressive scan of all 65535 TCP ports with OS detection, version detection, NSE default scripts, and traceroute","A UDP scan of all ports with service detection","A ping sweep of the 10.0.0.0/24 network"],c:1,e:"<code>-A</code> enables aggressive mode (OS detection, version detection, script scanning, traceroute). <code>-p-</code> scans all 65535 ports. Together this is a comprehensive — and loud — full-port enumeration. Use only within authorized scope."}
+];
+
+let questions=[], cur=0, answered=[], submitted=false;
+function shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
+
+function startQuiz(){
+    questions=shuffle([...BANK]).slice(0,15).map(q=>{
+        const ct=q.opts[q.c];const opts=shuffle([...q.opts]);
+        return {...q,opts,c:opts.indexOf(ct)};
+    });
+    answered=new Array(questions.length).fill(null);
+    cur=0;submitted=false;
+    document.getElementById('intro').style.display='none';
+    document.getElementById('quiz').style.display='block';
+    renderQ();
+}
+
+function renderQ(){
+    const q=questions[cur];
+    const letters=['A','B','C','D'];
+    const sel=answered[cur];
+    const locked=submitted||(sel!==null);
+    const pct=Math.round(((cur+1)/questions.length)*100);
+    document.getElementById('prog-text').textContent=`Question ${cur+1} of ${questions.length}`;
+    document.getElementById('prog-pct').textContent=pct+'%';
+    document.getElementById('prog-fill').style.width=pct+'%';
+    document.getElementById('prev-btn').style.display=cur>0?'inline-block':'none';
+    const isLast=cur===questions.length-1;
+    document.getElementById('next-btn').style.display=isLast?'none':'inline-block';
+    document.getElementById('submit-btn').style.display=isLast?'inline-block':'none';
+    document.getElementById('next-btn').disabled=sel===null&&!submitted;
+    document.getElementById('submit-btn').disabled=answered.some(a=>a===null)&&!submitted;
+
+    const optsHtml=q.opts.map((o,i)=>{
+        let cls='opt';
+        if(sel!==null||submitted){if(i===q.c)cls+=' correct';else if(i===sel)cls+=' wrong';}
+        return `<div class="${cls}${locked?' locked':''}" ${!locked?`onclick="pick(${i})"`:''}><span class="opt-letter">${letters[i]}</span><span class="opt-text">${o}</span></div>`;
+    }).join('');
+
+    let fb='';
+    if(sel!==null||submitted){
+        const ok=sel===q.c;
+        fb=`<div class="feedback ${ok?'ok':'bad'} show">${ok?'Correct! ':'Wrong. Correct: <strong>'+q.opts[q.c]+'</strong>. '}${q.e}</div>`;
+    }
+    document.getElementById('q-card').innerHTML=`<div class="q-num">QUESTION ${cur+1} / ${questions.length}</div><div class="q-text">${q.q}</div><div class="options">${optsHtml}</div>${fb}`;
+}
+
+function pick(i){
+    if(answered[cur]!==null||submitted)return;
+    answered[cur]=i;
+    document.getElementById('next-btn').disabled=false;
+    document.getElementById('submit-btn').disabled=answered.some(a=>a===null);
+    renderQ();
+}
+function navigate(dir){cur=Math.max(0,Math.min(questions.length-1,cur+dir));renderQ();}
+
+function submitQuiz(){
+    const u=answered.filter(a=>a===null).length;
+    if(u>0&&!confirm(`${u} question(s) unanswered. Submit anyway?`))return;
+    submitted=true;showResults();
+}
+
+function showResults(){
+    document.getElementById('quiz').style.display='none';
+    const correct=answered.reduce((s,a,i)=>s+(a===questions[i].c?1:0),0);
+    const pct=Math.round((correct/questions.length)*100);
+    const pass=pct>=70;
+    document.getElementById('r-icon').textContent=pass?'&#x1F4E1;':'&#x1F4DA;';
+    document.getElementById('r-title').textContent=pass?'Scan Complete':'Signal Lost';
+    document.getElementById('r-score').textContent=pct+'%';
+    document.getElementById('r-score').className='r-score '+(pass?'pass':'fail');
+    document.getElementById('r-sub').innerHTML=`You answered <strong>${correct}</strong> of <strong>${questions.length}</strong> correctly.<br>${pass?'Nmap fundamentals confirmed. Advance to Vulnerability Assessment.':'Review scan types, port states, and enumeration techniques, then retry.'}`;
+    document.getElementById('r-correct').textContent=correct;
+    document.getElementById('r-wrong').textContent=questions.length-correct;
+    document.getElementById('r-total').textContent=questions.length;
+    document.getElementById('results').classList.add('show');
+    if(pass)document.getElementById('complete-btn').style.display='inline-flex';
+    ModuleProgress.complete('dark-arts','dark-arts-feh-03',{returnUrl:'../index.html'});
+}
+function reviewAnswers(){
+    document.getElementById('results').classList.remove('show');
+    document.getElementById('quiz').style.display='block';
+    cur=0;renderQ();
+}
+function markComplete(){
+    const btn=document.getElementById('complete-btn');
+    btn.textContent='&#10003; Completed!';btn.disabled=true;
+}
+</script>
+<script src="../../../components/FluxCapacitor.js"></script>
+</body>
+</html>

