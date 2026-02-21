@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CH05 Lab: Daemons &amp; Services — Script House</title>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <style>
+        *{margin:0;padding:0;box-sizing:border-box;}
+        :root{--script-green:#22c55e;--script-accent:#4ade80;--script-glow:rgba(34,197,94,0.3);--bg-card:rgba(10,20,10,0.88);--text-primary:#e8e8f0;--text-secondary:#7a9a7a;--ok:#4ade80;--warn:#fbbf24;--bad:#f87171;--border:rgba(34,197,94,0.2);}
+        body{font-family:'Segoe UI',system-ui,sans-serif;background:linear-gradient(135deg,#0a0a12,#0a1a0f,#0a250a);color:var(--text-primary);line-height:1.7;min-height:100vh;}
+        .site-header{background:rgba(10,10,18,0.96);border-bottom:1px solid var(--border);padding:0.9rem 2rem;position:sticky;top:0;z-index:100;display:flex;align-items:center;justify-content:space-between;backdrop-filter:blur(12px);}
+        .back-link{color:var(--script-green);text-decoration:none;font-size:0.9rem;font-weight:600;display:flex;align-items:center;gap:0.4rem;transition:opacity 0.2s;}
+        .back-link:hover{opacity:0.75;}
+        .header-badge{background:linear-gradient(135deg,var(--script-green),var(--script-accent));color:#000;padding:0.35rem 1rem;border-radius:20px;font-size:0.78rem;font-weight:700;letter-spacing:0.05em;}
+        .container{max-width:1000px;margin:0 auto;padding:2.5rem 2rem 4rem;}
+        .hero{text-align:center;padding:3rem 2rem 2rem;background:var(--bg-card);border:1px solid var(--border);border-radius:20px;margin-bottom:2.5rem;position:relative;overflow:hidden;}
+        .hero::before{content:'';position:absolute;top:-60px;left:50%;transform:translateX(-50%);width:350px;height:350px;background:radial-gradient(circle,var(--script-glow) 0%,transparent 70%);pointer-events:none;}
+        .module-tag{display:inline-block;background:rgba(34,197,94,0.12);color:var(--script-green);border:1px solid var(--border);padding:0.3rem 1rem;border-radius:20px;font-size:0.78rem;font-weight:700;letter-spacing:0.08em;margin-bottom:1rem;}
+        .hero h1{font-size:2rem;font-weight:800;color:var(--text-primary);margin-bottom:0.6rem;}
+        .hero h1 span{color:var(--script-green);}
+        .hero p{color:var(--text-secondary);font-size:1rem;max-width:640px;margin:0 auto;}
+        .lab-meta{display:flex;gap:1.5rem;justify-content:center;flex-wrap:wrap;margin-top:1.25rem;}
+        .meta-item{display:flex;align-items:center;gap:0.4rem;font-size:0.82rem;color:var(--text-secondary);}
+        .meta-item strong{color:var(--script-accent);}
+        .objectives{background:rgba(34,197,94,0.06);border:1px solid var(--border);border-radius:14px;padding:1.5rem;margin-bottom:2rem;}
+        .objectives h3{color:var(--script-green);font-size:1rem;font-weight:700;margin-bottom:0.75rem;}
+        .objectives ul{list-style:none;}
+        .objectives li{padding:0.3rem 0;font-size:0.9rem;color:var(--text-secondary);display:flex;align-items:center;gap:0.6rem;}
+        .objectives li::before{content:'▸';color:var(--script-green);font-size:0.7rem;}
+        .exercise{background:var(--bg-card);border:1px solid var(--border);border-radius:16px;margin-bottom:1.5rem;overflow:hidden;}
+        .exercise-header{padding:1.1rem 1.5rem;display:flex;align-items:center;gap:1rem;cursor:pointer;user-select:none;transition:background 0.2s;}
+        .exercise-header:hover{background:rgba(34,197,94,0.06);}
+        .exercise-num{width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,var(--script-green),var(--script-accent));color:#000;font-weight:900;font-size:0.9rem;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+        .exercise-title{flex:1;font-size:1.05rem;font-weight:700;color:var(--text-primary);}
+        .exercise-tag{font-size:0.72rem;font-weight:700;padding:0.2rem 0.7rem;border-radius:10px;letter-spacing:0.04em;}
+        .tag-systemctl{background:rgba(34,197,94,0.12);color:var(--script-green);}
+        .tag-unit{background:rgba(251,191,36,0.12);color:var(--warn);}
+        .tag-journal{background:rgba(56,189,248,0.12);color:#38bdf8;}
+        .tag-cron{background:rgba(167,139,250,0.12);color:#a78bfa;}
+        .tag-audit{background:rgba(248,113,113,0.12);color:var(--bad);}
+        .chevron{color:var(--script-green);font-size:1rem;}
+        .exercise-body{padding:0 1.5rem 1.5rem;display:none;}
+        .exercise-body.open{display:block;animation:fadeIn 0.25s ease;}
+        @keyframes fadeIn{from{opacity:0;transform:translateY(-5px);}to{opacity:1;transform:translateY(0);}}
+        .scenario{background:rgba(251,191,36,0.06);border:1px solid rgba(251,191,36,0.2);border-radius:10px;padding:1rem 1.25rem;margin-bottom:1rem;font-size:0.9rem;color:var(--text-secondary);}
+        .scenario strong{color:var(--warn);display:block;font-size:0.75rem;letter-spacing:0.08em;margin-bottom:0.3rem;}
+        .code-block{background:rgba(0,0,0,0.65);border:1px solid rgba(34,197,94,0.15);border-left:3px solid var(--script-green);border-radius:10px;padding:1.1rem 1.25rem;font-family:'Consolas','Courier New',monospace;font-size:0.88rem;color:var(--script-accent);margin:0.9rem 0;overflow-x:auto;line-height:1.8;}
+        .code-block .comment{color:#5a7a5a;}
+        .code-block .out{color:#a0c0a0;}
+        .code-block .key{color:#fbbf24;}
+        code{background:rgba(34,197,94,0.1);color:var(--script-accent);padding:1px 6px;border-radius:4px;font-family:'Consolas',monospace;font-size:0.88em;}
+        .steps{list-style:none;counter-reset:step-counter;}
+        .steps li{counter-increment:step-counter;padding:0.6rem 0 0.6rem 2.5rem;position:relative;font-size:0.92rem;color:var(--text-secondary);border-bottom:1px solid rgba(34,197,94,0.05);}
+        .steps li::before{content:counter(step-counter);position:absolute;left:0;top:0.55rem;width:22px;height:22px;border-radius:50%;background:rgba(34,197,94,0.15);color:var(--script-green);font-size:0.75rem;font-weight:700;display:flex;align-items:center;justify-content:center;}
+        .steps li:last-child{border-bottom:none;}
+        .unit-file-block{background:rgba(0,0,0,0.75);border:1px solid rgba(34,197,94,0.2);border-radius:10px;padding:1.25rem;font-family:'Consolas','Courier New',monospace;font-size:0.85rem;line-height:1.9;margin:0.9rem 0;overflow-x:auto;}
+        .uf-section{color:#fbbf24;font-weight:700;}
+        .uf-key{color:#38bdf8;}
+        .uf-val{color:var(--script-accent);}
+        .uf-comment{color:#4a6a4a;}
+        .checkpoint{display:flex;align-items:flex-start;gap:0.75rem;padding:0.7rem 0;border-bottom:1px solid rgba(34,197,94,0.06);}
+        .checkpoint:last-child{border-bottom:none;}
+        .checkpoint input[type="checkbox"]{width:18px;height:18px;margin-top:0.15rem;accent-color:var(--script-green);cursor:pointer;flex-shrink:0;}
+        .checkpoint label{font-size:0.9rem;color:var(--text-secondary);cursor:pointer;line-height:1.5;}
+        .checkpoint input:checked+label{color:var(--script-green);text-decoration:line-through;text-decoration-color:rgba(34,197,94,0.4);}
+        .insight{background:rgba(34,197,94,0.05);border-left:3px solid var(--script-green);border-radius:0 10px 10px 0;padding:0.9rem 1.1rem;margin-top:0.9rem;font-size:0.87rem;color:var(--text-secondary);}
+        .insight-label{font-size:0.7rem;font-weight:700;letter-spacing:0.1em;color:var(--script-green);margin-bottom:0.3rem;}
+        .warn-box{background:rgba(248,113,113,0.06);border:1px solid rgba(248,113,113,0.2);border-radius:10px;padding:0.9rem 1.1rem;margin:0.9rem 0;font-size:0.87rem;color:var(--text-secondary);}
+        .warn-box strong{color:var(--bad);display:block;font-size:0.72rem;letter-spacing:0.08em;margin-bottom:0.3rem;}
+        .completion-bar{background:var(--bg-card);border:1px solid var(--border);border-radius:16px;padding:2rem;text-align:center;margin-top:3rem;}
+        .completion-bar h3{color:var(--script-green);margin-bottom:0.75rem;font-size:1.2rem;}
+        .completion-bar p{color:var(--text-secondary);font-size:0.9rem;margin-bottom:1.25rem;}
+        .btn-complete{display:inline-block;background:linear-gradient(135deg,var(--script-green),var(--script-accent));color:#000;font-weight:700;padding:0.75rem 2rem;border-radius:10px;border:none;cursor:pointer;font-size:0.95rem;transition:opacity 0.2s,transform 0.2s;}
+        .btn-complete:hover{opacity:0.88;transform:translateY(-2px);}
+        .btn-complete:disabled{opacity:0.5;cursor:default;transform:none;}
+        .complete-msg{margin-top:1rem;color:var(--ok);font-weight:600;font-size:0.9rem;display:none;}
+    </style>
+</head>
+<body>
+<header class="site-header">
+    <a href="../index.html" class="back-link">&larr; Back to Linux Admin</a>
+    <span class="header-badge">SCRIPT HOUSE — LINUX ADMIN</span>
+</header>
+<div class="container">
+    <div class="hero">
+        <div class="module-tag">CH05 — LAB</div>
+        <h1>Daemons &amp; <span>Services</span> — Hands-On</h1>
+        <p>Five exercises covering systemd service management, custom unit file creation, journalctl log investigation, cron job scheduling, and daemon persistence auditing — the skills every Linux administrator uses daily.</p>
+        <div class="lab-meta">
+            <div class="meta-item">Platform: <strong>Linux Terminal</strong></div>
+            <div class="meta-item">Exercises: <strong>5</strong></div>
+            <div class="meta-item">Difficulty: <strong>Intermediate</strong></div>
+            <div class="meta-item">Est. Time: <strong>55–70 min</strong></div>
+        </div>
+    </div>
+
+    <div class="objectives">
+        <h3>Lab Objectives</h3>
+        <ul>
+            <li>Manage running services with systemctl start, stop, enable, disable, and status</li>
+            <li>Write a custom systemd unit file and load it into the system</li>
+            <li>Use journalctl to query and filter the system journal effectively</li>
+            <li>Create and verify cron jobs for scheduled task automation</li>
+            <li>Audit the system for unauthorized or suspicious daemon persistence mechanisms</li>
+        </ul>
+    </div>
+
+    <!-- Exercise 1 -->
+    <div class="exercise" id="ex1">
+        <div class="exercise-header" onclick="toggleExercise('ex1')">
+            <div class="exercise-num">1</div>
+            <div class="exercise-title">systemctl Service Management Workflow</div>
+            <span class="exercise-tag tag-systemctl">SYSTEMCTL</span>
+            <span class="chevron" id="chevron-ex1">&#9660;</span>
+        </div>
+        <div class="exercise-body open" id="body-ex1">
+            <div class="scenario"><strong>SCENARIO</strong>You have just taken over administration of a Linux server. Your first task is to inventory all running services, verify the critical ones are enabled for auto-start, and understand the full systemctl command workflow before making changes.</div>
+            <ol class="steps">
+                <li>List all currently active (running) services: <code>systemctl list-units --type=service --state=running</code></li>
+                <li>List ALL services including inactive and failed: <code>systemctl list-units --type=service --all</code></li>
+                <li>List only services that failed to start: <code>systemctl --failed --type=service</code></li>
+                <li>Check the detailed status of the SSH daemon: <code>systemctl status sshd</code> (or <code>ssh</code> on some distros)</li>
+                <li>Check if sshd is enabled for boot: <code>systemctl is-enabled sshd</code></li>
+                <li>Check if sshd is currently active: <code>systemctl is-active sshd</code></li>
+                <li>View the actual unit file for sshd: <code>systemctl cat sshd</code></li>
+                <li>List all unit file dependencies for sshd: <code>systemctl list-dependencies sshd</code></li>
+                <li>Reload the systemd daemon (after editing unit files): <code>sudo systemctl daemon-reload</code></li>
+            </ol>
+            <div class="code-block">
+<span class="comment"># systemctl status output anatomy</span>
+$ systemctl status sshd
+<span class="out">● sshd.service - OpenSSH Daemon
+     Loaded: loaded (/usr/lib/systemd/system/sshd.service; <span class="key">enabled</span>; vendor preset: disabled)
+     Active: <span class="key">active (running)</span> since Mon 2025-01-15 09:00:12 UTC; 1h 23min ago
+   Main PID: 854 (sshd)
+      Tasks: 1 (limit: 4661)
+     Memory: 5.1M
+        CPU: 87ms
+     CGroup: /system.slice/sshd.service
+             └─854 "sshd: /usr/sbin/sshd -D [listener] 0 of 10-100 startups"</span>
+
+<span class="comment"># Key fields: Loaded (enabled/disabled), Active (running/dead)</span>
+<span class="comment"># enabled = starts at boot | disabled = manual start only</span>
+            </div>
+            <div style="margin-top:1rem;">
+                <div class="checkpoint"><input type="checkbox" id="c1a"><label for="c1a">Listed all running services and identified any unexpected ones</label></div>
+                <div class="checkpoint"><input type="checkbox" id="c1b"><label for="c1b">Checked for failed services with systemctl --failed</label></div>
+                <div class="checkpoint"><input type="checkbox" id="c1c"><label for="c1c">Read the full status output for sshd and understood all fields</label></div>
+                <div class="checkpoint"><input type="checkbox" id="c1d"><label for="c1d">Verified the difference between is-enabled and is-active</label></div>
+            </div>
+            <div class="insight"><div class="insight-label">OPERATIONAL INSIGHT</div>The distinction between <em>enabled</em> and <em>active</em> is critical. A service can be active (running right now) but not enabled (will not survive a reboot). Conversely, a service can be enabled (set to start at boot) but currently inactive (stopped or crashed). Always verify both states after configuration changes: <code>systemctl is-enabled sshd &amp;&amp; systemctl is-active sshd</code>. The <code>enable --now</code> flag combines both operations atomically.</div>
+        </div>
+    </div>
+
+    <!-- Exercise 2 -->
+    <div class="exercise" id="ex2">
+        <div class="exercise-header" onclick="toggleExercise('ex2')">
+            <div class="exercise-num">2</div>
+            <div class="exercise-title">Writing a Custom systemd Unit File</div>
+            <span class="exercise-tag tag-unit">UNIT FILE</span>
+            <span class="chevron" id="chevron-ex2">&#9654;</span>
+        </div>
+        <div class="exercise-body" id="body-ex2">
+            <div class="scenario"><strong>SCENARIO</strong>The development team has written a Python monitoring script that needs to run continuously as a daemon, restart automatically on failure, and start at boot. You will write and deploy a proper systemd unit file for it.</div>
+            <ol class="steps">
+                <li>Create the target script: <code>echo '#!/bin/bash' > /usr/local/bin/healthcheck.sh &amp;&amp; echo 'while true; do echo "$(date): OK" >> /var/log/healthcheck.log; sleep 60; done' >> /usr/local/bin/healthcheck.sh</code></li>
+                <li>Make it executable: <code>chmod +x /usr/local/bin/healthcheck.sh</code></li>
+                <li>Create the unit file: <code>sudo nano /etc/systemd/system/healthcheck.service</code></li>
+                <li>Write the unit file content as shown in the code block below</li>
+                <li>Reload systemd to register the new unit: <code>sudo systemctl daemon-reload</code></li>
+                <li>Start the service: <code>sudo systemctl start healthcheck</code></li>
+                <li>Check its status: <code>systemctl status healthcheck</code></li>
+                <li>Enable it for boot: <code>sudo systemctl enable healthcheck</code></li>
+                <li>Verify the log output after 30 seconds: <code>tail -5 /var/log/healthcheck.log</code></li>
+                <li>Test the restart behavior: <code>sudo systemctl kill healthcheck</code> — then check status again to see it restart</li>
+            </ol>
+            <div class="unit-file-block">
+<span class="uf-comment"># /etc/systemd/system/healthcheck.service</span>
+
+<span class="uf-section">[Unit]</span>
+<span class="uf-key">Description</span>=<span class="uf-val">System Health Check Daemon</span>
+<span class="uf-key">After</span>=<span class="uf-val">network.target</span>
+<span class="uf-comment"># Wait for network before starting</span>
+
+<span class="uf-section">[Service]</span>
+<span class="uf-key">Type</span>=<span class="uf-val">simple</span>
+<span class="uf-comment"># simple = systemd expects the main process to stay running</span>
+<span class="uf-key">ExecStart</span>=<span class="uf-val">/usr/local/bin/healthcheck.sh</span>
+<span class="uf-key">Restart</span>=<span class="uf-val">on-failure</span>
+<span class="uf-comment"># Restart the service if it exits with non-zero status</span>
+<span class="uf-key">RestartSec</span>=<span class="uf-val">5</span>
+<span class="uf-comment"># Wait 5 seconds before restarting</span>
+<span class="uf-key">User</span>=<span class="uf-val">nobody</span>
+<span class="uf-comment"># Run as unprivileged user for security</span>
+<span class="uf-key">StandardOutput</span>=<span class="uf-val">journal</span>
+<span class="uf-key">StandardError</span>=<span class="uf-val">journal</span>
+
+<span class="uf-section">[Install]</span>
+<span class="uf-key">WantedBy</span>=<span class="uf-val">multi-user.target</span>
+<span class="uf-comment"># Start this service when reaching multi-user (normal) mode</span>
+            </div>
+            <div class="warn-box"><strong>IMPORTANT — CLEAN UP</strong>After completing this exercise, stop and disable the test service: <code>sudo systemctl stop healthcheck &amp;&amp; sudo systemctl disable healthcheck</code>. Then remove the unit file: <code>sudo rm /etc/systemd/system/healthcheck.service &amp;&amp; sudo systemctl daemon-reload</code>. Always clean up test services from production-adjacent systems.</div>
+            <div style="margin-top:1rem;">
+                <div class="checkpoint"><input type="checkbox" id="c2a"><label for="c2a">Created the shell script and set executable permissions</label></div>
+                <div class="checkpoint"><input type="checkbox" id="c2b"><label for="c2b">Wrote the unit file with correct [Unit], [Service], and [Install] sections</label></div>
+                <div class="checkpoint"><input type="checkbox" id="c2c"><label for="c2c">Ran daemon-reload and started the service successfully</label></div>
+                <div class="checkpoint"><input type="checkbox" id="c2d"><label for="c2d">Verified the Restart=on-failure behavior by killing the service</label></div>
+                <div class="checkpoint"><input type="checkbox" id="c2e"><label for="c2e">Cleaned up the test service, unit file, and log file</label></div>
+            </div>
+            <div class="insight"><div class="insight-label">UNIT FILE ARCHITECTURE</div>The three-section structure maps to a clear lifecycle: <strong>[Unit]</strong> describes what the service is and its dependencies; <strong>[Service]</strong> defines how to run it (what binary, how to restart, what user); <strong>[Install]</strong> defines when it starts relative to boot targets. The <code>Type=</code> directive is subtle but important: <code>simple</code> (default, process stays in foreground), <code>forking</code> (process forks a child daemon and exits), <code>oneshot</code> (runs once and exits), <code>notify</code> (service sends a ready notification via sd_notify). Getting <code>Type=</code> wrong causes systemd to mistrack the service state.</div>
+        </div>
+    </div>
+
+    <!-- Exercise 3 -->
+    <div class="exercise" id="ex3">
+        <div class="exercise-header" onclick="toggleExercise('ex3')">
+            <div class="exercise-num">3</div>
+            <div class="exercise-title">journalctl Log Investigation</div>
+            <span class="exercise-tag tag-journal">JOURNALCTL</span>
+            <span class="chevron" id="chevron-ex3">&#9654;</span>
+        </div>
+        <div class="exercise-body" id="body-ex3">
+            <div class="scenario"><strong>SCENARIO</strong>A service crashed overnight and you need to reconstruct what happened. You have no prior knowledge of which service failed. Use journalctl to investigate the timeline, isolate the relevant service logs, and identify the root cause from log evidence alone.</div>
+            <ol class="steps">
+                <li>View the end of the current boot's journal: <code>journalctl -b -e</code> (current boot, end of log)</li>
+                <li>View logs from the previous boot: <code>journalctl -b -1</code> (last reboot cycle)</li>
+                <li>List all available boot sessions: <code>journalctl --list-boots</code></li>
+                <li>Filter by a specific service: <code>journalctl -u sshd.service</code></li>
+                <li>Follow a service log in real-time: <code>journalctl -u sshd.service -f</code> (Ctrl+C to exit)</li>
+                <li>Show only errors and critical messages: <code>journalctl -p err..emerg</code></li>
+                <li>Filter by time range: <code>journalctl --since "2025-01-15 09:00" --until "2025-01-15 10:00"</code></li>
+                <li>Show logs for the last 30 minutes: <code>journalctl --since "30 minutes ago"</code></li>
+                <li>Output in JSON format (useful for parsing): <code>journalctl -u sshd -n 5 -o json-pretty</code></li>
+                <li>Check journal disk usage: <code>journalctl --disk-usage</code></li>
+            </ol>
+            <div class="code-block">
+<span class="comment"># Priority levels: 0=emerg 1=alert 2=crit 3=err 4=warn 5=notice 6=info 7=debug</span>
+
+<span class="comment"># Investigate a specific time window around a known incident</span>
+$ journalctl --since "2025-01-15 02:00" --until "2025-01-15 02:30" -p err
+<span class="out">Jan 15 02:14:07 server sshd[1842]: error: maximum authentication attempts exceeded
+Jan 15 02:14:07 server sshd[1842]: Disconnecting invalid user admin 10.0.0.5</span>
+
+<span class="comment"># Follow a service and grep for specific events</span>
+$ journalctl -u nginx.service -f | grep -i "error\|fail\|critical"
+
+<span class="comment"># Find failed systemd services across all boots</span>
+$ journalctl -p err -b | grep "systemd\[1\]"
+<span class="out">Jan 15 08:59:41 server systemd[1]: <span class="key">backup.service: Failed with result 'exit-code'</span></span>
+
+<span class="comment"># Kernel messages only (like dmesg but persistent)</span>
+$ journalctl -k --since today
+            </div>
+            <div style="margin-top:1rem;">
+                <div class="checkpoint"><input type="checkbox" id="c3a"><label for="c3a">Viewed current boot logs and identified any error-level entries</label></div>
+                <div class="checkpoint"><input type="checkbox" id="c3b"><label for="c3b">Filtered journal by a specific service unit with -u</label></div>
+                <div class="checkpoint"><input type="checkbox" id="c3c"><label for="c3c">Used -p err..emerg to view only high-priority messages</label></div>
+                <div class="checkpoint"><input type="checkbox" id="c3d"><label for="c3d">Queried logs for a specific time window with --since and --until</label></div>
+                <div class="checkpoint"><input type="checkbox" id="c3e"><label for="c3e">Checked journal disk usage with --disk-usage</label></div>
+            </div>
+            <div class="insight"><div class="insight-label">FORENSICS: JOURNALCTL VS TRADITIONAL LOGS</div>journalctl is the systemd journal — a structured, binary, indexed log store. Unlike traditional text logs in /var/log/, the journal stores metadata with every entry (PID, UID, systemd unit, boot ID, executable path). This makes filtering dramatically more powerful and reliable. In a forensic investigation, the <code>-o json</code> output exposes all metadata fields. The boot ID (<code>_BOOT_ID</code> field) lets you correlate events across services to a specific boot session. Use <code>journalctl -F _SYSTEMD_UNIT</code> to see all unit names that have ever logged — including ones no longer installed.</div>
+        </div>
+    </div>
+
+    <!-- Exercise 4 -->
+    <div class="exercise" id="ex4">
+        <div class="exercise-header" onclick="toggleExercise('ex4')">
+            <div class="exercise-num">4</div>
+            <div class="exercise-title">Cron Job Creation and Scheduling</div>
+            <span class="exercise-tag tag-cron">CRON</span>
+            <span class="chevron" id="chevron-ex4">&#9654;</span>
+        </div>
+        <div class="exercise-body" id="body-ex4">
+            <div class="scenario"><strong>SCENARIO</strong>The operations team needs four scheduled tasks: a nightly database backup at 2:30 AM, a log rotation every Sunday at midnight, a system health check every 15 minutes, and a disk usage alert script that fires at 8 AM on weekdays. Write and test all four cron entries.</div>
+            <ol class="steps">
+                <li>Open the current user's crontab for editing: <code>crontab -e</code> — this opens the user's personal cron table</li>
+                <li>To edit the root crontab (for system tasks): <code>sudo crontab -e</code></li>
+                <li>Write the four scheduled tasks using the cron syntax shown in the code block</li>
+                <li>List the current crontab to verify: <code>crontab -l</code></li>
+                <li>Check the system-wide cron directories: <code>ls /etc/cron.{daily,weekly,monthly,hourly}</code></li>
+                <li>For a quick test, add a job that runs every minute and writes to a log: <code>* * * * * echo "$(date): cron test" >> /tmp/cron-test.log</code></li>
+                <li>Wait 2 minutes, then verify the log: <code>tail -5 /tmp/cron-test.log</code></li>
+                <li>Remove the test entry from crontab once verified (crontab -e, delete the line)</li>
+                <li>Check cron's own log for job execution history: <code>grep CRON /var/log/syslog | tail -20</code> or <code>journalctl -u cron.service --since today</code></li>
+            </ol>
+            <div class="code-block">
+<span class="comment"># Cron field format: minute hour day-of-month month day-of-week command</span>
+<span class="comment"># Ranges: * (any) , (list) - (range) / (step)</span>
+
+<span class="comment"># Database backup at 2:30 AM every day</span>
+<span class="key">30 2 * * *</span> /usr/local/bin/backup-db.sh >> /var/log/backup.log 2>&amp;1
+
+<span class="comment"># Log rotation every Sunday at midnight</span>
+<span class="key">0 0 * * 0</span> /usr/sbin/logrotate /etc/logrotate.conf
+
+<span class="comment"># System health check every 15 minutes</span>
+<span class="key">*/15 * * * *</span> /usr/local/bin/healthcheck.sh >> /var/log/health.log 2>&amp;1
+
+<span class="comment"># Disk usage alert 8 AM Mon-Fri only</span>
+<span class="key">0 8 * * 1-5</span> /usr/local/bin/disk-alert.sh | mail -s "Disk Report" admin@example.com
+
+<span class="comment"># Quick test: write timestamp every minute</span>
+<span class="key">* * * * *</span> echo "$(date): alive" >> /tmp/cron-test.log
+            </div>
+            <div style="margin-top:1rem;">
+                <div class="checkpoint"><input type="checkbox" id="c4a"><label for="c4a">Wrote all four scheduled task entries with correct cron syntax</label></div>
+                <div class="checkpoint"><input type="checkbox" id="c4b"><label for="c4b">Verified the crontab with crontab -l</label></div>
+                <div class="checkpoint"><input type="checkbox" id="c4c"><label for="c4c">Tested a real cron job firing by using * * * * * and waiting 2 minutes</label></div>
+                <div class="checkpoint"><input type="checkbox" id="c4d"><label for="c4d">Confirmed cron execution in the system log</label></div>
+            </div>
+            <div class="insight"><div class="insight-label">CRON SECURITY NOTE</div>Cron jobs run in a minimal environment — the <code>$PATH</code> is not your interactive shell path. Always use absolute paths in cron scripts (<code>/usr/bin/python3</code> not <code>python3</code>). Always redirect both stdout and stderr (<code>&gt;&gt; logfile 2&gt;&amp;1</code>) or you will never see errors — they silently disappear or get emailed to root. The <code>/etc/cron.allow</code> and <code>/etc/cron.deny</code> files control which users can create cron jobs. On a hardened system, restrict cron access to authorized users only. Also note: systemd timers are increasingly replacing cron — they integrate with journalctl, support dependencies, and have better failure handling.</div>
+        </div>
+    </div>
+
+    <!-- Exercise 5 -->
+    <div class="exercise" id="ex5">
+        <div class="exercise-header" onclick="toggleExercise('ex5')">
+            <div class="exercise-num">5</div>
+            <div class="exercise-title">Daemon Persistence Audit</div>
+            <span class="exercise-tag tag-audit">SECURITY AUDIT</span>
+            <span class="chevron" id="chevron-ex5">&#9654;</span>
+        </div>
+        <div class="exercise-body" id="body-ex5">
+            <div class="scenario"><strong>SCENARIO</strong>Security has flagged this server as potentially compromised. Attackers commonly establish persistence by creating rogue systemd services, hidden cron jobs, or init scripts. Audit every persistence mechanism on the system and document anything unexpected.</div>
+            <ol class="steps">
+                <li>List all enabled services (auto-start at boot): <code>systemctl list-unit-files --type=service --state=enabled</code></li>
+                <li>Check for user-level systemd services: <code>ls -la ~/.config/systemd/user/ 2>/dev/null</code> and <code>find /home -name "*.service" 2>/dev/null</code></li>
+                <li>Audit all systemd unit directories for unexpected files: <code>ls -lt /etc/systemd/system/ | head -20</code> (recently modified files are suspicious)</li>
+                <li>Check all crontabs for all users: <code>for u in $(cut -d: -f1 /etc/passwd); do echo "=== $u ==="; crontab -u "$u" -l 2>/dev/null; done</code></li>
+                <li>Check system-wide cron directories: <code>ls -la /etc/cron.d/ /etc/cron.daily/ /etc/cron.weekly/ /etc/cron.monthly/ /etc/cron.hourly/</code></li>
+                <li>Check /etc/crontab directly: <code>cat /etc/crontab</code></li>
+                <li>Check rc.local for legacy startup commands: <code>cat /etc/rc.local 2>/dev/null</code></li>
+                <li>Find recently modified files in systemd directories: <code>find /etc/systemd /lib/systemd /usr/lib/systemd -name "*.service" -newer /boot -ls 2>/dev/null | head -15</code></li>
+                <li>Document findings: <code>systemctl list-unit-files --state=enabled > ~/enabled-services-audit.txt</code></li>
+            </ol>
+            <div class="code-block">
+<span class="comment"># Full crontab audit for all system users</span>
+$ for u in $(cut -d: -f1 /etc/passwd); do \
+    entries=$(crontab -u "$u" -l 2>/dev/null | grep -v "^#" | grep -v "^$") ;\
+    [ -n "$entries" ] &amp;&amp; echo "USER: $u" &amp;&amp; echo "$entries" ;\
+  done
+
+<span class="comment"># Find unit files not owned by system packages (potential malware persistence)</span>
+$ find /etc/systemd/system -name "*.service" | while read f; do \
+    rpm -qf "$f" 2>/dev/null | grep "not owned" &amp;&amp; echo "UNPACKAGED: $f" ;\
+  done
+<span class="comment"># Debian/Ubuntu: use dpkg -S "$f" instead of rpm -qf</span>
+
+<span class="comment"># Check for services running from unusual locations</span>
+$ systemctl list-units --type=service --state=running -o json 2>/dev/null | \
+    python3 -c "import sys,json; [print(u.get('unit','')) for u in json.load(sys.stdin)]"
+
+<span class="comment"># Recently modified init/systemd files (flag anything newer than last known update)</span>
+$ find /etc/systemd/system -newer /etc/passwd -name "*.service" 2>/dev/null
+<span class="comment"># Any results here warrant immediate investigation</span>
+            </div>
+            <div style="margin-top:1rem;">
+                <div class="checkpoint"><input type="checkbox" id="c5a"><label for="c5a">Listed all boot-enabled services and identified any unexpected entries</label></div>
+                <div class="checkpoint"><input type="checkbox" id="c5b"><label for="c5b">Checked user-level systemd service directories for rogue units</label></div>
+                <div class="checkpoint"><input type="checkbox" id="c5c"><label for="c5c">Audited crontabs for every user account on the system</label></div>
+                <div class="checkpoint"><input type="checkbox" id="c5d"><label for="c5d">Checked all system cron directories and /etc/crontab</label></div>
+                <div class="checkpoint"><input type="checkbox" id="c5e"><label for="c5e">Searched for recently modified systemd unit files as a persistence indicator</label></div>
+            </div>
+            <div class="insight"><div class="insight-label">ATTACKER PERSISTENCE PLAYBOOK</div>Knowing how attackers establish persistence is the only way to detect it. The most common daemon-based persistence techniques: (1) Drop a .service file in /etc/systemd/system/ with a disguised name like <code>dbus-daemon-helper.service</code>; (2) Add a cronjob to root's crontab or /etc/cron.d/ that re-downloads the payload; (3) Add an entry to /etc/rc.local (legacy but still works); (4) Hijack an existing service's ExecStart path by replacing the binary. The red flags are: service names that mimic legitimate daemons, ExecStart pointing to /tmp or /dev/shm, services running as root with no legitimate description, and unit files with no corresponding package in the package manager.</div>
+        </div>
+    </div>
+
+    <div class="completion-bar">
+        <h3>Lab Complete</h3>
+        <p>Mark complete when you have finished all five exercises.</p>
+        <button class="btn-complete" id="completeBtn" onclick="markComplete()">Mark Lab as Complete</button>
+        <div class="complete-msg" id="completeMsg">Lab progress saved. Move on to Chapter 6!</div>
+    </div>
+</div>
+
+<script src="../../../../components/FluxCapacitor.js"></script>
+<script>
+function toggleExercise(id){const body=document.getElementById('body-'+id),chevron=document.getElementById('chevron-'+id),isOpen=body.classList.contains('open');body.classList.toggle('open',!isOpen);chevron.innerHTML=isOpen?'&#9654;':'&#9660;';}
+function markComplete(){const btn=document.getElementById('completeBtn'),msg=document.getElementById('completeMsg');btn.disabled=true;btn.textContent='Saving...';if(typeof ModuleProgress!=='undefined')ModuleProgress.complete('script','script-la-ch05-lab');btn.textContent='Completed';msg.style.display='block';}
+(function checkCompleted(){const progress=JSON.parse(localStorage.getItem('hexworth_progress')||'{}');if(progress['script-la-ch05-lab']){const btn=document.getElementById('completeBtn');btn.textContent='Completed';btn.disabled=true;document.getElementById('completeMsg').style.display='block';}})();
+</script>
+</body>
+</html>

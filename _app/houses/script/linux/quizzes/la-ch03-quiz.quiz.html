@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CH03 Quiz: Grep, Pipes & Text Processing — Script House</title>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root { --script-green: #22c55e; --script-accent: #4ade80; --script-glow: rgba(34,197,94,0.3); --bg-card: rgba(10,20,10,0.9); --text-primary: #e8e8f0; --text-secondary: #7a9a7a; --correct: #22c55e; --incorrect: #ef4444; --border: rgba(34,197,94,0.2); }
+        body { min-height: 100vh; background: linear-gradient(135deg, #0a0a12, #0a1a0f, #0a250a); font-family: 'Segoe UI', system-ui, sans-serif; color: var(--text-primary); }
+        .quiz-header { padding: 1rem 2rem; border-bottom: 1px solid var(--border); background: rgba(10,10,18,0.96); display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; backdrop-filter: blur(12px); }
+        .back-btn { display: flex; align-items: center; gap: 8px; padding: 8px 16px; background: rgba(34,197,94,0.08); border: 1px solid var(--border); border-radius: 8px; color: var(--script-green); font-size: 0.85rem; font-weight: 600; text-decoration: none; transition: all 0.2s; }
+        .back-btn:hover { background: rgba(34,197,94,0.15); }
+        .progress-bar { width: 180px; height: 6px; background: rgba(255,255,255,0.08); border-radius: 3px; overflow: hidden; }
+        .progress-fill { height: 100%; background: linear-gradient(90deg, var(--script-green), var(--script-accent)); width: 0%; transition: width 0.5s ease; }
+        #questionCounter { color: var(--text-secondary); font-size: 0.85rem; }
+        .quiz-container { max-width: 820px; margin: 2.5rem auto; padding: 0 1.5rem 4rem; }
+        .quiz-title { text-align: center; margin-bottom: 2.5rem; }
+        .quiz-title h1 { font-size: 1.9rem; color: var(--script-green); margin-bottom: 0.5rem; }
+        .quiz-title p { color: var(--text-secondary); font-size: 0.95rem; }
+        .question-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 14px; padding: 2rem; margin-bottom: 1.25rem; display: none; }
+        .question-card.active { display: block; animation: fadeIn 0.3s ease; }
+        @keyframes fadeIn { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
+        .question-number { color: var(--script-green); font-size: 0.8rem; font-weight: 700; letter-spacing: 0.1em; margin-bottom: 0.9rem; }
+        .question-text { font-size: 1.15rem; line-height: 1.6; margin-bottom: 1.5rem; }
+        .question-text code { background: rgba(34,197,94,0.12); color: var(--script-accent); padding: 2px 8px; border-radius: 4px; font-family: 'Consolas',monospace; font-size: 0.9em; }
+        .options { display: grid; gap: 0.75rem; }
+        .option { padding: 1rem 1.25rem; background: rgba(34,197,94,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; gap: 0.9rem; }
+        .option:hover:not(.disabled) { background: rgba(34,197,94,0.1); border-color: var(--script-green); }
+        .option.correct { background: rgba(34,197,94,0.2); border-color: var(--correct); }
+        .option.incorrect { background: rgba(239,68,68,0.15); border-color: var(--incorrect); }
+        .option.disabled { pointer-events: none; opacity: 0.75; }
+        .option-letter { width: 30px; height: 30px; border-radius: 50%; background: rgba(255,255,255,0.08); display: flex; align-items: center; justify-content: center; font-size: 0.85rem; font-weight: 700; flex-shrink: 0; }
+        .option.correct .option-letter { background: var(--correct); color: #000; }
+        .option.incorrect .option-letter { background: var(--incorrect); color: #fff; }
+        .feedback { margin-top: 1.25rem; padding: 1rem 1.25rem; border-radius: 10px; display: none; font-size: 0.9rem; line-height: 1.5; }
+        .feedback.show { display: block; animation: fadeIn 0.3s ease; }
+        .feedback.correct { background: rgba(34,197,94,0.1); border-left: 3px solid var(--correct); }
+        .feedback.incorrect { background: rgba(239,68,68,0.1); border-left: 3px solid var(--incorrect); }
+        .nav-buttons { display: flex; justify-content: flex-end; margin-top: 1.5rem; }
+        .nav-btn { padding: 0.7rem 1.75rem; border-radius: 10px; font-size: 0.9rem; font-weight: 600; cursor: pointer; border: none; transition: all 0.2s; background: linear-gradient(135deg, var(--script-green), var(--script-accent)); color: #000; }
+        .nav-btn:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 6px 20px var(--script-glow); }
+        .nav-btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+        .results-card { background: var(--bg-card); border: 1px solid rgba(34,197,94,0.35); border-radius: 16px; padding: 3rem; text-align: center; display: none; }
+        .results-card.show { display: block; animation: fadeIn 0.5s ease; }
+        .score-circle { width: 140px; height: 140px; border-radius: 50%; background: linear-gradient(135deg, var(--script-green), var(--script-accent)); display: flex; align-items: center; justify-content: center; margin: 0 auto 1.75rem; font-size: 2.8rem; font-weight: 900; color: #000; }
+        .results-title { font-size: 1.75rem; color: var(--script-green); margin-bottom: 0.6rem; }
+        .results-subtitle { color: var(--text-secondary); margin-bottom: 2rem; font-size: 0.95rem; }
+        .results-actions { display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap; }
+        .action-btn { padding: 0.75rem 1.75rem; border-radius: 10px; text-decoration: none; font-size: 0.9rem; font-weight: 600; transition: all 0.2s; }
+        .action-btn.primary { background: linear-gradient(135deg, var(--script-green), var(--script-accent)); color: #000; }
+        .action-btn.secondary { background: rgba(255,255,255,0.05); border: 1px solid var(--border); color: var(--text-secondary); }
+        .action-btn:hover { transform: translateY(-2px); }
+    </style>
+</head>
+<body>
+<header class="quiz-header">
+    <a href="../presentations/la-ch03-grep-pipes.presentation.html" class="back-btn">&larr; Back to Presentation</a>
+    <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+    <span id="questionCounter">1 / 10</span>
+</header>
+<div class="quiz-container">
+    <div class="quiz-title">
+        <h1>CH03: Grep, Pipes &amp; Text Processing</h1>
+        <p>10 questions on grep flags, regex basics, I/O redirection, pipelines, awk, and sed</p>
+    </div>
+    <div id="questionsContainer"></div>
+    <div class="results-card" id="resultsCard">
+        <div class="score-circle" id="scoreCircle">0%</div>
+        <h2 class="results-title" id="resultsTitle">Quiz Complete!</h2>
+        <p class="results-subtitle" id="resultsSubtitle"></p>
+        <div class="results-actions">
+            <a href="../presentations/la-ch03-grep-pipes.presentation.html" class="action-btn secondary">Review Slides</a>
+            <a href="../labs/la-ch03-grep-pipes.lab.html" class="action-btn primary" id="nextBtn">Go to Lab &rarr;</a>
+        </div>
+    </div>
+</div>
+<script src="../../../../components/FluxCapacitor.js"></script>
+<script>
+const questions = [
+    { question: 'What does the grep flag <code>-i</code> do?', options: ['Inverts the match (shows non-matching lines)', 'Makes the search case-insensitive', 'Searches recursively through directories', 'Shows only the count of matches'], correct: 1, feedback: { correct: 'Correct! The -i flag makes grep case-insensitive. "grep -i error" matches "error", "Error", "ERROR", and "ErRoR".', incorrect: 'The -i flag makes grep case-insensitive. -v inverts the match, -r searches recursively, and -c shows the count of matching lines.' } },
+    { question: 'Which grep flag shows only the filenames that contain a match (not the matching lines themselves)?', options: ['-n', '-c', '-l', '-o'], correct: 2, feedback: { correct: 'Correct! grep -l (lowercase L) prints only the names of files containing matches — useful when searching many files with grep -rl to find which ones contain a pattern.', incorrect: 'The -l flag (lowercase L) prints only matching filenames. -n shows line numbers, -c shows match counts, and -o shows only the matched portion of the line.' } },
+    { question: 'What does the pipe operator <code>|</code> do?', options: ['Saves command output to a file', 'Connects the stdout of one command to the stdin of the next command', 'Runs two commands simultaneously', 'Appends output to an existing file'], correct: 1, feedback: { correct: 'Correct! The pipe | connects the standard output of the command on the left to the standard input of the command on the right, enabling multi-stage data processing pipelines.', incorrect: 'The pipe | operator connects stdout of the left command to stdin of the right command. > saves to file (overwrite), >> appends to file, and & runs in background.' } },
+    { question: 'What does <code>grep -v "^#" /etc/ssh/sshd_config</code> output?', options: ['Only lines starting with #', 'All lines, replacing # with nothing', 'All lines that do NOT start with #', 'An error — invalid regex'], correct: 2, feedback: { correct: 'Correct! -v inverts the match (shows non-matching lines). ^# matches lines starting with #. Combined: show all lines that do NOT start with # — effectively filtering out comment lines.', incorrect: 'The -v flag inverts grep — it shows lines that do NOT match the pattern. ^# is a regex anchoring # to the start of line. Result: all non-comment lines in sshd_config.' } },
+    { question: 'Which redirection operator appends stdout to an existing file without overwriting it?', options: ['>', '>>', '<', '2>'], correct: 1, feedback: { correct: 'Correct! >> appends stdout to a file. > overwrites the file (or creates it). < reads stdin from a file. 2> redirects stderr.', incorrect: '>> appends output to a file without overwriting existing content. > overwrites (truncates then writes). < redirects stdin from a file. 2> redirects stderr.' } },
+    { question: 'What does the command <code>cat access.log | grep "404" | wc -l</code> accomplish?', options: ['Displays all 404 errors from the log', 'Counts the number of lines containing "404" in access.log', 'Deletes all 404 entries from the log', 'Creates a new file with 404 entries'], correct: 1, feedback: { correct: 'Correct! The pipeline: cat reads the file, grep "404" filters to only lines containing "404", wc -l counts the resulting lines. Result: the total count of 404 responses in the access log.', incorrect: 'This three-command pipeline: cat outputs the file, grep filters to lines with "404", wc -l counts the filtered lines. The result is the number of 404 HTTP responses.' } },
+    { question: 'In the regex pattern <code>^Failed</code>, what does the <code>^</code> character mean?', options: ['Match the character "^"', 'Negate the pattern', 'Match "Failed" at the start of a line', 'Match "Failed" at the end of a line'], correct: 2, feedback: { correct: 'Correct! In regex, ^ anchors the match to the start of a line. ^Failed only matches lines where "Failed" is the very first word — not lines where "Failed" appears in the middle.', incorrect: 'In regex, ^ is an anchor meaning "start of line". ^Failed matches only when "Failed" appears at the very beginning of a line. $ anchors to end of line. [^] inside brackets negates a character class.' } },
+    { question: 'What does <code>grep -A 3 "OOM killer" /var/log/syslog</code> do?', options: ['Shows the 3 lines before each match', 'Shows the 3 lines after each match', 'Shows only matches on every 3rd line', 'Shows 3 random lines from the file'], correct: 1, feedback: { correct: 'Correct! -A (After) shows N lines after each match. This is invaluable in log analysis — when you find an event, you need to see what happened immediately after it. -B shows lines Before, -C shows lines both before and after.', incorrect: '-A N shows N lines After each match. -B N shows N lines Before. -C N shows N lines of Context (before and after). These context flags are essential for log analysis — events need context.' } },
+    { question: 'Which command extracts only the first field from each line of /etc/passwd using ":" as the delimiter?', options: ['grep -f: /etc/passwd', 'awk -F: \'{print $1}\' /etc/passwd', 'sed \'s/:.*//\' /etc/passwd', 'Both B and C are correct'], correct: 3, feedback: { correct: 'Correct! Both awk -F: \'{print $1}\' and sed \'s/:.*//\' extract only the first field (username) from /etc/passwd. awk uses -F to set the delimiter and $1 for the first field; sed removes everything from the first colon to end of line.', incorrect: 'Both awk -F: \'{print $1}\' (set colon delimiter, print first field) and sed \'s/:.*//\' (remove everything from first colon onward) correctly extract the first field from /etc/passwd. Both approaches are valid.' } },
+    { question: 'What is the purpose of the <code>tee</code> command in a pipeline?', options: ['Terminates the pipeline', 'Reads stdin and writes to both stdout AND a specified file simultaneously', 'Connects two separate pipelines', 'Shows the last line of pipeline output only'], correct: 1, feedback: { correct: 'Correct! tee splits the stream — it reads stdin and writes it to both stdout (so the next command in the pipeline receives it) AND to a file. Example: ls -la | tee listing.txt | grep ".sh" — saves the full listing AND filters for .sh files.', incorrect: 'tee reads from stdin and simultaneously writes to both stdout and a file — "splitting" the data stream like a T-junction in plumbing. It lets you save intermediate pipeline results without breaking the pipeline flow.' } }
+];
+
+let currentQuestion=0, score=0, answered=new Array(questions.length).fill(false);
+
+function initQuiz() {
+    const c=document.getElementById('questionsContainer'), L=['A','B','C','D'];
+    questions.forEach((q,idx) => { c.innerHTML+=`<div class="question-card" id="question${idx}"><div class="question-number">QUESTION ${idx+1} OF ${questions.length}</div><div class="question-text">${q.question}</div><div class="options">${q.options.map((o,i)=>`<div class="option" onclick="selectOption(${idx},${i})"><span class="option-letter">${L[i]}</span><span>${o}</span></div>`).join('')}</div><div class="feedback" id="feedback${idx}"></div><div class="nav-buttons"><button class="nav-btn" id="nextBtn${idx}" onclick="nextQuestion()" disabled>${idx===questions.length-1?'See Results':'Next Question &rarr;'}</button></div></div>`; });
+    showQuestion(0);
+}
+function showQuestion(idx) { document.querySelectorAll('.question-card').forEach(c=>c.classList.remove('active')); document.getElementById(`question${idx}`).classList.add('active'); document.getElementById('progressFill').style.width=((idx+1)/questions.length*100)+'%'; document.getElementById('questionCounter').textContent=`${idx+1} / ${questions.length}`; }
+function selectOption(qIdx,optIdx) { if(answered[qIdx])return; answered[qIdx]=true; const q=questions[qIdx]; document.querySelectorAll(`#question${qIdx} .option`).forEach((o,i)=>{ o.classList.add('disabled'); if(i===q.correct)o.classList.add('correct'); else if(i===optIdx)o.classList.add('incorrect'); }); const fb=document.getElementById(`feedback${qIdx}`); if(optIdx===q.correct){score++;fb.className='feedback show correct';fb.innerHTML='<strong>Correct!</strong> '+q.feedback.correct;}else{fb.className='feedback show incorrect';fb.innerHTML='<strong>Incorrect.</strong> '+q.feedback.incorrect;} document.getElementById(`nextBtn${qIdx}`).disabled=false; }
+function nextQuestion() { if(currentQuestion<questions.length-1){currentQuestion++;showQuestion(currentQuestion);}else showResults(); }
+function showResults() { document.querySelectorAll('.question-card').forEach(c=>c.classList.remove('active')); document.getElementById('resultsCard').classList.add('show'); const pct=Math.round(score/questions.length*100); document.getElementById('scoreCircle').textContent=pct+'%'; document.getElementById('resultsSubtitle').textContent=`You scored ${score} out of ${questions.length} correct`; let t='Keep Practicing!'; if(pct>=90)t='Outstanding!'; else if(pct>=80)t='Great Work!'; else if(pct>=70)t='Good Effort!'; document.getElementById('resultsTitle').textContent=t; localStorage.setItem('hexworth_la_ch03_quiz_score',pct); if(pct>=70&&typeof ModuleProgress!=='undefined')ModuleProgress.complete('script','script-la-ch03-quiz'); if(pct<70){document.getElementById('nextBtn').textContent='Retry Quiz';document.getElementById('nextBtn').href='la-ch03-quiz.quiz.html';} }
+
+initQuiz();
+</script>
+</body>
+</html>

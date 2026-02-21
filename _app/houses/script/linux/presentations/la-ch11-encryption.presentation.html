@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ch 11: Encryption — Linux Admin</title>
+    <script src="../../../../../components/AchievementManager.js"></script>
+    <script src="../../../../../components/ModuleProgress.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --script-green: #22c55e; --script-accent: #4ade80;
+            --script-glow: rgba(34, 197, 94, 0.35);
+            --bg-card: rgba(10, 20, 10, 0.85);
+            --text-primary: #e8f5e8; --text-secondary: #7aaa7a;
+            --ok: #4ade80; --warn: #fbbf24; --bad: #f87171;
+            --border: rgba(34, 197, 94, 0.2);
+        }
+        body { font-family: 'Segoe UI', system-ui, sans-serif; background: linear-gradient(135deg, #0a0a12, #0a1a0f, #0a250a); color: var(--text-primary); line-height: 1.7; min-height: 100vh; }
+        .site-header { background: rgba(10,10,18,0.95); border-bottom: 1px solid var(--border); padding: 0.9rem 2rem; position: sticky; top: 0; z-index: 100; display: flex; align-items: center; justify-content: space-between; backdrop-filter: blur(10px); }
+        .back-link { color: var(--script-green); text-decoration: none; font-size: 0.9rem; font-weight: 600; display: flex; align-items: center; gap: 0.4rem; transition: opacity 0.2s; }
+        .back-link:hover { opacity: 0.75; }
+        .header-badge { background: linear-gradient(135deg, var(--script-green), var(--script-accent)); color: #000; padding: 0.35rem 1rem; border-radius: 20px; font-size: 0.78rem; font-weight: 700; letter-spacing: 0.05em; }
+        .container { max-width: 1100px; margin: 0 auto; padding: 2.5rem 2rem 4rem; }
+        .hero { text-align: center; padding: 3.5rem 2rem 2.5rem; background: var(--bg-card); border: 1px solid var(--border); border-radius: 20px; margin-bottom: 2.5rem; position: relative; overflow: hidden; }
+        .hero::before { content: ''; position: absolute; top: -80px; left: 50%; transform: translateX(-50%); width: 400px; height: 400px; background: radial-gradient(circle, var(--script-glow) 0%, transparent 70%); pointer-events: none; }
+        .module-tag { display: inline-block; background: rgba(34,197,94,0.12); color: var(--script-green); border: 1px solid var(--border); padding: 0.3rem 1rem; border-radius: 20px; font-size: 0.78rem; font-weight: 700; letter-spacing: 0.08em; margin-bottom: 1.2rem; }
+        .hero h1 { font-size: 2.2rem; font-weight: 800; margin-bottom: 0.75rem; }
+        .hero h1 span { color: var(--script-green); }
+        .hero p { color: var(--text-secondary); font-size: 1.05rem; max-width: 680px; margin: 0 auto; }
+        .section-heading { display: flex; align-items: center; gap: 0.75rem; font-size: 1.4rem; font-weight: 700; color: var(--script-green); margin: 2.5rem 0 1.25rem; }
+        .section-heading::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+        .card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 16px; padding: 1.75rem; margin-bottom: 1.5rem; }
+        .card h3 { font-size: 1.15rem; color: var(--script-accent); margin-bottom: 0.9rem; }
+        .card p { color: var(--text-secondary); font-size: 0.95rem; margin-bottom: 0.75rem; }
+        .card p:last-child { margin-bottom: 0; }
+        .code-block { background: rgba(0,0,0,0.5); border: 1px solid rgba(34,197,94,0.15); border-radius: 10px; padding: 1.25rem 1.5rem; margin: 1rem 0; font-family: 'Courier New', monospace; font-size: 0.88rem; color: var(--script-accent); overflow-x: auto; line-height: 1.8; }
+        .code-block .comment { color: #4a7a4a; font-style: italic; }
+        .code-block .cmd { color: var(--script-green); }
+        .code-block .flag { color: var(--warn); }
+        .code-block .val { color: #60a5fa; }
+        /* Sym vs Asym */
+        .enc-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; margin-bottom: 1.5rem; }
+        .enc-side { background: var(--bg-card); border-radius: 14px; padding: 1.5rem; }
+        .enc-side.sym { border: 1px solid rgba(34,197,94,0.3); }
+        .enc-side.asym { border: 1px solid rgba(251,191,36,0.3); }
+        .enc-side h4 { font-size: 1rem; font-weight: 700; margin-bottom: 0.75rem; }
+        .enc-side.sym h4 { color: var(--script-green); }
+        .enc-side.asym h4 { color: var(--warn); }
+        .enc-side ul { list-style: none; }
+        .enc-side li { padding: 0.3rem 0; font-size: 0.88rem; color: var(--text-secondary); display: flex; gap: 0.5rem; }
+        .enc-side.sym li::before { content: '+'; color: var(--script-green); font-weight: 700; flex-shrink: 0; }
+        .enc-side.asym li::before { content: '+'; color: var(--warn); font-weight: 700; flex-shrink: 0; }
+        /* Tools table */
+        .data-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; margin-top: 1rem; }
+        .data-table th { padding: 0.75rem 1rem; text-align: left; font-size: 0.75rem; font-weight: 700; letter-spacing: 0.06em; color: var(--script-green); border-bottom: 1px solid var(--border); }
+        .data-table td { padding: 0.7rem 1rem; color: var(--text-secondary); border-bottom: 1px solid rgba(34,197,94,0.07); }
+        .data-table td:first-child { color: var(--text-primary); font-weight: 600; font-family: 'Courier New', monospace; }
+        .insight { background: rgba(34,197,94,0.06); border-left: 4px solid var(--script-green); border-radius: 0 12px 12px 0; padding: 1.25rem 1.5rem; margin-top: 1.25rem; }
+        .insight-label { font-size: 0.72rem; font-weight: 700; letter-spacing: 0.1em; color: var(--script-green); margin-bottom: 0.4rem; }
+        .insight p { font-size: 0.9rem; color: var(--text-secondary); margin: 0; }
+        .insight.warn { background: rgba(251,191,36,0.06); border-left-color: var(--warn); }
+        .insight.warn .insight-label { color: var(--warn); }
+        .completion-bar { background: var(--bg-card); border: 1px solid var(--border); border-radius: 16px; padding: 2rem; text-align: center; margin-top: 3rem; }
+        .completion-bar h3 { color: var(--script-green); margin-bottom: 0.75rem; font-size: 1.2rem; }
+        .completion-bar p { color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 1.25rem; }
+        .btn-complete { display: inline-block; background: linear-gradient(135deg, var(--script-green), var(--script-accent)); color: #000; font-weight: 700; padding: 0.75rem 2rem; border-radius: 10px; border: none; cursor: pointer; font-size: 0.95rem; transition: opacity 0.2s, transform 0.2s; }
+        .btn-complete:hover { opacity: 0.88; transform: translateY(-2px); }
+        .btn-complete:disabled { opacity: 0.5; cursor: default; transform: none; }
+        .complete-msg { margin-top: 1rem; color: var(--ok); font-weight: 600; font-size: 0.9rem; display: none; }
+        @media (max-width: 768px) { .enc-grid { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+
+<header class="site-header">
+    <a href="../index.html" class="back-link">&larr; Back to Linux Admin</a>
+    <span class="header-badge">SCRIPT HOUSE — LINUX ADMIN</span>
+</header>
+
+<div class="container">
+
+    <div class="hero">
+        <div class="module-tag">CHAPTER 11 — PRESENTATION</div>
+        <h1>Encryption in <span>Linux</span></h1>
+        <p>Master GPG for file and email encryption, LUKS/cryptsetup for full disk encryption, openssl for file-level crypto, and SSH key management. Understand when to use file-level vs disk-level encryption.</p>
+    </div>
+
+    <!-- Slide 1: Encryption Concepts -->
+    <div class="section-heading">Slide 1 — Symmetric vs Asymmetric Encryption</div>
+    <div class="enc-grid">
+        <div class="enc-side sym">
+            <h4>Symmetric Encryption</h4>
+            <ul>
+                <li>One key encrypts AND decrypts</li>
+                <li>Fast — suitable for bulk data (files, disks)</li>
+                <li>Problem: how to securely share the key?</li>
+                <li>Examples: AES-256, 3DES, Blowfish</li>
+                <li>Used in: LUKS, gzip -e, openssl enc</li>
+            </ul>
+        </div>
+        <div class="enc-side asym">
+            <h4>Asymmetric Encryption</h4>
+            <ul>
+                <li>Key pair: public key encrypts, private key decrypts</li>
+                <li>Slower — used for key exchange and signatures</li>
+                <li>Anyone can encrypt; only key owner can decrypt</li>
+                <li>Examples: RSA, ECC, ElGamal</li>
+                <li>Used in: GPG, SSH keys, TLS/HTTPS</li>
+            </ul>
+        </div>
+    </div>
+    <div class="card">
+        <h3>Linux Encryption Tools Overview</h3>
+        <table class="data-table">
+            <thead>
+                <tr><th>Tool</th><th>Type</th><th>Scope</th><th>Primary Use</th></tr>
+            </thead>
+            <tbody>
+                <tr><td>gpg</td><td>Asymmetric + Symmetric</td><td>File / Email</td><td>Encrypt/sign files and communications</td></tr>
+                <tr><td>openssl</td><td>Symmetric + Asymmetric</td><td>File</td><td>File encryption, certificate management, TLS</td></tr>
+                <tr><td>cryptsetup / LUKS</td><td>Symmetric (AES)</td><td>Block device / Disk</td><td>Full disk or partition encryption</td></tr>
+                <tr><td>ecryptfs</td><td>Symmetric</td><td>Directory</td><td>Encrypt home directories transparently</td></tr>
+                <tr><td>ssh-keygen</td><td>Asymmetric (RSA/Ed25519)</td><td>Authentication</td><td>Passwordless SSH, key-based auth</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Slide 2: GPG -->
+    <div class="section-heading">Slide 2 — GPG: GNU Privacy Guard</div>
+    <div class="card">
+        <h3>GPG Key Generation and Management</h3>
+        <div class="code-block">
+<span class="comment"># Generate a new GPG key pair (interactive)</span>
+<span class="cmd">gpg</span> <span class="flag">--full-generate-key</span>
+<span class="comment"># Choose: RSA and RSA, key size 4096, expiry 1y, name/email/passphrase</span>
+
+<span class="comment"># List your keys</span>
+<span class="cmd">gpg</span> <span class="flag">--list-keys</span>              <span class="comment"># public keys</span>
+<span class="cmd">gpg</span> <span class="flag">--list-secret-keys</span>       <span class="comment"># private keys</span>
+
+<span class="comment"># Export your public key (share this with others)</span>
+<span class="cmd">gpg</span> <span class="flag">--export --armor</span> user@example.com > pubkey.asc
+
+<span class="comment"># Import someone else's public key</span>
+<span class="cmd">gpg</span> <span class="flag">--import</span> their-pubkey.asc
+
+<span class="comment"># Delete a key</span>
+<span class="cmd">gpg</span> <span class="flag">--delete-key</span> keyid
+        </div>
+    </div>
+    <div class="card">
+        <h3>GPG Encrypt, Decrypt, and Sign</h3>
+        <div class="code-block">
+<span class="comment"># SYMMETRIC encryption (password-based, no key pair needed)</span>
+<span class="cmd">gpg</span> <span class="flag">-c</span> secrets.txt           <span class="comment"># creates secrets.txt.gpg</span>
+<span class="cmd">gpg</span> secrets.txt.gpg         <span class="comment"># decrypt (prompts for passphrase)</span>
+
+<span class="comment"># ASYMMETRIC encryption (encrypt for a recipient)</span>
+<span class="cmd">gpg</span> <span class="flag">--encrypt --recipient</span> user@example.com document.txt
+<span class="comment"># Creates document.txt.gpg — only recipient can decrypt</span>
+
+<span class="comment"># Decrypt an asymmetrically encrypted file</span>
+<span class="cmd">gpg</span> <span class="flag">--decrypt</span> document.txt.gpg > document.txt
+
+<span class="comment"># SIGN a file (prove authenticity without encryption)</span>
+<span class="cmd">gpg</span> <span class="flag">--sign</span> document.txt            <span class="comment"># creates document.txt.gpg (signed)</span>
+<span class="cmd">gpg</span> <span class="flag">--clearsign</span> document.txt       <span class="comment"># inline signature (human-readable)</span>
+<span class="cmd">gpg</span> <span class="flag">--detach-sign</span> document.txt     <span class="comment"># separate .sig file</span>
+
+<span class="comment"># VERIFY a signature</span>
+<span class="cmd">gpg</span> <span class="flag">--verify</span> document.txt.sig document.txt
+
+<span class="comment"># Encrypt AND sign (most secure: authenticity + confidentiality)</span>
+<span class="cmd">gpg</span> <span class="flag">--encrypt --sign --recipient</span> user@example.com document.txt
+        </div>
+    </div>
+
+    <!-- Slide 3: LUKS / cryptsetup -->
+    <div class="section-heading">Slide 3 — LUKS: Full Disk Encryption</div>
+    <div class="card">
+        <h3>LUKS — Linux Unified Key Setup</h3>
+        <p>LUKS is the standard for Linux disk encryption. It operates at the block device level — the entire partition or disk appears as random data to anyone without the passphrase. The kernel's <strong>dm-crypt</strong> subsystem handles on-the-fly encryption/decryption transparently.</p>
+        <div class="code-block">
+<span class="comment"># SETUP: Format a partition with LUKS (DESTROYS ALL DATA)</span>
+sudo <span class="cmd">cryptsetup</span> <span class="flag">luksFormat</span> /dev/sdb1
+<span class="comment"># Type YES (uppercase) to confirm, then set passphrase</span>
+
+<span class="comment"># OPEN: Unlock the encrypted partition</span>
+sudo <span class="cmd">cryptsetup</span> <span class="flag">luksOpen</span> /dev/sdb1 mydata
+<span class="comment"># Creates /dev/mapper/mydata — the decrypted view of the device</span>
+
+<span class="comment"># Format the decrypted device with a filesystem</span>
+sudo mkfs.ext4 /dev/mapper/mydata
+
+<span class="comment"># Mount the decrypted device</span>
+sudo mount /dev/mapper/mydata /mnt/secure
+
+<span class="comment"># CLOSE: Unmount and lock the device</span>
+sudo umount /mnt/secure
+sudo <span class="cmd">cryptsetup</span> <span class="flag">luksClose</span> mydata
+
+<span class="comment"># View LUKS header info (key slots, cipher, etc.)</span>
+sudo <span class="cmd">cryptsetup</span> <span class="flag">luksDump</span> /dev/sdb1
+
+<span class="comment"># Add a backup passphrase (LUKS supports up to 8 key slots)</span>
+sudo <span class="cmd">cryptsetup</span> <span class="flag">luksAddKey</span> /dev/sdb1
+        </div>
+        <div class="insight">
+            <div class="insight-label">FILE-LEVEL vs DISK-LEVEL ENCRYPTION</div>
+            <p><strong>File-level (GPG, ecryptfs):</strong> Encrypts individual files. Metadata (filenames, sizes, access times) may still be visible. Easier to use selectively.<br>
+            <strong>Disk-level (LUKS):</strong> Encrypts the entire block device. Nothing — not even filenames — is readable without the key. Best for protecting entire systems or drives from physical theft.</p>
+        </div>
+    </div>
+
+    <!-- Slide 4: openssl -->
+    <div class="section-heading">Slide 4 — openssl for File Encryption</div>
+    <div class="card">
+        <h3>openssl enc — Command-Line File Encryption</h3>
+        <div class="code-block">
+<span class="comment"># Encrypt a file with AES-256-CBC (symmetric)</span>
+<span class="cmd">openssl</span> enc <span class="flag">-aes-256-cbc -pbkdf2 -in</span> plaintext.txt <span class="flag">-out</span> encrypted.bin
+<span class="comment"># -pbkdf2: use modern key derivation (required in newer openssl)</span>
+
+<span class="comment"># Decrypt</span>
+<span class="cmd">openssl</span> enc <span class="flag">-d -aes-256-cbc -pbkdf2 -in</span> encrypted.bin <span class="flag">-out</span> decrypted.txt
+
+<span class="comment"># Generate a random strong password</span>
+<span class="cmd">openssl</span> rand <span class="flag">-base64</span> 32
+
+<span class="comment"># Hash a file (SHA256)</span>
+<span class="cmd">openssl</span> dgst <span class="flag">-sha256</span> myfile.txt
+
+<span class="comment"># Create a self-signed certificate (TLS/HTTPS)</span>
+<span class="cmd">openssl</span> req <span class="flag">-x509 -newkey rsa:4096 -keyout key.pem -out cert.pem -days 365 -nodes</span>
+
+<span class="comment"># View certificate details</span>
+<span class="cmd">openssl</span> x509 <span class="flag">-in cert.pem -text -noout</span>
+        </div>
+    </div>
+
+    <!-- Slide 5: SSH Keys -->
+    <div class="section-heading">Slide 5 — SSH Keys: Passwordless Authentication</div>
+    <div class="card">
+        <h3>Generating and Deploying SSH Key Pairs</h3>
+        <div class="code-block">
+<span class="comment"># Generate an Ed25519 SSH key pair (modern, preferred)</span>
+<span class="cmd">ssh-keygen</span> <span class="flag">-t ed25519 -C</span> "user@hostname"
+<span class="comment"># Saves private key to ~/.ssh/id_ed25519</span>
+<span class="comment"># Saves public key to ~/.ssh/id_ed25519.pub</span>
+
+<span class="comment"># Or generate RSA (4096-bit, widely compatible)</span>
+<span class="cmd">ssh-keygen</span> <span class="flag">-t rsa -b 4096 -C</span> "user@hostname"
+
+<span class="comment"># Copy public key to remote server (sets up authorized_keys)</span>
+<span class="cmd">ssh-copy-id</span> user@remote-server
+
+<span class="comment"># Or manually append to remote ~/.ssh/authorized_keys:</span>
+cat ~/.ssh/id_ed25519.pub | ssh user@remote "mkdir -p ~/.ssh && cat >> ~/.ssh/authorized_keys"
+
+<span class="comment"># Test passwordless login</span>
+ssh user@remote-server
+
+<span class="comment"># Use a specific key file</span>
+ssh <span class="flag">-i</span> ~/.ssh/id_ed25519 user@remote-server
+
+<span class="comment"># Add key to ssh-agent (avoid re-entering passphrase)</span>
+<span class="cmd">eval</span> $(ssh-agent)
+<span class="cmd">ssh-add</span> ~/.ssh/id_ed25519
+
+<span class="comment"># View SSH fingerprint of a public key</span>
+<span class="cmd">ssh-keygen</span> <span class="flag">-lf</span> ~/.ssh/id_ed25519.pub
+        </div>
+        <div class="insight warn">
+            <div class="insight-label">SECURITY RULES</div>
+            <p>Never share your <strong>private key</strong> (~/.ssh/id_ed25519). Only the <strong>public key</strong> (.pub) goes on remote servers. Private key files must be mode <strong>600</strong>. The ~/.ssh directory must be mode <strong>700</strong>. SSH will refuse to use keys with wrong permissions.</p>
+        </div>
+    </div>
+
+    <!-- Slide 6: When to Use Which -->
+    <div class="section-heading">Slide 6 — Choosing the Right Encryption Tool</div>
+    <div class="card">
+        <h3>Decision Matrix</h3>
+        <table class="data-table">
+            <thead>
+                <tr><th>Scenario</th><th>Tool</th><th>Reason</th></tr>
+            </thead>
+            <tbody>
+                <tr><td>Encrypt a file to email to someone</td><td>gpg --encrypt</td><td>Asymmetric: only recipient can decrypt</td></tr>
+                <tr><td>Encrypt a file for yourself only</td><td>gpg -c or openssl enc</td><td>Symmetric passphrase — simpler workflow</td></tr>
+                <tr><td>Prove a file is from you (no secrecy)</td><td>gpg --sign</td><td>Digital signature — authenticity only</td></tr>
+                <tr><td>Encrypt an entire hard drive</td><td>cryptsetup / LUKS</td><td>Full disk: nothing readable without key</td></tr>
+                <tr><td>Passwordless server login</td><td>ssh-keygen + ssh-copy-id</td><td>Key-based auth — more secure than passwords</td></tr>
+                <tr><td>Hash/checksum a file</td><td>openssl dgst -sha256</td><td>Verify integrity, not encryption</td></tr>
+                <tr><td>Encrypt home directory</td><td>ecryptfs</td><td>Transparent directory-level encryption</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div class="completion-bar">
+        <h3>Chapter 11 Complete</h3>
+        <p>Mark this presentation complete to record your progress and unlock the quiz.</p>
+        <button class="btn-complete" id="completeBtn" onclick="markComplete()">Mark as Complete</button>
+        <div class="complete-msg" id="completeMsg">Progress saved. Head to the quiz to test your knowledge.</div>
+    </div>
+
+</div>
+
+<script src="../../../../../components/FluxCapacitor.js"></script>
+<script>
+    function markComplete() {
+        const btn = document.getElementById('completeBtn');
+        const msg = document.getElementById('completeMsg');
+        btn.disabled = true; btn.textContent = 'Saving...';
+        if (typeof ModuleProgress !== 'undefined') { ModuleProgress.complete('script', 'script-la-ch11'); }
+        btn.textContent = 'Completed'; msg.style.display = 'block';
+    }
+    (function checkCompleted() {
+        const p = JSON.parse(localStorage.getItem('hexworth_progress') || '{}');
+        if (p['script-la-ch11']) {
+            document.getElementById('completeBtn').textContent = 'Completed';
+            document.getElementById('completeBtn').disabled = true;
+            document.getElementById('completeMsg').style.display = 'block';
+        }
+    })();
+</script>
+</body>
+</html>

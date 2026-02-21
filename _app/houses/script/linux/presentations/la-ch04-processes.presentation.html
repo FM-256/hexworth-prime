@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CH04: Process Management — Linux Admin | Script House</title>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --script-green: #22c55e; --script-accent: #4ade80; --script-glow: rgba(34,197,94,0.35);
+            --bg-dark: #0a0a12; --bg-card: rgba(10,20,10,0.85); --text-primary: #e8e8f0;
+            --text-secondary: #7a9a7a; --ok: #4ade80; --warn: #fbbf24; --bad: #f87171;
+            --border: rgba(34,197,94,0.2);
+        }
+        body { font-family: 'Segoe UI', system-ui, sans-serif; background: linear-gradient(135deg, #0a0a12, #0a1a0f, #0a250a); color: var(--text-primary); line-height: 1.7; min-height: 100vh; }
+        .site-header { background: rgba(10,10,18,0.96); border-bottom: 1px solid var(--border); padding: 0.9rem 2rem; position: sticky; top: 0; z-index: 100; display: flex; align-items: center; justify-content: space-between; backdrop-filter: blur(12px); }
+        .back-link { color: var(--script-green); text-decoration: none; font-size: 0.9rem; font-weight: 600; display: flex; align-items: center; gap: 0.4rem; transition: opacity 0.2s; }
+        .back-link:hover { opacity: 0.75; }
+        .header-badge { background: linear-gradient(135deg, var(--script-green), var(--script-accent)); color: #000; padding: 0.35rem 1rem; border-radius: 20px; font-size: 0.78rem; font-weight: 700; letter-spacing: 0.05em; }
+        .container { max-width: 1100px; margin: 0 auto; padding: 2.5rem 2rem 4rem; }
+        .hero { text-align: center; padding: 3.5rem 2rem 2.5rem; background: var(--bg-card); border: 1px solid var(--border); border-radius: 20px; margin-bottom: 2.5rem; position: relative; overflow: hidden; }
+        .hero::before { content: ''; position: absolute; top: -80px; left: 50%; transform: translateX(-50%); width: 400px; height: 400px; background: radial-gradient(circle, var(--script-glow) 0%, transparent 70%); pointer-events: none; }
+        .module-tag { display: inline-block; background: rgba(34,197,94,0.12); color: var(--script-green); border: 1px solid var(--border); padding: 0.3rem 1rem; border-radius: 20px; font-size: 0.78rem; font-weight: 700; letter-spacing: 0.08em; margin-bottom: 1.2rem; }
+        .hero h1 { font-size: 2.2rem; font-weight: 800; color: var(--text-primary); margin-bottom: 0.75rem; line-height: 1.25; }
+        .hero h1 span { color: var(--script-green); }
+        .hero p { color: var(--text-secondary); font-size: 1.05rem; max-width: 680px; margin: 0 auto; }
+        .section-heading { display: flex; align-items: center; gap: 0.75rem; font-size: 1.35rem; font-weight: 700; color: var(--script-green); margin: 2.5rem 0 1.25rem; }
+        .section-heading::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+        .card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 16px; padding: 1.75rem; margin-bottom: 1.5rem; }
+        .card h3 { font-size: 1.1rem; color: var(--script-accent); margin-bottom: 0.9rem; }
+        .card p { color: var(--text-secondary); font-size: 0.95rem; margin-bottom: 0.75rem; }
+        .card p:last-child { margin-bottom: 0; }
+        code { background: rgba(34,197,94,0.1); color: var(--script-accent); padding: 1px 6px; border-radius: 4px; font-family: 'Consolas',monospace; font-size: 0.88em; }
+        .code-block { background: rgba(0,0,0,0.6); border: 1px solid rgba(34,197,94,0.15); border-left: 3px solid var(--script-green); border-radius: 10px; padding: 1.25rem 1.5rem; font-family: 'Consolas','Courier New',monospace; font-size: 0.9rem; color: var(--script-accent); margin: 1rem 0; overflow-x: auto; line-height: 1.9; }
+        .code-block .comment { color: #5a7a5a; }
+
+        /* State grid */
+        .state-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin-bottom: 1.5rem; }
+        .state-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 14px; padding: 1.25rem; text-align: center; }
+        .state-letter { font-size: 2.2rem; font-weight: 900; display: block; line-height: 1; margin-bottom: 0.4rem; }
+        .state-name { font-size: 0.9rem; font-weight: 700; margin-bottom: 0.35rem; }
+        .state-desc { font-size: 0.8rem; color: var(--text-secondary); }
+
+        /* Nice scale */
+        .nice-scale { display: flex; align-items: center; gap: 0; margin: 1rem 0 1.5rem; border-radius: 10px; overflow: hidden; border: 1px solid var(--border); }
+        .nice-segment { flex: 1; padding: 0.75rem 0.5rem; text-align: center; font-size: 0.78rem; font-weight: 700; }
+        .nice-label { display: block; font-size: 0.68rem; font-weight: 400; margin-top: 0.2rem; opacity: 0.8; }
+
+        /* Signal table */
+        .sig-table { width: 100%; border-collapse: collapse; font-size: 0.9rem; margin-bottom: 1rem; }
+        .sig-table th { background: rgba(34,197,94,0.1); color: var(--script-green); padding: 0.6rem 1rem; text-align: left; font-size: 0.8rem; letter-spacing: 0.05em; }
+        .sig-table td { padding: 0.6rem 1rem; border-top: 1px solid rgba(34,197,94,0.08); color: var(--text-secondary); }
+        .sig-table tr:hover td { background: rgba(34,197,94,0.04); }
+
+        /* bg/fg visual */
+        .bg-fg-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.5rem; }
+        .bg-fg-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 14px; padding: 1.25rem; }
+        .bg-fg-card h4 { font-size: 1rem; font-weight: 700; margin-bottom: 0.75rem; }
+
+        .insight { background: rgba(34,197,94,0.06); border-left: 4px solid var(--script-green); border-radius: 0 12px 12px 0; padding: 1.25rem 1.5rem; margin-top: 1.25rem; }
+        .insight-label { font-size: 0.72rem; font-weight: 700; letter-spacing: 0.1em; color: var(--script-green); margin-bottom: 0.4rem; }
+        .insight p { font-size: 0.9rem; color: var(--text-secondary); margin: 0; }
+
+        .completion-bar { background: var(--bg-card); border: 1px solid var(--border); border-radius: 16px; padding: 2rem; text-align: center; margin-top: 3rem; }
+        .completion-bar h3 { color: var(--script-green); margin-bottom: 0.75rem; font-size: 1.2rem; }
+        .completion-bar p { color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 1.25rem; }
+        .btn-complete { display: inline-block; background: linear-gradient(135deg, var(--script-green), var(--script-accent)); color: #000; font-weight: 700; padding: 0.75rem 2rem; border-radius: 10px; border: none; cursor: pointer; font-size: 0.95rem; transition: opacity 0.2s, transform 0.2s; }
+        .btn-complete:hover { opacity: 0.88; transform: translateY(-2px); }
+        .btn-complete:disabled { opacity: 0.5; cursor: default; transform: none; }
+        .complete-msg { margin-top: 1rem; color: var(--ok); font-weight: 600; font-size: 0.9rem; display: none; }
+
+        @media (max-width: 768px) { .state-grid { grid-template-columns: repeat(2,1fr); } .bg-fg-grid { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+
+<header class="site-header">
+    <a href="../index.html" class="back-link">&larr; Back to Linux Admin</a>
+    <span class="header-badge">SCRIPT HOUSE — LINUX ADMIN</span>
+</header>
+
+<div class="container">
+
+    <div class="hero">
+        <div class="module-tag">CH04 — PRESENTATION</div>
+        <h1>Process <span>Management</span></h1>
+        <p>Understand how Linux manages running programs: inspect processes with ps and top, control CPU priority with nice and renice, send signals with kill, manage foreground and background jobs, and keep processes running after logout with nohup.</p>
+    </div>
+
+    <!-- What is a Process -->
+    <div class="section-heading">Slide 1 — What Is a Process?</div>
+    <div class="card">
+        <h3>A Running Instance of a Program</h3>
+        <p>A process is a program in execution. When you run <code>ls</code>, the kernel creates a new process — allocates memory, assigns a Process ID (PID), loads the program code, and begins executing it. When ls finishes, the process exits and releases its resources.</p>
+        <p>Every process has a parent (PPID). The first process is <strong style="color: var(--text-primary);">systemd</strong> (PID 1) — it starts all other processes on the system. This creates a process tree: systemd spawns your shell, your shell spawns the commands you run, and so on.</p>
+        <p>Key process attributes: PID (unique identifier), PPID (parent PID), UID/GID (owner), state (running/sleeping/zombie), priority (nice value), memory usage (VSZ/RSS), and CPU time consumed.</p>
+    </div>
+
+    <!-- Process States -->
+    <div class="section-heading">Slide 2 — Process States</div>
+    <div class="state-grid">
+        <div class="state-card">
+            <span class="state-letter" style="color: var(--script-green);">R</span>
+            <div class="state-name" style="color: var(--script-green);">Running</div>
+            <div class="state-desc">Actively executing on CPU or in the run queue waiting for a CPU slot.</div>
+        </div>
+        <div class="state-card">
+            <span class="state-letter" style="color: #38bdf8;">S</span>
+            <div class="state-name" style="color: #38bdf8;">Sleeping</div>
+            <div class="state-desc">Interruptible sleep — waiting for an event (I/O, signal). Most processes spend most time here.</div>
+        </div>
+        <div class="state-card">
+            <span class="state-letter" style="color: var(--warn);">D</span>
+            <div class="state-name" style="color: var(--warn);">Uninterruptible</div>
+            <div class="state-desc">Waiting for I/O that cannot be interrupted. Too many D processes = I/O bottleneck or storage problem.</div>
+        </div>
+        <div class="state-card">
+            <span class="state-letter" style="color: #a78bfa);">T</span>
+            <div class="state-name" style="color: #a78bfa;">Stopped</div>
+            <div class="state-desc">Paused — received SIGSTOP or Ctrl+Z. Can be resumed with SIGCONT or the fg command.</div>
+        </div>
+        <div class="state-card">
+            <span class="state-letter" style="color: var(--bad);">Z</span>
+            <div class="state-name" style="color: var(--bad);">Zombie</div>
+            <div class="state-desc">Process has exited but its entry remains until parent reads its exit status. Cannot be killed — kill the parent.</div>
+        </div>
+        <div class="state-card">
+            <span class="state-letter" style="color: var(--text-secondary);">I</span>
+            <div class="state-name" style="color: var(--text-secondary);">Idle</div>
+            <div class="state-desc">Kernel thread in uninterruptible sleep for too long. Informational — not an error state.</div>
+        </div>
+    </div>
+
+    <!-- ps and top -->
+    <div class="section-heading">Slide 3 — Viewing Processes: ps and top</div>
+    <div class="code-block">
+<span class="comment"># ps — process snapshot</span>
+$ ps aux                    <span class="comment"># All processes, detailed (BSD syntax)</span>
+$ ps aux | grep nginx       <span class="comment"># Find specific process</span>
+$ ps -ef                    <span class="comment"># All processes with PPID (POSIX syntax)</span>
+$ ps -eo pid,comm,nice,stat <span class="comment"># Custom columns: PID, name, nice, state</span>
+$ ps --forest               <span class="comment"># Show process tree (ASCII art)</span>
+$ pgrep nginx               <span class="comment"># Get PID of process by name</span>
+$ pstree                    <span class="comment"># Visual process tree</span>
+
+<span class="comment"># Understanding ps aux output</span>
+USER       PID %CPU %MEM    VSZ   RSS TTY   STAT START  TIME COMMAND
+root         1  0.0  0.1 225444  9116 ?     Ss   Jan15  0:02 /sbin/init
+www-data  1247  0.2  0.5 362144 41208 ?     S    09:00  0:15 nginx: worker
+
+<span class="comment"># top — real-time process monitor</span>
+$ top                      <span class="comment"># Interactive monitor (q to quit)</span>
+$ top -u www-data          <span class="comment"># Show only www-data's processes</span>
+$ htop                     <span class="comment"># Enhanced top with colors (install separately)</span>
+
+<span class="comment"># top interactive commands</span>
+<span class="comment"># k    = kill process by PID</span>
+<span class="comment"># r    = renice (change priority)</span>
+<span class="comment"># P    = sort by CPU usage</span>
+<span class="comment"># M    = sort by memory usage</span>
+<span class="comment"># 1    = show per-CPU statistics</span>
+    </div>
+
+    <!-- Nice and Renice -->
+    <div class="section-heading">Slide 4 — CPU Priority: nice and renice</div>
+    <div class="card">
+        <h3>Controlling How Much CPU a Process Gets</h3>
+        <p>The Linux scheduler uses "nice values" to determine relative CPU priority. The range is <strong style="color: var(--bad);">-20</strong> (highest priority, most CPU) to <strong style="color: var(--script-green);">+19</strong> (lowest priority, least CPU). The default for new processes is 0.</p>
+        <p>Only root can set negative nice values (increase priority). Any user can make their own processes nicer (decrease priority). The name comes from "being nice" to other users by not hogging CPU.</p>
+    </div>
+
+    <div class="nice-scale">
+        <div class="nice-segment" style="background: rgba(248,113,113,0.25); color: var(--bad);">-20<span class="nice-label">Highest<br>Priority</span></div>
+        <div class="nice-segment" style="background: rgba(248,113,113,0.15); color: var(--bad);">-10<span class="nice-label">Root<br>Only</span></div>
+        <div class="nice-segment" style="background: rgba(251,191,36,0.15); color: var(--warn);">0<span class="nice-label">Default<br>Priority</span></div>
+        <div class="nice-segment" style="background: rgba(34,197,94,0.12); color: var(--script-green);">+10<span class="nice-label">Lower<br>Priority</span></div>
+        <div class="nice-segment" style="background: rgba(34,197,94,0.2); color: var(--script-accent);">+19<span class="nice-label">Lowest<br>Priority</span></div>
+    </div>
+
+    <div class="code-block">
+<span class="comment"># nice — set priority when STARTING a process</span>
+$ nice -n 10 backup.sh          <span class="comment"># Start backup at nice 10 (lower priority)</span>
+$ nice -n 15 tar -czvf archive.tar.gz /home/   <span class="comment"># Low-priority archive</span>
+$ sudo nice -n -5 critical_task <span class="comment"># High priority (root required for negative)</span>
+
+<span class="comment"># renice — change priority of RUNNING process</span>
+$ renice -n 5 -p 1234           <span class="comment"># Set PID 1234 to nice 5</span>
+$ sudo renice -n -10 -p 5678   <span class="comment"># Increase priority (root required)</span>
+$ renice -n 10 -u student       <span class="comment"># Nice all processes owned by student</span>
+
+<span class="comment"># Check nice values</span>
+$ ps -eo pid,comm,nice | sort -k3 -n   <span class="comment"># List processes sorted by nice value</span>
+$ top  <span class="comment"># NI column shows nice value for each process</span>
+    </div>
+
+    <!-- Signals and kill -->
+    <div class="section-heading">Slide 5 — Sending Signals: kill and killall</div>
+    <div class="card">
+        <h3>Signals Are How Processes Communicate</h3>
+        <p>Signals are software interrupts sent to processes to notify them of events or request actions. The <code>kill</code> command sends signals — despite its name, it can send any signal, not just termination signals.</p>
+    </div>
+    <table class="sig-table">
+        <thead><tr><th>Signal</th><th>Number</th><th>Name</th><th>Description</th></tr></thead>
+        <tbody>
+            <tr><td><code>SIGHUP</code></td><td>1</td><td>Hangup</td><td>Reload config without restart. Used for daemons: <code>kill -1 PID</code></td></tr>
+            <tr><td><code>SIGINT</code></td><td>2</td><td>Interrupt</td><td>Ctrl+C — polite termination request. Process can catch and handle.</td></tr>
+            <tr><td><code>SIGTERM</code></td><td>15</td><td>Terminate</td><td>Default kill signal. Polite — allows cleanup. Process can catch.</td></tr>
+            <tr><td><code>SIGKILL</code></td><td>9</td><td>Kill</td><td>Immediate, forced termination. Cannot be caught or ignored. Use as last resort.</td></tr>
+            <tr><td><code>SIGSTOP</code></td><td>19</td><td>Stop</td><td>Pause (freeze) a process. Cannot be caught or ignored.</td></tr>
+            <tr><td><code>SIGCONT</code></td><td>18</td><td>Continue</td><td>Resume a stopped process.</td></tr>
+        </tbody>
+    </table>
+    <div class="code-block">
+<span class="comment"># kill — send signal to process by PID</span>
+$ kill 1234              <span class="comment"># Send SIGTERM (graceful shutdown)</span>
+$ kill -15 1234          <span class="comment"># Same as above — explicit SIGTERM</span>
+$ kill -9 1234           <span class="comment"># SIGKILL — force kill (last resort)</span>
+$ kill -1 1234           <span class="comment"># SIGHUP — reload configuration</span>
+$ kill -l                <span class="comment"># List all signal names and numbers</span>
+
+<span class="comment"># killall — kill by process name</span>
+$ killall nginx          <span class="comment"># Kill all nginx processes</span>
+$ killall -9 firefox     <span class="comment"># Force kill all firefox instances</span>
+$ pkill -u student       <span class="comment"># Kill all processes owned by student</span>
+$ pkill -f "backup.py"   <span class="comment"># Kill by full command line match</span>
+    </div>
+
+    <!-- Background/Foreground -->
+    <div class="section-heading">Slide 6 — Job Control: Background and Foreground</div>
+    <div class="bg-fg-grid">
+        <div class="bg-fg-card">
+            <h4 style="color: var(--script-accent);">Foreground Jobs</h4>
+            <p style="font-size:0.88rem; color:var(--text-secondary);">A foreground job occupies your terminal — you must wait for it to complete before typing another command. Use <code>Ctrl+C</code> to terminate it or <code>Ctrl+Z</code> to suspend it.</p>
+            <div class="code-block" style="margin-top:0.75rem; font-size:0.82rem;">
+$ ping google.com     <span class="comment"># Foreground — blocks terminal</span>
+Ctrl+Z               <span class="comment"># Suspend (stop) the job</span>
+$ fg                 <span class="comment"># Resume in foreground</span>
+$ fg %2              <span class="comment"># Resume job number 2</span>
+            </div>
+        </div>
+        <div class="bg-fg-card">
+            <h4 style="color: var(--warn);">Background Jobs</h4>
+            <p style="font-size:0.88rem; color:var(--text-secondary);">A background job runs without occupying the terminal. Append <code>&amp;</code> to run it in background from the start, or use <code>bg</code> after suspending with Ctrl+Z.</p>
+            <div class="code-block" style="margin-top:0.75rem; font-size:0.82rem;">
+$ ./backup.sh &amp;       <span class="comment"># Start directly in background</span>
+[1] 4521             <span class="comment"># Job number and PID</span>
+$ jobs               <span class="comment"># List background jobs</span>
+$ bg %1              <span class="comment"># Resume job 1 in background</span>
+$ nohup ./task.sh &amp;  <span class="comment"># Survive terminal logout</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="insight">
+        <div class="insight-label">SECURITY NOTE: ZOMBIE AND HIDDEN PROCESSES</div>
+        <p>Malware often attempts to hide by manipulating process names, using kernel modules to remove themselves from process listings, or creating processes with names identical to legitimate system processes. When investigating a suspected compromise, use multiple methods: <code>ps aux</code>, <code>ls /proc/</code> (each PID directory is a running process), <code>lsof -p PID</code> (open files), and compare the counts. A discrepancy between <code>ps</code> output and <code>/proc/</code> directory entries is a rootkit indicator. Zombie processes in large numbers indicate a buggy parent process failing to reap children — not a security concern but worth investigating.</p>
+    </div>
+
+    <div class="completion-bar">
+        <h3>Presentation Complete</h3>
+        <p>Mark complete to save your progress and unlock the Chapter 4 quiz.</p>
+        <button class="btn-complete" id="completeBtn" onclick="markComplete()">Mark as Complete</button>
+        <div class="complete-msg" id="completeMsg">Progress saved. Head to the quiz to test your knowledge.</div>
+    </div>
+
+</div>
+
+<script src="../../../../components/FluxCapacitor.js"></script>
+<script>
+    function markComplete() {
+        const btn = document.getElementById('completeBtn');
+        const msg = document.getElementById('completeMsg');
+        btn.disabled = true;
+        btn.textContent = 'Saving...';
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('script', 'script-la-ch04');
+        }
+        btn.textContent = 'Completed';
+        msg.style.display = 'block';
+    }
+    (function checkCompleted() {
+        const progress = JSON.parse(localStorage.getItem('hexworth_progress') || '{}');
+        if (progress['script-la-ch04']) {
+            const btn = document.getElementById('completeBtn');
+            btn.textContent = 'Completed';
+            btn.disabled = true;
+            document.getElementById('completeMsg').style.display = 'block';
+        }
+    })();
+</script>
+</body>
+</html>

@@ -1,0 +1,1012 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ch12: Compiling Source Code — Linux Admin Lab</title>
+  <style>
+    :root {
+      --script-green: #22c55e;
+      --script-accent: #4ade80;
+      --script-dim: #15803d;
+      --script-dark: #0a1a0f;
+      --card-bg: rgba(34, 197, 94, 0.05);
+      --card-border: rgba(34, 197, 94, 0.2);
+      --text-primary: #e2e8f0;
+      --text-secondary: #94a3b8;
+      --code-bg: #0d1117;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background: linear-gradient(135deg, #0a0a12, #0a1a0f, #0a250a);
+      color: var(--text-primary);
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      min-height: 100vh;
+      line-height: 1.6;
+    }
+
+    .lab-header {
+      background: rgba(0,0,0,0.6);
+      border-bottom: 1px solid var(--card-border);
+      padding: 1.5rem 2rem;
+      display: flex;
+      align-items: center;
+      gap: 1.5rem;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      backdrop-filter: blur(12px);
+    }
+
+    .back-link {
+      color: var(--script-green);
+      text-decoration: none;
+      font-size: 0.85rem;
+      opacity: 0.8;
+      transition: opacity 0.2s;
+      white-space: nowrap;
+    }
+    .back-link:hover { opacity: 1; }
+
+    .header-badge {
+      background: linear-gradient(135deg, var(--script-dim), var(--script-dark));
+      border: 1px solid var(--script-green);
+      color: var(--script-green);
+      padding: 0.25rem 0.75rem;
+      border-radius: 4px;
+      font-size: 0.7rem;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+
+    .header-title { flex: 1; }
+    .header-title h1 { font-size: 1.1rem; font-weight: 700; color: var(--script-accent); }
+    .header-title p { font-size: 0.8rem; color: var(--text-secondary); }
+
+    .lab-container { max-width: 960px; margin: 0 auto; padding: 2rem 1.5rem; }
+
+    .intro-banner {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-left: 4px solid var(--script-green);
+      border-radius: 8px;
+      padding: 1.5rem;
+      margin-bottom: 2rem;
+    }
+    .intro-banner h2 { color: var(--script-accent); font-size: 1rem; margin-bottom: 0.5rem; }
+    .intro-banner p { color: var(--text-secondary); font-size: 0.9rem; }
+
+    /* ── Pipeline Visual ── */
+    .pipeline {
+      display: flex;
+      align-items: center;
+      gap: 0;
+      margin: 1.2rem 0;
+      flex-wrap: wrap;
+    }
+    .pipeline-step {
+      background: rgba(34,197,94,0.08);
+      border: 1px solid rgba(34,197,94,0.25);
+      border-radius: 6px;
+      padding: 0.5rem 0.9rem;
+      font-size: 0.82rem;
+      color: var(--script-accent);
+      font-weight: 600;
+      white-space: nowrap;
+    }
+    .pipeline-arrow {
+      color: var(--script-dim);
+      margin: 0 0.4rem;
+      font-size: 1rem;
+    }
+
+    .exercise-card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 10px;
+      margin-bottom: 2rem;
+      overflow: hidden;
+    }
+
+    .exercise-header {
+      background: rgba(34, 197, 94, 0.08);
+      border-bottom: 1px solid var(--card-border);
+      padding: 1rem 1.5rem;
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .exercise-number {
+      background: var(--script-green);
+      color: #000;
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      font-size: 0.9rem;
+      flex-shrink: 0;
+    }
+
+    .exercise-title { flex: 1; }
+    .exercise-title h3 { font-size: 1rem; font-weight: 700; color: var(--script-accent); }
+    .exercise-title p { font-size: 0.8rem; color: var(--text-secondary); margin-top: 0.1rem; }
+
+    .difficulty-badge {
+      padding: 0.2rem 0.6rem;
+      border-radius: 20px;
+      font-size: 0.7rem;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+    }
+    .beginner  { background: rgba(34, 197, 94, 0.15); color: #4ade80; border: 1px solid rgba(34,197,94,0.3); }
+    .intermediate { background: rgba(234, 179, 8, 0.15); color: #facc15; border: 1px solid rgba(234,179,8,0.3); }
+    .advanced  { background: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid rgba(239,68,68,0.3); }
+
+    .exercise-body { padding: 1.5rem; }
+
+    .step { display: flex; gap: 1rem; margin-bottom: 1.25rem; align-items: flex-start; }
+    .step-num {
+      background: rgba(34, 197, 94, 0.15);
+      border: 1px solid rgba(34, 197, 94, 0.3);
+      color: var(--script-green);
+      width: 26px;
+      height: 26px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.75rem;
+      font-weight: 700;
+      flex-shrink: 0;
+      margin-top: 0.1rem;
+    }
+    .step-content { flex: 1; }
+    .step-content p { font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 0.6rem; }
+    .step-content strong { color: var(--text-primary); }
+
+    .code-block {
+      background: var(--code-bg);
+      border: 1px solid rgba(34, 197, 94, 0.2);
+      border-radius: 6px;
+      padding: 0.9rem 1.1rem;
+      margin: 0.6rem 0;
+      font-family: 'Consolas', 'Courier New', monospace;
+      font-size: 0.85rem;
+      color: var(--script-accent);
+      overflow-x: auto;
+      white-space: pre;
+      line-height: 1.7;
+    }
+
+    .output-block {
+      background: #060a06;
+      border: 1px solid rgba(34, 197, 94, 0.15);
+      border-left: 3px solid var(--script-dim);
+      border-radius: 6px;
+      padding: 0.9rem 1.1rem;
+      margin: 0.6rem 0;
+      font-family: 'Consolas', monospace;
+      font-size: 0.82rem;
+      color: #86efac;
+      overflow-x: auto;
+      white-space: pre;
+      line-height: 1.6;
+    }
+    .output-label { font-size: 0.7rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.3rem; }
+
+    .insight-box {
+      background: rgba(34, 197, 94, 0.07);
+      border: 1px solid rgba(34, 197, 94, 0.25);
+      border-radius: 6px;
+      padding: 0.9rem 1.1rem;
+      margin: 1rem 0;
+      font-size: 0.86rem;
+      color: #a7f3d0;
+    }
+    .insight-box strong {
+      color: var(--script-accent);
+      display: block;
+      margin-bottom: 0.3rem;
+      font-size: 0.78rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    .warning-box {
+      background: rgba(234, 179, 8, 0.07);
+      border: 1px solid rgba(234, 179, 8, 0.25);
+      border-radius: 6px;
+      padding: 0.9rem 1.1rem;
+      margin: 1rem 0;
+      font-size: 0.86rem;
+      color: #fde68a;
+    }
+    .warning-box strong {
+      color: #facc15;
+      display: block;
+      margin-bottom: 0.3rem;
+      font-size: 0.78rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    /* ── Makefile Target Table ── */
+    .target-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 0.8rem 0;
+      font-size: 0.85rem;
+    }
+    .target-table th {
+      background: rgba(34,197,94,0.12);
+      color: var(--script-accent);
+      padding: 0.5rem 0.8rem;
+      text-align: left;
+      font-size: 0.77rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      border-bottom: 1px solid var(--card-border);
+    }
+    .target-table td {
+      padding: 0.5rem 0.8rem;
+      color: var(--text-secondary);
+      border-bottom: 1px solid rgba(34,197,94,0.08);
+    }
+    .target-table tr:last-child td { border-bottom: none; }
+    .target-table td:first-child { color: var(--script-accent); font-family: monospace; }
+
+    /* ── Error Diagnosis ── */
+    .error-example {
+      background: rgba(239, 68, 68, 0.07);
+      border: 1px solid rgba(239, 68, 68, 0.2);
+      border-left: 3px solid #ef4444;
+      border-radius: 6px;
+      padding: 0.8rem 1rem;
+      margin: 0.6rem 0;
+      font-family: 'Consolas', monospace;
+      font-size: 0.82rem;
+      color: #fca5a5;
+      white-space: pre-wrap;
+    }
+    .fix-block {
+      background: rgba(34, 197, 94, 0.05);
+      border: 1px solid rgba(34, 197, 94, 0.15);
+      border-left: 3px solid var(--script-green);
+      border-radius: 6px;
+      padding: 0.8rem 1rem;
+      margin: 0.3rem 0 0.6rem;
+      font-size: 0.84rem;
+      color: #a7f3d0;
+    }
+    .fix-block strong { color: var(--script-green); }
+
+    .completion-section {
+      background: rgba(34, 197, 94, 0.05);
+      border: 1px solid rgba(34, 197, 94, 0.25);
+      border-radius: 10px;
+      padding: 2rem;
+      text-align: center;
+      margin-top: 2.5rem;
+    }
+    .completion-section h3 { color: var(--script-accent); font-size: 1.1rem; margin-bottom: 0.5rem; }
+    .completion-section p { color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 1.25rem; }
+
+    .complete-btn {
+      background: linear-gradient(135deg, var(--script-green), var(--script-dim));
+      color: #000;
+      border: none;
+      padding: 0.75rem 2rem;
+      border-radius: 6px;
+      font-size: 0.95rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .complete-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(34,197,94,0.35); }
+    .complete-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+    .already-done { color: var(--script-accent); font-size: 0.85rem; margin-top: 0.75rem; display: none; }
+  </style>
+</head>
+<body>
+
+<script src="../../../../../components/AccessGuard.js"></script>
+<script src="../../../../../components/AchievementManager.js"></script>
+<script src="../../../../../components/ModuleProgress.js"></script>
+<script src="../../../../../components/FluxCapacitor.js"></script>
+
+<script>
+  AccessGuard.require('sorted');
+
+  window.addEventListener('DOMContentLoaded', () => {
+    const progress = JSON.parse(localStorage.getItem('hexworth_progress') || '{}');
+    if (progress['script-la-ch12-lab']) {
+      document.getElementById('already-done').style.display = 'block';
+      document.getElementById('complete-btn').disabled = true;
+    }
+  });
+
+  function completeLab() {
+    ModuleProgress.complete('script', 'script-la-ch12-lab');
+    document.getElementById('complete-btn').disabled = true;
+    document.getElementById('already-done').style.display = 'block';
+    document.getElementById('already-done').textContent = 'Lab marked complete! Great work.';
+  }
+</script>
+
+<!-- ── Header ── -->
+<header class="lab-header">
+  <a href="../index.html" class="back-link">← Back</a>
+  <div class="header-badge">Script House — Linux Admin</div>
+  <div class="header-title">
+    <h1>Chapter 12: Compiling Source Code Lab</h1>
+    <p>Hands-on practice with ./configure, make, gcc, and dependency management</p>
+  </div>
+</header>
+
+<main class="lab-container">
+
+  <div class="intro-banner">
+    <h2>Lab Overview</h2>
+    <p>Compiling from source is a foundational sysadmin skill — required when packages are unavailable, outdated, or need custom compile-time options. This lab walks through the complete build pipeline: installing build tools, writing and compiling C programs directly with gcc, working with a Makefile project, and using ./configure with custom installation prefixes.</p>
+  </div>
+
+  <!-- ══════════════════════════════════════════
+       EXERCISE 1 — Build Environment Setup
+  ══════════════════════════════════════════ -->
+  <div class="exercise-card">
+    <div class="exercise-header">
+      <div class="exercise-number">1</div>
+      <div class="exercise-title">
+        <h3>Build Environment Setup</h3>
+        <p>Install essential build tools and verify the toolchain</p>
+      </div>
+      <span class="difficulty-badge beginner">BEGINNER</span>
+    </div>
+    <div class="exercise-body">
+
+      <div class="insight-box">
+        <strong>The Build Toolchain</strong>
+        Before you can compile anything, you need the compiler (<code>gcc</code>), the build automation tool (<code>make</code>), the standard C library headers (<code>libc6-dev</code>), and optionally <code>autoconf</code> for projects using the configure script system. On Debian/Ubuntu, <code>build-essential</code> installs all the core tools in one package.
+      </div>
+
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-content">
+          <p>Install the build toolchain (skip if already installed):</p>
+          <div class="code-block">sudo apt update -qq
+sudo apt install -y build-essential autoconf automake pkg-config
+echo "Build tools installed."</div>
+          <div class="output-label">Expected output</div>
+          <div class="output-block">Reading package lists... Done
+Building dependency tree... Done
+...
+build-essential is already the newest version (12.9ubuntu3).
+autoconf is already the newest version (2.71-2).
+...</div>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-content">
+          <p>Verify each tool is present and note the version:</p>
+          <div class="code-block">gcc --version | head -1
+make --version | head -1
+autoconf --version | head -1
+pkg-config --version</div>
+          <div class="output-block">gcc (Ubuntu 11.4.0-1ubuntu1~22.04) 11.4.0
+GNU Make 4.3
+autoconf (GNU Autoconf) 2.71
+1.8.0</div>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num">3</div>
+        <div class="step-content">
+          <p>Check how many CPU cores are available for parallel builds:</p>
+          <div class="code-block">nproc
+echo "You can use make -j$(nproc) to parallelize builds"</div>
+          <div class="output-block">4
+You can use make -j4 to parallelize builds</div>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num">4</div>
+        <div class="step-content">
+          <p>Create the lab workspace:</p>
+          <div class="code-block">mkdir -p ~/lab-compile/{hello-c,makefile-project,autoconf-project,prefix-install}
+ls ~/lab-compile/</div>
+          <div class="output-block">autoconf-project  hello-c  makefile-project  prefix-install</div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════
+       EXERCISE 2 — Compiling C with gcc Directly
+  ══════════════════════════════════════════ -->
+  <div class="exercise-card">
+    <div class="exercise-header">
+      <div class="exercise-number">2</div>
+      <div class="exercise-title">
+        <h3>Compiling C Programs with gcc</h3>
+        <p>Write and compile C source files directly — single file and multi-file projects</p>
+      </div>
+      <span class="difficulty-badge beginner">BEGINNER</span>
+    </div>
+    <div class="exercise-body">
+
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-content">
+          <p>Write a minimal C program. Use <code>cat</code> with a heredoc to create the source file:</p>
+          <div class="code-block">cat > ~/lab-compile/hello-c/hello.c &lt;&lt;'EOF'
+#include &lt;stdio.h&gt;
+#include &lt;stdlib.h&gt;
+
+int main(int argc, char *argv[]) {
+    printf("Hello from compiled C!\n");
+    printf("Arguments received: %d\n", argc - 1);
+
+    for (int i = 1; i &lt; argc; i++) {
+        printf("  arg[%d]: %s\n", i, argv[i]);
+    }
+
+    return EXIT_SUCCESS;
+}
+EOF
+cat ~/lab-compile/hello-c/hello.c</div>
+          <div class="output-label">Source file content</div>
+          <div class="output-block">#include &lt;stdio.h&gt;
+#include &lt;stdlib.h&gt;
+
+int main(int argc, char *argv[]) {
+    printf("Hello from compiled C!\n");
+    printf("Arguments received: %d\n", argc - 1);
+    ...
+}</div>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-content">
+          <p>Compile to an executable with <code>gcc</code>. The <code>-o</code> flag specifies the output filename:</p>
+          <div class="code-block">gcc ~/lab-compile/hello-c/hello.c -o ~/lab-compile/hello-c/hello
+ls -lh ~/lab-compile/hello-c/hello</div>
+          <div class="output-block">-rwxrwxr-x 1 user user 16K Jan 15 09:20 /home/user/lab-compile/hello-c/hello</div>
+          <p>The binary is executable (<code>x</code> permission). It is 16KB because it includes the C standard library linked in.</p>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num">3</div>
+        <div class="step-content">
+          <p>Run the compiled program:</p>
+          <div class="code-block">~/lab-compile/hello-c/hello
+~/lab-compile/hello-c/hello alpha beta gamma</div>
+          <div class="output-block">Hello from compiled C!
+Arguments received: 0
+
+Hello from compiled C!
+Arguments received: 3
+  arg[1]: alpha
+  arg[2]: beta
+  arg[3]: gamma</div>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num">4</div>
+        <div class="step-content">
+          <p>Compile with <strong>debugging symbols</strong> and <strong>warnings enabled</strong> (good development practice):</p>
+          <div class="code-block">gcc -g -Wall -Wextra -o ~/lab-compile/hello-c/hello-debug \
+    ~/lab-compile/hello-c/hello.c
+
+ls -lh ~/lab-compile/hello-c/</div>
+          <div class="output-block">-rwxrwxr-x 1 user user  16K Jan 15 09:20 hello
+-rwxrwxr-x 1 user user  28K Jan 15 09:20 hello-debug</div>
+          <p>The debug binary is larger due to embedded symbol information. The <code>-Wall</code> and <code>-Wextra</code> flags catch potential bugs at compile time.</p>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num">5</div>
+        <div class="step-content">
+          <p>Compile with <strong>optimization</strong> for a production binary (smaller and faster):</p>
+          <div class="code-block">gcc -O2 -o ~/lab-compile/hello-c/hello-opt ~/lab-compile/hello-c/hello.c
+ls -lh ~/lab-compile/hello-c/hello*</div>
+          <div class="output-block">-rwxrwxr-x 1 user user 16K hello
+-rwxrwxr-x 1 user user 28K hello-debug
+-rwxrwxr-x 1 user user 16K hello-opt</div>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num">6</div>
+        <div class="step-content">
+          <p>Inspect what shared libraries the binary depends on:</p>
+          <div class="code-block">ldd ~/lab-compile/hello-c/hello</div>
+          <div class="output-block">        linux-vdso.so.1 (0x00007fffd7ff5000)
+        libc.so.6 => /lib/x86_64-linux-gnu/libc.so.6 (0x00007f8a1b200000)
+        /lib64/ld-linux-x86-64.so.2 (0x00007f8a1b3f2000)</div>
+          <p>This binary dynamically links to <code>libc.so.6</code> — the C standard library. If this library is missing, the binary will not run.</p>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════
+       EXERCISE 3 — Working with Makefiles
+  ══════════════════════════════════════════ -->
+  <div class="exercise-card">
+    <div class="exercise-header">
+      <div class="exercise-number">3</div>
+      <div class="exercise-title">
+        <h3>Writing and Using Makefiles</h3>
+        <p>Create a multi-file project with a Makefile for automated builds and cleaning</p>
+      </div>
+      <span class="difficulty-badge intermediate">INTERMEDIATE</span>
+    </div>
+    <div class="exercise-body">
+
+      <div class="insight-box">
+        <strong>Why Make?</strong>
+        For projects with multiple source files, manually running <code>gcc</code> on each file becomes error-prone. <code>make</code> reads a <code>Makefile</code> that describes build rules, dependencies, and targets. It only recompiles files that have changed — a critical optimization for large codebases.
+      </div>
+
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-content">
+          <p>Create a simple multi-file C project. First, a utility header and implementation:</p>
+          <div class="code-block">cd ~/lab-compile/makefile-project
+
+# Header file
+cat > utils.h &lt;&lt;'EOF'
+#ifndef UTILS_H
+#define UTILS_H
+
+void print_banner(const char *title);
+int add_numbers(int a, int b);
+
+#endif
+EOF
+
+# Implementation file
+cat > utils.c &lt;&lt;'EOF'
+#include &lt;stdio.h&gt;
+#include "utils.h"
+
+void print_banner(const char *title) {
+    printf("=== %s ===\n", title);
+}
+
+int add_numbers(int a, int b) {
+    return a + b;
+}
+EOF
+
+# Main program
+cat > main.c &lt;&lt;'EOF'
+#include &lt;stdio.h&gt;
+#include "utils.h"
+
+int main(void) {
+    print_banner("Makefile Project Demo");
+    int result = add_numbers(42, 58);
+    printf("42 + 58 = %d\n", result);
+    return 0;
+}
+EOF
+
+ls</div>
+          <div class="output-block">main.c  utils.c  utils.h</div>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-content">
+          <p>Create the <strong>Makefile</strong>. Note: Makefiles require TABS (not spaces) before commands:</p>
+          <div class="code-block">cat > Makefile &lt;&lt;'EOF'
+# Compiler and flags
+CC = gcc
+CFLAGS = -Wall -Wextra -O2
+TARGET = myapp
+
+# Object files (one per source file)
+OBJS = main.o utils.o
+
+# Default target: build the executable
+all: $(TARGET)
+
+# Link object files into executable
+$(TARGET): $(OBJS)
+	$(CC) $(CFLAGS) -o $(TARGET) $(OBJS)
+	@echo "Build complete: $(TARGET)"
+
+# Compile main.c to main.o
+main.o: main.c utils.h
+	$(CC) $(CFLAGS) -c main.c
+
+# Compile utils.c to utils.o
+utils.o: utils.c utils.h
+	$(CC) $(CFLAGS) -c utils.c
+
+# Remove compiled files
+clean:
+	rm -f $(OBJS) $(TARGET)
+	@echo "Cleaned build files."
+
+# Install to /usr/local/bin
+install: $(TARGET)
+	install -m 755 $(TARGET) /usr/local/bin/
+	@echo "Installed $(TARGET) to /usr/local/bin/"
+
+.PHONY: all clean install
+EOF
+cat Makefile</div>
+          <div class="output-block">CC = gcc
+CFLAGS = -Wall -Wextra -O2
+TARGET = myapp
+OBJS = main.o utils.o
+...
+.PHONY: all clean install</div>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num">3</div>
+        <div class="step-content">
+          <p>Build the project using <code>make</code>:</p>
+          <div class="code-block">make</div>
+          <div class="output-block">gcc -Wall -Wextra -O2 -c main.c
+gcc -Wall -Wextra -O2 -c utils.c
+gcc -Wall -Wextra -O2 -o myapp main.o utils.o
+Build complete: myapp</div>
+          <div class="code-block">ls -lh
+./myapp</div>
+          <div class="output-block">-rw-rw-r-- 1 user user  252 Makefile
+-rwxrwxr-x 1 user user  17K myapp
+-rw-rw-r-- 1 user user 1.7K main.c main.o utils.c utils.h utils.o
+
+=== Makefile Project Demo ===
+42 + 58 = 100</div>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num">4</div>
+        <div class="step-content">
+          <p>Run <code>make</code> again to see incremental build detection (nothing recompiles):</p>
+          <div class="code-block">make</div>
+          <div class="output-block">make: 'myapp' is up to date.</div>
+          <p>Make checks timestamps. Since no source file is newer than the target, it skips compilation. This saves enormous time on large projects.</p>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num">5</div>
+        <div class="step-content">
+          <p>Modify a source file and observe that only the affected file recompiles:</p>
+          <div class="code-block">touch utils.c   # Simulate a file edit (updates timestamp)
+make</div>
+          <div class="output-block">gcc -Wall -Wextra -O2 -c utils.c
+gcc -Wall -Wextra -O2 -o myapp main.o utils.o
+Build complete: myapp</div>
+          <p>Only <code>utils.c</code> was recompiled. <code>main.o</code> was reused from the previous build.</p>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num">6</div>
+        <div class="step-content">
+          <p>Use <code>make clean</code> to remove all build artifacts:</p>
+          <div class="code-block">make clean
+ls</div>
+          <div class="output-block">Cleaned build files.
+main.c  Makefile  utils.c  utils.h</div>
+        </div>
+      </div>
+
+      <div class="insight-box">
+        <strong>Common Makefile Targets</strong>
+      </div>
+      <table class="target-table">
+        <tr><th>Target</th><th>Purpose</th><th>Notes</th></tr>
+        <tr><td>make / make all</td><td>Build the default target</td><td>Defined first in Makefile</td></tr>
+        <tr><td>make clean</td><td>Remove .o files and binaries</td><td>Keeps source files</td></tr>
+        <tr><td>make distclean</td><td>Remove everything including configure output</td><td>Returns to pristine state</td></tr>
+        <tr><td>make install</td><td>Copy binary to system paths</td><td>Usually requires sudo</td></tr>
+        <tr><td>make uninstall</td><td>Remove installed files</td><td>Not all projects implement this</td></tr>
+        <tr><td>make check / test</td><td>Run the test suite</td><td>Project-dependent</td></tr>
+        <tr><td>make -j$(nproc)</td><td>Parallel build using all cores</td><td>Dramatically speeds large projects</td></tr>
+      </table>
+
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════
+       EXERCISE 4 — The configure/make/make install Pipeline
+  ══════════════════════════════════════════ -->
+  <div class="exercise-card">
+    <div class="exercise-header">
+      <div class="exercise-number">4</div>
+      <div class="exercise-title">
+        <h3>The configure / make / make install Pipeline</h3>
+        <p>Work through the full autoconf build pipeline with a custom install prefix</p>
+      </div>
+      <span class="difficulty-badge intermediate">INTERMEDIATE</span>
+    </div>
+    <div class="exercise-body">
+
+      <div class="insight-box">
+        <strong>The Three-Step Build</strong>
+        Most open source projects using autoconf follow this exact sequence:
+      </div>
+      <div class="pipeline">
+        <div class="pipeline-step">./configure</div>
+        <div class="pipeline-arrow">→</div>
+        <div class="pipeline-step">make</div>
+        <div class="pipeline-arrow">→</div>
+        <div class="pipeline-step">make install</div>
+      </div>
+      <p style="font-size:0.85rem;color:var(--text-secondary);margin:0.5rem 0 1rem;">configure probes the system and generates a Makefile. make compiles. make install deploys the binary to the prefix path.</p>
+
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-content">
+          <p>Create a minimal autoconf project to simulate a real-world source download:</p>
+          <div class="code-block">cd ~/lab-compile/autoconf-project
+
+# Main source file
+cat > myutil.c &lt;&lt;'EOF'
+#include &lt;stdio.h&gt;
+#include &lt;string.h&gt;
+
+int main(int argc, char *argv[]) {
+    if (argc &lt; 2) {
+        printf("Usage: myutil &lt;message&gt;\n");
+        return 1;
+    }
+    int len = strlen(argv[1]);
+    printf("Message: %s\n", argv[1]);
+    printf("Length:  %d characters\n", len);
+    return 0;
+}
+EOF</div>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-content">
+          <p>Create a <code>configure.ac</code> file (the input to autoconf) and <code>Makefile.am</code> (the input to automake):</p>
+          <div class="code-block">cat > configure.ac &lt;&lt;'EOF'
+AC_INIT([myutil], [1.0], [admin@lab.local])
+AM_INIT_AUTOMAKE([-Wall -Werror foreign])
+AC_PROG_CC
+AC_CONFIG_FILES([Makefile])
+AC_OUTPUT
+EOF
+
+cat > Makefile.am &lt;&lt;'EOF'
+bin_PROGRAMS = myutil
+myutil_SOURCES = myutil.c
+EOF</div>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num">3</div>
+        <div class="step-content">
+          <p>Generate the <code>configure</code> script from <code>configure.ac</code> using <code>autoreconf</code>:</p>
+          <div class="code-block">autoreconf --install 2>&amp;1 | tail -5</div>
+          <div class="output-block">configure.ac:2: installing './compile'
+configure.ac:2: installing './install-sh'
+configure.ac:2: installing './missing'
+Makefile.am: installing './depcomp'</div>
+          <div class="code-block">ls configure
+file configure</div>
+          <div class="output-block">configure
+configure: POSIX shell script, ASCII text executable</div>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num">4</div>
+        <div class="step-content">
+          <p>Run <code>./configure</code> with a custom <code>--prefix</code> to install into <code>~/local</code> instead of <code>/usr/local</code>. This avoids needing root permissions:</p>
+          <div class="code-block">mkdir -p ~/local
+./configure --prefix=$HOME/local 2>&amp;1 | tail -8</div>
+          <div class="output-block">checking for gcc... gcc
+checking whether the C compiler works... yes
+checking for C compiler default output file name... a.out
+checking for suffix of executables...
+checking whether we are cross compiling... no
+checking for suffix of object files... o
+checking whether we are using the GNU C compiler... yes
+configure: creating ./config.status</div>
+          <div class="code-block">ls Makefile   # Generated by configure</div>
+          <div class="output-block">Makefile</div>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num">5</div>
+        <div class="step-content">
+          <p>Compile the project using parallel make:</p>
+          <div class="code-block">make -j$(nproc) 2>&amp;1 | tail -5</div>
+          <div class="output-block">gcc -DPACKAGE_NAME=\"myutil\" -DPACKAGE_VERSION=\"1.0\" ...
+gcc -g -O2 -o myutil myutil-myutil.o
+make[1]: Leaving directory '/home/user/lab-compile/autoconf-project'</div>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num">6</div>
+        <div class="step-content">
+          <p>Install to the custom prefix and test the installed binary:</p>
+          <div class="code-block">make install 2>&amp;1 | grep "installing"
+
+ls -lh ~/local/bin/myutil
+~/local/bin/myutil "Linux compilation is powerful"</div>
+          <div class="output-block"> /usr/bin/install -c myutil '/home/user/local/bin/myutil'
+
+-rwxr-xr-x 1 user user 18K Jan 15 09:25 /home/user/local/bin/myutil
+
+Message: Linux compilation is powerful
+Length:  28 characters</div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════
+       EXERCISE 5 — Diagnosing Build Errors
+  ══════════════════════════════════════════ -->
+  <div class="exercise-card">
+    <div class="exercise-header">
+      <div class="exercise-number">5</div>
+      <div class="exercise-title">
+        <h3>Diagnosing and Fixing Build Errors</h3>
+        <p>Identify and resolve the three most common compile failures</p>
+      </div>
+      <span class="difficulty-badge advanced">ADVANCED</span>
+    </div>
+    <div class="exercise-body">
+
+      <div class="insight-box">
+        <strong>Why This Matters</strong>
+        Most source compilation failures fall into three categories: missing development headers, missing libraries, or gcc version mismatches. Learning to read error messages and diagnose the root cause is the real skill — once you can read compiler output, any build problem becomes tractable.
+      </div>
+
+      <!-- Error Type 1 -->
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-content">
+          <p><strong>Error Type 1: Missing Header File</strong> — The most common configure failure</p>
+          <div class="error-example">configure: error: Package requirements (libssl) were not met:
+
+No package 'libssl' found
+
+Consider adjusting the PKG_CONFIG_PATH environment variable if you
+installed software in a non-standard prefix.</div>
+          <div class="fix-block"><strong>Diagnosis:</strong> The configure script cannot find the OpenSSL development headers.<br>
+<strong>Fix:</strong> Install the <code>-dev</code> package that provides the headers.</div>
+          <div class="code-block"># Find which package provides the missing header
+apt-file search openssl/ssl.h 2>/dev/null | head -3
+# Or simply search by package name pattern:
+apt-cache search "libssl.*dev"
+
+# Fix: install the dev package
+sudo apt install -y libssl-dev
+# Then re-run configure</div>
+          <div class="output-block">libssl-dev - Secure Sockets Layer toolkit - development files</div>
+        </div>
+      </div>
+
+      <!-- Error Type 2 -->
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-content">
+          <p><strong>Error Type 2: Linker Error (undefined reference)</strong></p>
+          <div class="error-example">main.c:(.text+0x1a): undefined reference to `sqrt'
+collect2: error: ld returned 1 exit status</div>
+          <div class="fix-block"><strong>Diagnosis:</strong> The math library function <code>sqrt()</code> was used in source code but the math library was not linked.<br>
+<strong>Fix:</strong> Add <code>-lm</code> to the gcc command to link <code>libm</code>.</div>
+          <div class="code-block"># Wrong (produces the error above):
+gcc -o myapp myapp.c
+
+# Correct (links the math library):
+gcc -o myapp myapp.c -lm
+
+# For configure-based projects, set LDFLAGS:
+./configure LDFLAGS="-lm"</div>
+        </div>
+      </div>
+
+      <!-- Error Type 3 -->
+      <div class="step">
+        <div class="step-num">3</div>
+        <div class="step-content">
+          <p><strong>Error Type 3: Library Not Found at Runtime</strong> (after successful compilation)</p>
+          <div class="error-example">./myapp: error while loading shared libraries: libfoo.so.1:
+  cannot open shared object file: No such file or directory</div>
+          <div class="fix-block"><strong>Diagnosis:</strong> The binary compiled successfully but the shared library is not in the dynamic linker's search path at runtime.<br>
+<strong>Fix:</strong> Run <code>ldconfig</code> to refresh the linker cache, or set <code>LD_LIBRARY_PATH</code>.</div>
+          <div class="code-block"># Step 1: Find where the library actually is
+ldconfig -p | grep libfoo
+find /usr /lib /opt -name "libfoo*.so*" 2>/dev/null
+
+# Step 2: If installed to /usr/local/lib, refresh cache
+sudo ldconfig
+ldconfig -p | grep libfoo
+
+# Step 3: Temporary fix (not recommended for production)
+export LD_LIBRARY_PATH=/usr/local/lib:$LD_LIBRARY_PATH
+./myapp</div>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num">4</div>
+        <div class="step-content">
+          <p>Use <code>pkg-config</code> to automatically get the correct flags for installed libraries:</p>
+          <div class="code-block"># Ask pkg-config what flags to use for OpenSSL
+pkg-config --cflags openssl 2>/dev/null || echo "openssl not found by pkg-config"
+pkg-config --libs openssl 2>/dev/null || echo "(try: sudo apt install libssl-dev)"
+
+# Use pkg-config output directly in gcc:
+gcc -o ssl-app ssl-app.c $(pkg-config --cflags --libs openssl)</div>
+          <div class="output-block">-I/usr/include/openssl
+-lssl -lcrypto</div>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num">5</div>
+        <div class="step-content">
+          <p>Inspect a compiled binary to understand its shared library dependencies:</p>
+          <div class="code-block">ldd ~/lab-compile/autoconf-project/myutil
+readelf -d ~/lab-compile/autoconf-project/myutil | grep NEEDED</div>
+          <div class="output-block">        linux-vdso.so.1 (0x00007fffd7ff5000)
+        libc.so.6 => /lib/x86_64-linux-gnu/libc.so.6 (0x00007f...)
+        /lib64/ld-linux-x86-64.so.2 (0x00007f...)
+
+ 0x0000000000000001 (NEEDED)             Shared library: [libc.so.6]</div>
+        </div>
+      </div>
+
+      <div class="warning-box">
+        <strong>The checkinstall Alternative</strong>
+        Instead of running <code>sudo make install</code> (which installs files invisibly with no package manager tracking), use <code>checkinstall</code> to wrap the installation into a .deb package. This lets you track, upgrade, or remove the custom-compiled software cleanly: <code>sudo checkinstall --pkgname=myutil --pkgversion=1.0</code>. Install it with: <code>sudo apt install checkinstall</code>.
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ── Completion Section ── -->
+  <div class="completion-section">
+    <h3>Lab Complete</h3>
+    <p>You set up the build toolchain, compiled C programs directly with gcc, wrote and used a Makefile for a multi-file project, ran the full configure/make/make install pipeline with a custom prefix, and diagnosed the three most common build errors.</p>
+    <button class="complete-btn" id="complete-btn" onclick="completeLab()">Mark Lab Complete</button>
+    <div class="already-done" id="already-done">This lab is already marked complete.</div>
+  </div>
+
+</main>
+</body>
+</html>

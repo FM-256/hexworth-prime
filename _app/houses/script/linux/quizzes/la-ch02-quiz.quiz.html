@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CH02 Quiz: Linux Distributions — Script House</title>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root { --script-green: #22c55e; --script-accent: #4ade80; --script-glow: rgba(34,197,94,0.3); --bg-card: rgba(10,20,10,0.9); --text-primary: #e8e8f0; --text-secondary: #7a9a7a; --correct: #22c55e; --incorrect: #ef4444; --border: rgba(34,197,94,0.2); }
+        body { min-height: 100vh; background: linear-gradient(135deg, #0a0a12, #0a1a0f, #0a250a); font-family: 'Segoe UI', system-ui, sans-serif; color: var(--text-primary); }
+        .quiz-header { padding: 1rem 2rem; border-bottom: 1px solid var(--border); background: rgba(10,10,18,0.96); display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; backdrop-filter: blur(12px); }
+        .back-btn { display: flex; align-items: center; gap: 8px; padding: 8px 16px; background: rgba(34,197,94,0.08); border: 1px solid var(--border); border-radius: 8px; color: var(--script-green); font-size: 0.85rem; font-weight: 600; text-decoration: none; transition: all 0.2s; }
+        .back-btn:hover { background: rgba(34,197,94,0.15); }
+        .progress-bar { width: 180px; height: 6px; background: rgba(255,255,255,0.08); border-radius: 3px; overflow: hidden; }
+        .progress-fill { height: 100%; background: linear-gradient(90deg, var(--script-green), var(--script-accent)); width: 0%; transition: width 0.5s ease; }
+        #questionCounter { color: var(--text-secondary); font-size: 0.85rem; }
+        .quiz-container { max-width: 820px; margin: 2.5rem auto; padding: 0 1.5rem 4rem; }
+        .quiz-title { text-align: center; margin-bottom: 2.5rem; }
+        .quiz-title h1 { font-size: 1.9rem; color: var(--script-green); margin-bottom: 0.5rem; }
+        .quiz-title p { color: var(--text-secondary); font-size: 0.95rem; }
+        .question-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 14px; padding: 2rem; margin-bottom: 1.25rem; display: none; }
+        .question-card.active { display: block; animation: fadeIn 0.3s ease; }
+        @keyframes fadeIn { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
+        .question-number { color: var(--script-green); font-size: 0.8rem; font-weight: 700; letter-spacing: 0.1em; margin-bottom: 0.9rem; }
+        .question-text { font-size: 1.15rem; line-height: 1.6; margin-bottom: 1.5rem; }
+        .question-text code { background: rgba(34,197,94,0.12); color: var(--script-accent); padding: 2px 8px; border-radius: 4px; font-family: 'Consolas',monospace; font-size: 0.9em; }
+        .options { display: grid; gap: 0.75rem; }
+        .option { padding: 1rem 1.25rem; background: rgba(34,197,94,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; gap: 0.9rem; }
+        .option:hover:not(.disabled) { background: rgba(34,197,94,0.1); border-color: var(--script-green); }
+        .option.correct { background: rgba(34,197,94,0.2); border-color: var(--correct); }
+        .option.incorrect { background: rgba(239,68,68,0.15); border-color: var(--incorrect); }
+        .option.disabled { pointer-events: none; opacity: 0.75; }
+        .option-letter { width: 30px; height: 30px; border-radius: 50%; background: rgba(255,255,255,0.08); display: flex; align-items: center; justify-content: center; font-size: 0.85rem; font-weight: 700; flex-shrink: 0; }
+        .option.correct .option-letter { background: var(--correct); color: #000; }
+        .option.incorrect .option-letter { background: var(--incorrect); color: #fff; }
+        .feedback { margin-top: 1.25rem; padding: 1rem 1.25rem; border-radius: 10px; display: none; font-size: 0.9rem; line-height: 1.5; }
+        .feedback.show { display: block; animation: fadeIn 0.3s ease; }
+        .feedback.correct { background: rgba(34,197,94,0.1); border-left: 3px solid var(--correct); }
+        .feedback.incorrect { background: rgba(239,68,68,0.1); border-left: 3px solid var(--incorrect); }
+        .nav-buttons { display: flex; justify-content: flex-end; margin-top: 1.5rem; }
+        .nav-btn { padding: 0.7rem 1.75rem; border-radius: 10px; font-size: 0.9rem; font-weight: 600; cursor: pointer; border: none; transition: all 0.2s; background: linear-gradient(135deg, var(--script-green), var(--script-accent)); color: #000; }
+        .nav-btn:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 6px 20px var(--script-glow); }
+        .nav-btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+        .results-card { background: var(--bg-card); border: 1px solid rgba(34,197,94,0.35); border-radius: 16px; padding: 3rem; text-align: center; display: none; }
+        .results-card.show { display: block; animation: fadeIn 0.5s ease; }
+        .score-circle { width: 140px; height: 140px; border-radius: 50%; background: linear-gradient(135deg, var(--script-green), var(--script-accent)); display: flex; align-items: center; justify-content: center; margin: 0 auto 1.75rem; font-size: 2.8rem; font-weight: 900; color: #000; }
+        .results-title { font-size: 1.75rem; color: var(--script-green); margin-bottom: 0.6rem; }
+        .results-subtitle { color: var(--text-secondary); margin-bottom: 2rem; font-size: 0.95rem; }
+        .results-actions { display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap; }
+        .action-btn { padding: 0.75rem 1.75rem; border-radius: 10px; text-decoration: none; font-size: 0.9rem; font-weight: 600; transition: all 0.2s; }
+        .action-btn.primary { background: linear-gradient(135deg, var(--script-green), var(--script-accent)); color: #000; }
+        .action-btn.secondary { background: rgba(255,255,255,0.05); border: 1px solid var(--border); color: var(--text-secondary); }
+        .action-btn:hover { transform: translateY(-2px); }
+    </style>
+</head>
+<body>
+<header class="quiz-header">
+    <a href="../presentations/la-ch02-distros.presentation.html" class="back-btn">&larr; Back to Presentation</a>
+    <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+    <span id="questionCounter">1 / 10</span>
+</header>
+<div class="quiz-container">
+    <div class="quiz-title">
+        <h1>CH02: Linux Distributions</h1>
+        <p>10 questions on distro families, package managers, and choosing the right Linux for each use case</p>
+    </div>
+    <div id="questionsContainer"></div>
+    <div class="results-card" id="resultsCard">
+        <div class="score-circle" id="scoreCircle">0%</div>
+        <h2 class="results-title" id="resultsTitle">Quiz Complete!</h2>
+        <p class="results-subtitle" id="resultsSubtitle"></p>
+        <div class="results-actions">
+            <a href="../presentations/la-ch02-distros.presentation.html" class="action-btn secondary">Review Slides</a>
+            <a href="../labs/la-ch02-distros.lab.html" class="action-btn primary" id="nextBtn">Go to Lab &rarr;</a>
+        </div>
+    </div>
+</div>
+<script src="../../../../components/FluxCapacitor.js"></script>
+<script>
+const questions = [
+    { question: 'Which Linux distribution is developed by Offensive Security and comes pre-loaded with over 600 security and penetration testing tools?', options: ['Ubuntu Server', 'Kali Linux', 'Fedora Workstation', 'Arch Linux'], correct: 1, feedback: { correct: 'Correct! Kali Linux, developed by Offensive Security, is the standard platform for penetration testing and ethical hacking. It includes Metasploit, nmap, Wireshark, Burp Suite, and hundreds more tools pre-installed.', incorrect: 'Kali Linux, developed by Offensive Security, is purpose-built for penetration testing and security research with 600+ pre-installed tools. Ubuntu, Fedora, and Arch are general-purpose distributions.' } },
+    { question: 'Ubuntu is based on which parent distribution?', options: ['Fedora', 'Arch Linux', 'Debian', 'Red Hat Enterprise Linux'], correct: 2, feedback: { correct: 'Correct! Ubuntu is based on Debian. It uses Debian\'s APT package manager and .deb package format. Mark Shuttleworth created Ubuntu in 2004 to make Debian more user-friendly.', incorrect: 'Ubuntu is based on Debian — it uses Debian\'s APT package manager, .deb packages, and Debian\'s software repositories as a foundation. Rocky Linux/AlmaLinux are RHEL-based.' } },
+    { question: 'What package manager is used by Ubuntu and Debian?', options: ['dnf', 'pacman', 'apt', 'yum'], correct: 2, feedback: { correct: 'Correct! APT (Advanced Package Tool) is the package manager for Debian-based distributions including Ubuntu, Mint, and Kali. Key commands: apt update, apt install, apt upgrade, apt remove.', incorrect: 'APT (Advanced Package Tool) is used by Debian, Ubuntu, Linux Mint, and Kali Linux. DNF/YUM is used by Red Hat/Fedora/Rocky, and Pacman is used by Arch Linux.' } },
+    { question: 'Which distribution is best described as a "rolling release" that requires manual setup and targets advanced users who want full control?', options: ['Ubuntu LTS', 'Debian Stable', 'Arch Linux', 'CentOS'], correct: 2, feedback: { correct: 'Correct! Arch Linux is a rolling release (constantly updated, no versioned releases) with a minimal base that you build upon. It requires manual installation and configuration — rewarding for experienced users who want complete control.', incorrect: 'Arch Linux is the rolling-release, minimalist distribution for advanced users. It uses the Pacman package manager and the AUR (Arch User Repository). The Arch Wiki is considered the best Linux documentation resource.' } },
+    { question: 'Rocky Linux was created as a community replacement for which discontinued distribution?', options: ['Fedora', 'CentOS', 'Debian', 'openSUSE'], correct: 1, feedback: { correct: 'Correct! CentOS was discontinued as a RHEL-stable clone (it became CentOS Stream, an upstream rolling release). Rocky Linux and AlmaLinux were created by the community to fill the gap as free, RHEL-compatible distributions.', incorrect: 'Rocky Linux replaced CentOS as a free, community-maintained RHEL clone after Red Hat discontinued CentOS 8 as a stable release. CentOS became "CentOS Stream" — an upstream preview of RHEL.' } },
+    { question: 'Which command with DNF would install the "nginx" web server on a Fedora or Rocky Linux system?', options: ['apt install nginx', 'pacman -S nginx', 'dnf install nginx', 'yum get nginx'], correct: 2, feedback: { correct: 'Correct! DNF (Dandified YUM) is the package manager for Fedora, RHEL, Rocky Linux, and AlmaLinux. The install command is: sudo dnf install nginx', incorrect: 'DNF (Dandified YUM) is used on Fedora/RHEL/Rocky. The correct command is "sudo dnf install nginx". APT is for Debian/Ubuntu, Pacman is for Arch, and there is no "yum get" command.' } },
+    { question: 'For a new student learning Linux who is coming from a Windows background, which distribution is most commonly recommended?', options: ['Arch Linux', 'Kali Linux', 'Ubuntu or Linux Mint', 'Gentoo'], correct: 2, feedback: { correct: 'Correct! Ubuntu and Linux Mint provide the most beginner-friendly experience with large communities, extensive documentation, familiar desktop interfaces, and excellent hardware support. Kali and Arch require significant Linux experience.', incorrect: 'Ubuntu LTS and Linux Mint are the recommended starting points for Linux newcomers. They have the largest support communities, most documentation, best hardware compatibility, and familiar desktop environments. Arch and Kali require experience.' } },
+    { question: 'What does "LTS" mean in "Ubuntu 22.04 LTS"?', options: ['Linux Terminal System', 'Long Term Support', 'Latest Technology Stack', 'Linux Technology Standard'], correct: 1, feedback: { correct: 'Correct! LTS stands for Long Term Support. Ubuntu LTS releases receive security patches and updates for 5 years (standard releases get only 9 months). LTS versions are recommended for production servers and stable desktop deployments.', incorrect: 'LTS stands for Long Term Support. Ubuntu LTS releases receive security and bug fix updates for 5 years, making them the safe choice for servers and stable environments. Non-LTS Ubuntu releases only get 9 months of support.' } },
+    { question: 'Which Linux distribution is developed by Red Hat specifically to feature cutting-edge technology and serve as an upstream testing ground for Red Hat Enterprise Linux?', options: ['CentOS', 'Rocky Linux', 'Fedora', 'openSUSE'], correct: 2, feedback: { correct: 'Correct! Fedora is Red Hat\'s community project where new technology (Wayland, systemd, new kernel features) is tested before being included in RHEL. It releases every 6 months and is popular with developers.', incorrect: 'Fedora is Red Hat\'s upstream testing distribution — new technology appears in Fedora first, then matures into RHEL. CentOS and Rocky Linux are RHEL clones. openSUSE is a separate distribution family.' } },
+    { question: 'Raspberry Pi OS (formerly Raspbian) is optimized for which type of deployment?', options: ['Enterprise servers', 'Gaming PCs', 'Embedded systems and IoT devices on Raspberry Pi hardware', 'Cloud virtual machines'], correct: 2, feedback: { correct: 'Correct! Raspberry Pi OS is specifically designed for the Raspberry Pi ARM-based single-board computer. It is lightweight, includes educational tools, and is used for IoT projects, robotics, home automation, and learning computing.', incorrect: 'Raspberry Pi OS is optimized for the Raspberry Pi ARM hardware platform — used for IoT, robotics, education, and embedded projects. It is Debian-based and lightweight. Enterprise servers use RHEL/Debian; gaming benefits from Pop!_OS or Manjaro.' } }
+];
+
+let currentQuestion = 0, score = 0;
+let answered = new Array(questions.length).fill(false);
+
+function initQuiz() {
+    const c = document.getElementById('questionsContainer');
+    const L = ['A','B','C','D'];
+    questions.forEach((q, idx) => {
+        c.innerHTML += `<div class="question-card" id="question${idx}">
+            <div class="question-number">QUESTION ${idx+1} OF ${questions.length}</div>
+            <div class="question-text">${q.question}</div>
+            <div class="options">${q.options.map((o,i)=>`<div class="option" onclick="selectOption(${idx},${i})"><span class="option-letter">${L[i]}</span><span>${o}</span></div>`).join('')}</div>
+            <div class="feedback" id="feedback${idx}"></div>
+            <div class="nav-buttons"><button class="nav-btn" id="nextBtn${idx}" onclick="nextQuestion()" disabled>${idx===questions.length-1?'See Results':'Next Question &rarr;'}</button></div>
+        </div>`;
+    });
+    showQuestion(0);
+}
+
+function showQuestion(idx) {
+    document.querySelectorAll('.question-card').forEach(c=>c.classList.remove('active'));
+    document.getElementById(`question${idx}`).classList.add('active');
+    document.getElementById('progressFill').style.width = ((idx+1)/questions.length*100)+'%';
+    document.getElementById('questionCounter').textContent = `${idx+1} / ${questions.length}`;
+}
+
+function selectOption(qIdx, optIdx) {
+    if (answered[qIdx]) return;
+    answered[qIdx] = true;
+    const q = questions[qIdx];
+    document.querySelectorAll(`#question${qIdx} .option`).forEach((o,i) => {
+        o.classList.add('disabled');
+        if (i===q.correct) o.classList.add('correct');
+        else if (i===optIdx) o.classList.add('incorrect');
+    });
+    const fb = document.getElementById(`feedback${qIdx}`);
+    if (optIdx===q.correct) { score++; fb.className='feedback show correct'; fb.innerHTML='<strong>Correct!</strong> '+q.feedback.correct; }
+    else { fb.className='feedback show incorrect'; fb.innerHTML='<strong>Incorrect.</strong> '+q.feedback.incorrect; }
+    document.getElementById(`nextBtn${qIdx}`).disabled = false;
+}
+
+function nextQuestion() {
+    if (currentQuestion < questions.length-1) { currentQuestion++; showQuestion(currentQuestion); }
+    else showResults();
+}
+
+function showResults() {
+    document.querySelectorAll('.question-card').forEach(c=>c.classList.remove('active'));
+    document.getElementById('resultsCard').classList.add('show');
+    const pct = Math.round(score/questions.length*100);
+    document.getElementById('scoreCircle').textContent = pct+'%';
+    document.getElementById('resultsSubtitle').textContent = `You scored ${score} out of ${questions.length} correct`;
+    let t = 'Keep Practicing!';
+    if (pct>=90) t='Outstanding!'; else if (pct>=80) t='Great Work!'; else if (pct>=70) t='Good Effort!';
+    document.getElementById('resultsTitle').textContent = t;
+    localStorage.setItem('hexworth_la_ch02_quiz_score', pct);
+    if (pct>=70 && typeof ModuleProgress!=='undefined') ModuleProgress.complete('script','script-la-ch02-quiz');
+    if (pct<70) { document.getElementById('nextBtn').textContent='Retry Quiz'; document.getElementById('nextBtn').href='la-ch02-quiz.quiz.html'; }
+}
+
+initQuiz();
+</script>
+</body>
+</html>

@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ch 12: Compiling Source Code — Linux Admin</title>
+    <script src="../../../../../components/AchievementManager.js"></script>
+    <script src="../../../../../components/ModuleProgress.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --script-green: #22c55e; --script-accent: #4ade80;
+            --script-glow: rgba(34, 197, 94, 0.35);
+            --bg-card: rgba(10, 20, 10, 0.85);
+            --text-primary: #e8f5e8; --text-secondary: #7aaa7a;
+            --ok: #4ade80; --warn: #fbbf24; --bad: #f87171;
+            --border: rgba(34, 197, 94, 0.2);
+        }
+        body { font-family: 'Segoe UI', system-ui, sans-serif; background: linear-gradient(135deg, #0a0a12, #0a1a0f, #0a250a); color: var(--text-primary); line-height: 1.7; min-height: 100vh; }
+        .site-header { background: rgba(10,10,18,0.95); border-bottom: 1px solid var(--border); padding: 0.9rem 2rem; position: sticky; top: 0; z-index: 100; display: flex; align-items: center; justify-content: space-between; backdrop-filter: blur(10px); }
+        .back-link { color: var(--script-green); text-decoration: none; font-size: 0.9rem; font-weight: 600; display: flex; align-items: center; gap: 0.4rem; transition: opacity 0.2s; }
+        .back-link:hover { opacity: 0.75; }
+        .header-badge { background: linear-gradient(135deg, var(--script-green), var(--script-accent)); color: #000; padding: 0.35rem 1rem; border-radius: 20px; font-size: 0.78rem; font-weight: 700; letter-spacing: 0.05em; }
+        .container { max-width: 1100px; margin: 0 auto; padding: 2.5rem 2rem 4rem; }
+        .hero { text-align: center; padding: 3.5rem 2rem 2.5rem; background: var(--bg-card); border: 1px solid var(--border); border-radius: 20px; margin-bottom: 2.5rem; position: relative; overflow: hidden; }
+        .hero::before { content: ''; position: absolute; top: -80px; left: 50%; transform: translateX(-50%); width: 400px; height: 400px; background: radial-gradient(circle, var(--script-glow) 0%, transparent 70%); pointer-events: none; }
+        .module-tag { display: inline-block; background: rgba(34,197,94,0.12); color: var(--script-green); border: 1px solid var(--border); padding: 0.3rem 1rem; border-radius: 20px; font-size: 0.78rem; font-weight: 700; letter-spacing: 0.08em; margin-bottom: 1.2rem; }
+        .hero h1 { font-size: 2.2rem; font-weight: 800; margin-bottom: 0.75rem; }
+        .hero h1 span { color: var(--script-green); }
+        .hero p { color: var(--text-secondary); font-size: 1.05rem; max-width: 680px; margin: 0 auto; }
+        .section-heading { display: flex; align-items: center; gap: 0.75rem; font-size: 1.4rem; font-weight: 700; color: var(--script-green); margin: 2.5rem 0 1.25rem; }
+        .section-heading::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+        .card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 16px; padding: 1.75rem; margin-bottom: 1.5rem; }
+        .card h3 { font-size: 1.15rem; color: var(--script-accent); margin-bottom: 0.9rem; }
+        .card p { color: var(--text-secondary); font-size: 0.95rem; margin-bottom: 0.75rem; }
+        .card p:last-child { margin-bottom: 0; }
+        .code-block { background: rgba(0,0,0,0.5); border: 1px solid rgba(34,197,94,0.15); border-radius: 10px; padding: 1.25rem 1.5rem; margin: 1rem 0; font-family: 'Courier New', monospace; font-size: 0.88rem; color: var(--script-accent); overflow-x: auto; line-height: 1.8; }
+        .code-block .comment { color: #4a7a4a; font-style: italic; }
+        .code-block .cmd { color: var(--script-green); }
+        .code-block .flag { color: var(--warn); }
+        .code-block .val { color: #60a5fa; }
+        /* Build pipeline steps */
+        .pipeline { display: flex; flex-direction: column; gap: 0; }
+        .pipeline-step { display: flex; gap: 1.25rem; align-items: flex-start; position: relative; padding-bottom: 1.5rem; }
+        .pipeline-step:last-child { padding-bottom: 0; }
+        .step-num { width: 36px; height: 36px; border-radius: 50%; background: linear-gradient(135deg, var(--script-green), var(--script-accent)); color: #000; font-weight: 800; font-size: 0.9rem; display: flex; align-items: center; justify-content: center; flex-shrink: 0; z-index: 1; }
+        .step-line { position: absolute; left: 17px; top: 36px; bottom: 0; width: 2px; background: linear-gradient(to bottom, var(--script-green), transparent); }
+        .step-content { flex: 1; padding-top: 0.2rem; }
+        .step-content h4 { font-size: 1rem; font-weight: 700; color: var(--script-accent); margin-bottom: 0.25rem; }
+        .step-content p { font-size: 0.88rem; color: var(--text-secondary); margin: 0; }
+        .step-cmd { font-family: 'Courier New', monospace; font-size: 0.85rem; color: var(--script-green); background: rgba(34,197,94,0.06); padding: 0.2rem 0.6rem; border-radius: 4px; display: inline-block; margin-top: 0.3rem; }
+        /* Data table */
+        .data-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; margin-top: 1rem; }
+        .data-table th { padding: 0.75rem 1rem; text-align: left; font-size: 0.75rem; font-weight: 700; letter-spacing: 0.06em; color: var(--script-green); border-bottom: 1px solid var(--border); }
+        .data-table td { padding: 0.7rem 1rem; color: var(--text-secondary); border-bottom: 1px solid rgba(34,197,94,0.07); }
+        .data-table td:first-child { color: var(--text-primary); font-weight: 600; font-family: 'Courier New', monospace; }
+        /* insight */
+        .insight { background: rgba(34,197,94,0.06); border-left: 4px solid var(--script-green); border-radius: 0 12px 12px 0; padding: 1.25rem 1.5rem; margin-top: 1.25rem; }
+        .insight-label { font-size: 0.72rem; font-weight: 700; letter-spacing: 0.1em; color: var(--script-green); margin-bottom: 0.4rem; }
+        .insight p { font-size: 0.9rem; color: var(--text-secondary); margin: 0; }
+        .insight.warn { background: rgba(251,191,36,0.06); border-left-color: var(--warn); }
+        .insight.warn .insight-label { color: var(--warn); }
+        /* Completion */
+        .completion-bar { background: var(--bg-card); border: 1px solid var(--border); border-radius: 16px; padding: 2rem; text-align: center; margin-top: 3rem; }
+        .completion-bar h3 { color: var(--script-green); margin-bottom: 0.75rem; font-size: 1.2rem; }
+        .completion-bar p { color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 1.25rem; }
+        .btn-complete { display: inline-block; background: linear-gradient(135deg, var(--script-green), var(--script-accent)); color: #000; font-weight: 700; padding: 0.75rem 2rem; border-radius: 10px; border: none; cursor: pointer; font-size: 0.95rem; transition: opacity 0.2s, transform 0.2s; }
+        .btn-complete:hover { opacity: 0.88; transform: translateY(-2px); }
+        .btn-complete:disabled { opacity: 0.5; cursor: default; transform: none; }
+        .complete-msg { margin-top: 1rem; color: var(--ok); font-weight: 600; font-size: 0.9rem; display: none; }
+    </style>
+</head>
+<body>
+
+<header class="site-header">
+    <a href="../index.html" class="back-link">&larr; Back to Linux Admin</a>
+    <span class="header-badge">SCRIPT HOUSE — LINUX ADMIN</span>
+</header>
+
+<div class="container">
+
+    <div class="hero">
+        <div class="module-tag">CHAPTER 12 — PRESENTATION</div>
+        <h1>Compiling <span>Source Code</span></h1>
+        <p>Master the full source compilation workflow: downloading tarballs, running ./configure, understanding Makefiles, compiling with gcc/make, installing, and managing library dependencies with ldconfig and pkg-config.</p>
+    </div>
+
+    <!-- Slide 1: Why Compile from Source? -->
+    <div class="section-heading">Slide 1 — Why Compile from Source?</div>
+    <div class="card">
+        <h3>When Package Managers Are Not Enough</h3>
+        <p>Linux package managers (apt, dnf, pacman) are the preferred way to install software. They handle dependencies, security updates, and clean removal. However, there are valid reasons to compile from source:</p>
+        <ul style="list-style: none; margin: 1rem 0;">
+            <li style="display: flex; gap: 0.75rem; padding: 0.4rem 0; color: var(--text-secondary); font-size: 0.93rem;"><span style="color: var(--script-green);">&gt;</span> The version in your distro's repository is outdated or missing a feature you need</li>
+            <li style="display: flex; gap: 0.75rem; padding: 0.4rem 0; color: var(--text-secondary); font-size: 0.93rem;"><span style="color: var(--script-green);">&gt;</span> You need to enable or disable specific compile-time options</li>
+            <li style="display: flex; gap: 0.75rem; padding: 0.4rem 0; color: var(--text-secondary); font-size: 0.93rem;"><span style="color: var(--script-green);">&gt;</span> The software is not packaged for your distribution</li>
+            <li style="display: flex; gap: 0.75rem; padding: 0.4rem 0; color: var(--text-secondary); font-size: 0.93rem;"><span style="color: var(--script-green);">&gt;</span> You are contributing to or debugging open source code</li>
+            <li style="display: flex; gap: 0.75rem; padding: 0.4rem 0; color: var(--text-secondary); font-size: 0.93rem;"><span style="color: var(--script-green);">&gt;</span> Maximum performance optimization for specific hardware (compiler flags)</li>
+        </ul>
+        <div class="insight warn">
+            <div class="insight-label">TRADE-OFFS</div>
+            <p>Source-compiled software does NOT receive automatic security updates. You are responsible for monitoring for new versions and recompiling. This is why package managers are strongly preferred for production systems unless there is a specific compelling reason.</p>
+        </div>
+    </div>
+
+    <!-- Slide 2: The Full Compilation Pipeline -->
+    <div class="section-heading">Slide 2 — The Compilation Pipeline</div>
+    <div class="card">
+        <h3>Six Steps from Source to Running Program</h3>
+        <div class="pipeline">
+            <div class="pipeline-step">
+                <div class="step-num">1</div>
+                <div class="step-line"></div>
+                <div class="step-content">
+                    <h4>Get the Source Code</h4>
+                    <p>Download a tarball from the official site, or clone a git repository.</p>
+                    <span class="step-cmd">wget https://example.com/app-1.0.tar.gz</span>
+                    <span class="step-cmd" style="margin-left: 0.5rem;">git clone https://github.com/user/app</span>
+                </div>
+            </div>
+            <div class="pipeline-step">
+                <div class="step-num">2</div>
+                <div class="step-line"></div>
+                <div class="step-content">
+                    <h4>Extract and Explore</h4>
+                    <p>Extract the archive and read README, INSTALL, and NEWS files to understand build requirements.</p>
+                    <span class="step-cmd">tar xzf app-1.0.tar.gz &amp;&amp; cd app-1.0</span>
+                </div>
+            </div>
+            <div class="pipeline-step">
+                <div class="step-num">3</div>
+                <div class="step-line"></div>
+                <div class="step-content">
+                    <h4>Run ./configure</h4>
+                    <p>The configure script checks your system for required libraries and generates a Makefile tailored to your environment.</p>
+                    <span class="step-cmd">./configure</span>
+                    <span class="step-cmd" style="margin-left: 0.5rem;">./configure --prefix=/usr/local</span>
+                </div>
+            </div>
+            <div class="pipeline-step">
+                <div class="step-num">4</div>
+                <div class="step-line"></div>
+                <div class="step-content">
+                    <h4>Compile with make</h4>
+                    <p>Invokes the compiler (gcc) according to the Makefile rules. Binaries appear in the source directory.</p>
+                    <span class="step-cmd">make</span>
+                    <span class="step-cmd" style="margin-left: 0.5rem;">make -j$(nproc)</span>
+                </div>
+            </div>
+            <div class="pipeline-step">
+                <div class="step-num">5</div>
+                <div class="step-line"></div>
+                <div class="step-content">
+                    <h4>Install with make install</h4>
+                    <p>Copies binaries to system paths (/usr/local/bin). Installs man pages. Usually requires root.</p>
+                    <span class="step-cmd">sudo make install</span>
+                </div>
+            </div>
+            <div class="pipeline-step">
+                <div class="step-num">6</div>
+                <div class="step-content">
+                    <h4>Clean Up and Test</h4>
+                    <p>Remove source directory and tarball. Verify the installation.</p>
+                    <span class="step-cmd">which app</span>
+                    <span class="step-cmd" style="margin-left: 0.5rem;">app --version</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Slide 3: ./configure Details -->
+    <div class="section-heading">Slide 3 — The ./configure Script</div>
+    <div class="card">
+        <h3>What configure Does and Key Options</h3>
+        <p>The configure script is generated by <strong>autoconf</strong>. It performs a series of system checks: compiler availability, library headers, function availability, and system capabilities. The output is a <strong>Makefile</strong> and a <strong>config.h</strong> header file.</p>
+        <div class="code-block">
+<span class="comment"># Basic configure (uses default install prefix /usr/local)</span>
+./configure
+
+<span class="comment"># Change install directory prefix</span>
+./configure <span class="flag">--prefix</span>=/opt/myapp
+
+<span class="comment"># Enable optional features at compile time</span>
+./configure <span class="flag">--enable-ssl --enable-debug</span>
+
+<span class="comment"># Disable features</span>
+./configure <span class="flag">--disable-ipv6</span>
+
+<span class="comment"># Specify library path if not in standard location</span>
+./configure <span class="flag">--with-openssl</span>=/usr/local/openssl
+
+<span class="comment"># List all available configure options</span>
+./configure <span class="flag">--help</span>
+
+<span class="comment"># If configure fails — missing library headers</span>
+<span class="comment"># Install development packages (headers): libname-dev or libname-devel</span>
+sudo apt install libssl-dev     <span class="comment"># Debian/Ubuntu</span>
+sudo dnf install openssl-devel  <span class="comment"># Fedora/RHEL</span>
+        </div>
+        <div class="insight">
+            <div class="insight-label">CONFIGURE FAILURE PATTERN</div>
+            <p>When ./configure fails with "library not found," the library package is installed but its <strong>development headers</strong> are missing. On Debian/Ubuntu, install the <code>-dev</code> variant of the package. On RHEL/Fedora, install the <code>-devel</code> variant. The runtime library and the development headers are separate packages.</p>
+        </div>
+    </div>
+
+    <!-- Slide 4: Makefiles and make -->
+    <div class="section-heading">Slide 4 — Makefiles and the make Command</div>
+    <div class="card">
+        <h3>Understanding Make Build Targets</h3>
+        <div class="code-block">
+<span class="comment"># Standard Makefile targets:</span>
+<span class="cmd">make</span>                  <span class="comment"># compile (default target: 'all')</span>
+<span class="cmd">make</span> <span class="flag">-j4</span>             <span class="comment"># compile using 4 CPU cores (parallel)</span>
+<span class="cmd">make</span> <span class="flag">-j$(nproc)</span>       <span class="comment"># use all available CPU cores</span>
+
+sudo <span class="cmd">make</span> install      <span class="comment"># install to system paths</span>
+<span class="cmd">make</span> clean            <span class="comment"># remove compiled objects (keep Makefile)</span>
+<span class="cmd">make</span> distclean        <span class="comment"># remove everything including Makefile (full reset)</span>
+<span class="cmd">make</span> uninstall        <span class="comment"># remove installed files (if supported)</span>
+<span class="cmd">make</span> test             <span class="comment"># run built-in test suite (if available)</span>
+
+<span class="comment"># A minimal Makefile structure:</span>
+CC = gcc
+CFLAGS = -Wall -O2
+
+hello: hello.c
+    $(CC) $(CFLAGS) -o hello hello.c
+
+clean:
+    rm -f hello
+
+install:
+    cp hello /usr/local/bin/
+        </div>
+        <p>The <strong>-j</strong> flag enables parallel compilation — on a 4-core machine, <code>make -j4</code> compiles four source files simultaneously, dramatically reducing build time for large projects.</p>
+    </div>
+
+    <!-- Slide 5: gcc, Dependencies, ldconfig -->
+    <div class="section-heading">Slide 5 — gcc, pkg-config, and ldconfig</div>
+    <div class="card">
+        <h3>Manual gcc Compilation and Library Management</h3>
+        <div class="code-block">
+<span class="comment"># Install build tools (essential for compiling)</span>
+sudo apt install build-essential     <span class="comment"># Debian/Ubuntu: gcc, make, libc-dev</span>
+sudo dnf groupinstall "Development Tools"  <span class="comment"># Fedora/RHEL</span>
+
+<span class="comment"># Basic gcc compilation</span>
+<span class="cmd">gcc</span> hello.c <span class="flag">-o</span> hello             <span class="comment"># compile single C file</span>
+<span class="cmd">gcc</span> <span class="flag">-Wall -O2</span> app.c <span class="flag">-o</span> app       <span class="comment"># with warnings and optimization</span>
+<span class="cmd">gcc</span> app.c <span class="flag">-lm -o</span> app              <span class="comment"># link math library</span>
+<span class="cmd">gcc</span> app.c <span class="flag">-lssl -lcrypto -o</span> app   <span class="comment"># link OpenSSL libraries</span>
+
+<span class="comment"># pkg-config: find correct compiler flags for installed libraries</span>
+<span class="cmd">pkg-config</span> <span class="flag">--cflags --libs</span> openssl
+<span class="comment"># Output: -I/usr/include/openssl -lssl -lcrypto</span>
+
+<span class="cmd">gcc</span> app.c $(<span class="cmd">pkg-config</span> <span class="flag">--cflags --libs</span> openssl) <span class="flag">-o</span> app
+
+<span class="comment"># ldconfig: rebuild dynamic linker cache after installing libraries</span>
+sudo <span class="cmd">ldconfig</span>                    <span class="comment"># scan /etc/ld.so.conf.d/ for new libs</span>
+<span class="cmd">ldconfig</span> <span class="flag">-p</span>                     <span class="comment"># list all cached shared libraries</span>
+ldd app                           <span class="comment"># show shared library dependencies of a binary</span>
+        </div>
+    </div>
+
+    <!-- Slide 6: checkinstall -->
+    <div class="section-heading">Slide 6 — checkinstall: Make Removal Easy</div>
+    <div class="card">
+        <h3>checkinstall — Source to Package</h3>
+        <p><strong>checkinstall</strong> is a tool that intercepts <code>make install</code> and creates a proper distribution package (.deb, .rpm, or .tgz) instead of installing files directly. This makes the software trackable and removable by your package manager.</p>
+        <div class="code-block">
+<span class="comment"># Install checkinstall</span>
+sudo apt install checkinstall     <span class="comment"># Debian/Ubuntu</span>
+
+<span class="comment"># Replace 'sudo make install' with checkinstall</span>
+<span class="comment"># After compiling (make), run:</span>
+sudo <span class="cmd">checkinstall</span>
+
+<span class="comment"># checkinstall will ask for:</span>
+<span class="comment"># - Package name, version, description</span>
+<span class="comment"># - Creates a .deb file and installs it via dpkg</span>
+
+<span class="comment"># Now you can remove the compiled software cleanly:</span>
+sudo apt remove myapp
+
+<span class="comment"># Verify installation path after make install:</span>
+which app                         <span class="comment"># find where binary was installed</span>
+<span class="comment"># Expected: /usr/local/bin/app</span>
+
+<span class="comment"># View the installed manual page:</span>
+man app
+
+<span class="comment"># Remove source directory after successful install</span>
+rm <span class="flag">-rf</span> app-1.0/
+rm <span class="flag">-f</span>  app-1.0.tar.gz
+        </div>
+        <div class="insight">
+            <div class="insight-label">BEST PRACTICE SUMMARY</div>
+            <p>The complete safe workflow: (1) read README, (2) install build dependencies, (3) ./configure --prefix=/usr/local, (4) make -j$(nproc), (5) make test, (6) sudo checkinstall (preferred) or sudo make install, (7) update ldconfig if you installed shared libraries, (8) verify with which and --version, (9) clean up source directory.</p>
+        </div>
+    </div>
+
+    <div class="completion-bar">
+        <h3>Chapter 12 Complete</h3>
+        <p>Mark this presentation complete to record your progress and unlock the quiz.</p>
+        <button class="btn-complete" id="completeBtn" onclick="markComplete()">Mark as Complete</button>
+        <div class="complete-msg" id="completeMsg">Progress saved. Head to the quiz to test your knowledge.</div>
+    </div>
+
+</div>
+
+<script src="../../../../../components/FluxCapacitor.js"></script>
+<script>
+    function markComplete() {
+        const btn = document.getElementById('completeBtn');
+        const msg = document.getElementById('completeMsg');
+        btn.disabled = true; btn.textContent = 'Saving...';
+        if (typeof ModuleProgress !== 'undefined') { ModuleProgress.complete('script', 'script-la-ch12'); }
+        btn.textContent = 'Completed'; msg.style.display = 'block';
+    }
+    (function checkCompleted() {
+        const p = JSON.parse(localStorage.getItem('hexworth_progress') || '{}');
+        if (p['script-la-ch12']) {
+            document.getElementById('completeBtn').textContent = 'Completed';
+            document.getElementById('completeBtn').disabled = true;
+            document.getElementById('completeMsg').style.display = 'block';
+        }
+    })();
+</script>
+</body>
+</html>

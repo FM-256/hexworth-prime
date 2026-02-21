@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CH03: Grep, Pipes & Text Processing — Linux Admin | Script House</title>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --script-green: #22c55e; --script-accent: #4ade80; --script-glow: rgba(34,197,94,0.35);
+            --bg-dark: #0a0a12; --bg-card: rgba(10,20,10,0.85); --text-primary: #e8e8f0;
+            --text-secondary: #7a9a7a; --ok: #4ade80; --warn: #fbbf24; --bad: #f87171;
+            --border: rgba(34,197,94,0.2);
+        }
+        body { font-family: 'Segoe UI', system-ui, sans-serif; background: linear-gradient(135deg, #0a0a12, #0a1a0f, #0a250a); color: var(--text-primary); line-height: 1.7; min-height: 100vh; }
+        .site-header { background: rgba(10,10,18,0.96); border-bottom: 1px solid var(--border); padding: 0.9rem 2rem; position: sticky; top: 0; z-index: 100; display: flex; align-items: center; justify-content: space-between; backdrop-filter: blur(12px); }
+        .back-link { color: var(--script-green); text-decoration: none; font-size: 0.9rem; font-weight: 600; display: flex; align-items: center; gap: 0.4rem; transition: opacity 0.2s; }
+        .back-link:hover { opacity: 0.75; }
+        .header-badge { background: linear-gradient(135deg, var(--script-green), var(--script-accent)); color: #000; padding: 0.35rem 1rem; border-radius: 20px; font-size: 0.78rem; font-weight: 700; letter-spacing: 0.05em; }
+        .container { max-width: 1100px; margin: 0 auto; padding: 2.5rem 2rem 4rem; }
+        .hero { text-align: center; padding: 3.5rem 2rem 2.5rem; background: var(--bg-card); border: 1px solid var(--border); border-radius: 20px; margin-bottom: 2.5rem; position: relative; overflow: hidden; }
+        .hero::before { content: ''; position: absolute; top: -80px; left: 50%; transform: translateX(-50%); width: 400px; height: 400px; background: radial-gradient(circle, var(--script-glow) 0%, transparent 70%); pointer-events: none; }
+        .module-tag { display: inline-block; background: rgba(34,197,94,0.12); color: var(--script-green); border: 1px solid var(--border); padding: 0.3rem 1rem; border-radius: 20px; font-size: 0.78rem; font-weight: 700; letter-spacing: 0.08em; margin-bottom: 1.2rem; }
+        .hero h1 { font-size: 2.2rem; font-weight: 800; color: var(--text-primary); margin-bottom: 0.75rem; line-height: 1.25; }
+        .hero h1 span { color: var(--script-green); }
+        .hero p { color: var(--text-secondary); font-size: 1.05rem; max-width: 680px; margin: 0 auto; }
+        .section-heading { display: flex; align-items: center; gap: 0.75rem; font-size: 1.35rem; font-weight: 700; color: var(--script-green); margin: 2.5rem 0 1.25rem; }
+        .section-heading::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+        .card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 16px; padding: 1.75rem; margin-bottom: 1.5rem; }
+        .card h3 { font-size: 1.1rem; color: var(--script-accent); margin-bottom: 0.9rem; }
+        .card p { color: var(--text-secondary); font-size: 0.95rem; margin-bottom: 0.75rem; }
+        .card p:last-child { margin-bottom: 0; }
+        code { background: rgba(34,197,94,0.1); color: var(--script-accent); padding: 1px 6px; border-radius: 4px; font-family: 'Consolas',monospace; font-size: 0.88em; }
+        .code-block { background: rgba(0,0,0,0.6); border: 1px solid rgba(34,197,94,0.15); border-left: 3px solid var(--script-green); border-radius: 10px; padding: 1.25rem 1.5rem; font-family: 'Consolas','Courier New',monospace; font-size: 0.9rem; color: var(--script-accent); margin: 1rem 0; overflow-x: auto; line-height: 1.9; }
+        .code-block .comment { color: #5a7a5a; }
+        .code-block .hl { color: #fde68a; }
+
+        /* Flag grid */
+        .flag-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.85rem; margin-bottom: 1.5rem; }
+        .flag-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 1rem 1.25rem; display: flex; gap: 0.9rem; align-items: flex-start; transition: border-color 0.2s; }
+        .flag-card:hover { border-color: var(--script-green); }
+        .flag-name { font-family: 'Consolas',monospace; font-size: 1rem; font-weight: 700; color: var(--script-green); min-width: 50px; padding-top: 0.1rem; }
+        .flag-desc { font-size: 0.87rem; color: var(--text-secondary); line-height: 1.5; }
+        .flag-desc strong { color: var(--text-primary); }
+
+        /* Pipeline diagram */
+        .pipeline { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; margin: 1rem 0 1.5rem; }
+        .pipe-step { background: rgba(34,197,94,0.08); border: 1px solid var(--border); border-radius: 10px; padding: 0.6rem 1rem; font-family: 'Consolas',monospace; font-size: 0.88rem; color: var(--script-accent); white-space: nowrap; }
+        .pipe-arrow { color: var(--script-green); font-size: 1.2rem; font-weight: 700; }
+
+        /* Regex table */
+        .regex-table { width: 100%; border-collapse: collapse; font-size: 0.9rem; margin-bottom: 1rem; }
+        .regex-table th { background: rgba(34,197,94,0.1); color: var(--script-green); padding: 0.6rem 1rem; text-align: left; font-size: 0.8rem; letter-spacing: 0.05em; }
+        .regex-table td { padding: 0.6rem 1rem; border-top: 1px solid rgba(34,197,94,0.08); color: var(--text-secondary); }
+        .regex-table tr:hover td { background: rgba(34,197,94,0.04); }
+
+        /* IO table */
+        .io-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin-bottom: 1.5rem; }
+        .io-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 14px; padding: 1.25rem; text-align: center; }
+        .io-symbol { font-size: 2rem; font-weight: 900; display: block; margin-bottom: 0.4rem; }
+        .io-name { font-size: 0.95rem; font-weight: 700; margin-bottom: 0.3rem; }
+        .io-desc { font-size: 0.82rem; color: var(--text-secondary); }
+
+        .insight { background: rgba(34,197,94,0.06); border-left: 4px solid var(--script-green); border-radius: 0 12px 12px 0; padding: 1.25rem 1.5rem; margin-top: 1.25rem; }
+        .insight-label { font-size: 0.72rem; font-weight: 700; letter-spacing: 0.1em; color: var(--script-green); margin-bottom: 0.4rem; }
+        .insight p { font-size: 0.9rem; color: var(--text-secondary); margin: 0; }
+
+        .completion-bar { background: var(--bg-card); border: 1px solid var(--border); border-radius: 16px; padding: 2rem; text-align: center; margin-top: 3rem; }
+        .completion-bar h3 { color: var(--script-green); margin-bottom: 0.75rem; font-size: 1.2rem; }
+        .completion-bar p { color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 1.25rem; }
+        .btn-complete { display: inline-block; background: linear-gradient(135deg, var(--script-green), var(--script-accent)); color: #000; font-weight: 700; padding: 0.75rem 2rem; border-radius: 10px; border: none; cursor: pointer; font-size: 0.95rem; transition: opacity 0.2s, transform 0.2s; }
+        .btn-complete:hover { opacity: 0.88; transform: translateY(-2px); }
+        .btn-complete:disabled { opacity: 0.5; cursor: default; transform: none; }
+        .complete-msg { margin-top: 1rem; color: var(--ok); font-weight: 600; font-size: 0.9rem; display: none; }
+
+        @media (max-width: 768px) { .flag-grid { grid-template-columns: 1fr; } .io-grid { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+
+<header class="site-header">
+    <a href="../index.html" class="back-link">&larr; Back to Linux Admin</a>
+    <span class="header-badge">SCRIPT HOUSE — LINUX ADMIN</span>
+</header>
+
+<div class="container">
+
+    <div class="hero">
+        <div class="module-tag">CH03 — PRESENTATION</div>
+        <h1>Grep, Pipes <span>&amp; Text Processing</span></h1>
+        <p>The power of Linux lies in combining small tools through pipes. Master grep and its flags, understand I/O redirection operators, build multi-stage pipelines, and leverage awk and sed for text transformation — the skills that separate Linux beginners from administrators.</p>
+    </div>
+
+    <!-- Grep -->
+    <div class="section-heading">Slide 1 — grep: Global Regular Expression Print</div>
+    <div class="card">
+        <h3>Search for Patterns in Files and Streams</h3>
+        <p><code>grep</code> searches input for lines matching a pattern and prints matching lines to stdout. It reads files or standard input, making it the universal "find what I'm looking for" tool in Linux pipelines. Named after the <code>g/re/p</code> command in the ed text editor: <em>global / regular expression / print</em>.</p>
+        <p>The basic syntax: <code>grep [OPTIONS] PATTERN [FILE...]</code>. Without a file argument, grep reads from stdin — enabling its use at the end of a pipe.</p>
+    </div>
+    <div class="code-block">
+<span class="comment"># Basic grep usage</span>
+$ grep "error" /var/log/syslog          <span class="comment"># Find "error" in syslog</span>
+$ grep "Failed" /var/log/auth.log       <span class="comment"># Find failed login attempts</span>
+$ grep "root" /etc/passwd               <span class="comment"># Find lines containing "root"</span>
+
+<span class="comment"># grep reads from stdin when no file is given</span>
+$ cat /etc/passwd | grep "root"         <span class="comment"># Pipe to grep</span>
+$ dmesg | grep "eth0"                   <span class="comment"># Filter kernel messages for network</span>
+    </div>
+
+    <!-- grep Flags -->
+    <div class="section-heading">Slide 2 — grep Flags and Options</div>
+    <div class="flag-grid">
+        <div class="flag-card"><div class="flag-name">-i</div><div class="flag-desc"><strong>Case-insensitive</strong> — matches regardless of case. <code>grep -i "error"</code> matches "Error", "ERROR", "error".</div></div>
+        <div class="flag-card"><div class="flag-name">-r</div><div class="flag-desc"><strong>Recursive</strong> — search all files in a directory tree. <code>grep -r "password" /etc/</code> searches every file under /etc.</div></div>
+        <div class="flag-card"><div class="flag-name">-v</div><div class="flag-desc"><strong>Invert match</strong> — print lines that do NOT match. <code>grep -v "^#"</code> removes comment lines from config output.</div></div>
+        <div class="flag-card"><div class="flag-name">-c</div><div class="flag-desc"><strong>Count</strong> — print only the number of matching lines, not the lines themselves. Useful for quick statistics.</div></div>
+        <div class="flag-card"><div class="flag-name">-n</div><div class="flag-desc"><strong>Line numbers</strong> — prefix each output line with its line number in the file. Essential for locating config errors.</div></div>
+        <div class="flag-card"><div class="flag-name">-l</div><div class="flag-desc"><strong>Files only</strong> — print only filenames of files containing matches. <code>grep -rl "TODO" /src/</code></div></div>
+        <div class="flag-card"><div class="flag-name">-A/-B/-C</div><div class="flag-desc"><strong>Context lines</strong> — <code>-A 3</code> shows 3 lines After match, <code>-B 2</code> shows 2 Before, <code>-C 2</code> shows 2 around. Critical for log analysis.</div></div>
+        <div class="flag-card"><div class="flag-name">-E</div><div class="flag-desc"><strong>Extended regex</strong> — same as <code>egrep</code>. Enables <code>+</code>, <code>?</code>, <code>|</code>, <code>()</code> without escaping. <code>grep -E "error|warning"</code></div></div>
+        <div class="flag-card"><div class="flag-name">-w</div><div class="flag-desc"><strong>Whole word</strong> — matches pattern only as a complete word. <code>grep -w "root"</code> matches "root" but not "chroot".</div></div>
+        <div class="flag-card"><div class="flag-name">-o</div><div class="flag-desc"><strong>Only matching</strong> — print only the matched portion, not the whole line. Useful for extracting specific data from lines.</div></div>
+    </div>
+    <div class="code-block">
+<span class="comment"># Real-world grep examples</span>
+$ grep -in "failed" /var/log/auth.log        <span class="comment"># Case-insensitive, with line numbers</span>
+$ grep -rn "password" /etc/ 2>/dev/null      <span class="comment"># Recursive search, suppress errors</span>
+$ grep -v "^#" /etc/ssh/sshd_config          <span class="comment"># Show non-comment lines only</span>
+$ grep -c "404" /var/log/nginx/access.log    <span class="comment"># Count 404 errors</span>
+$ grep -A 5 "OOM killer" /var/log/syslog     <span class="comment"># OOM event + 5 lines of context</span>
+$ grep -E "error|warning|critical" app.log  <span class="comment"># Match multiple patterns</span>
+$ grep -o "192\.168\.[0-9]*\.[0-9]*" log     <span class="comment"># Extract IP addresses only</span>
+    </div>
+
+    <!-- Regex Basics -->
+    <div class="section-heading">Slide 3 — Regular Expression Basics</div>
+    <div class="card">
+        <h3>Pattern Matching Language</h3>
+        <p>Regular expressions (regex) are a pattern-matching language used by grep, sed, awk, and many other tools. Learning even the basics dramatically expands what you can do with text processing.</p>
+    </div>
+    <table class="regex-table">
+        <thead><tr><th>Pattern</th><th>Meaning</th><th>Example</th><th>Matches</th></tr></thead>
+        <tbody>
+            <tr><td><code>.</code></td><td>Any single character (except newline)</td><td><code>r..t</code></td><td>root, raat, r00t</td></tr>
+            <tr><td><code>^</code></td><td>Start of line</td><td><code>^root</code></td><td>Lines starting with "root"</td></tr>
+            <tr><td><code>$</code></td><td>End of line</td><td><code>sh$</code></td><td>Lines ending with "sh"</td></tr>
+            <tr><td><code>*</code></td><td>Zero or more of preceding</td><td><code>er*or</code></td><td>eror, error, errror</td></tr>
+            <tr><td><code>+</code></td><td>One or more (extended regex)</td><td><code>er+or</code></td><td>eror, error (not "eor")</td></tr>
+            <tr><td><code>?</code></td><td>Zero or one (extended regex)</td><td><code>colou?r</code></td><td>color, colour</td></tr>
+            <tr><td><code>[abc]</code></td><td>Character class</td><td><code>[Ff]ailed</code></td><td>Failed, failed</td></tr>
+            <tr><td><code>[^abc]</code></td><td>Negated class</td><td><code>[^0-9]</code></td><td>Any non-digit</td></tr>
+            <tr><td><code>\b</code></td><td>Word boundary</td><td><code>\broot\b</code></td><td>"root" but not "chroot"</td></tr>
+            <tr><td><code>(a|b)</code></td><td>Alternation (extended)</td><td><code>(error|warn)</code></td><td>error or warn</td></tr>
+        </tbody>
+    </table>
+
+    <!-- Pipes and I/O Redirection -->
+    <div class="section-heading">Slide 4 — The Pipe Operator and I/O Redirection</div>
+    <div class="card">
+        <h3>Connecting Commands: The Unix Philosophy in Action</h3>
+        <p>The Unix philosophy: write programs that do one thing well and work with other programs. The pipe <code>|</code> makes this possible — it connects the stdout of one command to the stdin of the next, creating data transformation pipelines without temporary files.</p>
+    </div>
+
+    <div class="io-grid">
+        <div class="io-card">
+            <span class="io-symbol" style="color: var(--script-green);">&gt;</span>
+            <div class="io-name">Redirect stdout</div>
+            <div class="io-desc">Write stdout to a file. Creates the file if needed. <strong>Overwrites</strong> existing content.</div>
+        </div>
+        <div class="io-card">
+            <span class="io-symbol" style="color: var(--script-accent);">&gt;&gt;</span>
+            <div class="io-name">Append stdout</div>
+            <div class="io-desc">Append stdout to a file. Creates file if needed. Does NOT overwrite existing content.</div>
+        </div>
+        <div class="io-card">
+            <span class="io-symbol" style="color: var(--warn);">&lt;</span>
+            <div class="io-name">Redirect stdin</div>
+            <div class="io-desc">Read stdin from a file instead of keyboard. Feed file contents to a command as input.</div>
+        </div>
+        <div class="io-card">
+            <span class="io-symbol" style="color: var(--bad);">2&gt;</span>
+            <div class="io-name">Redirect stderr</div>
+            <div class="io-desc">Redirect error messages (fd 2) to a file. <code>2>/dev/null</code> silences all errors.</div>
+        </div>
+        <div class="io-card">
+            <span class="io-symbol" style="color: #a78bfa;">|</span>
+            <div class="io-name">Pipe</div>
+            <div class="io-desc">Connect stdout of left command to stdin of right command. Chains commands into a pipeline.</div>
+        </div>
+        <div class="io-card">
+            <span class="io-symbol" style="color: #38bdf8;">tee</span>
+            <div class="io-name">Tee</div>
+            <div class="io-desc">Read stdin, write to both stdout AND a file simultaneously. Split the stream.</div>
+        </div>
+    </div>
+
+    <div class="code-block">
+<span class="comment"># I/O Redirection examples</span>
+$ date > timestamp.txt           <span class="comment"># Write date to file (overwrites)</span>
+$ date >> log.txt                <span class="comment"># Append date to log file</span>
+$ sort < unsorted.txt            <span class="comment"># Read file into sort's stdin</span>
+$ grep "error" log 2>/dev/null   <span class="comment"># Discard error messages</span>
+$ grep "warn" log 2>&amp;1           <span class="comment"># Redirect stderr to stdout</span>
+$ cat access.log | grep "500" > errors.txt   <span class="comment"># Filter and save</span>
+$ ls -la | tee listing.txt       <span class="comment"># Display AND save to file</span>
+    </div>
+
+    <!-- Pipelines -->
+    <div class="section-heading">Slide 5 — Building Pipelines</div>
+    <div class="card">
+        <h3>Multi-Stage Data Processing</h3>
+        <p>Pipelines chain multiple commands together, each transforming the data stream. The output of each command flows as input into the next. Classic security analysis workflow: extract raw data, filter to relevant lines, sort, deduplicate, count.</p>
+    </div>
+
+    <p style="color: var(--text-secondary); margin-bottom: 0.5rem;">Example: Count unique failed SSH IPs in auth.log</p>
+    <div class="pipeline">
+        <div class="pipe-step">cat /var/log/auth.log</div>
+        <div class="pipe-arrow">|</div>
+        <div class="pipe-step">grep "Failed password"</div>
+        <div class="pipe-arrow">|</div>
+        <div class="pipe-step">awk '{print $11}'</div>
+        <div class="pipe-arrow">|</div>
+        <div class="pipe-step">sort</div>
+        <div class="pipe-arrow">|</div>
+        <div class="pipe-step">uniq -c</div>
+        <div class="pipe-arrow">|</div>
+        <div class="pipe-step">sort -rn</div>
+        <div class="pipe-arrow">|</div>
+        <div class="pipe-step">head -20</div>
+    </div>
+
+    <div class="code-block">
+<span class="comment"># Classic pipeline toolkit</span>
+$ sort file.txt | uniq -c | sort -rn     <span class="comment"># Count occurrences, most frequent first</span>
+$ ps aux | grep nginx | grep -v grep     <span class="comment"># Find nginx processes (exclude grep itself)</span>
+$ cat /etc/passwd | cut -d: -f1 | sort  <span class="comment"># Extract and sort usernames</span>
+$ find /var/log -name "*.log" | xargs grep -l "error"  <span class="comment"># Find logs with errors</span>
+$ netstat -tuln | grep LISTEN | awk '{print $4}'        <span class="comment"># Show listening ports</span>
+
+<span class="comment"># awk basics — process text column by column</span>
+$ awk '{print $1}' /var/log/apache2/access.log   <span class="comment"># Print first field (IP)</span>
+$ awk -F: '{print $1, $3}' /etc/passwd           <span class="comment"># Print username and UID (: delimiter)</span>
+$ awk '$3 > 1000' /etc/passwd                    <span class="comment"># Lines where field 3 > 1000</span>
+
+<span class="comment"># sed basics — stream edit (find and replace)</span>
+$ sed 's/error/ERROR/g' log.txt          <span class="comment"># Replace all "error" with "ERROR"</span>
+$ sed '/^#/d' /etc/ssh/sshd_config       <span class="comment"># Delete comment lines</span>
+$ sed -n '10,20p' file.txt              <span class="comment"># Print lines 10 through 20</span>
+
+<span class="comment"># xargs — build commands from stdin</span>
+$ cat hosts.txt | xargs ping -c 1       <span class="comment"># Ping each host in file</span>
+$ find . -name "*.tmp" | xargs rm       <span class="comment"># Delete all .tmp files found</span>
+    </div>
+
+    <div class="insight">
+        <div class="insight-label">SECURITY ANALYST'S SUPERPOWER</div>
+        <p>Grep and pipes are the most important tools in a security analyst's CLI arsenal. A typical log analysis workflow: <code>cat /var/log/auth.log | grep "Failed" | grep -oE "([0-9]+\.){3}[0-9]+" | sort | uniq -c | sort -rn | head -10</code> — this extracts all IPs that caused failed SSH logins, counts attempts per IP, and shows the top 10 attackers in a single line. No Python script required. The same pattern applies to web server logs, firewall logs, and IDS alerts. Master this pattern before reaching for a scripting language.</p>
+    </div>
+
+    <div class="completion-bar">
+        <h3>Presentation Complete</h3>
+        <p>Mark complete to save your progress and unlock the Chapter 3 quiz.</p>
+        <button class="btn-complete" id="completeBtn" onclick="markComplete()">Mark as Complete</button>
+        <div class="complete-msg" id="completeMsg">Progress saved. Head to the quiz to test your knowledge.</div>
+    </div>
+
+</div>
+
+<script src="../../../../components/FluxCapacitor.js"></script>
+<script>
+    function markComplete() {
+        const btn = document.getElementById('completeBtn');
+        const msg = document.getElementById('completeMsg');
+        btn.disabled = true;
+        btn.textContent = 'Saving...';
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('script', 'script-la-ch03');
+        }
+        btn.textContent = 'Completed';
+        msg.style.display = 'block';
+    }
+    (function checkCompleted() {
+        const progress = JSON.parse(localStorage.getItem('hexworth_progress') || '{}');
+        if (progress['script-la-ch03']) {
+            const btn = document.getElementById('completeBtn');
+            btn.textContent = 'Completed';
+            btn.disabled = true;
+            document.getElementById('completeMsg').style.display = 'block';
+        }
+    })();
+</script>
+</body>
+</html>

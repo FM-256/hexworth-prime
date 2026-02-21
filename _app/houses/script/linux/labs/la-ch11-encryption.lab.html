@@ -1,0 +1,917 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ch11: Encryption — Linux Admin Lab</title>
+  <style>
+    :root {
+      --script-green: #22c55e;
+      --script-accent: #4ade80;
+      --script-dim: #15803d;
+      --script-dark: #0a1a0f;
+      --card-bg: rgba(34, 197, 94, 0.05);
+      --card-border: rgba(34, 197, 94, 0.2);
+      --text-primary: #e2e8f0;
+      --text-secondary: #94a3b8;
+      --code-bg: #0d1117;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background: linear-gradient(135deg, #0a0a12, #0a1a0f, #0a250a);
+      color: var(--text-primary);
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      min-height: 100vh;
+      line-height: 1.6;
+    }
+
+    .lab-header {
+      background: rgba(0,0,0,0.6);
+      border-bottom: 1px solid var(--card-border);
+      padding: 1.5rem 2rem;
+      display: flex;
+      align-items: center;
+      gap: 1.5rem;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      backdrop-filter: blur(12px);
+    }
+
+    .back-link {
+      color: var(--script-green);
+      text-decoration: none;
+      font-size: 0.85rem;
+      opacity: 0.8;
+      transition: opacity 0.2s;
+      white-space: nowrap;
+    }
+    .back-link:hover { opacity: 1; }
+
+    .header-badge {
+      background: linear-gradient(135deg, var(--script-dim), var(--script-dark));
+      border: 1px solid var(--script-green);
+      color: var(--script-green);
+      padding: 0.25rem 0.75rem;
+      border-radius: 4px;
+      font-size: 0.7rem;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+
+    .header-title { flex: 1; }
+    .header-title h1 { font-size: 1.1rem; font-weight: 700; color: var(--script-accent); }
+    .header-title p { font-size: 0.8rem; color: var(--text-secondary); }
+
+    .lab-container { max-width: 960px; margin: 0 auto; padding: 2rem 1.5rem; }
+
+    .intro-banner {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-left: 4px solid var(--script-green);
+      border-radius: 8px;
+      padding: 1.5rem;
+      margin-bottom: 2rem;
+    }
+    .intro-banner h2 { color: var(--script-accent); font-size: 1rem; margin-bottom: 0.5rem; }
+    .intro-banner p { color: var(--text-secondary); font-size: 0.9rem; }
+
+    .exercise-card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 10px;
+      margin-bottom: 2rem;
+      overflow: hidden;
+    }
+
+    .exercise-header {
+      background: rgba(34, 197, 94, 0.08);
+      border-bottom: 1px solid var(--card-border);
+      padding: 1rem 1.5rem;
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .exercise-number {
+      background: var(--script-green);
+      color: #000;
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      font-size: 0.9rem;
+      flex-shrink: 0;
+    }
+
+    .exercise-title { flex: 1; }
+    .exercise-title h3 { font-size: 1rem; font-weight: 700; color: var(--script-accent); }
+    .exercise-title p { font-size: 0.8rem; color: var(--text-secondary); margin-top: 0.1rem; }
+
+    .difficulty-badge {
+      padding: 0.2rem 0.6rem;
+      border-radius: 20px;
+      font-size: 0.7rem;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+    }
+    .beginner  { background: rgba(34, 197, 94, 0.15); color: #4ade80; border: 1px solid rgba(34,197,94,0.3); }
+    .intermediate { background: rgba(234, 179, 8, 0.15); color: #facc15; border: 1px solid rgba(234,179,8,0.3); }
+    .advanced  { background: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid rgba(239,68,68,0.3); }
+
+    .exercise-body { padding: 1.5rem; }
+
+    .step { display: flex; gap: 1rem; margin-bottom: 1.25rem; align-items: flex-start; }
+    .step-num {
+      background: rgba(34, 197, 94, 0.15);
+      border: 1px solid rgba(34, 197, 94, 0.3);
+      color: var(--script-green);
+      width: 26px;
+      height: 26px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.75rem;
+      font-weight: 700;
+      flex-shrink: 0;
+      margin-top: 0.1rem;
+    }
+    .step-content { flex: 1; }
+    .step-content p { font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 0.6rem; }
+    .step-content strong { color: var(--text-primary); }
+
+    .code-block {
+      background: var(--code-bg);
+      border: 1px solid rgba(34, 197, 94, 0.2);
+      border-radius: 6px;
+      padding: 0.9rem 1.1rem;
+      margin: 0.6rem 0;
+      font-family: 'Consolas', 'Courier New', monospace;
+      font-size: 0.85rem;
+      color: var(--script-accent);
+      overflow-x: auto;
+      white-space: pre;
+      line-height: 1.7;
+    }
+
+    .output-block {
+      background: #060a06;
+      border: 1px solid rgba(34, 197, 94, 0.15);
+      border-left: 3px solid var(--script-dim);
+      border-radius: 6px;
+      padding: 0.9rem 1.1rem;
+      margin: 0.6rem 0;
+      font-family: 'Consolas', monospace;
+      font-size: 0.82rem;
+      color: #86efac;
+      overflow-x: auto;
+      white-space: pre;
+      line-height: 1.6;
+    }
+    .output-label { font-size: 0.7rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.3rem; }
+
+    .insight-box {
+      background: rgba(34, 197, 94, 0.07);
+      border: 1px solid rgba(34, 197, 94, 0.25);
+      border-radius: 6px;
+      padding: 0.9rem 1.1rem;
+      margin: 1rem 0;
+      font-size: 0.86rem;
+      color: #a7f3d0;
+    }
+    .insight-box strong {
+      color: var(--script-accent);
+      display: block;
+      margin-bottom: 0.3rem;
+      font-size: 0.78rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    .warning-box {
+      background: rgba(234, 179, 8, 0.07);
+      border: 1px solid rgba(234, 179, 8, 0.25);
+      border-radius: 6px;
+      padding: 0.9rem 1.1rem;
+      margin: 1rem 0;
+      font-size: 0.86rem;
+      color: #fde68a;
+    }
+    .warning-box strong {
+      color: #facc15;
+      display: block;
+      margin-bottom: 0.3rem;
+      font-size: 0.78rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    .danger-box {
+      background: rgba(239, 68, 68, 0.07);
+      border: 1px solid rgba(239, 68, 68, 0.25);
+      border-radius: 6px;
+      padding: 0.9rem 1.1rem;
+      margin: 1rem 0;
+      font-size: 0.86rem;
+      color: #fca5a5;
+    }
+    .danger-box strong {
+      color: #f87171;
+      display: block;
+      margin-bottom: 0.3rem;
+      font-size: 0.78rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    .two-col {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+      margin: 0.8rem 0;
+    }
+    @media (max-width: 640px) { .two-col { grid-template-columns: 1fr; } }
+
+    .concept-card {
+      background: rgba(34,197,94,0.06);
+      border: 1px solid rgba(34,197,94,0.15);
+      border-radius: 6px;
+      padding: 0.8rem 1rem;
+    }
+    .concept-card h4 { color: var(--script-accent); font-size: 0.85rem; margin-bottom: 0.4rem; }
+    .concept-card p { color: var(--text-secondary); font-size: 0.82rem; }
+
+    .completion-section {
+      background: rgba(34, 197, 94, 0.05);
+      border: 1px solid rgba(34, 197, 94, 0.25);
+      border-radius: 10px;
+      padding: 2rem;
+      text-align: center;
+      margin-top: 2.5rem;
+    }
+    .completion-section h3 { color: var(--script-accent); font-size: 1.1rem; margin-bottom: 0.5rem; }
+    .completion-section p { color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 1.25rem; }
+
+    .complete-btn {
+      background: linear-gradient(135deg, var(--script-green), var(--script-dim));
+      color: #000;
+      border: none;
+      padding: 0.75rem 2rem;
+      border-radius: 6px;
+      font-size: 0.95rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .complete-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(34,197,94,0.35); }
+    .complete-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+    .already-done { color: var(--script-accent); font-size: 0.85rem; margin-top: 0.75rem; display: none; }
+  </style>
+</head>
+<body>
+
+<script src="../../../../../components/AccessGuard.js"></script>
+<script src="../../../../../components/AchievementManager.js"></script>
+<script src="../../../../../components/ModuleProgress.js"></script>
+<script src="../../../../../components/FluxCapacitor.js"></script>
+
+<script>
+  AccessGuard.require('sorted');
+
+  window.addEventListener('DOMContentLoaded', () => {
+    const progress = JSON.parse(localStorage.getItem('hexworth_progress') || '{}');
+    if (progress['script-la-ch11-lab']) {
+      document.getElementById('already-done').style.display = 'block';
+      document.getElementById('complete-btn').disabled = true;
+    }
+  });
+
+  function completeLab() {
+    ModuleProgress.complete('script', 'script-la-ch11-lab');
+    document.getElementById('complete-btn').disabled = true;
+    document.getElementById('already-done').style.display = 'block';
+    document.getElementById('already-done').textContent = 'Lab marked complete! Great work.';
+  }
+</script>
+
+<!-- ── Header ── -->
+<header class="lab-header">
+  <a href="../index.html" class="back-link">← Back</a>
+  <div class="header-badge">Script House — Linux Admin</div>
+  <div class="header-title">
+    <h1>Chapter 11: Encryption Lab</h1>
+    <p>Hands-on practice with GPG, openssl, and SSH key management</p>
+  </div>
+</header>
+
+<main class="lab-container">
+
+  <div class="intro-banner">
+    <h2>Lab Overview</h2>
+    <p>Encryption is a core sysadmin competency. This lab covers the three primary Linux encryption toolchains: GPG for file and email encryption, OpenSSL for symmetric file encryption and certificate work, and SSH key pairs for passwordless authentication. LUKS disk encryption is covered conceptually — live disk exercises require a dedicated test VM.</p>
+  </div>
+
+  <!-- ══════════════════════════════════════════
+       EXERCISE 1 — GPG Symmetric Encryption
+  ══════════════════════════════════════════ -->
+  <div class="exercise-card">
+    <div class="exercise-header">
+      <div class="exercise-number">1</div>
+      <div class="exercise-title">
+        <h3>GPG Symmetric Encryption</h3>
+        <p>Encrypt and decrypt files with a passphrase using GPG</p>
+      </div>
+      <span class="difficulty-badge beginner">BEGINNER</span>
+    </div>
+    <div class="exercise-body">
+
+      <div class="insight-box">
+        <strong>Symmetric vs. Asymmetric</strong>
+        Symmetric encryption uses the <strong>same key</strong> to encrypt and decrypt. It is fast and suitable for local file protection or sharing over a secure channel. GPG's <code>-c</code> flag enables symmetric mode — no key pair required.
+      </div>
+
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-content">
+          <p>Create a workspace and a secret test file:</p>
+          <div class="code-block">mkdir -p ~/lab-encryption
+cd ~/lab-encryption
+echo "TOP SECRET: Server root password is Hunter2!" > secret.txt
+cat secret.txt</div>
+          <div class="output-block">TOP SECRET: Server root password is Hunter2!</div>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-content">
+          <p>Encrypt the file symmetrically with GPG. Use <code>--batch --passphrase</code> to avoid the interactive prompt in scripts:</p>
+          <div class="code-block">gpg --symmetric --cipher-algo AES256 \
+    --batch --passphrase "MyStrongPass123!" \
+    --output secret.txt.gpg \
+    secret.txt
+
+ls -lh secret.txt secret.txt.gpg</div>
+          <div class="output-block">-rw-rw-r-- 1 user user 46  Jan 15 09:10 secret.txt
+-rw-rw-r-- 1 user user 111 Jan 15 09:10 secret.txt.gpg</div>
+          <p>The <code>.gpg</code> file is binary ciphertext — its contents are unreadable without the passphrase.</p>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num">3</div>
+        <div class="step-content">
+          <p>Verify the file is genuinely encrypted (should show gibberish or error):</p>
+          <div class="code-block">file secret.txt.gpg</div>
+          <div class="output-block">secret.txt.gpg: GPG symmetrically encrypted data (AES256 cipher)</div>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num">4</div>
+        <div class="step-content">
+          <p>Decrypt the file — confirm you recover the original content:</p>
+          <div class="code-block">gpg --decrypt \
+    --batch --passphrase "MyStrongPass123!" \
+    --output secret-decrypted.txt \
+    secret.txt.gpg
+
+cat secret-decrypted.txt</div>
+          <div class="output-block">gpg: AES256 encrypted data
+gpg: encrypted with 1 passphrase
+TOP SECRET: Server root password is Hunter2!</div>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num">5</div>
+        <div class="step-content">
+          <p>Try to decrypt with the <strong>wrong passphrase</strong> and observe the error:</p>
+          <div class="code-block">gpg --decrypt \
+    --batch --passphrase "WrongPassword" \
+    --output /dev/null \
+    secret.txt.gpg 2>&amp;1</div>
+          <div class="output-block">gpg: AES256 encrypted data
+gpg: encrypted with 1 passphrase
+gpg: decryption failed: Bad session key</div>
+          <p>This confirms the encryption is working correctly.</p>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════
+       EXERCISE 2 — GPG Key Pairs (Asymmetric)
+  ══════════════════════════════════════════ -->
+  <div class="exercise-card">
+    <div class="exercise-header">
+      <div class="exercise-number">2</div>
+      <div class="exercise-title">
+        <h3>GPG Key Pair Operations</h3>
+        <p>Generate keys, export/import, encrypt for a recipient, and digitally sign</p>
+      </div>
+      <span class="difficulty-badge intermediate">INTERMEDIATE</span>
+    </div>
+    <div class="exercise-body">
+
+      <div class="insight-box">
+        <strong>Asymmetric Workflow</strong>
+        Public key cryptography uses a <strong>key pair</strong>: the public key encrypts (share freely), the private key decrypts (keep secret). GPG also supports digital signatures — signing with your private key lets recipients verify with your public key.
+      </div>
+
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-content">
+          <p>Generate a GPG key pair in batch mode (no interactive prompts):</p>
+          <div class="code-block">cat &gt; ~/lab-encryption/keygen-params.txt &lt;&lt;'EOF'
+%no-protection
+Key-Type: RSA
+Key-Length: 4096
+Name-Real: Test User
+Name-Email: testuser@lab.local
+Expire-Date: 0
+%commit
+EOF
+
+gpg --batch --gen-key ~/lab-encryption/keygen-params.txt</div>
+          <div class="output-block">gpg: key A1B2C3D4E5F6 marked as ultimately trusted
+gpg: directory '/home/user/.gnupg/openpgp-revocs.d' created
+gpg: revocation certificate stored as '.../A1B2C3D4E5F6.rev'</div>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-content">
+          <p>List your keyring to confirm the key was created:</p>
+          <div class="code-block">gpg --list-keys testuser@lab.local</div>
+          <div class="output-block">pub   rsa4096 2025-01-15 [SC]
+      A1B2C3D4E5F67890ABCDEF1234567890A1B2C3D4
+uid           [ultimate] Test User &lt;testuser@lab.local&gt;
+sub   rsa4096 2025-01-15 [E]</div>
+          <p>The <code>pub</code> line is the public key. The <code>sub</code> line is the encryption subkey. <code>[SC]</code> = Sign+Certify, <code>[E]</code> = Encrypt.</p>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num">3</div>
+        <div class="step-content">
+          <p>Export the <strong>public key</strong> (this is what you share with others):</p>
+          <div class="code-block">gpg --armor --export testuser@lab.local > ~/lab-encryption/testuser-public.asc
+head -3 ~/lab-encryption/testuser-public.asc</div>
+          <div class="output-block">-----BEGIN PGP PUBLIC KEY BLOCK-----
+
+mQINBGDa...</div>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num">4</div>
+        <div class="step-content">
+          <p>Encrypt a file <strong>for a recipient</strong> using their public key (<code>-r</code> = recipient email):</p>
+          <div class="code-block">echo "Classified project details for testuser" > ~/lab-encryption/message.txt
+
+gpg --encrypt --armor \
+    -r testuser@lab.local \
+    --output ~/lab-encryption/message.txt.gpg \
+    ~/lab-encryption/message.txt
+
+head -4 ~/lab-encryption/message.txt.gpg</div>
+          <div class="output-block">-----BEGIN PGP MESSAGE-----
+
+hQIMA7x8...
+...</div>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num">5</div>
+        <div class="step-content">
+          <p>Decrypt using the private key (which lives in the keyring):</p>
+          <div class="code-block">gpg --decrypt ~/lab-encryption/message.txt.gpg</div>
+          <div class="output-block">gpg: encrypted with rsa4096 key, ID 7890ABCD, created 2025-01-15
+      "Test User &lt;testuser@lab.local&gt;"
+Classified project details for testuser</div>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num">6</div>
+        <div class="step-content">
+          <p>Digitally <strong>sign</strong> a file to prove authenticity (recipients verify with your public key):</p>
+          <div class="code-block">echo "Official announcement from testuser" > ~/lab-encryption/announcement.txt
+
+gpg --clearsign \
+    --batch --pinentry-mode loopback \
+    ~/lab-encryption/announcement.txt
+
+cat ~/lab-encryption/announcement.txt.asc</div>
+          <div class="output-block">-----BEGIN PGP SIGNED MESSAGE-----
+Hash: SHA512
+
+Official announcement from testuser
+-----BEGIN PGP SIGNATURE-----
+
+iQIzBAAB...
+-----END PGP SIGNATURE-----</div>
+          <div class="code-block"># Verify the signature
+gpg --verify ~/lab-encryption/announcement.txt.asc</div>
+          <div class="output-block">gpg: Signature made Wed Jan 15 09:12:00 2025 UTC
+gpg:                using RSA key A1B2C3D4E5F67890ABCDEF1234567890A1B2C3D4
+gpg: Good signature from "Test User &lt;testuser@lab.local&gt;" [ultimate]</div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════
+       EXERCISE 3 — OpenSSL File Encryption
+  ══════════════════════════════════════════ -->
+  <div class="exercise-card">
+    <div class="exercise-header">
+      <div class="exercise-number">3</div>
+      <div class="exercise-title">
+        <h3>OpenSSL File Encryption</h3>
+        <p>Encrypt files with AES-256-CBC and generate hashes for integrity checking</p>
+      </div>
+      <span class="difficulty-badge intermediate">INTERMEDIATE</span>
+    </div>
+    <div class="exercise-body">
+
+      <div class="insight-box">
+        <strong>OpenSSL vs GPG</strong>
+        <code>openssl enc</code> is a low-level symmetric cipher tool — fast, scriptable, and part of every Linux system. GPG is preferred for key-based workflows. OpenSSL shines for quick file encryption, TLS certificate work, and scripted pipelines.
+      </div>
+
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-content">
+          <p>Generate a hash of a file before encryption (to verify integrity later):</p>
+          <div class="code-block">cd ~/lab-encryption
+sha256sum secret.txt</div>
+          <div class="output-block">8d0e7c2a5f3b9d1e4a6c8b0f2e7d5c3a9b1f4e6d  secret.txt</div>
+          <p>Record this hash — you will compare it after decryption to confirm no corruption.</p>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-content">
+          <p>Encrypt the file with AES-256-CBC. The <code>-pbkdf2</code> flag uses a modern key derivation function that resists brute-force attacks:</p>
+          <div class="code-block">openssl enc -aes-256-cbc -pbkdf2 -iter 100000 \
+    -in secret.txt \
+    -out secret.txt.enc \
+    -pass pass:"SecureLabPass99!"
+
+ls -lh secret.txt.enc</div>
+          <div class="output-block">-rw-rw-r-- 1 user user 80 Jan 15 09:13 secret.txt.enc</div>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num">3</div>
+        <div class="step-content">
+          <p>Verify the encrypted file is binary ciphertext (not readable text):</p>
+          <div class="code-block">file secret.txt.enc
+xxd secret.txt.enc | head -3</div>
+          <div class="output-block">secret.txt.enc: openssl enc'd data with salted password
+00000000: 5361 6c74 6564 5f5f 2c8f a1b4 e5d2 9c7f  Salted__,......
+00000010: 3a71 2d8e f4c3 a590 1be7 82d6 4fca 1239  :q-.........O..9</div>
+          <p>The <code>Salted__</code> header is a signature that openssl adds to encrypted files.</p>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num">4</div>
+        <div class="step-content">
+          <p>Decrypt with the same parameters and verify hash integrity:</p>
+          <div class="code-block">openssl enc -d -aes-256-cbc -pbkdf2 -iter 100000 \
+    -in secret.txt.enc \
+    -out secret-recovered.txt \
+    -pass pass:"SecureLabPass99!"
+
+sha256sum secret-recovered.txt</div>
+          <div class="output-block">8d0e7c2a5f3b9d1e4a6c8b0f2e7d5c3a9b1f4e6d  secret-recovered.txt</div>
+          <p>The hashes match — the file survived encryption and decryption without modification.</p>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num">5</div>
+        <div class="step-content">
+          <p>Generate a random encryption key (instead of a passphrase) and use it as a key file:</p>
+          <div class="code-block"># Generate 32 bytes of random key material (256 bits)
+openssl rand -hex 32 > ~/lab-encryption/keyfile.key
+cat ~/lab-encryption/keyfile.key</div>
+          <div class="output-block">a3f7c2d9e1b4856f0e3a7c5d2b8f9e1a4c7d3b2f9e5a1c8d4b7f2e9a3c6d1b8</div>
+          <div class="code-block"># Encrypt using the key file
+openssl enc -aes-256-cbc -pbkdf2 -iter 100000 \
+    -in secret.txt \
+    -out secret-keyfile.enc \
+    -kfile ~/lab-encryption/keyfile.key
+
+echo "Encrypted successfully using key file"</div>
+          <div class="output-block">Encrypted successfully using key file</div>
+        </div>
+      </div>
+
+      <div class="warning-box">
+        <strong>Key File Security</strong>
+        Key files must be protected as carefully as the data they encrypt. Store key files on separate media, use strict permissions (<code>chmod 400 keyfile.key</code>), and never store them alongside the encrypted data.
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════
+       EXERCISE 4 — SSH Key Authentication
+  ══════════════════════════════════════════ -->
+  <div class="exercise-card">
+    <div class="exercise-header">
+      <div class="exercise-number">4</div>
+      <div class="exercise-title">
+        <h3>SSH Key Generation and Management</h3>
+        <p>Generate ed25519 and RSA key pairs, understand permissions, and manage the authorized_keys file</p>
+      </div>
+      <span class="difficulty-badge intermediate">INTERMEDIATE</span>
+    </div>
+    <div class="exercise-body">
+
+      <div class="insight-box">
+        <strong>SSH Key Authentication Flow</strong>
+        1. Client has private key (protected, never shared). 2. Server has public key in <code>~/.ssh/authorized_keys</code>. 3. On connection, server challenges with a random message. 4. Client signs with private key. 5. Server verifies signature with public key. No password ever crosses the network.
+      </div>
+
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-content">
+          <p>Create a test directory and generate a modern <strong>ed25519 key pair</strong>:</p>
+          <div class="code-block">mkdir -p ~/lab-encryption/ssh-keys
+# -t ed25519: algorithm (preferred, compact, fast)
+# -C: comment (label identifying the key)
+# -f: output file location
+# -N "": no passphrase (for lab; use one in production!)
+ssh-keygen -t ed25519 \
+    -C "lab-test-key" \
+    -f ~/lab-encryption/ssh-keys/id_ed25519 \
+    -N ""</div>
+          <div class="output-block">Generating public/private ed25519 key pair.
+Your identification has been saved in /home/user/lab-encryption/ssh-keys/id_ed25519
+Your public key has been saved in /home/user/lab-encryption/ssh-keys/id_ed25519.pub
+The key fingerprint is:
+SHA256:xK7mN2pQ9vR3sT5wY8zA1bC4dF6gH0iJ lab-test-key
+The key's randomart image is:
++--[ED25519 256]--+
+|        .o+.     |
+...</div>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-content">
+          <p>Examine both keys. Notice the dramatic size difference:</p>
+          <div class="code-block">echo "=== PRIVATE KEY (first 3 lines) ==="
+head -3 ~/lab-encryption/ssh-keys/id_ed25519
+echo ""
+echo "=== PUBLIC KEY (entire key) ==="
+cat ~/lab-encryption/ssh-keys/id_ed25519.pub</div>
+          <div class="output-block">=== PRIVATE KEY (first 3 lines) ===
+-----BEGIN OPENSSH PRIVATE KEY-----
+b3BlbnNzaC1rZXktdjEAAAAA...
+...
+
+=== PUBLIC KEY (entire key) ===
+ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIJk7mP2... lab-test-key</div>
+          <p>The public key is a single line — this is what you put in <code>authorized_keys</code>. The private key is multi-line and stays on the client.</p>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num">3</div>
+        <div class="step-content">
+          <p>Generate an <strong>RSA 4096-bit key pair</strong> for comparison (required by some older systems):</p>
+          <div class="code-block">ssh-keygen -t rsa -b 4096 \
+    -C "lab-rsa-key" \
+    -f ~/lab-encryption/ssh-keys/id_rsa \
+    -N ""
+
+ls -lh ~/lab-encryption/ssh-keys/</div>
+          <div class="output-block">-rw------- 1 user user 3.4K Jan 15 09:15 id_ed25519
+-rw-r--r-- 1 user user  100 Jan 15 09:15 id_ed25519.pub
+-rw------- 1 user user 3.2K Jan 15 09:15 id_rsa
+-rw-r--r-- 1 user user  739 Jan 15 09:15 id_rsa.pub</div>
+          <p>Note the permissions: private keys are <code>600</code> (owner read/write only). SSH will refuse to use keys with looser permissions.</p>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num">4</div>
+        <div class="step-content">
+          <p>Inspect the correct SSH file permissions structure:</p>
+          <div class="code-block">ls -la ~/.ssh/ 2>/dev/null || echo "~/.ssh does not exist yet"
+
+# Demonstrate permission requirements:
+# ~/.ssh directory:      700 (drwx------)
+# private keys:          600 (-rw-------)
+# authorized_keys file:  600 (-rw-------)
+# public keys (.pub):    644 (-rw-r--r--)
+
+stat -c "%a %n" ~/lab-encryption/ssh-keys/id_ed25519
+stat -c "%a %n" ~/lab-encryption/ssh-keys/id_ed25519.pub</div>
+          <div class="output-block">600 /home/user/lab-encryption/ssh-keys/id_ed25519
+644 /home/user/lab-encryption/ssh-keys/id_ed25519.pub</div>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num">5</div>
+        <div class="step-content">
+          <p>Simulate adding a public key to <code>authorized_keys</code> (the deployment step):</p>
+          <div class="code-block">mkdir -p ~/lab-encryption/fake-server/.ssh
+chmod 700 ~/lab-encryption/fake-server/.ssh
+
+# cat the public key >> authorized_keys (append, not overwrite)
+cat ~/lab-encryption/ssh-keys/id_ed25519.pub \
+    >> ~/lab-encryption/fake-server/.ssh/authorized_keys
+
+chmod 600 ~/lab-encryption/fake-server/.ssh/authorized_keys
+
+echo "Contents of authorized_keys:"
+cat ~/lab-encryption/fake-server/.ssh/authorized_keys</div>
+          <div class="output-block">Contents of authorized_keys:
+ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIJk7mP2... lab-test-key</div>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num">6</div>
+        <div class="step-content">
+          <p>View the key fingerprint (useful for verifying key identity without revealing the full key):</p>
+          <div class="code-block">ssh-keygen -lf ~/lab-encryption/ssh-keys/id_ed25519.pub</div>
+          <div class="output-block">256 SHA256:xK7mN2pQ9vR3sT5wY8zA1bC4dF6gH0iJ lab-test-key (ED25519)</div>
+        </div>
+      </div>
+
+      <div class="two-col">
+        <div class="concept-card">
+          <h4>Ed25519</h4>
+          <p>Elliptic curve algorithm. Compact keys (68 chars public), fast operations, excellent security. Modern standard — use this when possible.</p>
+        </div>
+        <div class="concept-card">
+          <h4>RSA 4096</h4>
+          <p>Traditional algorithm. Longer keys (739 chars public), slower but widely compatible with older SSH servers and systems requiring FIPS compliance.</p>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════
+       EXERCISE 5 — LUKS Disk Encryption (Conceptual)
+  ══════════════════════════════════════════ -->
+  <div class="exercise-card">
+    <div class="exercise-header">
+      <div class="exercise-number">5</div>
+      <div class="exercise-title">
+        <h3>LUKS Disk Encryption (Concept + Safe Practice)</h3>
+        <p>Understand the LUKS workflow and practice with a loop device</p>
+      </div>
+      <span class="difficulty-badge advanced">ADVANCED</span>
+    </div>
+    <div class="exercise-body">
+
+      <div class="danger-box">
+        <strong>Lab Safety</strong>
+        LUKS formats block devices permanently. NEVER run <code>cryptsetup luksFormat</code> against a real disk or partition (<code>/dev/sda</code>, <code>/dev/nvme0n1</code>) without understanding the consequences. This exercise uses a <strong>loop device backed by a file</strong> — safe for any system.
+      </div>
+
+      <div class="insight-box">
+        <strong>LUKS Architecture</strong>
+        LUKS (Linux Unified Key Setup) is a specification for full disk/partition encryption. The cryptsetup tool implements it. Workflow: 1) <code>luksFormat</code> — writes LUKS header and encrypts. 2) <code>luksOpen</code> — creates a device mapper entry at <code>/dev/mapper/name</code>. 3) Use the mapper device normally (mkfs, mount, read/write). 4) <code>luksClose</code> — removes the mapper entry and secures the device.
+      </div>
+
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-content">
+          <p>Create a 50MB file to use as a loop device (safe substitute for a real disk):</p>
+          <div class="code-block">dd if=/dev/zero bs=1M count=50 of=~/lab-encryption/luks-test.img
+ls -lh ~/lab-encryption/luks-test.img</div>
+          <div class="output-block">50+0 records in
+50+0 records out
+52428800 bytes (52 MB) copied
+-rw-rw-r-- 1 user user 50M Jan 15 09:16 luks-test.img</div>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-content">
+          <p>Set up a loop device backed by the image file:</p>
+          <div class="code-block">LOOP=$(sudo losetup --find --show ~/lab-encryption/luks-test.img)
+echo "Loop device created: $LOOP"</div>
+          <div class="output-block">Loop device created: /dev/loop7</div>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num">3</div>
+        <div class="step-content">
+          <p>Format the loop device with LUKS encryption:</p>
+          <div class="code-block">echo "SecureDiskPass99!" | sudo cryptsetup luksFormat \
+    --type luks2 \
+    --cipher aes-xts-plain64 \
+    --key-size 256 \
+    --batch-mode \
+    $LOOP</div>
+          <div class="output-block">(no output on success)</div>
+          <div class="code-block">sudo cryptsetup luksDump $LOOP | head -20</div>
+          <div class="output-block">LUKS header information
+Version:       	2
+Epoch:         	3
+Metadata area: 	16384 [bytes]
+Keyslots area: 	16744448 [bytes]
+UUID:           a1b2c3d4-e5f6-7890-abcd-ef1234567890
+Label:         	(no label)
+Cipher:        	aes-xts-plain64
+Cipher key:    	256 bits
+PBKDF:         	argon2id</div>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num">4</div>
+        <div class="step-content">
+          <p>Open (unlock) the LUKS volume and create a filesystem on the mapper device:</p>
+          <div class="code-block">echo "SecureDiskPass99!" | sudo cryptsetup luksOpen $LOOP luks-lab
+
+ls /dev/mapper/luks-lab
+sudo mkfs.ext4 /dev/mapper/luks-lab -q
+echo "Filesystem created successfully"</div>
+          <div class="output-block">/dev/mapper/luks-lab
+Filesystem created successfully</div>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num">5</div>
+        <div class="step-content">
+          <p>Mount the encrypted volume, write a file, then close and verify data is inaccessible:</p>
+          <div class="code-block">sudo mkdir -p /mnt/luks-lab
+sudo mount /dev/mapper/luks-lab /mnt/luks-lab
+echo "Secret data inside encrypted volume" | sudo tee /mnt/luks-lab/inside.txt
+
+# Unmount and close (lock)
+sudo umount /mnt/luks-lab
+sudo cryptsetup luksClose luks-lab
+
+# Try to read the raw image — should show gibberish
+strings ~/lab-encryption/luks-test.img | grep "Secret" || \
+    echo "Data is encrypted — not readable from raw image"</div>
+          <div class="output-block">Secret data inside encrypted volume
+Data is encrypted — not readable from raw image</div>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num">6</div>
+        <div class="step-content">
+          <p>Clean up the loop device:</p>
+          <div class="code-block">sudo losetup -d $LOOP
+echo "Loop device released. Loop devices in use:"
+sudo losetup -l</div>
+          <div class="output-block">Loop device released.
+NAME       SIZELIMIT OFFSET AUTOCLEAR RO BACK-FILE DIO LOG-SEC
+(no loop devices)</div>
+        </div>
+      </div>
+
+      <div class="warning-box">
+        <strong>Key Slot Management</strong>
+        LUKS supports up to 8 key slots — multiple passphrases can all unlock the same volume. Use <code>cryptsetup luksAddKey</code> to add recovery passphrases, <code>cryptsetup luksKillSlot</code> to revoke individual keys. If all key slots are wiped, the data is permanently unrecoverable.
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ── Completion Section ── -->
+  <div class="completion-section">
+    <h3>Lab Complete</h3>
+    <p>You encrypted files with GPG (symmetric and asymmetric), used OpenSSL for AES-256-CBC encryption with integrity verification, generated and managed SSH key pairs, and practiced LUKS full-disk encryption with a loop device.</p>
+    <button class="complete-btn" id="complete-btn" onclick="completeLab()">Mark Lab Complete</button>
+    <div class="already-done" id="already-done">This lab is already marked complete.</div>
+  </div>
+
+</main>
+</body>
+</html>

@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CH03 Lab: Grep, Pipes & Text Processing — Script House</title>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <style>
+        *{margin:0;padding:0;box-sizing:border-box;}
+        :root{--script-green:#22c55e;--script-accent:#4ade80;--script-glow:rgba(34,197,94,0.3);--bg-card:rgba(10,20,10,0.88);--text-primary:#e8e8f0;--text-secondary:#7a9a7a;--ok:#4ade80;--warn:#fbbf24;--bad:#f87171;--border:rgba(34,197,94,0.2);}
+        body{font-family:'Segoe UI',system-ui,sans-serif;background:linear-gradient(135deg,#0a0a12,#0a1a0f,#0a250a);color:var(--text-primary);line-height:1.7;min-height:100vh;}
+        .site-header{background:rgba(10,10,18,0.96);border-bottom:1px solid var(--border);padding:0.9rem 2rem;position:sticky;top:0;z-index:100;display:flex;align-items:center;justify-content:space-between;backdrop-filter:blur(12px);}
+        .back-link{color:var(--script-green);text-decoration:none;font-size:0.9rem;font-weight:600;display:flex;align-items:center;gap:0.4rem;transition:opacity 0.2s;}
+        .back-link:hover{opacity:0.75;}
+        .header-badge{background:linear-gradient(135deg,var(--script-green),var(--script-accent));color:#000;padding:0.35rem 1rem;border-radius:20px;font-size:0.78rem;font-weight:700;letter-spacing:0.05em;}
+        .container{max-width:1000px;margin:0 auto;padding:2.5rem 2rem 4rem;}
+        .hero{text-align:center;padding:3rem 2rem 2rem;background:var(--bg-card);border:1px solid var(--border);border-radius:20px;margin-bottom:2.5rem;position:relative;overflow:hidden;}
+        .hero::before{content:'';position:absolute;top:-60px;left:50%;transform:translateX(-50%);width:350px;height:350px;background:radial-gradient(circle,var(--script-glow) 0%,transparent 70%);pointer-events:none;}
+        .module-tag{display:inline-block;background:rgba(34,197,94,0.12);color:var(--script-green);border:1px solid var(--border);padding:0.3rem 1rem;border-radius:20px;font-size:0.78rem;font-weight:700;letter-spacing:0.08em;margin-bottom:1rem;}
+        .hero h1{font-size:2rem;font-weight:800;color:var(--text-primary);margin-bottom:0.6rem;}
+        .hero h1 span{color:var(--script-green);}
+        .hero p{color:var(--text-secondary);font-size:1rem;max-width:640px;margin:0 auto;}
+        .lab-meta{display:flex;gap:1.5rem;justify-content:center;flex-wrap:wrap;margin-top:1.25rem;}
+        .meta-item{display:flex;align-items:center;gap:0.4rem;font-size:0.82rem;color:var(--text-secondary);}
+        .meta-item strong{color:var(--script-accent);}
+        .objectives{background:rgba(34,197,94,0.06);border:1px solid var(--border);border-radius:14px;padding:1.5rem;margin-bottom:2rem;}
+        .objectives h3{color:var(--script-green);font-size:1rem;font-weight:700;margin-bottom:0.75rem;}
+        .objectives ul{list-style:none;}
+        .objectives li{padding:0.3rem 0;font-size:0.9rem;color:var(--text-secondary);display:flex;align-items:center;gap:0.6rem;}
+        .objectives li::before{content:'▸';color:var(--script-green);font-size:0.7rem;}
+        .exercise{background:var(--bg-card);border:1px solid var(--border);border-radius:16px;margin-bottom:1.5rem;overflow:hidden;}
+        .exercise-header{padding:1.1rem 1.5rem;display:flex;align-items:center;gap:1rem;cursor:pointer;user-select:none;transition:background 0.2s;}
+        .exercise-header:hover{background:rgba(34,197,94,0.06);}
+        .exercise-num{width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,var(--script-green),var(--script-accent));color:#000;font-weight:900;font-size:0.9rem;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+        .exercise-title{flex:1;font-size:1.05rem;font-weight:700;color:var(--text-primary);}
+        .exercise-tag{font-size:0.72rem;font-weight:700;padding:0.2rem 0.7rem;border-radius:10px;letter-spacing:0.04em;}
+        .tag-grep{background:rgba(34,197,94,0.12);color:var(--script-green);}
+        .tag-pipe{background:rgba(251,191,36,0.12);color:var(--warn);}
+        .tag-io{background:rgba(56,189,248,0.12);color:#38bdf8;}
+        .tag-awk{background:rgba(167,139,250,0.12);color:#a78bfa;}
+        .tag-log{background:rgba(248,113,113,0.12);color:var(--bad);}
+        .chevron{color:var(--script-green);font-size:1rem;}
+        .exercise-body{padding:0 1.5rem 1.5rem;display:none;}
+        .exercise-body.open{display:block;animation:fadeIn 0.25s ease;}
+        @keyframes fadeIn{from{opacity:0;transform:translateY(-5px);}to{opacity:1;transform:translateY(0);}}
+        .scenario{background:rgba(251,191,36,0.06);border:1px solid rgba(251,191,36,0.2);border-radius:10px;padding:1rem 1.25rem;margin-bottom:1rem;font-size:0.9rem;color:var(--text-secondary);}
+        .scenario strong{color:var(--warn);display:block;font-size:0.75rem;letter-spacing:0.08em;margin-bottom:0.3rem;}
+        .code-block{background:rgba(0,0,0,0.65);border:1px solid rgba(34,197,94,0.15);border-left:3px solid var(--script-green);border-radius:10px;padding:1.1rem 1.25rem;font-family:'Consolas','Courier New',monospace;font-size:0.88rem;color:var(--script-accent);margin:0.9rem 0;overflow-x:auto;line-height:1.8;}
+        .code-block .comment{color:#5a7a5a;}
+        .code-block .out{color:#a0c0a0;}
+        code{background:rgba(34,197,94,0.1);color:var(--script-accent);padding:1px 6px;border-radius:4px;font-family:'Consolas',monospace;font-size:0.88em;}
+        .steps{list-style:none;counter-reset:step-counter;}
+        .steps li{counter-increment:step-counter;padding:0.6rem 0 0.6rem 2.5rem;position:relative;font-size:0.92rem;color:var(--text-secondary);border-bottom:1px solid rgba(34,197,94,0.05);}
+        .steps li::before{content:counter(step-counter);position:absolute;left:0;top:0.55rem;width:22px;height:22px;border-radius:50%;background:rgba(34,197,94,0.15);color:var(--script-green);font-size:0.75rem;font-weight:700;display:flex;align-items:center;justify-content:center;}
+        .steps li:last-child{border-bottom:none;}
+        .checkpoint{display:flex;align-items:flex-start;gap:0.75rem;padding:0.7rem 0;border-bottom:1px solid rgba(34,197,94,0.06);}
+        .checkpoint:last-child{border-bottom:none;}
+        .checkpoint input[type="checkbox"]{width:18px;height:18px;margin-top:0.15rem;accent-color:var(--script-green);cursor:pointer;flex-shrink:0;}
+        .checkpoint label{font-size:0.9rem;color:var(--text-secondary);cursor:pointer;line-height:1.5;}
+        .checkpoint input:checked+label{color:var(--script-green);text-decoration:line-through;text-decoration-color:rgba(34,197,94,0.4);}
+        .insight{background:rgba(34,197,94,0.05);border-left:3px solid var(--script-green);border-radius:0 10px 10px 0;padding:0.9rem 1.1rem;margin-top:0.9rem;font-size:0.87rem;color:var(--text-secondary);}
+        .insight-label{font-size:0.7rem;font-weight:700;letter-spacing:0.1em;color:var(--script-green);margin-bottom:0.3rem;}
+        .completion-bar{background:var(--bg-card);border:1px solid var(--border);border-radius:16px;padding:2rem;text-align:center;margin-top:3rem;}
+        .completion-bar h3{color:var(--script-green);margin-bottom:0.75rem;font-size:1.2rem;}
+        .completion-bar p{color:var(--text-secondary);font-size:0.9rem;margin-bottom:1.25rem;}
+        .btn-complete{display:inline-block;background:linear-gradient(135deg,var(--script-green),var(--script-accent));color:#000;font-weight:700;padding:0.75rem 2rem;border-radius:10px;border:none;cursor:pointer;font-size:0.95rem;transition:opacity 0.2s,transform 0.2s;}
+        .btn-complete:hover{opacity:0.88;transform:translateY(-2px);}
+        .btn-complete:disabled{opacity:0.5;cursor:default;transform:none;}
+        .complete-msg{margin-top:1rem;color:var(--ok);font-weight:600;font-size:0.9rem;display:none;}
+    </style>
+</head>
+<body>
+<header class="site-header">
+    <a href="../index.html" class="back-link">&larr; Back to Linux Admin</a>
+    <span class="header-badge">SCRIPT HOUSE — LINUX ADMIN</span>
+</header>
+<div class="container">
+    <div class="hero">
+        <div class="module-tag">CH03 — LAB</div>
+        <h1>Grep, Pipes <span>&amp; Text Processing</span> — Hands-On</h1>
+        <p>Five progressive exercises taking you from basic grep searches through real security log analysis, I/O redirection, and multi-stage pipeline construction. These are production-level skills.</p>
+        <div class="lab-meta">
+            <div class="meta-item">Platform: <strong>Linux Terminal</strong></div>
+            <div class="meta-item">Exercises: <strong>5</strong></div>
+            <div class="meta-item">Difficulty: <strong>Intermediate</strong></div>
+            <div class="meta-item">Est. Time: <strong>50–70 min</strong></div>
+        </div>
+    </div>
+
+    <div class="objectives">
+        <h3>Lab Objectives</h3>
+        <ul>
+            <li>Use grep with multiple flags to search files and streams</li>
+            <li>Apply I/O redirection to capture and manipulate command output</li>
+            <li>Build multi-stage pipelines for data transformation</li>
+            <li>Use awk for field-based text extraction</li>
+            <li>Analyze log files using grep pipeline patterns</li>
+        </ul>
+    </div>
+
+    <!-- Exercise 1 -->
+    <div class="exercise" id="ex1">
+        <div class="exercise-header" onclick="toggleExercise('ex1')">
+            <div class="exercise-num">1</div>
+            <div class="exercise-title">grep Flag Mastery</div>
+            <span class="exercise-tag tag-grep">GREP</span>
+            <span class="chevron" id="chevron-ex1">&#9660;</span>
+        </div>
+        <div class="exercise-body open" id="body-ex1">
+            <div class="scenario"><strong>SCENARIO</strong>Practice each major grep flag against real system files. Build muscle memory for the flags that you will use thousands of times in your career.</div>
+            <ol class="steps">
+                <li>Case-insensitive search: <code>grep -i "root" /etc/passwd</code> — how many lines match?</li>
+                <li>Count matches: <code>grep -c "bash" /etc/passwd</code> — how many users use bash?</li>
+                <li>Show line numbers: <code>grep -n "PermitRootLogin" /etc/ssh/sshd_config</code></li>
+                <li>Invert the match (find non-comment, non-blank lines): <code>grep -v "^#" /etc/ssh/sshd_config | grep -v "^$"</code></li>
+                <li>Recursive search: <code>grep -r "PasswordAuthentication" /etc/ssh/ 2>/dev/null</code></li>
+                <li>Show context: <code>grep -A 2 -B 1 "Port" /etc/ssh/sshd_config</code></li>
+                <li>Extended regex — match multiple patterns: <code>grep -E "root|admin|sudo" /etc/passwd</code></li>
+                <li>Only show matching part: <code>grep -oE "[0-9]+" /etc/passwd | sort -rn | head -5</code></li>
+            </ol>
+            <div class="code-block">
+<span class="comment"># Active SSH config lines (filter out comments and blanks)</span>
+$ grep -v "^#" /etc/ssh/sshd_config | grep -v "^$"
+Include /etc/ssh/sshd_config.d/*.conf
+KbdInteractiveAuthentication no
+UsePAM yes
+X11Forwarding yes
+PrintMotd no
+AcceptEnv LANG LC_*
+Subsystem	sftp	/usr/lib/openssh/sftp-server
+            </div>
+            <div style="margin-top:1rem;">
+                <div class="checkpoint"><input type="checkbox" id="c1a"><label for="c1a">Used grep -c to count matches in /etc/passwd</label></div>
+                <div class="checkpoint"><input type="checkbox" id="c1b"><label for="c1b">Filtered out comment lines and blank lines from sshd_config</label></div>
+                <div class="checkpoint"><input type="checkbox" id="c1c"><label for="c1c">Used grep -A and -B to show context around a match</label></div>
+                <div class="checkpoint"><input type="checkbox" id="c1d"><label for="c1d">Used grep -E to match multiple patterns with |</label></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Exercise 2 -->
+    <div class="exercise" id="ex2">
+        <div class="exercise-header" onclick="toggleExercise('ex2')">
+            <div class="exercise-num">2</div>
+            <div class="exercise-title">I/O Redirection Drills</div>
+            <span class="exercise-tag tag-io">I/O REDIRECT</span>
+            <span class="chevron" id="chevron-ex2">&#9654;</span>
+        </div>
+        <div class="exercise-body" id="body-ex2">
+            <div class="scenario"><strong>SCENARIO</strong>Master the redirection operators that control where command input comes from and where output goes. These operators are used in every script and pipeline you will ever write.</div>
+            <ol class="steps">
+                <li>Capture command output to a file: <code>date > ~/timestamp.txt && cat ~/timestamp.txt</code></li>
+                <li>Append to a file (don't overwrite): <code>date >> ~/timestamp.txt && date >> ~/timestamp.txt && cat ~/timestamp.txt</code> — should have 3 lines now</li>
+                <li>Suppress errors: <code>ls /nonexistent 2>/dev/null</code> — verify no error is printed</li>
+                <li>Capture both stdout and stderr: <code>ls /etc /nonexistent > ~/output.txt 2>&1 && cat ~/output.txt</code></li>
+                <li>Read from a file as stdin: <code>sort < ~/timestamp.txt</code></li>
+                <li>Use tee to split output: <code>ls -la /etc | tee ~/etc-listing.txt | wc -l</code></li>
+                <li>Chain: <code>cat /etc/passwd | grep -v "^#" | wc -l > ~/usercount.txt && cat ~/usercount.txt</code></li>
+            </ol>
+            <div class="code-block">
+<span class="comment"># Redirect both stdout and stderr example</span>
+$ ls /etc /nonexistent > ~/output.txt 2>&1
+$ cat ~/output.txt
+ls: cannot access '/nonexistent': No such file or directory
+/etc:
+adduser.conf
+apt
+<span class="comment"># Both the error message AND the /etc listing are in the file</span>
+            </div>
+            <div style="margin-top:1rem;">
+                <div class="checkpoint"><input type="checkbox" id="c2a"><label for="c2a">Demonstrated difference between > (overwrite) and >> (append)</label></div>
+                <div class="checkpoint"><input type="checkbox" id="c2b"><label for="c2b">Successfully redirected stderr to /dev/null to suppress errors</label></div>
+                <div class="checkpoint"><input type="checkbox" id="c2c"><label for="c2c">Captured both stdout and stderr to a file with 2>&1</label></div>
+                <div class="checkpoint"><input type="checkbox" id="c2d"><label for="c2d">Used tee to simultaneously display output and write to file</label></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Exercise 3 -->
+    <div class="exercise" id="ex3">
+        <div class="exercise-header" onclick="toggleExercise('ex3')">
+            <div class="exercise-num">3</div>
+            <div class="exercise-title">Pipeline Construction</div>
+            <span class="exercise-tag tag-pipe">PIPELINES</span>
+            <span class="chevron" id="chevron-ex3">&#9654;</span>
+        </div>
+        <div class="exercise-body" id="body-ex3">
+            <div class="scenario"><strong>SCENARIO</strong>Build increasingly complex pipelines to process system data. Each pipeline adds another stage of transformation, demonstrating the Unix "do one thing well" philosophy in action.</div>
+            <ol class="steps">
+                <li>List all unique shells used by system accounts: <code>cat /etc/passwd | cut -d: -f7 | sort | uniq</code></li>
+                <li>Count accounts per shell: <code>cat /etc/passwd | cut -d: -f7 | sort | uniq -c | sort -rn</code></li>
+                <li>Find the 10 largest files in /usr/bin: <code>ls -la /usr/bin | awk '{print $5, $9}' | sort -rn | head -10</code></li>
+                <li>Count running processes by state: <code>ps aux | awk '{print $8}' | sort | uniq -c | sort -rn</code></li>
+                <li>Find all listening TCP ports: <code>ss -tlnp 2>/dev/null | grep LISTEN | awk '{print $4}' | sort</code></li>
+                <li>Count words in a config file: <code>cat /etc/hosts | wc -w</code></li>
+                <li>Challenge: list the top 5 users by number of processes: <code>ps aux | awk '{print $1}' | tail -n +2 | sort | uniq -c | sort -rn | head -5</code></li>
+            </ol>
+            <div class="code-block">
+<span class="comment"># Count accounts per shell — typical output</span>
+$ cat /etc/passwd | cut -d: -f7 | sort | uniq -c | sort -rn
+     18 /usr/sbin/nologin
+      4 /bin/bash
+      2 /bin/sh
+      1 /usr/bin/fish
+
+<span class="comment"># Top processes by user</span>
+$ ps aux | awk '{print $1}' | tail -n +2 | sort | uniq -c | sort -rn | head -5
+     35 root
+      8 www-data
+      4 student
+      2 postgres
+      1 nobody
+            </div>
+            <div style="margin-top:1rem;">
+                <div class="checkpoint"><input type="checkbox" id="c3a"><label for="c3a">Built a 4-command pipeline to count shell types in /etc/passwd</label></div>
+                <div class="checkpoint"><input type="checkbox" id="c3b"><label for="c3b">Used awk to extract specific columns from ls or ps output</label></div>
+                <div class="checkpoint"><input type="checkbox" id="c3c"><label for="c3c">Combined sort | uniq -c | sort -rn for frequency counting</label></div>
+                <div class="checkpoint"><input type="checkbox" id="c3d"><label for="c3d">Completed the challenge pipeline to count processes by user</label></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Exercise 4 -->
+    <div class="exercise" id="ex4">
+        <div class="exercise-header" onclick="toggleExercise('ex4')">
+            <div class="exercise-num">4</div>
+            <div class="exercise-title">awk Text Processing</div>
+            <span class="exercise-tag tag-awk">AWK</span>
+            <span class="chevron" id="chevron-ex4">&#9654;</span>
+        </div>
+        <div class="exercise-body" id="body-ex4">
+            <div class="scenario"><strong>SCENARIO</strong>awk is the column-processor of the Unix toolkit. Practice field extraction, filtering, arithmetic, and formatted output with awk against real system data.</div>
+            <ol class="steps">
+                <li>Extract username and UID from /etc/passwd: <code>awk -F: '{print $1, $3}' /etc/passwd | column -t</code></li>
+                <li>Show only system accounts (UID below 1000): <code>awk -F: '$3 < 1000 {print $1, $3}' /etc/passwd</code></li>
+                <li>Show only human users (UID 1000 and above): <code>awk -F: '$3 >= 1000 && $3 < 65534 {print $1, $3, $6}' /etc/passwd</code></li>
+                <li>Calculate total lines and a sum with awk: <code>df -h | awk 'NR>1 {print $1, $2}'</code></li>
+                <li>Custom formatted output: <code>awk -F: '{printf "User: %-20s Shell: %s\n", $1, $7}' /etc/passwd | head -10</code></li>
+                <li>Count lines in a file: <code>awk 'END {print NR, "lines"}' /etc/passwd</code></li>
+            </ol>
+            <div class="code-block">
+<span class="comment"># awk field extraction with custom formatting</span>
+$ awk -F: '{printf "User: %-20s Shell: %s\n", $1, $7}' /etc/passwd | head -5
+User: root                 Shell: /bin/bash
+User: daemon               Shell: /usr/sbin/nologin
+User: bin                  Shell: /usr/sbin/nologin
+User: sys                  Shell: /usr/sbin/nologin
+User: sync                 Shell: /bin/sync
+
+<span class="comment"># Filter by numeric field value</span>
+$ awk -F: '$3 >= 1000 && $3 < 65534 {print $1, $3}' /etc/passwd
+student 1000
+            </div>
+            <div style="margin-top:1rem;">
+                <div class="checkpoint"><input type="checkbox" id="c4a"><label for="c4a">Used awk -F: to set colon as delimiter and extract specific fields</label></div>
+                <div class="checkpoint"><input type="checkbox" id="c4b"><label for="c4b">Applied numeric conditions in awk to filter rows</label></div>
+                <div class="checkpoint"><input type="checkbox" id="c4c"><label for="c4c">Used printf in awk for formatted, aligned output</label></div>
+                <div class="checkpoint"><input type="checkbox" id="c4d"><label for="c4d">Used NR (record number) and END block in awk</label></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Exercise 5 -->
+    <div class="exercise" id="ex5">
+        <div class="exercise-header" onclick="toggleExercise('ex5')">
+            <div class="exercise-num">5</div>
+            <div class="exercise-title">Security Log Analysis Mission</div>
+            <span class="exercise-tag tag-log">LOG ANALYSIS</span>
+            <span class="chevron" id="chevron-ex5">&#9654;</span>
+        </div>
+        <div class="exercise-body" id="body-ex5">
+            <div class="scenario"><strong>SCENARIO</strong>You are the on-call analyst. You have received an alert about unusual SSH activity. Use grep pipelines to investigate the authentication log and identify potential brute-force attacks. If auth.log does not exist on your system, use /var/log/syslog or create a simulated log file using the provided commands.</div>
+            <ol class="steps">
+                <li>Check if auth.log exists: <code>ls -la /var/log/auth.log 2>/dev/null || echo "auth.log not found"</code></li>
+                <li>Create a simulated auth log for practice: <code>sudo bash -c 'for i in 1 2 3 4 5; do echo "$(date) sshd[$$]: Failed password for invalid user admin from 192.168.1.$((RANDOM % 255)) port $((RANDOM % 60000 + 1024)) ssh2" >> /var/log/auth.log.practice; done'</code></li>
+                <li>Find all failed authentication attempts: <code>grep "Failed password" /var/log/auth.log 2>/dev/null | head -20</code></li>
+                <li>Extract and count attacking IPs: <code>grep "Failed password" /var/log/auth.log 2>/dev/null | grep -oE "([0-9]+\.){3}[0-9]+" | sort | uniq -c | sort -rn | head -10</code></li>
+                <li>Find successful logins: <code>grep "Accepted" /var/log/auth.log 2>/dev/null</code></li>
+                <li>Check for root login attempts: <code>grep -i "failed.*root\|root.*failed" /var/log/auth.log 2>/dev/null | wc -l</code></li>
+                <li>Save your findings to a report: <code>grep "Failed password" /var/log/auth.log 2>/dev/null | grep -oE "([0-9]+\.){3}[0-9]+" | sort | uniq -c | sort -rn > ~/ssh-attack-report.txt && echo "Report saved" && cat ~/ssh-attack-report.txt</code></li>
+            </ol>
+            <div class="code-block">
+<span class="comment"># Extract attacking IPs with count — security analyst's pipeline</span>
+$ grep "Failed password" /var/log/auth.log | \
+  grep -oE "([0-9]+\.){3}[0-9]+" | \
+  sort | uniq -c | sort -rn | head -10
+     47 45.142.212.100
+     23 185.220.101.45
+     18 194.165.16.71
+      9 103.99.0.122
+      3 192.168.1.99
+<span class="comment"># These are the top attackers by attempt count</span>
+<span class="comment"># The top IPs are likely automated scanners or botnets</span>
+            </div>
+            <div style="margin-top:1rem;">
+                <div class="checkpoint"><input type="checkbox" id="c5a"><label for="c5a">Located the authentication log and viewed failed login entries</label></div>
+                <div class="checkpoint"><input type="checkbox" id="c5b"><label for="c5b">Extracted IP addresses using grep -oE with IP regex pattern</label></div>
+                <div class="checkpoint"><input type="checkbox" id="c5c"><label for="c5c">Ranked attacking IPs by attempt count using uniq -c | sort -rn</label></div>
+                <div class="checkpoint"><input type="checkbox" id="c5d"><label for="c5d">Separated successful logins from failed attempts</label></div>
+                <div class="checkpoint"><input type="checkbox" id="c5e"><label for="c5e">Saved analysis report to a file for documentation</label></div>
+            </div>
+            <div class="insight"><div class="insight-label">REAL WORLD CONTEXT</div>The pipeline you just built is a simplified version of what SIEM tools like Splunk, ELK Stack, and Suricata do automatically at scale. Understanding the underlying grep/awk mechanics makes you a better security analyst even when using GUI tools — you understand what the tool is actually doing, can build custom queries, and can work when the SIEM is unavailable. Every SSH-exposed server on the public internet receives thousands of automated login attempts daily. Fail2ban and ufw/iptables are the automated defenses; this manual analysis is for investigation.</div>
+        </div>
+    </div>
+
+    <div class="completion-bar">
+        <h3>Lab Complete</h3>
+        <p>Mark complete when you have finished all exercises.</p>
+        <button class="btn-complete" id="completeBtn" onclick="markComplete()">Mark Lab as Complete</button>
+        <div class="complete-msg" id="completeMsg">Lab progress saved. Move on to Chapter 4!</div>
+    </div>
+</div>
+
+<script src="../../../../components/FluxCapacitor.js"></script>
+<script>
+function toggleExercise(id){const body=document.getElementById('body-'+id),chevron=document.getElementById('chevron-'+id),isOpen=body.classList.contains('open');body.classList.toggle('open',!isOpen);chevron.innerHTML=isOpen?'&#9654;':'&#9660;';}
+function markComplete(){const btn=document.getElementById('completeBtn'),msg=document.getElementById('completeMsg');btn.disabled=true;btn.textContent='Saving...';if(typeof ModuleProgress!=='undefined')ModuleProgress.complete('script','script-la-ch03-lab');btn.textContent='Completed';msg.style.display='block';}
+(function checkCompleted(){const progress=JSON.parse(localStorage.getItem('hexworth_progress')||'{}');if(progress['script-la-ch03-lab']){const btn=document.getElementById('completeBtn');btn.textContent='Completed';btn.disabled=true;document.getElementById('completeMsg').style.display='block';}})();
+</script>
+</body>
+</html>

@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CH05: Daemons & Services — Linux Admin | Script House</title>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --script-green: #22c55e; --script-accent: #4ade80; --script-glow: rgba(34,197,94,0.35);
+            --bg-dark: #0a0a12; --bg-card: rgba(10,20,10,0.85); --text-primary: #e8e8f0;
+            --text-secondary: #7a9a7a; --ok: #4ade80; --warn: #fbbf24; --bad: #f87171;
+            --border: rgba(34,197,94,0.2);
+        }
+        body { font-family: 'Segoe UI', system-ui, sans-serif; background: linear-gradient(135deg, #0a0a12, #0a1a0f, #0a250a); color: var(--text-primary); line-height: 1.7; min-height: 100vh; }
+        .site-header { background: rgba(10,10,18,0.96); border-bottom: 1px solid var(--border); padding: 0.9rem 2rem; position: sticky; top: 0; z-index: 100; display: flex; align-items: center; justify-content: space-between; backdrop-filter: blur(12px); }
+        .back-link { color: var(--script-green); text-decoration: none; font-size: 0.9rem; font-weight: 600; display: flex; align-items: center; gap: 0.4rem; transition: opacity 0.2s; }
+        .back-link:hover { opacity: 0.75; }
+        .header-badge { background: linear-gradient(135deg, var(--script-green), var(--script-accent)); color: #000; padding: 0.35rem 1rem; border-radius: 20px; font-size: 0.78rem; font-weight: 700; letter-spacing: 0.05em; }
+        .container { max-width: 1100px; margin: 0 auto; padding: 2.5rem 2rem 4rem; }
+        .hero { text-align: center; padding: 3.5rem 2rem 2.5rem; background: var(--bg-card); border: 1px solid var(--border); border-radius: 20px; margin-bottom: 2.5rem; position: relative; overflow: hidden; }
+        .hero::before { content: ''; position: absolute; top: -80px; left: 50%; transform: translateX(-50%); width: 400px; height: 400px; background: radial-gradient(circle, var(--script-glow) 0%, transparent 70%); pointer-events: none; }
+        .module-tag { display: inline-block; background: rgba(34,197,94,0.12); color: var(--script-green); border: 1px solid var(--border); padding: 0.3rem 1rem; border-radius: 20px; font-size: 0.78rem; font-weight: 700; letter-spacing: 0.08em; margin-bottom: 1.2rem; }
+        .hero h1 { font-size: 2.2rem; font-weight: 800; color: var(--text-primary); margin-bottom: 0.75rem; line-height: 1.25; }
+        .hero h1 span { color: var(--script-green); }
+        .hero p { color: var(--text-secondary); font-size: 1.05rem; max-width: 680px; margin: 0 auto; }
+        .section-heading { display: flex; align-items: center; gap: 0.75rem; font-size: 1.35rem; font-weight: 700; color: var(--script-green); margin: 2.5rem 0 1.25rem; }
+        .section-heading::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+        .card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 16px; padding: 1.75rem; margin-bottom: 1.5rem; }
+        .card h3 { font-size: 1.1rem; color: var(--script-accent); margin-bottom: 0.9rem; }
+        .card p { color: var(--text-secondary); font-size: 0.95rem; margin-bottom: 0.75rem; }
+        .card p:last-child { margin-bottom: 0; }
+        code { background: rgba(34,197,94,0.1); color: var(--script-accent); padding: 1px 6px; border-radius: 4px; font-family: 'Consolas',monospace; font-size: 0.88em; }
+        .code-block { background: rgba(0,0,0,0.6); border: 1px solid rgba(34,197,94,0.15); border-left: 3px solid var(--script-green); border-radius: 10px; padding: 1.25rem 1.5rem; font-family: 'Consolas','Courier New',monospace; font-size: 0.9rem; color: var(--script-accent); margin: 1rem 0; overflow-x: auto; line-height: 1.9; }
+        .code-block .comment { color: #5a7a5a; }
+
+        /* Daemon examples */
+        .daemon-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.9rem; margin-bottom: 1.5rem; }
+        .daemon-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 1rem 1.25rem; display: flex; gap: 0.9rem; align-items: flex-start; transition: border-color 0.2s; }
+        .daemon-card:hover { border-color: var(--script-green); }
+        .daemon-name { font-family: 'Consolas',monospace; font-size: 0.95rem; font-weight: 700; color: var(--script-green); min-width: 90px; padding-top: 0.1rem; }
+        .daemon-desc { font-size: 0.87rem; color: var(--text-secondary); line-height: 1.5; }
+
+        /* systemd vs sysv */
+        .compare-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.5rem; }
+        .compare-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 14px; padding: 1.25rem; }
+        .compare-card h4 { font-size: 0.95rem; font-weight: 700; margin-bottom: 0.75rem; }
+
+        /* Unit file display */
+        .unit-file { background: rgba(0,0,0,0.7); border: 1px solid rgba(34,197,94,0.2); border-radius: 10px; padding: 1.25rem; font-family: 'Consolas',monospace; font-size: 0.85rem; line-height: 1.8; color: var(--script-accent); margin: 1rem 0; }
+        .unit-section { color: var(--warn); font-weight: 700; }
+        .unit-key { color: #86efac; }
+        .unit-val { color: var(--text-secondary); }
+        .unit-comment { color: #5a7a5a; }
+
+        /* systemctl commands */
+        .ctl-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.85rem; margin-bottom: 1.5rem; }
+        .ctl-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 1rem 1.25rem; }
+        .ctl-cmd { font-family: 'Consolas',monospace; font-size: 0.88rem; color: var(--script-green); margin-bottom: 0.35rem; font-weight: 700; }
+        .ctl-desc { font-size: 0.84rem; color: var(--text-secondary); }
+
+        /* Cron */
+        .cron-row { display: flex; gap: 0; margin-bottom: 0.75rem; border-radius: 10px; overflow: hidden; border: 1px solid var(--border); }
+        .cron-field { flex: 1; padding: 0.6rem; text-align: center; background: var(--bg-card); border-right: 1px solid var(--border); }
+        .cron-field:last-child { border-right: none; }
+        .cron-label { font-size: 0.68rem; color: var(--text-secondary); display: block; }
+        .cron-val { font-family: 'Consolas',monospace; font-size: 1rem; font-weight: 700; color: var(--script-green); display: block; }
+
+        .insight { background: rgba(34,197,94,0.06); border-left: 4px solid var(--script-green); border-radius: 0 12px 12px 0; padding: 1.25rem 1.5rem; margin-top: 1.25rem; }
+        .insight-label { font-size: 0.72rem; font-weight: 700; letter-spacing: 0.1em; color: var(--script-green); margin-bottom: 0.4rem; }
+        .insight p { font-size: 0.9rem; color: var(--text-secondary); margin: 0; }
+
+        .completion-bar { background: var(--bg-card); border: 1px solid var(--border); border-radius: 16px; padding: 2rem; text-align: center; margin-top: 3rem; }
+        .completion-bar h3 { color: var(--script-green); margin-bottom: 0.75rem; font-size: 1.2rem; }
+        .completion-bar p { color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 1.25rem; }
+        .btn-complete { display: inline-block; background: linear-gradient(135deg, var(--script-green), var(--script-accent)); color: #000; font-weight: 700; padding: 0.75rem 2rem; border-radius: 10px; border: none; cursor: pointer; font-size: 0.95rem; transition: opacity 0.2s, transform 0.2s; }
+        .btn-complete:hover { opacity: 0.88; transform: translateY(-2px); }
+        .btn-complete:disabled { opacity: 0.5; cursor: default; transform: none; }
+        .complete-msg { margin-top: 1rem; color: var(--ok); font-weight: 600; font-size: 0.9rem; display: none; }
+
+        @media (max-width: 768px) { .daemon-grid { grid-template-columns: 1fr; } .compare-grid { grid-template-columns: 1fr; } .ctl-grid { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+
+<header class="site-header">
+    <a href="../index.html" class="back-link">&larr; Back to Linux Admin</a>
+    <span class="header-badge">SCRIPT HOUSE — LINUX ADMIN</span>
+</header>
+
+<div class="container">
+
+    <div class="hero">
+        <div class="module-tag">CH05 — PRESENTATION</div>
+        <h1>Daemons <span>&amp; Services</span></h1>
+        <p>Background processes that power Linux systems: understand what daemons are, how systemd replaced SysVinit, master systemctl for service management, dissect unit files, query logs with journalctl, and automate tasks with cron.</p>
+    </div>
+
+    <!-- What is a Daemon -->
+    <div class="section-heading">Slide 1 — What Is a Daemon?</div>
+    <div class="card">
+        <h3>A Background Process That Provides System Services</h3>
+        <p>A daemon is a long-running background process that starts at boot and provides services either to the system or to network clients. Daemons have no controlling terminal — they run detached from any user session. The name comes from Unix mythology: a helper that runs in the background doing work.</p>
+        <p>Identifying characteristic: daemon names conventionally end in 'd'. <code>sshd</code> handles SSH connections, <code>httpd</code> is the Apache web server, <code>crond</code> runs scheduled tasks, <code>rsyslogd</code> collects system logs.</p>
+        <p>A daemon's lifecycle: start at boot (or on demand), run continuously waiting for requests or events, restart automatically if it crashes, and stop gracefully on shutdown.</p>
+    </div>
+
+    <!-- Common Daemons -->
+    <div class="section-heading">Slide 2 — Common Linux Daemons</div>
+    <div class="daemon-grid">
+        <div class="daemon-card"><div class="daemon-name">sshd</div><div class="daemon-desc">Handles SSH remote login connections. Authenticates users, encrypts sessions, manages remote shell access. Always running on managed servers.</div></div>
+        <div class="daemon-card"><div class="daemon-name">httpd/nginx</div><div class="daemon-desc">Web server daemons. Apache httpd and Nginx serve HTTP/HTTPS requests. Handle static files, reverse proxy, and dynamic content.</div></div>
+        <div class="daemon-card"><div class="daemon-name">crond</div><div class="daemon-desc">Cron daemon — reads crontab files and executes scheduled tasks at specified times. The timer service for automation.</div></div>
+        <div class="daemon-card"><div class="daemon-name">rsyslogd</div><div class="daemon-desc">System logging daemon. Collects log messages from the kernel and applications, routes them to files in /var/log/. Critical for auditing and incident response.</div></div>
+        <div class="daemon-card"><div class="daemon-name">NetworkMgr</div><div class="daemon-desc">NetworkManager daemon. Manages network interfaces, connections, and configuration. Handles wired, wireless, VPN connections dynamically.</div></div>
+        <div class="daemon-card"><div class="daemon-name">mysqld</div><div class="daemon-desc">MySQL/MariaDB database server. Handles database queries, manages data files, enforces access control. Data-layer foundation for most web applications.</div></div>
+        <div class="daemon-card"><div class="daemon-name">dockerd</div><div class="daemon-desc">Docker daemon. Manages container lifecycle — build, run, stop, delete containers. Exposes the Docker API that the docker CLI communicates with.</div></div>
+        <div class="daemon-card"><div class="daemon-name">firewalld</div><div class="daemon-desc">Dynamic firewall daemon. Manages iptables/nftables rules for network packet filtering. Provides zones and services abstraction over raw firewall rules.</div></div>
+    </div>
+
+    <!-- systemd -->
+    <div class="section-heading">Slide 3 — systemd: The Modern Init System</div>
+    <div class="compare-grid">
+        <div class="compare-card" style="border-color: rgba(248,113,113,0.3);">
+            <h4 style="color: var(--bad);">SysVinit (Legacy)</h4>
+            <p style="font-size:0.87rem; color:var(--text-secondary);">Sequential startup — scripts ran one after another, even when they had no dependencies on each other. Slow boot times. Scripts in <code>/etc/init.d/</code>. Runlevels (0-6) controlled what started. Still used on some minimal systems.</p>
+        </div>
+        <div class="compare-card" style="border-color: rgba(34,197,94,0.3);">
+            <h4 style="color: var(--script-green);">systemd (Modern)</h4>
+            <p style="font-size:0.87rem; color:var(--text-secondary);">Parallel startup — services with no dependencies start simultaneously. Much faster boot. Unit files in <code>/etc/systemd/system/</code>. Targets replace runlevels. Socket and D-Bus activation. Dependency tracking. Integrated logging (journald).</p>
+        </div>
+    </div>
+    <div class="card">
+        <h3>systemd Unit Types</h3>
+        <p><strong style="color: var(--text-primary);">Service units (.service)</strong> — define how to start a daemon (most common type you'll work with).</p>
+        <p><strong style="color: var(--text-primary);">Target units (.target)</strong> — group of units, like runlevels. <code>multi-user.target</code> replaces runlevel 3, <code>graphical.target</code> replaces runlevel 5.</p>
+        <p><strong style="color: var(--text-primary);">Timer units (.timer)</strong> — schedule service activation (systemd's cron replacement).</p>
+        <p><strong style="color: var(--text-primary);">Socket units (.socket)</strong> — activate a service when a connection arrives on a socket (on-demand activation).</p>
+        <p><strong style="color: var(--text-primary);">Mount units (.mount)</strong> — manage filesystem mounts.</p>
+    </div>
+
+    <!-- Unit File -->
+    <div class="section-heading">Slide 4 — Anatomy of a systemd Unit File</div>
+    <div class="unit-file">
+<span class="unit-comment"># /etc/systemd/system/mywebapp.service</span>
+<span class="unit-section">[Unit]</span>
+<span class="unit-key">Description</span>=<span class="unit-val">My Web Application</span>
+<span class="unit-key">After</span>=<span class="unit-val">network.target mysql.service</span>     <span class="unit-comment"># Start after these</span>
+<span class="unit-key">Requires</span>=<span class="unit-val">mysql.service</span>               <span class="unit-comment"># Hard dependency</span>
+
+<span class="unit-section">[Service]</span>
+<span class="unit-key">Type</span>=<span class="unit-val">simple</span>                          <span class="unit-comment"># Process stays in foreground</span>
+<span class="unit-key">User</span>=<span class="unit-val">www-data</span>                        <span class="unit-comment"># Run as this user (not root!)</span>
+<span class="unit-key">WorkingDirectory</span>=<span class="unit-val">/opt/myapp</span>
+<span class="unit-key">ExecStart</span>=<span class="unit-val">/usr/bin/python3 app.py</span>     <span class="unit-comment"># Command to start</span>
+<span class="unit-key">ExecReload</span>=<span class="unit-val">/bin/kill -HUP $MAINPID</span>  <span class="unit-comment"># Command for reload</span>
+<span class="unit-key">Restart</span>=<span class="unit-val">always</span>                        <span class="unit-comment"># Restart if crashes</span>
+<span class="unit-key">RestartSec</span>=<span class="unit-val">5</span>                          <span class="unit-comment"># Wait 5s before restart</span>
+<span class="unit-key">StandardOutput</span>=<span class="unit-val">journal</span>               <span class="unit-comment"># Log stdout to journald</span>
+<span class="unit-key">StandardError</span>=<span class="unit-val">journal</span>
+
+<span class="unit-section">[Install]</span>
+<span class="unit-key">WantedBy</span>=<span class="unit-val">multi-user.target</span>           <span class="unit-comment"># Enable at this target</span>
+    </div>
+
+    <!-- systemctl Commands -->
+    <div class="section-heading">Slide 5 — systemctl: Managing Services</div>
+    <div class="ctl-grid">
+        <div class="ctl-card"><div class="ctl-cmd">systemctl start nginx</div><div class="ctl-desc">Start service immediately (does not persist across reboot)</div></div>
+        <div class="ctl-card"><div class="ctl-cmd">systemctl stop nginx</div><div class="ctl-desc">Stop service immediately</div></div>
+        <div class="ctl-card"><div class="ctl-cmd">systemctl restart nginx</div><div class="ctl-desc">Stop then start (brief downtime)</div></div>
+        <div class="ctl-card"><div class="ctl-cmd">systemctl reload nginx</div><div class="ctl-desc">Reload config without stopping (if supported)</div></div>
+        <div class="ctl-card"><div class="ctl-cmd">systemctl enable nginx</div><div class="ctl-desc">Auto-start at boot (creates symlink to target)</div></div>
+        <div class="ctl-card"><div class="ctl-cmd">systemctl disable nginx</div><div class="ctl-desc">Remove auto-start at boot</div></div>
+        <div class="ctl-card"><div class="ctl-cmd">systemctl status nginx</div><div class="ctl-desc">Show running status, recent log entries, PID, memory</div></div>
+        <div class="ctl-card"><div class="ctl-cmd">systemctl list-units --type=service</div><div class="ctl-desc">List all active service units</div></div>
+    </div>
+    <div class="code-block">
+<span class="comment"># After writing a new unit file:</span>
+$ sudo systemctl daemon-reload     <span class="comment"># Reload systemd config (required!)</span>
+$ sudo systemctl enable --now nginx  <span class="comment"># Enable AND start in one command</span>
+
+<span class="comment"># journalctl — query the systemd journal</span>
+$ journalctl -u nginx              <span class="comment"># Logs for nginx service</span>
+$ journalctl -u nginx -f           <span class="comment"># Follow (tail -f equivalent)</span>
+$ journalctl -u nginx --since "1 hour ago"
+$ journalctl -p err                <span class="comment"># Show only errors</span>
+$ journalctl -b                    <span class="comment"># Logs from current boot</span>
+$ journalctl -b -1                 <span class="comment"># Logs from previous boot</span>
+$ journalctl --disk-usage          <span class="comment"># How much space logs use</span>
+    </div>
+
+    <!-- Cron -->
+    <div class="section-heading">Slide 6 — Task Automation with Cron</div>
+    <div class="card">
+        <h3>Scheduling Commands to Run Automatically</h3>
+        <p>Cron is the traditional job scheduler daemon. You define tasks in a <strong style="color: var(--text-primary);">crontab</strong> (cron table) file. Each line specifies when to run a command using five time fields: minute, hour, day of month, month, and day of week.</p>
+    </div>
+    <p style="color: var(--text-secondary); font-size:0.88rem; margin-bottom: 0.5rem;">Crontab field positions:</p>
+    <div class="cron-row">
+        <div class="cron-field"><span class="cron-val">*</span><span class="cron-label">Minute<br>0-59</span></div>
+        <div class="cron-field"><span class="cron-val">*</span><span class="cron-label">Hour<br>0-23</span></div>
+        <div class="cron-field"><span class="cron-val">*</span><span class="cron-label">Day/Month<br>1-31</span></div>
+        <div class="cron-field"><span class="cron-val">*</span><span class="cron-label">Month<br>1-12</span></div>
+        <div class="cron-field"><span class="cron-val">*</span><span class="cron-label">Day/Week<br>0-7 (Sun=0)</span></div>
+        <div class="cron-field" style="flex:3;"><span class="cron-val">command</span><span class="cron-label">Command to execute</span></div>
+    </div>
+    <div class="code-block">
+<span class="comment"># Edit your crontab</span>
+$ crontab -e         <span class="comment"># Open in editor (creates if needed)</span>
+$ crontab -l         <span class="comment"># List current crontab</span>
+$ crontab -r         <span class="comment"># Remove crontab (WARNING: no confirmation)</span>
+
+<span class="comment"># Crontab examples</span>
+0 2 * * *   /opt/scripts/backup.sh          <span class="comment"># Daily at 2:00 AM</span>
+*/5 * * * * /usr/local/bin/monitor.py       <span class="comment"># Every 5 minutes</span>
+0 9 * * 1   /scripts/weekly-report.sh       <span class="comment"># Monday at 9:00 AM</span>
+30 4 1 * *  /scripts/monthly-cleanup.sh     <span class="comment"># 1st of month, 4:30 AM</span>
+@reboot     /opt/startup.sh                 <span class="comment"># Run once at system boot</span>
+@daily      /opt/daily.sh                   <span class="comment"># Shorthand for 0 0 * * *</span>
+
+<span class="comment"># System-wide cron (root)</span>
+<span class="comment"># /etc/cron.d/  — drop-in crontab files</span>
+<span class="comment"># /etc/cron.daily/  — scripts run daily</span>
+<span class="comment"># /etc/cron.hourly/ — scripts run hourly</span>
+    </div>
+
+    <div class="insight">
+        <div class="insight-label">SECURITY: CRON AS AN ATTACKER'S TOOL</div>
+        <p>Cron is one of the most common persistence mechanisms used by attackers after gaining initial access. A malicious crontab entry ensures their backdoor or reverse shell is restarted regularly. When investigating a compromised system, always check: <code>crontab -l</code> (current user), <code>sudo crontab -l -u root</code> (root's crontab), <code>cat /etc/crontab</code>, and all files in <code>/etc/cron.d/</code>, <code>/etc/cron.daily/</code>, etc. Also check <code>/var/spool/cron/crontabs/</code> for all user crontabs. Systemd timers can serve the same persistence purpose — audit both. Finding an unexpected cron job running from <code>/tmp/</code> or <code>/dev/shm/</code> is a significant red flag.</p>
+    </div>
+
+    <div class="completion-bar">
+        <h3>Presentation Complete</h3>
+        <p>Mark complete to save your progress and unlock the Chapter 5 quiz.</p>
+        <button class="btn-complete" id="completeBtn" onclick="markComplete()">Mark as Complete</button>
+        <div class="complete-msg" id="completeMsg">Progress saved. Head to the quiz to test your knowledge.</div>
+    </div>
+
+</div>
+
+<script src="../../../../components/FluxCapacitor.js"></script>
+<script>
+    function markComplete() {
+        const btn = document.getElementById('completeBtn');
+        const msg = document.getElementById('completeMsg');
+        btn.disabled = true;
+        btn.textContent = 'Saving...';
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('script', 'script-la-ch05');
+        }
+        btn.textContent = 'Completed';
+        msg.style.display = 'block';
+    }
+    (function checkCompleted() {
+        const progress = JSON.parse(localStorage.getItem('hexworth_progress') || '{}');
+        if (progress['script-la-ch05']) {
+            const btn = document.getElementById('completeBtn');
+            btn.textContent = 'Completed';
+            btn.disabled = true;
+            document.getElementById('completeMsg').style.display = 'block';
+        }
+    })();
+</script>
+</body>
+</html>

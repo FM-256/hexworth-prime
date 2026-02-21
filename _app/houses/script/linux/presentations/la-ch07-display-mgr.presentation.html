@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ch 7: Display Managers — Linux Admin</title>
+    <script src="../../../../../components/AchievementManager.js"></script>
+    <script src="../../../../../components/ModuleProgress.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --script-green: #22c55e;
+            --script-accent: #4ade80;
+            --script-glow: rgba(34, 197, 94, 0.35);
+            --bg-dark: #0a0a12;
+            --bg-card: rgba(10, 20, 10, 0.85);
+            --text-primary: #e8f5e8;
+            --text-secondary: #7aaa7a;
+            --ok: #4ade80;
+            --warn: #fbbf24;
+            --bad: #f87171;
+            --border: rgba(34, 197, 94, 0.2);
+        }
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: linear-gradient(135deg, #0a0a12, #0a1a0f, #0a250a);
+            color: var(--text-primary);
+            line-height: 1.7;
+            min-height: 100vh;
+        }
+        /* Header */
+        .site-header {
+            background: rgba(10, 10, 18, 0.95);
+            border-bottom: 1px solid var(--border);
+            padding: 0.9rem 2rem;
+            position: sticky; top: 0; z-index: 100;
+            display: flex; align-items: center; justify-content: space-between;
+            backdrop-filter: blur(10px);
+        }
+        .back-link {
+            color: var(--script-green); text-decoration: none;
+            font-size: 0.9rem; font-weight: 600;
+            display: flex; align-items: center; gap: 0.4rem;
+            transition: opacity 0.2s;
+        }
+        .back-link:hover { opacity: 0.75; }
+        .header-badge {
+            background: linear-gradient(135deg, var(--script-green), var(--script-accent));
+            color: #000; padding: 0.35rem 1rem; border-radius: 20px;
+            font-size: 0.78rem; font-weight: 700; letter-spacing: 0.05em;
+        }
+        /* Container */
+        .container { max-width: 1100px; margin: 0 auto; padding: 2.5rem 2rem 4rem; }
+        /* Hero */
+        .hero {
+            text-align: center; padding: 3.5rem 2rem 2.5rem;
+            background: var(--bg-card); border: 1px solid var(--border);
+            border-radius: 20px; margin-bottom: 2.5rem;
+            position: relative; overflow: hidden;
+        }
+        .hero::before {
+            content: ''; position: absolute;
+            top: -80px; left: 50%; transform: translateX(-50%);
+            width: 400px; height: 400px;
+            background: radial-gradient(circle, var(--script-glow) 0%, transparent 70%);
+            pointer-events: none;
+        }
+        .module-tag {
+            display: inline-block;
+            background: rgba(34, 197, 94, 0.12);
+            color: var(--script-green); border: 1px solid var(--border);
+            padding: 0.3rem 1rem; border-radius: 20px;
+            font-size: 0.78rem; font-weight: 700; letter-spacing: 0.08em;
+            margin-bottom: 1.2rem;
+        }
+        .hero h1 { font-size: 2.2rem; font-weight: 800; color: var(--text-primary); margin-bottom: 0.75rem; line-height: 1.25; }
+        .hero h1 span { color: var(--script-green); }
+        .hero p { color: var(--text-secondary); font-size: 1.05rem; max-width: 680px; margin: 0 auto; }
+        /* Section heading */
+        .section-heading {
+            display: flex; align-items: center; gap: 0.75rem;
+            font-size: 1.4rem; font-weight: 700; color: var(--script-green);
+            margin: 2.5rem 0 1.25rem;
+        }
+        .section-heading::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+        /* Card */
+        .card {
+            background: var(--bg-card); border: 1px solid var(--border);
+            border-radius: 16px; padding: 1.75rem; margin-bottom: 1.5rem;
+        }
+        .card h3 { font-size: 1.15rem; color: var(--script-accent); margin-bottom: 0.9rem; display: flex; align-items: center; gap: 0.5rem; }
+        .card p { color: var(--text-secondary); font-size: 0.95rem; margin-bottom: 0.75rem; }
+        .card p:last-child { margin-bottom: 0; }
+        /* DM Grid */
+        .dm-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1.25rem; margin-bottom: 1.5rem; }
+        .dm-card {
+            background: var(--bg-card); border: 1px solid var(--border);
+            border-radius: 14px; padding: 1.5rem;
+            transition: transform 0.25s, box-shadow 0.25s;
+        }
+        .dm-card:hover { transform: translateY(-3px); box-shadow: 0 6px 24px var(--script-glow); }
+        .dm-icon { font-size: 1.8rem; margin-bottom: 0.6rem; display: block; }
+        .dm-card h4 { font-size: 1rem; font-weight: 700; color: var(--script-accent); margin-bottom: 0.45rem; }
+        .dm-card p { font-size: 0.88rem; color: var(--text-secondary); margin: 0; }
+        .dm-card .dm-tag {
+            display: inline-block; font-size: 0.7rem; font-weight: 700;
+            padding: 0.15rem 0.5rem; border-radius: 6px; margin-bottom: 0.5rem;
+            background: rgba(34, 197, 94, 0.1); color: var(--script-green);
+        }
+        /* Code block */
+        .code-block {
+            background: rgba(0, 0, 0, 0.5); border: 1px solid rgba(34, 197, 94, 0.15);
+            border-radius: 10px; padding: 1.25rem 1.5rem; margin: 1rem 0;
+            font-family: 'Courier New', monospace; font-size: 0.88rem;
+            color: var(--script-accent); overflow-x: auto; line-height: 1.8;
+        }
+        .code-block .comment { color: #4a7a4a; font-style: italic; }
+        .code-block .cmd { color: var(--script-green); }
+        .code-block .flag { color: var(--warn); }
+        /* Flow diagram */
+        .flow-row { display: flex; align-items: center; gap: 0; margin-bottom: 1.5rem; overflow-x: auto; }
+        .flow-box {
+            flex: 1; text-align: center; padding: 1.25rem 1rem;
+            border-radius: 12px; min-width: 130px;
+        }
+        .flow-box.hardware { background: rgba(248, 113, 113, 0.08); border: 1px solid rgba(248, 113, 113, 0.3); }
+        .flow-box.dm { background: rgba(34, 197, 94, 0.08); border: 1px solid rgba(34, 197, 94, 0.3); }
+        .flow-box.session { background: rgba(74, 222, 128, 0.08); border: 1px solid rgba(74, 222, 128, 0.3); }
+        .flow-box.de { background: rgba(251, 191, 36, 0.08); border: 1px solid rgba(251, 191, 36, 0.3); }
+        .flow-label { font-size: 0.7rem; font-weight: 700; letter-spacing: 0.1em; margin-bottom: 0.4rem; }
+        .flow-box.hardware .flow-label { color: var(--bad); }
+        .flow-box.dm .flow-label { color: var(--script-green); }
+        .flow-box.session .flow-label { color: var(--script-accent); }
+        .flow-box.de .flow-label { color: var(--warn); }
+        .flow-name { font-size: 0.85rem; font-weight: 600; color: var(--text-primary); }
+        .flow-arrow { font-size: 1.5rem; color: var(--script-green); padding: 0 0.75rem; flex-shrink: 0; }
+        /* Table */
+        .data-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; margin-top: 1rem; }
+        .data-table th { padding: 0.75rem 1rem; text-align: left; font-size: 0.75rem; font-weight: 700; letter-spacing: 0.06em; color: var(--script-green); border-bottom: 1px solid var(--border); }
+        .data-table td { padding: 0.7rem 1rem; color: var(--text-secondary); border-bottom: 1px solid rgba(34, 197, 94, 0.07); }
+        .data-table td:first-child { color: var(--text-primary); font-weight: 600; font-family: 'Courier New', monospace; }
+        /* Insight */
+        .insight {
+            background: rgba(34, 197, 94, 0.06); border-left: 4px solid var(--script-green);
+            border-radius: 0 12px 12px 0; padding: 1.25rem 1.5rem; margin-top: 1.25rem;
+        }
+        .insight-label { font-size: 0.72rem; font-weight: 700; letter-spacing: 0.1em; color: var(--script-green); margin-bottom: 0.4rem; }
+        .insight p { font-size: 0.9rem; color: var(--text-secondary); margin: 0; }
+        .insight.warn { background: rgba(251, 191, 36, 0.06); border-left-color: var(--warn); }
+        .insight.warn .insight-label { color: var(--warn); }
+        /* Xsession detail */
+        .xsession-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; margin-bottom: 1.5rem; }
+        .xsession-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 14px; padding: 1.5rem; }
+        .xsession-card h4 { font-size: 1rem; font-weight: 700; color: var(--script-accent); margin-bottom: 0.75rem; }
+        .xsession-card ul { list-style: none; }
+        .xsession-card li { padding: 0.3rem 0; font-size: 0.88rem; color: var(--text-secondary); display: flex; gap: 0.5rem; }
+        .xsession-card li::before { content: '>'; color: var(--script-green); font-weight: 700; flex-shrink: 0; }
+        /* Completion */
+        .completion-bar {
+            background: var(--bg-card); border: 1px solid var(--border);
+            border-radius: 16px; padding: 2rem; text-align: center; margin-top: 3rem;
+        }
+        .completion-bar h3 { color: var(--script-green); margin-bottom: 0.75rem; font-size: 1.2rem; }
+        .completion-bar p { color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 1.25rem; }
+        .btn-complete {
+            display: inline-block;
+            background: linear-gradient(135deg, var(--script-green), var(--script-accent));
+            color: #000; font-weight: 700; padding: 0.75rem 2rem;
+            border-radius: 10px; border: none; cursor: pointer;
+            font-size: 0.95rem; transition: opacity 0.2s, transform 0.2s;
+        }
+        .btn-complete:hover { opacity: 0.88; transform: translateY(-2px); }
+        .btn-complete:disabled { opacity: 0.5; cursor: default; transform: none; }
+        .complete-msg { margin-top: 1rem; color: var(--ok); font-weight: 600; font-size: 0.9rem; display: none; }
+        @media (max-width: 768px) {
+            .dm-grid { grid-template-columns: 1fr; }
+            .xsession-grid { grid-template-columns: 1fr; }
+            .flow-row { flex-direction: column; }
+        }
+    </style>
+</head>
+<body>
+
+<header class="site-header">
+    <a href="../index.html" class="back-link">&larr; Back to Linux Admin</a>
+    <span class="header-badge">SCRIPT HOUSE — LINUX ADMIN</span>
+</header>
+
+<div class="container">
+
+    <!-- Hero -->
+    <div class="hero">
+        <div class="module-tag">CHAPTER 7 — PRESENTATION</div>
+        <h1>Display <span>Managers</span></h1>
+        <p>Understand GDM, LightDM, and SDDM — the gatekeepers between the Linux kernel and your graphical desktop session. Master user environment configuration and .Xsession customization.</p>
+    </div>
+
+    <!-- Slide 1: What Is a Display Manager -->
+    <div class="section-heading">Slide 1 — What Is a Display Manager?</div>
+    <div class="card">
+        <h3>The Login Gateway to Your Graphical Session</h3>
+        <p>A Display Manager (DM) is the program that runs after the Linux kernel and systemd finish booting. It presents the graphical login screen, authenticates the user via PAM (Pluggable Authentication Modules), and then launches the chosen desktop environment or window manager session.</p>
+        <p>Without a display manager, you land in a text-mode console. The DM is what transforms that console into the polished GUI login screen you see on Ubuntu, Fedora, or KDE systems.</p>
+        <p>The DM is responsible for three distinct jobs: rendering the login UI, authenticating credentials, and handing control to the chosen graphical session.</p>
+    </div>
+
+    <!-- Flow: Boot to Desktop -->
+    <div class="card">
+        <h3>Boot Flow: From Power-On to Desktop</h3>
+        <div class="flow-row">
+            <div class="flow-box hardware">
+                <div class="flow-label">HARDWARE</div>
+                <div class="flow-name">BIOS/UEFI</div>
+            </div>
+            <div class="flow-arrow">&rarr;</div>
+            <div class="flow-box hardware">
+                <div class="flow-label">BOOTLOADER</div>
+                <div class="flow-name">GRUB2</div>
+            </div>
+            <div class="flow-arrow">&rarr;</div>
+            <div class="flow-box dm">
+                <div class="flow-label">INIT SYSTEM</div>
+                <div class="flow-name">systemd</div>
+            </div>
+            <div class="flow-arrow">&rarr;</div>
+            <div class="flow-box dm">
+                <div class="flow-label">DISPLAY MGR</div>
+                <div class="flow-name">GDM / LightDM / SDDM</div>
+            </div>
+            <div class="flow-arrow">&rarr;</div>
+            <div class="flow-box session">
+                <div class="flow-label">SESSION</div>
+                <div class="flow-name">X11 or Wayland</div>
+            </div>
+            <div class="flow-arrow">&rarr;</div>
+            <div class="flow-box de">
+                <div class="flow-label">DESKTOP ENV</div>
+                <div class="flow-name">GNOME / KDE / Xfce</div>
+            </div>
+        </div>
+        <div class="insight">
+            <div class="insight-label">KEY CONCEPT</div>
+            <p>systemd starts the display manager as a system service (e.g., <strong>gdm.service</strong>). The DM then owns the display hardware and launches the graphical environment. This is why restarting the display manager restarts only the GUI, not the entire OS.</p>
+        </div>
+    </div>
+
+    <!-- Slide 2: Common Display Managers -->
+    <div class="section-heading">Slide 2 — Common Linux Display Managers</div>
+    <div class="dm-grid">
+        <div class="dm-card">
+            <span class="dm-icon">&#x1F5A5;</span>
+            <span class="dm-tag">GNOME</span>
+            <h4>GDM — GNOME Display Manager</h4>
+            <p>Default on GNOME-based distributions (Ubuntu, Fedora, RHEL). Deeply integrated with GNOME Shell and Wayland. Supports accessibility features and multi-seat configurations. Heavier resource footprint than alternatives.</p>
+        </div>
+        <div class="dm-card">
+            <span class="dm-icon">&#x26A1;</span>
+            <span class="dm-tag">LIGHTWEIGHT</span>
+            <h4>LightDM — Light Display Manager</h4>
+            <p>Designed to be lean and modular. Default on Xfce, MATE, and LXDE distributions (Ubuntu MATE, Linux Mint Xfce). Uses "greeters" (UI plugins) — the gtk-greeter and slick-greeter are popular choices. Highly configurable via /etc/lightdm/.</p>
+        </div>
+        <div class="dm-card">
+            <span class="dm-icon">&#x1F30A;</span>
+            <span class="dm-tag">KDE PLASMA</span>
+            <h4>SDDM — Simple Desktop Display Manager</h4>
+            <p>Default for KDE Plasma. Written in QML/Qt, offering smooth animations and theme support. Works well with both X11 and Wayland. Modern replacement for the older KDM display manager.</p>
+        </div>
+        <div class="dm-card">
+            <span class="dm-icon">&#x1F4BB;</span>
+            <span class="dm-tag">LEGACY / MINIMAL</span>
+            <h4>XDM — X Display Manager</h4>
+            <p>The original X11 display manager. Minimal and functional, no frills. Still used on extremely lightweight or embedded systems. LXDM (LXDE Display Manager) is a similar lightweight option used on low-resource machines.</p>
+        </div>
+    </div>
+
+    <!-- Slide 3: Managing Display Managers -->
+    <div class="section-heading">Slide 3 — Managing Display Managers</div>
+    <div class="card">
+        <h3>systemctl — Starting, Stopping, Enabling Display Managers</h3>
+        <p>Display managers are systemd services. All standard service management commands apply.</p>
+        <div class="code-block">
+<span class="comment"># Check which display manager is currently active</span>
+<span class="cmd">systemctl</span> status display-manager
+
+<span class="comment"># Check the session type (X11 or Wayland)</span>
+echo $XDG_SESSION_TYPE
+
+<span class="comment"># Restart GDM (applies config changes without rebooting)</span>
+sudo <span class="cmd">systemctl</span> restart gdm
+
+<span class="comment"># Restart LightDM</span>
+sudo <span class="cmd">systemctl</span> restart lightdm
+
+<span class="comment"># Enable a display manager to start at boot</span>
+sudo <span class="cmd">systemctl</span> enable gdm
+sudo <span class="cmd">systemctl</span> enable lightdm
+sudo <span class="cmd">systemctl</span> enable sddm
+        </div>
+    </div>
+    <div class="card">
+        <h3>Changing the Default Display Manager</h3>
+        <p>On Debian/Ubuntu systems, the <strong>default-display-manager</strong> file and the <strong>dpkg-reconfigure</strong> command control which DM runs at boot.</p>
+        <div class="code-block">
+<span class="comment"># View the current default display manager</span>
+cat /etc/X11/default-display-manager
+
+<span class="comment"># Change default DM using dpkg (Debian/Ubuntu)</span>
+sudo <span class="cmd">dpkg-reconfigure</span> gdm3
+sudo <span class="cmd">dpkg-reconfigure</span> lightdm
+
+<span class="comment"># On Red Hat / Fedora systems, use systemctl set-default</span>
+sudo <span class="cmd">systemctl</span> set-default graphical.target
+        </div>
+        <table class="data-table">
+            <thead>
+                <tr><th>Display Manager</th><th>Default On</th><th>Service Name</th><th>Config Dir</th></tr>
+            </thead>
+            <tbody>
+                <tr><td>GDM</td><td>Ubuntu, Fedora, RHEL</td><td>gdm.service</td><td>/etc/gdm3/</td></tr>
+                <tr><td>LightDM</td><td>Xfce, MATE, Mint</td><td>lightdm.service</td><td>/etc/lightdm/</td></tr>
+                <tr><td>SDDM</td><td>KDE Plasma</td><td>sddm.service</td><td>/etc/sddm.conf.d/</td></tr>
+                <tr><td>XDM</td><td>Minimal installs</td><td>xdm.service</td><td>/etc/X11/xdm/</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Slide 4: Graphical Sessions — X11 vs Wayland -->
+    <div class="section-heading">Slide 4 — Graphical Sessions: X11 vs Wayland</div>
+    <div class="xsession-grid">
+        <div class="xsession-card">
+            <h4>X11 (X Window System)</h4>
+            <ul>
+                <li>Original Unix graphical display protocol (1984)</li>
+                <li>Client-server model: X Server manages hardware, X Clients are apps</li>
+                <li>Network-transparent — GUIs can run on remote machines</li>
+                <li>Session type: XDG_SESSION_TYPE=x11</li>
+                <li>Config file: /etc/X11/xorg.conf or /etc/X11/xorg.conf.d/</li>
+                <li>Decades of compatibility — nearly universal app support</li>
+            </ul>
+        </div>
+        <div class="xsession-card">
+            <h4>Wayland</h4>
+            <ul>
+                <li>Modern replacement for X11 (first stable 2012)</li>
+                <li>Compositor is both display server and window manager</li>
+                <li>No X Server intermediary — apps communicate directly</li>
+                <li>Session type: XDG_SESSION_TYPE=wayland</li>
+                <li>Better security: apps cannot spy on other apps</li>
+                <li>Smoother rendering, better HiDPI and touchscreen support</li>
+            </ul>
+        </div>
+    </div>
+    <div class="insight">
+        <div class="insight-label">PRACTICAL NOTE</div>
+        <p>Most modern Linux desktops default to Wayland where supported. If a graphical app behaves strangely, it may not yet have Wayland support. Set <strong>WAYLAND_DISPLAY=""</strong> or launch the session in X11 mode from the login screen gear icon to fall back to X11.</p>
+    </div>
+
+    <!-- Slide 5: User Environment & .Xsession -->
+    <div class="section-heading">Slide 5 — User Environment & .Xsession</div>
+    <div class="card">
+        <h3>Session Startup Files</h3>
+        <p>When a user logs in through a display manager, several scripts execute in sequence to configure the user environment, set PATH variables, load daemons, and initialize the window manager or desktop environment.</p>
+        <div class="code-block">
+<span class="comment"># System-wide X session initialization (runs first)</span>
+/etc/X11/Xsession
+/etc/X11/Xsession.d/    <span class="comment"># drop-in scripts, run in order</span>
+
+<span class="comment"># Per-user session customization file</span>
+~/.xsession             <span class="comment"># override desktop environment choice</span>
+~/.xinitrc              <span class="comment"># used by xinit/startx (non-DM sessions)</span>
+
+<span class="comment"># Environment variables loaded at login</span>
+~/.profile
+~/.bash_profile
+~/.pam_environment       <span class="comment"># PAM-based env vars (older systems)</span>
+
+<span class="comment"># Example ~/.xsession to start Openbox instead of default:</span>
+exec openbox-session
+        </div>
+    </div>
+    <div class="card">
+        <h3>Configuring the User Environment</h3>
+        <p>Beyond session startup, the user environment is shaped by shell configuration and environment variables set at login time.</p>
+        <div class="code-block">
+<span class="comment"># Check current locale (language/formatting settings)</span>
+locale
+locale -a               <span class="comment"># list all available locales</span>
+
+<span class="comment"># Set system-wide locale (requires root)</span>
+sudo <span class="cmd">localectl</span> set-locale LANG=en_US.UTF-8
+
+<span class="comment"># Set keyboard layout</span>
+sudo <span class="cmd">localectl</span> set-keymap us
+
+<span class="comment"># Set timezone</span>
+sudo <span class="cmd">timedatectl</span> set-timezone America/New_York
+sudo <span class="cmd">timedatectl</span> set-ntp true    <span class="comment"># sync with NTP</span>
+
+<span class="comment"># Verify display manager and session variables</span>
+echo $DISPLAY            <span class="comment"># e.g. :0 for first X session</span>
+echo $XDG_SESSION_TYPE   <span class="comment"># x11 or wayland</span>
+echo $DESKTOP_SESSION    <span class="comment"># e.g. gnome, plasma, xfce</span>
+        </div>
+        <div class="insight warn">
+            <div class="insight-label">ADMIN TIP</div>
+            <p>The <strong>DISPLAY</strong> environment variable tells X clients which display server to connect to. The value <strong>:0</strong> means the first local display. When running commands via SSH or cron that need to interact with a graphical session, you must export DISPLAY=:0 or the commands will fail with "cannot open display."</p>
+        </div>
+    </div>
+
+    <!-- Slide 6: Troubleshooting Display Managers -->
+    <div class="section-heading">Slide 6 — Troubleshooting Display Managers</div>
+    <div class="card">
+        <h3>Common Display Manager Failures and Solutions</h3>
+        <table class="data-table">
+            <thead>
+                <tr><th>Symptom</th><th>Likely Cause</th><th>Fix</th></tr>
+            </thead>
+            <tbody>
+                <tr><td>Black screen after login</td><td>Corrupt ~/.xsession or wrong WM</td><td>Delete ~/.xsession, restart DM</td></tr>
+                <tr><td>Login loop (returns to login screen)</td><td>Bad .bashrc or disk full /home</td><td>Check ~/.xsession-errors, df -h</td></tr>
+                <tr><td>DM not starting at boot</td><td>Service disabled or graphical.target not set</td><td>systemctl enable gdm; set-default graphical.target</td></tr>
+                <tr><td>Wayland app crashes</td><td>App not Wayland-compatible</td><td>Force X11 session from login screen</td></tr>
+                <tr><td>No graphical login after driver install</td><td>GPU driver conflict with X server</td><td>Boot to runlevel 3, reconfigure driver</td></tr>
+            </tbody>
+        </table>
+        <div class="code-block">
+<span class="comment"># Check error logs when display manager fails</span>
+journalctl <span class="flag">-u</span> gdm <span class="flag">--since today</span>
+journalctl <span class="flag">-u</span> lightdm <span class="flag">-n 50</span>
+
+<span class="comment"># Check user session errors (most useful for login loops)</span>
+cat ~/.xsession-errors
+
+<span class="comment"># If GUI is broken, switch to a virtual console to troubleshoot</span>
+<span class="comment"># Press Ctrl+Alt+F2 to switch to tty2, Ctrl+Alt+F7 to return to GUI</span>
+
+<span class="comment"># Disable display manager temporarily (boot to text mode)</span>
+sudo <span class="cmd">systemctl</span> set-default multi-user.target
+sudo reboot
+<span class="comment"># Re-enable graphical login:</span>
+sudo <span class="cmd">systemctl</span> set-default graphical.target
+        </div>
+    </div>
+
+    <!-- Completion -->
+    <div class="completion-bar">
+        <h3>Chapter 7 Complete</h3>
+        <p>Mark this presentation complete to record your progress and unlock the quiz.</p>
+        <button class="btn-complete" id="completeBtn" onclick="markComplete()">Mark as Complete</button>
+        <div class="complete-msg" id="completeMsg">Progress saved. Head to the quiz to test your knowledge.</div>
+    </div>
+
+</div>
+
+<script src="../../../../../components/FluxCapacitor.js"></script>
+<script>
+    function markComplete() {
+        const btn = document.getElementById('completeBtn');
+        const msg = document.getElementById('completeMsg');
+        btn.disabled = true;
+        btn.textContent = 'Saving...';
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('script', 'script-la-ch07');
+        }
+        btn.textContent = 'Completed';
+        msg.style.display = 'block';
+    }
+
+    (function checkCompleted() {
+        const progress = JSON.parse(localStorage.getItem('hexworth_progress') || '{}');
+        if (progress['script-la-ch07']) {
+            document.getElementById('completeBtn').textContent = 'Completed';
+            document.getElementById('completeBtn').disabled = true;
+            document.getElementById('completeMsg').style.display = 'block';
+        }
+    })();
+</script>
+</body>
+</html>

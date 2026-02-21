@@ -1891,6 +1891,40 @@ class LearningPaths {
             ]
         },
 
+        // Linux Administration — Script House
+        'linux-admin': {
+            name: 'Linux Administration',
+            description: 'Advanced Linux administration — distributions, processes, daemons, display managers, networking, IPv4, compression, encryption, grep/pipes, and compilation',
+            icon: '🐧',
+            color: '#22c55e',
+            modules: [
+                { id: 'script-la-ch01', title: 'Introduction to Linux', type: 'presentation', href: 'houses/script/linux/presentations/la-ch01-intro.presentation.html' },
+                { id: 'script-la-ch01-lab', title: 'Linux Basics Lab', type: 'lab', href: 'houses/script/linux/labs/la-ch01-intro.lab.html' },
+                { id: 'script-la-ch02', title: 'Linux Distributions & Uses', type: 'presentation', href: 'houses/script/linux/presentations/la-ch02-distros.presentation.html' },
+                { id: 'script-la-ch02-lab', title: 'Distributions Lab', type: 'lab', href: 'houses/script/linux/labs/la-ch02-distros.lab.html' },
+                { id: 'script-la-ch03', title: 'Grep, Pipes & Text Processing', type: 'presentation', href: 'houses/script/linux/presentations/la-ch03-grep-pipes.presentation.html' },
+                { id: 'script-la-ch03-lab', title: 'Grep & Pipes Lab', type: 'lab', href: 'houses/script/linux/labs/la-ch03-grep-pipes.lab.html' },
+                { id: 'script-la-ch04', title: 'Process Management & Nice Values', type: 'presentation', href: 'houses/script/linux/presentations/la-ch04-processes.presentation.html' },
+                { id: 'script-la-ch04-lab', title: 'Process Management Lab', type: 'lab', href: 'houses/script/linux/labs/la-ch04-processes.lab.html' },
+                { id: 'script-la-ch05', title: 'Daemons & Services', type: 'presentation', href: 'houses/script/linux/presentations/la-ch05-daemons.presentation.html' },
+                { id: 'script-la-ch05-lab', title: 'Daemons Lab', type: 'lab', href: 'houses/script/linux/labs/la-ch05-daemons.lab.html' },
+                { id: 'script-la-ch06', title: 'Initialization, X Windows & Localization', type: 'presentation', href: 'houses/script/linux/presentations/la-ch06-init-xwindows.presentation.html' },
+                { id: 'script-la-ch06-lab', title: 'Init & X Windows Lab', type: 'lab', href: 'houses/script/linux/labs/la-ch06-init-xwindows.lab.html' },
+                { id: 'script-la-ch07', title: 'Display Managers & User Sessions', type: 'presentation', href: 'houses/script/linux/presentations/la-ch07-display-mgr.presentation.html' },
+                { id: 'script-la-ch07-lab', title: 'Display Managers Lab', type: 'lab', href: 'houses/script/linux/labs/la-ch07-display-mgr.lab.html' },
+                { id: 'script-la-ch08', title: 'Network Interface Configuration', type: 'presentation', href: 'houses/script/linux/presentations/la-ch08-network.presentation.html' },
+                { id: 'script-la-ch08-lab', title: 'Network Configuration Lab', type: 'lab', href: 'houses/script/linux/labs/la-ch08-network.lab.html' },
+                { id: 'script-la-ch09', title: 'IPv4 Protocol & Networking', type: 'presentation', href: 'houses/script/linux/presentations/la-ch09-ipv4.presentation.html' },
+                { id: 'script-la-ch09-lab', title: 'IPv4 Networking Lab', type: 'lab', href: 'houses/script/linux/labs/la-ch09-ipv4.lab.html' },
+                { id: 'script-la-ch10', title: 'File Compression & Archiving', type: 'presentation', href: 'houses/script/linux/presentations/la-ch10-compression.presentation.html' },
+                { id: 'script-la-ch10-lab', title: 'Compression Lab', type: 'lab', href: 'houses/script/linux/labs/la-ch10-compression.lab.html' },
+                { id: 'script-la-ch11', title: 'Linux Encryption', type: 'presentation', href: 'houses/script/linux/presentations/la-ch11-encryption.presentation.html' },
+                { id: 'script-la-ch11-lab', title: 'Encryption Lab', type: 'lab', href: 'houses/script/linux/labs/la-ch11-encryption.lab.html' },
+                { id: 'script-la-ch12', title: 'Compiling Source Code', type: 'presentation', href: 'houses/script/linux/presentations/la-ch12-compile.presentation.html' },
+                { id: 'script-la-ch12-lab', title: 'Source Compilation Lab', type: 'lab', href: 'houses/script/linux/labs/la-ch12-compile.lab.html' }
+            ]
+        },
+
         // CompTIA CySA+ (CS0-003) — Eye House
         'cysa': {
             name: 'CompTIA CySA+',

@@ -19220,6 +19220,600 @@ const ContentRegistry = {
             objectives: []
         },
 
+
+        // ─── SCRIPT HOUSE — Linux Administration ───
+        'script-la-ch01-pres': {
+            id: 'script-la-ch01-pres',
+            title: 'Linux Admin Ch 1: Introduction to Linux',
+            description: 'Linux Administration Chapter 1 — Introduction to Linux',
+            house: 'script',
+            type: 'presentation',
+            difficulty: 'beginner',
+            duration: 30,
+            topics: ["linux","CLI","shell","terminal"],
+            paths: ['linux-admin'],
+            components: {
+                presentation: 'houses/script/linux/presentations/la-ch01-intro.presentation.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'script-la-ch01-quiz': {
+            id: 'script-la-ch01-quiz',
+            title: 'Linux Admin Ch 1 Quiz: Introduction to Linux',
+            description: 'Quiz on Linux Administration Chapter 1 — Introduction to Linux',
+            house: 'script',
+            type: 'quiz',
+            difficulty: 'beginner',
+            duration: 15,
+            topics: ["linux","CLI","shell","terminal"],
+            paths: ['linux-admin'],
+            components: {
+                quiz: 'houses/script/linux/quizzes/la-ch01-quiz.quiz.html'
+            },
+            prerequisites: ['script-la-ch01-pres'],
+            objectives: []
+        },
+        'script-la-ch01-lab': {
+            id: 'script-la-ch01-lab',
+            title: 'Linux Admin Ch 1 Lab: Introduction to Linux',
+            description: 'Hands-on lab for Linux Administration Chapter 1 — Introduction to Linux',
+            house: 'script',
+            type: 'lab',
+            difficulty: 'beginner',
+            duration: 45,
+            topics: ["linux","CLI","shell","terminal"],
+            paths: ['linux-admin'],
+            components: {
+                lab: 'houses/script/linux/labs/la-ch01-intro.lab.html'
+            },
+            prerequisites: ['script-la-ch01-pres'],
+            objectives: []
+        },
+        'script-la-ch02-pres': {
+            id: 'script-la-ch02-pres',
+            title: 'Linux Admin Ch 2: Linux Distributions & Uses',
+            description: 'Linux Administration Chapter 2 — Linux Distributions & Uses',
+            house: 'script',
+            type: 'presentation',
+            difficulty: 'beginner',
+            duration: 30,
+            topics: ["distributions","Ubuntu","CentOS","Kali"],
+            paths: ['linux-admin'],
+            components: {
+                presentation: 'houses/script/linux/presentations/la-ch02-distros.presentation.html'
+            },
+            prerequisites: ['script-la-ch01-pres'],
+            objectives: []
+        },
+        'script-la-ch02-quiz': {
+            id: 'script-la-ch02-quiz',
+            title: 'Linux Admin Ch 2 Quiz: Linux Distributions & Uses',
+            description: 'Quiz on Linux Administration Chapter 2 — Linux Distributions & Uses',
+            house: 'script',
+            type: 'quiz',
+            difficulty: 'beginner',
+            duration: 15,
+            topics: ["distributions","Ubuntu","CentOS","Kali"],
+            paths: ['linux-admin'],
+            components: {
+                quiz: 'houses/script/linux/quizzes/la-ch02-quiz.quiz.html'
+            },
+            prerequisites: ['script-la-ch02-pres'],
+            objectives: []
+        },
+        'script-la-ch02-lab': {
+            id: 'script-la-ch02-lab',
+            title: 'Linux Admin Ch 2 Lab: Linux Distributions & Uses',
+            description: 'Hands-on lab for Linux Administration Chapter 2 — Linux Distributions & Uses',
+            house: 'script',
+            type: 'lab',
+            difficulty: 'beginner',
+            duration: 45,
+            topics: ["distributions","Ubuntu","CentOS","Kali"],
+            paths: ['linux-admin'],
+            components: {
+                lab: 'houses/script/linux/labs/la-ch02-distros.lab.html'
+            },
+            prerequisites: ['script-la-ch02-pres'],
+            objectives: []
+        },
+        'script-la-ch03-pres': {
+            id: 'script-la-ch03-pres',
+            title: 'Linux Admin Ch 3: Grep, Pipes & Text Processing',
+            description: 'Linux Administration Chapter 3 — Grep, Pipes & Text Processing',
+            house: 'script',
+            type: 'presentation',
+            difficulty: 'beginner',
+            duration: 30,
+            topics: ["grep","pipes","regex","text-processing"],
+            paths: ['linux-admin'],
+            components: {
+                presentation: 'houses/script/linux/presentations/la-ch03-grep-pipes.presentation.html'
+            },
+            prerequisites: ['script-la-ch02-pres'],
+            objectives: []
+        },
+        'script-la-ch03-quiz': {
+            id: 'script-la-ch03-quiz',
+            title: 'Linux Admin Ch 3 Quiz: Grep, Pipes & Text Processing',
+            description: 'Quiz on Linux Administration Chapter 3 — Grep, Pipes & Text Processing',
+            house: 'script',
+            type: 'quiz',
+            difficulty: 'beginner',
+            duration: 15,
+            topics: ["grep","pipes","regex","text-processing"],
+            paths: ['linux-admin'],
+            components: {
+                quiz: 'houses/script/linux/quizzes/la-ch03-quiz.quiz.html'
+            },
+            prerequisites: ['script-la-ch03-pres'],
+            objectives: []
+        },
+        'script-la-ch03-lab': {
+            id: 'script-la-ch03-lab',
+            title: 'Linux Admin Ch 3 Lab: Grep, Pipes & Text Processing',
+            description: 'Hands-on lab for Linux Administration Chapter 3 — Grep, Pipes & Text Processing',
+            house: 'script',
+            type: 'lab',
+            difficulty: 'beginner',
+            duration: 45,
+            topics: ["grep","pipes","regex","text-processing"],
+            paths: ['linux-admin'],
+            components: {
+                lab: 'houses/script/linux/labs/la-ch03-grep-pipes.lab.html'
+            },
+            prerequisites: ['script-la-ch03-pres'],
+            objectives: []
+        },
+        'script-la-ch04-pres': {
+            id: 'script-la-ch04-pres',
+            title: 'Linux Admin Ch 4: Process Management & Nice Values',
+            description: 'Linux Administration Chapter 4 — Process Management & Nice Values',
+            house: 'script',
+            type: 'presentation',
+            difficulty: 'beginner',
+            duration: 30,
+            topics: ["processes","nice","top","ps","kill"],
+            paths: ['linux-admin'],
+            components: {
+                presentation: 'houses/script/linux/presentations/la-ch04-processes.presentation.html'
+            },
+            prerequisites: ['script-la-ch03-pres'],
+            objectives: []
+        },
+        'script-la-ch04-quiz': {
+            id: 'script-la-ch04-quiz',
+            title: 'Linux Admin Ch 4 Quiz: Process Management & Nice Values',
+            description: 'Quiz on Linux Administration Chapter 4 — Process Management & Nice Values',
+            house: 'script',
+            type: 'quiz',
+            difficulty: 'beginner',
+            duration: 15,
+            topics: ["processes","nice","top","ps","kill"],
+            paths: ['linux-admin'],
+            components: {
+                quiz: 'houses/script/linux/quizzes/la-ch04-quiz.quiz.html'
+            },
+            prerequisites: ['script-la-ch04-pres'],
+            objectives: []
+        },
+        'script-la-ch04-lab': {
+            id: 'script-la-ch04-lab',
+            title: 'Linux Admin Ch 4 Lab: Process Management & Nice Values',
+            description: 'Hands-on lab for Linux Administration Chapter 4 — Process Management & Nice Values',
+            house: 'script',
+            type: 'lab',
+            difficulty: 'beginner',
+            duration: 45,
+            topics: ["processes","nice","top","ps","kill"],
+            paths: ['linux-admin'],
+            components: {
+                lab: 'houses/script/linux/labs/la-ch04-processes.lab.html'
+            },
+            prerequisites: ['script-la-ch04-pres'],
+            objectives: []
+        },
+        'script-la-ch05-pres': {
+            id: 'script-la-ch05-pres',
+            title: 'Linux Admin Ch 5: Daemons & Services',
+            description: 'Linux Administration Chapter 5 — Daemons & Services',
+            house: 'script',
+            type: 'presentation',
+            difficulty: 'intermediate',
+            duration: 30,
+            topics: ["daemons","systemd","services","init"],
+            paths: ['linux-admin'],
+            components: {
+                presentation: 'houses/script/linux/presentations/la-ch05-daemons.presentation.html'
+            },
+            prerequisites: ['script-la-ch04-pres'],
+            objectives: []
+        },
+        'script-la-ch05-quiz': {
+            id: 'script-la-ch05-quiz',
+            title: 'Linux Admin Ch 5 Quiz: Daemons & Services',
+            description: 'Quiz on Linux Administration Chapter 5 — Daemons & Services',
+            house: 'script',
+            type: 'quiz',
+            difficulty: 'intermediate',
+            duration: 15,
+            topics: ["daemons","systemd","services","init"],
+            paths: ['linux-admin'],
+            components: {
+                quiz: 'houses/script/linux/quizzes/la-ch05-quiz.quiz.html'
+            },
+            prerequisites: ['script-la-ch05-pres'],
+            objectives: []
+        },
+        'script-la-ch05-lab': {
+            id: 'script-la-ch05-lab',
+            title: 'Linux Admin Ch 5 Lab: Daemons & Services',
+            description: 'Hands-on lab for Linux Administration Chapter 5 — Daemons & Services',
+            house: 'script',
+            type: 'lab',
+            difficulty: 'intermediate',
+            duration: 45,
+            topics: ["daemons","systemd","services","init"],
+            paths: ['linux-admin'],
+            components: {
+                lab: 'houses/script/linux/labs/la-ch05-daemons.lab.html'
+            },
+            prerequisites: ['script-la-ch05-pres'],
+            objectives: []
+        },
+        'script-la-ch06-pres': {
+            id: 'script-la-ch06-pres',
+            title: 'Linux Admin Ch 6: Initialization, X Windows & Localization',
+            description: 'Linux Administration Chapter 6 — Initialization, X Windows & Localization',
+            house: 'script',
+            type: 'presentation',
+            difficulty: 'intermediate',
+            duration: 30,
+            topics: ["boot","init","X11","localization"],
+            paths: ['linux-admin'],
+            components: {
+                presentation: 'houses/script/linux/presentations/la-ch06-init-xwindows.presentation.html'
+            },
+            prerequisites: ['script-la-ch05-pres'],
+            objectives: []
+        },
+        'script-la-ch06-quiz': {
+            id: 'script-la-ch06-quiz',
+            title: 'Linux Admin Ch 6 Quiz: Initialization, X Windows & Localization',
+            description: 'Quiz on Linux Administration Chapter 6 — Initialization, X Windows & Localization',
+            house: 'script',
+            type: 'quiz',
+            difficulty: 'intermediate',
+            duration: 15,
+            topics: ["boot","init","X11","localization"],
+            paths: ['linux-admin'],
+            components: {
+                quiz: 'houses/script/linux/quizzes/la-ch06-quiz.quiz.html'
+            },
+            prerequisites: ['script-la-ch06-pres'],
+            objectives: []
+        },
+        'script-la-ch06-lab': {
+            id: 'script-la-ch06-lab',
+            title: 'Linux Admin Ch 6 Lab: Initialization, X Windows & Localization',
+            description: 'Hands-on lab for Linux Administration Chapter 6 — Initialization, X Windows & Localization',
+            house: 'script',
+            type: 'lab',
+            difficulty: 'intermediate',
+            duration: 45,
+            topics: ["boot","init","X11","localization"],
+            paths: ['linux-admin'],
+            components: {
+                lab: 'houses/script/linux/labs/la-ch06-init-xwindows.lab.html'
+            },
+            prerequisites: ['script-la-ch06-pres'],
+            objectives: []
+        },
+        'script-la-ch07-pres': {
+            id: 'script-la-ch07-pres',
+            title: 'Linux Admin Ch 7: Display Managers & User Sessions',
+            description: 'Linux Administration Chapter 7 — Display Managers & User Sessions',
+            house: 'script',
+            type: 'presentation',
+            difficulty: 'intermediate',
+            duration: 30,
+            topics: ["display-manager","GDM","LightDM","sessions"],
+            paths: ['linux-admin'],
+            components: {
+                presentation: 'houses/script/linux/presentations/la-ch07-display-mgr.presentation.html'
+            },
+            prerequisites: ['script-la-ch06-pres'],
+            objectives: []
+        },
+        'script-la-ch07-quiz': {
+            id: 'script-la-ch07-quiz',
+            title: 'Linux Admin Ch 7 Quiz: Display Managers & User Sessions',
+            description: 'Quiz on Linux Administration Chapter 7 — Display Managers & User Sessions',
+            house: 'script',
+            type: 'quiz',
+            difficulty: 'intermediate',
+            duration: 15,
+            topics: ["display-manager","GDM","LightDM","sessions"],
+            paths: ['linux-admin'],
+            components: {
+                quiz: 'houses/script/linux/quizzes/la-ch07-quiz.quiz.html'
+            },
+            prerequisites: ['script-la-ch07-pres'],
+            objectives: []
+        },
+        'script-la-ch07-lab': {
+            id: 'script-la-ch07-lab',
+            title: 'Linux Admin Ch 7 Lab: Display Managers & User Sessions',
+            description: 'Hands-on lab for Linux Administration Chapter 7 — Display Managers & User Sessions',
+            house: 'script',
+            type: 'lab',
+            difficulty: 'intermediate',
+            duration: 45,
+            topics: ["display-manager","GDM","LightDM","sessions"],
+            paths: ['linux-admin'],
+            components: {
+                lab: 'houses/script/linux/labs/la-ch07-display-mgr.lab.html'
+            },
+            prerequisites: ['script-la-ch07-pres'],
+            objectives: []
+        },
+        'script-la-ch08-pres': {
+            id: 'script-la-ch08-pres',
+            title: 'Linux Admin Ch 8: Network Interface Configuration',
+            description: 'Linux Administration Chapter 8 — Network Interface Configuration',
+            house: 'script',
+            type: 'presentation',
+            difficulty: 'intermediate',
+            duration: 30,
+            topics: ["networking","ifconfig","ip","netplan"],
+            paths: ['linux-admin'],
+            components: {
+                presentation: 'houses/script/linux/presentations/la-ch08-network.presentation.html'
+            },
+            prerequisites: ['script-la-ch07-pres'],
+            objectives: []
+        },
+        'script-la-ch08-quiz': {
+            id: 'script-la-ch08-quiz',
+            title: 'Linux Admin Ch 8 Quiz: Network Interface Configuration',
+            description: 'Quiz on Linux Administration Chapter 8 — Network Interface Configuration',
+            house: 'script',
+            type: 'quiz',
+            difficulty: 'intermediate',
+            duration: 15,
+            topics: ["networking","ifconfig","ip","netplan"],
+            paths: ['linux-admin'],
+            components: {
+                quiz: 'houses/script/linux/quizzes/la-ch08-quiz.quiz.html'
+            },
+            prerequisites: ['script-la-ch08-pres'],
+            objectives: []
+        },
+        'script-la-ch08-lab': {
+            id: 'script-la-ch08-lab',
+            title: 'Linux Admin Ch 8 Lab: Network Interface Configuration',
+            description: 'Hands-on lab for Linux Administration Chapter 8 — Network Interface Configuration',
+            house: 'script',
+            type: 'lab',
+            difficulty: 'intermediate',
+            duration: 45,
+            topics: ["networking","ifconfig","ip","netplan"],
+            paths: ['linux-admin'],
+            components: {
+                lab: 'houses/script/linux/labs/la-ch08-network.lab.html'
+            },
+            prerequisites: ['script-la-ch08-pres'],
+            objectives: []
+        },
+        'script-la-ch09-pres': {
+            id: 'script-la-ch09-pres',
+            title: 'Linux Admin Ch 9: IPv4 Protocol & Networking',
+            description: 'Linux Administration Chapter 9 — IPv4 Protocol & Networking',
+            house: 'script',
+            type: 'presentation',
+            difficulty: 'advanced',
+            duration: 30,
+            topics: ["IPv4","TCP-IP","subnetting","routing"],
+            paths: ['linux-admin'],
+            components: {
+                presentation: 'houses/script/linux/presentations/la-ch09-ipv4.presentation.html'
+            },
+            prerequisites: ['script-la-ch08-pres'],
+            objectives: []
+        },
+        'script-la-ch09-quiz': {
+            id: 'script-la-ch09-quiz',
+            title: 'Linux Admin Ch 9 Quiz: IPv4 Protocol & Networking',
+            description: 'Quiz on Linux Administration Chapter 9 — IPv4 Protocol & Networking',
+            house: 'script',
+            type: 'quiz',
+            difficulty: 'advanced',
+            duration: 15,
+            topics: ["IPv4","TCP-IP","subnetting","routing"],
+            paths: ['linux-admin'],
+            components: {
+                quiz: 'houses/script/linux/quizzes/la-ch09-quiz.quiz.html'
+            },
+            prerequisites: ['script-la-ch09-pres'],
+            objectives: []
+        },
+        'script-la-ch09-lab': {
+            id: 'script-la-ch09-lab',
+            title: 'Linux Admin Ch 9 Lab: IPv4 Protocol & Networking',
+            description: 'Hands-on lab for Linux Administration Chapter 9 — IPv4 Protocol & Networking',
+            house: 'script',
+            type: 'lab',
+            difficulty: 'advanced',
+            duration: 45,
+            topics: ["IPv4","TCP-IP","subnetting","routing"],
+            paths: ['linux-admin'],
+            components: {
+                lab: 'houses/script/linux/labs/la-ch09-ipv4.lab.html'
+            },
+            prerequisites: ['script-la-ch09-pres'],
+            objectives: []
+        },
+        'script-la-ch10-pres': {
+            id: 'script-la-ch10-pres',
+            title: 'Linux Admin Ch 10: File Compression & Archiving',
+            description: 'Linux Administration Chapter 10 — File Compression & Archiving',
+            house: 'script',
+            type: 'presentation',
+            difficulty: 'advanced',
+            duration: 30,
+            topics: ["tar","gzip","bzip2","compression"],
+            paths: ['linux-admin'],
+            components: {
+                presentation: 'houses/script/linux/presentations/la-ch10-compression.presentation.html'
+            },
+            prerequisites: ['script-la-ch09-pres'],
+            objectives: []
+        },
+        'script-la-ch10-quiz': {
+            id: 'script-la-ch10-quiz',
+            title: 'Linux Admin Ch 10 Quiz: File Compression & Archiving',
+            description: 'Quiz on Linux Administration Chapter 10 — File Compression & Archiving',
+            house: 'script',
+            type: 'quiz',
+            difficulty: 'advanced',
+            duration: 15,
+            topics: ["tar","gzip","bzip2","compression"],
+            paths: ['linux-admin'],
+            components: {
+                quiz: 'houses/script/linux/quizzes/la-ch10-quiz.quiz.html'
+            },
+            prerequisites: ['script-la-ch10-pres'],
+            objectives: []
+        },
+        'script-la-ch10-lab': {
+            id: 'script-la-ch10-lab',
+            title: 'Linux Admin Ch 10 Lab: File Compression & Archiving',
+            description: 'Hands-on lab for Linux Administration Chapter 10 — File Compression & Archiving',
+            house: 'script',
+            type: 'lab',
+            difficulty: 'advanced',
+            duration: 45,
+            topics: ["tar","gzip","bzip2","compression"],
+            paths: ['linux-admin'],
+            components: {
+                lab: 'houses/script/linux/labs/la-ch10-compression.lab.html'
+            },
+            prerequisites: ['script-la-ch10-pres'],
+            objectives: []
+        },
+        'script-la-ch11-pres': {
+            id: 'script-la-ch11-pres',
+            title: 'Linux Admin Ch 11: Linux Encryption',
+            description: 'Linux Administration Chapter 11 — Linux Encryption',
+            house: 'script',
+            type: 'presentation',
+            difficulty: 'advanced',
+            duration: 30,
+            topics: ["GPG","LUKS","encryption","hashing"],
+            paths: ['linux-admin'],
+            components: {
+                presentation: 'houses/script/linux/presentations/la-ch11-encryption.presentation.html'
+            },
+            prerequisites: ['script-la-ch10-pres'],
+            objectives: []
+        },
+        'script-la-ch11-quiz': {
+            id: 'script-la-ch11-quiz',
+            title: 'Linux Admin Ch 11 Quiz: Linux Encryption',
+            description: 'Quiz on Linux Administration Chapter 11 — Linux Encryption',
+            house: 'script',
+            type: 'quiz',
+            difficulty: 'advanced',
+            duration: 15,
+            topics: ["GPG","LUKS","encryption","hashing"],
+            paths: ['linux-admin'],
+            components: {
+                quiz: 'houses/script/linux/quizzes/la-ch11-quiz.quiz.html'
+            },
+            prerequisites: ['script-la-ch11-pres'],
+            objectives: []
+        },
+        'script-la-ch11-lab': {
+            id: 'script-la-ch11-lab',
+            title: 'Linux Admin Ch 11 Lab: Linux Encryption',
+            description: 'Hands-on lab for Linux Administration Chapter 11 — Linux Encryption',
+            house: 'script',
+            type: 'lab',
+            difficulty: 'advanced',
+            duration: 45,
+            topics: ["GPG","LUKS","encryption","hashing"],
+            paths: ['linux-admin'],
+            components: {
+                lab: 'houses/script/linux/labs/la-ch11-encryption.lab.html'
+            },
+            prerequisites: ['script-la-ch11-pres'],
+            objectives: []
+        },
+        'script-la-ch12-pres': {
+            id: 'script-la-ch12-pres',
+            title: 'Linux Admin Ch 12: Compiling Source Code',
+            description: 'Linux Administration Chapter 12 — Compiling Source Code',
+            house: 'script',
+            type: 'presentation',
+            difficulty: 'advanced',
+            duration: 30,
+            topics: ["gcc","make","compilation","source-code"],
+            paths: ['linux-admin'],
+            components: {
+                presentation: 'houses/script/linux/presentations/la-ch12-compile.presentation.html'
+            },
+            prerequisites: ['script-la-ch11-pres'],
+            objectives: []
+        },
+        'script-la-ch12-quiz': {
+            id: 'script-la-ch12-quiz',
+            title: 'Linux Admin Ch 12 Quiz: Compiling Source Code',
+            description: 'Quiz on Linux Administration Chapter 12 — Compiling Source Code',
+            house: 'script',
+            type: 'quiz',
+            difficulty: 'advanced',
+            duration: 15,
+            topics: ["gcc","make","compilation","source-code"],
+            paths: ['linux-admin'],
+            components: {
+                quiz: 'houses/script/linux/quizzes/la-ch12-quiz.quiz.html'
+            },
+            prerequisites: ['script-la-ch12-pres'],
+            objectives: []
+        },
+        'script-la-ch12-lab': {
+            id: 'script-la-ch12-lab',
+            title: 'Linux Admin Ch 12 Lab: Compiling Source Code',
+            description: 'Hands-on lab for Linux Administration Chapter 12 — Compiling Source Code',
+            house: 'script',
+            type: 'lab',
+            difficulty: 'advanced',
+            duration: 45,
+            topics: ["gcc","make","compilation","source-code"],
+            paths: ['linux-admin'],
+            components: {
+                lab: 'houses/script/linux/labs/la-ch12-compile.lab.html'
+            },
+            prerequisites: ['script-la-ch12-pres'],
+            objectives: []
+        },
+        'script-la-comprehensive-review': {
+            id: 'script-la-comprehensive-review',
+            title: 'Linux Administration Comprehensive Review',
+            description: 'Jeopardy-style review game covering all 12 chapters of the Linux Administration course',
+            house: 'script',
+            type: 'quiz',
+            difficulty: 'advanced',
+            duration: 30,
+            topics: ['linux', 'review', 'comprehensive'],
+            paths: ['linux-admin'],
+            components: {
+                quiz: 'houses/script/linux/reviews/la-comprehensive-review.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
         // ─── EYE HOUSE — CompTIA CySA+ (CS0-003) ───
         'eye-cysa-ch01-pres': {
             id: 'eye-cysa-ch01-pres',

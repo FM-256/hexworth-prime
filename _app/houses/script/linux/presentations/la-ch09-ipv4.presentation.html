@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ch 9: IPv4 Protocol — Linux Admin</title>
+    <script src="../../../../../components/AchievementManager.js"></script>
+    <script src="../../../../../components/ModuleProgress.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --script-green: #22c55e; --script-accent: #4ade80;
+            --script-glow: rgba(34, 197, 94, 0.35);
+            --bg-card: rgba(10, 20, 10, 0.85);
+            --text-primary: #e8f5e8; --text-secondary: #7aaa7a;
+            --ok: #4ade80; --warn: #fbbf24; --bad: #f87171;
+            --border: rgba(34, 197, 94, 0.2);
+        }
+        body { font-family: 'Segoe UI', system-ui, sans-serif; background: linear-gradient(135deg, #0a0a12, #0a1a0f, #0a250a); color: var(--text-primary); line-height: 1.7; min-height: 100vh; }
+        .site-header { background: rgba(10,10,18,0.95); border-bottom: 1px solid var(--border); padding: 0.9rem 2rem; position: sticky; top: 0; z-index: 100; display: flex; align-items: center; justify-content: space-between; backdrop-filter: blur(10px); }
+        .back-link { color: var(--script-green); text-decoration: none; font-size: 0.9rem; font-weight: 600; display: flex; align-items: center; gap: 0.4rem; transition: opacity 0.2s; }
+        .back-link:hover { opacity: 0.75; }
+        .header-badge { background: linear-gradient(135deg, var(--script-green), var(--script-accent)); color: #000; padding: 0.35rem 1rem; border-radius: 20px; font-size: 0.78rem; font-weight: 700; letter-spacing: 0.05em; }
+        .container { max-width: 1100px; margin: 0 auto; padding: 2.5rem 2rem 4rem; }
+        .hero { text-align: center; padding: 3.5rem 2rem 2.5rem; background: var(--bg-card); border: 1px solid var(--border); border-radius: 20px; margin-bottom: 2.5rem; position: relative; overflow: hidden; }
+        .hero::before { content: ''; position: absolute; top: -80px; left: 50%; transform: translateX(-50%); width: 400px; height: 400px; background: radial-gradient(circle, var(--script-glow) 0%, transparent 70%); pointer-events: none; }
+        .module-tag { display: inline-block; background: rgba(34,197,94,0.12); color: var(--script-green); border: 1px solid var(--border); padding: 0.3rem 1rem; border-radius: 20px; font-size: 0.78rem; font-weight: 700; letter-spacing: 0.08em; margin-bottom: 1.2rem; }
+        .hero h1 { font-size: 2.2rem; font-weight: 800; margin-bottom: 0.75rem; }
+        .hero h1 span { color: var(--script-green); }
+        .hero p { color: var(--text-secondary); font-size: 1.05rem; max-width: 680px; margin: 0 auto; }
+        .section-heading { display: flex; align-items: center; gap: 0.75rem; font-size: 1.4rem; font-weight: 700; color: var(--script-green); margin: 2.5rem 0 1.25rem; }
+        .section-heading::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+        .card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 16px; padding: 1.75rem; margin-bottom: 1.5rem; }
+        .card h3 { font-size: 1.15rem; color: var(--script-accent); margin-bottom: 0.9rem; }
+        .card p { color: var(--text-secondary); font-size: 0.95rem; margin-bottom: 0.75rem; }
+        .card p:last-child { margin-bottom: 0; }
+        .code-block { background: rgba(0,0,0,0.5); border: 1px solid rgba(34,197,94,0.15); border-radius: 10px; padding: 1.25rem 1.5rem; margin: 1rem 0; font-family: 'Courier New', monospace; font-size: 0.88rem; color: var(--script-accent); overflow-x: auto; line-height: 1.8; }
+        .code-block .comment { color: #4a7a4a; font-style: italic; }
+        .code-block .cmd { color: var(--script-green); }
+        .code-block .val { color: #60a5fa; }
+        /* IP Address visual */
+        .ip-visual { display: flex; align-items: stretch; gap: 0; margin: 1.5rem 0; border-radius: 12px; overflow: hidden; border: 1px solid var(--border); }
+        .ip-octet { flex: 1; text-align: center; padding: 1.25rem 0.5rem; }
+        .ip-octet.net { background: rgba(34,197,94,0.1); }
+        .ip-octet.host { background: rgba(74,222,128,0.05); }
+        .ip-octet .oct-val { font-family: 'Courier New', monospace; font-size: 1.4rem; font-weight: 700; color: var(--text-primary); }
+        .ip-octet .oct-bin { font-family: 'Courier New', monospace; font-size: 0.75rem; color: var(--text-secondary); margin-top: 0.3rem; }
+        .ip-octet .oct-label { font-size: 0.65rem; font-weight: 700; letter-spacing: 0.1em; margin-top: 0.5rem; }
+        .ip-octet.net .oct-label { color: var(--script-green); }
+        .ip-octet.host .oct-label { color: var(--script-accent); }
+        .ip-dot { display: flex; align-items: center; font-size: 1.5rem; color: var(--text-secondary); padding: 0 0.25rem; background: rgba(0,0,0,0.2); }
+        /* Address class table */
+        .data-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; margin-top: 1rem; }
+        .data-table th { padding: 0.75rem 1rem; text-align: left; font-size: 0.75rem; font-weight: 700; letter-spacing: 0.06em; color: var(--script-green); border-bottom: 1px solid var(--border); }
+        .data-table td { padding: 0.7rem 1rem; color: var(--text-secondary); border-bottom: 1px solid rgba(34,197,94,0.07); vertical-align: middle; }
+        .data-table td:first-child { color: var(--text-primary); font-weight: 700; }
+        .class-a { color: #60a5fa; font-weight: 700; }
+        .class-b { color: var(--warn); font-weight: 700; }
+        .class-c { color: var(--script-green); font-weight: 700; }
+        /* Binary converter */
+        .binary-grid { display: grid; grid-template-columns: repeat(8, 1fr); gap: 4px; margin: 1rem 0; }
+        .bit-cell { background: var(--bg-card); border: 1px solid var(--border); border-radius: 6px; text-align: center; padding: 0.5rem 0.25rem; }
+        .bit-pos { font-size: 0.65rem; color: var(--text-secondary); font-weight: 700; }
+        .bit-val { font-size: 1rem; font-weight: 700; color: var(--script-accent); font-family: 'Courier New', monospace; }
+        /* Insight */
+        .insight { background: rgba(34,197,94,0.06); border-left: 4px solid var(--script-green); border-radius: 0 12px 12px 0; padding: 1.25rem 1.5rem; margin-top: 1.25rem; }
+        .insight-label { font-size: 0.72rem; font-weight: 700; letter-spacing: 0.1em; color: var(--script-green); margin-bottom: 0.4rem; }
+        .insight p { font-size: 0.9rem; color: var(--text-secondary); margin: 0; }
+        .insight.warn { background: rgba(251,191,36,0.06); border-left-color: var(--warn); }
+        .insight.warn .insight-label { color: var(--warn); }
+        /* Subnet grid */
+        .subnet-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; margin-bottom: 1.5rem; }
+        .subnet-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 14px; padding: 1.5rem; }
+        .subnet-card h4 { font-size: 1rem; font-weight: 700; color: var(--script-accent); margin-bottom: 0.75rem; }
+        .subnet-card p { font-size: 0.88rem; color: var(--text-secondary); margin-bottom: 0.5rem; }
+        /* completion */
+        .completion-bar { background: var(--bg-card); border: 1px solid var(--border); border-radius: 16px; padding: 2rem; text-align: center; margin-top: 3rem; }
+        .completion-bar h3 { color: var(--script-green); margin-bottom: 0.75rem; font-size: 1.2rem; }
+        .completion-bar p { color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 1.25rem; }
+        .btn-complete { display: inline-block; background: linear-gradient(135deg, var(--script-green), var(--script-accent)); color: #000; font-weight: 700; padding: 0.75rem 2rem; border-radius: 10px; border: none; cursor: pointer; font-size: 0.95rem; transition: opacity 0.2s, transform 0.2s; }
+        .btn-complete:hover { opacity: 0.88; transform: translateY(-2px); }
+        .btn-complete:disabled { opacity: 0.5; cursor: default; transform: none; }
+        .complete-msg { margin-top: 1rem; color: var(--ok); font-weight: 600; font-size: 0.9rem; display: none; }
+        @media (max-width: 768px) { .subnet-grid { grid-template-columns: 1fr; } .binary-grid { grid-template-columns: repeat(4, 1fr); } }
+    </style>
+</head>
+<body>
+
+<header class="site-header">
+    <a href="../index.html" class="back-link">&larr; Back to Linux Admin</a>
+    <span class="header-badge">SCRIPT HOUSE — LINUX ADMIN</span>
+</header>
+
+<div class="container">
+
+    <div class="hero">
+        <div class="module-tag">CHAPTER 9 — PRESENTATION</div>
+        <h1>The <span>IPv4 Protocol</span></h1>
+        <p>Master the TCP/IP stack, IP addressing, subnetting, CIDR notation, and routing table management. Learn to configure gateways and routes using the ip command on Linux.</p>
+    </div>
+
+    <!-- Slide 1: IPv4 Overview -->
+    <div class="section-heading">Slide 1 — IPv4 Overview & Address Structure</div>
+    <div class="card">
+        <h3>What Is IPv4?</h3>
+        <p>IPv4 (Internet Protocol version 4) is the fourth version of the Internet Protocol — the fundamental communications protocol for routing traffic across networks. It uses <strong>32-bit addresses</strong> written as four decimal octets separated by dots (dotted-decimal notation).</p>
+        <p>Every device that communicates on an IP network requires three things: an IP address, a subnet mask, and (for off-network communication) a default gateway.</p>
+    </div>
+
+    <!-- IP Address Visual: 192.168.5.69 -->
+    <div class="card">
+        <h3>IP Address Anatomy: 192.168.5.69/24</h3>
+        <div class="ip-visual">
+            <div class="ip-octet net">
+                <div class="oct-val">192</div>
+                <div class="oct-bin">11000000</div>
+                <div class="oct-label">NETWORK</div>
+            </div>
+            <div class="ip-dot">.</div>
+            <div class="ip-octet net">
+                <div class="oct-val">168</div>
+                <div class="oct-bin">10101000</div>
+                <div class="oct-label">NETWORK</div>
+            </div>
+            <div class="ip-dot">.</div>
+            <div class="ip-octet net">
+                <div class="oct-val">5</div>
+                <div class="oct-bin">00000101</div>
+                <div class="oct-label">NETWORK</div>
+            </div>
+            <div class="ip-dot">.</div>
+            <div class="ip-octet host">
+                <div class="oct-val">69</div>
+                <div class="oct-bin">01000101</div>
+                <div class="oct-label">HOST</div>
+            </div>
+        </div>
+        <p>With a /24 subnet mask (255.255.255.0), the first three octets identify the <strong style="color: var(--script-green);">network</strong> and the last octet identifies the <strong style="color: var(--script-accent);">host</strong>. All devices in the 192.168.5.0/24 network can communicate directly without a router.</p>
+        <div class="insight">
+            <div class="insight-label">BINARY CONVERSION: 69</div>
+            <p>Bit positions: 128 + 64 + 32 + 16 + 8 + 4 + 2 + 1. The value 69 = 64 + 4 + 1 = 01000101 in binary. Each octet ranges from 0 (00000000) to 255 (11111111). IP routers convert to binary to perform AND operations with the subnet mask.</p>
+        </div>
+    </div>
+
+    <!-- Slide 2: Subnet Masks & ANDing -->
+    <div class="section-heading">Slide 2 — Subnet Masks & the AND Operation</div>
+    <div class="card">
+        <h3>How ANDing Extracts the Network ID</h3>
+        <p>To determine if two devices are on the same network, routers perform a <strong>bitwise AND</strong> of the IP address with the subnet mask. Where the mask has 255, the network bits pass through. Where the mask has 0, the host bits are zeroed out — revealing the network ID.</p>
+        <div class="code-block">
+<span class="comment"># Example: Is 192.168.5.100 on the same network as 192.168.5.69?</span>
+
+<span class="comment"># Device A:</span>
+  IP:   192.168.5.69    = 11000000.10101000.00000101.01000101
+  Mask: 255.255.255.0   = 11111111.11111111.11111111.00000000
+  AND:  192.168.5.0     = 11000000.10101000.00000101.00000000
+
+<span class="comment"># Device B:</span>
+  IP:   192.168.5.100   = 11000000.10101000.00000101.01100100
+  Mask: 255.255.255.0   = 11111111.11111111.11111111.00000000
+  AND:  192.168.5.0     = 11000000.10101000.00000101.00000000
+
+<span class="comment"># Both produce network ID 192.168.5.0 → same network → direct communication</span>
+        </div>
+    </div>
+
+    <!-- Slide 3: Address Classes -->
+    <div class="section-heading">Slide 3 — IPv4 Address Classes</div>
+    <div class="card">
+        <h3>Classful Addressing (Legacy but Still Tested)</h3>
+        <table class="data-table">
+            <thead>
+                <tr><th>Class</th><th>Range</th><th>Default Mask</th><th>CIDR</th><th>Max Hosts</th><th>Use Case</th></tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td class="class-a">A</td>
+                    <td>1.0.0.0 – 126.255.255.255</td>
+                    <td>255.0.0.0</td>
+                    <td>/8</td>
+                    <td>16,777,214</td>
+                    <td>ISPs, large enterprises</td>
+                </tr>
+                <tr>
+                    <td class="class-b">B</td>
+                    <td>128.0.0.0 – 191.255.255.255</td>
+                    <td>255.255.0.0</td>
+                    <td>/16</td>
+                    <td>65,534</td>
+                    <td>Universities, mid-size orgs</td>
+                </tr>
+                <tr>
+                    <td class="class-c">C</td>
+                    <td>192.0.0.0 – 223.255.255.255</td>
+                    <td>255.255.255.0</td>
+                    <td>/24</td>
+                    <td>254</td>
+                    <td>Small networks, LANs</td>
+                </tr>
+                <tr>
+                    <td>D</td>
+                    <td>224.0.0.0 – 239.255.255.255</td>
+                    <td>N/A</td>
+                    <td>N/A</td>
+                    <td>N/A</td>
+                    <td>Multicast groups</td>
+                </tr>
+                <tr>
+                    <td>E</td>
+                    <td>240.0.0.0 – 254.255.255.255</td>
+                    <td>N/A</td>
+                    <td>N/A</td>
+                    <td>N/A</td>
+                    <td>Reserved / Experimental</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Special Addresses -->
+    <div class="card">
+        <h3>Special IPv4 Addresses</h3>
+        <div class="subnet-grid">
+            <div class="subnet-card">
+                <h4>Reserved/Special Addresses</h4>
+                <p><strong style="color: var(--script-green);">127.0.0.1</strong> — Loopback address. Traffic sent here stays on the local machine. Used for testing the TCP/IP stack.</p>
+                <p><strong style="color: var(--script-green);">0.0.0.0</strong> — Represents "all networks" or "any address." Used in routing and as a source address for DHCP.</p>
+                <p><strong style="color: var(--script-green);">255.255.255.255</strong> — Limited broadcast. Sent to all hosts on local network. Not routed.</p>
+            </div>
+            <div class="subnet-card">
+                <h4>Private Address Ranges (RFC 1918)</h4>
+                <p><strong style="color: var(--script-accent);">10.0.0.0/8</strong> — Class A private (10.0.0.0 – 10.255.255.255)</p>
+                <p><strong style="color: var(--script-accent);">172.16.0.0/12</strong> — Class B private (172.16.0.0 – 172.31.255.255)</p>
+                <p><strong style="color: var(--script-accent);">192.168.0.0/16</strong> — Class C private (192.168.0.0 – 192.168.255.255)</p>
+                <p>Private addresses require NAT to reach the internet.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Slide 4: CIDR & Subnetting -->
+    <div class="section-heading">Slide 4 — CIDR Notation & Subnetting</div>
+    <div class="card">
+        <h3>CIDR — Classless Inter-Domain Routing</h3>
+        <p>CIDR notation expresses the subnet mask as the number of network bits after a slash: <strong>192.168.1.0/24</strong> means 24 bits are network bits (equivalent to mask 255.255.255.0). CIDR enables flexible subnetting without being bound to class boundaries.</p>
+        <div class="code-block">
+<span class="comment"># Common CIDR masks and their properties:</span>
+/8  → 255.0.0.0       → 16,777,214 hosts   (Class A)
+/16 → 255.255.0.0     →     65,534 hosts   (Class B)
+/24 → 255.255.255.0   →        254 hosts   (Class C)
+/25 → 255.255.255.128 →        126 hosts   (half a /24)
+/26 → 255.255.255.192 →         62 hosts   (quarter of /24)
+/27 → 255.255.255.224 →         30 hosts
+/28 → 255.255.255.240 →         14 hosts
+/30 → 255.255.255.252 →          2 hosts   (point-to-point links)
+
+<span class="comment"># Host count formula: 2^(host bits) - 2</span>
+<span class="comment"># Subtract 2 for network address and broadcast address</span>
+
+<span class="comment"># Subnetting example: 3.0.0.0/8 → borrow 4 bits → /12</span>
+<span class="comment"># New mask: 255.240.0.0 (/12)</span>
+<span class="comment"># Hosts per subnet: 2^20 - 2 = 1,048,574</span>
+<span class="comment"># First subnet: 3.0.0.1 – 3.15.255.254 (network: 3.0.0.0, broadcast: 3.15.255.255)</span>
+<span class="comment"># Second subnet: 3.16.0.1 – 3.31.255.254</span>
+        </div>
+    </div>
+
+    <!-- Slide 5: Routing Tables & Gateway Config -->
+    <div class="section-heading">Slide 5 — Routing Tables & Default Gateway</div>
+    <div class="card">
+        <h3>Understanding the Linux Routing Table</h3>
+        <p>The routing table tells the kernel where to send packets. Each entry matches a destination network to a gateway (next-hop router) and an outgoing interface. The <strong>default route</strong> (0.0.0.0/0) catches all traffic not matched by more specific routes.</p>
+        <div class="code-block">
+<span class="comment"># View the routing table</span>
+<span class="cmd">ip</span> route show
+<span class="cmd">ip</span> route          <span class="comment"># shorthand</span>
+route <span class="val">-n</span>           <span class="comment"># legacy command (requires net-tools)</span>
+
+<span class="comment"># Example ip route output:</span>
+<span class="comment"># default via 192.168.1.1 dev enp0s3 proto dhcp src 192.168.1.100</span>
+<span class="comment"># 192.168.1.0/24 dev enp0s3 proto kernel scope link src 192.168.1.100</span>
+
+<span class="comment"># Add default gateway (persistent via netplan/NM; temporary with ip)</span>
+sudo <span class="cmd">ip</span> route add default via <span class="val">192.168.1.1</span>
+
+<span class="comment"># Add a specific route (e.g., reach 10.0.0.0/8 via VPN gateway)</span>
+sudo <span class="cmd">ip</span> route add <span class="val">10.0.0.0/8</span> via <span class="val">192.168.1.254</span>
+
+<span class="comment"># Delete a route</span>
+sudo <span class="cmd">ip</span> route del default via <span class="val">192.168.1.1</span>
+
+<span class="comment"># Verify which route a packet will take to a destination</span>
+<span class="cmd">ip</span> route get <span class="val">8.8.8.8</span>
+        </div>
+        <div class="insight">
+            <div class="insight-label">GATEWAY RULE</div>
+            <p>The default gateway must be on the <strong>same subnet</strong> as the device. A machine on 192.168.1.0/24 cannot use 10.0.0.1 as its gateway — the router must be reachable directly on the local network (192.168.1.1, 192.168.1.254, etc.). Misconfigured gateways are one of the most common networking errors.</p>
+        </div>
+    </div>
+
+    <!-- Slide 6: TCP/IP Stack -->
+    <div class="section-heading">Slide 6 — The TCP/IP Stack</div>
+    <div class="card">
+        <h3>Four-Layer Model vs OSI Seven-Layer Model</h3>
+        <table class="data-table">
+            <thead>
+                <tr><th>TCP/IP Layer</th><th>OSI Equivalent</th><th>Protocols</th><th>Linux Commands</th></tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Application</td>
+                    <td>Application / Presentation / Session</td>
+                    <td>HTTP, SSH, DNS, FTP, SMTP</td>
+                    <td>curl, wget, ssh, dig</td>
+                </tr>
+                <tr>
+                    <td>Transport</td>
+                    <td>Transport</td>
+                    <td>TCP (reliable), UDP (fast)</td>
+                    <td>ss, netstat, nc</td>
+                </tr>
+                <tr>
+                    <td>Internet</td>
+                    <td>Network</td>
+                    <td>IPv4, IPv6, ICMP, ARP</td>
+                    <td>ip route, ping, traceroute</td>
+                </tr>
+                <tr>
+                    <td>Link</td>
+                    <td>Data Link / Physical</td>
+                    <td>Ethernet, Wi-Fi, ARP</td>
+                    <td>ip link, ethtool, iwconfig</td>
+                </tr>
+            </tbody>
+        </table>
+        <div class="code-block">
+<span class="comment"># Useful diagnostic commands by layer:</span>
+
+<span class="comment"># Link layer: verify physical interface</span>
+<span class="cmd">ip</span> link show
+ethtool enp0s3        <span class="comment"># speed, duplex, link status</span>
+
+<span class="comment"># Internet layer: IP connectivity</span>
+ping <span class="val">-c 4</span> 192.168.1.1  <span class="comment"># ICMP echo</span>
+<span class="cmd">ip</span> route get 8.8.8.8   <span class="comment"># routing path</span>
+
+<span class="comment"># Transport layer: open connections and listening ports</span>
+ss <span class="val">-tulnp</span>              <span class="comment"># sockets: TCP/UDP listening/established</span>
+
+<span class="comment"># Application layer: name resolution</span>
+dig google.com         <span class="comment"># detailed DNS query</span>
+<span class="cmd">nslookup</span> google.com    <span class="comment"># simple DNS lookup</span>
+        </div>
+    </div>
+
+    <div class="completion-bar">
+        <h3>Chapter 9 Complete</h3>
+        <p>Mark this presentation complete to record your progress and unlock the quiz.</p>
+        <button class="btn-complete" id="completeBtn" onclick="markComplete()">Mark as Complete</button>
+        <div class="complete-msg" id="completeMsg">Progress saved. Head to the quiz to test your knowledge.</div>
+    </div>
+
+</div>
+
+<script src="../../../../../components/FluxCapacitor.js"></script>
+<script>
+    function markComplete() {
+        const btn = document.getElementById('completeBtn');
+        const msg = document.getElementById('completeMsg');
+        btn.disabled = true; btn.textContent = 'Saving...';
+        if (typeof ModuleProgress !== 'undefined') { ModuleProgress.complete('script', 'script-la-ch09'); }
+        btn.textContent = 'Completed'; msg.style.display = 'block';
+    }
+    (function checkCompleted() {
+        const p = JSON.parse(localStorage.getItem('hexworth_progress') || '{}');
+        if (p['script-la-ch09']) {
+            document.getElementById('completeBtn').textContent = 'Completed';
+            document.getElementById('completeBtn').disabled = true;
+            document.getElementById('completeMsg').style.display = 'block';
+        }
+    })();
+</script>
+</body>
+</html>

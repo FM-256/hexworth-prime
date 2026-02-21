@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CH06: Initialization & X Windows — Linux Admin | Script House</title>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --script-green: #22c55e; --script-accent: #4ade80; --script-glow: rgba(34,197,94,0.35);
+            --bg-dark: #0a0a12; --bg-card: rgba(10,20,10,0.85); --text-primary: #e8e8f0;
+            --text-secondary: #7a9a7a; --ok: #4ade80; --warn: #fbbf24; --bad: #f87171;
+            --border: rgba(34,197,94,0.2);
+        }
+        body { font-family: 'Segoe UI', system-ui, sans-serif; background: linear-gradient(135deg, #0a0a12, #0a1a0f, #0a250a); color: var(--text-primary); line-height: 1.7; min-height: 100vh; }
+        .site-header { background: rgba(10,10,18,0.96); border-bottom: 1px solid var(--border); padding: 0.9rem 2rem; position: sticky; top: 0; z-index: 100; display: flex; align-items: center; justify-content: space-between; backdrop-filter: blur(12px); }
+        .back-link { color: var(--script-green); text-decoration: none; font-size: 0.9rem; font-weight: 600; display: flex; align-items: center; gap: 0.4rem; transition: opacity 0.2s; }
+        .back-link:hover { opacity: 0.75; }
+        .header-badge { background: linear-gradient(135deg, var(--script-green), var(--script-accent)); color: #000; padding: 0.35rem 1rem; border-radius: 20px; font-size: 0.78rem; font-weight: 700; letter-spacing: 0.05em; }
+        .container { max-width: 1100px; margin: 0 auto; padding: 2.5rem 2rem 4rem; }
+        .hero { text-align: center; padding: 3.5rem 2rem 2.5rem; background: var(--bg-card); border: 1px solid var(--border); border-radius: 20px; margin-bottom: 2.5rem; position: relative; overflow: hidden; }
+        .hero::before { content: ''; position: absolute; top: -80px; left: 50%; transform: translateX(-50%); width: 400px; height: 400px; background: radial-gradient(circle, var(--script-glow) 0%, transparent 70%); pointer-events: none; }
+        .module-tag { display: inline-block; background: rgba(34,197,94,0.12); color: var(--script-green); border: 1px solid var(--border); padding: 0.3rem 1rem; border-radius: 20px; font-size: 0.78rem; font-weight: 700; letter-spacing: 0.08em; margin-bottom: 1.2rem; }
+        .hero h1 { font-size: 2.2rem; font-weight: 800; color: var(--text-primary); margin-bottom: 0.75rem; line-height: 1.25; }
+        .hero h1 span { color: var(--script-green); }
+        .hero p { color: var(--text-secondary); font-size: 1.05rem; max-width: 680px; margin: 0 auto; }
+        .section-heading { display: flex; align-items: center; gap: 0.75rem; font-size: 1.35rem; font-weight: 700; color: var(--script-green); margin: 2.5rem 0 1.25rem; }
+        .section-heading::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+        .card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 16px; padding: 1.75rem; margin-bottom: 1.5rem; }
+        .card h3 { font-size: 1.1rem; color: var(--script-accent); margin-bottom: 0.9rem; }
+        .card p { color: var(--text-secondary); font-size: 0.95rem; margin-bottom: 0.75rem; }
+        .card p:last-child { margin-bottom: 0; }
+        code { background: rgba(34,197,94,0.1); color: var(--script-accent); padding: 1px 6px; border-radius: 4px; font-family: 'Consolas',monospace; font-size: 0.88em; }
+        .code-block { background: rgba(0,0,0,0.6); border: 1px solid rgba(34,197,94,0.15); border-left: 3px solid var(--script-green); border-radius: 10px; padding: 1.25rem 1.5rem; font-family: 'Consolas','Courier New',monospace; font-size: 0.9rem; color: var(--script-accent); margin: 1rem 0; overflow-x: auto; line-height: 1.9; }
+        .code-block .comment { color: #5a7a5a; }
+
+        /* Boot process flow */
+        .boot-flow { display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 1.5rem; }
+        .boot-step { display: flex; gap: 1rem; align-items: stretch; }
+        .boot-number { width: 36px; height: 36px; border-radius: 50%; background: linear-gradient(135deg, var(--script-green), var(--script-accent)); color: #000; font-weight: 900; font-size: 1rem; display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 0.3rem; }
+        .boot-content { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 1rem 1.25rem; flex: 1; }
+        .boot-title { font-size: 1rem; font-weight: 700; color: var(--text-primary); margin-bottom: 0.25rem; }
+        .boot-desc { font-size: 0.86rem; color: var(--text-secondary); }
+        .boot-connector { width: 2px; background: linear-gradient(to bottom, var(--script-green), var(--script-accent)); margin: 0 auto; height: 0.5rem; margin-left: 17px; }
+
+        /* Runlevel table */
+        .rl-table { width: 100%; border-collapse: collapse; font-size: 0.9rem; margin-bottom: 1rem; }
+        .rl-table th { background: rgba(34,197,94,0.1); color: var(--script-green); padding: 0.6rem 1rem; text-align: left; font-size: 0.8rem; letter-spacing: 0.05em; }
+        .rl-table td { padding: 0.6rem 1rem; border-top: 1px solid rgba(34,197,94,0.08); color: var(--text-secondary); }
+        .rl-table tr:hover td { background: rgba(34,197,94,0.04); }
+
+        /* X window architecture */
+        .xwin-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; margin-bottom: 1.5rem; }
+        .xwin-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 14px; padding: 1.25rem; }
+        .xwin-card h4 { font-size: 0.95rem; font-weight: 700; margin-bottom: 0.5rem; }
+        .xwin-card p { font-size: 0.86rem; color: var(--text-secondary); margin: 0; }
+
+        /* DM grid */
+        .dm-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.85rem; margin-bottom: 1.5rem; }
+        .dm-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 1rem 1.25rem; }
+        .dm-name { font-weight: 700; color: var(--script-accent); margin-bottom: 0.25rem; }
+        .dm-desc { font-size: 0.84rem; color: var(--text-secondary); }
+
+        .insight { background: rgba(34,197,94,0.06); border-left: 4px solid var(--script-green); border-radius: 0 12px 12px 0; padding: 1.25rem 1.5rem; margin-top: 1.25rem; }
+        .insight-label { font-size: 0.72rem; font-weight: 700; letter-spacing: 0.1em; color: var(--script-green); margin-bottom: 0.4rem; }
+        .insight p { font-size: 0.9rem; color: var(--text-secondary); margin: 0; }
+
+        .completion-bar { background: var(--bg-card); border: 1px solid var(--border); border-radius: 16px; padding: 2rem; text-align: center; margin-top: 3rem; }
+        .completion-bar h3 { color: var(--script-green); margin-bottom: 0.75rem; font-size: 1.2rem; }
+        .completion-bar p { color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 1.25rem; }
+        .btn-complete { display: inline-block; background: linear-gradient(135deg, var(--script-green), var(--script-accent)); color: #000; font-weight: 700; padding: 0.75rem 2rem; border-radius: 10px; border: none; cursor: pointer; font-size: 0.95rem; transition: opacity 0.2s, transform 0.2s; }
+        .btn-complete:hover { opacity: 0.88; transform: translateY(-2px); }
+        .btn-complete:disabled { opacity: 0.5; cursor: default; transform: none; }
+        .complete-msg { margin-top: 1rem; color: var(--ok); font-weight: 600; font-size: 0.9rem; display: none; }
+
+        @media (max-width: 768px) { .xwin-grid { grid-template-columns: 1fr; } .dm-grid { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+
+<header class="site-header">
+    <a href="../index.html" class="back-link">&larr; Back to Linux Admin</a>
+    <span class="header-badge">SCRIPT HOUSE — LINUX ADMIN</span>
+</header>
+
+<div class="container">
+
+    <div class="hero">
+        <div class="module-tag">CH06 — PRESENTATION</div>
+        <h1>Initialization <span>&amp; X Windows</span></h1>
+        <p>Trace the Linux boot process from BIOS to login screen: UEFI, GRUB bootloader, kernel initialization, systemd, runlevels and targets. Then explore the X Window System architecture, Wayland, display managers, and locale internationalization settings.</p>
+    </div>
+
+    <!-- Boot Process -->
+    <div class="section-heading">Slide 1 — The Linux Boot Process</div>
+    <div class="boot-flow">
+        <div class="boot-step">
+            <div class="boot-number">1</div>
+            <div class="boot-content">
+                <div class="boot-title">BIOS / UEFI — Firmware Initialization</div>
+                <div class="boot-desc">Power-on: firmware initializes hardware, runs POST (Power-On Self Test), detects CPU, RAM, storage devices. BIOS (legacy) uses MBR partitioning; UEFI (modern) supports GPT partitions and Secure Boot. Identifies the bootable device and hands control to the bootloader.</div>
+            </div>
+        </div>
+        <div class="boot-connector"></div>
+        <div class="boot-step">
+            <div class="boot-number">2</div>
+            <div class="boot-content">
+                <div class="boot-title">GRUB / Bootloader — Kernel Selection</div>
+                <div class="boot-desc">GRUB2 (Grand Unified Bootloader) is the most common Linux bootloader. It displays a menu allowing kernel selection, loads the chosen kernel image and initial RAM disk (initrd/initramfs) into memory, and transfers control to the kernel. Config: <code>/etc/default/grub</code>, updated with <code>update-grub</code>.</div>
+            </div>
+        </div>
+        <div class="boot-connector"></div>
+        <div class="boot-step">
+            <div class="boot-number">3</div>
+            <div class="boot-content">
+                <div class="boot-title">Kernel Initialization</div>
+                <div class="boot-desc">The kernel decompresses itself, initializes CPU and memory subsystems, detects and loads device drivers, mounts the initramfs (temporary root filesystem for early boot), then mounts the real root filesystem and switches to it. Kernel messages visible with <code>dmesg</code>.</div>
+            </div>
+        </div>
+        <div class="boot-connector"></div>
+        <div class="boot-step">
+            <div class="boot-number">4</div>
+            <div class="boot-content">
+                <div class="boot-title">systemd (PID 1) — Service Orchestration</div>
+                <div class="boot-desc">The kernel executes <code>/sbin/init</code> (which is systemd on modern distros) as the first userspace process (PID 1). systemd reads its unit files, resolves dependencies, and starts all required services in parallel to reach the configured target (runlevel equivalent). Boot completes when the target is reached.</div>
+            </div>
+        </div>
+        <div class="boot-connector"></div>
+        <div class="boot-step">
+            <div class="boot-number">5</div>
+            <div class="boot-content">
+                <div class="boot-title">User Login — Console or Display Manager</div>
+                <div class="boot-desc">If <code>multi-user.target</code>: a login prompt appears on the console (tty). If <code>graphical.target</code>: a Display Manager (GDM, LightDM, SDDM) presents a graphical login screen. After authentication, the user session starts — shell or desktop environment.</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Runlevels / Targets -->
+    <div class="section-heading">Slide 2 — Runlevels and systemd Targets</div>
+    <table class="rl-table">
+        <thead><tr><th>SysV Runlevel</th><th>systemd Target</th><th>State</th><th>Description</th></tr></thead>
+        <tbody>
+            <tr><td>0</td><td><code>poweroff.target</code></td><td>Halt</td><td>Shutdown and power off the system</td></tr>
+            <tr><td>1</td><td><code>rescue.target</code></td><td>Single User</td><td>Minimal single-user mode for recovery. Root shell, no network.</td></tr>
+            <tr><td>2</td><td><code>multi-user.target</code></td><td>Multi-User</td><td>Multi-user text mode, no NFS (Debian/Ubuntu)</td></tr>
+            <tr><td>3</td><td><code>multi-user.target</code></td><td>Multi-User Net</td><td>Full multi-user text mode with networking. Standard server target.</td></tr>
+            <tr><td>5</td><td><code>graphical.target</code></td><td>Graphical</td><td>Full graphical desktop environment. Default on desktop systems.</td></tr>
+            <tr><td>6</td><td><code>reboot.target</code></td><td>Reboot</td><td>Shut down and restart the system</td></tr>
+        </tbody>
+    </table>
+    <div class="code-block">
+<span class="comment"># Working with systemd targets</span>
+$ systemctl get-default                      <span class="comment"># Show current default target</span>
+$ sudo systemctl set-default multi-user.target  <span class="comment"># Change default (server mode)</span>
+$ sudo systemctl isolate rescue.target       <span class="comment"># Switch to rescue mode now</span>
+$ systemctl list-units --type=target         <span class="comment"># List all active targets</span>
+
+<span class="comment"># Reboot and shutdown</span>
+$ sudo systemctl reboot                      <span class="comment"># Graceful reboot</span>
+$ sudo systemctl poweroff                    <span class="comment"># Graceful shutdown</span>
+$ sudo shutdown -h +5 "Maintenance"          <span class="comment"># Shutdown in 5 minutes with message</span>
+    </div>
+
+    <!-- X Windows -->
+    <div class="section-heading">Slide 3 — The X Window System (X11)</div>
+    <div class="card">
+        <h3>The Graphical Foundation of Linux Desktops</h3>
+        <p>The X Window System (X11 or simply "X") provides the graphical infrastructure for Linux desktop environments. Developed at MIT in 1984, X11 uses a client-server architecture — the X Server manages display hardware (screen, keyboard, mouse), while X Clients are the GUI applications that talk to the server to draw their windows.</p>
+        <p>Crucially: X uses a network-transparent protocol. An X application running on a remote server can display its windows on your local screen — the foundation for remote desktop workflows in Linux environments.</p>
+    </div>
+    <div class="xwin-grid">
+        <div class="xwin-card">
+            <h4 style="color: var(--script-green);">X Server</h4>
+            <p>Manages the physical display, keyboard, and mouse. Draws pixels on screen based on requests from X clients. Handles input events and routes them to the appropriate application window. Runs as a privileged process (usually as root or via xorg group).</p>
+        </div>
+        <div class="xwin-card">
+            <h4 style="color: var(--script-accent);">X Clients</h4>
+            <p>Any GUI application: Firefox, terminals, file managers. They request the X Server to display windows and receive input events. Clients communicate with the server via the X11 protocol over a socket (or network). Each client has no direct hardware access.</p>
+        </div>
+        <div class="xwin-card">
+            <h4 style="color: var(--warn);">Window Manager</h4>
+            <p>Controls window appearance, placement, and behavior. Draws title bars, handles minimize/maximize, manages focus. Examples: GNOME Shell, KDE Plasma, i3 (tiling), Openbox. Can be replaced independently — a core Linux flexibility.</p>
+        </div>
+        <div class="xwin-card">
+            <h4 style="color: #38bdf8;">Display Manager</h4>
+            <p>Provides the graphical login screen. Authenticates users and launches their chosen desktop session. Sits before the desktop environment in the startup sequence. Examples: GDM, LightDM, SDDM, XDM.</p>
+        </div>
+    </div>
+
+    <!-- Wayland -->
+    <div class="section-heading">Slide 4 — Wayland: The Modern Display Protocol</div>
+    <div class="card">
+        <h3>Replacing X11 After 40 Years</h3>
+        <p>X11 was designed in 1984 for hardware and security models that no longer exist. Wayland is a modern display protocol designed from scratch to address X11's limitations: simpler architecture, better security (applications cannot spy on each other's windows), better performance, and native support for modern hardware acceleration.</p>
+        <p><strong style="color: var(--text-primary);">Key difference:</strong> In Wayland, each application talks directly to the Wayland compositor (which replaces both the X Server and Window Manager). There is no network transparency by default — but XWayland provides backward compatibility for X11 applications.</p>
+        <p><strong style="color: var(--text-primary);">Current state:</strong> GNOME defaults to Wayland since version 3.22. KDE Plasma 6 defaults to Wayland. Most major distros are transitioning. Some applications (especially older games, screen recorders, remote desktop) still require X11/XWayland.</p>
+    </div>
+    <div class="code-block">
+<span class="comment"># Check if running X11 or Wayland</span>
+$ echo $XDG_SESSION_TYPE          <span class="comment"># "x11" or "wayland"</span>
+$ loginctl show-session $(loginctl | grep $(whoami) | awk '{print $1}') -p Type
+
+<span class="comment"># X11 configuration</span>
+$ ls /etc/X11/xorg.conf.d/        <span class="comment"># Config drop-in directory</span>
+$ sudo systemctl restart display-manager   <span class="comment"># Restart X/Wayland session</span>
+$ cat /etc/X11/default-display-manager     <span class="comment"># Which DM is configured</span>
+
+<span class="comment"># Switch display manager (Debian/Ubuntu)</span>
+$ sudo dpkg-reconfigure gdm3       <span class="comment"># Interactive DM selector</span>
+$ sudo systemctl enable lightdm --force   <span class="comment"># Switch to LightDM</span>
+
+<span class="comment"># X11 forwarding over SSH (run GUI remotely)</span>
+$ ssh -X user@server xterm         <span class="comment"># Forward X11, open xterm</span>
+$ ssh -Y user@server firefox       <span class="comment"># Trusted X11 forwarding</span>
+    </div>
+
+    <!-- Display Managers -->
+    <div class="section-heading">Slide 5 — Display Managers</div>
+    <div class="dm-grid">
+        <div class="dm-card"><div class="dm-name">GDM (GNOME Display Manager)</div><div class="dm-desc">Default for GNOME desktop environments (Ubuntu, Fedora). Feature-rich, integrates with GNOME settings. Supports both X11 and Wayland sessions.</div></div>
+        <div class="dm-card"><div class="dm-name">LightDM</div><div class="dm-desc">Lightweight, fast, flexible. Default on Xubuntu, Lubuntu, Linux Mint Xfce. Supports multiple greeters (login screen themes). Well-suited for resource-constrained systems.</div></div>
+        <div class="dm-card"><div class="dm-name">SDDM (Simple Desktop DM)</div><div class="dm-desc">Default for KDE Plasma. QML-based theming engine. Supports both X11 and Wayland. Clean, modern login experience.</div></div>
+        <div class="dm-card"><div class="dm-name">XDM (X Display Manager)</div><div class="dm-desc">The original X11 display manager. Minimal and basic. Rarely used directly today but foundational to understanding how display management works.</div></div>
+    </div>
+
+    <!-- Localization -->
+    <div class="section-heading">Slide 6 — Localization and Internationalization</div>
+    <div class="card">
+        <h3>Adapting Linux to Language and Region</h3>
+        <p><strong style="color: var(--text-primary);">Internationalization (i18n)</strong> — designing software to support multiple languages and regions. The "18" is the count of letters between "i" and "n" in "internationalization".</p>
+        <p><strong style="color: var(--text-primary);">Localization (l10n)</strong> — adapting software for a specific language and region. Translating text, formatting dates/times/currency/numbers according to local conventions.</p>
+        <p>Linux locale settings control: language for system messages, date/time format, numeric format (decimal separator), currency symbol, character encoding (UTF-8 is standard), and keyboard layout.</p>
+    </div>
+    <div class="code-block">
+<span class="comment"># Check locale settings</span>
+$ locale                           <span class="comment"># Show all locale variables</span>
+$ locale -a                        <span class="comment"># List all available locales</span>
+$ localectl                        <span class="comment"># Show system locale and keyboard</span>
+
+<span class="comment"># Set system locale</span>
+$ sudo localectl set-locale LANG=en_US.UTF-8
+$ sudo localectl set-locale LANG=fr_FR.UTF-8   <span class="comment"># French</span>
+$ sudo localectl set-locale LANG=ja_JP.UTF-8   <span class="comment"># Japanese</span>
+
+<span class="comment"># Generate locales (Debian/Ubuntu)</span>
+$ sudo locale-gen en_US.UTF-8
+$ sudo update-locale LANG=en_US.UTF-8
+
+<span class="comment"># Keyboard layout</span>
+$ sudo localectl set-keymap us     <span class="comment"># Set console keyboard layout</span>
+$ sudo localectl set-x11-keymap us <span class="comment"># Set X11 keyboard layout</span>
+$ localectl list-keymaps           <span class="comment"># List available keymaps</span>
+
+<span class="comment"># Timezone configuration</span>
+$ timedatectl                      <span class="comment"># Show current time/timezone/NTP status</span>
+$ timedatectl list-timezones       <span class="comment"># All available timezones</span>
+$ sudo timedatectl set-timezone America/New_York
+$ sudo timedatectl set-timezone UTC       <span class="comment"># Servers usually use UTC</span>
+$ sudo timedatectl set-ntp true           <span class="comment"># Enable NTP time sync</span>
+    </div>
+
+    <div class="insight">
+        <div class="insight-label">SERVER BEST PRACTICE: ALWAYS USE UTC</div>
+        <p>Production servers should always be configured to UTC timezone — never a local timezone. Reasons: log timestamps across servers in multiple timezones are directly comparable without conversion; daylight saving time transitions do not cause duplicate or skipped timestamps in logs; forensic analysis across global infrastructure is unambiguous. Set <code>sudo timedatectl set-timezone UTC</code> and enable NTP (<code>sudo timedatectl set-ntp true</code>) on every server you deploy. For display purposes, user interfaces can convert UTC to local time — the source of truth should always be UTC. This is not a preference — it is a sysadmin non-negotiable.</p>
+    </div>
+
+    <div class="completion-bar">
+        <h3>Presentation Complete</h3>
+        <p>Mark complete to save your progress and unlock the Chapter 6 quiz.</p>
+        <button class="btn-complete" id="completeBtn" onclick="markComplete()">Mark as Complete</button>
+        <div class="complete-msg" id="completeMsg">Progress saved. Head to the quiz to test your knowledge.</div>
+    </div>
+
+</div>
+
+<script src="../../../../components/FluxCapacitor.js"></script>
+<script>
+    function markComplete() {
+        const btn = document.getElementById('completeBtn');
+        const msg = document.getElementById('completeMsg');
+        btn.disabled = true;
+        btn.textContent = 'Saving...';
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('script', 'script-la-ch06');
+        }
+        btn.textContent = 'Completed';
+        msg.style.display = 'block';
+    }
+    (function checkCompleted() {
+        const progress = JSON.parse(localStorage.getItem('hexworth_progress') || '{}');
+        if (progress['script-la-ch06']) {
+            const btn = document.getElementById('completeBtn');
+            btn.textContent = 'Completed';
+            btn.disabled = true;
+            document.getElementById('completeMsg').style.display = 'block';
+        }
+    })();
+</script>
+</body>
+</html>

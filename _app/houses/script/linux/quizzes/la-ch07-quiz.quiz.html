@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ch 7 Quiz: Display Managers — Linux Admin</title>
+    <script src="../../../../../components/AchievementManager.js"></script>
+    <script src="../../../../../components/ModuleProgress.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --script-green: #22c55e; --script-accent: #4ade80;
+            --script-glow: rgba(34, 197, 94, 0.35);
+            --bg-card: rgba(10, 20, 10, 0.85);
+            --text-primary: #e8f5e8; --text-secondary: #7aaa7a;
+            --ok: #4ade80; --warn: #fbbf24; --bad: #f87171;
+            --border: rgba(34, 197, 94, 0.2);
+        }
+        body { font-family: 'Segoe UI', system-ui, sans-serif; background: linear-gradient(135deg, #0a0a12, #0a1a0f, #0a250a); color: var(--text-primary); min-height: 100vh; }
+        .site-header { background: rgba(10,10,18,0.95); border-bottom: 1px solid var(--border); padding: 0.9rem 2rem; position: sticky; top: 0; z-index: 100; display: flex; align-items: center; justify-content: space-between; backdrop-filter: blur(10px); }
+        .back-link { color: var(--script-green); text-decoration: none; font-size: 0.9rem; font-weight: 600; display: flex; align-items: center; gap: 0.4rem; transition: opacity 0.2s; }
+        .back-link:hover { opacity: 0.75; }
+        .header-badge { background: linear-gradient(135deg, var(--script-green), var(--script-accent)); color: #000; padding: 0.35rem 1rem; border-radius: 20px; font-size: 0.78rem; font-weight: 700; letter-spacing: 0.05em; }
+        .container { max-width: 860px; margin: 0 auto; padding: 2.5rem 2rem 4rem; }
+        .quiz-header { text-align: center; background: var(--bg-card); border: 1px solid var(--border); border-radius: 20px; padding: 2.5rem 2rem; margin-bottom: 2rem; position: relative; overflow: hidden; }
+        .quiz-header::before { content: ''; position: absolute; top: -60px; left: 50%; transform: translateX(-50%); width: 300px; height: 300px; background: radial-gradient(circle, var(--script-glow) 0%, transparent 70%); pointer-events: none; }
+        .quiz-tag { display: inline-block; background: rgba(34,197,94,0.12); color: var(--script-green); border: 1px solid var(--border); padding: 0.3rem 1rem; border-radius: 20px; font-size: 0.78rem; font-weight: 700; letter-spacing: 0.08em; margin-bottom: 1rem; }
+        .quiz-header h1 { font-size: 1.9rem; font-weight: 800; margin-bottom: 0.5rem; }
+        .quiz-header h1 span { color: var(--script-green); }
+        .quiz-header p { color: var(--text-secondary); font-size: 0.95rem; }
+        .progress-bar { background: rgba(34,197,94,0.08); border: 1px solid var(--border); border-radius: 12px; padding: 1rem 1.5rem; margin-bottom: 1.5rem; display: flex; justify-content: space-between; align-items: center; }
+        .progress-bar .prog-label { font-size: 0.85rem; color: var(--text-secondary); font-weight: 600; }
+        .progress-bar .prog-count { font-size: 1.1rem; font-weight: 700; color: var(--script-green); }
+        .question-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 16px; padding: 2rem; margin-bottom: 1.25rem; display: none; }
+        .question-card.active { display: block; animation: fadeIn 0.3s ease; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+        .q-number { font-size: 0.75rem; font-weight: 700; color: var(--script-green); letter-spacing: 0.1em; margin-bottom: 0.75rem; }
+        .q-text { font-size: 1.05rem; color: var(--text-primary); font-weight: 600; line-height: 1.5; margin-bottom: 1.5rem; }
+        .q-text code { background: rgba(34,197,94,0.1); color: var(--script-accent); padding: 0.1rem 0.4rem; border-radius: 4px; font-family: 'Courier New', monospace; font-size: 0.92em; }
+        .options { display: flex; flex-direction: column; gap: 0.75rem; }
+        .option-btn { background: rgba(34,197,94,0.04); border: 1px solid var(--border); border-radius: 10px; padding: 0.9rem 1.25rem; text-align: left; color: var(--text-secondary); font-size: 0.93rem; cursor: pointer; transition: all 0.2s; display: flex; gap: 0.75rem; align-items: flex-start; line-height: 1.4; }
+        .option-btn:hover:not(:disabled) { background: rgba(34,197,94,0.08); border-color: var(--script-green); color: var(--text-primary); transform: translateX(3px); }
+        .option-btn .opt-letter { font-weight: 700; color: var(--script-green); flex-shrink: 0; font-family: 'Courier New', monospace; }
+        .option-btn.correct { background: rgba(74,222,128,0.1); border-color: var(--ok); color: var(--text-primary); }
+        .option-btn.correct .opt-letter { color: var(--ok); }
+        .option-btn.wrong { background: rgba(248,113,113,0.08); border-color: var(--bad); color: var(--text-secondary); }
+        .option-btn.wrong .opt-letter { color: var(--bad); }
+        .option-btn:disabled { cursor: default; transform: none; }
+        .explanation { background: rgba(34,197,94,0.06); border-left: 4px solid var(--script-green); border-radius: 0 10px 10px 0; padding: 1rem 1.25rem; margin-top: 1.25rem; display: none; }
+        .explanation.show { display: block; }
+        .explanation .exp-label { font-size: 0.7rem; font-weight: 700; letter-spacing: 0.1em; color: var(--script-green); margin-bottom: 0.4rem; }
+        .explanation p { font-size: 0.88rem; color: var(--text-secondary); margin: 0; line-height: 1.6; }
+        .nav-row { display: flex; justify-content: flex-end; margin-top: 1.25rem; }
+        .btn-next { background: linear-gradient(135deg, var(--script-green), var(--script-accent)); color: #000; font-weight: 700; padding: 0.65rem 1.75rem; border-radius: 8px; border: none; cursor: pointer; font-size: 0.9rem; transition: opacity 0.2s, transform 0.2s; display: none; }
+        .btn-next:hover { opacity: 0.88; transform: translateY(-2px); }
+        .btn-next.show { display: block; }
+        /* Results */
+        .results-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 20px; padding: 2.5rem; text-align: center; display: none; }
+        .results-card.show { display: block; animation: fadeIn 0.4s ease; }
+        .score-circle { width: 120px; height: 120px; border-radius: 50%; border: 4px solid var(--script-green); display: flex; align-items: center; justify-content: center; margin: 0 auto 1.5rem; flex-direction: column; background: rgba(34,197,94,0.06); }
+        .score-num { font-size: 2rem; font-weight: 800; color: var(--script-green); line-height: 1; }
+        .score-den { font-size: 0.9rem; color: var(--text-secondary); }
+        .results-card h2 { font-size: 1.5rem; font-weight: 700; margin-bottom: 0.5rem; }
+        .results-card p { color: var(--text-secondary); margin-bottom: 1.5rem; }
+        .btn-retry { background: rgba(34,197,94,0.1); border: 1px solid var(--script-green); color: var(--script-green); font-weight: 700; padding: 0.65rem 1.75rem; border-radius: 8px; cursor: pointer; font-size: 0.9rem; transition: all 0.2s; margin-right: 0.75rem; }
+        .btn-retry:hover { background: rgba(34,197,94,0.18); }
+        .score-feedback { font-size: 1rem; font-weight: 600; margin-bottom: 1rem; }
+        .score-feedback.great { color: var(--ok); }
+        .score-feedback.good { color: var(--warn); }
+        .score-feedback.try { color: var(--bad); }
+    </style>
+</head>
+<body>
+
+<header class="site-header">
+    <a href="../index.html" class="back-link">&larr; Back to Linux Admin</a>
+    <span class="header-badge">SCRIPT HOUSE — LINUX ADMIN</span>
+</header>
+
+<div class="container">
+    <div class="quiz-header">
+        <div class="quiz-tag">CHAPTER 7 — QUIZ</div>
+        <h1>Display <span>Managers</span></h1>
+        <p>10 questions on GDM, LightDM, SDDM, graphical sessions, .Xsession, and user environment</p>
+    </div>
+
+    <div class="progress-bar">
+        <span class="prog-label">Question</span>
+        <span class="prog-count" id="progCount">1 / 10</span>
+    </div>
+
+    <!-- Questions -->
+    <div id="q1" class="question-card active">
+        <div class="q-number">QUESTION 1 OF 10</div>
+        <div class="q-text">Which systemd command shows the currently active display manager service?</div>
+        <div class="options">
+            <button class="option-btn" onclick="answer(this, false, 1)"><span class="opt-letter">A</span> systemctl status dm</button>
+            <button class="option-btn" onclick="answer(this, true, 1)"><span class="opt-letter">B</span> systemctl status display-manager</button>
+            <button class="option-btn" onclick="answer(this, false, 1)"><span class="opt-letter">C</span> service display-manager check</button>
+            <button class="option-btn" onclick="answer(this, false, 1)"><span class="opt-letter">D</span> systemctl list-units --type=dm</button>
+        </div>
+        <div class="explanation" id="exp1">
+            <div class="exp-label">EXPLANATION</div>
+            <p><code>systemctl status display-manager</code> uses the generic <strong>display-manager</strong> service alias, which symlinks to whichever DM is currently configured (gdm, lightdm, sddm, etc.). This is a convenient alias that works regardless of which DM is installed.</p>
+        </div>
+        <div class="nav-row"><button class="btn-next" id="next1" onclick="nextQ(1)">Next &rarr;</button></div>
+    </div>
+
+    <div id="q2" class="question-card">
+        <div class="q-number">QUESTION 2 OF 10</div>
+        <div class="q-text">GDM is the default display manager for which desktop environment?</div>
+        <div class="options">
+            <button class="option-btn" onclick="answer(this, false, 2)"><span class="opt-letter">A</span> KDE Plasma</button>
+            <button class="option-btn" onclick="answer(this, false, 2)"><span class="opt-letter">B</span> Xfce</button>
+            <button class="option-btn" onclick="answer(this, true, 2)"><span class="opt-letter">C</span> GNOME</button>
+            <button class="option-btn" onclick="answer(this, false, 2)"><span class="opt-letter">D</span> LXDE</button>
+        </div>
+        <div class="explanation" id="exp2">
+            <div class="exp-label">EXPLANATION</div>
+            <p>GDM (GNOME Display Manager) is the default DM for GNOME-based distributions including Ubuntu (with GNOME), Fedora Workstation, and RHEL. SDDM is the default for KDE Plasma. LightDM is often used on Xfce and MATE. LXDM or LightDM is used on LXDE.</p>
+        </div>
+        <div class="nav-row"><button class="btn-next" id="next2" onclick="nextQ(2)">Next &rarr;</button></div>
+    </div>
+
+    <div id="q3" class="question-card">
+        <div class="q-number">QUESTION 3 OF 10</div>
+        <div class="q-text">What environment variable indicates whether the current session uses X11 or Wayland?</div>
+        <div class="options">
+            <button class="option-btn" onclick="answer(this, false, 3)"><span class="opt-letter">A</span> $DISPLAY</button>
+            <button class="option-btn" onclick="answer(this, false, 3)"><span class="opt-letter">B</span> $SESSION_TYPE</button>
+            <button class="option-btn" onclick="answer(this, true, 3)"><span class="opt-letter">C</span> $XDG_SESSION_TYPE</button>
+            <button class="option-btn" onclick="answer(this, false, 3)"><span class="opt-letter">D</span> $DESKTOP_SESSION</button>
+        </div>
+        <div class="explanation" id="exp3">
+            <div class="exp-label">EXPLANATION</div>
+            <p><code>$XDG_SESSION_TYPE</code> will output either <strong>x11</strong> or <strong>wayland</strong> depending on the session type. <code>$DISPLAY</code> (e.g., :0) identifies the X display number and only exists in X11 sessions. <code>$DESKTOP_SESSION</code> identifies the desktop environment (gnome, plasma, xfce), not the protocol.</p>
+        </div>
+        <div class="nav-row"><button class="btn-next" id="next3" onclick="nextQ(3)">Next &rarr;</button></div>
+    </div>
+
+    <div id="q4" class="question-card">
+        <div class="q-number">QUESTION 4 OF 10</div>
+        <div class="q-text">On a Debian/Ubuntu system, which command reconfigures which display manager is used at boot?</div>
+        <div class="options">
+            <button class="option-btn" onclick="answer(this, false, 4)"><span class="opt-letter">A</span> systemctl set-default gdm</button>
+            <button class="option-btn" onclick="answer(this, true, 4)"><span class="opt-letter">B</span> sudo dpkg-reconfigure gdm3</button>
+            <button class="option-btn" onclick="answer(this, false, 4)"><span class="opt-letter">C</span> update-rc.d gdm defaults</span></button>
+            <button class="option-btn" onclick="answer(this, false, 4)"><span class="opt-letter">D</span> sudo apt install --reinstall gdm3</button>
+        </div>
+        <div class="explanation" id="exp4">
+            <div class="exp-label">EXPLANATION</div>
+            <p><code>sudo dpkg-reconfigure gdm3</code> (or <code>dpkg-reconfigure lightdm</code>) triggers the Debian package configuration dialog that asks which display manager should be the default. This updates <code>/etc/X11/default-display-manager</code> and sets up the appropriate systemd symlinks.</p>
+        </div>
+        <div class="nav-row"><button class="btn-next" id="next4" onclick="nextQ(4)">Next &rarr;</button></div>
+    </div>
+
+    <div id="q5" class="question-card">
+        <div class="q-number">QUESTION 5 OF 10</div>
+        <div class="q-text">A user's login succeeds but they immediately return to the login screen (login loop). Where should an admin look first?</div>
+        <div class="options">
+            <button class="option-btn" onclick="answer(this, false, 5)"><span class="opt-letter">A</span> /etc/gdm3/custom.conf</button>
+            <button class="option-btn" onclick="answer(this, false, 5)"><span class="opt-letter">B</span> /var/log/auth.log</button>
+            <button class="option-btn" onclick="answer(this, true, 5)"><span class="opt-letter">C</span> ~/.xsession-errors</button>
+            <button class="option-btn" onclick="answer(this, false, 5)"><span class="opt-letter">D</span> /etc/X11/xorg.conf</button>
+        </div>
+        <div class="explanation" id="exp5">
+            <div class="exp-label">EXPLANATION</div>
+            <p><code>~/.xsession-errors</code> captures stderr from the user's session startup — errors in .bashrc, .profile, missing window manager binaries, or corrupted .xsession files all appear here. A login loop most commonly results from a user-space error during session initialization, making this the first diagnostic file to check.</p>
+        </div>
+        <div class="nav-row"><button class="btn-next" id="next5" onclick="nextQ(5)">Next &rarr;</button></div>
+    </div>
+
+    <div id="q6" class="question-card">
+        <div class="q-number">QUESTION 6 OF 10</div>
+        <div class="q-text">Which file can a user create in their home directory to override the default desktop environment launched by the display manager?</div>
+        <div class="options">
+            <button class="option-btn" onclick="answer(this, false, 6)"><span class="opt-letter">A</span> ~/.bashrc</button>
+            <button class="option-btn" onclick="answer(this, false, 6)"><span class="opt-letter">B</span> ~/.xinitrc (only used with startx, not DMs)</button>
+            <button class="option-btn" onclick="answer(this, true, 6)"><span class="opt-letter">C</span> ~/.xsession</button>
+            <button class="option-btn" onclick="answer(this, false, 6)"><span class="opt-letter">D</span> ~/.Xdefaults</button>
+        </div>
+        <div class="explanation" id="exp6">
+            <div class="exp-label">EXPLANATION</div>
+            <p><code>~/.xsession</code> is executed by the display manager when a user logs in (for X11 sessions). It can contain commands like <code>exec openbox-session</code> to launch an alternative window manager. <code>~/.xinitrc</code> serves a similar purpose but is used by the <code>startx</code> command, not display managers. <code>~/.Xdefaults</code> sets X resource preferences (fonts, colors) but does not control which WM runs.</p>
+        </div>
+        <div class="nav-row"><button class="btn-next" id="next6" onclick="nextQ(6)">Next &rarr;</button></div>
+    </div>
+
+    <div id="q7" class="question-card">
+        <div class="q-number">QUESTION 7 OF 10</div>
+        <div class="q-text">SDDM is the default display manager for which desktop environment?</div>
+        <div class="options">
+            <button class="option-btn" onclick="answer(this, false, 7)"><span class="opt-letter">A</span> GNOME</button>
+            <button class="option-btn" onclick="answer(this, false, 7)"><span class="opt-letter">B</span> Xfce</button>
+            <button class="option-btn" onclick="answer(this, false, 7)"><span class="opt-letter">C</span> MATE</button>
+            <button class="option-btn" onclick="answer(this, true, 7)"><span class="opt-letter">D</span> KDE Plasma</button>
+        </div>
+        <div class="explanation" id="exp7">
+            <div class="exp-label">EXPLANATION</div>
+            <p>SDDM (Simple Desktop Display Manager) is the default DM for KDE Plasma. It is written in QML/Qt, integrating naturally with KDE's Qt-based design language. It replaced the older KDM display manager and supports both X11 and Wayland sessions.</p>
+        </div>
+        <div class="nav-row"><button class="btn-next" id="next7" onclick="nextQ(7)">Next &rarr;</button></div>
+    </div>
+
+    <div id="q8" class="question-card">
+        <div class="q-number">QUESTION 8 OF 10</div>
+        <div class="q-text">How do you switch the system to text-mode (no graphical login) on a systemd-based system?</div>
+        <div class="options">
+            <button class="option-btn" onclick="answer(this, false, 8)"><span class="opt-letter">A</span> systemctl disable gdm</button>
+            <button class="option-btn" onclick="answer(this, true, 8)"><span class="opt-letter">B</span> sudo systemctl set-default multi-user.target</button>
+            <button class="option-btn" onclick="answer(this, false, 8)"><span class="opt-letter">C</span> init 3</button>
+            <button class="option-btn" onclick="answer(this, false, 8)"><span class="opt-letter">D</span> telinit 2</button>
+        </div>
+        <div class="explanation" id="exp8">
+            <div class="exp-label">EXPLANATION</div>
+            <p><code>sudo systemctl set-default multi-user.target</code> configures the system to boot to runlevel 3 equivalent (multi-user, non-graphical) on next boot. <code>graphical.target</code> is the equivalent of runlevel 5 (with GUI). While <code>init 3</code> and <code>telinit 2</code> work on SysV init systems, <code>systemctl set-default</code> is the modern systemd approach. Disabling the DM service alone does not change the default target.</p>
+        </div>
+        <div class="nav-row"><button class="btn-next" id="next8" onclick="nextQ(8)">Next &rarr;</button></div>
+    </div>
+
+    <div id="q9" class="question-card">
+        <div class="q-number">QUESTION 9 OF 10</div>
+        <div class="q-text">Which command sets the system-wide locale to US English UTF-8?</div>
+        <div class="options">
+            <button class="option-btn" onclick="answer(this, false, 9)"><span class="opt-letter">A</span> locale set en_US.UTF-8</button>
+            <button class="option-btn" onclick="answer(this, false, 9)"><span class="opt-letter">B</span> export LANG=en_US.UTF-8</button>
+            <button class="option-btn" onclick="answer(this, true, 9)"><span class="opt-letter">C</span> sudo localectl set-locale LANG=en_US.UTF-8</button>
+            <button class="option-btn" onclick="answer(this, false, 9)"><span class="opt-letter">D</span> sudo timedatectl set-locale en_US</button>
+        </div>
+        <div class="explanation" id="exp9">
+            <div class="exp-label">EXPLANATION</div>
+            <p><code>localectl set-locale</code> makes a persistent, system-wide locale change. It writes to <code>/etc/locale.conf</code> (or the equivalent) and takes effect on the next login. <code>export LANG=en_US.UTF-8</code> only sets the locale for the current shell session — it is not persistent. <code>timedatectl</code> manages time zones and NTP, not locale settings.</p>
+        </div>
+        <div class="nav-row"><button class="btn-next" id="next9" onclick="nextQ(9)">Next &rarr;</button></div>
+    </div>
+
+    <div id="q10" class="question-card">
+        <div class="q-number">QUESTION 10 OF 10</div>
+        <div class="q-text">What is the primary advantage of Wayland over X11 from a security perspective?</div>
+        <div class="options">
+            <button class="option-btn" onclick="answer(this, false, 10)"><span class="opt-letter">A</span> Wayland encrypts all graphical communication with TLS</button>
+            <button class="option-btn" onclick="answer(this, true, 10)"><span class="opt-letter">B</span> Wayland isolates applications — they cannot spy on input events or screen contents of other applications</button>
+            <button class="option-btn" onclick="answer(this, false, 10)"><span class="opt-letter">C</span> Wayland requires root privileges to run, preventing malware from accessing the display</button>
+            <button class="option-btn" onclick="answer(this, false, 10)"><span class="opt-letter">D</span> Wayland uses hardware-level memory protection not available in X11</button>
+        </div>
+        <div class="explanation" id="exp10">
+            <div class="exp-label">EXPLANATION</div>
+            <p>In X11, any application can read keystrokes and screen contents from any other application in the same session — this is a fundamental design flaw exploited by keyloggers and screen-scrapers. Wayland's architecture isolates applications by design: each app only receives input events and display access that it is explicitly granted. This is the most significant security improvement Wayland provides over X11.</p>
+        </div>
+        <div class="nav-row"><button class="btn-next" id="next10" onclick="showResults()">See Results &rarr;</button></div>
+    </div>
+
+    <!-- Results -->
+    <div class="results-card" id="results">
+        <div class="score-circle">
+            <span class="score-num" id="scoreNum">0</span>
+            <span class="score-den">/ 10</span>
+        </div>
+        <div class="score-feedback" id="scoreFeedback"></div>
+        <h2>Quiz Complete</h2>
+        <p id="resultsMsg">Here is how you did on Chapter 7: Display Managers</p>
+        <button class="btn-retry" onclick="retryQuiz()">Retry Quiz</button>
+    </div>
+</div>
+
+<script src="../../../../../components/FluxCapacitor.js"></script>
+<script>
+    const STORAGE_KEY = 'hexworth_la_ch07_quiz_score';
+    let score = 0;
+    let current = 1;
+    const total = 10;
+
+    function answer(btn, correct, qNum) {
+        const card = document.getElementById('q' + qNum);
+        card.querySelectorAll('.option-btn').forEach(b => b.disabled = true);
+        if (correct) {
+            btn.classList.add('correct');
+            score++;
+        } else {
+            btn.classList.add('wrong');
+            // Highlight correct answer
+            card.querySelectorAll('.option-btn').forEach(b => {
+                b.getAttribute('onclick').includes('true') && b.classList.add('correct');
+            });
+        }
+        document.getElementById('exp' + qNum).classList.add('show');
+        document.getElementById('next' + qNum).classList.add('show');
+    }
+
+    function nextQ(qNum) {
+        document.getElementById('q' + qNum).classList.remove('active');
+        const next = qNum + 1;
+        document.getElementById('q' + next).classList.add('active');
+        document.getElementById('progCount').textContent = next + ' / ' + total;
+    }
+
+    function showResults() {
+        document.getElementById('q10').classList.remove('active');
+        const resultsEl = document.getElementById('results');
+        resultsEl.classList.add('show');
+        document.getElementById('scoreNum').textContent = score;
+        const fb = document.getElementById('scoreFeedback');
+        if (score >= 9) { fb.textContent = 'Outstanding — Mastery Level!'; fb.className = 'score-feedback great'; }
+        else if (score >= 7) { fb.textContent = 'Solid Work — Good Understanding'; fb.className = 'score-feedback good'; }
+        else { fb.textContent = 'Review the presentation and try again'; fb.className = 'score-feedback try'; }
+        try { localStorage.setItem(STORAGE_KEY, JSON.stringify({ score, total, date: new Date().toISOString() })); } catch(e) {}
+        if (score >= 7 && typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('script', 'script-la-ch07-quiz');
+        }
+    }
+
+    function retryQuiz() {
+        score = 0; current = 1;
+        document.getElementById('results').classList.remove('show');
+        document.getElementById('progCount').textContent = '1 / 10';
+        document.querySelectorAll('.question-card').forEach(c => {
+            c.classList.remove('active');
+            c.querySelectorAll('.option-btn').forEach(b => { b.classList.remove('correct','wrong'); b.disabled = false; });
+            c.querySelectorAll('.explanation').forEach(e => e.classList.remove('show'));
+            c.querySelectorAll('.btn-next').forEach(n => n.classList.remove('show'));
+        });
+        document.getElementById('q1').classList.add('active');
+    }
+</script>
+</body>
+</html>
