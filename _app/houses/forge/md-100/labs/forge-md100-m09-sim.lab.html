@@ -1,0 +1,1697 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Operation: Bottleneck - MD-100 Sim Lab</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            min-height: 100vh;
+            background: #0c0c0c;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: #e0d0c0;
+        }
+
+        /* ─── Header ─── */
+        .lab-header {
+            padding: 15px 30px;
+            background: rgba(10, 10, 15, 0.95);
+            border-bottom: 1px solid rgba(234, 88, 12, 0.2);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 200;
+        }
+        .header-left { display: flex; align-items: center; gap: 20px; }
+        .back-btn {
+            padding: 8px 16px;
+            background: rgba(234, 88, 12, 0.1);
+            border: 1px solid rgba(234, 88, 12, 0.3);
+            border-radius: 6px;
+            color: #f97316;
+            text-decoration: none;
+            font-size: 0.85rem;
+            transition: all 0.2s ease;
+        }
+        .back-btn:hover { background: rgba(234, 88, 12, 0.2); }
+        .lab-title { font-size: 1rem; color: #f5e6d0; font-weight: 500; }
+        .lab-badge {
+            padding: 4px 12px;
+            background: rgba(234, 88, 12, 0.15);
+            border: 1px solid rgba(234, 88, 12, 0.3);
+            border-radius: 12px;
+            font-size: 0.7rem;
+            color: #ea580c;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+        }
+        .task-progress { display: flex; align-items: center; gap: 10px; font-size: 0.85rem; color: #9a8070; }
+        .task-count { color: #f97316; font-weight: 600; }
+
+        /* ─── Mission Brief ─── */
+        .mission-brief {
+            background: linear-gradient(135deg, rgba(245,158,11,0.08), rgba(245,158,11,0.02));
+            border-bottom: 1px solid rgba(245, 158, 11, 0.2);
+            padding: 16px 30px;
+            font-size: 0.85rem;
+            color: #fcd34d;
+            line-height: 1.6;
+        }
+        .mission-brief strong { color: #f59e0b; }
+
+        /* ─── Layout ─── */
+        .lab-container {
+            display: grid;
+            grid-template-columns: 320px 1fr;
+            min-height: calc(100vh - 120px);
+        }
+
+        /* ─── Objectives Panel ─── */
+        .objectives-panel {
+            background: rgba(15, 12, 8, 0.95);
+            border-right: 1px solid rgba(234, 88, 12, 0.15);
+            padding: 20px;
+            overflow-y: auto;
+            position: sticky;
+            top: 61px;
+            height: calc(100vh - 61px);
+        }
+        .panel-heading {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: #ea580c;
+            margin-bottom: 15px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid rgba(234, 88, 12, 0.2);
+        }
+        .objective-item {
+            background: rgba(234, 88, 12, 0.04);
+            border: 1px solid rgba(234, 88, 12, 0.1);
+            border-radius: 8px;
+            padding: 10px 12px;
+            margin-bottom: 6px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .objective-item:hover { background: rgba(234, 88, 12, 0.08); border-color: rgba(234, 88, 12, 0.25); }
+        .objective-item.active { border-left: 3px solid #ea580c; background: rgba(234, 88, 12, 0.1); }
+        .objective-item.completed { border-color: rgba(34, 197, 94, 0.4); background: rgba(34, 197, 94, 0.04); }
+        .objective-item.completed .obj-title::before { content: '\2713 '; color: #22c55e; }
+        .obj-title { font-size: 0.8rem; color: #f5e6d0; margin-bottom: 2px; font-weight: 500; }
+        .obj-desc { font-size: 0.7rem; color: #7a6a5a; }
+
+        /* Sticky note */
+        .sticky-note {
+            background: #fef3c7;
+            color: #92400e;
+            border-radius: 4px;
+            padding: 12px;
+            margin-top: 15px;
+            font-size: 0.78rem;
+            line-height: 1.5;
+            font-family: 'Comic Sans MS', 'Segoe UI', cursive;
+            transform: rotate(-1deg);
+            box-shadow: 2px 2px 8px rgba(0,0,0,0.3);
+        }
+        .sticky-note .sticky-label {
+            font-weight: 700;
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            margin-bottom: 4px;
+            color: #78350f;
+        }
+
+        /* ─── GUI Workspace ─── */
+        .gui-workspace {
+            padding: 20px;
+            overflow-y: auto;
+            background: #1a1a1a;
+        }
+
+        /* Panel nav */
+        .panel-nav {
+            display: flex;
+            gap: 6px;
+            padding: 10px 16px;
+            background: #252528;
+            border-bottom: 1px solid #3e3e42;
+            flex-wrap: wrap;
+        }
+        .panel-nav-btn {
+            padding: 6px 14px;
+            background: #2d2d30;
+            border: 1px solid #3e3e42;
+            border-radius: 4px;
+            color: #999;
+            font-size: 0.78rem;
+            cursor: pointer;
+            font-family: inherit;
+            transition: all 0.15s;
+        }
+        .panel-nav-btn:hover { background: #3e3e42; color: #ccc; }
+        .panel-nav-btn.active { background: #2563eb; border-color: #3b82f6; color: white; }
+
+        /* Win panels */
+        .win-panel {
+            background: #2d2d30;
+            border: 1px solid #3e3e42;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            overflow: hidden;
+            display: none;
+        }
+        .win-panel.active { display: block; }
+        .win-titlebar {
+            background: linear-gradient(180deg, #3e3e42, #333337);
+            padding: 8px 14px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #4a4a4e;
+        }
+        .win-titlebar-text { font-size: 0.82rem; color: #cccccc; font-weight: 500; }
+        .win-titlebar-controls { display: flex; gap: 6px; }
+        .win-titlebar-controls span { width: 14px; height: 14px; border-radius: 50%; display: inline-block; }
+        .win-ctrl-min { background: #f59e0b; }
+        .win-ctrl-max { background: #22c55e; }
+        .win-ctrl-close { background: #ef4444; }
+        .win-body { padding: 16px; }
+        .win-nav-tabs {
+            display: flex;
+            border-bottom: 1px solid #3e3e42;
+            background: #252528;
+        }
+        .win-nav-tab {
+            padding: 10px 18px;
+            font-size: 0.8rem;
+            color: #999;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            transition: all 0.2s;
+            background: none;
+            border-top: none; border-left: none; border-right: none;
+            font-family: inherit;
+        }
+        .win-nav-tab:hover { color: #ccc; background: rgba(255,255,255,0.03); }
+        .win-nav-tab.active { color: #60a5fa; border-bottom-color: #60a5fa; }
+        .win-tab-content { display: none; }
+        .win-tab-content.active { display: block; }
+
+        /* Table */
+        .win-table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+        .win-table th {
+            padding: 8px 12px;
+            background: #252528;
+            color: #999;
+            font-weight: 500;
+            text-align: left;
+            border-bottom: 1px solid #3e3e42;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            cursor: pointer;
+        }
+        .win-table th:hover { color: #ccc; }
+        .win-table td {
+            padding: 7px 12px;
+            border-bottom: 1px solid rgba(62,62,66,0.5);
+            color: #bbb;
+        }
+        .win-table tr:hover { background: rgba(96,165,250,0.05); }
+        .win-table tr.highlight-danger { background: rgba(239,68,68,0.06); }
+        .win-table tr.highlight-danger td { color: #fca5a5; }
+        .win-table tr.highlight-warning { background: rgba(245,158,11,0.06); }
+        .win-table tr.highlight-warning td { color: #fcd34d; }
+
+        /* Buttons */
+        .win-btn {
+            padding: 7px 16px;
+            background: #3e3e42;
+            border: 1px solid #555;
+            border-radius: 4px;
+            color: #ccc;
+            font-size: 0.8rem;
+            cursor: pointer;
+            font-family: inherit;
+            transition: all 0.15s;
+        }
+        .win-btn:hover { background: #4a4a50; }
+        .win-btn:disabled { opacity: 0.4; cursor: default; }
+        .win-btn-primary { background: #2563eb; border-color: #3b82f6; color: white; }
+        .win-btn-primary:hover { background: #1d4ed8; }
+        .win-btn-danger { background: #dc2626; border-color: #ef4444; color: white; }
+        .win-btn-danger:hover { background: #b91c1c; }
+        .win-btn-success { background: #16a34a; border-color: #22c55e; color: white; }
+
+        .status-dot {
+            width: 8px; height: 8px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 4px;
+        }
+        .status-dot.green { background: #22c55e; }
+        .status-dot.red { background: #ef4444; }
+        .status-dot.yellow { background: #f59e0b; }
+        .status-dot.blue { background: #3b82f6; }
+
+        /* ─── Performance Graphs (CSS) ─── */
+        .perf-graph-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+        .perf-graph-card {
+            background: #1e1e1e;
+            border: 1px solid #3e3e42;
+            border-radius: 6px;
+            padding: 12px;
+            position: relative;
+        }
+        .perf-graph-label {
+            font-size: 0.72rem;
+            color: #888;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 6px;
+        }
+        .perf-graph-value {
+            font-size: 1.6rem;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+        .perf-graph-value.ok { color: #22c55e; }
+        .perf-graph-value.warn { color: #f59e0b; }
+        .perf-graph-value.crit { color: #ef4444; }
+
+        /* Bar graph */
+        .perf-bar-bg {
+            height: 60px;
+            background: #252528;
+            border-radius: 4px;
+            overflow: hidden;
+            position: relative;
+        }
+        .perf-bar-fill {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            transition: height 1s ease;
+            border-radius: 4px 4px 0 0;
+        }
+        .perf-bar-fill.cpu { background: linear-gradient(180deg, rgba(59,130,246,0.8), rgba(59,130,246,0.3)); }
+        .perf-bar-fill.mem { background: linear-gradient(180deg, rgba(168,85,247,0.8), rgba(168,85,247,0.3)); }
+        .perf-bar-fill.disk { background: linear-gradient(180deg, rgba(239,68,68,0.8), rgba(239,68,68,0.3)); }
+        .perf-bar-fill.mem-mid { background: linear-gradient(180deg, rgba(245,158,11,0.8), rgba(245,158,11,0.3)); }
+        .perf-bar-fill.disk-mid { background: linear-gradient(180deg, rgba(245,158,11,0.8), rgba(245,158,11,0.3)); }
+        .perf-bar-fill.ok { background: linear-gradient(180deg, rgba(34,197,94,0.8), rgba(34,197,94,0.3)); }
+
+        /* SVG graph container */
+        .perf-svg-container {
+            width: 100%;
+            height: 50px;
+            margin-top: 4px;
+        }
+        .perf-svg-container svg { width: 100%; height: 100%; }
+
+        /* Process list */
+        .proc-memory-bar {
+            background: #252528;
+            border-radius: 3px;
+            height: 14px;
+            overflow: hidden;
+            width: 100px;
+            display: inline-block;
+            vertical-align: middle;
+        }
+        .proc-memory-fill {
+            height: 100%;
+            border-radius: 3px;
+            transition: width 0.5s;
+        }
+
+        /* Form */
+        .form-group { margin-bottom: 14px; }
+        .form-label { display: block; font-size: 0.78rem; color: #999; margin-bottom: 5px; }
+        .form-input, .form-select {
+            width: 100%;
+            padding: 8px 12px;
+            background: #1e1e1e;
+            border: 1px solid #3e3e42;
+            border-radius: 4px;
+            color: #ccc;
+            font-size: 0.82rem;
+            font-family: inherit;
+        }
+        .form-input:focus, .form-select:focus { outline: none; border-color: #60a5fa; }
+        .form-checkbox { display: flex; align-items: center; gap: 8px; font-size: 0.82rem; color: #bbb; margin-bottom: 8px; }
+        .form-checkbox input { accent-color: #60a5fa; }
+
+        /* Settings */
+        .settings-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 0;
+            border-bottom: 1px solid rgba(62,62,66,0.4);
+        }
+        .settings-label { font-size: 0.85rem; color: #ccc; }
+        .settings-sublabel { font-size: 0.75rem; color: #777; margin-top: 2px; }
+
+        /* Toast */
+        .toast-container {
+            position: fixed;
+            top: 80px;
+            right: 20px;
+            z-index: 400;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .toast {
+            background: #2d2d30;
+            border: 1px solid #3e3e42;
+            border-radius: 8px;
+            padding: 14px 18px;
+            min-width: 320px;
+            max-width: 420px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+            animation: toastIn 0.3s ease;
+            font-size: 0.82rem;
+        }
+        .toast.info { border-left: 4px solid #3b82f6; }
+        .toast.success { border-left: 4px solid #22c55e; }
+        .toast.warning { border-left: 4px solid #f59e0b; }
+        .toast.error { border-left: 4px solid #ef4444; }
+        .toast-title { font-weight: 600; color: #e0e0e0; margin-bottom: 4px; }
+        .toast-msg { color: #999; line-height: 1.4; }
+        .toast-character { font-size: 0.72rem; color: #666; margin-top: 6px; font-style: italic; }
+        @keyframes toastIn { from { opacity: 0; transform: translateX(30px); } to { opacity: 1; transform: translateX(0); } }
+        @keyframes toastOut { from { opacity: 1; } to { opacity: 0; transform: translateX(30px); } }
+
+        /* Modal */
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.7);
+            z-index: 300;
+            display: none;
+            justify-content: center;
+            align-items: center;
+        }
+        .modal-overlay.show { display: flex; }
+        .modal-dialog {
+            background: #2d2d30;
+            border: 1px solid #3e3e42;
+            border-radius: 8px;
+            width: 90%;
+            max-width: 520px;
+            box-shadow: 0 8px 30px rgba(0,0,0,0.5);
+        }
+        .modal-header {
+            padding: 14px 20px;
+            border-bottom: 1px solid #3e3e42;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .modal-header h3 { font-size: 0.9rem; color: #e0e0e0; font-weight: 500; }
+        .modal-close { background: none; border: none; color: #888; font-size: 1.2rem; cursor: pointer; padding: 4px 8px; border-radius: 4px; }
+        .modal-close:hover { background: rgba(255,255,255,0.1); }
+        .modal-body { padding: 20px; font-size: 0.85rem; color: #bbb; line-height: 1.6; }
+        .modal-footer { padding: 14px 20px; border-top: 1px solid #3e3e42; display: flex; justify-content: flex-end; gap: 10px; }
+
+        /* Event Viewer logs */
+        .ev-log-entry { font-size: 0.78rem; padding: 6px 0; border-bottom: 1px solid rgba(62,62,66,0.3); }
+        .ev-icon { display: inline-block; width: 16px; text-align: center; margin-right: 6px; }
+        .ev-warning .ev-icon { color: #f59e0b; }
+        .ev-error .ev-icon { color: #ef4444; }
+        .ev-info .ev-icon { color: #3b82f6; }
+
+        /* Reliability timeline */
+        .rel-timeline {
+            display: flex;
+            gap: 4px;
+            height: 80px;
+            align-items: flex-end;
+            margin: 16px 0;
+        }
+        .rel-day {
+            flex: 1;
+            background: #252528;
+            border-radius: 3px 3px 0 0;
+            min-width: 30px;
+            position: relative;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .rel-day:hover { opacity: 0.8; }
+        .rel-day-label {
+            position: absolute;
+            bottom: -18px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 0.65rem;
+            color: #666;
+            white-space: nowrap;
+        }
+        .rel-day.good { background: linear-gradient(180deg, #22c55e, #16a34a); }
+        .rel-day.warn { background: linear-gradient(180deg, #f59e0b, #d97706); }
+        .rel-day.bad { background: linear-gradient(180deg, #ef4444, #dc2626); }
+
+        /* Spinner */
+        .spinner {
+            width: 20px; height: 20px;
+            border: 2px solid rgba(96,165,250,0.2);
+            border-top-color: #60a5fa;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            display: inline-block;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* Progress bar */
+        .progress-bar-container {
+            background: #1e1e1e;
+            border: 1px solid #3e3e42;
+            border-radius: 4px;
+            height: 24px;
+            overflow: hidden;
+            margin: 10px 0;
+        }
+        .progress-bar-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #2563eb, #3b82f6);
+            border-radius: 4px;
+            transition: width 0.5s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.72rem;
+            color: white;
+            font-weight: 600;
+        }
+        .progress-bar-fill.success { background: linear-gradient(90deg, #16a34a, #22c55e); }
+
+        /* Completion */
+        .complete-section {
+            display: none;
+            margin-top: 30px;
+            padding: 30px;
+            background: rgba(34, 197, 94, 0.06);
+            border: 1px solid rgba(34, 197, 94, 0.2);
+            border-radius: 12px;
+            text-align: center;
+        }
+        .complete-section.show { display: block; }
+        .complete-section h3 { color: #22c55e; font-size: 1.2rem; margin-bottom: 8px; }
+        .complete-section p { color: #9a8070; font-size: 0.9rem; margin-bottom: 20px; }
+        .complete-btn {
+            padding: 14px 32px;
+            background: linear-gradient(135deg, #22c55e, #16a34a);
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-size: 1rem;
+            font-weight: 700;
+            cursor: pointer;
+            font-family: inherit;
+            transition: all 0.2s ease;
+        }
+        .complete-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(34, 197, 94, 0.35); }
+
+        @keyframes taskPulse {
+            0%, 100% { box-shadow: none; }
+            50% { box-shadow: 0 0 12px rgba(34, 197, 94, 0.5); }
+        }
+        .objective-item.just-completed { animation: taskPulse 0.6s ease; }
+
+        /* Perfmon counter graph (CSS animated) */
+        .perfmon-graph {
+            background: #1e1e1e;
+            border: 1px solid #3e3e42;
+            border-radius: 4px;
+            padding: 12px;
+            height: 120px;
+            position: relative;
+            overflow: hidden;
+        }
+        .perfmon-line {
+            position: absolute;
+            bottom: 12px;
+            left: 12px;
+            right: 12px;
+            height: 2px;
+            background: #3e3e42;
+        }
+        .perfmon-gridline {
+            position: absolute;
+            left: 12px;
+            right: 12px;
+            height: 1px;
+            background: rgba(62,62,66,0.3);
+        }
+
+        @media (max-width: 1100px) {
+            .perf-graph-row { grid-template-columns: 1fr; }
+        }
+        @media (max-width: 900px) {
+            .lab-container { grid-template-columns: 1fr; }
+            .objectives-panel { position: static; height: auto; }
+        }
+    </style>
+</head>
+<body>
+
+    <header class="lab-header">
+        <div class="header-left">
+            <a href="../index.html" class="back-btn">&larr; Back to MD-100</a>
+            <span class="lab-title">Operation: Bottleneck</span>
+            <span class="lab-badge">Day 9 &mdash; Sim Lab</span>
+        </div>
+        <div class="task-progress">
+            <span>Objectives:</span>
+            <span class="task-count" id="objCount">0 / 10</span>
+        </div>
+    </header>
+
+    <div class="mission-brief">
+        <strong>MISSION BRIEF &mdash; Sarah Chen:</strong>
+        "Payroll processing started at 6am and it's still running. Usually takes 45 minutes &mdash; we're at 3 hours. HR is panicking. The payroll server is a workstation (I know &mdash; Ray's architecture). I need you to figure out what's choking it, fix it, and set up monitoring so we catch this before it becomes an emergency again."
+    </div>
+
+    <div class="lab-container">
+
+        <!-- ── Objectives Panel ── -->
+        <aside class="objectives-panel">
+            <div class="panel-heading">Objectives (10)</div>
+
+            <div class="objective-item active" data-obj="1" onclick="showObj(1)">
+                <div class="obj-title">1. Check Task Manager</div>
+                <div class="obj-desc">Identify CPU, Memory, Disk bottleneck</div>
+            </div>
+            <div class="objective-item" data-obj="2" onclick="showObj(2)">
+                <div class="obj-title">2. Identify Memory Hog</div>
+                <div class="obj-desc">Find UpdateOrchestrator.exe (3.2 GB)</div>
+            </div>
+            <div class="objective-item" data-obj="3" onclick="showObj(3)">
+                <div class="obj-title">3. Stop Competing Process</div>
+                <div class="obj-desc">End UpdateOrchestrator.exe</div>
+            </div>
+            <div class="objective-item" data-obj="4" onclick="showObj(4)">
+                <div class="obj-title">4. Check Event Viewer</div>
+                <div class="obj-desc">Find disk I/O and memory warnings</div>
+            </div>
+            <div class="objective-item" data-obj="5" onclick="showObj(5)">
+                <div class="obj-title">5. Investigate Disk I/O</div>
+                <div class="obj-desc">Resource Monitor &mdash; SearchIndexer competing</div>
+            </div>
+            <div class="objective-item" data-obj="6" onclick="showObj(6)">
+                <div class="obj-title">6. Disable Search Indexer</div>
+                <div class="obj-desc">Stop Windows Search service</div>
+            </div>
+            <div class="objective-item" data-obj="7" onclick="showObj(7)">
+                <div class="obj-title">7. Set Up Performance Monitor</div>
+                <div class="obj-desc">Add counters, start data collection</div>
+            </div>
+            <div class="objective-item" data-obj="8" onclick="showObj(8)">
+                <div class="obj-title">8. Review Reliability Monitor</div>
+                <div class="obj-desc">Uninstall MemBoost Pro</div>
+            </div>
+            <div class="objective-item" data-obj="9" onclick="showObj(9)">
+                <div class="obj-title">9. Configure Update Active Hours</div>
+                <div class="obj-desc">Prevent updates during payroll</div>
+            </div>
+            <div class="objective-item" data-obj="10" onclick="showObj(10)">
+                <div class="obj-title">10. Create Monitoring Alert</div>
+                <div class="obj-desc">Alert if available memory &lt; 500 MB</div>
+            </div>
+
+            <div class="sticky-note">
+                <div class="sticky-label">Ray's Sticky Note</div>
+                "Installed MemBoost Pro to speed things up. Working great! -R"
+            </div>
+        </aside>
+
+        <!-- ── GUI Workspace ── -->
+        <main class="gui-workspace">
+
+            <div class="panel-nav">
+                <button class="panel-nav-btn active" onclick="showPanel('taskmgr')">Task Manager</button>
+                <button class="panel-nav-btn" onclick="showPanel('eventviewer')">Event Viewer</button>
+                <button class="panel-nav-btn" onclick="showPanel('resmon')">Resource Monitor</button>
+                <button class="panel-nav-btn" onclick="showPanel('services')">Services</button>
+                <button class="panel-nav-btn" onclick="showPanel('perfmon')">Performance Monitor</button>
+                <button class="panel-nav-btn" onclick="showPanel('reliability')">Reliability Monitor</button>
+                <button class="panel-nav-btn" onclick="showPanel('update')">Windows Update</button>
+            </div>
+
+            <!-- ═══ Task Manager ═══ -->
+            <div class="win-panel active" id="panel-taskmgr">
+                <div class="win-titlebar">
+                    <span class="win-titlebar-text">Task Manager</span>
+                    <div class="win-titlebar-controls">
+                        <span class="win-ctrl-min"></span><span class="win-ctrl-max"></span><span class="win-ctrl-close"></span>
+                    </div>
+                </div>
+                <div class="win-nav-tabs">
+                    <button class="win-nav-tab" onclick="showTmTab('processes')">Processes</button>
+                    <button class="win-nav-tab active" onclick="showTmTab('performance')">Performance</button>
+                    <button class="win-nav-tab" onclick="showTmTab('startup')">Startup</button>
+                    <button class="win-nav-tab" onclick="showTmTab('services')">Services</button>
+                </div>
+                <div class="win-body">
+
+                    <!-- Performance Tab -->
+                    <div class="win-tab-content active" id="tm-performance">
+                        <div class="perf-graph-row">
+                            <!-- CPU -->
+                            <div class="perf-graph-card">
+                                <div class="perf-graph-label">CPU</div>
+                                <div class="perf-graph-value ok" id="cpu-value">15%</div>
+                                <div class="perf-bar-bg">
+                                    <div class="perf-bar-fill cpu" id="cpu-bar" style="height:15%;"></div>
+                                </div>
+                                <div style="font-size:0.7rem;color:#666;margin-top:6px;">Intel Core i7-10700 @ 2.90GHz | 8 cores</div>
+                            </div>
+                            <!-- Memory -->
+                            <div class="perf-graph-card" style="border-color:rgba(239,68,68,0.3);">
+                                <div class="perf-graph-label">Memory</div>
+                                <div class="perf-graph-value crit" id="mem-value">94%</div>
+                                <div class="perf-bar-bg">
+                                    <div class="perf-bar-fill mem" id="mem-bar" style="height:94%;"></div>
+                                </div>
+                                <div style="font-size:0.7rem;color:#666;margin-top:6px;" id="mem-detail">15.0 / 16.0 GB in use</div>
+                            </div>
+                            <!-- Disk -->
+                            <div class="perf-graph-card" style="border-color:rgba(239,68,68,0.3);">
+                                <div class="perf-graph-label">Disk 0 (C:)</div>
+                                <div class="perf-graph-value crit" id="disk-value">100%</div>
+                                <div class="perf-bar-bg">
+                                    <div class="perf-bar-fill disk" id="disk-bar" style="height:100%;"></div>
+                                </div>
+                                <div style="font-size:0.7rem;color:#666;margin-top:6px;">Active time: 100% | Read: 145 MB/s | Write: 89 MB/s</div>
+                            </div>
+                        </div>
+                        <button class="win-btn win-btn-primary" id="btn-perf-assess" onclick="assessPerformance()">Identify Bottleneck</button>
+                        <div id="perf-feedback" style="margin-top:10px;font-size:0.82rem;display:none;"></div>
+                    </div>
+
+                    <!-- Processes Tab -->
+                    <div class="win-tab-content" id="tm-processes">
+                        <div style="margin-bottom:10px;font-size:0.78rem;color:#888;">Click column headers to sort. Right-click a process for actions.</div>
+                        <table class="win-table" id="proc-table">
+                            <thead>
+                                <tr>
+                                    <th onclick="sortProcs('name')">Name</th>
+                                    <th onclick="sortProcs('cpu')">CPU</th>
+                                    <th onclick="sortProcs('memory')">Memory</th>
+                                    <th onclick="sortProcs('disk')">Disk</th>
+                                    <th>Status</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="proc-tbody"></tbody>
+                        </table>
+                    </div>
+
+                    <!-- Startup Tab -->
+                    <div class="win-tab-content" id="tm-startup">
+                        <table class="win-table">
+                            <thead><tr><th>Name</th><th>Publisher</th><th>Status</th><th>Startup Impact</th><th>Action</th></tr></thead>
+                            <tbody>
+                                <tr class="highlight-danger">
+                                    <td>MemBoost Pro</td>
+                                    <td>Unknown Publisher</td>
+                                    <td><span style="color:#22c55e;">Enabled</span></td>
+                                    <td><span style="color:#ef4444;">High</span></td>
+                                    <td><button class="win-btn" onclick="disableMemBoostStartup(this)">Disable</button></td>
+                                </tr>
+                                <tr>
+                                    <td>MeridianPayroll</td>
+                                    <td>Meridian Industries</td>
+                                    <td><span style="color:#22c55e;">Enabled</span></td>
+                                    <td>Medium</td>
+                                    <td><button class="win-btn" disabled>Required</button></td>
+                                </tr>
+                                <tr>
+                                    <td>Windows Security</td>
+                                    <td>Microsoft</td>
+                                    <td><span style="color:#22c55e;">Enabled</span></td>
+                                    <td>Low</td>
+                                    <td><button class="win-btn" disabled>System</button></td>
+                                </tr>
+                                <tr>
+                                    <td>Microsoft Edge Update</td>
+                                    <td>Microsoft</td>
+                                    <td><span style="color:#22c55e;">Enabled</span></td>
+                                    <td>Low</td>
+                                    <td><button class="win-btn" disabled>System</button></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Services Tab -->
+                    <div class="win-tab-content" id="tm-services">
+                        <p style="font-size:0.82rem;color:#888;margin-bottom:10px;">For full service management, use the Services console.</p>
+                        <button class="win-btn" onclick="showPanel('services')">Open Services</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ═══ Event Viewer ═══ -->
+            <div class="win-panel" id="panel-eventviewer">
+                <div class="win-titlebar">
+                    <span class="win-titlebar-text">Event Viewer &mdash; System Log</span>
+                    <div class="win-titlebar-controls">
+                        <span class="win-ctrl-min"></span><span class="win-ctrl-max"></span><span class="win-ctrl-close"></span>
+                    </div>
+                </div>
+                <div class="win-body">
+                    <div style="display:flex;gap:10px;margin-bottom:12px;">
+                        <button class="win-btn" onclick="filterEvents('all')">All</button>
+                        <button class="win-btn" onclick="filterEvents('error')">Errors</button>
+                        <button class="win-btn" onclick="filterEvents('warning')">Warnings</button>
+                        <button class="win-btn" onclick="filterEvents('info')">Information</button>
+                        <button class="win-btn win-btn-primary" id="btn-filter-4h" onclick="filterLast4Hours()">Filter: Last 4 Hours</button>
+                    </div>
+                    <div style="max-height:350px;overflow-y:auto;border:1px solid #3e3e42;border-radius:4px;">
+                        <table class="win-table" id="ev-table">
+                            <thead>
+                                <tr><th>Level</th><th>Date/Time</th><th>Source</th><th>Event ID</th><th>Message</th></tr>
+                            </thead>
+                            <tbody id="ev-tbody"></tbody>
+                        </table>
+                    </div>
+                    <div id="ev-feedback" style="margin-top:10px;font-size:0.82rem;display:none;"></div>
+                </div>
+            </div>
+
+            <!-- ═══ Resource Monitor ═══ -->
+            <div class="win-panel" id="panel-resmon">
+                <div class="win-titlebar">
+                    <span class="win-titlebar-text">Resource Monitor</span>
+                    <div class="win-titlebar-controls">
+                        <span class="win-ctrl-min"></span><span class="win-ctrl-max"></span><span class="win-ctrl-close"></span>
+                    </div>
+                </div>
+                <div class="win-nav-tabs">
+                    <button class="win-nav-tab" onclick="showRmTab('cpu')">CPU</button>
+                    <button class="win-nav-tab" onclick="showRmTab('memory')">Memory</button>
+                    <button class="win-nav-tab active" onclick="showRmTab('disk')">Disk</button>
+                    <button class="win-nav-tab" onclick="showRmTab('network')">Network</button>
+                </div>
+                <div class="win-body">
+                    <!-- Disk Tab (default) -->
+                    <div class="win-tab-content active" id="rm-disk">
+                        <h4 style="font-size:0.85rem;color:#e0e0e0;margin-bottom:10px;">Disk Activity by Process</h4>
+                        <table class="win-table" id="rm-disk-table">
+                            <thead>
+                                <tr><th>Process</th><th>PID</th><th>Read (B/sec)</th><th>Write (B/sec)</th><th>Total I/O</th></tr>
+                            </thead>
+                            <tbody id="rm-disk-tbody"></tbody>
+                        </table>
+                        <button class="win-btn win-btn-primary" id="btn-investigate-disk" onclick="investigateDisk()" style="margin-top:12px;">Identify Disk Contention</button>
+                        <div id="rm-disk-feedback" style="margin-top:10px;font-size:0.82rem;display:none;"></div>
+                    </div>
+
+                    <!-- CPU Tab -->
+                    <div class="win-tab-content" id="rm-cpu">
+                        <h4 style="font-size:0.85rem;color:#e0e0e0;margin-bottom:10px;">CPU Activity by Process</h4>
+                        <table class="win-table">
+                            <thead><tr><th>Process</th><th>PID</th><th>Threads</th><th>CPU %</th></tr></thead>
+                            <tbody>
+                                <tr><td>System</td><td>4</td><td>142</td><td>3%</td></tr>
+                                <tr><td>MeridianPayroll.exe</td><td>3840</td><td>28</td><td>4%</td></tr>
+                                <tr><td>UpdateOrchestrator.exe</td><td>5612</td><td>14</td><td>2%</td></tr>
+                                <tr><td>SearchIndexer.exe</td><td>2244</td><td>18</td><td>3%</td></tr>
+                                <tr><td>MemBoostPro.exe</td><td>6788</td><td>8</td><td>1%</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Memory Tab -->
+                    <div class="win-tab-content" id="rm-memory">
+                        <h4 style="font-size:0.85rem;color:#e0e0e0;margin-bottom:10px;">Memory by Process</h4>
+                        <table class="win-table">
+                            <thead><tr><th>Process</th><th>PID</th><th>Working Set (MB)</th><th>Private (MB)</th><th>Shareable (MB)</th></tr></thead>
+                            <tbody>
+                                <tr class="highlight-danger"><td>UpdateOrchestrator.exe</td><td>5612</td><td>3,280</td><td>3,180</td><td>100</td></tr>
+                                <tr><td>MeridianPayroll.exe</td><td>3840</td><td>1,420</td><td>1,380</td><td>40</td></tr>
+                                <tr class="highlight-warning"><td>MemBoostPro.exe</td><td>6788</td><td>812</td><td>790</td><td>22</td></tr>
+                                <tr><td>SearchIndexer.exe</td><td>2244</td><td>380</td><td>340</td><td>40</td></tr>
+                                <tr><td>svchost.exe (group)</td><td>various</td><td>520</td><td>480</td><td>40</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Network Tab -->
+                    <div class="win-tab-content" id="rm-network">
+                        <h4 style="font-size:0.85rem;color:#e0e0e0;margin-bottom:10px;">Network Activity</h4>
+                        <p style="font-size:0.82rem;color:#888;">Network utilization is low. The bottleneck is not network-related.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ═══ Services Console ═══ -->
+            <div class="win-panel" id="panel-services">
+                <div class="win-titlebar">
+                    <span class="win-titlebar-text">Services (services.msc)</span>
+                    <div class="win-titlebar-controls">
+                        <span class="win-ctrl-min"></span><span class="win-ctrl-max"></span><span class="win-ctrl-close"></span>
+                    </div>
+                </div>
+                <div class="win-body">
+                    <table class="win-table">
+                        <thead><tr><th>Name</th><th>Description</th><th>Status</th><th>Startup Type</th><th>Action</th></tr></thead>
+                        <tbody>
+                            <tr id="svc-search">
+                                <td>Windows Search</td>
+                                <td>Provides content indexing, property caching, and search results</td>
+                                <td id="svc-search-status"><span class="status-dot green"></span>Running</td>
+                                <td id="svc-search-startup">Automatic</td>
+                                <td>
+                                    <button class="win-btn win-btn-danger" id="svc-search-btn" onclick="stopSearchService()">Stop</button>
+                                    <button class="win-btn" id="svc-search-manual" onclick="setSearchManual()" style="display:none;">Set Manual</button>
+                                </td>
+                            </tr>
+                            <tr id="svc-memboost" class="highlight-danger">
+                                <td>MemBoost Pro Service</td>
+                                <td>"Memory optimization" tool (3rd party, unknown publisher)</td>
+                                <td id="svc-mb-status"><span class="status-dot green"></span>Running</td>
+                                <td id="svc-mb-startup">Automatic</td>
+                                <td>
+                                    <button class="win-btn win-btn-danger" id="svc-mb-btn" onclick="stopMemBoostSvc()">Stop</button>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>Windows Update</td>
+                                <td>Enables detection, download, and install of updates</td>
+                                <td><span class="status-dot green"></span>Running</td>
+                                <td>Automatic</td>
+                                <td><button class="win-btn" disabled>Running</button></td>
+                            </tr>
+                            <tr>
+                                <td>MeridianPayroll Service</td>
+                                <td>Payroll processing engine</td>
+                                <td><span class="status-dot green"></span>Running</td>
+                                <td>Automatic</td>
+                                <td><button class="win-btn" disabled>Critical</button></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- ═══ Performance Monitor ═══ -->
+            <div class="win-panel" id="panel-perfmon">
+                <div class="win-titlebar">
+                    <span class="win-titlebar-text">Performance Monitor (perfmon.msc)</span>
+                    <div class="win-titlebar-controls">
+                        <span class="win-ctrl-min"></span><span class="win-ctrl-max"></span><span class="win-ctrl-close"></span>
+                    </div>
+                </div>
+                <div class="win-body">
+                    <h4 style="font-size:0.85rem;color:#e0e0e0;margin-bottom:12px;">Add Performance Counters</h4>
+                    <p style="font-size:0.78rem;color:#888;margin-bottom:14px;">Select the counters to monitor. You need: Available MBytes, % Disk Time, and the Payroll process working set.</p>
+
+                    <div class="form-checkbox">
+                        <input type="checkbox" id="pc-mem" onchange="checkPerfCounters()"> <span>\Memory\Available MBytes</span>
+                    </div>
+                    <div class="form-checkbox">
+                        <input type="checkbox" id="pc-disk" onchange="checkPerfCounters()"> <span>\PhysicalDisk(_Total)\% Disk Time</span>
+                    </div>
+                    <div class="form-checkbox">
+                        <input type="checkbox" id="pc-proc" onchange="checkPerfCounters()"> <span>\Process(MeridianPayroll)\Working Set</span>
+                    </div>
+                    <div class="form-checkbox">
+                        <input type="checkbox" id="pc-cpu"> <span>\Processor(_Total)\% Processor Time</span>
+                    </div>
+                    <div class="form-checkbox">
+                        <input type="checkbox" id="pc-pages"> <span>\Memory\Pages/sec</span>
+                    </div>
+
+                    <div style="margin-top:16px;display:flex;gap:10px;align-items:center;">
+                        <div class="form-label" style="margin-bottom:0;">Collection Duration:</div>
+                        <select class="form-select" id="pc-duration" style="width:150px;">
+                            <option value="15">15 minutes</option>
+                            <option value="30">30 minutes</option>
+                            <option value="60" selected>1 hour</option>
+                            <option value="120">2 hours</option>
+                        </select>
+                    </div>
+
+                    <button class="win-btn win-btn-primary" id="btn-start-perfmon" onclick="startPerfMon()" style="margin-top:14px;">Start Data Collection</button>
+
+                    <div id="perfmon-running" style="display:none;margin-top:16px;">
+                        <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+                            <div class="spinner"></div>
+                            <span style="color:#60a5fa;font-size:0.85rem;">Collecting performance data...</span>
+                        </div>
+                        <!-- Mini graph simulation -->
+                        <div class="perfmon-graph" id="perfmon-canvas">
+                            <div class="perfmon-gridline" style="bottom:25%;"></div>
+                            <div class="perfmon-gridline" style="bottom:50%;"></div>
+                            <div class="perfmon-gridline" style="bottom:75%;"></div>
+                            <canvas id="perfGraphCanvas" width="460" height="96" style="width:100%;height:96px;"></canvas>
+                        </div>
+                        <div style="display:flex;gap:16px;font-size:0.72rem;margin-top:6px;">
+                            <span style="color:#3b82f6;">&#9632; Available Memory (MB)</span>
+                            <span style="color:#ef4444;">&#9632; Disk Time (%)</span>
+                            <span style="color:#22c55e;">&#9632; Payroll Working Set (MB)</span>
+                        </div>
+                    </div>
+
+                    <div id="perfmon-feedback" style="margin-top:12px;font-size:0.82rem;display:none;"></div>
+                </div>
+            </div>
+
+            <!-- ═══ Reliability Monitor ═══ -->
+            <div class="win-panel" id="panel-reliability">
+                <div class="win-titlebar">
+                    <span class="win-titlebar-text">Reliability Monitor</span>
+                    <div class="win-titlebar-controls">
+                        <span class="win-ctrl-min"></span><span class="win-ctrl-max"></span><span class="win-ctrl-close"></span>
+                    </div>
+                </div>
+                <div class="win-body">
+                    <h4 style="font-size:0.85rem;color:#e0e0e0;margin-bottom:6px;">System Stability Index</h4>
+                    <p style="font-size:0.78rem;color:#888;margin-bottom:16px;">Stability dropped 3 days ago. Click a day to see details.</p>
+
+                    <!-- Timeline -->
+                    <div class="rel-timeline" id="rel-timeline">
+                        <div class="rel-day good" style="height:90%;" onclick="showRelDay(1)"><div class="rel-day-label">Feb 14</div></div>
+                        <div class="rel-day good" style="height:85%;" onclick="showRelDay(2)"><div class="rel-day-label">Feb 15</div></div>
+                        <div class="rel-day good" style="height:88%;" onclick="showRelDay(3)"><div class="rel-day-label">Feb 16</div></div>
+                        <div class="rel-day good" style="height:82%;" onclick="showRelDay(4)"><div class="rel-day-label">Feb 17</div></div>
+                        <div class="rel-day warn" style="height:50%;" onclick="showRelDay(5)"><div class="rel-day-label">Feb 18</div></div>
+                        <div class="rel-day bad" style="height:25%;" onclick="showRelDay(6)"><div class="rel-day-label">Feb 19</div></div>
+                        <div class="rel-day bad" style="height:20%;" onclick="showRelDay(7)"><div class="rel-day-label">Feb 20</div></div>
+                        <div class="rel-day bad" style="height:15%;" onclick="showRelDay(8)"><div class="rel-day-label">Feb 21</div></div>
+                    </div>
+
+                    <div style="margin-top:30px;">
+                        <div id="rel-details">
+                            <p style="font-size:0.82rem;color:#999;">Click a day on the timeline to view events.</p>
+                        </div>
+                    </div>
+
+                    <!-- Uninstall MemBoost -->
+                    <div style="margin-top:20px;padding-top:16px;border-top:1px solid #3e3e42;">
+                        <h4 style="font-size:0.85rem;color:#e0e0e0;margin-bottom:10px;">Detected Problem Software</h4>
+                        <div style="padding:12px;background:rgba(239,68,68,0.06);border:1px solid rgba(239,68,68,0.15);border-radius:6px;display:flex;justify-content:space-between;align-items:center;" id="memboost-uninstall-row">
+                            <div>
+                                <div style="color:#fca5a5;font-size:0.85rem;font-weight:500;">MemBoost Pro 3.1</div>
+                                <div style="color:#888;font-size:0.75rem;">Unknown Publisher | Installed Feb 18 | Correlated with 3 kernel crashes</div>
+                            </div>
+                            <button class="win-btn win-btn-danger" id="btn-uninstall-mb" onclick="uninstallMemBoost()">Uninstall</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ═══ Windows Update (Active Hours) ═══ -->
+            <div class="win-panel" id="panel-update">
+                <div class="win-titlebar">
+                    <span class="win-titlebar-text">Settings &gt; Windows Update &gt; Active Hours</span>
+                    <div class="win-titlebar-controls">
+                        <span class="win-ctrl-min"></span><span class="win-ctrl-max"></span><span class="win-ctrl-close"></span>
+                    </div>
+                </div>
+                <div class="win-body">
+                    <h4 style="font-size:0.85rem;color:#e0e0e0;margin-bottom:6px;">Active Hours Configuration</h4>
+                    <p style="font-size:0.78rem;color:#888;margin-bottom:14px;">During active hours, Windows will not automatically restart for updates. Set this to cover the payroll processing window (5am-9am).</p>
+
+                    <div style="padding:12px;background:rgba(245,158,11,0.06);border:1px solid rgba(245,158,11,0.15);border-radius:6px;margin-bottom:16px;">
+                        <span style="color:#f59e0b;font-size:0.82rem;"><span class="status-dot yellow"></span>Current active hours: 8:00 AM - 5:00 PM (does not cover payroll window)</span>
+                    </div>
+
+                    <div style="display:flex;gap:16px;align-items:center;">
+                        <div class="form-group" style="margin-bottom:0;">
+                            <div class="form-label">Start Time</div>
+                            <select class="form-select" id="ah-start" style="width:130px;">
+                                <option value="4">4:00 AM</option>
+                                <option value="5">5:00 AM</option>
+                                <option value="6">6:00 AM</option>
+                                <option value="7">7:00 AM</option>
+                                <option value="8" selected>8:00 AM</option>
+                            </select>
+                        </div>
+                        <div class="form-group" style="margin-bottom:0;">
+                            <div class="form-label">End Time</div>
+                            <select class="form-select" id="ah-end" style="width:130px;">
+                                <option value="7">7:00 AM</option>
+                                <option value="8">8:00 AM</option>
+                                <option value="9">9:00 AM</option>
+                                <option value="10">10:00 AM</option>
+                                <option value="17" selected>5:00 PM</option>
+                                <option value="18">6:00 PM</option>
+                            </select>
+                        </div>
+                    </div>
+                    <button class="win-btn win-btn-primary" onclick="setActiveHours()" style="margin-top:14px;">Save Active Hours</button>
+                    <div id="ah-feedback" style="margin-top:10px;font-size:0.82rem;display:none;"></div>
+                </div>
+            </div>
+
+            <!-- ═══ Completion Banner ═══ -->
+            <div class="complete-section" id="completeSection">
+                <h3>Mission Complete &mdash; Operation: Bottleneck</h3>
+                <p>Payroll processing restored. Bottleneck identified and resolved. Monitoring in place to prevent recurrence.</p>
+                <p style="font-size:0.82rem;color:#777;margin-bottom:16px;"><em>Sarah: "Payroll finished in 35 minutes after your fixes. HR is relieved. But I've got bad news &mdash; the overnight backup failed. Actually, it's worse than that. Check your email in the morning."</em></p>
+                <button class="complete-btn" onclick="completeModule()">Complete Mission &amp; Return</button>
+            </div>
+
+        </main>
+    </div>
+
+    <!-- Toast Container -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <!-- Modal -->
+    <div class="modal-overlay" id="modalOverlay">
+        <div class="modal-dialog" id="modalDialog">
+            <div class="modal-header">
+                <h3 id="modalTitle">Dialog</h3>
+                <button class="modal-close" onclick="closeModal()">&times;</button>
+            </div>
+            <div class="modal-body" id="modalBody"></div>
+            <div class="modal-footer" id="modalFooter"></div>
+        </div>
+    </div>
+
+    <script>
+    // ═══════════════════════════════════════════════════
+    //  STATE
+    // ═══════════════════════════════════════════════════
+    const totalObj = 10;
+    const done = new Set();
+    const state = {
+        perfAssessed: false,
+        memHogFound: false,
+        updateOrcStopped: false,
+        eventsChecked: false,
+        diskInvestigated: false,
+        searchStopped: false,
+        searchManual: false,
+        perfmonStarted: false,
+        memBoostSvcStopped: false,
+        memBoostUninstalled: false,
+        activeHoursSet: false,
+        alertCreated: false
+    };
+
+    // Process data
+    let processes = [
+        { name: 'MeridianPayroll.exe', cpu: 4, memory: 1420, disk: 85, status: 'Running', critical: true },
+        { name: 'UpdateOrchestrator.exe', cpu: 2, memory: 3280, disk: 62, status: 'Running', danger: true },
+        { name: 'SearchIndexer.exe', cpu: 3, memory: 380, disk: 58, status: 'Running', warning: true },
+        { name: 'MemBoostPro.exe', cpu: 1, memory: 812, disk: 5, status: 'Running', danger: true },
+        { name: 'svchost.exe (netsvcs)', cpu: 1, memory: 240, disk: 2, status: 'Running' },
+        { name: 'svchost.exe (local)', cpu: 0, memory: 180, disk: 1, status: 'Running' },
+        { name: 'csrss.exe', cpu: 0, memory: 45, disk: 0, status: 'Running' },
+        { name: 'lsass.exe', cpu: 0, memory: 68, disk: 0, status: 'Running' },
+        { name: 'explorer.exe', cpu: 1, memory: 120, disk: 1, status: 'Running' },
+        { name: 'dwm.exe', cpu: 1, memory: 95, disk: 0, status: 'Running' }
+    ];
+    let sortField = 'memory';
+    let sortDir = -1;
+
+    // Event log data
+    const events = [
+        { level: 'Error', time: '09:12:44 AM', source: 'Application Error', id: 1000, msg: "Application pool 'PayrollApp' failed to start due to insufficient memory.", recent: true },
+        { level: 'Warning', time: '09:05:21 AM', source: 'Disk', id: 153, msg: 'The IO operation at logical block address was retried. Disk at capacity for I/O.', recent: true },
+        { level: 'Warning', time: '08:48:33 AM', source: 'Resource-Exhaustion-Detector', id: 2004, msg: 'Windows successfully diagnosed a low virtual memory condition. Committed memory: 15.2 GB / 16 GB.', recent: true },
+        { level: 'Warning', time: '08:30:17 AM', source: 'Disk', id: 153, msg: 'The IO operation at logical block address was retried. Disk at capacity for I/O.', recent: true },
+        { level: 'Error', time: '08:15:02 AM', source: 'Kernel-Power', id: 137, msg: 'The system firmware has changed the processor power management. MemBoostPro kernel driver conflict.', recent: true },
+        { level: 'Warning', time: '07:44:10 AM', source: 'SearchIndexer', id: 3036, msg: 'The content source has become unavailable during indexing. Disk contention detected.', recent: true },
+        { level: 'Information', time: '06:00:01 AM', source: 'MeridianPayroll', id: 100, msg: 'Payroll processing started. Expected completion: 06:45 AM.', recent: true },
+        { level: 'Information', time: '05:55:00 AM', source: 'Service Control Manager', id: 7036, msg: 'The Windows Update service entered the running state.' },
+        { level: 'Warning', time: 'Feb 20, 11:22 PM', source: 'Kernel-Power', id: 137, msg: 'MemBoostPro.sys caused a kernel-mode crash. System recovered.' },
+        { level: 'Error', time: 'Feb 20, 06:15 PM', source: 'BugCheck', id: 1001, msg: 'The computer has rebooted from a bugcheck. Caused by: MemBoostPro.sys.' },
+        { level: 'Information', time: 'Feb 18, 10:30 AM', source: 'MsiInstaller', id: 1033, msg: 'MemBoost Pro 3.1 installed successfully.' }
+    ];
+
+    // Resource Monitor disk data
+    const diskProcesses = [
+        { name: 'MeridianPayroll.exe', pid: 3840, read: 89200000, write: 56400000 },
+        { name: 'SearchIndexer.exe', pid: 2244, read: 67800000, write: 43200000 },
+        { name: 'UpdateOrchestrator.exe', pid: 5612, read: 12400000, write: 8600000 },
+        { name: 'System', pid: 4, read: 4200000, write: 2100000 },
+        { name: 'MemBoostPro.exe', pid: 6788, read: 1800000, write: 900000 }
+    ];
+
+    // ═══════════════════════════════════════════════════
+    //  NAVIGATION
+    // ═══════════════════════════════════════════════════
+    function showObj(num) {
+        document.querySelectorAll('.objective-item').forEach(el => el.classList.remove('active'));
+        document.querySelector('[data-obj="' + num + '"]').classList.add('active');
+        const map = {1:'taskmgr',2:'taskmgr',3:'taskmgr',4:'eventviewer',5:'resmon',6:'services',7:'perfmon',8:'reliability',9:'update',10:'perfmon'};
+        if (map[num]) showPanel(map[num]);
+        if (num === 2) showTmTab('processes');
+        if (num === 1) showTmTab('performance');
+    }
+
+    function showPanel(id) {
+        document.querySelectorAll('.win-panel').forEach(p => p.classList.remove('active'));
+        const p = document.getElementById('panel-' + id);
+        if (p) p.classList.add('active');
+        document.querySelectorAll('.panel-nav-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.panel-nav-btn').forEach(b => {
+            const t = b.textContent.toLowerCase();
+            if (id === 'taskmgr' && t.includes('task')) b.classList.add('active');
+            else if (id === 'eventviewer' && t.includes('event')) b.classList.add('active');
+            else if (id === 'resmon' && t.includes('resource')) b.classList.add('active');
+            else if (id === 'services' && t === 'services') b.classList.add('active');
+            else if (id === 'perfmon' && t.includes('performance')) b.classList.add('active');
+            else if (id === 'reliability' && t.includes('reliab')) b.classList.add('active');
+            else if (id === 'update' && t.includes('update')) b.classList.add('active');
+        });
+    }
+
+    function showTmTab(tab) {
+        document.querySelectorAll('#panel-taskmgr .win-tab-content').forEach(c => c.classList.remove('active'));
+        document.getElementById('tm-' + tab).classList.add('active');
+        document.querySelectorAll('#panel-taskmgr .win-nav-tab').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('#panel-taskmgr .win-nav-tab').forEach(t => {
+            if (t.textContent.toLowerCase() === tab) t.classList.add('active');
+        });
+        if (tab === 'processes') renderProcesses();
+    }
+
+    function showRmTab(tab) {
+        document.querySelectorAll('#panel-resmon .win-tab-content').forEach(c => c.classList.remove('active'));
+        document.getElementById('rm-' + tab).classList.add('active');
+        document.querySelectorAll('#panel-resmon .win-nav-tab').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('#panel-resmon .win-nav-tab').forEach(t => {
+            if (t.textContent.toLowerCase() === tab) t.classList.add('active');
+        });
+    }
+
+    // ═══════════════════════════════════════════════════
+    //  OBJECTIVE TRACKING
+    // ═══════════════════════════════════════════════════
+    function markDone(num) {
+        if (done.has(num)) return;
+        done.add(num);
+        const item = document.querySelector('[data-obj="' + num + '"]');
+        item.classList.add('completed', 'just-completed');
+        setTimeout(() => item.classList.remove('just-completed'), 700);
+        document.getElementById('objCount').textContent = done.size + ' / ' + totalObj;
+        if (done.size === totalObj) {
+            document.getElementById('completeSection').classList.add('show');
+            setTimeout(() => document.getElementById('completeSection').scrollIntoView({ behavior:'smooth', block:'nearest' }), 300);
+        }
+    }
+
+    // ═══════════════════════════════════════════════════
+    //  TOASTS & MODAL
+    // ═══════════════════════════════════════════════════
+    function showToast(type, title, msg, character, dur) {
+        dur = dur || 5000;
+        const c = document.getElementById('toastContainer');
+        const t = document.createElement('div');
+        t.className = 'toast ' + type;
+        t.innerHTML = '<div class="toast-title">' + title + '</div><div class="toast-msg">' + msg + '</div>' + (character ? '<div class="toast-character">&mdash; ' + character + '</div>' : '');
+        c.appendChild(t);
+        setTimeout(() => { t.style.animation = 'toastOut 0.3s ease forwards'; setTimeout(() => t.remove(), 300); }, dur);
+    }
+    function showModal(title, body, footer) {
+        document.getElementById('modalTitle').textContent = title;
+        document.getElementById('modalBody').innerHTML = body;
+        document.getElementById('modalFooter').innerHTML = footer || '';
+        document.getElementById('modalOverlay').classList.add('show');
+    }
+    function closeModal() { document.getElementById('modalOverlay').classList.remove('show'); }
+
+    // ═══════════════════════════════════════════════════
+    //  OBJ 1: CHECK TASK MANAGER PERFORMANCE
+    // ═══════════════════════════════════════════════════
+    function assessPerformance() {
+        const fb = document.getElementById('perf-feedback');
+        state.perfAssessed = true;
+        fb.style.display = 'block';
+        fb.style.color = '#86efac';
+        fb.innerHTML = '<strong>Bottleneck identified:</strong> CPU is fine (15%), but <span style="color:#ef4444;">Memory at 94%</span> and <span style="color:#ef4444;">Disk at 100%</span> are critical. Something is consuming excessive memory and saturating disk I/O. Switch to the <strong>Processes</strong> tab to identify the culprit.';
+        markDone(1);
+        showToast('warning', 'Bottleneck Found', 'Memory 94%, Disk 100%. CPU is fine. Check Processes tab.', null, 5000);
+    }
+
+    // ═══════════════════════════════════════════════════
+    //  OBJ 2 & 3: PROCESS TABLE + END TASK
+    // ═══════════════════════════════════════════════════
+    function renderProcesses() {
+        const tbody = document.getElementById('proc-tbody');
+        tbody.innerHTML = '';
+        const sorted = [...processes].sort((a, b) => (a[sortField] - b[sortField]) * sortDir);
+        sorted.forEach(p => {
+            const tr = document.createElement('tr');
+            if (p.danger) tr.className = 'highlight-danger';
+            else if (p.warning) tr.className = 'highlight-warning';
+
+            const memPct = Math.min((p.memory / 3280) * 100, 100);
+            const memColor = p.memory > 2000 ? '#ef4444' : p.memory > 500 ? '#f59e0b' : '#22c55e';
+
+            let actionHtml = '<button class="win-btn" disabled>System</button>';
+            if (p.name === 'UpdateOrchestrator.exe' && !state.updateOrcStopped) {
+                actionHtml = '<button class="win-btn win-btn-danger" onclick="endUpdateOrc()">End Task</button>';
+            } else if (p.name === 'UpdateOrchestrator.exe' && state.updateOrcStopped) {
+                actionHtml = '<span style="color:#22c55e;">Stopped</span>';
+            } else if (p.name === 'MemBoostPro.exe') {
+                actionHtml = '<button class="win-btn" disabled>See Services</button>';
+            } else if (!p.critical) {
+                actionHtml = '<button class="win-btn" disabled>System</button>';
+            } else {
+                actionHtml = '<button class="win-btn" disabled>Critical</button>';
+            }
+
+            tr.innerHTML = '<td>' + p.name + '</td>'
+                + '<td>' + p.cpu + '%</td>'
+                + '<td><div class="proc-memory-bar"><div class="proc-memory-fill" style="width:' + memPct + '%;background:' + memColor + ';"></div></div> ' + (p.memory >= 1000 ? (p.memory / 1000).toFixed(1) + ' GB' : p.memory + ' MB') + '</td>'
+                + '<td>' + p.disk + ' MB/s</td>'
+                + '<td>' + p.status + '</td>'
+                + '<td>' + actionHtml + '</td>';
+            tbody.appendChild(tr);
+        });
+
+        if (!state.memHogFound && sortField === 'memory') {
+            state.memHogFound = true;
+            markDone(2);
+            showToast('warning', 'Memory Hog Identified', 'UpdateOrchestrator.exe is consuming 3.2 GB! It is scanning for updates during payroll.', null, 6000);
+        }
+    }
+
+    function sortProcs(field) {
+        if (sortField === field) sortDir *= -1;
+        else { sortField = field; sortDir = -1; }
+        renderProcesses();
+    }
+
+    function endUpdateOrc() {
+        showModal('End Process', '<p style="color:#f59e0b;">You are about to end <strong>UpdateOrchestrator.exe</strong>.</p><p style="font-size:0.82rem;color:#999;margin-top:8px;">This will interrupt the Windows Update scan in progress. Updates may need to be re-initiated later.</p><p style="font-size:0.82rem;color:#fcd34d;margin-top:8px;">Do you want to end this process?</p>',
+            '<button class="win-btn" onclick="closeModal()">Cancel</button><button class="win-btn win-btn-danger" onclick="confirmEndUpdateOrc()">End Process</button>');
+    }
+
+    function confirmEndUpdateOrc() {
+        closeModal();
+        state.updateOrcStopped = true;
+        processes = processes.filter(p => p.name !== 'UpdateOrchestrator.exe');
+        // Update metrics
+        updateAfterFix('updateorc');
+        renderProcesses();
+        markDone(3);
+        showToast('success', 'Process Ended', 'UpdateOrchestrator.exe stopped. Memory dropped to 62%, disk I/O dropping.', null, 5000);
+    }
+
+    function updateAfterFix(what) {
+        if (what === 'updateorc') {
+            document.getElementById('mem-value').textContent = '62%';
+            document.getElementById('mem-value').className = 'perf-graph-value warn';
+            document.getElementById('mem-bar').style.height = '62%';
+            document.getElementById('mem-bar').className = 'perf-bar-fill mem-mid';
+            document.getElementById('mem-detail').textContent = '9.9 / 16.0 GB in use';
+            document.getElementById('disk-value').textContent = '78%';
+            document.getElementById('disk-value').className = 'perf-graph-value warn';
+            document.getElementById('disk-bar').style.height = '78%';
+            document.getElementById('disk-bar').className = 'perf-bar-fill disk-mid';
+        }
+        if (what === 'search') {
+            document.getElementById('disk-value').textContent = '35%';
+            document.getElementById('disk-value').className = 'perf-graph-value ok';
+            document.getElementById('disk-bar').style.height = '35%';
+            document.getElementById('disk-bar').className = 'perf-bar-fill ok';
+        }
+        if (what === 'memboost') {
+            const curMem = state.updateOrcStopped ? 52 : 72;
+            document.getElementById('mem-value').textContent = curMem + '%';
+            document.getElementById('mem-value').className = 'perf-graph-value ok';
+            document.getElementById('mem-bar').style.height = curMem + '%';
+            document.getElementById('mem-bar').className = 'perf-bar-fill ok';
+            document.getElementById('mem-detail').textContent = (curMem * 0.16).toFixed(1) + ' / 16.0 GB in use';
+        }
+    }
+
+    // ═══════════════════════════════════════════════════
+    //  OBJ 4: EVENT VIEWER
+    // ═══════════════════════════════════════════════════
+    function renderEvents(filter) {
+        const tbody = document.getElementById('ev-tbody');
+        tbody.innerHTML = '';
+        let filtered = events;
+        if (filter === 'error') filtered = events.filter(e => e.level === 'Error');
+        else if (filter === 'warning') filtered = events.filter(e => e.level === 'Warning');
+        else if (filter === 'info') filtered = events.filter(e => e.level === 'Information');
+        else if (filter === '4h') filtered = events.filter(e => e.recent);
+
+        filtered.forEach(e => {
+            const tr = document.createElement('tr');
+            const icon = e.level === 'Error' ? '<span style="color:#ef4444;">&#9888;</span>' : e.level === 'Warning' ? '<span style="color:#f59e0b;">&#9888;</span>' : '<span style="color:#3b82f6;">&#9432;</span>';
+            const levelColor = e.level === 'Error' ? '#ef4444' : e.level === 'Warning' ? '#f59e0b' : '#3b82f6';
+            tr.innerHTML = '<td>' + icon + ' <span style="color:' + levelColor + ';">' + e.level + '</span></td><td>' + e.time + '</td><td>' + e.source + '</td><td>' + e.id + '</td><td style="font-size:0.78rem;">' + e.msg + '</td>';
+            tbody.appendChild(tr);
+        });
+    }
+
+    function filterEvents(type) { renderEvents(type); }
+
+    function filterLast4Hours() {
+        renderEvents('4h');
+        if (!state.eventsChecked) {
+            state.eventsChecked = true;
+            markDone(4);
+            const fb = document.getElementById('ev-feedback');
+            fb.style.display = 'block';
+            fb.style.color = '#86efac';
+            fb.innerHTML = '<strong>Key findings:</strong> Disk at I/O capacity, PayrollApp failed due to insufficient memory, resource exhaustion detected, SearchIndexer competing for disk. Also: MemBoostPro kernel driver conflict.';
+            showToast('success', 'Event Viewer Analysis', 'System log confirms: memory exhaustion, disk saturation, and MemBoost kernel conflicts.', null, 6000);
+        }
+    }
+
+    // ═══════════════════════════════════════════════════
+    //  OBJ 5: RESOURCE MONITOR DISK
+    // ═══════════════════════════════════════════════════
+    function renderDiskProcesses() {
+        const tbody = document.getElementById('rm-disk-tbody');
+        tbody.innerHTML = '';
+        diskProcesses.forEach(p => {
+            const tr = document.createElement('tr');
+            const total = p.read + p.write;
+            const isHigh = total > 50000000;
+            if (isHigh) tr.className = p.name === 'MeridianPayroll.exe' ? 'highlight-warning' : 'highlight-danger';
+            tr.innerHTML = '<td>' + p.name + '</td><td>' + p.pid + '</td><td>' + formatBytes(p.read) + '</td><td>' + formatBytes(p.write) + '</td><td style="font-weight:600;">' + formatBytes(total) + '</td>';
+            tbody.appendChild(tr);
+        });
+    }
+
+    function formatBytes(b) {
+        if (b >= 1000000) return (b / 1000000).toFixed(1) + ' MB/s';
+        if (b >= 1000) return (b / 1000).toFixed(0) + ' KB/s';
+        return b + ' B/s';
+    }
+
+    function investigateDisk() {
+        if (!state.diskInvestigated) {
+            state.diskInvestigated = true;
+            markDone(5);
+            const fb = document.getElementById('rm-disk-feedback');
+            fb.style.display = 'block';
+            fb.style.color = '#86efac';
+            fb.innerHTML = '<strong>Disk contention found:</strong> MeridianPayroll.exe and SearchIndexer.exe are both performing heavy disk I/O. SearchIndexer is rebuilding its index &mdash; unnecessary during payroll. Stop the Windows Search service to free disk bandwidth.';
+            showToast('warning', 'Disk Contention', 'SearchIndexer is competing with payroll for disk I/O. Disable it.', null, 6000);
+        }
+    }
+
+    // ═══════════════════════════════════════════════════
+    //  OBJ 6: STOP SEARCH INDEXER
+    // ═══════════════════════════════════════════════════
+    function stopSearchService() {
+        const btn = document.getElementById('svc-search-btn');
+        btn.disabled = true;
+        btn.textContent = 'Stopping...';
+        setTimeout(() => {
+            state.searchStopped = true;
+            document.getElementById('svc-search-status').innerHTML = '<span class="status-dot red"></span>Stopped';
+            btn.style.display = 'none';
+            document.getElementById('svc-search-manual').style.display = 'inline-block';
+            processes = processes.filter(p => p.name !== 'SearchIndexer.exe');
+            updateAfterFix('search');
+            showToast('success', 'Windows Search Stopped', 'SearchIndexer is no longer competing for disk I/O.', null, 4000);
+        }, 1200);
+    }
+
+    function setSearchManual() {
+        state.searchManual = true;
+        document.getElementById('svc-search-startup').textContent = 'Manual';
+        document.getElementById('svc-search-manual').textContent = 'Manual';
+        document.getElementById('svc-search-manual').disabled = true;
+        markDone(6);
+        showToast('success', 'Service Set to Manual', 'Windows Search will not auto-start. Disk I/O now free for payroll.', null, 4000);
+    }
+
+    // ═══════════════════════════════════════════════════
+    //  OBJ 7: PERFORMANCE MONITOR
+    // ═══════════════════════════════════════════════════
+    function checkPerfCounters() {}
+
+    function startPerfMon() {
+        const mem = document.getElementById('pc-mem').checked;
+        const disk = document.getElementById('pc-disk').checked;
+        const proc = document.getElementById('pc-proc').checked;
+        const fb = document.getElementById('perfmon-feedback');
+
+        if (!mem || !disk || !proc) {
+            fb.style.display = 'block';
+            fb.style.color = '#fca5a5';
+            fb.textContent = 'Select at minimum: Available MBytes, % Disk Time, and MeridianPayroll Working Set.';
+            return;
+        }
+
+        state.perfmonStarted = true;
+        document.getElementById('btn-start-perfmon').disabled = true;
+        document.getElementById('perfmon-running').style.display = 'block';
+        fb.style.display = 'block';
+        fb.style.color = '#86efac';
+        fb.textContent = 'Data collection started. 1-hour monitoring session in progress.';
+
+        // Animate the canvas graph
+        animatePerfGraph();
+        markDone(7);
+        showToast('success', 'Performance Monitor', 'Data collection started with 3 key counters. 1-hour session.', null, 5000);
+    }
+
+    function animatePerfGraph() {
+        const canvas = document.getElementById('perfGraphCanvas');
+        if (!canvas) return;
+        const ctx = canvas.getContext('2d');
+        const w = canvas.width;
+        const h = canvas.height;
+        let memData = [], diskData = [], procData = [];
+        let x = 0;
+
+        function draw() {
+            if (x > w) return;
+            ctx.clearRect(0, 0, w, h);
+
+            // Grid lines
+            ctx.strokeStyle = 'rgba(62,62,66,0.3)';
+            ctx.lineWidth = 0.5;
+            for (let i = 1; i <= 3; i++) {
+                ctx.beginPath();
+                ctx.moveTo(0, h * i / 4);
+                ctx.lineTo(w, h * i / 4);
+                ctx.stroke();
+            }
+
+            // Generate data points
+            const memVal = 400 + Math.random() * 200 + (state.updateOrcStopped ? 600 : 0);
+            const diskVal = state.searchStopped ? 20 + Math.random() * 15 : 85 + Math.random() * 15;
+            const procVal = 1200 + Math.random() * 300;
+            memData.push(memVal);
+            diskData.push(diskVal);
+            procData.push(procVal);
+
+            // Draw lines
+            function drawLine(data, color, maxVal) {
+                ctx.strokeStyle = color;
+                ctx.lineWidth = 1.5;
+                ctx.beginPath();
+                for (let i = 0; i < data.length; i++) {
+                    const px = (i / w) * w;
+                    const py = h - (data[i] / maxVal) * h;
+                    if (i === 0) ctx.moveTo(px, py);
+                    else ctx.lineTo(px, py);
+                }
+                ctx.stroke();
+            }
+
+            drawLine(memData, '#3b82f6', 2000);
+            drawLine(diskData, '#ef4444', 100);
+            drawLine(procData, '#22c55e', 3000);
+
+            x += 2;
+            requestAnimationFrame(draw);
+        }
+        draw();
+    }
+
+    // ═══════════════════════════════════════════════════
+    //  OBJ 8: RELIABILITY MONITOR + UNINSTALL MEMBOOST
+    // ═══════════════════════════════════════════════════
+    function showRelDay(day) {
+        const details = document.getElementById('rel-details');
+        const dayEvents = {
+            1: '<p style="color:#22c55e;">No issues. System stability: 9.2/10</p>',
+            2: '<p style="color:#22c55e;">No issues. System stability: 8.8/10</p>',
+            3: '<p style="color:#22c55e;">No issues. System stability: 9.0/10</p>',
+            4: '<p style="color:#22c55e;">No issues. System stability: 8.5/10</p>',
+            5: '<p style="color:#f59e0b;font-weight:500;">Feb 18 &mdash; Software Installation</p><p style="font-size:0.82rem;color:#bbb;margin-top:4px;"><span style="color:#f59e0b;">&#9888;</span> <strong>MemBoost Pro 3.1</strong> installed by Ray Nguyen. Unknown publisher. System stability dropped to 5.2/10.</p>',
+            6: '<p style="color:#ef4444;font-weight:500;">Feb 19 &mdash; System Crashes</p><p style="font-size:0.82rem;color:#bbb;margin-top:4px;"><span style="color:#ef4444;">&#9888;</span> Kernel crash: MemBoostPro.sys (06:15 PM)<br><span style="color:#ef4444;">&#9888;</span> Application hang: MeridianPayroll.exe (11:02 PM)<br>System stability: 2.8/10</p>',
+            7: '<p style="color:#ef4444;font-weight:500;">Feb 20 &mdash; Multiple Failures</p><p style="font-size:0.82rem;color:#bbb;margin-top:4px;"><span style="color:#ef4444;">&#9888;</span> Kernel crash: MemBoostPro.sys (02:44 AM)<br><span style="color:#ef4444;">&#9888;</span> Kernel crash: MemBoostPro.sys (11:22 PM)<br><span style="color:#f59e0b;">&#9888;</span> Windows Update failed to install (memory insufficient)<br>System stability: 1.5/10</p>',
+            8: '<p style="color:#ef4444;font-weight:500;">Feb 21 &mdash; Today</p><p style="font-size:0.82rem;color:#bbb;margin-top:4px;"><span style="color:#ef4444;">&#9888;</span> PayrollApp failed to start (08:15 AM)<br><span style="color:#f59e0b;">&#9888;</span> Disk at I/O capacity (multiple events)<br><span style="color:#f59e0b;">&#9888;</span> Low virtual memory condition (08:48 AM)<br>System stability: 1.0/10</p>'
+        };
+        details.innerHTML = dayEvents[day] || '<p style="color:#999;">No data for this day.</p>';
+    }
+
+    function uninstallMemBoost() {
+        if (!state.memBoostSvcStopped) {
+            showModal('Uninstall Blocked', '<p style="color:#fca5a5;">Cannot uninstall MemBoost Pro: The service is currently running.</p><p style="font-size:0.82rem;color:#999;margin-top:8px;">Stop the <strong>MemBoost Pro Service</strong> in the Services console before uninstalling.</p>',
+                '<button class="win-btn" onclick="closeModal()">OK</button>');
+            showToast('error', 'Uninstall Blocked', 'Stop the MemBoost Pro service first via Services console.', null, 5000);
+            return;
+        }
+        const btn = document.getElementById('btn-uninstall-mb');
+        btn.disabled = true;
+        btn.textContent = 'Removing...';
+        setTimeout(() => {
+            state.memBoostUninstalled = true;
+            document.getElementById('memboost-uninstall-row').style.borderColor = 'rgba(34,197,94,0.3)';
+            document.getElementById('memboost-uninstall-row').style.background = 'rgba(34,197,94,0.06)';
+            btn.textContent = 'Removed';
+            btn.className = 'win-btn win-btn-success';
+            processes = processes.filter(p => p.name !== 'MemBoostPro.exe');
+            updateAfterFix('memboost');
+            markDone(8);
+            showToast('success', 'MemBoost Pro Removed', 'Ray\'s "memory optimizer" that was consuming 812 MB and causing kernel crashes has been uninstalled.', null, 6000);
+            showToast('info', 'Irony noted', 'The "memory optimizer" was the biggest memory waster on the system. Classic Ray.', 'Marcus Webb', 7000);
+        }, 2000);
+    }
+
+    function stopMemBoostSvc() {
+        const btn = document.getElementById('svc-mb-btn');
+        btn.disabled = true;
+        btn.textContent = 'Stopping...';
+        setTimeout(() => {
+            state.memBoostSvcStopped = true;
+            document.getElementById('svc-mb-status').innerHTML = '<span class="status-dot red"></span>Stopped';
+            document.getElementById('svc-mb-startup').textContent = 'Disabled';
+            btn.textContent = 'Stopped';
+            showToast('info', 'MemBoost Service Stopped', 'Service stopped. You can now uninstall from Reliability Monitor.', null, 4000);
+        }, 1200);
+    }
+
+    function disableMemBoostStartup(btn) {
+        btn.textContent = 'Disabled';
+        btn.disabled = true;
+        btn.parentElement.previousElementSibling.innerHTML = '<span style="color:#ef4444;">High</span>';
+        btn.parentElement.previousElementSibling.previousElementSibling.innerHTML = '<span style="color:#888;">Disabled</span>';
+        showToast('info', 'Startup Disabled', 'MemBoost Pro will no longer start at boot.', null, 3000);
+    }
+
+    // ═══════════════════════════════════════════════════
+    //  OBJ 9: ACTIVE HOURS
+    // ═══════════════════════════════════════════════════
+    function setActiveHours() {
+        const start = parseInt(document.getElementById('ah-start').value);
+        const end = parseInt(document.getElementById('ah-end').value);
+        const fb = document.getElementById('ah-feedback');
+
+        // Must cover 5am-9am payroll window
+        if (start > 5 || end < 9) {
+            fb.style.display = 'block';
+            fb.style.color = '#fca5a5';
+            fb.textContent = 'Active hours must cover the payroll window (5:00 AM - 9:00 AM). Set start to 5 AM or earlier, end to 9 AM or later.';
+            return;
+        }
+
+        state.activeHoursSet = true;
+        fb.style.display = 'block';
+        fb.style.color = '#86efac';
+        fb.textContent = 'Active hours set to ' + start + ':00 AM - ' + (end > 12 ? (end - 12) + ':00 PM' : end + ':00 AM') + '. Windows Update will not restart during this window.';
+        markDone(9);
+        showToast('success', 'Active Hours Configured', 'Updates will never interrupt payroll processing.', null, 4000);
+    }
+
+    // ═══════════════════════════════════════════════════
+    //  OBJ 10: MONITORING ALERT
+    // ═══════════════════════════════════════════════════
+    // This piggybacks on the perfmon panel
+    // We add a section after perfmon starts
+    function checkAlertConditions() {
+        if (state.perfmonStarted && !state.alertCreated) {
+            // Show alert creation UI
+            const perfBody = document.getElementById('panel-perfmon').querySelector('.win-body');
+            if (!document.getElementById('alert-config')) {
+                const div = document.createElement('div');
+                div.id = 'alert-config';
+                div.style.marginTop = '20px';
+                div.style.paddingTop = '16px';
+                div.style.borderTop = '1px solid #3e3e42';
+                div.innerHTML = '<h4 style="font-size:0.85rem;color:#e0e0e0;margin-bottom:10px;">Create Performance Alert</h4>'
+                    + '<div class="form-group"><div class="form-label">Counter</div><select class="form-select" id="alert-counter"><option value="">-- Select --</option><option value="mem">\\Memory\\Available MBytes</option><option value="disk">\\PhysicalDisk\\% Disk Time</option><option value="cpu">\\Processor\\% Processor Time</option></select></div>'
+                    + '<div class="form-group"><div class="form-label">Condition</div><select class="form-select" id="alert-condition"><option value="below">Falls below</option><option value="above">Rises above</option></select></div>'
+                    + '<div class="form-group"><div class="form-label">Threshold Value</div><input class="form-input" id="alert-threshold" type="number" placeholder="e.g. 500" style="width:150px;"></div>'
+                    + '<div class="form-group"><div class="form-label">Action</div><select class="form-select" id="alert-action"><option value="log">Log an event</option><option value="email">Send email notification</option><option value="restart">Restart a service</option></select></div>'
+                    + '<button class="win-btn win-btn-primary" onclick="createAlert()">Create Alert</button>'
+                    + '<div id="alert-feedback" style="margin-top:10px;font-size:0.82rem;display:none;"></div>';
+                perfBody.appendChild(div);
+            }
+        }
+    }
+
+    function createAlert() {
+        const counter = document.getElementById('alert-counter').value;
+        const condition = document.getElementById('alert-condition').value;
+        const threshold = parseInt(document.getElementById('alert-threshold').value);
+        const action = document.getElementById('alert-action').value;
+        const fb = document.getElementById('alert-feedback');
+
+        if (counter !== 'mem' || condition !== 'below' || threshold !== 500) {
+            fb.style.display = 'block';
+            fb.style.color = '#fca5a5';
+            fb.textContent = 'Set the alert for: Available MBytes falls below 500. This creates an early warning for memory pressure.';
+            return;
+        }
+
+        state.alertCreated = true;
+        fb.style.display = 'block';
+        fb.style.color = '#86efac';
+        fb.textContent = 'Alert created: When Available Memory drops below 500 MB, an event will be logged. Early warning system is active.';
+        markDone(10);
+        showToast('success', 'Monitoring Alert Created', 'If available memory drops below 500 MB, the system will log a warning event.', null, 5000);
+        showToast('info', 'Proactive monitoring', 'Next time memory runs low, you\'ll know before payroll is affected.', 'Sarah Chen', 7000);
+    }
+
+    // ═══════════════════════════════════════════════════
+    //  MODULE COMPLETE
+    // ═══════════════════════════════════════════════════
+    function completeModule() {
+        ModuleProgress.complete('forge', 'forge-md100-m09-lab', {
+            returnUrl: '../index.html'
+        });
+    }
+
+    // ═══════════════════════════════════════════════════
+    //  INIT
+    // ═══════════════════════════════════════════════════
+    // Render initial data
+    renderProcesses();
+    renderEvents('all');
+    renderDiskProcesses();
+
+    // Check for alert UI periodically
+    setInterval(checkAlertConditions, 1000);
+
+    // Initial briefing toast
+    setTimeout(() => {
+        showToast('warning', 'Day 9 &mdash; Operation: Bottleneck', 'Payroll processing is 3 hours overdue. Find the bottleneck. Fix it. Set up monitoring.', 'Sarah Chen', 8000);
+    }, 800);
+
+    setTimeout(() => {
+        showToast('info', 'Hint', 'Start with Task Manager Performance tab to see what resources are maxed out.', 'Marcus Webb', 5000);
+    }, 3000);
+    </script>
+
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <script src="../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>
