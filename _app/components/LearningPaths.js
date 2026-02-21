@@ -772,6 +772,7 @@ class LearningPaths {
             description: 'Python fundamentals — strings, flow control, functions, GUI, dictionaries, OOP',
             icon: '🐍',
             color: '#3b82f6',
+            courseHref: 'houses/script/modules/python/index.html',
             modules: [
                 {
                     id: 'python-ch1-presentation',
@@ -1990,6 +1991,7 @@ class LearningPaths {
             description: 'CSE v1 — cloud fundamentals, IAM, data protection, network security, app security, monitoring, risk, compliance',
             icon: '🛡️',
             color: '#0ea5e9',
+            courseHref: 'houses/cloud/cse/index.html',
             modules: [
                 { id: 'cse-01-fundamentals', title: 'Cloud Computing Fundamentals', type: 'presentation', href: 'houses/cloud/presentations/cloud-cse-01-cloud-fundamentals.presentation.html' },
                 { id: 'cse-02-iam', title: 'Identity & Access Management', type: 'presentation', href: 'houses/cloud/presentations/cloud-cse-02-identity-access-management.presentation.html' },
@@ -2016,6 +2018,7 @@ class LearningPaths {
             description: 'Law and Policy of Cybersecurity — legal landscape, government roles, CFAA, regulatory frameworks, NIST CSF, encryption law, breach litigation, and international cyber law',
             icon: '⚖️',
             color: '#10b981',
+            courseHref: 'houses/shield/cyber-framework/index.html',
             modules: [
                 { id: 'shield-cf-mm01', title: 'MM1: Introduction to Legal/Regulatory/Policy Issues', type: 'presentation', href: 'houses/shield/cyber-framework/presentations/cf-mm01-intro.presentation.html' },
                 { id: 'shield-cf-mm01-lab', title: 'MM1 Lab: Cybersecurity Law Foundations', type: 'lab', href: 'houses/shield/cyber-framework/labs/cf-mm01-intro.lab.html' },
@@ -2042,6 +2045,7 @@ class LearningPaths {
             description: 'Advanced Linux administration — distributions, processes, daemons, display managers, networking, IPv4, compression, encryption, grep/pipes, and compilation',
             icon: '🐧',
             color: '#22c55e',
+            courseHref: 'houses/script/linux/index.html',
             modules: [
                 { id: 'script-la-ch01', title: 'Introduction to Linux', type: 'presentation', href: 'houses/script/linux/presentations/la-ch01-intro.presentation.html' },
                 { id: 'script-la-ch01-lab', title: 'Linux Basics Lab', type: 'lab', href: 'houses/script/linux/labs/la-ch01-intro.lab.html' },
@@ -2076,6 +2080,7 @@ class LearningPaths {
             description: 'CS0-003 — SOC analyst curriculum: threat intelligence, vulnerability management, cloud security, IAM, security operations, incident response, forensics, risk management, compliance',
             icon: '👁️',
             color: '#a855f7',
+            courseHref: 'houses/eye/cysa/index.html',
             modules: [
                 { id: 'eye-cysa-ch01', title: 'Ch 1: Today\'s Cybersecurity Analyst', type: 'presentation', href: 'houses/eye/cysa/presentations/cysa-ch01-analyst.presentation.html' },
                 { id: 'eye-cysa-ch01-lab', title: 'Ch 1 Lab: Cybersecurity Analyst Foundations', type: 'lab', href: 'houses/eye/cysa/labs/cysa-ch01-analyst.lab.html' },
