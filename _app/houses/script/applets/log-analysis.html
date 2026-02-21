@@ -1,0 +1,864 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <!-- Progress & Achievements -->
+    <script src="../../../components/AchievementManager.js"></script>
+    <script src="../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Log Analysis Visualizer | Script House</title>
+    <style>
+        /* ===== CSS Custom Properties: Script House palette ===== */
+        :root {
+            --bg-darkest:  #020d05;
+            --bg-dark:     #052e16;
+            --bg-mid:      #0d1f10;
+            --bg-panel:    #0a1a0c;
+            --green-deep:  #14532d;
+            --green-mid:   #166534;
+            --green-main:  #22c55e;
+            --green-light: #86efac;
+            --green-glow:  rgba(34, 197, 94, 0.25);
+            --text-dim:    #4ade80;
+            --border:      rgba(34, 197, 94, 0.3);
+            --border-bright: rgba(34, 197, 94, 0.6);
+            --font-mono:   'Consolas', 'Monaco', 'Courier New', monospace;
+            /* Severity colors */
+            --sev-info:     #60a5fa;
+            --sev-warning:  #fbbf24;
+            --sev-error:    #f87171;
+            --sev-critical: #ff4d4d;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: var(--font-mono);
+            background: linear-gradient(160deg, var(--bg-darkest) 0%, var(--bg-dark) 50%, var(--bg-mid) 100%);
+            color: var(--green-light);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        /* ===== Header ===== */
+        header {
+            text-align: center;
+            padding: 24px 20px 18px;
+            background: var(--bg-dark);
+            border: 2px solid var(--border-bright);
+            border-radius: 12px;
+            box-shadow: 0 0 40px var(--green-glow);
+            margin-bottom: 24px;
+            position: relative;
+        }
+
+        .back-btn {
+            position: absolute;
+            left: 18px; top: 18px;
+            padding: 8px 16px;
+            background: var(--bg-mid);
+            color: var(--green-light);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            text-decoration: none;
+            font-size: 0.85rem;
+            transition: all 0.25s ease;
+        }
+        .back-btn:hover {
+            background: var(--green-deep);
+            border-color: var(--green-main);
+            box-shadow: 0 0 10px var(--green-glow);
+            color: #fff;
+        }
+
+        header h1 { font-size: 1.9rem; color: var(--green-main); text-shadow: 0 0 20px var(--green-glow); margin-bottom: 4px; }
+        header p  { color: var(--text-dim); font-size: 0.9rem; }
+
+        .container { max-width: 1300px; margin: 0 auto; }
+
+        /* ===== Generic section card ===== */
+        .section {
+            background: var(--bg-panel);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 20px 22px;
+            margin-bottom: 22px;
+        }
+        .section-title {
+            font-size: 1.1rem;
+            color: var(--green-main);
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 10px;
+            margin-bottom: 16px;
+        }
+
+        /* ===== Log format tabs ===== */
+        .tab-bar {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 14px;
+            flex-wrap: wrap;
+        }
+        .tab-btn {
+            padding: 6px 16px;
+            border-radius: 20px;
+            border: 1px solid var(--border);
+            background: transparent;
+            color: var(--green-light);
+            font-family: var(--font-mono);
+            font-size: 0.8rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .tab-btn.active, .tab-btn:hover {
+            background: var(--green-deep);
+            border-color: var(--green-main);
+            color: #fff;
+        }
+
+        /* ===== Filter toolbar ===== */
+        .filter-bar {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 14px;
+            align-items: center;
+        }
+        .filter-bar label { font-size: 0.8rem; color: var(--text-dim); }
+        .filter-bar select, .filter-bar input[type="text"] {
+            padding: 6px 10px;
+            background: var(--bg-mid);
+            border: 1px solid var(--border);
+            color: var(--green-light);
+            border-radius: 6px;
+            font-family: var(--font-mono);
+            font-size: 0.82rem;
+            min-width: 130px;
+        }
+        .filter-bar select:focus, .filter-bar input[type="text"]:focus {
+            outline: none;
+            border-color: var(--green-main);
+        }
+
+        /* Severity filter toggle buttons */
+        .sev-toggle {
+            display: flex; gap: 6px; flex-wrap: wrap;
+        }
+        .sev-btn {
+            padding: 4px 12px;
+            border-radius: 12px;
+            border: 1px solid;
+            background: transparent;
+            font-family: var(--font-mono);
+            font-size: 0.75rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            opacity: 0.4;
+        }
+        .sev-btn.active { opacity: 1; }
+        .sev-btn[data-sev="INFO"]     { border-color: var(--sev-info);     color: var(--sev-info);     }
+        .sev-btn[data-sev="WARNING"]  { border-color: var(--sev-warning);  color: var(--sev-warning);  }
+        .sev-btn[data-sev="ERROR"]    { border-color: var(--sev-error);    color: var(--sev-error);    }
+        .sev-btn[data-sev="CRITICAL"] { border-color: var(--sev-critical); color: var(--sev-critical); }
+        .sev-btn.active[data-sev="INFO"]     { background: rgba(96,165,250,0.12);  }
+        .sev-btn.active[data-sev="WARNING"]  { background: rgba(251,191,36,0.12);  }
+        .sev-btn.active[data-sev="ERROR"]    { background: rgba(248,113,113,0.12); }
+        .sev-btn.active[data-sev="CRITICAL"] { background: rgba(255,77,77,0.12);   }
+
+        /* ===== Log viewer ===== */
+        .log-viewer {
+            background: #030b04;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            height: 340px;
+            overflow-y: auto;
+            font-size: 0.78rem;
+            padding: 8px;
+        }
+        .log-viewer::-webkit-scrollbar { width: 6px; }
+        .log-viewer::-webkit-scrollbar-track { background: #030b04; }
+        .log-viewer::-webkit-scrollbar-thumb { background: var(--green-mid); border-radius: 3px; }
+
+        .log-entry {
+            display: flex;
+            gap: 10px;
+            padding: 4px 6px;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background 0.15s;
+            border-left: 3px solid transparent;
+            line-height: 1.5;
+        }
+        .log-entry:hover { background: rgba(34,197,94,0.06); }
+        .log-entry.highlighted { background: rgba(34,197,94,0.12); border-left-color: var(--green-main); }
+        .log-entry.sev-INFO     { border-left-color: var(--sev-info); }
+        .log-entry.sev-WARNING  { border-left-color: var(--sev-warning); }
+        .log-entry.sev-ERROR    { border-left-color: var(--sev-error); }
+        .log-entry.sev-CRITICAL { border-left-color: var(--sev-critical); animation: criticalPulse 2s infinite; }
+
+        @keyframes criticalPulse {
+            0%, 100% { background: rgba(255,77,77,0.05); }
+            50%       { background: rgba(255,77,77,0.12); }
+        }
+
+        .log-ts   { color: #6b7280; white-space: nowrap; flex-shrink: 0; }
+        .log-sev  { font-weight: bold; width: 65px; flex-shrink: 0; }
+        .log-src  { color: #a78bfa; width: 120px; flex-shrink: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .log-msg  { color: var(--green-light); flex: 1; }
+        .log-entry[data-sev="INFO"]     .log-sev { color: var(--sev-info);     }
+        .log-entry[data-sev="WARNING"]  .log-sev { color: var(--sev-warning);  }
+        .log-entry[data-sev="ERROR"]    .log-sev { color: var(--sev-error);    }
+        .log-entry[data-sev="CRITICAL"] .log-sev { color: var(--sev-critical); }
+
+        .log-count-bar {
+            display: flex;
+            gap: 16px;
+            padding: 8px 12px;
+            background: var(--bg-dark);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            margin-bottom: 10px;
+            font-size: 0.8rem;
+        }
+        .log-count-bar span { display: flex; align-items: center; gap: 5px; }
+        .count-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+
+        /* ===== Detail panel ===== */
+        #detail-panel {
+            background: var(--bg-dark);
+            border: 1px solid var(--green-main);
+            border-radius: 8px;
+            padding: 14px;
+            margin-top: 12px;
+            font-size: 0.82rem;
+            display: none;
+        }
+        #detail-panel.visible { display: block; }
+        #detail-panel table { width: 100%; border-collapse: collapse; }
+        #detail-panel td { padding: 5px 10px; border-bottom: 1px solid var(--border); }
+        #detail-panel td:first-child { color: var(--text-dim); width: 150px; }
+        #detail-panel td:last-child  { color: var(--green-light); }
+
+        /* ===== Timeline ===== */
+        .timeline-wrap {
+            overflow-x: auto;
+            padding-bottom: 8px;
+        }
+        #timeline-svg { display: block; }
+
+        /* ===== Pattern exercises ===== */
+        .exercise-card {
+            background: var(--bg-dark);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 14px;
+        }
+        .exercise-title { color: var(--green-main); font-size: 0.92rem; margin-bottom: 8px; }
+        .exercise-desc  { color: var(--text-dim); font-size: 0.83rem; margin-bottom: 12px; line-height: 1.6; }
+        .exercise-btn {
+            padding: 7px 18px;
+            background: var(--green-deep);
+            border: 1px solid var(--border-bright);
+            color: var(--green-light);
+            font-family: var(--font-mono);
+            font-size: 0.82rem;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .exercise-btn:hover { background: var(--green-mid); color: #fff; }
+        .exercise-result {
+            margin-top: 10px;
+            padding: 10px 14px;
+            border-radius: 6px;
+            font-size: 0.82rem;
+            display: none;
+        }
+        .exercise-result.show { display: block; }
+        .exercise-result.found { background: rgba(34,197,94,0.1); border: 1px solid var(--border); color: var(--green-main); }
+
+        /* ===== Complete button ===== */
+        .complete-section { text-align: center; padding: 24px 20px; }
+        .complete-btn {
+            background: linear-gradient(135deg, #15803d, #22c55e);
+            color: #fff;
+            border: none;
+            padding: 14px 40px;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-family: var(--font-mono);
+            cursor: pointer;
+            box-shadow: 0 4px 20px rgba(34,197,94,0.35);
+            transition: all 0.3s ease;
+        }
+        .complete-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 30px rgba(34,197,94,0.5); }
+
+        @media (max-width: 700px) {
+            header h1 { font-size: 1.3rem; }
+            .back-btn { position: static; display: inline-block; margin-bottom: 12px; }
+            .log-src { display: none; }
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+
+    <!-- ===== HEADER ===== -->
+    <header>
+        <a href="../labs/script-sysadmin.lab.html" class="back-btn">&#8592; Back to Sysadmin Lab</a>
+        <h1>Log Analysis Visualizer</h1>
+        <p>Filter, inspect, and correlate real-format system, application, and security logs</p>
+    </header>
+
+    <!-- ===== SECTION 1: Log Format Reference ===== -->
+    <div class="section">
+        <div class="section-title">// Log Format Reference</div>
+        <p style="font-size:0.83rem; color:var(--text-dim); margin-bottom:14px;">
+            Different systems write logs in different formats. Knowing the structure lets you parse them reliably.
+        </p>
+
+        <div class="tab-bar" id="formatTabs">
+            <button class="tab-btn active" onclick="showFormat('eventlog')">Windows Event Log</button>
+            <button class="tab-btn"        onclick="showFormat('syslog')">syslog (RFC 5424)</button>
+            <button class="tab-btn"        onclick="showFormat('apache')">Apache Access Log</button>
+            <button class="tab-btn"        onclick="showFormat('json')">Structured JSON Log</button>
+        </div>
+
+        <div id="formatDisplay" style="background:#030b04; border:1px solid var(--border); border-radius:8px; padding:14px; font-size:0.79rem; overflow-x:auto;">
+        </div>
+    </div>
+
+    <!-- ===== SECTION 2: Interactive Log Viewer ===== -->
+    <div class="section">
+        <div class="section-title">// Interactive Log Viewer</div>
+
+        <!-- Filter bar -->
+        <div class="filter-bar">
+            <label>Log Type:</label>
+            <select id="logTypeFilter" onchange="applyFilters()">
+                <option value="all">All Types</option>
+                <option value="system">System</option>
+                <option value="application">Application</option>
+                <option value="security">Security</option>
+            </select>
+
+            <label>Source:</label>
+            <select id="sourceFilter" onchange="applyFilters()">
+                <option value="all">All Sources</option>
+            </select>
+
+            <label>Search:</label>
+            <input type="text" id="searchFilter" placeholder="keyword..." oninput="applyFilters()">
+
+            <label>Severity:</label>
+            <div class="sev-toggle">
+                <button class="sev-btn active" data-sev="INFO"     onclick="toggleSev(this)">INFO</button>
+                <button class="sev-btn active" data-sev="WARNING"  onclick="toggleSev(this)">WARN</button>
+                <button class="sev-btn active" data-sev="ERROR"    onclick="toggleSev(this)">ERROR</button>
+                <button class="sev-btn active" data-sev="CRITICAL" onclick="toggleSev(this)">CRIT</button>
+            </div>
+        </div>
+
+        <!-- Count summary -->
+        <div class="log-count-bar" id="countBar"></div>
+
+        <!-- Log entries -->
+        <div class="log-viewer" id="logViewer"></div>
+
+        <!-- Detail panel (shown on row click) -->
+        <div id="detail-panel">
+            <div style="color:var(--green-main); font-size:0.85rem; margin-bottom:10px;">&#128196; Entry Detail</div>
+            <table id="detail-table"></table>
+        </div>
+    </div>
+
+    <!-- ===== SECTION 3: Event Timeline ===== -->
+    <div class="section">
+        <div class="section-title">// Event Correlation Timeline</div>
+        <p style="font-size:0.83rem; color:var(--text-dim); margin-bottom:14px;">
+            Events plotted across time — spot clusters of errors and correlate cross-source events.
+        </p>
+        <div class="timeline-wrap">
+            <svg id="timeline-svg" width="1100" height="180"></svg>
+        </div>
+        <div id="timeline-legend" style="display:flex; gap:18px; flex-wrap:wrap; margin-top:10px; font-size:0.78rem;">
+        </div>
+    </div>
+
+    <!-- ===== SECTION 4: Pattern Detection Exercises ===== -->
+    <div class="section">
+        <div class="section-title">// Pattern Detection Exercises</div>
+        <p style="font-size:0.83rem; color:var(--text-dim); margin-bottom:14px;">
+            Apply your filtering skills to solve real analyst challenges.
+        </p>
+
+        <div class="exercise-card">
+            <div class="exercise-title">Exercise 1 — Failed Login Attempts</div>
+            <div class="exercise-desc">
+                A user account has been locked out and the security team suspects a brute-force attack.
+                Identify all failed login events and determine which user account was targeted most.
+                <br><strong style="color:var(--green-light);">Hint:</strong> Filter by Type: Security, Severity: ERROR or CRITICAL, search "failed login".
+            </div>
+            <button class="exercise-btn" onclick="runExercise(1)">Run Analysis</button>
+            <div class="exercise-result" id="ex-result-1"></div>
+        </div>
+
+        <div class="exercise-card">
+            <div class="exercise-title">Exercise 2 — Disk Space Alerts</div>
+            <div class="exercise-desc">
+                Capacity planning requires identifying which servers reported disk space warnings in the
+                last 24 hours. Find all disk-related alerts before a full disk causes a service outage.
+                <br><strong style="color:var(--green-light);">Hint:</strong> Filter by Type: System, Severity: WARNING or ERROR, search "disk".
+            </div>
+            <button class="exercise-btn" onclick="runExercise(2)">Run Analysis</button>
+            <div class="exercise-result" id="ex-result-2"></div>
+        </div>
+
+        <div class="exercise-card">
+            <div class="exercise-title">Exercise 3 — Application Crash Correlation</div>
+            <div class="exercise-desc">
+                The web application crashed twice overnight. Find the application errors, then check if
+                any system-level events (memory, CPU) occurred immediately before each crash.
+                <br><strong style="color:var(--green-light);">Hint:</strong> Look for application CRITICAL events, then correlate timestamps with system WARNINGs.
+            </div>
+            <button class="exercise-btn" onclick="runExercise(3)">Run Analysis</button>
+            <div class="exercise-result" id="ex-result-3"></div>
+        </div>
+    </div>
+
+    <!-- ===== SECTION 5: Key Concepts ===== -->
+    <div class="section">
+        <div class="section-title">// Log Analysis: Key Concepts</div>
+        <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(240px,1fr)); gap:14px;">
+            <div style="background:var(--bg-dark); border:1px solid var(--border); border-radius:8px; padding:14px;">
+                <div style="color:var(--green-main); font-size:0.88rem; margin-bottom:8px;">&#128202; Centralized Logging</div>
+                <div style="font-size:0.79rem; color:var(--green-light); line-height:1.6;">
+                    Aggregate logs from all hosts into one system (SIEM, ELK Stack, Splunk). Correlation
+                    across sources is impossible when logs live on individual servers.
+                </div>
+            </div>
+            <div style="background:var(--bg-dark); border:1px solid var(--border); border-radius:8px; padding:14px;">
+                <div style="color:var(--green-main); font-size:0.88rem; margin-bottom:8px;">&#128269; Log Parsing</div>
+                <div style="font-size:0.79rem; color:var(--green-light); line-height:1.6;">
+                    Scripts extract fields (timestamp, severity, host, message) from raw text using
+                    regex or structured formats like JSON/CEF. Parsed logs are queryable.
+                </div>
+            </div>
+            <div style="background:var(--bg-dark); border:1px solid var(--border); border-radius:8px; padding:14px;">
+                <div style="color:var(--green-main); font-size:0.88rem; margin-bottom:8px;">&#9201; Retention Policy</div>
+                <div style="font-size:0.79rem; color:var(--green-light); line-height:1.6;">
+                    Security logs: 90-365 days minimum (PCI/HIPAA requirements). System logs: 30-90 days.
+                    Rotate and compress old logs automatically with logrotate or Task Scheduler.
+                </div>
+            </div>
+            <div style="background:var(--bg-dark); border:1px solid var(--border); border-radius:8px; padding:14px;">
+                <div style="color:var(--green-main); font-size:0.88rem; margin-bottom:8px;">&#128274; Log Integrity</div>
+                <div style="font-size:0.79rem; color:var(--green-light); line-height:1.6;">
+                    Forward logs to a write-once remote store immediately. An attacker who compromises
+                    a host can delete local logs — remote forwarding (syslog-ng, Winlogbeat) prevents this.
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== Complete button ===== -->
+    <div class="complete-section">
+        <button class="complete-btn" onclick="completeModule()">Complete Module &#10003;</button>
+    </div>
+
+</div>
+
+<script>
+'use strict';
+
+/* ===================================================================
+   DATA: Log format examples
+   =================================================================== */
+const LOG_FORMATS = {
+    eventlog: {
+        raw: `Log Name:      Security
+Source:        Microsoft-Windows-Security-Auditing
+Date:          2025-11-14 03:42:17
+Event ID:      4625
+Task Category: Logon
+Level:         Information
+Keywords:      Audit Failure
+User:          N/A
+Computer:      CORP-DC01
+Description:
+  An account failed to log on.
+  Account Name: jsmith
+  Failure Reason: Unknown user name or bad password
+  Logon Type: 3 (Network)
+  Source Network Address: 10.0.5.44`,
+        notes: [
+            'Event ID 4625 = Failed logon (know your Windows event IDs)',
+            'Logon Type 3 = Network logon (not interactive/console)',
+            'Source Network Address tells you where the attempt came from',
+            'Repeated 4625 events for the same account = brute force indicator'
+        ]
+    },
+    syslog: {
+        raw: `<34>1 2025-11-14T03:42:17.000Z web-prod-01 nginx 1234 - - 10.0.5.44 - - [14/Nov/2025:03:42:17 +0000] "POST /wp-login.php HTTP/1.1" 403 512
+<165>1 2025-11-14T03:42:18.000Z db-prod-01 kernel - - - [14/Nov/2025:03:42:18 +0000] Out of memory: Kill process 8942 (mysql) score 980 or sacrifice child
+<30>1 2025-11-14T03:50:00.000Z backup-01 crond 5678 - - (root) CMD (/usr/bin/rsync -az /data/ backup@nas-01:/backups/)`,
+        notes: [
+            'Priority value <34> encodes both facility (4=auth) and severity (2=crit): (facility*8)+severity',
+            'RFC 5424 format: VERSION TIMESTAMP HOSTNAME APP-NAME PROCID MSGID STRUCTURED-DATA MSG',
+            'OOM Kill in kernel logs often correlates with application crashes — check timestamps',
+            'cron job entries tell you what automated tasks ran and when — critical for forensics'
+        ]
+    },
+    apache: {
+        raw: `10.0.5.44 - jsmith [14/Nov/2025:03:42:17 +0000] "GET /admin/config.php HTTP/1.1" 200 4523 "http://corp.local/" "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
+192.168.1.100 - - [14/Nov/2025:03:43:01 +0000] "GET /../../../etc/passwd HTTP/1.1" 400 512 "-" "sqlmap/1.7.2#stable"
+10.0.1.5 - - [14/Nov/2025:03:55:22 +0000] "POST /api/upload HTTP/1.1" 500 1024 "-" "curl/7.88.1"`,
+        notes: [
+            'Combined Log Format: IP - user [timestamp] "request" status bytes "referer" "useragent"',
+            'Path traversal attempt (../../../etc/passwd) with sqlmap user-agent = active scanner',
+            'HTTP 500 on /api/upload may indicate a server-side error worth investigating',
+            'Authenticated user "jsmith" accessing /admin at 03:42 (off-hours) is anomalous'
+        ]
+    },
+    json: {
+        raw: `{
+  "timestamp": "2025-11-14T03:42:17Z",
+  "level": "ERROR",
+  "service": "auth-service",
+  "host": "app-prod-02",
+  "event_id": "AUTH_FAIL",
+  "user": "jsmith",
+  "source_ip": "10.0.5.44",
+  "attempt": 7,
+  "message": "Authentication failed: invalid credentials",
+  "trace_id": "abc123def456",
+  "environment": "production"
+}`,
+        notes: [
+            'Structured JSON logs are machine-parseable without regex — ideal for log aggregators',
+            'trace_id correlates this event across multiple microservices in distributed systems',
+            'attempt: 7 is a custom field — the app is counting and logging retry attempts',
+            'All fields queryable: SELECT * WHERE level=ERROR AND attempt > 3 AND service=auth-service'
+        ]
+    }
+};
+
+/* ===================================================================
+   DATA: Simulated log entries (mixed types, real formats)
+   =================================================================== */
+const LOG_ENTRIES = [
+    // Security events
+    { ts:'03:41:52', sev:'WARNING',  type:'security', src:'Security-Audit', msg:'Account jsmith: 3 failed login attempts from 10.0.5.44', id:'EVT-4625', host:'CORP-DC01', details:'Logon Type: 3 (Network), Auth: NTLM' },
+    { ts:'03:41:58', sev:'WARNING',  type:'security', src:'Security-Audit', msg:'Account jsmith: 4 failed login attempts from 10.0.5.44', id:'EVT-4625', host:'CORP-DC01', details:'Logon Type: 3 (Network), Auth: NTLM' },
+    { ts:'03:42:05', sev:'ERROR',    type:'security', src:'Security-Audit', msg:'Account jsmith: 5 failed login attempts from 10.0.5.44', id:'EVT-4625', host:'CORP-DC01', details:'Logon Type: 3 (Network), Auth: NTLM' },
+    { ts:'03:42:11', sev:'ERROR',    type:'security', src:'Security-Audit', msg:'Account jsmith: 6 failed login attempts from 10.0.5.44', id:'EVT-4625', host:'CORP-DC01', details:'Logon Type: 3 (Network), Auth: NTLM' },
+    { ts:'03:42:17', sev:'CRITICAL', type:'security', src:'Security-Audit', msg:'Account jsmith LOCKED OUT after 7 failed login attempts', id:'EVT-4740', host:'CORP-DC01', details:'Caller: CORP-DC01, Subnet: 10.0.5.0/24' },
+    { ts:'03:42:17', sev:'INFO',     type:'security', src:'Firewall',       msg:'Blocked connection from 10.0.5.44 port 445 (SMB)', id:'FW-DROP', host:'CORP-FW01', details:'Rule: Default Deny, Protocol: TCP' },
+    { ts:'04:15:00', sev:'INFO',     type:'security', src:'Security-Audit', msg:'User administrator logged on successfully from 10.0.1.5', id:'EVT-4624', host:'CORP-DC01', details:'Logon Type: 10 (RemoteInteractive)' },
+    // System events
+    { ts:'02:30:10', sev:'WARNING',  type:'system', src:'Disk-Monitor',  msg:'Volume C: on WEB-PROD-01 at 82% capacity (threshold: 80%)', id:'SYS-2013', host:'WEB-PROD-01', details:'Free: 18GB of 100GB, Growth rate: 2GB/day' },
+    { ts:'02:30:15', sev:'WARNING',  type:'system', src:'Disk-Monitor',  msg:'Volume /var on APP-SRV-02 at 88% capacity', id:'SYS-2013', host:'APP-SRV-02', details:'Free: 12GB of 100GB, Mount: /var/log' },
+    { ts:'03:10:00', sev:'ERROR',    type:'system', src:'Disk-Monitor',  msg:'Volume D: on DB-PROD-01 at 95% capacity — CRITICAL', id:'SYS-2013', host:'DB-PROD-01', details:'Free: 5GB of 100GB, I/O: elevated' },
+    { ts:'03:38:44', sev:'WARNING',  type:'system', src:'kernel',        msg:'High memory pressure detected: available 512MB of 16GB', id:'SYS-OOM', host:'APP-SRV-02', details:'Swap usage: 95%, Major faults: 12400/s' },
+    { ts:'03:40:00', sev:'WARNING',  type:'system', src:'CPU-Monitor',   msg:'CPU usage 94% sustained for 3 minutes on APP-SRV-02', id:'SYS-PERF', host:'APP-SRV-02', details:'Top process: java (pid 4521), Load avg: 12.4' },
+    { ts:'03:45:00', sev:'INFO',     type:'system', src:'OS-Update',     msg:'Windows Update KB5032189 installed successfully', id:'SYS-1001', host:'CORP-WS-044', details:'Reboot required: Yes, Scheduled: 03:00' },
+    { ts:'03:55:00', sev:'INFO',     type:'system', src:'Backup-Agent',  msg:'Nightly backup completed: 42GB in 18 min, 0 errors', id:'SYS-BKP', host:'BACKUP-01', details:'Destination: NAS-01:/backups/20251114' },
+    { ts:'04:00:00', sev:'INFO',     type:'system', src:'disk-cleanup',  msg:'Disk cleanup freed 8.2GB on WEB-PROD-01', id:'SYS-CLEAN', host:'WEB-PROD-01', details:'Removed: temp files, old IIS logs, crash dumps' },
+    // Application events
+    { ts:'03:40:12', sev:'ERROR',    type:'application', src:'web-app',    msg:'Database connection pool exhausted: 50/50 connections in use', id:'APP-DB001', host:'APP-SRV-02', details:'Pool: prod-db, Timeout: 30s, Queue depth: 47' },
+    { ts:'03:40:45', sev:'CRITICAL', type:'application', src:'web-app',    msg:'Application crash: OutOfMemoryError — heap space exhausted', id:'APP-OOM', host:'APP-SRV-02', details:'Heap: 4096MB, GC overhead: 98%, Threads: 512' },
+    { ts:'03:40:47', sev:'INFO',     type:'application', src:'watchdog',   msg:'Restarting crashed service web-app on APP-SRV-02', id:'APP-RST', host:'APP-SRV-02', details:'PID 4521 -> new PID 4889, Restart #1' },
+    { ts:'03:41:10', sev:'INFO',     type:'application', src:'web-app',    msg:'Service web-app restarted and accepting connections', id:'APP-UP', host:'APP-SRV-02', details:'Startup time: 23s, Health: OK' },
+    { ts:'03:58:33', sev:'ERROR',    type:'application', src:'web-app',    msg:'Database connection pool exhausted again — heap at 87%', id:'APP-DB001', host:'APP-SRV-02', details:'Second incident in 18 minutes — investigate root cause' },
+    { ts:'03:59:01', sev:'CRITICAL', type:'application', src:'web-app',    msg:'Application crash #2: OutOfMemoryError — same root cause', id:'APP-OOM', host:'APP-SRV-02', details:'Memory leak suspected in request handler thread pool' },
+    { ts:'03:59:05', sev:'INFO',     type:'application', src:'watchdog',   msg:'Restarting crashed service web-app (restart #2 of 3 max)', id:'APP-RST', host:'APP-SRV-02', details:'PID 4889 -> new PID 5001' },
+    { ts:'04:05:00', sev:'INFO',     type:'application', src:'nginx',      msg:'Access log: 10,482 requests served, avg 42ms, 0.1% error rate', id:'APP-STAT', host:'WEB-PROD-01', details:'P95 latency: 280ms, P99: 890ms' },
+    { ts:'04:20:00', sev:'WARNING',  type:'application', src:'scheduler',  msg:'Scheduled job report-generator exceeded 30min timeout', id:'APP-TO', host:'APP-SRV-02', details:'Job: daily-report, Started: 03:50, Killed at: 04:20' },
+];
+
+/* ===================================================================
+   State
+   =================================================================== */
+let activeSeverities = new Set(['INFO','WARNING','ERROR','CRITICAL']);
+let selectedEntry    = null;
+
+/* ===================================================================
+   Log Format Reference
+   =================================================================== */
+function showFormat(key) {
+    // Update tab active state
+    document.querySelectorAll('.tab-btn').forEach((btn, i) => {
+        btn.classList.toggle('active', btn.textContent.trim().toLowerCase().includes(key.split('')[0]) || btn.onclick.toString().includes(`'${key}'`));
+    });
+    // Re-highlight active tab precisely
+    document.querySelectorAll('#formatTabs .tab-btn').forEach(btn => {
+        btn.classList.remove('active');
+        if (btn.getAttribute('onclick') && btn.getAttribute('onclick').includes(`'${key}'`)) {
+            btn.classList.add('active');
+        }
+    });
+
+    const fmt = LOG_FORMATS[key];
+    document.getElementById('formatDisplay').innerHTML = `
+        <pre style="color:#a78bfa; white-space:pre-wrap; margin-bottom:12px; border-bottom:1px solid var(--border); padding-bottom:12px;">${escapeHtml(fmt.raw)}</pre>
+        <div style="color:var(--green-main); font-size:0.78rem; margin-bottom:6px;">// Key observations:</div>
+        ${fmt.notes.map(n => `<div style="color:var(--text-dim); font-size:0.78rem; padding:3px 0 3px 12px; border-left:2px solid var(--border);">&#9656; ${n}</div>`).join('')}
+    `;
+}
+
+/* ===================================================================
+   Severity filter toggle
+   =================================================================== */
+function toggleSev(btn) {
+    const sev = btn.dataset.sev;
+    if (activeSeverities.has(sev)) {
+        activeSeverities.delete(sev);
+        btn.classList.remove('active');
+    } else {
+        activeSeverities.add(sev);
+        btn.classList.add('active');
+    }
+    applyFilters();
+}
+
+/* ===================================================================
+   Build source filter options from log data
+   =================================================================== */
+function buildSourceFilter() {
+    const sources = [...new Set(LOG_ENTRIES.map(e => e.src))].sort();
+    const sel = document.getElementById('sourceFilter');
+    sources.forEach(s => {
+        const opt = document.createElement('option');
+        opt.value = s; opt.textContent = s;
+        sel.appendChild(opt);
+    });
+}
+
+/* ===================================================================
+   Apply all active filters and re-render log viewer
+   =================================================================== */
+function applyFilters() {
+    const typeVal   = document.getElementById('logTypeFilter').value;
+    const srcVal    = document.getElementById('sourceFilter').value;
+    const searchVal = document.getElementById('searchFilter').value.toLowerCase();
+
+    const filtered = LOG_ENTRIES.filter(entry => {
+        if (!activeSeverities.has(entry.sev)) return false;
+        if (typeVal !== 'all' && entry.type !== typeVal) return false;
+        if (srcVal  !== 'all' && entry.src  !== srcVal)  return false;
+        if (searchVal && !entry.msg.toLowerCase().includes(searchVal) &&
+                         !entry.src.toLowerCase().includes(searchVal)) return false;
+        return true;
+    });
+
+    renderLogViewer(filtered);
+    updateCountBar(filtered);
+}
+
+/* ===================================================================
+   Render log entries into the viewer
+   =================================================================== */
+function renderLogViewer(entries) {
+    const viewer = document.getElementById('logViewer');
+    if (entries.length === 0) {
+        viewer.innerHTML = `<div style="color:var(--text-dim); font-size:0.82rem; text-align:center; margin-top:80px;">No log entries match the current filters.</div>`;
+        return;
+    }
+
+    viewer.innerHTML = entries.map((entry, i) => `
+        <div class="log-entry sev-${entry.sev}" data-sev="${entry.sev}" onclick="showDetail(${LOG_ENTRIES.indexOf(entry)})">
+            <span class="log-ts">${entry.ts}</span>
+            <span class="log-sev">${entry.sev}</span>
+            <span class="log-src">${entry.src}</span>
+            <span class="log-msg">${highlightKeywords(entry.msg)}</span>
+        </div>
+    `).join('');
+}
+
+/* Highlight common security/alert keywords in log messages */
+function highlightKeywords(msg) {
+    const keywords = { failed: '#f87171', error: '#f87171', critical: '#ff4d4d', crash: '#ff4d4d',
+                       warning: '#fbbf24', locked: '#fbbf24', exhausted: '#fbbf24',
+                       success: '#4ade80', completed: '#4ade80', restarted: '#60a5fa' };
+    let out = escapeHtml(msg);
+    Object.entries(keywords).forEach(([kw, color]) => {
+        const re = new RegExp(`\\b(${kw}(ed|ing|s)?)\\b`, 'gi');
+        out = out.replace(re, `<span style="color:${color};font-weight:bold;">$1</span>`);
+    });
+    return out;
+}
+
+/* ===================================================================
+   Show entry detail panel
+   =================================================================== */
+function showDetail(index) {
+    const entry = LOG_ENTRIES[index];
+    selectedEntry = index;
+    const panel = document.getElementById('detail-panel');
+    const table = document.getElementById('detail-table');
+
+    table.innerHTML = `
+        <tr><td>Timestamp</td><td>${entry.ts}</td></tr>
+        <tr><td>Severity</td><td style="color:var(--sev-${entry.sev.toLowerCase()})">${entry.sev}</td></tr>
+        <tr><td>Log Type</td><td>${entry.type}</td></tr>
+        <tr><td>Source</td><td style="color:#a78bfa">${entry.src}</td></tr>
+        <tr><td>Host</td><td>${entry.host}</td></tr>
+        <tr><td>Event ID</td><td>${entry.id}</td></tr>
+        <tr><td>Message</td><td>${escapeHtml(entry.msg)}</td></tr>
+        <tr><td>Details</td><td>${escapeHtml(entry.details)}</td></tr>
+    `;
+    panel.classList.add('visible');
+}
+
+/* ===================================================================
+   Count bar
+   =================================================================== */
+function updateCountBar(filtered) {
+    const counts = { INFO: 0, WARNING: 0, ERROR: 0, CRITICAL: 0 };
+    filtered.forEach(e => { if (counts[e.sev] !== undefined) counts[e.sev]++; });
+    const colors = { INFO: '#60a5fa', WARNING: '#fbbf24', ERROR: '#f87171', CRITICAL: '#ff4d4d' };
+    document.getElementById('countBar').innerHTML =
+        `<span style="color:var(--text-dim)">Showing ${filtered.length} of ${LOG_ENTRIES.length}</span>` +
+        Object.entries(counts).map(([sev, n]) =>
+            `<span><span class="count-dot" style="background:${colors[sev]}"></span>${sev}: ${n}</span>`
+        ).join('');
+}
+
+/* ===================================================================
+   Timeline SVG
+   =================================================================== */
+function renderTimeline() {
+    const svg    = document.getElementById('timeline-svg');
+    const W = 1100, H = 180, PAD_L = 60, PAD_R = 20, PAD_T = 20, PAD_B = 50;
+    const ROWS   = { system: 30, application: 70, security: 110 };
+    const COLORS = { INFO: '#60a5fa', WARNING: '#fbbf24', ERROR: '#f87171', CRITICAL: '#ff4d4d' };
+
+    // Time range: 02:00 - 04:30 in minutes from midnight
+    const tMin = 2 * 60, tMax = 4 * 60 + 30;
+    const tRange = tMax - tMin;
+    const xScale = t => PAD_L + ((t - tMin) / tRange) * (W - PAD_L - PAD_R);
+
+    function tsToMin(ts) {
+        const [h, m, s] = ts.split(':').map(Number);
+        return h * 60 + m + s / 60;
+    }
+
+    let svgHtml = `<rect width="${W}" height="${H}" fill="#030b04" rx="8"/>`;
+
+    // Grid lines and time labels
+    for (let t = tMin; t <= tMax; t += 30) {
+        const x = xScale(t);
+        const hrs  = Math.floor(t / 60).toString().padStart(2, '0');
+        const mins = (t % 60).toString().padStart(2, '0');
+        svgHtml += `<line x1="${x}" y1="${PAD_T}" x2="${x}" y2="${H - PAD_B}" stroke="rgba(34,197,94,0.15)" stroke-width="1"/>`;
+        svgHtml += `<text x="${x}" y="${H - 8}" fill="#4ade80" font-size="10" text-anchor="middle" font-family="monospace">${hrs}:${mins}</text>`;
+    }
+
+    // Row labels
+    Object.entries(ROWS).forEach(([type, y]) => {
+        svgHtml += `<text x="${PAD_L - 8}" y="${y + 5}" fill="#86efac" font-size="10" text-anchor="end" font-family="monospace">${type.substring(0,3).toUpperCase()}</text>`;
+        svgHtml += `<line x1="${PAD_L}" y1="${y}" x2="${W - PAD_R}" y2="${y}" stroke="rgba(34,197,94,0.1)" stroke-width="1" stroke-dasharray="4,4"/>`;
+    });
+
+    // Plot log entries as circles
+    LOG_ENTRIES.forEach(entry => {
+        const y   = ROWS[entry.type];
+        if (!y) return;
+        const x   = xScale(tsToMin(entry.ts));
+        const col = COLORS[entry.sev] || '#86efac';
+        const r   = entry.sev === 'CRITICAL' ? 7 : entry.sev === 'ERROR' ? 5 : 4;
+        svgHtml += `<circle cx="${x}" cy="${y}" r="${r}" fill="${col}" opacity="0.85">
+            <title>${entry.ts} [${entry.sev}] ${entry.src}: ${entry.msg}</title>
+        </circle>`;
+        if (entry.sev === 'CRITICAL') {
+            svgHtml += `<circle cx="${x}" cy="${y}" r="${r + 4}" fill="none" stroke="${col}" stroke-width="1.5" opacity="0.4"/>`;
+        }
+    });
+
+    svg.innerHTML = svgHtml;
+
+    // Legend
+    const legendHtml = Object.entries(COLORS).map(([sev, col]) =>
+        `<span style="display:flex;align-items:center;gap:5px;color:#86efac;">
+            <svg width="12" height="12"><circle cx="6" cy="6" r="5" fill="${col}"/></svg>${sev}
+        </span>`
+    ).join('');
+    document.getElementById('timeline-legend').innerHTML = legendHtml;
+}
+
+/* ===================================================================
+   Pattern detection exercises
+   =================================================================== */
+function runExercise(num) {
+    const resultEl = document.getElementById(`ex-result-${num}`);
+    let html = '';
+
+    if (num === 1) {
+        const fails = LOG_ENTRIES.filter(e => e.type === 'security' &&
+            (e.sev === 'ERROR' || e.sev === 'CRITICAL') &&
+            e.msg.toLowerCase().includes('failed login') || e.msg.toLowerCase().includes('locked out') || e.msg.toLowerCase().includes('failed login attempts'));
+        const targeted = LOG_ENTRIES.filter(e => e.type === 'security' && e.msg.includes('jsmith'));
+        html = `<strong style="color:var(--green-main)">Found ${targeted.length} events targeting user "jsmith"</strong><br>
+        Attack timeline: 03:41:52 — 03:42:17 (25 seconds, 7 attempts)<br>
+        Source IP: 10.0.5.44 | Account locked at 03:42:17 (EVT-4740)<br>
+        Recommendation: Block 10.0.5.44 at perimeter firewall, investigate SMB traffic from that subnet.`;
+    } else if (num === 2) {
+        const diskAlerts = LOG_ENTRIES.filter(e => e.type === 'system' &&
+            (e.msg.toLowerCase().includes('disk') || e.msg.toLowerCase().includes('volume') || e.msg.toLowerCase().includes('capacity')));
+        html = `<strong style="color:var(--green-main)">Found ${diskAlerts.length} disk-related events</strong><br>
+        WEB-PROD-01 Volume C: at 82% at 02:30 — remediated by cleanup at 04:00 (freed 8.2GB)<br>
+        APP-SRV-02 /var at 88% at 02:30 — /var/log is a common culprit, check log rotation<br>
+        DB-PROD-01 Volume D: at 95% at 03:10 — URGENT: database data volume, expansion or cleanup needed now`;
+    } else if (num === 3) {
+        html = `<strong style="color:var(--green-main)">Crash correlation analysis complete</strong><br>
+        Crash #1 at 03:40:45 — preceded by:<br>
+        &nbsp;&nbsp;• 03:38:44 High memory pressure (512MB available)<br>
+        &nbsp;&nbsp;• 03:40:00 CPU at 94% for 3 minutes<br>
+        &nbsp;&nbsp;• 03:40:12 DB connection pool exhausted<br>
+        Crash #2 at 03:59:01 — same pattern; heap never fully recovered after restart<br>
+        Root cause: memory leak in web-app (java PID 4521). DB pool exhaustion is a symptom.<br>
+        Fix: heap dump analysis + connection pool leak detection (e.g., HikariCP leak detection threshold).`;
+    }
+
+    resultEl.innerHTML = html;
+    resultEl.classList.add('show', 'found');
+}
+
+/* ===================================================================
+   HTML escape helper (prevents XSS in innerHTML)
+   =================================================================== */
+function escapeHtml(str) {
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+}
+
+/* ===================================================================
+   Module completion
+   =================================================================== */
+function completeModule() {
+    if (typeof ModuleProgress !== 'undefined') {
+        ModuleProgress.complete('script', 'script-log-analysis', {
+            returnUrl: '../labs/script-sysadmin.lab.html'
+        });
+    }
+}
+
+/* ===================================================================
+   Init
+   =================================================================== */
+document.addEventListener('DOMContentLoaded', () => {
+    showFormat('eventlog');
+    buildSourceFilter();
+    applyFilters();
+    renderTimeline();
+});
+</script>
+</body>
+</html>

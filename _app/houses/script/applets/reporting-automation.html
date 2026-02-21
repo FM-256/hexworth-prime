@@ -1,0 +1,1023 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <!-- Progress & Achievements -->
+    <script src="../../../components/AchievementManager.js"></script>
+    <script src="../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reporting Automation Visualizer | Script House</title>
+    <style>
+        /* ===== CSS Custom Properties: Script House palette ===== */
+        :root {
+            --bg-darkest:  #020d05;
+            --bg-dark:     #052e16;
+            --bg-mid:      #0d1f10;
+            --bg-panel:    #0a1a0c;
+            --green-deep:  #14532d;
+            --green-mid:   #166534;
+            --green-main:  #22c55e;
+            --green-light: #86efac;
+            --green-glow:  rgba(34, 197, 94, 0.25);
+            --text-dim:    #4ade80;
+            --border:      rgba(34, 197, 94, 0.3);
+            --border-bright: rgba(34, 197, 94, 0.6);
+            --font-mono:   'Consolas', 'Monaco', 'Courier New', monospace;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: var(--font-mono);
+            background: linear-gradient(160deg, var(--bg-darkest) 0%, var(--bg-dark) 50%, var(--bg-mid) 100%);
+            color: var(--green-light);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        header {
+            text-align: center;
+            padding: 24px 20px 18px;
+            background: var(--bg-dark);
+            border: 2px solid var(--border-bright);
+            border-radius: 12px;
+            box-shadow: 0 0 40px var(--green-glow);
+            margin-bottom: 24px;
+            position: relative;
+        }
+
+        .back-btn {
+            position: absolute; left: 18px; top: 18px;
+            padding: 8px 16px;
+            background: var(--bg-mid); color: var(--green-light);
+            border: 1px solid var(--border); border-radius: 6px;
+            text-decoration: none; font-size: 0.85rem;
+            transition: all 0.25s ease;
+        }
+        .back-btn:hover { background: var(--green-deep); border-color: var(--green-main);
+                          box-shadow: 0 0 10px var(--green-glow); color: #fff; }
+
+        header h1 { font-size: 1.9rem; color: var(--green-main); text-shadow: 0 0 20px var(--green-glow); margin-bottom: 4px; }
+        header p  { color: var(--text-dim); font-size: 0.9rem; }
+
+        .container { max-width: 1200px; margin: 0 auto; }
+
+        .section {
+            background: var(--bg-panel);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 20px 22px;
+            margin-bottom: 22px;
+        }
+        .section-title {
+            font-size: 1.1rem; color: var(--green-main);
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 10px; margin-bottom: 16px;
+        }
+
+        /* ===== Pipeline stages ===== */
+        .pipeline-wrap {
+            display: flex;
+            align-items: stretch;
+            gap: 0;
+            overflow-x: auto;
+            padding-bottom: 8px;
+            margin-bottom: 18px;
+        }
+
+        .stage {
+            flex: 1;
+            min-width: 160px;
+            background: var(--bg-dark);
+            border: 1px solid var(--border);
+            border-radius: 0;
+            padding: 16px 12px;
+            cursor: pointer;
+            transition: all 0.25s;
+            position: relative;
+            text-align: center;
+        }
+        .stage:first-child { border-radius: 8px 0 0 8px; }
+        .stage:last-child  { border-radius: 0 8px 8px 0; }
+        .stage:hover, .stage.active {
+            background: rgba(34,197,94,0.1);
+            border-color: var(--green-main);
+            z-index: 1;
+        }
+        .stage.active { box-shadow: 0 0 16px var(--green-glow); }
+        .stage .stage-icon  { font-size: 1.8rem; margin-bottom: 6px; }
+        .stage .stage-title { font-size: 0.85rem; color: var(--green-main); font-weight: bold; }
+        .stage .stage-sub   { font-size: 0.72rem; color: var(--text-dim); margin-top: 3px; }
+
+        /* Arrow between stages */
+        .stage-arrow {
+            display: flex;
+            align-items: center;
+            color: var(--green-main);
+            font-size: 1.4rem;
+            padding: 0 2px;
+            z-index: 2;
+            flex-shrink: 0;
+        }
+
+        /* Stage detail panel */
+        #stage-detail {
+            background: var(--bg-dark);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 18px;
+            transition: opacity 0.25s;
+        }
+        .stage-detail-title { color: var(--green-main); font-size: 0.95rem; margin-bottom: 10px; }
+        .stage-detail-desc  { color: var(--green-light); font-size: 0.84rem; line-height: 1.7; margin-bottom: 12px; }
+        .stage-code {
+            background: #030b04;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 12px;
+            font-size: 0.78rem;
+            color: #a78bfa;
+            overflow-x: auto;
+            white-space: pre;
+        }
+        .stage-tools { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+        .tool-badge {
+            padding: 3px 10px;
+            border-radius: 10px;
+            background: rgba(34,197,94,0.1);
+            border: 1px solid var(--border);
+            color: var(--green-light);
+            font-size: 0.72rem;
+        }
+
+        /* ===== Report template builder ===== */
+        .template-tabs {
+            display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px;
+        }
+        .tmpl-tab {
+            padding: 7px 16px;
+            border-radius: 6px;
+            border: 1px solid var(--border);
+            background: transparent;
+            color: var(--green-light);
+            font-family: var(--font-mono);
+            font-size: 0.8rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .tmpl-tab.active, .tmpl-tab:hover {
+            background: var(--green-deep); border-color: var(--green-main); color: #fff;
+        }
+
+        .report-builder {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+        .block-palette {
+            background: var(--bg-dark);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 14px;
+        }
+        .block-palette-title { font-size: 0.82rem; color: var(--green-main); margin-bottom: 10px; }
+        .report-block-btn {
+            display: block; width: 100%;
+            padding: 9px 12px; margin-bottom: 7px;
+            background: var(--bg-mid);
+            border: 1px solid var(--border); border-radius: 6px;
+            color: var(--green-light); font-family: var(--font-mono);
+            font-size: 0.8rem; cursor: pointer; text-align: left;
+            transition: all 0.2s;
+        }
+        .report-block-btn:hover { background: rgba(34,197,94,0.1); border-color: var(--green-main); }
+        .report-block-btn:active { transform: scale(0.98); }
+
+        /* Report preview canvas */
+        .report-preview {
+            background: #030b04;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 14px;
+            min-height: 320px;
+            overflow-y: auto;
+            max-height: 400px;
+        }
+        .report-preview::-webkit-scrollbar { width: 5px; }
+        .report-preview::-webkit-scrollbar-thumb { background: var(--green-mid); border-radius: 3px; }
+        .report-preview-title { font-size: 0.78rem; color: var(--text-dim); margin-bottom: 10px; }
+
+        /* Report sections that get added */
+        .rblock {
+            padding: 8px 10px;
+            margin-bottom: 8px;
+            border-radius: 4px;
+            border-left: 2px solid var(--green-main);
+            background: rgba(34,197,94,0.05);
+            animation: blockIn 0.3s ease;
+            position: relative;
+        }
+        .rblock-title { font-size: 0.78rem; color: var(--green-main); margin-bottom: 4px; }
+        .rblock-content { font-size: 0.74rem; color: var(--green-light); line-height: 1.6; }
+        .rblock-remove {
+            position: absolute; right: 6px; top: 6px;
+            background: none; border: none; color: #f87171;
+            cursor: pointer; font-size: 0.75rem; padding: 2px;
+        }
+        @keyframes blockIn { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
+
+        /* ===== Schedule configurator ===== */
+        .schedule-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+            gap: 14px;
+            margin-bottom: 16px;
+        }
+        .schedule-card {
+            background: var(--bg-dark);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 16px;
+            cursor: pointer;
+            transition: all 0.25s;
+            text-align: center;
+        }
+        .schedule-card:hover, .schedule-card.active {
+            border-color: var(--green-main);
+            background: rgba(34,197,94,0.08);
+            box-shadow: 0 0 12px var(--green-glow);
+        }
+        .schedule-freq  { font-size: 1rem; color: var(--green-main); font-weight: bold; margin-bottom: 4px; }
+        .schedule-cron  { font-size: 0.76rem; color: #a78bfa; margin-bottom: 8px; }
+        .schedule-desc  { font-size: 0.76rem; color: var(--text-dim); line-height: 1.5; }
+
+        /* Cron expression builder */
+        .cron-builder {
+            background: var(--bg-dark); border: 1px solid var(--border);
+            border-radius: 8px; padding: 16px; margin-bottom: 14px;
+        }
+        .cron-display {
+            font-size: 1.1rem; color: #a78bfa; text-align: center;
+            padding: 10px; background: #030b04; border-radius: 6px;
+            margin-bottom: 12px; letter-spacing: 2px;
+            border: 1px solid rgba(167,139,250,0.3);
+        }
+        .cron-fields {
+            display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px;
+        }
+        .cron-field label { font-size: 0.72rem; color: var(--text-dim); display: block; margin-bottom: 3px; }
+        .cron-field select {
+            width: 100%; padding: 5px 6px;
+            background: var(--bg-mid); border: 1px solid var(--border);
+            color: var(--green-light); border-radius: 4px;
+            font-family: var(--font-mono); font-size: 0.78rem;
+        }
+        .cron-meaning { font-size: 0.78rem; color: var(--green-main); text-align: center; margin-top: 10px; }
+
+        /* ===== Output format comparison ===== */
+        .format-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 14px;
+        }
+        .format-card {
+            background: var(--bg-dark);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 16px;
+            cursor: pointer;
+            transition: all 0.25s;
+        }
+        .format-card:hover { border-color: var(--green-main); background: rgba(34,197,94,0.07); }
+        .format-icon  { font-size: 2rem; margin-bottom: 8px; }
+        .format-name  { font-size: 0.92rem; color: var(--green-main); margin-bottom: 6px; }
+        .format-pros  { font-size: 0.75rem; color: #86efac; line-height: 1.6; }
+        .format-cons  { font-size: 0.75rem; color: #fbbf24; line-height: 1.6; margin-top: 4px; }
+        .pro-list li::before { content: '+ '; color: var(--green-main); }
+        .con-list li::before { content: '- '; color: #fbbf24; }
+        .format-pros ul, .format-cons ul { list-style: none; padding: 0; }
+
+        /* ===== Complete button ===== */
+        .complete-section { text-align: center; padding: 24px 20px; }
+        .complete-btn {
+            background: linear-gradient(135deg, #15803d, #22c55e);
+            color: #fff; border: none; padding: 14px 40px;
+            border-radius: 8px; font-size: 1rem; font-family: var(--font-mono);
+            cursor: pointer; box-shadow: 0 4px 20px rgba(34,197,94,0.35);
+            transition: all 0.3s ease;
+        }
+        .complete-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 30px rgba(34,197,94,0.5); }
+
+        .callout { border-left: 3px solid var(--green-main); background: rgba(34,197,94,0.05);
+                   padding: 10px 14px; border-radius: 0 6px 6px 0; margin: 12px 0;
+                   font-size: 0.84rem; color: var(--green-light); }
+        .callout strong { color: var(--green-main); }
+
+        @media (max-width: 700px) {
+            header h1 { font-size: 1.3rem; }
+            .back-btn { position: static; display: inline-block; margin-bottom: 12px; }
+            .report-builder { grid-template-columns: 1fr; }
+            .cron-fields { grid-template-columns: 1fr 1fr; }
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+
+    <!-- ===== HEADER ===== -->
+    <header>
+        <a href="../labs/script-sysadmin.lab.html" class="back-btn">&#8592; Back to Sysadmin Lab</a>
+        <h1>Reporting Automation Visualizer</h1>
+        <p>Pipeline design, template building, schedule configuration, and output format comparison</p>
+    </header>
+
+    <!-- ===== SECTION 1: Pipeline Visualizer ===== -->
+    <div class="section">
+        <div class="section-title">// Reporting Pipeline: 4 Stages</div>
+        <p style="font-size:0.83rem; color:var(--text-dim); margin-bottom:14px;">
+            Every automated report follows the same pipeline. Click a stage to explore its tools and implementation.
+        </p>
+
+        <div class="pipeline-wrap">
+            <div class="stage active" id="stage-0" onclick="showStage(0)">
+                <div class="stage-icon">&#128202;</div>
+                <div class="stage-title">Data Collection</div>
+                <div class="stage-sub">WMI, APIs, logs</div>
+            </div>
+            <div class="stage-arrow">&#8594;</div>
+            <div class="stage" id="stage-1" onclick="showStage(1)">
+                <div class="stage-icon">&#9881;</div>
+                <div class="stage-title">Processing</div>
+                <div class="stage-sub">Filter, aggregate</div>
+            </div>
+            <div class="stage-arrow">&#8594;</div>
+            <div class="stage" id="stage-2" onclick="showStage(2)">
+                <div class="stage-icon">&#128196;</div>
+                <div class="stage-title">Formatting</div>
+                <div class="stage-sub">Template + render</div>
+            </div>
+            <div class="stage-arrow">&#8594;</div>
+            <div class="stage" id="stage-3" onclick="showStage(3)">
+                <div class="stage-icon">&#128228;</div>
+                <div class="stage-title">Distribution</div>
+                <div class="stage-sub">Email, SFTP, webhook</div>
+            </div>
+        </div>
+
+        <div id="stage-detail">
+            <!-- Populated by showStage() -->
+        </div>
+    </div>
+
+    <!-- ===== SECTION 2: Report Template Builder ===== -->
+    <div class="section">
+        <div class="section-title">// Interactive Report Template Builder</div>
+        <p style="font-size:0.83rem; color:var(--text-dim); margin-bottom:14px;">
+            Select a report type, then click content blocks to add them to your report template. Drag to reorder (remove with x).
+        </p>
+
+        <div class="template-tabs">
+            <button class="tmpl-tab active" onclick="setTemplate('health')"  >System Health Check</button>
+            <button class="tmpl-tab"        onclick="setTemplate('inventory')">Inventory Report</button>
+            <button class="tmpl-tab"        onclick="setTemplate('security')" >Security Audit</button>
+        </div>
+
+        <div class="report-builder">
+            <div class="block-palette">
+                <div class="block-palette-title">// Available Content Blocks</div>
+                <div id="block-palette-items">
+                    <!-- Populated by setTemplate() -->
+                </div>
+            </div>
+            <div>
+                <div class="report-preview">
+                    <div class="report-preview-title">// Report Preview (click blocks to add)</div>
+                    <div id="report-canvas">
+                        <div style="color:var(--text-dim); font-size:0.78rem; text-align:center; margin-top:60px;">
+                            Add blocks from the left panel to build your report.
+                        </div>
+                    </div>
+                </div>
+                <div style="margin-top:8px; display:flex; gap:8px;">
+                    <button onclick="clearReport()" style="padding:7px 14px; background:var(--bg-mid); border:1px solid var(--border);
+                        color:var(--green-light); border-radius:6px; font-family:var(--font-mono); font-size:0.8rem; cursor:pointer;">
+                        Clear
+                    </button>
+                    <button onclick="generateScript()" style="padding:7px 14px; background:var(--green-deep); border:1px solid var(--border-bright);
+                        color:var(--green-light); border-radius:6px; font-family:var(--font-mono); font-size:0.8rem; cursor:pointer;">
+                        Generate PowerShell Stub
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Generated script panel -->
+        <div id="script-output" style="display:none; margin-top:14px;">
+            <div style="color:var(--green-main); font-size:0.85rem; margin-bottom:8px;">// Generated PowerShell Report Stub</div>
+            <pre id="script-code" style="background:#030b04; border:1px solid var(--border); border-radius:8px;
+                padding:14px; font-size:0.76rem; color:#a78bfa; overflow-x:auto; white-space:pre-wrap; max-height:300px; overflow-y:auto;"></pre>
+        </div>
+    </div>
+
+    <!-- ===== SECTION 3: Schedule Configurator ===== -->
+    <div class="section">
+        <div class="section-title">// Schedule Configurator</div>
+        <p style="font-size:0.83rem; color:var(--text-dim); margin-bottom:14px;">
+            Match report cadence to business need. Select a preset or build a custom cron expression.
+        </p>
+
+        <div class="schedule-grid">
+            <div class="schedule-card active" onclick="selectSchedule(this, '0 6 * * *', 'Daily at 06:00', 'Operational dashboards, disk space, nightly job summaries — distributed before the team starts work.')">
+                <div class="schedule-freq">Daily</div>
+                <div class="schedule-cron">0 6 * * *</div>
+                <div class="schedule-desc">Every day at 06:00. Operational reports — uptime, disk, nightly jobs.</div>
+            </div>
+            <div class="schedule-card" onclick="selectSchedule(this, '0 7 * * MON', 'Weekly on Monday 07:00', 'Weekly summaries: patch status, backup results, security scan outcomes. Management-friendly format.')">
+                <div class="schedule-freq">Weekly</div>
+                <div class="schedule-cron">0 7 * * MON</div>
+                <div class="schedule-desc">Monday 07:00. Weekly summaries — patch status, backup results, KPIs.</div>
+            </div>
+            <div class="schedule-card" onclick="selectSchedule(this, '0 8 1 * *', 'Monthly — 1st at 08:00', 'Monthly compliance reports, inventory trends, SLA performance. Board/management level reporting.')">
+                <div class="schedule-freq">Monthly</div>
+                <div class="schedule-cron">0 8 1 * *</div>
+                <div class="schedule-desc">1st of month at 08:00. Compliance, SLA reports, trend analysis.</div>
+            </div>
+            <div class="schedule-card" onclick="selectSchedule(this, '*/15 * * * *', 'Every 15 minutes', 'Real-time health checks for critical systems. High-frequency monitoring rather than reporting.')">
+                <div class="schedule-freq">Every 15 min</div>
+                <div class="schedule-cron">*/15 * * * *</div>
+                <div class="schedule-desc">High-frequency monitoring check. Uptime pings, service health.</div>
+            </div>
+        </div>
+
+        <div class="cron-builder">
+            <div style="color:var(--green-main); font-size:0.85rem; margin-bottom:10px;">Build a Custom Cron Expression</div>
+            <div class="cron-display" id="cronDisplay">0 6 * * *</div>
+            <div class="cron-fields">
+                <div class="cron-field">
+                    <label>Minute</label>
+                    <select id="cronMin" onchange="updateCron()">
+                        <option value="0">0 (top of hour)</option>
+                        <option value="*/5">*/5 (every 5 min)</option>
+                        <option value="*/15">*/15 (every 15 min)</option>
+                        <option value="*/30">*/30 (every 30 min)</option>
+                        <option value="30">30 (half-hour)</option>
+                        <option value="*">* (every minute)</option>
+                    </select>
+                </div>
+                <div class="cron-field">
+                    <label>Hour</label>
+                    <select id="cronHour" onchange="updateCron()">
+                        <option value="6">6 (06:00)</option>
+                        <option value="7">7 (07:00)</option>
+                        <option value="8">8 (08:00)</option>
+                        <option value="0">0 (midnight)</option>
+                        <option value="23">23 (11pm)</option>
+                        <option value="*/2">*/2 (every 2h)</option>
+                        <option value="*">* (every hour)</option>
+                    </select>
+                </div>
+                <div class="cron-field">
+                    <label>Day of Month</label>
+                    <select id="cronDOM" onchange="updateCron()">
+                        <option value="*">* (every day)</option>
+                        <option value="1">1 (1st)</option>
+                        <option value="15">15 (15th)</option>
+                        <option value="L">L (last day)</option>
+                    </select>
+                </div>
+                <div class="cron-field">
+                    <label>Month</label>
+                    <select id="cronMonth" onchange="updateCron()">
+                        <option value="*">* (every month)</option>
+                        <option value="1,4,7,10">1,4,7,10 (Quarterly)</option>
+                        <option value="1">1 (January)</option>
+                        <option value="12">12 (December)</option>
+                    </select>
+                </div>
+                <div class="cron-field">
+                    <label>Day of Week</label>
+                    <select id="cronDOW" onchange="updateCron()">
+                        <option value="*">* (every day)</option>
+                        <option value="MON">MON (Monday)</option>
+                        <option value="MON-FRI">MON-FRI (Weekdays)</option>
+                        <option value="0">0 (Sunday)</option>
+                        <option value="6">6 (Saturday)</option>
+                    </select>
+                </div>
+            </div>
+            <div class="cron-meaning" id="cronMeaning">Runs: At 06:00 every day</div>
+        </div>
+
+        <div id="schedule-detail" style="background:var(--bg-dark); border:1px solid var(--border); border-radius:8px; padding:14px; font-size:0.82rem; color:var(--green-light); display:none;">
+        </div>
+    </div>
+
+    <!-- ===== SECTION 4: Output Format Comparison ===== -->
+    <div class="section">
+        <div class="section-title">// Output Format Comparison</div>
+        <p style="font-size:0.83rem; color:var(--text-dim); margin-bottom:16px;">
+            Choose the right output format for your audience and downstream tooling.
+        </p>
+
+        <div class="format-grid">
+            <div class="format-card">
+                <div class="format-icon">&#128202;</div>
+                <div class="format-name">CSV / TSV</div>
+                <div class="format-pros">
+                    <ul class="pro-list">
+                        <li>Universal — opens in Excel</li>
+                        <li>Easy to script/generate</li>
+                        <li>Importable to SIEM/CMDB</li>
+                        <li>No dependency on libraries</li>
+                    </ul>
+                </div>
+                <div class="format-cons">
+                    <ul class="con-list">
+                        <li>No formatting/branding</li>
+                        <li>Not human-friendly</li>
+                        <li>No charts or graphs</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="format-card">
+                <div class="format-icon">&#128140;</div>
+                <div class="format-name">HTML Email</div>
+                <div class="format-pros">
+                    <ul class="pro-list">
+                        <li>Formatted, branded output</li>
+                        <li>Inline charts via CSS</li>
+                        <li>Direct delivery to inbox</li>
+                        <li>No recipient action needed</li>
+                    </ul>
+                </div>
+                <div class="format-cons">
+                    <ul class="con-list">
+                        <li>Email client rendering varies</li>
+                        <li>HTML template maintenance</li>
+                        <li>Attachment size limits</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="format-card">
+                <div class="format-icon">&#128196;</div>
+                <div class="format-name">PDF Report</div>
+                <div class="format-pros">
+                    <ul class="pro-list">
+                        <li>Print-ready, professional</li>
+                        <li>Layout-preserved</li>
+                        <li>Audit trail artifact</li>
+                        <li>Charts and images supported</li>
+                    </ul>
+                </div>
+                <div class="format-cons">
+                    <ul class="con-list">
+                        <li>Requires PDF library</li>
+                        <li>Not easily queryable</li>
+                        <li>Complex generation pipeline</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="format-card">
+                <div class="format-icon">&#127760;</div>
+                <div class="format-name">Live Dashboard</div>
+                <div class="format-pros">
+                    <ul class="pro-list">
+                        <li>Real-time data</li>
+                        <li>Interactive filtering</li>
+                        <li>Always current</li>
+                        <li>Cross-source correlation</li>
+                    </ul>
+                </div>
+                <div class="format-cons">
+                    <ul class="con-list">
+                        <li>Requires web server</li>
+                        <li>Auth/access control needed</li>
+                        <li>Ongoing maintenance</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="format-card">
+                <div class="format-icon">&#9881;</div>
+                <div class="format-name">JSON / API</div>
+                <div class="format-pros">
+                    <ul class="pro-list">
+                        <li>Machine-readable output</li>
+                        <li>Consumed by other scripts</li>
+                        <li>Webhook integration ready</li>
+                        <li>Feeds CMDB / SIEM</li>
+                    </ul>
+                </div>
+                <div class="format-cons">
+                    <ul class="con-list">
+                        <li>Not human-readable natively</li>
+                        <li>Needs consumer tooling</li>
+                        <li>Schema management needed</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== Complete button ===== -->
+    <div class="complete-section">
+        <button class="complete-btn" onclick="completeModule()">Complete Module &#10003;</button>
+    </div>
+
+</div>
+
+<script>
+'use strict';
+
+/* ===================================================================
+   DATA: Pipeline stage details
+   =================================================================== */
+const STAGE_DATA = [
+    {
+        title: 'Stage 1: Data Collection',
+        desc:  `The first stage gathers raw data from target systems. This can be pull-based
+(your script connects out to collect) or push-based (agents send data to a collector).
+The key principle: collect everything you might need and filter later — it\'s far easier
+to discard data than to re-run collection.`,
+        code: `# PowerShell: Collect system health data from remote hosts
+$targets = Get-Content "C:\\reports\\server-list.txt"
+$results = foreach ($host in $targets) {
+    Invoke-Command -ComputerName $host -ScriptBlock {
+        [PSCustomObject]@{
+            Hostname   = $env:COMPUTERNAME
+            CPULoad    = (Get-WmiObject Win32_Processor).LoadPercentage
+            FreeMemGB  = [math]::Round((Get-WmiObject Win32_OperatingSystem).FreePhysicalMemory / 1MB, 2)
+            DiskFree   = (Get-WmiObject Win32_LogicalDisk -Filter "DeviceID='C:'").FreeSpace / 1GB
+            Uptime     = (Get-Date) - (gcim Win32_OperatingSystem).LastBootUpTime
+            Services   = (Get-Service | Where-Object Status -eq 'Stopped').Count
+        }
+    } -ErrorAction SilentlyContinue
+}`,
+        tools: ['WMI / CIM', 'PowerShell Remoting', 'REST APIs', 'SNMP', 'SSH + paramiko', 'SQL queries', 'Syslog agents']
+    },
+    {
+        title: 'Stage 2: Processing & Aggregation',
+        desc:  `Raw data is noisy, inconsistent, and oversized. The processing stage filters, normalizes,
+calculates derived metrics, and structures the data into report-ready format.
+This is where you compute averages, identify thresholds, flag anomalies, and join
+data from multiple sources into unified records.`,
+        code: `# PowerShell: Process + flag threshold violations
+$processed = $results | ForEach-Object {
+    $cpuStatus  = if ($_.CPULoad -gt 90) { "CRITICAL" } elseif ($_.CPULoad -gt 75) { "WARNING" } else { "OK" }
+    $diskStatus = if ($_.DiskFree -lt 10) { "CRITICAL" } elseif ($_.DiskFree -lt 20) { "WARNING" } else { "OK" }
+    $memStatus  = if ($_.FreeMemGB -lt 1) { "CRITICAL" } elseif ($_.FreeMemGB -lt 2) { "WARNING" } else { "OK" }
+
+    [PSCustomObject]@{
+        Hostname   = $_.Hostname
+        CPU        = "$($_.CPULoad)% [$cpuStatus]"
+        Memory     = "$($_.FreeMemGB)GB free [$memStatus]"
+        Disk       = "$([math]::Round($_.DiskFree, 1))GB free [$diskStatus]"
+        Uptime     = $_.Uptime.Days
+        StoppedSvc = $_.Services
+        OverallStatus = if ("CRITICAL" -in @($cpuStatus,$diskStatus,$memStatus)) { "CRITICAL" }
+                        elseif ("WARNING" -in @($cpuStatus,$diskStatus,$memStatus)) { "WARNING" } else { "HEALTHY" }
+    }
+}
+$criticalHosts = $processed | Where-Object OverallStatus -eq "CRITICAL"`,
+        tools: ['PowerShell pipelines', 'Python pandas', 'jq (JSON)', 'SQL aggregation', 'AWK / sed', 'LINQ (.NET)']
+    },
+    {
+        title: 'Stage 3: Formatting & Rendering',
+        desc:  `Processed data is injected into a template that defines the visual structure of the output.
+HTML templates use here-strings with variable substitution. For PDF, tools like
+ReportLab (Python) or Export-Excel (PowerShell) handle rendering. The template is
+reusable — only the data changes each run.`,
+        code: `# PowerShell: Render HTML report from processed data
+$tableRows = $processed | ForEach-Object {
+    $rowColor = switch ($_.OverallStatus) {
+        "CRITICAL" { "rgba(239,68,68,0.1)"  }
+        "WARNING"  { "rgba(251,191,36,0.1)" }
+        default    { "rgba(34,197,94,0.05)" }
+    }
+    "<tr style='background:$rowColor'>
+        <td>$($_.Hostname)</td>
+        <td>$($_.CPU)</td>
+        <td>$($_.Memory)</td>
+        <td>$($_.Disk)</td>
+        <td>$($_.Uptime) days</td>
+        <td>$($_.OverallStatus)</td>
+    </tr>"
+}
+
+$html = Get-Content ".\\templates\\health-report.html"
+$html = $html -replace "{{DATE}}", (Get-Date -Format "yyyy-MM-dd HH:mm")
+$html = $html -replace "{{TABLE_ROWS}}", ($tableRows -join \`n)
+$html = $html -replace "{{CRITICAL_COUNT}}", ($criticalHosts.Count)
+$html | Out-File "C:\\reports\\health-$(Get-Date -Format 'yyyyMMdd').html" -Encoding UTF8`,
+        tools: ['Here-strings (PS/Bash)', 'Jinja2 (Python)', 'Handlebars.js', 'Export-Excel', 'ReportLab', 'Pandoc']
+    },
+    {
+        title: 'Stage 4: Distribution',
+        desc:  `The finished report reaches its audience. Distribution can be push (script sends it)
+or pull (report posted to a shared location consumers retrieve). Always implement error
+handling — a report that silently fails to deliver defeats the entire pipeline.
+Consider access control: sensitive reports should require authentication.`,
+        code: `# PowerShell: Distribute report via email + save to share
+$reportPath = "C:\\reports\\health-$(Get-Date -Format 'yyyyMMdd').html"
+$reportHtml = Get-Content $reportPath -Raw
+
+# Email delivery (requires SMTP relay configured)
+$mailParams = @{
+    From       = "reports@corp.local"
+    To         = @("sysadmins@corp.local", "manager@corp.local")
+    Subject    = "Daily System Health Report - $(Get-Date -Format 'yyyy-MM-dd')"
+    Body       = $reportHtml
+    BodyAsHTML = $true
+    SmtpServer = "smtp.corp.local"
+    Attachments = $reportPath
+}
+# Send-MailMessage @mailParams  # Legacy; use Send-MgUserMail for M365
+
+# Archive to shared drive
+Copy-Item $reportPath "\\\\nas01\\reports\\health\\"
+
+# Post to Teams webhook (optional)
+$webhook = "https://corp.webhook.office.com/webhookb2/..."
+$body = @{ text = "Health report ready: $($criticalHosts.Count) critical hosts" } | ConvertTo-Json
+# Invoke-RestMethod -Uri $webhook -Method Post -Body $body -ContentType 'application/json'`,
+        tools: ['SMTP / Send-MgUserMail', 'MS Teams webhooks', 'Slack webhooks', 'SFTP / SCP', 'SharePoint API', 'UNC shares']
+    }
+];
+
+/* ===================================================================
+   DATA: Report template blocks per type
+   =================================================================== */
+const TEMPLATE_BLOCKS = {
+    health: [
+        { id:'hdr',    title:'Report Header',      content:'Report: Daily System Health Check\nGenerated: {{DATE}}\nEnvironment: Production\nScope: {{HOST_COUNT}} servers' },
+        { id:'exec',   title:'Executive Summary',  content:'Total hosts: {{TOTAL}} | Healthy: {{HEALTHY}} | Warning: {{WARN}} | Critical: {{CRIT}}\nSLA uptime compliance: {{UPTIME_PCT}}%' },
+        { id:'cpu',    title:'CPU Utilization Table', content:'Host | CPU% | Status | Trend\nWEB-PROD-01 | 42% | OK | Stable\nDB-PROD-01 | 87% | WARNING | Rising\n...' },
+        { id:'mem',    title:'Memory Usage Table',  content:'Host | Free GB | Total GB | % Used | Status\nAPP-SRV-02 | 1.2GB | 16GB | 92% | CRITICAL\n...' },
+        { id:'disk',   title:'Disk Capacity Table', content:'Host | Volume | Used | Free | % Full | Status\nDB-PROD-01 | D: | 95GB | 5GB | 95% | CRITICAL\n...' },
+        { id:'svc',    title:'Stopped Services',    content:'Hosts with stopped expected services:\nNone detected. All monitored services running.' },
+        { id:'footer', title:'Report Footer',       content:'Automated by: SystemHealthReport.ps1\nSchedule: Daily 06:00\nContact: sysadmin@corp.local' },
+    ],
+    inventory: [
+        { id:'hdr',    title:'Report Header',       content:'Report: IT Asset Inventory\nGenerated: {{DATE}}\nInventory date: {{SCAN_DATE}}' },
+        { id:'os',     title:'OS Distribution',     content:'Windows Server 2022: 45 | Windows Server 2019: 23\nWindows 11: 512 | Windows 10 (EOL warning): 34\nUbuntu 22.04 LTS: 18' },
+        { id:'hw',     title:'Hardware Summary',    content:'Physical servers: 68 | Virtual machines: 124\nTotal CPU cores: 1,248 | Total RAM: 8.4 TB\nTotal storage: 284 TB' },
+        { id:'sw',     title:'Software Compliance', content:'Licensed: 842 installs\nUnlicensed / unknown: 14 (ACTION REQUIRED)\nEOL software detected: 7 packages' },
+        { id:'patch',  title:'Patch Status',        content:'Fully patched: 89%\nPending reboot: 47 hosts\nMissing critical patches: 12 hosts (see attached)' },
+        { id:'footer', title:'Report Footer',       content:'Automated by: AssetInventory.ps1\nCMDB sync: Enabled\nTicket auto-created for violations: Yes' },
+    ],
+    security: [
+        { id:'hdr',    title:'Report Header',       content:'Report: Security Audit — Monthly\nGenerated: {{DATE}}\nAudit period: {{PERIOD}}\nFramework: CIS Benchmark v8' },
+        { id:'risk',   title:'Risk Summary',        content:'Critical findings: 3 | High: 7 | Medium: 14 | Low: 22\nRisk score: 68/100 (last month: 71) — improving' },
+        { id:'auth',   title:'Authentication Events', content:'Failed logins (30d): 1,247\nAccount lockouts: 23\nPrivileged account logons: 89\nMFA coverage: 94%' },
+        { id:'patch',  title:'Vulnerability Patch Status', content:'CVEs addressed this month: 156\nCritical unpatched CVEs: 3 (escalation required)\nAvg patch lag: 4.2 days (SLA: 7 days)' },
+        { id:'fw',     title:'Firewall & Network',  content:'Blocked connections: 48,219\nTop blocked source: 185.220.101.0/24 (Tor exit)\nUnauthorized port scans: 12' },
+        { id:'action', title:'Action Items',        content:'1. [CRITICAL] Patch CVE-2025-44228 on 3 hosts by Friday\n2. [HIGH] Disable 14 stale accounts older than 90 days\n3. [MEDIUM] Enable MFA for remaining 6% of users' },
+        { id:'footer', title:'Report Footer',       content:'Automated by: SecurityAudit.ps1 | Sent to: CISO, SOC, IT Manager' },
+    ]
+};
+
+let currentTemplate = 'health';
+let reportBlocks    = []; // blocks added to canvas
+
+/* ===================================================================
+   Pipeline stage display
+   =================================================================== */
+function showStage(index) {
+    document.querySelectorAll('.stage').forEach((s, i) => s.classList.toggle('active', i * 2 === index * 2));
+    // Account for arrow elements in querySelectorAll — use id instead
+    for (let i = 0; i < 4; i++) {
+        const el = document.getElementById(`stage-${i}`);
+        if (el) el.classList.toggle('active', i === index);
+    }
+
+    const data = STAGE_DATA[index];
+    const toolBadges = data.tools.map(t => `<span class="tool-badge">${t}</span>`).join('');
+
+    document.getElementById('stage-detail').innerHTML = `
+        <div class="stage-detail-title">${data.title}</div>
+        <div class="stage-detail-desc">${data.desc.replace(/\n/g, '<br>')}</div>
+        <pre class="stage-code">${escapeHtml(data.code)}</pre>
+        <div class="stage-tools">${toolBadges}</div>
+    `;
+}
+
+/* ===================================================================
+   Template builder
+   =================================================================== */
+function setTemplate(type) {
+    currentTemplate = type;
+    reportBlocks = [];
+
+    document.querySelectorAll('.tmpl-tab').forEach(btn => {
+        btn.classList.toggle('active', btn.getAttribute('onclick').includes(`'${type}'`));
+    });
+
+    const blocks = TEMPLATE_BLOCKS[type];
+    document.getElementById('block-palette-items').innerHTML = blocks.map(b => `
+        <button class="report-block-btn" onclick="addBlock('${b.id}')">
+            &#10010; ${b.title}
+        </button>
+    `).join('');
+
+    document.getElementById('report-canvas').innerHTML =
+        `<div style="color:var(--text-dim); font-size:0.78rem; text-align:center; margin-top:60px;">
+            Add blocks from the left panel to build your report.
+        </div>`;
+    document.getElementById('script-output').style.display = 'none';
+}
+
+function addBlock(blockId) {
+    if (reportBlocks.includes(blockId)) return; // prevent duplicates
+    reportBlocks.push(blockId);
+
+    const block = TEMPLATE_BLOCKS[currentTemplate].find(b => b.id === blockId);
+    if (!block) return;
+
+    const canvas = document.getElementById('report-canvas');
+    // Remove placeholder if this is the first block
+    if (reportBlocks.length === 1) canvas.innerHTML = '';
+
+    const div = document.createElement('div');
+    div.className = 'rblock';
+    div.id = `rblock-${blockId}`;
+    div.innerHTML = `
+        <button class="rblock-remove" onclick="removeBlock('${blockId}')" title="Remove">&#10005;</button>
+        <div class="rblock-title">&#9658; ${block.title}</div>
+        <div class="rblock-content">${escapeHtml(block.content)}</div>
+    `;
+    canvas.appendChild(div);
+}
+
+function removeBlock(blockId) {
+    reportBlocks = reportBlocks.filter(id => id !== blockId);
+    const el = document.getElementById(`rblock-${blockId}`);
+    if (el) el.remove();
+    if (reportBlocks.length === 0) {
+        document.getElementById('report-canvas').innerHTML =
+            `<div style="color:var(--text-dim); font-size:0.78rem; text-align:center; margin-top:60px;">
+                Add blocks from the left panel to build your report.
+            </div>`;
+    }
+}
+
+function clearReport() {
+    reportBlocks = [];
+    setTemplate(currentTemplate);
+}
+
+function generateScript() {
+    if (reportBlocks.length === 0) {
+        alert('Add at least one block to your report first.');
+        return;
+    }
+
+    const typeLabels = { health: 'SystemHealth', inventory: 'AssetInventory', security: 'SecurityAudit' };
+    const scriptName = typeLabels[currentTemplate] || 'Report';
+    const blocks     = TEMPLATE_BLOCKS[currentTemplate].filter(b => reportBlocks.includes(b.id));
+    const sectionComments = blocks.map(b => `    # Section: ${b.title}`).join('\n');
+
+    const script = `#Requires -Version 5.1
+<#
+.SYNOPSIS
+    Automated ${scriptName} Report Generator
+.DESCRIPTION
+    Generated by Hexworth Prime Reporting Automation Visualizer.
+    Sections included: ${blocks.map(b => b.title).join(', ')}
+.NOTES
+    Schedule: Adjust cron/task scheduler trigger as needed.
+    Author: sysadmin@corp.local
+#>
+
+param(
+    [string[]]$Targets    = (Get-Content "$PSScriptRoot\\server-list.txt"),
+    [string]  $ReportPath = "$PSScriptRoot\\reports",
+    [string]  $SmtpServer = "smtp.corp.local",
+    [string[]]$Recipients = @("sysadmins@corp.local")
+)
+
+Set-StrictMode -Version Latest
+$ErrorActionPreference = 'Stop'
+
+# ───── 1. Data Collection ─────────────────────────────────────────
+Write-Host "[$(Get-Date -f 'HH:mm:ss')] Collecting data from $($Targets.Count) hosts..."
+$rawData = @()
+foreach ($target in $Targets) {
+    try {
+        $rawData += Invoke-Command -ComputerName $target -ScriptBlock {
+            [PSCustomObject]@{
+                Hostname = $env:COMPUTERNAME
+                # Add your collection fields here
+            }
+        }
+    } catch {
+        Write-Warning "Failed to collect from $target : $_"
+    }
+}
+
+# ───── 2. Processing ──────────────────────────────────────────────
+Write-Host "[$(Get-Date -f 'HH:mm:ss')] Processing $($rawData.Count) records..."
+$processed = $rawData | ForEach-Object {
+    # Apply threshold logic, calculate derived metrics
+${sectionComments}
+    $_  # Return processed object
+}
+
+# ───── 3. Formatting ──────────────────────────────────────────────
+Write-Host "[$(Get-Date -f 'HH:mm:ss')] Rendering report..."
+$reportDate = Get-Date -Format 'yyyy-MM-dd'
+$reportFile = Join-Path $ReportPath "${scriptName}-$reportDate.html"
+
+# Build HTML content (add your template substitution here)
+$htmlContent = @"
+<!DOCTYPE html><html><head><title>${scriptName} Report</title></head>
+<body>
+$(${blocks}.ForEach({ "<h2>$($_.Title)</h2><pre>$($_.Content)</pre>" }) -join '')
+<footer>Generated: $(Get-Date)</footer>
+</body></html>
+"@
+$htmlContent | Out-File $reportFile -Encoding UTF8
+
+# ───── 4. Distribution ────────────────────────────────────────────
+Write-Host "[$(Get-Date -f 'HH:mm:ss')] Distributing report..."
+Send-MailMessage -From "reports@corp.local" -To $Recipients \`
+    -Subject "${scriptName} Report - $reportDate" \`
+    -Body (Get-Content $reportFile -Raw) -BodyAsHtml \`
+    -SmtpServer $SmtpServer -Attachments $reportFile
+
+Write-Host "[$(Get-Date -f 'HH:mm:ss')] Report pipeline complete. File: $reportFile"
+`;
+
+    document.getElementById('script-code').textContent = script;
+    const panel = document.getElementById('script-output');
+    panel.style.display = 'block';
+    panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+/* ===================================================================
+   Schedule configurator
+   =================================================================== */
+function selectSchedule(card, cron, label, detail) {
+    document.querySelectorAll('.schedule-card').forEach(c => c.classList.remove('active'));
+    card.classList.add('active');
+
+    const detailEl = document.getElementById('schedule-detail');
+    detailEl.style.display = 'block';
+    detailEl.innerHTML = `<strong style="color:var(--green-main)">${label}</strong><br>
+        <span style="color:#a78bfa; font-size:0.8rem;">${cron}</span><br><br>
+        ${detail}`;
+}
+
+function updateCron() {
+    const min   = document.getElementById('cronMin').value;
+    const hour  = document.getElementById('cronHour').value;
+    const dom   = document.getElementById('cronDOM').value;
+    const month = document.getElementById('cronMonth').value;
+    const dow   = document.getElementById('cronDOW').value;
+
+    const expr = `${min} ${hour} ${dom} ${month} ${dow}`;
+    document.getElementById('cronDisplay').textContent = expr;
+
+    // Build human-readable meaning
+    const minLabel   = min   === '*' ? 'every minute' : min.startsWith('*/') ? `every ${min.slice(2)} minutes` : `minute ${min}`;
+    const hourLabel  = hour  === '*' ? 'every hour'   : hour.startsWith('*/') ? `every ${hour.slice(2)} hours` : `${hour}:00`;
+    const domLabel   = dom   === '*' ? 'every day'    : dom === 'L' ? 'last day of month' : `day ${dom}`;
+    const monthLabel = month === '*' ? 'every month'  : `month(s) ${month}`;
+    const dowLabel   = dow   === '*' ? '' : `, on ${dow}`;
+
+    document.getElementById('cronMeaning').textContent = `Runs: At ${minLabel} past ${hourLabel}, ${domLabel} of ${monthLabel}${dowLabel}`;
+}
+
+/* ===================================================================
+   HTML escape helper
+   =================================================================== */
+function escapeHtml(str) {
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+}
+
+/* ===================================================================
+   Module completion
+   =================================================================== */
+function completeModule() {
+    if (typeof ModuleProgress !== 'undefined') {
+        ModuleProgress.complete('script', 'script-reporting-automation', {
+            returnUrl: '../labs/script-sysadmin.lab.html'
+        });
+    }
+}
+
+/* ===================================================================
+   Init
+   =================================================================== */
+document.addEventListener('DOMContentLoaded', () => {
+    showStage(0);
+    setTemplate('health');
+    updateCron();
+});
+</script>
+</body>
+</html>

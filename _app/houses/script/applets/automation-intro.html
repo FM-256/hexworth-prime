@@ -1,0 +1,946 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control: require sorted house assignment -->
+    <script src="../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <!-- Progress & Achievement tracking -->
+    <script src="../../../components/AchievementManager.js"></script>
+    <script src="../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Automation Introduction | Script House</title>
+    <style>
+        /* ===== CSS Custom Properties: Script House palette ===== */
+        :root {
+            --bg-darkest:  #020d05;
+            --bg-dark:     #052e16;
+            --bg-mid:      #0d1f10;
+            --bg-panel:    #0a1a0c;
+            --green-deep:  #14532d;
+            --green-mid:   #166534;
+            --green-main:  #22c55e;
+            --green-light: #86efac;
+            --green-glow:  rgba(34, 197, 94, 0.25);
+            --text-dim:    #4ade80;
+            --border:      rgba(34, 197, 94, 0.3);
+            --border-bright: rgba(34, 197, 94, 0.6);
+            --font-mono:   'Consolas', 'Monaco', 'Courier New', monospace;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: var(--font-mono);
+            background: linear-gradient(160deg, var(--bg-darkest) 0%, var(--bg-dark) 50%, var(--bg-mid) 100%);
+            color: var(--green-light);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        /* ===== Header ===== */
+        header {
+            text-align: center;
+            padding: 24px 20px 20px;
+            background: var(--bg-dark);
+            border: 2px solid var(--border-bright);
+            border-radius: 12px;
+            box-shadow: 0 0 40px var(--green-glow);
+            margin-bottom: 28px;
+            position: relative;
+        }
+
+        .back-btn {
+            position: absolute;
+            left: 18px;
+            top: 18px;
+            padding: 8px 16px;
+            background: var(--bg-mid);
+            color: var(--green-light);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            text-decoration: none;
+            font-size: 0.85rem;
+            font-family: var(--font-mono);
+            transition: all 0.25s ease;
+        }
+        .back-btn:hover {
+            background: var(--green-deep);
+            border-color: var(--green-main);
+            box-shadow: 0 0 10px var(--green-glow);
+            color: #fff;
+        }
+
+        header h1 {
+            font-size: 2rem;
+            color: var(--green-main);
+            text-shadow: 0 0 20px var(--green-glow);
+            margin-bottom: 6px;
+        }
+
+        header p {
+            color: var(--text-dim);
+            font-size: 0.95rem;
+        }
+
+        /* ===== Layout ===== */
+        .container { max-width: 1200px; margin: 0 auto; }
+
+        .section {
+            background: var(--bg-panel);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 24px;
+            margin-bottom: 24px;
+        }
+
+        .section-title {
+            font-size: 1.2rem;
+            color: var(--green-main);
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 10px;
+            margin-bottom: 18px;
+        }
+
+        /* ===== Manual vs Automated comparison ===== */
+        .compare-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+
+        .compare-card {
+            border-radius: 8px;
+            padding: 18px;
+            border: 1px solid var(--border);
+        }
+        .compare-card.manual  { background: rgba(220, 38, 38, 0.07); border-color: rgba(239,68,68,0.35); }
+        .compare-card.auto    { background: rgba(34,197,94, 0.07);  border-color: rgba(34,197,94,0.35); }
+
+        .compare-card h3 { font-size: 1rem; margin-bottom: 12px; }
+        .compare-card.manual h3 { color: #f87171; }
+        .compare-card.auto   h3 { color: var(--green-main); }
+
+        .compare-card ul { list-style: none; }
+        .compare-card ul li {
+            padding: 5px 0;
+            font-size: 0.88rem;
+            color: var(--green-light);
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+        }
+        .compare-card ul li::before { margin-right: 8px; }
+        .compare-card.manual ul li::before { content: '✗'; color: #f87171; }
+        .compare-card.auto   ul li::before { content: '✓'; color: var(--green-main); }
+
+        /* ===== Time-waste bar chart ===== */
+        .chart-container { margin-top: 16px; }
+        .chart-row {
+            display: flex;
+            align-items: center;
+            margin-bottom: 12px;
+            gap: 10px;
+        }
+        .chart-label { width: 180px; font-size: 0.82rem; color: var(--green-light); flex-shrink: 0; }
+        .chart-track { flex: 1; background: rgba(255,255,255,0.06); border-radius: 4px; height: 22px; overflow: hidden; position: relative; }
+        .chart-bar {
+            height: 100%;
+            border-radius: 4px;
+            transition: width 1.2s cubic-bezier(0.25, 0.8, 0.25, 1);
+            display: flex;
+            align-items: center;
+            padding-left: 8px;
+            font-size: 0.75rem;
+            font-weight: bold;
+            color: #fff;
+        }
+        .chart-bar.manual { background: linear-gradient(90deg, #b91c1c, #ef4444); }
+        .chart-bar.auto   { background: linear-gradient(90deg, #15803d, #22c55e); }
+        .chart-num { font-size: 0.8rem; color: var(--text-dim); width: 55px; text-align: right; flex-shrink: 0; }
+
+        /* ===== Category cards ===== */
+        .categories-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 14px;
+            margin-bottom: 20px;
+        }
+
+        .cat-card {
+            background: var(--bg-dark);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 16px;
+            cursor: pointer;
+            transition: all 0.25s ease;
+            text-align: center;
+        }
+        .cat-card:hover, .cat-card.active {
+            border-color: var(--green-main);
+            box-shadow: 0 0 16px var(--green-glow);
+            transform: translateY(-2px);
+        }
+        .cat-card.active { background: rgba(34,197,94,0.1); }
+        .cat-icon { font-size: 2rem; margin-bottom: 8px; }
+        .cat-title { font-size: 0.9rem; color: var(--green-main); margin-bottom: 4px; }
+        .cat-desc  { font-size: 0.75rem; color: var(--text-dim); }
+
+        /* ===== Workflow diagram ===== */
+        #workflow-display {
+            min-height: 220px;
+            transition: opacity 0.3s ease;
+        }
+
+        .workflow-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+        .workflow-toggle {
+            display: flex;
+            gap: 8px;
+        }
+        .toggle-btn {
+            padding: 6px 14px;
+            border-radius: 20px;
+            border: 1px solid var(--border);
+            background: transparent;
+            color: var(--green-light);
+            font-family: var(--font-mono);
+            font-size: 0.8rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .toggle-btn.active, .toggle-btn:hover {
+            background: var(--green-deep);
+            border-color: var(--green-main);
+            color: #fff;
+        }
+
+        /* Workflow pipeline nodes */
+        .pipeline {
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 0;
+            margin: 10px 0;
+        }
+        .pipe-step {
+            background: var(--bg-dark);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 12px 16px;
+            font-size: 0.82rem;
+            min-width: 120px;
+            text-align: center;
+            position: relative;
+            animation: fadeSlide 0.4s ease forwards;
+            opacity: 0;
+        }
+        .pipe-step.manual-step { border-color: rgba(239,68,68,0.4); }
+        .pipe-step.auto-step   { border-color: rgba(34,197,94,0.5); background: rgba(34,197,94,0.07); }
+
+        .pipe-step .step-icon { font-size: 1.3rem; margin-bottom: 4px; }
+        .pipe-step .step-label { color: var(--green-light); font-size: 0.78rem; }
+        .pipe-step .step-time  { color: var(--text-dim); font-size: 0.72rem; margin-top: 4px; }
+
+        .pipe-arrow {
+            color: var(--green-main);
+            font-size: 1.2rem;
+            padding: 0 4px;
+            flex-shrink: 0;
+        }
+        .pipe-arrow.red-arrow { color: #ef4444; }
+
+        @keyframes fadeSlide {
+            from { opacity: 0; transform: translateY(8px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Apply increasing animation delays to pipeline steps */
+        .pipe-step:nth-child(1)  { animation-delay: 0.05s; }
+        .pipe-step:nth-child(3)  { animation-delay: 0.15s; }
+        .pipe-step:nth-child(5)  { animation-delay: 0.25s; }
+        .pipe-step:nth-child(7)  { animation-delay: 0.35s; }
+        .pipe-step:nth-child(9)  { animation-delay: 0.45s; }
+        .pipe-step:nth-child(11) { animation-delay: 0.55s; }
+
+        .savings-badge {
+            display: inline-block;
+            background: rgba(34,197,94,0.15);
+            border: 1px solid var(--green-main);
+            color: var(--green-main);
+            border-radius: 20px;
+            padding: 4px 14px;
+            font-size: 0.82rem;
+            margin-top: 12px;
+        }
+
+        /* ===== Quiz section ===== */
+        .quiz-card {
+            background: var(--bg-dark);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 14px;
+        }
+        .quiz-q { font-size: 0.95rem; color: var(--green-light); margin-bottom: 12px; }
+        .quiz-options { display: flex; flex-direction: column; gap: 8px; }
+        .quiz-opt {
+            padding: 10px 14px;
+            border-radius: 6px;
+            border: 1px solid var(--border);
+            background: var(--bg-mid);
+            color: var(--green-light);
+            font-family: var(--font-mono);
+            font-size: 0.85rem;
+            cursor: pointer;
+            text-align: left;
+            transition: all 0.2s;
+        }
+        .quiz-opt:hover:not(:disabled) { border-color: var(--green-main); background: rgba(34,197,94,0.1); }
+        .quiz-opt.correct  { background: rgba(34,197,94,0.2); border-color: var(--green-main); color: #fff; }
+        .quiz-opt.wrong    { background: rgba(239,68,68,0.15); border-color: #ef4444; color: #fca5a5; }
+        .quiz-feedback { margin-top: 10px; font-size: 0.85rem; padding: 8px 12px; border-radius: 6px; display: none; }
+        .quiz-feedback.show { display: block; }
+        .quiz-feedback.ok  { background: rgba(34,197,94,0.1); color: var(--green-main); border: 1px solid var(--border); }
+        .quiz-feedback.bad { background: rgba(239,68,68,0.1); color: #f87171; border: 1px solid rgba(239,68,68,0.3); }
+
+        /* ===== Score tracker ===== */
+        .score-bar {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 16px;
+            background: var(--bg-dark);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            margin-bottom: 14px;
+        }
+        .score-label { font-size: 0.85rem; color: var(--text-dim); }
+        .score-value { font-size: 1.1rem; color: var(--green-main); font-weight: bold; margin-left: auto; }
+
+        /* ===== Complete button ===== */
+        .complete-section { text-align: center; padding: 24px 20px; }
+        .complete-btn {
+            background: linear-gradient(135deg, #15803d, #22c55e);
+            color: #fff;
+            border: none;
+            padding: 14px 40px;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-family: var(--font-mono);
+            cursor: pointer;
+            box-shadow: 0 4px 20px rgba(34,197,94,0.35);
+            transition: all 0.3s ease;
+        }
+        .complete-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 30px rgba(34,197,94,0.5);
+        }
+
+        /* ===== Info callout ===== */
+        .callout {
+            border-left: 3px solid var(--green-main);
+            background: rgba(34,197,94,0.05);
+            padding: 12px 16px;
+            border-radius: 0 6px 6px 0;
+            margin: 12px 0;
+            font-size: 0.88rem;
+            color: var(--green-light);
+        }
+        .callout strong { color: var(--green-main); }
+
+        @media (max-width: 700px) {
+            .compare-grid { grid-template-columns: 1fr; }
+            .categories-grid { grid-template-columns: 1fr 1fr; }
+            header h1 { font-size: 1.4rem; }
+            .back-btn { position: static; display: inline-block; margin-bottom: 12px; }
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+
+    <!-- ===== PAGE HEADER ===== -->
+    <header>
+        <a href="../labs/script-sysadmin.lab.html" class="back-btn">&#8592; Back to Sysadmin Lab</a>
+        <h1>Automation Introduction</h1>
+        <p>Why automate? Manual vs. automated workflows in system administration</p>
+    </header>
+
+    <!-- ===== SECTION 1: Why Automate? ===== -->
+    <div class="section">
+        <div class="section-title">// Why Automate? The Sysadmin Reality</div>
+
+        <div class="callout">
+            <strong>The 80/20 Problem:</strong> Studies show that sysadmins spend up to 80% of their time
+            on repetitive, manual tasks — patch cycles, log reviews, account provisioning, backup checks.
+            Automation reclaims that time for actual problem-solving and strategic work.
+        </div>
+
+        <div class="compare-grid">
+            <div class="compare-card manual">
+                <h3>&#9888; Manual Workflow</h3>
+                <ul>
+                    <li>Human executes each step individually</li>
+                    <li>Error rate increases with fatigue</li>
+                    <li>Inconsistent output across runs</li>
+                    <li>Scales poorly — more work = more people</li>
+                    <li>Knowledge lives in one person's head</li>
+                    <li>Off-hours tasks require on-call staff</li>
+                    <li>No audit trail unless manually logged</li>
+                    <li>Holiday/weekend coverage gaps</li>
+                </ul>
+            </div>
+            <div class="compare-card auto">
+                <h3>&#9654; Automated Workflow</h3>
+                <ul>
+                    <li>Script or tool executes all steps reliably</li>
+                    <li>Zero error rate on repetitive steps</li>
+                    <li>Identical output guaranteed every run</li>
+                    <li>Scales instantly — 1 host or 10,000</li>
+                    <li>Knowledge encoded in scripts (shared)</li>
+                    <li>Runs unattended at any hour</li>
+                    <li>Full logging and audit trails built-in</li>
+                    <li>24/7 operation without staffing cost</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Time waste visualization -->
+        <div class="section-title" style="margin-top:10px;">// Weekly Hours: Manual vs. Automated</div>
+        <p style="font-size:0.82rem; color:var(--text-dim); margin-bottom:14px;">
+            Estimated weekly hours spent on common sysadmin tasks — click "Animate" to load data.
+        </p>
+
+        <button class="toggle-btn" id="animateChartBtn" onclick="animateChart()" style="margin-bottom:14px;">
+            &#9654; Animate Chart
+        </button>
+
+        <div class="chart-container" id="taskChart">
+            <!-- Rows injected by JS -->
+        </div>
+    </div>
+
+    <!-- ===== SECTION 2: Automation Categories ===== -->
+    <div class="section">
+        <div class="section-title">// Five Core Automation Categories</div>
+        <p style="font-size:0.85rem; color:var(--text-dim); margin-bottom:16px;">
+            Click a category to see its before/after workflow diagram.
+        </p>
+
+        <div class="categories-grid">
+            <div class="cat-card active" id="cat-config" onclick="showCategory('config')">
+                <div class="cat-icon">&#9881;</div>
+                <div class="cat-title">Configuration<br>Management</div>
+                <div class="cat-desc">Ansible, Puppet, Chef, DSC</div>
+            </div>
+            <div class="cat-card" id="cat-monitor" onclick="showCategory('monitor')">
+                <div class="cat-icon">&#128202;</div>
+                <div class="cat-title">Monitoring &amp;<br>Alerting</div>
+                <div class="cat-desc">Nagios, Prometheus, SCOM</div>
+            </div>
+            <div class="cat-card" id="cat-deploy" onclick="showCategory('deploy')">
+                <div class="cat-icon">&#128640;</div>
+                <div class="cat-title">Deployment &amp;<br>Provisioning</div>
+                <div class="cat-desc">Terraform, CI/CD, MDT</div>
+            </div>
+            <div class="cat-card" id="cat-backup" onclick="showCategory('backup')">
+                <div class="cat-icon">&#128190;</div>
+                <div class="cat-title">Backup &amp;<br>Recovery</div>
+                <div class="cat-desc">Veeam, Robocopy, rsync</div>
+            </div>
+            <div class="cat-card" id="cat-security" onclick="showCategory('security')">
+                <div class="cat-icon">&#128737;</div>
+                <div class="cat-title">Security &amp;<br>Compliance</div>
+                <div class="cat-desc">CIS Benchmarks, SIEM, PowerShell DSC</div>
+            </div>
+        </div>
+
+        <!-- Workflow display area -->
+        <div style="background: var(--bg-dark); border: 1px solid var(--border); border-radius: 8px; padding: 18px;">
+            <div class="workflow-header">
+                <span id="workflow-title" style="color:var(--green-main); font-size:0.95rem;">Configuration Management</span>
+                <div class="workflow-toggle">
+                    <button class="toggle-btn active" id="btnBefore" onclick="setView('before')">Before</button>
+                    <button class="toggle-btn"        id="btnAfter"  onclick="setView('after')">After</button>
+                </div>
+            </div>
+            <div id="workflow-display"></div>
+        </div>
+    </div>
+
+    <!-- ===== SECTION 3: ROI Calculator ===== -->
+    <div class="section">
+        <div class="section-title">// Automation ROI Estimator</div>
+        <p style="font-size:0.85rem; color:var(--text-dim); margin-bottom:16px;">
+            Estimate time savings from automating a repetitive task.
+        </p>
+
+        <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:14px; margin-bottom:16px;">
+            <div>
+                <label style="font-size:0.8rem; color:var(--text-dim); display:block; margin-bottom:4px;">
+                    Task frequency (per week)
+                </label>
+                <input type="number" id="roiFreq" value="5" min="1" max="100"
+                    oninput="calcROI()"
+                    style="width:100%; padding:8px 10px; background:var(--bg-mid); border:1px solid var(--border);
+                           color:var(--green-light); border-radius:6px; font-family:var(--font-mono); font-size:0.9rem;">
+            </div>
+            <div>
+                <label style="font-size:0.8rem; color:var(--text-dim); display:block; margin-bottom:4px;">
+                    Manual time per task (minutes)
+                </label>
+                <input type="number" id="roiManual" value="30" min="1" max="480"
+                    oninput="calcROI()"
+                    style="width:100%; padding:8px 10px; background:var(--bg-mid); border:1px solid var(--border);
+                           color:var(--green-light); border-radius:6px; font-family:var(--font-mono); font-size:0.9rem;">
+            </div>
+            <div>
+                <label style="font-size:0.8rem; color:var(--text-dim); display:block; margin-bottom:4px;">
+                    Script run time (seconds)
+                </label>
+                <input type="number" id="roiAuto" value="15" min="1" max="3600"
+                    oninput="calcROI()"
+                    style="width:100%; padding:8px 10px; background:var(--bg-mid); border:1px solid var(--border);
+                           color:var(--green-light); border-radius:6px; font-family:var(--font-mono); font-size:0.9rem;">
+            </div>
+        </div>
+
+        <div id="roiResult" style="background:rgba(34,197,94,0.07); border:1px solid var(--border); border-radius:8px; padding:16px;">
+            <!-- Populated by calcROI() -->
+        </div>
+    </div>
+
+    <!-- ===== SECTION 4: Knowledge Check ===== -->
+    <div class="section">
+        <div class="section-title">// Knowledge Check</div>
+
+        <div class="score-bar">
+            <span class="score-label">Score:</span>
+            <span id="scoreDisplay" class="score-value">0 / 4</span>
+        </div>
+
+        <!-- Question 1 -->
+        <div class="quiz-card">
+            <div class="quiz-q">1. A sysadmin manually patches 200 servers every month. This process takes 3 hours per server.
+                What is the PRIMARY argument for automating this task?</div>
+            <div class="quiz-options">
+                <button class="quiz-opt" onclick="answerQ(this, 0, false)">
+                    A) Automation is always faster than manual work
+                </button>
+                <button class="quiz-opt" onclick="answerQ(this, 0, true)">
+                    B) Consistency, scalability, and freeing human time for complex decisions
+                </button>
+                <button class="quiz-opt" onclick="answerQ(this, 0, false)">
+                    C) Automation eliminates the need for system administrators entirely
+                </button>
+                <button class="quiz-opt" onclick="answerQ(this, 0, false)">
+                    D) Scripts are easier to write than performing manual steps
+                </button>
+            </div>
+            <div id="fb-0" class="quiz-feedback">
+                Correct. Automation shines on repetitive, identical tasks where human consistency degrades over time.
+                600 hours/month of patching becomes a scheduled job that runs overnight.
+            </div>
+        </div>
+
+        <!-- Question 2 -->
+        <div class="quiz-card">
+            <div class="quiz-q">2. Which automation category would you use to ensure all 500 company workstations
+                have the same firewall rules, registry settings, and software versions?</div>
+            <div class="quiz-options">
+                <button class="quiz-opt" onclick="answerQ(this, 1, false)">
+                    A) Monitoring &amp; Alerting
+                </button>
+                <button class="quiz-opt" onclick="answerQ(this, 1, false)">
+                    B) Backup &amp; Recovery
+                </button>
+                <button class="quiz-opt" onclick="answerQ(this, 1, true)">
+                    C) Configuration Management
+                </button>
+                <button class="quiz-opt" onclick="answerQ(this, 1, false)">
+                    D) Deployment &amp; Provisioning
+                </button>
+            </div>
+            <div id="fb-1" class="quiz-feedback">
+                Configuration Management enforces a "desired state" — tools like Ansible, Puppet, or DSC
+                continuously verify and correct drift from your defined baseline.
+            </div>
+        </div>
+
+        <!-- Question 3 -->
+        <div class="quiz-card">
+            <div class="quiz-q">3. Your team runs a manual disk-space check every morning. What automation category
+                best addresses this?</div>
+            <div class="quiz-options">
+                <button class="quiz-opt" onclick="answerQ(this, 2, false)">
+                    A) Configuration Management
+                </button>
+                <button class="quiz-opt" onclick="answerQ(this, 2, true)">
+                    B) Monitoring &amp; Alerting
+                </button>
+                <button class="quiz-opt" onclick="answerQ(this, 2, false)">
+                    C) Security &amp; Compliance
+                </button>
+                <button class="quiz-opt" onclick="answerQ(this, 2, false)">
+                    D) Deployment &amp; Provisioning
+                </button>
+            </div>
+            <div id="fb-2" class="quiz-feedback">
+                Monitoring tools like Nagios, Prometheus, or even a simple PowerShell scheduled task
+                will check disk space continuously and page you the moment it crosses a threshold — instead
+                of reacting to a crash.
+            </div>
+        </div>
+
+        <!-- Question 4 -->
+        <div class="quiz-card">
+            <div class="quiz-q">4. "Infrastructure as Code" is a concept primarily associated with which category?</div>
+            <div class="quiz-options">
+                <button class="quiz-opt" onclick="answerQ(this, 3, false)">
+                    A) Backup &amp; Recovery
+                </button>
+                <button class="quiz-opt" onclick="answerQ(this, 3, false)">
+                    B) Monitoring &amp; Alerting
+                </button>
+                <button class="quiz-opt" onclick="answerQ(this, 3, false)">
+                    C) Security &amp; Compliance
+                </button>
+                <button class="quiz-opt" onclick="answerQ(this, 3, true)">
+                    D) Deployment &amp; Provisioning
+                </button>
+            </div>
+            <div id="fb-3" class="quiz-feedback">
+                IaC treats server configurations and cloud resources exactly like application code — versioned,
+                reviewed, tested. Tools like Terraform, Pulumi, and AWS CloudFormation implement this approach.
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== Complete button ===== -->
+    <div class="complete-section">
+        <button class="complete-btn" onclick="completeModule()">Complete Module &#10003;</button>
+    </div>
+
+</div><!-- /container -->
+
+<script>
+'use strict';
+
+/* ===================================================================
+   DATA: Chart rows — task name, manual hours/week, auto hours/week
+   =================================================================== */
+const CHART_DATA = [
+    { label: 'Patch Management',        manual: 8,  auto: 0.2 },
+    { label: 'Log Review',              manual: 5,  auto: 0.1 },
+    { label: 'User Account Provisioning', manual: 3, auto: 0.05 },
+    { label: 'Backup Verification',     manual: 4,  auto: 0.1 },
+    { label: 'Compliance Reporting',    manual: 6,  auto: 0.3 },
+    { label: 'Disk / Capacity Checks',  manual: 2,  auto: 0.05 },
+];
+
+/* ===================================================================
+   DATA: Workflow definitions for each automation category
+   =================================================================== */
+const WORKFLOWS = {
+    config: {
+        title: 'Configuration Management',
+        before: [
+            { icon: '&#128203;', label: 'Print runbook',    time: '10 min' },
+            { icon: '&#128187;', label: 'RDP to server 1',  time: '5 min'  },
+            { icon: '&#9881;',   label: 'Apply settings',   time: '20 min' },
+            { icon: '&#128187;', label: 'RDP to server 2',  time: '5 min'  },
+            { icon: '&#9881;',   label: 'Apply settings',   time: '20 min' },
+            { icon: '&#8943;',   label: '× 498 more...',    time: '165 hrs' },
+        ],
+        after: [
+            { icon: '&#128196;', label: 'Write playbook once', time: '2 hrs' },
+            { icon: '&#9654;',   label: 'ansible-playbook run', time: '1 min' },
+            { icon: '&#9989;',   label: '500 servers done',  time: '8 min'  },
+        ],
+        saving: '~165 hours saved per cycle',
+    },
+    monitor: {
+        title: 'Monitoring & Alerting',
+        before: [
+            { icon: '&#128203;', label: 'Morning checklist',   time: '30 min' },
+            { icon: '&#128202;', label: 'Check CPU / disk',    time: '60 min' },
+            { icon: '&#128140;', label: 'Read all logs',       time: '90 min' },
+            { icon: '&#128222;', label: 'Call team if issue',  time: 'Varies' },
+        ],
+        after: [
+            { icon: '&#9881;',   label: 'Configure thresholds', time: 'Once' },
+            { icon: '&#128202;', label: 'Agent runs 24/7',     time: 'Always' },
+            { icon: '&#9888;',   label: 'PagerDuty alert',     time: 'Instant' },
+        ],
+        saving: '~3 hours daily per sysadmin reclaimed',
+    },
+    deploy: {
+        title: 'Deployment & Provisioning',
+        before: [
+            { icon: '&#128190;', label: 'Burn OS to USB',    time: '30 min' },
+            { icon: '&#128187;', label: 'Install OS',        time: '45 min' },
+            { icon: '&#9881;',   label: 'Install software',  time: '60 min' },
+            { icon: '&#128274;', label: 'Harden settings',   time: '30 min' },
+            { icon: '&#9989;',   label: 'Hand off server',   time: '15 min' },
+        ],
+        after: [
+            { icon: '&#128196;', label: 'terraform apply',   time: '1 min' },
+            { icon: '&#128640;', label: 'VM provisions',     time: '3 min' },
+            { icon: '&#9989;',   label: 'Ready to use',      time: '5 min' },
+        ],
+        saving: '~2.5 hours per server, zero human error',
+    },
+    backup: {
+        title: 'Backup & Recovery',
+        before: [
+            { icon: '&#128190;', label: 'Manual copy files', time: '2 hrs'  },
+            { icon: '&#128203;', label: 'Log in spreadsheet', time: '15 min' },
+            { icon: '&#128272;', label: 'Test restore?',     time: 'Rarely'  },
+            { icon: '&#9888;',   label: 'Miss a backup...',  time: 'Disaster' },
+        ],
+        after: [
+            { icon: '&#9881;',   label: 'Schedule configured', time: 'Once' },
+            { icon: '&#128190;', label: 'Auto incremental',  time: 'Nightly' },
+            { icon: '&#9989;',   label: 'Verify + report',   time: 'Auto'   },
+            { icon: '&#128139;', label: 'Restore tested',    time: 'Weekly' },
+        ],
+        saving: 'Consistent RPO/RTO — no missed backups',
+    },
+    security: {
+        title: 'Security & Compliance',
+        before: [
+            { icon: '&#128203;', label: 'Pull CIS checklist', time: '1 hr'  },
+            { icon: '&#128187;', label: 'Check each setting', time: '4 hrs' },
+            { icon: '&#128196;', label: 'Write audit report', time: '2 hrs' },
+            { icon: '&#9888;',   label: 'Redo next quarter',  time: 'Again' },
+        ],
+        after: [
+            { icon: '&#9881;',   label: 'OpenSCAP / CIS-CAT', time: 'Deploy once' },
+            { icon: '&#128202;', label: 'Scan all systems',   time: '10 min' },
+            { icon: '&#128196;', label: 'Auto-generate report', time: 'Instant' },
+            { icon: '&#9989;',   label: 'Auto-remediate',     time: 'Same run' },
+        ],
+        saving: '~6 hrs per audit cycle → continuous compliance',
+    },
+};
+
+/* ===== State ===== */
+let currentCategory = 'config';
+let currentView     = 'before';
+let scores          = [false, false, false, false];
+let chartAnimated   = false;
+
+/* ===================================================================
+   Chart rendering
+   =================================================================== */
+function buildChart() {
+    const MAX_HOURS = 10; // scale cap
+    const container = document.getElementById('taskChart');
+    container.innerHTML = CHART_DATA.map(row => {
+        const manualPct = Math.min((row.manual / MAX_HOURS) * 100, 100).toFixed(1);
+        const autoPct   = Math.min((row.auto   / MAX_HOURS) * 100, 100).toFixed(1);
+        return `
+        <div class="chart-row">
+            <span class="chart-label">${row.label}</span>
+            <div style="flex:1; display:flex; flex-direction:column; gap:4px;">
+                <div class="chart-track">
+                    <div class="chart-bar manual" id="bar-manual-${row.label.replace(/ /g,'')}"
+                         style="width:0%">Manual</div>
+                </div>
+                <div class="chart-track">
+                    <div class="chart-bar auto" id="bar-auto-${row.label.replace(/ /g,'')}"
+                         style="width:0%">Script</div>
+                </div>
+            </div>
+            <div class="chart-num" style="display:flex; flex-direction:column; gap:4px; align-items:flex-end;">
+                <span style="color:#f87171">${row.manual}h</span>
+                <span style="color:var(--green-main)">${row.auto}h</span>
+            </div>
+        </div>`;
+    }).join('');
+}
+
+function animateChart() {
+    if (chartAnimated) return;
+    chartAnimated = true;
+    document.getElementById('animateChartBtn').textContent = '&#10003; Loaded';
+
+    const MAX_HOURS = 10;
+    CHART_DATA.forEach((row, i) => {
+        const key       = row.label.replace(/ /g, '');
+        const manualEl  = document.getElementById(`bar-manual-${key}`);
+        const autoEl    = document.getElementById(`bar-auto-${key}`);
+        const manualPct = Math.min((row.manual / MAX_HOURS) * 100, 100).toFixed(1);
+        const autoPct   = Math.min((row.auto   / MAX_HOURS) * 100, 100).toFixed(1);
+
+        // Stagger each row's animation by 120ms
+        setTimeout(() => {
+            manualEl.style.width = `${manualPct}%`;
+            autoEl.style.width   = `${autoPct}%`;
+        }, i * 150);
+    });
+}
+
+/* ===================================================================
+   Workflow diagram rendering
+   =================================================================== */
+function setView(view) {
+    currentView = view;
+    document.getElementById('btnBefore').classList.toggle('active', view === 'before');
+    document.getElementById('btnAfter').classList.toggle('active',  view === 'after');
+    renderWorkflow();
+}
+
+function showCategory(cat) {
+    // Update active card highlight
+    document.querySelectorAll('.cat-card').forEach(el => el.classList.remove('active'));
+    document.getElementById(`cat-${cat}`).classList.add('active');
+    currentCategory = cat;
+    document.getElementById('workflow-title').textContent = WORKFLOWS[cat].title;
+    renderWorkflow();
+}
+
+function renderWorkflow() {
+    const wf   = WORKFLOWS[currentCategory];
+    const steps = currentView === 'before' ? wf.before : wf.after;
+    const isAuto = currentView === 'after';
+    const stepClass = isAuto ? 'auto-step' : 'manual-step';
+    const arrowClass = isAuto ? '' : 'red-arrow';
+
+    let html = `<div class="pipeline">`;
+    steps.forEach((step, i) => {
+        html += `
+        <div class="pipe-step ${stepClass}" style="animation-delay:${i * 0.1}s; opacity:0;">
+            <div class="step-icon">${step.icon}</div>
+            <div class="step-label">${step.label}</div>
+            <div class="step-time">${step.time}</div>
+        </div>`;
+        if (i < steps.length - 1) {
+            html += `<div class="pipe-arrow ${arrowClass}">&#8594;</div>`;
+        }
+    });
+    html += `</div>`;
+
+    if (isAuto) {
+        html += `<div><span class="savings-badge">&#9989; ${wf.saving}</span></div>`;
+    }
+
+    const display = document.getElementById('workflow-display');
+    display.style.opacity = '0';
+    setTimeout(() => {
+        display.innerHTML = html;
+        // Force reflow then fade back in
+        display.offsetHeight;
+        display.style.opacity = '1';
+        display.style.transition = 'opacity 0.3s ease';
+        // Trigger CSS animations on each pipe-step
+        display.querySelectorAll('.pipe-step').forEach((el, idx) => {
+            setTimeout(() => { el.style.animation = `fadeSlide 0.4s ease ${idx * 0.1}s forwards`; }, 10);
+        });
+    }, 150);
+}
+
+/* ===================================================================
+   ROI Calculator
+   =================================================================== */
+function calcROI() {
+    const freq   = parseFloat(document.getElementById('roiFreq').value)   || 0;
+    const manual = parseFloat(document.getElementById('roiManual').value)  || 0;
+    const auto   = parseFloat(document.getElementById('roiAuto').value)    || 0;
+
+    const manualWeekMin  = freq * manual;
+    const autoWeekSec    = freq * auto;
+    const autoWeekMin    = autoWeekSec / 60;
+    const savedMin       = manualWeekMin - autoWeekMin;
+    const savedHrsWeek   = savedMin / 60;
+    const savedHrsYear   = savedHrsWeek * 52;
+    const roi            = savedMin > 0 ? ((savedMin / manualWeekMin) * 100).toFixed(1) : 0;
+
+    document.getElementById('roiResult').innerHTML = `
+        <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(160px, 1fr)); gap:14px;">
+            <div style="text-align:center;">
+                <div style="font-size:0.75rem; color:var(--text-dim); margin-bottom:4px;">Manual time/week</div>
+                <div style="font-size:1.4rem; color:#f87171; font-weight:bold;">${manualWeekMin.toFixed(0)} min</div>
+            </div>
+            <div style="text-align:center;">
+                <div style="font-size:0.75rem; color:var(--text-dim); margin-bottom:4px;">Automated time/week</div>
+                <div style="font-size:1.4rem; color:var(--green-main); font-weight:bold;">${autoWeekMin.toFixed(1)} min</div>
+            </div>
+            <div style="text-align:center;">
+                <div style="font-size:0.75rem; color:var(--text-dim); margin-bottom:4px;">Saved per week</div>
+                <div style="font-size:1.4rem; color:var(--green-main); font-weight:bold;">${savedHrsWeek.toFixed(1)} hrs</div>
+            </div>
+            <div style="text-align:center;">
+                <div style="font-size:0.75rem; color:var(--text-dim); margin-bottom:4px;">Saved per year</div>
+                <div style="font-size:1.4rem; color:var(--green-main); font-weight:bold;">${savedHrsYear.toFixed(0)} hrs</div>
+            </div>
+            <div style="text-align:center;">
+                <div style="font-size:0.75rem; color:var(--text-dim); margin-bottom:4px;">Time reduction</div>
+                <div style="font-size:1.4rem; color:var(--green-main); font-weight:bold;">${roi}%</div>
+            </div>
+        </div>
+        <p style="font-size:0.78rem; color:var(--text-dim); margin-top:14px;">
+            &#128161; At $75/hr fully-loaded cost, ${savedHrsYear.toFixed(0)} hours = <strong style="color:var(--green-main)">$${(savedHrsYear * 75).toLocaleString()}</strong> annual savings.
+        </p>`;
+}
+
+/* ===================================================================
+   Quiz logic
+   =================================================================== */
+function answerQ(btn, qIndex, isCorrect) {
+    // Prevent re-answering
+    const options = btn.closest('.quiz-options').querySelectorAll('.quiz-opt');
+    options.forEach(opt => { opt.disabled = true; });
+
+    if (isCorrect) {
+        btn.classList.add('correct');
+        if (!scores[qIndex]) {
+            scores[qIndex] = true;
+            updateScore();
+        }
+    } else {
+        btn.classList.add('wrong');
+        // Reveal correct answer
+        options.forEach(opt => {
+            if (opt.onclick && opt.onclick.toString().includes('true')) {
+                opt.classList.add('correct');
+            }
+        });
+    }
+
+    const fb = document.getElementById(`fb-${qIndex}`);
+    fb.classList.add('show', isCorrect ? 'ok' : 'bad');
+    if (!isCorrect) fb.textContent = 'Incorrect — see the highlighted correct answer above.';
+}
+
+function updateScore() {
+    const correct = scores.filter(Boolean).length;
+    document.getElementById('scoreDisplay').textContent = `${correct} / 4`;
+}
+
+/* ===================================================================
+   Module completion
+   =================================================================== */
+function completeModule() {
+    if (typeof ModuleProgress !== 'undefined') {
+        ModuleProgress.complete('script', 'script-automation-intro', {
+            returnUrl: '../labs/script-sysadmin.lab.html'
+        });
+    }
+}
+
+/* ===================================================================
+   Init
+   =================================================================== */
+document.addEventListener('DOMContentLoaded', () => {
+    buildChart();
+    renderWorkflow();
+    calcROI();
+});
+</script>
+</body>
+</html>

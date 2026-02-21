@@ -1,0 +1,1187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control: user must be sorted into a house before viewing content -->
+    <script src="../../../components/AccessGuard.js"></script>
+    <script>
+        AccessGuard.require('sorted');
+    </script>
+    <!-- Progress tracking and achievement hooks -->
+    <script src="../../../components/AchievementManager.js"></script>
+    <script src="../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PowerShell Admin Tasks | Script House</title>
+    <style>
+        /* ── Reset & Base ─────────────────────────────────────── */
+        *, *::before, *::after {
+            margin: 0; padding: 0; box-sizing: border-box;
+        }
+
+        :root {
+            --bg-deep:      #052e16;
+            --bg-card:      #0a3318;
+            --bg-mid:       #0f3d20;
+            --border:       #166534;
+            --accent:       #22c55e;
+            --accent-dim:   #16a34a;
+            --text-bright:  #dcfce7;
+            --text-main:    #86efac;
+            --text-muted:   #4ade80;
+            --text-dim:     #6b7280;
+            --kw:           #34d399;
+            --str:          #fbbf24;
+            --var:          #60a5fa;
+            --typ:          #c084fc;
+            --cmt:          #6b7280;
+            --op:           #f9a8d4;
+            --num:          #fb923c;
+            --cmd:          #67e8f9;
+            --err:          #f87171;
+            --radius:       10px;
+            --radius-sm:    6px;
+            --transition:   0.22s ease;
+        }
+
+        html, body { height: 100%; }
+
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: linear-gradient(145deg, var(--bg-deep) 0%, #0a2a18 50%, var(--bg-deep) 100%);
+            color: var(--text-main);
+            min-height: 100vh;
+            line-height: 1.6;
+        }
+
+        /* ── Header ───────────────────────────────────────────── */
+        header {
+            background: linear-gradient(135deg, #166534 0%, #22c55e 100%);
+            padding: 14px 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 3px solid var(--accent);
+        }
+
+        .header-left h1 { color: #052e16; font-size: 20px; font-weight: 700; }
+        .header-left .subtitle { color: rgba(5,46,22,.75); font-size: 12px; margin-top: 2px; }
+
+        .back-link {
+            color: #052e16; text-decoration: none;
+            padding: 7px 14px; background: rgba(5,46,22,.2);
+            border-radius: var(--radius-sm); font-weight: 600; font-size: 13px;
+            transition: all var(--transition); white-space: nowrap;
+        }
+        .back-link:hover { background: rgba(5,46,22,.38); transform: translateX(-2px); }
+
+        /* ── Main ─────────────────────────────────────────────── */
+        .main-content {
+            max-width: 1120px;
+            margin: 0 auto;
+            padding: 28px 20px 48px;
+        }
+
+        /* ── Intro Banner ─────────────────────────────────────── */
+        .intro-banner {
+            background: rgba(34,197,94,.08);
+            border: 1px solid rgba(34,197,94,.25);
+            border-left: 4px solid var(--accent);
+            border-radius: var(--radius);
+            padding: 18px 22px;
+            margin-bottom: 32px;
+            display: flex;
+            align-items: flex-start;
+            gap: 16px;
+        }
+        .intro-icon { font-size: 2rem; flex-shrink: 0; margin-top: 2px; }
+        .intro-text h2 { color: var(--text-bright); font-size: 1.2rem; margin-bottom: 4px; }
+        .intro-text p  { color: var(--text-main); font-size: .9rem; opacity: .9; }
+
+        /* ── Section Heading ──────────────────────────────────── */
+        .section-heading {
+            color: var(--text-bright);
+            font-size: 1.1rem;
+            font-weight: 700;
+            margin: 32px 0 16px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .section-heading::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: linear-gradient(90deg, var(--border), transparent);
+        }
+
+        /* ═══════════════════════════════════════════════════════
+           TASK CARDS
+        ════════════════════════════════════════════════════════ */
+        .task-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+            gap: 16px;
+            margin-bottom: 12px;
+        }
+
+        .task-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            overflow: hidden;
+            transition: all var(--transition);
+            cursor: pointer;
+        }
+
+        .task-card:hover { border-color: rgba(34,197,94,.5); transform: translateY(-2px); box-shadow: 0 8px 24px rgba(34,197,94,.08); }
+        .task-card.active { border-color: var(--accent); }
+
+        .task-card-head {
+            padding: 14px 16px;
+            background: rgba(22,101,52,.2);
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+        }
+
+        .task-card-title-group { display: flex; align-items: center; gap: 10px; }
+        .task-card-icon { font-size: 1.5rem; flex-shrink: 0; }
+        .task-card-title { color: var(--text-bright); font-size: .95rem; font-weight: 700; }
+        .task-card-category {
+            font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em;
+            padding: 2px 8px; border-radius: 4px;
+        }
+
+        .cat-service  { background: rgba(14,165,233,.15); color: #0ea5e9; }
+        .cat-registry { background: rgba(192,132,252,.15); color: #c084fc; }
+        .cat-user     { background: rgba(251,191,36,.15);  color: #fbbf24; }
+        .cat-sched    { background: rgba(248,113,113,.15); color: #f87171; }
+        .cat-events   { background: rgba(34,197,94,.15);   color: var(--accent); }
+
+        .task-card-body {
+            padding: 14px 16px;
+        }
+
+        .task-goal {
+            font-size: .85rem;
+            color: var(--text-main);
+            opacity: .85;
+            line-height: 1.55;
+            margin-bottom: 10px;
+        }
+
+        .task-goal strong { color: var(--accent); }
+
+        .task-expand-hint {
+            font-size: 11px;
+            color: var(--text-dim);
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .task-card-detail {
+            display: none;
+            border-top: 1px solid var(--border);
+            padding: 16px;
+        }
+        .task-card.active .task-card-detail {
+            display: block;
+            animation: slideIn .22s ease;
+        }
+
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(-6px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+
+        /* ── Code Block ───────────────────────────────────────── */
+        .code-block {
+            background: #0d1117;
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            margin-bottom: 12px;
+            overflow: hidden;
+        }
+
+        .cb-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 7px 14px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .cb-lang { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: var(--accent); }
+        .cb-label { font-size: 11px; color: var(--text-dim); font-style: italic; }
+
+        .copy-btn {
+            background: transparent; border: 1px solid var(--border);
+            color: var(--text-dim); padding: 3px 10px;
+            border-radius: 4px; font-size: 11px; cursor: pointer;
+            transition: all var(--transition);
+        }
+        .copy-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+        .cb-body {
+            padding: 14px 16px;
+            font-family: 'Consolas', 'Fira Code', monospace;
+            font-size: 12.5px;
+            line-height: 1.75;
+            overflow-x: auto;
+        }
+
+        /* Syntax classes */
+        .kw  { color: var(--kw);  font-weight: 600; }
+        .str { color: var(--str); }
+        .var { color: var(--var); }
+        .typ { color: var(--typ); }
+        .cmt { color: var(--cmt); font-style: italic; }
+        .op  { color: var(--op); }
+        .num { color: var(--num); }
+        .cmd { color: var(--cmd); }
+        .err { color: var(--err); }
+
+        .note-box {
+            background: rgba(34,197,94,.05);
+            border-left: 3px solid var(--accent);
+            padding: 10px 14px;
+            border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+            font-size: .83rem;
+            color: var(--text-main);
+            line-height: 1.6;
+        }
+        .note-box strong { color: var(--accent); }
+        .note-box code   { color: var(--var); font-family: 'Consolas', monospace; }
+
+        .warn-box {
+            background: rgba(251,191,36,.06);
+            border-left: 3px solid #fbbf24;
+            padding: 10px 14px;
+            border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+            font-size: .83rem;
+            color: var(--text-main);
+            line-height: 1.6;
+            margin-top: 10px;
+        }
+        .warn-box strong { color: #fbbf24; }
+
+        /* ═══════════════════════════════════════════════════════
+           DRAG & DROP COMMAND BUILDER
+        ════════════════════════════════════════════════════════ */
+        .builder-section {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 24px;
+            margin-bottom: 32px;
+        }
+
+        .builder-intro {
+            font-size: .87rem;
+            color: var(--text-main);
+            opacity: .85;
+            margin-bottom: 20px;
+            line-height: 1.6;
+        }
+
+        .builder-scenario-select {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-bottom: 20px;
+        }
+
+        .scenario-btn {
+            padding: 8px 14px;
+            background: transparent;
+            border: 1px solid var(--border);
+            color: var(--text-muted);
+            border-radius: var(--radius-sm);
+            font-size: 13px;
+            cursor: pointer;
+            transition: all var(--transition);
+        }
+
+        .scenario-btn:hover { border-color: rgba(34,197,94,.4); color: var(--text-bright); }
+        .scenario-btn.active { background: rgba(34,197,94,.1); border-color: var(--accent); color: var(--accent); }
+
+        .builder-target {
+            background: rgba(5,46,22,.5);
+            border: 2px dashed var(--border);
+            border-radius: var(--radius);
+            padding: 18px;
+            margin-bottom: 16px;
+            min-height: 100px;
+        }
+
+        .builder-target-label {
+            font-size: 12px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: .07em;
+            color: var(--text-dim);
+            margin-bottom: 12px;
+        }
+
+        .drop-slots {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            align-items: center;
+            min-height: 48px;
+        }
+
+        .drop-slot {
+            min-width: 120px;
+            min-height: 40px;
+            border: 2px dashed rgba(34,197,94,.3);
+            border-radius: var(--radius-sm);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-dim);
+            font-size: 12px;
+            transition: all var(--transition);
+            padding: 4px 8px;
+            position: relative;
+        }
+
+        .drop-slot.drag-over { border-color: var(--accent); background: rgba(34,197,94,.08); }
+        .drop-slot.filled   { border-style: solid; border-color: rgba(34,197,94,.4); }
+
+        .drop-slot-label {
+            position: absolute;
+            top: -9px;
+            left: 8px;
+            font-size: 10px;
+            font-weight: 700;
+            color: var(--text-dim);
+            background: var(--bg-card);
+            padding: 0 4px;
+        }
+
+        .pipe-between {
+            color: var(--accent);
+            font-weight: 700;
+            font-size: 16px;
+            flex-shrink: 0;
+        }
+
+        /* Command piece pool */
+        .piece-pool {
+            background: rgba(5,46,22,.3);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 14px;
+            margin-bottom: 16px;
+        }
+
+        .piece-pool-label {
+            font-size: 12px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: .07em;
+            color: var(--text-dim);
+            margin-bottom: 10px;
+        }
+
+        .pieces-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .cmd-piece {
+            padding: 7px 12px;
+            background: rgba(22,101,52,.3);
+            border: 1px solid rgba(34,197,94,.3);
+            border-radius: var(--radius-sm);
+            font-family: 'Consolas', monospace;
+            font-size: 12px;
+            color: var(--text-bright);
+            cursor: grab;
+            transition: all var(--transition);
+            user-select: none;
+        }
+
+        .cmd-piece:hover {
+            background: rgba(34,197,94,.12);
+            border-color: var(--accent);
+            transform: translateY(-1px);
+        }
+
+        .cmd-piece.dragging { opacity: .5; cursor: grabbing; }
+        .cmd-piece.used { opacity: .35; pointer-events: none; background: rgba(5,46,22,.3); }
+
+        /* Result display */
+        .builder-result {
+            background: #0d1117;
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 14px 18px;
+            font-family: 'Consolas', monospace;
+            font-size: 13px;
+            min-height: 50px;
+            position: relative;
+        }
+
+        .builder-result-label {
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: .07em;
+            color: var(--accent);
+            margin-bottom: 8px;
+            font-family: 'Segoe UI', sans-serif;
+        }
+
+        .builder-result-cmd { color: var(--text-bright); word-break: break-word; line-height: 1.7; }
+
+        .builder-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 14px;
+            flex-wrap: wrap;
+        }
+
+        .build-btn {
+            padding: 9px 18px;
+            border-radius: var(--radius-sm);
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all var(--transition);
+            border: 1px solid;
+        }
+
+        .build-btn-check { background: var(--accent-dim); color: #052e16; border-color: var(--accent); }
+        .build-btn-check:hover { background: var(--accent); }
+
+        .build-btn-reset { background: transparent; color: var(--text-muted); border-color: var(--border); }
+        .build-btn-reset:hover { border-color: var(--text-muted); color: var(--text-bright); }
+
+        .build-feedback {
+            margin-top: 12px;
+            padding: 12px 14px;
+            border-radius: var(--radius-sm);
+            font-size: .85rem;
+            display: none;
+        }
+        .build-feedback.show { display: block; animation: fadeIn .25s ease; }
+        .build-feedback.correct { background: rgba(34,197,94,.1); border: 1px solid rgba(34,197,94,.3); color: var(--text-bright); }
+        .build-feedback.incorrect { background: rgba(248,113,113,.08); border: 1px solid rgba(248,113,113,.3); color: var(--text-bright); }
+
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+        /* ── Complete Module ──────────────────────────────────── */
+        .completion-zone {
+            margin-top: 40px;
+            padding: 28px;
+            background: rgba(34,197,94,.05);
+            border: 1px solid rgba(34,197,94,.2);
+            border-radius: var(--radius);
+            text-align: center;
+        }
+        .completion-zone p { color: var(--text-main); font-size: .9rem; margin-bottom: 16px; opacity: .85; }
+
+        .complete-btn {
+            background: linear-gradient(135deg, var(--accent-dim) 0%, var(--accent) 100%);
+            color: #052e16; border: none;
+            padding: 13px 32px; border-radius: var(--radius);
+            font-size: 15px; font-weight: 700; cursor: pointer;
+            transition: all var(--transition);
+            box-shadow: 0 4px 16px rgba(34,197,94,.25);
+        }
+        .complete-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(34,197,94,.4); }
+
+        @media (max-width: 700px) {
+            header { flex-direction: column; gap: 10px; }
+            .task-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+<!-- ── Header ────────────────────────────────────────────────── -->
+<header>
+    <div class="header-left">
+        <h1>PowerShell Admin Tasks Visualizer</h1>
+        <div class="subtitle">Script House &mdash; Real-World Administration Scenarios</div>
+    </div>
+    <a class="back-link" href="../labs/script-powershell.lab.html">Back to PowerShell Lab</a>
+</header>
+
+<div class="main-content">
+
+    <!-- Intro Banner -->
+    <div class="intro-banner">
+        <div class="intro-icon">&#x1F6E1;&#xFE0F;</div>
+        <div class="intro-text">
+            <h2>PowerShell in the Field: Admin Task Reference</h2>
+            <p>These are the tasks Windows administrators actually run. Each card presents a real scenario,
+               the PowerShell solution, and operational notes. Click any card to expand the full script
+               with explanation. Then use the Command Builder to assemble your own solutions
+               from scratch.</p>
+        </div>
+    </div>
+
+    <!-- ════════════════════════════════════════════════════════
+         SECTION 1: SERVICE MANAGEMENT
+    ═════════════════════════════════════════════════════════= -->
+    <div class="section-heading">Service Management</div>
+    <div class="task-grid" id="grid-service"></div>
+
+    <!-- ════════════════════════════════════════════════════════
+         SECTION 2: REGISTRY OPERATIONS
+    ═════════════════════════════════════════════════════════= -->
+    <div class="section-heading">Registry Operations</div>
+    <div class="task-grid" id="grid-registry"></div>
+
+    <!-- ════════════════════════════════════════════════════════
+         SECTION 3: USER & GROUP MANAGEMENT
+    ═════════════════════════════════════════════════════════= -->
+    <div class="section-heading">User &amp; Group Management</div>
+    <div class="task-grid" id="grid-user"></div>
+
+    <!-- ════════════════════════════════════════════════════════
+         SECTION 4: SCHEDULED TASKS
+    ═════════════════════════════════════════════════════════= -->
+    <div class="section-heading">Scheduled Tasks</div>
+    <div class="task-grid" id="grid-sched"></div>
+
+    <!-- ════════════════════════════════════════════════════════
+         SECTION 5: EVENT LOG QUERIES
+    ═════════════════════════════════════════════════════════= -->
+    <div class="section-heading">Event Log Queries</div>
+    <div class="task-grid" id="grid-events"></div>
+
+    <!-- ════════════════════════════════════════════════════════
+         DRAG & DROP COMMAND BUILDER
+    ═════════════════════════════════════════════════════════= -->
+    <div class="section-heading">Command Builder</div>
+    <div class="builder-section" id="builder-section">
+        <p class="builder-intro">
+            Select an admin scenario, then drag the command pieces into the correct pipeline slots
+            to assemble the solution. Each scenario builds real muscle memory for the patterns used daily.
+        </p>
+
+        <!-- Scenario selector -->
+        <div class="builder-scenario-select" id="scenario-buttons"></div>
+
+        <!-- Target pipeline slots -->
+        <div class="builder-target">
+            <div class="builder-target-label">Your Pipeline (drag pieces here)</div>
+            <div class="drop-slots" id="drop-slots"></div>
+        </div>
+
+        <!-- Piece pool -->
+        <div class="piece-pool">
+            <div class="piece-pool-label">Available Pieces (drag to slots above)</div>
+            <div class="pieces-container" id="piece-pool"></div>
+        </div>
+
+        <!-- Result -->
+        <div class="builder-result">
+            <div class="builder-result-label">Assembled Command</div>
+            <div class="builder-result-cmd" id="assembled-cmd">Select pieces to build your command...</div>
+        </div>
+
+        <div class="builder-actions">
+            <button class="build-btn build-btn-check" onclick="checkBuilder()">Check Answer</button>
+            <button class="build-btn build-btn-reset" onclick="resetBuilder()">Reset</button>
+        </div>
+        <div class="build-feedback" id="build-feedback"></div>
+    </div>
+
+    <!-- ── Complete Module ────────────────────────────────────── -->
+    <div class="completion-zone">
+        <p>Reviewed the admin scenarios and built commands from scratch? Mark this module complete.</p>
+        <button class="complete-btn" onclick="completeModule()">Mark Module Complete</button>
+    </div>
+
+</div><!-- /main-content -->
+
+<script>
+'use strict';
+
+/* ─────────────────────────────────────────────────────────────────
+   TASK CARD DATA
+───────────────────────────────────────────────────────────────── */
+const TASKS = {
+    service: [
+        {
+            icon: '&#x1F504;',
+            title: 'Audit All Services',
+            category: 'cat-service',
+            catLabel: 'Services',
+            goal: '<strong>Scenario:</strong> Generate a health report of all Windows services — which are running, stopped, and set to automatic startup but not currently running.',
+            code: `<span class="cmt"># Full service audit — pipe to Export-Csv for reports</span>
+<span class="cmd">Get-Service</span> <span class="op">|</span> <span class="cmd">Select-Object</span> Name, DisplayName, Status, StartType <span class="op">|</span>
+    <span class="cmd">Sort-Object</span> Status, Name <span class="op">|</span> <span class="cmd">Format-Table</span> <span class="op">-AutoSize</span>
+
+<span class="cmt"># Find auto-start services that are NOT running (potential failures):</span>
+<span class="cmd">Get-Service</span> <span class="op">|</span>
+    <span class="kw">Where-Object</span> { <span class="var">$_</span><span class="op">.</span>StartType <span class="op">-eq</span> <span class="str">"Automatic"</span> <span class="op">-and</span> <span class="var">$_</span><span class="op">.</span>Status <span class="op">-eq</span> <span class="str">"Stopped"</span> } <span class="op">|</span>
+    <span class="cmd">Select-Object</span> Name, DisplayName, Status <span class="op">|</span>
+    <span class="cmd">Export-Csv</span> <span class="str">".\service-failures-$(Get-Date -Format 'yyyyMMdd').csv"</span> <span class="op">-NoTypeInformation</span>`,
+            note: '<strong>Operational Note:</strong> Services marked <code>Automatic</code> but <code>Stopped</code> indicate something failed at startup. This check should be part of every morning health script. The dated filename pattern <code>$(Get-Date -Format \'yyyyMMdd\')</code> prevents overwriting previous reports.'
+        },
+        {
+            icon: '&#x1F6D1;',
+            title: 'Restart Service with Retry',
+            category: 'cat-service',
+            catLabel: 'Services',
+            goal: '<strong>Scenario:</strong> Restart a specific service and verify it is running, with automatic retry logic and timeout handling for production scripts.',
+            code: `<span class="kw">function</span> <span class="cmd">Restart-ServiceSafe</span> {
+    <span class="kw">param</span>(
+        [<span class="typ">string</span>]<span class="var">$ServiceName</span>,
+        [<span class="typ">int</span>]<span class="var">$MaxRetries</span>   <span class="op">=</span> <span class="num">3</span>,
+        [<span class="typ">int</span>]<span class="var">$WaitSeconds</span>  <span class="op">=</span> <span class="num">10</span>
+    )
+
+    <span class="kw">for</span> (<span class="var">$i</span> <span class="op">=</span> <span class="num">1</span>; <span class="var">$i</span> <span class="op">-le</span> <span class="var">$MaxRetries</span>; <span class="var">$i</span><span class="op">++</span>) {
+        <span class="kw">try</span> {
+            <span class="cmd">Restart-Service</span> <span class="var">$ServiceName</span> <span class="op">-Force</span> <span class="op">-ErrorAction</span> Stop
+            <span class="cmd">Start-Sleep</span> <span class="num">2</span>
+
+            <span class="var">$svc</span> <span class="op">=</span> <span class="cmd">Get-Service</span> <span class="var">$ServiceName</span>
+            <span class="kw">if</span> (<span class="var">$svc</span><span class="op">.</span>Status <span class="op">-eq</span> <span class="str">"Running"</span>) {
+                <span class="cmd">Write-Host</span> <span class="str">"[OK] <span class="var">$ServiceName</span> is running (attempt <span class="var">$i</span>)"</span> <span class="op">-ForegroundColor</span> Green
+                <span class="kw">return</span> <span class="var">$true</span>
+            }
+        }
+        <span class="kw">catch</span> {
+            <span class="cmd">Write-Warning</span> <span class="str">"Attempt <span class="var">$i</span> failed: <span class="var">$($_.Exception.Message)</span>"</span>
+        }
+        <span class="cmd">Start-Sleep</span> <span class="op">-Seconds</span> <span class="var">$WaitSeconds</span>
+    }
+    <span class="cmd">Write-Error</span> <span class="str">"Failed to restart <span class="var">$ServiceName</span> after <span class="var">$MaxRetries</span> attempts"</span>
+    <span class="kw">return</span> <span class="var">$false</span>
+}
+
+<span class="cmt"># Usage:</span>
+<span class="cmd">Restart-ServiceSafe</span> <span class="op">-ServiceName</span> <span class="str">"W3SVC"</span>   <span class="cmt"># IIS</span>
+<span class="cmd">Restart-ServiceSafe</span> <span class="op">-ServiceName</span> <span class="str">"wuauserv"</span> <span class="op">-MaxRetries</span> <span class="num">5</span>`,
+            note: '<strong>Production Pattern:</strong> Never trust a single restart attempt in production scripts. Services like IIS take several seconds to fully initialize. The retry-with-verification pattern is the correct approach.'
+        }
+    ],
+    registry: [
+        {
+            icon: '&#x1F511;',
+            title: 'Read Registry Values',
+            category: 'cat-registry',
+            catLabel: 'Registry',
+            goal: '<strong>Scenario:</strong> Read Windows product key and OS version details from the registry — common in inventory and compliance scripts.',
+            code: `<span class="cmt"># Read a single registry value:</span>
+<span class="var">$regPath</span> <span class="op">=</span> <span class="str">"HKLM:\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion"</span>
+<span class="cmd">Get-ItemProperty</span> <span class="op">-Path</span> <span class="var">$regPath</span> <span class="op">|</span>
+    <span class="cmd">Select-Object</span> ProductName, CurrentVersion, CurrentBuildNumber, ReleaseId
+
+<span class="cmt"># .NET framework version (from specific value name):</span>
+<span class="var">$dotnetPath</span> <span class="op">=</span> <span class="str">"HKLM:\\SOFTWARE\\Microsoft\\NET Framework Setup\\NDP\\v4\\Full"</span>
+<span class="var">$release</span>    <span class="op">=</span> (<span class="cmd">Get-ItemProperty</span> <span class="var">$dotnetPath</span> <span class="op">-Name</span> Release)<span class="op">.</span>Release
+
+<span class="cmt"># Map release number to version string:</span>
+<span class="var">$version</span> <span class="op">=</span> <span class="kw">switch</span> (<span class="var">$release</span>) {
+    { <span class="var">$_</span> <span class="op">-ge</span> <span class="num">533320</span> } { <span class="str">".NET 4.8.1+"</span>; <span class="kw">break</span> }
+    { <span class="var">$_</span> <span class="op">-ge</span> <span class="num">528040</span> } { <span class="str">".NET 4.8"</span>;   <span class="kw">break</span> }
+    { <span class="var">$_</span> <span class="op">-ge</span> <span class="num">461808</span> } { <span class="str">".NET 4.7.2"</span>; <span class="kw">break</span> }
+    Default            { <span class="str">".NET 4.7 or older"</span> }
+}
+<span class="cmd">Write-Host</span> <span class="str">"Installed: <span class="var">$version</span>"</span>`,
+            note: '<strong>Why registry for .NET version?</strong> <code>[System.Runtime.InteropServices.RuntimeEnvironment]::GetSystemVersion()</code> only shows the PowerShell host version, not all installed runtimes. The registry is the authoritative source for which .NET Framework versions are actually installed.'
+        },
+        {
+            icon: '&#x270F;&#xFE0F;',
+            title: 'Write & Remove Registry Keys',
+            category: 'cat-registry',
+            catLabel: 'Registry',
+            goal: '<strong>Scenario:</strong> Automate application configuration by writing registry settings during deployment — and clean them up on uninstall.',
+            code: `<span class="var">$appPath</span> <span class="op">=</span> <span class="str">"HKLM:\\SOFTWARE\\MyOrg\\MyApp"</span>
+
+<span class="cmt"># Create key and set values atomically:</span>
+<span class="kw">if</span> (<span class="op">-not</span> (<span class="cmd">Test-Path</span> <span class="var">$appPath</span>)) {
+    <span class="cmd">New-Item</span> <span class="op">-Path</span> <span class="var">$appPath</span> <span class="op">-Force</span> <span class="op">|</span> <span class="cmd">Out-Null</span>
+}
+
+<span class="cmt"># Write multiple values via hash table + foreach (clean pattern):</span>
+<span class="var">$settings</span> <span class="op">=</span> @{
+    Version     <span class="op">=</span> <span class="str">"2.1.0"</span>
+    InstallPath <span class="op">=</span> <span class="str">"C:\\Program Files\\MyApp"</span>
+    LogLevel    <span class="op">=</span> <span class="str">"INFO"</span>
+    MaxRetries  <span class="op">=</span> <span class="num">3</span>          <span class="cmt"># Stored as DWORD automatically</span>
+    Enabled     <span class="op">=</span> <span class="num">1</span>
+}
+
+<span class="kw">foreach</span> (<span class="var">$key</span> <span class="kw">in</span> <span class="var">$settings</span><span class="op">.</span>Keys) {
+    <span class="cmd">Set-ItemProperty</span> <span class="op">-Path</span> <span class="var">$appPath</span> <span class="op">-Name</span> <span class="var">$key</span> <span class="op">-Value</span> <span class="var">$settings</span>[<span class="var">$key</span>]
+    <span class="cmd">Write-Verbose</span> <span class="str">"Set <span class="var">$key</span> = <span class="var">$($settings[$key])</span>"</span>
+}
+
+<span class="cmt"># Delete a single value:</span>
+<span class="cmd">Remove-ItemProperty</span> <span class="op">-Path</span> <span class="var">$appPath</span> <span class="op">-Name</span> <span class="str">"OldSetting"</span> <span class="op">-ErrorAction</span> SilentlyContinue
+
+<span class="cmt"># Delete the entire key (recursive):</span>
+<span class="cmd">Remove-Item</span> <span class="op">-Path</span> <span class="var">$appPath</span> <span class="op">-Recurse</span> <span class="op">-Force</span>`,
+            note: '<strong>Run-as-Administrator required</strong> for HKLM writes. HKCU writes work as standard user. Always use <code>-ErrorAction SilentlyContinue</code> on <code>Remove-ItemProperty</code> when the value may not exist — avoids crashing uninstall scripts.'
+        }
+    ],
+    user: [
+        {
+            icon: '&#x1F465;',
+            title: 'Local User Management',
+            category: 'cat-user',
+            catLabel: 'Users',
+            goal: '<strong>Scenario:</strong> Provision, audit, and deprovision local user accounts on a Windows machine using the Microsoft.PowerShell.LocalAccounts module.',
+            code: `<span class="cmt"># Requires: Run as Administrator</span>
+
+<span class="cmt"># Create a local user with secure password:</span>
+<span class="var">$password</span> <span class="op">=</span> <span class="cmd">Read-Host</span> <span class="str">"Enter password"</span> <span class="op">-AsSecureString</span>
+<span class="cmd">New-LocalUser</span> <span class="op">-Name</span> <span class="str">"svc-backup"</span> <span class="op">-Password</span> <span class="var">$password</span> <span class="op">-FullName</span> <span class="str">"Backup Service Account"</span> <span class="op">-Description</span> <span class="str">"Created by admin script"</span> <span class="op">-PasswordNeverExpires</span>
+
+<span class="cmt"># Add to local group:</span>
+<span class="cmd">Add-LocalGroupMember</span> <span class="op">-Group</span> <span class="str">"Backup Operators"</span> <span class="op">-Member</span> <span class="str">"svc-backup"</span>
+
+<span class="cmt"># List all local users and their status:</span>
+<span class="cmd">Get-LocalUser</span> <span class="op">|</span> <span class="cmd">Select-Object</span> Name, Enabled, LastLogon, PasswordLastSet, PasswordNeverExpires <span class="op">|</span> <span class="cmd">Format-Table</span> <span class="op">-AutoSize</span>
+
+<span class="cmt"># Find accounts that have never logged in (potential orphans):</span>
+<span class="cmd">Get-LocalUser</span> <span class="op">|</span> <span class="kw">Where-Object</span> { <span class="var">$_</span><span class="op">.</span>Enabled <span class="op">-and</span> <span class="op">-not</span> <span class="var">$_</span><span class="op">.</span>LastLogon } <span class="op">|</span> <span class="cmd">Select-Object</span> Name, PasswordLastSet
+
+<span class="cmt"># Disable (do not delete) an account safely:</span>
+<span class="cmd">Disable-LocalUser</span> <span class="op">-Name</span> <span class="str">"oldaccount"</span>`,
+            note: '<strong>Disable vs. Delete:</strong> In regulated environments, disable accounts rather than deleting them. Deletion is irreversible and destroys the SID — which may be referenced in ACLs, file permissions, and audit logs. Disable and keep for 90 days minimum.'
+        },
+        {
+            icon: '&#x1F4BC;',
+            title: 'Active Directory Bulk Operations',
+            category: 'cat-user',
+            catLabel: 'Active Directory',
+            goal: '<strong>Scenario:</strong> Query AD for inactive user accounts (not logged in for 90+ days) and disable them. Classic security hygiene automation.',
+            code: `<span class="cmt"># Requires: ActiveDirectory module (RSAT tools)</span>
+<span class="cmt"># Import-Module ActiveDirectory</span>
+
+<span class="var">$cutoffDate</span> <span class="op">=</span> (<span class="cmd">Get-Date</span>)<span class="op">.</span>AddDays(<span class="op">-</span><span class="num">90</span>)
+
+<span class="cmt"># Find users inactive for 90+ days:</span>
+<span class="var">$inactiveUsers</span> <span class="op">=</span> <span class="cmd">Get-ADUser</span> <span class="op">-Filter</span> { LastLogonDate <span class="op">-lt</span> <span class="var">$cutoffDate</span> <span class="op">-and</span> Enabled <span class="op">-eq</span> <span class="var">$True</span> } <span class="op">-Properties</span> LastLogonDate, Department, Manager <span class="op">|</span>
+    <span class="kw">Where-Object</span> { <span class="var">$_</span><span class="op">.</span>DistinguishedName <span class="op">-notlike</span> <span class="str">"*Service Accounts*"</span> }  <span class="cmt"># Skip service accounts</span>
+
+<span class="cmt"># Export report before making changes (always!):</span>
+<span class="var">$inactiveUsers</span> <span class="op">|</span> <span class="cmd">Select-Object</span> Name, UserPrincipalName, LastLogonDate, Department <span class="op">|</span>
+    <span class="cmd">Export-Csv</span> <span class="str">"inactive-accounts-$(Get-Date -Format 'yyyyMMdd').csv"</span> <span class="op">-NoTypeInformation</span>
+
+<span class="cmt"># Disable them and move to a "Disabled" OU:</span>
+<span class="var">$inactiveUsers</span> <span class="op">|</span> <span class="kw">ForEach-Object</span> {
+    <span class="cmd">Disable-ADAccount</span> <span class="op">-Identity</span> <span class="var">$_</span>
+    <span class="cmd">Set-ADUser</span> <span class="op">-Identity</span> <span class="var">$_</span> <span class="op">-Description</span> <span class="str">"Disabled $(Get-Date -Format 'yyyy-MM-dd') - Inactive 90d"</span>
+    <span class="cmd">Write-Host</span> <span class="str">"Disabled: <span class="var">$($_.SamAccountName)</span>"</span>
+}`,
+            note: '<strong>Always export before modifying.</strong> The report lets you reverse changes and satisfies audit requirements. Move accounts to a dedicated "Disabled Users" OU rather than deleting — set calendar reminders for 6-month review before permanent deletion.'
+        }
+    ],
+    sched: [
+        {
+            icon: '&#x23F0;',
+            title: 'Create a Scheduled Task',
+            category: 'cat-sched',
+            catLabel: 'Tasks',
+            goal: '<strong>Scenario:</strong> Schedule a PowerShell maintenance script to run nightly at 2 AM as SYSTEM — the standard pattern for unattended admin automation.',
+            code: `<span class="cmt"># Build the action, trigger, and settings objects first</span>
+<span class="var">$action</span>  <span class="op">=</span> <span class="cmd">New-ScheduledTaskAction</span> <span class="op">-Execute</span> <span class="str">"PowerShell.exe"</span> <span class="op">-Argument</span> <span class="str">"-NonInteractive -ExecutionPolicy Bypass -File 'C:\\Scripts\\Maintenance.ps1'"</span>
+
+<span class="var">$trigger</span> <span class="op">=</span> <span class="cmd">New-ScheduledTaskTrigger</span> <span class="op">-Daily</span> <span class="op">-At</span> <span class="str">"2:00AM"</span>
+
+<span class="var">$settings</span> <span class="op">=</span> <span class="cmd">New-ScheduledTaskSettingsSet</span> <span class="op">-ExecutionTimeLimit</span> (<span class="cmd">New-TimeSpan</span> <span class="op">-Hours</span> <span class="num">2</span>) <span class="op">-StartWhenAvailable</span> <span class="op">-RunOnlyIfNetworkAvailable</span>
+
+<span class="cmt"># Register the task running as SYSTEM (no password needed):</span>
+<span class="cmd">Register-ScheduledTask</span> <span class="op">-TaskName</span> <span class="str">"NightlyMaintenance"</span> <span class="op">-TaskPath</span> <span class="str">"\\MyOrg"</span> <span class="op">-Action</span> <span class="var">$action</span> <span class="op">-Trigger</span> <span class="var">$trigger</span> <span class="op">-Settings</span> <span class="var">$settings</span> <span class="op">-RunLevel</span> Highest <span class="op">-User</span> <span class="str">"SYSTEM"</span> <span class="op">-Force</span>
+
+<span class="cmt"># Verify registration:</span>
+<span class="cmd">Get-ScheduledTask</span> <span class="op">-TaskName</span> <span class="str">"NightlyMaintenance"</span> <span class="op">|</span> <span class="cmd">Format-List</span> TaskName, TaskPath, State
+
+<span class="cmt"># Run immediately for testing:</span>
+<span class="cmd">Start-ScheduledTask</span> <span class="op">-TaskName</span> <span class="str">"NightlyMaintenance"</span> <span class="op">-TaskPath</span> <span class="str">"\\MyOrg"</span>`,
+            note: '<strong>-StartWhenAvailable</strong> is critical for laptops and VMs — if the machine is off at 2 AM, the task runs as soon as it next starts up. <code>-ExecutionTimeLimit</code> prevents zombie processes if the script hangs.'
+        },
+        {
+            icon: '&#x1F4CB;',
+            title: 'Audit Scheduled Tasks',
+            category: 'cat-sched',
+            catLabel: 'Tasks',
+            goal: '<strong>Scenario:</strong> Security audit of all scheduled tasks — malware and persistence mechanisms frequently abuse scheduled tasks. Identify suspicious entries.',
+            code: `<span class="cmt"># Export all scheduled tasks with key metadata:</span>
+<span class="cmd">Get-ScheduledTask</span> <span class="op">|</span>
+    <span class="kw">Where-Object</span> { <span class="var">$_</span><span class="op">.</span>State <span class="op">-ne</span> <span class="str">"Disabled"</span> } <span class="op">|</span>
+    <span class="kw">ForEach-Object</span> {
+        <span class="var">$info</span> <span class="op">=</span> <span class="cmd">Get-ScheduledTaskInfo</span> <span class="op">-TaskName</span> <span class="var">$_</span><span class="op">.</span>TaskName <span class="op">-TaskPath</span> <span class="var">$_</span><span class="op">.</span>TaskPath <span class="op">-ErrorAction</span> SilentlyContinue
+        [<span class="typ">PSCustomObject</span>]@{
+            TaskName    <span class="op">=</span> <span class="var">$_</span><span class="op">.</span>TaskName
+            TaskPath    <span class="op">=</span> <span class="var">$_</span><span class="op">.</span>TaskPath
+            State       <span class="op">=</span> <span class="var">$_</span><span class="op">.</span>State
+            RunAsUser   <span class="op">=</span> <span class="var">$_</span><span class="op">.</span>Principal<span class="op">.</span>UserId
+            Action      <span class="op">=</span> (<span class="var">$_</span><span class="op">.</span>Actions<span class="op">.</span>Execute <span class="op">+</span> <span class="str">" "</span> <span class="op">+</span> <span class="var">$_</span><span class="op">.</span>Actions<span class="op">.</span>Arguments) <span class="op">-join</span> <span class="str">" | "</span>
+            LastRun     <span class="op">=</span> <span class="var">$info</span><span class="op">?</span><span class="op">.</span>LastRunTime
+            LastResult  <span class="op">=</span> <span class="var">$info</span><span class="op">?</span><span class="op">.</span>LastTaskResult
+        }
+    } <span class="op">|</span>
+    <span class="kw">Where-Object</span> { <span class="var">$_</span><span class="op">.</span>Action <span class="op">-match</span> <span class="str">"cmd|powershell|wscript|cscript|mshta|rundll32"</span> } <span class="op">|</span>
+    <span class="cmd">Export-Csv</span> <span class="str">".\sched-task-audit.csv"</span> <span class="op">-NoTypeInformation</span>`,
+            note: '<strong>Red flags to hunt for:</strong> Tasks running from <code>%TEMP%</code>, <code>%APPDATA%</code>, or <code>C:\\Users\\</code>. Tasks with no description and no publisher. Tasks running <code>cmd.exe</code>, <code>wscript</code>, or <code>mshta</code> with encoded arguments. These are common persistence patterns.'
+        }
+    ],
+    events: [
+        {
+            icon: '&#x1F4DC;',
+            title: 'Query Event Logs (Get-WinEvent)',
+            category: 'cat-events',
+            catLabel: 'Events',
+            goal: '<strong>Scenario:</strong> Extract meaningful security and system events for incident response — failed logons, service crashes, policy changes.',
+            code: `<span class="cmt"># Get-WinEvent with FilterHashtable is server-side filtering — much faster than Get-EventLog</span>
+
+<span class="cmt"># Failed logon attempts (Event 4625) in last 24 hours:</span>
+<span class="cmd">Get-WinEvent</span> <span class="op">-FilterHashtable</span> @{
+    LogName   <span class="op">=</span> <span class="str">"Security"</span>
+    Id        <span class="op">=</span> <span class="num">4625</span>
+    StartTime <span class="op">=</span> (<span class="cmd">Get-Date</span>)<span class="op">.</span>AddHours(<span class="op">-</span><span class="num">24</span>)
+} <span class="op">|</span> <span class="cmd">Select-Object</span> TimeCreated, Message <span class="op">|</span> <span class="cmd">Format-List</span>
+
+<span class="cmt"># System crash events (BugCheck = BSOD):</span>
+<span class="cmd">Get-WinEvent</span> <span class="op">-FilterHashtable</span> @{ LogName <span class="op">=</span> <span class="str">"System"</span>; Id <span class="op">=</span> <span class="num">41</span> } <span class="op">|</span>
+    <span class="cmd">Select-Object</span> TimeCreated, Message <span class="op">|</span> <span class="cmd">Format-Table</span> <span class="op">-Wrap</span>
+
+<span class="cmt"># PowerShell script block logging (4104) — what scripts ran:</span>
+<span class="cmd">Get-WinEvent</span> <span class="op">-FilterHashtable</span> @{
+    LogName      <span class="op">=</span> <span class="str">"Microsoft-Windows-PowerShell/Operational"</span>
+    Id           <span class="op">=</span> <span class="num">4104</span>
+    StartTime    <span class="op">=</span> (<span class="cmd">Get-Date</span>)<span class="op">.</span>AddDays(<span class="op">-</span><span class="num">1</span>)
+} <span class="op">|</span> <span class="kw">Where-Object</span> { <span class="var">$_</span><span class="op">.</span>LevelDisplayName <span class="op">-eq</span> <span class="str">"Warning"</span> } <span class="op">|</span>
+    <span class="cmd">Select-Object</span> TimeCreated, Message <span class="op">-First</span> <span class="num">20</span>`,
+            note: '<strong>Script Block Logging (4104)</strong> records every PowerShell script that ran — critical for post-incident forensics. It is not enabled by default. Enable with Group Policy: Computer Configuration > Administrative Templates > Windows Components > Windows PowerShell > Turn on PowerShell Script Block Logging.'
+        },
+        {
+            icon: '&#x1F50D;',
+            title: 'Event-Driven Alerting',
+            category: 'cat-events',
+            catLabel: 'Events',
+            goal: '<strong>Scenario:</strong> Build a reusable event log parser that extracts structured data from event messages and generates actionable summaries.',
+            code: `<span class="kw">function</span> <span class="cmd">Get-SecurityEvents</span> {
+    [<span class="typ">CmdletBinding</span>()]
+    <span class="kw">param</span>(
+        [<span class="typ">int</span>]<span class="var">$HoursBack</span>    <span class="op">=</span> <span class="num">24</span>,
+        [<span class="typ">int</span>]<span class="var">$FailThreshold</span> <span class="op">=</span> <span class="num">10</span>   <span class="cmt"># Alert threshold</span>
+    )
+
+    <span class="var">$events</span> <span class="op">=</span> <span class="cmd">Get-WinEvent</span> <span class="op">-FilterHashtable</span> @{
+        LogName   <span class="op">=</span> <span class="str">"Security"</span>
+        Id        <span class="op">=</span> <span class="num">4625</span>
+        StartTime <span class="op">=</span> (<span class="cmd">Get-Date</span>)<span class="op">.</span>AddHours(<span class="op">-</span><span class="var">$HoursBack</span>)
+    } <span class="op">-ErrorAction</span> SilentlyContinue
+
+    <span class="kw">if</span> (<span class="op">-not</span> <span class="var">$events</span>) { <span class="cmd">Write-Host</span> <span class="str">"No failed logons found."</span>; <span class="kw">return</span> }
+
+    <span class="cmt"># Group by targeted username (extracted from event properties):</span>
+    <span class="var">$grouped</span> <span class="op">=</span> <span class="var">$events</span> <span class="op">|</span> <span class="kw">ForEach-Object</span> {
+        [<span class="typ">PSCustomObject</span>]@{
+            Time     <span class="op">=</span> <span class="var">$_</span><span class="op">.</span>TimeCreated
+            Account  <span class="op">=</span> <span class="var">$_</span><span class="op">.</span>Properties[<span class="num">5</span>]<span class="op">.</span>Value   <span class="cmt"># TargetUserName</span>
+            Domain   <span class="op">=</span> <span class="var">$_</span><span class="op">.</span>Properties[<span class="num">6</span>]<span class="op">.</span>Value   <span class="cmt"># TargetDomainName</span>
+            SourceIP <span class="op">=</span> <span class="var">$_</span><span class="op">.</span>Properties[<span class="num">19</span>]<span class="op">.</span>Value  <span class="cmt"># IpAddress</span>
+        }
+    } <span class="op">|</span> <span class="cmd">Group-Object</span> Account
+
+    <span class="cmt"># Emit alert objects for high-frequency accounts:</span>
+    <span class="var">$grouped</span> <span class="op">|</span> <span class="kw">Where-Object</span> { <span class="var">$_</span><span class="op">.</span>Count <span class="op">-ge</span> <span class="var">$FailThreshold</span> } <span class="op">|</span>
+        <span class="cmd">Select-Object</span> @{N=<span class="str">"Account"</span>;E={<span class="var">$_</span><span class="op">.</span>Name}}, Count <span class="op">|</span>
+        <span class="cmd">Sort-Object</span> Count <span class="op">-Descending</span>
+}
+
+<span class="cmt"># Run and check:</span>
+<span class="cmd">Get-SecurityEvents</span> <span class="op">-HoursBack</span> <span class="num">6</span> <span class="op">-FailThreshold</span> <span class="num">5</span>`,
+            note: '<strong>Event property index positions</strong> are defined by the Windows Event Schema and are fixed per Event ID. For Event 4625, Properties[5] = TargetUserName and Properties[19] = IpAddress. Always validate against the Windows Event Log documentation or use Get-WinEvent and inspect .Properties manually first.'
+        }
+    ]
+};
+
+/* ─────────────────────────────────────────────────────────────────
+   RENDER TASK CARDS
+───────────────────────────────────────────────────────────────── */
+function renderTaskGrid(category, containerId) {
+    const container = document.getElementById(containerId);
+    const tasks = TASKS[category] || [];
+    container.innerHTML = tasks.map((t, i) => `
+        <div class="task-card" id="task-${category}-${i}" onclick="toggleTask('${category}',${i})">
+            <div class="task-card-head">
+                <div class="task-card-title-group">
+                    <span class="task-card-icon">${t.icon}</span>
+                    <span class="task-card-title">${t.title}</span>
+                </div>
+                <span class="task-card-category ${t.category}">${t.catLabel}</span>
+            </div>
+            <div class="task-card-body">
+                <div class="task-goal">${t.goal}</div>
+                <div class="task-expand-hint">&#9654; Click to view script &amp; explanation</div>
+            </div>
+            <div class="task-card-detail">
+                <div class="code-block">
+                    <div class="cb-header">
+                        <span class="cb-lang">PowerShell</span>
+                        <span class="cb-label">${t.title}</span>
+                        <button class="copy-btn" onclick="event.stopPropagation();copyTaskCode(this)">Copy</button>
+                    </div>
+                    <div class="cb-body"><pre>${t.code}</pre></div>
+                </div>
+                <div class="note-box">${t.note}</div>
+            </div>
+        </div>
+    `).join('');
+}
+
+function toggleTask(cat, i) {
+    const card = document.getElementById(`task-${cat}-${i}`);
+    card.classList.toggle('active');
+}
+
+function copyTaskCode(btn) {
+    const pre = btn.closest('.code-block').querySelector('pre');
+    navigator.clipboard.writeText(pre.innerText).then(() => {
+        btn.textContent = 'Copied!';
+        setTimeout(() => { btn.textContent = 'Copy'; }, 1800);
+    });
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   DRAG & DROP COMMAND BUILDER
+───────────────────────────────────────────────────────────────── */
+const BUILDER_SCENARIOS = [
+    {
+        label: 'Service Health Check',
+        slots: ['Source', 'Filter', 'Sort', 'Output'],
+        pieces: [
+            'Get-Service', 'Where-Object {$_.Status -eq "Running"}', 'Get-Process', 'Sort-Object Name',
+            'Select-Object Name,Status', 'Format-Table -AutoSize', 'Export-Csv health.csv',
+            'Where-Object {$_.CPU -gt 5}', 'Sort-Object CPU -Descending'
+        ],
+        correct: ['Get-Service', 'Where-Object {$_.Status -eq "Running"}', 'Sort-Object Name', 'Format-Table -AutoSize'],
+        feedback: {
+            correct: 'Correct! This pipeline: retrieves all services → filters to running ones → sorts alphabetically → displays in a formatted table. The order matters: filter before sort to reduce the sort set.',
+            incorrect: 'Not quite. The correct pipeline is: Get-Service | Where-Object {$_.Status -eq "Running"} | Sort-Object Name | Format-Table -AutoSize. Filter (Where-Object) must come after the source (Get-Service) and before Sort-Object.'
+        }
+    },
+    {
+        label: 'Find Large Files',
+        slots: ['Source', 'Filter', 'Sort', 'Export'],
+        pieces: [
+            'Get-ChildItem -Recurse -File', 'Where-Object {$_.Length -gt 100MB}', 'Sort-Object Length -Descending',
+            'Export-Csv large-files.csv -NoTypeInformation', 'Get-Process', 'Sort-Object CPU',
+            'Select-Object Name,Length', 'Format-Table -AutoSize', 'Where-Object {$_.CPU -gt 5}'
+        ],
+        correct: ['Get-ChildItem -Recurse -File', 'Where-Object {$_.Length -gt 100MB}', 'Sort-Object Length -Descending', 'Export-Csv large-files.csv -NoTypeInformation'],
+        feedback: {
+            correct: 'Correct! This pipeline recursively lists all files → filters to files over 100MB → sorts largest first → exports to CSV for review.',
+            incorrect: 'Not quite. The correct pipeline is: Get-ChildItem -Recurse -File | Where-Object {$_.Length -gt 100MB} | Sort-Object Length -Descending | Export-Csv large-files.csv -NoTypeInformation.'
+        }
+    },
+    {
+        label: 'Stopped Auto-Services',
+        slots: ['Source', 'Filter', 'Select', 'Output'],
+        pieces: [
+            'Get-Service', 'Where-Object {$_.StartType -eq "Automatic" -and $_.Status -eq "Stopped"}',
+            'Select-Object Name,DisplayName,Status', 'Format-Table -AutoSize', 'Where-Object {$_.CPU -gt 5}',
+            'Sort-Object CPU -Descending', 'Get-Process', 'Export-Csv failures.csv'
+        ],
+        correct: ['Get-Service', 'Where-Object {$_.StartType -eq "Automatic" -and $_.Status -eq "Stopped"}', 'Select-Object Name,DisplayName,Status', 'Format-Table -AutoSize'],
+        feedback: {
+            correct: 'Excellent! This finds services that should be running (Automatic) but aren\'t — these are your failed services. The two-condition Where-Object filter is the key pattern here.',
+            incorrect: 'Not quite. The correct pipeline: Get-Service | Where-Object {$_.StartType -eq "Automatic" -and $_.Status -eq "Stopped"} | Select-Object Name,DisplayName,Status | Format-Table -AutoSize.'
+        }
+    }
+];
+
+let currentScenario = 0;
+let slotValues = [];
+let dragSrc = null;
+
+function renderBuilder() {
+    // Scenario buttons
+    const btns = document.getElementById('scenario-buttons');
+    btns.innerHTML = BUILDER_SCENARIOS.map((s, i) => `
+        <button class="scenario-btn${i === currentScenario ? ' active' : ''}" onclick="selectScenario(${i})">${s.label}</button>
+    `).join('');
+
+    const sc = BUILDER_SCENARIOS[currentScenario];
+    slotValues = new Array(sc.slots.length).fill(null);
+
+    // Drop slots
+    const slots = document.getElementById('drop-slots');
+    slots.innerHTML = sc.slots.map((label, i) => `
+        ${i > 0 ? '<span class="pipe-between">|</span>' : ''}
+        <div class="drop-slot" id="slot-${i}"
+             data-index="${i}"
+             ondragover="dragOver(event)"
+             ondragleave="dragLeave(event)"
+             ondrop="drop(event)">
+            <div class="drop-slot-label">${label}</div>
+            <span class="slot-placeholder" style="color:var(--text-dim);font-size:11px;">drop here</span>
+        </div>
+    `).join('');
+
+    // Piece pool (shuffled)
+    const pieces = document.getElementById('piece-pool');
+    const shuffled = [...sc.pieces].sort(() => Math.random() - 0.5);
+    pieces.innerHTML = shuffled.map((p, i) => `
+        <div class="cmd-piece" id="piece-${i}" draggable="true"
+             data-value="${escAttr(p)}"
+             ondragstart="dragStart(event)"
+             ondragend="dragEnd(event)">
+            ${escHtml(p)}
+        </div>
+    `).join('');
+
+    updateAssembled();
+    hideFeedback();
+}
+
+function selectScenario(i) {
+    currentScenario = i;
+    renderBuilder();
+}
+
+function escHtml(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function escAttr(s) { return s.replace(/"/g,'&quot;'); }
+
+/* Drag events */
+function dragStart(e) {
+    dragSrc = e.currentTarget;
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', e.currentTarget.dataset.value);
+    setTimeout(() => { e.currentTarget.classList.add('dragging'); }, 0);
+}
+
+function dragEnd(e) { e.currentTarget.classList.remove('dragging'); }
+
+function dragOver(e) {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    e.currentTarget.classList.add('drag-over');
+}
+
+function dragLeave(e) { e.currentTarget.classList.remove('drag-over'); }
+
+function drop(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    const slot = e.currentTarget;
+    slot.classList.remove('drag-over');
+    const value = e.dataTransfer.getData('text/plain');
+    const idx   = parseInt(slot.dataset.index, 10);
+
+    // If slot already has a value, return piece to pool visually
+    if (slotValues[idx]) { unmarkPiece(slotValues[idx]); }
+
+    slotValues[idx] = value;
+    slot.innerHTML = `<div class="drop-slot-label">${BUILDER_SCENARIOS[currentScenario].slots[idx]}</div>
+                      <span style="font-family:monospace;font-size:12px;color:var(--text-bright);word-break:break-all;">${escHtml(value)}</span>
+                      <span onclick="clearSlot(${idx})" style="position:absolute;top:4px;right:6px;cursor:pointer;color:var(--text-dim);font-size:14px;" title="Remove">&times;</span>`;
+    slot.classList.add('filled');
+    markPieceUsed(value);
+    updateAssembled();
+}
+
+function clearSlot(idx) {
+    event.stopPropagation();
+    if (slotValues[idx]) { unmarkPiece(slotValues[idx]); }
+    slotValues[idx] = null;
+    const slot = document.getElementById(`slot-${idx}`);
+    const label = BUILDER_SCENARIOS[currentScenario].slots[idx];
+    slot.innerHTML = `<div class="drop-slot-label">${label}</div><span class="slot-placeholder" style="color:var(--text-dim);font-size:11px;">drop here</span>`;
+    slot.classList.remove('filled');
+    updateAssembled();
+}
+
+function markPieceUsed(value) {
+    document.querySelectorAll('.cmd-piece').forEach(p => {
+        if (p.dataset.value === value) { p.classList.add('used'); }
+    });
+}
+
+function unmarkPiece(value) {
+    document.querySelectorAll('.cmd-piece').forEach(p => {
+        if (p.dataset.value === value) { p.classList.remove('used'); }
+    });
+}
+
+function updateAssembled() {
+    const filled = slotValues.filter(Boolean);
+    const display = document.getElementById('assembled-cmd');
+    if (filled.length === 0) {
+        display.textContent = 'Select pieces to build your command...';
+    } else {
+        display.innerHTML = slotValues
+            .filter(Boolean)
+            .map((v, i) => `<span style="color:#67e8f9;">${escHtml(v)}</span>`)
+            .join(' <span style="color:#22c55e;font-weight:700;">|</span> ');
+    }
+}
+
+function checkBuilder() {
+    const sc = BUILDER_SCENARIOS[currentScenario];
+    const filled = slotValues.filter(Boolean);
+
+    if (filled.length < sc.slots.length) {
+        showFeedback('incorrect', 'Fill all ' + sc.slots.length + ' slots before checking.');
+        return;
+    }
+
+    // Compare against correct answer (order matters)
+    const isCorrect = slotValues.every((v, i) => v === sc.correct[i]);
+
+    showFeedback(
+        isCorrect ? 'correct' : 'incorrect',
+        isCorrect ? sc.feedback.correct : sc.feedback.incorrect
+    );
+}
+
+function showFeedback(type, msg) {
+    const fb = document.getElementById('build-feedback');
+    fb.textContent = msg;
+    fb.className = `build-feedback show ${type}`;
+}
+
+function hideFeedback() {
+    const fb = document.getElementById('build-feedback');
+    fb.className = 'build-feedback';
+}
+
+function resetBuilder() {
+    renderBuilder();
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   MODULE COMPLETION
+───────────────────────────────────────────────────────────────── */
+function completeModule() {
+    if (typeof ModuleProgress !== 'undefined') {
+        ModuleProgress.complete('script', 'script-pwsh-admin', {
+            returnUrl: '../labs/script-powershell.lab.html'
+        });
+    } else {
+        alert('Module marked complete! You\'ve mastered real-world PowerShell admin tasks.');
+        window.location.href = '../labs/script-powershell.lab.html';
+    }
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   INIT
+───────────────────────────────────────────────────────────────── */
+(function init() {
+    renderTaskGrid('service',  'grid-service');
+    renderTaskGrid('registry', 'grid-registry');
+    renderTaskGrid('user',     'grid-user');
+    renderTaskGrid('sched',    'grid-sched');
+    renderTaskGrid('events',   'grid-events');
+    renderBuilder();
+})();
+</script>
+</body>
+</html>

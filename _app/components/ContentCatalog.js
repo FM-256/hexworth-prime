@@ -1729,6 +1729,17 @@ const ContentCatalog = (function() {
         { house: 'cloud', id: 'cloud-openstack-projects', title: 'OpenStack: Core Projects', description: 'Nova, Neutron, Swift, Cinder, Keystone, Glance, Horizon, Heat', icon: '📋', status: 'available', components: ['presentation'], href: 'openstack/presentations/openstack-projects.presentation.html', category: 'openstack' },
         { house: 'cloud', id: 'cloud-openstack-projects-quiz', title: 'Quiz: OpenStack Projects', description: '15-question assessment on core and optional OpenStack projects', icon: '📝', status: 'available', components: ['quiz'], href: 'openstack/quizzes/openstack-projects-quiz.quiz.html', category: 'openstack' },
 
+        // ═══════════════════════════════════════════════════════════════════
+        // HOUSE OF SCRIPT - PowerShell & Automation Applets (8)
+        // ═══════════════════════════════════════════════════════════════════
+        { house: 'script', id: 'script-pwsh-fundamentals', title: 'PowerShell Fundamentals Visualizer', description: 'Interactive visualizer for PowerShell basics: cmdlets, variables, operators, and help system', icon: '⚙️', status: 'available', components: ['applet'], href: 'applets/pwsh-fundamentals.html', category: 'powershell' },
+        { house: 'script', id: 'script-pwsh-pipeline', title: 'PowerShell Pipeline Visualizer', description: 'Visualize how objects flow through the PowerShell pipeline with filtering, sorting, and formatting', icon: '⚙️', status: 'available', components: ['applet'], href: 'applets/pwsh-pipeline.html', category: 'powershell' },
+        { house: 'script', id: 'script-pwsh-scripting', title: 'PowerShell Scripting Concepts', description: 'Explore scripting constructs: loops, conditionals, functions, error handling, and script structure', icon: '⚙️', status: 'available', components: ['applet'], href: 'applets/pwsh-scripting.html', category: 'powershell' },
+        { house: 'script', id: 'script-pwsh-admin', title: 'PowerShell Admin Tasks', description: 'Practice common administrative tasks: user management, services, registry, and remote administration', icon: '⚙️', status: 'available', components: ['applet'], href: 'applets/pwsh-admin.html', category: 'powershell' },
+        { house: 'script', id: 'script-automation-intro', title: 'Automation Introduction', description: 'Introduction to automation concepts: task scheduling, scripted workflows, and repeatable processes', icon: '⚙️', status: 'available', components: ['applet'], href: 'applets/automation-intro.html', category: 'sysadmin' },
+        { house: 'script', id: 'script-log-analysis', title: 'Log Analysis Visualizer', description: 'Interactive log parsing and analysis: pattern matching, filtering, and anomaly detection', icon: '⚙️', status: 'available', components: ['applet'], href: 'applets/log-analysis.html', category: 'sysadmin' },
+        { house: 'script', id: 'script-backup-strategies', title: 'Backup Strategies Visualizer', description: 'Compare backup strategies: full, incremental, differential, and rotation schemes', icon: '⚙️', status: 'available', components: ['applet'], href: 'applets/backup-strategies.html', category: 'sysadmin' },
+        { house: 'script', id: 'script-reporting-automation', title: 'Reporting Automation', description: 'Automate report generation: data collection, formatting, scheduling, and output delivery', icon: '⚙️', status: 'available', components: ['applet'], href: 'applets/reporting-automation.html', category: 'sysadmin' },
 
     ];
 

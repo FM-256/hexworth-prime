@@ -2060,6 +2060,144 @@ const ContentRegistry = {
             objectives: []
         },
 
+        // --- PowerShell & Automation Applets ---
+
+        'script-pwsh-fundamentals': {
+            id: 'script-pwsh-fundamentals',
+            title: 'PowerShell Fundamentals Visualizer',
+            description: 'Interactive visualizer for PowerShell basics: cmdlets, variables, operators, and help system',
+            house: 'script',
+            type: 'applet',
+            difficulty: 'beginner',
+            duration: 20,
+            topics: ['powershell', 'scripting', 'cmdlets', 'variables'],
+            paths: ['linux-mastery'],
+            components: {
+                applet: 'houses/script/applets/pwsh-fundamentals.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+
+        'script-pwsh-pipeline': {
+            id: 'script-pwsh-pipeline',
+            title: 'PowerShell Pipeline Visualizer',
+            description: 'Visualize how objects flow through the PowerShell pipeline with filtering, sorting, and formatting',
+            house: 'script',
+            type: 'applet',
+            difficulty: 'beginner',
+            duration: 20,
+            topics: ['powershell', 'pipeline', 'objects', 'filtering'],
+            paths: ['linux-mastery'],
+            components: {
+                applet: 'houses/script/applets/pwsh-pipeline.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+
+        'script-pwsh-scripting': {
+            id: 'script-pwsh-scripting',
+            title: 'PowerShell Scripting Concepts',
+            description: 'Explore scripting constructs: loops, conditionals, functions, error handling, and script structure',
+            house: 'script',
+            type: 'applet',
+            difficulty: 'beginner',
+            duration: 20,
+            topics: ['powershell', 'scripting', 'functions', 'error-handling'],
+            paths: ['linux-mastery'],
+            components: {
+                applet: 'houses/script/applets/pwsh-scripting.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+
+        'script-pwsh-admin': {
+            id: 'script-pwsh-admin',
+            title: 'PowerShell Admin Tasks',
+            description: 'Practice common administrative tasks: user management, services, registry, and remote administration',
+            house: 'script',
+            type: 'applet',
+            difficulty: 'beginner',
+            duration: 20,
+            topics: ['powershell', 'administration', 'services', 'remote-management'],
+            paths: ['linux-mastery'],
+            components: {
+                applet: 'houses/script/applets/pwsh-admin.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+
+        'script-automation-intro': {
+            id: 'script-automation-intro',
+            title: 'Automation Introduction',
+            description: 'Introduction to automation concepts: task scheduling, scripted workflows, and repeatable processes',
+            house: 'script',
+            type: 'applet',
+            difficulty: 'beginner',
+            duration: 20,
+            topics: ['automation', 'scripting', 'task-scheduling', 'workflows'],
+            paths: ['linux-mastery'],
+            components: {
+                applet: 'houses/script/applets/automation-intro.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+
+        'script-log-analysis': {
+            id: 'script-log-analysis',
+            title: 'Log Analysis Visualizer',
+            description: 'Interactive log parsing and analysis: pattern matching, filtering, and anomaly detection',
+            house: 'script',
+            type: 'applet',
+            difficulty: 'beginner',
+            duration: 20,
+            topics: ['log-analysis', 'parsing', 'monitoring', 'troubleshooting'],
+            paths: ['linux-mastery'],
+            components: {
+                applet: 'houses/script/applets/log-analysis.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+
+        'script-backup-strategies': {
+            id: 'script-backup-strategies',
+            title: 'Backup Strategies Visualizer',
+            description: 'Compare backup strategies: full, incremental, differential, and rotation schemes',
+            house: 'script',
+            type: 'applet',
+            difficulty: 'beginner',
+            duration: 20,
+            topics: ['backup', 'disaster-recovery', 'data-protection', 'storage'],
+            paths: ['linux-mastery'],
+            components: {
+                applet: 'houses/script/applets/backup-strategies.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+
+        'script-reporting-automation': {
+            id: 'script-reporting-automation',
+            title: 'Reporting Automation',
+            description: 'Automate report generation: data collection, formatting, scheduling, and output delivery',
+            house: 'script',
+            type: 'applet',
+            difficulty: 'beginner',
+            duration: 20,
+            topics: ['automation', 'reporting', 'data-collection', 'scheduling'],
+            paths: ['linux-mastery'],
+            components: {
+                applet: 'houses/script/applets/reporting-automation.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+
         // --- Bash Scripting ---
         'script-command-translator': {
             id: 'script-command-translator',

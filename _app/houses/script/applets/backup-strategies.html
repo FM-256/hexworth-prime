@@ -1,0 +1,759 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <!-- Progress & Achievements -->
+    <script src="../../../components/AchievementManager.js"></script>
+    <script src="../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Backup Strategies Visualizer | Script House</title>
+    <style>
+        /* ===== CSS Custom Properties: Script House palette ===== */
+        :root {
+            --bg-darkest:  #020d05;
+            --bg-dark:     #052e16;
+            --bg-mid:      #0d1f10;
+            --bg-panel:    #0a1a0c;
+            --green-deep:  #14532d;
+            --green-mid:   #166534;
+            --green-main:  #22c55e;
+            --green-light: #86efac;
+            --green-glow:  rgba(34, 197, 94, 0.25);
+            --text-dim:    #4ade80;
+            --border:      rgba(34, 197, 94, 0.3);
+            --border-bright: rgba(34, 197, 94, 0.6);
+            --font-mono:   'Consolas', 'Monaco', 'Courier New', monospace;
+            /* Backup type colors */
+            --full-color:  #22c55e;
+            --incr-color:  #60a5fa;
+            --diff-color:  #fbbf24;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: var(--font-mono);
+            background: linear-gradient(160deg, var(--bg-darkest) 0%, var(--bg-dark) 50%, var(--bg-mid) 100%);
+            color: var(--green-light);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        header {
+            text-align: center;
+            padding: 24px 20px 18px;
+            background: var(--bg-dark);
+            border: 2px solid var(--border-bright);
+            border-radius: 12px;
+            box-shadow: 0 0 40px var(--green-glow);
+            margin-bottom: 24px;
+            position: relative;
+        }
+
+        .back-btn {
+            position: absolute; left: 18px; top: 18px;
+            padding: 8px 16px;
+            background: var(--bg-mid);
+            color: var(--green-light);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            text-decoration: none;
+            font-size: 0.85rem;
+            transition: all 0.25s ease;
+        }
+        .back-btn:hover {
+            background: var(--green-deep);
+            border-color: var(--green-main);
+            box-shadow: 0 0 10px var(--green-glow);
+            color: #fff;
+        }
+
+        header h1 { font-size: 1.9rem; color: var(--green-main); text-shadow: 0 0 20px var(--green-glow); margin-bottom: 4px; }
+        header p  { color: var(--text-dim); font-size: 0.9rem; }
+
+        .container { max-width: 1200px; margin: 0 auto; }
+
+        .section {
+            background: var(--bg-panel);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 20px 22px;
+            margin-bottom: 22px;
+        }
+        .section-title {
+            font-size: 1.1rem;
+            color: var(--green-main);
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 10px;
+            margin-bottom: 16px;
+        }
+
+        /* ===== Backup type selector tabs ===== */
+        .type-tabs {
+            display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap;
+        }
+        .type-tab {
+            padding: 10px 24px;
+            border-radius: 8px;
+            border: 2px solid;
+            background: transparent;
+            font-family: var(--font-mono);
+            font-size: 0.88rem;
+            cursor: pointer;
+            transition: all 0.25s;
+            font-weight: bold;
+        }
+        .type-tab[data-type="full"]  { border-color: var(--full-color); color: var(--full-color); }
+        .type-tab[data-type="incr"]  { border-color: var(--incr-color); color: var(--incr-color); }
+        .type-tab[data-type="diff"]  { border-color: var(--diff-color); color: var(--diff-color); }
+        .type-tab.active, .type-tab:hover { color: #fff !important; }
+        .type-tab[data-type="full"].active, .type-tab[data-type="full"]:hover  { background: rgba(34,197,94,0.2); }
+        .type-tab[data-type="incr"].active, .type-tab[data-type="incr"]:hover  { background: rgba(96,165,250,0.2); }
+        .type-tab[data-type="diff"].active, .type-tab[data-type="diff"]:hover  { background: rgba(251,191,36,0.2); }
+
+        /* ===== Animated timeline (SVG-based) ===== */
+        #backup-timeline-svg { display: block; width: 100%; overflow: visible; }
+
+        /* ===== Comparison table ===== */
+        .compare-table { width: 100%; border-collapse: collapse; font-size: 0.83rem; }
+        .compare-table th { padding: 10px 14px; text-align: left; border-bottom: 2px solid var(--border); color: var(--green-main); }
+        .compare-table td { padding: 9px 14px; border-bottom: 1px solid rgba(34,197,94,0.1); color: var(--green-light); vertical-align: top; }
+        .compare-table tr:last-child td { border-bottom: none; }
+        .compare-table td.full-col { color: var(--full-color); }
+        .compare-table td.incr-col { color: var(--incr-color); }
+        .compare-table td.diff-col { color: var(--diff-color); }
+
+        /* ===== 3-2-1 Rule diagram ===== */
+        .rule-321 {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 14px;
+            margin-top: 14px;
+        }
+        .rule-card {
+            background: var(--bg-dark);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 18px;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+        .rule-card::before {
+            content: attr(data-num);
+            position: absolute;
+            top: -10px; left: -8px;
+            font-size: 5rem;
+            font-weight: 900;
+            color: rgba(34,197,94,0.06);
+            line-height: 1;
+        }
+        .rule-num  { font-size: 2.5rem; font-weight: 900; color: var(--green-main); }
+        .rule-head { font-size: 0.88rem; color: var(--green-light); margin: 6px 0 8px; }
+        .rule-body { font-size: 0.78rem; color: var(--text-dim); line-height: 1.6; }
+        .rule-example { margin-top: 10px; padding: 6px 10px; background: rgba(34,197,94,0.07);
+                        border-radius: 4px; font-size: 0.76rem; color: var(--green-light);
+                        border-left: 2px solid var(--green-main); text-align: left; }
+
+        /* ===== Storage calculator ===== */
+        .calc-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+        .calc-input-group label { font-size: 0.8rem; color: var(--text-dim); display: block; margin-bottom: 4px; }
+        .calc-input-group input, .calc-input-group select {
+            width: 100%;
+            padding: 8px 10px;
+            background: var(--bg-mid);
+            border: 1px solid var(--border);
+            color: var(--green-light);
+            border-radius: 6px;
+            font-family: var(--font-mono);
+            font-size: 0.88rem;
+        }
+        .calc-input-group input:focus, .calc-input-group select:focus {
+            outline: none; border-color: var(--green-main);
+        }
+        .calc-results {
+            grid-column: 1 / -1;
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+            margin-top: 6px;
+        }
+        .calc-result-card {
+            background: var(--bg-dark);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 14px;
+            text-align: center;
+        }
+        .calc-result-card .cr-label { font-size: 0.75rem; color: var(--text-dim); margin-bottom: 6px; }
+        .calc-result-card .cr-value { font-size: 1.3rem; font-weight: bold; }
+        .calc-result-card.full-result .cr-value { color: var(--full-color); }
+        .calc-result-card.incr-result .cr-value { color: var(--incr-color); }
+        .calc-result-card.diff-result .cr-value { color: var(--diff-color); }
+
+        /* ===== Recovery Scenario simulator ===== */
+        .scenario-selector {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+            gap: 10px;
+            margin-bottom: 16px;
+        }
+        .scenario-btn {
+            padding: 12px;
+            background: var(--bg-dark);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--green-light);
+            font-family: var(--font-mono);
+            font-size: 0.82rem;
+            cursor: pointer;
+            text-align: center;
+            transition: all 0.2s;
+        }
+        .scenario-btn:hover, .scenario-btn.active {
+            border-color: var(--green-main);
+            background: rgba(34,197,94,0.1);
+            color: #fff;
+        }
+        .scenario-btn .sc-day { font-size: 1.1rem; color: var(--green-main); font-weight: bold; }
+        .scenario-btn .sc-event { font-size: 0.75rem; color: var(--text-dim); }
+
+        .recovery-plan {
+            background: var(--bg-dark);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 16px;
+            min-height: 120px;
+        }
+        .recovery-step {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            padding: 8px 0;
+            border-bottom: 1px solid rgba(34,197,94,0.08);
+            animation: fadeSlide 0.35s ease forwards;
+        }
+        .recovery-step:last-child { border-bottom: none; }
+        .step-num { width: 26px; height: 26px; border-radius: 50%; background: var(--green-deep);
+                   border: 1px solid var(--green-main); display: flex; align-items: center;
+                   justify-content: center; font-size: 0.75rem; color: var(--green-main); flex-shrink: 0; }
+        .step-content .step-title { font-size: 0.85rem; color: var(--green-main); margin-bottom: 2px; }
+        .step-content .step-desc  { font-size: 0.78rem; color: var(--green-light); }
+        .step-badge { font-size: 0.72rem; padding: 2px 8px; border-radius: 10px; display: inline-block; margin-top: 3px; }
+        .step-badge.full  { background: rgba(34,197,94,0.15);  border: 1px solid var(--full-color);  color: var(--full-color); }
+        .step-badge.incr  { background: rgba(96,165,250,0.15); border: 1px solid var(--incr-color);  color: var(--incr-color); }
+        .step-badge.diff  { background: rgba(251,191,36,0.15); border: 1px solid var(--diff-color);  color: var(--diff-color); }
+
+        @keyframes fadeSlide {
+            from { opacity: 0; transform: translateX(-8px); }
+            to   { opacity: 1; transform: translateX(0); }
+        }
+
+        /* ===== Complete button ===== */
+        .complete-section { text-align: center; padding: 24px 20px; }
+        .complete-btn {
+            background: linear-gradient(135deg, #15803d, #22c55e);
+            color: #fff; border: none;
+            padding: 14px 40px;
+            border-radius: 8px; font-size: 1rem;
+            font-family: var(--font-mono); cursor: pointer;
+            box-shadow: 0 4px 20px rgba(34,197,94,0.35);
+            transition: all 0.3s ease;
+        }
+        .complete-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 30px rgba(34,197,94,0.5); }
+
+        .callout { border-left: 3px solid var(--green-main); background: rgba(34,197,94,0.05);
+                   padding: 10px 14px; border-radius: 0 6px 6px 0; margin: 12px 0;
+                   font-size: 0.85rem; color: var(--green-light); }
+        .callout strong { color: var(--green-main); }
+
+        @media (max-width: 700px) {
+            header h1 { font-size: 1.3rem; }
+            .back-btn { position: static; display: inline-block; margin-bottom: 12px; }
+            .rule-321 { grid-template-columns: 1fr; }
+            .calc-grid { grid-template-columns: 1fr; }
+            .calc-results { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+
+    <!-- ===== HEADER ===== -->
+    <header>
+        <a href="../labs/script-sysadmin.lab.html" class="back-btn">&#8592; Back to Sysadmin Lab</a>
+        <h1>Backup Strategies Visualizer</h1>
+        <p>Full, Incremental, Differential — understand the tradeoffs, storage costs, and recovery procedures</p>
+    </header>
+
+    <!-- ===== SECTION 1: Interactive Type Comparison ===== -->
+    <div class="section">
+        <div class="section-title">// Backup Type Comparison</div>
+
+        <div class="type-tabs">
+            <button class="type-tab active" data-type="full" onclick="selectType('full')">Full Backup</button>
+            <button class="type-tab"        data-type="incr" onclick="selectType('incr')">Incremental</button>
+            <button class="type-tab"        data-type="diff" onclick="selectType('diff')">Differential</button>
+        </div>
+
+        <!-- Animated timeline -->
+        <div style="background:var(--bg-dark); border:1px solid var(--border); border-radius:8px; padding:18px; margin-bottom:16px; overflow-x:auto;">
+            <div id="timeline-label" style="color:var(--green-main); font-size:0.88rem; margin-bottom:12px;"></div>
+            <svg id="backup-timeline-svg" height="200" viewBox="0 0 900 200"></svg>
+        </div>
+
+        <!-- Comparison table -->
+        <table class="compare-table">
+            <thead>
+                <tr>
+                    <th>Attribute</th>
+                    <th style="color:var(--full-color)">Full</th>
+                    <th style="color:var(--incr-color)">Incremental</th>
+                    <th style="color:var(--diff-color)">Differential</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>What it backs up</td>
+                    <td class="full-col">Everything, every time</td>
+                    <td class="incr-col">Only changes since last backup (any type)</td>
+                    <td class="diff-col">All changes since last full backup</td>
+                </tr>
+                <tr>
+                    <td>Backup speed</td>
+                    <td class="full-col">Slowest — entire dataset</td>
+                    <td class="incr-col">Fastest — smallest delta</td>
+                    <td class="diff-col">Medium — grows each day</td>
+                </tr>
+                <tr>
+                    <td>Storage per run</td>
+                    <td class="full-col">100% of dataset</td>
+                    <td class="incr-col">1-5% of dataset (daily change)</td>
+                    <td class="diff-col">Grows from 1% to ~50% by week-end</td>
+                </tr>
+                <tr>
+                    <td>Restore speed</td>
+                    <td class="full-col">Fastest — single set</td>
+                    <td class="incr-col">Slowest — chain Full + all Incrementals</td>
+                    <td class="diff-col">Fast — Full + one Differential</td>
+                </tr>
+                <tr>
+                    <td>Restore complexity</td>
+                    <td class="full-col">Minimal — one restore operation</td>
+                    <td class="incr-col">High — must restore in order</td>
+                    <td class="diff-col">Low — two restore operations</td>
+                </tr>
+                <tr>
+                    <td>Risk if one backup fails</td>
+                    <td class="full-col">No chain dependency</td>
+                    <td class="incr-col">High — broken chain = data loss</td>
+                    <td class="diff-col">Medium — lose only that day's diff</td>
+                </tr>
+                <tr>
+                    <td>Best used for</td>
+                    <td class="full-col">Weekly baseline, critical systems</td>
+                    <td class="incr-col">Large datasets, daily nightly jobs</td>
+                    <td class="diff-col">Medium datasets, simple recovery SLA</td>
+                </tr>
+                <tr>
+                    <td>Common tools</td>
+                    <td class="full-col">Veeam, robocopy, rsync</td>
+                    <td class="incr-col">Veeam, Backup Exec, rsync --link-dest</td>
+                    <td class="diff-col">Windows Server Backup, Acronis</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- ===== SECTION 2: Storage Calculator ===== -->
+    <div class="section">
+        <div class="section-title">// Storage &amp; Time Calculator</div>
+        <p style="font-size:0.83rem; color:var(--text-dim); margin-bottom:16px;">
+            Configure your dataset and change rate to see weekly storage requirements for each strategy.
+        </p>
+
+        <div class="calc-grid">
+            <div class="calc-input-group">
+                <label>Total data size (GB)</label>
+                <input type="number" id="calcDataSize" value="500" min="1" max="100000" oninput="calcStorage()">
+            </div>
+            <div class="calc-input-group">
+                <label>Daily change rate (%)</label>
+                <input type="number" id="calcChangeRate" value="5" min="0.1" max="50" step="0.1" oninput="calcStorage()">
+            </div>
+            <div class="calc-input-group">
+                <label>Retention period (weeks)</label>
+                <input type="number" id="calcRetention" value="4" min="1" max="52" oninput="calcStorage()">
+            </div>
+            <div class="calc-input-group">
+                <label>Full backup frequency</label>
+                <select id="calcFrequency" onchange="calcStorage()">
+                    <option value="7">Weekly (every 7 days)</option>
+                    <option value="14">Bi-weekly</option>
+                    <option value="1">Daily</option>
+                </select>
+            </div>
+
+            <div class="calc-results" id="calcResults">
+                <!-- Populated by calcStorage() -->
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== SECTION 3: 3-2-1 Rule ===== -->
+    <div class="section">
+        <div class="section-title">// The 3-2-1 Rule</div>
+        <div class="callout">
+            <strong>Industry Standard:</strong> The 3-2-1 rule is the minimum viable backup architecture
+            recommended by NIST, SANS, and virtually every enterprise security framework. It protects
+            against hardware failure, fire/flood, and ransomware simultaneously.
+        </div>
+
+        <div class="rule-321">
+            <div class="rule-card" data-num="3">
+                <div class="rule-num">3</div>
+                <div class="rule-head">Copies of your data</div>
+                <div class="rule-body">
+                    Keep 3 total copies: the production data itself plus 2 backups.
+                    A single backup is not a backup — drives fail at exactly the wrong moment.
+                </div>
+                <div class="rule-example">
+                    Production DB + Local backup + Offsite backup = 3 copies
+                </div>
+            </div>
+            <div class="rule-card" data-num="2">
+                <div class="rule-num">2</div>
+                <div class="rule-head">Different media types</div>
+                <div class="rule-body">
+                    Store on 2 different types of media. If both backups are on the same SAN and
+                    the SAN fails, you have zero backups. Diversity protects against device-class failures.
+                </div>
+                <div class="rule-example">
+                    Local NAS (spinning disk) + Cloud storage (S3/Azure Blob) = 2 media types
+                </div>
+            </div>
+            <div class="rule-card" data-num="1">
+                <div class="rule-num">1</div>
+                <div class="rule-head">Copy off-site</div>
+                <div class="rule-body">
+                    At least 1 copy must be geographically separated. Fire, flood, power surge,
+                    or ransomware can destroy everything at one physical location.
+                </div>
+                <div class="rule-example">
+                    Local NAS + AWS S3 in us-east-1 (different region from your datacenter)
+                </div>
+            </div>
+        </div>
+
+        <div style="margin-top:16px; background:var(--bg-dark); border:1px solid var(--border); border-radius:8px; padding:14px;">
+            <div style="color:var(--green-main); font-size:0.88rem; margin-bottom:10px;">3-2-1-1-0 Extended Rule (modern)</div>
+            <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(200px,1fr)); gap:10px; font-size:0.8rem; color:var(--green-light);">
+                <div>&#9679; <strong style="color:var(--green-main)">3</strong> copies total</div>
+                <div>&#9679; <strong style="color:var(--green-main)">2</strong> different media types</div>
+                <div>&#9679; <strong style="color:var(--green-main)">1</strong> off-site copy</div>
+                <div>&#9679; <strong style="color:var(--green-main)">1</strong> air-gapped or immutable copy</div>
+                <div>&#9679; <strong style="color:var(--green-main)">0</strong> errors on verified restores</div>
+            </div>
+            <div style="font-size:0.78rem; color:var(--text-dim); margin-top:10px;">
+                The 4th digit (1 immutable) was added after ransomware groups began specifically targeting and encrypting backup repositories.
+                Immutable storage (object lock, WORM drives, or Veeam hardened repo) cannot be encrypted or deleted.
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== SECTION 4: Recovery Scenario Simulator ===== -->
+    <div class="section">
+        <div class="section-title">// Recovery Scenario Simulator</div>
+        <p style="font-size:0.83rem; color:var(--text-dim); margin-bottom:14px;">
+            Your server crashes. Which backup sets do you need to restore?
+            Schedule: Full backup Sunday, Incrementals Mon-Sat. Select the failure day:
+        </p>
+
+        <div class="scenario-selector" id="scenarioSelector">
+            <!-- Built by JS -->
+        </div>
+
+        <div class="recovery-plan" id="recoveryPlan">
+            <div style="color:var(--text-dim); font-size:0.83rem; text-align:center; padding-top:30px;">
+                Select a failure scenario above to see the recovery plan.
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== Complete button ===== -->
+    <div class="complete-section">
+        <button class="complete-btn" onclick="completeModule()">Complete Module &#10003;</button>
+    </div>
+
+</div>
+
+<script>
+'use strict';
+
+/* ===================================================================
+   STATE
+   =================================================================== */
+let currentType = 'full';
+
+/* ===================================================================
+   DATA: Timeline configurations per backup type
+   7-day week: Sun=Full, Mon-Sat=daily jobs
+   =================================================================== */
+const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+/* Relative backup sizes: Full = 100 units. Daily change ~5% */
+const DAILY_CHANGE = 5; // percent of full
+
+function getBackupSizes(type) {
+    // Returns array of 7 values (relative storage units)
+    switch (type) {
+        case 'full':
+            return [100, 100, 100, 100, 100, 100, 100]; // every day is a full backup
+        case 'incr':
+            return [100, 5, 5, 5, 5, 5, 5]; // Sunday full, Mon-Sat incremental (~5% each)
+        case 'diff':
+            return [100, 5, 10, 15, 20, 25, 30]; // Sunday full, Diffs grow each day
+        default:
+            return [100, 100, 100, 100, 100, 100, 100];
+    }
+}
+
+/* ===================================================================
+   TIMELINE SVG RENDERER
+   =================================================================== */
+function renderTimeline(type) {
+    const svg    = document.getElementById('backup-timeline-svg');
+    const label  = document.getElementById('timeline-label');
+    const sizes  = getBackupSizes(type);
+    const W = 900, H = 200, PAD_L = 40, PAD_R = 20, PAD_T = 20, PAD_B = 40;
+    const COLORS = { full: '#22c55e', incr: '#60a5fa', diff: '#fbbf24' };
+    const BOX_W  = 90, GAP = 12;
+
+    const typeLabels = {
+        full: 'Full strategy: every backup contains all data — simple restore, high storage cost',
+        incr: 'Incremental: only changes since last backup — fast &amp; small, but chain-dependent restore',
+        diff: 'Differential: all changes since last Full — restore is Full + 1 Diff, storage grows daily'
+    };
+    label.innerHTML = typeLabels[type];
+
+    const maxSize  = Math.max(...sizes);
+    const yScale   = v => PAD_T + (H - PAD_T - PAD_B) * (1 - v / (maxSize * 1.1));
+    const BAR_BOTTOM = H - PAD_B;
+
+    let html = `<rect width="${W}" height="${H}" fill="#030b04" rx="6"/>`;
+
+    // Horizontal baseline
+    html += `<line x1="${PAD_L}" y1="${BAR_BOTTOM}" x2="${W - PAD_R}" y2="${BAR_BOTTOM}" stroke="rgba(34,197,94,0.25)" stroke-width="1"/>`;
+
+    sizes.forEach((size, i) => {
+        const isFullDay = (type === 'full') || (i === 0);
+        const barColor  = isFullDay ? COLORS.full : COLORS[type];
+        const barAlpha  = isFullDay ? '0.85' : '0.7';
+        const x         = PAD_L + i * (BOX_W + GAP) + GAP;
+        const barTop    = yScale(size);
+        const barH      = BAR_BOTTOM - barTop;
+
+        // Bar
+        html += `<rect x="${x}" y="${barTop}" width="${BOX_W}" height="${barH}"
+                    fill="${barColor}" opacity="${barAlpha}" rx="4">
+                    <animate attributeName="height" from="0" to="${barH}" dur="0.6s" begin="${i * 0.1}s" fill="freeze"/>
+                    <animate attributeName="y" from="${BAR_BOTTOM}" to="${barTop}" dur="0.6s" begin="${i * 0.1}s" fill="freeze"/>
+                </rect>`;
+
+        // Size label on bar
+        const sizeLabel = size === 100 ? 'FULL' : `+${size}%`;
+        html += `<text x="${x + BOX_W / 2}" y="${barTop - 5}" fill="${barColor}" font-size="11"
+                    text-anchor="middle" font-family="monospace" font-weight="bold">${sizeLabel}</text>`;
+
+        // Day label
+        html += `<text x="${x + BOX_W / 2}" y="${BAR_BOTTOM + 18}" fill="#86efac" font-size="12"
+                    text-anchor="middle" font-family="monospace">${DAYS[i]}</text>`;
+
+        // Type indicator dot
+        const dotColor = isFullDay ? COLORS.full : COLORS[type];
+        html += `<circle cx="${x + BOX_W / 2}" cy="${BAR_BOTTOM + 30}" r="4" fill="${dotColor}"/>`;
+    });
+
+    // Legend note
+    html += `<text x="${PAD_L}" y="${H - 2}" fill="#4ade80" font-size="9" font-family="monospace">
+        Full backup shown in green. Storage shown relative to full dataset size.</text>`;
+
+    svg.innerHTML = html;
+}
+
+function selectType(type) {
+    currentType = type;
+    document.querySelectorAll('.type-tab').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.type === type);
+    });
+    renderTimeline(type);
+}
+
+/* ===================================================================
+   STORAGE CALCULATOR
+   =================================================================== */
+function calcStorage() {
+    const dataGB       = parseFloat(document.getElementById('calcDataSize').value)    || 500;
+    const changeRate   = parseFloat(document.getElementById('calcChangeRate').value)  || 5;
+    const weeks        = parseFloat(document.getElementById('calcRetention').value)   || 4;
+    const fullFreqDays = parseInt(document.getElementById('calcFrequency').value)     || 7;
+
+    const dailyChangeGB = dataGB * (changeRate / 100);
+    const totalDays     = weeks * 7;
+    const fullCount     = Math.ceil(totalDays / fullFreqDays);
+    const nonFullDays   = totalDays - fullCount;
+
+    // Full strategy: every day is a full backup
+    const fullStorageGB = dataGB * totalDays;
+
+    // Incremental: fullCount * full + nonFullDays * dailyChange
+    const incrStorageGB = fullCount * dataGB + nonFullDays * dailyChangeGB;
+
+    // Differential: each diff grows. Over a fullFreqDays cycle: full + (1+2+...+(N-1))*dailyChange
+    const diffPerCycleGB = dataGB + (dailyChangeGB * (fullFreqDays - 1) * fullFreqDays / 2);
+    const diffStorageGB  = fullCount * diffPerCycleGB;
+
+    function fmtGB(val) {
+        if (val > 1024) return `${(val / 1024).toFixed(1)} TB`;
+        return `${val.toFixed(0)} GB`;
+    }
+
+    document.getElementById('calcResults').innerHTML = `
+        <div class="calc-result-card full-result">
+            <div class="cr-label">Full backup (${weeks}wk retention)</div>
+            <div class="cr-value">${fmtGB(fullStorageGB)}</div>
+        </div>
+        <div class="calc-result-card incr-result">
+            <div class="cr-label">Incremental (${weeks}wk retention)</div>
+            <div class="cr-value">${fmtGB(incrStorageGB)}</div>
+            <div style="font-size:0.72rem; color:var(--text-dim); margin-top:4px;">${((incrStorageGB/fullStorageGB)*100).toFixed(0)}% vs full strategy</div>
+        </div>
+        <div class="calc-result-card diff-result">
+            <div class="cr-label">Differential (${weeks}wk retention)</div>
+            <div class="cr-value">${fmtGB(diffStorageGB)}</div>
+            <div style="font-size:0.72rem; color:var(--text-dim); margin-top:4px;">${((diffStorageGB/fullStorageGB)*100).toFixed(0)}% vs full strategy</div>
+        </div>
+        <div style="grid-column:1/-1; font-size:0.78rem; color:var(--text-dim); border-top:1px solid var(--border); padding-top:10px; margin-top:4px;">
+            Dataset: ${dataGB}GB | Daily change: ${dailyChangeGB.toFixed(1)}GB (${changeRate}%) |
+            Full backups: ${fullCount} over ${totalDays} days | Retention: ${weeks} weeks
+        </div>
+    `;
+}
+
+/* ===================================================================
+   RECOVERY SCENARIO DATA
+   Full on Sunday, Incrementals Mon-Sat
+   =================================================================== */
+const SCENARIOS = [
+    { day: 'Monday',    icon: '&#128197;', event: 'Crash after Mon incremental',
+      steps: [
+          { type:'full', title:'Restore Sunday Full Backup', desc:'Apply the Sunday full backup — this brings you to Sunday night state.' },
+          { type:'incr', title:'Apply Monday Incremental', desc:'Apply the Monday incremental on top — restores all data through Monday.' },
+          { type:null,   title:'Verify and Reconnect Services', desc:'Run integrity checks, verify application startup, reconnect clients.' }
+      ]
+    },
+    { day: 'Wednesday', icon: '&#128198;', event: 'Crash after Wed incremental',
+      steps: [
+          { type:'full', title:'Restore Sunday Full Backup', desc:'Apply Sunday full backup to get to the weekly baseline.' },
+          { type:'incr', title:'Apply Monday Incremental', desc:'Chain step 1: apply Mon incremental backup in sequence.' },
+          { type:'incr', title:'Apply Tuesday Incremental', desc:'Chain step 2: apply Tue incremental backup in sequence.' },
+          { type:'incr', title:'Apply Wednesday Incremental', desc:'Chain step 3: apply Wed incremental — now fully restored.' },
+          { type:null,   title:'Verify and Reconnect', desc:'3 separate restore operations required. Each must succeed for the next to work.' }
+      ]
+    },
+    { day: 'Saturday',  icon: '&#128200;', event: 'Crash after Sat incremental',
+      steps: [
+          { type:'full', title:'Restore Sunday Full Backup', desc:'Start the chain with the full backup from 6 days ago.' },
+          { type:'incr', title:'Apply Mon + Tue + Wed Incrementals', desc:'Three separate backup sets applied in order. A failure in any set breaks the chain.' },
+          { type:'incr', title:'Apply Thu + Fri Incrementals', desc:'Continue chain. Total: 5 incremental operations needed.' },
+          { type:'incr', title:'Apply Saturday Incremental', desc:'Final piece. RTO is highest on Saturday — this is the worst day to fail on an incremental schedule.' },
+          { type:null,   title:'Verify and Reconnect', desc:'Longest restore window of the week. Consider running a mid-week full to reduce the chain length.' }
+      ]
+    },
+    { day: 'Mid-week (Diff)', icon: '&#128199;', event: 'Wednesday, using Differential',
+      steps: [
+          { type:'full', title:'Restore Sunday Full Backup', desc:'Apply the Sunday full backup as the baseline.' },
+          { type:'diff', title:'Apply Wednesday Differential', desc:'Apply ONLY the Wednesday differential — contains all changes since Sunday in one set.' },
+          { type:null,   title:'Verify and Reconnect', desc:'Only 2 restore operations regardless of which day it is. This is Differential\'s key advantage.' }
+      ]
+    },
+    { day: 'Ransomware', icon: '&#128272;', event: 'Active ransomware — multiple corrupted',
+      steps: [
+          { type:null,   title:'Isolate: Disconnect all affected systems', desc:'Do NOT attempt to restore until the infection vector is contained. Restoring to an infected network re-encrypts everything.' },
+          { type:full,   title:'Identify last clean backup (pre-infection)', desc:'Review backup timestamps and match against first observed encryption events in logs.' },
+          { type:'full', title:'Restore to isolated environment first', desc:'Restore to a network segment that cannot reach the production network to verify clean state.' },
+          { type:null,   title:'Remediate and harden before reconnecting', desc:'Patch the exploit, rotate credentials, then reconnect. Accept data loss from infection window.' }
+      ]
+    },
+];
+
+function buildScenarioSelector() {
+    const sel = document.getElementById('scenarioSelector');
+    sel.innerHTML = SCENARIOS.map((s, i) => `
+        <button class="scenario-btn" onclick="showScenario(${i})">
+            <div>${s.icon}</div>
+            <div class="sc-day">${s.day}</div>
+            <div class="sc-event">${s.event}</div>
+        </button>
+    `).join('');
+}
+
+function showScenario(index) {
+    // Update active button
+    document.querySelectorAll('.scenario-btn').forEach((btn, i) => {
+        btn.classList.toggle('active', i === index);
+    });
+
+    const scenario = SCENARIOS[index];
+    const plan     = document.getElementById('recoveryPlan');
+
+    const stepsHtml = scenario.steps.map((step, i) => {
+        const badge = step.type ? `<span class="step-badge ${step.type}">${step.type.toUpperCase()}</span>` : '';
+        return `
+        <div class="recovery-step" style="animation-delay:${i * 0.1}s">
+            <div class="step-num">${i + 1}</div>
+            <div class="step-content">
+                <div class="step-title">${step.title}</div>
+                <div class="step-desc">${step.desc}</div>
+                ${badge}
+            </div>
+        </div>`;
+    }).join('');
+
+    plan.innerHTML = `
+        <div style="color:var(--green-main); font-size:0.88rem; margin-bottom:12px; border-bottom:1px solid var(--border); padding-bottom:8px;">
+            Recovery Plan: ${scenario.icon} ${scenario.day} — ${scenario.event}
+        </div>
+        ${stepsHtml}
+    `;
+}
+
+/* ===================================================================
+   Module completion
+   =================================================================== */
+function completeModule() {
+    if (typeof ModuleProgress !== 'undefined') {
+        ModuleProgress.complete('script', 'script-backup-strategies', {
+            returnUrl: '../labs/script-sysadmin.lab.html'
+        });
+    }
+}
+
+/* ===================================================================
+   Init
+   =================================================================== */
+document.addEventListener('DOMContentLoaded', () => {
+    renderTimeline('full');
+    calcStorage();
+    buildScenarioSelector();
+});
+</script>
+</body>
+</html>

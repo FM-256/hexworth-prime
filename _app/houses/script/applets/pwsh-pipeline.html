@@ -1,0 +1,1291 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control: user must be sorted into a house before viewing content -->
+    <script src="../../../components/AccessGuard.js"></script>
+    <script>
+        AccessGuard.require('sorted');
+    </script>
+    <!-- Progress tracking and achievement hooks -->
+    <script src="../../../components/AchievementManager.js"></script>
+    <script src="../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PowerShell Pipeline Visualizer | Script House</title>
+    <style>
+        /* ── Reset & Base ─────────────────────────────────────── */
+        *, *::before, *::after {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --bg-deep:      #052e16;
+            --bg-mid:       #0f3d20;
+            --bg-card:      #0a3318;
+            --border:       #166534;
+            --accent:       #22c55e;
+            --accent-dim:   #16a34a;
+            --text-bright:  #dcfce7;
+            --text-main:    #86efac;
+            --text-muted:   #4ade80;
+            --text-dim:     #6b7280;
+            --stage-source:    #0ea5e9;  /* blue */
+            --stage-filter:    #f59e0b;  /* amber */
+            --stage-transform: #c084fc;  /* purple */
+            --stage-output:    #22c55e;  /* green */
+            --radius:       10px;
+            --radius-sm:    6px;
+            --transition:   0.22s ease;
+        }
+
+        html, body { height: 100%; }
+
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: linear-gradient(145deg, var(--bg-deep) 0%, #0a2a18 50%, var(--bg-deep) 100%);
+            color: var(--text-main);
+            min-height: 100vh;
+            line-height: 1.6;
+        }
+
+        /* ── Header ───────────────────────────────────────────── */
+        header {
+            background: linear-gradient(135deg, #166534 0%, #22c55e 100%);
+            padding: 14px 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 3px solid var(--accent);
+        }
+
+        .header-left h1 { color: #052e16; font-size: 20px; font-weight: 700; line-height: 1.2; }
+        .header-left .subtitle { color: rgba(5,46,22,.75); font-size: 12px; margin-top: 2px; }
+
+        .back-link {
+            color: #052e16;
+            text-decoration: none;
+            padding: 7px 14px;
+            background: rgba(5,46,22,.2);
+            border-radius: var(--radius-sm);
+            font-weight: 600;
+            font-size: 13px;
+            transition: all var(--transition);
+            white-space: nowrap;
+        }
+        .back-link:hover { background: rgba(5,46,22,.38); transform: translateX(-2px); }
+
+        /* ── Main ─────────────────────────────────────────────── */
+        .main-content {
+            max-width: 1100px;
+            width: 100%;
+            margin: 0 auto;
+            padding: 28px 20px 48px;
+        }
+
+        /* ── Intro Banner ─────────────────────────────────────── */
+        .intro-banner {
+            background: rgba(34,197,94,.08);
+            border: 1px solid rgba(34,197,94,.25);
+            border-left: 4px solid var(--accent);
+            border-radius: var(--radius);
+            padding: 18px 22px;
+            margin-bottom: 32px;
+            display: flex;
+            align-items: flex-start;
+            gap: 16px;
+        }
+        .intro-icon { font-size: 2rem; flex-shrink: 0; line-height: 1; margin-top: 2px; }
+        .intro-text h2 { color: var(--text-bright); font-size: 1.2rem; margin-bottom: 4px; }
+        .intro-text p  { color: var(--text-main); font-size: .9rem; opacity: .9; }
+
+        /* ── Section Heading ──────────────────────────────────── */
+        .section-heading {
+            color: var(--text-bright);
+            font-size: 1.1rem;
+            font-weight: 700;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .section-heading::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: linear-gradient(90deg, var(--border), transparent);
+        }
+
+        /* ══════════════════════════════════════════════════════
+           SECTION 1: PIPELINE CONCEPT DIAGRAM
+        ══════════════════════════════════════════════════════ */
+        .pipeline-concept {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 24px;
+            margin-bottom: 32px;
+            overflow: hidden;
+        }
+
+        /* Stage rail */
+        .stage-rail {
+            display: flex;
+            align-items: stretch;
+            gap: 0;
+            margin: 20px 0 16px;
+            overflow-x: auto;
+            padding-bottom: 6px;
+        }
+
+        .stage-block {
+            flex: 1;
+            min-width: 130px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            position: relative;
+        }
+
+        .stage-box {
+            width: 100%;
+            background: rgba(5,46,22,.5);
+            border: 2px solid var(--stage-color, var(--border));
+            border-radius: var(--radius);
+            padding: 14px 10px;
+            text-align: center;
+            position: relative;
+            transition: all var(--transition);
+        }
+
+        .stage-block:hover .stage-box {
+            background: rgba(34,197,94,.07);
+            box-shadow: 0 4px 20px color-mix(in srgb, var(--stage-color) 30%, transparent);
+        }
+
+        .stage-label {
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: .08em;
+            color: var(--stage-color, var(--text-muted));
+            margin-bottom: 6px;
+        }
+
+        .stage-cmdlet {
+            font-family: 'Consolas', monospace;
+            font-size: 12px;
+            color: var(--text-bright);
+            word-break: break-word;
+        }
+
+        .stage-desc {
+            font-size: 11px;
+            color: var(--text-dim);
+            margin-top: 6px;
+            line-height: 1.4;
+        }
+
+        /* Arrow connector between stages */
+        .stage-arrow {
+            display: flex;
+            align-items: center;
+            padding: 0 6px;
+            flex-shrink: 0;
+        }
+
+        .stage-arrow svg {
+            width: 32px;
+            height: 24px;
+            flex-shrink: 0;
+        }
+
+        /* Object particles that animate through the pipeline */
+        .object-flow {
+            height: 30px;
+            position: relative;
+            overflow: hidden;
+            margin: 6px 0;
+            display: flex;
+            align-items: center;
+        }
+
+        .object-flow-track {
+            position: absolute;
+            top: 50%;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: linear-gradient(90deg,
+                var(--stage-source) 0%,
+                var(--stage-filter) 33%,
+                var(--stage-transform) 66%,
+                var(--stage-output) 100%);
+            opacity: .3;
+            transform: translateY(-50%);
+        }
+
+        .obj-particle {
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: var(--accent);
+            top: 50%;
+            transform: translateY(-50%);
+            animation: flowParticle 3.5s linear infinite;
+            opacity: 0;
+        }
+
+        .obj-particle:nth-child(2) { animation-delay: .7s; background: #67e8f9; }
+        .obj-particle:nth-child(3) { animation-delay: 1.4s; background: #c084fc; }
+        .obj-particle:nth-child(4) { animation-delay: 2.1s; background: #fbbf24; }
+        .obj-particle:nth-child(5) { animation-delay: 2.8s; background: #f472b6; }
+
+        @keyframes flowParticle {
+            0%   { left: -12px; opacity: 0; }
+            5%   { opacity: 1; }
+            95%  { opacity: 1; }
+            100% { left: calc(100% + 12px); opacity: 0; }
+        }
+
+        .object-type-label {
+            position: absolute;
+            right: 0;
+            top: 50%;
+            transform: translateY(-50%);
+            font-family: 'Consolas', monospace;
+            font-size: 11px;
+            color: var(--text-dim);
+            background: var(--bg-card);
+            padding: 1px 6px;
+            border-radius: 4px;
+            border: 1px solid var(--border);
+        }
+
+        /* ══════════════════════════════════════════════════════
+           SECTION 2: INTERACTIVE PIPELINE BUILDER
+        ══════════════════════════════════════════════════════ */
+        .builder-section {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 24px;
+            margin-bottom: 32px;
+        }
+
+        .builder-stages {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 12px;
+            margin: 20px 0;
+        }
+
+        .builder-stage {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .builder-stage-label {
+            font-size: 12px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: .07em;
+            padding: 6px 10px;
+            border-radius: var(--radius-sm);
+            border: 1px solid;
+            text-align: center;
+        }
+
+        .builder-stage-label.source    { color: var(--stage-source);    border-color: var(--stage-source);    background: rgba(14,165,233,.1); }
+        .builder-stage-label.filter    { color: var(--stage-filter);    border-color: var(--stage-filter);    background: rgba(245,158,11,.1); }
+        .builder-stage-label.transform { color: var(--stage-transform); border-color: var(--stage-transform); background: rgba(192,132,252,.1); }
+        .builder-stage-label.output    { color: var(--stage-output);    border-color: var(--stage-output);    background: rgba(34,197,94,.1); }
+
+        .stage-select {
+            background: rgba(5,46,22,.6);
+            border: 1px solid var(--border);
+            color: var(--text-bright);
+            padding: 9px 10px;
+            border-radius: var(--radius-sm);
+            font-size: 12px;
+            font-family: 'Consolas', monospace;
+            cursor: pointer;
+            transition: border-color var(--transition);
+            width: 100%;
+        }
+
+        .stage-select:focus { outline: none; border-color: var(--accent); }
+        .stage-select option { background: #0a2a18; }
+
+        /* Built pipeline display */
+        .built-pipeline {
+            background: #0d1117;
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 16px 20px;
+            font-family: 'Consolas', monospace;
+            font-size: 13px;
+            line-height: 1.7;
+            margin: 20px 0 0;
+            min-height: 60px;
+            position: relative;
+        }
+
+        .built-pipeline .pipe-sep {
+            color: var(--accent);
+            font-weight: 700;
+            margin: 0 6px;
+        }
+
+        .pipeline-copy-btn {
+            position: absolute;
+            top: 10px;
+            right: 12px;
+            background: transparent;
+            border: 1px solid var(--border);
+            color: var(--text-dim);
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 11px;
+            cursor: pointer;
+            transition: all var(--transition);
+        }
+        .pipeline-copy-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+        /* Object inspection panel */
+        .object-inspector {
+            margin-top: 16px;
+            background: rgba(34,197,94,.04);
+            border: 1px solid rgba(34,197,94,.2);
+            border-radius: var(--radius);
+            padding: 16px 18px;
+        }
+
+        .object-inspector h4 {
+            color: var(--accent);
+            font-size: .85rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: .07em;
+            margin-bottom: 10px;
+        }
+
+        .obj-props {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 10px;
+        }
+
+        .obj-prop {
+            background: rgba(5,46,22,.6);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            padding: 4px 10px;
+            font-family: 'Consolas', monospace;
+            font-size: 12px;
+        }
+
+        .obj-prop-name { color: #67e8f9; }
+        .obj-prop-sep  { color: var(--text-dim); margin: 0 2px; }
+        .obj-prop-val  { color: var(--text-bright); }
+
+        /* ══════════════════════════════════════════════════════
+           SECTION 3: WORKED EXAMPLES
+        ══════════════════════════════════════════════════════ */
+        .examples-section {
+            margin-bottom: 32px;
+        }
+
+        .example-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            margin-bottom: 16px;
+            overflow: hidden;
+            transition: border-color var(--transition);
+        }
+
+        .example-card:hover { border-color: rgba(34,197,94,.45); }
+
+        .example-head {
+            padding: 14px 18px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+            background: rgba(22,101,52,.25);
+        }
+
+        .example-head-left { display: flex; align-items: center; gap: 12px; }
+
+        .example-difficulty {
+            font-size: 11px;
+            font-weight: 700;
+            padding: 3px 8px;
+            border-radius: 4px;
+            text-transform: uppercase;
+            letter-spacing: .06em;
+        }
+        .diff-basic       { background: rgba(34,197,94,.15); color: var(--accent); }
+        .diff-intermediate{ background: rgba(245,158,11,.15); color: #f59e0b; }
+        .diff-advanced    { background: rgba(192,132,252,.15); color: #c084fc; }
+
+        .example-title { color: var(--text-bright); font-size: .95rem; font-weight: 600; }
+
+        .expand-icon {
+            color: var(--text-dim);
+            font-size: 18px;
+            transition: transform var(--transition);
+        }
+        .example-card.open .expand-icon { transform: rotate(90deg); }
+
+        .example-body {
+            display: none;
+            padding: 18px;
+            border-top: 1px solid var(--border);
+        }
+        .example-card.open .example-body {
+            display: block;
+            animation: fadeIn .22s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-4px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+
+        .example-desc { font-size: .87rem; color: var(--text-main); opacity: .88; margin-bottom: 14px; line-height: 1.6; }
+
+        /* Annotated pipeline stages */
+        .annotated-pipeline {
+            background: #0d1117;
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 16px 20px;
+            font-family: 'Consolas', monospace;
+            font-size: 13px;
+            margin-bottom: 14px;
+        }
+
+        .ap-line {
+            display: flex;
+            align-items: flex-start;
+            gap: 8px;
+            padding: 3px 0;
+            position: relative;
+        }
+
+        .ap-stage-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            flex-shrink: 0;
+            margin-top: 5px;
+        }
+
+        .ap-code { color: var(--text-bright); flex: 1; line-height: 1.5; }
+        .kw  { color: #34d399; font-weight: 600; }
+        .str { color: #fbbf24; }
+        .var { color: #60a5fa; }
+        .typ { color: #c084fc; }
+        .cmt { color: #6b7280; font-style: italic; }
+        .op  { color: #f9a8d4; }
+        .num { color: #fb923c; }
+        .cmd { color: #67e8f9; }
+
+        .ap-annotation {
+            font-size: 11px;
+            color: var(--text-dim);
+            font-family: 'Segoe UI', sans-serif;
+            font-style: italic;
+            margin-top: 3px;
+            padding-left: 18px;
+            line-height: 1.4;
+        }
+
+        .output-preview {
+            background: rgba(34,197,94,.04);
+            border: 1px solid rgba(34,197,94,.2);
+            border-radius: var(--radius-sm);
+            padding: 12px 14px;
+            font-family: 'Consolas', monospace;
+            font-size: 12px;
+            color: var(--text-bright);
+            margin-top: 12px;
+        }
+
+        .output-preview-label {
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: .07em;
+            color: var(--accent);
+            margin-bottom: 8px;
+            font-family: 'Segoe UI', sans-serif;
+        }
+
+        .output-row {
+            padding: 2px 0;
+            border-bottom: 1px solid rgba(22,101,52,.2);
+        }
+        .output-row:last-child { border-bottom: none; }
+
+        /* ══════════════════════════════════════════════════════
+           SECTION 4: OBJECT FLOW DEMONSTRATION
+        ══════════════════════════════════════════════════════ */
+        .flow-demo {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 24px;
+            margin-bottom: 32px;
+        }
+
+        .flow-stages {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+            margin-top: 20px;
+        }
+
+        .flow-stage {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .flow-stage-header {
+            padding: 10px 12px;
+            border-radius: var(--radius-sm);
+            font-size: 13px;
+            font-weight: 700;
+            text-align: center;
+            border: 1px solid;
+        }
+
+        .flow-stage-objects {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            min-height: 120px;
+        }
+
+        .flow-obj {
+            padding: 8px 10px;
+            border-radius: var(--radius-sm);
+            font-family: 'Consolas', monospace;
+            font-size: 11px;
+            background: rgba(5,46,22,.5);
+            border: 1px solid rgba(22,101,52,.4);
+            color: var(--text-bright);
+            transition: all .4s ease;
+            opacity: 0;
+            transform: scale(.85);
+        }
+
+        .flow-obj.visible {
+            opacity: 1;
+            transform: scale(1);
+        }
+
+        .flow-obj.filtered-out {
+            opacity: .35;
+            text-decoration: line-through;
+            color: var(--text-dim);
+        }
+
+        .flow-obj .prop { color: #67e8f9; }
+        .flow-obj .val  { color: var(--text-bright); }
+        .flow-obj .highlight { color: #fbbf24; font-weight: 700; }
+
+        .flow-controls {
+            display: flex;
+            gap: 12px;
+            margin-top: 20px;
+            flex-wrap: wrap;
+        }
+
+        .flow-btn {
+            padding: 9px 20px;
+            border-radius: var(--radius-sm);
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all var(--transition);
+            border: 1px solid;
+        }
+
+        .flow-btn-primary {
+            background: var(--accent-dim);
+            color: #052e16;
+            border-color: var(--accent);
+        }
+        .flow-btn-primary:hover { background: var(--accent); box-shadow: 0 4px 14px rgba(34,197,94,.3); }
+
+        .flow-btn-secondary {
+            background: transparent;
+            color: var(--text-muted);
+            border-color: var(--border);
+        }
+        .flow-btn-secondary:hover { border-color: var(--text-muted); color: var(--text-bright); }
+
+        /* ── Complete Module ──────────────────────────────────── */
+        .completion-zone {
+            margin-top: 40px;
+            padding: 28px;
+            background: rgba(34,197,94,.05);
+            border: 1px solid rgba(34,197,94,.2);
+            border-radius: var(--radius);
+            text-align: center;
+        }
+        .completion-zone p { color: var(--text-main); font-size: .9rem; margin-bottom: 16px; opacity: .85; }
+
+        .complete-btn {
+            background: linear-gradient(135deg, var(--accent-dim) 0%, var(--accent) 100%);
+            color: #052e16;
+            border: none;
+            padding: 13px 32px;
+            border-radius: var(--radius);
+            font-size: 15px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all var(--transition);
+            box-shadow: 0 4px 16px rgba(34,197,94,.25);
+        }
+        .complete-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(34,197,94,.4); }
+
+        /* ── Responsive ───────────────────────────────────────── */
+        @media (max-width: 768px) {
+            header { flex-direction: column; gap: 10px; }
+            .builder-stages, .flow-stages { grid-template-columns: repeat(2, 1fr); }
+            .stage-rail { flex-wrap: wrap; }
+        }
+        @media (max-width: 480px) {
+            .builder-stages, .flow-stages { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+<!-- ── Header ────────────────────────────────────────────────── -->
+<header>
+    <div class="header-left">
+        <h1>PowerShell Pipeline Visualizer</h1>
+        <div class="subtitle">Script House &mdash; Object Flow &amp; Pipeline Builder</div>
+    </div>
+    <a class="back-link" href="../labs/script-powershell.lab.html">Back to PowerShell Lab</a>
+</header>
+
+<div class="main-content">
+
+    <!-- Intro Banner -->
+    <div class="intro-banner">
+        <div class="intro-icon">&#x1F300;</div>
+        <div class="intro-text">
+            <h2>The Pipeline: PowerShell's Core Philosophy</h2>
+            <p>Unlike bash (which pipes text strings), PowerShell pipes <strong>live .NET objects</strong> with full
+               properties and methods. Each stage receives structured objects, processes them, and emits new objects.
+               Use the interactive builder below to construct real pipelines, then animate the data flow.</p>
+        </div>
+    </div>
+
+    <!-- ════════════════════════════════════════════════════════
+         SECTION 1: PIPELINE CONCEPT DIAGRAM
+    ═════════════════════════════════════════════════════════= -->
+    <div class="section-heading">How the Pipeline Works</div>
+
+    <div class="pipeline-concept">
+        <p style="font-size:.88rem;color:var(--text-main);opacity:.85;margin-bottom:20px;">
+            The pipe character <code style="color:var(--accent);font-weight:700;">|</code> passes objects from left
+            to right. Each cmdlet processes objects one at a time (streaming) unless it needs the full set (like
+            <code style="color:var(--cmd);">Sort-Object</code>).
+        </p>
+
+        <!-- Stage rail with live object animation -->
+        <div class="stage-rail" id="concept-rail">
+            <!-- Rendered by JS -->
+        </div>
+
+        <!-- Object particles animation track -->
+        <div class="object-flow">
+            <div class="object-flow-track"></div>
+            <div class="obj-particle"></div>
+            <div class="obj-particle"></div>
+            <div class="obj-particle"></div>
+            <div class="obj-particle"></div>
+            <div class="obj-particle"></div>
+            <div class="object-type-label">[Process] objects</div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:16px;margin-top:20px;">
+            <div style="background:rgba(14,165,233,.07);border:1px solid rgba(14,165,233,.25);border-radius:var(--radius-sm);padding:14px;">
+                <div style="color:#0ea5e9;font-size:.8rem;font-weight:700;text-transform:uppercase;margin-bottom:6px;">Shell vs PowerShell Pipeline</div>
+                <div style="font-size:.82rem;color:var(--text-main);opacity:.85;line-height:1.6;">
+                    <strong>Bash:</strong> pipes strings &rarr; text manipulation required<br>
+                    <strong>PowerShell:</strong> pipes objects &rarr; access any property directly
+                </div>
+            </div>
+            <div style="background:rgba(192,132,252,.07);border:1px solid rgba(192,132,252,.25);border-radius:var(--radius-sm);padding:14px;">
+                <div style="color:#c084fc;font-size:.8rem;font-weight:700;text-transform:uppercase;margin-bottom:6px;">Streaming vs Blocking</div>
+                <div style="font-size:.82rem;color:var(--text-main);opacity:.85;line-height:1.6;">
+                    <strong>Streaming:</strong> objects pass one-at-a-time (ForEach-Object, Where-Object)<br>
+                    <strong>Blocking:</strong> requires all objects first (Sort-Object, Group-Object)
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ════════════════════════════════════════════════════════
+         SECTION 2: INTERACTIVE PIPELINE BUILDER
+    ═════════════════════════════════════════════════════════= -->
+    <div class="section-heading">Interactive Pipeline Builder</div>
+
+    <div class="builder-section">
+        <p style="font-size:.88rem;color:var(--text-main);opacity:.85;margin-bottom:4px;">
+            Select a command for each pipeline stage. The assembled command appears below with object property inspection.
+        </p>
+
+        <div class="builder-stages">
+            <div class="builder-stage">
+                <div class="builder-stage-label source">1. Source</div>
+                <select class="stage-select" id="sel-source" onchange="buildPipeline()">
+                    <option value="Get-Process">Get-Process</option>
+                    <option value="Get-Service">Get-Service</option>
+                    <option value="Get-ChildItem C:\Windows">Get-ChildItem C:\Windows</option>
+                    <option value="Get-EventLog -LogName System -Newest 100">Get-EventLog (System)</option>
+                    <option value="Get-NetAdapter">Get-NetAdapter</option>
+                    <option value="Get-HotFix">Get-HotFix</option>
+                </select>
+            </div>
+            <div class="builder-stage">
+                <div class="builder-stage-label filter">2. Filter</div>
+                <select class="stage-select" id="sel-filter" onchange="buildPipeline()">
+                    <option value="">(none)</option>
+                    <option value="Where-Object {$_.CPU -gt 10}">Where CPU &gt; 10</option>
+                    <option value="Where-Object {$_.Status -eq 'Running'}">Where Status=Running</option>
+                    <option value="Where-Object {$_.Length -gt 1MB}">Where Size &gt; 1MB</option>
+                    <option value="Where-Object {$_.EntryType -eq 'Error'}">Where EntryType=Error</option>
+                    <option value="Where-Object {$_.Status -eq 'Up'}">Where Status=Up</option>
+                    <option value="Select-Object -First 10">Select-Object -First 10</option>
+                </select>
+            </div>
+            <div class="builder-stage">
+                <div class="builder-stage-label transform">3. Transform</div>
+                <select class="stage-select" id="sel-transform" onchange="buildPipeline()">
+                    <option value="">(none)</option>
+                    <option value="Sort-Object CPU -Descending">Sort by CPU Desc</option>
+                    <option value="Sort-Object WorkingSet -Descending">Sort by Memory Desc</option>
+                    <option value="Sort-Object Name">Sort by Name</option>
+                    <option value="Sort-Object LastWriteTime -Descending">Sort by Date Desc</option>
+                    <option value="Group-Object Status">Group-Object Status</option>
+                    <option value="Select-Object Name,Id,CPU">Select Columns</option>
+                    <option value="ForEach-Object {$_.Name.ToUpper()}">ForEach ToUpper</option>
+                </select>
+            </div>
+            <div class="builder-stage">
+                <div class="builder-stage-label output">4. Output</div>
+                <select class="stage-select" id="sel-output" onchange="buildPipeline()">
+                    <option value="Format-Table -AutoSize">Format-Table</option>
+                    <option value="Format-List">Format-List</option>
+                    <option value="Out-GridView">Out-GridView</option>
+                    <option value="Export-Csv output.csv -NoTypeInformation">Export-Csv</option>
+                    <option value="ConvertTo-Json">ConvertTo-Json</option>
+                    <option value="Out-File results.txt">Out-File</option>
+                    <option value="Measure-Object">Measure-Object</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- Assembled pipeline display -->
+        <div class="built-pipeline" id="built-pipeline">
+            <button class="pipeline-copy-btn" onclick="copyBuiltPipeline()">Copy</button>
+            <span id="pipeline-text"></span>
+        </div>
+
+        <!-- Object property inspector -->
+        <div class="object-inspector" id="object-inspector">
+            <h4>Object Properties at Each Stage</h4>
+            <div id="inspector-content"></div>
+        </div>
+    </div>
+
+    <!-- ════════════════════════════════════════════════════════
+         SECTION 3: OBJECT FLOW ANIMATION
+    ═════════════════════════════════════════════════════════= -->
+    <div class="section-heading">Object Flow Demonstration</div>
+
+    <div class="flow-demo">
+        <p style="font-size:.88rem;color:var(--text-main);opacity:.85;margin-bottom:4px;">
+            Watch how <code style="color:#67e8f9;">Get-Process | Where-Object {$_.CPU -gt 5} | Sort-Object CPU | Select-Object Name,CPU</code>
+            filters and transforms objects at each stage. Click Run to animate.
+        </p>
+
+        <div class="flow-stages" id="flow-stages">
+            <!-- Rendered by JS -->
+        </div>
+
+        <div class="flow-controls">
+            <button class="flow-btn flow-btn-primary" onclick="runFlowAnimation()" id="flow-run-btn">
+                Run Animation
+            </button>
+            <button class="flow-btn flow-btn-secondary" onclick="resetFlowAnimation()">
+                Reset
+            </button>
+        </div>
+    </div>
+
+    <!-- ════════════════════════════════════════════════════════
+         SECTION 4: WORKED EXAMPLES
+    ═════════════════════════════════════════════════════════= -->
+    <div class="section-heading">Annotated Pipeline Examples</div>
+
+    <div class="examples-section" id="examples-section">
+        <!-- Rendered by JS -->
+    </div>
+
+    <!-- ── Complete Module ────────────────────────────────────── -->
+    <div class="completion-zone">
+        <p>Finished building and animating pipelines? Mark this module complete.</p>
+        <button class="complete-btn" onclick="completeModule()">Mark Module Complete</button>
+    </div>
+
+</div><!-- /main-content -->
+
+<script>
+'use strict';
+
+/* ─────────────────────────────────────────────────────────────────
+   CONCEPT RAIL DATA
+───────────────────────────────────────────────────────────────── */
+const CONCEPT_STAGES = [
+    { color: 'var(--stage-source)',    label: 'Source',    cmdlet: 'Get-Process',                 desc: 'Emits [Process] objects — one per running process' },
+    { color: 'var(--stage-filter)',    label: 'Filter',    cmdlet: 'Where-Object {$_.CPU -gt 5}', desc: 'Passes through only objects where CPU &gt; 5' },
+    { color: 'var(--stage-transform)', label: 'Transform', cmdlet: 'Sort-Object CPU -Descending', desc: 'Collects all, returns sorted array (blocking)' },
+    { color: 'var(--stage-output)',    label: 'Output',    cmdlet: 'Select-Object Name,CPU',      desc: 'Projects to new objects with only chosen props' },
+];
+
+function renderConceptRail() {
+    const rail = document.getElementById('concept-rail');
+    const html = CONCEPT_STAGES.map((s, i) => `
+        <div class="stage-block">
+            <div class="stage-box" style="--stage-color:${s.color}">
+                <div class="stage-label" style="color:${s.color}">${s.label}</div>
+                <div class="stage-cmdlet">${s.cmdlet}</div>
+                <div class="stage-desc">${s.desc}</div>
+            </div>
+        </div>
+        ${i < CONCEPT_STAGES.length - 1 ? `
+        <div class="stage-arrow">
+            <svg viewBox="0 0 32 24" fill="none">
+                <path d="M4 12 H26 M20 6 L28 12 L20 18" stroke="#22c55e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" opacity="0.5"/>
+            </svg>
+        </div>` : ''}
+    `).join('');
+    rail.innerHTML = html;
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   OBJECT METADATA FOR INSPECTOR
+───────────────────────────────────────────────────────────────── */
+const SOURCE_OBJECTS = {
+    'Get-Process': {
+        type: 'System.Diagnostics.Process',
+        props: ['Name', 'Id', 'CPU', 'WorkingSet', 'Handles', 'StartTime', 'Path', 'Responding']
+    },
+    'Get-Service': {
+        type: 'System.ServiceProcess.ServiceController',
+        props: ['Name', 'DisplayName', 'Status', 'StartType', 'ServiceName', 'DependentServices']
+    },
+    'Get-ChildItem C:\\Windows': {
+        type: 'System.IO.FileInfo / DirectoryInfo',
+        props: ['Name', 'FullName', 'Length', 'LastWriteTime', 'CreationTime', 'Extension', 'Attributes']
+    },
+    'Get-EventLog -LogName System -Newest 100': {
+        type: 'System.Diagnostics.EventLogEntry',
+        props: ['EventID', 'TimeGenerated', 'EntryType', 'Source', 'Message', 'MachineName']
+    },
+    'Get-NetAdapter': {
+        type: 'Microsoft.Management.Infrastructure.CimInstance',
+        props: ['Name', 'Status', 'LinkSpeed', 'MacAddress', 'InterfaceDescription', 'DriverVersion']
+    },
+    'Get-HotFix': {
+        type: 'System.Management.ManagementObject',
+        props: ['HotFixID', 'InstalledOn', 'Description', 'InstalledBy', 'Caption']
+    }
+};
+
+/* ─────────────────────────────────────────────────────────────────
+   PIPELINE BUILDER
+───────────────────────────────────────────────────────────────── */
+function buildPipeline() {
+    const source    = document.getElementById('sel-source').value;
+    const filter    = document.getElementById('sel-filter').value;
+    const transform = document.getElementById('sel-transform').value;
+    const output    = document.getElementById('sel-output').value;
+
+    // Build display HTML with colored pipe separators
+    let parts = [
+        `<span style="color:#67e8f9;">${escHtml(source)}</span>`
+    ];
+    if (filter)    { parts.push(`<span style="color:#f59e0b;">${escHtml(filter)}</span>`); }
+    if (transform) { parts.push(`<span style="color:#c084fc;">${escHtml(transform)}</span>`); }
+    parts.push(`<span style="color:#22c55e;">${escHtml(output)}</span>`);
+
+    document.getElementById('pipeline-text').innerHTML =
+        parts.join('<span class="pipe-sep"> | </span>');
+
+    // Update object inspector
+    updateInspector(source, filter, transform, output);
+}
+
+function escHtml(str) {
+    return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function updateInspector(source, filter, transform, output) {
+    const srcMeta = SOURCE_OBJECTS[source] || { type: 'Object', props: ['Name', 'Value'] };
+    const stagesInfo = [
+        { name: '1. Source Output', props: srcMeta.props, note: `Type: <code style="color:#c084fc;">${srcMeta.type}</code>` },
+        filter    ? { name: '2. After Filter',    props: srcMeta.props, note: 'Same type, fewer objects — filter does not change properties' } : null,
+        transform ? { name: '3. After Transform', props: getTransformProps(transform, srcMeta.props), note: getTransformNote(transform) } : null,
+        { name: `${filter||transform ? '4' : '2'}. After Output`, props: ['(formatted output)'], note: getOutputNote(output) }
+    ].filter(Boolean);
+
+    const html = stagesInfo.map(s => `
+        <div style="margin-bottom:14px;">
+            <div style="font-size:12px;font-weight:700;color:var(--text-bright);margin-bottom:6px;">${s.name}</div>
+            <div class="obj-props">
+                ${s.props.map(p => `
+                    <span class="obj-prop">
+                        <span class="obj-prop-name">${p}</span>
+                    </span>
+                `).join('')}
+            </div>
+            <div style="font-size:11px;color:var(--text-dim);">${s.note}</div>
+        </div>
+    `).join('');
+
+    document.getElementById('inspector-content').innerHTML = html;
+}
+
+function getTransformProps(transform, originalProps) {
+    if (transform.includes('Select-Object Name,Id,CPU')) { return ['Name', 'Id', 'CPU']; }
+    if (transform.includes('Select Columns'))            { return ['Name', 'Id', 'CPU']; }
+    if (transform.includes('Group-Object'))              { return ['Name (group key)', 'Count', 'Group (array of objects)']; }
+    if (transform.includes('ForEach-Object'))            { return ['[string] (transformed value)']; }
+    return originalProps; // Sort just reorders, same props
+}
+
+function getTransformNote(transform) {
+    if (transform.includes('Sort'))   { return 'Blocking: must collect all objects before sorting — memory consideration for large sets'; }
+    if (transform.includes('Group'))  { return 'Returns GroupInfo objects, not original type — structure changes'; }
+    if (transform.includes('Select')) { return 'Returns PSCustomObject with only selected properties'; }
+    if (transform.includes('ForEach')){ return 'Returns whatever the script block produces — type changes'; }
+    return 'Objects pass through with same properties';
+}
+
+function getOutputNote(output) {
+    if (output.includes('Format-Table'))   { return 'Emits Format objects — cannot pipe further to most cmdlets'; }
+    if (output.includes('Export-Csv'))     { return 'Writes to file, passes objects through (with -PassThru)'; }
+    if (output.includes('ConvertTo-Json')) { return 'Emits JSON string — ideal for API calls or storage'; }
+    if (output.includes('Measure-Object')) { return 'Emits measurement objects: Count, Sum, Min, Max, Average'; }
+    if (output.includes('Out-GridView'))   { return 'Opens interactive grid UI — does not pass objects further'; }
+    return 'Terminal output — objects rendered as text';
+}
+
+function copyBuiltPipeline() {
+    const text = document.getElementById('pipeline-text').innerText;
+    navigator.clipboard.writeText(text).then(() => {
+        const btn = document.querySelector('.pipeline-copy-btn');
+        btn.textContent = 'Copied!';
+        setTimeout(() => { btn.textContent = 'Copy'; }, 1800);
+    });
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   FLOW ANIMATION DATA
+───────────────────────────────────────────────────────────────── */
+const FLOW_DATA = {
+    source: [
+        { name: 'chrome',      cpu: 28.4, wset: 312 },
+        { name: 'svchost',     cpu:  0.2, wset:  42 },
+        { name: 'powershell',  cpu:  9.1, wset: 128 },
+        { name: 'explorer',    cpu:  1.3, wset:  96 },
+        { name: 'vscode',      cpu: 14.7, wset: 480 },
+        { name: 'Teams',       cpu:  2.1, wset: 250 },
+        { name: 'sqlservr',    cpu: 22.9, wset: 620 },
+        { name: 'OneDrive',    cpu:  0.0, wset:  36 },
+    ]
+};
+
+let flowAnimRunning = false;
+let flowTimers = [];
+
+function renderFlowStages() {
+    const container = document.getElementById('flow-stages');
+    const headers = [
+        { label: '1. Get-Process',             cls: 'source',    hColor: 'var(--stage-source)',    bColor: 'rgba(14,165,233,.1)' },
+        { label: '2. Where CPU &gt; 5',        cls: 'filter',    hColor: 'var(--stage-filter)',    bColor: 'rgba(245,158,11,.1)' },
+        { label: '3. Sort-Object CPU Desc',     cls: 'transform', hColor: 'var(--stage-transform)', bColor: 'rgba(192,132,252,.1)' },
+        { label: '4. Select Name,CPU',          cls: 'output',    hColor: 'var(--stage-output)',    bColor: 'rgba(34,197,94,.1)' },
+    ];
+
+    container.innerHTML = headers.map((h, i) => `
+        <div class="flow-stage">
+            <div class="flow-stage-header" style="color:${h.hColor};border-color:${h.hColor};background:${h.bColor};">
+                ${h.label}
+            </div>
+            <div class="flow-stage-objects" id="flow-col-${i}"></div>
+        </div>
+    `).join('');
+}
+
+function runFlowAnimation() {
+    if (flowAnimRunning) { return; }
+    flowAnimRunning = true;
+    resetFlowAnimation();
+
+    const btn = document.getElementById('flow-run-btn');
+    btn.textContent = 'Running...';
+    btn.disabled = true;
+
+    const procs = FLOW_DATA.source;
+
+    // Stage 1: Source — emit all processes with delay
+    procs.forEach((p, i) => {
+        const t = setTimeout(() => {
+            addFlowObject(0, `<span class="prop">Name:</span> <span class="val">${p.name}</span>  <span class="prop">CPU:</span> <span class="highlight">${p.cpu}</span>`, false);
+        }, i * 250);
+        flowTimers.push(t);
+    });
+
+    // Stage 2: Filter — only CPU > 5
+    const filtered = procs.filter(p => p.cpu > 5);
+    const rejected = procs.filter(p => p.cpu <= 5);
+
+    const filterDelay = procs.length * 250 + 400;
+    rejected.forEach((p, i) => {
+        const t = setTimeout(() => {
+            addFlowObject(1, `<span style="color:var(--text-dim);text-decoration:line-through;">${p.name} (${p.cpu})</span>`, true);
+        }, filterDelay + i * 200);
+        flowTimers.push(t);
+    });
+    filtered.forEach((p, i) => {
+        const t = setTimeout(() => {
+            addFlowObject(1, `<span class="prop">Name:</span> <span class="val">${p.name}</span>  <span class="prop">CPU:</span> <span class="highlight">${p.cpu}</span>`, false);
+        }, filterDelay + rejected.length * 200 + i * 200);
+        flowTimers.push(t);
+    });
+
+    // Stage 3: Sort — show sorted
+    const sorted = [...filtered].sort((a, b) => b.cpu - a.cpu);
+    const sortDelay = filterDelay + (procs.length + 2) * 200 + 600;
+    const t3 = setTimeout(() => {
+        const col = document.getElementById('flow-col-2');
+        const label = document.createElement('div');
+        label.style.cssText = 'font-size:11px;color:#c084fc;opacity:.7;margin-bottom:4px;';
+        label.textContent = 'Collecting all... sorting...';
+        col.appendChild(label);
+    }, sortDelay);
+    flowTimers.push(t3);
+
+    sorted.forEach((p, i) => {
+        const t = setTimeout(() => {
+            addFlowObject(2, `<span class="prop">Name:</span> <span class="val">${p.name}</span>  <span class="prop">CPU:</span> <span class="highlight">${p.cpu}</span>`, false);
+        }, sortDelay + 600 + i * 180);
+        flowTimers.push(t);
+    });
+
+    // Stage 4: Select columns — only Name and CPU
+    const selectDelay = sortDelay + 600 + sorted.length * 180 + 400;
+    sorted.forEach((p, i) => {
+        const t = setTimeout(() => {
+            addFlowObject(3, `{ <span class="prop">Name</span>=<span class="val">"${p.name}"</span>, <span class="prop">CPU</span>=<span class="val">${p.cpu}</span> }`, false);
+        }, selectDelay + i * 200);
+        flowTimers.push(t);
+    });
+
+    // Re-enable button
+    const doneDelay = selectDelay + sorted.length * 200 + 800;
+    const tDone = setTimeout(() => {
+        btn.textContent = 'Run Animation';
+        btn.disabled = false;
+        flowAnimRunning = false;
+    }, doneDelay);
+    flowTimers.push(tDone);
+}
+
+function addFlowObject(colIdx, html, isFiltered) {
+    const col = document.getElementById(`flow-col-${colIdx}`);
+    const el = document.createElement('div');
+    el.className = 'flow-obj' + (isFiltered ? ' filtered-out' : '');
+    el.innerHTML = html;
+    col.appendChild(el);
+    // Trigger visibility animation on next frame
+    requestAnimationFrame(() => {
+        requestAnimationFrame(() => { el.classList.add('visible'); });
+    });
+}
+
+function resetFlowAnimation() {
+    flowTimers.forEach(clearTimeout);
+    flowTimers = [];
+    flowAnimRunning = false;
+    [0,1,2,3].forEach(i => {
+        const col = document.getElementById(`flow-col-${i}`);
+        if (col) { col.innerHTML = ''; }
+    });
+    const btn = document.getElementById('flow-run-btn');
+    if (btn) { btn.textContent = 'Run Animation'; btn.disabled = false; }
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   WORKED EXAMPLES DATA
+───────────────────────────────────────────────────────────────── */
+const EXAMPLES = [
+    {
+        title: 'Find High-CPU Processes',
+        difficulty: 'basic',
+        diffLabel: 'Basic',
+        desc: 'Identifies processes consuming significant CPU, sorted for quick identification of the biggest offenders.',
+        stages: [
+            { color: 'var(--stage-source)',    code: '<span class="cmd">Get-Process</span>', note: 'Retrieves all running processes as [Process] objects' },
+            { color: 'var(--stage-filter)',    code: '<span class="kw">Where-Object</span> { <span class="var">$_</span><span class="op">.</span>CPU <span class="op">-gt</span> <span class="num">100</span> }', note: 'Passes only objects where the CPU property exceeds 100 seconds' },
+            { color: 'var(--stage-transform)', code: '<span class="cmd">Sort-Object</span> CPU <span class="op">-Descending</span>', note: 'Blocking — collects all filtered objects, returns sorted array' },
+            { color: 'var(--stage-output)',    code: '<span class="cmd">Select-Object</span> Name, Id, CPU, WorkingSet', note: 'Creates PSCustomObject with only these four properties' },
+        ],
+        output: [
+            'Name           Id      CPU     WorkingSet',
+            '----           --      ---     ----------',
+            'chrome        1234   842.33    327XXXXXXX',
+            'sqlservr       892   291.10    651XXXXXXX',
+            'vscode        5512   134.77    490XXXXXXX',
+        ]
+    },
+    {
+        title: 'Find and Restart Failed Services',
+        difficulty: 'intermediate',
+        diffLabel: 'Intermediate',
+        desc: 'Queries services that should start automatically but are currently stopped — a common admin health-check task.',
+        stages: [
+            { color: 'var(--stage-source)',    code: '<span class="cmd">Get-Service</span>', note: 'Emits [ServiceController] objects for every Windows service' },
+            { color: 'var(--stage-filter)',    code: '<span class="kw">Where-Object</span> { <span class="var">$_</span><span class="op">.</span>Status <span class="op">-eq</span> <span class="str">"Stopped"</span> <span class="op">-and</span> <span class="var">$_</span><span class="op">.</span>StartType <span class="op">-eq</span> <span class="str">"Automatic"</span> }', note: 'Two-condition filter: stopped AND expected to run automatically' },
+            { color: 'var(--stage-transform)', code: '<span class="cmd">ForEach-Object</span> { <span class="cmd">Start-Service</span> <span class="var">$_</span> <span class="op">-PassThru</span> }', note: 'Pipes each service object into Start-Service; -PassThru returns the service after starting' },
+            { color: 'var(--stage-output)',    code: '<span class="cmd">Select-Object</span> Name, Status <span class="op">|</span> <span class="cmd">Format-Table</span> <span class="op">-AutoSize</span>', note: 'Shows only name and new status in a formatted table' },
+        ],
+        output: [
+            'Name                   Status',
+            '----                   ------',
+            'wuauserv              Running',
+            'BITS                  Running',
+        ]
+    },
+    {
+        title: 'Disk Usage Analysis',
+        difficulty: 'intermediate',
+        diffLabel: 'Intermediate',
+        desc: 'Finds the largest files in a directory tree and exports a report. Critical for capacity planning.',
+        stages: [
+            { color: 'var(--stage-source)',    code: '<span class="cmd">Get-ChildItem</span> <span class="op">-Path</span> <span class="str">"D:\\"</span> <span class="op">-Recurse</span> <span class="op">-File</span> <span class="op">-ErrorAction</span> SilentlyContinue', note: '-File restricts to files only; -ErrorAction SilentlyContinue skips permission-denied folders' },
+            { color: 'var(--stage-filter)',    code: '<span class="kw">Where-Object</span> { <span class="var">$_</span><span class="op">.</span>Length <span class="op">-gt</span> <span class="num">100MB</span> }', note: 'PowerShell multipliers (KB, MB, GB) convert to bytes automatically' },
+            { color: 'var(--stage-transform)', code: '<span class="cmd">Sort-Object</span> Length <span class="op">-Descending</span> <span class="op">|</span> <span class="cmd">Select-Object</span> FullName, <span class="op">@</span>{N=<span class="str">"SizeMB"</span>;E={[<span class="typ">math</span>]::Round(<span class="var">$_</span><span class="op">.</span>Length/<span class="num">1MB</span>,<span class="num">1</span>)}}', note: 'Calculated property (@{N="name";E={expression}}) renames and formats the value' },
+            { color: 'var(--stage-output)',    code: '<span class="cmd">Export-Csv</span> large-files.csv <span class="op">-NoTypeInformation</span>', note: '-NoTypeInformation omits the #TYPE header line from the CSV' },
+        ],
+        output: [
+            '"FullName","SizeMB"',
+            '"D:\\Backups\\full-backup.bak","4821.3"',
+            '"D:\\Media\\archive.zip","2140.0"',
+            '"D:\\VM\\win11.vhdx","1924.6"',
+        ]
+    },
+    {
+        title: 'Security Event Log Analysis',
+        difficulty: 'advanced',
+        diffLabel: 'Advanced',
+        desc: 'Extracts failed logon events (Event ID 4625) from the Security log and groups by username to detect brute-force attempts.',
+        stages: [
+            { color: 'var(--stage-source)',    code: '<span class="cmd">Get-WinEvent</span> <span class="op">-FilterHashtable</span> @{ LogName=<span class="str">"Security"</span>; Id=<span class="num">4625</span>; StartTime=((<span class="cmd">Get-Date</span>)<span class="op">.</span>AddHours(<span class="op">-</span><span class="num">24</span>)) }', note: 'FilterHashtable is server-side filtering — far faster than Get-EventLog | Where-Object for large logs' },
+            { color: 'var(--stage-filter)',    code: '<span class="kw">Where-Object</span> { <span class="var">$_</span><span class="op">.</span>Message <span class="op">-match</span> <span class="str">"Account Name:"</span> }', note: 'Ensures we only process events with the expected field structure' },
+            { color: 'var(--stage-transform)', code: '<span class="cmd">ForEach-Object</span> {\n    [<span class="typ">PSCustomObject</span>]@{\n        Time    = <span class="var">$_</span><span class="op">.</span>TimeCreated\n        Account = (<span class="var">$_</span><span class="op">.</span>Properties[<span class="num">5</span>])<span class="op">.</span>Value\n        Source  = (<span class="var">$_</span><span class="op">.</span>Properties[<span class="num">19</span>])<span class="op">.</span>Value\n    }\n} <span class="op">|</span> <span class="cmd">Group-Object</span> Account', note: 'Event property indices are fixed by the event schema; Group-Object aggregates by account name' },
+            { color: 'var(--stage-output)',    code: '<span class="cmd">Sort-Object</span> Count <span class="op">-Descending</span> <span class="op">|</span> <span class="cmd">Select-Object</span> Count, Name <span class="op">|</span> <span class="cmd">Format-Table</span> <span class="op">-AutoSize</span>', note: 'High Count = potential brute-force. Investigate any account with &gt;20 failures in 24h.' },
+        ],
+        output: [
+            'Count Name',
+            '----- ----',
+            '  847 Administrator',
+            '  312 admin',
+            '   14 jdoe',
+        ]
+    }
+];
+
+function renderExamples() {
+    const section = document.getElementById('examples-section');
+    section.innerHTML = EXAMPLES.map((ex, i) => `
+        <div class="example-card" id="ex-${i}" onclick="toggleExample(${i})">
+            <div class="example-head">
+                <div class="example-head-left">
+                    <span class="example-difficulty diff-${ex.difficulty}">${ex.diffLabel}</span>
+                    <span class="example-title">${ex.title}</span>
+                </div>
+                <span class="expand-icon">&#9654;</span>
+            </div>
+            <div class="example-body">
+                <p class="example-desc">${ex.desc}</p>
+                <div class="annotated-pipeline">
+                    ${ex.stages.map((s, si) => `
+                        <div class="ap-line">
+                            <div class="ap-stage-dot" style="background:${s.color}"></div>
+                            <div>
+                                <div class="ap-code">${si > 0 ? '<span style="color:#22c55e;font-weight:700;">| </span>' : ''}${s.code}</div>
+                                <div class="ap-annotation">${s.note}</div>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+                <div class="output-preview">
+                    <div class="output-preview-label">Sample Output</div>
+                    ${ex.output.map(line => `<div class="output-row">${escapeHtml(line)}</div>`).join('')}
+                </div>
+            </div>
+        </div>
+    `).join('');
+}
+
+function escapeHtml(str) {
+    return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function toggleExample(i) {
+    document.getElementById(`ex-${i}`).classList.toggle('open');
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   MODULE COMPLETION
+───────────────────────────────────────────────────────────────── */
+function completeModule() {
+    if (typeof ModuleProgress !== 'undefined') {
+        ModuleProgress.complete('script', 'script-pwsh-pipeline', {
+            returnUrl: '../labs/script-powershell.lab.html'
+        });
+    } else {
+        alert('Module marked complete! Great work mastering the PowerShell Pipeline.');
+        window.location.href = '../labs/script-powershell.lab.html';
+    }
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   INIT
+───────────────────────────────────────────────────────────────── */
+(function init() {
+    renderConceptRail();
+    buildPipeline();           // initial pipeline display
+    renderFlowStages();
+    renderExamples();
+})();
+</script>
+</body>
+</html>
