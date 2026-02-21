@@ -1,0 +1,964 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <!-- Progress & Achievements -->
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Data Access Lab - MD-100</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            min-height: 100vh;
+            background: #0c0c0c;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: #e0d0c0;
+        }
+
+        .lab-header {
+            padding: 14px 28px;
+            background: rgba(10, 10, 15, 0.95);
+            border-bottom: 1px solid rgba(234, 88, 12, 0.2);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky; top: 0; z-index: 100;
+        }
+
+        .header-left { display: flex; align-items: center; gap: 18px; }
+
+        .back-btn {
+            padding: 7px 15px;
+            background: rgba(234, 88, 12, 0.1);
+            border: 1px solid rgba(234, 88, 12, 0.3);
+            border-radius: 6px;
+            color: #f97316;
+            text-decoration: none;
+            font-size: 0.83rem;
+            transition: background 0.2s;
+        }
+        .back-btn:hover { background: rgba(234, 88, 12, 0.2); }
+
+        .lab-title { font-size: 0.98rem; color: #f5e6d3; font-weight: 500; }
+
+        .lab-badge {
+            padding: 3px 11px;
+            background: rgba(234, 88, 12, 0.15);
+            border: 1px solid rgba(234, 88, 12, 0.3);
+            border-radius: 12px;
+            font-size: 0.68rem;
+            color: #ea580c;
+            letter-spacing: 0.06em;
+        }
+
+        .task-progress { font-size: 0.83rem; color: #8a7060; }
+        .task-count { color: #f97316; font-weight: 600; }
+
+        .lab-container {
+            display: grid;
+            grid-template-columns: 350px 1fr;
+            height: calc(100vh - 54px);
+        }
+
+        .task-panel {
+            background: rgba(15, 12, 8, 0.95);
+            border-right: 1px solid rgba(234, 88, 12, 0.12);
+            overflow-y: auto;
+            padding: 20px;
+        }
+
+        .task-section-title {
+            font-size: 0.68rem;
+            color: #6b5040;
+            letter-spacing: 0.14em;
+            text-transform: uppercase;
+            margin-bottom: 12px;
+        }
+
+        .task-card {
+            background: rgba(20, 15, 10, 0.8);
+            border: 1px solid rgba(234, 88, 12, 0.12);
+            border-radius: 10px;
+            padding: 14px;
+            margin-bottom: 10px;
+            cursor: pointer;
+            transition: all 0.25s;
+            position: relative;
+        }
+        .task-card:hover { border-color: rgba(234, 88, 12, 0.35); }
+        .task-card.active { border-left: 3px solid #ea580c; background: rgba(234, 88, 12, 0.1); }
+        .task-card.completed { border-color: rgba(34, 197, 94, 0.35); }
+        .task-card.completed::after {
+            content: '✓';
+            position: absolute;
+            top: 12px; right: 14px;
+            color: #22c55e; font-weight: 700;
+        }
+
+        .task-number { font-size: 0.68rem; color: #ea580c; margin-bottom: 4px; }
+        .task-name { font-size: 0.92rem; color: #f5e6d3; margin-bottom: 4px; font-weight: 500; }
+        .task-desc { font-size: 0.78rem; color: #8a7060; line-height: 1.45; }
+
+        .lab-main { overflow-y: auto; padding: 28px 32px; background: #0a0a0a; }
+
+        .task-view { display: none; }
+        .task-view.active { display: block; }
+
+        .task-header {
+            margin-bottom: 24px;
+            padding-bottom: 18px;
+            border-bottom: 1px solid rgba(234, 88, 12, 0.15);
+        }
+        .task-header h2 { font-size: 1.25rem; color: #f97316; margin-bottom: 6px; }
+        .task-header p { font-size: 0.88rem; color: #9a8070; line-height: 1.55; }
+
+        /* Permission Calculator */
+        .perm-scenario {
+            background: rgba(13,17,23,0.95);
+            border: 1px solid rgba(234,88,12,0.2);
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .perm-title { font-size: 0.9rem; color: #f97316; margin-bottom: 14px; }
+
+        .perm-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            margin-bottom: 16px;
+        }
+
+        .perm-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.83rem;
+        }
+        .perm-table th {
+            background: rgba(234,88,12,0.12);
+            color: #f97316;
+            padding: 8px 12px;
+            text-align: left;
+        }
+        .perm-table td {
+            padding: 8px 12px;
+            border-bottom: 1px solid rgba(234,88,12,0.08);
+            color: #c0b0a0;
+        }
+
+        .perm-allow { color: #22c55e; font-weight: 600; }
+        .perm-deny  { color: #ef4444; font-weight: 600; }
+        .perm-none  { color: #6b5040; }
+
+        .perm-question {
+            background: rgba(234,88,12,0.06);
+            border: 1px solid rgba(234,88,12,0.15);
+            border-radius: 8px;
+            padding: 14px;
+            font-size: 0.86rem;
+            color: #c0b0a0;
+            margin-bottom: 12px;
+        }
+
+        .perm-options { display: flex; flex-wrap: wrap; gap: 8px; }
+
+        .perm-btn {
+            padding: 8px 16px;
+            background: rgba(30,22,14,0.9);
+            border: 1px solid rgba(234,88,12,0.2);
+            border-radius: 7px;
+            color: #c0b0a0;
+            font-size: 0.82rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .perm-btn:hover { background: rgba(234,88,12,0.12); border-color: rgba(234,88,12,0.4); color: #f5e6d3; }
+        .perm-btn.correct { background: rgba(34,197,94,0.15); border-color: #22c55e; color: #22c55e; }
+        .perm-btn.incorrect { background: rgba(239,68,68,0.12); border-color: #ef4444; color: #ef4444; }
+        .perm-btn:disabled { cursor: not-allowed; opacity: 0.75; }
+
+        /* Share + NTFS combined */
+        .combined-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.84rem;
+            margin-bottom: 16px;
+        }
+        .combined-table th {
+            background: rgba(234,88,12,0.13);
+            color: #f97316;
+            padding: 9px 13px;
+            text-align: left;
+        }
+        .combined-table td {
+            padding: 10px 13px;
+            border-bottom: 1px solid rgba(234,88,12,0.09);
+            color: #c0b0a0;
+            vertical-align: middle;
+        }
+
+        /* icacls terminal */
+        .icacls-terminal {
+            background: #0d1117;
+            border: 1px solid rgba(234,88,12,0.2);
+            border-radius: 10px;
+            padding: 16px 18px;
+            margin-bottom: 14px;
+            font-family: 'Consoles', 'Courier New', monospace;
+        }
+
+        .ica-context {
+            font-family: 'Segoe UI', sans-serif;
+            font-size: 0.83rem;
+            color: #9a8070;
+            margin-bottom: 10px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid rgba(234,88,12,0.1);
+        }
+
+        .ica-prompt { color: #22c55e; font-size: 0.82rem; margin-bottom: 4px; }
+
+        .ica-line {
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 5px;
+            font-size: 0.9rem;
+            color: #a0c0e0;
+            line-height: 2;
+        }
+
+        .ica-input {
+            background: rgba(234,88,12,0.08);
+            border: 1px dashed rgba(234,88,12,0.5);
+            border-radius: 4px;
+            color: #f97316;
+            font-family: 'Consolas', monospace;
+            font-size: 0.87rem;
+            padding: 3px 8px;
+            outline: none;
+        }
+        .ica-input:focus { border-color: #ea580c; border-style: solid; }
+        .ica-input.correct { border-color: #22c55e; color: #22c55e; background: rgba(34,197,94,0.08); border-style: solid; }
+        .ica-input.incorrect { border-color: #ef4444; color: #ef4444; background: rgba(239,68,68,0.08); border-style: solid; }
+
+        /* Share config */
+        .share-builder {
+            background: rgba(13,17,23,0.95);
+            border: 1px solid rgba(234,88,12,0.2);
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 18px;
+        }
+
+        .share-row {
+            display: grid;
+            grid-template-columns: 200px 1fr;
+            gap: 14px;
+            align-items: center;
+            margin-bottom: 13px;
+        }
+
+        .share-label { font-size: 0.8rem; color: #8a7060; }
+
+        .share-select {
+            background: rgba(20,16,12,0.9);
+            border: 1px solid rgba(234,88,12,0.25);
+            border-radius: 6px;
+            color: #d0c0b0;
+            font-size: 0.84rem;
+            padding: 7px 10px;
+            outline: none;
+        }
+        .share-select.correct { border-color: #22c55e; color: #22c55e; }
+        .share-select.incorrect { border-color: #ef4444; color: #ef4444; }
+
+        /* OneDrive scenarios */
+        .od-scenario {
+            background: rgba(20,16,12,0.9);
+            border: 1px solid rgba(234,88,12,0.15);
+            border-radius: 9px;
+            padding: 14px 16px;
+            margin-bottom: 12px;
+        }
+
+        .scenario-label { font-size: 0.7rem; color: #ea580c; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 5px; }
+        .scenario-text { font-size: 0.86rem; color: #d0c0b0; line-height: 1.5; margin-bottom: 10px; }
+
+        .option-group-h { display: flex; flex-wrap: wrap; gap: 8px; }
+
+        .option-btn {
+            padding: 8px 14px;
+            background: rgba(30,22,14,0.9);
+            border: 1px solid rgba(234,88,12,0.2);
+            border-radius: 7px;
+            color: #c0b0a0;
+            font-size: 0.82rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .option-btn:hover { background: rgba(234,88,12,0.12); border-color: rgba(234,88,12,0.4); color: #f5e6d3; }
+        .option-btn.correct { background: rgba(34,197,94,0.15); border-color: #22c55e; color: #22c55e; }
+        .option-btn.incorrect { background: rgba(239,68,68,0.12); border-color: #ef4444; color: #ef4444; }
+        .option-btn:disabled { cursor: not-allowed; opacity: 0.75; }
+
+        .feedback {
+            padding: 12px 16px;
+            border-radius: 8px;
+            font-size: 0.86rem;
+            line-height: 1.55;
+            margin-top: 12px;
+            display: none;
+        }
+        .feedback.show { display: block; }
+        .feedback.success { background: rgba(34,197,94,0.12); border: 1px solid rgba(34,197,94,0.3); color: #86efac; }
+        .feedback.error { background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.3); color: #fca5a5; }
+
+        .check-btn {
+            padding: 10px 26px;
+            background: linear-gradient(135deg, #ea580c, #c2410c);
+            border: none;
+            border-radius: 8px;
+            color: #fff;
+            font-size: 0.9rem;
+            cursor: pointer;
+            margin-top: 14px;
+            transition: all 0.25s;
+        }
+        .check-btn:hover { box-shadow: 0 4px 16px rgba(234,88,12,0.35); transform: translateY(-1px); }
+        .check-btn:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }
+
+        .complete-section { display: none; text-align: center; padding: 40px 20px; border-top: 1px solid rgba(234,88,12,0.15); margin-top: 30px; }
+        .complete-section.show { display: block; }
+        .complete-section p { color: #9a8070; margin-bottom: 18px; font-size: 0.92rem; }
+        .complete-btn {
+            padding: 13px 36px;
+            background: #22c55e;
+            border: none;
+            border-radius: 9px;
+            color: #fff;
+            font-size: 1rem;
+            cursor: pointer;
+            box-shadow: 0 3px 12px rgba(34,197,94,0.3);
+        }
+        .complete-btn:hover { background: #16a34a; }
+
+        @media (max-width: 900px) {
+            .lab-container { grid-template-columns: 1fr; }
+            .task-panel { display: none; }
+            .perm-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+
+<header class="lab-header">
+    <div class="header-left">
+        <a href="../../index.html" class="back-btn">← Back</a>
+        <span class="lab-title">MD-100 M06: Data Access Lab</span>
+        <span class="lab-badge">INTERACTIVE</span>
+    </div>
+    <div class="task-progress">
+        Tasks: <span class="task-count" id="taskProgress">0/5 Complete</span>
+    </div>
+</header>
+
+<div class="lab-container">
+    <aside class="task-panel">
+        <div class="task-section-title">Lab Tasks</div>
+
+        <div class="task-card active" data-task="1" onclick="selectTask(1)">
+            <div class="task-number">TASK 1</div>
+            <div class="task-name">NTFS Permission Calculator</div>
+            <div class="task-desc">Calculate effective NTFS permissions from user group memberships</div>
+        </div>
+
+        <div class="task-card" data-task="2" onclick="selectTask(2)">
+            <div class="task-number">TASK 2</div>
+            <div class="task-name">Share vs NTFS Permissions</div>
+            <div class="task-desc">Determine effective access when both share and NTFS permissions apply</div>
+        </div>
+
+        <div class="task-card" data-task="3" onclick="selectTask(3)">
+            <div class="task-number">TASK 3</div>
+            <div class="task-name">icacls Commands</div>
+            <div class="task-desc">Write icacls commands to set specific permissions on files and folders</div>
+        </div>
+
+        <div class="task-card" data-task="4" onclick="selectTask(4)">
+            <div class="task-number">TASK 4</div>
+            <div class="task-name">Sharing Configuration</div>
+            <div class="task-desc">Set up a shared folder with correct share and NTFS permissions</div>
+        </div>
+
+        <div class="task-card" data-task="5" onclick="selectTask(5)">
+            <div class="task-number">TASK 5</div>
+            <div class="task-name">OneDrive & Folder Redirection</div>
+            <div class="task-desc">Configure file sync and redirection for different user scenarios</div>
+        </div>
+    </aside>
+
+    <main class="lab-main">
+
+        <!-- TASK 1: NTFS Permission Calculator -->
+        <div class="task-view active" id="task-1">
+            <div class="task-header">
+                <h2>Task 1: NTFS Permission Calculator</h2>
+                <p>Alice is a member of three groups. Each group has different NTFS permissions on the folder D:\Reports. Calculate her effective access. Remember: permissions accumulate (union of Allow); an explicit Deny overrides all Allow permissions.</p>
+            </div>
+
+            <div class="perm-scenario">
+                <div class="perm-title">D:\Reports — NTFS Permissions</div>
+
+                <div class="perm-grid">
+                    <div>
+                        <table class="perm-table">
+                            <thead>
+                                <tr><th>Group</th><th>Permission</th><th>Type</th></tr>
+                            </thead>
+                            <tbody>
+                                <tr><td>Analysts</td><td>Read &amp; Execute</td><td class="perm-allow">Allow</td></tr>
+                                <tr><td>Managers</td><td>Modify</td><td class="perm-allow">Allow</td></tr>
+                                <tr><td>Contractors</td><td>Write</td><td class="perm-deny">Deny</td></tr>
+                                <tr><td>Analysts</td><td>List Folder Contents</td><td class="perm-allow">Allow</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div>
+                        <table class="perm-table">
+                            <thead>
+                                <tr><th>Alice's Groups</th><th></th></tr>
+                            </thead>
+                            <tbody>
+                                <tr><td>Analysts</td><td class="perm-allow">member</td></tr>
+                                <tr><td>Managers</td><td class="perm-allow">member</td></tr>
+                                <tr><td>Contractors</td><td class="perm-allow">member</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="perm-question">
+                    What is Alice's effective NTFS permission on D:\Reports?
+                    <br><span style="font-size:0.78rem; color:#6b5040;">Remember: Deny beats Allow. Permissions are cumulative across groups.</span>
+                </div>
+                <div class="perm-options" id="t1-perm-options">
+                    <button class="perm-btn" onclick="checkPermCalc('1','no-access',this)">No Access (Deny Write overrides everything)</button>
+                    <button class="perm-btn" onclick="checkPermCalc('1','read',this)">Read &amp; Execute only</button>
+                    <button class="perm-btn" onclick="checkPermCalc('1','modify',this)">Modify (Read, Write, Execute, Delete)</button>
+                    <button class="perm-btn" onclick="checkPermCalc('1','fullcontrol',this)">Full Control</button>
+                </div>
+
+                <div class="perm-question" style="margin-top:16px;">
+                    Now assume Alice is removed from the Contractors group. What is her effective permission?
+                </div>
+                <div class="perm-options" id="t1-perm-options-b">
+                    <button class="perm-btn" onclick="checkPermCalc('1b','no-access',this)">No Access</button>
+                    <button class="perm-btn" onclick="checkPermCalc('1b','read',this)">Read &amp; Execute only</button>
+                    <button class="perm-btn" onclick="checkPermCalc('1b','modify',this)">Modify</button>
+                    <button class="perm-btn" onclick="checkPermCalc('1b','fullcontrol',this)">Full Control</button>
+                </div>
+            </div>
+
+            <div class="feedback" id="t1-feedback"></div>
+            <button class="check-btn" id="t1-btn" onclick="completeT1()" disabled>Complete Task 1</button>
+        </div>
+
+        <!-- TASK 2: Share vs NTFS -->
+        <div class="task-view" id="task-2">
+            <div class="task-header">
+                <h2>Task 2: Share vs NTFS Permissions</h2>
+                <p>When accessing a resource over the network, <strong>both</strong> Share and NTFS permissions apply. The effective access is the <em>most restrictive</em> (intersection) of the two. For local access, only NTFS applies.</p>
+            </div>
+
+            <table class="combined-table">
+                <thead>
+                    <tr>
+                        <th>User</th>
+                        <th>Share Permission</th>
+                        <th>NTFS Permission</th>
+                        <th>Access via Network</th>
+                        <th>Access Locally</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Bob</td>
+                        <td>Read</td>
+                        <td>Full Control</td>
+                        <td>
+                            <select class="share-select" id="s2-bob-net">
+                                <option value="">-- Select --</option>
+                                <option value="read">Read</option>
+                                <option value="modify">Modify</option>
+                                <option value="fullcontrol">Full Control</option>
+                                <option value="noaccess">No Access</option>
+                            </select>
+                        </td>
+                        <td>
+                            <select class="share-select" id="s2-bob-local">
+                                <option value="">-- Select --</option>
+                                <option value="read">Read</option>
+                                <option value="modify">Modify</option>
+                                <option value="fullcontrol">Full Control</option>
+                                <option value="noaccess">No Access</option>
+                            </select>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>Carol</td>
+                        <td>Full Control</td>
+                        <td>Read</td>
+                        <td>
+                            <select class="share-select" id="s2-carol-net">
+                                <option value="">-- Select --</option>
+                                <option value="read">Read</option>
+                                <option value="modify">Modify</option>
+                                <option value="fullcontrol">Full Control</option>
+                                <option value="noaccess">No Access</option>
+                            </select>
+                        </td>
+                        <td>
+                            <select class="share-select" id="s2-carol-local">
+                                <option value="">-- Select --</option>
+                                <option value="read">Read</option>
+                                <option value="modify">Modify</option>
+                                <option value="fullcontrol">Full Control</option>
+                                <option value="noaccess">No Access</option>
+                            </select>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>Dave</td>
+                        <td>Change (Modify)</td>
+                        <td>Modify</td>
+                        <td>
+                            <select class="share-select" id="s2-dave-net">
+                                <option value="">-- Select --</option>
+                                <option value="read">Read</option>
+                                <option value="modify">Modify</option>
+                                <option value="fullcontrol">Full Control</option>
+                                <option value="noaccess">No Access</option>
+                            </select>
+                        </td>
+                        <td>
+                            <select class="share-select" id="s2-dave-local">
+                                <option value="">-- Select --</option>
+                                <option value="read">Read</option>
+                                <option value="modify">Modify</option>
+                                <option value="fullcontrol">Full Control</option>
+                                <option value="noaccess">No Access</option>
+                            </select>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>Eve</td>
+                        <td>Full Control</td>
+                        <td>No Access (Deny All)</td>
+                        <td>
+                            <select class="share-select" id="s2-eve-net">
+                                <option value="">-- Select --</option>
+                                <option value="read">Read</option>
+                                <option value="modify">Modify</option>
+                                <option value="fullcontrol">Full Control</option>
+                                <option value="noaccess">No Access</option>
+                            </select>
+                        </td>
+                        <td>
+                            <select class="share-select" id="s2-eve-local">
+                                <option value="">-- Select --</option>
+                                <option value="read">Read</option>
+                                <option value="modify">Modify</option>
+                                <option value="fullcontrol">Full Control</option>
+                                <option value="noaccess">No Access</option>
+                            </select>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <div class="feedback" id="t2-feedback"></div>
+            <button class="check-btn" onclick="checkTask2()">Check Permissions</button>
+        </div>
+
+        <!-- TASK 3: icacls Commands -->
+        <div class="task-view" id="task-3">
+            <div class="task-header">
+                <h2>Task 3: icacls Commands</h2>
+                <p>Fill in the missing parts of each icacls command. Use correct permission flags: (F)=Full, (M)=Modify, (RX)=Read&amp;Execute, (R)=Read, (W)=Write. Use /grant for adding, /deny for explicit deny, /remove for removing.</p>
+            </div>
+
+            <div class="icacls-terminal">
+                <div class="ica-context">Grant user "jdoe" Modify permission on C:\Data\Projects (inheritable by subfolders and files)</div>
+                <div class="ica-prompt">C:\&gt; </div>
+                <div class="ica-line">
+                    <span>icacls</span>
+                    <span>"C:\Data\Projects"</span>
+                    <input class="ica-input" id="ic1-a" placeholder="switch" style="width:70px;" spellcheck="false">
+                    <span>"DOMAIN\jdoe":</span>
+                    <input class="ica-input" id="ic1-b" placeholder="perm" style="width:55px;" spellcheck="false">
+                </div>
+            </div>
+
+            <div class="icacls-terminal">
+                <div class="ica-context">Explicitly deny "BUILTIN\Guests" all access to C:\Secure\Payroll</div>
+                <div class="ica-prompt">C:\&gt; </div>
+                <div class="ica-line">
+                    <span>icacls</span>
+                    <span>"C:\Secure\Payroll"</span>
+                    <input class="ica-input" id="ic2-a" placeholder="switch" style="width:70px;" spellcheck="false">
+                    <span>"BUILTIN\Guests":</span>
+                    <input class="ica-input" id="ic2-b" placeholder="perm" style="width:40px;" spellcheck="false">
+                </div>
+            </div>
+
+            <div class="icacls-terminal">
+                <div class="ica-context">Remove ALL permissions for user "tempuser" from C:\Temp\Archive</div>
+                <div class="ica-prompt">C:\&gt; </div>
+                <div class="ica-line">
+                    <span>icacls</span>
+                    <span>"C:\Temp\Archive"</span>
+                    <input class="ica-input" id="ic3-a" placeholder="switch" style="width:80px;" spellcheck="false">
+                    <span>"DOMAIN\tempuser"</span>
+                </div>
+            </div>
+
+            <div class="icacls-terminal">
+                <div class="ica-context">Grant the group "SalesTeam" Read & Execute on C:\Reports, applying to this folder only (not subfolders)</div>
+                <div class="ica-prompt">C:\&gt; </div>
+                <div class="ica-line">
+                    <span>icacls</span>
+                    <span>"C:\Reports"</span>
+                    <span>/grant</span>
+                    <span>"SalesTeam":</span>
+                    <input class="ica-input" id="ic4-a" placeholder="perm" style="width:55px;" spellcheck="false">
+                </div>
+            </div>
+
+            <div class="feedback" id="t3-feedback"></div>
+            <button class="check-btn" onclick="checkTask3()">Check icacls Commands</button>
+        </div>
+
+        <!-- TASK 4: Sharing Configuration -->
+        <div class="task-view" id="task-4">
+            <div class="task-header">
+                <h2>Task 4: Sharing Configuration</h2>
+                <p>Configure a shared folder for the following scenario by selecting the correct settings. The goal is least-privilege: users get exactly what they need, nothing more.</p>
+            </div>
+
+            <div class="od-scenario" style="margin-bottom:20px;">
+                <div class="scenario-label">Scenario</div>
+                <div class="scenario-text">
+                    Create a shared folder at D:\Projects called "ProjectShare". Three groups need access:<br>
+                    - <strong>ProjectReaders</strong>: read-only access to files<br>
+                    - <strong>ProjectEditors</strong>: create, modify, and delete files<br>
+                    - <strong>ProjectAdmins</strong>: full control including changing permissions<br>
+                    - <strong>Everyone else</strong>: no access<br><br>
+                    Best practice: Set Share permissions to <em>Everyone: Full Control</em> (or the highest needed group), then use <em>NTFS permissions</em> to enforce granular access.
+                </div>
+            </div>
+
+            <div class="share-builder">
+                <div style="font-size:0.9rem; color:#f97316; margin-bottom:16px;">Share Permissions (network access gate)</div>
+
+                <div class="share-row">
+                    <div class="share-label">Share permission for "Everyone"</div>
+                    <select class="share-select" id="sh1">
+                        <option value="">-- Select --</option>
+                        <option value="fc">Full Control</option>
+                        <option value="change">Change</option>
+                        <option value="read">Read</option>
+                        <option value="none">Do not share</option>
+                    </select>
+                </div>
+
+                <div style="font-size:0.9rem; color:#f97316; margin-bottom:12px; margin-top:8px;">NTFS Permissions (enforced access control)</div>
+
+                <div class="share-row">
+                    <div class="share-label">NTFS: ProjectReaders</div>
+                    <select class="share-select" id="sh2">
+                        <option value="">-- Select --</option>
+                        <option value="fc">Full Control</option>
+                        <option value="modify">Modify</option>
+                        <option value="rx">Read &amp; Execute</option>
+                        <option value="write">Write</option>
+                        <option value="none">No Access</option>
+                    </select>
+                </div>
+
+                <div class="share-row">
+                    <div class="share-label">NTFS: ProjectEditors</div>
+                    <select class="share-select" id="sh3">
+                        <option value="">-- Select --</option>
+                        <option value="fc">Full Control</option>
+                        <option value="modify">Modify</option>
+                        <option value="rx">Read &amp; Execute</option>
+                        <option value="write">Write</option>
+                        <option value="none">No Access</option>
+                    </select>
+                </div>
+
+                <div class="share-row">
+                    <div class="share-label">NTFS: ProjectAdmins</div>
+                    <select class="share-select" id="sh4">
+                        <option value="">-- Select --</option>
+                        <option value="fc">Full Control</option>
+                        <option value="modify">Modify</option>
+                        <option value="rx">Read &amp; Execute</option>
+                        <option value="write">Write</option>
+                        <option value="none">No Access</option>
+                    </select>
+                </div>
+
+                <div class="share-row">
+                    <div class="share-label">NTFS: Everyone else</div>
+                    <select class="share-select" id="sh5">
+                        <option value="">-- Select --</option>
+                        <option value="fc">Full Control</option>
+                        <option value="modify">Modify</option>
+                        <option value="rx">Read &amp; Execute</option>
+                        <option value="write">Write</option>
+                        <option value="none">No Access (not listed / Deny)</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="feedback" id="t4-feedback"></div>
+            <button class="check-btn" onclick="checkTask4()">Check Share Configuration</button>
+        </div>
+
+        <!-- TASK 5: OneDrive & Folder Redirection -->
+        <div class="task-view" id="task-5">
+            <div class="task-header">
+                <h2>Task 5: OneDrive &amp; Folder Redirection</h2>
+                <p>Select the correct file synchronization or redirection strategy for each user scenario.</p>
+            </div>
+
+            <div class="od-scenario">
+                <div class="scenario-label">Scenario 5A</div>
+                <div class="scenario-text">Remote worker using a personal Windows 10 laptop. Files must be available offline. No file server. When internet is available, files sync to Microsoft 365. IT wants users to continue using the familiar Documents folder path.</div>
+                <div class="option-group-h">
+                    <button class="option-btn" onclick="checkOD('5a','onedrive-silent',this)">OneDrive with Known Folder Move (Desktop, Documents, Pictures)</button>
+                    <button class="option-btn" onclick="checkOD('5a','gpo-redirect',this)">GPO Folder Redirection to \\FileServer\Users</button>
+                    <button class="option-btn" onclick="checkOD('5a','manual-sync',this)">Manual file copy to USB drive</button>
+                    <button class="option-btn" onclick="checkOD('5a','work-folders',this)">Work Folders (on-prem server)</button>
+                </div>
+            </div>
+
+            <div class="od-scenario">
+                <div class="scenario-label">Scenario 5B</div>
+                <div class="scenario-text">On-premises enterprise. 500 domain-joined PCs. Users must access their Documents on any machine they log into. Files live on a Windows file server. Group Policy manages the configuration centrally.</div>
+                <div class="option-group-h">
+                    <button class="option-btn" onclick="checkOD('5b','onedrive-silent',this)">OneDrive Known Folder Move</button>
+                    <button class="option-btn" onclick="checkOD('5b','gpo-redirect',this)">GPO Folder Redirection to \\FileServer\Users\%username%\Documents</button>
+                    <button class="option-btn" onclick="checkOD('5b','roaming',this)">Roaming Profiles only (no folder redirection)</button>
+                    <button class="option-btn" onclick="checkOD('5b','work-folders',this)">Work Folders (on-prem)</button>
+                </div>
+            </div>
+
+            <div class="od-scenario">
+                <div class="scenario-label">Scenario 5C</div>
+                <div class="scenario-text">A user's C: drive is 90% full. The Documents folder contains 80 GB of rarely-accessed files. IT wants to move the Documents folder to D:\UserData\Documents without breaking any application paths.</div>
+                <div class="option-group-h">
+                    <button class="option-btn" onclick="checkOD('5c','move-location',this)">Right-click Documents > Properties > Location tab > Move target to D:\UserData\Documents</button>
+                    <button class="option-btn" onclick="checkOD('5c','copy-delete',this)">Copy files to D:, delete from C:, create shortcut</button>
+                    <button class="option-btn" onclick="checkOD('5c','gpo',this)">Apply Folder Redirection GPO targeting D:</button>
+                    <button class="option-btn" onclick="checkOD('5c','symlink',this)">Create a symbolic link from C:\Users\user\Documents to D:\UserData\Documents</button>
+                </div>
+            </div>
+
+            <div class="od-scenario">
+                <div class="scenario-label">Scenario 5D</div>
+                <div class="scenario-text">Executive wants her Desktop, Documents, and Pictures automatically backed up to OneDrive — silently, without prompts. She should never see a setup wizard. IT deploys this via policy.</div>
+                <div class="option-group-h">
+                    <button class="option-btn" onclick="checkOD('5d','kfm-silent',this)">OneDrive KFM Silent (Configure via Registry/Intune policy: silently redirect known folders)</button>
+                    <button class="option-btn" onclick="checkOD('5d','kfm-prompt',this)">OneDrive KFM with user prompt</button>
+                    <button class="option-btn" onclick="checkOD('5d','manual',this)">Ask user to drag-and-drop files into OneDrive folder</button>
+                    <button class="option-btn" onclick="checkOD('5d','gpo-redirect',this)">GPO Folder Redirection to on-prem server</button>
+                </div>
+            </div>
+
+            <div class="feedback" id="t5-feedback"></div>
+            <button class="check-btn" id="t5-btn" onclick="checkTask5()" disabled>Complete Task 5</button>
+
+            <div class="complete-section" id="complete-section">
+                <p>All tasks complete. You can now calculate NTFS effective permissions, combine share and NTFS permissions, write icacls commands, configure shared folders with least-privilege, and implement OneDrive sync and folder redirection strategies.</p>
+                <button class="complete-btn" onclick="completeModule()">Complete Module</button>
+            </div>
+        </div>
+
+    </main>
+</div>
+
+<script>
+    let completedTasks = new Set();
+
+    // Task 1 state
+    const permCalcAnswers = { '1': 'no-access', '1b': 'modify' };
+    const permCalcCorrect = { '1': false, '1b': false };
+
+    // Task 2 answers: share+NTFS combined
+    const shareNtfsAnswers = {
+        's2-bob-net': 'read',       's2-bob-local': 'fullcontrol',
+        's2-carol-net': 'read',     's2-carol-local': 'read',
+        's2-dave-net': 'modify',    's2-dave-local': 'modify',
+        's2-eve-net': 'noaccess',   's2-eve-local': 'noaccess'
+    };
+
+    // Task 3: icacls answers
+    const icaclsAnswers = {
+        'ic1-a': '/grant', 'ic1-b': '(m)',
+        'ic2-a': '/deny',  'ic2-b': '(f)',
+        'ic3-a': '/remove',
+        'ic4-a': '(rx)'
+    };
+
+    // Task 4: sharing config
+    const shareAnswers = { sh1: 'fc', sh2: 'rx', sh3: 'modify', sh4: 'fc', sh5: 'none' };
+
+    // Task 5: OneDrive
+    const odAnswers = { '5a':'onedrive-silent', '5b':'gpo-redirect', '5c':'move-location', '5d':'kfm-silent' };
+    const odCorrect  = { '5a':false, '5b':false, '5c':false, '5d':false };
+
+    // ── Navigation ─────────────────────────────────────────────────────────────
+    function selectTask(n) {
+        document.querySelectorAll('.task-view').forEach(v => v.classList.remove('active'));
+        document.querySelectorAll('.task-card').forEach(c => c.classList.remove('active'));
+        document.getElementById('task-' + n).classList.add('active');
+        document.querySelector('[data-task="' + n + '"]').classList.add('active');
+    }
+
+    function markTaskComplete(n) {
+        completedTasks.add(n);
+        document.querySelector('[data-task="' + n + '"]').classList.add('completed');
+        document.getElementById('taskProgress').textContent = completedTasks.size + '/5 Complete';
+        if (completedTasks.size === 5) document.getElementById('complete-section').classList.add('show');
+    }
+
+    function showFeedback(id, type, msg) {
+        const el = document.getElementById(id);
+        el.className = 'feedback show ' + type;
+        el.innerHTML = msg;
+    }
+
+    // ── Task 1 ─────────────────────────────────────────────────────────────────
+    function checkPermCalc(id, chosen, btn) {
+        const container = btn.closest('.perm-options');
+        container.querySelectorAll('.perm-btn').forEach(b => { b.disabled = true; b.classList.remove('correct','incorrect'); });
+        if (chosen === permCalcAnswers[id]) {
+            btn.classList.add('correct');
+            permCalcCorrect[id] = true;
+        } else {
+            btn.classList.add('incorrect');
+            container.querySelectorAll('.perm-btn').forEach(b => {
+                const v = b.getAttribute('onclick').match(/'([^']+)'/g)[1].replace(/'/g,'');
+                if (v === permCalcAnswers[id]) b.classList.add('correct');
+            });
+        }
+        if (permCalcCorrect['1'] && permCalcCorrect['1b']) {
+            document.getElementById('t1-btn').disabled = false;
+            showFeedback('t1-feedback','success','Permission calculation correct. With Contractors group membership: the Deny Write from Contractors overrides all Allow permissions — result is No Access for Write operations (which prevents meaningful use). Without Contractors: Alice accumulates Read&Execute (Analysts) + Modify (Managers) = Modify (the higher of the two allowances).');
+        }
+    }
+
+    function completeT1() {
+        if (!completedTasks.has(1)) markTaskComplete(1);
+        selectTask(2);
+    }
+
+    // ── Task 2 ─────────────────────────────────────────────────────────────────
+    function checkTask2() {
+        let score = 0;
+        Object.keys(shareNtfsAnswers).forEach(id => {
+            const el = document.getElementById(id);
+            el.classList.remove('correct','incorrect');
+            if (el.value === shareNtfsAnswers[id]) { el.classList.add('correct'); score++; }
+            else el.classList.add('incorrect');
+        });
+        if (score === 8) {
+            showFeedback('t2-feedback','success','Combined permissions correct. Rule: Network access = most restrictive of Share AND NTFS. Local access = NTFS only (share permissions don\'t apply). Eve\'s NTFS Deny All blocks her everywhere — even Full Control on the share cannot override an NTFS Deny. Bob\'s Share Read limits his network access despite Full Control NTFS.');
+            if (!completedTasks.has(2)) markTaskComplete(2);
+            setTimeout(() => selectTask(3), 1400);
+        } else {
+            showFeedback('t2-feedback','error', score + '/8 correct. Remember: NTFS Deny cannot be overridden by Share permissions. Local access ignores share permissions entirely — only NTFS counts. Network access is the intersection (more restrictive) of both.');
+        }
+    }
+
+    // ── Task 3 ─────────────────────────────────────────────────────────────────
+    function checkTask3() {
+        let score = 0;
+        Object.keys(icaclsAnswers).forEach(id => {
+            const el = document.getElementById(id);
+            const val = el.value.trim().toLowerCase();
+            el.classList.remove('correct','incorrect');
+            if (val === icaclsAnswers[id]) { el.classList.add('correct'); score++; }
+            else el.classList.add('incorrect');
+        });
+        if (score === 6) {
+            showFeedback('t3-feedback','success','icacls commands correct. Flags: /grant adds permission; /deny adds explicit deny; /remove removes all entries for that user. Permission codes in parentheses: (F)=Full, (M)=Modify, (RX)=Read&Execute, (R)=Read, (W)=Write. Parentheses are required in the icacls syntax.');
+            if (!completedTasks.has(3)) markTaskComplete(3);
+            setTimeout(() => selectTask(4), 1200);
+        } else {
+            showFeedback('t3-feedback','error', score + '/6 correct. Note: Permission codes must be in parentheses: (M) not M. /remove takes only the username, not a permission flag. /deny with (F) denies Full Control.');
+        }
+    }
+
+    // ── Task 4 ─────────────────────────────────────────────────────────────────
+    function checkTask4() {
+        let score = 0;
+        Object.keys(shareAnswers).forEach(id => {
+            const el = document.getElementById(id);
+            el.classList.remove('correct','incorrect');
+            if (el.value === shareAnswers[id]) { el.classList.add('correct'); score++; }
+            else el.classList.add('incorrect');
+        });
+        if (score === 5) {
+            showFeedback('t4-feedback','success','Sharing configuration correct. Best practice: Set Share permission to Everyone: Full Control, then use NTFS to enforce granular control. This avoids troubleshooting two layers of restrictions simultaneously. NTFS Modify = create, read, write, execute, delete files. Full Control adds ability to change permissions and take ownership.');
+            if (!completedTasks.has(4)) markTaskComplete(4);
+            setTimeout(() => selectTask(5), 1400);
+        } else {
+            showFeedback('t4-feedback','error', score + '/5 correct. Remember the best-practice pattern: Share Everyone=Full Control, NTFS granular by group. ProjectReaders = Read&Execute. ProjectEditors = Modify (not Full Control). ProjectAdmins = Full Control (to manage permissions). Others should have no entry — absence of permission = no access.');
+        }
+    }
+
+    // ── Task 5 ─────────────────────────────────────────────────────────────────
+    function checkOD(scenario, chosen, btn) {
+        const card = btn.closest('.od-scenario');
+        card.querySelectorAll('.option-btn').forEach(b => { b.disabled = true; b.classList.remove('correct','incorrect'); });
+        if (chosen === odAnswers[scenario]) {
+            btn.classList.add('correct');
+            odCorrect[scenario] = true;
+        } else {
+            btn.classList.add('incorrect');
+            card.querySelectorAll('.option-btn').forEach(b => {
+                const v = b.getAttribute('onclick').match(/'([^']+)'/g)[1].replace(/'/g,'');
+                if (v === odAnswers[scenario]) b.classList.add('correct');
+            });
+        }
+        if (Object.values(odCorrect).every(Boolean)) {
+            document.getElementById('t5-btn').disabled = false;
+            showFeedback('t5-feedback','success','OneDrive and Folder Redirection strategies correct. OneDrive KFM = cloud-first, transparent to user, no file server needed. GPO Folder Redirection = on-prem, roaming access across domain computers. Documents Properties > Location = simple local drive move. KFM Silent = IT-controlled, zero user interaction, deployed via Intune or Registry policy.');
+        }
+    }
+
+    function checkTask5() {
+        if (!completedTasks.has(5)) markTaskComplete(5);
+    }
+
+    // ── Module Complete ────────────────────────────────────────────────────────
+    function completeModule() {
+        ModuleProgress.complete('forge', 'forge-md100-m06-lab', {
+            returnUrl: '../../index.html'
+        });
+    }
+</script>
+
+<script src="../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>

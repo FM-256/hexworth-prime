@@ -1,0 +1,906 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hardware &amp; Driver Troubleshooting Lab - MD-100</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            min-height: 100vh;
+            background: #0c0c0c;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: #e0d0c0;
+        }
+
+        .lab-header {
+            padding: 15px 30px;
+            background: rgba(10, 10, 15, 0.95);
+            border-bottom: 1px solid rgba(234, 88, 12, 0.2);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .header-left { display: flex; align-items: center; gap: 20px; }
+
+        .back-btn {
+            padding: 8px 16px;
+            background: rgba(234, 88, 12, 0.1);
+            border: 1px solid rgba(234, 88, 12, 0.3);
+            border-radius: 6px;
+            color: #f97316;
+            text-decoration: none;
+            font-size: 0.85rem;
+            transition: all 0.2s ease;
+        }
+        .back-btn:hover { background: rgba(234, 88, 12, 0.2); }
+
+        .lab-title { font-size: 1rem; color: #f5e6d0; font-weight: 500; }
+
+        .lab-badge {
+            padding: 4px 12px;
+            background: rgba(234, 88, 12, 0.15);
+            border: 1px solid rgba(234, 88, 12, 0.3);
+            border-radius: 12px;
+            font-size: 0.7rem;
+            color: #ea580c;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+        }
+
+        .task-progress { display: flex; align-items: center; gap: 10px; font-size: 0.85rem; color: #9a8070; }
+        .task-count { color: #f97316; font-weight: 600; }
+
+        .lab-container {
+            display: grid;
+            grid-template-columns: 350px 1fr;
+            min-height: calc(100vh - 61px);
+        }
+
+        .task-panel {
+            background: rgba(15, 12, 8, 0.95);
+            border-right: 1px solid rgba(234, 88, 12, 0.15);
+            padding: 20px;
+            overflow-y: auto;
+            position: sticky;
+            top: 61px;
+            height: calc(100vh - 61px);
+        }
+
+        .panel-heading {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: #ea580c;
+            margin-bottom: 15px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid rgba(234, 88, 12, 0.2);
+        }
+
+        .task-item {
+            background: rgba(234, 88, 12, 0.04);
+            border: 1px solid rgba(234, 88, 12, 0.1);
+            border-radius: 8px;
+            padding: 14px;
+            margin-bottom: 10px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .task-item:hover { background: rgba(234, 88, 12, 0.08); border-color: rgba(234, 88, 12, 0.25); }
+        .task-item.active { border-left: 3px solid #ea580c; background: rgba(234, 88, 12, 0.1); }
+        .task-item.completed { border-color: rgba(34, 197, 94, 0.4); background: rgba(34, 197, 94, 0.04); }
+        .task-item.completed .task-title::before { content: '✓ '; color: #22c55e; }
+
+        .task-title { font-size: 0.88rem; color: #f5e6d0; margin-bottom: 4px; font-weight: 500; }
+        .task-desc { font-size: 0.75rem; color: #7a6a5a; }
+
+        .main-content { padding: 30px; overflow-y: auto; }
+
+        .exercise-section { display: none; }
+        .exercise-section.active { display: block; }
+
+        .exercise-title { font-size: 1.2rem; color: #f97316; margin-bottom: 8px; font-weight: 600; }
+        .exercise-intro { font-size: 0.9rem; color: #9a8070; margin-bottom: 25px; line-height: 1.6; }
+
+        .scenario-card {
+            background: rgba(234, 88, 12, 0.06);
+            border: 1px solid rgba(234, 88, 12, 0.2);
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        .scenario-card h4 { color: #f97316; font-size: 0.85rem; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.05em; }
+        .scenario-card p { font-size: 0.9rem; color: #c0b0a0; line-height: 1.5; }
+
+        .options-list { display: flex; flex-direction: column; gap: 8px; margin-top: 15px; }
+        .options-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 15px; }
+
+        .option-btn {
+            padding: 12px 16px;
+            background: rgba(30, 25, 20, 0.8);
+            border: 1px solid rgba(234, 88, 12, 0.2);
+            border-radius: 8px;
+            color: #c0b0a0;
+            font-size: 0.85rem;
+            cursor: pointer;
+            text-align: left;
+            transition: all 0.2s ease;
+            font-family: inherit;
+        }
+        .option-btn:hover:not(:disabled) { background: rgba(234, 88, 12, 0.12); border-color: rgba(234, 88, 12, 0.4); color: #f5e6d0; }
+        .option-btn.correct { background: rgba(34, 197, 94, 0.12); border-color: #22c55e; color: #86efac; }
+        .option-btn.incorrect { background: rgba(220, 38, 38, 0.12); border-color: #dc2626; color: #fca5a5; }
+        .option-btn:disabled { cursor: default; }
+
+        .feedback-box {
+            margin-top: 15px;
+            padding: 14px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            line-height: 1.5;
+            display: none;
+        }
+        .feedback-box.correct { background: rgba(34, 197, 94, 0.1); border: 1px solid rgba(34, 197, 94, 0.3); color: #86efac; }
+        .feedback-box.incorrect { background: rgba(220, 38, 38, 0.1); border: 1px solid rgba(220, 38, 38, 0.3); color: #fca5a5; }
+        .feedback-box.show { display: block; }
+
+        .info-callout {
+            background: rgba(96, 165, 250, 0.08);
+            border-left: 3px solid rgba(96, 165, 250, 0.5);
+            border-radius: 4px;
+            padding: 12px 16px;
+            margin: 15px 0;
+            font-size: 0.82rem;
+            color: #93c5fd;
+            line-height: 1.5;
+        }
+
+        /* Error code matching table */
+        .error-table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+        .error-table th { padding: 10px 14px; background: rgba(234, 88, 12, 0.15); color: #f97316; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em; text-align: left; border-bottom: 1px solid rgba(234, 88, 12, 0.2); }
+        .error-table td { padding: 11px 14px; border-bottom: 1px solid rgba(234, 88, 12, 0.08); font-size: 0.85rem; color: #c0b0a0; vertical-align: middle; }
+        .error-table td:first-child { font-family: 'Consolas', monospace; color: #f97316; font-weight: 700; width: 80px; }
+        .error-table select {
+            background: rgba(30, 25, 20, 0.9);
+            border: 1px solid rgba(234, 88, 12, 0.25);
+            border-radius: 6px;
+            color: #c0b0a0;
+            padding: 6px 8px;
+            font-size: 0.82rem;
+            font-family: inherit;
+            width: 100%;
+        }
+        .error-table select:focus { outline: none; border-color: #f97316; }
+        .error-table select.correct { border-color: #22c55e; color: #86efac; }
+        .error-table select.incorrect { border-color: #dc2626; color: #fca5a5; }
+
+        /* BSOD card */
+        .bsod-card {
+            background: #0a1628;
+            border: 2px solid rgba(96, 165, 250, 0.3);
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+            font-family: 'Consolas', monospace;
+        }
+        .bsod-header { color: #60a5fa; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 6px; }
+        .bsod-code { color: #ffffff; font-size: 1rem; font-weight: 700; margin-bottom: 4px; }
+        .bsod-addr { color: #60a5fa; font-size: 0.8rem; }
+        .bsod-context { font-size: 0.8rem; color: #93c5fd; margin-top: 8px; line-height: 1.5; font-family: 'Segoe UI', sans-serif; }
+
+        /* Peripheral checklist */
+        .peripheral-issue {
+            border: 1px solid rgba(234, 88, 12, 0.2);
+            border-radius: 10px;
+            margin-bottom: 15px;
+            overflow: hidden;
+        }
+        .peripheral-header {
+            padding: 12px 16px;
+            background: rgba(234, 88, 12, 0.08);
+            font-size: 0.88rem;
+            color: #f97316;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .peripheral-body { padding: 15px 16px; }
+        .step-check {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            padding: 9px 12px;
+            background: rgba(30, 25, 20, 0.6);
+            border: 1px solid rgba(234, 88, 12, 0.1);
+            border-radius: 6px;
+            margin-bottom: 7px;
+            font-size: 0.83rem;
+            color: #c0b0a0;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            user-select: none;
+        }
+        .step-check:hover { background: rgba(234, 88, 12, 0.08); }
+        .step-check.wrong-step { border-color: rgba(220, 38, 38, 0.4); background: rgba(220, 38, 38, 0.06); color: #fca5a5; }
+        .step-check.right-step { border-color: rgba(34, 197, 94, 0.4); background: rgba(34, 197, 94, 0.06); color: #86efac; }
+        .step-check input[type="checkbox"] { accent-color: #f97316; margin-top: 2px; flex-shrink: 0; }
+
+        /* Diagnostic tool match */
+        .diag-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 15px; }
+        .diag-card {
+            background: rgba(20, 16, 12, 0.8);
+            border: 1px solid rgba(234, 88, 12, 0.15);
+            border-radius: 8px;
+            padding: 14px;
+        }
+        .diag-card h5 { color: #f97316; font-size: 0.85rem; margin-bottom: 8px; }
+        .diag-card p { font-size: 0.82rem; color: #9a8070; margin-bottom: 10px; line-height: 1.5; }
+        .diag-card select {
+            background: rgba(30, 25, 20, 0.9);
+            border: 1px solid rgba(234, 88, 12, 0.25);
+            border-radius: 6px;
+            color: #c0b0a0;
+            padding: 7px 10px;
+            font-size: 0.82rem;
+            font-family: inherit;
+            width: 100%;
+        }
+        .diag-card select:focus { outline: none; border-color: #f97316; }
+        .diag-card select.correct { border-color: #22c55e; color: #86efac; }
+        .diag-card select.incorrect { border-color: #dc2626; color: #fca5a5; }
+
+        .submit-btn {
+            margin-top: 20px;
+            padding: 12px 28px;
+            background: linear-gradient(135deg, #ea580c, #c2410c);
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            font-family: inherit;
+            transition: all 0.2s ease;
+        }
+        .submit-btn:hover { transform: translateY(-1px); box-shadow: 0 4px 15px rgba(234, 88, 12, 0.3); }
+        .submit-btn:disabled { opacity: 0.5; cursor: default; transform: none; }
+
+        .complete-section {
+            display: none;
+            margin-top: 40px;
+            padding: 30px;
+            background: rgba(34, 197, 94, 0.06);
+            border: 1px solid rgba(34, 197, 94, 0.2);
+            border-radius: 12px;
+            text-align: center;
+        }
+        .complete-section.show { display: block; }
+        .complete-section h3 { color: #22c55e; font-size: 1.2rem; margin-bottom: 10px; }
+        .complete-section p { color: #9a8070; font-size: 0.9rem; margin-bottom: 20px; }
+
+        .complete-btn {
+            padding: 14px 32px;
+            background: linear-gradient(135deg, #22c55e, #16a34a);
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-size: 1rem;
+            font-weight: 700;
+            cursor: pointer;
+            font-family: inherit;
+            transition: all 0.2s ease;
+        }
+        .complete-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(34, 197, 94, 0.35); }
+
+        @keyframes taskPulse {
+            0%, 100% { box-shadow: none; }
+            50% { box-shadow: 0 0 12px rgba(34, 197, 94, 0.5); }
+        }
+        .task-item.just-completed { animation: taskPulse 0.6s ease; }
+
+        @media (max-width: 900px) {
+            .lab-container { grid-template-columns: 1fr; }
+            .task-panel { position: static; height: auto; }
+            .options-grid { grid-template-columns: 1fr; }
+            .diag-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+
+    <header class="lab-header">
+        <div class="header-left">
+            <a href="../../index.html" class="back-btn">&#8592; Back to MD-100</a>
+            <span class="lab-title">Module 11 Lab: Hardware &amp; Driver Troubleshooting</span>
+            <span class="lab-badge">Forge Lab</span>
+        </div>
+        <div class="task-progress">
+            <span>Tasks:</span>
+            <span class="task-count" id="taskCount">0 / 5</span>
+        </div>
+    </header>
+
+    <div class="lab-container">
+
+        <aside class="task-panel">
+            <div class="panel-heading">Lab Tasks</div>
+            <div class="task-item active" data-task="1" onclick="showTask(1)">
+                <div class="task-title">1. Device Manager Error Codes</div>
+                <div class="task-desc">Match error codes to meanings and fixes</div>
+            </div>
+            <div class="task-item" data-task="2" onclick="showTask(2)">
+                <div class="task-title">2. Driver Management</div>
+                <div class="task-desc">Choose the right driver action per scenario</div>
+            </div>
+            <div class="task-item" data-task="3" onclick="showTask(3)">
+                <div class="task-title">3. BSOD Analysis</div>
+                <div class="task-desc">Identify stop error causes and fixes</div>
+            </div>
+            <div class="task-item" data-task="4" onclick="showTask(4)">
+                <div class="task-title">4. Hardware Diagnostics</div>
+                <div class="task-desc">Match tools to hardware issues</div>
+            </div>
+            <div class="task-item" data-task="5" onclick="showTask(5)">
+                <div class="task-title">5. Peripheral Troubleshooting</div>
+                <div class="task-desc">Walk through peripheral issue steps</div>
+            </div>
+        </aside>
+
+        <main class="main-content">
+
+            <!-- Task 1: Device Manager Error Codes -->
+            <section class="exercise-section active" id="task-1">
+                <div class="exercise-title">Task 1: Device Manager Error Code Reference</div>
+                <div class="exercise-intro">Match each Device Manager error code to its correct meaning and recommended fix. These codes appear in the device Properties under the General tab.</div>
+
+                <table class="error-table">
+                    <thead>
+                        <tr>
+                            <th>Code</th>
+                            <th>Description from Device Manager</th>
+                            <th>Meaning &amp; Fix</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>Code 1</td>
+                            <td>"This device is not configured correctly."</td>
+                            <td>
+                                <select id="ec1">
+                                    <option value="">-- Select --</option>
+                                    <option>Driver is corrupt; uninstall device and let Windows reinstall</option>
+                                    <option>Device has no driver installed; update driver or install from manufacturer</option>
+                                    <option>Driver loaded but device failed to start; check for IRQ conflicts</option>
+                                    <option>Device was manually disabled; right-click and Enable</option>
+                                    <option>Lower filter driver failed; remove problematic filter drivers in registry</option>
+                                    <option>USB device reported a problem; reseat USB, try different port, update driver</option>
+                                </select>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>Code 10</td>
+                            <td>"This device cannot start."</td>
+                            <td>
+                                <select id="ec10">
+                                    <option value="">-- Select --</option>
+                                    <option>Driver is corrupt; uninstall device and let Windows reinstall</option>
+                                    <option>Device has no driver installed; update driver or install from manufacturer</option>
+                                    <option>Driver loaded but device failed to start; check for IRQ conflicts</option>
+                                    <option>Device was manually disabled; right-click and Enable</option>
+                                    <option>Lower filter driver failed; remove problematic filter drivers in registry</option>
+                                    <option>USB device reported a problem; reseat USB, try different port, update driver</option>
+                                </select>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>Code 28</td>
+                            <td>"The drivers for this device are not installed."</td>
+                            <td>
+                                <select id="ec28">
+                                    <option value="">-- Select --</option>
+                                    <option>Driver is corrupt; uninstall device and let Windows reinstall</option>
+                                    <option>Device has no driver installed; update driver or install from manufacturer</option>
+                                    <option>Driver loaded but device failed to start; check for IRQ conflicts</option>
+                                    <option>Device was manually disabled; right-click and Enable</option>
+                                    <option>Lower filter driver failed; remove problematic filter drivers in registry</option>
+                                    <option>USB device reported a problem; reseat USB, try different port, update driver</option>
+                                </select>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>Code 31</td>
+                            <td>"This device is not working properly because Windows cannot load the drivers required for this device."</td>
+                            <td>
+                                <select id="ec31">
+                                    <option value="">-- Select --</option>
+                                    <option>Driver is corrupt; uninstall device and let Windows reinstall</option>
+                                    <option>Device has no driver installed; update driver or install from manufacturer</option>
+                                    <option>Driver loaded but device failed to start; check for IRQ conflicts</option>
+                                    <option>Device was manually disabled; right-click and Enable</option>
+                                    <option>Lower filter driver failed; remove problematic filter drivers in registry</option>
+                                    <option>USB device reported a problem; reseat USB, try different port, update driver</option>
+                                </select>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>Code 39</td>
+                            <td>"Windows cannot load the device driver for this hardware. The driver may be corrupted or missing."</td>
+                            <td>
+                                <select id="ec39">
+                                    <option value="">-- Select --</option>
+                                    <option>Driver is corrupt; uninstall device and let Windows reinstall</option>
+                                    <option>Device has no driver installed; update driver or install from manufacturer</option>
+                                    <option>Driver loaded but device failed to start; check for IRQ conflicts</option>
+                                    <option>Device was manually disabled; right-click and Enable</option>
+                                    <option>Lower filter driver failed; remove problematic filter drivers in registry</option>
+                                    <option>USB device reported a problem; reseat USB, try different port, update driver</option>
+                                </select>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>Code 43</td>
+                            <td>"Windows has stopped this device because it has reported problems."</td>
+                            <td>
+                                <select id="ec43">
+                                    <option value="">-- Select --</option>
+                                    <option>Driver is corrupt; uninstall device and let Windows reinstall</option>
+                                    <option>Device has no driver installed; update driver or install from manufacturer</option>
+                                    <option>Driver loaded but device failed to start; check for IRQ conflicts</option>
+                                    <option>Device was manually disabled; right-click and Enable</option>
+                                    <option>Lower filter driver failed; remove problematic filter drivers in registry</option>
+                                    <option>USB device reported a problem; reseat USB, try different port, update driver</option>
+                                </select>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <button class="submit-btn" id="ec-btn" onclick="checkErrorCodes()">Submit Matches</button>
+                <div class="feedback-box" id="ec-feedback"></div>
+            </section>
+
+            <!-- Task 2: Driver Management -->
+            <section class="exercise-section" id="task-2">
+                <div class="exercise-title">Task 2: Driver Management Actions</div>
+                <div class="exercise-intro">For each driver scenario, choose the correct action to take. Know why each action exists - this is tested on MD-100.</div>
+
+                <div class="scenario-card">
+                    <h4>Scenario A</h4>
+                    <p>A sound card worked perfectly for 2 years. After Windows Update ran overnight, the audio device shows Code 10 and no sound works. No hardware was changed.</p>
+                </div>
+                <div class="options-list" id="drv1-options">
+                    <button class="option-btn" onclick="checkDriver(1, 'wrong', this)">Update driver - check for a newer driver</button>
+                    <button class="option-btn" onclick="checkDriver(1, 'correct', this)">Roll back driver - revert to the previous driver version that was working before Windows Update</button>
+                    <button class="option-btn" onclick="checkDriver(1, 'wrong', this)">Uninstall device and reinstall from scratch</button>
+                    <button class="option-btn" onclick="checkDriver(1, 'wrong', this)">Disable the device and use onboard audio</button>
+                </div>
+                <div class="feedback-box" id="drv1-feedback"></div>
+
+                <div class="scenario-card" style="margin-top:25px;">
+                    <h4>Scenario B</h4>
+                    <p>A new USB 3.0 external NVMe drive is connected. It appears in Device Manager with a yellow exclamation mark, Code 28. Windows Update does not find a driver.</p>
+                </div>
+                <div class="options-list" id="drv2-options">
+                    <button class="option-btn" onclick="checkDriver(2, 'wrong', this)">Roll back driver - return to previous version</button>
+                    <button class="option-btn" onclick="checkDriver(2, 'wrong', this)">Disable the device</button>
+                    <button class="option-btn" onclick="checkDriver(2, 'correct', this)">Update driver manually - download from manufacturer's website and use "Browse my computer for drivers" to install the INF file</button>
+                    <button class="option-btn" onclick="checkDriver(2, 'wrong', this)">pnputil /add-driver without downloading anything first</button>
+                </div>
+                <div class="feedback-box" id="drv2-feedback"></div>
+
+                <div class="scenario-card" style="margin-top:25px;">
+                    <h4>Scenario C</h4>
+                    <p>IT needs to pre-stage a third-party printer driver to the driver store on 50 machines so that when the printer is connected, Windows will automatically install the correct driver without internet access.</p>
+                </div>
+                <div class="options-list" id="drv3-options">
+                    <button class="option-btn" onclick="checkDriver(3, 'wrong', this)">Manually install the driver on each machine via Device Manager</button>
+                    <button class="option-btn" onclick="checkDriver(3, 'correct', this)">Use pnputil /add-driver printer.inf /install to add the driver to the driver store, deployable via script or GPO</button>
+                    <button class="option-btn" onclick="checkDriver(3, 'wrong', this)">Copy the INF file to C:\Windows\System32\drivers manually</button>
+                    <button class="option-btn" onclick="checkDriver(3, 'wrong', this)">Enable Windows Update to automatically download drivers on each machine</button>
+                </div>
+                <div class="feedback-box" id="drv3-feedback"></div>
+            </section>
+
+            <!-- Task 3: BSOD Analysis -->
+            <section class="exercise-section" id="task-3">
+                <div class="exercise-title">Task 3: BSOD Stop Error Analysis</div>
+                <div class="exercise-intro">Identify the most likely cause and appropriate fix for each Blue Screen of Death stop code.</div>
+
+                <div class="bsod-card">
+                    <div class="bsod-header">Stop Error Code A</div>
+                    <div class="bsod-code">IRQL_NOT_LESS_OR_EQUAL</div>
+                    <div class="bsod-addr">*** STOP: 0x0000000A</div>
+                    <div class="bsod-context">Occurs during video streaming and gaming. Started after installing a new GPU. System was stable with the old GPU.</div>
+                </div>
+                <div class="options-list" id="bsod1-options">
+                    <button class="option-btn" onclick="checkBSOD(1, 'wrong', this)">RAM failure - run Windows Memory Diagnostic</button>
+                    <button class="option-btn" onclick="checkBSOD(1, 'correct', this)">Driver accessing memory at improper IRQL - likely the new GPU driver. Roll back or update the GPU driver; check for driver conflicts</button>
+                    <button class="option-btn" onclick="checkBSOD(1, 'wrong', this)">Disk corruption - run chkdsk /r</button>
+                    <button class="option-btn" onclick="checkBSOD(1, 'wrong', this)">Overheating CPU - check cooling system</button>
+                </div>
+                <div class="feedback-box" id="bsod1-feedback"></div>
+
+                <div class="bsod-card" style="margin-top:20px;">
+                    <div class="bsod-header">Stop Error Code B</div>
+                    <div class="bsod-code">KERNEL_DATA_INPAGE_ERROR</div>
+                    <div class="bsod-addr">*** STOP: 0x0000007A</div>
+                    <div class="bsod-context">Occurs randomly, often when accessing large files. The laptop is 4 years old. S.M.A.R.T. data shows reallocated sectors increasing.</div>
+                </div>
+                <div class="options-list" id="bsod2-options">
+                    <button class="option-btn" onclick="checkBSOD(2, 'wrong', this)">GPU driver issue - reinstall graphics drivers</button>
+                    <button class="option-btn" onclick="checkBSOD(2, 'wrong', this)">Corrupt OS files - run SFC /scannow</button>
+                    <button class="option-btn" onclick="checkBSOD(2, 'correct', this)">Failing hard drive - Windows could not read required page file data. Run chkdsk /r, back up data immediately, and replace the drive</button>
+                    <button class="option-btn" onclick="checkBSOD(2, 'wrong', this)">Network driver conflict - update NIC driver</button>
+                </div>
+                <div class="feedback-box" id="bsod2-feedback"></div>
+
+                <div class="bsod-card" style="margin-top:20px;">
+                    <div class="bsod-header">Stop Error Code C</div>
+                    <div class="bsod-code">CRITICAL_PROCESS_DIED</div>
+                    <div class="bsod-addr">*** STOP: 0x000000EF</div>
+                    <div class="bsod-context">Occurs at login on a device where a new security product was installed yesterday. The device would not boot before - now boots to Safe Mode only.</div>
+                </div>
+                <div class="options-list" id="bsod3-options">
+                    <button class="option-btn" onclick="checkBSOD(3, 'wrong', this)">Replace RAM - memory corruption caused a critical process to fail</button>
+                    <button class="option-btn" onclick="checkBSOD(3, 'correct', this)">The security product's driver is conflicting with a Windows critical process. Boot to Safe Mode, uninstall the security product, then reboot normally</button>
+                    <button class="option-btn" onclick="checkBSOD(3, 'wrong', this)">Disk is failing - replace the hard drive immediately</button>
+                    <button class="option-btn" onclick="checkBSOD(3, 'wrong', this)">Windows license has expired - reactivate Windows</button>
+                </div>
+                <div class="feedback-box" id="bsod3-feedback"></div>
+            </section>
+
+            <!-- Task 4: Hardware Diagnostics -->
+            <section class="exercise-section" id="task-4">
+                <div class="exercise-title">Task 4: Hardware Diagnostic Tool Selection</div>
+                <div class="exercise-intro">For each hardware issue, select the correct built-in Windows diagnostic tool to use first.</div>
+
+                <div class="diag-grid">
+                    <div class="diag-card">
+                        <h5>Issue A: Suspected RAM Failure</h5>
+                        <p>A computer crashes with various BSODs including memory-related stop codes. You want to test the physical RAM modules.</p>
+                        <select id="diag1">
+                            <option value="">-- Select tool --</option>
+                            <option>mdsched.exe</option>
+                            <option>chkdsk</option>
+                            <option>dxdiag.exe</option>
+                            <option>msinfo32.exe</option>
+                            <option>perfmon.exe</option>
+                            <option>winmsd.exe</option>
+                        </select>
+                    </div>
+                    <div class="diag-card">
+                        <h5>Issue B: Disk Errors and Bad Sectors</h5>
+                        <p>Users report file corruption and slow disk performance. You suspect bad sectors on the C: drive.</p>
+                        <select id="diag2">
+                            <option value="">-- Select tool --</option>
+                            <option>mdsched.exe</option>
+                            <option>chkdsk</option>
+                            <option>dxdiag.exe</option>
+                            <option>msinfo32.exe</option>
+                            <option>perfmon.exe</option>
+                            <option>winmsd.exe</option>
+                        </select>
+                    </div>
+                    <div class="diag-card">
+                        <h5>Issue C: Display / DirectX Issues</h5>
+                        <p>A user's games are crashing with graphics errors. You need to verify DirectX version, display driver details, and VRAM.</p>
+                        <select id="diag3">
+                            <option value="">-- Select tool --</option>
+                            <option>mdsched.exe</option>
+                            <option>chkdsk</option>
+                            <option>dxdiag.exe</option>
+                            <option>msinfo32.exe</option>
+                            <option>perfmon.exe</option>
+                            <option>winmsd.exe</option>
+                        </select>
+                    </div>
+                    <div class="diag-card">
+                        <h5>Issue D: System Overview for Technician</h5>
+                        <p>A remote technician needs a complete snapshot of hardware specs, installed drivers, IRQ assignments, and system resources.</p>
+                        <select id="diag4">
+                            <option value="">-- Select tool --</option>
+                            <option>mdsched.exe</option>
+                            <option>chkdsk</option>
+                            <option>dxdiag.exe</option>
+                            <option>msinfo32.exe</option>
+                            <option>perfmon.exe</option>
+                            <option>winmsd.exe</option>
+                        </select>
+                    </div>
+                </div>
+
+                <button class="submit-btn" id="diag-btn" onclick="checkDiagnostics()">Verify Tool Selections</button>
+                <div class="feedback-box" id="diag-feedback"></div>
+            </section>
+
+            <!-- Task 5: Peripheral Troubleshooting -->
+            <section class="exercise-section" id="task-5">
+                <div class="exercise-title">Task 5: Peripheral Troubleshooting Walkthroughs</div>
+                <div class="exercise-intro">For each peripheral issue, check all steps that are part of the correct troubleshooting process. Then click Verify to check your selections.</div>
+
+                <div class="peripheral-issue">
+                    <div class="peripheral-header">USB Device Not Recognized</div>
+                    <div class="peripheral-body">
+                        <p style="font-size:0.82rem; color:#9a8070; margin-bottom:10px;">Check all steps that apply:</p>
+                        <label class="step-check" id="usb1"><input type="checkbox"> Try a different USB port (rule out port failure)</label>
+                        <label class="step-check" id="usb2"><input type="checkbox"> Check Device Manager for unknown device / Code 43</label>
+                        <label class="step-check" id="usb3"><input type="checkbox"> Uninstall USB drivers under Universal Serial Bus controllers and rescan for hardware</label>
+                        <label class="step-check" id="usb4"><input type="checkbox"> Disable USB Selective Suspend in Power Options (if device disconnects intermittently)</label>
+                        <label class="step-check" id="usb5"><input type="checkbox"> Replace the motherboard before trying other steps</label>
+                        <label class="step-check" id="usb6"><input type="checkbox"> Test the device on another computer to isolate device vs. port issue</label>
+                        <button class="submit-btn" style="margin-top:10px;" onclick="checkPeripheral('usb')">Verify</button>
+                        <div class="feedback-box" id="usb-feedback"></div>
+                    </div>
+                </div>
+
+                <div class="peripheral-issue">
+                    <div class="peripheral-header">No Display Output After GPU Upgrade</div>
+                    <div class="peripheral-body">
+                        <p style="font-size:0.82rem; color:#9a8070; margin-bottom:10px;">Check all steps that apply:</p>
+                        <label class="step-check" id="disp1"><input type="checkbox"> Verify the monitor cable is connected to the new GPU, not the motherboard's onboard port</label>
+                        <label class="step-check" id="disp2"><input type="checkbox"> Confirm the PCIe power connectors from the PSU are fully seated in the GPU</label>
+                        <label class="step-check" id="disp3"><input type="checkbox"> Check BIOS/UEFI: ensure primary display is set to PCIe/GPU, not onboard</label>
+                        <label class="step-check" id="disp4"><input type="checkbox"> Reseat the GPU in the PCIe slot, verify the locking tab clicked</label>
+                        <label class="step-check" id="disp5"><input type="checkbox"> Immediately replace the PSU as the first step</label>
+                        <label class="step-check" id="disp6"><input type="checkbox"> Boot into Safe Mode to use the basic Microsoft display adapter and then install proper GPU drivers</label>
+                        <button class="submit-btn" style="margin-top:10px;" onclick="checkPeripheral('disp')">Verify</button>
+                        <div class="feedback-box" id="disp-feedback"></div>
+                    </div>
+                </div>
+
+                <div class="peripheral-issue">
+                    <div class="peripheral-header">Printer Shows Offline</div>
+                    <div class="peripheral-body">
+                        <p style="font-size:0.82rem; color:#9a8070; margin-bottom:10px;">Check all steps that apply:</p>
+                        <label class="step-check" id="prn1"><input type="checkbox"> Verify the printer is powered on and has no error lights</label>
+                        <label class="step-check" id="prn2"><input type="checkbox"> Check "Use Printer Offline" is not checked in the printer queue menu</label>
+                        <label class="step-check" id="prn3"><input type="checkbox"> Restart the Print Spooler service (services.msc)</label>
+                        <label class="step-check" id="prn4"><input type="checkbox"> For network printers: ping the printer's IP, verify IP hasn't changed (set static IP or DHCP reservation)</label>
+                        <label class="step-check" id="prn5"><input type="checkbox"> Immediately uninstall and reinstall Windows without trying other steps</label>
+                        <label class="step-check" id="prn6"><input type="checkbox"> Clear the print queue by deleting files in C:\Windows\System32\spool\PRINTERS</label>
+                        <button class="submit-btn" style="margin-top:10px;" onclick="checkPeripheral('prn')">Verify</button>
+                        <div class="feedback-box" id="prn-feedback"></div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Complete Module -->
+            <div class="complete-section" id="completeSection">
+                <h3>All Tasks Complete</h3>
+                <p>You have demonstrated proficiency in Device Manager error codes, driver management actions, BSOD analysis, hardware diagnostic tool selection, and peripheral troubleshooting procedures.</p>
+                <button class="complete-btn" onclick="completeModule()">Complete Module &amp; Return</button>
+            </div>
+
+        </main>
+    </div>
+
+    <script>
+        const totalTasks = 5;
+        const completedTasks = new Set();
+
+        function showTask(num) {
+            document.querySelectorAll('.exercise-section').forEach(s => s.classList.remove('active'));
+            document.getElementById('task-' + num).classList.add('active');
+            document.querySelectorAll('.task-item').forEach(t => t.classList.remove('active'));
+            document.querySelector('[data-task="' + num + '"]').classList.add('active');
+        }
+
+        function markTaskComplete(num) {
+            if (completedTasks.has(num)) return;
+            completedTasks.add(num);
+            const item = document.querySelector('[data-task="' + num + '"]');
+            item.classList.add('completed', 'just-completed');
+            setTimeout(() => item.classList.remove('just-completed'), 700);
+            document.getElementById('taskCount').textContent = completedTasks.size + ' / ' + totalTasks;
+            if (completedTasks.size === totalTasks) {
+                document.getElementById('completeSection').classList.add('show');
+                document.getElementById('completeSection').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            }
+        }
+
+        // --- Task 1: Error Codes ---
+        // Correct answers
+        const ecCorrect = {
+            ec1:  'Device has no driver installed; update driver or install from manufacturer',
+            ec10: 'Driver loaded but device failed to start; check for IRQ conflicts',
+            ec28: 'Device has no driver installed; update driver or install from manufacturer',
+            ec31: 'Lower filter driver failed; remove problematic filter drivers in registry',
+            ec39: 'Driver is corrupt; uninstall device and let Windows reinstall',
+            ec43: 'USB device reported a problem; reseat USB, try different port, update driver'
+        };
+
+        // Code 1 and 28 both relate to missing/bad driver but description differs; allow either for Code 1
+        function checkErrorCodes() {
+            let score = 0;
+            const total = Object.keys(ecCorrect).length;
+            const fb = document.getElementById('ec-feedback');
+
+            Object.keys(ecCorrect).forEach(id => {
+                const sel = document.getElementById(id);
+                sel.disabled = true;
+                sel.classList.remove('correct', 'incorrect');
+                // Code 1 can also be "Driver is corrupt" - accept both for code 1
+                const val = sel.value;
+                let correct = false;
+                if (id === 'ec1') {
+                    correct = val === ecCorrect.ec1 || val === 'Driver is corrupt; uninstall device and let Windows reinstall';
+                } else {
+                    correct = val === ecCorrect[id];
+                }
+                if (correct) { sel.classList.add('correct'); score++; }
+                else { sel.classList.add('incorrect'); }
+            });
+
+            document.getElementById('ec-btn').disabled = true;
+
+            if (score === total) {
+                fb.className = 'feedback-box correct show';
+                fb.textContent = 'All correct! Code 1/28=no driver. Code 10=device failed to start (most common, many causes). Code 31=filter driver issue (often from uninstalled software leaving registry entries). Code 39=corrupt driver binary. Code 43=device self-reported failure (very common with USB - reseat or replace).';
+                markTaskComplete(1);
+            } else {
+                fb.className = 'feedback-box incorrect show';
+                fb.textContent = score + '/' + total + ' correct. Key distinctions: Code 10 means the driver loaded but the device hardware failed to initialize (not a missing driver). Code 28 explicitly means no driver. Code 39 means the driver file itself is corrupt. Code 43 is reported by the device firmware.';
+            }
+        }
+
+        // --- Task 2: Driver Management ---
+        const drvDone = { 1: false, 2: false, 3: false };
+        const drvExplanations = {
+            1: 'Roll Back Driver reverts to the previously installed driver version stored in the driver store. It\'s specifically designed for this scenario: a Windows Update broke a working device. Device Manager > Driver tab > Roll Back Driver.',
+            2: 'Code 28 = no driver installed. Windows Update couldn\'t find one, so you must go to the manufacturer\'s website, download the driver package, and install manually. "Browse my computer" lets you point to an extracted INF file.',
+            3: 'pnputil /add-driver adds a driver to the Driver Store (C:\\Windows\\System32\\DriverStore\\FileRepository) without installing it. When the hardware is connected later, Windows finds it automatically. This is the correct enterprise driver pre-staging method.'
+        };
+
+        function checkDriver(num, result, btn) {
+            const optionsId = 'drv' + num + '-options';
+            const feedbackId = 'drv' + num + '-feedback';
+            document.querySelectorAll('#' + optionsId + ' .option-btn').forEach(b => b.disabled = true);
+            const fb = document.getElementById(feedbackId);
+
+            if (result === 'correct') {
+                btn.classList.add('correct');
+                fb.className = 'feedback-box correct show';
+                fb.textContent = 'Correct! ' + drvExplanations[num];
+                drvDone[num] = true;
+            } else {
+                btn.classList.add('incorrect');
+                fb.className = 'feedback-box incorrect show';
+                fb.textContent = 'Incorrect. ' + drvExplanations[num];
+            }
+
+            if (drvDone[1] && drvDone[2] && drvDone[3]) markTaskComplete(2);
+        }
+
+        // --- Task 3: BSOD ---
+        const bsodDone = { 1: false, 2: false, 3: false };
+        const bsodExplanations = {
+            1: 'IRQL_NOT_LESS_OR_EQUAL (0x0000000A) occurs when a driver attempts to access memory at a higher IRQL (interrupt request level) than allowed. It almost always indicates a driver bug. The timing (new GPU installed) strongly points to the GPU driver.',
+            2: 'KERNEL_DATA_INPAGE_ERROR (0x0000007A) occurs when Windows cannot read required data from the pagefile - typically because the disk has failed or has bad sectors. Increasing reallocated sectors in S.M.A.R.T. is a definitive sign of drive failure. Immediate backup is critical.',
+            3: 'CRITICAL_PROCESS_DIED (0x000000EF) means a Windows critical process (like lsass.exe, csrss.exe, or wininit.exe) terminated unexpectedly. A new security product\'s kernel driver interfering with these processes is a common cause. Safe Mode bypass is the correct recovery path.'
+        };
+
+        function checkBSOD(num, result, btn) {
+            const optionsId = 'bsod' + num + '-options';
+            const feedbackId = 'bsod' + num + '-feedback';
+            document.querySelectorAll('#' + optionsId + ' .option-btn').forEach(b => b.disabled = true);
+            const fb = document.getElementById(feedbackId);
+
+            if (result === 'correct') {
+                btn.classList.add('correct');
+                fb.className = 'feedback-box correct show';
+                fb.textContent = 'Correct! ' + bsodExplanations[num];
+                bsodDone[num] = true;
+            } else {
+                btn.classList.add('incorrect');
+                fb.className = 'feedback-box incorrect show';
+                fb.textContent = 'Incorrect. ' + bsodExplanations[num];
+            }
+
+            if (bsodDone[1] && bsodDone[2] && bsodDone[3]) markTaskComplete(3);
+        }
+
+        // --- Task 4: Diagnostics ---
+        const diagCorrect = {
+            diag1: 'mdsched.exe',
+            diag2: 'chkdsk',
+            diag3: 'dxdiag.exe',
+            diag4: 'msinfo32.exe'
+        };
+
+        function checkDiagnostics() {
+            let score = 0;
+            const fb = document.getElementById('diag-feedback');
+
+            Object.keys(diagCorrect).forEach(id => {
+                const sel = document.getElementById(id);
+                sel.disabled = true;
+                sel.classList.remove('correct', 'incorrect');
+                if (sel.value === diagCorrect[id]) { sel.classList.add('correct'); score++; }
+                else { sel.classList.add('incorrect'); }
+            });
+
+            document.getElementById('diag-btn').disabled = true;
+
+            if (score === 4) {
+                fb.className = 'feedback-box correct show';
+                fb.textContent = 'All correct! mdsched.exe = Windows Memory Diagnostic (RAM testing). chkdsk = Check Disk (disk surface and file system). dxdiag.exe = DirectX Diagnostic Tool (display, sound, DirectX). msinfo32.exe = System Information (full hardware/software inventory).';
+                markTaskComplete(4);
+            } else {
+                fb.className = 'feedback-box incorrect show';
+                fb.textContent = score + '/4 correct. Remember: mdsched for memory, chkdsk for disk health, dxdiag for graphics/DirectX, msinfo32 for complete system overview. perfmon.exe is for performance monitoring, not hardware diagnostics per se.';
+            }
+        }
+
+        // --- Task 5: Peripheral Troubleshooting ---
+        // Define correct (true) and incorrect (false) steps for each peripheral
+        const peripheralAnswers = {
+            usb: { usb1: true, usb2: true, usb3: true, usb4: true, usb5: false, usb6: true },
+            disp: { disp1: true, disp2: true, disp3: true, disp4: true, disp5: false, disp6: true },
+            prn: { prn1: true, prn2: true, prn3: true, prn4: true, prn5: false, prn6: true }
+        };
+
+        const peripheralDone = { usb: false, disp: false, prn: false };
+
+        function checkPeripheral(type) {
+            const answers = peripheralAnswers[type];
+            let score = 0;
+            const total = Object.keys(answers).length;
+
+            Object.keys(answers).forEach(id => {
+                const labelEl = document.getElementById(id);
+                const cb = labelEl.querySelector('input[type="checkbox"]');
+                const checked = cb.checked;
+                const expected = answers[id];
+                cb.disabled = true;
+
+                labelEl.classList.remove('right-step', 'wrong-step');
+                if (checked === expected) {
+                    labelEl.classList.add('right-step');
+                    score++;
+                } else {
+                    labelEl.classList.add('wrong-step');
+                }
+            });
+
+            const feedbackEl = document.getElementById(type + '-feedback');
+            const btn = feedbackEl.previousElementSibling;
+            btn.disabled = true;
+
+            const explanations = {
+                usb: 'The wrong step: replacing the motherboard before exhausting basic troubleshooting. Always eliminate software causes (drivers, power settings) before replacing hardware. Test on another computer is essential for isolating device vs. host.',
+                disp: 'The wrong step: replacing the PSU immediately. PSU issues cause power failures, not typically display issues on GPU upgrade. First verify physical connections (monitor cable, PCIe power, GPU seating, BIOS settings).',
+                prn: 'The wrong step: reinstalling Windows as a first step. This is always a last resort. Printer offline is usually a trivial fix: check the "Use Printer Offline" setting, restart Spooler, or re-establish the network path.'
+            };
+
+            if (score === total) {
+                feedbackEl.className = 'feedback-box correct show';
+                feedbackEl.textContent = 'All steps correct! ' + explanations[type];
+                peripheralDone[type] = true;
+            } else {
+                feedbackEl.className = 'feedback-box incorrect show';
+                feedbackEl.textContent = score + '/' + total + ' correct. ' + explanations[type];
+            }
+
+            if (peripheralDone.usb && peripheralDone.disp && peripheralDone.prn) markTaskComplete(5);
+        }
+
+        function completeModule() {
+            ModuleProgress.complete('forge', 'forge-md100-m11-lab', {
+                returnUrl: '../../index.html'
+            });
+        }
+    </script>
+
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <script src="../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>

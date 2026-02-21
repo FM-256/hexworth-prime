@@ -1,0 +1,855 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <!-- Progress & Achievements -->
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Networking Lab - MD-100</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            min-height: 100vh;
+            background: #0c0c0c;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: #e0d0c0;
+        }
+
+        .lab-header {
+            padding: 14px 28px;
+            background: rgba(10, 10, 15, 0.95);
+            border-bottom: 1px solid rgba(234, 88, 12, 0.2);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky; top: 0; z-index: 100;
+        }
+
+        .header-left { display: flex; align-items: center; gap: 18px; }
+
+        .back-btn {
+            padding: 7px 15px;
+            background: rgba(234, 88, 12, 0.1);
+            border: 1px solid rgba(234, 88, 12, 0.3);
+            border-radius: 6px;
+            color: #f97316;
+            text-decoration: none;
+            font-size: 0.83rem;
+            transition: background 0.2s;
+        }
+        .back-btn:hover { background: rgba(234, 88, 12, 0.2); }
+
+        .lab-title { font-size: 0.98rem; color: #f5e6d3; font-weight: 500; }
+
+        .lab-badge {
+            padding: 3px 11px;
+            background: rgba(234, 88, 12, 0.15);
+            border: 1px solid rgba(234, 88, 12, 0.3);
+            border-radius: 12px;
+            font-size: 0.68rem;
+            color: #ea580c;
+            letter-spacing: 0.06em;
+        }
+
+        .task-progress { font-size: 0.83rem; color: #8a7060; }
+        .task-count { color: #f97316; font-weight: 600; }
+
+        .lab-container {
+            display: grid;
+            grid-template-columns: 350px 1fr;
+            height: calc(100vh - 54px);
+        }
+
+        .task-panel {
+            background: rgba(15, 12, 8, 0.95);
+            border-right: 1px solid rgba(234, 88, 12, 0.12);
+            overflow-y: auto;
+            padding: 20px;
+        }
+
+        .task-section-title {
+            font-size: 0.68rem;
+            color: #6b5040;
+            letter-spacing: 0.14em;
+            text-transform: uppercase;
+            margin-bottom: 12px;
+        }
+
+        .task-card {
+            background: rgba(20, 15, 10, 0.8);
+            border: 1px solid rgba(234, 88, 12, 0.12);
+            border-radius: 10px;
+            padding: 14px;
+            margin-bottom: 10px;
+            cursor: pointer;
+            transition: all 0.25s;
+            position: relative;
+        }
+        .task-card:hover { border-color: rgba(234, 88, 12, 0.35); }
+        .task-card.active { border-left: 3px solid #ea580c; background: rgba(234, 88, 12, 0.1); }
+        .task-card.completed { border-color: rgba(34, 197, 94, 0.35); }
+        .task-card.completed::after {
+            content: '✓';
+            position: absolute;
+            top: 12px; right: 14px;
+            color: #22c55e; font-weight: 700;
+        }
+
+        .task-number { font-size: 0.68rem; color: #ea580c; margin-bottom: 4px; }
+        .task-name { font-size: 0.92rem; color: #f5e6d3; margin-bottom: 4px; font-weight: 500; }
+        .task-desc { font-size: 0.78rem; color: #8a7060; line-height: 1.45; }
+
+        .lab-main { overflow-y: auto; padding: 28px 32px; background: #0a0a0a; }
+
+        .task-view { display: none; }
+        .task-view.active { display: block; }
+
+        .task-header {
+            margin-bottom: 24px;
+            padding-bottom: 18px;
+            border-bottom: 1px solid rgba(234, 88, 12, 0.15);
+        }
+        .task-header h2 { font-size: 1.25rem; color: #f97316; margin-bottom: 6px; }
+        .task-header p { font-size: 0.88rem; color: #9a8070; line-height: 1.55; }
+
+        /* Network config form */
+        .network-card {
+            background: rgba(13, 17, 23, 0.95);
+            border: 1px solid rgba(234, 88, 12, 0.2);
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 18px;
+            font-family: 'Segoe UI', sans-serif;
+        }
+
+        .net-title {
+            font-size: 0.88rem;
+            color: #f97316;
+            margin-bottom: 14px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid rgba(234,88,12,0.15);
+        }
+
+        .net-scenario {
+            font-size: 0.84rem;
+            color: #9a8070;
+            margin-bottom: 16px;
+            padding: 10px 14px;
+            background: rgba(234,88,12,0.06);
+            border-left: 3px solid rgba(234,88,12,0.3);
+            border-radius: 0 6px 6px 0;
+        }
+
+        .net-field-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+
+        .net-field { display: flex; flex-direction: column; gap: 5px; }
+        .net-label { font-size: 0.76rem; color: #6b5040; text-transform: uppercase; letter-spacing: 0.07em; }
+
+        .net-input {
+            background: rgba(20,16,12,0.9);
+            border: 1px solid rgba(234,88,12,0.25);
+            border-radius: 6px;
+            color: #d0c0b0;
+            font-family: 'Consolas', monospace;
+            font-size: 0.9rem;
+            padding: 8px 11px;
+            outline: none;
+        }
+        .net-input:focus { border-color: #ea580c; }
+        .net-input.correct { border-color: #22c55e; color: #22c55e; background: rgba(34,197,94,0.07); }
+        .net-input.incorrect { border-color: #ef4444; color: #ef4444; background: rgba(239,68,68,0.07); }
+
+        /* Command line scenarios */
+        .cmd-scenario-card {
+            background: #0d1117;
+            border: 1px solid rgba(234,88,12,0.2);
+            border-radius: 10px;
+            padding: 16px 18px;
+            margin-bottom: 14px;
+        }
+
+        .cmd-context {
+            font-size: 0.84rem;
+            color: #9a8070;
+            margin-bottom: 10px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid rgba(234,88,12,0.1);
+        }
+
+        .cmd-prompt-line { color: #22c55e; font-family: 'Consolas', monospace; font-size: 0.83rem; margin-bottom: 6px; }
+
+        .cmd-fill {
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 6px;
+            font-family: 'Consolas', monospace;
+            font-size: 0.9rem;
+            color: #a0c0e0;
+        }
+
+        .cmd-input {
+            background: rgba(234,88,12,0.08);
+            border: 1px dashed rgba(234,88,12,0.5);
+            border-radius: 4px;
+            color: #f97316;
+            font-family: 'Consolas', monospace;
+            font-size: 0.88rem;
+            padding: 3px 9px;
+            outline: none;
+        }
+        .cmd-input:focus { border-color: #ea580c; border-style: solid; }
+        .cmd-input.correct { border-color: #22c55e; color: #22c55e; background: rgba(34,197,94,0.08); border-style: solid; }
+        .cmd-input.incorrect { border-color: #ef4444; color: #ef4444; background: rgba(239,68,68,0.08); border-style: solid; }
+
+        /* DNS step-through */
+        .dns-steps { display: flex; flex-direction: column; gap: 10px; margin-bottom: 18px; }
+
+        .dns-step {
+            background: rgba(20,16,12,0.9);
+            border: 1px solid rgba(234,88,12,0.15);
+            border-radius: 8px;
+            padding: 14px 16px;
+            display: grid;
+            grid-template-columns: 32px 1fr auto;
+            gap: 14px;
+            align-items: center;
+        }
+
+        .step-num {
+            width: 30px; height: 30px;
+            background: rgba(234,88,12,0.15);
+            border: 1px solid rgba(234,88,12,0.3);
+            border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 0.8rem;
+            color: #f97316;
+            font-weight: 700;
+        }
+
+        .step-desc { font-size: 0.85rem; color: #c0b0a0; line-height: 1.5; }
+        .step-desc strong { color: #f5e6d3; }
+
+        .step-action-btn {
+            padding: 7px 16px;
+            background: rgba(234,88,12,0.12);
+            border: 1px solid rgba(234,88,12,0.3);
+            border-radius: 6px;
+            color: #f97316;
+            font-size: 0.8rem;
+            cursor: pointer;
+            white-space: nowrap;
+            transition: all 0.2s;
+        }
+        .step-action-btn:hover { background: rgba(234,88,12,0.22); }
+        .step-action-btn.resolved { background: rgba(34,197,94,0.12); border-color: #22c55e; color: #22c55e; cursor: default; }
+
+        /* VPN / Remote */
+        .option-row {
+            background: rgba(20,16,12,0.9);
+            border: 1px solid rgba(234,88,12,0.15);
+            border-radius: 9px;
+            padding: 14px 16px;
+            margin-bottom: 12px;
+        }
+        .scenario-label { font-size: 0.7rem; color: #ea580c; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 5px; }
+        .scenario-text { font-size: 0.86rem; color: #d0c0b0; line-height: 1.5; margin-bottom: 10px; }
+
+        .option-group-h { display: flex; flex-wrap: wrap; gap: 8px; }
+
+        .option-btn {
+            padding: 8px 14px;
+            background: rgba(30,22,14,0.9);
+            border: 1px solid rgba(234,88,12,0.2);
+            border-radius: 7px;
+            color: #c0b0a0;
+            font-size: 0.82rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .option-btn:hover { background: rgba(234,88,12,0.12); border-color: rgba(234,88,12,0.4); color: #f5e6d3; }
+        .option-btn.correct { background: rgba(34,197,94,0.15); border-color: #22c55e; color: #22c55e; }
+        .option-btn.incorrect { background: rgba(239,68,68,0.12); border-color: #ef4444; color: #ef4444; }
+        .option-btn:disabled { cursor: not-allowed; opacity: 0.75; }
+
+        .feedback {
+            padding: 12px 16px;
+            border-radius: 8px;
+            font-size: 0.86rem;
+            line-height: 1.55;
+            margin-top: 12px;
+            display: none;
+        }
+        .feedback.show { display: block; }
+        .feedback.success { background: rgba(34,197,94,0.12); border: 1px solid rgba(34,197,94,0.3); color: #86efac; }
+        .feedback.error { background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.3); color: #fca5a5; }
+
+        .check-btn {
+            padding: 10px 26px;
+            background: linear-gradient(135deg, #ea580c, #c2410c);
+            border: none;
+            border-radius: 8px;
+            color: #fff;
+            font-size: 0.9rem;
+            cursor: pointer;
+            margin-top: 14px;
+            transition: all 0.25s;
+        }
+        .check-btn:hover { box-shadow: 0 4px 16px rgba(234,88,12,0.35); transform: translateY(-1px); }
+        .check-btn:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }
+
+        .complete-section { display: none; text-align: center; padding: 40px 20px; border-top: 1px solid rgba(234,88,12,0.15); margin-top: 30px; }
+        .complete-section.show { display: block; }
+        .complete-section p { color: #9a8070; margin-bottom: 18px; font-size: 0.92rem; }
+        .complete-btn {
+            padding: 13px 36px;
+            background: #22c55e;
+            border: none;
+            border-radius: 9px;
+            color: #fff;
+            font-size: 1rem;
+            cursor: pointer;
+            box-shadow: 0 3px 12px rgba(34,197,94,0.3);
+        }
+        .complete-btn:hover { background: #16a34a; }
+
+        @media (max-width: 900px) {
+            .lab-container { grid-template-columns: 1fr; }
+            .task-panel { display: none; }
+            .net-field-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+
+<header class="lab-header">
+    <div class="header-left">
+        <a href="../../index.html" class="back-btn">← Back</a>
+        <span class="lab-title">MD-100 M04: Networking Lab</span>
+        <span class="lab-badge">INTERACTIVE</span>
+    </div>
+    <div class="task-progress">
+        Tasks: <span class="task-count" id="taskProgress">0/5 Complete</span>
+    </div>
+</header>
+
+<div class="lab-container">
+    <aside class="task-panel">
+        <div class="task-section-title">Lab Tasks</div>
+
+        <div class="task-card active" data-task="1" onclick="selectTask(1)">
+            <div class="task-number">TASK 1</div>
+            <div class="task-name">IP Configuration</div>
+            <div class="task-desc">Fill in correct IP, subnet mask, gateway, and DNS for given network requirements</div>
+        </div>
+
+        <div class="task-card" data-task="2" onclick="selectTask(2)">
+            <div class="task-number">TASK 2</div>
+            <div class="task-name">Network Commands</div>
+            <div class="task-desc">Complete the correct troubleshooting command for each scenario</div>
+        </div>
+
+        <div class="task-card" data-task="3" onclick="selectTask(3)">
+            <div class="task-number">TASK 3</div>
+            <div class="task-name">DNS Troubleshooting</div>
+            <div class="task-desc">Step through DNS resolution failures and identify the fix at each stage</div>
+        </div>
+
+        <div class="task-card" data-task="4" onclick="selectTask(4)">
+            <div class="task-number">TASK 4</div>
+            <div class="task-name">VPN Protocol Selection</div>
+            <div class="task-desc">Choose the correct VPN protocol for security and compatibility requirements</div>
+        </div>
+
+        <div class="task-card" data-task="5" onclick="selectTask(5)">
+            <div class="task-number">TASK 5</div>
+            <div class="task-name">Remote Access Configuration</div>
+            <div class="task-desc">Determine the correct remote access method for each scenario</div>
+        </div>
+    </aside>
+
+    <main class="lab-main">
+
+        <!-- TASK 1: IP Configuration -->
+        <div class="task-view active" id="task-1">
+            <div class="task-header">
+                <h2>Task 1: IP Configuration</h2>
+                <p>Fill in the correct network configuration values for each scenario. Use standard IPv4 notation (e.g., 192.168.1.100).</p>
+            </div>
+
+            <!-- Scenario A -->
+            <div class="network-card">
+                <div class="net-title">Scenario A — Small Office Network</div>
+                <div class="net-scenario">Network: 192.168.10.0/24. Gateway router is at .1. Primary DNS is the ISP at 8.8.8.8. This workstation is assigned the 50th usable host address.</div>
+                <div class="net-field-grid">
+                    <div class="net-field">
+                        <label class="net-label">IP Address</label>
+                        <input class="net-input" id="a-ip" placeholder="x.x.x.x" spellcheck="false">
+                    </div>
+                    <div class="net-field">
+                        <label class="net-label">Subnet Mask</label>
+                        <input class="net-input" id="a-mask" placeholder="x.x.x.x" spellcheck="false">
+                    </div>
+                    <div class="net-field">
+                        <label class="net-label">Default Gateway</label>
+                        <input class="net-input" id="a-gw" placeholder="x.x.x.x" spellcheck="false">
+                    </div>
+                    <div class="net-field">
+                        <label class="net-label">Primary DNS</label>
+                        <input class="net-input" id="a-dns" placeholder="x.x.x.x" spellcheck="false">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Scenario B -->
+            <div class="network-card">
+                <div class="net-title">Scenario B — Corporate Subnet</div>
+                <div class="net-scenario">Network: 10.20.30.0/24. Default gateway is at .254. Internal DNS server at 10.20.30.10. Assign the 100th host address.</div>
+                <div class="net-field-grid">
+                    <div class="net-field">
+                        <label class="net-label">IP Address</label>
+                        <input class="net-input" id="b-ip" placeholder="x.x.x.x" spellcheck="false">
+                    </div>
+                    <div class="net-field">
+                        <label class="net-label">Subnet Mask</label>
+                        <input class="net-input" id="b-mask" placeholder="x.x.x.x" spellcheck="false">
+                    </div>
+                    <div class="net-field">
+                        <label class="net-label">Default Gateway</label>
+                        <input class="net-input" id="b-gw" placeholder="x.x.x.x" spellcheck="false">
+                    </div>
+                    <div class="net-field">
+                        <label class="net-label">Primary DNS</label>
+                        <input class="net-input" id="b-dns" placeholder="x.x.x.x" spellcheck="false">
+                    </div>
+                </div>
+            </div>
+
+            <div class="feedback" id="t1-feedback"></div>
+            <button class="check-btn" onclick="checkTask1()">Check IP Configuration</button>
+        </div>
+
+        <!-- TASK 2: Network Commands -->
+        <div class="task-view" id="task-2">
+            <div class="task-header">
+                <h2>Task 2: Network Troubleshooting Commands</h2>
+                <p>Fill in the correct command and arguments for each troubleshooting scenario.</p>
+            </div>
+
+            <div class="cmd-scenario-card">
+                <div class="cmd-context">User reports the machine has a 169.254.x.x APIPA address. You need to release and renew the IP address from DHCP.</div>
+                <div class="cmd-prompt-line">C:\> </div>
+                <div class="cmd-fill">
+                    <input class="cmd-input" id="cmd1-a" placeholder="command" style="width:90px;" spellcheck="false">
+                    <span>/release</span>
+                </div>
+                <div class="cmd-prompt-line" style="margin-top:6px;">C:\> </div>
+                <div class="cmd-fill">
+                    <input class="cmd-input" id="cmd1-b" placeholder="command" style="width:90px;" spellcheck="false">
+                    <span>/renew</span>
+                </div>
+            </div>
+
+            <div class="cmd-scenario-card">
+                <div class="cmd-context">Test if the default gateway (192.168.1.1) is reachable. Send exactly 4 packets.</div>
+                <div class="cmd-prompt-line">C:\> </div>
+                <div class="cmd-fill">
+                    <input class="cmd-input" id="cmd2-a" placeholder="command" style="width:60px;" spellcheck="false">
+                    <input class="cmd-input" id="cmd2-b" placeholder="switch" style="width:55px;" spellcheck="false">
+                    <span>4</span>
+                    <span>192.168.1.1</span>
+                </div>
+            </div>
+
+            <div class="cmd-scenario-card">
+                <div class="cmd-context">Traffic is reaching the gateway but failing somewhere upstream. Identify where in the route to 8.8.8.8 packets are being dropped.</div>
+                <div class="cmd-prompt-line">C:\> </div>
+                <div class="cmd-fill">
+                    <input class="cmd-input" id="cmd3-a" placeholder="command" style="width:90px;" spellcheck="false">
+                    <span>8.8.8.8</span>
+                </div>
+            </div>
+
+            <div class="cmd-scenario-card">
+                <div class="cmd-context">DNS resolution for "internalapp.corp.local" is failing. Check what IP address the DNS server returns for this hostname.</div>
+                <div class="cmd-prompt-line">C:\> </div>
+                <div class="cmd-fill">
+                    <input class="cmd-input" id="cmd4-a" placeholder="command" style="width:100px;" spellcheck="false">
+                    <span>internalapp.corp.local</span>
+                </div>
+            </div>
+
+            <div class="cmd-scenario-card">
+                <div class="cmd-context">Identify which process is listening on TCP port 443 and show all active connections with PIDs.</div>
+                <div class="cmd-prompt-line">C:\> </div>
+                <div class="cmd-fill">
+                    <input class="cmd-input" id="cmd5-a" placeholder="command" style="width:90px;" spellcheck="false">
+                    <span>-ano</span>
+                    <span>|</span>
+                    <span>findstr</span>
+                    <span>:443</span>
+                </div>
+            </div>
+
+            <div class="feedback" id="t2-feedback"></div>
+            <button class="check-btn" onclick="checkTask2()">Check Commands</button>
+        </div>
+
+        <!-- TASK 3: DNS Troubleshooting -->
+        <div class="task-view" id="task-3">
+            <div class="task-header">
+                <h2>Task 3: DNS Troubleshooting Walkthrough</h2>
+                <p>A user reports that "company-portal.corp.local" does not resolve. Work through each diagnostic step in order by clicking the correct action.</p>
+            </div>
+
+            <div class="dns-steps" id="dns-steps">
+
+                <div class="dns-step" id="dns-step-1">
+                    <div class="step-num">1</div>
+                    <div class="step-desc">
+                        <strong>Check local cache first.</strong> Before hitting the network, confirm whether a stale or negative DNS cache entry is causing the failure.
+                    </div>
+                    <button class="step-action-btn" onclick="resolveDNS(1, 'ipconfig /displaydns', this)">ipconfig /displaydns</button>
+                </div>
+
+                <div class="dns-step" id="dns-step-2">
+                    <div class="step-num">2</div>
+                    <div class="step-desc">
+                        <strong>Stale negative entry found.</strong> The cache shows a negative (NXDOMAIN) response from 3 hours ago. Clear the cache so fresh resolution can occur.
+                    </div>
+                    <button class="step-action-btn" onclick="resolveDNS(2, 'ipconfig /flushdns', this)">ipconfig /flushdns</button>
+                </div>
+
+                <div class="dns-step" id="dns-step-3">
+                    <div class="step-num">3</div>
+                    <div class="step-desc">
+                        <strong>Cache cleared.</strong> Now query the DNS server directly to see if it has the record. Use nslookup targeting the internal DNS server at 10.10.1.5.
+                    </div>
+                    <button class="step-action-btn" onclick="resolveDNS(3, 'nslookup company-portal.corp.local 10.10.1.5', this)">nslookup ... 10.10.1.5</button>
+                </div>
+
+                <div class="dns-step" id="dns-step-4">
+                    <div class="step-num">4</div>
+                    <div class="step-desc">
+                        <strong>NXDOMAIN from internal DNS.</strong> The DNS server has no A record for this hostname. Check if the host file has a local override that should be there.
+                    </div>
+                    <button class="step-action-btn" onclick="resolveDNS(4, 'notepad %windir%\\system32\\drivers\\etc\\hosts', this)">Check hosts file</button>
+                </div>
+
+                <div class="dns-step" id="dns-step-5">
+                    <div class="step-num">5</div>
+                    <div class="step-desc">
+                        <strong>No hosts file entry.</strong> The DNS server truly lacks the record. Create an A record on the internal DNS server for company-portal.corp.local pointing to 10.10.1.50.
+                    </div>
+                    <button class="step-action-btn" onclick="resolveDNS(5, 'Add DNS A record on server', this)">Add DNS A Record on Server</button>
+                </div>
+
+                <div class="dns-step" id="dns-step-6">
+                    <div class="step-num">6</div>
+                    <div class="step-desc">
+                        <strong>Record added.</strong> Verify the new record resolves correctly from the client machine.
+                    </div>
+                    <button class="step-action-btn" onclick="resolveDNS(6, 'nslookup company-portal.corp.local', this)">nslookup company-portal.corp.local</button>
+                </div>
+            </div>
+
+            <div class="feedback" id="t3-feedback"></div>
+            <button class="check-btn" id="t3-btn" onclick="completeT3()" disabled>Complete Task 3</button>
+        </div>
+
+        <!-- TASK 4: VPN Protocol Selection -->
+        <div class="task-view" id="task-4">
+            <div class="task-header">
+                <h2>Task 4: VPN Protocol Selection</h2>
+                <p>Select the most appropriate VPN protocol for each connection requirement.</p>
+            </div>
+
+            <div class="option-row">
+                <div class="scenario-label">Scenario 4A</div>
+                <div class="scenario-text">Enterprise environment. Must use certificate-based auth, integrates with Active Directory, supports Always On VPN. Native to Windows 10 without third-party client.</div>
+                <div class="option-group-h">
+                    <button class="option-btn" onclick="checkVPN('4a','sstp',this)">SSTP</button>
+                    <button class="option-btn" onclick="checkVPN('4a','ikev2',this)">IKEv2</button>
+                    <button class="option-btn" onclick="checkVPN('4a','pptp',this)">PPTP</button>
+                    <button class="option-btn" onclick="checkVPN('4a','l2tp',this)">L2TP/IPsec</button>
+                    <button class="option-btn" onclick="checkVPN('4a','openvpn',this)">OpenVPN</button>
+                </div>
+            </div>
+
+            <div class="option-row">
+                <div class="scenario-label">Scenario 4B</div>
+                <div class="scenario-text">Firewall blocks UDP and most non-standard ports. Only TCP 443 (HTTPS) is allowed through the corporate proxy. VPN must traverse the proxy.</div>
+                <div class="option-group-h">
+                    <button class="option-btn" onclick="checkVPN('4b','sstp',this)">SSTP</button>
+                    <button class="option-btn" onclick="checkVPN('4b','ikev2',this)">IKEv2</button>
+                    <button class="option-btn" onclick="checkVPN('4b','pptp',this)">PPTP</button>
+                    <button class="option-btn" onclick="checkVPN('4b','l2tp',this)">L2TP/IPsec</button>
+                    <button class="option-btn" onclick="checkVPN('4b','openvpn',this)">OpenVPN</button>
+                </div>
+            </div>
+
+            <div class="option-row">
+                <div class="scenario-label">Scenario 4C</div>
+                <div class="scenario-text">Legacy client compatibility is required. The protocol must work on Windows XP SP3 without additional software. Encryption is secondary to compatibility. (Note: this protocol is deprecated — explain why it's still chosen here.)</div>
+                <div class="option-group-h">
+                    <button class="option-btn" onclick="checkVPN('4c','sstp',this)">SSTP</button>
+                    <button class="option-btn" onclick="checkVPN('4c','ikev2',this)">IKEv2</button>
+                    <button class="option-btn" onclick="checkVPN('4c','pptp',this)">PPTP (legacy only)</button>
+                    <button class="option-btn" onclick="checkVPN('4c','l2tp',this)">L2TP/IPsec</button>
+                    <button class="option-btn" onclick="checkVPN('4c','openvpn',this)">OpenVPN</button>
+                </div>
+            </div>
+
+            <div class="option-row">
+                <div class="scenario-label">Scenario 4D</div>
+                <div class="scenario-text">Mobile device users. Connection drops when switching between Wi-Fi and LTE. Protocol must auto-reconnect (MOBIKE) without user intervention. Uses UDP 500/4500.</div>
+                <div class="option-group-h">
+                    <button class="option-btn" onclick="checkVPN('4d','sstp',this)">SSTP</button>
+                    <button class="option-btn" onclick="checkVPN('4d','ikev2',this)">IKEv2</button>
+                    <button class="option-btn" onclick="checkVPN('4d','pptp',this)">PPTP</button>
+                    <button class="option-btn" onclick="checkVPN('4d','l2tp',this)">L2TP/IPsec</button>
+                    <button class="option-btn" onclick="checkVPN('4d','openvpn',this)">OpenVPN</button>
+                </div>
+            </div>
+
+            <div class="feedback" id="t4-feedback"></div>
+            <button class="check-btn" id="t4-btn" onclick="completeT4()" disabled>Complete Task 4</button>
+        </div>
+
+        <!-- TASK 5: Remote Access Configuration -->
+        <div class="task-view" id="task-5">
+            <div class="task-header">
+                <h2>Task 5: Remote Access Configuration</h2>
+                <p>Select the correct remote access method for each scenario. Options: RDP, Quick Assist, PowerShell Remoting, RSAT (Remote Server Administration Tools).</p>
+            </div>
+
+            <div class="option-row">
+                <div class="scenario-label">Scenario 5A</div>
+                <div class="scenario-text">IT admin needs to manage Active Directory Users and Computers, DNS, and DHCP on a remote Windows Server 2022 — from their Windows 10 admin workstation. No need to take over the server's desktop session.</div>
+                <div class="option-group-h">
+                    <button class="option-btn" onclick="checkRemote('5a','rdp',this)">RDP</button>
+                    <button class="option-btn" onclick="checkRemote('5a','quickassist',this)">Quick Assist</button>
+                    <button class="option-btn" onclick="checkRemote('5a','psremote',this)">PowerShell Remoting</button>
+                    <button class="option-btn" onclick="checkRemote('5a','rsat',this)">RSAT</button>
+                </div>
+            </div>
+
+            <div class="option-row">
+                <div class="scenario-label">Scenario 5B</div>
+                <div class="scenario-text">A remote employee's screen is frozen and they need a technician to take control of their screen right now. No VPN. The helper and user are on different networks. The connection must not require pre-configuration on the endpoint.</div>
+                <div class="option-group-h">
+                    <button class="option-btn" onclick="checkRemote('5b','rdp',this)">RDP</button>
+                    <button class="option-btn" onclick="checkRemote('5b','quickassist',this)">Quick Assist</button>
+                    <button class="option-btn" onclick="checkRemote('5b','psremote',this)">PowerShell Remoting</button>
+                    <button class="option-btn" onclick="checkRemote('5b','rsat',this)">RSAT</button>
+                </div>
+            </div>
+
+            <div class="option-row">
+                <div class="scenario-label">Scenario 5C</div>
+                <div class="scenario-text">DevOps team member needs to execute scripts on 20 servers simultaneously to update a config file. No GUI needed — purely command-line automation, using WS-Management protocol.</div>
+                <div class="option-group-h">
+                    <button class="option-btn" onclick="checkRemote('5c','rdp',this)">RDP</button>
+                    <button class="option-btn" onclick="checkRemote('5c','quickassist',this)">Quick Assist</button>
+                    <button class="option-btn" onclick="checkRemote('5c','psremote',this)">PowerShell Remoting (Invoke-Command)</button>
+                    <button class="option-btn" onclick="checkRemote('5c','rsat',this)">RSAT</button>
+                </div>
+            </div>
+
+            <div class="option-row">
+                <div class="scenario-label">Scenario 5D</div>
+                <div class="scenario-text">Field tech needs full graphical desktop access to a Windows 10 workstation at a branch office over VPN. They need to use software installed on that machine as if they were sitting in front of it.</div>
+                <div class="option-group-h">
+                    <button class="option-btn" onclick="checkRemote('5d','rdp',this)">RDP</button>
+                    <button class="option-btn" onclick="checkRemote('5d','quickassist',this)">Quick Assist</button>
+                    <button class="option-btn" onclick="checkRemote('5d','psremote',this)">PowerShell Remoting</button>
+                    <button class="option-btn" onclick="checkRemote('5d','rsat',this)">RSAT</button>
+                </div>
+            </div>
+
+            <div class="feedback" id="t5-feedback"></div>
+            <button class="check-btn" id="t5-btn" onclick="checkTask5()" disabled>Complete Task 5</button>
+
+            <div class="complete-section" id="complete-section">
+                <p>All tasks complete. You can now configure IP addressing, troubleshoot using network commands, resolve DNS failures, select VPN protocols, and choose remote access methods.</p>
+                <button class="complete-btn" onclick="completeModule()">Complete Module</button>
+            </div>
+        </div>
+
+    </main>
+</div>
+
+<script>
+    let completedTasks = new Set();
+
+    // Task 1 answers
+    const ipAnswers = {
+        'a-ip':'192.168.10.50', 'a-mask':'255.255.255.0', 'a-gw':'192.168.10.1', 'a-dns':'8.8.8.8',
+        'b-ip':'10.20.30.100',  'b-mask':'255.255.255.0', 'b-gw':'10.20.30.254',  'b-dns':'10.20.30.10'
+    };
+
+    // Task 2 answers (lowercase trim)
+    const cmdAnswers = {
+        'cmd1-a':'ipconfig', 'cmd1-b':'ipconfig',
+        'cmd2-a':'ping', 'cmd2-b':'-n',
+        'cmd3-a':'tracert',
+        'cmd4-a':'nslookup',
+        'cmd5-a':'netstat'
+    };
+
+    // Task 3 DNS steps resolved tracker
+    let dnsStepsResolved = 0;
+
+    // Task 4 VPN answers
+    const vpnAnswers = { '4a':'ikev2', '4b':'sstp', '4c':'pptp', '4d':'ikev2' };
+    const vpnCorrect  = { '4a':false, '4b':false, '4c':false, '4d':false };
+
+    // Task 5 remote answers
+    const remoteAnswers = { '5a':'rsat', '5b':'quickassist', '5c':'psremote', '5d':'rdp' };
+    const remoteCorrect  = { '5a':false, '5b':false, '5c':false, '5d':false };
+
+    // ── Navigation ─────────────────────────────────────────────────────────────
+    function selectTask(n) {
+        document.querySelectorAll('.task-view').forEach(v => v.classList.remove('active'));
+        document.querySelectorAll('.task-card').forEach(c => c.classList.remove('active'));
+        document.getElementById('task-' + n).classList.add('active');
+        document.querySelector('[data-task="' + n + '"]').classList.add('active');
+    }
+
+    function markTaskComplete(n) {
+        completedTasks.add(n);
+        document.querySelector('[data-task="' + n + '"]').classList.add('completed');
+        document.getElementById('taskProgress').textContent = completedTasks.size + '/5 Complete';
+        if (completedTasks.size === 5) document.getElementById('complete-section').classList.add('show');
+    }
+
+    function showFeedback(id, type, msg) {
+        const el = document.getElementById(id);
+        el.className = 'feedback show ' + type;
+        el.innerHTML = msg;
+    }
+
+    // ── Task 1 ─────────────────────────────────────────────────────────────────
+    function checkTask1() {
+        let score = 0;
+        Object.keys(ipAnswers).forEach(id => {
+            const el = document.getElementById(id);
+            const val = el.value.trim();
+            el.classList.remove('correct','incorrect');
+            if (val === ipAnswers[id]) { el.classList.add('correct'); score++; }
+            else el.classList.add('incorrect');
+        });
+        if (score === 8) {
+            showFeedback('t1-feedback','success','All IP values correct. Reminder: the 50th usable host in a /24 is x.x.x.50; the 100th is x.x.x.100. The subnet mask for /24 is always 255.255.255.0 (256 addresses, 254 usable).');
+            if (!completedTasks.has(1)) markTaskComplete(1);
+            setTimeout(() => selectTask(2), 1200);
+        } else {
+            showFeedback('t1-feedback','error', score + '/8 correct. Red fields are wrong. Remember: the host number matches the scenario (50th host = .50, 100th = .100 in a /24). Gateway and DNS are given in the scenario description.');
+        }
+    }
+
+    // ── Task 2 ─────────────────────────────────────────────────────────────────
+    function checkTask2() {
+        let score = 0;
+        Object.keys(cmdAnswers).forEach(id => {
+            const el = document.getElementById(id);
+            const val = el.value.trim().toLowerCase();
+            el.classList.remove('correct','incorrect');
+            if (val === cmdAnswers[id]) { el.classList.add('correct'); score++; }
+            else el.classList.add('incorrect');
+        });
+        if (score === 7) {
+            showFeedback('t2-feedback','success','All network commands correct. Key commands: ipconfig /release+/renew for DHCP reset; ping -n for packet count; tracert for hop-by-hop routing; nslookup for DNS queries; netstat -ano for connection and port inspection.');
+            if (!completedTasks.has(2)) markTaskComplete(2);
+            setTimeout(() => selectTask(3), 1200);
+        } else {
+            showFeedback('t2-feedback','error', score + '/7 correct. Common mistakes: ping uses -n on Windows (not -c like Linux); tracert not traceroute; netstat not ss or ifconfig.');
+        }
+    }
+
+    // ── Task 3 ─────────────────────────────────────────────────────────────────
+    function resolveDNS(stepNum, action, btn) {
+        if (stepNum !== dnsStepsResolved + 1) return; // Must go in order
+        btn.classList.add('resolved');
+        btn.disabled = true;
+        dnsStepsResolved++;
+        if (dnsStepsResolved === 6) {
+            document.getElementById('t3-btn').disabled = false;
+            showFeedback('t3-feedback','success','DNS troubleshooting sequence complete. The systematic approach: cache check, cache flush, direct server query, hosts file check, add missing record, verify. This process isolates whether the issue is client-side (cache/hosts) or server-side (missing record).');
+        }
+    }
+
+    function completeT3() {
+        if (!completedTasks.has(3)) markTaskComplete(3);
+        selectTask(4);
+    }
+
+    // ── Task 4 ─────────────────────────────────────────────────────────────────
+    function checkVPN(scenario, chosen, btn) {
+        const card = btn.closest('.option-row');
+        card.querySelectorAll('.option-btn').forEach(b => { b.disabled = true; b.classList.remove('correct','incorrect'); });
+        if (chosen === vpnAnswers[scenario]) {
+            btn.classList.add('correct');
+            vpnCorrect[scenario] = true;
+        } else {
+            btn.classList.add('incorrect');
+            card.querySelectorAll('.option-btn').forEach(b => {
+                const v = b.getAttribute('onclick').match(/'([^']+)'/g)[1].replace(/'/g,'');
+                if (v === vpnAnswers[scenario]) b.classList.add('correct');
+            });
+        }
+        if (Object.values(vpnCorrect).every(Boolean)) {
+            document.getElementById('t4-btn').disabled = false;
+            showFeedback('t4-feedback','success','VPN protocols understood. IKEv2 = modern, fast reconnect (MOBIKE), certificate auth, AD integration. SSTP = runs over HTTPS TCP 443, firewall-friendly. PPTP = deprecated, weak encryption (MPPE), legacy only. L2TP/IPsec = strong but needs UDP 500/4500 open.');
+        }
+    }
+
+    function completeT4() {
+        if (!completedTasks.has(4)) markTaskComplete(4);
+        selectTask(5);
+    }
+
+    // ── Task 5 ─────────────────────────────────────────────────────────────────
+    function checkRemote(scenario, chosen, btn) {
+        const card = btn.closest('.option-row');
+        card.querySelectorAll('.option-btn').forEach(b => { b.disabled = true; b.classList.remove('correct','incorrect'); });
+        if (chosen === remoteAnswers[scenario]) {
+            btn.classList.add('correct');
+            remoteCorrect[scenario] = true;
+        } else {
+            btn.classList.add('incorrect');
+            card.querySelectorAll('.option-btn').forEach(b => {
+                const v = b.getAttribute('onclick').match(/'([^']+)'/g)[1].replace(/'/g,'');
+                if (v === remoteAnswers[scenario]) b.classList.add('correct');
+            });
+        }
+        if (Object.values(remoteCorrect).every(Boolean)) {
+            document.getElementById('t5-btn').disabled = false;
+            showFeedback('t5-feedback','success','Remote access methods matched correctly. RSAT = GUI admin tools without full RDP session. Quick Assist = no-config consumer remote help via Microsoft account. PowerShell Remoting = multi-machine scripted automation. RDP = full graphical desktop takeover, requires network access and enabled Remote Desktop.');
+        }
+    }
+
+    function checkTask5() {
+        if (!completedTasks.has(5)) markTaskComplete(5);
+    }
+
+    // ── Module Complete ────────────────────────────────────────────────────────
+    function completeModule() {
+        ModuleProgress.complete('forge', 'forge-md100-m04-lab', {
+            returnUrl: '../../index.html'
+        });
+    }
+</script>
+
+<script src="../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>

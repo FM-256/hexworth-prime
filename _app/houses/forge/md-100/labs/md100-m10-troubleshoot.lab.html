@@ -1,0 +1,946 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OS &amp; App Troubleshooting Lab - MD-100</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            min-height: 100vh;
+            background: #0c0c0c;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: #e0d0c0;
+        }
+
+        .lab-header {
+            padding: 15px 30px;
+            background: rgba(10, 10, 15, 0.95);
+            border-bottom: 1px solid rgba(234, 88, 12, 0.2);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .header-left { display: flex; align-items: center; gap: 20px; }
+
+        .back-btn {
+            padding: 8px 16px;
+            background: rgba(234, 88, 12, 0.1);
+            border: 1px solid rgba(234, 88, 12, 0.3);
+            border-radius: 6px;
+            color: #f97316;
+            text-decoration: none;
+            font-size: 0.85rem;
+            transition: all 0.2s ease;
+        }
+        .back-btn:hover { background: rgba(234, 88, 12, 0.2); }
+
+        .lab-title { font-size: 1rem; color: #f5e6d0; font-weight: 500; }
+
+        .lab-badge {
+            padding: 4px 12px;
+            background: rgba(234, 88, 12, 0.15);
+            border: 1px solid rgba(234, 88, 12, 0.3);
+            border-radius: 12px;
+            font-size: 0.7rem;
+            color: #ea580c;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+        }
+
+        .task-progress { display: flex; align-items: center; gap: 10px; font-size: 0.85rem; color: #9a8070; }
+        .task-count { color: #f97316; font-weight: 600; }
+
+        .lab-container {
+            display: grid;
+            grid-template-columns: 350px 1fr;
+            min-height: calc(100vh - 61px);
+        }
+
+        .task-panel {
+            background: rgba(15, 12, 8, 0.95);
+            border-right: 1px solid rgba(234, 88, 12, 0.15);
+            padding: 20px;
+            overflow-y: auto;
+            position: sticky;
+            top: 61px;
+            height: calc(100vh - 61px);
+        }
+
+        .panel-heading {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: #ea580c;
+            margin-bottom: 15px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid rgba(234, 88, 12, 0.2);
+        }
+
+        .task-item {
+            background: rgba(234, 88, 12, 0.04);
+            border: 1px solid rgba(234, 88, 12, 0.1);
+            border-radius: 8px;
+            padding: 14px;
+            margin-bottom: 10px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .task-item:hover { background: rgba(234, 88, 12, 0.08); border-color: rgba(234, 88, 12, 0.25); }
+        .task-item.active { border-left: 3px solid #ea580c; background: rgba(234, 88, 12, 0.1); }
+        .task-item.completed { border-color: rgba(34, 197, 94, 0.4); background: rgba(34, 197, 94, 0.04); }
+        .task-item.completed .task-title::before { content: '✓ '; color: #22c55e; }
+
+        .task-title { font-size: 0.88rem; color: #f5e6d0; margin-bottom: 4px; font-weight: 500; }
+        .task-desc { font-size: 0.75rem; color: #7a6a5a; }
+
+        .main-content { padding: 30px; overflow-y: auto; }
+
+        .exercise-section { display: none; }
+        .exercise-section.active { display: block; }
+
+        .exercise-title { font-size: 1.2rem; color: #f97316; margin-bottom: 8px; font-weight: 600; }
+        .exercise-intro { font-size: 0.9rem; color: #9a8070; margin-bottom: 25px; line-height: 1.6; }
+
+        .scenario-card {
+            background: rgba(234, 88, 12, 0.06);
+            border: 1px solid rgba(234, 88, 12, 0.2);
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        .scenario-card h4 { color: #f97316; font-size: 0.85rem; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.05em; }
+        .scenario-card p { font-size: 0.9rem; color: #c0b0a0; line-height: 1.5; }
+
+        .options-list { display: flex; flex-direction: column; gap: 8px; margin-top: 15px; }
+        .options-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 15px; }
+
+        .option-btn {
+            padding: 12px 16px;
+            background: rgba(30, 25, 20, 0.8);
+            border: 1px solid rgba(234, 88, 12, 0.2);
+            border-radius: 8px;
+            color: #c0b0a0;
+            font-size: 0.85rem;
+            cursor: pointer;
+            text-align: left;
+            transition: all 0.2s ease;
+            font-family: inherit;
+        }
+        .option-btn:hover:not(:disabled) { background: rgba(234, 88, 12, 0.12); border-color: rgba(234, 88, 12, 0.4); color: #f5e6d0; }
+        .option-btn.correct { background: rgba(34, 197, 94, 0.12); border-color: #22c55e; color: #86efac; }
+        .option-btn.incorrect { background: rgba(220, 38, 38, 0.12); border-color: #dc2626; color: #fca5a5; }
+        .option-btn:disabled { cursor: default; }
+
+        .feedback-box {
+            margin-top: 15px;
+            padding: 14px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            line-height: 1.5;
+            display: none;
+        }
+        .feedback-box.correct { background: rgba(34, 197, 94, 0.1); border: 1px solid rgba(34, 197, 94, 0.3); color: #86efac; }
+        .feedback-box.incorrect { background: rgba(220, 38, 38, 0.1); border: 1px solid rgba(220, 38, 38, 0.3); color: #fca5a5; }
+        .feedback-box.show { display: block; }
+
+        .info-callout {
+            background: rgba(96, 165, 250, 0.08);
+            border-left: 3px solid rgba(96, 165, 250, 0.5);
+            border-radius: 4px;
+            padding: 12px 16px;
+            margin: 15px 0;
+            font-size: 0.82rem;
+            color: #93c5fd;
+            line-height: 1.5;
+        }
+
+        /* Command fill-in terminal */
+        .terminal-box {
+            background: rgba(8, 8, 10, 0.95);
+            border: 1px solid rgba(234, 88, 12, 0.25);
+            border-radius: 10px;
+            padding: 20px;
+            margin: 15px 0;
+            font-family: 'Consolas', 'Courier New', monospace;
+        }
+        .terminal-prompt { color: #f97316; font-size: 0.85rem; margin-bottom: 10px; }
+        .cmd-line {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin-bottom: 10px;
+            flex-wrap: wrap;
+        }
+        .cmd-static { font-size: 0.88rem; color: #c0b0a0; }
+        .cmd-blank {
+            background: rgba(40, 30, 20, 0.9);
+            border: 1px solid rgba(234, 88, 12, 0.3);
+            border-radius: 4px;
+            color: #f97316;
+            font-family: 'Consolas', monospace;
+            font-size: 0.88rem;
+            padding: 4px 8px;
+            min-width: 140px;
+            outline: none;
+        }
+        .cmd-blank:focus { border-color: #f97316; }
+        .cmd-blank.correct { border-color: #22c55e; color: #86efac; background: rgba(34, 197, 94, 0.08); }
+        .cmd-blank.incorrect { border-color: #dc2626; color: #fca5a5; background: rgba(220, 38, 38, 0.08); }
+        .cmd-output { font-size: 0.82rem; color: #7a6a5a; margin-top: 4px; padding-left: 8px; }
+
+        /* Compat mode form */
+        .compat-form {
+            background: rgba(20, 16, 12, 0.8);
+            border: 1px solid rgba(234, 88, 12, 0.2);
+            border-radius: 10px;
+            padding: 20px;
+            margin-top: 15px;
+        }
+        .compat-form h4 {
+            color: #f97316;
+            font-size: 0.85rem;
+            margin-bottom: 4px;
+        }
+        .compat-form .subtitle { font-size: 0.78rem; color: #7a6a5a; margin-bottom: 18px; }
+        .form-row { display: grid; grid-template-columns: 200px 1fr; gap: 10px; align-items: center; margin-bottom: 12px; }
+        .form-label { font-size: 0.82rem; color: #9a8070; }
+        .form-select {
+            background: rgba(30, 25, 20, 0.9);
+            border: 1px solid rgba(234, 88, 12, 0.25);
+            border-radius: 6px;
+            color: #c0b0a0;
+            padding: 8px 10px;
+            font-size: 0.85rem;
+            font-family: inherit;
+            width: 100%;
+        }
+        .form-select:focus { outline: none; border-color: #f97316; }
+        .form-select.correct { border-color: #22c55e; color: #86efac; }
+        .form-select.incorrect { border-color: #dc2626; color: #fca5a5; }
+        .form-check {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 10px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            color: #c0b0a0;
+        }
+        .form-check input[type="checkbox"] { accent-color: #f97316; width: 16px; height: 16px; }
+
+        /* Service recovery config */
+        .service-config {
+            background: rgba(20, 16, 12, 0.8);
+            border: 1px solid rgba(234, 88, 12, 0.2);
+            border-radius: 10px;
+            padding: 20px;
+            margin-top: 15px;
+        }
+        .service-config h4 { color: #f97316; font-size: 0.85rem; margin-bottom: 4px; }
+        .svc-subtitle { font-size: 0.78rem; color: #7a6a5a; margin-bottom: 18px; }
+        .svc-row { display: grid; grid-template-columns: 200px 1fr; gap: 10px; align-items: center; margin-bottom: 12px; }
+        .svc-label { font-size: 0.82rem; color: #9a8070; }
+        .svc-select {
+            background: rgba(30, 25, 20, 0.9);
+            border: 1px solid rgba(234, 88, 12, 0.25);
+            border-radius: 6px;
+            color: #c0b0a0;
+            padding: 8px 10px;
+            font-size: 0.85rem;
+            font-family: inherit;
+            width: 100%;
+        }
+        .svc-select:focus { outline: none; border-color: #f97316; }
+        .svc-select.correct { border-color: #22c55e; color: #86efac; }
+        .svc-select.incorrect { border-color: #dc2626; color: #fca5a5; }
+        .svc-input {
+            background: rgba(30, 25, 20, 0.9);
+            border: 1px solid rgba(234, 88, 12, 0.25);
+            border-radius: 6px;
+            color: #c0b0a0;
+            padding: 8px 10px;
+            font-size: 0.85rem;
+            font-family: 'Consolas', monospace;
+            width: 100%;
+        }
+        .svc-input:focus { outline: none; border-color: #f97316; }
+        .svc-input.correct { border-color: #22c55e; color: #86efac; }
+        .svc-input.incorrect { border-color: #dc2626; color: #fca5a5; }
+
+        /* SFC/DISM sequence */
+        .seq-steps { margin-top: 15px; }
+        .seq-step {
+            border: 1px solid rgba(234, 88, 12, 0.2);
+            border-radius: 10px;
+            margin-bottom: 12px;
+            overflow: hidden;
+        }
+        .seq-step-header {
+            padding: 12px 16px;
+            background: rgba(234, 88, 12, 0.08);
+            font-size: 0.85rem;
+            color: #f97316;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .seq-num {
+            width: 24px; height: 24px;
+            background: rgba(234, 88, 12, 0.25);
+            border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 0.75rem; flex-shrink: 0;
+        }
+        .seq-step-body { padding: 15px 16px; }
+        .seq-step-body p { font-size: 0.85rem; color: #9a8070; margin-bottom: 10px; }
+        .seq-step.locked .seq-step-body { display: none; }
+        .seq-step.done-step .seq-step-header { background: rgba(34, 197, 94, 0.1); }
+        .seq-step.done-step .seq-num { background: #22c55e; }
+
+        .submit-btn {
+            margin-top: 20px;
+            padding: 12px 28px;
+            background: linear-gradient(135deg, #ea580c, #c2410c);
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            font-family: inherit;
+            transition: all 0.2s ease;
+        }
+        .submit-btn:hover { transform: translateY(-1px); box-shadow: 0 4px 15px rgba(234, 88, 12, 0.3); }
+        .submit-btn:disabled { opacity: 0.5; cursor: default; transform: none; }
+
+        .complete-section {
+            display: none;
+            margin-top: 40px;
+            padding: 30px;
+            background: rgba(34, 197, 94, 0.06);
+            border: 1px solid rgba(34, 197, 94, 0.2);
+            border-radius: 12px;
+            text-align: center;
+        }
+        .complete-section.show { display: block; }
+        .complete-section h3 { color: #22c55e; font-size: 1.2rem; margin-bottom: 10px; }
+        .complete-section p { color: #9a8070; font-size: 0.9rem; margin-bottom: 20px; }
+
+        .complete-btn {
+            padding: 14px 32px;
+            background: linear-gradient(135deg, #22c55e, #16a34a);
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-size: 1rem;
+            font-weight: 700;
+            cursor: pointer;
+            font-family: inherit;
+            transition: all 0.2s ease;
+        }
+        .complete-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(34, 197, 94, 0.35); }
+
+        @keyframes taskPulse {
+            0%, 100% { box-shadow: none; }
+            50% { box-shadow: 0 0 12px rgba(34, 197, 94, 0.5); }
+        }
+        .task-item.just-completed { animation: taskPulse 0.6s ease; }
+
+        @media (max-width: 900px) {
+            .lab-container { grid-template-columns: 1fr; }
+            .task-panel { position: static; height: auto; }
+            .options-grid { grid-template-columns: 1fr; }
+            .form-row, .svc-row { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+
+    <header class="lab-header">
+        <div class="header-left">
+            <a href="../../index.html" class="back-btn">&#8592; Back to MD-100</a>
+            <span class="lab-title">Module 10 Lab: OS &amp; App Troubleshooting</span>
+            <span class="lab-badge">Forge Lab</span>
+        </div>
+        <div class="task-progress">
+            <span>Tasks:</span>
+            <span class="task-count" id="taskCount">0 / 5</span>
+        </div>
+    </header>
+
+    <div class="lab-container">
+
+        <aside class="task-panel">
+            <div class="panel-heading">Lab Tasks</div>
+            <div class="task-item active" data-task="1" onclick="showTask(1)">
+                <div class="task-title">1. File Recovery Strategy</div>
+                <div class="task-desc">Select best recovery method per scenario</div>
+            </div>
+            <div class="task-item" data-task="2" onclick="showTask(2)">
+                <div class="task-title">2. App Compatibility Fix</div>
+                <div class="task-desc">Configure Compatibility Mode for legacy apps</div>
+            </div>
+            <div class="task-item" data-task="3" onclick="showTask(3)">
+                <div class="task-title">3. Boot Repair Commands</div>
+                <div class="task-desc">Fill in bootrec/bcdedit commands</div>
+            </div>
+            <div class="task-item" data-task="4" onclick="showTask(4)">
+                <div class="task-title">4. Service Troubleshooting</div>
+                <div class="task-desc">Configure service recovery options</div>
+            </div>
+            <div class="task-item" data-task="5" onclick="showTask(5)">
+                <div class="task-title">5. System File Repair</div>
+                <div class="task-desc">Execute DISM and SFC in correct sequence</div>
+            </div>
+        </aside>
+
+        <main class="main-content">
+
+            <!-- Task 1: File Recovery -->
+            <section class="exercise-section active" id="task-1">
+                <div class="exercise-title">Task 1: File Recovery Strategy</div>
+                <div class="exercise-intro">Choose the most appropriate recovery method for each data loss scenario. Understanding the scope and availability of each tool is critical for MD-100.</div>
+
+                <div class="scenario-card">
+                    <h4>Scenario A</h4>
+                    <p>A user needs to recover a specific version of a Word document from 3 days ago. The document still exists but the wrong version was saved over it. File History is configured and backing up to a network share.</p>
+                </div>
+                <div class="options-list" id="fr1-options">
+                    <button class="option-btn" onclick="checkFR(1, 'wrong', this)">Windows File Recovery (winfr.exe) - scan raw disk for deleted files</button>
+                    <button class="option-btn" onclick="checkFR(1, 'correct', this)">Previous Versions (right-click file > Restore previous versions) - retrieves the version from 3 days ago from File History</button>
+                    <button class="option-btn" onclick="checkFR(1, 'wrong', this)">Recycle Bin - check if the old version was placed there</button>
+                    <button class="option-btn" onclick="checkFR(1, 'wrong', this)">System Restore - roll back the system 3 days</button>
+                </div>
+                <div class="feedback-box" id="fr1-feedback"></div>
+
+                <div class="scenario-card" style="margin-top:25px;">
+                    <h4>Scenario B</h4>
+                    <p>A user emptied the Recycle Bin before realizing they needed a deleted file. The file was deleted 4 hours ago. File History is not enabled. No backup exists. The file was on the C: drive.</p>
+                </div>
+                <div class="options-list" id="fr2-options">
+                    <button class="option-btn" onclick="checkFR(2, 'correct', this)">Windows File Recovery (winfr.exe) from the Microsoft Store - scan the volume for deleted file clusters before they are overwritten</button>
+                    <button class="option-btn" onclick="checkFR(2, 'wrong', this)">Previous Versions - right-click and restore</button>
+                    <button class="option-btn" onclick="checkFR(2, 'wrong', this)">File History - restore from backup</button>
+                    <button class="option-btn" onclick="checkFR(2, 'wrong', this)">Reset this PC - recover all deleted files during reinstall</button>
+                </div>
+                <div class="feedback-box" id="fr2-feedback"></div>
+
+                <div class="scenario-card" style="margin-top:25px;">
+                    <h4>Scenario C</h4>
+                    <p>A whole departmental shared folder (on a Windows Server file share) was deleted. The server runs Windows Server 2019 with Volume Shadow Copy enabled. The deletion occurred 2 hours ago.</p>
+                </div>
+                <div class="options-list" id="fr3-options">
+                    <button class="option-btn" onclick="checkFR(3, 'correct', this)">Shadow Copy (Previous Versions on the server share) - right-click the parent folder, Restore Previous Versions, select the shadow copy from before the deletion</button>
+                    <button class="option-btn" onclick="checkFR(3, 'wrong', this)">Windows File Recovery on the client machine</button>
+                    <button class="option-btn" onclick="checkFR(3, 'wrong', this)">File History on client PCs</button>
+                    <button class="option-btn" onclick="checkFR(3, 'wrong', this)">Recycle Bin on the server desktop</button>
+                </div>
+                <div class="feedback-box" id="fr3-feedback"></div>
+            </section>
+
+            <!-- Task 2: App Compatibility -->
+            <section class="exercise-section" id="task-2">
+                <div class="exercise-title">Task 2: Application Compatibility Mode</div>
+                <div class="exercise-intro">A 2003-era manufacturing control application crashes on Windows 10. Configure the correct Compatibility Mode settings for the scenario described.</div>
+
+                <div class="scenario-card">
+                    <h4>Application: factory_control_v3.exe</h4>
+                    <p>This application was written for Windows XP SP3. It crashes on launch under Windows 10 unless it has full system access. It also renders incorrectly on high-DPI displays (text is blurry). The app does not need internet access.</p>
+                </div>
+
+                <div class="compat-form">
+                    <h4>Properties - Compatibility Tab</h4>
+                    <div class="subtitle">factory_control_v3.exe</div>
+
+                    <div class="form-row">
+                        <span class="form-label">Run this program in compatibility mode for:</span>
+                        <select id="compat-os" class="form-select">
+                            <option value="">-- Select OS --</option>
+                            <option>Windows 95</option>
+                            <option>Windows 98 / Windows Me</option>
+                            <option>Windows XP (Service Pack 3)</option>
+                            <option>Windows Vista (Service Pack 2)</option>
+                            <option>Windows 7</option>
+                            <option>Windows 8</option>
+                        </select>
+                    </div>
+
+                    <div style="margin: 15px 0 8px; font-size: 0.82rem; color: #9a8070;">Settings:</div>
+
+                    <label class="form-check" id="ck-admin">
+                        <input type="checkbox" id="chk-admin">
+                        Run this program as an administrator
+                    </label>
+                    <label class="form-check" id="ck-dpi">
+                        <input type="checkbox" id="chk-dpi">
+                        Override high DPI scaling behavior - Application (disable DPI scaling)
+                    </label>
+                    <label class="form-check" id="ck-256">
+                        <input type="checkbox" id="chk-256">
+                        Reduced color mode (8-bit, 256 colors)
+                    </label>
+                    <label class="form-check" id="ck-640">
+                        <input type="checkbox" id="chk-640">
+                        Run in 640x480 screen resolution
+                    </label>
+
+                    <button class="submit-btn" id="compat-btn" onclick="checkCompat()">Apply &amp; Test Settings</button>
+                    <div class="feedback-box" id="compat-feedback"></div>
+                </div>
+            </section>
+
+            <!-- Task 3: Boot Repair Commands -->
+            <section class="exercise-section" id="task-3">
+                <div class="exercise-title">Task 3: Boot Repair Commands</div>
+                <div class="exercise-intro">Fill in the correct bootrec or bcdedit command arguments for each startup failure scenario. Run from WinRE Command Prompt.</div>
+
+                <div class="scenario-card">
+                    <h4>Scenario A - Missing or Corrupt Boot Configuration Data (BCD)</h4>
+                    <p>Error: "Boot Configuration Data file is missing." The disk and OS files are intact but the BCD store is gone. You need to rebuild BCD from scratch.</p>
+                </div>
+
+                <div class="terminal-box">
+                    <div class="terminal-prompt">X:\Sources> </div>
+                    <div class="cmd-line">
+                        <span class="cmd-static">bootrec</span>
+                        <input type="text" class="cmd-blank" id="cmd1" placeholder="/___________" size="20">
+                    </div>
+                    <div class="cmd-output">Expected output: The operation completed successfully. Scanned Windows installations: 1</div>
+                </div>
+                <div class="feedback-box" id="cmd1-feedback"></div>
+
+                <div class="scenario-card" style="margin-top:25px;">
+                    <h4>Scenario B - Master Boot Record Corruption</h4>
+                    <p>The MBR partition table data is corrupt (possibly due to malware that overwrote the MBR). You need to write a new MBR without touching the partition table.</p>
+                </div>
+
+                <div class="terminal-box">
+                    <div class="terminal-prompt">X:\Sources> </div>
+                    <div class="cmd-line">
+                        <span class="cmd-static">bootrec</span>
+                        <input type="text" class="cmd-blank" id="cmd2" placeholder="/___________" size="20">
+                    </div>
+                </div>
+                <div class="feedback-box" id="cmd2-feedback"></div>
+
+                <div class="scenario-card" style="margin-top:25px;">
+                    <h4>Scenario C - Rescue a Dual-Boot: Remove Linux Bootloader Entry</h4>
+                    <p>After removing a Linux partition, the bcdedit store still shows the old Linux entry and boots to it by default. You need to delete the specific entry by its GUID.</p>
+                </div>
+
+                <div class="terminal-box">
+                    <div class="terminal-prompt">C:\> </div>
+                    <div class="cmd-line">
+                        <span class="cmd-static">bcdedit</span>
+                        <input type="text" class="cmd-blank" id="cmd3" placeholder="/delete {GUID}" size="22">
+                    </div>
+                    <div class="cmd-output">Hint: The flag that removes an entry from the BCD store</div>
+                </div>
+                <div class="feedback-box" id="cmd3-feedback"></div>
+
+                <button class="submit-btn" id="cmd-btn" onclick="checkCommands()">Verify Commands</button>
+            </section>
+
+            <!-- Task 4: Service Troubleshooting -->
+            <section class="exercise-section" id="task-4">
+                <div class="exercise-title">Task 4: Service Recovery Configuration</div>
+                <div class="exercise-intro">Configure the Windows Service recovery options for the scenario described. These settings determine what Windows does when a service fails.</div>
+
+                <div class="scenario-card">
+                    <h4>Scenario: Critical Business Application Service</h4>
+                    <p>The service "BizApp Core Engine" (bizappcore.exe) is a mission-critical service that must remain running. When it fails: first and second failures should automatically restart the service. If it fails a third time, IT must be notified - run a script that sends an alert email. Reset the failure count after 1 day of successful operation.</p>
+                </div>
+
+                <div class="service-config">
+                    <h4>BizApp Core Engine - Recovery Tab</h4>
+                    <div class="svc-subtitle">services.msc > Right-click service > Properties > Recovery</div>
+
+                    <div class="svc-row">
+                        <span class="svc-label">First failure:</span>
+                        <select id="svc-first" class="svc-select">
+                            <option value="">-- Select action --</option>
+                            <option>Take No Action</option>
+                            <option>Restart the Service</option>
+                            <option>Run a Program</option>
+                            <option>Restart the Computer</option>
+                        </select>
+                    </div>
+                    <div class="svc-row">
+                        <span class="svc-label">Second failure:</span>
+                        <select id="svc-second" class="svc-select">
+                            <option value="">-- Select action --</option>
+                            <option>Take No Action</option>
+                            <option>Restart the Service</option>
+                            <option>Run a Program</option>
+                            <option>Restart the Computer</option>
+                        </select>
+                    </div>
+                    <div class="svc-row">
+                        <span class="svc-label">Subsequent failures:</span>
+                        <select id="svc-sub" class="svc-select">
+                            <option value="">-- Select action --</option>
+                            <option>Take No Action</option>
+                            <option>Restart the Service</option>
+                            <option>Run a Program</option>
+                            <option>Restart the Computer</option>
+                        </select>
+                    </div>
+                    <div class="svc-row">
+                        <span class="svc-label">Reset fail count after (days):</span>
+                        <input type="text" id="svc-reset" class="svc-input" placeholder="Enter number of days">
+                    </div>
+                    <div class="svc-row">
+                        <span class="svc-label">Run program (subsequent):</span>
+                        <input type="text" id="svc-prog" class="svc-input" placeholder="Path to script...">
+                    </div>
+
+                    <button class="submit-btn" id="svc-btn" onclick="checkService()">Apply Configuration</button>
+                    <div class="feedback-box" id="svc-feedback"></div>
+                </div>
+            </section>
+
+            <!-- Task 5: System File Repair Sequence -->
+            <section class="exercise-section" id="task-5">
+                <div class="exercise-title">Task 5: System File Repair Sequence</div>
+                <div class="exercise-intro">Work through the correct DISM and SFC repair sequence. Answer each decision point to unlock the next step.</div>
+
+                <div class="seq-steps">
+                    <!-- Step 1: DISM first -->
+                    <div class="seq-step" id="seq-1">
+                        <div class="seq-step-header">
+                            <div class="seq-num">1</div>
+                            Start: Choose the First Tool to Run
+                        </div>
+                        <div class="seq-step-body">
+                            <p>A user reports Windows features are behaving strangely after a failed update. You need to repair Windows component store corruption. Which command should you run FIRST?</p>
+                            <div class="options-list" id="seq1-options">
+                                <button class="option-btn" onclick="checkSeq(1, 'wrong', this)">sfc /scannow - run System File Checker first</button>
+                                <button class="option-btn" onclick="checkSeq(1, 'correct', this)">DISM /Online /Cleanup-Image /RestoreHealth - repair the component store first so SFC has good files to use</button>
+                                <button class="option-btn" onclick="checkSeq(1, 'wrong', this)">chkdsk C: /f - check disk integrity first</button>
+                                <button class="option-btn" onclick="checkSeq(1, 'wrong', this)">Reset this PC - fastest resolution</button>
+                            </div>
+                            <div class="feedback-box" id="seq1-feedback"></div>
+                        </div>
+                    </div>
+
+                    <!-- Step 2: DISM source -->
+                    <div class="seq-step locked" id="seq-2">
+                        <div class="seq-step-header">
+                            <div class="seq-num">2</div>
+                            DISM Source Selection
+                        </div>
+                        <div class="seq-step-body">
+                            <p>DISM /RestoreHealth contacts Windows Update by default. However, this device has no internet access. You have a Windows 10 ISO mounted as D: drive. Which DISM parameter specifies an offline source?</p>
+                            <div class="options-list" id="seq2-options">
+                                <button class="option-btn" onclick="checkSeq(2, 'wrong', this)">DISM /Online /Cleanup-Image /ScanHealth</button>
+                                <button class="option-btn" onclick="checkSeq(2, 'correct', this)">DISM /Online /Cleanup-Image /RestoreHealth /Source:D:\Sources\install.wim /LimitAccess</button>
+                                <button class="option-btn" onclick="checkSeq(2, 'wrong', this)">DISM /Online /Cleanup-Image /CheckHealth</button>
+                                <button class="option-btn" onclick="checkSeq(2, 'wrong', this)">DISM /Image:C:\ /Cleanup-Image /RestoreHealth</button>
+                            </div>
+                            <div class="feedback-box" id="seq2-feedback"></div>
+                        </div>
+                    </div>
+
+                    <!-- Step 3: SFC -->
+                    <div class="seq-step locked" id="seq-3">
+                        <div class="seq-step-header">
+                            <div class="seq-num">3</div>
+                            Run SFC
+                        </div>
+                        <div class="seq-step-body">
+                            <p>DISM completed successfully. Now run SFC. Which is the correct SFC command to verify and repair protected system files?</p>
+                            <div class="options-list" id="seq3-options">
+                                <button class="option-btn" onclick="checkSeq(3, 'wrong', this)">sfc /verifyonly</button>
+                                <button class="option-btn" onclick="checkSeq(3, 'wrong', this)">sfc /scanboot</button>
+                                <button class="option-btn" onclick="checkSeq(3, 'correct', this)">sfc /scannow</button>
+                                <button class="option-btn" onclick="checkSeq(3, 'wrong', this)">sfc /offbootdir=C:\ /offwindir=C:\Windows</button>
+                            </div>
+                            <div class="feedback-box" id="seq3-feedback"></div>
+                        </div>
+                    </div>
+
+                    <!-- Step 4: Verify -->
+                    <div class="seq-step locked" id="seq-4">
+                        <div class="seq-step-header">
+                            <div class="seq-num">4</div>
+                            Verify and Review Results
+                        </div>
+                        <div class="seq-step-body">
+                            <p>SFC reports: "Windows Resource Protection found corrupt files but was unable to fix some of them." Where do you go to see which files could not be repaired?</p>
+                            <div class="options-list" id="seq4-options">
+                                <button class="option-btn" onclick="checkSeq(4, 'wrong', this)">Event Viewer > Windows Logs > Application</button>
+                                <button class="option-btn" onclick="checkSeq(4, 'correct', this)">%WinDir%\Logs\CBS\CBS.log - the Component-Based Servicing log contains the full SFC repair report</button>
+                                <button class="option-btn" onclick="checkSeq(4, 'wrong', this)">C:\Windows\System32\LogFiles\SFC.log</button>
+                                <button class="option-btn" onclick="checkSeq(4, 'wrong', this)">Reliability Monitor in the Control Panel</button>
+                            </div>
+                            <div class="feedback-box" id="seq4-feedback"></div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Complete Module -->
+            <div class="complete-section" id="completeSection">
+                <h3>All Tasks Complete</h3>
+                <p>You have demonstrated proficiency in file recovery strategy selection, compatibility mode configuration, boot repair commands, service recovery options, and the DISM/SFC repair sequence.</p>
+                <button class="complete-btn" onclick="completeModule()">Complete Module &amp; Return</button>
+            </div>
+
+        </main>
+    </div>
+
+    <script>
+        const totalTasks = 5;
+        const completedTasks = new Set();
+
+        function showTask(num) {
+            document.querySelectorAll('.exercise-section').forEach(s => s.classList.remove('active'));
+            document.getElementById('task-' + num).classList.add('active');
+            document.querySelectorAll('.task-item').forEach(t => t.classList.remove('active'));
+            document.querySelector('[data-task="' + num + '"]').classList.add('active');
+        }
+
+        function markTaskComplete(num) {
+            if (completedTasks.has(num)) return;
+            completedTasks.add(num);
+            const item = document.querySelector('[data-task="' + num + '"]');
+            item.classList.add('completed', 'just-completed');
+            setTimeout(() => item.classList.remove('just-completed'), 700);
+            document.getElementById('taskCount').textContent = completedTasks.size + ' / ' + totalTasks;
+            if (completedTasks.size === totalTasks) {
+                document.getElementById('completeSection').classList.add('show');
+                document.getElementById('completeSection').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            }
+        }
+
+        // --- Task 1: File Recovery ---
+        const frDone = { 1: false, 2: false, 3: false };
+        const frExplanations = {
+            1: 'Previous Versions uses File History data to let you browse and restore specific historical states of a file. Right-click the file > Properties > Previous Versions, or right-click in the folder. System Restore does not recover user data files.',
+            2: 'Windows File Recovery (winfr) is a command-line tool available free from the Microsoft Store that scans raw disk sectors for deleted file data. It must be run before the sectors are overwritten by new data. Syntax: winfr C: D:\Recovery /extensive',
+            3: 'Volume Shadow Copies on Windows Server are accessed via "Previous Versions" on the share properties. This is the fastest and most complete method when VSS is configured - the entire folder state can be restored without touching other files.'
+        };
+
+        function checkFR(num, result, btn) {
+            const optionsId = 'fr' + num + '-options';
+            const feedbackId = 'fr' + num + '-feedback';
+            document.querySelectorAll('#' + optionsId + ' .option-btn').forEach(b => b.disabled = true);
+            const fb = document.getElementById(feedbackId);
+
+            if (result === 'correct') {
+                btn.classList.add('correct');
+                fb.className = 'feedback-box correct show';
+                fb.textContent = 'Correct! ' + frExplanations[num];
+                frDone[num] = true;
+            } else {
+                btn.classList.add('incorrect');
+                fb.className = 'feedback-box incorrect show';
+                fb.textContent = 'Incorrect. ' + frExplanations[num];
+            }
+
+            if (frDone[1] && frDone[2] && frDone[3]) markTaskComplete(1);
+        }
+
+        // --- Task 2: Compatibility ---
+        function checkCompat() {
+            const os = document.getElementById('compat-os').value;
+            const admin = document.getElementById('chk-admin').checked;
+            const dpi = document.getElementById('chk-dpi').checked;
+            const c256 = document.getElementById('chk-256').checked;
+            const c640 = document.getElementById('chk-640').checked;
+
+            let score = 0;
+            const osEl = document.getElementById('compat-os');
+            osEl.classList.remove('correct', 'incorrect');
+            osEl.disabled = true;
+
+            // OS: Windows XP SP3 is correct
+            if (os === 'Windows XP (Service Pack 3)') { osEl.classList.add('correct'); score++; }
+            else { osEl.classList.add('incorrect'); }
+
+            // Admin: must be checked (app needs full access)
+            const admLbl = document.getElementById('ck-admin');
+            if (admin) { admLbl.style.color = '#86efac'; score++; }
+            else { admLbl.style.color = '#fca5a5'; }
+
+            // DPI: must be checked (blurry on high-DPI)
+            const dpiLbl = document.getElementById('ck-dpi');
+            if (dpi) { dpiLbl.style.color = '#86efac'; score++; }
+            else { dpiLbl.style.color = '#fca5a5'; }
+
+            // 256-color: not required by scenario, should be unchecked
+            const c256Lbl = document.getElementById('ck-256');
+            if (!c256) { c256Lbl.style.color = '#86efac'; score++; }
+            else { c256Lbl.style.color = '#fca5a5'; }
+
+            // 640x480: not required, should be unchecked
+            const c640Lbl = document.getElementById('ck-640');
+            if (!c640) { c640Lbl.style.color = '#86efac'; score++; }
+            else { c640Lbl.style.color = '#fca5a5'; }
+
+            document.getElementById('chk-admin').disabled = true;
+            document.getElementById('chk-dpi').disabled = true;
+            document.getElementById('chk-256').disabled = true;
+            document.getElementById('chk-640').disabled = true;
+            document.getElementById('compat-btn').disabled = true;
+
+            const fb = document.getElementById('compat-feedback');
+            if (score === 5) {
+                fb.className = 'feedback-box correct show';
+                fb.textContent = 'Correct! Windows XP SP3 compatibility addresses the crash. Run as Administrator grants the elevated access the app needs. DPI override fixes the blurry text on high-resolution displays. Reduced color and 640x480 are not needed unless the app specifically requires them.';
+                markTaskComplete(2);
+            } else {
+                fb.className = 'feedback-box incorrect show';
+                fb.textContent = score + '/5 settings correct. Key settings: OS mode targets the app\'s original platform (XP SP3). Run as Admin gives system access. DPI override (set to "Application") makes the app render at its native DPI rather than scaling, fixing blur.';
+            }
+        }
+
+        // --- Task 3: Boot Commands ---
+        function checkCommands() {
+            const cmd1 = document.getElementById('cmd1').value.trim().toLowerCase().replace(/\s+/g, '');
+            const cmd2 = document.getElementById('cmd2').value.trim().toLowerCase().replace(/\s+/g, '');
+            const cmd3 = document.getElementById('cmd3').value.trim().toLowerCase().replace(/\s+/g, '');
+
+            const f1 = document.getElementById('cmd1');
+            const f2 = document.getElementById('cmd2');
+            const f3 = document.getElementById('cmd3');
+            let score = 0;
+
+            // /rebuildbcd - rebuilds BCD
+            if (cmd1.includes('rebuildbcd') || cmd1 === '/rebuildbcd') { f1.classList.add('correct'); score++; }
+            else { f1.classList.add('incorrect'); }
+
+            // /fixmbr - rewrites MBR
+            if (cmd2.includes('fixmbr') || cmd2 === '/fixmbr') { f2.classList.add('correct'); score++; }
+            else { f2.classList.add('incorrect'); }
+
+            // /delete {GUID} - removes BCD entry
+            if (cmd3.includes('/delete') || cmd3.includes('delete')) { f3.classList.add('correct'); score++; }
+            else { f3.classList.add('incorrect'); }
+
+            [f1, f2, f3].forEach(f => f.disabled = true);
+            document.getElementById('cmd-btn').disabled = true;
+
+            const fbs = [
+                document.getElementById('cmd1-feedback'),
+                document.getElementById('cmd2-feedback'),
+                document.getElementById('cmd3-feedback')
+            ];
+
+            if (!f1.classList.contains('correct')) {
+                fbs[0].className = 'feedback-box incorrect show';
+                fbs[0].textContent = 'Correct: /rebuildbcd - scans for Windows installations and rebuilds the Boot Configuration Data store from scratch.';
+            }
+            if (!f2.classList.contains('correct')) {
+                fbs[1].className = 'feedback-box incorrect show';
+                fbs[1].textContent = 'Correct: /fixmbr - writes a new Master Boot Record to the system partition. Use /fixboot to write a new volume boot sector.';
+            }
+            if (!f3.classList.contains('correct')) {
+                fbs[2].className = 'feedback-box incorrect show';
+                fbs[2].textContent = 'Correct: bcdedit /delete {GUID} - removes the specified entry from the BCD store. First use bcdedit /enum to find the GUID.';
+            }
+
+            if (score === 3) {
+                fbs[2].className = 'feedback-box correct show';
+                fbs[2].textContent = 'All commands correct! bootrec /rebuildbcd, bootrec /fixmbr, and bcdedit /delete {GUID} cover the three most common UEFI/MBR startup repair scenarios.';
+                markTaskComplete(3);
+            }
+        }
+
+        // --- Task 4: Service Recovery ---
+        function checkService() {
+            const first = document.getElementById('svc-first').value;
+            const second = document.getElementById('svc-second').value;
+            const sub = document.getElementById('svc-sub').value;
+            const reset = document.getElementById('svc-reset').value.trim();
+            const prog = document.getElementById('svc-prog').value.trim();
+
+            let score = 0;
+            const fields = [
+                { el: document.getElementById('svc-first'), correct: first === 'Restart the Service' },
+                { el: document.getElementById('svc-second'), correct: second === 'Restart the Service' },
+                { el: document.getElementById('svc-sub'), correct: sub === 'Run a Program' },
+                { el: document.getElementById('svc-reset'), correct: reset === '1' },
+                { el: document.getElementById('svc-prog'), correct: prog.length > 0 && (prog.includes('.bat') || prog.includes('.ps1') || prog.includes('.exe') || prog.includes('alert') || prog.includes('notify') || prog.includes('email')) }
+            ];
+
+            fields.forEach(f => {
+                f.el.disabled = true;
+                f.el.classList.remove('correct', 'incorrect');
+                if (f.correct) { f.el.classList.add('correct'); score++; }
+                else { f.el.classList.add('incorrect'); }
+            });
+
+            document.getElementById('svc-btn').disabled = true;
+            const fb = document.getElementById('svc-feedback');
+
+            if (score === 5) {
+                fb.className = 'feedback-box correct show';
+                fb.textContent = 'Correct! First and Second: Restart the Service (automatic recovery). Subsequent: Run a Program (your alert script). Reset after 1 day (so the counter resets after 24h of clean operation, preventing permanent escalation).';
+                markTaskComplete(4);
+            } else {
+                fb.className = 'feedback-box incorrect show';
+                fb.textContent = score + '/5 correct. The scenario requires: 1st=Restart, 2nd=Restart, Subsequent=Run a Program (alert script). Reset fail count=1 day. The program path should point to your notification script (.bat, .ps1, or .exe).';
+            }
+        }
+
+        // --- Task 5: DISM/SFC Sequence ---
+        let seqStep = 1;
+        const seqExplanations = {
+            1: 'Always run DISM first. SFC relies on the component store (WinSxS) to repair files. If the component store itself is corrupt, SFC will either fail or replace corrupt files with equally corrupt ones from the store. DISM repairs the store source, then SFC can reliably repair system files.',
+            2: '/Source:D:\\Sources\\install.wim points DISM to the mounted ISO as a repair source. /LimitAccess prevents DISM from falling back to Windows Update when an offline source is specified - important in air-gapped environments.',
+            3: 'sfc /scannow scans all protected system files and replaces corrupted versions with copies from the WinSxS component store (which DISM just repaired). /verifyonly scans without repairing. /scanboot is not a valid parameter.',
+            4: 'CBS.log (Component-Based Servicing log) at %WinDir%\\Logs\\CBS\\CBS.log contains the full SFC report including which files could not be repaired. You can search for "[SR]" entries. Files that cannot be repaired may need to be manually replaced from installation media.'
+        };
+
+        function checkSeq(step, result, btn) {
+            const optionsId = 'seq' + step + '-options';
+            const feedbackId = 'seq' + step + '-feedback';
+            document.querySelectorAll('#' + optionsId + ' .option-btn').forEach(b => b.disabled = true);
+            const fb = document.getElementById(feedbackId);
+            const stepEl = document.getElementById('seq-' + step);
+
+            if (result === 'correct') {
+                btn.classList.add('correct');
+                fb.className = 'feedback-box correct show';
+                fb.textContent = 'Correct! ' + seqExplanations[step];
+                stepEl.classList.add('done-step');
+
+                const nextEl = document.getElementById('seq-' + (step + 1));
+                if (nextEl) {
+                    setTimeout(() => {
+                        nextEl.classList.remove('locked');
+                        nextEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                    }, 600);
+                } else {
+                    // All 4 steps done
+                    markTaskComplete(5);
+                }
+            } else {
+                btn.classList.add('incorrect');
+                fb.className = 'feedback-box incorrect show';
+                fb.textContent = 'Incorrect. ' + seqExplanations[step];
+            }
+        }
+
+        function completeModule() {
+            ModuleProgress.complete('forge', 'forge-md100-m10-lab', {
+                returnUrl: '../../index.html'
+            });
+        }
+    </script>
+
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <script src="../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>

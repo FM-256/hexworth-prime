@@ -1635,6 +1635,149 @@ class LearningPaths {
             ]
         },
 
+        // Microsoft MD-100: Windows Client — Forge House
+        'md-100': {
+            name: 'MD-100: Windows Client',
+            description: 'Microsoft 365 Modern Desktop Administrator — installation, authentication, networking, storage, security, and troubleshooting',
+            icon: '🪟',
+            color: '#ea580c',
+            courseHref: 'houses/forge/md-100/index.html',
+            modules: [
+                {
+                    id: 'forge-md100-m01',
+                    title: 'Install the Windows Client',
+                    type: 'presentation',
+                    href: 'houses/forge/md-100/presentations/md100-m01-install-windows.presentation.html'
+                },
+                {
+                    id: 'forge-md100-m02',
+                    title: 'Configure Authorization & Authentication',
+                    type: 'presentation',
+                    href: 'houses/forge/md-100/presentations/md100-m02-auth-authorization.presentation.html'
+                },
+                {
+                    id: 'forge-md100-m03',
+                    title: 'Post-Installation Settings & Personalization',
+                    type: 'presentation',
+                    href: 'houses/forge/md-100/presentations/md100-m03-post-install-config.presentation.html'
+                },
+                {
+                    id: 'forge-md100-m04',
+                    title: 'Configuring Networking',
+                    type: 'presentation',
+                    href: 'houses/forge/md-100/presentations/md100-m04-networking.presentation.html'
+                },
+                {
+                    id: 'forge-md100-m05',
+                    title: 'Configure Storage',
+                    type: 'presentation',
+                    href: 'houses/forge/md-100/presentations/md100-m05-storage.presentation.html'
+                },
+                {
+                    id: 'forge-md100-m06',
+                    title: 'Configure Data Access & Usage',
+                    type: 'presentation',
+                    href: 'houses/forge/md-100/presentations/md100-m06-data-access.presentation.html'
+                },
+                {
+                    id: 'forge-md100-m07',
+                    title: 'Manage Apps & Windows Updates',
+                    type: 'presentation',
+                    href: 'houses/forge/md-100/presentations/md100-m07-apps-updates.presentation.html'
+                },
+                {
+                    id: 'forge-md100-m08',
+                    title: 'Configure Threat Protection',
+                    type: 'presentation',
+                    href: 'houses/forge/md-100/presentations/md100-m08-threat-protection.presentation.html'
+                },
+                {
+                    id: 'forge-md100-m09',
+                    title: 'Support the Windows Client',
+                    type: 'presentation',
+                    href: 'houses/forge/md-100/presentations/md100-m09-support-environment.presentation.html'
+                },
+                {
+                    id: 'forge-md100-m10',
+                    title: 'Troubleshoot OS & Apps',
+                    type: 'presentation',
+                    href: 'houses/forge/md-100/presentations/md100-m10-troubleshoot-os-apps.presentation.html'
+                },
+                {
+                    id: 'forge-md100-m11',
+                    title: 'Troubleshoot Hardware & Drivers',
+                    type: 'presentation',
+                    href: 'houses/forge/md-100/presentations/md100-m11-troubleshoot-hardware.presentation.html'
+                },
+                {
+                    id: 'forge-md100-m01-lab',
+                    title: 'Lab: Install the Windows Client',
+                    type: 'lab',
+                    href: 'houses/forge/md-100/labs/md100-m01-install.lab.html'
+                },
+                {
+                    id: 'forge-md100-m02-lab',
+                    title: 'Lab: Authorization & Authentication',
+                    type: 'lab',
+                    href: 'houses/forge/md-100/labs/md100-m02-auth.lab.html'
+                },
+                {
+                    id: 'forge-md100-m03-lab',
+                    title: 'Lab: Post-Installation Configuration',
+                    type: 'lab',
+                    href: 'houses/forge/md-100/labs/md100-m03-config.lab.html'
+                },
+                {
+                    id: 'forge-md100-m04-lab',
+                    title: 'Lab: Networking',
+                    type: 'lab',
+                    href: 'houses/forge/md-100/labs/md100-m04-networking.lab.html'
+                },
+                {
+                    id: 'forge-md100-m05-lab',
+                    title: 'Lab: Storage Configuration',
+                    type: 'lab',
+                    href: 'houses/forge/md-100/labs/md100-m05-storage.lab.html'
+                },
+                {
+                    id: 'forge-md100-m06-lab',
+                    title: 'Lab: Data Access',
+                    type: 'lab',
+                    href: 'houses/forge/md-100/labs/md100-m06-data-access.lab.html'
+                },
+                {
+                    id: 'forge-md100-m07-lab',
+                    title: 'Lab: Apps & Updates',
+                    type: 'lab',
+                    href: 'houses/forge/md-100/labs/md100-m07-apps.lab.html'
+                },
+                {
+                    id: 'forge-md100-m08-lab',
+                    title: 'Lab: Threat Protection',
+                    type: 'lab',
+                    href: 'houses/forge/md-100/labs/md100-m08-security.lab.html'
+                },
+                {
+                    id: 'forge-md100-m09-lab',
+                    title: 'Lab: Support Environment',
+                    type: 'lab',
+                    href: 'houses/forge/md-100/labs/md100-m09-support.lab.html'
+                },
+                {
+                    id: 'forge-md100-m10-lab',
+                    title: 'Lab: OS & App Troubleshooting',
+                    type: 'lab',
+                    href: 'houses/forge/md-100/labs/md100-m10-troubleshoot.lab.html'
+                },
+                {
+                    id: 'forge-md100-m11-lab',
+                    title: 'Lab: Hardware & Driver Troubleshooting',
+                    type: 'lab',
+                    href: 'houses/forge/md-100/labs/md100-m11-hardware.lab.html'
+                }
+            ]
+        },
+
         // Windows Server Administration (AZ-800) — Cloud House
         'wsa': {
             name: 'Windows Server Administration',

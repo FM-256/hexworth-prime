@@ -17933,6 +17933,535 @@ const ContentRegistry = {
             prerequisites: [],
             objectives: []
         },
+        // ─── MD-100: Windows Client — Forge House ───
+        'forge-md100-m01': {
+            id: 'forge-md100-m01',
+            title: 'MD-100 M01: Install the Windows Client',
+            description: 'Windows editions, requirements, installation methods, upgrade paths, and deployment tools',
+            house: 'forge',
+            type: 'presentation',
+            difficulty: 'beginner',
+            duration: 30,
+            topics: ['windows', 'installation', 'deployment', 'editions', 'upgrade'],
+            paths: ['md-100'],
+            components: {
+                presentation: 'houses/forge/md-100/presentations/md100-m01-install-windows.presentation.html'
+            },
+            prerequisites: [],
+            objectives: ['Identify Windows editions and their features', 'Evaluate installation and deployment methods']
+        },
+        'forge-md100-m02': {
+            id: 'forge-md100-m02',
+            title: 'MD-100 M02: Configure Authorization & Authentication',
+            description: 'Authentication types, user/group management, UAC, device registration, and Windows Hello',
+            house: 'forge',
+            type: 'presentation',
+            difficulty: 'beginner',
+            duration: 30,
+            topics: ['authentication', 'authorization', 'uac', 'azure-ad', 'users', 'groups'],
+            paths: ['md-100'],
+            components: {
+                presentation: 'houses/forge/md-100/presentations/md100-m02-auth-authorization.presentation.html'
+            },
+            prerequisites: ['forge-md100-m01'],
+            objectives: ['Configure authentication methods', 'Manage users, groups, and UAC']
+        },
+        'forge-md100-m03': {
+            id: 'forge-md100-m03',
+            title: 'MD-100 M03: Post-Installation Settings',
+            description: 'Settings vs Control Panel, registry, Group Policy, driver management, and peripherals',
+            house: 'forge',
+            type: 'presentation',
+            difficulty: 'intermediate',
+            duration: 30,
+            topics: ['configuration', 'registry', 'group-policy', 'drivers', 'peripherals'],
+            paths: ['md-100'],
+            components: {
+                presentation: 'houses/forge/md-100/presentations/md100-m03-post-install-config.presentation.html'
+            },
+            prerequisites: ['forge-md100-m02'],
+            objectives: ['Configure post-installation settings', 'Manage drivers and device peripherals']
+        },
+        'forge-md100-m04': {
+            id: 'forge-md100-m04',
+            title: 'MD-100 M04: Configuring Networking',
+            description: 'IP configuration, DNS, wireless, VPN protocols, remote access and management',
+            house: 'forge',
+            type: 'presentation',
+            difficulty: 'intermediate',
+            duration: 35,
+            topics: ['networking', 'ip', 'dns', 'vpn', 'remote-access', 'wireless'],
+            paths: ['md-100'],
+            components: {
+                presentation: 'houses/forge/md-100/presentations/md100-m04-networking.presentation.html'
+            },
+            prerequisites: ['forge-md100-m03'],
+            objectives: ['Configure IP networking and name resolution', 'Implement remote access solutions']
+        },
+        'forge-md100-m05': {
+            id: 'forge-md100-m05',
+            title: 'MD-100 M05: Configure Storage',
+            description: 'Disk types, volumes, file systems, Storage Spaces, and maintenance tools',
+            house: 'forge',
+            type: 'presentation',
+            difficulty: 'intermediate',
+            duration: 30,
+            topics: ['storage', 'disks', 'volumes', 'ntfs', 'storage-spaces'],
+            paths: ['md-100'],
+            components: {
+                presentation: 'houses/forge/md-100/presentations/md100-m05-storage.presentation.html'
+            },
+            prerequisites: ['forge-md100-m04'],
+            objectives: ['Manage storage devices and volumes', 'Implement Storage Spaces']
+        },
+        'forge-md100-m06': {
+            id: 'forge-md100-m06',
+            title: 'MD-100 M06: Configure Data Access & Usage',
+            description: 'NTFS permissions, file sharing, OneDrive, folder redirection, and EFS',
+            house: 'forge',
+            type: 'presentation',
+            difficulty: 'intermediate',
+            duration: 30,
+            topics: ['ntfs', 'permissions', 'sharing', 'onedrive', 'efs'],
+            paths: ['md-100'],
+            components: {
+                presentation: 'houses/forge/md-100/presentations/md100-m06-data-access.presentation.html'
+            },
+            prerequisites: ['forge-md100-m05'],
+            objectives: ['Configure file access permissions', 'Manage shared folders and user files']
+        },
+        'forge-md100-m07': {
+            id: 'forge-md100-m07',
+            title: 'MD-100 M07: Manage Apps & Windows Updates',
+            description: 'App deployment, UWP, Edge browser, servicing model, and update management',
+            house: 'forge',
+            type: 'presentation',
+            difficulty: 'intermediate',
+            duration: 35,
+            topics: ['apps', 'updates', 'edge', 'wsus', 'servicing'],
+            paths: ['md-100'],
+            components: {
+                presentation: 'houses/forge/md-100/presentations/md100-m07-apps-updates.presentation.html'
+            },
+            prerequisites: ['forge-md100-m06'],
+            objectives: ['Deploy and manage applications', 'Configure Windows Update settings']
+        },
+        'forge-md100-m08': {
+            id: 'forge-md100-m08',
+            title: 'MD-100 M08: Configure Threat Protection',
+            description: 'Malware types, Microsoft Defender, BitLocker, firewall rules, and advanced protection',
+            house: 'forge',
+            type: 'presentation',
+            difficulty: 'intermediate',
+            duration: 35,
+            topics: ['security', 'defender', 'bitlocker', 'firewall', 'malware'],
+            paths: ['md-100'],
+            components: {
+                presentation: 'houses/forge/md-100/presentations/md100-m08-threat-protection.presentation.html'
+            },
+            prerequisites: ['forge-md100-m07'],
+            objectives: ['Configure Microsoft Defender and BitLocker', 'Implement firewall and advanced protection']
+        },
+        'forge-md100-m09': {
+            id: 'forge-md100-m09',
+            title: 'MD-100 M09: Support the Windows Client',
+            description: 'Troubleshooting methodology, Windows architecture, diagnostics, performance, and recovery',
+            house: 'forge',
+            type: 'presentation',
+            difficulty: 'advanced',
+            duration: 35,
+            topics: ['troubleshooting', 'diagnostics', 'performance', 'event-viewer', 'recovery'],
+            paths: ['md-100'],
+            components: {
+                presentation: 'houses/forge/md-100/presentations/md100-m09-support-environment.presentation.html'
+            },
+            prerequisites: ['forge-md100-m08'],
+            objectives: ['Apply troubleshooting methodologies', 'Use diagnostic and recovery tools']
+        },
+        'forge-md100-m10': {
+            id: 'forge-md100-m10',
+            title: 'MD-100 M10: Troubleshoot OS & Apps',
+            description: 'File recovery, app compatibility, startup repair, service issues, DISM and SFC',
+            house: 'forge',
+            type: 'presentation',
+            difficulty: 'advanced',
+            duration: 35,
+            topics: ['troubleshooting', 'recovery', 'startup', 'services', 'dism', 'sfc'],
+            paths: ['md-100'],
+            components: {
+                presentation: 'houses/forge/md-100/presentations/md100-m10-troubleshoot-os-apps.presentation.html'
+            },
+            prerequisites: ['forge-md100-m09'],
+            objectives: ['Troubleshoot application and startup issues', 'Perform system file repair']
+        },
+        'forge-md100-m11': {
+            id: 'forge-md100-m11',
+            title: 'MD-100 M11: Troubleshoot Hardware & Drivers',
+            description: 'Driver failures, error codes, BSOD analysis, hardware diagnostics, and peripherals',
+            house: 'forge',
+            type: 'presentation',
+            difficulty: 'advanced',
+            duration: 30,
+            topics: ['hardware', 'drivers', 'bsod', 'diagnostics', 'peripherals'],
+            paths: ['md-100'],
+            components: {
+                presentation: 'houses/forge/md-100/presentations/md100-m11-troubleshoot-hardware.presentation.html'
+            },
+            prerequisites: ['forge-md100-m10'],
+            objectives: ['Diagnose driver and hardware failures', 'Analyze BSOD stop codes']
+        },
+        'forge-md100-m01-lab': {
+            id: 'forge-md100-m01-lab',
+            title: 'Lab: Install the Windows Client',
+            description: 'Hands-on exercises for Windows installation, editions, and deployment',
+            house: 'forge',
+            type: 'lab',
+            difficulty: 'beginner',
+            duration: 25,
+            topics: ['windows', 'installation', 'deployment', 'editions'],
+            paths: ['md-100'],
+            components: {
+                lab: 'houses/forge/md-100/labs/md100-m01-install.lab.html'
+            },
+            prerequisites: ['forge-md100-m01'],
+            objectives: ['Practice edition selection and deployment planning']
+        },
+        'forge-md100-m02-lab': {
+            id: 'forge-md100-m02-lab',
+            title: 'Lab: Authorization & Authentication',
+            description: 'Hands-on exercises for user management, UAC, and Azure AD',
+            house: 'forge',
+            type: 'lab',
+            difficulty: 'beginner',
+            duration: 25,
+            topics: ['authentication', 'users', 'groups', 'uac'],
+            paths: ['md-100'],
+            components: {
+                lab: 'houses/forge/md-100/labs/md100-m02-auth.lab.html'
+            },
+            prerequisites: ['forge-md100-m02'],
+            objectives: ['Practice user/group management and UAC configuration']
+        },
+        'forge-md100-m03-lab': {
+            id: 'forge-md100-m03-lab',
+            title: 'Lab: Post-Installation Configuration',
+            description: 'Hands-on exercises for registry, Group Policy, and driver management',
+            house: 'forge',
+            type: 'lab',
+            difficulty: 'intermediate',
+            duration: 25,
+            topics: ['configuration', 'registry', 'group-policy', 'drivers'],
+            paths: ['md-100'],
+            components: {
+                lab: 'houses/forge/md-100/labs/md100-m03-config.lab.html'
+            },
+            prerequisites: ['forge-md100-m03'],
+            objectives: ['Practice configuration using registry, GPO, and Device Manager']
+        },
+        'forge-md100-m04-lab': {
+            id: 'forge-md100-m04-lab',
+            title: 'Lab: Networking',
+            description: 'Hands-on exercises for IP configuration, DNS, VPN, and remote access',
+            house: 'forge',
+            type: 'lab',
+            difficulty: 'intermediate',
+            duration: 30,
+            topics: ['networking', 'ip', 'dns', 'vpn'],
+            paths: ['md-100'],
+            components: {
+                lab: 'houses/forge/md-100/labs/md100-m04-networking.lab.html'
+            },
+            prerequisites: ['forge-md100-m04'],
+            objectives: ['Practice IP configuration and network troubleshooting']
+        },
+        'forge-md100-m05-lab': {
+            id: 'forge-md100-m05-lab',
+            title: 'Lab: Storage Configuration',
+            description: 'Hands-on exercises for disk management, volumes, and Storage Spaces',
+            house: 'forge',
+            type: 'lab',
+            difficulty: 'intermediate',
+            duration: 25,
+            topics: ['storage', 'disks', 'volumes', 'storage-spaces'],
+            paths: ['md-100'],
+            components: {
+                lab: 'houses/forge/md-100/labs/md100-m05-storage.lab.html'
+            },
+            prerequisites: ['forge-md100-m05'],
+            objectives: ['Practice disk management and Storage Spaces configuration']
+        },
+        'forge-md100-m06-lab': {
+            id: 'forge-md100-m06-lab',
+            title: 'Lab: Data Access',
+            description: 'Hands-on exercises for NTFS permissions, sharing, and file management',
+            house: 'forge',
+            type: 'lab',
+            difficulty: 'intermediate',
+            duration: 25,
+            topics: ['ntfs', 'permissions', 'sharing', 'onedrive'],
+            paths: ['md-100'],
+            components: {
+                lab: 'houses/forge/md-100/labs/md100-m06-data-access.lab.html'
+            },
+            prerequisites: ['forge-md100-m06'],
+            objectives: ['Practice NTFS permission configuration and file sharing']
+        },
+        'forge-md100-m07-lab': {
+            id: 'forge-md100-m07-lab',
+            title: 'Lab: Apps & Updates',
+            description: 'Hands-on exercises for app deployment, Edge policies, and update management',
+            house: 'forge',
+            type: 'lab',
+            difficulty: 'intermediate',
+            duration: 25,
+            topics: ['apps', 'updates', 'edge', 'wsus'],
+            paths: ['md-100'],
+            components: {
+                lab: 'houses/forge/md-100/labs/md100-m07-apps.lab.html'
+            },
+            prerequisites: ['forge-md100-m07'],
+            objectives: ['Practice app deployment and update management']
+        },
+        'forge-md100-m08-lab': {
+            id: 'forge-md100-m08-lab',
+            title: 'Lab: Threat Protection',
+            description: 'Hands-on exercises for Defender, BitLocker, and firewall configuration',
+            house: 'forge',
+            type: 'lab',
+            difficulty: 'intermediate',
+            duration: 30,
+            topics: ['security', 'defender', 'bitlocker', 'firewall'],
+            paths: ['md-100'],
+            components: {
+                lab: 'houses/forge/md-100/labs/md100-m08-security.lab.html'
+            },
+            prerequisites: ['forge-md100-m08'],
+            objectives: ['Practice security configuration and threat protection']
+        },
+        'forge-md100-m09-lab': {
+            id: 'forge-md100-m09-lab',
+            title: 'Lab: Support Environment',
+            description: 'Hands-on exercises for troubleshooting methodology, diagnostics, and recovery',
+            house: 'forge',
+            type: 'lab',
+            difficulty: 'advanced',
+            duration: 30,
+            topics: ['troubleshooting', 'diagnostics', 'event-viewer', 'recovery'],
+            paths: ['md-100'],
+            components: {
+                lab: 'houses/forge/md-100/labs/md100-m09-support.lab.html'
+            },
+            prerequisites: ['forge-md100-m09'],
+            objectives: ['Practice using diagnostic and recovery tools']
+        },
+        'forge-md100-m10-lab': {
+            id: 'forge-md100-m10-lab',
+            title: 'Lab: OS & App Troubleshooting',
+            description: 'Hands-on exercises for file recovery, startup repair, and system file repair',
+            house: 'forge',
+            type: 'lab',
+            difficulty: 'advanced',
+            duration: 30,
+            topics: ['troubleshooting', 'recovery', 'startup', 'dism', 'sfc'],
+            paths: ['md-100'],
+            components: {
+                lab: 'houses/forge/md-100/labs/md100-m10-troubleshoot.lab.html'
+            },
+            prerequisites: ['forge-md100-m10'],
+            objectives: ['Practice boot repair and system file troubleshooting']
+        },
+        'forge-md100-m11-lab': {
+            id: 'forge-md100-m11-lab',
+            title: 'Lab: Hardware & Driver Troubleshooting',
+            description: 'Hands-on exercises for driver management, BSOD analysis, and hardware diagnostics',
+            house: 'forge',
+            type: 'lab',
+            difficulty: 'advanced',
+            duration: 25,
+            topics: ['hardware', 'drivers', 'bsod', 'diagnostics'],
+            paths: ['md-100'],
+            components: {
+                lab: 'houses/forge/md-100/labs/md100-m11-hardware.lab.html'
+            },
+            prerequisites: ['forge-md100-m11'],
+            objectives: ['Practice driver troubleshooting and BSOD analysis']
+        },
+        'forge-md100-m01-quiz': {
+            id: 'forge-md100-m01-quiz',
+            title: 'Quiz: Install the Windows Client',
+            description: '15-question assessment on Windows installation and deployment',
+            house: 'forge',
+            type: 'quiz',
+            difficulty: 'beginner',
+            duration: 15,
+            topics: ['windows', 'installation', 'deployment', 'editions'],
+            paths: ['md-100'],
+            components: {
+                quiz: 'houses/forge/md-100/quizzes/md100-m01-quiz.quiz.html'
+            },
+            prerequisites: ['forge-md100-m01-lab'],
+            objectives: ['Assess Windows installation knowledge']
+        },
+        'forge-md100-m02-quiz': {
+            id: 'forge-md100-m02-quiz',
+            title: 'Quiz: Authorization & Authentication',
+            description: '15-question assessment on authentication and user management',
+            house: 'forge',
+            type: 'quiz',
+            difficulty: 'beginner',
+            duration: 15,
+            topics: ['authentication', 'users', 'groups', 'uac'],
+            paths: ['md-100'],
+            components: {
+                quiz: 'houses/forge/md-100/quizzes/md100-m02-quiz.quiz.html'
+            },
+            prerequisites: ['forge-md100-m02-lab'],
+            objectives: ['Assess authentication and authorization knowledge']
+        },
+        'forge-md100-m03-quiz': {
+            id: 'forge-md100-m03-quiz',
+            title: 'Quiz: Post-Installation Settings',
+            description: '15-question assessment on Windows configuration tools',
+            house: 'forge',
+            type: 'quiz',
+            difficulty: 'intermediate',
+            duration: 15,
+            topics: ['configuration', 'registry', 'group-policy', 'drivers'],
+            paths: ['md-100'],
+            components: {
+                quiz: 'houses/forge/md-100/quizzes/md100-m03-quiz.quiz.html'
+            },
+            prerequisites: ['forge-md100-m03-lab'],
+            objectives: ['Assess configuration and driver management knowledge']
+        },
+        'forge-md100-m04-quiz': {
+            id: 'forge-md100-m04-quiz',
+            title: 'Quiz: Networking',
+            description: '15-question assessment on Windows networking',
+            house: 'forge',
+            type: 'quiz',
+            difficulty: 'intermediate',
+            duration: 15,
+            topics: ['networking', 'ip', 'dns', 'vpn'],
+            paths: ['md-100'],
+            components: {
+                quiz: 'houses/forge/md-100/quizzes/md100-m04-quiz.quiz.html'
+            },
+            prerequisites: ['forge-md100-m04-lab'],
+            objectives: ['Assess networking configuration knowledge']
+        },
+        'forge-md100-m05-quiz': {
+            id: 'forge-md100-m05-quiz',
+            title: 'Quiz: Storage',
+            description: '15-question assessment on Windows storage',
+            house: 'forge',
+            type: 'quiz',
+            difficulty: 'intermediate',
+            duration: 15,
+            topics: ['storage', 'disks', 'volumes', 'storage-spaces'],
+            paths: ['md-100'],
+            components: {
+                quiz: 'houses/forge/md-100/quizzes/md100-m05-quiz.quiz.html'
+            },
+            prerequisites: ['forge-md100-m05-lab'],
+            objectives: ['Assess storage management knowledge']
+        },
+        'forge-md100-m06-quiz': {
+            id: 'forge-md100-m06-quiz',
+            title: 'Quiz: Data Access & Usage',
+            description: '15-question assessment on NTFS permissions and file sharing',
+            house: 'forge',
+            type: 'quiz',
+            difficulty: 'intermediate',
+            duration: 15,
+            topics: ['ntfs', 'permissions', 'sharing'],
+            paths: ['md-100'],
+            components: {
+                quiz: 'houses/forge/md-100/quizzes/md100-m06-quiz.quiz.html'
+            },
+            prerequisites: ['forge-md100-m06-lab'],
+            objectives: ['Assess data access and permission knowledge']
+        },
+        'forge-md100-m07-quiz': {
+            id: 'forge-md100-m07-quiz',
+            title: 'Quiz: Apps & Windows Updates',
+            description: '15-question assessment on app management and Windows updates',
+            house: 'forge',
+            type: 'quiz',
+            difficulty: 'intermediate',
+            duration: 15,
+            topics: ['apps', 'updates', 'edge', 'wsus'],
+            paths: ['md-100'],
+            components: {
+                quiz: 'houses/forge/md-100/quizzes/md100-m07-quiz.quiz.html'
+            },
+            prerequisites: ['forge-md100-m07-lab'],
+            objectives: ['Assess app deployment and update management knowledge']
+        },
+        'forge-md100-m08-quiz': {
+            id: 'forge-md100-m08-quiz',
+            title: 'Quiz: Threat Protection',
+            description: '15-question assessment on security and threat protection',
+            house: 'forge',
+            type: 'quiz',
+            difficulty: 'intermediate',
+            duration: 15,
+            topics: ['security', 'defender', 'bitlocker', 'firewall'],
+            paths: ['md-100'],
+            components: {
+                quiz: 'houses/forge/md-100/quizzes/md100-m08-quiz.quiz.html'
+            },
+            prerequisites: ['forge-md100-m08-lab'],
+            objectives: ['Assess security configuration knowledge']
+        },
+        'forge-md100-m09-quiz': {
+            id: 'forge-md100-m09-quiz',
+            title: 'Quiz: Support the Windows Client',
+            description: '15-question assessment on troubleshooting and diagnostics',
+            house: 'forge',
+            type: 'quiz',
+            difficulty: 'advanced',
+            duration: 15,
+            topics: ['troubleshooting', 'diagnostics', 'event-viewer'],
+            paths: ['md-100'],
+            components: {
+                quiz: 'houses/forge/md-100/quizzes/md100-m09-quiz.quiz.html'
+            },
+            prerequisites: ['forge-md100-m09-lab'],
+            objectives: ['Assess troubleshooting methodology and diagnostic tool knowledge']
+        },
+        'forge-md100-m10-quiz': {
+            id: 'forge-md100-m10-quiz',
+            title: 'Quiz: Troubleshoot OS & Apps',
+            description: '15-question assessment on OS and application troubleshooting',
+            house: 'forge',
+            type: 'quiz',
+            difficulty: 'advanced',
+            duration: 15,
+            topics: ['troubleshooting', 'recovery', 'startup', 'dism'],
+            paths: ['md-100'],
+            components: {
+                quiz: 'houses/forge/md-100/quizzes/md100-m10-quiz.quiz.html'
+            },
+            prerequisites: ['forge-md100-m10-lab'],
+            objectives: ['Assess OS troubleshooting and repair knowledge']
+        },
+        'forge-md100-m11-quiz': {
+            id: 'forge-md100-m11-quiz',
+            title: 'Quiz: Hardware & Drivers',
+            description: '15-question assessment on hardware and driver troubleshooting',
+            house: 'forge',
+            type: 'quiz',
+            difficulty: 'advanced',
+            duration: 15,
+            topics: ['hardware', 'drivers', 'bsod', 'diagnostics'],
+            paths: ['md-100'],
+            components: {
+                quiz: 'houses/forge/md-100/quizzes/md100-m11-quiz.quiz.html'
+            },
+            prerequisites: ['forge-md100-m11-lab'],
+            objectives: ['Assess hardware troubleshooting and BSOD analysis knowledge']
+        },
         // ─── WEB HOUSE (remaining REG-001 fixes) ───
         'web-troubleshooting-lab': {
             id: 'web-troubleshooting-lab',

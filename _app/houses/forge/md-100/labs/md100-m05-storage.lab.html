@@ -1,0 +1,940 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <!-- Progress & Achievements -->
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Storage Configuration Lab - MD-100</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            min-height: 100vh;
+            background: #0c0c0c;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: #e0d0c0;
+        }
+
+        .lab-header {
+            padding: 14px 28px;
+            background: rgba(10, 10, 15, 0.95);
+            border-bottom: 1px solid rgba(234, 88, 12, 0.2);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky; top: 0; z-index: 100;
+        }
+
+        .header-left { display: flex; align-items: center; gap: 18px; }
+
+        .back-btn {
+            padding: 7px 15px;
+            background: rgba(234, 88, 12, 0.1);
+            border: 1px solid rgba(234, 88, 12, 0.3);
+            border-radius: 6px;
+            color: #f97316;
+            text-decoration: none;
+            font-size: 0.83rem;
+            transition: background 0.2s;
+        }
+        .back-btn:hover { background: rgba(234, 88, 12, 0.2); }
+
+        .lab-title { font-size: 0.98rem; color: #f5e6d3; font-weight: 500; }
+
+        .lab-badge {
+            padding: 3px 11px;
+            background: rgba(234, 88, 12, 0.15);
+            border: 1px solid rgba(234, 88, 12, 0.3);
+            border-radius: 12px;
+            font-size: 0.68rem;
+            color: #ea580c;
+            letter-spacing: 0.06em;
+        }
+
+        .task-progress { font-size: 0.83rem; color: #8a7060; }
+        .task-count { color: #f97316; font-weight: 600; }
+
+        .lab-container {
+            display: grid;
+            grid-template-columns: 350px 1fr;
+            height: calc(100vh - 54px);
+        }
+
+        .task-panel {
+            background: rgba(15, 12, 8, 0.95);
+            border-right: 1px solid rgba(234, 88, 12, 0.12);
+            overflow-y: auto;
+            padding: 20px;
+        }
+
+        .task-section-title {
+            font-size: 0.68rem;
+            color: #6b5040;
+            letter-spacing: 0.14em;
+            text-transform: uppercase;
+            margin-bottom: 12px;
+        }
+
+        .task-card {
+            background: rgba(20, 15, 10, 0.8);
+            border: 1px solid rgba(234, 88, 12, 0.12);
+            border-radius: 10px;
+            padding: 14px;
+            margin-bottom: 10px;
+            cursor: pointer;
+            transition: all 0.25s;
+            position: relative;
+        }
+        .task-card:hover { border-color: rgba(234, 88, 12, 0.35); }
+        .task-card.active { border-left: 3px solid #ea580c; background: rgba(234, 88, 12, 0.1); }
+        .task-card.completed { border-color: rgba(34, 197, 94, 0.35); }
+        .task-card.completed::after {
+            content: '✓';
+            position: absolute;
+            top: 12px; right: 14px;
+            color: #22c55e; font-weight: 700;
+        }
+
+        .task-number { font-size: 0.68rem; color: #ea580c; margin-bottom: 4px; }
+        .task-name { font-size: 0.92rem; color: #f5e6d3; margin-bottom: 4px; font-weight: 500; }
+        .task-desc { font-size: 0.78rem; color: #8a7060; line-height: 1.45; }
+
+        .lab-main { overflow-y: auto; padding: 28px 32px; background: #0a0a0a; }
+
+        .task-view { display: none; }
+        .task-view.active { display: block; }
+
+        .task-header {
+            margin-bottom: 24px;
+            padding-bottom: 18px;
+            border-bottom: 1px solid rgba(234, 88, 12, 0.15);
+        }
+        .task-header h2 { font-size: 1.25rem; color: #f97316; margin-bottom: 6px; }
+        .task-header p { font-size: 0.88rem; color: #9a8070; line-height: 1.55; }
+
+        /* Selection cards */
+        .scenario-card {
+            background: rgba(20, 16, 12, 0.9);
+            border: 1px solid rgba(234, 88, 12, 0.18);
+            border-radius: 10px;
+            padding: 16px;
+            margin-bottom: 14px;
+        }
+
+        .scenario-label { font-size: 0.7rem; color: #ea580c; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 5px; }
+        .scenario-text { font-size: 0.86rem; color: #d0c0b0; line-height: 1.5; margin-bottom: 10px; }
+
+        .option-group-h { display: flex; flex-wrap: wrap; gap: 8px; }
+
+        .option-btn {
+            padding: 8px 14px;
+            background: rgba(30,22,14,0.9);
+            border: 1px solid rgba(234,88,12,0.2);
+            border-radius: 7px;
+            color: #c0b0a0;
+            font-size: 0.82rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .option-btn:hover { background: rgba(234,88,12,0.12); border-color: rgba(234,88,12,0.4); color: #f5e6d3; }
+        .option-btn.correct { background: rgba(34,197,94,0.15); border-color: #22c55e; color: #22c55e; }
+        .option-btn.incorrect { background: rgba(239,68,68,0.12); border-color: #ef4444; color: #ef4444; }
+        .option-btn:disabled { cursor: not-allowed; opacity: 0.75; }
+
+        /* Diskpart command builder */
+        .diskpart-terminal {
+            background: #0d1117;
+            border: 1px solid rgba(234,88,12,0.2);
+            border-radius: 10px;
+            padding: 18px 20px;
+            margin-bottom: 18px;
+            font-family: 'Consolas', 'Courier New', monospace;
+        }
+
+        .diskpart-header {
+            color: #9a8070;
+            font-family: 'Segoe UI', sans-serif;
+            font-size: 0.83rem;
+            margin-bottom: 12px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid rgba(234,88,12,0.1);
+        }
+
+        .dp-prompt { color: #22c55e; font-size: 0.82rem; margin-bottom: 3px; }
+
+        .dp-line {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            flex-wrap: wrap;
+            margin-bottom: 6px;
+            font-size: 0.9rem;
+        }
+
+        .dp-static { color: #a0c0e0; }
+        .dp-output { color: #64748b; font-size: 0.8rem; padding-left: 12px; margin-bottom: 8px; }
+
+        .dp-input {
+            background: rgba(234,88,12,0.08);
+            border: 1px dashed rgba(234,88,12,0.5);
+            border-radius: 4px;
+            color: #f97316;
+            font-family: 'Consolas', monospace;
+            font-size: 0.88rem;
+            padding: 3px 9px;
+            outline: none;
+        }
+        .dp-input:focus { border-color: #ea580c; border-style: solid; }
+        .dp-input.correct { border-color: #22c55e; color: #22c55e; background: rgba(34,197,94,0.08); border-style: solid; }
+        .dp-input.incorrect { border-color: #ef4444; color: #ef4444; background: rgba(239,68,68,0.08); border-style: solid; }
+
+        /* File system comparison */
+        .fs-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+
+        .fs-column {
+            background: rgba(20,16,12,0.9);
+            border: 1px solid rgba(234,88,12,0.15);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .fs-header {
+            background: rgba(234,88,12,0.12);
+            padding: 10px;
+            text-align: center;
+            font-size: 0.88rem;
+            color: #f97316;
+            font-weight: 600;
+        }
+
+        .fs-feature {
+            padding: 8px 12px;
+            border-bottom: 1px solid rgba(234,88,12,0.08);
+            font-size: 0.8rem;
+            color: #c0b0a0;
+        }
+
+        .fs-feature-q {
+            padding: 8px 12px;
+            border-bottom: 1px solid rgba(234,88,12,0.08);
+        }
+
+        .fs-select {
+            width: 100%;
+            background: rgba(15,12,8,0.9);
+            border: none;
+            color: #d0c0b0;
+            font-size: 0.8rem;
+            padding: 4px 6px;
+            outline: none;
+        }
+        .fs-select.correct { color: #22c55e; background: rgba(34,197,94,0.07); }
+        .fs-select.incorrect { color: #ef4444; background: rgba(239,68,68,0.07); }
+
+        /* Storage Spaces */
+        .storage-spaces-builder {
+            background: rgba(13,17,23,0.95);
+            border: 1px solid rgba(234,88,12,0.2);
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 18px;
+        }
+
+        .ss-title { font-size: 0.9rem; color: #f97316; margin-bottom: 16px; }
+
+        .ss-row {
+            display: grid;
+            grid-template-columns: 180px 1fr;
+            gap: 16px;
+            align-items: center;
+            margin-bottom: 14px;
+        }
+
+        .ss-label { font-size: 0.8rem; color: #8a7060; }
+
+        .ss-select {
+            background: rgba(20,16,12,0.9);
+            border: 1px solid rgba(234,88,12,0.25);
+            border-radius: 6px;
+            color: #d0c0b0;
+            font-size: 0.84rem;
+            padding: 7px 10px;
+            outline: none;
+        }
+        .ss-select.correct { border-color: #22c55e; color: #22c55e; }
+        .ss-select.incorrect { border-color: #ef4444; color: #ef4444; }
+
+        /* Maintenance table */
+        .maint-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.85rem;
+            margin-bottom: 20px;
+        }
+        .maint-table th {
+            background: rgba(234,88,12,0.15);
+            color: #f97316;
+            padding: 10px 14px;
+            text-align: left;
+        }
+        .maint-table td {
+            padding: 11px 14px;
+            border-bottom: 1px solid rgba(234,88,12,0.1);
+            color: #c0b0a0;
+            vertical-align: middle;
+        }
+
+        .maint-select {
+            background: rgba(20,16,12,0.9);
+            border: 1px solid rgba(234,88,12,0.25);
+            border-radius: 6px;
+            color: #d0c0b0;
+            font-size: 0.83rem;
+            padding: 6px 10px;
+            outline: none;
+            width: 100%;
+        }
+        .maint-select.correct { border-color: #22c55e; color: #22c55e; }
+        .maint-select.incorrect { border-color: #ef4444; color: #ef4444; }
+
+        .feedback {
+            padding: 12px 16px;
+            border-radius: 8px;
+            font-size: 0.86rem;
+            line-height: 1.55;
+            margin-top: 12px;
+            display: none;
+        }
+        .feedback.show { display: block; }
+        .feedback.success { background: rgba(34,197,94,0.12); border: 1px solid rgba(34,197,94,0.3); color: #86efac; }
+        .feedback.error { background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.3); color: #fca5a5; }
+
+        .check-btn {
+            padding: 10px 26px;
+            background: linear-gradient(135deg, #ea580c, #c2410c);
+            border: none;
+            border-radius: 8px;
+            color: #fff;
+            font-size: 0.9rem;
+            cursor: pointer;
+            margin-top: 14px;
+            transition: all 0.25s;
+        }
+        .check-btn:hover { box-shadow: 0 4px 16px rgba(234,88,12,0.35); transform: translateY(-1px); }
+        .check-btn:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }
+
+        .complete-section { display: none; text-align: center; padding: 40px 20px; border-top: 1px solid rgba(234,88,12,0.15); margin-top: 30px; }
+        .complete-section.show { display: block; }
+        .complete-section p { color: #9a8070; margin-bottom: 18px; font-size: 0.92rem; }
+        .complete-btn {
+            padding: 13px 36px;
+            background: #22c55e;
+            border: none;
+            border-radius: 9px;
+            color: #fff;
+            font-size: 1rem;
+            cursor: pointer;
+            box-shadow: 0 3px 12px rgba(34,197,94,0.3);
+        }
+        .complete-btn:hover { background: #16a34a; }
+
+        @media (max-width: 900px) {
+            .lab-container { grid-template-columns: 1fr; }
+            .task-panel { display: none; }
+            .fs-grid { grid-template-columns: 1fr 1fr; }
+        }
+    </style>
+</head>
+<body>
+
+<header class="lab-header">
+    <div class="header-left">
+        <a href="../../index.html" class="back-btn">← Back</a>
+        <span class="lab-title">MD-100 M05: Storage Configuration Lab</span>
+        <span class="lab-badge">INTERACTIVE</span>
+    </div>
+    <div class="task-progress">
+        Tasks: <span class="task-count" id="taskProgress">0/5 Complete</span>
+    </div>
+</header>
+
+<div class="lab-container">
+    <aside class="task-panel">
+        <div class="task-section-title">Lab Tasks</div>
+
+        <div class="task-card active" data-task="1" onclick="selectTask(1)">
+            <div class="task-number">TASK 1</div>
+            <div class="task-name">Disk Type Selection</div>
+            <div class="task-desc">Choose MBR vs GPT and basic vs dynamic disk for given scenarios</div>
+        </div>
+
+        <div class="task-card" data-task="2" onclick="selectTask(2)">
+            <div class="task-number">TASK 2</div>
+            <div class="task-name">Diskpart Command Sequence</div>
+            <div class="task-desc">Fill in diskpart commands to create, extend, and format volumes</div>
+        </div>
+
+        <div class="task-card" data-task="3" onclick="selectTask(3)">
+            <div class="task-number">TASK 3</div>
+            <div class="task-name">File System Comparison</div>
+            <div class="task-desc">Match file system features to NTFS, exFAT, FAT32, and ReFS</div>
+        </div>
+
+        <div class="task-card" data-task="4" onclick="selectTask(4)">
+            <div class="task-number">TASK 4</div>
+            <div class="task-name">Storage Spaces Design</div>
+            <div class="task-desc">Configure a Storage Space pool with the correct resiliency type</div>
+        </div>
+
+        <div class="task-card" data-task="5" onclick="selectTask(5)">
+            <div class="task-number">TASK 5</div>
+            <div class="task-name">Storage Maintenance Tools</div>
+            <div class="task-desc">Choose the correct maintenance tool for each storage scenario</div>
+        </div>
+    </aside>
+
+    <main class="lab-main">
+
+        <!-- TASK 1: Disk Type Selection -->
+        <div class="task-view active" id="task-1">
+            <div class="task-header">
+                <h2>Task 1: Disk Type Selection</h2>
+                <p>For each scenario, select both the correct partition style (MBR or GPT) and disk type (Basic or Dynamic).</p>
+            </div>
+
+            <div class="scenario-card">
+                <div class="scenario-label">Scenario 1A — Legacy Windows 7 Machine</div>
+                <div class="scenario-text">Technician is adding storage to an old machine with Legacy BIOS. Drive is 500 GB. Needs a single bootable partition. Maximum compatibility required. No software RAID.</div>
+                <p style="font-size:0.8rem; color:#6b5040; margin-bottom:8px;">Partition Style:</p>
+                <div class="option-group-h" id="s1a-style">
+                    <button class="option-btn" onclick="checkDisk('1a','style','mbr',this)">MBR</button>
+                    <button class="option-btn" onclick="checkDisk('1a','style','gpt',this)">GPT</button>
+                </div>
+                <p style="font-size:0.8rem; color:#6b5040; margin: 10px 0 8px;">Disk Type:</p>
+                <div class="option-group-h" id="s1a-type">
+                    <button class="option-btn" onclick="checkDisk('1a','type','basic',this)">Basic</button>
+                    <button class="option-btn" onclick="checkDisk('1a','type','dynamic',this)">Dynamic</button>
+                </div>
+            </div>
+
+            <div class="scenario-card">
+                <div class="scenario-label">Scenario 1B — New Workstation, Windows 11</div>
+                <div class="scenario-text">Brand new UEFI workstation with a 4 TB NVMe drive. Must support Secure Boot. Windows 11 will be installed. No drive spanning needed.</div>
+                <p style="font-size:0.8rem; color:#6b5040; margin-bottom:8px;">Partition Style:</p>
+                <div class="option-group-h" id="s1b-style">
+                    <button class="option-btn" onclick="checkDisk('1b','style','mbr',this)">MBR</button>
+                    <button class="option-btn" onclick="checkDisk('1b','style','gpt',this)">GPT</button>
+                </div>
+                <p style="font-size:0.8rem; color:#6b5040; margin: 10px 0 8px;">Disk Type:</p>
+                <div class="option-group-h" id="s1b-type">
+                    <button class="option-btn" onclick="checkDisk('1b','type','basic',this)">Basic</button>
+                    <button class="option-btn" onclick="checkDisk('1b','type','dynamic',this)">Dynamic</button>
+                </div>
+            </div>
+
+            <div class="scenario-card">
+                <div class="scenario-label">Scenario 1C — Spanned Volume Across 3 Disks</div>
+                <div class="scenario-text">Administrator wants to create a single logical volume that spans 3 physical disks (software-level combining, no RAID). Must use Windows' built-in volume management without Storage Spaces.</div>
+                <p style="font-size:0.8rem; color:#6b5040; margin-bottom:8px;">Disk Type Required:</p>
+                <div class="option-group-h" id="s1c-type">
+                    <button class="option-btn" onclick="checkDisk('1c','type','basic',this)">Basic</button>
+                    <button class="option-btn" onclick="checkDisk('1c','type','dynamic',this)">Dynamic</button>
+                </div>
+            </div>
+
+            <div class="feedback" id="t1-feedback"></div>
+            <button class="check-btn" id="t1-btn" onclick="completeT1()" disabled>Complete Task 1</button>
+        </div>
+
+        <!-- TASK 2: Diskpart Commands -->
+        <div class="task-view" id="task-2">
+            <div class="task-header">
+                <h2>Task 2: Diskpart Command Sequence</h2>
+                <p>Complete the diskpart command sequence to select Disk 1, create a 100 GB primary partition, assign drive letter E, and format it NTFS. Fill in the missing keywords.</p>
+            </div>
+
+            <div class="diskpart-terminal">
+                <div class="diskpart-header">Goal: Initialize Disk 1, create a 100,000 MB primary partition on it, assign letter E, and format NTFS with the label "Data"</div>
+
+                <div class="dp-prompt">DISKPART&gt;</div>
+                <div class="dp-line">
+                    <input class="dp-input" id="dp1" placeholder="verb" style="width:70px;" spellcheck="false">
+                    <span class="dp-static">disk 1</span>
+                </div>
+                <div class="dp-output">Disk 1 is now the selected disk.</div>
+
+                <div class="dp-prompt">DISKPART&gt;</div>
+                <div class="dp-line">
+                    <input class="dp-input" id="dp2" placeholder="verb" style="width:70px;" spellcheck="false">
+                </div>
+                <div class="dp-output">DiskPart succeeded in cleaning the disk.</div>
+
+                <div class="dp-prompt">DISKPART&gt;</div>
+                <div class="dp-line">
+                    <span class="dp-static">convert</span>
+                    <input class="dp-input" id="dp3" placeholder="style" style="width:60px;" spellcheck="false">
+                </div>
+                <div class="dp-output">DiskPart successfully converted the disk to GPT format.</div>
+
+                <div class="dp-prompt">DISKPART&gt;</div>
+                <div class="dp-line">
+                    <span class="dp-static">create</span>
+                    <input class="dp-input" id="dp4" placeholder="type" style="width:120px;" spellcheck="false">
+                    <span class="dp-static">size=100000</span>
+                </div>
+                <div class="dp-output">DiskPart succeeded in creating the specified partition.</div>
+
+                <div class="dp-prompt">DISKPART&gt;</div>
+                <div class="dp-line">
+                    <span class="dp-static">assign</span>
+                    <input class="dp-input" id="dp5" placeholder="param" style="width:90px;" spellcheck="false">
+                </div>
+                <div class="dp-output">DiskPart successfully assigned the drive letter or mount point.</div>
+
+                <div class="dp-prompt">DISKPART&gt;</div>
+                <div class="dp-line">
+                    <input class="dp-input" id="dp6" placeholder="verb" style="width:70px;" spellcheck="false">
+                    <span class="dp-static">fs=ntfs label="Data" quick</span>
+                </div>
+                <div class="dp-output">100 percent completed. DiskPart successfully formatted the volume.</div>
+            </div>
+
+            <div class="feedback" id="t2-feedback"></div>
+            <button class="check-btn" onclick="checkTask2()">Check Commands</button>
+        </div>
+
+        <!-- TASK 3: File System Comparison -->
+        <div class="task-view" id="task-3">
+            <div class="task-header">
+                <h2>Task 3: File System Comparison</h2>
+                <p>For each feature in the table, select which file system supports it. Some features apply to multiple. Select the <em>primary</em> or <em>most notable</em> file system for that characteristic.</p>
+            </div>
+
+            <div class="fs-grid">
+                <div class="fs-column">
+                    <div class="fs-header">NTFS</div>
+                    <div class="fs-feature">Permissions (ACLs)</div>
+                    <div class="fs-feature">EFS Encryption</div>
+                    <div class="fs-feature">Compression</div>
+                    <div class="fs-feature">Disk Quotas</div>
+                    <div class="fs-feature">Journaling</div>
+                    <div class="fs-feature">Volume Shadow Copy</div>
+                </div>
+                <div class="fs-column">
+                    <div class="fs-header">exFAT</div>
+                    <div class="fs-feature">Cross-platform (Win/Mac/Linux)</div>
+                    <div class="fs-feature">No file size limit</div>
+                    <div class="fs-feature">Flash drives & SD cards</div>
+                    <div class="fs-feature">No journaling</div>
+                    <div class="fs-feature">No ACLs</div>
+                    <div class="fs-feature">Best for large removable media</div>
+                </div>
+                <div class="fs-column">
+                    <div class="fs-header">FAT32</div>
+                    <div class="fs-feature">Universal compatibility</div>
+                    <div class="fs-feature">Max file size: 4 GB</div>
+                    <div class="fs-feature">Max volume: 32 GB (Windows format)</div>
+                    <div class="fs-feature">No security features</div>
+                    <div class="fs-feature">Used in EFI System Partition</div>
+                    <div class="fs-feature">Legacy device compatibility</div>
+                </div>
+                <div class="fs-column">
+                    <div class="fs-header">ReFS</div>
+                    <div class="fs-feature">Automatic data integrity</div>
+                    <div class="fs-feature">Proactive error correction</div>
+                    <div class="fs-feature">Designed for large data stores</div>
+                    <div class="fs-feature">No Windows boot support</div>
+                    <div class="fs-feature">Resilient to corruption</div>
+                    <div class="fs-feature">Used in Storage Spaces</div>
+                </div>
+            </div>
+
+            <p style="font-size:0.88rem; color:#9a8070; margin-bottom:16px;">Match each scenario to the correct file system:</p>
+
+            <div style="display:flex; flex-direction:column; gap:10px; margin-bottom:18px;">
+
+                <div class="scenario-card" style="padding:12px 16px;">
+                    <div class="scenario-text" style="margin-bottom:8px;">USB drive that must work on Windows, MacOS, and Linux. Files can be larger than 4 GB (video files).</div>
+                    <select class="fs-select" id="fs1">
+                        <option value="">-- Select File System --</option>
+                        <option value="ntfs">NTFS</option>
+                        <option value="exfat">exFAT</option>
+                        <option value="fat32">FAT32</option>
+                        <option value="refs">ReFS</option>
+                    </select>
+                </div>
+
+                <div class="scenario-card" style="padding:12px 16px;">
+                    <div class="scenario-text" style="margin-bottom:8px;">UEFI EFI System Partition (ESP) that holds boot files. Required by the UEFI standard for boot compatibility.</div>
+                    <select class="fs-select" id="fs2">
+                        <option value="">-- Select File System --</option>
+                        <option value="ntfs">NTFS</option>
+                        <option value="exfat">exFAT</option>
+                        <option value="fat32">FAT32</option>
+                        <option value="refs">ReFS</option>
+                    </select>
+                </div>
+
+                <div class="scenario-card" style="padding:12px 16px;">
+                    <div class="scenario-text" style="margin-bottom:8px;">Windows Server 2022 Storage Space hosting 50 TB of VM disk images. Requires automatic integrity checking and proactive corruption repair without user intervention.</div>
+                    <select class="fs-select" id="fs3">
+                        <option value="">-- Select File System --</option>
+                        <option value="ntfs">NTFS</option>
+                        <option value="exfat">exFAT</option>
+                        <option value="fat32">FAT32</option>
+                        <option value="refs">ReFS</option>
+                    </select>
+                </div>
+
+                <div class="scenario-card" style="padding:12px 16px;">
+                    <div class="scenario-text" style="margin-bottom:8px;">Windows 10 system drive that needs BitLocker encryption, NTFS permissions for multi-user access, file compression, and disk quotas.</div>
+                    <select class="fs-select" id="fs4">
+                        <option value="">-- Select File System --</option>
+                        <option value="ntfs">NTFS</option>
+                        <option value="exfat">exFAT</option>
+                        <option value="fat32">FAT32</option>
+                        <option value="refs">ReFS</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="feedback" id="t3-feedback"></div>
+            <button class="check-btn" onclick="checkTask3()">Check File Systems</button>
+        </div>
+
+        <!-- TASK 4: Storage Spaces Design -->
+        <div class="task-view" id="task-4">
+            <div class="task-header">
+                <h2>Task 4: Storage Spaces Design</h2>
+                <p>Configure a Storage Space for the following scenario. Select the correct options from each dropdown.</p>
+            </div>
+
+            <div class="scenario-card" style="margin-bottom:20px;">
+                <div class="scenario-label">Design Scenario</div>
+                <div class="scenario-text">
+                    A file server has 4 identical 2 TB HDDs available for a Storage Space. The requirement is: data must survive the failure of up to <strong>2 drives simultaneously</strong>. Performance is less important than data protection. All 4 drives should participate.
+                </div>
+            </div>
+
+            <div class="storage-spaces-builder">
+                <div class="ss-title">Storage Space Configuration Builder</div>
+
+                <div class="ss-row">
+                    <div class="ss-label">Number of drives in pool</div>
+                    <select class="ss-select" id="ss-drives">
+                        <option value="">-- Select --</option>
+                        <option value="2">2 drives</option>
+                        <option value="3">3 drives</option>
+                        <option value="4">4 drives</option>
+                    </select>
+                </div>
+
+                <div class="ss-row">
+                    <div class="ss-label">Resiliency type</div>
+                    <select class="ss-select" id="ss-resiliency">
+                        <option value="">-- Select --</option>
+                        <option value="simple">Simple (no resiliency)</option>
+                        <option value="mirror2">Two-way Mirror</option>
+                        <option value="mirror3">Three-way Mirror</option>
+                        <option value="parity">Parity (single fault tolerance)</option>
+                        <option value="dualpar">Dual Parity (two fault tolerance)</option>
+                    </select>
+                </div>
+
+                <div class="ss-row">
+                    <div class="ss-label">Recommended file system</div>
+                    <select class="ss-select" id="ss-fs">
+                        <option value="">-- Select --</option>
+                        <option value="ntfs">NTFS</option>
+                        <option value="refs">ReFS</option>
+                        <option value="fat32">FAT32</option>
+                        <option value="exfat">exFAT</option>
+                    </select>
+                </div>
+
+                <div class="ss-row">
+                    <div class="ss-label">Usable capacity (approx.)</div>
+                    <select class="ss-select" id="ss-capacity">
+                        <option value="">-- Select --</option>
+                        <option value="8tb">8 TB (full capacity, no redundancy)</option>
+                        <option value="4tb">4 TB (2 drives worth after parity overhead)</option>
+                        <option value="2tb">2 TB (single mirror of 2 drives)</option>
+                        <option value="1tb">1 TB (minimal configuration)</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="feedback" id="t4-feedback"></div>
+            <button class="check-btn" onclick="checkTask4()">Check Storage Space Config</button>
+        </div>
+
+        <!-- TASK 5: Storage Maintenance -->
+        <div class="task-view" id="task-5">
+            <div class="task-header">
+                <h2>Task 5: Storage Maintenance Tools</h2>
+                <p>Select the correct maintenance tool for each storage health scenario.</p>
+            </div>
+
+            <table class="maint-table">
+                <thead>
+                    <tr>
+                        <th style="width:55%">Scenario</th>
+                        <th>Correct Tool</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>The C: drive shows file system errors after an unexpected shutdown. User reports some folders are inaccessible.</td>
+                        <td>
+                            <select class="maint-select" id="m1">
+                                <option value="">-- Select --</option>
+                                <option value="chkdsk">chkdsk /f /r</option>
+                                <option value="defrag">Optimize Drives (defrag)</option>
+                                <option value="trim">Manual TRIM (fsutil)</option>
+                                <option value="cleanup">Disk Cleanup</option>
+                                <option value="sense">Storage Sense</option>
+                            </select>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>A spinning HDD is taking 45 seconds to open folders. Last time it was optimized was 3 months ago.</td>
+                        <td>
+                            <select class="maint-select" id="m2">
+                                <option value="">-- Select --</option>
+                                <option value="chkdsk">chkdsk /f /r</option>
+                                <option value="defrag">Optimize Drives (defrag / defragment)</option>
+                                <option value="trim">Manual TRIM (fsutil)</option>
+                                <option value="cleanup">Disk Cleanup</option>
+                                <option value="sense">Storage Sense</option>
+                            </select>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>An SSD's performance has degraded over months of use. The OS has not issued TRIM commands automatically. Run TRIM manually.</td>
+                        <td>
+                            <select class="maint-select" id="m3">
+                                <option value="">-- Select --</option>
+                                <option value="chkdsk">chkdsk /f /r</option>
+                                <option value="defrag">Optimize Drives (TRIM via GUI)</option>
+                                <option value="trim">fsutil behavior set DisableDeleteNotify 0</option>
+                                <option value="cleanup">Disk Cleanup</option>
+                                <option value="sense">Storage Sense</option>
+                            </select>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>Windows Update cache, Recycle Bin, Delivery Optimization files, and old thumbnails are consuming 12 GB of space. User wants to reclaim this manually now.</td>
+                        <td>
+                            <select class="maint-select" id="m4">
+                                <option value="">-- Select --</option>
+                                <option value="chkdsk">chkdsk /f /r</option>
+                                <option value="defrag">Optimize Drives (defrag)</option>
+                                <option value="trim">Manual TRIM (fsutil)</option>
+                                <option value="cleanup">Disk Cleanup (cleanmgr)</option>
+                                <option value="sense">Storage Sense</option>
+                            </select>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>IT policy requires that temporary files, Downloads, and the Recycle Bin are automatically cleaned when disk space drops below 1 GB — without user action.</td>
+                        <td>
+                            <select class="maint-select" id="m5">
+                                <option value="">-- Select --</option>
+                                <option value="chkdsk">chkdsk /f /r</option>
+                                <option value="defrag">Optimize Drives (defrag)</option>
+                                <option value="trim">Manual TRIM (fsutil)</option>
+                                <option value="cleanup">Disk Cleanup (cleanmgr)</option>
+                                <option value="sense">Storage Sense (automatic)</option>
+                            </select>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <div class="feedback" id="t5-feedback"></div>
+            <button class="check-btn" onclick="checkTask5()">Check Maintenance Tools</button>
+
+            <div class="complete-section" id="complete-section">
+                <p>All tasks complete. You can now select disk types, write diskpart commands, choose file systems, design Storage Spaces, and apply the right maintenance tool for each scenario.</p>
+                <button class="complete-btn" onclick="completeModule()">Complete Module</button>
+            </div>
+        </div>
+
+    </main>
+</div>
+
+<script>
+    let completedTasks = new Set();
+
+    // Task 1: Disk type selection state
+    const diskState = {
+        '1a': { style: null, type: null },
+        '1b': { style: null, type: null },
+        '1c': { type: null }
+    };
+    const diskAnswers = {
+        '1a': { style: 'mbr', type: 'basic' },
+        '1b': { style: 'gpt', type: 'basic' },
+        '1c': { type: 'dynamic' }
+    };
+
+    // Task 2: diskpart command answers
+    const dpAnswers = {
+        dp1: 'select', dp2: 'clean', dp3: 'gpt',
+        dp4: 'partition primary', dp5: 'letter=e', dp6: 'format'
+    };
+
+    // Task 3: File system answers
+    const fsAnswers = { fs1: 'exfat', fs2: 'fat32', fs3: 'refs', fs4: 'ntfs' };
+
+    // Task 4: Storage Spaces
+    const ssAnswers = { 'ss-drives': '4', 'ss-resiliency': 'dualpar', 'ss-fs': 'refs', 'ss-capacity': '4tb' };
+
+    // Task 5: Maintenance
+    const maintAnswers = { m1: 'chkdsk', m2: 'defrag', m3: 'defrag', m4: 'cleanup', m5: 'sense' };
+
+    // ── Navigation ─────────────────────────────────────────────────────────────
+    function selectTask(n) {
+        document.querySelectorAll('.task-view').forEach(v => v.classList.remove('active'));
+        document.querySelectorAll('.task-card').forEach(c => c.classList.remove('active'));
+        document.getElementById('task-' + n).classList.add('active');
+        document.querySelector('[data-task="' + n + '"]').classList.add('active');
+    }
+
+    function markTaskComplete(n) {
+        completedTasks.add(n);
+        document.querySelector('[data-task="' + n + '"]').classList.add('completed');
+        document.getElementById('taskProgress').textContent = completedTasks.size + '/5 Complete';
+        if (completedTasks.size === 5) document.getElementById('complete-section').classList.add('show');
+    }
+
+    function showFeedback(id, type, msg) {
+        const el = document.getElementById(id);
+        el.className = 'feedback show ' + type;
+        el.innerHTML = msg;
+    }
+
+    // ── Task 1 ─────────────────────────────────────────────────────────────────
+    function checkDisk(scenario, prop, chosen, btn) {
+        const group = btn.closest('.option-group-h');
+        group.querySelectorAll('.option-btn').forEach(b => { b.disabled = true; b.classList.remove('correct','incorrect'); });
+        const correct = diskAnswers[scenario][prop];
+        if (chosen === correct) {
+            btn.classList.add('correct');
+            diskState[scenario][prop] = true;
+        } else {
+            btn.classList.add('incorrect');
+            group.querySelectorAll('.option-btn').forEach(b => {
+                const v = b.getAttribute('onclick').match(/'([^']+)'/g)[2].replace(/'/g,'');
+                if (v === correct) b.classList.add('correct');
+            });
+            diskState[scenario][prop] = false;
+        }
+        // Check if all answered correctly
+        const allDone = diskState['1a'].style === true && diskState['1a'].type === true &&
+                        diskState['1b'].style === true && diskState['1b'].type === true &&
+                        diskState['1c'].type === true;
+        if (allDone) {
+            document.getElementById('t1-btn').disabled = false;
+            showFeedback('t1-feedback','success','Disk selections correct. MBR = legacy, max 2 TB per partition, 4 primary partitions. GPT = modern, required for Windows 11 + UEFI, 128 partitions, drives >2 TB. Basic = standard (most common). Dynamic = required for spanned/striped/mirrored volumes without Storage Spaces.');
+        }
+    }
+
+    function completeT1() {
+        if (!completedTasks.has(1)) markTaskComplete(1);
+        selectTask(2);
+    }
+
+    // ── Task 2 ─────────────────────────────────────────────────────────────────
+    function checkTask2() {
+        let score = 0;
+        Object.keys(dpAnswers).forEach(id => {
+            const el = document.getElementById(id);
+            const val = el.value.trim().toLowerCase();
+            el.classList.remove('correct','incorrect');
+            if (val === dpAnswers[id]) { el.classList.add('correct'); score++; }
+            else el.classList.add('incorrect');
+        });
+        if (score === 6) {
+            showFeedback('t2-feedback','success','All diskpart commands correct. Sequence: select disk → clean → convert gpt → create partition primary → assign letter=E → format fs=ntfs. The "clean" command wipes all partition data — use carefully. "convert gpt" requires the disk to have no partitions.');
+            if (!completedTasks.has(2)) markTaskComplete(2);
+            setTimeout(() => selectTask(3), 1400);
+        } else {
+            showFeedback('t2-feedback','error', score + '/6 correct. Tip: "partition primary" is the full phrase, not just "partition". "assign letter=e" assigns the drive letter. The format verb is simply "format" in diskpart context.');
+        }
+    }
+
+    // ── Task 3 ─────────────────────────────────────────────────────────────────
+    function checkTask3() {
+        let score = 0;
+        Object.keys(fsAnswers).forEach(id => {
+            const el = document.getElementById(id);
+            el.classList.remove('correct','incorrect');
+            if (el.value === fsAnswers[id]) { el.classList.add('correct'); score++; }
+            else el.classList.add('incorrect');
+        });
+        if (score === 4) {
+            showFeedback('t3-feedback','success','File system selections correct. exFAT = cross-platform large file support, no 4 GB limit. FAT32 = required for EFI System Partition by UEFI spec. ReFS = enterprise storage integrity, used in Storage Spaces, no boot support. NTFS = default Windows file system with full security and feature set.');
+            if (!completedTasks.has(3)) markTaskComplete(3);
+            setTimeout(() => selectTask(4), 1200);
+        } else {
+            showFeedback('t3-feedback','error', score + '/4 correct. Key: EFI System Partition requires FAT32 — this is a UEFI specification requirement, not a choice. ReFS cannot host a Windows boot partition but is ideal for large server storage.');
+        }
+    }
+
+    // ── Task 4 ─────────────────────────────────────────────────────────────────
+    function checkTask4() {
+        let score = 0;
+        Object.keys(ssAnswers).forEach(id => {
+            const el = document.getElementById(id);
+            el.classList.remove('correct','incorrect');
+            if (el.value === ssAnswers[id]) { el.classList.add('correct'); score++; }
+            else el.classList.add('incorrect');
+        });
+        if (score === 4) {
+            showFeedback('t4-feedback','success','Storage Space design correct. With 4 drives and dual-fault tolerance, Dual Parity (similar to RAID 6) requires a minimum of 4 drives and provides 2-drive fault tolerance. Usable capacity ≈ n-2 drives worth. ReFS is the recommended file system for Storage Spaces due to its integrity verification features.');
+            if (!completedTasks.has(4)) markTaskComplete(4);
+            setTimeout(() => selectTask(5), 1400);
+        } else {
+            showFeedback('t4-feedback','error', score + '/4 correct. Dual Parity needs minimum 4 drives and gives 2-drive fault tolerance. Usable space = (4-2) × 2 TB = 4 TB. ReFS integrates best with Storage Spaces for integrity checking.');
+        }
+    }
+
+    // ── Task 5 ─────────────────────────────────────────────────────────────────
+    function checkTask5() {
+        let score = 0;
+        Object.keys(maintAnswers).forEach(id => {
+            const el = document.getElementById(id);
+            el.classList.remove('correct','incorrect');
+            if (el.value === maintAnswers[id]) { el.classList.add('correct'); score++; }
+            else el.classList.add('incorrect');
+        });
+        if (score === 5) {
+            showFeedback('t5-feedback','success','Maintenance tools correct. chkdsk = file system error repair. defrag/Optimize = HDD fragmentation (also runs TRIM on SSDs via GUI). fsutil TRIM = enable/verify TRIM on SSDs. Disk Cleanup = manual one-time junk file removal. Storage Sense = automatic scheduled cleanup based on disk space thresholds.');
+            if (!completedTasks.has(5)) markTaskComplete(5);
+        } else {
+            showFeedback('t5-feedback','error', score + '/5 correct. Note: The Optimize Drives GUI also handles TRIM for SSDs (not just defragmentation). Storage Sense is the automatic version; Disk Cleanup is the manual one-time tool. chkdsk requires /f to fix errors and /r to locate bad sectors.');
+        }
+    }
+
+    // ── Module Complete ────────────────────────────────────────────────────────
+    function completeModule() {
+        ModuleProgress.complete('forge', 'forge-md100-m05-lab', {
+            returnUrl: '../../index.html'
+        });
+    }
+</script>
+
+<script src="../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>
