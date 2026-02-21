@@ -93,11 +93,11 @@ Requires Puppeteer (`npm install` to install).
 | Validator | File | Description |
 |-----------|------|-------------|
 | **HTML** | `html.js` | Structural errors — unclosed tags, missing doctype, malformed attributes |
-| **JavaScript** | `js.js` | Script block syntax — bracket balance, string quotes, common errors |
+| **JavaScript** | `js.js` | Script block syntax — bracket balance, forEach/for-loop closure mismatch, await-in-sync-callback, const IIFE scoping |
 | **Engine** | `engine.js` | Missing engines/libraries (QuizEngine, LabEngine, PresentationEngine, etc.) |
 | **Path** | `paths.js` | Broken `<script src>`, `<link href>`, `<img src>` — 404 detection with smart bucketing |
 | **Naming** | `naming.js` | Enforces `{house}-{name}.{type}.html` naming convention |
-| **Heuristics** | `heuristics.js` | Anomaly detection — excessive inline scripts, TODO markers, console.log, duplicate includes |
+| **Heuristics** | `heuristics.js` | Anomaly detection — excessive inline scripts, TODO markers, console.log, duplicate includes, unguarded parseInt, localStorage coercion |
 | **Dependency** | `dependency-check.js` | "Wired but not plugged in" — code calls ProgressManager/GameTracker but never loads the script |
 
 ### Static Validation (Global)
@@ -109,6 +109,7 @@ Requires Puppeteer (`npm install` to install).
 | **AssignmentLinks** | `assignment-links.js` | Simulates student assignment clicks — verifies resolved URLs hit real files |
 | **RendererLinks** | `heuristics.js` | Scans shared JS renderers for hardcoded relative hrefs (fragile back links) |
 | **MissingIndexes** | `index.js` | Flags content directories with 3+ HTML files but no `index.html` |
+| **CSP** | `csp.js` | Cross-references external domains in code against `firebase.json` Content-Security-Policy |
 
 ### Functional Validation (Headless Browser)
 
@@ -201,6 +202,9 @@ Runs 8 targeted tests against core platform systems in a real browser.
 | JS-002 | high | ci | Unclosed string literal |
 | JS-003 | medium | strict | Bracket imbalance (`{`, `[`, `(`) |
 | JS-004 | low | strict | Common error pattern (undefined var, etc.) |
+| JS-005 | high | ci | forEach-style `});` used to close a `for`/`for...of`/`for...in` loop |
+| JS-006 | high | ci | `await` used inside non-async `.forEach()`/`.map()`/`.filter()` callback |
+| SCOPE-001 | high | ci | `const`/`let` IIFE not accessible via `window.Name` — use `var` instead |
 
 ### Engine Validator
 
@@ -243,6 +247,14 @@ Runs 8 targeted tests against core platform systems in a real browser.
 | HEUR-004 | suspect | `console.log` in inline scripts (production hygiene) |
 | HEUR-005 | suspect | Duplicate script includes (same `src` on multiple tags) |
 | HEUR-006 | medium | Hardcoded relative href in shared JS renderer (fragile back links) |
+| MATH-001 | suspect | Unguarded `parseInt()` in arithmetic — NaN will propagate if input is invalid |
+| DATA-001 | suspect | `localStorage.getItem()` in `+=` or arithmetic without `Number()` coercion |
+
+### CSP Validator
+
+| Code | Severity | Description |
+|------|----------|-------------|
+| CSP-001 | medium | External domain used in code but not covered by Content-Security-Policy in `firebase.json` |
 
 ### ContentCatalog Validator
 
@@ -304,7 +316,7 @@ Profiles control which validators run and at what sensitivity.
 
 | Profile | Use Case | What Runs |
 |---------|----------|-----------|
-| **ci** (default) | PR checks, pre-deploy | Critical/high checks only. HTML-001, JS-001/002, ENG-001, PATH-001/002, PATH-004, all global validators |
+| **ci** (default) | PR checks, pre-deploy | Critical/high checks only. HTML-001, JS-001/002/005/006, SCOPE-001, ENG-001, PATH-001/002, PATH-004, all global validators (incl. CSP-001) |
 | **strict** | Deep audits | Everything in `ci` plus bracket balance, common errors, structural tags, dynamic imports, strict naming |
 | **inventory** | Statistics gathering | Counts and metadata only — no issue flagging, never fails |
 
@@ -364,16 +376,16 @@ The test runner (`tests/run.js`) loads 12 fixture HTML files from `tests/fixture
 |---------|-------|----------------|
 | `clean.html` | Zero false positives | (none) |
 | `html-issues.html` | HTML structural errors | HTML-001, 003, 005, 006, 007 |
-| `js-issues.html` | JS syntax errors | JS-001, 002 |
+| `js-issues.html` | JS syntax errors | JS-001, 002, 005, 006 |
 | `engine-issues.html` | Missing engines | ENG-001, 002, 003 |
 | `path-issues.html` | Broken paths | PATH-001, 002, 003, DUP-001 |
 | `path-depth-issues.html` | Depth rule violations | PATH-DEPTH-001, 002 |
 | `naming-issues.html` | Naming convention | NAME-002 |
 | `html-strict-issues.html` | Strict HTML checks | HTML-004, 008, 009, 010 |
-| `js-strict-issues.html` | Strict JS checks | JS-003, 004 |
+| `js-strict-issues.html` | Strict JS checks | JS-003, 004, SCOPE-001 |
 | `path-strict-issues.html` | Strict path checks | PATH-004, 005 |
 | `naming-full-issues.html` | Full naming checks | NAME-003, 004 |
-| `heuristic-issues.html` | Anomaly detection | HEUR-001, 002, 003, 004, 005 |
+| `heuristic-issues.html` | Anomaly detection | HEUR-001, 002, 003, 004, 005, MATH-001, DATA-001 |
 
 ### Global Regression Tests
 
@@ -526,13 +538,14 @@ _tools/eduscan/
 │   ├── coverage.js                 # Coverage analysis
 │   ├── orphans.js                  # Orphan detection
 │   ├── syntax/                     # Static validators (per-file + global)
-│   │   ├── index.js                # Orchestrator (10 sub-validators)
+│   │   ├── index.js                # Orchestrator (12 sub-validators)
 │   │   ├── html.js                 # HTML-001 through HTML-010
-│   │   ├── js.js                   # JS-001 through JS-004
+│   │   ├── js.js                   # JS-001 through JS-006, SCOPE-001
 │   │   ├── engine.js               # ENG-001 through ENG-003
 │   │   ├── paths.js                # PATH-001 through PATH-IDX-001
 │   │   ├── naming.js               # NAME-001 through NAME-004
-│   │   ├── heuristics.js           # HEUR-001 through HEUR-006
+│   │   ├── heuristics.js           # HEUR-001 through HEUR-006, MATH-001, DATA-001
+│   │   ├── csp.js                  # CSP-001
 │   │   ├── content-catalog.js      # CAT-001 through CAT-003
 │   │   ├── learning-paths.js       # LP-001 through LP-003
 │   │   ├── assignment-links.js     # ASGN-001 through ASGN-006
