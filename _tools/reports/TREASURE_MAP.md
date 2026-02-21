@@ -1,7 +1,7 @@
 ══════════════════════════════════════════════════════════════════════
                          EDUSCAN REPORT
                     Hexworth Prime Content Map
-                    Scanned: 2026-02-21 9:43:04 AM
+                    Scanned: 2026-02-21 9:55:21 AM
 ══════════════════════════════════════════════════════════════════════
 
 
@@ -10,10 +10,10 @@
 
 | Metric | Value |
 |--------|-------|
-| Files Scanned | 1683 |
+| Files Scanned | 1685 |
 | Directories | 499 |
-| Content Files | 1683 |
-| Scan Duration | 309ms |
+| Content Files | 1685 |
+| Scan Duration | 281ms |
 
 ### Content by Type
 
@@ -21,7 +21,7 @@
 |------|-------|
 | presentation | 741 |
 | html | 550 |
-| lab | 252 |
+| lab | 254 |
 | quiz | 130 |
 | applet | 10 |
 
@@ -29,8 +29,8 @@
 
 | Metric | Value |
 |--------|-------|
-| Total Modules | 1521 |
-| Available | 1516 |
+| Total Modules | 1523 |
+| Available | 1518 |
 | Missing Hrefs (CAT-001) | 0 |
 | Undeclared Files (CAT-002) | 0 |
 | Empty Hrefs (CAT-003) | 0 |
@@ -50,7 +50,7 @@
 
 | Status | Count |
 |--------|-------|
-| Ready | 1133 |
+| Ready | 1135 |
 | Not Ready | 0 |
 | Unknown | 550 |
 
@@ -1542,6 +1542,8 @@
 │   │   │   │   ├── 🔬 script-mission-file-search.lab.html
 │   │   │   │   ├── 🔬 script-mission-permissions.lab.html
 │   │   │   │   ├── 🔬 script-mission-text-viewing.lab.html
+│   │   │   │   ├── 🔬 script-ssh-advanced.lab.html
+│   │   │   │   ├── 🔬 script-ssh-basics.lab.html
 │   │   │   │   ├── 🔬 script-template-warmup.lab.html
 │   │   │   │   └── 🔬 script-warmup-navigation.lab.html
 │   │   │   ├── 📁 presentations [presentations]
@@ -3050,6 +3052,8 @@
 | script-mission-file-search.lab | lab | ✓ | 0 |
 | script-mission-permissions.lab | lab | ✓ | 0 |
 | script-mission-text-viewing.lab | lab | ✓ | 0 |
+| script-ssh-advanced.lab | lab | ✓ | 0 |
+| script-ssh-basics.lab | lab | ✓ | 0 |
 | script-template-warmup.lab | presentation | ✓ | 0 |
 | script-warmup-navigation.lab | lab | ✓ | 0 |
 | script-la-ch01-intro.presentation | presentation | ✓ | 0 |

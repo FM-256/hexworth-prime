@@ -20093,6 +20093,38 @@ const ContentRegistry = {
             prerequisites: [],
             objectives: []
         },
+        'script-ssh-basics': {
+            id: 'script-ssh-basics',
+            title: 'SSH Fundamentals Lab',
+            description: 'Hands-on SSH fundamentals — key generation, config files, SCP, tunneling, and ssh-agent',
+            house: 'script',
+            type: 'lab',
+            difficulty: 'intermediate',
+            duration: 45,
+            topics: ['ssh', 'key-generation', 'scp', 'tunneling', 'ssh-agent', 'linux'],
+            paths: ['linux-admin'],
+            components: {
+                lab: 'houses/script/linux/labs/script-ssh-basics.lab.html'
+            },
+            prerequisites: [],
+            objectives: ['Generate SSH key pairs', 'Configure SSH client', 'Transfer files with SCP', 'Create SSH tunnels', 'Use ssh-agent']
+        },
+        'script-ssh-advanced': {
+            id: 'script-ssh-advanced',
+            title: 'Advanced SSH Lab',
+            description: 'Advanced SSH techniques — hardening sshd, reverse tunnels, SOCKS proxy, jump hosts, multiplexing, fail2ban',
+            house: 'script',
+            type: 'lab',
+            difficulty: 'advanced',
+            duration: 60,
+            topics: ['ssh', 'hardening', 'port-forwarding', 'socks-proxy', 'jump-hosts', 'fail2ban', 'linux'],
+            paths: ['linux-admin'],
+            components: {
+                lab: 'houses/script/linux/labs/script-ssh-advanced.lab.html'
+            },
+            prerequisites: ['script-ssh-basics'],
+            objectives: ['Harden SSH server configuration', 'Create reverse tunnels', 'Set up SOCKS proxy', 'Use ProxyJump for bastion hosts', 'Configure SSH multiplexing', 'Deploy fail2ban for SSH protection']
+        },
         // ─── EYE HOUSE — CompTIA CySA+ (CS0-003) ───
         'eye-cysa-ch01-pres': {
             id: 'eye-cysa-ch01-pres',

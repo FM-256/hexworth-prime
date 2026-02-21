@@ -1,0 +1,1733 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Advanced SSH Lab | Linux Administration</title>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <style>
+        /* ── Reset & custom properties ── */
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --script-primary:   #22c55e;
+            --script-secondary: #16a34a;
+            --script-accent:    #86efac;
+            --script-dark:      #052e16;
+            --script-darker:    #022c22;
+            --bg-main:          #0a0a0f;
+            --text-primary:     #f0fdf4;
+            --text-secondary:   #86efac;
+            --text-muted:       #4a7a5a;
+            --border-dim:       rgba(34, 197, 94, 0.18);
+            --border-mid:       rgba(34, 197, 94, 0.35);
+            --glow-soft:        rgba(34, 197, 94, 0.12);
+            --glow-mid:         rgba(34, 197, 94, 0.25);
+            --card-bg:          rgba(5, 46, 22, 0.45);
+            --card-bg-alt:      rgba(2, 44, 34, 0.6);
+            --terminal-bg:      #0a0d0a;
+            --terminal-text:    #4ade80;
+            --terminal-prompt:  #86efac;
+            --terminal-dim:     #2d5a3a;
+            --warn-color:       #fbbf24;
+            --error-color:      #f87171;
+            --ok-color:         #4ade80;
+            --radius-card:      16px;
+            --radius-sm:        8px;
+            --transition-fast:  0.18s ease;
+            --transition-mid:   0.28s ease;
+        }
+
+        /* ── Base ── */
+        body {
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background: var(--bg-main);
+            background-image:
+                radial-gradient(ellipse 70% 50% at 20% 10%, rgba(22, 163, 74, 0.06) 0%, transparent 60%),
+                radial-gradient(ellipse 50% 40% at 80% 80%, rgba(5, 46, 22, 0.12) 0%, transparent 55%);
+            color: var(--text-primary);
+            line-height: 1.65;
+            min-height: 100vh;
+        }
+
+        /* ── Header ── */
+        .site-header {
+            background: rgba(10, 10, 18, 0.94);
+            border-bottom: 1px solid var(--border-dim);
+            padding: 0.85rem 2rem;
+            position: sticky;
+            top: 0;
+            z-index: 200;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            backdrop-filter: blur(14px);
+        }
+        .back-link {
+            color: var(--script-primary);
+            text-decoration: none;
+            font-size: 0.875rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+            transition: opacity var(--transition-fast);
+        }
+        .back-link:hover { opacity: 0.7; }
+        .header-badge {
+            background: linear-gradient(135deg, var(--script-primary), var(--script-accent));
+            color: #000;
+            padding: 0.3rem 0.9rem;
+            border-radius: 20px;
+            font-size: 0.72rem;
+            font-weight: 800;
+            letter-spacing: 0.07em;
+        }
+
+        /* ── Layout ── */
+        .container {
+            max-width: 1060px;
+            margin: 0 auto;
+            padding: 2.5rem 1.75rem 5rem;
+        }
+
+        /* ── Hero ── */
+        .lab-hero {
+            text-align: center;
+            background: var(--card-bg);
+            border: 1px solid var(--border-dim);
+            border-radius: 20px;
+            padding: 2.75rem 2rem 2.25rem;
+            margin-bottom: 2.25rem;
+            position: relative;
+            overflow: hidden;
+        }
+        .lab-hero::before {
+            content: '';
+            position: absolute;
+            top: -80px; left: 50%;
+            transform: translateX(-50%);
+            width: 380px; height: 380px;
+            background: radial-gradient(circle, var(--glow-mid) 0%, transparent 68%);
+            pointer-events: none;
+        }
+        .lab-tag {
+            display: inline-block;
+            background: rgba(34, 197, 94, 0.1);
+            color: var(--script-primary);
+            border: 1px solid var(--border-dim);
+            padding: 0.28rem 0.9rem;
+            border-radius: 20px;
+            font-size: 0.72rem;
+            font-weight: 800;
+            letter-spacing: 0.1em;
+            margin-bottom: 0.9rem;
+        }
+        .lab-hero h1 {
+            font-size: 2rem;
+            font-weight: 800;
+            margin-bottom: 0.5rem;
+            line-height: 1.2;
+        }
+        .lab-hero h1 span { color: var(--script-primary); }
+        .lab-hero p {
+            color: var(--text-secondary);
+            font-size: 0.93rem;
+            max-width: 620px;
+            margin: 0 auto 1.25rem;
+        }
+
+        /* Progress tracker row */
+        .progress-row {
+            display: flex;
+            justify-content: center;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+            margin-top: 1rem;
+        }
+        .prog-dot {
+            width: 32px; height: 32px;
+            border-radius: 50%;
+            border: 2px solid var(--border-dim);
+            background: transparent;
+            display: flex;align-items: center; justify-content: center;
+            font-size: 0.72rem;
+            font-weight: 700;
+            color: var(--text-muted);
+            transition: all var(--transition-mid);
+            cursor: pointer;
+        }
+        .prog-dot.active {
+            border-color: var(--script-primary);
+            color: var(--script-primary);
+            box-shadow: 0 0 10px var(--glow-mid);
+        }
+        .prog-dot.done {
+            background: var(--script-primary);
+            border-color: var(--script-primary);
+            color: #000;
+        }
+
+        /* ── Section heading ── */
+        .section-heading {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            font-size: 1.15rem;
+            font-weight: 700;
+            color: var(--script-primary);
+            margin: 2.5rem 0 1.25rem;
+        }
+        .section-heading::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: var(--border-dim);
+        }
+
+        /* ── Exercise card ── */
+        .exercise {
+            background: var(--card-bg);
+            border: 1px solid var(--border-dim);
+            border-radius: var(--radius-card);
+            margin-bottom: 2rem;
+            overflow: hidden;
+            transition: border-color var(--transition-mid);
+        }
+        .exercise.completed { border-color: var(--script-secondary); }
+        .exercise-header {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 1.25rem 1.5rem;
+            background: rgba(5, 46, 22, 0.35);
+            border-bottom: 1px solid var(--border-dim);
+            cursor: pointer;
+            user-select: none;
+        }
+        .exercise-header:hover { background: rgba(5, 46, 22, 0.55); }
+        .ex-num {
+            width: 34px; height: 34px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--script-primary), var(--script-accent));
+            color: #000;
+            font-weight: 800;
+            font-size: 0.85rem;
+            display: flex; align-items: center; justify-content: center;
+            flex-shrink: 0;
+        }
+        .exercise.completed .ex-num { background: linear-gradient(135deg, #16a34a, #86efac); }
+        .ex-title { font-size: 1rem; font-weight: 700; flex: 1; }
+        .ex-badge {
+            font-size: 0.68rem;
+            font-weight: 800;
+            padding: 0.18rem 0.6rem;
+            border-radius: 6px;
+            letter-spacing: 0.05em;
+        }
+        .ex-badge.intermediate { background: rgba(251,191,36,0.1); color: var(--warn-color); }
+        .ex-badge.advanced     { background: rgba(248,113,113,0.1); color: var(--error-color); }
+        .ex-badge.expert       { background: rgba(167,139,250,0.1); color: #c4b5fd; }
+        .ex-status {
+            font-size: 0.8rem;
+            color: var(--ok-color);
+            margin-left: 0.5rem;
+            opacity: 0;
+            transition: opacity var(--transition-fast);
+        }
+        .exercise.completed .ex-status { opacity: 1; }
+        .ex-toggle {
+            color: var(--text-muted);
+            font-size: 1.1rem;
+            transition: transform var(--transition-fast);
+        }
+        .exercise.open .ex-toggle { transform: rotate(180deg); }
+
+        /* collapsible body */
+        .exercise-body {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .exercise.open .exercise-body { max-height: 4000px; }
+        .exercise-content { padding: 1.5rem; }
+
+        /* ── Scenario block ── */
+        .scenario {
+            background: rgba(0,0,0,0.3);
+            border: 1px solid var(--border-dim);
+            border-radius: var(--radius-sm);
+            padding: 1rem 1.25rem;
+            margin-bottom: 1.25rem;
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+        }
+        .scenario strong { color: var(--script-primary); }
+
+        /* ── Insight ── */
+        .insight {
+            background: rgba(34, 197, 94, 0.06);
+            border-left: 3px solid var(--script-primary);
+            border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+            padding: 0.9rem 1.1rem;
+            margin: 1rem 0;
+        }
+        .insight.warn {
+            background: rgba(251,191,36,0.06);
+            border-left-color: var(--warn-color);
+        }
+        .insight.danger {
+            background: rgba(248,113,113,0.06);
+            border-left-color: var(--error-color);
+        }
+        .insight-label {
+            font-size: 0.65rem;
+            font-weight: 800;
+            letter-spacing: 0.1em;
+            color: var(--script-primary);
+            margin-bottom: 0.3rem;
+        }
+        .insight.warn  .insight-label { color: var(--warn-color); }
+        .insight.danger .insight-label { color: var(--error-color); }
+        .insight p {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            margin: 0;
+            line-height: 1.5;
+        }
+
+        /* ── Inline code & pre blocks ── */
+        code {
+            background: rgba(34, 197, 94, 0.1);
+            color: var(--script-accent);
+            padding: 0.1em 0.4em;
+            border-radius: 4px;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 0.88em;
+        }
+        .code-block {
+            background: rgba(0,0,0,0.55);
+            border: 1px solid rgba(34,197,94,0.12);
+            border-radius: var(--radius-sm);
+            padding: 1rem 1.2rem;
+            margin: 0.75rem 0;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 0.84rem;
+            color: var(--script-accent);
+            overflow-x: auto;
+            line-height: 1.85;
+        }
+        .code-block .comment { color: var(--text-muted); font-style: italic; }
+        .code-block .key     { color: var(--warn-color); }
+        .code-block .val     { color: #93c5fd; }
+        .code-block .cmd     { color: var(--script-primary); }
+
+        /* ── Diagram / visual ── */
+        .diagram {
+            background: #050d05;
+            border: 1px solid var(--border-dim);
+            border-radius: var(--radius-sm);
+            padding: 1.25rem;
+            margin: 1rem 0;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 0.8rem;
+            color: var(--script-accent);
+            line-height: 1.7;
+            overflow-x: auto;
+        }
+        .diagram .dnode   { color: var(--script-primary); font-weight: 700; }
+        .diagram .darrow  { color: var(--text-muted); }
+        .diagram .dlabel  { color: var(--warn-color); font-style: italic; }
+
+        /* ── Terminal simulator ── */
+        .terminal-wrap {
+            background: var(--terminal-bg);
+            border: 1px solid rgba(34,197,94,0.25);
+            border-radius: var(--radius-sm);
+            overflow: hidden;
+            margin: 1.25rem 0;
+            box-shadow: 0 0 20px rgba(34,197,94,0.06);
+        }
+        .terminal-titlebar {
+            background: rgba(34,197,94,0.08);
+            border-bottom: 1px solid rgba(34,197,94,0.15);
+            padding: 0.45rem 0.9rem;
+            display: flex;
+            align-items: center;
+            gap: 0.55rem;
+        }
+        .tb-dot {
+            width: 11px; height: 11px;
+            border-radius: 50%;
+        }
+        .tb-dot.red    { background: #f87171; }
+        .tb-dot.yellow { background: #fbbf24; }
+        .tb-dot.green  { background: var(--script-primary); }
+        .terminal-titlebar span {
+            font-size: 0.73rem;
+            color: var(--text-muted);
+            margin-left: auto;
+            font-family: 'Courier New', monospace;
+        }
+        .terminal-output {
+            padding: 1rem 1.1rem 0.25rem;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 0.83rem;
+            color: var(--terminal-text);
+            min-height: 120px;
+            max-height: 340px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            word-break: break-all;
+            line-height: 1.7;
+        }
+        .terminal-output .t-prompt { color: var(--terminal-prompt); }
+        .terminal-output .t-error  { color: var(--error-color); }
+        .terminal-output .t-ok     { color: var(--ok-color); }
+        .terminal-output .t-info   { color: #93c5fd; }
+        .terminal-output .t-warn   { color: var(--warn-color); }
+        .terminal-output .t-dim    { color: var(--terminal-dim); }
+        .terminal-input-row {
+            display: flex;
+            align-items: center;
+            padding: 0.5rem 1.1rem 0.75rem;
+            gap: 0.5rem;
+            border-top: 1px solid rgba(34,197,94,0.08);
+        }
+        .t-input-prompt {
+            font-family: 'Courier New', monospace;
+            font-size: 0.83rem;
+            color: var(--terminal-prompt);
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+        .t-input {
+            flex: 1;
+            background: transparent;
+            border: none;
+            outline: none;
+            color: var(--terminal-text);
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 0.83rem;
+            caret-color: var(--script-primary);
+        }
+        .t-input::placeholder { color: var(--terminal-dim); }
+        .t-run-btn {
+            background: rgba(34,197,94,0.12);
+            border: 1px solid var(--border-dim);
+            color: var(--script-primary);
+            padding: 0.3rem 0.85rem;
+            border-radius: 6px;
+            font-size: 0.78rem;
+            font-weight: 700;
+            cursor: pointer;
+            font-family: 'Courier New', monospace;
+            transition: all var(--transition-fast);
+            white-space: nowrap;
+        }
+        .t-run-btn:hover { background: rgba(34,197,94,0.22); }
+
+        /* Task step list */
+        .step-list {
+            list-style: none;
+            margin: 0.75rem 0 1rem;
+        }
+        .step-list li {
+            display: flex;
+            gap: 0.75rem;
+            padding: 0.55rem 0;
+            font-size: 0.88rem;
+            color: var(--text-secondary);
+            border-bottom: 1px solid rgba(34,197,94,0.05);
+            align-items: flex-start;
+        }
+        .step-list li:last-child { border-bottom: none; }
+        .step-num {
+            font-family: 'Courier New', monospace;
+            font-weight: 700;
+            color: var(--script-primary);
+            flex-shrink: 0;
+            min-width: 1.5rem;
+            padding-top: 0.05rem;
+        }
+        .step-list li.step-done .step-num { color: var(--ok-color); }
+
+        /* hint / feedback */
+        .hint-box {
+            background: rgba(251,191,36,0.07);
+            border: 1px solid rgba(251,191,36,0.2);
+            border-radius: var(--radius-sm);
+            padding: 0.75rem 1rem;
+            margin-top: 0.75rem;
+            font-size: 0.84rem;
+            color: var(--warn-color);
+            display: none;
+        }
+        .hint-box.show { display: block; }
+
+        /* diff view */
+        .diff-block {
+            background: rgba(0,0,0,0.55);
+            border: 1px solid rgba(34,197,94,0.12);
+            border-radius: var(--radius-sm);
+            padding: 1rem 1.2rem;
+            margin: 0.75rem 0;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 0.81rem;
+            overflow-x: auto;
+            line-height: 1.7;
+        }
+        .diff-add { color: #4ade80; }
+        .diff-rem { color: #f87171; }
+        .diff-ctx { color: var(--text-muted); }
+
+        /* config view */
+        .config-block {
+            background: rgba(0,0,0,0.5);
+            border: 1px solid rgba(34,197,94,0.1);
+            border-radius: var(--radius-sm);
+            padding: 1rem 1.2rem;
+            margin: 0.75rem 0;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 0.82rem;
+            color: var(--text-secondary);
+            line-height: 1.8;
+        }
+        .cfg-key   { color: var(--warn-color); }
+        .cfg-val   { color: #93c5fd; }
+        .cfg-comment { color: var(--terminal-dim); font-style: italic; }
+
+        /* complete step button */
+        .btn-step-done {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+            background: rgba(34,197,94,0.1);
+            border: 1px solid var(--border-dim);
+            color: var(--script-primary);
+            padding: 0.45rem 1.1rem;
+            border-radius: 8px;
+            font-size: 0.82rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all var(--transition-fast);
+            margin-top: 0.75rem;
+        }
+        .btn-step-done:hover { background: rgba(34,197,94,0.2); border-color: var(--script-primary); }
+        .btn-step-done:disabled { opacity: 0.45; cursor: default; }
+
+        /* ── Completion section ── */
+        .completion-panel {
+            background: var(--card-bg);
+            border: 1px solid var(--border-dim);
+            border-radius: var(--radius-card);
+            padding: 2.25rem;
+            text-align: center;
+            margin-top: 2.5rem;
+        }
+        .completion-panel h3 {
+            color: var(--script-primary);
+            font-size: 1.25rem;
+            margin-bottom: 0.6rem;
+        }
+        .completion-panel p {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            margin-bottom: 1.5rem;
+            max-width: 520px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        .btn-complete {
+            display: inline-block;
+            background: linear-gradient(135deg, var(--script-primary), var(--script-accent));
+            color: #000;
+            font-weight: 800;
+            padding: 0.8rem 2.25rem;
+            border-radius: 10px;
+            border: none;
+            cursor: pointer;
+            font-size: 0.95rem;
+            transition: opacity var(--transition-fast), transform var(--transition-fast);
+        }
+        .btn-complete:hover { opacity: 0.85; transform: translateY(-2px); }
+        .btn-complete:disabled { opacity: 0.4; cursor: default; transform: none; }
+        .complete-msg {
+            margin-top: 1rem;
+            color: var(--ok-color);
+            font-weight: 600;
+            font-size: 0.9rem;
+            display: none;
+        }
+
+        /* score tally */
+        .score-display {
+            display: inline-flex;
+            gap: 0.35rem;
+            align-items: baseline;
+            margin-bottom: 1.25rem;
+        }
+        .score-num { font-size: 2.5rem; font-weight: 800; color: var(--script-primary); line-height: 1; }
+        .score-denom { font-size: 1.1rem; color: var(--text-muted); }
+
+        /* animated status */
+        @keyframes pulse-green {
+            0%, 100% { opacity: 1; }
+            50%       { opacity: 0.5; }
+        }
+        .blink { animation: pulse-green 1.2s infinite; }
+
+        /* scrollbar */
+        .terminal-output::-webkit-scrollbar { width: 4px; }
+        .terminal-output::-webkit-scrollbar-track { background: transparent; }
+        .terminal-output::-webkit-scrollbar-thumb { background: var(--script-dark); border-radius: 4px; }
+
+        /* ── Responsive ── */
+        @media (max-width: 640px) {
+            .container { padding: 1.5rem 1rem 4rem; }
+            .lab-hero h1 { font-size: 1.5rem; }
+            .site-header { padding: 0.75rem 1rem; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════ HEADER ═══════════════════════════════ -->
+<header class="site-header">
+    <a href="../index.html" class="back-link">&larr; Back to Linux Admin</a>
+    <span class="header-badge">SCRIPT HOUSE — LINUX ADMIN</span>
+</header>
+
+<!-- ═══════════════════════════════ MAIN ════════════════════════════════ -->
+<div class="container">
+
+    <!-- Hero -->
+    <div class="lab-hero">
+        <div class="lab-tag">ADVANCED SSH — INTERACTIVE LAB</div>
+        <h1>Advanced <span>SSH Techniques</span></h1>
+        <p>Hardening configs, tunneling architectures, proxy chains, jump hosts, multiplexing, and intrusion prevention — all hands-on in a simulated environment.</p>
+        <div class="progress-row" id="progressRow">
+            <!-- dots injected by JS -->
+        </div>
+    </div>
+
+    <div class="section-heading">Lab Exercises</div>
+
+    <!-- ══════════════════════════════════════════════════════════════════
+         EXERCISE 1 — SSH HARDENING
+    ══════════════════════════════════════════════════════════════════════ -->
+    <div class="exercise" id="ex1">
+        <div class="exercise-header" onclick="toggleExercise('ex1')">
+            <div class="ex-num">1</div>
+            <div class="ex-title">SSH Hardening — Locking Down sshd_config</div>
+            <span class="ex-badge intermediate">INTERMEDIATE</span>
+            <span class="ex-status">&#10003; Done</span>
+            <span class="ex-toggle">&#8964;</span>
+        </div>
+        <div class="exercise-body">
+            <div class="exercise-content">
+
+                <div class="scenario">
+                    <strong>Scenario:</strong> Your organisation just spun up a new Ubuntu server.
+                    The default <code>sshd_config</code> ships with root login enabled and password
+                    authentication allowed on port 22. You need to harden it before the server
+                    goes live.
+                </div>
+
+                <p style="font-size:0.9rem;color:var(--text-secondary);margin-bottom:0.5rem;">
+                    The current config is shown below. Use the terminal to apply each hardening directive.
+                    After all three changes, click <em>Apply &amp; Diff</em> to see the before/after.
+                </p>
+
+                <!-- Before config -->
+                <div class="config-block" id="ex1-config-before">
+<span class="cfg-comment"># /etc/ssh/sshd_config  (before hardening)</span>
+<span class="cfg-key">Port</span>                <span class="cfg-val">22</span>
+<span class="cfg-key">PermitRootLogin</span>     <span class="cfg-val">yes</span>
+<span class="cfg-key">PasswordAuthentication</span> <span class="cfg-val">yes</span>
+<span class="cfg-key">X11Forwarding</span>       <span class="cfg-val">yes</span>
+<span class="cfg-key">UsePAM</span>              <span class="cfg-val">yes</span>
+<span class="cfg-key">PrintLastLog</span>        <span class="cfg-val">yes</span>
+<span class="cfg-key">AcceptEnv</span>           <span class="cfg-val">LANG LC_*</span>
+<span class="cfg-key">Subsystem sftp</span>      <span class="cfg-val">/usr/lib/openssh/sftp-server</span>
+                </div>
+
+                <p style="font-size:0.88rem;color:var(--text-secondary);margin-bottom:0.5rem;">
+                    Type each hardening command below. Run them in order:
+                </p>
+                <ul class="step-list">
+                    <li><span class="step-num">1.</span>Change the port from 22 to 2222</li>
+                    <li><span class="step-num">2.</span>Disable root login</li>
+                    <li><span class="step-num">3.</span>Disable password authentication</li>
+                </ul>
+
+                <!-- Terminal -->
+                <div class="terminal-wrap">
+                    <div class="terminal-titlebar">
+                        <div class="tb-dot red"></div>
+                        <div class="tb-dot yellow"></div>
+                        <div class="tb-dot green"></div>
+                        <span>sshd_config editor</span>
+                    </div>
+                    <div class="terminal-output" id="ex1-output">
+<span class="t-prompt">student@hexworth:~$</span> sudo cat /etc/ssh/sshd_config | grep -E "^Port|^PermitRoot|^Password"
+<span class="t-dim">Port 22
+PermitRootLogin yes
+PasswordAuthentication yes</span>
+</div>
+                    <div class="terminal-input-row">
+                        <span class="t-input-prompt">student@hexworth:~$</span>
+                        <input class="t-input" id="ex1-input" type="text"
+                               placeholder="sudo sed -i 's/^Port 22/Port 2222/' /etc/ssh/sshd_config"
+                               autocomplete="off" autocorrect="off" spellcheck="false"
+                               onkeydown="if(event.key==='Enter') ex1Run()">
+                        <button class="t-run-btn" onclick="ex1Run()">&#9654; Run</button>
+                    </div>
+                </div>
+
+                <div class="hint-box" id="ex1-hint">
+                    Hint: use <code>sudo sed -i</code> to edit in place, or type the exact directive.
+                    For step 1: <code>sudo sed -i 's/^Port 22/Port 2222/' /etc/ssh/sshd_config</code>
+                </div>
+
+                <!-- diff area, hidden until all 3 done -->
+                <div id="ex1-diff" style="display:none">
+                    <p style="font-size:0.85rem;color:var(--script-primary);font-weight:700;margin:1rem 0 0.4rem;">
+                        Config diff after hardening:
+                    </p>
+                    <div class="diff-block">
+<span class="diff-rem">- Port 22</span>
+<span class="diff-add">+ Port 2222</span>
+<span class="diff-rem">- PermitRootLogin yes</span>
+<span class="diff-add">+ PermitRootLogin no</span>
+<span class="diff-rem">- PasswordAuthentication yes</span>
+<span class="diff-add">+ PasswordAuthentication no</span>
+<span class="diff-ctx">  X11Forwarding yes        (unchanged — disable if GUI not needed)</span>
+<span class="diff-ctx">  UsePAM yes               (unchanged)</span>
+                    </div>
+                </div>
+
+                <div class="insight">
+                    <div class="insight-label">WHY IT MATTERS</div>
+                    <p>Changing the default port is security-by-obscurity, but it eliminates 95 % of
+                    automated SSH scanners. Disabling root login forces attackers to know a valid
+                    username first. Disabling password auth makes brute-force attacks impossible —
+                    only key holders can connect.</p>
+                </div>
+                <div class="insight warn">
+                    <div class="insight-label">REMEMBER</div>
+                    <p>Always run <code>sudo sshd -t</code> (test mode) before restarting the daemon.
+                    A syntax error in sshd_config will lock you out of the server completely.</p>
+                </div>
+
+                <button class="btn-step-done" id="ex1-btn" onclick="markDone('ex1', 0)">
+                    Mark Exercise 1 Complete
+                </button>
+
+            </div>
+        </div>
+    </div>
+
+    <!-- ══════════════════════════════════════════════════════════════════
+         EXERCISE 2 — REMOTE PORT FORWARDING
+    ══════════════════════════════════════════════════════════════════════ -->
+    <div class="exercise" id="ex2">
+        <div class="exercise-header" onclick="toggleExercise('ex2')">
+            <div class="ex-num">2</div>
+            <div class="ex-title">Remote Port Forwarding — Expose a Local Dev Server</div>
+            <span class="ex-badge intermediate">INTERMEDIATE</span>
+            <span class="ex-status">&#10003; Done</span>
+            <span class="ex-toggle">&#8964;</span>
+        </div>
+        <div class="exercise-body">
+            <div class="exercise-content">
+
+                <div class="scenario">
+                    <strong>Scenario:</strong> You are developing a web app running on
+                    <code>localhost:3000</code>. Your manager is on a remote machine at
+                    <code>jump.hexworth.io</code> and wants to review it. You need to expose your
+                    local server through the jump host so they can hit
+                    <code>http://jump.hexworth.io:9090</code>.
+                </div>
+
+                <!-- Diagram -->
+                <div class="diagram">
+<span class="dnode"> [Your Laptop] </span>──<span class="dlabel"> SSH tunnel </span>──<span class="dnode"> [jump.hexworth.io] </span>
+  <span class="darrow">|</span>                                    <span class="darrow">|</span>
+  <span class="dlabel">localhost:3000</span>                      <span class="dlabel">0.0.0.0:9090</span>
+  <span class="darrow">(your dev server)</span>               <span class="darrow">(manager connects here)</span>
+
+Traffic flow:
+  Manager browser  ─► jump.hexworth.io:9090  ─► SSH tunnel ─► your laptop:3000
+                </div>
+
+                <p style="font-size:0.9rem;color:var(--text-secondary);margin-bottom:0.5rem;">
+                    Type the command that creates the reverse tunnel:
+                </p>
+
+                <div class="terminal-wrap">
+                    <div class="terminal-titlebar">
+                        <div class="tb-dot red"></div>
+                        <div class="tb-dot yellow"></div>
+                        <div class="tb-dot green"></div>
+                        <span>reverse tunnel</span>
+                    </div>
+                    <div class="terminal-output" id="ex2-output">
+<span class="t-dim"># Your dev server is already running:
+# http://localhost:3000  — verified OK</span>
+<span class="t-prompt">
+student@hexworth:~$</span> </div>
+                    <div class="terminal-input-row">
+                        <span class="t-input-prompt">student@hexworth:~$</span>
+                        <input class="t-input" id="ex2-input" type="text"
+                               placeholder="ssh -R ... user@jump.hexworth.io"
+                               autocomplete="off" autocorrect="off" spellcheck="false"
+                               onkeydown="if(event.key==='Enter') ex2Run()">
+                        <button class="t-run-btn" onclick="ex2Run()">&#9654; Run</button>
+                    </div>
+                </div>
+
+                <div class="hint-box" id="ex2-hint">
+                    Hint: <code>-R remote_port:local_host:local_port</code><br>
+                    Full command: <code>ssh -R 9090:localhost:3000 student@jump.hexworth.io</code>
+                </div>
+
+                <div class="insight">
+                    <div class="insight-label">FLAG BREAKDOWN</div>
+                    <p>
+                        <code>-R 9090:localhost:3000</code> tells the remote host to listen on port
+                        9090 and forward incoming connections back through the SSH tunnel to your
+                        <code>localhost:3000</code>. The format is always
+                        <code>-R [remote_bind:]remote_port:local_host:local_port</code>.
+                    </p>
+                </div>
+                <div class="insight warn">
+                    <div class="insight-label">GatewayPorts NOTE</div>
+                    <p>By default the remote port binds only to <code>127.0.0.1</code> on the jump
+                    host. To allow external connections, the remote sshd needs
+                    <code>GatewayPorts yes</code> (or <code>clientspecified</code>) in its
+                    sshd_config. Without that, the manager cannot reach port 9090 from outside the
+                    jump host itself.</p>
+                </div>
+
+                <button class="btn-step-done" id="ex2-btn" onclick="markDone('ex2', 1)">
+                    Mark Exercise 2 Complete
+                </button>
+
+            </div>
+        </div>
+    </div>
+
+    <!-- ══════════════════════════════════════════════════════════════════
+         EXERCISE 3 — DYNAMIC PORT FORWARDING / SOCKS PROXY
+    ══════════════════════════════════════════════════════════════════════ -->
+    <div class="exercise" id="ex3">
+        <div class="exercise-header" onclick="toggleExercise('ex3')">
+            <div class="ex-num">3</div>
+            <div class="ex-title">Dynamic Port Forwarding — SOCKS5 Proxy via SSH</div>
+            <span class="ex-badge advanced">ADVANCED</span>
+            <span class="ex-status">&#10003; Done</span>
+            <span class="ex-toggle">&#8964;</span>
+        </div>
+        <div class="exercise-body">
+            <div class="exercise-content">
+
+                <div class="scenario">
+                    <strong>Scenario:</strong> You need to browse internal resources on the
+                    <code>192.168.10.0/24</code> subnet through a remote server that has access.
+                    Instead of a static port forward per service, you will create a
+                    <em>dynamic SOCKS5 proxy</em> so all browser traffic routes through the SSH host.
+                </div>
+
+                <div class="diagram">
+<span class="dnode"> [Your Browser] </span>──SOCKS5──<span class="dlabel">127.0.0.1:1080</span>──SSH──<span class="dnode"> [relay.hexworth.io] </span>──LAN──<span class="dnode"> [192.168.10.x] </span>
+
+DNS resolves on the REMOTE side (no DNS leak to local ISP)
+All TCP traffic proxied — HTTP, HTTPS, any protocol
+                </div>
+
+                <p style="font-size:0.9rem;color:var(--text-secondary);margin-bottom:0.5rem;">
+                    Step 1: Open the SOCKS proxy tunnel on local port 1080.
+                </p>
+
+                <div class="terminal-wrap">
+                    <div class="terminal-titlebar">
+                        <div class="tb-dot red"></div>
+                        <div class="tb-dot yellow"></div>
+                        <div class="tb-dot green"></div>
+                        <span>SOCKS proxy tunnel</span>
+                    </div>
+                    <div class="terminal-output" id="ex3-output">
+<span class="t-prompt">student@hexworth:~$</span> </div>
+                    <div class="terminal-input-row">
+                        <span class="t-input-prompt">student@hexworth:~$</span>
+                        <input class="t-input" id="ex3-input" type="text"
+                               placeholder="ssh -D 1080 -N -f student@relay.hexworth.io"
+                               autocomplete="off" autocorrect="off" spellcheck="false"
+                               onkeydown="if(event.key==='Enter') ex3Run()">
+                        <button class="t-run-btn" onclick="ex3Run()">&#9654; Run</button>
+                    </div>
+                </div>
+
+                <div class="hint-box" id="ex3-hint">
+                    Hint: <code>-D port</code> opens the SOCKS listener locally.<br>
+                    <code>-N</code> = no remote command (tunnel only). <code>-f</code> = go to background.<br>
+                    Full: <code>ssh -D 1080 -N -f student@relay.hexworth.io</code>
+                </div>
+
+                <p style="font-size:0.88rem;color:var(--text-secondary);margin:1rem 0 0.4rem;">
+                    Step 2: Configure Firefox to use the proxy.
+                </p>
+                <div class="code-block">
+Firefox Settings ► Network Settings ► Manual proxy config
+  <span class="key">SOCKS Host:</span>  <span class="val">127.0.0.1</span>
+  <span class="key">Port:</span>         <span class="val">1080</span>
+  <span class="key">SOCKS v5:</span>     <span class="val">selected</span>
+  <span class="key">Proxy DNS:</span>    <span class="val">checked  ← critical for DNS leak prevention</span>
+                </div>
+
+                <div class="insight">
+                    <div class="insight-label">SOCKS PROXY vs VPN</div>
+                    <p>A SOCKS proxy routes application-layer TCP/UDP traffic on a per-app basis.
+                    A VPN creates a virtual network interface and routes all system traffic at the
+                    OS level. Use SOCKS when you only want <em>one application</em> (e.g. browser) to
+                    go through the tunnel. Use VPN when you need the entire machine's traffic
+                    routed remotely.</p>
+                </div>
+                <div class="insight warn">
+                    <div class="insight-label">DNS LEAK AWARENESS</div>
+                    <p>Without "Proxy DNS" checked, Firefox resolves DNS locally even though HTTP
+                    traffic goes through the tunnel. Your ISP sees every domain you visit. Always
+                    enable remote DNS resolution when privacy is the goal.</p>
+                </div>
+
+                <button class="btn-step-done" id="ex3-btn" onclick="markDone('ex3', 2)">
+                    Mark Exercise 3 Complete
+                </button>
+
+            </div>
+        </div>
+    </div>
+
+    <!-- ══════════════════════════════════════════════════════════════════
+         EXERCISE 4 — JUMP HOSTS (ProxyJump)
+    ══════════════════════════════════════════════════════════════════════ -->
+    <div class="exercise" id="ex4">
+        <div class="exercise-header" onclick="toggleExercise('ex4')">
+            <div class="ex-num">4</div>
+            <div class="ex-title">SSH Jump Hosts — ProxyJump &amp; Bastion Architecture</div>
+            <span class="ex-badge advanced">ADVANCED</span>
+            <span class="ex-status">&#10003; Done</span>
+            <span class="ex-toggle">&#8964;</span>
+        </div>
+        <div class="exercise-body">
+            <div class="exercise-content">
+
+                <div class="scenario">
+                    <strong>Scenario:</strong> Your internal servers (<code>web-01</code>,
+                    <code>db-01</code>) are not exposed to the internet. Only a bastion host
+                    (<code>bastion.hexworth.io</code>) is publicly reachable. You need to SSH
+                    directly to <code>web-01</code> without manually logging into the bastion first.
+                </div>
+
+                <div class="diagram">
+Internet ──► <span class="dnode">bastion.hexworth.io</span> ──► Private LAN
+                                   <span class="darrow">|</span>
+                         <span class="dnode">web-01 (10.0.0.5)</span>   <span class="dnode">db-01 (10.0.0.6)</span>
+                         <span class="dlabel">(no public IP)  </span>   <span class="dlabel">(no public IP)</span>
+
+Without ProxyJump:  ssh user@bastion → then ssh user@web-01  (two steps, two passwords)
+With ProxyJump:     ssh -J bastion user@web-01                (one command, end-to-end encrypted)
+                </div>
+
+                <p style="font-size:0.9rem;color:var(--text-secondary);margin-bottom:0.5rem;">
+                    Type the one-liner to reach <code>web-01</code> via the bastion:
+                </p>
+
+                <div class="terminal-wrap">
+                    <div class="terminal-titlebar">
+                        <div class="tb-dot red"></div>
+                        <div class="tb-dot yellow"></div>
+                        <div class="tb-dot green"></div>
+                        <span>proxy jump</span>
+                    </div>
+                    <div class="terminal-output" id="ex4-output">
+<span class="t-dim"># Target: student@web-01 (10.0.0.5)  — no public IP
+# Bastion: student@bastion.hexworth.io — public, reachable</span>
+<span class="t-prompt">
+student@hexworth:~$</span> </div>
+                    <div class="terminal-input-row">
+                        <span class="t-input-prompt">student@hexworth:~$</span>
+                        <input class="t-input" id="ex4-input" type="text"
+                               placeholder="ssh -J student@bastion.hexworth.io student@10.0.0.5"
+                               autocomplete="off" autocorrect="off" spellcheck="false"
+                               onkeydown="if(event.key==='Enter') ex4Run()">
+                        <button class="t-run-btn" onclick="ex4Run()">&#9654; Run</button>
+                    </div>
+                </div>
+
+                <div class="hint-box" id="ex4-hint">
+                    Hint: <code>-J jumphost</code> is the ProxyJump flag. Syntax:<br>
+                    <code>ssh -J user@jumphost user@destination</code><br>
+                    Full: <code>ssh -J student@bastion.hexworth.io student@10.0.0.5</code>
+                </div>
+
+                <p style="font-size:0.88rem;color:var(--text-secondary);margin:1.1rem 0 0.4rem;">
+                    To make this permanent, add it to <code>~/.ssh/config</code>:
+                </p>
+                <div class="config-block">
+<span class="cfg-comment"># ~/.ssh/config</span>
+<span class="cfg-key">Host</span> <span class="cfg-val">web-01</span>
+    <span class="cfg-key">HostName</span>      <span class="cfg-val">10.0.0.5</span>
+    <span class="cfg-key">User</span>          <span class="cfg-val">student</span>
+    <span class="cfg-key">ProxyJump</span>     <span class="cfg-val">student@bastion.hexworth.io</span>
+    <span class="cfg-key">IdentityFile</span>  <span class="cfg-val">~/.ssh/id_ed25519</span>
+
+<span class="cfg-key">Host</span> <span class="cfg-val">bastion.hexworth.io</span>
+    <span class="cfg-key">User</span>          <span class="cfg-val">student</span>
+    <span class="cfg-key">IdentityFile</span>  <span class="cfg-val">~/.ssh/id_ed25519</span>
+    <span class="cfg-key">ForwardAgent</span>  <span class="cfg-val">yes</span>
+                </div>
+
+                <div class="insight">
+                    <div class="insight-label">SECURITY POSTURE</div>
+                    <p>Bastion hosts reduce your attack surface from N servers to 1. The bastion
+                    receives all scrutiny: intrusion detection, enhanced logging, MFA, and strict
+                    firewall rules. Internal servers only accept connections from the bastion's IP,
+                    so even if an internal server is vulnerable, it cannot be reached directly
+                    from the internet.</p>
+                </div>
+                <div class="insight warn">
+                    <div class="insight-label">ForwardAgent CAUTION</div>
+                    <p><code>ForwardAgent yes</code> lets the bastion use your local SSH keys to
+                    hop further. Convenient — but if the bastion is compromised, an attacker can
+                    use your forwarded agent to authenticate as you on other hosts. Use
+                    <code>ForwardAgent</code> only on trusted bastions, or prefer ProxyJump (which
+                    does not expose your agent).</p>
+                </div>
+
+                <button class="btn-step-done" id="ex4-btn" onclick="markDone('ex4', 3)">
+                    Mark Exercise 4 Complete
+                </button>
+
+            </div>
+        </div>
+    </div>
+
+    <!-- ══════════════════════════════════════════════════════════════════
+         EXERCISE 5 — SSH MULTIPLEXING
+    ══════════════════════════════════════════════════════════════════════ -->
+    <div class="exercise" id="ex5">
+        <div class="exercise-header" onclick="toggleExercise('ex5')">
+            <div class="ex-num">5</div>
+            <div class="ex-title">SSH Multiplexing — ControlMaster &amp; Persistent Connections</div>
+            <span class="ex-badge advanced">ADVANCED</span>
+            <span class="ex-status">&#10003; Done</span>
+            <span class="ex-toggle">&#8964;</span>
+        </div>
+        <div class="exercise-body">
+            <div class="exercise-content">
+
+                <div class="scenario">
+                    <strong>Scenario:</strong> Your deployment pipeline opens dozens of SSH
+                    connections to the same host in rapid succession (git push, ansible, rsync,
+                    etc.). Each connection takes ~1 second for the TLS handshake. Multiplexing
+                    lets all subsequent connections reuse a single master socket — connection time
+                    drops to milliseconds.
+                </div>
+
+                <p style="font-size:0.88rem;color:var(--text-secondary);margin-bottom:0.5rem;">
+                    Add multiplexing directives to <code>~/.ssh/config</code>:
+                </p>
+
+                <div class="terminal-wrap">
+                    <div class="terminal-titlebar">
+                        <div class="tb-dot red"></div>
+                        <div class="tb-dot yellow"></div>
+                        <div class="tb-dot green"></div>
+                        <span>ssh_config editor</span>
+                    </div>
+                    <div class="terminal-output" id="ex5-output">
+<span class="t-dim"># Open your SSH config and add ControlMaster directives</span>
+<span class="t-prompt">
+student@hexworth:~$</span> </div>
+                    <div class="terminal-input-row">
+                        <span class="t-input-prompt">student@hexworth:~$</span>
+                        <input class="t-input" id="ex5-input" type="text"
+                               placeholder="ssh -O check deploy.hexworth.io"
+                               autocomplete="off" autocorrect="off" spellcheck="false"
+                               onkeydown="if(event.key==='Enter') ex5Run()">
+                        <button class="t-run-btn" onclick="ex5Run()">&#9654; Run</button>
+                    </div>
+                </div>
+
+                <div class="hint-box" id="ex5-hint">
+                    Try these commands in order:<br>
+                    1. <code>ssh -O check deploy.hexworth.io</code> — check master socket status<br>
+                    2. <code>ssh -O exit deploy.hexworth.io</code>  — cleanly close master<br>
+                    3. <code>grep ControlMaster ~/.ssh/config</code> — verify config
+                </div>
+
+                <p style="font-size:0.88rem;color:var(--text-secondary);margin:1rem 0 0.4rem;">
+                    The complete <code>~/.ssh/config</code> block for multiplexing:
+                </p>
+                <div class="config-block">
+<span class="cfg-comment"># ~/.ssh/config — multiplexing configuration</span>
+<span class="cfg-key">Host</span> <span class="cfg-val">deploy.hexworth.io</span>
+    <span class="cfg-key">ControlMaster</span>   <span class="cfg-val">auto</span>
+    <span class="cfg-key">ControlPath</span>    <span class="cfg-val">~/.ssh/sockets/%r@%h:%p</span>
+    <span class="cfg-key">ControlPersist</span>  <span class="cfg-val">10m</span>
+    <span class="cfg-key">ServerAliveInterval</span> <span class="cfg-val">60</span>
+    <span class="cfg-key">ServerAliveCountMax</span> <span class="cfg-val">3</span>
+
+<span class="cfg-comment"># Also create the socket directory:</span>
+<span class="cfg-comment"># mkdir -p ~/.ssh/sockets && chmod 700 ~/.ssh/sockets</span>
+                </div>
+
+                <p style="font-size:0.88rem;color:var(--text-secondary);margin:0.75rem 0 0.4rem;">
+                    Simulated benchmark — first connection vs multiplexed:
+                </p>
+                <div id="ex5-benchmark" style="display:none">
+                    <div class="diagram">
+<span class="dlabel">Connection 1 (handshake):</span>
+  Kex exchange .......... <span class="dnode">0.38s</span>
+  Auth .................. <span class="dnode">0.55s</span>
+  Session open .......... <span class="dnode">0.12s</span>
+  <span class="darrow">Total: ~1.05s</span>
+
+<span class="dlabel">Connections 2-N (ControlMaster reuse):</span>
+  Socket connect ........ <span class="dnode">0.003s</span>
+  Channel open .......... <span class="dnode">0.008s</span>
+  <span class="darrow">Total: ~0.011s  ← 95x faster</span>
+                    </div>
+                </div>
+
+                <div class="insight">
+                    <div class="insight-label">ControlMaster MODES</div>
+                    <p>
+                        <code>auto</code> — use existing master if available, otherwise become the master.<br>
+                        <code>yes</code> — always become the master (fails if already exists).<br>
+                        <code>no</code> — never multiplex (always fresh connection).<br>
+                        <code>autoask</code> — ask before reusing (useful in interactive sessions).
+                    </p>
+                </div>
+                <div class="insight">
+                    <div class="insight-label">WHEN TO USE IT</div>
+                    <p>Multiplexing is ideal for: CI/CD pipelines, Ansible/Salt deployments, repeated
+                    git operations over SSH, and interactive sessions where you open many panes to the
+                    same server. <code>ControlPersist 10m</code> keeps the master alive 10 minutes
+                    after the last session closes, so rapid reconnects are still fast.</p>
+                </div>
+
+                <button class="btn-step-done" id="ex5-btn" onclick="ex5Benchmark()">
+                    Run Benchmark Simulation
+                </button>
+
+            </div>
+        </div>
+    </div>
+
+    <!-- ══════════════════════════════════════════════════════════════════
+         EXERCISE 6 — FAIL2BAN SSH PROTECTION
+    ══════════════════════════════════════════════════════════════════════ -->
+    <div class="exercise" id="ex6">
+        <div class="exercise-header" onclick="toggleExercise('ex6')">
+            <div class="ex-num">6</div>
+            <div class="ex-title">Fail2Ban — Brute-Force SSH Protection</div>
+            <span class="ex-badge expert">EXPERT</span>
+            <span class="ex-status">&#10003; Done</span>
+            <span class="ex-toggle">&#8964;</span>
+        </div>
+        <div class="exercise-body">
+            <div class="exercise-content">
+
+                <div class="scenario">
+                    <strong>Scenario:</strong> Your auth log is getting hammered — thousands of
+                    login attempts per hour from multiple IPs. You need to deploy Fail2Ban to
+                    automatically block IPs after repeated failures, effectively neutralising
+                    credential-stuffing and password-spray attacks.
+                </div>
+
+                <p style="font-size:0.88rem;color:var(--text-secondary);margin-bottom:0.5rem;">
+                    Install fail2ban and check its status:
+                </p>
+
+                <div class="terminal-wrap">
+                    <div class="terminal-titlebar">
+                        <div class="tb-dot red"></div>
+                        <div class="tb-dot yellow"></div>
+                        <div class="tb-dot green"></div>
+                        <span>fail2ban lab</span>
+                    </div>
+                    <div class="terminal-output" id="ex6-output">
+<span class="t-dim"># auth.log is recording 2,847 failed SSH attempts in the last hour.
+# Your server is under active brute-force attack.</span>
+<span class="t-prompt">
+student@hexworth:~$</span> </div>
+                    <div class="terminal-input-row">
+                        <span class="t-input-prompt">student@hexworth:~$</span>
+                        <input class="t-input" id="ex6-input" type="text"
+                               placeholder="sudo apt install fail2ban -y"
+                               autocomplete="off" autocorrect="off" spellcheck="false"
+                               onkeydown="if(event.key==='Enter') ex6Run()">
+                        <button class="t-run-btn" onclick="ex6Run()">&#9654; Run</button>
+                    </div>
+                </div>
+
+                <div class="hint-box" id="ex6-hint">
+                    Commands to try in order:<br>
+                    1. <code>sudo apt install fail2ban -y</code><br>
+                    2. <code>sudo cp /etc/fail2ban/jail.conf /etc/fail2ban/jail.local</code><br>
+                    3. <code>sudo fail2ban-client status sshd</code><br>
+                    4. <code>simulate attack</code>  — trigger the brute-force simulation<br>
+                    5. <code>sudo fail2ban-client status sshd</code>  — check bans
+                </div>
+
+                <p style="font-size:0.88rem;color:var(--text-secondary);margin:1rem 0 0.4rem;">
+                    Your <code>/etc/fail2ban/jail.local</code> SSH section:
+                </p>
+                <div class="config-block">
+<span class="cfg-comment"># /etc/fail2ban/jail.local  — SSH jail</span>
+[sshd]
+<span class="cfg-key">enabled</span>   = <span class="cfg-val">true</span>
+<span class="cfg-key">port</span>      = <span class="cfg-val">2222</span>          <span class="cfg-comment">; match your custom port</span>
+<span class="cfg-key">filter</span>    = <span class="cfg-val">sshd</span>
+<span class="cfg-key">logpath</span>   = <span class="cfg-val">/var/log/auth.log</span>
+<span class="cfg-key">maxretry</span>  = <span class="cfg-val">5</span>            <span class="cfg-comment">; ban after 5 failures</span>
+<span class="cfg-key">findtime</span>  = <span class="cfg-val">600</span>          <span class="cfg-comment">; ...within 10 minutes</span>
+<span class="cfg-key">bantime</span>   = <span class="cfg-val">3600</span>         <span class="cfg-comment">; ban for 1 hour (use -1 for permanent)</span>
+<span class="cfg-key">banaction</span> = <span class="cfg-val">iptables-multiport</span>
+<span class="cfg-key">ignoreip</span>  = <span class="cfg-val">127.0.0.1/8 10.0.0.0/8</span>  <span class="cfg-comment">; never ban these</span>
+                </div>
+
+                <div class="insight">
+                    <div class="insight-label">HOW FAIL2BAN WORKS</div>
+                    <p>Fail2Ban tails log files (auth.log, syslog) and matches lines against
+                    regex filters. When an IP hits <code>maxretry</code> failures within
+                    <code>findtime</code> seconds, fail2ban inserts an iptables/nftables DROP rule
+                    for that IP for <code>bantime</code> seconds. No credentials are ever exposed —
+                    the attacker's packets are silently dropped at the kernel level.</p>
+                </div>
+                <div class="insight warn">
+                    <div class="insight-label">TUNING TIPS</div>
+                    <p>Set <code>bantime = -1</code> for permanent bans (recidive jail).
+                    Add your admin IPs to <code>ignoreip</code> or you risk locking yourself out
+                    if you mistype your password. For cloud servers, combine fail2ban with
+                    cloud-level security groups to block at the network edge before traffic
+                    even reaches the OS.</p>
+                </div>
+
+                <button class="btn-step-done" id="ex6-btn" onclick="markDone('ex6', 5)">
+                    Mark Exercise 6 Complete
+                </button>
+
+            </div>
+        </div>
+    </div>
+
+    <!-- Completion panel -->
+    <div class="completion-panel" id="completionPanel">
+        <h3>Lab Complete</h3>
+        <div class="score-display">
+            <span class="score-num" id="scoreNum">0</span>
+            <span class="score-denom">/ 6 exercises</span>
+        </div>
+        <p id="completionMsg">
+            Complete all six exercises to unlock lab completion credit.
+        </p>
+        <button class="btn-complete" id="btnComplete" onclick="completeModule()" disabled>
+            Complete Lab
+        </button>
+        <div class="complete-msg" id="completeMsgFinal">
+            Lab marked complete. Excellent work securing the stack.
+        </div>
+    </div>
+
+</div><!-- /container -->
+
+<!-- ═══════════════════════════════ JAVASCRIPT ═══════════════════════════ -->
+<script>
+/* ── State ── */
+const TOTAL = 6;
+// Tracks which exercises are done (by index 0-5)
+const done = new Array(TOTAL).fill(false);
+// Track wrong attempt counts per exercise terminal
+const wrongCounts = { ex1: 0, ex2: 0, ex3: 0, ex4: 0, ex5: 0, ex6: 0 };
+// ex5 benchmark shown flag
+let ex5BenchmarkShown = false;
+
+/* ── Exercise toggle (collapse / expand) ── */
+function toggleExercise(id) {
+    const el = document.getElementById(id);
+    el.classList.toggle('open');
+    // Auto-open first exercise on load handled separately
+}
+
+// Open first exercise by default
+document.getElementById('ex1').classList.add('open');
+
+/* ── Progress dots ── */
+function buildProgressDots() {
+    const row = document.getElementById('progressRow');
+    row.innerHTML = '';
+    for (let i = 0; i < TOTAL; i++) {
+        const dot = document.createElement('div');
+        dot.className = 'prog-dot' + (i === 0 ? ' active' : '') + (done[i] ? ' done' : '');
+        dot.textContent = i + 1;
+        dot.title = 'Exercise ' + (i + 1);
+        // clicking a dot scrolls to that exercise
+        dot.addEventListener('click', () => {
+            const exId = 'ex' + (i + 1);
+            document.getElementById(exId).scrollIntoView({ behavior: 'smooth', block: 'start' });
+        });
+        row.appendChild(dot);
+    }
+}
+buildProgressDots();
+
+/* ── Terminal helpers ── */
+/**
+ * Append a line to a terminal output element.
+ * @param {string} outputId - element id
+ * @param {string} html     - inner HTML to append (use span.t-* classes)
+ */
+function termAppend(outputId, html) {
+    const el = document.getElementById(outputId);
+    el.innerHTML += html + '\n';
+    el.scrollTop = el.scrollHeight;
+}
+
+function termPrompt(outputId, cmd) {
+    termAppend(outputId,
+        `<span class="t-prompt">student@hexworth:~$</span> ${escHtml(cmd)}`);
+}
+
+function escHtml(str) {
+    return str
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+}
+
+/* ── markDone: mark an exercise complete ── */
+/**
+ * Mark an exercise as complete, update dots and score.
+ * @param {string} exId  - 'ex1' .. 'ex6'
+ * @param {number} index - 0-based index
+ */
+function markDone(exId, index) {
+    if (done[index]) return;
+    done[index] = true;
+
+    const el = document.getElementById(exId);
+    el.classList.add('completed');
+
+    const btn = document.getElementById(exId + '-btn');
+    if (btn) { btn.textContent = 'Completed!'; btn.disabled = true; }
+
+    updateScore();
+    buildProgressDots();
+}
+
+function updateScore() {
+    const count = done.filter(Boolean).length;
+    document.getElementById('scoreNum').textContent = count;
+
+    const btn = document.getElementById('btnComplete');
+    const msg = document.getElementById('completionMsg');
+
+    if (count === TOTAL) {
+        btn.disabled = false;
+        msg.textContent = 'All exercises complete. You are ready to submit this lab.';
+    } else {
+        msg.textContent = `${count} of ${TOTAL} exercises complete. Finish all to unlock credit.`;
+    }
+}
+
+/* ── EXERCISE 1: SSH Hardening ── */
+/*
+ * Accepted commands for the three hardening steps.
+ * We track how many of the three steps have been completed.
+ */
+let ex1Steps = 0;
+const ex1Answers = [
+    // Step 1: change port
+    [
+        "sudo sed -i 's/^Port 22/Port 2222/' /etc/ssh/sshd_config",
+        "sed -i 's/^Port 22/Port 2222/' /etc/ssh/sshd_config",
+        "sudo sed -i \"s/Port 22/Port 2222/\" /etc/ssh/sshd_config",
+        "port 2222",
+    ],
+    // Step 2: disable root login
+    [
+        "sudo sed -i 's/^PermitRootLogin yes/PermitRootLogin no/' /etc/ssh/sshd_config",
+        "sed -i 's/PermitRootLogin yes/PermitRootLogin no/' /etc/ssh/sshd_config",
+        "permitrootlogin no",
+    ],
+    // Step 3: disable password auth
+    [
+        "sudo sed -i 's/^PasswordAuthentication yes/PasswordAuthentication no/' /etc/ssh/sshd_config",
+        "sed -i 's/PasswordAuthentication yes/PasswordAuthentication no/' /etc/ssh/sshd_config",
+        "passwordauthentication no",
+    ],
+];
+
+const ex1Success = [
+    `<span class="t-ok">sed: applied — Port changed to 2222</span>\n<span class="t-dim">[ step 1/3 complete ]</span>`,
+    `<span class="t-ok">sed: applied — PermitRootLogin set to no</span>\n<span class="t-dim">[ step 2/3 complete ]</span>`,
+    `<span class="t-ok">sed: applied — PasswordAuthentication set to no</span>\n<span class="t-ok">All three hardening changes applied.</span>\n<span class="t-ok">Run: sudo sshd -t  (config test passed)</span>`,
+];
+
+function ex1Run() {
+    const input = document.getElementById('ex1-input');
+    const raw   = input.value.trim();
+    if (!raw) return;
+
+    termPrompt('ex1-output', raw);
+    input.value = '';
+
+    const lower = raw.toLowerCase();
+    if (ex1Steps < 3) {
+        // Check if the command matches the current step
+        const matches = ex1Answers[ex1Steps].some(a => lower.includes(a.toLowerCase().substring(0, 18)) || lower === a.toLowerCase());
+        // Looser matching: does the command contain key tokens for this step?
+        const stepTokens = [
+            ['port', '2222'],
+            ['permitrootlogin', 'no'],
+            ['passwordauthentication', 'no'],
+        ];
+        const tokens = stepTokens[ex1Steps];
+        const tokenMatch = tokens.every(t => lower.includes(t));
+
+        if (tokenMatch) {
+            termAppend('ex1-output', ex1Success[ex1Steps]);
+            ex1Steps++;
+            wrongCounts.ex1 = 0;
+
+            if (ex1Steps === 3) {
+                // Show diff
+                document.getElementById('ex1-diff').style.display = 'block';
+                document.getElementById('ex1-input').placeholder = 'sudo sshd -t';
+            } else {
+                const hints = [
+                    "Next: disable root login  →  PermitRootLogin no",
+                    "Next: disable password auth  →  PasswordAuthentication no",
+                ];
+                termAppend('ex1-output', `<span class="t-info">${hints[ex1Steps - 1]}</span>`);
+                document.getElementById('ex1-input').placeholder = '';
+            }
+        } else {
+            wrongCounts.ex1++;
+            termAppend('ex1-output', `<span class="t-error">bash: command not found or incorrect syntax</span>`);
+            if (wrongCounts.ex1 >= 2) {
+                document.getElementById('ex1-hint').classList.add('show');
+            }
+        }
+    } else {
+        // Step 3 done — accept sshd -t or mark complete commands
+        if (lower.includes('sshd -t') || lower.includes('systemctl restart sshd') || lower.includes('done') || lower.includes('complete')) {
+            termAppend('ex1-output', `<span class="t-ok">sshd: configuration file /etc/ssh/sshd_config test is successful</span>`);
+        } else {
+            termAppend('ex1-output', `<span class="t-dim">${escHtml(raw)}: command accepted (all hardening steps already applied)</span>`);
+        }
+    }
+}
+
+/* ── EXERCISE 2: Remote Port Forwarding ── */
+let ex2Attempts = 0;
+
+function ex2Run() {
+    const input = document.getElementById('ex2-input');
+    const raw   = input.value.trim();
+    if (!raw) return;
+
+    termPrompt('ex2-output', raw);
+    input.value = '';
+
+    const lower = raw.toLowerCase();
+    // Accept: contains -R, 9090, 3000 (or localhost:3000), and jump host
+    const isCorrect = lower.includes('-r') &&
+                      (lower.includes('9090') || lower.includes('9090:')) &&
+                      (lower.includes('3000') || lower.includes('localhost:3000')) &&
+                      (lower.includes('jump') || lower.includes('hexworth'));
+
+    if (isCorrect) {
+        termAppend('ex2-output',
+            `<span class="t-ok">Warning: Permanently added 'jump.hexworth.io' (ED25519) to known hosts.</span>` +
+            `\n<span class="t-ok">Allocated port 9090 for remote forward to localhost:3000</span>` +
+            `\n<span class="t-info">Reverse tunnel established. Manager can now browse: http://jump.hexworth.io:9090</span>` +
+            `\n<span class="t-dim">Press Ctrl+C to close the tunnel.</span>`
+        );
+        wrongCounts.ex2 = 0;
+    } else {
+        ex2Attempts++;
+        wrongCounts.ex2++;
+        termAppend('ex2-output', `<span class="t-error">ssh: incorrect flags — check your -R syntax</span>`);
+        if (wrongCounts.ex2 >= 2) {
+            document.getElementById('ex2-hint').classList.add('show');
+        }
+    }
+}
+
+/* ── EXERCISE 3: SOCKS Proxy ── */
+function ex3Run() {
+    const input = document.getElementById('ex3-input');
+    const raw   = input.value.trim();
+    if (!raw) return;
+
+    termPrompt('ex3-output', raw);
+    input.value = '';
+
+    const lower = raw.toLowerCase();
+    const isCorrect = lower.includes('-d') && lower.includes('1080') &&
+                      (lower.includes('relay') || lower.includes('hexworth'));
+
+    if (isCorrect) {
+        termAppend('ex3-output',
+            `<span class="t-ok">Warning: Permanently added 'relay.hexworth.io' to known hosts.</span>` +
+            `\n<span class="t-ok">SOCKS5 proxy listening on 127.0.0.1:1080</span>` +
+            `\n<span class="t-info">SSH process forked to background (PID 7842)</span>` +
+            `\n<span class="t-dim">Configure your browser: SOCKS5, host=127.0.0.1, port=1080, proxy DNS=enabled</span>`
+        );
+        wrongCounts.ex3 = 0;
+    } else {
+        wrongCounts.ex3++;
+        termAppend('ex3-output', `<span class="t-error">ssh: incorrect — need -D flag with local port</span>`);
+        if (wrongCounts.ex3 >= 2) {
+            document.getElementById('ex3-hint').classList.add('show');
+        }
+    }
+}
+
+/* ── EXERCISE 4: Jump Host / ProxyJump ── */
+function ex4Run() {
+    const input = document.getElementById('ex4-input');
+    const raw   = input.value.trim();
+    if (!raw) return;
+
+    termPrompt('ex4-output', raw);
+    input.value = '';
+
+    const lower = raw.toLowerCase();
+    const isCorrect = (lower.includes('-j') || lower.includes('proxyjump')) &&
+                      (lower.includes('bastion') || lower.includes('hexworth')) &&
+                      (lower.includes('10.0.0') || lower.includes('web-01'));
+
+    if (isCorrect) {
+        termAppend('ex4-output',
+            `<span class="t-ok">Connecting to bastion.hexworth.io ... authenticated (ED25519)</span>` +
+            `\n<span class="t-ok">Proxying to 10.0.0.5:22 via bastion ...</span>` +
+            `\n<span class="t-ok">student@10.0.0.5's connection established</span>` +
+            `\n<span class="t-info">You are now on web-01 (10.0.0.5) via ProxyJump.</span>` +
+            `\n<span class="t-prompt">student@web-01:~$</span> <span class="blink">_</span>`
+        );
+        wrongCounts.ex4 = 0;
+    } else {
+        wrongCounts.ex4++;
+        termAppend('ex4-output', `<span class="t-error">ssh: missing -J flag or incorrect host specification</span>`);
+        if (wrongCounts.ex4 >= 2) {
+            document.getElementById('ex4-hint').classList.add('show');
+        }
+    }
+}
+
+/* ── EXERCISE 5: Multiplexing ── */
+let ex5Done = false;
+
+function ex5Run() {
+    const input = document.getElementById('ex5-input');
+    const raw   = input.value.trim();
+    if (!raw) return;
+
+    termPrompt('ex5-output', raw);
+    input.value = '';
+
+    const lower = raw.toLowerCase();
+
+    if (lower.includes('-o check')) {
+        termAppend('ex5-output',
+            `<span class="t-ok">Master running (pid=4421)</span>` +
+            `\n<span class="t-dim">Socket: /home/student/.ssh/sockets/student@deploy.hexworth.io:22</span>`
+        );
+    } else if (lower.includes('-o exit')) {
+        termAppend('ex5-output',
+            `<span class="t-ok">Exit request sent.</span>` +
+            `\n<span class="t-dim">Master connection closed cleanly.</span>`
+        );
+    } else if (lower.includes('controlmaster') || lower.includes('grep')) {
+        termAppend('ex5-output',
+            `<span class="t-ok">    ControlMaster auto</span>` +
+            `\n<span class="t-ok">    ControlPath ~/.ssh/sockets/%r@%h:%p</span>` +
+            `\n<span class="t-ok">    ControlPersist 10m</span>`
+        );
+    } else if (lower.includes('mkdir') || lower.includes('sockets')) {
+        termAppend('ex5-output',
+            `<span class="t-ok">mkdir -p ~/.ssh/sockets — created</span>` +
+            `\n<span class="t-ok">chmod 700 ~/.ssh/sockets — applied</span>`
+        );
+    } else {
+        wrongCounts.ex5++;
+        termAppend('ex5-output', `<span class="t-dim">${escHtml(raw)}: command accepted</span>`);
+        if (wrongCounts.ex5 >= 2) {
+            document.getElementById('ex5-hint').classList.add('show');
+        }
+    }
+}
+
+/**
+ * Show the benchmark simulation then mark exercise 5 done.
+ */
+function ex5Benchmark() {
+    if (!ex5BenchmarkShown) {
+        ex5BenchmarkShown = true;
+        document.getElementById('ex5-benchmark').style.display = 'block';
+        document.getElementById('ex5-benchmark').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+
+        // Animate the terminal with a speed comparison
+        termAppend('ex5-output', `\n<span class="t-info">Running benchmark: 5 connections without ControlMaster ...</span>`);
+        setTimeout(() => {
+            termAppend('ex5-output', `<span class="t-dim">conn 1: 1.08s  conn 2: 0.97s  conn 3: 1.12s  conn 4: 1.05s  conn 5: 0.99s</span>`);
+        }, 600);
+        setTimeout(() => {
+            termAppend('ex5-output', `<span class="t-info">Enabling ControlMaster — re-running benchmark ...</span>`);
+        }, 1200);
+        setTimeout(() => {
+            termAppend('ex5-output', `<span class="t-ok">conn 1: 1.04s  conn 2: 0.009s  conn 3: 0.008s  conn 4: 0.011s  conn 5: 0.009s</span>`);
+            termAppend('ex5-output', `<span class="t-ok">ControlMaster speedup: ~100x for connections 2-N</span>`);
+        }, 2000);
+        setTimeout(() => {
+            const btn = document.getElementById('ex5-btn');
+            btn.textContent = 'Mark Exercise 5 Complete';
+            btn.onclick = () => markDone('ex5', 4);
+        }, 2200);
+    }
+}
+
+/* ── EXERCISE 6: Fail2Ban ── */
+let ex6Phase = 0; // 0=install, 1=copy config, 2=status, 3=simulate, 4=check bans
+
+function ex6Run() {
+    const input = document.getElementById('ex6-input');
+    const raw   = input.value.trim();
+    if (!raw) return;
+
+    termPrompt('ex6-output', raw);
+    input.value = '';
+
+    const lower = raw.toLowerCase();
+
+    if (lower.includes('apt install fail2ban') || lower.includes('apt-get install fail2ban')) {
+        ex6Phase = Math.max(ex6Phase, 1);
+        termAppend('ex6-output',
+            `<span class="t-info">Reading package lists... Done</span>` +
+            `\n<span class="t-info">Building dependency tree... Done</span>` +
+            `\n<span class="t-ok">Setting up fail2ban (1.0.2-2) ...</span>` +
+            `\n<span class="t-ok">● fail2ban.service — Fail2Ban Service</span>` +
+            `\n<span class="t-ok">   Loaded: loaded (/lib/systemd/system/fail2ban.service)</span>` +
+            `\n<span class="t-ok">   Active: active (running)</span>`
+        );
+    } else if (lower.includes('cp') && lower.includes('jail') && lower.includes('local')) {
+        ex6Phase = Math.max(ex6Phase, 2);
+        termAppend('ex6-output',
+            `<span class="t-ok">/etc/fail2ban/jail.local created</span>` +
+            `\n<span class="t-dim">Edit it with: sudo nano /etc/fail2ban/jail.local</span>`
+        );
+    } else if (lower.includes('fail2ban-client status sshd') && ex6Phase < 3) {
+        ex6Phase = Math.max(ex6Phase, 3);
+        termAppend('ex6-output',
+            `<span class="t-ok">Status for the jail: sshd</span>` +
+            `\n<span class="t-ok">|- Filter</span>` +
+            `\n<span class="t-ok">|  |- Currently failed: 0</span>` +
+            `\n<span class="t-ok">|  |- Total failed:     0</span>` +
+            `\n<span class="t-ok">\`- Actions</span>` +
+            `\n<span class="t-ok">   |- Currently banned: 0</span>` +
+            `\n<span class="t-ok">   \`- Total banned:     0</span>` +
+            `\n<span class="t-dim">  (no attack yet — try: simulate attack)</span>`
+        );
+    } else if (lower.includes('simulate attack') || lower === 'simulate') {
+        ex6Phase = Math.max(ex6Phase, 4);
+        termAppend('ex6-output',
+            `<span class="t-warn">[ SIMULATION ] Replaying 350 failed SSH login attempts from 198.51.100.42 ...</span>`
+        );
+        setTimeout(() => {
+            termAppend('ex6-output', `<span class="t-dim">2026-02-21 03:14:01 sshd[8832]: Failed password for root from 198.51.100.42 port 41823 ssh2</span>`);
+        }, 300);
+        setTimeout(() => {
+            termAppend('ex6-output', `<span class="t-dim">2026-02-21 03:14:02 sshd[8834]: Failed password for admin from 198.51.100.42 port 41824 ssh2</span>`);
+        }, 600);
+        setTimeout(() => {
+            termAppend('ex6-output', `<span class="t-dim">2026-02-21 03:14:03 sshd[8836]: Failed password for root from 198.51.100.42 port 41825 ssh2</span>`);
+        }, 900);
+        setTimeout(() => {
+            termAppend('ex6-output', `<span class="t-dim">2026-02-21 03:14:04 sshd[8838]: Failed password for root from 198.51.100.42 port 41826 ssh2</span>`);
+        }, 1200);
+        setTimeout(() => {
+            termAppend('ex6-output', `<span class="t-dim">2026-02-21 03:14:05 sshd[8840]: Failed password for deploy from 198.51.100.42 port 41827 ssh2</span>`);
+        }, 1500);
+        setTimeout(() => {
+            termAppend('ex6-output',
+                `<span class="t-ok">[ fail2ban ] 198.51.100.42 exceeded maxretry=5 within findtime=600s</span>` +
+                `\n<span class="t-ok">[ fail2ban ] Banning 198.51.100.42 — iptables DROP rule inserted</span>` +
+                `\n<span class="t-info">Attack neutralised. Run: sudo fail2ban-client status sshd</span>`
+            );
+        }, 2000);
+    } else if (lower.includes('fail2ban-client status sshd') && ex6Phase >= 4) {
+        termAppend('ex6-output',
+            `<span class="t-ok">Status for the jail: sshd</span>` +
+            `\n<span class="t-ok">|- Filter</span>` +
+            `\n<span class="t-ok">|  |- Currently failed: 0</span>` +
+            `\n<span class="t-ok">|  |- Total failed:     350</span>` +
+            `\n<span class="t-ok">\`- Actions</span>` +
+            `\n<span class="t-ok">   |- Currently banned: 1</span>` +
+            `\n<span class="t-ok">   \`- Banned IP list: 198.51.100.42</span>`
+        );
+    } else if (lower.includes('fail2ban-client unban') || lower.includes('fail2ban-client set sshd unbanip')) {
+        termAppend('ex6-output', `<span class="t-ok">198.51.100.42 has been unbanned from sshd jail</span>`);
+    } else if (lower.includes('systemctl restart fail2ban') || lower.includes('systemctl status fail2ban')) {
+        termAppend('ex6-output',
+            `<span class="t-ok">● fail2ban.service — Fail2Ban Service</span>` +
+            `\n<span class="t-ok">   Active: active (running) since 2026-02-21 03:13:00 UTC</span>`
+        );
+    } else {
+        wrongCounts.ex6++;
+        termAppend('ex6-output', `<span class="t-error">Command not recognised in this simulation. Check the hint for valid commands.</span>`);
+        if (wrongCounts.ex6 >= 2) {
+            document.getElementById('ex6-hint').classList.add('show');
+        }
+    }
+}
+
+/* ── Module completion ── */
+function completeModule() {
+    const btn = document.getElementById('btnComplete');
+    btn.disabled = true;
+    btn.textContent = 'Saving...';
+
+    // Fire the ModuleProgress completion
+    if (typeof ModuleProgress !== 'undefined') {
+        ModuleProgress.complete('script', 'script-ssh-advanced', {
+            returnUrl: '../index.html'
+        });
+    }
+
+    setTimeout(() => {
+        document.getElementById('completeMsgFinal').style.display = 'block';
+        btn.textContent = 'Completed';
+
+        // Fire achievement if available
+        if (typeof AchievementManager !== 'undefined') {
+            AchievementManager.unlock('ssh_hardened');
+        }
+    }, 600);
+}
+
+/* ── Score init ── */
+updateScore();
+</script>
+
+<script src="../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>
