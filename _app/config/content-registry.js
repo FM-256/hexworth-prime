@@ -10579,7 +10579,7625 @@ const ContentRegistry = {
             },
             prerequisites: ['da-linux-privesc'],
             objectives: ['Complete 10 post-exploitation objectives', 'Generate final pentest report']
-        }
+        },
+
+        // ═══════════════════════════════════════════════════════════════
+        // AUTO-GENERATED ENTRIES (registry-generator.js)
+        // Generated: 2026-02-21
+        // ═══════════════════════════════════════════════════════════════
+
+        // ─── FORGE HOUSE (auto-generated) ───
+        'forge-bit-dash': {
+            id: 'forge-bit-dash',
+            title: 'Bit Dash',
+            description: 'Bit Dash — applet content for forge house',
+            house: 'forge',
+            type: 'applet',
+            difficulty: 'beginner',
+            duration: 25,
+            topics: ['bit', 'dash', 'hardware', 'systems'],
+            paths: [],
+            components: {
+                applet: 'houses/forge/games/forge-bit-dash.applet.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'forge-bluetooth-pairing': {
+            id: 'forge-bluetooth-pairing',
+            title: 'Bluetooth Pairing',
+            description: 'Bluetooth Pairing — lab content for forge house',
+            house: 'forge',
+            type: 'lab',
+            difficulty: 'beginner',
+            duration: 30,
+            topics: ['bluetooth', 'pairing', 'hardware', 'systems'],
+            paths: [],
+            components: {
+                lab: 'houses/forge/applets/comptia-aplus/core-1/labs/forge-bluetooth-pairing.lab.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'forge-cable-matching': {
+            id: 'forge-cable-matching',
+            title: 'Cable Matching',
+            description: 'Cable Matching — lab content for forge house',
+            house: 'forge',
+            type: 'lab',
+            difficulty: 'beginner',
+            duration: 30,
+            topics: ['cable', 'matching', 'hardware', 'systems'],
+            paths: [],
+            components: {
+                lab: 'houses/forge/applets/comptia-aplus/core-1/labs/forge-cable-matching.lab.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'forge-change-management': {
+            id: 'forge-change-management',
+            title: 'Change Management',
+            description: 'Change Management — module content for forge house',
+            house: 'forge',
+            type: 'module',
+            difficulty: 'beginner',
+            duration: 45,
+            topics: ['change', 'management', 'hardware', 'systems'],
+            paths: [],
+            components: {
+                lab: 'houses/forge/applets/comptia-aplus/core-2/labs/forge-change-management.lab.html',
+                presentation: 'houses/forge/applets/comptia-aplus/core-2/presentations/forge-change-management.presentation.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'forge-chip-match': {
+            id: 'forge-chip-match',
+            title: 'Chip Match',
+            description: 'Chip Match — applet content for forge house',
+            house: 'forge',
+            type: 'applet',
+            difficulty: 'beginner',
+            duration: 25,
+            topics: ['chip', 'match', 'hardware', 'systems'],
+            paths: [],
+            components: {
+                applet: 'houses/forge/games/forge-chip-match.applet.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'forge-cloud-scenarios': {
+            id: 'forge-cloud-scenarios',
+            title: 'Cloud Service Scenarios Lab',
+            description: 'Cloud Service Scenarios Lab — lab content for forge house',
+            house: 'forge',
+            type: 'lab',
+            difficulty: 'beginner',
+            duration: 30,
+            topics: ['cloud', 'service', 'scenarios', 'hardware', 'systems'],
+            paths: [],
+            components: {
+                lab: 'houses/forge/applets/comptia-aplus/core-1/labs/forge-cloud-scenarios.lab.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'forge-command-line': {
+            id: 'forge-command-line',
+            title: 'Advanced Command Line Lab',
+            description: 'Advanced Command Line Lab — lab content for forge house',
+            house: 'forge',
+            type: 'lab',
+            difficulty: 'beginner',
+            duration: 30,
+            topics: ['command', 'line', 'hardware', 'systems'],
+            paths: [],
+            components: {
+                lab: 'houses/forge/applets/comptia-aplus/core-1/labs/forge-command-line.lab.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'forge-core2-midterm': {
+            id: 'forge-core2-midterm',
+            title: 'Core 2 Midterm Exam',
+            description: 'Core 2 Midterm Exam — quiz content for forge house',
+            house: 'forge',
+            type: 'quiz',
+            difficulty: 'beginner',
+            duration: 15,
+            topics: ['core', 'midterm', 'exam', 'hardware', 'systems'],
+            paths: [],
+            components: {
+                quiz: 'houses/forge/applets/comptia-aplus/core-2/quizzes/forge-core2-midterm.quiz.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'forge-core2-quiz-ch19-22': {
+            id: 'forge-core2-quiz-ch19-22',
+            title: 'CompTIA A+ Certification Quiz – Chapters 19–22',
+            description: 'CompTIA A+ Certification Quiz – Chapters 19–22 — module content for forge house',
+            house: 'forge',
+            type: 'module',
+            difficulty: 'beginner',
+            duration: 45,
+            topics: ['comptia', 'certification', 'chapters', 'hardware', 'systems'],
+            paths: [],
+            components: {
+                quiz: 'houses/forge/applets/comptia-aplus/core-2/quizzes/forge-core2-quiz-ch19-22.quiz.html',
+                applet: 'houses/forge/applets/comptia-aplus/forge-core2-quiz-ch19-22.applet.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'forge-core2-roleplay': {
+            id: 'forge-core2-roleplay',
+            title: 'Core 2 Roleplay Lab',
+            description: 'Core 2 Roleplay Lab — module content for forge house',
+            house: 'forge',
+            type: 'module',
+            difficulty: 'beginner',
+            duration: 45,
+            topics: ['core', 'roleplay', 'hardware', 'systems'],
+            paths: [],
+            components: {
+                lab: 'houses/forge/labs/forge-core2-roleplay.lab.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'forge-cpu-sockets': {
+            id: 'forge-cpu-sockets',
+            title: 'CPU Socket Identification Lab',
+            description: 'CPU Socket Identification Lab — lab content for forge house',
+            house: 'forge',
+            type: 'lab',
+            difficulty: 'beginner',
+            duration: 30,
+            topics: ['cpu', 'socket', 'identification', 'hardware', 'systems'],
+            paths: [],
+            components: {
+                lab: 'houses/forge/applets/comptia-aplus/core-1/labs/forge-cpu-sockets.lab.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'forge-diagnostic-tools': {
+            id: 'forge-diagnostic-tools',
+            title: 'Hardware Diagnostic Tools',
+            description: 'Hardware Diagnostic Tools — lab content for forge house',
+            house: 'forge',
+            type: 'lab',
+            difficulty: 'beginner',
+            duration: 30,
+            topics: ['hardware', 'diagnostic', 'tools', 'systems'],
+            paths: [],
+            components: {
+                lab: 'houses/forge/applets/comptia-aplus/core-1/labs/forge-diagnostic-tools.lab.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'forge-display-troubleshoot': {
+            id: 'forge-display-troubleshoot',
+            title: 'Display Troubleshooting Lab',
+            description: 'Display Troubleshooting Lab — lab content for forge house',
+            house: 'forge',
+            type: 'lab',
+            difficulty: 'beginner',
+            duration: 30,
+            topics: ['display', 'troubleshooting', 'hardware', 'systems'],
+            paths: [],
+            components: {
+                lab: 'houses/forge/applets/comptia-aplus/core-1/labs/forge-display-troubleshoot.lab.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'forge-dns-config': {
+            id: 'forge-dns-config',
+            title: 'DNS Configuration Lab',
+            description: 'DNS Configuration Lab — lab content for forge house',
+            house: 'forge',
+            type: 'lab',
+            difficulty: 'beginner',
+            duration: 30,
+            topics: ['dns', 'configuration', 'hardware', 'systems'],
+            paths: [],
+            components: {
+                lab: 'houses/forge/applets/comptia-aplus/core-1/labs/forge-dns-config.lab.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'forge-docking-config': {
+            id: 'forge-docking-config',
+            title: 'Docking Station Configuration',
+            description: 'Docking Station Configuration — lab content for forge house',
+            house: 'forge',
+            type: 'lab',
+            difficulty: 'beginner',
+            duration: 30,
+            topics: ['docking', 'station', 'configuration', 'hardware', 'systems'],
+            paths: [],
+            components: {
+                lab: 'houses/forge/applets/comptia-aplus/core-1/labs/forge-docking-config.lab.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'forge-documentation': {
+            id: 'forge-documentation',
+            title: 'Documentation & Professionalism',
+            description: 'Documentation & Professionalism — module content for forge house',
+            house: 'forge',
+            type: 'module',
+            difficulty: 'beginner',
+            duration: 45,
+            topics: ['documentation', 'professionalism', 'hardware', 'systems'],
+            paths: [],
+            components: {
+                lab: 'houses/forge/applets/comptia-aplus/core-2/labs/forge-documentation.lab.html',
+                presentation: 'houses/forge/applets/comptia-aplus/core-2/presentations/forge-documentation.presentation.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'forge-email-config': {
+            id: 'forge-email-config',
+            title: 'Mobile Email Configuration',
+            description: 'Mobile Email Configuration — lab content for forge house',
+            house: 'forge',
+            type: 'lab',
+            difficulty: 'beginner',
+            duration: 30,
+            topics: ['mobile', 'email', 'configuration', 'hardware', 'systems'],
+            paths: [],
+            components: {
+                lab: 'houses/forge/applets/comptia-aplus/core-1/labs/forge-email-config.lab.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'forge-esd-workspace': {
+            id: 'forge-esd-workspace',
+            title: 'ESD-Safe Workspace Setup',
+            description: 'ESD-Safe Workspace Setup — lab content for forge house',
+            house: 'forge',
+            type: 'lab',
+            difficulty: 'beginner',
+            duration: 30,
+            topics: ['esd-safe', 'workspace', 'setup', 'hardware', 'systems'],
+            paths: [],
+            components: {
+                lab: 'houses/forge/applets/comptia-aplus/core-1/labs/forge-esd-workspace.lab.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'forge-expansion-cards': {
+            id: 'forge-expansion-cards',
+            title: 'Expansion Cards & Interfaces',
+            description: 'Expansion Cards & Interfaces — applet content for forge house',
+            house: 'forge',
+            type: 'applet',
+            difficulty: 'beginner',
+            duration: 25,
+            topics: ['expansion', 'cards', 'interfaces', 'hardware', 'systems'],
+            paths: [],
+            components: {
+                applet: 'houses/forge/applets/hardware/expansion_cards/forge-expansion-cards.applet.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'forge-hardware-diagnosis': {
+            id: 'forge-hardware-diagnosis',
+            title: 'Hardware Diagnosis Simulator',
+            description: 'Hardware Diagnosis Simulator — lab content for forge house',
+            house: 'forge',
+            type: 'lab',
+            difficulty: 'beginner',
+            duration: 30,
+            topics: ['hardware', 'diagnosis', 'simulator', 'systems'],
+            paths: [],
+            components: {
+                lab: 'houses/forge/applets/comptia-aplus/core-1/labs/forge-hardware-diagnosis.lab.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'forge-incident-response': {
+            id: 'forge-incident-response',
+            title: 'Incident Response',
+            description: 'Incident Response — module content for forge house',
+            house: 'forge',
+            type: 'module',
+            difficulty: 'beginner',
+            duration: 45,
+            topics: ['incident', 'response', 'hardware', 'systems'],
+            paths: [],
+            components: {
+                lab: 'houses/forge/applets/comptia-aplus/core-2/labs/forge-incident-response.lab.html',
+                presentation: 'houses/forge/applets/comptia-aplus/core-2/presentations/forge-incident-response.presentation.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'forge-laptop-memory': {
+            id: 'forge-laptop-memory',
+            title: 'Laptop Memory Upgrade',
+            description: 'Laptop Memory Upgrade — lab content for forge house',
+            house: 'forge',
+            type: 'lab',
+            difficulty: 'beginner',
+            duration: 30,
+            topics: ['laptop', 'memory', 'upgrade', 'hardware', 'systems'],
+            paths: [],
+            components: {
+                lab: 'houses/forge/applets/comptia-aplus/core-1/labs/forge-laptop-memory.lab.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'forge-malware': {
+            id: 'forge-malware',
+            title: 'Malware & Social Engineering',
+            description: 'Malware & Social Engineering — module content for forge house',
+            house: 'forge',
+            type: 'module',
+            difficulty: 'beginner',
+            duration: 45,
+            topics: ['malware', 'social', 'engineering', 'hardware', 'systems'],
+            paths: [],
+            components: {
+                lab: 'houses/forge/applets/comptia-aplus/core-2/labs/forge-malware.lab.html',
+                presentation: 'houses/forge/applets/comptia-aplus/core-2/presentations/forge-malware.presentation.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'forge-mdm-config': {
+            id: 'forge-mdm-config',
+            title: 'MDM Policy Configuration Lab',
+            description: 'MDM Policy Configuration Lab — lab content for forge house',
+            house: 'forge',
+            type: 'lab',
+            difficulty: 'beginner',
+            duration: 30,
+            topics: ['mdm', 'policy', 'configuration', 'hardware', 'systems'],
+            paths: [],
+            components: {
+                lab: 'houses/forge/applets/comptia-aplus/core-1/labs/forge-mdm-config.lab.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'forge-mobile-email': {
+            id: 'forge-mobile-email',
+            title: 'Mobile Email Configuration Lab',
+            description: 'Mobile Email Configuration Lab — lab content for forge house',
+            house: 'forge',
+            type: 'lab',
+            difficulty: 'beginner',
+            duration: 30,
+            topics: ['mobile', 'email', 'configuration', 'hardware', 'systems'],
+            paths: [],
+            components: {
+                lab: 'houses/forge/applets/comptia-aplus/core-1/labs/forge-mobile-email.lab.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'forge-mobile-identifier': {
+            id: 'forge-mobile-identifier',
+            title: 'Mobile Device Identifiers',
+            description: 'Mobile Device Identifiers — lab content for forge house',
+            house: 'forge',
+            type: 'lab',
+            difficulty: 'beginner',
+            duration: 30,
+            topics: ['mobile', 'device', 'identifiers', 'hardware', 'systems'],
+            paths: [],
+            components: {
+                lab: 'houses/forge/applets/comptia-aplus/core-1/labs/forge-mobile-identifier.lab.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'forge-mobile-sync': {
+            id: 'forge-mobile-sync',
+            title: 'Mobile Sync Troubleshooting Lab',
+            description: 'Mobile Sync Troubleshooting Lab — lab content for forge house',
+            house: 'forge',
+            type: 'lab',
+            difficulty: 'beginner',
+            duration: 30,
+            topics: ['mobile', 'sync', 'troubleshooting', 'hardware', 'systems'],
+            paths: [],
+            components: {
+                lab: 'houses/forge/applets/comptia-aplus/core-1/labs/forge-mobile-sync.lab.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'forge-multimeter-jedit-v1': {
+            id: 'forge-multimeter-jedit-v1',
+            title: 'Digital Multimeter Simulator',
+            description: 'Digital Multimeter Simulator — applet content for forge house',
+            house: 'forge',
+            type: 'applet',
+            difficulty: 'beginner',
+            duration: 25,
+            topics: ['digital', 'multimeter', 'simulator', 'hardware', 'systems'],
+            paths: [],
+            components: {
+                applet: 'houses/forge/applets/hardware/multimeter/forge-multimeter-jedit-v1.applet.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'forge-network-commands': {
+            id: 'forge-network-commands',
+            title: 'Network Commands Lab',
+            description: 'Network Commands Lab — lab content for forge house',
+            house: 'forge',
+            type: 'lab',
+            difficulty: 'beginner',
+            duration: 30,
+            topics: ['network', 'commands', 'hardware', 'systems'],
+            paths: [],
+            components: {
+                lab: 'houses/forge/applets/comptia-aplus/core-1/labs/forge-network-commands.lab.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'forge-network-config': {
+            id: 'forge-network-config',
+            title: 'Network Configuration Lab',
+            description: 'Network Configuration Lab — lab content for forge house',
+            house: 'forge',
+            type: 'lab',
+            difficulty: 'beginner',
+            duration: 30,
+            topics: ['network', 'configuration', 'hardware', 'systems'],
+            paths: [],
+            components: {
+                lab: 'houses/forge/applets/comptia-aplus/core-1/labs/forge-network-config.lab.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'forge-network-design': {
+            id: 'forge-network-design',
+            title: 'Advanced Network Designer',
+            description: 'Advanced Network Designer — lab content for forge house',
+            house: 'forge',
+            type: 'lab',
+            difficulty: 'beginner',
+            duration: 30,
+            topics: ['network', 'designer', 'hardware', 'systems'],
+            paths: [],
+            components: {
+                lab: 'houses/forge/applets/comptia-aplus/core-1/labs/forge-network-design.lab.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'forge-os-core': {
+            id: 'forge-os-core',
+            title: 'Instruction Set, 32-bit vs 64-bit, x86 vs x64',
+            description: 'Instruction Set, 32-bit vs 64-bit, x86 vs x64 — tool content for forge house',
+            house: 'forge',
+            type: 'tool',
+            difficulty: 'beginner',
+            duration: 20,
+            topics: ['instruction', 'set', '32-bit', 'hardware', 'systems'],
+            paths: [],
+            components: {
+                applet: 'houses/forge/tools/forge-os-core.tool.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'forge-pc-builder': {
+            id: 'forge-pc-builder',
+            title: 'PC Builder Simulator',
+            description: 'PC Builder Simulator — lab content for forge house',
+            house: 'forge',
+            type: 'lab',
+            difficulty: 'beginner',
+            duration: 30,
+            topics: ['builder', 'simulator', 'hardware', 'systems'],
+            paths: [],
+            components: {
+                lab: 'houses/forge/applets/comptia-aplus/core-1/labs/forge-pc-builder.lab.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'forge-pc-components': {
+            id: 'forge-pc-components',
+            title: 'PC Components Identification',
+            description: 'PC Components Identification — lab content for forge house',
+            house: 'forge',
+            type: 'lab',
+            difficulty: 'beginner',
+            duration: 30,
+            topics: ['components', 'identification', 'hardware', 'systems'],
+            paths: [],
+            components: {
+                lab: 'houses/forge/applets/comptia-aplus/core-1/labs/forge-pc-components.lab.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'forge-physical-security': {
+            id: 'forge-physical-security',
+            title: 'Physical Security',
+            description: 'Physical Security — module content for forge house',
+            house: 'forge',
+            type: 'module',
+            difficulty: 'beginner',
+            duration: 45,
+            topics: ['physical', 'security', 'hardware', 'systems'],
+            paths: [],
+            components: {
+                lab: 'houses/forge/applets/comptia-aplus/core-2/labs/forge-physical-security.lab.html',
+                presentation: 'houses/forge/applets/comptia-aplus/core-2/presentations/forge-physical-security.presentation.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'forge-port-identification': {
+            id: 'forge-port-identification',
+            title: 'Port Identification',
+            description: 'Port Identification — lab content for forge house',
+            house: 'forge',
+            type: 'lab',
+            difficulty: 'beginner',
+            duration: 30,
+            topics: ['port', 'identification', 'hardware', 'systems'],
+            paths: [],
+            components: {
+                lab: 'houses/forge/applets/comptia-aplus/core-1/labs/forge-port-identification.lab.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'forge-post-beep-codes': {
+            id: 'forge-post-beep-codes',
+            title: 'POST Beep Codes',
+            description: 'POST Beep Codes — lab content for forge house',
+            house: 'forge',
+            type: 'lab',
+            difficulty: 'beginner',
+            duration: 30,
+            topics: ['post', 'beep', 'codes', 'hardware', 'systems'],
+            paths: [],
+            components: {
+                lab: 'houses/forge/applets/comptia-aplus/core-1/labs/forge-post-beep-codes.lab.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'forge-printer-troubleshoot': {
+            id: 'forge-printer-troubleshoot',
+            title: 'Printer Troubleshooting Simulator',
+            description: 'Printer Troubleshooting Simulator — lab content for forge house',
+            house: 'forge',
+            type: 'lab',
+            difficulty: 'beginner',
+            duration: 30,
+            topics: ['printer', 'troubleshooting', 'simulator', 'hardware', 'systems'],
+            paths: [],
+            components: {
+                lab: 'houses/forge/applets/comptia-aplus/core-1/labs/forge-printer-troubleshoot.lab.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'forge-protocol-analysis': {
+            id: 'forge-protocol-analysis',
+            title: 'Protocol Analysis Lab',
+            description: 'Protocol Analysis Lab — lab content for forge house',
+            house: 'forge',
+            type: 'lab',
+            difficulty: 'beginner',
+            duration: 30,
+            topics: ['protocol', 'analysis', 'hardware', 'systems'],
+            paths: [],
+            components: {
+                lab: 'houses/forge/applets/comptia-aplus/core-1/labs/forge-protocol-analysis.lab.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'forge-psu-connectors': {
+            id: 'forge-psu-connectors',
+            title: 'PSU Connectors',
+            description: 'PSU Connectors — lab content for forge house',
+            house: 'forge',
+            type: 'lab',
+            difficulty: 'beginner',
+            duration: 30,
+            topics: ['psu', 'connectors', 'hardware', 'systems'],
+            paths: [],
+            components: {
+                lab: 'houses/forge/applets/comptia-aplus/core-1/labs/forge-psu-connectors.lab.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'forge-rack-stack': {
+            id: 'forge-rack-stack',
+            title: 'Rack Stack',
+            description: 'Rack Stack — applet content for forge house',
+            house: 'forge',
+            type: 'applet',
+            difficulty: 'beginner',
+            duration: 25,
+            topics: ['rack', 'stack', 'hardware', 'systems'],
+            paths: [],
+            components: {
+                applet: 'houses/forge/games/forge-rack-stack.applet.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'forge-raid-calculator': {
+            id: 'forge-raid-calculator',
+            title: 'RAID Puzzle',
+            description: 'RAID Puzzle — applet content for forge house',
+            house: 'forge',
+            type: 'applet',
+            difficulty: 'beginner',
+            duration: 25,
+            topics: ['raid', 'puzzle', 'hardware', 'systems'],
+            paths: [],
+            components: {
+                applet: 'houses/forge/games/forge-raid-calculator.applet.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'forge-raid-config': {
+            id: 'forge-raid-config',
+            title: 'RAID Configuration Builder',
+            description: 'RAID Configuration Builder — lab content for forge house',
+            house: 'forge',
+            type: 'lab',
+            difficulty: 'beginner',
+            duration: 30,
+            topics: ['raid', 'configuration', 'builder', 'hardware', 'systems'],
+            paths: [],
+            components: {
+                lab: 'houses/forge/applets/comptia-aplus/core-1/labs/forge-raid-config.lab.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'forge-ram-identification': {
+            id: 'forge-ram-identification',
+            title: 'RAM Identification Lab',
+            description: 'RAM Identification Lab — lab content for forge house',
+            house: 'forge',
+            type: 'lab',
+            difficulty: 'beginner',
+            duration: 30,
+            topics: ['ram', 'identification', 'hardware', 'systems'],
+            paths: [],
+            components: {
+                lab: 'houses/forge/applets/comptia-aplus/core-1/labs/forge-ram-identification.lab.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'forge-router-config': {
+            id: 'forge-router-config',
+            title: 'SOHO Router Configuration',
+            description: 'SOHO Router Configuration — lab content for forge house',
+            house: 'forge',
+            type: 'lab',
+            difficulty: 'beginner',
+            duration: 30,
+            topics: ['soho', 'router', 'configuration', 'hardware', 'systems'],
+            paths: [],
+            components: {
+                lab: 'houses/forge/applets/comptia-aplus/core-1/labs/forge-router-config.lab.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'forge-security-fundamentals': {
+            id: 'forge-security-fundamentals',
+            title: 'Security Fundamentals',
+            description: 'Security Fundamentals — module content for forge house',
+            house: 'forge',
+            type: 'module',
+            difficulty: 'beginner',
+            duration: 45,
+            topics: ['security', 'hardware', 'systems'],
+            paths: [],
+            components: {
+                lab: 'houses/forge/applets/comptia-aplus/core-2/labs/forge-security-fundamentals.lab.html',
+                presentation: 'houses/forge/applets/comptia-aplus/core-2/presentations/forge-security-fundamentals.presentation.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'forge-server-roles': {
+            id: 'forge-server-roles',
+            title: 'Server Role Identification',
+            description: 'Server Role Identification — lab content for forge house',
+            house: 'forge',
+            type: 'lab',
+            difficulty: 'beginner',
+            duration: 30,
+            topics: ['server', 'role', 'identification', 'hardware', 'systems'],
+            paths: [],
+            components: {
+                lab: 'houses/forge/applets/comptia-aplus/core-1/labs/forge-server-roles.lab.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'forge-settings': {
+            id: 'forge-settings',
+            title: 'Windows 11 Settings Explorer',
+            description: 'Windows 11 Settings Explorer — tool content for forge house',
+            house: 'forge',
+            type: 'tool',
+            difficulty: 'beginner',
+            duration: 20,
+            topics: ['windows', 'settings', 'explorer', 'hardware', 'systems'],
+            paths: [],
+            components: {
+                applet: 'houses/forge/tools/forge-settings.tool.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'forge-soho-designer': {
+            id: 'forge-soho-designer',
+            title: 'SOHO Network Designer',
+            description: 'SOHO Network Designer — lab content for forge house',
+            house: 'forge',
+            type: 'lab',
+            difficulty: 'beginner',
+            duration: 30,
+            topics: ['soho', 'network', 'designer', 'hardware', 'systems'],
+            paths: [],
+            components: {
+                lab: 'houses/forge/applets/comptia-aplus/core-1/labs/forge-soho-designer.lab.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'forge-soho-rescue': {
+            id: 'forge-soho-rescue',
+            title: 'SOHO RESCUE | Network Troubleshooting Game',
+            description: 'SOHO RESCUE | Network Troubleshooting Game — lab content for forge house',
+            house: 'forge',
+            type: 'lab',
+            difficulty: 'beginner',
+            duration: 30,
+            topics: ['soho', 'rescue', 'network', 'hardware', 'systems'],
+            paths: [],
+            components: {
+                lab: 'houses/forge/applets/comptia-aplus/core-1/labs/forge-soho-rescue.lab.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'forge-storage-upgrade': {
+            id: 'forge-storage-upgrade',
+            title: 'Laptop Storage Upgrade',
+            description: 'Laptop Storage Upgrade — lab content for forge house',
+            house: 'forge',
+            type: 'lab',
+            difficulty: 'beginner',
+            duration: 30,
+            topics: ['laptop', 'storage', 'upgrade', 'hardware', 'systems'],
+            paths: [],
+            components: {
+                lab: 'houses/forge/applets/comptia-aplus/core-1/labs/forge-storage-upgrade.lab.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'forge-subnet-calculator': {
+            id: 'forge-subnet-calculator',
+            title: 'Subnet Calculator Lab',
+            description: 'Subnet Calculator Lab — lab content for forge house',
+            house: 'forge',
+            type: 'lab',
+            difficulty: 'beginner',
+            duration: 30,
+            topics: ['subnet', 'calculator', 'hardware', 'systems'],
+            paths: [],
+            components: {
+                lab: 'houses/forge/applets/comptia-aplus/core-1/labs/forge-subnet-calculator.lab.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'forge-topology-builder': {
+            id: 'forge-topology-builder',
+            title: 'Network Topology Builder',
+            description: 'Network Topology Builder — lab content for forge house',
+            house: 'forge',
+            type: 'lab',
+            difficulty: 'beginner',
+            duration: 30,
+            topics: ['network', 'topology', 'builder', 'hardware', 'systems'],
+            paths: [],
+            components: {
+                lab: 'houses/forge/applets/comptia-aplus/core-1/labs/forge-topology-builder.lab.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'forge-troubleshooting': {
+            id: 'forge-troubleshooting',
+            title: 'Troubleshooting Methodology',
+            description: 'Troubleshooting Methodology — lab content for forge house',
+            house: 'forge',
+            type: 'lab',
+            difficulty: 'beginner',
+            duration: 30,
+            topics: ['troubleshooting', 'methodology', 'hardware', 'systems'],
+            paths: [],
+            components: {
+                lab: 'houses/forge/applets/comptia-aplus/core-1/labs/forge-troubleshooting.lab.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'forge-troubleshooting-flowchart': {
+            id: 'forge-troubleshooting-flowchart',
+            title: 'Troubleshooting Flowchart Lab',
+            description: 'Troubleshooting Flowchart Lab — lab content for forge house',
+            house: 'forge',
+            type: 'lab',
+            difficulty: 'beginner',
+            duration: 30,
+            topics: ['troubleshooting', 'flowchart', 'hardware', 'systems'],
+            paths: [],
+            components: {
+                lab: 'houses/forge/applets/comptia-aplus/core-1/labs/forge-troubleshooting-flowchart.lab.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'forge-users-groups': {
+            id: 'forge-users-groups',
+            title: 'Users, Groups & Permissions',
+            description: 'Users, Groups & Permissions — module content for forge house',
+            house: 'forge',
+            type: 'module',
+            difficulty: 'beginner',
+            duration: 45,
+            topics: ['users', 'groups', 'permissions', 'hardware', 'systems'],
+            paths: [],
+            components: {
+                lab: 'houses/forge/applets/comptia-aplus/core-2/labs/forge-users-groups.lab.html',
+                presentation: 'houses/forge/applets/comptia-aplus/core-2/presentations/forge-users-groups.presentation.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'forge-vm-setup': {
+            id: 'forge-vm-setup',
+            title: 'Virtual Machine Setup',
+            description: 'Virtual Machine Setup — lab content for forge house',
+            house: 'forge',
+            type: 'lab',
+            difficulty: 'beginner',
+            duration: 30,
+            topics: ['virtual', 'machine', 'setup', 'hardware', 'systems'],
+            paths: [],
+            components: {
+                lab: 'houses/forge/applets/comptia-aplus/core-1/labs/forge-vm-setup.lab.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'forge-windows10-components': {
+            id: 'forge-windows10-components',
+            title: 'Windows 10 Security Components',
+            description: 'Windows 10 Security Components — applet content for forge house',
+            house: 'forge',
+            type: 'applet',
+            difficulty: 'beginner',
+            duration: 25,
+            topics: ['windows', 'security', 'components', 'hardware', 'systems'],
+            paths: [],
+            components: {
+                applet: 'houses/forge/tools/forge-windows10-components.tool.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'forge-wireless-security': {
+            id: 'forge-wireless-security',
+            title: 'Wireless Security Configuration',
+            description: 'Wireless Security Configuration — lab content for forge house',
+            house: 'forge',
+            type: 'lab',
+            difficulty: 'beginner',
+            duration: 30,
+            topics: ['wireless', 'security', 'configuration', 'hardware', 'systems'],
+            paths: [],
+            components: {
+                lab: 'houses/forge/applets/comptia-aplus/core-1/labs/forge-wireless-security.lab.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+
+        // ─── WEB HOUSE (auto-generated) ───
+        'web-dns-troubleshooting': {
+            id: 'web-dns-troubleshooting',
+            title: 'DNS Troubleshooting Lab',
+            description: 'DNS Troubleshooting Lab — lab content for web house',
+            house: 'web',
+            type: 'lab',
+            difficulty: 'beginner',
+            duration: 30,
+            topics: ['dns', 'troubleshooting', 'networking', 'protocols'],
+            paths: [],
+            components: {
+                lab: 'houses/web/labs/web-dns-troubleshooting.lab.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'web-firewall-rules': {
+            id: 'web-firewall-rules',
+            title: 'Firewall Rules Lab',
+            description: 'Firewall Rules Lab — lab content for web house',
+            house: 'web',
+            type: 'lab',
+            difficulty: 'beginner',
+            duration: 30,
+            topics: ['firewall', 'rules', 'networking', 'protocols'],
+            paths: [],
+            components: {
+                lab: 'houses/web/labs/web-firewall-rules.lab.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'web-ip-ipv6-challenge': {
+            id: 'web-ip-ipv6-challenge',
+            title: 'Ip Ipv6 Challenge',
+            description: 'Ip Ipv6 Challenge — applet content for web house',
+            house: 'web',
+            type: 'applet',
+            difficulty: 'beginner',
+            duration: 25,
+            topics: ['ipv6', 'challenge', 'networking', 'protocols'],
+            paths: [],
+            components: {
+                applet: 'houses/web/applets/ip-addressing/ipv6-challenge/web-ip-ipv6-challenge.applet.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'web-ip-mac-addressing': {
+            id: 'web-ip-mac-addressing',
+            title: 'Ip Mac Addressing',
+            description: 'Ip Mac Addressing — applet content for web house',
+            house: 'web',
+            type: 'applet',
+            difficulty: 'beginner',
+            duration: 25,
+            topics: ['mac', 'addressing', 'networking', 'protocols'],
+            paths: [],
+            components: {
+                applet: 'houses/web/applets/ip-addressing/mac-addressing/web-ip-mac-addressing.applet.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'web-lab-troubleshooting': {
+            id: 'web-lab-troubleshooting',
+            title: 'Cumulative Lab Troubleshooting Guide - Network Essentials',
+            description: 'Cumulative Lab Troubleshooting Guide - Network Essentials — reference content for web house',
+            house: 'web',
+            type: 'reference',
+            difficulty: 'beginner',
+            duration: 15,
+            topics: ['cumulative', 'troubleshooting', 'guide', 'networking', 'protocols'],
+            paths: [],
+            components: {
+                reference: 'houses/web/troubleshooting/web-lab-troubleshooting.reference.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'web-network-architect': {
+            id: 'web-network-architect',
+            title: 'Network Architect',
+            description: 'Network Architect — applet content for web house',
+            house: 'web',
+            type: 'applet',
+            difficulty: 'beginner',
+            duration: 25,
+            topics: ['network', 'architect', 'networking', 'protocols'],
+            paths: [],
+            components: {
+                applet: 'houses/web/games/web-network-architect.applet.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'web-networking-ch7-10': {
+            id: 'web-networking-ch7-10',
+            title: 'Networking Essentials • Interactive Guide (Ch.7–10) — v2.0',
+            description: 'Networking Essentials • Interactive Guide (Ch.7–10) — v2.0 — quiz content for web house',
+            house: 'web',
+            type: 'quiz',
+            difficulty: 'beginner',
+            duration: 15,
+            topics: ['networking', 'interactive', 'guide', 'protocols'],
+            paths: [],
+            components: {
+                quiz: 'houses/web/quizzes/web-networking-ch7-10.quiz.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'web-networking-ch7-20': {
+            id: 'web-networking-ch7-20',
+            title: 'Networking Essentials • Interactive Textbook (Ch.7–20) — v3.0',
+            description: 'Networking Essentials • Interactive Textbook (Ch.7–20) — v3.0 — quiz content for web house',
+            house: 'web',
+            type: 'quiz',
+            difficulty: 'beginner',
+            duration: 15,
+            topics: ['networking', 'interactive', 'textbook', 'protocols'],
+            paths: [],
+            components: {
+                quiz: 'houses/web/quizzes/web-networking-ch7-20.quiz.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'web-networking-final-review': {
+            id: 'web-networking-final-review',
+            title: 'Networking Exam Flashcards',
+            description: 'Networking Exam Flashcards — quiz content for web house',
+            house: 'web',
+            type: 'quiz',
+            difficulty: 'beginner',
+            duration: 15,
+            topics: ['networking', 'exam', 'flashcards', 'protocols'],
+            paths: [],
+            components: {
+                quiz: 'houses/web/quizzes/web-networking-final-review.quiz.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'web-osi': {
+            id: 'web-osi',
+            title: 'OSI Model - The 7 Layers of Networking',
+            description: 'OSI Model - The 7 Layers of Networking — module content for web house',
+            house: 'web',
+            type: 'module',
+            difficulty: 'beginner',
+            duration: 45,
+            topics: ['osi', 'model', 'layers', 'networking', 'protocols'],
+            paths: [],
+            components: {
+                presentation: 'houses/web/presentations/web-osi.presentation.html',
+                quiz: 'houses/web/quizzes/web-osi.quiz.html',
+                applet: 'houses/web/tools/web-osi.tool.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'web-packet-analysis': {
+            id: 'web-packet-analysis',
+            title: 'Packet Analysis Lab',
+            description: 'Packet Analysis Lab — lab content for web house',
+            house: 'web',
+            type: 'lab',
+            difficulty: 'beginner',
+            duration: 30,
+            topics: ['packet', 'analysis', 'networking', 'protocols'],
+            paths: [],
+            components: {
+                lab: 'houses/web/labs/web-packet-analysis.lab.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'web-packet-invaders': {
+            id: 'web-packet-invaders',
+            title: 'Packet Invaders',
+            description: 'Packet Invaders — applet content for web house',
+            house: 'web',
+            type: 'applet',
+            difficulty: 'beginner',
+            duration: 25,
+            topics: ['packet', 'invaders', 'networking', 'protocols'],
+            paths: [],
+            components: {
+                applet: 'houses/web/games/web-packet-invaders.applet.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'web-packet-run': {
+            id: 'web-packet-run',
+            title: 'Packet Run',
+            description: 'Packet Run — applet content for web house',
+            house: 'web',
+            type: 'applet',
+            difficulty: 'beginner',
+            duration: 25,
+            topics: ['packet', 'run', 'networking', 'protocols'],
+            paths: [],
+            components: {
+                applet: 'houses/web/games/web-packet-run.applet.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'web-packet-sniffer': {
+            id: 'web-packet-sniffer',
+            title: 'Packet Sniffer',
+            description: 'Packet Sniffer — applet content for web house',
+            house: 'web',
+            type: 'applet',
+            difficulty: 'beginner',
+            duration: 25,
+            topics: ['packet', 'sniffer', 'networking', 'protocols'],
+            paths: [],
+            components: {
+                applet: 'houses/web/games/web-packet-sniffer.applet.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'web-subnetting-practice': {
+            id: 'web-subnetting-practice',
+            title: 'Subnetting Practice Lab',
+            description: 'Subnetting Practice Lab — lab content for web house',
+            house: 'web',
+            type: 'lab',
+            difficulty: 'beginner',
+            duration: 30,
+            topics: ['subnetting', 'networking', 'protocols'],
+            paths: [],
+            components: {
+                lab: 'houses/web/labs/web-subnetting-practice.lab.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'web-vlan-config': {
+            id: 'web-vlan-config',
+            title: 'VLAN Configuration Lab',
+            description: 'VLAN Configuration Lab — lab content for web house',
+            house: 'web',
+            type: 'lab',
+            difficulty: 'beginner',
+            duration: 30,
+            topics: ['vlan', 'configuration', 'networking', 'protocols'],
+            paths: [],
+            components: {
+                lab: 'houses/web/labs/web-vlan-config.lab.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'web-week3': {
+            id: 'web-week3',
+            title: 'Networking Fundamentals & Ports Quiz',
+            description: 'Networking Fundamentals & Ports Quiz — quiz content for web house',
+            house: 'web',
+            type: 'quiz',
+            difficulty: 'beginner',
+            duration: 15,
+            topics: ['networking', 'ports', 'protocols'],
+            paths: [],
+            components: {
+                quiz: 'houses/web/quizzes/web-week3.quiz.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'web-wireless-warzone': {
+            id: 'web-wireless-warzone',
+            title: 'Wireless Warzone',
+            description: 'Wireless Warzone — applet content for web house',
+            house: 'web',
+            type: 'applet',
+            difficulty: 'beginner',
+            duration: 25,
+            topics: ['wireless', 'warzone', 'networking', 'protocols'],
+            paths: [],
+            components: {
+                applet: 'houses/web/games/web-wireless-warzone.applet.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+
+        // ─── SHIELD HOUSE (auto-generated) ───
+        'shield-cmmc-overview': {
+            id: 'shield-cmmc-overview',
+            title: 'CMMC Framework Overview',
+            description: 'CMMC Framework Overview — applet content for shield house',
+            house: 'shield',
+            type: 'applet',
+            difficulty: 'beginner',
+            duration: 25,
+            topics: ['cmmc', 'framework', 'overview', 'security', 'defense'],
+            paths: [],
+            components: {
+                applet: 'houses/shield/applets/compliance/cmmc_overview/shield-cmmc-overview.applet.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'shield-crypto-crypto-protocols': {
+            id: 'shield-crypto-crypto-protocols',
+            title: 'Cryptographic Protocols',
+            description: 'Cryptographic Protocols — applet content for shield house',
+            house: 'shield',
+            type: 'applet',
+            difficulty: 'beginner',
+            duration: 25,
+            topics: ['cryptographic', 'protocols', 'security', 'defense'],
+            paths: [],
+            components: {
+                applet: 'houses/shield/applets/crypto/crypto_protocols/shield-crypto-crypto-protocols.applet.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'shield-crypto-cryptography-intro': {
+            id: 'shield-crypto-cryptography-intro',
+            title: 'Introduction to Cryptography',
+            description: 'Introduction to Cryptography — applet content for shield house',
+            house: 'shield',
+            type: 'applet',
+            difficulty: 'beginner',
+            duration: 25,
+            topics: ['cryptography', 'security', 'defense'],
+            paths: [],
+            components: {
+                applet: 'houses/shield/applets/crypto/cryptography_intro/shield-crypto-cryptography-intro.applet.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'shield-crypto-encryption': {
+            id: 'shield-crypto-encryption',
+            title: 'Encryption & Data Formatting',
+            description: 'Encryption & Data Formatting — applet content for shield house',
+            house: 'shield',
+            type: 'applet',
+            difficulty: 'beginner',
+            duration: 25,
+            topics: ['encryption', 'data', 'formatting', 'security', 'defense'],
+            paths: [],
+            components: {
+                applet: 'houses/shield/applets/crypto/encrypt_data/shield-crypto-encryption.applet.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'shield-crypto-hashing-walkthrough': {
+            id: 'shield-crypto-hashing-walkthrough',
+            title: 'Hashing: Step-by-Step Walkthrough',
+            description: 'Hashing: Step-by-Step Walkthrough — applet content for shield house',
+            house: 'shield',
+            type: 'applet',
+            difficulty: 'beginner',
+            duration: 25,
+            topics: ['hashing', 'step-by-step', 'walkthrough', 'security', 'defense'],
+            paths: [],
+            components: {
+                applet: 'houses/shield/applets/crypto/hashing_walkthrough/shield-crypto-hashing-walkthrough.applet.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'shield-crypto-steganography': {
+            id: 'shield-crypto-steganography',
+            title: 'Crypto Steganography',
+            description: 'Crypto Steganography — module content for shield house',
+            house: 'shield',
+            type: 'module',
+            difficulty: 'beginner',
+            duration: 45,
+            topics: ['crypto', 'steganography', 'security', 'defense'],
+            paths: [],
+            components: {
+                applet: 'houses/shield/applets/crypto/steganography/shield-crypto-steganography.applet.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'shield-crypto-stream-ciphers': {
+            id: 'shield-crypto-stream-ciphers',
+            title: 'Crypto Stream Ciphers',
+            description: 'Crypto Stream Ciphers — module content for shield house',
+            house: 'shield',
+            type: 'module',
+            difficulty: 'beginner',
+            duration: 45,
+            topics: ['crypto', 'stream', 'ciphers', 'security', 'defense'],
+            paths: [],
+            components: {
+                applet: 'houses/shield/applets/crypto/stream_ciphers/shield-crypto-stream-ciphers.applet.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'shield-crypto-symmetric-vs-asymmetric': {
+            id: 'shield-crypto-symmetric-vs-asymmetric',
+            title: 'Symmetric vs Asymmetric Encryption',
+            description: 'Symmetric vs Asymmetric Encryption — applet content for shield house',
+            house: 'shield',
+            type: 'applet',
+            difficulty: 'beginner',
+            duration: 25,
+            topics: ['symmetric', 'asymmetric', 'encryption', 'security', 'defense'],
+            paths: [],
+            components: {
+                applet: 'houses/shield/applets/crypto/symmetric_vs_asymmetric/shield-crypto-symmetric-vs-asymmetric.applet.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'shield-dr-malware': {
+            id: 'shield-dr-malware',
+            title: 'Dr. Malware',
+            description: 'Dr. Malware — applet content for shield house',
+            house: 'shield',
+            type: 'applet',
+            difficulty: 'beginner',
+            duration: 25,
+            topics: ['malware', 'security', 'defense'],
+            paths: [],
+            components: {
+                applet: 'houses/shield/games/shield-dr-malware.applet.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'shield-linux-audit': {
+            id: 'shield-linux-audit',
+            title: 'Mission: Audit Logging',
+            description: 'Mission: Audit Logging — lab content for shield house',
+            house: 'shield',
+            type: 'lab',
+            difficulty: 'beginner',
+            duration: 30,
+            topics: ['mission', 'audit', 'logging', 'security', 'defense'],
+            paths: [],
+            components: {
+                lab: 'houses/shield/labs/linux/shield-linux-audit.lab.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'shield-linux-audit-drill': {
+            id: 'shield-linux-audit-drill',
+            title: 'Audit Log Drill',
+            description: 'Audit Log Drill — lab content for shield house',
+            house: 'shield',
+            type: 'lab',
+            difficulty: 'beginner',
+            duration: 30,
+            topics: ['audit', 'log', 'drill', 'security', 'defense'],
+            paths: [],
+            components: {
+                lab: 'houses/shield/labs/linux/shield-linux-audit-drill.lab.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'shield-linux-file-integrity': {
+            id: 'shield-linux-file-integrity',
+            title: 'Mission: File Integrity Monitoring',
+            description: 'Mission: File Integrity Monitoring — lab content for shield house',
+            house: 'shield',
+            type: 'lab',
+            difficulty: 'beginner',
+            duration: 30,
+            topics: ['mission', 'file', 'integrity', 'security', 'defense'],
+            paths: [],
+            components: {
+                lab: 'houses/shield/labs/linux/shield-linux-file-integrity.lab.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'shield-linux-firewall': {
+            id: 'shield-linux-firewall',
+            title: 'Mission: Firewall Configuration',
+            description: 'Mission: Firewall Configuration — lab content for shield house',
+            house: 'shield',
+            type: 'lab',
+            difficulty: 'beginner',
+            duration: 30,
+            topics: ['mission', 'firewall', 'configuration', 'security', 'defense'],
+            paths: [],
+            components: {
+                lab: 'houses/shield/labs/linux/shield-linux-firewall.lab.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'shield-linux-firewall-drill': {
+            id: 'shield-linux-firewall-drill',
+            title: 'Firewall Rules Drill',
+            description: 'Firewall Rules Drill — lab content for shield house',
+            house: 'shield',
+            type: 'lab',
+            difficulty: 'beginner',
+            duration: 30,
+            topics: ['firewall', 'rules', 'drill', 'security', 'defense'],
+            paths: [],
+            components: {
+                lab: 'houses/shield/labs/linux/shield-linux-firewall-drill.lab.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'shield-linux-hardening': {
+            id: 'shield-linux-hardening',
+            title: 'Capstone: Full Server Hardening',
+            description: 'Capstone: Full Server Hardening — lab content for shield house',
+            house: 'shield',
+            type: 'lab',
+            difficulty: 'beginner',
+            duration: 30,
+            topics: ['capstone', 'full', 'server', 'security', 'defense'],
+            paths: [],
+            components: {
+                lab: 'houses/shield/labs/linux/shield-linux-hardening.lab.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'shield-linux-password-policy': {
+            id: 'shield-linux-password-policy',
+            title: 'Mission: Password Policy',
+            description: 'Mission: Password Policy — lab content for shield house',
+            house: 'shield',
+            type: 'lab',
+            difficulty: 'beginner',
+            duration: 30,
+            topics: ['mission', 'password', 'policy', 'security', 'defense'],
+            paths: [],
+            components: {
+                lab: 'houses/shield/labs/linux/shield-linux-password-policy.lab.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'shield-linux-perms-drill': {
+            id: 'shield-linux-perms-drill',
+            title: 'Permissions Drill',
+            description: 'Permissions Drill — lab content for shield house',
+            house: 'shield',
+            type: 'lab',
+            difficulty: 'beginner',
+            duration: 30,
+            topics: ['permissions', 'drill', 'security', 'defense'],
+            paths: [],
+            components: {
+                lab: 'houses/shield/labs/linux/shield-linux-perms-drill.lab.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'shield-linux-selinux': {
+            id: 'shield-linux-selinux',
+            title: 'Mission: SELinux/AppArmor',
+            description: 'Mission: SELinux/AppArmor — lab content for shield house',
+            house: 'shield',
+            type: 'lab',
+            difficulty: 'beginner',
+            duration: 30,
+            topics: ['mission', 'selinuxapparmor', 'security', 'defense'],
+            paths: [],
+            components: {
+                lab: 'houses/shield/labs/linux/shield-linux-selinux.lab.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'shield-linux-ssh-drill': {
+            id: 'shield-linux-ssh-drill',
+            title: 'SSH Hardening Drill',
+            description: 'SSH Hardening Drill — lab content for shield house',
+            house: 'shield',
+            type: 'lab',
+            difficulty: 'beginner',
+            duration: 30,
+            topics: ['ssh', 'hardening', 'drill', 'security', 'defense'],
+            paths: [],
+            components: {
+                lab: 'houses/shield/labs/linux/shield-linux-ssh-drill.lab.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'shield-linux-ssh-hardening-prep': {
+            id: 'shield-linux-ssh-hardening-prep',
+            title: 'SSH Hardening Prep',
+            description: 'SSH Hardening Prep — lab content for shield house',
+            house: 'shield',
+            type: 'lab',
+            difficulty: 'beginner',
+            duration: 30,
+            topics: ['ssh', 'hardening', 'prep', 'security', 'defense'],
+            paths: [],
+            components: {
+                lab: 'houses/shield/labs/linux/shield-linux-ssh-hardening-prep.lab.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'shield-linux-ssh-security': {
+            id: 'shield-linux-ssh-security',
+            title: 'Mission: Secure SSH',
+            description: 'Mission: Secure SSH — lab content for shield house',
+            house: 'shield',
+            type: 'lab',
+            difficulty: 'beginner',
+            duration: 30,
+            topics: ['mission', 'secure', 'ssh', 'security', 'defense'],
+            paths: [],
+            components: {
+                lab: 'houses/shield/labs/linux/shield-linux-ssh-security.lab.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'shield-linux-sudo': {
+            id: 'shield-linux-sudo',
+            title: 'Mission: Privilege Management',
+            description: 'Mission: Privilege Management — lab content for shield house',
+            house: 'shield',
+            type: 'lab',
+            difficulty: 'beginner',
+            duration: 30,
+            topics: ['mission', 'privilege', 'management', 'security', 'defense'],
+            paths: [],
+            components: {
+                lab: 'houses/shield/labs/linux/shield-linux-sudo.lab.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'shield-linux-sudo-policy-prep': {
+            id: 'shield-linux-sudo-policy-prep',
+            title: 'Sudo Policy Prep',
+            description: 'Sudo Policy Prep — lab content for shield house',
+            house: 'shield',
+            type: 'lab',
+            difficulty: 'beginner',
+            duration: 30,
+            topics: ['sudo', 'policy', 'prep', 'security', 'defense'],
+            paths: [],
+            components: {
+                lab: 'houses/shield/labs/linux/shield-linux-sudo-policy-prep.lab.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'shield-malware-zoo': {
+            id: 'shield-malware-zoo',
+            title: 'Malware Zoo',
+            description: 'Malware Zoo — lab content for shield house',
+            house: 'shield',
+            type: 'lab',
+            difficulty: 'beginner',
+            duration: 30,
+            topics: ['malware', 'zoo', 'security', 'defense'],
+            paths: [],
+            components: {
+                lab: 'houses/shield/games/shield-malware-zoo.lab.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'shield-social-engineering': {
+            id: 'shield-social-engineering',
+            title: 'Social Engineering Attacks',
+            description: 'Social Engineering Attacks — presentation content for shield house',
+            house: 'shield',
+            type: 'presentation',
+            difficulty: 'beginner',
+            duration: 20,
+            topics: ['social', 'engineering', 'attacks', 'security', 'defense'],
+            paths: [],
+            components: {
+                presentation: 'houses/shield/presentations/shield-social-engineering.presentation.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'shield-threat-code-injection': {
+            id: 'shield-threat-code-injection',
+            title: 'Threat Code Injection',
+            description: 'Threat Code Injection — applet content for shield house',
+            house: 'shield',
+            type: 'applet',
+            difficulty: 'beginner',
+            duration: 25,
+            topics: ['threat', 'code', 'injection', 'security', 'defense'],
+            paths: [],
+            components: {
+                applet: 'houses/shield/applets/threats/code_injection_attack/shield-threat-code-injection.applet.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'shield-threat-google-hacking': {
+            id: 'shield-threat-google-hacking',
+            title: 'Threat Google Hacking',
+            description: 'Threat Google Hacking — applet content for shield house',
+            house: 'shield',
+            type: 'applet',
+            difficulty: 'beginner',
+            duration: 25,
+            topics: ['threat', 'google', 'hacking', 'security', 'defense'],
+            paths: [],
+            components: {
+                applet: 'houses/shield/applets/threats/google_hacking/shield-threat-google-hacking.applet.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'shield-threat-heartbleed': {
+            id: 'shield-threat-heartbleed',
+            title: 'Threat Heartbleed',
+            description: 'Threat Heartbleed — applet content for shield house',
+            house: 'shield',
+            type: 'applet',
+            difficulty: 'beginner',
+            duration: 25,
+            topics: ['threat', 'heartbleed', 'security', 'defense'],
+            paths: [],
+            components: {
+                applet: 'houses/shield/applets/threats/heartbleed_attack/shield-threat-heartbleed.applet.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'shield-threat-meltdown-spectre': {
+            id: 'shield-threat-meltdown-spectre',
+            title: 'Threat Meltdown Spectre',
+            description: 'Threat Meltdown Spectre — applet content for shield house',
+            house: 'shield',
+            type: 'applet',
+            difficulty: 'beginner',
+            duration: 25,
+            topics: ['threat', 'meltdown', 'spectre', 'security', 'defense'],
+            paths: [],
+            components: {
+                applet: 'houses/shield/applets/threats/meltdown_spectre/shield-threat-meltdown-spectre.applet.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'shield-threat-pen-testing': {
+            id: 'shield-threat-pen-testing',
+            title: 'Threat Pen Testing',
+            description: 'Threat Pen Testing — applet content for shield house',
+            house: 'shield',
+            type: 'applet',
+            difficulty: 'beginner',
+            duration: 25,
+            topics: ['threat', 'pen', 'testing', 'security', 'defense'],
+            paths: [],
+            components: {
+                applet: 'houses/shield/applets/threats/pen_testing_methodology/shield-threat-pen-testing.applet.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'shield-threat-runner': {
+            id: 'shield-threat-runner',
+            title: 'Threat Runner',
+            description: 'Threat Runner — applet content for shield house',
+            house: 'shield',
+            type: 'applet',
+            difficulty: 'beginner',
+            duration: 25,
+            topics: ['threat', 'runner', 'security', 'defense'],
+            paths: [],
+            components: {
+                applet: 'houses/shield/games/shield-threat-runner.applet.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'shield-threat-social-engineering-tactics': {
+            id: 'shield-threat-social-engineering-tactics',
+            title: 'Threat Social Engineering Tactics',
+            description: 'Threat Social Engineering Tactics — applet content for shield house',
+            house: 'shield',
+            type: 'applet',
+            difficulty: 'beginner',
+            duration: 25,
+            topics: ['threat', 'social', 'engineering', 'security', 'defense'],
+            paths: [],
+            components: {
+                applet: 'houses/shield/applets/threats/social_engineering_tactics/shield-threat-social-engineering-tactics.applet.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'shield-threat-spoofing': {
+            id: 'shield-threat-spoofing',
+            title: 'Threat Spoofing',
+            description: 'Threat Spoofing — applet content for shield house',
+            house: 'shield',
+            type: 'applet',
+            difficulty: 'beginner',
+            duration: 25,
+            topics: ['threat', 'spoofing', 'security', 'defense'],
+            paths: [],
+            components: {
+                applet: 'houses/shield/applets/threats/spoofing_attacks/shield-threat-spoofing.applet.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'shield-threat-stuxnet': {
+            id: 'shield-threat-stuxnet',
+            title: 'Threat Stuxnet',
+            description: 'Threat Stuxnet — applet content for shield house',
+            house: 'shield',
+            type: 'applet',
+            difficulty: 'beginner',
+            duration: 25,
+            topics: ['threat', 'stuxnet', 'security', 'defense'],
+            paths: [],
+            components: {
+                applet: 'houses/shield/applets/threats/stuxnet/shield-threat-stuxnet.applet.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'shield-threat-swarm': {
+            id: 'shield-threat-swarm',
+            title: 'Threat Swarm',
+            description: 'Threat Swarm — applet content for shield house',
+            house: 'shield',
+            type: 'applet',
+            difficulty: 'beginner',
+            duration: 25,
+            topics: ['threat', 'swarm', 'security', 'defense'],
+            paths: [],
+            components: {
+                applet: 'houses/shield/games/shield-threat-swarm.applet.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'shield-threat-threat-actors': {
+            id: 'shield-threat-threat-actors',
+            title: 'Threat Threat Actors',
+            description: 'Threat Threat Actors — applet content for shield house',
+            house: 'shield',
+            type: 'applet',
+            difficulty: 'beginner',
+            duration: 25,
+            topics: ['threat', 'actors', 'security', 'defense'],
+            paths: [],
+            components: {
+                applet: 'houses/shield/applets/threats/threat_actors/shield-threat-threat-actors.applet.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+
+        // ─── CLOUD HOUSE (auto-generated) ───
+        'cloud-ad-attack-path': {
+            id: 'cloud-ad-attack-path',
+            title: 'AD Attack Path',
+            description: 'AD Attack Path — applet content for cloud house',
+            house: 'cloud',
+            type: 'applet',
+            difficulty: 'beginner',
+            duration: 25,
+            topics: ['attack', 'path', 'cloud', 'infrastructure'],
+            paths: [],
+            components: {
+                applet: 'houses/cloud/games/cloud-ad-attack-path.applet.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'cloud-destroyer': {
+            id: 'cloud-destroyer',
+            title: 'Cloud Destroyer',
+            description: 'Cloud Destroyer — applet content for cloud house',
+            house: 'cloud',
+            type: 'applet',
+            difficulty: 'beginner',
+            duration: 25,
+            topics: ['cloud', 'destroyer', 'infrastructure'],
+            paths: [],
+            components: {
+                applet: 'houses/cloud/games/cloud-destroyer.applet.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'cloud-gauntlet': {
+            id: 'cloud-gauntlet',
+            title: 'WSA Skills Gauntlet',
+            description: 'WSA Skills Gauntlet — module content for cloud house',
+            house: 'cloud',
+            type: 'module',
+            difficulty: 'beginner',
+            duration: 45,
+            topics: ['wsa', 'skills', 'gauntlet', 'cloud', 'infrastructure'],
+            paths: [],
+            components: {
+                module: 'houses/cloud/modules/wsa/gauntlet/cloud-gauntlet.module.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'cloud-gauntlet-advanced': {
+            id: 'cloud-gauntlet-advanced',
+            title: 'WSA Advanced Skills Gauntlet',
+            description: 'WSA Advanced Skills Gauntlet — module content for cloud house',
+            house: 'cloud',
+            type: 'module',
+            difficulty: 'beginner',
+            duration: 45,
+            topics: ['wsa', 'skills', 'gauntlet', 'cloud', 'infrastructure'],
+            paths: [],
+            components: {
+                module: 'houses/cloud/modules/wsa/gauntlet-advanced/cloud-gauntlet-advanced.module.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'cloud-gui': {
+            id: 'cloud-gui',
+            title: 'WSA M01 GUI Lab: Server Manager',
+            description: 'WSA M01 GUI Lab: Server Manager — lab content for cloud house',
+            house: 'cloud',
+            type: 'lab',
+            difficulty: 'beginner',
+            duration: 30,
+            topics: ['wsa', 'm01', 'gui', 'cloud', 'infrastructure'],
+            paths: [],
+            components: {
+                lab: 'houses/cloud/labs/cloud-gui.lab.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'cloud-gui-style-samples': {
+            id: 'cloud-gui-style-samples',
+            title: 'WSA GUI Style Samples',
+            description: 'WSA GUI Style Samples — module content for cloud house',
+            house: 'cloud',
+            type: 'module',
+            difficulty: 'beginner',
+            duration: 45,
+            topics: ['wsa', 'gui', 'style', 'cloud', 'infrastructure'],
+            paths: [],
+            components: {
+                module: 'houses/cloud/modules/wsa/cloud-gui-style-samples.module.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'cloud-guilab': {
+            id: 'cloud-guilab',
+            title: 'WSA M01 GUI Lab: Server Manager Configuration',
+            description: 'WSA M01 GUI Lab: Server Manager Configuration — module content for cloud house',
+            house: 'cloud',
+            type: 'module',
+            difficulty: 'beginner',
+            duration: 45,
+            topics: ['wsa', 'm01', 'gui', 'cloud', 'infrastructure'],
+            paths: [],
+            components: {
+                module: 'houses/cloud/modules/wsa/m19-troubleshooting-migration/cloud-guilab.module.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'cloud-hop': {
+            id: 'cloud-hop',
+            title: 'Cloud Hop',
+            description: 'Cloud Hop — applet content for cloud house',
+            house: 'cloud',
+            type: 'applet',
+            difficulty: 'beginner',
+            duration: 25,
+            topics: ['cloud', 'hop', 'infrastructure'],
+            paths: [],
+            components: {
+                applet: 'houses/cloud/games/cloud-hop.applet.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'cloud-ps': {
+            id: 'cloud-ps',
+            title: 'WSA M01 PowerShell Lab',
+            description: 'WSA M01 PowerShell Lab — lab content for cloud house',
+            house: 'cloud',
+            type: 'lab',
+            difficulty: 'beginner',
+            duration: 30,
+            topics: ['wsa', 'm01', 'powershell', 'cloud', 'infrastructure'],
+            paths: [],
+            components: {
+                lab: 'houses/cloud/labs/cloud-ps.lab.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'cloud-pslab': {
+            id: 'cloud-pslab',
+            title: 'WSA M01 PowerShell Lab: Server Administration Basics',
+            description: 'WSA M01 PowerShell Lab: Server Administration Basics — module content for cloud house',
+            house: 'cloud',
+            type: 'module',
+            difficulty: 'beginner',
+            duration: 45,
+            topics: ['wsa', 'm01', 'powershell', 'cloud', 'infrastructure'],
+            paths: [],
+            components: {
+                module: 'houses/cloud/modules/wsa/m19-troubleshooting-migration/cloud-pslab.module.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'cloud-quiz': {
+            id: 'cloud-quiz',
+            title: 'WSA M01 Quiz: Windows Server Fundamentals',
+            description: 'WSA M01 Quiz: Windows Server Fundamentals — quiz content for cloud house',
+            house: 'cloud',
+            type: 'quiz',
+            difficulty: 'beginner',
+            duration: 15,
+            topics: ['wsa', 'm01', 'windows', 'cloud', 'infrastructure'],
+            paths: [],
+            components: {
+                quiz: 'houses/cloud/quizzes/cloud-quiz.quiz.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'cloud-quizquiz': {
+            id: 'cloud-quizquiz',
+            title: 'WSA M01 Quiz: Server Installation & Configuration',
+            description: 'WSA M01 Quiz: Server Installation & Configuration — module content for cloud house',
+            house: 'cloud',
+            type: 'module',
+            difficulty: 'beginner',
+            duration: 45,
+            topics: ['wsa', 'm01', 'server', 'cloud', 'infrastructure'],
+            paths: [],
+            components: {
+                module: 'houses/cloud/modules/wsa/m19-troubleshooting-migration/cloud-quizquiz.module.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'cloud-save-the-pod': {
+            id: 'cloud-save-the-pod',
+            title: 'POD CROSSING - Docker Ocean Delivery',
+            description: 'POD CROSSING - Docker Ocean Delivery — module content for cloud house',
+            house: 'cloud',
+            type: 'module',
+            difficulty: 'beginner',
+            duration: 45,
+            topics: ['pod', 'crossing', 'docker', 'cloud', 'infrastructure'],
+            paths: [],
+            components: {
+                module: 'houses/cloud/modules/wsa/games/cloud-save-the-pod.module.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'cloud-simulation': {
+            id: 'cloud-simulation',
+            title: 'FAILSAFE Simulation',
+            description: 'FAILSAFE Simulation — module content for cloud house',
+            house: 'cloud',
+            type: 'module',
+            difficulty: 'beginner',
+            duration: 45,
+            topics: ['failsafe', 'simulation', 'cloud', 'infrastructure'],
+            paths: [],
+            components: {
+                module: 'houses/cloud/modules/wsa/midterm-outpost/cloud-simulation.module.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'cloud-wsa-review': {
+            id: 'cloud-wsa-review',
+            title: 'Windows Server Review',
+            description: 'Windows Server Review — module content for cloud house',
+            house: 'cloud',
+            type: 'module',
+            difficulty: 'beginner',
+            duration: 45,
+            topics: ['windows', 'server', 'cloud', 'infrastructure'],
+            paths: [],
+            components: {
+                module: 'houses/cloud/modules/wsa/reviews/cloud-wsa-review.module.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+
+        // ─── SCRIPT HOUSE (auto-generated) ───
+        'script-bash-arrays': {
+            id: 'script-bash-arrays',
+            title: 'Mission: Bash Arrays',
+            description: 'Mission: Bash Arrays — lab content for script house',
+            house: 'script',
+            type: 'lab',
+            difficulty: 'beginner',
+            duration: 30,
+            topics: ['mission', 'bash', 'arrays', 'linux', 'command-line'],
+            paths: [],
+            components: {
+                lab: 'houses/script/labs/linux/script-bash-arrays.lab.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'script-bash-basics': {
+            id: 'script-bash-basics',
+            title: 'Mission: Bash Basics',
+            description: 'Mission: Bash Basics — lab content for script house',
+            house: 'script',
+            type: 'lab',
+            difficulty: 'beginner',
+            duration: 30,
+            topics: ['mission', 'bash', 'linux', 'command-line'],
+            paths: [],
+            components: {
+                lab: 'houses/script/labs/linux/script-bash-basics.lab.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'script-bash-conditionals': {
+            id: 'script-bash-conditionals',
+            title: 'Mission: Bash Conditionals',
+            description: 'Mission: Bash Conditionals — lab content for script house',
+            house: 'script',
+            type: 'lab',
+            difficulty: 'beginner',
+            duration: 30,
+            topics: ['mission', 'bash', 'conditionals', 'linux', 'command-line'],
+            paths: [],
+            components: {
+                lab: 'houses/script/labs/linux/script-bash-conditionals.lab.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'script-bash-conditions-drill': {
+            id: 'script-bash-conditions-drill',
+            title: 'Bash Conditionals Drill',
+            description: 'Bash Conditionals Drill — lab content for script house',
+            house: 'script',
+            type: 'lab',
+            difficulty: 'beginner',
+            duration: 30,
+            topics: ['bash', 'conditionals', 'drill', 'linux', 'command-line'],
+            paths: [],
+            components: {
+                lab: 'houses/script/labs/linux/script-bash-conditions-drill.lab.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'script-bash-cron': {
+            id: 'script-bash-cron',
+            title: 'Mission: Bash Cron',
+            description: 'Mission: Bash Cron — lab content for script house',
+            house: 'script',
+            type: 'lab',
+            difficulty: 'beginner',
+            duration: 30,
+            topics: ['mission', 'bash', 'cron', 'linux', 'command-line'],
+            paths: [],
+            components: {
+                lab: 'houses/script/labs/linux/script-bash-cron.lab.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'script-bash-cron-setup-prep': {
+            id: 'script-bash-cron-setup-prep',
+            title: 'Prep: Cron Backup Setup',
+            description: 'Prep: Cron Backup Setup — lab content for script house',
+            house: 'script',
+            type: 'lab',
+            difficulty: 'beginner',
+            duration: 30,
+            topics: ['prep', 'cron', 'backup', 'linux', 'command-line'],
+            paths: [],
+            components: {
+                lab: 'houses/script/labs/linux/script-bash-cron-setup-prep.lab.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'script-bash-functions': {
+            id: 'script-bash-functions',
+            title: 'Mission: Bash Functions',
+            description: 'Mission: Bash Functions — lab content for script house',
+            house: 'script',
+            type: 'lab',
+            difficulty: 'beginner',
+            duration: 30,
+            topics: ['mission', 'bash', 'functions', 'linux', 'command-line'],
+            paths: [],
+            components: {
+                lab: 'houses/script/labs/linux/script-bash-functions.lab.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'script-bash-io-redirect': {
+            id: 'script-bash-io-redirect',
+            title: 'Mission: I/O Redirection',
+            description: 'Mission: I/O Redirection — lab content for script house',
+            house: 'script',
+            type: 'lab',
+            difficulty: 'beginner',
+            duration: 30,
+            topics: ['mission', 'redirection', 'linux', 'command-line'],
+            paths: [],
+            components: {
+                lab: 'houses/script/labs/linux/script-bash-io-redirect.lab.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'script-bash-log-processor-prep': {
+            id: 'script-bash-log-processor-prep',
+            title: 'Prep: Log Processor',
+            description: 'Prep: Log Processor — lab content for script house',
+            house: 'script',
+            type: 'lab',
+            difficulty: 'beginner',
+            duration: 30,
+            topics: ['prep', 'log', 'processor', 'linux', 'command-line'],
+            paths: [],
+            components: {
+                lab: 'houses/script/labs/linux/script-bash-log-processor-prep.lab.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'script-bash-loops': {
+            id: 'script-bash-loops',
+            title: 'Mission: Bash Loops',
+            description: 'Mission: Bash Loops — lab content for script house',
+            house: 'script',
+            type: 'lab',
+            difficulty: 'beginner',
+            duration: 30,
+            topics: ['mission', 'bash', 'loops', 'linux', 'command-line'],
+            paths: [],
+            components: {
+                lab: 'houses/script/labs/linux/script-bash-loops.lab.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'script-bash-loops-drill': {
+            id: 'script-bash-loops-drill',
+            title: 'Bash Loops Drill',
+            description: 'Bash Loops Drill — lab content for script house',
+            house: 'script',
+            type: 'lab',
+            difficulty: 'beginner',
+            duration: 30,
+            topics: ['bash', 'loops', 'drill', 'linux', 'command-line'],
+            paths: [],
+            components: {
+                lab: 'houses/script/labs/linux/script-bash-loops-drill.lab.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'script-bash-pipes': {
+            id: 'script-bash-pipes',
+            title: 'Mission: Bash Pipes',
+            description: 'Mission: Bash Pipes — lab content for script house',
+            house: 'script',
+            type: 'lab',
+            difficulty: 'beginner',
+            duration: 30,
+            topics: ['mission', 'bash', 'pipes', 'linux', 'command-line'],
+            paths: [],
+            components: {
+                lab: 'houses/script/labs/linux/script-bash-pipes.lab.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'script-bash-redirect-drill': {
+            id: 'script-bash-redirect-drill',
+            title: 'Bash Redirect Drill',
+            description: 'Bash Redirect Drill — lab content for script house',
+            house: 'script',
+            type: 'lab',
+            difficulty: 'beginner',
+            duration: 30,
+            topics: ['bash', 'redirect', 'drill', 'linux', 'command-line'],
+            paths: [],
+            components: {
+                lab: 'houses/script/labs/linux/script-bash-redirect-drill.lab.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'script-bash-variables-drill': {
+            id: 'script-bash-variables-drill',
+            title: 'Bash Variables Drill',
+            description: 'Bash Variables Drill — lab content for script house',
+            house: 'script',
+            type: 'lab',
+            difficulty: 'beginner',
+            duration: 30,
+            topics: ['bash', 'variables', 'drill', 'linux', 'command-line'],
+            paths: [],
+            components: {
+                lab: 'houses/script/labs/linux/script-bash-variables-drill.lab.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'script-blacksite-demo': {
+            id: 'script-blacksite-demo',
+            title: 'BLACKSITE TERMINAL',
+            description: 'BLACKSITE TERMINAL — applet content for script house',
+            house: 'script',
+            type: 'applet',
+            difficulty: 'beginner',
+            duration: 25,
+            topics: ['blacksite', 'terminal', 'linux', 'command-line'],
+            paths: [],
+            components: {
+                applet: 'houses/script/courses/grep-pipe-mastery/script-blacksite-demo.applet.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'script-certificate': {
+            id: 'script-certificate',
+            title: 'Certificate - Zero to Python',
+            description: 'Certificate - Zero to Python — module content for script house',
+            house: 'script',
+            type: 'module',
+            difficulty: 'beginner',
+            duration: 45,
+            topics: ['certificate', 'zero', 'python', 'linux', 'command-line'],
+            paths: [],
+            components: {
+                module: 'houses/script/modules/python/script-certificate.module.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'script-clh-001-intro-to-hacker-cli': {
+            id: 'script-clh-001-intro-to-hacker-cli',
+            title: 'CLH-001: Introduction to Hacker CLI',
+            description: 'CLH-001: Introduction to Hacker CLI — applet content for script house',
+            house: 'script',
+            type: 'applet',
+            difficulty: 'beginner',
+            duration: 25,
+            topics: ['clh-001', 'hacker', 'cli', 'linux', 'command-line'],
+            paths: [],
+            components: {
+                applet: 'houses/script/applets/linux/script-clh-001-intro-to-hacker-cli.applet.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'script-clh-002-navigation-recon': {
+            id: 'script-clh-002-navigation-recon',
+            title: 'CLH-002: Navigation & Reconnaissance',
+            description: 'CLH-002: Navigation & Reconnaissance — applet content for script house',
+            house: 'script',
+            type: 'applet',
+            difficulty: 'beginner',
+            duration: 25,
+            topics: ['clh-002', 'navigation', 'reconnaissance', 'linux', 'command-line'],
+            paths: [],
+            components: {
+                applet: 'houses/script/applets/linux/script-clh-002-navigation-recon.applet.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'script-clh-003-pattern-hunting': {
+            id: 'script-clh-003-pattern-hunting',
+            title: 'CLH-003: Pattern Hunting',
+            description: 'CLH-003: Pattern Hunting — applet content for script house',
+            house: 'script',
+            type: 'applet',
+            difficulty: 'beginner',
+            duration: 25,
+            topics: ['clh-003', 'pattern', 'hunting', 'linux', 'command-line'],
+            paths: [],
+            components: {
+                applet: 'houses/script/applets/linux/script-clh-003-pattern-hunting.applet.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'script-clh-004-process-investigation': {
+            id: 'script-clh-004-process-investigation',
+            title: 'CLH-004: Process Investigation',
+            description: 'CLH-004: Process Investigation — applet content for script house',
+            house: 'script',
+            type: 'applet',
+            difficulty: 'beginner',
+            duration: 25,
+            topics: ['clh-004', 'process', 'investigation', 'linux', 'command-line'],
+            paths: [],
+            components: {
+                applet: 'houses/script/applets/linux/script-clh-004-process-investigation.applet.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'script-clh-005-log-analysis': {
+            id: 'script-clh-005-log-analysis',
+            title: 'CLH-005: Log Analysis',
+            description: 'CLH-005: Log Analysis — applet content for script house',
+            house: 'script',
+            type: 'applet',
+            difficulty: 'beginner',
+            duration: 25,
+            topics: ['clh-005', 'log', 'analysis', 'linux', 'command-line'],
+            paths: [],
+            components: {
+                applet: 'houses/script/applets/linux/script-clh-005-log-analysis.applet.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'script-clh-006-file-operations': {
+            id: 'script-clh-006-file-operations',
+            title: 'CLH-006: File Operations',
+            description: 'CLH-006: File Operations — applet content for script house',
+            house: 'script',
+            type: 'applet',
+            difficulty: 'beginner',
+            duration: 25,
+            topics: ['clh-006', 'file', 'operations', 'linux', 'command-line'],
+            paths: [],
+            components: {
+                applet: 'houses/script/applets/linux/script-clh-006-file-operations.applet.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'script-clh-007-permissions': {
+            id: 'script-clh-007-permissions',
+            title: 'CLH-007: Permissions & Access Control',
+            description: 'CLH-007: Permissions & Access Control — applet content for script house',
+            house: 'script',
+            type: 'applet',
+            difficulty: 'beginner',
+            duration: 25,
+            topics: ['clh-007', 'permissions', 'access', 'linux', 'command-line'],
+            paths: [],
+            components: {
+                applet: 'houses/script/applets/linux/script-clh-007-permissions.applet.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'script-clh-008-shell-scripting': {
+            id: 'script-clh-008-shell-scripting',
+            title: 'CLH-008: Shell Scripting Basics',
+            description: 'CLH-008: Shell Scripting Basics — applet content for script house',
+            house: 'script',
+            type: 'applet',
+            difficulty: 'beginner',
+            duration: 25,
+            topics: ['clh-008', 'shell', 'scripting', 'linux', 'command-line'],
+            paths: [],
+            components: {
+                applet: 'houses/script/applets/linux/script-clh-008-shell-scripting.applet.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'script-clh-009-text-processing': {
+            id: 'script-clh-009-text-processing',
+            title: 'CLH-009: Text Processing',
+            description: 'CLH-009: Text Processing — applet content for script house',
+            house: 'script',
+            type: 'applet',
+            difficulty: 'beginner',
+            duration: 25,
+            topics: ['clh-009', 'text', 'processing', 'linux', 'command-line'],
+            paths: [],
+            components: {
+                applet: 'houses/script/applets/linux/script-clh-009-text-processing.applet.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'script-clh-010-io-redirection': {
+            id: 'script-clh-010-io-redirection',
+            title: 'CLH-010: I/O Redirection',
+            description: 'CLH-010: I/O Redirection — applet content for script house',
+            house: 'script',
+            type: 'applet',
+            difficulty: 'beginner',
+            duration: 25,
+            topics: ['clh-010', 'redirection', 'linux', 'command-line'],
+            paths: [],
+            components: {
+                applet: 'houses/script/applets/linux/script-clh-010-io-redirection.applet.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'script-clh-011-advanced-grep': {
+            id: 'script-clh-011-advanced-grep',
+            title: 'CLH-011: Advanced Grep & Regex',
+            description: 'CLH-011: Advanced Grep & Regex — applet content for script house',
+            house: 'script',
+            type: 'applet',
+            difficulty: 'beginner',
+            duration: 25,
+            topics: ['clh-011', 'grep', 'regex', 'linux', 'command-line'],
+            paths: [],
+            components: {
+                applet: 'houses/script/applets/linux/script-clh-011-advanced-grep.applet.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'script-clh-012-network-basics': {
+            id: 'script-clh-012-network-basics',
+            title: 'CLH-012: Network Basics',
+            description: 'CLH-012: Network Basics — applet content for script house',
+            house: 'script',
+            type: 'applet',
+            difficulty: 'beginner',
+            duration: 25,
+            topics: ['clh-012', 'network', 'linux', 'command-line'],
+            paths: [],
+            components: {
+                applet: 'houses/script/applets/linux/script-clh-012-network-basics.applet.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'script-clh-013-environment': {
+            id: 'script-clh-013-environment',
+            title: 'CLH-013: Environment Variables',
+            description: 'CLH-013: Environment Variables — applet content for script house',
+            house: 'script',
+            type: 'applet',
+            difficulty: 'beginner',
+            duration: 25,
+            topics: ['clh-013', 'environment', 'variables', 'linux', 'command-line'],
+            paths: [],
+            components: {
+                applet: 'houses/script/applets/linux/script-clh-013-environment.applet.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'script-clh-014-process-control': {
+            id: 'script-clh-014-process-control',
+            title: 'CLH-014: Process Control',
+            description: 'CLH-014: Process Control — applet content for script house',
+            house: 'script',
+            type: 'applet',
+            difficulty: 'beginner',
+            duration: 25,
+            topics: ['clh-014', 'process', 'control', 'linux', 'command-line'],
+            paths: [],
+            components: {
+                applet: 'houses/script/applets/linux/script-clh-014-process-control.applet.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'script-clh-015-capstone': {
+            id: 'script-clh-015-capstone',
+            title: 'CLH-015: Capstone Mission',
+            description: 'CLH-015: Capstone Mission — applet content for script house',
+            house: 'script',
+            type: 'applet',
+            difficulty: 'beginner',
+            duration: 25,
+            topics: ['clh-015', 'capstone', 'mission', 'linux', 'command-line'],
+            paths: [],
+            components: {
+                applet: 'houses/script/applets/linux/script-clh-015-capstone.applet.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'script-clh-016-intro': {
+            id: 'script-clh-016-intro',
+            title: 'CLH-016: System Intel',
+            description: 'CLH-016: System Intel — applet content for script house',
+            house: 'script',
+            type: 'applet',
+            difficulty: 'beginner',
+            duration: 25,
+            topics: ['clh-016', 'system', 'intel', 'linux', 'command-line'],
+            paths: [],
+            components: {
+                applet: 'houses/script/clh/script-clh-016-intro.applet.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'script-clh-016-system-intel': {
+            id: 'script-clh-016-system-intel',
+            title: 'CLH-016: System Intel',
+            description: 'CLH-016: System Intel — applet content for script house',
+            house: 'script',
+            type: 'applet',
+            difficulty: 'beginner',
+            duration: 25,
+            topics: ['clh-016', 'system', 'intel', 'linux', 'command-line'],
+            paths: [],
+            components: {
+                applet: 'houses/script/applets/linux/script-clh-016-system-intel.applet.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'script-clh-017-find-locate': {
+            id: 'script-clh-017-find-locate',
+            title: 'CLH-017: Find & Locate',
+            description: 'CLH-017: Find & Locate — applet content for script house',
+            house: 'script',
+            type: 'applet',
+            difficulty: 'beginner',
+            duration: 25,
+            topics: ['clh-017', 'find', 'locate', 'linux', 'command-line'],
+            paths: [],
+            components: {
+                applet: 'houses/script/applets/linux/script-clh-017-find-locate.applet.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'script-clh-017-intro': {
+            id: 'script-clh-017-intro',
+            title: 'CLH-017: Find & Locate',
+            description: 'CLH-017: Find & Locate — applet content for script house',
+            house: 'script',
+            type: 'applet',
+            difficulty: 'beginner',
+            duration: 25,
+            topics: ['clh-017', 'find', 'locate', 'linux', 'command-line'],
+            paths: [],
+            components: {
+                applet: 'houses/script/clh/script-clh-017-intro.applet.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'script-clh-018-archive-ops': {
+            id: 'script-clh-018-archive-ops',
+            title: 'CLH-018: Archive Operations',
+            description: 'CLH-018: Archive Operations — applet content for script house',
+            house: 'script',
+            type: 'applet',
+            difficulty: 'beginner',
+            duration: 25,
+            topics: ['clh-018', 'archive', 'operations', 'linux', 'command-line'],
+            paths: [],
+            components: {
+                applet: 'houses/script/applets/linux/script-clh-018-archive-ops.applet.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'script-clh-018-intro': {
+            id: 'script-clh-018-intro',
+            title: 'CLH-018: Archive Operations',
+            description: 'CLH-018: Archive Operations — applet content for script house',
+            house: 'script',
+            type: 'applet',
+            difficulty: 'beginner',
+            duration: 25,
+            topics: ['clh-018', 'archive', 'operations', 'linux', 'command-line'],
+            paths: [],
+            components: {
+                applet: 'houses/script/clh/script-clh-018-intro.applet.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'script-clh-019-disk-forensics': {
+            id: 'script-clh-019-disk-forensics',
+            title: 'CLH-019: Disk Forensics',
+            description: 'CLH-019: Disk Forensics — applet content for script house',
+            house: 'script',
+            type: 'applet',
+            difficulty: 'beginner',
+            duration: 25,
+            topics: ['clh-019', 'disk', 'forensics', 'linux', 'command-line'],
+            paths: [],
+            components: {
+                applet: 'houses/script/applets/linux/script-clh-019-disk-forensics.applet.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'script-clh-019-intro': {
+            id: 'script-clh-019-intro',
+            title: 'CLH-019: Disk Forensics',
+            description: 'CLH-019: Disk Forensics — applet content for script house',
+            house: 'script',
+            type: 'applet',
+            difficulty: 'beginner',
+            duration: 25,
+            topics: ['clh-019', 'disk', 'forensics', 'linux', 'command-line'],
+            paths: [],
+            components: {
+                applet: 'houses/script/clh/script-clh-019-intro.applet.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'script-clh-020-intro': {
+            id: 'script-clh-020-intro',
+            title: 'CLH-020: User Reconnaissance',
+            description: 'CLH-020: User Reconnaissance — applet content for script house',
+            house: 'script',
+            type: 'applet',
+            difficulty: 'beginner',
+            duration: 25,
+            topics: ['clh-020', 'user', 'reconnaissance', 'linux', 'command-line'],
+            paths: [],
+            components: {
+                applet: 'houses/script/clh/script-clh-020-intro.applet.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'script-clh-020-user-recon': {
+            id: 'script-clh-020-user-recon',
+            title: 'CLH-020: User Reconnaissance',
+            description: 'CLH-020: User Reconnaissance — applet content for script house',
+            house: 'script',
+            type: 'applet',
+            difficulty: 'beginner',
+            duration: 25,
+            topics: ['clh-020', 'user', 'reconnaissance', 'linux', 'command-line'],
+            paths: [],
+            components: {
+                applet: 'houses/script/applets/linux/script-clh-020-user-recon.applet.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'script-clh-021-intro': {
+            id: 'script-clh-021-intro',
+            title: 'CLH-021: SSH Operations',
+            description: 'CLH-021: SSH Operations — applet content for script house',
+            house: 'script',
+            type: 'applet',
+            difficulty: 'beginner',
+            duration: 25,
+            topics: ['clh-021', 'ssh', 'operations', 'linux', 'command-line'],
+            paths: [],
+            components: {
+                applet: 'houses/script/clh/script-clh-021-intro.applet.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'script-clh-021-ssh-ops': {
+            id: 'script-clh-021-ssh-ops',
+            title: 'CLH-021: SSH Operations',
+            description: 'CLH-021: SSH Operations — applet content for script house',
+            house: 'script',
+            type: 'applet',
+            difficulty: 'beginner',
+            duration: 25,
+            topics: ['clh-021', 'ssh', 'operations', 'linux', 'command-line'],
+            paths: [],
+            components: {
+                applet: 'houses/script/applets/linux/script-clh-021-ssh-ops.applet.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'script-clh-022-intro': {
+            id: 'script-clh-022-intro',
+            title: 'CLH-022: Network Reconnaissance',
+            description: 'CLH-022: Network Reconnaissance — applet content for script house',
+            house: 'script',
+            type: 'applet',
+            difficulty: 'beginner',
+            duration: 25,
+            topics: ['clh-022', 'network', 'reconnaissance', 'linux', 'command-line'],
+            paths: [],
+            components: {
+                applet: 'houses/script/clh/script-clh-022-intro.applet.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'script-clh-022-network-recon': {
+            id: 'script-clh-022-network-recon',
+            title: 'CLH-022: Network Reconnaissance',
+            description: 'CLH-022: Network Reconnaissance — applet content for script house',
+            house: 'script',
+            type: 'applet',
+            difficulty: 'beginner',
+            duration: 25,
+            topics: ['clh-022', 'network', 'reconnaissance', 'linux', 'command-line'],
+            paths: [],
+            components: {
+                applet: 'houses/script/applets/linux/script-clh-022-network-recon.applet.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'script-clh-023-intro': {
+            id: 'script-clh-023-intro',
+            title: 'CLH-023: Service Management',
+            description: 'CLH-023: Service Management — applet content for script house',
+            house: 'script',
+            type: 'applet',
+            difficulty: 'beginner',
+            duration: 25,
+            topics: ['clh-023', 'service', 'management', 'linux', 'command-line'],
+            paths: [],
+            components: {
+                applet: 'houses/script/clh/script-clh-023-intro.applet.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'script-clh-023-services': {
+            id: 'script-clh-023-services',
+            title: 'CLH-023: Service Management',
+            description: 'CLH-023: Service Management — applet content for script house',
+            house: 'script',
+            type: 'applet',
+            difficulty: 'beginner',
+            duration: 25,
+            topics: ['clh-023', 'service', 'management', 'linux', 'command-line'],
+            paths: [],
+            components: {
+                applet: 'houses/script/applets/linux/script-clh-023-services.applet.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'script-clh-024-cron': {
+            id: 'script-clh-024-cron',
+            title: 'CLH-024: Scheduled Tasks',
+            description: 'CLH-024: Scheduled Tasks — applet content for script house',
+            house: 'script',
+            type: 'applet',
+            difficulty: 'beginner',
+            duration: 25,
+            topics: ['clh-024', 'scheduled', 'tasks', 'linux', 'command-line'],
+            paths: [],
+            components: {
+                applet: 'houses/script/applets/linux/script-clh-024-cron.applet.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'script-clh-024-intro': {
+            id: 'script-clh-024-intro',
+            title: 'CLH-024: Scheduled Tasks',
+            description: 'CLH-024: Scheduled Tasks — applet content for script house',
+            house: 'script',
+            type: 'applet',
+            difficulty: 'beginner',
+            duration: 25,
+            topics: ['clh-024', 'scheduled', 'tasks', 'linux', 'command-line'],
+            paths: [],
+            components: {
+                applet: 'houses/script/clh/script-clh-024-intro.applet.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'script-clh-025-intro': {
+            id: 'script-clh-025-intro',
+            title: 'CLH-025: Package Management',
+            description: 'CLH-025: Package Management — applet content for script house',
+            house: 'script',
+            type: 'applet',
+            difficulty: 'beginner',
+            duration: 25,
+            topics: ['clh-025', 'package', 'management', 'linux', 'command-line'],
+            paths: [],
+            components: {
+                applet: 'houses/script/clh/script-clh-025-intro.applet.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'script-clh-025-packages': {
+            id: 'script-clh-025-packages',
+            title: 'CLH-025: Package Management',
+            description: 'CLH-025: Package Management — applet content for script house',
+            house: 'script',
+            type: 'applet',
+            difficulty: 'beginner',
+            duration: 25,
+            topics: ['clh-025', 'package', 'management', 'linux', 'command-line'],
+            paths: [],
+            components: {
+                applet: 'houses/script/applets/linux/script-clh-025-packages.applet.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'script-clh-026-access': {
+            id: 'script-clh-026-access',
+            title: 'CLH-026: Access Control',
+            description: 'CLH-026: Access Control — applet content for script house',
+            house: 'script',
+            type: 'applet',
+            difficulty: 'beginner',
+            duration: 25,
+            topics: ['clh-026', 'access', 'control', 'linux', 'command-line'],
+            paths: [],
+            components: {
+                applet: 'houses/script/applets/linux/script-clh-026-access.applet.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'script-clh-026-intro': {
+            id: 'script-clh-026-intro',
+            title: 'CLH-026: Access Control',
+            description: 'CLH-026: Access Control — applet content for script house',
+            house: 'script',
+            type: 'applet',
+            difficulty: 'beginner',
+            duration: 25,
+            topics: ['clh-026', 'access', 'control', 'linux', 'command-line'],
+            paths: [],
+            components: {
+                applet: 'houses/script/clh/script-clh-026-intro.applet.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'script-clh-027-intro': {
+            id: 'script-clh-027-intro',
+            title: 'CLH-027: User Management',
+            description: 'CLH-027: User Management — applet content for script house',
+            house: 'script',
+            type: 'applet',
+            difficulty: 'beginner',
+            duration: 25,
+            topics: ['clh-027', 'user', 'management', 'linux', 'command-line'],
+            paths: [],
+            components: {
+                applet: 'houses/script/clh/script-clh-027-intro.applet.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'script-clh-027-users': {
+            id: 'script-clh-027-users',
+            title: 'CLH-027: User Management',
+            description: 'CLH-027: User Management — applet content for script house',
+            house: 'script',
+            type: 'applet',
+            difficulty: 'beginner',
+            duration: 25,
+            topics: ['clh-027', 'user', 'management', 'linux', 'command-line'],
+            paths: [],
+            components: {
+                applet: 'houses/script/applets/linux/script-clh-027-users.applet.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'script-clh-028-intro': {
+            id: 'script-clh-028-intro',
+            title: 'CLH-028: System Monitoring',
+            description: 'CLH-028: System Monitoring — applet content for script house',
+            house: 'script',
+            type: 'applet',
+            difficulty: 'beginner',
+            duration: 25,
+            topics: ['clh-028', 'system', 'monitoring', 'linux', 'command-line'],
+            paths: [],
+            components: {
+                applet: 'houses/script/clh/script-clh-028-intro.applet.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'script-clh-028-monitoring': {
+            id: 'script-clh-028-monitoring',
+            title: 'CLH-028: System Monitoring',
+            description: 'CLH-028: System Monitoring — applet content for script house',
+            house: 'script',
+            type: 'applet',
+            difficulty: 'beginner',
+            duration: 25,
+            topics: ['clh-028', 'system', 'monitoring', 'linux', 'command-line'],
+            paths: [],
+            components: {
+                applet: 'houses/script/applets/linux/script-clh-028-monitoring.applet.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'script-clh-029-intro': {
+            id: 'script-clh-029-intro',
+            title: 'CLH-029: Vim Essentials',
+            description: 'CLH-029: Vim Essentials — applet content for script house',
+            house: 'script',
+            type: 'applet',
+            difficulty: 'beginner',
+            duration: 25,
+            topics: ['clh-029', 'vim', 'linux', 'command-line'],
+            paths: [],
+            components: {
+                applet: 'houses/script/clh/script-clh-029-intro.applet.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'script-clh-029-vim': {
+            id: 'script-clh-029-vim',
+            title: 'CLH-029: Vim Essentials',
+            description: 'CLH-029: Vim Essentials — applet content for script house',
+            house: 'script',
+            type: 'applet',
+            difficulty: 'beginner',
+            duration: 25,
+            topics: ['clh-029', 'vim', 'linux', 'command-line'],
+            paths: [],
+            components: {
+                applet: 'houses/script/applets/linux/script-clh-029-vim.applet.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'script-clh-030-chimera': {
+            id: 'script-clh-030-chimera',
+            title: 'CLH-030: OPERATION CHIMERA',
+            description: 'CLH-030: OPERATION CHIMERA — applet content for script house',
+            house: 'script',
+            type: 'applet',
+            difficulty: 'beginner',
+            duration: 25,
+            topics: ['clh-030', 'operation', 'chimera', 'linux', 'command-line'],
+            paths: [],
+            components: {
+                applet: 'houses/script/applets/linux/script-clh-030-chimera.applet.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'script-clh-030-intro': {
+            id: 'script-clh-030-intro',
+            title: 'CLH-030: Final Operation',
+            description: 'CLH-030: Final Operation — applet content for script house',
+            house: 'script',
+            type: 'applet',
+            difficulty: 'beginner',
+            duration: 25,
+            topics: ['clh-030', 'final', 'operation', 'linux', 'command-line'],
+            paths: [],
+            components: {
+                applet: 'houses/script/clh/script-clh-030-intro.applet.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'script-clh-031-blackout': {
+            id: 'script-clh-031-blackout',
+            title: 'CLH-031: Operation BLACKOUT',
+            description: 'CLH-031: Operation BLACKOUT — applet content for script house',
+            house: 'script',
+            type: 'applet',
+            difficulty: 'beginner',
+            duration: 25,
+            topics: ['clh-031', 'operation', 'blackout', 'linux', 'command-line'],
+            paths: [],
+            components: {
+                applet: 'houses/script/applets/linux/script-clh-031-blackout.applet.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'script-cron-builder': {
+            id: 'script-cron-builder',
+            title: 'Cron Job Builder',
+            description: 'Cron Job Builder — lab content for script house',
+            house: 'script',
+            type: 'lab',
+            difficulty: 'beginner',
+            duration: 30,
+            topics: ['cron', 'job', 'builder', 'linux', 'command-line'],
+            paths: [],
+            components: {
+                lab: 'houses/script/labs/script-cron-builder.lab.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'script-directory': {
+            id: 'script-directory',
+            title: 'Linux Directory Explorer',
+            description: 'Linux Directory Explorer — tool content for script house',
+            house: 'script',
+            type: 'tool',
+            difficulty: 'beginner',
+            duration: 20,
+            topics: ['linux', 'directory', 'explorer', 'command-line'],
+            paths: [],
+            components: {
+                applet: 'houses/script/linux/tools/script-directory.tool.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'script-linux-compression': {
+            id: 'script-linux-compression',
+            title: 'Mission: Compression & Archives',
+            description: 'Mission: Compression & Archives — lab content for script house',
+            house: 'script',
+            type: 'lab',
+            difficulty: 'beginner',
+            duration: 30,
+            topics: ['mission', 'compression', 'archives', 'linux', 'command-line'],
+            paths: [],
+            components: {
+                lab: 'houses/script/labs/linux/script-linux-compression.lab.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'script-linux-disk-drill': {
+            id: 'script-linux-disk-drill',
+            title: 'Disk Drill',
+            description: 'Disk Drill — lab content for script house',
+            house: 'script',
+            type: 'lab',
+            difficulty: 'beginner',
+            duration: 30,
+            topics: ['disk', 'drill', 'linux', 'command-line'],
+            paths: [],
+            components: {
+                lab: 'houses/script/labs/linux/script-linux-disk-drill.lab.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'script-linux-disk-mgmt': {
+            id: 'script-linux-disk-mgmt',
+            title: 'Disk Management Mission',
+            description: 'Disk Management Mission — lab content for script house',
+            house: 'script',
+            type: 'lab',
+            difficulty: 'beginner',
+            duration: 30,
+            topics: ['disk', 'management', 'mission', 'linux', 'command-line'],
+            paths: [],
+            components: {
+                lab: 'houses/script/labs/linux/script-linux-disk-mgmt.lab.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'script-linux-disk-partition-prep': {
+            id: 'script-linux-disk-partition-prep',
+            title: 'Disk Partition Prep',
+            description: 'Disk Partition Prep — lab content for script house',
+            house: 'script',
+            type: 'lab',
+            difficulty: 'beginner',
+            duration: 30,
+            topics: ['disk', 'partition', 'prep', 'linux', 'command-line'],
+            paths: [],
+            components: {
+                lab: 'houses/script/labs/linux/script-linux-disk-partition-prep.lab.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'script-linux-env-vars': {
+            id: 'script-linux-env-vars',
+            title: 'Environment Variables Mission',
+            description: 'Environment Variables Mission — lab content for script house',
+            house: 'script',
+            type: 'lab',
+            difficulty: 'beginner',
+            duration: 30,
+            topics: ['environment', 'variables', 'mission', 'linux', 'command-line'],
+            paths: [],
+            components: {
+                lab: 'houses/script/labs/linux/script-linux-env-vars.lab.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'script-linux-file-mgmt-prep': {
+            id: 'script-linux-file-mgmt-prep',
+            title: 'Prep: File Management Chain',
+            description: 'Prep: File Management Chain — lab content for script house',
+            house: 'script',
+            type: 'lab',
+            difficulty: 'beginner',
+            duration: 30,
+            topics: ['prep', 'file', 'management', 'linux', 'command-line'],
+            paths: [],
+            components: {
+                lab: 'houses/script/labs/linux/script-linux-file-mgmt-prep.lab.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'script-linux-file-ops': {
+            id: 'script-linux-file-ops',
+            title: 'Mission: File Operations',
+            description: 'Mission: File Operations — lab content for script house',
+            house: 'script',
+            type: 'lab',
+            difficulty: 'beginner',
+            duration: 30,
+            topics: ['mission', 'file', 'operations', 'linux', 'command-line'],
+            paths: [],
+            components: {
+                lab: 'houses/script/labs/linux/script-linux-file-ops.lab.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'script-linux-file-search': {
+            id: 'script-linux-file-search',
+            title: 'Mission: File Searching',
+            description: 'Mission: File Searching — lab content for script house',
+            house: 'script',
+            type: 'lab',
+            difficulty: 'beginner',
+            duration: 30,
+            topics: ['mission', 'file', 'searching', 'linux', 'command-line'],
+            paths: [],
+            components: {
+                lab: 'houses/script/labs/linux/script-linux-file-search.lab.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'script-linux-find-drill': {
+            id: 'script-linux-find-drill',
+            title: 'File Finding Drill',
+            description: 'File Finding Drill — lab content for script house',
+            house: 'script',
+            type: 'lab',
+            difficulty: 'beginner',
+            duration: 30,
+            topics: ['file', 'finding', 'drill', 'linux', 'command-line'],
+            paths: [],
+            components: {
+                lab: 'houses/script/labs/linux/script-linux-find-drill.lab.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'script-linux-links': {
+            id: 'script-linux-links',
+            title: 'Mission: Links & Symlinks',
+            description: 'Mission: Links & Symlinks — lab content for script house',
+            house: 'script',
+            type: 'lab',
+            difficulty: 'beginner',
+            duration: 30,
+            topics: ['mission', 'links', 'symlinks', 'linux', 'command-line'],
+            paths: [],
+            components: {
+                lab: 'houses/script/labs/linux/script-linux-links.lab.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'script-linux-log-analysis': {
+            id: 'script-linux-log-analysis',
+            title: 'Log Analysis Mission',
+            description: 'Log Analysis Mission — lab content for script house',
+            house: 'script',
+            type: 'lab',
+            difficulty: 'beginner',
+            duration: 30,
+            topics: ['log', 'analysis', 'mission', 'linux', 'command-line'],
+            paths: [],
+            components: {
+                lab: 'houses/script/labs/linux/script-linux-log-analysis.lab.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'script-linux-log-analysis-mission': {
+            id: 'script-linux-log-analysis-mission',
+            title: 'Log Analysis Mission',
+            description: 'Log Analysis Mission — lab content for script house',
+            house: 'script',
+            type: 'lab',
+            difficulty: 'beginner',
+            duration: 30,
+            topics: ['log', 'analysis', 'mission', 'linux', 'command-line'],
+            paths: [],
+            components: {
+                lab: 'houses/script/labs/linux/script-linux-log-analysis-mission.lab.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'script-linux-log-analysis-prep': {
+            id: 'script-linux-log-analysis-prep',
+            title: 'Prep: Log Analysis',
+            description: 'Prep: Log Analysis — lab content for script house',
+            house: 'script',
+            type: 'lab',
+            difficulty: 'beginner',
+            duration: 30,
+            topics: ['prep', 'log', 'analysis', 'linux', 'command-line'],
+            paths: [],
+            components: {
+                lab: 'houses/script/labs/linux/script-linux-log-analysis-prep.lab.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'script-linux-log-investigation-prep': {
+            id: 'script-linux-log-investigation-prep',
+            title: 'Log Investigation Prep',
+            description: 'Log Investigation Prep — lab content for script house',
+            house: 'script',
+            type: 'lab',
+            difficulty: 'beginner',
+            duration: 30,
+            topics: ['log', 'investigation', 'prep', 'linux', 'command-line'],
+            paths: [],
+            components: {
+                lab: 'houses/script/labs/linux/script-linux-log-investigation-prep.lab.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'script-linux-mkdir-drill': {
+            id: 'script-linux-mkdir-drill',
+            title: 'Directory Builder Drill',
+            description: 'Directory Builder Drill — lab content for script house',
+            house: 'script',
+            type: 'lab',
+            difficulty: 'beginner',
+            duration: 30,
+            topics: ['directory', 'builder', 'drill', 'linux', 'command-line'],
+            paths: [],
+            components: {
+                lab: 'houses/script/labs/linux/script-linux-mkdir-drill.lab.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'script-linux-nav-drill': {
+            id: 'script-linux-nav-drill',
+            title: 'Navigation Drill',
+            description: 'Navigation Drill — lab content for script house',
+            house: 'script',
+            type: 'lab',
+            difficulty: 'beginner',
+            duration: 30,
+            topics: ['navigation', 'drill', 'linux', 'command-line'],
+            paths: [],
+            components: {
+                lab: 'houses/script/labs/linux/script-linux-nav-drill.lab.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'script-linux-network-config': {
+            id: 'script-linux-network-config',
+            title: 'Network Configuration Mission',
+            description: 'Network Configuration Mission — lab content for script house',
+            house: 'script',
+            type: 'lab',
+            difficulty: 'beginner',
+            duration: 30,
+            topics: ['network', 'configuration', 'mission', 'linux', 'command-line'],
+            paths: [],
+            components: {
+                lab: 'houses/script/labs/linux/script-linux-network-config.lab.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'script-linux-network-drill': {
+            id: 'script-linux-network-drill',
+            title: 'Network Drill',
+            description: 'Network Drill — lab content for script house',
+            house: 'script',
+            type: 'lab',
+            difficulty: 'beginner',
+            duration: 30,
+            topics: ['network', 'drill', 'linux', 'command-line'],
+            paths: [],
+            components: {
+                lab: 'houses/script/labs/linux/script-linux-network-drill.lab.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'script-linux-package-mgmt': {
+            id: 'script-linux-package-mgmt',
+            title: 'Package Management Mission',
+            description: 'Package Management Mission — lab content for script house',
+            house: 'script',
+            type: 'lab',
+            difficulty: 'beginner',
+            duration: 30,
+            topics: ['package', 'management', 'mission', 'linux', 'command-line'],
+            paths: [],
+            components: {
+                lab: 'houses/script/labs/linux/script-linux-package-mgmt.lab.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'script-linux-permissions-drill': {
+            id: 'script-linux-permissions-drill',
+            title: 'Permissions Drill',
+            description: 'Permissions Drill — lab content for script house',
+            house: 'script',
+            type: 'lab',
+            difficulty: 'beginner',
+            duration: 30,
+            topics: ['permissions', 'drill', 'linux', 'command-line'],
+            paths: [],
+            components: {
+                lab: 'houses/script/labs/linux/script-linux-permissions-drill.lab.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'script-linux-process-drill': {
+            id: 'script-linux-process-drill',
+            title: 'Process Drill',
+            description: 'Process Drill — lab content for script house',
+            house: 'script',
+            type: 'lab',
+            difficulty: 'beginner',
+            duration: 30,
+            topics: ['process', 'drill', 'linux', 'command-line'],
+            paths: [],
+            components: {
+                lab: 'houses/script/labs/linux/script-linux-process-drill.lab.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'script-linux-process-lifecycle': {
+            id: 'script-linux-process-lifecycle',
+            title: 'Process Lifecycle Visualizer',
+            description: 'Process Lifecycle Visualizer — lab content for script house',
+            house: 'script',
+            type: 'lab',
+            difficulty: 'beginner',
+            duration: 30,
+            topics: ['process', 'lifecycle', 'visualizer', 'linux', 'command-line'],
+            paths: [],
+            components: {
+                lab: 'houses/script/labs/linux/script-linux-process-lifecycle.lab.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'script-linux-process-mgmt': {
+            id: 'script-linux-process-mgmt',
+            title: 'Process Management Mission',
+            description: 'Process Management Mission — lab content for script house',
+            house: 'script',
+            type: 'lab',
+            difficulty: 'beginner',
+            duration: 30,
+            topics: ['process', 'management', 'mission', 'linux', 'command-line'],
+            paths: [],
+            components: {
+                lab: 'houses/script/labs/linux/script-linux-process-mgmt.lab.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'script-linux-service-drill': {
+            id: 'script-linux-service-drill',
+            title: 'Service Drill',
+            description: 'Service Drill — lab content for script house',
+            house: 'script',
+            type: 'lab',
+            difficulty: 'beginner',
+            duration: 30,
+            topics: ['service', 'drill', 'linux', 'command-line'],
+            paths: [],
+            components: {
+                lab: 'houses/script/labs/linux/script-linux-service-drill.lab.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'script-linux-service-mgmt': {
+            id: 'script-linux-service-mgmt',
+            title: 'Service Management Mission',
+            description: 'Service Management Mission — lab content for script house',
+            house: 'script',
+            type: 'lab',
+            difficulty: 'beginner',
+            duration: 30,
+            topics: ['service', 'management', 'mission', 'linux', 'command-line'],
+            paths: [],
+            components: {
+                lab: 'houses/script/labs/linux/script-linux-service-mgmt.lab.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'script-linux-ssh': {
+            id: 'script-linux-ssh',
+            title: 'SSH Operations Mission',
+            description: 'SSH Operations Mission — lab content for script house',
+            house: 'script',
+            type: 'lab',
+            difficulty: 'beginner',
+            duration: 30,
+            topics: ['ssh', 'operations', 'mission', 'linux', 'command-line'],
+            paths: [],
+            components: {
+                lab: 'houses/script/labs/linux/script-linux-ssh.lab.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'script-linux-sysadmin-reference': {
+            id: 'script-linux-sysadmin-reference',
+            title: 'Sysadmin Quick Reference',
+            description: 'Sysadmin Quick Reference — lab content for script house',
+            house: 'script',
+            type: 'lab',
+            difficulty: 'beginner',
+            duration: 30,
+            topics: ['sysadmin', 'quick', 'reference', 'linux', 'command-line'],
+            paths: [],
+            components: {
+                lab: 'houses/script/labs/linux/script-linux-sysadmin-reference.lab.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'script-linux-systemctl': {
+            id: 'script-linux-systemctl',
+            title: 'Service Management Mission',
+            description: 'Service Management Mission — lab content for script house',
+            house: 'script',
+            type: 'lab',
+            difficulty: 'beginner',
+            duration: 30,
+            topics: ['service', 'management', 'mission', 'linux', 'command-line'],
+            paths: [],
+            components: {
+                lab: 'houses/script/labs/linux/script-linux-systemctl.lab.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'script-linux-text-viewing': {
+            id: 'script-linux-text-viewing',
+            title: 'Mission: Text Viewing & Processing',
+            description: 'Mission: Text Viewing & Processing — lab content for script house',
+            house: 'script',
+            type: 'lab',
+            difficulty: 'beginner',
+            duration: 30,
+            topics: ['mission', 'text', 'viewing', 'linux', 'command-line'],
+            paths: [],
+            components: {
+                lab: 'houses/script/labs/linux/script-linux-text-viewing.lab.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'script-linux-users': {
+            id: 'script-linux-users',
+            title: 'Mission: User Management',
+            description: 'Mission: User Management — lab content for script house',
+            house: 'script',
+            type: 'lab',
+            difficulty: 'beginner',
+            duration: 30,
+            topics: ['mission', 'user', 'management', 'linux', 'command-line'],
+            paths: [],
+            components: {
+                lab: 'houses/script/labs/linux/script-linux-users.lab.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'script-linux-viewing-drill': {
+            id: 'script-linux-viewing-drill',
+            title: 'File Viewing Drill',
+            description: 'File Viewing Drill — lab content for script house',
+            house: 'script',
+            type: 'lab',
+            difficulty: 'beginner',
+            duration: 30,
+            topics: ['file', 'viewing', 'drill', 'linux', 'command-line'],
+            paths: [],
+            components: {
+                lab: 'houses/script/labs/linux/script-linux-viewing-drill.lab.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'script-linux-wildcards': {
+            id: 'script-linux-wildcards',
+            title: 'Mission: Wildcards & Globbing',
+            description: 'Mission: Wildcards & Globbing — lab content for script house',
+            house: 'script',
+            type: 'lab',
+            difficulty: 'beginner',
+            duration: 30,
+            topics: ['mission', 'wildcards', 'globbing', 'linux', 'command-line'],
+            paths: [],
+            components: {
+                lab: 'houses/script/labs/linux/script-linux-wildcards.lab.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'script-lm-01-welcome': {
+            id: 'script-lm-01-welcome',
+            title: 'LM-01: Welcome to Linux - Linux Mastery',
+            description: 'LM-01: Welcome to Linux - Linux Mastery — module content for script house',
+            house: 'script',
+            type: 'module',
+            difficulty: 'beginner',
+            duration: 45,
+            topics: ['lm-01', 'welcome', 'linux', 'command-line'],
+            paths: [],
+            components: {
+                module: 'houses/script/modules/linux-mastery/script-lm-01-welcome.module.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'script-lm-02-first-commands': {
+            id: 'script-lm-02-first-commands',
+            title: 'LM-02: Your First Commands - Linux Mastery',
+            description: 'LM-02: Your First Commands - Linux Mastery — module content for script house',
+            house: 'script',
+            type: 'module',
+            difficulty: 'beginner',
+            duration: 45,
+            topics: ['lm-02', 'your', 'first', 'linux', 'command-line'],
+            paths: [],
+            components: {
+                module: 'houses/script/modules/linux-mastery/script-lm-02-first-commands.module.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'script-lm-03-getting-help': {
+            id: 'script-lm-03-getting-help',
+            title: 'LM-03: Getting Help - Linux Mastery',
+            description: 'LM-03: Getting Help - Linux Mastery — module content for script house',
+            house: 'script',
+            type: 'module',
+            difficulty: 'beginner',
+            duration: 45,
+            topics: ['lm-03', 'getting', 'help', 'linux', 'command-line'],
+            paths: [],
+            components: {
+                module: 'houses/script/modules/linux-mastery/script-lm-03-getting-help.module.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'script-lm-04-terminal-environment': {
+            id: 'script-lm-04-terminal-environment',
+            title: 'LM-04: The Terminal Environment - Linux Mastery',
+            description: 'LM-04: The Terminal Environment - Linux Mastery — module content for script house',
+            house: 'script',
+            type: 'module',
+            difficulty: 'beginner',
+            duration: 45,
+            topics: ['lm-04', 'terminal', 'environment', 'linux', 'command-line'],
+            paths: [],
+            components: {
+                module: 'houses/script/modules/linux-mastery/script-lm-04-terminal-environment.module.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'script-lm-05-section1-practice': {
+            id: 'script-lm-05-section1-practice',
+            title: 'LM-05: Section 1 Practice - Linux Mastery',
+            description: 'LM-05: Section 1 Practice - Linux Mastery — module content for script house',
+            house: 'script',
+            type: 'module',
+            difficulty: 'beginner',
+            duration: 45,
+            topics: ['lm-05', 'section', 'linux', 'command-line'],
+            paths: [],
+            components: {
+                module: 'houses/script/modules/linux-mastery/script-lm-05-section1-practice.module.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'script-lm-06-navigation': {
+            id: 'script-lm-06-navigation',
+            title: 'LM-06: Directory Navigation - Linux Mastery',
+            description: 'LM-06: Directory Navigation - Linux Mastery — module content for script house',
+            house: 'script',
+            type: 'module',
+            difficulty: 'beginner',
+            duration: 45,
+            topics: ['lm-06', 'directory', 'navigation', 'linux', 'command-line'],
+            paths: [],
+            components: {
+                module: 'houses/script/modules/linux-mastery/script-lm-06-navigation.module.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'script-lm-07-listing-files': {
+            id: 'script-lm-07-listing-files',
+            title: 'LM-07: Listing Files - Linux Mastery',
+            description: 'LM-07: Listing Files - Linux Mastery — module content for script house',
+            house: 'script',
+            type: 'module',
+            difficulty: 'beginner',
+            duration: 45,
+            topics: ['lm-07', 'listing', 'files', 'linux', 'command-line'],
+            paths: [],
+            components: {
+                module: 'houses/script/modules/linux-mastery/script-lm-07-listing-files.module.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'script-lm-08-file-operations': {
+            id: 'script-lm-08-file-operations',
+            title: 'LM-08: File Operations | Linux Mastery',
+            description: 'LM-08: File Operations | Linux Mastery — module content for script house',
+            house: 'script',
+            type: 'module',
+            difficulty: 'beginner',
+            duration: 45,
+            topics: ['lm-08', 'file', 'operations', 'linux', 'command-line'],
+            paths: [],
+            components: {
+                module: 'houses/script/modules/linux-mastery/script-lm-08-file-operations.module.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'script-lm-09-copy-move': {
+            id: 'script-lm-09-copy-move',
+            title: 'LM-09: Copy & Move | Linux Mastery',
+            description: 'LM-09: Copy & Move | Linux Mastery — module content for script house',
+            house: 'script',
+            type: 'module',
+            difficulty: 'beginner',
+            duration: 45,
+            topics: ['lm-09', 'copy', 'move', 'linux', 'command-line'],
+            paths: [],
+            components: {
+                module: 'houses/script/modules/linux-mastery/script-lm-09-copy-move.module.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'script-lm-10-viewing-files': {
+            id: 'script-lm-10-viewing-files',
+            title: 'LM-10: Viewing Files | Linux Mastery',
+            description: 'LM-10: Viewing Files | Linux Mastery — module content for script house',
+            house: 'script',
+            type: 'module',
+            difficulty: 'beginner',
+            duration: 45,
+            topics: ['lm-10', 'viewing', 'files', 'linux', 'command-line'],
+            paths: [],
+            components: {
+                module: 'houses/script/modules/linux-mastery/script-lm-10-viewing-files.module.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'script-lm-11-finding-files': {
+            id: 'script-lm-11-finding-files',
+            title: 'LM-11: Finding Files | Linux Mastery',
+            description: 'LM-11: Finding Files | Linux Mastery — module content for script house',
+            house: 'script',
+            type: 'module',
+            difficulty: 'beginner',
+            duration: 45,
+            topics: ['lm-11', 'finding', 'files', 'linux', 'command-line'],
+            paths: [],
+            components: {
+                module: 'houses/script/modules/linux-mastery/script-lm-11-finding-files.module.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'script-lm-12-section2-practice': {
+            id: 'script-lm-12-section2-practice',
+            title: 'LM-12: Section 2 Practice | Linux Mastery',
+            description: 'LM-12: Section 2 Practice | Linux Mastery — module content for script house',
+            house: 'script',
+            type: 'module',
+            difficulty: 'beginner',
+            duration: 45,
+            topics: ['lm-12', 'section', 'linux', 'command-line'],
+            paths: [],
+            components: {
+                module: 'houses/script/modules/linux-mastery/script-lm-12-section2-practice.module.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'script-lm-13-grep-basics': {
+            id: 'script-lm-13-grep-basics',
+            title: 'LM-13: grep Basics | Linux Mastery',
+            description: 'LM-13: grep Basics | Linux Mastery — module content for script house',
+            house: 'script',
+            type: 'module',
+            difficulty: 'beginner',
+            duration: 45,
+            topics: ['lm-13', 'grep', 'linux', 'command-line'],
+            paths: [],
+            components: {
+                module: 'houses/script/modules/linux-mastery/script-lm-13-grep-basics.module.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'script-lm-14-regular-expressions': {
+            id: 'script-lm-14-regular-expressions',
+            title: 'LM-14: Regular Expressions | Linux Mastery',
+            description: 'LM-14: Regular Expressions | Linux Mastery — module content for script house',
+            house: 'script',
+            type: 'module',
+            difficulty: 'beginner',
+            duration: 45,
+            topics: ['lm-14', 'regular', 'expressions', 'linux', 'command-line'],
+            paths: [],
+            components: {
+                module: 'houses/script/modules/linux-mastery/script-lm-14-regular-expressions.module.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'script-lm-15-sed-editor': {
+            id: 'script-lm-15-sed-editor',
+            title: 'LM-15: sed Stream Editor | Linux Mastery',
+            description: 'LM-15: sed Stream Editor | Linux Mastery — module content for script house',
+            house: 'script',
+            type: 'module',
+            difficulty: 'beginner',
+            duration: 45,
+            topics: ['lm-15', 'sed', 'stream', 'linux', 'command-line'],
+            paths: [],
+            components: {
+                module: 'houses/script/modules/linux-mastery/script-lm-15-sed-editor.module.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'script-lm-16-awk-processing': {
+            id: 'script-lm-16-awk-processing',
+            title: 'LM-16: awk Processing | Linux Mastery',
+            description: 'LM-16: awk Processing | Linux Mastery — module content for script house',
+            house: 'script',
+            type: 'module',
+            difficulty: 'beginner',
+            duration: 45,
+            topics: ['lm-16', 'awk', 'processing', 'linux', 'command-line'],
+            paths: [],
+            components: {
+                module: 'houses/script/modules/linux-mastery/script-lm-16-awk-processing.module.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'script-lm-17-sort-uniq': {
+            id: 'script-lm-17-sort-uniq',
+            title: 'LM-17: sort & uniq | Linux Mastery',
+            description: 'LM-17: sort & uniq | Linux Mastery — module content for script house',
+            house: 'script',
+            type: 'module',
+            difficulty: 'beginner',
+            duration: 45,
+            topics: ['lm-17', 'sort', 'uniq', 'linux', 'command-line'],
+            paths: [],
+            components: {
+                module: 'houses/script/modules/linux-mastery/script-lm-17-sort-uniq.module.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'script-lm-18-cut-paste': {
+            id: 'script-lm-18-cut-paste',
+            title: 'LM-18: cut & paste | Linux Mastery',
+            description: 'LM-18: cut & paste | Linux Mastery — module content for script house',
+            house: 'script',
+            type: 'module',
+            difficulty: 'beginner',
+            duration: 45,
+            topics: ['lm-18', 'cut', 'paste', 'linux', 'command-line'],
+            paths: [],
+            components: {
+                module: 'houses/script/modules/linux-mastery/script-lm-18-cut-paste.module.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'script-lm-19-text-pipelines': {
+            id: 'script-lm-19-text-pipelines',
+            title: 'LM-19: Text Pipelines | Linux Mastery',
+            description: 'LM-19: Text Pipelines | Linux Mastery — module content for script house',
+            house: 'script',
+            type: 'module',
+            difficulty: 'beginner',
+            duration: 45,
+            topics: ['lm-19', 'text', 'pipelines', 'linux', 'command-line'],
+            paths: [],
+            components: {
+                module: 'houses/script/modules/linux-mastery/script-lm-19-text-pipelines.module.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'script-lm-20-section3-practice': {
+            id: 'script-lm-20-section3-practice',
+            title: 'LM-20: Section 3 Practice | Linux Mastery',
+            description: 'LM-20: Section 3 Practice | Linux Mastery — module content for script house',
+            house: 'script',
+            type: 'module',
+            difficulty: 'beginner',
+            duration: 45,
+            topics: ['lm-20', 'section', 'linux', 'command-line'],
+            paths: [],
+            components: {
+                module: 'houses/script/modules/linux-mastery/script-lm-20-section3-practice.module.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'script-lm-21-users-groups': {
+            id: 'script-lm-21-users-groups',
+            title: 'LM-21: Users and Groups | Linux Mastery',
+            description: 'LM-21: Users and Groups | Linux Mastery — module content for script house',
+            house: 'script',
+            type: 'module',
+            difficulty: 'beginner',
+            duration: 45,
+            topics: ['lm-21', 'users', 'groups', 'linux', 'command-line'],
+            paths: [],
+            components: {
+                module: 'houses/script/modules/linux-mastery/script-lm-21-users-groups.module.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'script-lm-22-file-permissions': {
+            id: 'script-lm-22-file-permissions',
+            title: 'LM-22: File Permissions | Linux Mastery',
+            description: 'LM-22: File Permissions | Linux Mastery — module content for script house',
+            house: 'script',
+            type: 'module',
+            difficulty: 'beginner',
+            duration: 45,
+            topics: ['lm-22', 'file', 'permissions', 'linux', 'command-line'],
+            paths: [],
+            components: {
+                module: 'houses/script/modules/linux-mastery/script-lm-22-file-permissions.module.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'script-lm-23-chmod': {
+            id: 'script-lm-23-chmod',
+            title: 'LM-23: chmod | Linux Mastery',
+            description: 'LM-23: chmod | Linux Mastery — module content for script house',
+            house: 'script',
+            type: 'module',
+            difficulty: 'beginner',
+            duration: 45,
+            topics: ['lm-23', 'chmod', 'linux', 'command-line'],
+            paths: [],
+            components: {
+                module: 'houses/script/modules/linux-mastery/script-lm-23-chmod.module.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'script-lm-24-chown': {
+            id: 'script-lm-24-chown',
+            title: 'LM-24: chown | Linux Mastery',
+            description: 'LM-24: chown | Linux Mastery — module content for script house',
+            house: 'script',
+            type: 'module',
+            difficulty: 'beginner',
+            duration: 45,
+            topics: ['lm-24', 'chown', 'linux', 'command-line'],
+            paths: [],
+            components: {
+                module: 'houses/script/modules/linux-mastery/script-lm-24-chown.module.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'script-lm-25-sudo': {
+            id: 'script-lm-25-sudo',
+            title: 'LM-25: sudo | Linux Mastery',
+            description: 'LM-25: sudo | Linux Mastery — module content for script house',
+            house: 'script',
+            type: 'module',
+            difficulty: 'beginner',
+            duration: 45,
+            topics: ['lm-25', 'sudo', 'linux', 'command-line'],
+            paths: [],
+            components: {
+                module: 'houses/script/modules/linux-mastery/script-lm-25-sudo.module.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'script-lm-26-special-permissions': {
+            id: 'script-lm-26-special-permissions',
+            title: 'LM-26: Special Permissions | Linux Mastery',
+            description: 'LM-26: Special Permissions | Linux Mastery — module content for script house',
+            house: 'script',
+            type: 'module',
+            difficulty: 'beginner',
+            duration: 45,
+            topics: ['lm-26', 'special', 'permissions', 'linux', 'command-line'],
+            paths: [],
+            components: {
+                module: 'houses/script/modules/linux-mastery/script-lm-26-special-permissions.module.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'script-lm-27-section4-practice': {
+            id: 'script-lm-27-section4-practice',
+            title: 'LM-27: Section 4 Practice | Linux Mastery',
+            description: 'LM-27: Section 4 Practice | Linux Mastery — module content for script house',
+            house: 'script',
+            type: 'module',
+            difficulty: 'beginner',
+            duration: 45,
+            topics: ['lm-27', 'section', 'linux', 'command-line'],
+            paths: [],
+            components: {
+                module: 'houses/script/modules/linux-mastery/script-lm-27-section4-practice.module.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'script-lm-28-process-basics': {
+            id: 'script-lm-28-process-basics',
+            title: 'LM-28: Process Basics | Linux Mastery',
+            description: 'LM-28: Process Basics | Linux Mastery — module content for script house',
+            house: 'script',
+            type: 'module',
+            difficulty: 'beginner',
+            duration: 45,
+            topics: ['lm-28', 'process', 'linux', 'command-line'],
+            paths: [],
+            components: {
+                module: 'houses/script/modules/linux-mastery/script-lm-28-process-basics.module.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'script-lm-29-ps-top': {
+            id: 'script-lm-29-ps-top',
+            title: 'LM-29: ps and top | Linux Mastery',
+            description: 'LM-29: ps and top | Linux Mastery — module content for script house',
+            house: 'script',
+            type: 'module',
+            difficulty: 'beginner',
+            duration: 45,
+            topics: ['lm-29', 'top', 'linux', 'command-line'],
+            paths: [],
+            components: {
+                module: 'houses/script/modules/linux-mastery/script-lm-29-ps-top.module.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'script-lm-30-background-jobs': {
+            id: 'script-lm-30-background-jobs',
+            title: 'LM-30: Background Jobs | Linux Mastery',
+            description: 'LM-30: Background Jobs | Linux Mastery — module content for script house',
+            house: 'script',
+            type: 'module',
+            difficulty: 'beginner',
+            duration: 45,
+            topics: ['lm-30', 'background', 'jobs', 'linux', 'command-line'],
+            paths: [],
+            components: {
+                module: 'houses/script/modules/linux-mastery/script-lm-30-background-jobs.module.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'script-lm-31-signals-kill': {
+            id: 'script-lm-31-signals-kill',
+            title: 'LM-31: Signals and kill | Linux Mastery',
+            description: 'LM-31: Signals and kill | Linux Mastery — module content for script house',
+            house: 'script',
+            type: 'module',
+            difficulty: 'beginner',
+            duration: 45,
+            topics: ['lm-31', 'signals', 'kill', 'linux', 'command-line'],
+            paths: [],
+            components: {
+                module: 'houses/script/modules/linux-mastery/script-lm-31-signals-kill.module.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'script-lm-32-cron': {
+            id: 'script-lm-32-cron',
+            title: 'LM-32: cron | Linux Mastery',
+            description: 'LM-32: cron | Linux Mastery — module content for script house',
+            house: 'script',
+            type: 'module',
+            difficulty: 'beginner',
+            duration: 45,
+            topics: ['lm-32', 'cron', 'linux', 'command-line'],
+            paths: [],
+            components: {
+                module: 'houses/script/modules/linux-mastery/script-lm-32-cron.module.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'script-lm-33-systemd': {
+            id: 'script-lm-33-systemd',
+            title: 'LM-33: systemd | Linux Mastery',
+            description: 'LM-33: systemd | Linux Mastery — module content for script house',
+            house: 'script',
+            type: 'module',
+            difficulty: 'beginner',
+            duration: 45,
+            topics: ['lm-33', 'systemd', 'linux', 'command-line'],
+            paths: [],
+            components: {
+                module: 'houses/script/modules/linux-mastery/script-lm-33-systemd.module.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'script-lm-34-section5-practice': {
+            id: 'script-lm-34-section5-practice',
+            title: 'LM-34: Section 5 Practice | Linux Mastery',
+            description: 'LM-34: Section 5 Practice | Linux Mastery — module content for script house',
+            house: 'script',
+            type: 'module',
+            difficulty: 'beginner',
+            duration: 45,
+            topics: ['lm-34', 'section', 'linux', 'command-line'],
+            paths: [],
+            components: {
+                module: 'houses/script/modules/linux-mastery/script-lm-34-section5-practice.module.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'script-lm-35-network-info': {
+            id: 'script-lm-35-network-info',
+            title: 'LM-35: Network Info | Linux Mastery',
+            description: 'LM-35: Network Info | Linux Mastery — module content for script house',
+            house: 'script',
+            type: 'module',
+            difficulty: 'beginner',
+            duration: 45,
+            topics: ['lm-35', 'network', 'info', 'linux', 'command-line'],
+            paths: [],
+            components: {
+                module: 'houses/script/modules/linux-mastery/script-lm-35-network-info.module.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'script-lm-36-connectivity': {
+            id: 'script-lm-36-connectivity',
+            title: 'LM-36: Connectivity | Linux Mastery',
+            description: 'LM-36: Connectivity | Linux Mastery — module content for script house',
+            house: 'script',
+            type: 'module',
+            difficulty: 'beginner',
+            duration: 45,
+            topics: ['lm-36', 'connectivity', 'linux', 'command-line'],
+            paths: [],
+            components: {
+                module: 'houses/script/modules/linux-mastery/script-lm-36-connectivity.module.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'script-lm-37-dns-tools': {
+            id: 'script-lm-37-dns-tools',
+            title: 'LM-37: DNS Tools | Linux Mastery',
+            description: 'LM-37: DNS Tools | Linux Mastery — module content for script house',
+            house: 'script',
+            type: 'module',
+            difficulty: 'beginner',
+            duration: 45,
+            topics: ['lm-37', 'dns', 'tools', 'linux', 'command-line'],
+            paths: [],
+            components: {
+                module: 'houses/script/modules/linux-mastery/script-lm-37-dns-tools.module.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'script-lm-38-downloading': {
+            id: 'script-lm-38-downloading',
+            title: 'LM-38: Downloading | Linux Mastery',
+            description: 'LM-38: Downloading | Linux Mastery — module content for script house',
+            house: 'script',
+            type: 'module',
+            difficulty: 'beginner',
+            duration: 45,
+            topics: ['lm-38', 'downloading', 'linux', 'command-line'],
+            paths: [],
+            components: {
+                module: 'houses/script/modules/linux-mastery/script-lm-38-downloading.module.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'script-lm-39-ssh-basics': {
+            id: 'script-lm-39-ssh-basics',
+            title: 'LM-39: SSH Basics | Linux Mastery',
+            description: 'LM-39: SSH Basics | Linux Mastery — module content for script house',
+            house: 'script',
+            type: 'module',
+            difficulty: 'beginner',
+            duration: 45,
+            topics: ['lm-39', 'ssh', 'linux', 'command-line'],
+            paths: [],
+            components: {
+                module: 'houses/script/modules/linux-mastery/script-lm-39-ssh-basics.module.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'script-lm-40-section6-practice': {
+            id: 'script-lm-40-section6-practice',
+            title: 'LM-40: Section 6 Practice | Linux Mastery',
+            description: 'LM-40: Section 6 Practice | Linux Mastery — module content for script house',
+            house: 'script',
+            type: 'module',
+            difficulty: 'beginner',
+            duration: 45,
+            topics: ['lm-40', 'section', 'linux', 'command-line'],
+            paths: [],
+            components: {
+                module: 'houses/script/modules/linux-mastery/script-lm-40-section6-practice.module.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'script-lm-41-first-script': {
+            id: 'script-lm-41-first-script',
+            title: 'LM-41: First Script | Linux Mastery',
+            description: 'LM-41: First Script | Linux Mastery — module content for script house',
+            house: 'script',
+            type: 'module',
+            difficulty: 'beginner',
+            duration: 45,
+            topics: ['lm-41', 'first', 'script', 'linux', 'command-line'],
+            paths: [],
+            components: {
+                module: 'houses/script/modules/linux-mastery/script-lm-41-first-script.module.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'script-lm-42-variables': {
+            id: 'script-lm-42-variables',
+            title: 'LM-42: Variables | Linux Mastery',
+            description: 'LM-42: Variables | Linux Mastery — module content for script house',
+            house: 'script',
+            type: 'module',
+            difficulty: 'beginner',
+            duration: 45,
+            topics: ['lm-42', 'variables', 'linux', 'command-line'],
+            paths: [],
+            components: {
+                module: 'houses/script/modules/linux-mastery/script-lm-42-variables.module.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'script-lm-43-user-input': {
+            id: 'script-lm-43-user-input',
+            title: 'LM-43: User Input | Linux Mastery',
+            description: 'LM-43: User Input | Linux Mastery — module content for script house',
+            house: 'script',
+            type: 'module',
+            difficulty: 'beginner',
+            duration: 45,
+            topics: ['lm-43', 'user', 'input', 'linux', 'command-line'],
+            paths: [],
+            components: {
+                module: 'houses/script/modules/linux-mastery/script-lm-43-user-input.module.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'script-lm-44-conditionals': {
+            id: 'script-lm-44-conditionals',
+            title: 'LM-44: Conditionals | Linux Mastery',
+            description: 'LM-44: Conditionals | Linux Mastery — module content for script house',
+            house: 'script',
+            type: 'module',
+            difficulty: 'beginner',
+            duration: 45,
+            topics: ['lm-44', 'conditionals', 'linux', 'command-line'],
+            paths: [],
+            components: {
+                module: 'houses/script/modules/linux-mastery/script-lm-44-conditionals.module.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'script-lm-45-loops': {
+            id: 'script-lm-45-loops',
+            title: 'LM-45: Loops | Linux Mastery',
+            description: 'LM-45: Loops | Linux Mastery — module content for script house',
+            house: 'script',
+            type: 'module',
+            difficulty: 'beginner',
+            duration: 45,
+            topics: ['lm-45', 'loops', 'linux', 'command-line'],
+            paths: [],
+            components: {
+                module: 'houses/script/modules/linux-mastery/script-lm-45-loops.module.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'script-lm-46-functions': {
+            id: 'script-lm-46-functions',
+            title: 'LM-46: Functions | Linux Mastery',
+            description: 'LM-46: Functions | Linux Mastery — module content for script house',
+            house: 'script',
+            type: 'module',
+            difficulty: 'beginner',
+            duration: 45,
+            topics: ['lm-46', 'functions', 'linux', 'command-line'],
+            paths: [],
+            components: {
+                module: 'houses/script/modules/linux-mastery/script-lm-46-functions.module.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'script-lm-47-practical-scripts': {
+            id: 'script-lm-47-practical-scripts',
+            title: 'LM-47: Practical Scripts | Linux Mastery',
+            description: 'LM-47: Practical Scripts | Linux Mastery — module content for script house',
+            house: 'script',
+            type: 'module',
+            difficulty: 'beginner',
+            duration: 45,
+            topics: ['lm-47', 'practical', 'scripts', 'linux', 'command-line'],
+            paths: [],
+            components: {
+                module: 'houses/script/modules/linux-mastery/script-lm-47-practical-scripts.module.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'script-lm-48-section7-practice': {
+            id: 'script-lm-48-section7-practice',
+            title: 'LM-48: Section 7 Practice | Linux Mastery',
+            description: 'LM-48: Section 7 Practice | Linux Mastery — module content for script house',
+            house: 'script',
+            type: 'module',
+            difficulty: 'beginner',
+            duration: 45,
+            topics: ['lm-48', 'section', 'linux', 'command-line'],
+            paths: [],
+            components: {
+                module: 'houses/script/modules/linux-mastery/script-lm-48-section7-practice.module.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'script-lm-49-links': {
+            id: 'script-lm-49-links',
+            title: 'LM-49: Links | Linux Mastery',
+            description: 'LM-49: Links | Linux Mastery — module content for script house',
+            house: 'script',
+            type: 'module',
+            difficulty: 'beginner',
+            duration: 45,
+            topics: ['lm-49', 'links', 'linux', 'command-line'],
+            paths: [],
+            components: {
+                module: 'houses/script/modules/linux-mastery/script-lm-49-links.module.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'script-lm-50-text-editors': {
+            id: 'script-lm-50-text-editors',
+            title: 'LM-50: Text Editors | Linux Mastery',
+            description: 'LM-50: Text Editors | Linux Mastery — module content for script house',
+            house: 'script',
+            type: 'module',
+            difficulty: 'beginner',
+            duration: 45,
+            topics: ['lm-50', 'text', 'editors', 'linux', 'command-line'],
+            paths: [],
+            components: {
+                module: 'houses/script/modules/linux-mastery/script-lm-50-text-editors.module.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'script-lm-51-package-management': {
+            id: 'script-lm-51-package-management',
+            title: 'LM-51: Package Management | Linux Mastery',
+            description: 'LM-51: Package Management | Linux Mastery — module content for script house',
+            house: 'script',
+            type: 'module',
+            difficulty: 'beginner',
+            duration: 45,
+            topics: ['lm-51', 'package', 'management', 'linux', 'command-line'],
+            paths: [],
+            components: {
+                module: 'houses/script/modules/linux-mastery/script-lm-51-package-management.module.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'script-lm-52-environment-path': {
+            id: 'script-lm-52-environment-path',
+            title: 'LM-52: Environment & PATH | Linux Mastery',
+            description: 'LM-52: Environment & PATH | Linux Mastery — module content for script house',
+            house: 'script',
+            type: 'module',
+            difficulty: 'beginner',
+            duration: 45,
+            topics: ['lm-52', 'environment', 'path', 'linux', 'command-line'],
+            paths: [],
+            components: {
+                module: 'houses/script/modules/linux-mastery/script-lm-52-environment-path.module.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'script-lm-53-next-steps': {
+            id: 'script-lm-53-next-steps',
+            title: 'LM-53: Next Steps | Linux Mastery - Graduation',
+            description: 'LM-53: Next Steps | Linux Mastery - Graduation — module content for script house',
+            house: 'script',
+            type: 'module',
+            difficulty: 'beginner',
+            duration: 45,
+            topics: ['lm-53', 'next', 'steps', 'linux', 'command-line'],
+            paths: [],
+            components: {
+                module: 'houses/script/modules/linux-mastery/script-lm-53-next-steps.module.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'script-mission-file-operations': {
+            id: 'script-mission-file-operations',
+            title: 'Mission: File Operations',
+            description: 'Mission: File Operations — lab content for script house',
+            house: 'script',
+            type: 'lab',
+            difficulty: 'beginner',
+            duration: 30,
+            topics: ['mission', 'file', 'operations', 'linux', 'command-line'],
+            paths: [],
+            components: {
+                lab: 'houses/script/linux/labs/script-mission-file-operations.lab.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'script-mission-file-search': {
+            id: 'script-mission-file-search',
+            title: 'Mission: File Search',
+            description: 'Mission: File Search — lab content for script house',
+            house: 'script',
+            type: 'lab',
+            difficulty: 'beginner',
+            duration: 30,
+            topics: ['mission', 'file', 'search', 'linux', 'command-line'],
+            paths: [],
+            components: {
+                lab: 'houses/script/linux/labs/script-mission-file-search.lab.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'script-mission-permissions': {
+            id: 'script-mission-permissions',
+            title: 'Mission: Server Permissions',
+            description: 'Mission: Server Permissions — lab content for script house',
+            house: 'script',
+            type: 'lab',
+            difficulty: 'beginner',
+            duration: 30,
+            topics: ['mission', 'server', 'permissions', 'linux', 'command-line'],
+            paths: [],
+            components: {
+                lab: 'houses/script/linux/labs/script-mission-permissions.lab.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'script-mission-text-viewing': {
+            id: 'script-mission-text-viewing',
+            title: 'Mission: Log Analysis',
+            description: 'Mission: Log Analysis — lab content for script house',
+            house: 'script',
+            type: 'lab',
+            difficulty: 'beginner',
+            duration: 30,
+            topics: ['mission', 'log', 'analysis', 'linux', 'command-line'],
+            paths: [],
+            components: {
+                lab: 'houses/script/linux/labs/script-mission-text-viewing.lab.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'script-patch-tuesday': {
+            id: 'script-patch-tuesday',
+            title: 'Patch Tuesday - Vulnerability Triage Game',
+            description: 'Patch Tuesday - Vulnerability Triage Game — lab content for script house',
+            house: 'script',
+            type: 'lab',
+            difficulty: 'beginner',
+            duration: 30,
+            topics: ['patch', 'tuesday', 'vulnerability', 'linux', 'command-line'],
+            paths: [],
+            components: {
+                lab: 'houses/script/labs/script-patch-tuesday.lab.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'script-permission': {
+            id: 'script-permission',
+            title: 'Linux Permission Calculator',
+            description: 'Linux Permission Calculator — tool content for script house',
+            house: 'script',
+            type: 'tool',
+            difficulty: 'beginner',
+            duration: 20,
+            topics: ['linux', 'permission', 'calculator', 'command-line'],
+            paths: [],
+            components: {
+                applet: 'houses/script/linux/tools/script-permission.tool.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'script-pipe-snake': {
+            id: 'script-pipe-snake',
+            title: 'Pipe Snake',
+            description: 'Pipe Snake — applet content for script house',
+            house: 'script',
+            type: 'applet',
+            difficulty: 'beginner',
+            duration: 25,
+            topics: ['pipe', 'snake', 'linux', 'command-line'],
+            paths: [],
+            components: {
+                applet: 'houses/script/games/script-pipe-snake.applet.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'script-process': {
+            id: 'script-process',
+            title: 'Process Lifecycle - Linux Tools',
+            description: 'Process Lifecycle - Linux Tools — tool content for script house',
+            house: 'script',
+            type: 'tool',
+            difficulty: 'beginner',
+            duration: 20,
+            topics: ['process', 'lifecycle', 'linux', 'command-line'],
+            paths: [],
+            components: {
+                applet: 'houses/script/linux/tools/script-process.tool.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'script-python-exam-chapter1': {
+            id: 'script-python-exam-chapter1',
+            title: 'Chapter 1 Practical Exam - Python Fundamentals',
+            description: 'Chapter 1 Practical Exam - Python Fundamentals — exam content for script house',
+            house: 'script',
+            type: 'exam',
+            difficulty: 'beginner',
+            duration: 30,
+            topics: ['chapter', 'practical', 'exam', 'linux', 'command-line'],
+            paths: [],
+            components: {
+                quiz: 'houses/script/exams/script-python-exam-chapter1.exam.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'script-python-exam-chapter2': {
+            id: 'script-python-exam-chapter2',
+            title: 'Chapter 2 Practical Exam - Strings',
+            description: 'Chapter 2 Practical Exam - Strings — exam content for script house',
+            house: 'script',
+            type: 'exam',
+            difficulty: 'beginner',
+            duration: 30,
+            topics: ['chapter', 'practical', 'exam', 'linux', 'command-line'],
+            paths: [],
+            components: {
+                quiz: 'houses/script/exams/script-python-exam-chapter2.exam.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'script-python-exam-chapter3': {
+            id: 'script-python-exam-chapter3',
+            title: 'Chapter 3 Practical Exam - Flow Control',
+            description: 'Chapter 3 Practical Exam - Flow Control — exam content for script house',
+            house: 'script',
+            type: 'exam',
+            difficulty: 'beginner',
+            duration: 30,
+            topics: ['chapter', 'practical', 'exam', 'linux', 'command-line'],
+            paths: [],
+            components: {
+                quiz: 'houses/script/exams/script-python-exam-chapter3.exam.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'script-python-exam-chapter4': {
+            id: 'script-python-exam-chapter4',
+            title: 'Python Chapter 4 Exam: Functions - Practical Exam',
+            description: 'Python Chapter 4 Exam: Functions - Practical Exam — exam content for script house',
+            house: 'script',
+            type: 'exam',
+            difficulty: 'beginner',
+            duration: 30,
+            topics: ['python', 'chapter', 'exam', 'linux', 'command-line'],
+            paths: [],
+            components: {
+                quiz: 'houses/script/exams/script-python-exam-chapter4.exam.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'script-python-exam-chapter5': {
+            id: 'script-python-exam-chapter5',
+            title: 'Python Chapter 5 Exam: Collections - Practical Exam',
+            description: 'Python Chapter 5 Exam: Collections - Practical Exam — exam content for script house',
+            house: 'script',
+            type: 'exam',
+            difficulty: 'beginner',
+            duration: 30,
+            topics: ['python', 'chapter', 'exam', 'linux', 'command-line'],
+            paths: [],
+            components: {
+                quiz: 'houses/script/exams/script-python-exam-chapter5.exam.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'script-python-exam-chapter6': {
+            id: 'script-python-exam-chapter6',
+            title: 'Python Chapter 6 Exam: Dictionaries - Practical Exam',
+            description: 'Python Chapter 6 Exam: Dictionaries - Practical Exam — exam content for script house',
+            house: 'script',
+            type: 'exam',
+            difficulty: 'beginner',
+            duration: 30,
+            topics: ['python', 'chapter', 'exam', 'linux', 'command-line'],
+            paths: [],
+            components: {
+                quiz: 'houses/script/exams/script-python-exam-chapter6.exam.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'script-python-exam-chapter7': {
+            id: 'script-python-exam-chapter7',
+            title: 'Python Chapter 7 Exam: File Handling - Practical Assessment',
+            description: 'Python Chapter 7 Exam: File Handling - Practical Assessment — exam content for script house',
+            house: 'script',
+            type: 'exam',
+            difficulty: 'beginner',
+            duration: 30,
+            topics: ['python', 'chapter', 'exam', 'linux', 'command-line'],
+            paths: [],
+            components: {
+                quiz: 'houses/script/exams/script-python-exam-chapter7.exam.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'script-python-exam-chapter8': {
+            id: 'script-python-exam-chapter8',
+            title: 'Python Chapter 8 Exam: OOP - Final Practical Assessment',
+            description: 'Python Chapter 8 Exam: OOP - Final Practical Assessment — exam content for script house',
+            house: 'script',
+            type: 'exam',
+            difficulty: 'beginner',
+            duration: 30,
+            topics: ['python', 'chapter', 'exam', 'linux', 'command-line'],
+            paths: [],
+            components: {
+                quiz: 'houses/script/exams/script-python-exam-chapter8.exam.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'script-python-immersive-chapter1': {
+            id: 'script-python-immersive-chapter1',
+            title: 'Python Chapter 1: The First Bit - Immersive Learning',
+            description: 'Python Chapter 1: The First Bit - Immersive Learning — module content for script house',
+            house: 'script',
+            type: 'module',
+            difficulty: 'beginner',
+            duration: 45,
+            topics: ['python', 'chapter', 'first', 'linux', 'command-line'],
+            paths: [],
+            components: {
+                module: 'houses/script/modules/python/script-python-immersive-chapter1.module.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'script-python-immersive-chapter2': {
+            id: 'script-python-immersive-chapter2',
+            title: 'Python Chapter 2: Strings - Immersive Learning',
+            description: 'Python Chapter 2: Strings - Immersive Learning — module content for script house',
+            house: 'script',
+            type: 'module',
+            difficulty: 'beginner',
+            duration: 45,
+            topics: ['python', 'chapter', 'strings', 'linux', 'command-line'],
+            paths: [],
+            components: {
+                module: 'houses/script/modules/python/script-python-immersive-chapter2.module.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'script-python-immersive-chapter3': {
+            id: 'script-python-immersive-chapter3',
+            title: 'Python Chapter 3: Flow Control - Immersive Learning',
+            description: 'Python Chapter 3: Flow Control - Immersive Learning — module content for script house',
+            house: 'script',
+            type: 'module',
+            difficulty: 'beginner',
+            duration: 45,
+            topics: ['python', 'chapter', 'flow', 'linux', 'command-line'],
+            paths: [],
+            components: {
+                module: 'houses/script/modules/python/script-python-immersive-chapter3.module.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'script-python-immersive-chapter4': {
+            id: 'script-python-immersive-chapter4',
+            title: 'Python Chapter 4: Functions - Immersive Learning',
+            description: 'Python Chapter 4: Functions - Immersive Learning — module content for script house',
+            house: 'script',
+            type: 'module',
+            difficulty: 'beginner',
+            duration: 45,
+            topics: ['python', 'chapter', 'functions', 'linux', 'command-line'],
+            paths: [],
+            components: {
+                module: 'houses/script/modules/python/script-python-immersive-chapter4.module.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'script-python-immersive-chapter5': {
+            id: 'script-python-immersive-chapter5',
+            title: 'Python Chapter 5: Collections - Immersive Learning',
+            description: 'Python Chapter 5: Collections - Immersive Learning — module content for script house',
+            house: 'script',
+            type: 'module',
+            difficulty: 'beginner',
+            duration: 45,
+            topics: ['python', 'chapter', 'collections', 'linux', 'command-line'],
+            paths: [],
+            components: {
+                module: 'houses/script/modules/python/script-python-immersive-chapter5.module.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'script-python-immersive-chapter6': {
+            id: 'script-python-immersive-chapter6',
+            title: 'Python Chapter 6: Dictionaries - Immersive Learning',
+            description: 'Python Chapter 6: Dictionaries - Immersive Learning — module content for script house',
+            house: 'script',
+            type: 'module',
+            difficulty: 'beginner',
+            duration: 45,
+            topics: ['python', 'chapter', 'dictionaries', 'linux', 'command-line'],
+            paths: [],
+            components: {
+                module: 'houses/script/modules/python/script-python-immersive-chapter6.module.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'script-python-immersive-chapter7': {
+            id: 'script-python-immersive-chapter7',
+            title: 'Python Chapter 7: File Handling - Immersive Learning',
+            description: 'Python Chapter 7: File Handling - Immersive Learning — module content for script house',
+            house: 'script',
+            type: 'module',
+            difficulty: 'beginner',
+            duration: 45,
+            topics: ['python', 'chapter', 'file', 'linux', 'command-line'],
+            paths: [],
+            components: {
+                module: 'houses/script/modules/python/script-python-immersive-chapter7.module.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'script-python-immersive-chapter8': {
+            id: 'script-python-immersive-chapter8',
+            title: 'Python Chapter 8: Object-Oriented Programming - Immersive Learning',
+            description: 'Python Chapter 8: Object-Oriented Programming - Immersive Learning — module content for script house',
+            house: 'script',
+            type: 'module',
+            difficulty: 'beginner',
+            duration: 45,
+            topics: ['python', 'chapter', 'object-oriented', 'linux', 'command-line'],
+            paths: [],
+            components: {
+                module: 'houses/script/modules/python/script-python-immersive-chapter8.module.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'script-quick': {
+            id: 'script-quick',
+            title: 'Linux Quick Reference',
+            description: 'Linux Quick Reference — reference content for script house',
+            house: 'script',
+            type: 'reference',
+            difficulty: 'beginner',
+            duration: 15,
+            topics: ['linux', 'quick', 'reference', 'command-line'],
+            paths: [],
+            components: {
+                reference: 'houses/script/linux/script-quick.reference.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'script-service': {
+            id: 'script-service',
+            title: 'Service Dependency Map - Linux Tools',
+            description: 'Service Dependency Map - Linux Tools — tool content for script house',
+            house: 'script',
+            type: 'tool',
+            difficulty: 'beginner',
+            duration: 20,
+            topics: ['service', 'dependency', 'map', 'linux', 'command-line'],
+            paths: [],
+            components: {
+                applet: 'houses/script/linux/tools/script-service.tool.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'script-shell-sprint': {
+            id: 'script-shell-sprint',
+            title: 'Shell Sprint',
+            description: 'Shell Sprint — applet content for script house',
+            house: 'script',
+            type: 'applet',
+            difficulty: 'beginner',
+            duration: 25,
+            topics: ['shell', 'sprint', 'linux', 'command-line'],
+            paths: [],
+            components: {
+                applet: 'houses/script/games/script-shell-sprint.applet.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'script-template-warmup': {
+            id: 'script-template-warmup',
+            title: 'File Navigation Warmup',
+            description: 'File Navigation Warmup — lab content for script house',
+            house: 'script',
+            type: 'lab',
+            difficulty: 'beginner',
+            duration: 30,
+            topics: ['file', 'navigation', 'warmup', 'linux', 'command-line'],
+            paths: [],
+            components: {
+                lab: 'houses/script/linux/labs/script-template-warmup.lab.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'script-ubuntu-components': {
+            id: 'script-ubuntu-components',
+            title: 'Ubuntu Security Components',
+            description: 'Ubuntu Security Components — applet content for script house',
+            house: 'script',
+            type: 'applet',
+            difficulty: 'beginner',
+            duration: 25,
+            topics: ['ubuntu', 'security', 'components', 'linux', 'command-line'],
+            paths: [],
+            components: {
+                applet: 'houses/script/applets/linux/script-ubuntu-components.applet.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'script-warmup-navigation': {
+            id: 'script-warmup-navigation',
+            title: 'Directory Navigation Warmup',
+            description: 'Directory Navigation Warmup — lab content for script house',
+            house: 'script',
+            type: 'lab',
+            difficulty: 'beginner',
+            duration: 30,
+            topics: ['directory', 'navigation', 'warmup', 'linux', 'command-line'],
+            paths: [],
+            components: {
+                lab: 'houses/script/linux/labs/script-warmup-navigation.lab.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+
+        // ─── EYE HOUSE (auto-generated) ───
+        'eye-5-tuple-approach': {
+            id: 'eye-5-tuple-approach',
+            title: '5-Tuple Approach',
+            description: '5-Tuple Approach — applet content for eye house',
+            house: 'eye',
+            type: 'applet',
+            difficulty: 'beginner',
+            duration: 25,
+            topics: ['5-tuple', 'approach', 'monitoring', 'analysis'],
+            paths: [],
+            components: {
+                applet: 'houses/eye/applets/cyberops/eye-5-tuple-approach.applet.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'eye-acl-demo': {
+            id: 'eye-acl-demo',
+            title: 'Lab 4.5: ACL Demonstration',
+            description: 'Lab 4.5: ACL Demonstration — lab content for eye house',
+            house: 'eye',
+            type: 'lab',
+            difficulty: 'beginner',
+            duration: 30,
+            topics: ['acl', 'demonstration', 'monitoring', 'analysis'],
+            paths: [],
+            components: {
+                lab: 'houses/eye/applets/cyberops/week4/labs/eye-acl-demo.lab.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'eye-app-visibility-control': {
+            id: 'eye-app-visibility-control',
+            title: 'Application Visibility & Control',
+            description: 'Application Visibility & Control — applet content for eye house',
+            house: 'eye',
+            type: 'applet',
+            difficulty: 'beginner',
+            duration: 25,
+            topics: ['application', 'visibility', 'control', 'monitoring', 'analysis'],
+            paths: [],
+            components: {
+                applet: 'houses/eye/applets/cyberops/eye-app-visibility-control.applet.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'eye-artifact-elements': {
+            id: 'eye-artifact-elements',
+            title: '4.6 Interpret Artifact Elements',
+            description: '4.6 Interpret Artifact Elements — applet content for eye house',
+            house: 'eye',
+            type: 'applet',
+            difficulty: 'beginner',
+            duration: 25,
+            topics: ['interpret', 'artifact', 'elements', 'monitoring', 'analysis'],
+            paths: [],
+            components: {
+                applet: 'houses/eye/applets/cyberops/eye-artifact-elements.applet.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'eye-asymmetric-encryption': {
+            id: 'eye-asymmetric-encryption',
+            title: 'Asymmetric Encryption',
+            description: 'Asymmetric Encryption — lab content for eye house',
+            house: 'eye',
+            type: 'lab',
+            difficulty: 'beginner',
+            duration: 30,
+            topics: ['asymmetric', 'encryption', 'monitoring', 'analysis'],
+            paths: [],
+            components: {
+                lab: 'houses/eye/applets/cyberops/week6/labs/eye-asymmetric-encryption.lab.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'eye-attack-surface': {
+            id: 'eye-attack-surface',
+            title: 'Attack Surface Management',
+            description: 'Attack Surface Management — applet content for eye house',
+            house: 'eye',
+            type: 'applet',
+            difficulty: 'beginner',
+            duration: 25,
+            topics: ['attack', 'surface', 'management', 'monitoring', 'analysis'],
+            paths: [],
+            components: {
+                applet: 'houses/eye/applets/cyberops/eye-attack-surface.applet.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'eye-attack-surface-vuln': {
+            id: 'eye-attack-surface-vuln',
+            title: 'Attack Surface & Vulnerability',
+            description: 'Attack Surface & Vulnerability — applet content for eye house',
+            house: 'eye',
+            type: 'applet',
+            difficulty: 'beginner',
+            duration: 25,
+            topics: ['attack', 'surface', 'vulnerability', 'monitoring', 'analysis'],
+            paths: [],
+            components: {
+                applet: 'houses/eye/applets/cyberops/eye-attack-surface-vuln.applet.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'eye-attribution-investigation': {
+            id: 'eye-attribution-investigation',
+            title: 'Attribution in Investigation',
+            description: 'Attribution in Investigation — applet content for eye house',
+            house: 'eye',
+            type: 'applet',
+            difficulty: 'beginner',
+            duration: 25,
+            topics: ['attribution', 'investigation', 'monitoring', 'analysis'],
+            paths: [],
+            components: {
+                applet: 'houses/eye/applets/cyberops/eye-attribution-investigation.applet.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'eye-certificate': {
+            id: 'eye-certificate',
+            title: 'Certificate',
+            description: 'Certificate — module content for eye house',
+            house: 'eye',
+            type: 'module',
+            difficulty: 'beginner',
+            duration: 45,
+            topics: ['certificate', 'monitoring', 'analysis'],
+            paths: [],
+            components: {
+                module: 'houses/eye/modules/cyberops/eye-certificate.module.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'eye-certificate-stores': {
+            id: 'eye-certificate-stores',
+            title: 'Lab 5: Certificate Stores',
+            description: 'Lab 5: Certificate Stores — lab content for eye house',
+            house: 'eye',
+            type: 'lab',
+            difficulty: 'beginner',
+            duration: 30,
+            topics: ['certificate', 'stores', 'monitoring', 'analysis'],
+            paths: [],
+            components: {
+                lab: 'houses/eye/applets/cyberops/week6/labs/eye-certificate-stores.lab.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'eye-chain-of-custody': {
+            id: 'eye-chain-of-custody',
+            title: 'Lab 8: Chain of Custody',
+            description: 'Lab 8: Chain of Custody — lab content for eye house',
+            house: 'eye',
+            type: 'lab',
+            difficulty: 'beginner',
+            duration: 30,
+            topics: ['chain', 'custody', 'monitoring', 'analysis'],
+            paths: [],
+            components: {
+                lab: 'houses/eye/applets/cyberops/week7/labs/eye-chain-of-custody.lab.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'eye-content-filtering': {
+            id: 'eye-content-filtering',
+            title: 'Content Filtering Data',
+            description: 'Content Filtering Data — applet content for eye house',
+            house: 'eye',
+            type: 'applet',
+            difficulty: 'beginner',
+            duration: 25,
+            topics: ['content', 'filtering', 'data', 'monitoring', 'analysis'],
+            paths: [],
+            components: {
+                applet: 'houses/eye/applets/cyberops/eye-content-filtering.applet.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'eye-cvss-terminology': {
+            id: 'eye-cvss-terminology',
+            title: 'CVSS Terminology',
+            description: 'CVSS Terminology — applet content for eye house',
+            house: 'eye',
+            type: 'applet',
+            difficulty: 'beginner',
+            duration: 25,
+            topics: ['cvss', 'terminology', 'monitoring', 'analysis'],
+            paths: [],
+            components: {
+                applet: 'houses/eye/applets/cyberops/eye-cvss-terminology.applet.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'eye-data-loss-traffic': {
+            id: 'eye-data-loss-traffic',
+            title: 'Data Loss from Traffic Analysis',
+            description: 'Data Loss from Traffic Analysis — applet content for eye house',
+            house: 'eye',
+            type: 'applet',
+            difficulty: 'beginner',
+            duration: 25,
+            topics: ['data', 'loss', 'from', 'monitoring', 'analysis'],
+            paths: [],
+            components: {
+                applet: 'houses/eye/applets/cyberops/eye-data-loss-traffic.applet.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'eye-data-types-output': {
+            id: 'eye-data-types-output',
+            title: 'Data Types from Security Output',
+            description: 'Data Types from Security Output — applet content for eye house',
+            house: 'eye',
+            type: 'applet',
+            difficulty: 'beginner',
+            duration: 25,
+            topics: ['data', 'types', 'from', 'monitoring', 'analysis'],
+            paths: [],
+            components: {
+                applet: 'houses/eye/applets/cyberops/eye-data-types-output.applet.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'eye-data-visibility': {
+            id: 'eye-data-visibility',
+            title: 'Data Visibility',
+            description: 'Data Visibility — applet content for eye house',
+            house: 'eye',
+            type: 'applet',
+            difficulty: 'beginner',
+            duration: 25,
+            topics: ['data', 'visibility', 'monitoring', 'analysis'],
+            paths: [],
+            components: {
+                applet: 'houses/eye/applets/cyberops/eye-data-visibility.applet.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'eye-data-visibility-challenges': {
+            id: 'eye-data-visibility-challenges',
+            title: 'Data Visibility Challenges',
+            description: 'Data Visibility Challenges — applet content for eye house',
+            house: 'eye',
+            type: 'applet',
+            difficulty: 'beginner',
+            duration: 25,
+            topics: ['data', 'visibility', 'challenges', 'monitoring', 'analysis'],
+            paths: [],
+            components: {
+                applet: 'houses/eye/applets/cyberops/eye-data-visibility-challenges.applet.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'eye-detection-methods': {
+            id: 'eye-detection-methods',
+            title: 'Detection Methods',
+            description: 'Detection Methods — applet content for eye house',
+            house: 'eye',
+            type: 'applet',
+            difficulty: 'beginner',
+            duration: 25,
+            topics: ['detection', 'methods', 'monitoring', 'analysis'],
+            paths: [],
+            components: {
+                applet: 'houses/eye/applets/cyberops/eye-detection-methods.applet.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'eye-digital-signatures': {
+            id: 'eye-digital-signatures',
+            title: 'Digital Signatures',
+            description: 'Digital Signatures — lab content for eye house',
+            house: 'eye',
+            type: 'lab',
+            difficulty: 'beginner',
+            duration: 30,
+            topics: ['digital', 'signatures', 'monitoring', 'analysis'],
+            paths: [],
+            components: {
+                lab: 'houses/eye/applets/cyberops/week6/labs/eye-digital-signatures.lab.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'eye-disk-images': {
+            id: 'eye-disk-images',
+            title: 'Compare Disk Images',
+            description: 'Compare Disk Images — applet content for eye house',
+            house: 'eye',
+            type: 'applet',
+            difficulty: 'beginner',
+            duration: 25,
+            topics: ['compare', 'disk', 'images', 'monitoring', 'analysis'],
+            paths: [],
+            components: {
+                applet: 'houses/eye/applets/cyberops/eye-disk-images.applet.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'eye-dns-traffic': {
+            id: 'eye-dns-traffic',
+            title: 'Lab 5.3: Exploring DNS Traffic',
+            description: 'Lab 5.3: Exploring DNS Traffic — lab content for eye house',
+            house: 'eye',
+            type: 'lab',
+            difficulty: 'beginner',
+            duration: 30,
+            topics: ['exploring', 'dns', 'traffic', 'monitoring', 'analysis'],
+            paths: [],
+            components: {
+                lab: 'houses/eye/applets/cyberops/week5/labs/eye-dns-traffic.lab.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'eye-endpoint-attacks': {
+            id: 'eye-endpoint-attacks',
+            title: 'Endpoint Attacks',
+            description: 'Endpoint Attacks — applet content for eye house',
+            house: 'eye',
+            type: 'applet',
+            difficulty: 'beginner',
+            duration: 25,
+            topics: ['endpoint', 'attacks', 'monitoring', 'analysis'],
+            paths: [],
+            components: {
+                applet: 'houses/eye/applets/cyberops/eye-endpoint-attacks.applet.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'eye-evaluation': {
+            id: 'eye-evaluation',
+            title: 'Week 1 Evaluation',
+            description: 'Week 1 Evaluation — module content for eye house',
+            house: 'eye',
+            type: 'module',
+            difficulty: 'beginner',
+            duration: 45,
+            topics: ['week', 'evaluation', 'monitoring', 'analysis'],
+            paths: [],
+            components: {
+                applet: 'houses/eye/applets/cyberops/week7/eye-evaluation.applet.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'eye-evasion-obfuscation': {
+            id: 'eye-evasion-obfuscation',
+            title: 'Evasion & Obfuscation',
+            description: 'Evasion & Obfuscation — applet content for eye house',
+            house: 'eye',
+            type: 'applet',
+            difficulty: 'beginner',
+            duration: 25,
+            topics: ['evasion', 'obfuscation', 'monitoring', 'analysis'],
+            paths: [],
+            components: {
+                applet: 'houses/eye/applets/cyberops/eye-evasion-obfuscation.applet.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'eye-evidence-types': {
+            id: 'eye-evidence-types',
+            title: 'Types of Evidence',
+            description: 'Types of Evidence — applet content for eye house',
+            house: 'eye',
+            type: 'applet',
+            difficulty: 'beginner',
+            duration: 25,
+            topics: ['types', 'evidence', 'monitoring', 'analysis'],
+            paths: [],
+            components: {
+                applet: 'houses/eye/applets/cyberops/eye-evidence-types.applet.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'eye-exploring-nmap': {
+            id: 'eye-exploring-nmap',
+            title: 'Interactive Nmap Lab',
+            description: 'Interactive Nmap Lab — lab content for eye house',
+            house: 'eye',
+            type: 'lab',
+            difficulty: 'beginner',
+            duration: 30,
+            topics: ['interactive', 'nmap', 'monitoring', 'analysis'],
+            paths: [],
+            components: {
+                lab: 'houses/eye/applets/cyberops/week3/labs/eye-exploring-nmap.lab.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'eye-firewall-data': {
+            id: 'eye-firewall-data',
+            title: 'Firewall Log Analysis',
+            description: 'Firewall Log Analysis — applet content for eye house',
+            house: 'eye',
+            type: 'applet',
+            difficulty: 'beginner',
+            duration: 25,
+            topics: ['firewall', 'log', 'analysis', 'monitoring'],
+            paths: [],
+            components: {
+                applet: 'houses/eye/applets/cyberops/eye-firewall-data.applet.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'eye-firewall-operations': {
+            id: 'eye-firewall-operations',
+            title: '4.2 Compare Firewall Operations',
+            description: '4.2 Compare Firewall Operations — applet content for eye house',
+            house: 'eye',
+            type: 'applet',
+            difficulty: 'beginner',
+            duration: 25,
+            topics: ['compare', 'firewall', 'operations', 'monitoring', 'analysis'],
+            paths: [],
+            components: {
+                applet: 'houses/eye/applets/cyberops/eye-firewall-operations.applet.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'eye-forensic-elements': {
+            id: 'eye-forensic-elements',
+            title: '5.7 Forensic Evidence Elements',
+            description: '5.7 Forensic Evidence Elements — applet content for eye house',
+            house: 'eye',
+            type: 'applet',
+            difficulty: 'beginner',
+            duration: 25,
+            topics: ['forensic', 'evidence', 'elements', 'monitoring', 'analysis'],
+            paths: [],
+            components: {
+                applet: 'houses/eye/applets/cyberops/eye-forensic-elements.applet.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'eye-google-dorking': {
+            id: 'eye-google-dorking',
+            title: 'Google Dork Syntax for Finding Recipe PDFs',
+            description: 'Google Dork Syntax for Finding Recipe PDFs — applet content for eye house',
+            house: 'eye',
+            type: 'applet',
+            difficulty: 'beginner',
+            duration: 25,
+            topics: ['google', 'dork', 'syntax', 'monitoring', 'analysis'],
+            paths: [],
+            components: {
+                applet: 'houses/eye/applets/osint/eye-google-dorking.applet.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'eye-hashing-openssl': {
+            id: 'eye-hashing-openssl',
+            title: 'Hashing with OpenSSL',
+            description: 'Hashing with OpenSSL — lab content for eye house',
+            house: 'eye',
+            type: 'lab',
+            difficulty: 'beginner',
+            duration: 30,
+            topics: ['hashing', 'openssl', 'monitoring', 'analysis'],
+            paths: [],
+            components: {
+                lab: 'houses/eye/applets/cyberops/week6/labs/eye-hashing-openssl.lab.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'eye-incident-handling': {
+            id: 'eye-incident-handling',
+            title: 'Eye House - Full Incident Response Simulation',
+            description: 'Eye House - Full Incident Response Simulation — lab content for eye house',
+            house: 'eye',
+            type: 'lab',
+            difficulty: 'beginner',
+            duration: 30,
+            topics: ['eye', 'full', 'incident', 'monitoring', 'analysis'],
+            paths: [],
+            components: {
+                lab: 'houses/eye/applets/cyberops/week7/labs/eye-incident-handling.lab.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'eye-intrusion-elements': {
+            id: 'eye-intrusion-elements',
+            title: '4.5 Identify Intrusion Elements',
+            description: '4.5 Identify Intrusion Elements — applet content for eye house',
+            house: 'eye',
+            type: 'applet',
+            difficulty: 'beginner',
+            duration: 25,
+            topics: ['identify', 'intrusion', 'elements', 'monitoring', 'analysis'],
+            paths: [],
+            components: {
+                applet: 'houses/eye/applets/cyberops/eye-intrusion-elements.applet.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'eye-intrusion-events': {
+            id: 'eye-intrusion-events',
+            title: '4.0 Categorize Intrusion Events',
+            description: '4.0 Categorize Intrusion Events — applet content for eye house',
+            house: 'eye',
+            type: 'applet',
+            difficulty: 'beginner',
+            duration: 25,
+            topics: ['categorize', 'intrusion', 'events', 'monitoring', 'analysis'],
+            paths: [],
+            components: {
+                applet: 'houses/eye/applets/cyberops/eye-intrusion-events.applet.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'eye-irp-elements': {
+            id: 'eye-irp-elements',
+            title: '5.8 Elements of an IRP',
+            description: '5.8 Elements of an IRP — applet content for eye house',
+            house: 'eye',
+            type: 'applet',
+            difficulty: 'beginner',
+            duration: 25,
+            topics: ['elements', 'irp', 'monitoring', 'analysis'],
+            paths: [],
+            components: {
+                applet: 'houses/eye/applets/cyberops/eye-irp-elements.applet.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'eye-lab-1-0-6-top-hacker': {
+            id: 'eye-lab-1-0-6-top-hacker',
+            title: 'Lab 1.0.6: Top Hacker Shows Us How It\'s Done',
+            description: 'Lab 1.0.6: Top Hacker Shows Us How It\'s Done — lab content for eye house',
+            house: 'eye',
+            type: 'lab',
+            difficulty: 'beginner',
+            duration: 30,
+            topics: ['106', 'top', 'hacker', 'monitoring', 'analysis'],
+            paths: [],
+            components: {
+                lab: 'houses/eye/applets/cyberops/labs/eye-lab-1-0-6-top-hacker.lab.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'eye-lab-1-2-3-attack-details': {
+            id: 'eye-lab-1-2-3-attack-details',
+            title: 'Lab 1.2.3: Learning the Details of Attacks',
+            description: 'Lab 1.2.3: Learning the Details of Attacks — lab content for eye house',
+            house: 'eye',
+            type: 'lab',
+            difficulty: 'beginner',
+            duration: 30,
+            topics: ['123', 'learning', 'details', 'monitoring', 'analysis'],
+            paths: [],
+            components: {
+                lab: 'houses/eye/applets/cyberops/labs/eye-lab-1-2-3-attack-details.lab.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'eye-lab-2-2-5-becoming-defender': {
+            id: 'eye-lab-2-2-5-becoming-defender',
+            title: 'Lab 2.2.5: Becoming a Defender',
+            description: 'Lab 2.2.5: Becoming a Defender — lab content for eye house',
+            house: 'eye',
+            type: 'lab',
+            difficulty: 'beginner',
+            duration: 30,
+            topics: ['225', 'becoming', 'defender', 'monitoring', 'analysis'],
+            paths: [],
+            components: {
+                lab: 'houses/eye/applets/cyberops/labs/eye-lab-2-2-5-becoming-defender.lab.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'eye-lab-3-0-3-running-processes': {
+            id: 'eye-lab-3-0-3-running-processes',
+            title: 'Lab 3.0.3: Identify Running Processes',
+            description: 'Lab 3.0.3: Identify Running Processes — lab content for eye house',
+            house: 'eye',
+            type: 'lab',
+            difficulty: 'beginner',
+            duration: 30,
+            topics: ['303', 'identify', 'running', 'monitoring', 'analysis'],
+            paths: [],
+            components: {
+                lab: 'houses/eye/applets/cyberops/labs/eye-lab-3-0-3-running-processes.lab.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'eye-lab-3-2-11-windows-internals': {
+            id: 'eye-lab-3-2-11-windows-internals',
+            title: 'Lab 3.2.11: Processes, Threads, Handles & Registry',
+            description: 'Lab 3.2.11: Processes, Threads, Handles & Registry — lab content for eye house',
+            house: 'eye',
+            type: 'lab',
+            difficulty: 'beginner',
+            duration: 30,
+            topics: ['3211', 'processes', 'threads', 'monitoring', 'analysis'],
+            paths: [],
+            components: {
+                lab: 'houses/eye/applets/cyberops/labs/eye-lab-3-2-11-windows-internals.lab.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'eye-lab-3-3-10-user-accounts': {
+            id: 'eye-lab-3-3-10-user-accounts',
+            title: 'Lab 3.3.10: Create User Accounts',
+            description: 'Lab 3.3.10: Create User Accounts — lab content for eye house',
+            house: 'eye',
+            type: 'lab',
+            difficulty: 'beginner',
+            duration: 30,
+            topics: ['3310', 'create', 'user', 'monitoring', 'analysis'],
+            paths: [],
+            components: {
+                lab: 'houses/eye/applets/cyberops/labs/eye-lab-3-3-10-user-accounts.lab.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'eye-linux-servers': {
+            id: 'eye-linux-servers',
+            title: 'Linux Servers',
+            description: 'Linux Servers — lab content for eye house',
+            house: 'eye',
+            type: 'lab',
+            difficulty: 'beginner',
+            duration: 30,
+            topics: ['linux', 'servers', 'monitoring', 'analysis'],
+            paths: [],
+            components: {
+                lab: 'houses/eye/applets/cyberops/week2/labs/eye-linux-servers.lab.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'eye-log-centipede': {
+            id: 'eye-log-centipede',
+            title: 'Log Centipede',
+            description: 'Log Centipede — applet content for eye house',
+            house: 'eye',
+            type: 'applet',
+            difficulty: 'beginner',
+            duration: 25,
+            topics: ['log', 'centipede', 'monitoring', 'analysis'],
+            paths: [],
+            components: {
+                applet: 'houses/eye/games/eye-log-centipede.applet.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'eye-log-detective': {
+            id: 'eye-log-detective',
+            title: 'Log Detective',
+            description: 'Log Detective — lab content for eye house',
+            house: 'eye',
+            type: 'lab',
+            difficulty: 'beginner',
+            duration: 30,
+            topics: ['log', 'detective', 'monitoring', 'analysis'],
+            paths: [],
+            components: {
+                lab: 'houses/eye/labs/eye-log-detective.lab.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'eye-logging-network-activity': {
+            id: 'eye-logging-network-activity',
+            title: 'Lab 5.2: Logging Network Activity',
+            description: 'Lab 5.2: Logging Network Activity — lab content for eye house',
+            house: 'eye',
+            type: 'lab',
+            difficulty: 'beginner',
+            duration: 30,
+            topics: ['logging', 'network', 'activity', 'monitoring', 'analysis'],
+            paths: [],
+            components: {
+                lab: 'houses/eye/applets/cyberops/week5/labs/eye-logging-network-activity.lab.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'eye-malware-analysis-output': {
+            id: 'eye-malware-analysis-output',
+            title: 'Malware Analysis Tool Output',
+            description: 'Malware Analysis Tool Output — applet content for eye house',
+            house: 'eye',
+            type: 'applet',
+            difficulty: 'beginner',
+            duration: 25,
+            topics: ['malware', 'analysis', 'output', 'monitoring'],
+            paths: [],
+            components: {
+                applet: 'houses/eye/applets/cyberops/eye-malware-analysis-output.applet.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'eye-memory-forensics': {
+            id: 'eye-memory-forensics',
+            title: 'Lab 6: Memory Forensics',
+            description: 'Lab 6: Memory Forensics — module content for eye house',
+            house: 'eye',
+            type: 'module',
+            difficulty: 'beginner',
+            duration: 45,
+            topics: ['memory', 'forensics', 'monitoring', 'analysis'],
+            paths: [],
+            components: {
+                lab: 'houses/eye/applets/cyberops/week7/labs/eye-memory-forensics.lab.html',
+                applet: 'houses/eye/games/eye-memory-forensics.applet.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'eye-mysql-attack': {
+            id: 'eye-mysql-attack',
+            title: 'Lab 5.4: Attacking MySQL Database',
+            description: 'Lab 5.4: Attacking MySQL Database — lab content for eye house',
+            house: 'eye',
+            type: 'lab',
+            difficulty: 'beginner',
+            duration: 30,
+            topics: ['attacking', 'mysql', 'database', 'monitoring', 'analysis'],
+            paths: [],
+            components: {
+                lab: 'houses/eye/applets/cyberops/week5/labs/eye-mysql-attack.lab.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'eye-network-attacks': {
+            id: 'eye-network-attacks',
+            title: 'Network Attacks & Detection',
+            description: 'Network Attacks & Detection — applet content for eye house',
+            house: 'eye',
+            type: 'applet',
+            difficulty: 'beginner',
+            duration: 25,
+            topics: ['network', 'attacks', 'detection', 'monitoring', 'analysis'],
+            paths: [],
+            components: {
+                applet: 'houses/eye/applets/cyberops/eye-network-attacks.applet.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'eye-network-forensics': {
+            id: 'eye-network-forensics',
+            title: 'Lab 7: Network Forensics',
+            description: 'Lab 7: Network Forensics — lab content for eye house',
+            house: 'eye',
+            type: 'lab',
+            difficulty: 'beginner',
+            duration: 30,
+            topics: ['network', 'forensics', 'monitoring', 'analysis'],
+            paths: [],
+            components: {
+                lab: 'houses/eye/applets/cyberops/week7/labs/eye-network-forensics.lab.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'eye-network-profiling': {
+            id: 'eye-network-profiling',
+            title: '5.5 Network & Server Profiling',
+            description: '5.5 Network & Server Profiling — applet content for eye house',
+            house: 'eye',
+            type: 'applet',
+            difficulty: 'beginner',
+            duration: 25,
+            topics: ['network', 'server', 'profiling', 'monitoring', 'analysis'],
+            paths: [],
+            components: {
+                applet: 'houses/eye/applets/cyberops/eye-network-profiling.applet.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'eye-nist-800-86': {
+            id: 'eye-nist-800-86',
+            title: '5.1 NIST SP 800-86 Concepts',
+            description: '5.1 NIST SP 800-86 Concepts — applet content for eye house',
+            house: 'eye',
+            type: 'applet',
+            difficulty: 'beginner',
+            duration: 25,
+            topics: ['nist', '800-86', 'concepts', 'monitoring', 'analysis'],
+            paths: [],
+            components: {
+                applet: 'houses/eye/applets/cyberops/eye-nist-800-86.applet.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'eye-nsm-data-types': {
+            id: 'eye-nsm-data-types',
+            title: 'NSM Data Types',
+            description: 'NSM Data Types — applet content for eye house',
+            house: 'eye',
+            type: 'applet',
+            difficulty: 'beginner',
+            duration: 25,
+            topics: ['nsm', 'data', 'types', 'monitoring', 'analysis'],
+            paths: [],
+            components: {
+                applet: 'houses/eye/applets/cyberops/eye-nsm-data-types.applet.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'eye-packet-flow': {
+            id: 'eye-packet-flow',
+            title: 'Lab 4.4: Packet Flow Visualization',
+            description: 'Lab 4.4: Packet Flow Visualization — lab content for eye house',
+            house: 'eye',
+            type: 'lab',
+            difficulty: 'beginner',
+            duration: 30,
+            topics: ['packet', 'flow', 'visualization', 'monitoring', 'analysis'],
+            paths: [],
+            components: {
+                lab: 'houses/eye/applets/cyberops/week4/labs/eye-packet-flow.lab.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'eye-pcap-forensics': {
+            id: 'eye-pcap-forensics',
+            title: 'Eye House - PCAP Forensics Investigation Lab',
+            description: 'Eye House - PCAP Forensics Investigation Lab — lab content for eye house',
+            house: 'eye',
+            type: 'lab',
+            difficulty: 'beginner',
+            duration: 30,
+            topics: ['eye', 'pcap', 'forensics', 'monitoring', 'analysis'],
+            paths: [],
+            components: {
+                lab: 'houses/eye/applets/cyberops/week7/labs/eye-pcap-forensics.lab.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'eye-protected-data': {
+            id: 'eye-protected-data',
+            title: '5.4 Protected Data',
+            description: '5.4 Protected Data — applet content for eye house',
+            house: 'eye',
+            type: 'applet',
+            difficulty: 'beginner',
+            duration: 25,
+            topics: ['protected', 'data', 'monitoring', 'analysis'],
+            paths: [],
+            components: {
+                applet: 'houses/eye/applets/cyberops/eye-protected-data.applet.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'eye-regular-expressions': {
+            id: 'eye-regular-expressions',
+            title: '4.7 Basic Regular Expressions',
+            description: '4.7 Basic Regular Expressions — applet content for eye house',
+            house: 'eye',
+            type: 'applet',
+            difficulty: 'beginner',
+            duration: 25,
+            topics: ['regular', 'expressions', 'monitoring', 'analysis'],
+            paths: [],
+            components: {
+                applet: 'houses/eye/applets/cyberops/eye-regular-expressions.applet.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'eye-risk-rating': {
+            id: 'eye-risk-rating',
+            title: 'Risk Rating',
+            description: 'Risk Rating — applet content for eye house',
+            house: 'eye',
+            type: 'applet',
+            difficulty: 'beginner',
+            duration: 25,
+            topics: ['risk', 'rating', 'monitoring', 'analysis'],
+            paths: [],
+            components: {
+                applet: 'houses/eye/applets/cyberops/eye-risk-rating.applet.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'eye-risk-register': {
+            id: 'eye-risk-register',
+            title: 'Risk Register',
+            description: 'Risk Register — applet content for eye house',
+            house: 'eye',
+            type: 'applet',
+            difficulty: 'beginner',
+            duration: 25,
+            topics: ['risk', 'register', 'monitoring', 'analysis'],
+            paths: [],
+            components: {
+                applet: 'houses/eye/applets/cyberops/eye-risk-register.applet.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'eye-security-approaches': {
+            id: 'eye-security-approaches',
+            title: 'Security Approaches',
+            description: 'Security Approaches — applet content for eye house',
+            house: 'eye',
+            type: 'applet',
+            difficulty: 'beginner',
+            duration: 25,
+            topics: ['security', 'approaches', 'monitoring', 'analysis'],
+            paths: [],
+            components: {
+                applet: 'houses/eye/applets/cyberops/eye-security-approaches.applet.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'eye-security-policy': {
+            id: 'eye-security-policy',
+            title: '5.2 Security Policy Management',
+            description: '5.2 Security Policy Management — applet content for eye house',
+            house: 'eye',
+            type: 'applet',
+            difficulty: 'beginner',
+            duration: 25,
+            topics: ['security', 'policy', 'management', 'monitoring', 'analysis'],
+            paths: [],
+            components: {
+                applet: 'houses/eye/applets/cyberops/eye-security-policy.applet.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'eye-server-logs': {
+            id: 'eye-server-logs',
+            title: 'Lab 5.5: Reading Server Logs',
+            description: 'Lab 5.5: Reading Server Logs — lab content for eye house',
+            house: 'eye',
+            type: 'lab',
+            difficulty: 'beginner',
+            duration: 30,
+            topics: ['reading', 'server', 'logs', 'monitoring', 'analysis'],
+            paths: [],
+            components: {
+                lab: 'houses/eye/applets/cyberops/week5/labs/eye-server-logs.lab.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'eye-siem-overview': {
+            id: 'eye-siem-overview',
+            title: 'SIEM Overview',
+            description: 'SIEM Overview — applet content for eye house',
+            house: 'eye',
+            type: 'applet',
+            difficulty: 'beginner',
+            duration: 25,
+            topics: ['siem', 'overview', 'monitoring', 'analysis'],
+            paths: [],
+            components: {
+                applet: 'houses/eye/applets/cyberops/eye-siem-overview.applet.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'eye-snort-rules': {
+            id: 'eye-snort-rules',
+            title: 'Eye House - Snort IDS Rule Writing Lab',
+            description: 'Eye House - Snort IDS Rule Writing Lab — lab content for eye house',
+            house: 'eye',
+            type: 'lab',
+            difficulty: 'beginner',
+            duration: 30,
+            topics: ['eye', 'snort', 'ids', 'monitoring', 'analysis'],
+            paths: [],
+            components: {
+                lab: 'houses/eye/applets/cyberops/week7/labs/eye-snort-rules.lab.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'eye-soc-metrics': {
+            id: 'eye-soc-metrics',
+            title: '5.3 SOC Metrics & Scope',
+            description: '5.3 SOC Metrics & Scope — applet content for eye house',
+            house: 'eye',
+            type: 'applet',
+            difficulty: 'beginner',
+            duration: 25,
+            topics: ['soc', 'metrics', 'scope', 'monitoring', 'analysis'],
+            paths: [],
+            components: {
+                applet: 'houses/eye/applets/cyberops/eye-soc-metrics.applet.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'eye-soc-overview': {
+            id: 'eye-soc-overview',
+            title: 'SOC Overview',
+            description: 'SOC Overview — applet content for eye house',
+            house: 'eye',
+            type: 'applet',
+            difficulty: 'beginner',
+            duration: 25,
+            topics: ['soc', 'overview', 'monitoring', 'analysis'],
+            paths: [],
+            components: {
+                applet: 'houses/eye/applets/cyberops/eye-soc-overview.applet.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'eye-soc-triage': {
+            id: 'eye-soc-triage',
+            title: 'SOC Alert Triage Simulator',
+            description: 'SOC Alert Triage Simulator — lab content for eye house',
+            house: 'eye',
+            type: 'lab',
+            difficulty: 'beginner',
+            duration: 30,
+            topics: ['soc', 'alert', 'triage', 'monitoring', 'analysis'],
+            paths: [],
+            components: {
+                lab: 'houses/eye/applets/cyberops/week5/labs/eye-soc-triage.lab.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'eye-source-technologies': {
+            id: 'eye-source-technologies',
+            title: '4.1 Source Technologies & Events',
+            description: '4.1 Source Technologies & Events — applet content for eye house',
+            house: 'eye',
+            type: 'applet',
+            difficulty: 'beginner',
+            duration: 25,
+            topics: ['source', 'technologies', 'events', 'monitoring', 'analysis'],
+            paths: [],
+            components: {
+                applet: 'houses/eye/applets/cyberops/eye-source-technologies.applet.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'eye-symmetric-encryption': {
+            id: 'eye-symmetric-encryption',
+            title: 'Symmetric Encryption',
+            description: 'Symmetric Encryption — lab content for eye house',
+            house: 'eye',
+            type: 'lab',
+            difficulty: 'beginner',
+            duration: 30,
+            topics: ['symmetric', 'encryption', 'monitoring', 'analysis'],
+            paths: [],
+            components: {
+                lab: 'houses/eye/applets/cyberops/week6/labs/eye-symmetric-encryption.lab.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'eye-tcp-stream-extraction': {
+            id: 'eye-tcp-stream-extraction',
+            title: '4.4 Extract Files from TCP Stream',
+            description: '4.4 Extract Files from TCP Stream — applet content for eye house',
+            house: 'eye',
+            type: 'applet',
+            difficulty: 'beginner',
+            duration: 25,
+            topics: ['extract', 'files', 'from', 'monitoring', 'analysis'],
+            paths: [],
+            components: {
+                applet: 'houses/eye/applets/cyberops/eye-tcp-stream-extraction.applet.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'eye-tcpdump-netflow': {
+            id: 'eye-tcpdump-netflow',
+            title: 'tcpdump & NetFlow',
+            description: 'tcpdump & NetFlow — applet content for eye house',
+            house: 'eye',
+            type: 'applet',
+            difficulty: 'beginner',
+            duration: 25,
+            topics: ['tcpdump', 'netflow', 'monitoring', 'analysis'],
+            paths: [],
+            components: {
+                applet: 'houses/eye/applets/cyberops/eye-tcpdump-netflow.applet.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'eye-threat-actor-profiling': {
+            id: 'eye-threat-actor-profiling',
+            title: 'Eye House - Threat Actor Profiling Lab',
+            description: 'Eye House - Threat Actor Profiling Lab — lab content for eye house',
+            house: 'eye',
+            type: 'lab',
+            difficulty: 'beginner',
+            duration: 30,
+            topics: ['eye', 'threat', 'actor', 'monitoring', 'analysis'],
+            paths: [],
+            components: {
+                lab: 'houses/eye/applets/cyberops/week7/labs/eye-threat-actor-profiling.lab.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'eye-tls-ssl-analysis': {
+            id: 'eye-tls-ssl-analysis',
+            title: 'Lab 6: TLS/SSL Analysis',
+            description: 'Lab 6: TLS/SSL Analysis — lab content for eye house',
+            house: 'eye',
+            type: 'lab',
+            difficulty: 'beginner',
+            duration: 30,
+            topics: ['tlsssl', 'analysis', 'monitoring'],
+            paths: [],
+            components: {
+                lab: 'houses/eye/applets/cyberops/week6/labs/eye-tls-ssl-analysis.lab.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'eye-tracing-route': {
+            id: 'eye-tracing-route',
+            title: 'Interactive Traceroute Lab',
+            description: 'Interactive Traceroute Lab — lab content for eye house',
+            house: 'eye',
+            type: 'lab',
+            difficulty: 'beginner',
+            duration: 30,
+            topics: ['interactive', 'traceroute', 'monitoring', 'analysis'],
+            paths: [],
+            components: {
+                lab: 'houses/eye/applets/cyberops/week3/labs/eye-tracing-route.lab.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'eye-traffic-analysis': {
+            id: 'eye-traffic-analysis',
+            title: '4.3 Traffic Analysis Techniques',
+            description: '4.3 Traffic Analysis Techniques — applet content for eye house',
+            house: 'eye',
+            type: 'applet',
+            difficulty: 'beginner',
+            duration: 25,
+            topics: ['traffic', 'analysis', 'techniques', 'monitoring'],
+            paths: [],
+            components: {
+                applet: 'houses/eye/applets/cyberops/eye-traffic-analysis.applet.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'eye-verify-ipv4-ipv6': {
+            id: 'eye-verify-ipv4-ipv6',
+            title: 'Verify IPv4 and IPv6 Addressing',
+            description: 'Verify IPv4 and IPv6 Addressing — lab content for eye house',
+            house: 'eye',
+            type: 'lab',
+            difficulty: 'beginner',
+            duration: 30,
+            topics: ['verify', 'ipv4', 'ipv6', 'monitoring', 'analysis'],
+            paths: [],
+            components: {
+                lab: 'houses/eye/applets/cyberops/week3/labs/eye-verify-ipv4-ipv6.lab.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'eye-vpn-fundamentals': {
+            id: 'eye-vpn-fundamentals',
+            title: 'Lab 7: VPN Fundamentals',
+            description: 'Lab 7: VPN Fundamentals — lab content for eye house',
+            house: 'eye',
+            type: 'lab',
+            difficulty: 'beginner',
+            duration: 30,
+            topics: ['vpn', 'monitoring', 'analysis'],
+            paths: [],
+            components: {
+                lab: 'houses/eye/applets/cyberops/week6/labs/eye-vpn-fundamentals.lab.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'eye-web-attacks': {
+            id: 'eye-web-attacks',
+            title: 'Web Application Attacks',
+            description: 'Web Application Attacks — applet content for eye house',
+            house: 'eye',
+            type: 'applet',
+            difficulty: 'beginner',
+            duration: 25,
+            topics: ['web', 'application', 'attacks', 'monitoring', 'analysis'],
+            paths: [],
+            components: {
+                applet: 'houses/eye/applets/cyberops/eye-web-attacks.applet.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'eye-whats-going-on': {
+            id: 'eye-whats-going-on',
+            title: 'Lab 5.1: What\'s Going On?',
+            description: 'Lab 5.1: What\'s Going On? — lab content for eye house',
+            house: 'eye',
+            type: 'lab',
+            difficulty: 'beginner',
+            duration: 30,
+            topics: ['whats', 'going', 'monitoring', 'analysis'],
+            paths: [],
+            components: {
+                lab: 'houses/eye/applets/cyberops/week5/labs/eye-whats-going-on.lab.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'eye-windows-system-resources': {
+            id: 'eye-windows-system-resources',
+            title: 'Windows System Resources',
+            description: 'Windows System Resources — lab content for eye house',
+            house: 'eye',
+            type: 'lab',
+            difficulty: 'beginner',
+            duration: 30,
+            topics: ['windows', 'system', 'resources', 'monitoring', 'analysis'],
+            paths: [],
+            components: {
+                lab: 'houses/eye/applets/cyberops/week2/labs/eye-windows-system-resources.lab.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'eye-windows-task-manager': {
+            id: 'eye-windows-task-manager',
+            title: 'Windows Task Manager',
+            description: 'Windows Task Manager — lab content for eye house',
+            house: 'eye',
+            type: 'lab',
+            difficulty: 'beginner',
+            duration: 30,
+            topics: ['windows', 'task', 'manager', 'monitoring', 'analysis'],
+            paths: [],
+            components: {
+                lab: 'houses/eye/applets/cyberops/week2/labs/eye-windows-task-manager.lab.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'eye-wireshark-crypto': {
+            id: 'eye-wireshark-crypto',
+            title: 'Lab 8: Wireshark Crypto Analysis',
+            description: 'Lab 8: Wireshark Crypto Analysis — lab content for eye house',
+            house: 'eye',
+            type: 'lab',
+            difficulty: 'beginner',
+            duration: 30,
+            topics: ['wireshark', 'crypto', 'analysis', 'monitoring'],
+            paths: [],
+            components: {
+                lab: 'houses/eye/applets/cyberops/week6/labs/eye-wireshark-crypto.lab.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'eye-wireshark-ethernet': {
+            id: 'eye-wireshark-ethernet',
+            title: 'Wireshark Ethernet Frames',
+            description: 'Wireshark Ethernet Frames — lab content for eye house',
+            house: 'eye',
+            type: 'lab',
+            difficulty: 'beginner',
+            duration: 30,
+            topics: ['wireshark', 'ethernet', 'frames', 'monitoring', 'analysis'],
+            paths: [],
+            components: {
+                lab: 'houses/eye/applets/cyberops/week3/labs/eye-wireshark-ethernet.lab.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'eye-wireshark-http-https': {
+            id: 'eye-wireshark-http-https',
+            title: 'Lab 4.3: Wireshark HTTP/HTTPS',
+            description: 'Lab 4.3: Wireshark HTTP/HTTPS — lab content for eye house',
+            house: 'eye',
+            type: 'lab',
+            difficulty: 'beginner',
+            duration: 30,
+            topics: ['wireshark', 'httphttps', 'monitoring', 'analysis'],
+            paths: [],
+            components: {
+                lab: 'houses/eye/applets/cyberops/week4/labs/eye-wireshark-http-https.lab.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'eye-wireshark-intro': {
+            id: 'eye-wireshark-intro',
+            title: 'Introduction to Wireshark',
+            description: 'Introduction to Wireshark — lab content for eye house',
+            house: 'eye',
+            type: 'lab',
+            difficulty: 'beginner',
+            duration: 30,
+            topics: ['wireshark', 'monitoring', 'analysis'],
+            paths: [],
+            components: {
+                lab: 'houses/eye/applets/cyberops/week3/labs/eye-wireshark-intro.lab.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'eye-wireshark-tcp-handshake': {
+            id: 'eye-wireshark-tcp-handshake',
+            title: 'Wireshark TCP 3-Way Handshake',
+            description: 'Wireshark TCP 3-Way Handshake — lab content for eye house',
+            house: 'eye',
+            type: 'lab',
+            difficulty: 'beginner',
+            duration: 30,
+            topics: ['wireshark', 'tcp', '3-way', 'monitoring', 'analysis'],
+            paths: [],
+            components: {
+                lab: 'houses/eye/applets/cyberops/week3/labs/eye-wireshark-tcp-handshake.lab.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'eye-wireshark-tcp-udp': {
+            id: 'eye-wireshark-tcp-udp',
+            title: 'Lab 4.2: Wireshark TCP/UDP',
+            description: 'Lab 4.2: Wireshark TCP/UDP — lab content for eye house',
+            house: 'eye',
+            type: 'lab',
+            difficulty: 'beginner',
+            duration: 30,
+            topics: ['wireshark', 'tcpudp', 'monitoring', 'analysis'],
+            paths: [],
+            components: {
+                lab: 'houses/eye/applets/cyberops/week4/labs/eye-wireshark-tcp-udp.lab.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'eye-wireshark-udp-dns': {
+            id: 'eye-wireshark-udp-dns',
+            title: 'Lab 4.1: Wireshark UDP/DNS',
+            description: 'Lab 4.1: Wireshark UDP/DNS — lab content for eye house',
+            house: 'eye',
+            type: 'lab',
+            difficulty: 'beginner',
+            duration: 30,
+            topics: ['wireshark', 'udpdns', 'monitoring', 'analysis'],
+            paths: [],
+            components: {
+                lab: 'houses/eye/applets/cyberops/week4/labs/eye-wireshark-udp-dns.lab.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+
+        // ─── KEY HOUSE (auto-generated) ───
+        'key-cipher-bubbles': {
+            id: 'key-cipher-bubbles',
+            title: 'Cipher Bubbles',
+            description: 'Cipher Bubbles — applet content for key house',
+            house: 'key',
+            type: 'applet',
+            difficulty: 'beginner',
+            duration: 25,
+            topics: ['cipher', 'bubbles', 'cryptography', 'encryption'],
+            paths: [],
+            components: {
+                applet: 'houses/key/games/key-cipher-bubbles.applet.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'key-cipher-cracker': {
+            id: 'key-cipher-cracker',
+            title: 'Cipher Cracker',
+            description: 'Cipher Cracker — presentation content for key house',
+            house: 'key',
+            type: 'presentation',
+            difficulty: 'beginner',
+            duration: 20,
+            topics: ['cipher', 'cracker', 'cryptography', 'encryption'],
+            paths: [],
+            components: {
+                presentation: 'houses/key/games/key-cipher-cracker.presentation.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'key-crypto-pong': {
+            id: 'key-crypto-pong',
+            title: 'Crypto Pong',
+            description: 'Crypto Pong — applet content for key house',
+            house: 'key',
+            type: 'applet',
+            difficulty: 'beginner',
+            duration: 25,
+            topics: ['crypto', 'pong', 'cryptography', 'encryption'],
+            paths: [],
+            components: {
+                applet: 'houses/key/games/key-crypto-pong.applet.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'key-firewall-builder': {
+            id: 'key-firewall-builder',
+            title: 'Firewall Builder',
+            description: 'Firewall Builder — lab content for key house',
+            house: 'key',
+            type: 'lab',
+            difficulty: 'beginner',
+            duration: 30,
+            topics: ['firewall', 'builder', 'cryptography', 'encryption'],
+            paths: [],
+            components: {
+                lab: 'houses/key/labs/key-firewall-builder.lab.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+
+        // ─── CODE HOUSE (auto-generated) ───
+        'code-build-breaker': {
+            id: 'code-build-breaker',
+            title: 'Build Breaker',
+            description: 'Build Breaker — applet content for code house',
+            house: 'code',
+            type: 'applet',
+            difficulty: 'beginner',
+            duration: 25,
+            topics: ['build', 'breaker', 'development', 'devops'],
+            paths: [],
+            components: {
+                applet: 'houses/code/games/code-build-breaker.applet.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'code-kill-nine': {
+            id: 'code-kill-nine',
+            title: 'kill -9 v1.0 - The AI Uprising',
+            description: 'kill -9 v1.0 - The AI Uprising — applet content for code house',
+            house: 'code',
+            type: 'applet',
+            difficulty: 'beginner',
+            duration: 25,
+            topics: ['kill', 'v10', 'uprising', 'development', 'devops'],
+            paths: [],
+            components: {
+                applet: 'houses/code/games/code-kill-nine.applet.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'code-kubernetes-rescue': {
+            id: 'code-kubernetes-rescue',
+            title: 'Kubernetes Rescue',
+            description: 'Kubernetes Rescue — applet content for code house',
+            house: 'code',
+            type: 'applet',
+            difficulty: 'beginner',
+            duration: 25,
+            topics: ['kubernetes', 'rescue', 'development', 'devops'],
+            paths: [],
+            components: {
+                applet: 'houses/code/games/code-kubernetes-rescue.applet.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+
+        // ─── DARK ARTS - Offensive Security (auto-generated) ───
+        'dark-arts-buffer-overflow-lab': {
+            id: 'dark-arts-buffer-overflow-lab',
+            title: 'Buffer Overflow & Exploitation Lab',
+            description: 'Buffer Overflow & Exploitation Lab — lab content for Dark Arts house',
+            house: 'dark-arts',
+            type: 'lab',
+            difficulty: 'intermediate',
+            duration: 30,
+            topics: ['buffer-overflow', 'exploitation', 'offensive-security', 'ethical-hacking'],
+            paths: [],
+            components: {
+                lab: 'dark-arts/vault/buffer-overflow-lab.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'dark-arts-ceh-attack-reference': {
+            id: 'dark-arts-ceh-attack-reference',
+            title: 'CEH v12 Attack Reference',
+            description: 'CEH v12 Attack Reference — reference content for Dark Arts house',
+            house: 'dark-arts',
+            type: 'reference',
+            difficulty: 'intermediate',
+            duration: 15,
+            topics: ['ceh', 'attacks', 'offensive-security', 'ethical-hacking'],
+            paths: [],
+            components: {
+                reference: 'dark-arts/vault/ceh-attack-reference.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'dark-arts-cloud-hacking-lab': {
+            id: 'dark-arts-cloud-hacking-lab',
+            title: 'Cloud Security & Hacking Lab',
+            description: 'Cloud Security & Hacking Lab — lab content for Dark Arts house',
+            house: 'dark-arts',
+            type: 'lab',
+            difficulty: 'intermediate',
+            duration: 30,
+            topics: ['cloud', 'hacking', 'offensive-security', 'ethical-hacking'],
+            paths: [],
+            components: {
+                lab: 'dark-arts/vault/cloud-hacking-lab.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'dark-arts-csrf-attack-lab': {
+            id: 'dark-arts-csrf-attack-lab',
+            title: 'CSRF Attack Lab',
+            description: 'CSRF Attack Lab — lab content for Dark Arts house',
+            house: 'dark-arts',
+            type: 'lab',
+            difficulty: 'intermediate',
+            duration: 30,
+            topics: ['csrf', 'web-attacks', 'offensive-security', 'ethical-hacking'],
+            paths: [],
+            components: {
+                lab: 'dark-arts/vault/csrf-attack-lab.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'dark-arts-dos-ddos-lab': {
+            id: 'dark-arts-dos-ddos-lab',
+            title: 'DoS/DDoS Attacks Lab',
+            description: 'DoS/DDoS Attacks Lab — lab content for Dark Arts house',
+            house: 'dark-arts',
+            type: 'lab',
+            difficulty: 'intermediate',
+            duration: 30,
+            topics: ['dos', 'ddos', 'offensive-security', 'ethical-hacking'],
+            paths: [],
+            components: {
+                lab: 'dark-arts/vault/dos-ddos-lab.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'dark-arts-enumeration-lab': {
+            id: 'dark-arts-enumeration-lab',
+            title: 'Enumeration Techniques Lab',
+            description: 'Enumeration Techniques Lab — lab content for Dark Arts house',
+            house: 'dark-arts',
+            type: 'lab',
+            difficulty: 'intermediate',
+            duration: 30,
+            topics: ['enumeration', 'reconnaissance', 'offensive-security', 'ethical-hacking'],
+            paths: [],
+            components: {
+                lab: 'dark-arts/vault/enumeration-lab.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'dark-arts-footprinting-lab': {
+            id: 'dark-arts-footprinting-lab',
+            title: 'Footprinting & Reconnaissance Lab',
+            description: 'Footprinting & Reconnaissance Lab — lab content for Dark Arts house',
+            house: 'dark-arts',
+            type: 'lab',
+            difficulty: 'intermediate',
+            duration: 30,
+            topics: ['footprinting', 'reconnaissance', 'offensive-security', 'ethical-hacking'],
+            paths: [],
+            components: {
+                lab: 'dark-arts/vault/footprinting-lab.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'dark-arts-gate-6': {
+            id: 'dark-arts-gate-6',
+            title: 'Gate VI: Static Analysis Investigation',
+            description: 'Gate VI: Static Analysis Investigation — gate challenge for Dark Arts',
+            house: 'dark-arts',
+            type: 'lab',
+            difficulty: 'advanced',
+            duration: 45,
+            topics: ['static-analysis', 'ctf', 'offensive-security', 'ethical-hacking'],
+            paths: [],
+            components: {
+                lab: 'dark-arts/vault/gates/gate-6.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'dark-arts-gate-7': {
+            id: 'dark-arts-gate-7',
+            title: 'Gate 7: Operation Shadow Hunt',
+            description: 'Gate 7: Operation Shadow Hunt — gate challenge for Dark Arts',
+            house: 'dark-arts',
+            type: 'lab',
+            difficulty: 'advanced',
+            duration: 45,
+            topics: ['shadow-hunt', 'ctf', 'offensive-security', 'ethical-hacking'],
+            paths: [],
+            components: {
+                lab: 'dark-arts/vault/gates/gate-7.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'dark-arts-gate-10': {
+            id: 'dark-arts-gate-10',
+            title: 'Gate 10: Incident Response Capstone',
+            description: 'Gate 10: Incident Response Capstone — gate challenge for Dark Arts',
+            house: 'dark-arts',
+            type: 'lab',
+            difficulty: 'advanced',
+            duration: 60,
+            topics: ['incident-response', 'ctf', 'offensive-security', 'ethical-hacking'],
+            paths: [],
+            components: {
+                lab: 'dark-arts/vault/gates/gate-10.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'dark-arts-gate-11': {
+            id: 'dark-arts-gate-11',
+            title: 'Gate 11: Crypto Challenge',
+            description: 'Gate 11: Crypto Challenge — gate challenge for Dark Arts',
+            house: 'dark-arts',
+            type: 'lab',
+            difficulty: 'advanced',
+            duration: 45,
+            topics: ['cryptography', 'ctf', 'offensive-security', 'ethical-hacking'],
+            paths: [],
+            components: {
+                lab: 'dark-arts/vault/gates/gate-11.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'dark-arts-gate-1': {
+            id: 'dark-arts-gate-1',
+            title: '. . .',
+            description: '. . . — lab content for Dark Arts',
+            house: 'dark-arts',
+            type: 'lab',
+            difficulty: 'intermediate',
+            duration: 30,
+            topics: ['offensive-security', 'ethical-hacking'],
+            paths: [],
+            components: {
+                lab: 'dark-arts/gate-1.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'dark-arts-gate-2': {
+            id: 'dark-arts-gate-2',
+            title: '. . . .',
+            description: '. . . . — lab content for Dark Arts',
+            house: 'dark-arts',
+            type: 'lab',
+            difficulty: 'intermediate',
+            duration: 30,
+            topics: ['offensive-security', 'ethical-hacking'],
+            paths: [],
+            components: {
+                lab: 'dark-arts/gates/gate-2.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'dark-arts-gate-3': {
+            id: 'dark-arts-gate-3',
+            title: '. . . . .',
+            description: '. . . . . — lab content for Dark Arts',
+            house: 'dark-arts',
+            type: 'lab',
+            difficulty: 'intermediate',
+            duration: 30,
+            topics: ['offensive-security', 'ethical-hacking'],
+            paths: [],
+            components: {
+                lab: 'dark-arts/gates/gate-3.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'dark-arts-gate-4': {
+            id: 'dark-arts-gate-4',
+            title: '. . . . . .',
+            description: '. . . . . . — lab content for Dark Arts',
+            house: 'dark-arts',
+            type: 'lab',
+            difficulty: 'intermediate',
+            duration: 30,
+            topics: ['offensive-security', 'ethical-hacking'],
+            paths: [],
+            components: {
+                lab: 'dark-arts/gates/gate-4.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'dark-arts-gate-5': {
+            id: 'dark-arts-gate-5',
+            title: '. . . . . . .',
+            description: '. . . . . . . — lab content for Dark Arts',
+            house: 'dark-arts',
+            type: 'lab',
+            difficulty: 'intermediate',
+            duration: 30,
+            topics: ['offensive-security', 'ethical-hacking'],
+            paths: [],
+            components: {
+                lab: 'dark-arts/gates/gate-5.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'dark-arts-cyber-kill-chain': {
+            id: 'dark-arts-cyber-kill-chain',
+            title: 'Cyber Kill Chain',
+            description: 'Cyber Kill Chain — lab content for Dark Arts',
+            house: 'dark-arts',
+            type: 'lab',
+            difficulty: 'intermediate',
+            duration: 30,
+            topics: ['offensive-security', 'ethical-hacking'],
+            paths: [],
+            components: {
+                lab: 'dark-arts/vault/cyber-kill-chain.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'dark-arts-gate-8': {
+            id: 'dark-arts-gate-8',
+            title: 'Gate 8: Dynamic Analysis Sandbox',
+            description: 'Gate 8: Dynamic Analysis Sandbox — lab content for Dark Arts',
+            house: 'dark-arts',
+            type: 'lab',
+            difficulty: 'intermediate',
+            duration: 30,
+            topics: ['offensive-security', 'ethical-hacking'],
+            paths: [],
+            components: {
+                lab: 'dark-arts/vault/gates/gate-8.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'dark-arts-gate-9': {
+            id: 'dark-arts-gate-9',
+            title: 'Gate 9: Reverse Engineering',
+            description: 'Gate 9: Reverse Engineering — lab content for Dark Arts',
+            house: 'dark-arts',
+            type: 'lab',
+            difficulty: 'intermediate',
+            duration: 30,
+            topics: ['offensive-security', 'ethical-hacking'],
+            paths: [],
+            components: {
+                lab: 'dark-arts/vault/gates/gate-9.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'dark-arts-gate-12': {
+            id: 'dark-arts-gate-12',
+            title: 'Gate 12: Social Engineering',
+            description: 'Gate 12: Social Engineering — lab content for Dark Arts',
+            house: 'dark-arts',
+            type: 'lab',
+            difficulty: 'intermediate',
+            duration: 30,
+            topics: ['offensive-security', 'ethical-hacking'],
+            paths: [],
+            components: {
+                lab: 'dark-arts/vault/gates/gate-12.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'dark-arts-gate-13': {
+            id: 'dark-arts-gate-13',
+            title: 'Gate 13: The Synthesis',
+            description: 'Gate 13: The Synthesis — lab content for Dark Arts',
+            house: 'dark-arts',
+            type: 'lab',
+            difficulty: 'intermediate',
+            duration: 30,
+            topics: ['offensive-security', 'ethical-hacking'],
+            paths: [],
+            components: {
+                lab: 'dark-arts/vault/gates/gate-13.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'da-gate8-caseboard': {
+            id: 'da-gate8-caseboard',
+            title: 'Case Board — Operation Gone Dark',
+            description: 'Case Board — Operation Gone Dark — lab content for Dark Arts',
+            house: 'dark-arts',
+            type: 'lab',
+            difficulty: 'intermediate',
+            duration: 30,
+            topics: ['offensive-security', 'ethical-hacking'],
+            paths: [],
+            components: {
+                lab: 'dark-arts/vault/gates/gate-8/caseboard.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'da-gate8-datadrill': {
+            id: 'da-gate8-datadrill',
+            title: 'DataDrill Pro — Operation Gone Dark',
+            description: 'DataDrill Pro — Operation Gone Dark — lab content for Dark Arts',
+            house: 'dark-arts',
+            type: 'lab',
+            difficulty: 'intermediate',
+            duration: 30,
+            topics: ['offensive-security', 'ethical-hacking'],
+            paths: [],
+            components: {
+                lab: 'dark-arts/vault/gates/gate-8/datadrill.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'da-gate8-desktop': {
+            id: 'da-gate8-desktop',
+            title: 'Desktop PC — Operation Gone Dark',
+            description: 'Desktop PC — Operation Gone Dark — lab content for Dark Arts',
+            house: 'dark-arts',
+            type: 'lab',
+            difficulty: 'intermediate',
+            duration: 30,
+            topics: ['offensive-security', 'ethical-hacking'],
+            paths: [],
+            components: {
+                lab: 'dark-arts/vault/gates/gate-8/desktop.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'da-gate8-laptop': {
+            id: 'da-gate8-laptop',
+            title: 'MacBook Pro — Operation Gone Dark',
+            description: 'MacBook Pro — Operation Gone Dark — lab content for Dark Arts',
+            house: 'dark-arts',
+            type: 'lab',
+            difficulty: 'intermediate',
+            duration: 30,
+            topics: ['offensive-security', 'ethical-hacking'],
+            paths: [],
+            components: {
+                lab: 'dark-arts/vault/gates/gate-8/laptop.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'da-gate8-phone': {
+            id: 'da-gate8-phone',
+            title: 'Phone — Operation Gone Dark',
+            description: 'Phone — Operation Gone Dark — lab content for Dark Arts',
+            house: 'dark-arts',
+            type: 'lab',
+            difficulty: 'intermediate',
+            duration: 30,
+            topics: ['offensive-security', 'ethical-hacking'],
+            paths: [],
+            components: {
+                lab: 'dark-arts/vault/gates/gate-8/phone.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'da-gate8-case-summary': {
+            id: 'da-gate8-case-summary',
+            title: 'Det. Novak Case Summary - Case #2026-MP-04871',
+            description: 'Det. Novak Case Summary - Case #2026-MP-04871 — lab content for Dark Arts',
+            house: 'dark-arts',
+            type: 'lab',
+            difficulty: 'intermediate',
+            duration: 30,
+            topics: ['offensive-security', 'ethical-hacking'],
+            paths: [],
+            components: {
+                lab: 'dark-arts/vault/gates/gate-8/reports/case-summary.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'da-gate8-debrief': {
+            id: 'da-gate8-debrief',
+            title: 'OPERATION GONE DARK - Final Debrief',
+            description: 'OPERATION GONE DARK - Final Debrief — lab content for Dark Arts',
+            house: 'dark-arts',
+            type: 'lab',
+            difficulty: 'intermediate',
+            duration: 30,
+            topics: ['offensive-security', 'ethical-hacking'],
+            paths: [],
+            components: {
+                lab: 'dark-arts/vault/gates/gate-8/reports/debrief.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'da-gate8-interview-bartender': {
+            id: 'da-gate8-interview-bartender',
+            title: 'Interview: Maria Santos - Case #2026-MP-04871',
+            description: 'Interview: Maria Santos - Case #2026-MP-04871 — lab content for Dark Arts',
+            house: 'dark-arts',
+            type: 'lab',
+            difficulty: 'intermediate',
+            duration: 30,
+            topics: ['offensive-security', 'ethical-hacking'],
+            paths: [],
+            components: {
+                lab: 'dark-arts/vault/gates/gate-8/reports/interview-bartender.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'da-gate8-interview-colleague': {
+            id: 'da-gate8-interview-colleague',
+            title: 'Interview: Karen Liu - Case #2026-MP-04871',
+            description: 'Interview: Karen Liu - Case #2026-MP-04871 — lab content for Dark Arts',
+            house: 'dark-arts',
+            type: 'lab',
+            difficulty: 'intermediate',
+            duration: 30,
+            topics: ['offensive-security', 'ethical-hacking'],
+            paths: [],
+            components: {
+                lab: 'dark-arts/vault/gates/gate-8/reports/interview-colleague.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'da-gate8-interview-neighbor': {
+            id: 'da-gate8-interview-neighbor',
+            title: 'Interview: James Chen - Case #2026-MP-04871',
+            description: 'Interview: James Chen - Case #2026-MP-04871 — lab content for Dark Arts',
+            house: 'dark-arts',
+            type: 'lab',
+            difficulty: 'intermediate',
+            duration: 30,
+            topics: ['offensive-security', 'ethical-hacking'],
+            paths: [],
+            components: {
+                lab: 'dark-arts/vault/gates/gate-8/reports/interview-neighbor.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'da-gate8-police-report': {
+            id: 'da-gate8-police-report',
+            title: 'Missing Persons Report - Case #2026-MP-04871',
+            description: 'Missing Persons Report - Case #2026-MP-04871 — lab content for Dark Arts',
+            house: 'dark-arts',
+            type: 'lab',
+            difficulty: 'intermediate',
+            duration: 30,
+            topics: ['offensive-security', 'ethical-hacking'],
+            paths: [],
+            components: {
+                lab: 'dark-arts/vault/gates/gate-8/reports/police-report.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'dark-arts-idor-attack-lab': {
+            id: 'dark-arts-idor-attack-lab',
+            title: 'IDOR Attack Lab',
+            description: 'IDOR Attack Lab — lab content for Dark Arts',
+            house: 'dark-arts',
+            type: 'lab',
+            difficulty: 'intermediate',
+            duration: 30,
+            topics: ['offensive-security', 'ethical-hacking'],
+            paths: [],
+            components: {
+                lab: 'dark-arts/vault/idor-attack-lab.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'dark-arts-ids-evasion-lab': {
+            id: 'dark-arts-ids-evasion-lab',
+            title: 'IDS/IPS & Firewall Evasion Lab',
+            description: 'IDS/IPS & Firewall Evasion Lab — lab content for Dark Arts',
+            house: 'dark-arts',
+            type: 'lab',
+            difficulty: 'intermediate',
+            duration: 30,
+            topics: ['offensive-security', 'ethical-hacking'],
+            paths: [],
+            components: {
+                lab: 'dark-arts/vault/ids-evasion-lab.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'dark-arts-iot-security-lab': {
+            id: 'dark-arts-iot-security-lab',
+            title: 'IoT Security Lab',
+            description: 'IoT Security Lab — lab content for Dark Arts',
+            house: 'dark-arts',
+            type: 'lab',
+            difficulty: 'intermediate',
+            duration: 30,
+            topics: ['offensive-security', 'ethical-hacking'],
+            paths: [],
+            components: {
+                lab: 'dark-arts/vault/iot-security-lab.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'dark-arts-jwt-attack-lab': {
+            id: 'dark-arts-jwt-attack-lab',
+            title: 'JWT Attack Lab',
+            description: 'JWT Attack Lab — lab content for Dark Arts',
+            house: 'dark-arts',
+            type: 'lab',
+            difficulty: 'intermediate',
+            duration: 30,
+            topics: ['offensive-security', 'ethical-hacking'],
+            paths: [],
+            components: {
+                lab: 'dark-arts/vault/jwt-attack-lab.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'dark-arts-malware-analysis-lab': {
+            id: 'dark-arts-malware-analysis-lab',
+            title: 'Malware Analysis Lab',
+            description: 'Malware Analysis Lab — lab content for Dark Arts',
+            house: 'dark-arts',
+            type: 'lab',
+            difficulty: 'intermediate',
+            duration: 30,
+            topics: ['offensive-security', 'ethical-hacking'],
+            paths: [],
+            components: {
+                lab: 'dark-arts/vault/malware-analysis-lab.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'dark-arts-mobile-security-lab': {
+            id: 'dark-arts-mobile-security-lab',
+            title: 'Mobile Platform Security Lab',
+            description: 'Mobile Platform Security Lab — lab content for Dark Arts',
+            house: 'dark-arts',
+            type: 'lab',
+            difficulty: 'intermediate',
+            duration: 30,
+            topics: ['offensive-security', 'ethical-hacking'],
+            paths: [],
+            components: {
+                lab: 'dark-arts/vault/mobile-security-lab.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'dark-arts-network-scanning-lab': {
+            id: 'dark-arts-network-scanning-lab',
+            title: 'Network Scanning & Port Analysis Lab',
+            description: 'Network Scanning & Port Analysis Lab — lab content for Dark Arts',
+            house: 'dark-arts',
+            type: 'lab',
+            difficulty: 'intermediate',
+            duration: 30,
+            topics: ['offensive-security', 'ethical-hacking'],
+            paths: [],
+            components: {
+                lab: 'dark-arts/vault/network-scanning-lab.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'dark-arts-network-sniffing-lab': {
+            id: 'dark-arts-network-sniffing-lab',
+            title: 'Network Sniffing & Spoofing Lab',
+            description: 'Network Sniffing & Spoofing Lab — lab content for Dark Arts',
+            house: 'dark-arts',
+            type: 'lab',
+            difficulty: 'intermediate',
+            duration: 30,
+            topics: ['offensive-security', 'ethical-hacking'],
+            paths: [],
+            components: {
+                lab: 'dark-arts/vault/network-sniffing-lab.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'dark-arts-nmap-scanning-lab': {
+            id: 'dark-arts-nmap-scanning-lab',
+            title: 'Network Scanning Lab',
+            description: 'Network Scanning Lab — lab content for Dark Arts',
+            house: 'dark-arts',
+            type: 'lab',
+            difficulty: 'intermediate',
+            duration: 30,
+            topics: ['offensive-security', 'ethical-hacking'],
+            paths: [],
+            components: {
+                lab: 'dark-arts/vault/nmap-scanning-lab.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'dark-arts-owasp-top10-lab': {
+            id: 'dark-arts-owasp-top10-lab',
+            title: 'OWASP Top 10 Attack Lab',
+            description: 'OWASP Top 10 Attack Lab — lab content for Dark Arts',
+            house: 'dark-arts',
+            type: 'lab',
+            difficulty: 'intermediate',
+            duration: 30,
+            topics: ['offensive-security', 'ethical-hacking'],
+            paths: [],
+            components: {
+                lab: 'dark-arts/vault/owasp-top10-lab.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'dark-arts-password-attacks-lab': {
+            id: 'dark-arts-password-attacks-lab',
+            title: 'Password Attacks Lab',
+            description: 'Password Attacks Lab — lab content for Dark Arts',
+            house: 'dark-arts',
+            type: 'lab',
+            difficulty: 'intermediate',
+            duration: 30,
+            topics: ['offensive-security', 'ethical-hacking'],
+            paths: [],
+            components: {
+                lab: 'dark-arts/vault/password-attacks-lab.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'dark-arts-privilege-escalation-lab': {
+            id: 'dark-arts-privilege-escalation-lab',
+            title: 'Privilege Escalation Lab',
+            description: 'Privilege Escalation Lab — lab content for Dark Arts',
+            house: 'dark-arts',
+            type: 'lab',
+            difficulty: 'intermediate',
+            duration: 30,
+            topics: ['offensive-security', 'ethical-hacking'],
+            paths: [],
+            components: {
+                lab: 'dark-arts/vault/privilege-escalation-lab.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'da-dark-arts-quiz': {
+            id: 'da-dark-arts-quiz',
+            title: 'Dark Arts Mastery Challenge - The Vault',
+            description: 'Dark Arts Mastery Challenge - The Vault — quiz content for Dark Arts',
+            house: 'dark-arts',
+            type: 'quiz',
+            difficulty: 'intermediate',
+            duration: 15,
+            topics: ['offensive-security', 'ethical-hacking'],
+            paths: [],
+            components: {
+                quiz: 'dark-arts/vault/quizzes/dark-arts-quiz.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'dark-arts-session-hijacking-lab': {
+            id: 'dark-arts-session-hijacking-lab',
+            title: 'Session Hijacking Lab',
+            description: 'Session Hijacking Lab — lab content for Dark Arts',
+            house: 'dark-arts',
+            type: 'lab',
+            difficulty: 'intermediate',
+            duration: 30,
+            topics: ['offensive-security', 'ethical-hacking'],
+            paths: [],
+            components: {
+                lab: 'dark-arts/vault/session-hijacking-lab.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'dark-arts-social-engineering-advanced': {
+            id: 'dark-arts-social-engineering-advanced',
+            title: 'Social Engineering Advanced Lab',
+            description: 'Social Engineering Advanced Lab — lab content for Dark Arts',
+            house: 'dark-arts',
+            type: 'lab',
+            difficulty: 'intermediate',
+            duration: 30,
+            topics: ['offensive-security', 'ethical-hacking'],
+            paths: [],
+            components: {
+                lab: 'dark-arts/vault/social-engineering-advanced.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'dark-arts-sql-injection-lab': {
+            id: 'dark-arts-sql-injection-lab',
+            title: 'SQL Injection Lab',
+            description: 'SQL Injection Lab — lab content for Dark Arts',
+            house: 'dark-arts',
+            type: 'lab',
+            difficulty: 'intermediate',
+            duration: 30,
+            topics: ['offensive-security', 'ethical-hacking'],
+            paths: [],
+            components: {
+                lab: 'dark-arts/vault/sql-injection-lab.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'dark-arts-ssrf-attack-lab': {
+            id: 'dark-arts-ssrf-attack-lab',
+            title: 'SSRF Attack Lab',
+            description: 'SSRF Attack Lab — lab content for Dark Arts',
+            house: 'dark-arts',
+            type: 'lab',
+            difficulty: 'intermediate',
+            duration: 30,
+            topics: ['offensive-security', 'ethical-hacking'],
+            paths: [],
+            components: {
+                lab: 'dark-arts/vault/ssrf-attack-lab.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'dark-arts-steganography-lab': {
+            id: 'dark-arts-steganography-lab',
+            title: 'Steganography Lab',
+            description: 'Steganography Lab — lab content for Dark Arts',
+            house: 'dark-arts',
+            type: 'lab',
+            difficulty: 'intermediate',
+            duration: 30,
+            topics: ['offensive-security', 'ethical-hacking'],
+            paths: [],
+            components: {
+                lab: 'dark-arts/vault/steganography-lab.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'da-analysis-toolkit': {
+            id: 'da-analysis-toolkit',
+            title: 'Malware Analysis Toolkit',
+            description: 'Malware Analysis Toolkit — tool content for Dark Arts',
+            house: 'dark-arts',
+            type: 'tool',
+            difficulty: 'intermediate',
+            duration: 20,
+            topics: ['offensive-security', 'ethical-hacking'],
+            paths: [],
+            components: {
+                applet: 'dark-arts/vault/tools/analysis-toolkit.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'da-hashcat-training': {
+            id: 'da-hashcat-training',
+            title: 'Hashcat Training Lab',
+            description: 'Hashcat Training Lab — tool content for Dark Arts',
+            house: 'dark-arts',
+            type: 'tool',
+            difficulty: 'intermediate',
+            duration: 20,
+            topics: ['offensive-security', 'ethical-hacking'],
+            paths: [],
+            components: {
+                applet: 'dark-arts/vault/tools/hashcat-training.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'da-hydra-training': {
+            id: 'da-hydra-training',
+            title: 'Hydra Training Lab',
+            description: 'Hydra Training Lab — tool content for Dark Arts',
+            house: 'dark-arts',
+            type: 'tool',
+            difficulty: 'intermediate',
+            duration: 20,
+            topics: ['offensive-security', 'ethical-hacking'],
+            paths: [],
+            components: {
+                applet: 'dark-arts/vault/tools/hydra-training.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'da-john-training': {
+            id: 'da-john-training',
+            title: 'John the Ripper Training Lab',
+            description: 'John the Ripper Training Lab — tool content for Dark Arts',
+            house: 'dark-arts',
+            type: 'tool',
+            difficulty: 'intermediate',
+            duration: 20,
+            topics: ['offensive-security', 'ethical-hacking'],
+            paths: [],
+            components: {
+                applet: 'dark-arts/vault/tools/john-training.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'da-metasploit-training': {
+            id: 'da-metasploit-training',
+            title: 'Metasploit Training Lab',
+            description: 'Metasploit Training Lab — tool content for Dark Arts',
+            house: 'dark-arts',
+            type: 'tool',
+            difficulty: 'intermediate',
+            duration: 20,
+            topics: ['offensive-security', 'ethical-hacking'],
+            paths: [],
+            components: {
+                applet: 'dark-arts/vault/tools/metasploit-training.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'da-nmap-training': {
+            id: 'da-nmap-training',
+            title: 'Nmap Training Lab',
+            description: 'Nmap Training Lab — tool content for Dark Arts',
+            house: 'dark-arts',
+            type: 'tool',
+            difficulty: 'intermediate',
+            duration: 20,
+            topics: ['offensive-security', 'ethical-hacking'],
+            paths: [],
+            components: {
+                applet: 'dark-arts/vault/tools/nmap-training.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'dark-arts-wireless-attacks-lab': {
+            id: 'dark-arts-wireless-attacks-lab',
+            title: 'Wireless Attacks Lab',
+            description: 'Wireless Attacks Lab — lab content for Dark Arts',
+            house: 'dark-arts',
+            type: 'lab',
+            difficulty: 'intermediate',
+            duration: 30,
+            topics: ['offensive-security', 'ethical-hacking'],
+            paths: [],
+            components: {
+                lab: 'dark-arts/vault/wireless-attacks-lab.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'dark-arts-xss-attacks-lab': {
+            id: 'dark-arts-xss-attacks-lab',
+            title: 'XSS Attacks Lab',
+            description: 'XSS Attacks Lab — lab content for Dark Arts',
+            house: 'dark-arts',
+            type: 'lab',
+            difficulty: 'intermediate',
+            duration: 30,
+            topics: ['offensive-security', 'ethical-hacking'],
+            paths: [],
+            components: {
+                lab: 'dark-arts/vault/xss-attacks-lab.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'dark-arts-advanced-dynamic-analysis': {
+            id: 'dark-arts-advanced-dynamic-analysis',
+            title: 'Advanced Dynamic Analysis',
+            description: 'Advanced Dynamic Analysis — barricade content for Dark Arts house',
+            house: 'dark-arts',
+            type: 'barricade',
+            difficulty: 'beginner',
+            duration: 10,
+            topics: ['dynamic', 'analysis', 'offensive-security', 'ethical-hacking'],
+            paths: [],
+            components: {
+                barricade: 'dark-arts/vault/modules/advanced-dynamic-analysis.barricade.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'dark-arts-advanced-reverse-engineering': {
+            id: 'dark-arts-advanced-reverse-engineering',
+            title: 'Advanced Reverse Engineering',
+            description: 'Advanced Reverse Engineering — barricade content for Dark Arts house',
+            house: 'dark-arts',
+            type: 'barricade',
+            difficulty: 'beginner',
+            duration: 10,
+            topics: ['reverse', 'engineering', 'offensive-security', 'ethical-hacking'],
+            paths: [],
+            components: {
+                barricade: 'dark-arts/vault/modules/advanced-reverse-engineering.barricade.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'dark-arts-behavioral-analysis': {
+            id: 'dark-arts-behavioral-analysis',
+            title: 'Behavioral Analysis',
+            description: 'Behavioral Analysis — module content for Dark Arts house',
+            house: 'dark-arts',
+            type: 'module',
+            difficulty: 'beginner',
+            duration: 45,
+            topics: ['behavioral', 'analysis', 'offensive-security', 'ethical-hacking'],
+            paths: [],
+            components: {
+                module: 'dark-arts/vault/modules/behavioral-analysis.module.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'dark-arts-botnet-architecture': {
+            id: 'dark-arts-botnet-architecture',
+            title: 'Botnet Architecture & C2',
+            description: 'Botnet Architecture & C2 — presentation content for Dark Arts house',
+            house: 'dark-arts',
+            type: 'presentation',
+            difficulty: 'beginner',
+            duration: 20,
+            topics: ['botnet', 'architecture', 'offensive-security', 'ethical-hacking'],
+            paths: [],
+            components: {
+                presentation: 'dark-arts/vault/botnet-architecture.presentation.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'dark-arts-ctf-leaderboard': {
+            id: 'dark-arts-ctf-leaderboard',
+            title: 'Dark Arts Division • CTF Leaderboard',
+            description: 'Dark Arts Division • CTF Leaderboard — applet content for Dark Arts house',
+            house: 'dark-arts',
+            type: 'applet',
+            difficulty: 'beginner',
+            duration: 25,
+            topics: ['dark', 'arts', 'division', 'offensive-security', 'ethical-hacking'],
+            paths: [],
+            components: {
+                applet: 'dark-arts/ctf-leaderboard.applet.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'dark-arts-dynamic-analysis': {
+            id: 'dark-arts-dynamic-analysis',
+            title: 'Dynamic Analysis',
+            description: 'Dynamic Analysis — module content for Dark Arts house',
+            house: 'dark-arts',
+            type: 'module',
+            difficulty: 'beginner',
+            duration: 45,
+            topics: ['dynamic', 'analysis', 'offensive-security', 'ethical-hacking'],
+            paths: [],
+            components: {
+                module: 'dark-arts/vault/modules/dynamic-analysis.module.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'dark-arts-incident-response': {
+            id: 'dark-arts-incident-response',
+            title: 'Incident Response',
+            description: 'Incident Response — module content for Dark Arts house',
+            house: 'dark-arts',
+            type: 'module',
+            difficulty: 'beginner',
+            duration: 45,
+            topics: ['incident', 'response', 'offensive-security', 'ethical-hacking'],
+            paths: [],
+            components: {
+                module: 'dark-arts/vault/modules/incident-response.module.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'dark-arts-malware-families': {
+            id: 'dark-arts-malware-families',
+            title: 'Malware Families',
+            description: 'Malware Families — module content for Dark Arts house',
+            house: 'dark-arts',
+            type: 'module',
+            difficulty: 'beginner',
+            duration: 45,
+            topics: ['malware', 'families', 'offensive-security', 'ethical-hacking'],
+            paths: [],
+            components: {
+                module: 'dark-arts/vault/modules/malware-families.module.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'dark-arts-redteam': {
+            id: 'dark-arts-redteam',
+            title: 'Red Team Scenarios',
+            description: 'Red Team Scenarios — barricade content for Dark Arts house',
+            house: 'dark-arts',
+            type: 'barricade',
+            difficulty: 'beginner',
+            duration: 10,
+            topics: ['red', 'team', 'scenarios', 'offensive-security', 'ethical-hacking'],
+            paths: [],
+            components: {
+                barricade: 'dark-arts/vault/modules/redteam.barricade.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'dark-arts-reverse-engineering': {
+            id: 'dark-arts-reverse-engineering',
+            title: 'Reverse Engineering Basics',
+            description: 'Reverse Engineering Basics — module content for Dark Arts house',
+            house: 'dark-arts',
+            type: 'module',
+            difficulty: 'beginner',
+            duration: 45,
+            topics: ['reverse', 'engineering', 'offensive-security', 'ethical-hacking'],
+            paths: [],
+            components: {
+                module: 'dark-arts/vault/modules/reverse-engineering.module.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'dark-arts-sample': {
+            id: 'dark-arts-sample',
+            title: 'CTF Leaderboard • Podium Style',
+            description: 'CTF Leaderboard • Podium Style — tool content for Dark Arts house',
+            house: 'dark-arts',
+            type: 'tool',
+            difficulty: 'beginner',
+            duration: 20,
+            topics: ['ctf', 'leaderboard', 'podium', 'offensive-security', 'ethical-hacking'],
+            paths: [],
+            components: {
+                applet: 'houses/dark-arts/tools/ctf-leaderboard/dark-arts-sample.tool.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'dark-arts-sandbox-setup': {
+            id: 'dark-arts-sandbox-setup',
+            title: 'Sandbox Setup Guide',
+            description: 'Sandbox Setup Guide — module content for Dark Arts house',
+            house: 'dark-arts',
+            type: 'module',
+            difficulty: 'beginner',
+            duration: 45,
+            topics: ['sandbox', 'setup', 'guide', 'offensive-security', 'ethical-hacking'],
+            paths: [],
+            components: {
+                module: 'dark-arts/vault/modules/sandbox-setup.module.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'dark-arts-static-analysis': {
+            id: 'dark-arts-static-analysis',
+            title: 'Static Analysis 101',
+            description: 'Static Analysis 101 — module content for Dark Arts house',
+            house: 'dark-arts',
+            type: 'module',
+            difficulty: 'beginner',
+            duration: 45,
+            topics: ['static', 'analysis', '101', 'offensive-security', 'ethical-hacking'],
+            paths: [],
+            components: {
+                module: 'dark-arts/vault/modules/static-analysis.module.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'dark-arts-tier-locked': {
+            id: 'dark-arts-tier-locked',
+            title: 'Tier Locked',
+            description: 'Tier Locked — barricade content for Dark Arts house',
+            house: 'dark-arts',
+            type: 'barricade',
+            difficulty: 'beginner',
+            duration: 10,
+            topics: ['tier', 'locked', 'offensive-security', 'ethical-hacking'],
+            paths: [],
+            components: {
+                barricade: 'dark-arts/vault/modules/tier-locked.barricade.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
     },
 
     // ═══════════════════════════════════════════════════════════════

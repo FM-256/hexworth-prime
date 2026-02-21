@@ -64,6 +64,14 @@ class ValidatorOrchestrator {
                     entry.path = pathMatch[1];
                 }
 
+                // Extract component paths (presentation, applet, lab, quiz, etc.)
+                entry.componentPaths = [];
+                const compPattern = /(?:presentation|applet|lab|quiz|tool|module|simulator|reference|textbook|barricade):\s*['"]([^'"]+\.html)['"]/g;
+                let compMatch;
+                while ((compMatch = compPattern.exec(entry.raw)) !== null) {
+                    entry.componentPaths.push(compMatch[1]);
+                }
+
                 const typeMatch = entry.raw.match(/type:\s*['"]([^'"]+)['"]/);
                 if (typeMatch) {
                     entry.type = typeMatch[1];
@@ -222,6 +230,15 @@ class ValidatorOrchestrator {
         for (const entry of this.registry.entries) {
             if (entry.path && this.normalizePath(entry.path) === normalizedPath) {
                 return true;
+            }
+
+            // Check component paths (presentation, applet, lab, quiz, etc.)
+            if (entry.componentPaths) {
+                for (const cp of entry.componentPaths) {
+                    if (this.normalizePath(cp) === normalizedPath) {
+                        return true;
+                    }
+                }
             }
         }
 
