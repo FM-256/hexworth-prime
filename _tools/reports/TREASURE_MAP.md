@@ -1,7 +1,7 @@
 ══════════════════════════════════════════════════════════════════════
                          EDUSCAN REPORT
                     Hexworth Prime Content Map
-                    Scanned: 2026-02-21 11:35:04 PM
+                    Scanned: 2026-02-21 1:07:44 AM
 ══════════════════════════════════════════════════════════════════════
 
 
@@ -13,17 +13,17 @@
 | Files Scanned | 1500 |
 | Directories | 474 |
 | Content Files | 1500 |
-| Scan Duration | 272ms |
+| Scan Duration | 710ms |
 
 ### Content by Type
 
 | Type | Count |
 |------|-------|
-| html | 547 |
-| presentation | 402 |
+| presentation | 587 |
+| html | 544 |
 | lab | 237 |
-| applet | 188 |
 | quiz | 126 |
+| applet | 6 |
 
 ### ContentCatalog Validation
 
@@ -40,19 +40,19 @@
 
 | Severity | Count |
 |----------|-------|
-| Critical | 0 |
-| Suspect | 0 |
-| Warning | 167 |
-| Info | 246 |
-| **Total** | **413** |
+| Critical | 1 |
+| Suspect | 42 |
+| Warning | 0 |
+| Info | 12 |
+| **Total** | **629** |
 
 ### Sync Status
 
 | Status | Count |
 |--------|-------|
-| Ready | 881 |
-| Not Ready | 72 |
-| Unknown | 547 |
+| Ready | 955 |
+| Not Ready | 1 |
+| Unknown | 544 |
 
 
 ## FILE HIERARCHY
@@ -2048,94 +2048,94 @@
 | cloud-provider-comparison.applet | presentation | ✓ | 0 |
 | cloud-ad-attack-path.applet | presentation | ✓ | 0 |
 | cloud-architect | presentation | ✓ | 0 |
-| cloud-destroyer.applet | applet | ✓ | 1 |
-| cloud-hop.applet | applet | ✓ | 1 |
-| index | applet | ✓ | 1 |
+| cloud-destroyer.applet | presentation | ✓ | 0 |
+| cloud-hop.applet | presentation | ✓ | 0 |
+| index | presentation | ✓ | 0 |
 | cloud-architecture.lab | lab | ✓ | 0 |
 | cloud-aws-services.lab | lab | ✓ | 0 |
-| cloud-cse-module01.lab | lab | ✓ | 1 |
-| cloud-cse-module02.lab | lab | ✓ | 1 |
-| cloud-cse-module03.lab | lab | ✓ | 1 |
+| cloud-cse-module01.lab | lab | ✓ | 0 |
+| cloud-cse-module02.lab | lab | ✓ | 0 |
+| cloud-cse-module03.lab | lab | ✓ | 0 |
 | cloud-cse-module04.lab | lab | ✓ | 0 |
 | cloud-cse-module05.lab | lab | ✓ | 0 |
 | cloud-cse-module06.lab | lab | ✓ | 0 |
-| cloud-cse-module07.lab | lab | ✓ | 1 |
-| cloud-cse-module08.lab | lab | ✓ | 1 |
-| cloud-lab.lab | lab | ✓ | 2 |
-| cloud-ps.lab | lab | ✓ | 1 |
+| cloud-cse-module07.lab | lab | ✓ | 0 |
+| cloud-cse-module08.lab | lab | ✓ | 0 |
+| cloud-lab.lab | lab | ✓ | 0 |
+| cloud-ps.lab | lab | ✓ | 0 |
 | cloud-security.lab | lab | ✓ | 0 |
-| cloud-gauntlet.module | applet | ✓ | 1 |
-| cloud-gauntlet-advanced.module | applet | ✓ | 1 |
-| cloud-guilab.module | applet | ✓ | 1 |
-| cloud-presentation.module | presentation | ✓ | 2 |
+| cloud-gauntlet.module | presentation | ✓ | 0 |
+| cloud-gauntlet-advanced.module | presentation | ✓ | 0 |
+| cloud-guilab.module | presentation | ✓ | 0 |
+| cloud-presentation.module | presentation | ✓ | 0 |
 | cloud-pslab.module | lab | ✓ | 0 |
-| cloud-guilab.module | applet | ✓ | 1 |
-| cloud-presentation.module | presentation | ✓ | 1 |
+| cloud-guilab.module | presentation | ✓ | 0 |
+| cloud-presentation.module | presentation | ✓ | 0 |
 | cloud-pslab.module | lab | ✓ | 0 |
-| cloud-guilab.module | applet | ✓ | 1 |
-| cloud-presentation.module | presentation | ✓ | 2 |
-| cloud-pslab.module | lab | ✓ | 1 |
-| cloud-guilab.module | applet | ✓ | 1 |
-| cloud-presentation.module | presentation | ✓ | 1 |
-| cloud-pslab.module | lab | ✓ | 1 |
-| cloud-guilab.module | applet | ✓ | 1 |
-| cloud-presentation.module | presentation | ✓ | 2 |
-| cloud-pslab.module | lab | ✓ | 2 |
-| cloud-guilab.module | applet | ✓ | 1 |
-| cloud-presentation.module | presentation | ✓ | 1 |
-| cloud-pslab.module | lab | ✓ | 1 |
-| cloud-guilab.module | applet | ✓ | 1 |
-| cloud-presentation.module | presentation | ✓ | 1 |
-| cloud-pslab.module | lab | ✓ | 1 |
-| cloud-guilab.module | applet | ✓ | 1 |
-| cloud-presentation.module | presentation | ✓ | 1 |
-| cloud-pslab.module | lab | ✓ | 1 |
-| cloud-guilab.module | lab | ✓ | 1 |
-| cloud-presentation.module | presentation | ✓ | 1 |
-| cloud-pslab.module | lab | ✓ | 1 |
-| cloud-guilab.module | lab | ✓ | 1 |
-| cloud-presentation.module | presentation | ✓ | 1 |
-| cloud-pslab.module | lab | ✓ | 1 |
-| cloud-guilab.module | lab | ✓ | 1 |
-| cloud-presentation.module | presentation | ✓ | 1 |
-| cloud-pslab.module | lab | ✓ | 1 |
-| cloud-guilab.module | lab | ✓ | 1 |
-| cloud-presentation.module | presentation | ✓ | 2 |
-| cloud-pslab.module | lab | ✓ | 1 |
-| cloud-guilab.module | lab | ✓ | 1 |
-| cloud-presentation.module | presentation | ✓ | 1 |
-| cloud-pslab.module | lab | ✓ | 1 |
-| cloud-guilab.module | lab | ✓ | 1 |
-| cloud-presentation.module | presentation | ✓ | 1 |
-| cloud-pslab.module | lab | ✓ | 1 |
-| cloud-guilab.module | lab | ✓ | 1 |
-| cloud-presentation.module | presentation | ✓ | 1 |
-| cloud-pslab.module | lab | ✓ | 1 |
-| cloud-guilab.module | lab | ✓ | 1 |
-| cloud-presentation.module | presentation | ✓ | 1 |
-| cloud-pslab.module | lab | ✓ | 1 |
-| cloud-guilab.module | lab | ✓ | 1 |
-| cloud-presentation.module | presentation | ✓ | 1 |
-| cloud-pslab.module | lab | ✓ | 1 |
-| cloud-presentation.module | presentation | ✓ | 2 |
-| cloud-pslab.module | lab | ✓ | 1 |
-| cloud-presentation.module | presentation | ✓ | 1 |
-| cloud-pslab.module | lab | ✓ | 1 |
-| cloud-aws-fundamentals.presentation | presentation | ✓ | 1 |
-| cloud-azure-fundamentals.presentation | presentation | ✓ | 2 |
-| cloud-cloud.presentation | presentation | ✓ | 2 |
-| cloud-concepts.presentation | applet | ✓ | 1 |
+| cloud-guilab.module | presentation | ✓ | 0 |
+| cloud-presentation.module | presentation | ✓ | 0 |
+| cloud-pslab.module | lab | ✓ | 0 |
+| cloud-guilab.module | presentation | ✓ | 0 |
+| cloud-presentation.module | presentation | ✓ | 0 |
+| cloud-pslab.module | lab | ✓ | 0 |
+| cloud-guilab.module | presentation | ✓ | 0 |
+| cloud-presentation.module | presentation | ✓ | 0 |
+| cloud-pslab.module | lab | ✓ | 0 |
+| cloud-guilab.module | presentation | ✓ | 0 |
+| cloud-presentation.module | presentation | ✓ | 0 |
+| cloud-pslab.module | lab | ✓ | 0 |
+| cloud-guilab.module | presentation | ✓ | 0 |
+| cloud-presentation.module | presentation | ✓ | 0 |
+| cloud-pslab.module | lab | ✓ | 0 |
+| cloud-guilab.module | presentation | ✓ | 0 |
+| cloud-presentation.module | presentation | ✓ | 0 |
+| cloud-pslab.module | lab | ✓ | 0 |
+| cloud-guilab.module | lab | ✓ | 0 |
+| cloud-presentation.module | presentation | ✓ | 0 |
+| cloud-pslab.module | lab | ✓ | 0 |
+| cloud-guilab.module | lab | ✓ | 0 |
+| cloud-presentation.module | presentation | ✓ | 0 |
+| cloud-pslab.module | lab | ✓ | 0 |
+| cloud-guilab.module | lab | ✓ | 0 |
+| cloud-presentation.module | presentation | ✓ | 0 |
+| cloud-pslab.module | lab | ✓ | 0 |
+| cloud-guilab.module | lab | ✓ | 0 |
+| cloud-presentation.module | presentation | ✓ | 0 |
+| cloud-pslab.module | lab | ✓ | 0 |
+| cloud-guilab.module | lab | ✓ | 0 |
+| cloud-presentation.module | presentation | ✓ | 0 |
+| cloud-pslab.module | lab | ✓ | 0 |
+| cloud-guilab.module | lab | ✓ | 0 |
+| cloud-presentation.module | presentation | ✓ | 0 |
+| cloud-pslab.module | lab | ✓ | 0 |
+| cloud-guilab.module | lab | ✓ | 0 |
+| cloud-presentation.module | presentation | ✓ | 0 |
+| cloud-pslab.module | lab | ✓ | 0 |
+| cloud-guilab.module | lab | ✓ | 0 |
+| cloud-presentation.module | presentation | ✓ | 0 |
+| cloud-pslab.module | lab | ✓ | 0 |
+| cloud-guilab.module | lab | ✓ | 0 |
+| cloud-presentation.module | presentation | ✓ | 0 |
+| cloud-pslab.module | lab | ✓ | 0 |
+| cloud-presentation.module | presentation | ✓ | 0 |
+| cloud-pslab.module | lab | ✓ | 0 |
+| cloud-presentation.module | presentation | ✓ | 0 |
+| cloud-pslab.module | lab | ✓ | 0 |
+| cloud-aws-fundamentals.presentation | presentation | ✓ | 0 |
+| cloud-azure-fundamentals.presentation | presentation | ✓ | 0 |
+| cloud-cloud.presentation | presentation | ✓ | 0 |
+| cloud-concepts.presentation | presentation | ✓ | 0 |
 | cloud-cse-06-security-monitoring-ir.presentation | presentation | ✓ | 0 |
 | cloud-cse-07-risk-assessment.presentation | presentation | ✓ | 0 |
 | cloud-cse-08-compliance-governance.presentation | presentation | ✓ | 0 |
-| cloud-cse-module01.presentation | presentation | ✓ | 1 |
-| cloud-cse-module02.presentation | presentation | ✓ | 1 |
-| cloud-cse-module03.presentation | presentation | ✓ | 1 |
-| cloud-cse-module04.presentation | presentation | ✓ | 1 |
-| cloud-cse-module05.presentation | presentation | ✓ | 1 |
-| cloud-cse-module06.presentation | presentation | ✓ | 1 |
-| cloud-cse-module07.presentation | presentation | ✓ | 1 |
-| cloud-cse-module08.presentation | presentation | ✓ | 1 |
+| cloud-cse-module01.presentation | presentation | ✓ | 0 |
+| cloud-cse-module02.presentation | presentation | ✓ | 0 |
+| cloud-cse-module03.presentation | presentation | ✓ | 0 |
+| cloud-cse-module04.presentation | presentation | ✓ | 0 |
+| cloud-cse-module05.presentation | presentation | ✓ | 0 |
+| cloud-cse-module06.presentation | presentation | ✓ | 0 |
+| cloud-cse-module07.presentation | presentation | ✓ | 0 |
+| cloud-cse-module08.presentation | presentation | ✓ | 0 |
 | aws-fundamentals | quiz | ✓ | 0 |
 | ch01-cloud-fundamentals-quiz | quiz | ✓ | 0 |
 | ch05-iam-security-quiz | quiz | ✓ | 0 |
@@ -2147,7 +2147,7 @@
 | cse-02-iam | quiz | ✓ | 0 |
 | cse-03-encryption | quiz | ✓ | 0 |
 | cse-04-network | quiz | ✓ | 0 |
-| cse-05-appsec | quiz | ✓ | 1 |
+| cse-05-appsec | quiz | ✓ | 0 |
 | cse-06-quiz | quiz | ✓ | 0 |
 | cse-07-quiz | quiz | ✓ | 0 |
 | cse-08-quiz | quiz | ✓ | 0 |
@@ -2180,11 +2180,11 @@
 
 | ID/Name | Type | Sync | Issues |
 |---------|------|------|--------|
-| code-docker-playground.applet | applet | ✓ | 1 |
-| code-kubernetes-cluster-sim.applet | applet | ✓ | 1 |
-| code-build-breaker.applet | applet | ✓ | 1 |
-| code-git-blame | applet | ✓ | 1 |
-| code-kill-nine.applet | applet | ✓ | 1 |
+| code-docker-playground.applet | presentation | ✓ | 0 |
+| code-kubernetes-cluster-sim.applet | presentation | ✓ | 0 |
+| code-build-breaker.applet | presentation | ✓ | 0 |
+| code-git-blame | presentation | ✓ | 0 |
+| code-kill-nine.applet | presentation | ✓ | 0 |
 | code-kubernetes-rescue.applet | presentation | ✓ | 0 |
 | code-cicd.lab | presentation | ✓ | 0 |
 | code-cloudformation.lab | presentation | ✓ | 0 |
@@ -2207,41 +2207,41 @@
 | kubernetes-quiz | quiz | ✓ | 0 |
 | terraform-quiz | quiz | ✓ | 0 |
 | unit-testing-quiz | quiz | ✓ | 0 |
-| code-ansible-playbook.tool | applet | ✓ | 1 |
-| code-automation.tool | applet | ✓ | 1 |
-| code-sprint.tool | applet | ✓ | 1 |
+| code-ansible-playbook.tool | presentation | ✓ | 0 |
+| code-automation.tool | presentation | ✓ | 0 |
+| code-sprint.tool | presentation | ✓ | 0 |
 
 ### EYE (Monitoring)
 ──────────────────────────────────────────────────
 
 | ID/Name | Type | Sync | Issues |
 |---------|------|------|--------|
-| eye-5-tuple-approach.applet | applet | ✓ | 1 |
+| eye-5-tuple-approach.applet | presentation | ✓ | 0 |
 | eye-app-visibility-control.applet | presentation | ✓ | 0 |
 | eye-attack-surface-vuln.applet | presentation | ✓ | 0 |
-| eye-attack-surface.applet | applet | ✓ | 1 |
+| eye-attack-surface.applet | presentation | ✓ | 0 |
 | eye-attribution-investigation.applet | presentation | ✓ | 0 |
 | eye-content-filtering.applet | presentation | ✓ | 0 |
-| eye-cvss-terminology.applet | applet | ✓ | 1 |
-| eye-data-types-output.applet | applet | ✓ | 1 |
+| eye-cvss-terminology.applet | presentation | ✓ | 0 |
+| eye-data-types-output.applet | presentation | ✓ | 0 |
 | eye-data-visibility-challenges.applet | presentation | ✓ | 0 |
-| eye-data-visibility.applet | applet | ✓ | 1 |
-| eye-detection-methods.applet | applet | ✓ | 1 |
+| eye-data-visibility.applet | presentation | ✓ | 0 |
+| eye-detection-methods.applet | presentation | ✓ | 0 |
 | eye-disk-images.applet | presentation | ✓ | 0 |
 | eye-endpoint-attacks.applet | presentation | ✓ | 0 |
 | eye-evasion-obfuscation.applet | presentation | ✓ | 0 |
 | eye-evidence-types.applet | presentation | ✓ | 0 |
-| eye-firewall-data.applet | applet | ✓ | 1 |
-| eye-irp-elements.applet | applet | ✓ | 1 |
+| eye-firewall-data.applet | presentation | ✓ | 0 |
+| eye-irp-elements.applet | presentation | ✓ | 0 |
 | eye-malware-analysis-output.applet | presentation | ✓ | 0 |
-| eye-network-attacks.applet | applet | ✓ | 1 |
+| eye-network-attacks.applet | presentation | ✓ | 0 |
 | eye-nsm-data-types.applet | presentation | ✓ | 0 |
-| eye-risk-rating.applet | applet | ✓ | 1 |
-| eye-risk-register.applet | applet | ✓ | 1 |
-| eye-security-approaches.applet | applet | ✓ | 1 |
-| eye-source-technologies.applet | applet | ✓ | 1 |
+| eye-risk-rating.applet | presentation | ✓ | 0 |
+| eye-risk-register.applet | presentation | ✓ | 0 |
+| eye-security-approaches.applet | presentation | ✓ | 0 |
+| eye-source-technologies.applet | presentation | ✓ | 0 |
 | eye-tcpdump-netflow.applet | presentation | ✓ | 0 |
-| eye-web-attacks.applet | applet | ✓ | 1 |
+| eye-web-attacks.applet | presentation | ✓ | 0 |
 | eye-lab-3-0-3-running-processes.lab | lab | ✓ | 0 |
 | eye-lab-3-2-11-windows-internals.lab | lab | ✓ | 0 |
 | eye-lab-3-3-10-user-accounts.lab | lab | ✓ | 0 |
@@ -2249,13 +2249,13 @@
 | eye-linux-servers.lab | lab | ✓ | 0 |
 | eye-windows-system-resources.lab | presentation | ✓ | 0 |
 | eye-windows-task-manager.lab | presentation | ✓ | 0 |
-| eye-exploring-nmap.lab | lab | ✓ | 2 |
-| eye-tracing-route.lab | lab | ✓ | 2 |
-| eye-verify-ipv4-ipv6.lab | applet | ✓ | 1 |
-| index | applet | ✓ | 1 |
-| eye-acl-demo.lab | applet | ✓ | 1 |
-| eye-packet-flow.lab | applet | ✓ | 1 |
-| eye-logging-network-activity.lab | applet | ✓ | 1 |
+| eye-exploring-nmap.lab | lab | ✓ | 0 |
+| eye-tracing-route.lab | lab | ✓ | 0 |
+| eye-verify-ipv4-ipv6.lab | presentation | ✓ | 0 |
+| index | presentation | ✓ | 0 |
+| eye-acl-demo.lab | presentation | ✓ | 0 |
+| eye-packet-flow.lab | presentation | ✓ | 0 |
+| eye-logging-network-activity.lab | presentation | ✓ | 0 |
 | eye-soc-triage.lab | presentation | ✓ | 0 |
 | eye-asymmetric-encryption.lab | lab | ✓ | 0 |
 | eye-certificate-stores.lab | lab | ✓ | 0 |
@@ -2273,12 +2273,12 @@
 | eye-pcap-forensics.lab | lab | ✓ | 0 |
 | eye-snort-rules.lab | lab | ✓ | 0 |
 | eye-threat-actor-profiling.lab | lab | ✓ | 0 |
-| eye-alert-triage | applet | ✓ | 1 |
-| eye-log-centipede.applet | applet | ✓ | 1 |
-| eye-memory-forensics.applet | applet | ✓ | 1 |
-| eye-threat-modeler | applet | ✓ | 1 |
+| eye-alert-triage | presentation | ✓ | 0 |
+| eye-log-centipede.applet | presentation | ✓ | 0 |
+| eye-memory-forensics.applet | presentation | ✓ | 0 |
+| eye-threat-modeler | presentation | ✓ | 0 |
 | eye-hunting.lab | presentation | ✓ | 0 |
-| eye-siem.lab | applet | ✓ | 1 |
+| eye-siem.lab | presentation | ✓ | 0 |
 | index | presentation | ✓ | 0 |
 | eye-log-basics.presentation | presentation | ✓ | 0 |
 | eye-log-correlation.presentation | presentation | ✓ | 0 |
@@ -2291,10 +2291,11 @@
 | siem-fundamentals | quiz | ✓ | 0 |
 | soc-operations | quiz | ✓ | 0 |
 | network-traffic-quiz | quiz | ✓ | 0 |
-| eye-correlation.tool | applet | ✓ | 1 |
-| eye-packet.tool | applet | ✓ | 1 |
-| eye-siem.tool | applet | ✓ | 1 |
-| eye-soc.tool | applet | ✓ | 1 |
+| eye-correlation.tool | presentation | ✓ | 0 |
+| eye-hunt.tool | presentation | ✓ | 0 |
+| eye-packet.tool | presentation | ✓ | 0 |
+| eye-siem.tool | presentation | ✓ | 0 |
+| eye-soc.tool | presentation | ✓ | 0 |
 | eye-wireshark.tool | presentation | ✓ | 0 |
 
 ### FORGE (Systems)
@@ -2309,8 +2310,8 @@
 | index | presentation | ✓ | 0 |
 | index | presentation | ✓ | 0 |
 | index | presentation | ✓ | 0 |
-| index | applet | ✓ | 1 |
-| index | applet | ✓ | 1 |
+| index | presentation | ✓ | 0 |
+| index | presentation | ✓ | 0 |
 | index | presentation | ✓ | 0 |
 | index | presentation | ✓ | 0 |
 | index | presentation | ✓ | 0 |
@@ -2318,7 +2319,7 @@
 | forge-cable-matching.lab | presentation | ✓ | 0 |
 | forge-cloud-scenarios.lab | lab | ✓ | 0 |
 | forge-command-line.lab | lab | ✓ | 0 |
-| forge-cpu-sockets.lab | lab | ✓ | 1 |
+| forge-cpu-sockets.lab | lab | ✓ | 0 |
 | forge-diagnostic-tools.lab | lab | ✓ | 0 |
 | forge-display-troubleshoot.lab | lab | ✓ | 0 |
 | forge-dns-config.lab | lab | ✓ | 0 |
@@ -2340,7 +2341,7 @@
 | forge-printer-troubleshoot.lab | lab | ✓ | 0 |
 | forge-protocol-analysis.lab | lab | ✓ | 0 |
 | forge-raid-config.lab | lab | ✓ | 0 |
-| forge-ram-identification.lab | lab | ✓ | 1 |
+| forge-ram-identification.lab | lab | ✓ | 0 |
 | forge-router-config.lab | presentation | ✓ | 0 |
 | forge-server-roles.lab | presentation | ✓ | 0 |
 | forge-soho-designer.lab | lab | ✓ | 0 |
@@ -2362,21 +2363,21 @@
 | index | presentation | ✓ | 0 |
 | index | presentation | ✓ | 0 |
 | index | presentation | ✓ | 0 |
-| index | applet | ✓ | 1 |
+| index | presentation | ✓ | 0 |
 | forge-admin-tools.lab | lab | ✓ | 0 |
 | forge-change-management.lab | lab | ✓ | 0 |
-| forge-control-panel.lab | lab | ✓ | 2 |
+| forge-control-panel.lab | lab | ✓ | 0 |
 | forge-core2-roleplay.lab | presentation | ✓ | 0 |
 | forge-documentation.lab | lab | ✓ | 0 |
 | forge-incident-response.lab | lab | ✓ | 0 |
-| forge-lab-macos-linux.lab | lab | ✓ | 2 |
+| forge-lab-macos-linux.lab | lab | ✓ | 0 |
 | forge-malware.lab | lab | ✓ | 0 |
 | forge-physical-security.lab | lab | ✓ | 0 |
 | forge-security-fundamentals.lab | lab | ✓ | 0 |
-| forge-system-tools.lab | lab | ✓ | 2 |
+| forge-system-tools.lab | lab | ✓ | 0 |
 | forge-users-groups.lab | lab | ✓ | 0 |
-| forge-windows-editions.lab | lab | ✓ | 2 |
-| forge-windows-settings.lab | lab | ✓ | 2 |
+| forge-windows-editions.lab | lab | ✓ | 0 |
+| forge-windows-settings.lab | lab | ✓ | 0 |
 | forge-admin-tools.presentation | presentation | ✓ | 0 |
 | forge-change-management.presentation | presentation | ✓ | 0 |
 | forge-control-panel.presentation | presentation | ✓ | 0 |
@@ -2399,37 +2400,38 @@
 | forge-core2-midterm.quiz | presentation | ✓ | 0 |
 | forge-windows-shortcuts.applet | presentation | ✓ | 0 |
 | forge-admin-tools.tool | presentation | ✓ | 0 |
-| forge-command-translator.applet | applet | ✓ | 1 |
+| forge-command-translator.applet | presentation | ✓ | 0 |
 | forge-control-panel.tool | presentation | ✓ | 0 |
 | forge-settings.tool | presentation | ✓ | 0 |
 | forge-system-tools-sim.applet | presentation | ✓ | 0 |
 | forge-windows-edition-selector.applet | presentation | ✓ | 0 |
-| forge-hard-drive-geometry-native.applet | applet | ✓ | 1 |
+| forge-hardware-trainer.applet | presentation | ✓ | 0 |
+| forge-hard-drive-geometry-native.applet | presentation | ✓ | 0 |
 | forge-multimeter-jedit-v1.applet | presentation | ✓ | 0 |
-| forge-peripheral-devices.applet | applet | ✓ | 1 |
-| forge-bit-dash.applet | applet | ✓ | 1 |
-| forge-chip-match.applet | applet | ✓ | 1 |
-| forge-rack-stack.applet | applet | ✓ | 1 |
-| forge-raid-calculator.applet | applet | ✓ | 1 |
-| forge-admin-tools.lab | lab | ✓ | 2 |
-| forge-control-panel.lab | lab | ✓ | 2 |
+| forge-peripheral-devices.applet | presentation | ✓ | 0 |
+| forge-bit-dash.applet | presentation | ✓ | 0 |
+| forge-chip-match.applet | presentation | ✓ | 0 |
+| forge-rack-stack.applet | presentation | ✓ | 0 |
+| forge-raid-calculator.applet | presentation | ✓ | 0 |
+| forge-admin-tools.lab | lab | ✓ | 0 |
+| forge-control-panel.lab | lab | ✓ | 0 |
 | forge-hardware-essentials.lab | lab | ✓ | 0 |
-| forge-system-tools.lab | lab | ✓ | 2 |
-| forge-windows-editions.lab | lab | ✓ | 2 |
-| forge-windows-settings.lab | lab | ✓ | 2 |
+| forge-system-tools.lab | lab | ✓ | 0 |
+| forge-windows-editions.lab | lab | ✓ | 0 |
+| forge-windows-settings.lab | lab | ✓ | 0 |
 | forge-admin-tools.presentation | presentation | ✓ | 0 |
 | forge-control-panel.presentation | presentation | ✓ | 0 |
-| forge-macos-linux-basics.presentation | presentation | ✓ | 2 |
+| forge-macos-linux-basics.presentation | presentation | ✓ | 0 |
 | forge-system-tools.presentation | presentation | ✓ | 0 |
 | forge-windows-editions.presentation | presentation | ✓ | 0 |
 | forge-windows-settings.presentation | presentation | ✓ | 0 |
 | aplus-core2-quiz | quiz | ✓ | 0 |
-| windows-admin | quiz | ✓ | 0 |
-| forge-backup-or-bust | applet | ✓ | 1 |
+| forge-quiz | quiz | ❌ | 1 |
+| forge-backup-or-bust | presentation | ✓ | 0 |
 | forge-admin-tools.tool | presentation | ✓ | 0 |
 | forge-control-panel.tool | presentation | ✓ | 0 |
 | forge-os-core.tool | presentation | ✓ | 0 |
-| forge-raid-level.tool | applet | ✓ | 1 |
+| forge-raid-level.tool | presentation | ✓ | 0 |
 | forge-settings.tool | presentation | ✓ | 0 |
 | forge-system-tools-sim.tool | presentation | ✓ | 0 |
 | forge-windows-edition-selector.tool | presentation | ✓ | 0 |
@@ -2439,10 +2441,10 @@
 
 | ID/Name | Type | Sync | Issues |
 |---------|------|------|--------|
-| key-cipher-bubbles.applet | applet | ✓ | 1 |
+| key-cipher-bubbles.applet | presentation | ✓ | 0 |
 | key-cipher-cracker.presentation | presentation | ✓ | 0 |
-| key-crypto-pong.applet | applet | ✓ | 1 |
-| key-dont-leak-the-key | applet | ✓ | 1 |
+| key-crypto-pong.applet | presentation | ✓ | 0 |
+| key-dont-leak-the-key | presentation | ✓ | 0 |
 | key-aes.lab | presentation | ✓ | 0 |
 | key-attack.lab | presentation | ✓ | 0 |
 | key-cert.lab | presentation | ✓ | 0 |
@@ -2487,7 +2489,7 @@
 
 | ID/Name | Type | Sync | Issues |
 |---------|------|------|--------|
-| script-bash-scripting-playground.applet | applet | ✓ | 1 |
+| script-bash-scripting-playground.applet | presentation | ✓ | 0 |
 | script-clh-001-intro-to-hacker-cli.applet | presentation | ✓ | 0 |
 | script-clh-002-navigation-recon.applet | presentation | ✓ | 0 |
 | script-clh-003-pattern-hunting.applet | presentation | ✓ | 0 |
@@ -2518,51 +2520,51 @@
 | script-clh-028-monitoring.applet | presentation | ✓ | 0 |
 | script-clh-029-vim.applet | presentation | ✓ | 0 |
 | script-clh-030-chimera.applet | presentation | ✓ | 0 |
-| script-clh-031-blackout.applet | applet | ✓ | 1 |
-| script-command-translator.applet | applet | ✓ | 1 |
+| script-clh-031-blackout.applet | presentation | ✓ | 0 |
+| script-command-translator.applet | presentation | ✓ | 0 |
 | script-linux-filesystem-navigator.applet | presentation | ✓ | 0 |
 | script-linux-lab-001-user-identity.applet | lab | ✓ | 0 |
 | script-linux-lab-002-file-navigation.applet | lab | ✓ | 0 |
-| script-powershell-playground.applet | applet | ✓ | 1 |
-| script-windows-cli-tools.applet | applet | ✓ | 1 |
-| script-windows-troubleshooting.applet | applet | ✓ | 1 |
-| script-python-chapter1.applet | applet | ✓ | 1 |
-| script-python-chapter2-strings.applet | applet | ✓ | 1 |
-| script-python-chapter3-flow-control.applet | applet | ✓ | 1 |
-| script-python-chapter4-functions.applet | applet | ✓ | 1 |
-| script-python-chapter5-collections.applet | applet | ✓ | 1 |
-| script-python-chapter6-dictionaries.applet | applet | ✓ | 1 |
-| script-python-chapter7-file-handling.applet | applet | ✓ | 1 |
-| script-python-chapter8-oop.applet | applet | ✓ | 1 |
-| script-clh-001-intro.applet | applet | ✓ | 1 |
+| script-powershell-playground.applet | presentation | ✓ | 0 |
+| script-windows-cli-tools.applet | presentation | ✓ | 0 |
+| script-windows-troubleshooting.applet | presentation | ✓ | 0 |
+| script-python-chapter1.applet | presentation | ✓ | 0 |
+| script-python-chapter2-strings.applet | presentation | ✓ | 0 |
+| script-python-chapter3-flow-control.applet | presentation | ✓ | 0 |
+| script-python-chapter4-functions.applet | presentation | ✓ | 0 |
+| script-python-chapter5-collections.applet | presentation | ✓ | 0 |
+| script-python-chapter6-dictionaries.applet | presentation | ✓ | 0 |
+| script-python-chapter7-file-handling.applet | presentation | ✓ | 0 |
+| script-python-chapter8-oop.applet | presentation | ✓ | 0 |
+| script-clh-001-intro.applet | presentation | ✓ | 0 |
 | clh-001-quiz | quiz | ✓ | 0 |
-| script-clh-002-intro.applet | applet | ✓ | 1 |
+| script-clh-002-intro.applet | presentation | ✓ | 0 |
 | clh-002-quiz | quiz | ✓ | 0 |
-| script-clh-003-intro.applet | applet | ✓ | 1 |
+| script-clh-003-intro.applet | presentation | ✓ | 0 |
 | clh-003-quiz | quiz | ✓ | 0 |
-| script-clh-004-intro.applet | applet | ✓ | 1 |
+| script-clh-004-intro.applet | presentation | ✓ | 0 |
 | clh-004-quiz | quiz | ✓ | 0 |
-| script-clh-005-intro.applet | applet | ✓ | 1 |
+| script-clh-005-intro.applet | presentation | ✓ | 0 |
 | clh-005-quiz | quiz | ✓ | 0 |
-| script-clh-006-intro.applet | applet | ✓ | 1 |
+| script-clh-006-intro.applet | presentation | ✓ | 0 |
 | clh-006-quiz | quiz | ✓ | 0 |
-| script-clh-007-intro.applet | applet | ✓ | 1 |
+| script-clh-007-intro.applet | presentation | ✓ | 0 |
 | clh-007-quiz | quiz | ✓ | 0 |
-| script-clh-008-intro.applet | applet | ✓ | 1 |
+| script-clh-008-intro.applet | presentation | ✓ | 0 |
 | clh-008-quiz | quiz | ✓ | 0 |
-| script-clh-009-intro.applet | applet | ✓ | 1 |
+| script-clh-009-intro.applet | presentation | ✓ | 0 |
 | clh-009-quiz | quiz | ✓ | 0 |
-| script-clh-010-intro.applet | applet | ✓ | 1 |
+| script-clh-010-intro.applet | presentation | ✓ | 0 |
 | clh-010-quiz | quiz | ✓ | 0 |
-| script-clh-011-intro.applet | applet | ✓ | 1 |
+| script-clh-011-intro.applet | presentation | ✓ | 0 |
 | clh-011-quiz | quiz | ✓ | 0 |
-| script-clh-012-intro.applet | applet | ✓ | 1 |
+| script-clh-012-intro.applet | presentation | ✓ | 0 |
 | clh-012-quiz | quiz | ✓ | 0 |
-| script-clh-013-intro.applet | applet | ✓ | 1 |
+| script-clh-013-intro.applet | presentation | ✓ | 0 |
 | clh-013-quiz | quiz | ✓ | 0 |
-| script-clh-014-intro.applet | applet | ✓ | 1 |
+| script-clh-014-intro.applet | presentation | ✓ | 0 |
 | clh-014-quiz | quiz | ✓ | 0 |
-| script-clh-015-intro.applet | applet | ✓ | 1 |
+| script-clh-015-intro.applet | presentation | ✓ | 0 |
 | clh-015-quiz | quiz | ✓ | 0 |
 | clh-016-quiz | quiz | ✓ | 0 |
 | clh-017-quiz | quiz | ✓ | 0 |
@@ -2570,7 +2572,7 @@
 | clh-019-quiz | quiz | ✓ | 0 |
 | clh-020-quiz | quiz | ✓ | 0 |
 | clh-021-quiz | quiz | ✓ | 0 |
-| script-clh-022-intro.applet | applet | ✓ | 1 |
+| script-clh-022-intro.applet | presentation | ✓ | 0 |
 | clh-022-quiz | quiz | ✓ | 0 |
 | clh-023-quiz | quiz | ✓ | 0 |
 | clh-024-quiz | quiz | ✓ | 0 |
@@ -2580,47 +2582,47 @@
 | clh-028-quiz | quiz | ✓ | 0 |
 | clh-029-quiz | quiz | ✓ | 0 |
 | clh-030-quiz | quiz | ✓ | 0 |
-| script-intro.module | applet | ✓ | 1 |
-| script-intro.module | applet | ✓ | 1 |
+| script-intro.module | presentation | ✓ | 0 |
+| script-intro.module | presentation | ✓ | 0 |
 | script-lab.lab | lab | ✓ | 0 |
 | clh-002-quiz | quiz | ✓ | 0 |
-| script-intro.module | applet | ✓ | 1 |
+| script-intro.module | presentation | ✓ | 0 |
 | script-lab.lab | lab | ✓ | 0 |
 | clh-003-quiz | quiz | ✓ | 0 |
-| script-intro.module | applet | ✓ | 1 |
+| script-intro.module | presentation | ✓ | 0 |
 | script-lab.lab | lab | ✓ | 0 |
 | clh-004-quiz | quiz | ✓ | 0 |
-| script-intro.module | applet | ✓ | 1 |
+| script-intro.module | presentation | ✓ | 0 |
 | script-lab.lab | lab | ✓ | 0 |
 | clh-005-quiz | quiz | ✓ | 0 |
-| script-intro.module | applet | ✓ | 1 |
+| script-intro.module | presentation | ✓ | 0 |
 | script-lab.lab | lab | ✓ | 0 |
 | clh-006-quiz | quiz | ✓ | 0 |
-| script-intro.module | applet | ✓ | 1 |
+| script-intro.module | presentation | ✓ | 0 |
 | script-lab.lab | lab | ✓ | 0 |
 | clh-007-quiz | quiz | ✓ | 0 |
-| script-intro.module | applet | ✓ | 1 |
+| script-intro.module | presentation | ✓ | 0 |
 | script-lab.lab | lab | ✓ | 0 |
 | clh-008-quiz | quiz | ✓ | 0 |
-| script-intro.module | applet | ✓ | 1 |
+| script-intro.module | presentation | ✓ | 0 |
 | script-lab.lab | lab | ✓ | 0 |
 | clh-009-quiz | quiz | ✓ | 0 |
-| script-intro.module | applet | ✓ | 1 |
+| script-intro.module | presentation | ✓ | 0 |
 | script-lab.lab | lab | ✓ | 0 |
 | clh-010-quiz | quiz | ✓ | 0 |
-| script-intro.module | applet | ✓ | 1 |
+| script-intro.module | presentation | ✓ | 0 |
 | script-lab.lab | lab | ✓ | 0 |
 | clh-011-quiz | quiz | ✓ | 0 |
-| script-intro.module | applet | ✓ | 1 |
+| script-intro.module | presentation | ✓ | 0 |
 | script-lab.lab | lab | ✓ | 0 |
 | clh-012-quiz | quiz | ✓ | 0 |
-| script-intro.module | applet | ✓ | 1 |
+| script-intro.module | presentation | ✓ | 0 |
 | script-lab.lab | lab | ✓ | 0 |
 | clh-013-quiz | quiz | ✓ | 0 |
-| script-intro.module | applet | ✓ | 1 |
+| script-intro.module | presentation | ✓ | 0 |
 | script-lab.lab | lab | ✓ | 0 |
 | clh-014-quiz | quiz | ✓ | 0 |
-| script-intro.module | applet | ✓ | 1 |
+| script-intro.module | presentation | ✓ | 0 |
 | script-lab.lab | lab | ✓ | 0 |
 | clh-015-quiz | quiz | ✓ | 0 |
 | script-lab.lab | lab | ✓ | 0 |
@@ -2635,7 +2637,7 @@
 | clh-020-quiz | quiz | ✓ | 0 |
 | script-lab.lab | lab | ✓ | 0 |
 | clh-021-quiz | quiz | ✓ | 0 |
-| script-intro.module | applet | ✓ | 1 |
+| script-intro.module | presentation | ✓ | 0 |
 | script-lab.lab | lab | ✓ | 0 |
 | clh-022-quiz | quiz | ✓ | 0 |
 | script-lab.lab | lab | ✓ | 0 |
@@ -2654,75 +2656,75 @@
 | clh-029-quiz | quiz | ✓ | 0 |
 | script-lab.lab | lab | ✓ | 0 |
 | clh-030-quiz | quiz | ✓ | 0 |
-| script-lab.lab | lab | ✓ | 1 |
-| index | applet | ✓ | 1 |
-| script-dont-kill-the-server | applet | ✓ | 1 |
-| script-pipe-snake.applet | applet | ✓ | 1 |
-| script-shell-sprint.applet | applet | ✓ | 1 |
-| index | applet | ✓ | 1 |
-| script-bash-arrays.lab | lab | ✓ | 1 |
-| script-bash-basics.lab | lab | ✓ | 1 |
-| script-bash-conditionals.lab | lab | ✓ | 1 |
-| script-bash-conditions-drill.lab | lab | ✓ | 1 |
-| script-bash-cron-setup-prep.lab | lab | ✓ | 1 |
-| script-bash-cron.lab | lab | ✓ | 1 |
-| script-bash-functions.lab | lab | ✓ | 1 |
-| script-bash-io-redirect.lab | lab | ✓ | 1 |
-| script-bash-log-processor-prep.lab | lab | ✓ | 1 |
-| script-bash-loops-drill.lab | lab | ✓ | 1 |
-| script-bash-loops.lab | lab | ✓ | 1 |
-| script-bash-pipes.lab | lab | ✓ | 1 |
-| script-bash-redirect-drill.lab | lab | ✓ | 1 |
-| script-bash-variables-drill.lab | lab | ✓ | 1 |
-| script-linux-compression.lab | lab | ✓ | 1 |
+| script-lab.lab | lab | ✓ | 0 |
+| index | presentation | ✓ | 0 |
+| script-dont-kill-the-server | presentation | ✓ | 0 |
+| script-pipe-snake.applet | presentation | ✓ | 0 |
+| script-shell-sprint.applet | presentation | ✓ | 0 |
+| index | presentation | ✓ | 0 |
+| script-bash-arrays.lab | lab | ✓ | 0 |
+| script-bash-basics.lab | lab | ✓ | 0 |
+| script-bash-conditionals.lab | lab | ✓ | 0 |
+| script-bash-conditions-drill.lab | lab | ✓ | 0 |
+| script-bash-cron-setup-prep.lab | lab | ✓ | 0 |
+| script-bash-cron.lab | lab | ✓ | 0 |
+| script-bash-functions.lab | lab | ✓ | 0 |
+| script-bash-io-redirect.lab | lab | ✓ | 0 |
+| script-bash-log-processor-prep.lab | lab | ✓ | 0 |
+| script-bash-loops-drill.lab | lab | ✓ | 0 |
+| script-bash-loops.lab | lab | ✓ | 0 |
+| script-bash-pipes.lab | lab | ✓ | 0 |
+| script-bash-redirect-drill.lab | lab | ✓ | 0 |
+| script-bash-variables-drill.lab | lab | ✓ | 0 |
+| script-linux-compression.lab | lab | ✓ | 0 |
 | script-linux-disk-drill.lab | lab | ✓ | 0 |
-| disk-mgmt- | lab | ✓ | 2 |
-| disk-prep- | lab | ✓ | 2 |
-| env- | lab | ✓ | 2 |
-| script-linux-file-mgmt-prep.lab | lab | ✓ | 1 |
-| script-linux-file-ops.lab | lab | ✓ | 1 |
-| script-linux-file-search.lab | lab | ✓ | 1 |
+| disk-mgmt- | lab | ✓ | 0 |
+| disk-prep- | lab | ✓ | 0 |
+| env- | lab | ✓ | 0 |
+| script-linux-file-mgmt-prep.lab | lab | ✓ | 0 |
+| script-linux-file-ops.lab | lab | ✓ | 0 |
+| script-linux-file-search.lab | lab | ✓ | 0 |
 | script-linux-find-drill.lab | lab | ✓ | 0 |
-| script-linux-links.lab | lab | ✓ | 1 |
+| script-linux-links.lab | lab | ✓ | 0 |
 | script-linux-log-analysis-mission.lab | lab | ✓ | 0 |
-| script-linux-log-analysis-prep.lab | lab | ✓ | 1 |
-| log- | lab | ✓ | 1 |
-| log-prep- | lab | ✓ | 1 |
-| script-linux-mkdir-drill.lab | lab | ✓ | 1 |
+| script-linux-log-analysis-prep.lab | lab | ✓ | 0 |
+| log- | lab | ✓ | 0 |
+| log-prep- | lab | ✓ | 0 |
+| script-linux-mkdir-drill.lab | lab | ✓ | 0 |
 | script-linux-nav-drill.lab | lab | ✓ | 0 |
-| net- | lab | ✓ | 1 |
+| net- | lab | ✓ | 0 |
 | script-linux-network-drill.lab | lab | ✓ | 0 |
-| pkg-mgmt- | lab | ✓ | 1 |
-| script-linux-permissions-drill.lab | lab | ✓ | 1 |
-| script-linux-permissions.lab | lab | ✓ | 1 |
+| pkg-mgmt- | lab | ✓ | 0 |
+| script-linux-permissions-drill.lab | lab | ✓ | 0 |
+| script-linux-permissions.lab | lab | ✓ | 0 |
 | script-linux-process-drill.lab | lab | ✓ | 0 |
-| proc-mgmt- | lab | ✓ | 2 |
+| proc-mgmt- | lab | ✓ | 0 |
 | script-linux-service-drill.lab | lab | ✓ | 0 |
-| svc-mgmt- | lab | ✓ | 1 |
-| ssh- | lab | ✓ | 1 |
-| script-linux-sysadmin-reference.lab | lab | ✓ | 1 |
+| svc-mgmt- | lab | ✓ | 0 |
+| ssh- | lab | ✓ | 0 |
+| script-linux-sysadmin-reference.lab | lab | ✓ | 0 |
 | script-linux-systemctl.lab | lab | ✓ | 0 |
-| script-linux-text-viewing.lab | lab | ✓ | 1 |
-| script-linux-users.lab | lab | ✓ | 1 |
-| script-linux-viewing-drill.lab | lab | ✓ | 1 |
-| script-linux-wildcards.lab | lab | ✓ | 1 |
+| script-linux-text-viewing.lab | lab | ✓ | 0 |
+| script-linux-users.lab | lab | ✓ | 0 |
+| script-linux-viewing-drill.lab | lab | ✓ | 0 |
+| script-linux-wildcards.lab | lab | ✓ | 0 |
 | script-lab.lab | lab | ✓ | 0 |
 | script-linux-bash.lab | presentation | ✓ | 0 |
 | script-powershell.lab | lab | ✓ | 0 |
 | script-python.lab | lab | ✓ | 0 |
 | script-sysadmin.lab | lab | ✓ | 0 |
-| script-mission-file-operations.lab | lab | ✓ | 1 |
+| script-mission-file-operations.lab | lab | ✓ | 0 |
 | script-mission-file-search.lab | lab | ✓ | 0 |
 | script-mission-permissions.lab | lab | ✓ | 0 |
 | script-mission-text-viewing.lab | lab | ✓ | 0 |
 | script-template-warmup.lab | presentation | ✓ | 0 |
 | script-warmup-navigation.lab | lab | ✓ | 0 |
-| script-quick.reference | applet | ✓ | 1 |
-| script-directory.tool | applet | ✓ | 1 |
-| script-permission.tool | applet | ✓ | 1 |
-| script-service.tool | applet | ✓ | 1 |
-| script-lm-03-getting-help.module | applet | ✓ | 1 |
-| script-lm-04-terminal-environment.module | applet | ✓ | 1 |
+| script-quick.reference | presentation | ✓ | 0 |
+| script-directory.tool | presentation | ✓ | 0 |
+| script-permission.tool | presentation | ✓ | 0 |
+| script-service.tool | presentation | ✓ | 0 |
+| script-lm-03-getting-help.module | presentation | ✓ | 0 |
+| script-lm-04-terminal-environment.module | presentation | ✓ | 0 |
 | script-lm-08-file-operations.module | presentation | ✓ | 0 |
 | script-lm-09-copy-move.module | presentation | ✓ | 0 |
 | script-lm-10-viewing-files.module | presentation | ✓ | 0 |
@@ -2767,8 +2769,8 @@
 | script-lm-52-environment-path.module | presentation | ✓ | 0 |
 | script-lm-53-next-steps.module | presentation | ✓ | 0 |
 | index | presentation | ✓ | 0 |
-| script-python-immersive-chapter2.module | applet | ✓ | 1 |
-| script-python-immersive-chapter7.module | applet | ✓ | 1 |
+| script-python-immersive-chapter2.module | presentation | ✓ | 0 |
+| script-python-immersive-chapter7.module | presentation | ✓ | 0 |
 | script-python-chapter1.presentation | presentation | ✓ | 0 |
 | script-python-chapter2.presentation | presentation | ✓ | 0 |
 | script-python-chapter3.presentation | presentation | ✓ | 0 |
@@ -2783,15 +2785,15 @@
 | script-linux-bash.quiz | presentation | ✓ | 0 |
 | linux-basics | quiz | ✓ | 0 |
 | clh-001-quiz | quiz | ✓ | 0 |
-| script-linux-cli-review | applet | ✓ | 1 |
+| script-linux-cli-review | presentation | ✓ | 0 |
 | script-permission-puzzle | presentation | ✓ | 0 |
-| script-automation.tool | applet | ✓ | 1 |
-| script-linux-command.tool | applet | ✓ | 1 |
-| script-linux-permissions.tool | applet | ✓ | 1 |
-| script-log-management.tool | applet | ✓ | 1 |
-| script-package-manager.tool | applet | ✓ | 1 |
-| script-process-management.tool | presentation | ✓ | 2 |
-| script-windows-registry.tool | applet | ✓ | 1 |
+| script-automation.tool | presentation | ✓ | 0 |
+| script-linux-command.tool | presentation | ✓ | 0 |
+| script-linux-permissions.tool | presentation | ✓ | 0 |
+| script-log-management.tool | presentation | ✓ | 0 |
+| script-package-manager.tool | presentation | ✓ | 0 |
+| script-process-management.tool | presentation | ✓ | 0 |
+| script-windows-registry.tool | presentation | ✓ | 0 |
 
 ### SHIELD (Security)
 ──────────────────────────────────────────────────
@@ -2800,10 +2802,10 @@
 |---------|------|------|--------|
 | shield-access-control-models.applet | presentation | ✓ | 0 |
 | cmmc-comprehensive | quiz | ✓ | 0 |
-| shield-cui-overview.applet | applet | ✓ | 1 |
+| shield-cui-overview.applet | presentation | ✓ | 0 |
 | shield-laws-regulations.applet | presentation | ✓ | 0 |
-| shield-encryption-ii.applet | applet | ✓ | 1 |
-| shield-encryption-task.applet | applet | ✓ | 1 |
+| shield-encryption-ii.applet | presentation | ✓ | 0 |
+| shield-encryption-task.applet | presentation | ✓ | 0 |
 | shield-hash-v3.applet | presentation | ✓ | 0 |
 | shield-stego.applet | presentation | ✓ | 0 |
 | shield-checksum-verifier.applet | presentation | ✓ | 0 |
@@ -2811,21 +2813,21 @@
 | shield-security-best-practices.applet | presentation | ✓ | 0 |
 | shield-security-governance-dashboard.applet | presentation | ✓ | 0 |
 | index | presentation | ✓ | 0 |
-| shield-hangman-native.applet | applet | ✓ | 1 |
-| shield-browser-security-hardening.applet | applet | ✓ | 1 |
-| shield-home-network-security.applet | applet | ✓ | 1 |
-| shield-linux-firewall-builder.applet | applet | ✓ | 1 |
-| shield-cyber-arts-bootcamp.applet | lab | ✓ | 1 |
-| shield-cysa-analyst-toolkit.applet | applet | ✓ | 1 |
+| shield-hangman-native.applet | presentation | ✓ | 0 |
+| shield-browser-security-hardening.applet | presentation | ✓ | 0 |
+| shield-home-network-security.applet | presentation | ✓ | 0 |
+| shield-linux-firewall-builder.applet | presentation | ✓ | 0 |
+| shield-cyber-arts-bootcamp.applet | lab | ✓ | 0 |
+| shield-cysa-analyst-toolkit.applet | presentation | ✓ | 0 |
 | shield-ics-scada-security.applet | presentation | ✓ | 0 |
 | shield-business-continuity-planner.applet | presentation | ✓ | 0 |
 | shield-change-management.applet | presentation | ✓ | 0 |
-| shield-malware-types.applet | applet | ✓ | 1 |
+| shield-malware-types.applet | presentation | ✓ | 0 |
 | shield-eh-exam-1-a.exam | presentation | ✓ | 0 |
-| shield-dr-malware.applet | applet | ✓ | 1 |
-| shield-malware-zoo.lab | lab | ✓ | 1 |
-| shield-threat-runner.applet | applet | ✓ | 1 |
-| shield-threat-swarm.applet | applet | ✓ | 1 |
+| shield-dr-malware.applet | presentation | ✓ | 0 |
+| shield-malware-zoo.lab | lab | ✓ | 0 |
+| shield-threat-runner.applet | presentation | ✓ | 0 |
+| shield-threat-swarm.applet | presentation | ✓ | 0 |
 | shield-linux-audit-drill.lab | lab | ✓ | 0 |
 | shield-linux-audit.lab | lab | ✓ | 0 |
 | shield-linux-file-integrity.lab | lab | ✓ | 0 |
@@ -2848,14 +2850,14 @@
 | shield-hashing.lab | presentation | ✓ | 0 |
 | shield-ir-forensics.lab | presentation | ✓ | 0 |
 | shield-network-security.lab | presentation | ✓ | 0 |
-| shield-osint-google-dorking.lab | applet | ✓ | 1 |
+| shield-osint-google-dorking.lab | presentation | ✓ | 0 |
 | shield-security-fundamentals.lab | applet | ✓ | 0 |
 | shield-threats.lab | presentation | ✓ | 0 |
 | shield-cia-triad.presentation | presentation | ✓ | 0 |
 | shield-hash-steg.presentation | presentation | ✓ | 0 |
 | shield-security-fundamentals.presentation | presentation | ✓ | 0 |
-| shield-security.presentation | presentation | ✓ | 1 |
-| shield-social-engineering.presentation | applet | ✓ | 1 |
+| shield-security.presentation | presentation | ✓ | 0 |
+| shield-social-engineering.presentation | presentation | ✓ | 0 |
 | shield-access-quiz | quiz | ✓ | 0 |
 | cia-triad | quiz | ✓ | 0 |
 | shield-compliance-quiz | quiz | ✓ | 0 |
@@ -2867,11 +2869,11 @@
 | shield-fundamentals-quiz | quiz | ✓ | 0 |
 | shield-threats-quiz | quiz | ✓ | 0 |
 | shield-aaa-flow.tool | presentation | ✓ | 0 |
-| shield-bia.tool | presentation | ✓ | 2 |
-| shield-crisc-risk.tool | presentation | ✓ | 1 |
-| shield-data-lifecycle.tool | applet | ✓ | 1 |
+| shield-bia.tool | presentation | ✓ | 0 |
+| shield-crisc-risk.tool | presentation | ✓ | 0 |
+| shield-data-lifecycle.tool | presentation | ✓ | 0 |
 | shield-incident-response.tool | presentation | ✓ | 0 |
-| shield-security-models.tool | applet | ✓ | 1 |
+| shield-security-models.tool | presentation | ✓ | 0 |
 | shield-yara.tool | presentation | ✓ | 0 |
 | shield-zero-trust.tool | presentation | ✓ | 0 |
 
@@ -2881,26 +2883,26 @@
 | ID/Name | Type | Sync | Issues |
 |---------|------|------|--------|
 | audit-tool | applet | ✓ | 1 |
-| ctf-leaderboard.applet | applet | ✓ | 1 |
+| ctf-leaderboard.applet | presentation | ✓ | 0 |
 | botnet-architecture.presentation | presentation | ✓ | 0 |
 | buffer-overflow-lab | presentation | ✓ | 0 |
-| ceh-attack-reference | applet | ✓ | 1 |
-| cloud-hacking-lab | lab | ✓ | 2 |
-| csrf-attack-lab | lab | ✓ | 2 |
+| ceh-attack-reference | presentation | ✓ | 0 |
+| cloud-hacking-lab | lab | ✓ | 0 |
+| csrf-attack-lab | lab | ✓ | 0 |
 | dos-ddos-lab | presentation | ✓ | 0 |
-| enumeration-lab | applet | ✓ | 1 |
-| footprinting-lab | lab | ✓ | 2 |
+| enumeration-lab | presentation | ✓ | 0 |
+| footprinting-lab | lab | ✓ | 0 |
 | gate-10 | presentation | ✓ | 0 |
-| gate-11 | applet | ✓ | 1 |
+| gate-11 | presentation | ✓ | 0 |
 | gate-6 | presentation | ✓ | 0 |
 | gate-7 | presentation | ✓ | 0 |
 | gate-8 | presentation | ✓ | 0 |
 | gate-9 | presentation | ✓ | 0 |
-| idor-attack-lab | lab | ✓ | 2 |
-| ids-evasion-lab | applet | ✓ | 1 |
-| index | applet | ✓ | 1 |
-| iot-security-lab | applet | ✓ | 1 |
-| jwt-attack-lab | applet | ✓ | 1 |
+| idor-attack-lab | lab | ✓ | 0 |
+| ids-evasion-lab | presentation | ✓ | 0 |
+| index | presentation | ✓ | 0 |
+| iot-security-lab | presentation | ✓ | 0 |
+| jwt-attack-lab | presentation | ✓ | 0 |
 | da-linux-enumeration-prep.lab | lab | ✓ | 0 |
 | da-linux-enumscripts.lab | lab | ✓ | 0 |
 | da-linux-exploitation-prep.lab | lab | ✓ | 0 |
@@ -2916,45 +2918,45 @@
 | da-linux-reverse-shells.lab | lab | ✓ | 0 |
 | malware-analysis-lab | presentation | ✓ | 0 |
 | mobile-security-lab | lab | ✓ | 0 |
-| behavioral-analysis.module | applet | ✓ | 1 |
-| dynamic-analysis.module | applet | ✓ | 1 |
-| incident-response.module | applet | ✓ | 1 |
-| redteam.barricade | applet | ✓ | 1 |
-| reverse-engineering.module | applet | ✓ | 1 |
-| static-analysis.module | applet | ✓ | 1 |
-| network-scanning-lab | applet | ✓ | 1 |
-| network-sniffing-lab | applet | ✓ | 1 |
+| behavioral-analysis.module | presentation | ✓ | 0 |
+| dynamic-analysis.module | presentation | ✓ | 0 |
+| incident-response.module | presentation | ✓ | 0 |
+| redteam.barricade | presentation | ✓ | 0 |
+| reverse-engineering.module | presentation | ✓ | 0 |
+| static-analysis.module | presentation | ✓ | 0 |
+| network-scanning-lab | presentation | ✓ | 0 |
+| network-sniffing-lab | presentation | ✓ | 0 |
 | nmap-scanning-lab | presentation | ✓ | 0 |
 | owasp-top10-lab | presentation | ✓ | 0 |
 | password-attacks-quiz | quiz | ✓ | 0 |
-| privilege-escalation-lab | lab | ✓ | 2 |
+| privilege-escalation-lab | lab | ✓ | 0 |
 | dark-arts | quiz | ✓ | 0 |
-| session-hijacking-lab | applet | ✓ | 1 |
-| social-engineering-advanced | applet | ✓ | 1 |
+| session-hijacking-lab | presentation | ✓ | 0 |
+| social-engineering-advanced | presentation | ✓ | 0 |
 | sql-injection-lab | presentation | ✓ | 0 |
-| ssrf-attack-lab | presentation | ✓ | 1 |
-| steganography-lab | lab | ✓ | 2 |
+| ssrf-attack-lab | presentation | ✓ | 0 |
+| steganography-lab | lab | ✓ | 0 |
 | hashcat-training | presentation | ✓ | 0 |
-| hydra-training | presentation | ✓ | 2 |
+| hydra-training | presentation | ✓ | 0 |
 | john-training | presentation | ✓ | 0 |
 | metasploit-training | presentation | ✓ | 0 |
 | nmap-training | presentation | ✓ | 0 |
 | wireless-attacks-lab | presentation | ✓ | 0 |
-| xss-attacks-lab | applet | ✓ | 1 |
+| xss-attacks-lab | presentation | ✓ | 0 |
 | dashboard | applet | ✓ | 0 |
 | faq | applet | ✓ | 1 |
-| dark-arts-feh-01.presentation | presentation | ✓ | 2 |
-| dark-arts-feh-02.presentation | presentation | ✓ | 1 |
-| dark-arts-feh-03.presentation | presentation | ✓ | 1 |
-| dark-arts-feh-04.presentation | presentation | ✓ | 1 |
-| dark-arts-feh-05.presentation | presentation | ✓ | 2 |
-| dark-arts-feh-06.presentation | presentation | ✓ | 2 |
-| dark-arts-feh-07.presentation | presentation | ✓ | 1 |
-| dark-arts-feh-08.presentation | presentation | ✓ | 2 |
-| dark-arts-feh-09.presentation | presentation | ✓ | 1 |
-| dark-arts-feh-10.presentation | presentation | ✓ | 2 |
-| dark-arts-sample.tool | applet | ✓ | 1 |
-| index | applet | ✓ | 1 |
+| dark-arts-feh-01.presentation | presentation | ✓ | 0 |
+| dark-arts-feh-02.presentation | presentation | ✓ | 0 |
+| dark-arts-feh-03.presentation | presentation | ✓ | 0 |
+| dark-arts-feh-04.presentation | presentation | ✓ | 0 |
+| dark-arts-feh-05.presentation | presentation | ✓ | 0 |
+| dark-arts-feh-06.presentation | presentation | ✓ | 0 |
+| dark-arts-feh-07.presentation | presentation | ✓ | 0 |
+| dark-arts-feh-08.presentation | presentation | ✓ | 0 |
+| dark-arts-feh-09.presentation | presentation | ✓ | 0 |
+| dark-arts-feh-10.presentation | presentation | ✓ | 0 |
+| dark-arts-sample.tool | presentation | ✓ | 0 |
+| index | presentation | ✓ | 0 |
 | product-info | applet | ✓ | 1 |
 | current | applet | ✓ | 1 |
 
@@ -2963,16 +2965,16 @@
 
 | ID/Name | Type | Sync | Issues |
 |---------|------|------|--------|
-| web-binary-decimal-converter.applet | applet | ✓ | 1 |
-| web-server-comparison.applet | applet | ✓ | 1 |
+| web-binary-decimal-converter.applet | presentation | ✓ | 0 |
+| web-server-comparison.applet | presentation | ✓ | 0 |
 | networking-interactive-guide | quiz | ✓ | 0 |
-| web-networking-midterm.exam | applet | ✓ | 1 |
-| web-network-architect.applet | applet | ✓ | 1 |
-| web-packet-invaders.applet | applet | ✓ | 1 |
-| web-packet-run.applet | applet | ✓ | 1 |
+| web-networking-midterm.exam | presentation | ✓ | 0 |
+| web-network-architect.applet | presentation | ✓ | 0 |
+| web-packet-invaders.applet | presentation | ✓ | 0 |
+| web-packet-run.applet | presentation | ✓ | 0 |
 | web-packet-sniffer.applet | presentation | ✓ | 0 |
-| web-wireless-warzone.applet | applet | ✓ | 1 |
-| index | applet | ✓ | 1 |
+| web-wireless-warzone.applet | presentation | ✓ | 0 |
+| index | presentation | ✓ | 0 |
 | web-dns-troubleshooting.lab | lab | ✓ | 0 |
 | web-firewall-rules.lab | lab | ✓ | 0 |
 | web-networking-fundamentals.lab | lab | ✓ | 0 |
@@ -2981,49 +2983,50 @@
 | web-subnetting-practice.lab | lab | ✓ | 0 |
 | web-troubleshooting.lab | lab | ✓ | 0 |
 | web-vlan-config.lab | lab | ✓ | 0 |
-| web-ip-addressing-ch7-10.module | applet | ✓ | 1 |
-| web-arp.presentation | presentation | ✓ | 2 |
-| web-cables.presentation | presentation | ✓ | 1 |
-| web-devices.presentation | presentation | ✓ | 1 |
-| web-dhcp.presentation | presentation | ✓ | 2 |
-| web-dns.presentation | presentation | ✓ | 2 |
-| web-eigrp.presentation | presentation | ✓ | 1 |
-| web-etherchannel.presentation | presentation | ✓ | 2 |
-| web-fhrp.presentation | presentation | ✓ | 1 |
-| web-ipv6.presentation | presentation | ✓ | 2 |
-| web-nat.presentation | presentation | ✓ | 2 |
-| web-network-essentials.presentation | presentation | ✓ | 1 |
-| web-ntp.presentation | presentation | ✓ | 1 |
-| web-osi-deep-dive.presentation | presentation | ✓ | 1 |
-| web-osi.presentation | presentation | ✓ | 2 |
-| web-ospf.presentation | presentation | ✓ | 1 |
-| web-ports.presentation | presentation | ✓ | 2 |
-| web-stp.presentation | presentation | ✓ | 1 |
-| web-subnetting.presentation | presentation | ✓ | 2 |
-| web-switch-operations.presentation | presentation | ✓ | 1 |
-| web-tcp.presentation | presentation | ✓ | 2 |
-| web-topologies.presentation | presentation | ✓ | 2 |
-| web-troubleshooting.presentation | presentation | ✓ | 1 |
-| web-vlan.presentation | presentation | ✓ | 1 |
-| web-wireless-architecture.presentation | presentation | ✓ | 1 |
-| web-wireless.presentation | presentation | ✓ | 1 |
+| web-ip-addressing-ch7-10.module | presentation | ✓ | 0 |
+| web-arp.presentation | presentation | ✓ | 0 |
+| web-cables.presentation | presentation | ✓ | 0 |
+| web-devices.presentation | presentation | ✓ | 0 |
+| web-dhcp.presentation | presentation | ✓ | 0 |
+| web-dns.presentation | presentation | ✓ | 0 |
+| web-eigrp.presentation | presentation | ✓ | 0 |
+| web-etherchannel.presentation | presentation | ✓ | 0 |
+| web-fhrp.presentation | presentation | ✓ | 0 |
+| web-ipv6.presentation | presentation | ✓ | 0 |
+| web-nat.presentation | presentation | ✓ | 0 |
+| web-network-essentials.presentation | presentation | ✓ | 0 |
+| web-ntp.presentation | presentation | ✓ | 0 |
+| web-osi-deep-dive.presentation | presentation | ✓ | 0 |
+| web-osi-model.presentation | presentation | ✓ | 0 |
+| web-osi.presentation | presentation | ✓ | 0 |
+| web-ospf.presentation | presentation | ✓ | 0 |
+| web-ports.presentation | presentation | ✓ | 0 |
+| web-stp.presentation | presentation | ✓ | 0 |
+| web-subnetting.presentation | presentation | ✓ | 0 |
+| web-switch-operations.presentation | presentation | ✓ | 0 |
+| web-tcp.presentation | presentation | ✓ | 0 |
+| web-topologies.presentation | presentation | ✓ | 0 |
+| web-troubleshooting.presentation | presentation | ✓ | 0 |
+| web-vlan.presentation | presentation | ✓ | 0 |
+| web-wireless-architecture.presentation | presentation | ✓ | 0 |
+| web-wireless.presentation | presentation | ✓ | 0 |
 | web-networking-ch7-10 | quiz | ✓ | 0 |
-| web-networking-ch7-20.quiz | applet | ✓ | 1 |
+| web-networking-ch7-20.quiz | presentation | ✓ | 0 |
 | web-ports-quiz | quiz | ✓ | 0 |
 | osi-quiz | quiz | ✓ | 0 |
 | subnetting | quiz | ✓ | 0 |
 | web-week3-quiz | quiz | ✓ | 0 |
 | web-dns-resolver-race | presentation | ✓ | 0 |
 | web-subnet-siege | presentation | ✓ | 0 |
-| index | applet | ✓ | 1 |
+| index | presentation | ✓ | 0 |
 | web-interactive-network-simulatorv2.simulator | presentation | ✓ | 0 |
-| web-packet-tracer-lite-v3.simulator | applet | ✓ | 1 |
-| web-networking-textbook-ch7-20.textbook | applet | ✓ | 1 |
+| web-packet-tracer-lite-v3.simulator | presentation | ✓ | 0 |
+| web-networking-textbook-ch7-20.textbook | presentation | ✓ | 0 |
 | web-acl.tool | presentation | ✓ | 0 |
 | web-burp.tool | presentation | ✓ | 0 |
 | web-cable.tool | presentation | ✓ | 0 |
 | web-devices.tool | presentation | ✓ | 0 |
-| web-dns-header.tool | applet | ✓ | 1 |
+| web-dns-header.tool | presentation | ✓ | 0 |
 | web-etherchannel.tool | presentation | ✓ | 0 |
 | web-fhrp.tool | presentation | ✓ | 0 |
 | web-gobuster.tool | presentation | ✓ | 0 |
@@ -3050,1620 +3053,191 @@
 ## ISSUES DETECTED
 ══════════════════════════════════════════════════════════════════════
 
-### WARNING (167)
-
-**[TRACK-003]** Lab has no visible progress tracking mechanism
-  File: `dark-arts/vault/cloud-hacking-lab.html`
-  Fix: Add ProgressManager.completeModule() call to track lab completion
-
-**[TRACK-003]** Lab has no visible progress tracking mechanism
-  File: `dark-arts/vault/csrf-attack-lab.html`
-  Fix: Add ProgressManager.completeModule() call to track lab completion
-
-**[TRACK-003]** Lab has no visible progress tracking mechanism
-  File: `dark-arts/vault/footprinting-lab.html`
-  Fix: Add ProgressManager.completeModule() call to track lab completion
-
-**[TRACK-003]** Lab has no visible progress tracking mechanism
-  File: `dark-arts/vault/idor-attack-lab.html`
-  Fix: Add ProgressManager.completeModule() call to track lab completion
-
-**[TRACK-003]** Lab has no visible progress tracking mechanism
-  File: `dark-arts/vault/privilege-escalation-lab.html`
-  Fix: Add ProgressManager.completeModule() call to track lab completion
-
-**[TRACK-002]** Presentation has slides but no progress tracking
-  File: `dark-arts/vault/ssrf-attack-lab.html`
-  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
-
-**[TRACK-003]** Lab has no visible progress tracking mechanism
-  File: `dark-arts/vault/steganography-lab.html`
-  Fix: Add ProgressManager.completeModule() call to track lab completion
-
-**[TRACK-002]** Presentation has slides but no progress tracking
-  File: `dark-arts/vault/tools/hydra-training.html`
-  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
-
-**[TRACK-003]** Lab has no visible progress tracking mechanism
-  File: `houses/cloud/labs/cloud-cse-module01.lab.html`
-  Fix: Add ProgressManager.completeModule() call to track lab completion
-
-**[TRACK-003]** Lab has no visible progress tracking mechanism
-  File: `houses/cloud/labs/cloud-cse-module02.lab.html`
-  Fix: Add ProgressManager.completeModule() call to track lab completion
-
-**[TRACK-003]** Lab has no visible progress tracking mechanism
-  File: `houses/cloud/labs/cloud-cse-module03.lab.html`
-  Fix: Add ProgressManager.completeModule() call to track lab completion
-
-**[TRACK-003]** Lab has no visible progress tracking mechanism
-  File: `houses/cloud/labs/cloud-cse-module07.lab.html`
-  Fix: Add ProgressManager.completeModule() call to track lab completion
-
-**[TRACK-003]** Lab has no visible progress tracking mechanism
-  File: `houses/cloud/labs/cloud-cse-module08.lab.html`
-  Fix: Add ProgressManager.completeModule() call to track lab completion
-
-**[TRACK-003]** Lab has no visible progress tracking mechanism
-  File: `houses/cloud/labs/cloud-lab.lab.html`
-  Fix: Add ProgressManager.completeModule() call to track lab completion
-
-**[TRACK-003]** Lab has no visible progress tracking mechanism
-  File: `houses/cloud/labs/cloud-ps.lab.html`
-  Fix: Add ProgressManager.completeModule() call to track lab completion
-
-**[TRACK-002]** Presentation has slides but no progress tracking
-  File: `houses/cloud/modules/wsa/m01-fundamentals/cloud-presentation.module.html`
-  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
-
-**[TRACK-002]** Presentation has slides but no progress tracking
-  File: `houses/cloud/modules/wsa/m02-active-directory/cloud-presentation.module.html`
-  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
-
-**[TRACK-002]** Presentation has slides but no progress tracking
-  File: `houses/cloud/modules/wsa/m03-storage/cloud-presentation.module.html`
-  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
-
-**[TRACK-003]** Lab has no visible progress tracking mechanism
-  File: `houses/cloud/modules/wsa/m03-storage/cloud-pslab.module.html`
-  Fix: Add ProgressManager.completeModule() call to track lab completion
-
-**[TRACK-002]** Presentation has slides but no progress tracking
-  File: `houses/cloud/modules/wsa/m04-hyperv/cloud-presentation.module.html`
-  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
-
-**[TRACK-003]** Lab has no visible progress tracking mechanism
-  File: `houses/cloud/modules/wsa/m04-hyperv/cloud-pslab.module.html`
-  Fix: Add ProgressManager.completeModule() call to track lab completion
-
-**[TRACK-002]** Presentation has slides but no progress tracking
-  File: `houses/cloud/modules/wsa/m05-containers/cloud-presentation.module.html`
-  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
-
-**[TRACK-003]** Lab has no visible progress tracking mechanism
-  File: `houses/cloud/modules/wsa/m05-containers/cloud-pslab.module.html`
-  Fix: Add ProgressManager.completeModule() call to track lab completion
-
-**[TRACK-002]** Presentation has slides but no progress tracking
-  File: `houses/cloud/modules/wsa/m06-clustering/cloud-presentation.module.html`
-  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
-
-**[TRACK-003]** Lab has no visible progress tracking mechanism
-  File: `houses/cloud/modules/wsa/m06-clustering/cloud-pslab.module.html`
-  Fix: Add ProgressManager.completeModule() call to track lab completion
-
-**[TRACK-002]** Presentation has slides but no progress tracking
-  File: `houses/cloud/modules/wsa/m07-monitoring/cloud-presentation.module.html`
-  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
-
-**[TRACK-003]** Lab has no visible progress tracking mechanism
-  File: `houses/cloud/modules/wsa/m07-monitoring/cloud-pslab.module.html`
-  Fix: Add ProgressManager.completeModule() call to track lab completion
-
-**[TRACK-002]** Presentation has slides but no progress tracking
-  File: `houses/cloud/modules/wsa/m08-dns/cloud-presentation.module.html`
-  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
-
-**[TRACK-003]** Lab has no visible progress tracking mechanism
-  File: `houses/cloud/modules/wsa/m08-dns/cloud-pslab.module.html`
-  Fix: Add ProgressManager.completeModule() call to track lab completion
-
-**[TRACK-003]** Lab has no visible progress tracking mechanism
-  File: `houses/cloud/modules/wsa/m09-dhcp/cloud-guilab.module.html`
-  Fix: Add ProgressManager.completeModule() call to track lab completion
-
-**[TRACK-002]** Presentation has slides but no progress tracking
-  File: `houses/cloud/modules/wsa/m09-dhcp/cloud-presentation.module.html`
-  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
-
-**[TRACK-003]** Lab has no visible progress tracking mechanism
-  File: `houses/cloud/modules/wsa/m09-dhcp/cloud-pslab.module.html`
-  Fix: Add ProgressManager.completeModule() call to track lab completion
-
-**[TRACK-003]** Lab has no visible progress tracking mechanism
-  File: `houses/cloud/modules/wsa/m10-group-policy/cloud-guilab.module.html`
-  Fix: Add ProgressManager.completeModule() call to track lab completion
-
-**[TRACK-002]** Presentation has slides but no progress tracking
-  File: `houses/cloud/modules/wsa/m10-group-policy/cloud-presentation.module.html`
-  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
-
-**[TRACK-003]** Lab has no visible progress tracking mechanism
-  File: `houses/cloud/modules/wsa/m10-group-policy/cloud-pslab.module.html`
-  Fix: Add ProgressManager.completeModule() call to track lab completion
-
-**[TRACK-003]** Lab has no visible progress tracking mechanism
-  File: `houses/cloud/modules/wsa/m11-iis/cloud-guilab.module.html`
-  Fix: Add ProgressManager.completeModule() call to track lab completion
-
-**[TRACK-002]** Presentation has slides but no progress tracking
-  File: `houses/cloud/modules/wsa/m11-iis/cloud-presentation.module.html`
-  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
-
-**[TRACK-003]** Lab has no visible progress tracking mechanism
-  File: `houses/cloud/modules/wsa/m11-iis/cloud-pslab.module.html`
-  Fix: Add ProgressManager.completeModule() call to track lab completion
-
-**[TRACK-003]** Lab has no visible progress tracking mechanism
-  File: `houses/cloud/modules/wsa/m12-remote-desktop/cloud-guilab.module.html`
-  Fix: Add ProgressManager.completeModule() call to track lab completion
-
-**[TRACK-002]** Presentation has slides but no progress tracking
-  File: `houses/cloud/modules/wsa/m12-remote-desktop/cloud-presentation.module.html`
-  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
-
-**[TRACK-003]** Lab has no visible progress tracking mechanism
-  File: `houses/cloud/modules/wsa/m12-remote-desktop/cloud-pslab.module.html`
-  Fix: Add ProgressManager.completeModule() call to track lab completion
-
-**[TRACK-003]** Lab has no visible progress tracking mechanism
-  File: `houses/cloud/modules/wsa/m13-certificate-services/cloud-guilab.module.html`
-  Fix: Add ProgressManager.completeModule() call to track lab completion
-
-**[TRACK-002]** Presentation has slides but no progress tracking
-  File: `houses/cloud/modules/wsa/m13-certificate-services/cloud-presentation.module.html`
-  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
-
-**[TRACK-003]** Lab has no visible progress tracking mechanism
-  File: `houses/cloud/modules/wsa/m13-certificate-services/cloud-pslab.module.html`
-  Fix: Add ProgressManager.completeModule() call to track lab completion
-
-**[TRACK-003]** Lab has no visible progress tracking mechanism
-  File: `houses/cloud/modules/wsa/m14-advanced-networking/cloud-guilab.module.html`
-  Fix: Add ProgressManager.completeModule() call to track lab completion
-
-**[TRACK-002]** Presentation has slides but no progress tracking
-  File: `houses/cloud/modules/wsa/m14-advanced-networking/cloud-presentation.module.html`
-  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
-
-**[TRACK-003]** Lab has no visible progress tracking mechanism
-  File: `houses/cloud/modules/wsa/m14-advanced-networking/cloud-pslab.module.html`
-  Fix: Add ProgressManager.completeModule() call to track lab completion
-
-**[TRACK-003]** Lab has no visible progress tracking mechanism
-  File: `houses/cloud/modules/wsa/m15-ad-sites/cloud-guilab.module.html`
-  Fix: Add ProgressManager.completeModule() call to track lab completion
-
-**[TRACK-002]** Presentation has slides but no progress tracking
-  File: `houses/cloud/modules/wsa/m15-ad-sites/cloud-presentation.module.html`
-  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
-
-**[TRACK-003]** Lab has no visible progress tracking mechanism
-  File: `houses/cloud/modules/wsa/m15-ad-sites/cloud-pslab.module.html`
-  Fix: Add ProgressManager.completeModule() call to track lab completion
-
-**[TRACK-003]** Lab has no visible progress tracking mechanism
-  File: `houses/cloud/modules/wsa/m16-backup-recovery/cloud-guilab.module.html`
-  Fix: Add ProgressManager.completeModule() call to track lab completion
-
-**[TRACK-002]** Presentation has slides but no progress tracking
-  File: `houses/cloud/modules/wsa/m16-backup-recovery/cloud-presentation.module.html`
-  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
-
-**[TRACK-003]** Lab has no visible progress tracking mechanism
-  File: `houses/cloud/modules/wsa/m16-backup-recovery/cloud-pslab.module.html`
-  Fix: Add ProgressManager.completeModule() call to track lab completion
-
-**[TRACK-003]** Lab has no visible progress tracking mechanism
-  File: `houses/cloud/modules/wsa/m17-firewall-security/cloud-guilab.module.html`
-  Fix: Add ProgressManager.completeModule() call to track lab completion
-
-**[TRACK-002]** Presentation has slides but no progress tracking
-  File: `houses/cloud/modules/wsa/m17-firewall-security/cloud-presentation.module.html`
-  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
-
-**[TRACK-003]** Lab has no visible progress tracking mechanism
-  File: `houses/cloud/modules/wsa/m17-firewall-security/cloud-pslab.module.html`
-  Fix: Add ProgressManager.completeModule() call to track lab completion
-
-**[TRACK-002]** Presentation has slides but no progress tracking
-  File: `houses/cloud/modules/wsa/m18-powershell-automation/cloud-presentation.module.html`
-  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
-
-**[TRACK-003]** Lab has no visible progress tracking mechanism
-  File: `houses/cloud/modules/wsa/m18-powershell-automation/cloud-pslab.module.html`
-  Fix: Add ProgressManager.completeModule() call to track lab completion
-
-**[TRACK-002]** Presentation has slides but no progress tracking
-  File: `houses/cloud/modules/wsa/m19-troubleshooting-migration/cloud-presentation.module.html`
-  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
-
-**[TRACK-003]** Lab has no visible progress tracking mechanism
-  File: `houses/cloud/modules/wsa/m19-troubleshooting-migration/cloud-pslab.module.html`
-  Fix: Add ProgressManager.completeModule() call to track lab completion
-
-**[TRACK-002]** Presentation has slides but no progress tracking
-  File: `houses/cloud/presentations/cloud-aws-fundamentals.presentation.html`
-  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
-
-**[TRACK-002]** Presentation has slides but no progress tracking
-  File: `houses/cloud/presentations/cloud-azure-fundamentals.presentation.html`
-  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
-
-**[TRACK-002]** Presentation has slides but no progress tracking
-  File: `houses/cloud/presentations/cloud-cloud.presentation.html`
-  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
-
-**[TRACK-002]** Presentation has slides but no progress tracking
-  File: `houses/cloud/presentations/cloud-cse-module01.presentation.html`
-  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
-
-**[TRACK-002]** Presentation has slides but no progress tracking
-  File: `houses/cloud/presentations/cloud-cse-module02.presentation.html`
-  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
-
-**[TRACK-002]** Presentation has slides but no progress tracking
-  File: `houses/cloud/presentations/cloud-cse-module03.presentation.html`
-  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
-
-**[TRACK-002]** Presentation has slides but no progress tracking
-  File: `houses/cloud/presentations/cloud-cse-module04.presentation.html`
-  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
-
-**[TRACK-002]** Presentation has slides but no progress tracking
-  File: `houses/cloud/presentations/cloud-cse-module05.presentation.html`
-  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
-
-**[TRACK-002]** Presentation has slides but no progress tracking
-  File: `houses/cloud/presentations/cloud-cse-module06.presentation.html`
-  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
-
-**[TRACK-002]** Presentation has slides but no progress tracking
-  File: `houses/cloud/presentations/cloud-cse-module07.presentation.html`
-  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
-
-**[TRACK-002]** Presentation has slides but no progress tracking
-  File: `houses/cloud/presentations/cloud-cse-module08.presentation.html`
-  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
-
-**[TRACK-002]** Presentation has slides but no progress tracking
-  File: `houses/dark-arts/presentations/dark-arts-feh-01.presentation.html`
-  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
-
-**[TRACK-002]** Presentation has slides but no progress tracking
-  File: `houses/dark-arts/presentations/dark-arts-feh-02.presentation.html`
-  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
-
-**[TRACK-002]** Presentation has slides but no progress tracking
-  File: `houses/dark-arts/presentations/dark-arts-feh-03.presentation.html`
-  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
-
-**[TRACK-002]** Presentation has slides but no progress tracking
-  File: `houses/dark-arts/presentations/dark-arts-feh-04.presentation.html`
-  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
-
-**[TRACK-002]** Presentation has slides but no progress tracking
-  File: `houses/dark-arts/presentations/dark-arts-feh-05.presentation.html`
-  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
-
-**[TRACK-002]** Presentation has slides but no progress tracking
-  File: `houses/dark-arts/presentations/dark-arts-feh-06.presentation.html`
-  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
-
-**[TRACK-002]** Presentation has slides but no progress tracking
-  File: `houses/dark-arts/presentations/dark-arts-feh-07.presentation.html`
-  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
-
-**[TRACK-002]** Presentation has slides but no progress tracking
-  File: `houses/dark-arts/presentations/dark-arts-feh-08.presentation.html`
-  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
-
-**[TRACK-002]** Presentation has slides but no progress tracking
-  File: `houses/dark-arts/presentations/dark-arts-feh-09.presentation.html`
-  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
-
-**[TRACK-002]** Presentation has slides but no progress tracking
-  File: `houses/dark-arts/presentations/dark-arts-feh-10.presentation.html`
-  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
-
-**[TRACK-003]** Lab has no visible progress tracking mechanism
-  File: `houses/eye/applets/cyberops/week3/labs/eye-exploring-nmap.lab.html`
-  Fix: Add ProgressManager.completeModule() call to track lab completion
-
-**[TRACK-003]** Lab has no visible progress tracking mechanism
-  File: `houses/eye/applets/cyberops/week3/labs/eye-tracing-route.lab.html`
-  Fix: Add ProgressManager.completeModule() call to track lab completion
-
-**[TRACK-003]** Lab has no visible progress tracking mechanism
-  File: `houses/forge/applets/comptia-aplus/core-1/labs/forge-cpu-sockets.lab.html`
-  Fix: Add ProgressManager.completeModule() call to track lab completion
-
-**[TRACK-003]** Lab has no visible progress tracking mechanism
-  File: `houses/forge/applets/comptia-aplus/core-1/labs/forge-ram-identification.lab.html`
-  Fix: Add ProgressManager.completeModule() call to track lab completion
-
-**[TRACK-003]** Lab has no visible progress tracking mechanism
-  File: `houses/forge/applets/comptia-aplus/core-2/labs/forge-control-panel.lab.html`
-  Fix: Add ProgressManager.completeModule() call to track lab completion
-
-**[TRACK-003]** Lab has no visible progress tracking mechanism
-  File: `houses/forge/applets/comptia-aplus/core-2/labs/forge-lab-macos-linux.lab.html`
-  Fix: Add ProgressManager.completeModule() call to track lab completion
-
-**[TRACK-003]** Lab has no visible progress tracking mechanism
-  File: `houses/forge/applets/comptia-aplus/core-2/labs/forge-system-tools.lab.html`
-  Fix: Add ProgressManager.completeModule() call to track lab completion
-
-**[TRACK-003]** Lab has no visible progress tracking mechanism
-  File: `houses/forge/applets/comptia-aplus/core-2/labs/forge-windows-editions.lab.html`
-  Fix: Add ProgressManager.completeModule() call to track lab completion
-
-**[TRACK-003]** Lab has no visible progress tracking mechanism
-  File: `houses/forge/applets/comptia-aplus/core-2/labs/forge-windows-settings.lab.html`
-  Fix: Add ProgressManager.completeModule() call to track lab completion
-
-**[TRACK-003]** Lab has no visible progress tracking mechanism
-  File: `houses/forge/labs/forge-admin-tools.lab.html`
-  Fix: Add ProgressManager.completeModule() call to track lab completion
-
-**[TRACK-003]** Lab has no visible progress tracking mechanism
-  File: `houses/forge/labs/forge-control-panel.lab.html`
-  Fix: Add ProgressManager.completeModule() call to track lab completion
-
-**[TRACK-003]** Lab has no visible progress tracking mechanism
-  File: `houses/forge/labs/forge-system-tools.lab.html`
-  Fix: Add ProgressManager.completeModule() call to track lab completion
-
-**[TRACK-003]** Lab has no visible progress tracking mechanism
-  File: `houses/forge/labs/forge-windows-editions.lab.html`
-  Fix: Add ProgressManager.completeModule() call to track lab completion
-
-**[TRACK-003]** Lab has no visible progress tracking mechanism
-  File: `houses/forge/labs/forge-windows-settings.lab.html`
-  Fix: Add ProgressManager.completeModule() call to track lab completion
-
-**[TRACK-002]** Presentation has slides but no progress tracking
-  File: `houses/forge/presentations/forge-macos-linux-basics.presentation.html`
-  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
-
-**[TRACK-003]** Lab has no visible progress tracking mechanism
-  File: `houses/script/courses/clh/modules/clh-031/script-lab.lab.html`
-  Fix: Add ProgressManager.completeModule() call to track lab completion
-
-**[TRACK-003]** Lab has no visible progress tracking mechanism
-  File: `houses/script/labs/linux/script-bash-arrays.lab.html`
-  Fix: Add ProgressManager.completeModule() call to track lab completion
-
-**[TRACK-003]** Lab has no visible progress tracking mechanism
-  File: `houses/script/labs/linux/script-bash-basics.lab.html`
-  Fix: Add ProgressManager.completeModule() call to track lab completion
-
-**[TRACK-003]** Lab has no visible progress tracking mechanism
-  File: `houses/script/labs/linux/script-bash-conditionals.lab.html`
-  Fix: Add ProgressManager.completeModule() call to track lab completion
-
-**[TRACK-003]** Lab has no visible progress tracking mechanism
-  File: `houses/script/labs/linux/script-bash-conditions-drill.lab.html`
-  Fix: Add ProgressManager.completeModule() call to track lab completion
-
-**[TRACK-003]** Lab has no visible progress tracking mechanism
-  File: `houses/script/labs/linux/script-bash-cron-setup-prep.lab.html`
-  Fix: Add ProgressManager.completeModule() call to track lab completion
-
-**[TRACK-003]** Lab has no visible progress tracking mechanism
-  File: `houses/script/labs/linux/script-bash-cron.lab.html`
-  Fix: Add ProgressManager.completeModule() call to track lab completion
-
-**[TRACK-003]** Lab has no visible progress tracking mechanism
-  File: `houses/script/labs/linux/script-bash-functions.lab.html`
-  Fix: Add ProgressManager.completeModule() call to track lab completion
-
-**[TRACK-003]** Lab has no visible progress tracking mechanism
-  File: `houses/script/labs/linux/script-bash-io-redirect.lab.html`
-  Fix: Add ProgressManager.completeModule() call to track lab completion
-
-**[TRACK-003]** Lab has no visible progress tracking mechanism
-  File: `houses/script/labs/linux/script-bash-log-processor-prep.lab.html`
-  Fix: Add ProgressManager.completeModule() call to track lab completion
-
-**[TRACK-003]** Lab has no visible progress tracking mechanism
-  File: `houses/script/labs/linux/script-bash-loops-drill.lab.html`
-  Fix: Add ProgressManager.completeModule() call to track lab completion
-
-**[TRACK-003]** Lab has no visible progress tracking mechanism
-  File: `houses/script/labs/linux/script-bash-loops.lab.html`
-  Fix: Add ProgressManager.completeModule() call to track lab completion
-
-**[TRACK-003]** Lab has no visible progress tracking mechanism
-  File: `houses/script/labs/linux/script-bash-pipes.lab.html`
-  Fix: Add ProgressManager.completeModule() call to track lab completion
-
-**[TRACK-003]** Lab has no visible progress tracking mechanism
-  File: `houses/script/labs/linux/script-bash-redirect-drill.lab.html`
-  Fix: Add ProgressManager.completeModule() call to track lab completion
-
-**[TRACK-003]** Lab has no visible progress tracking mechanism
-  File: `houses/script/labs/linux/script-bash-variables-drill.lab.html`
-  Fix: Add ProgressManager.completeModule() call to track lab completion
-
-**[TRACK-003]** Lab has no visible progress tracking mechanism
-  File: `houses/script/labs/linux/script-linux-compression.lab.html`
-  Fix: Add ProgressManager.completeModule() call to track lab completion
-
-**[TRACK-003]** Lab has no visible progress tracking mechanism
-  File: `houses/script/labs/linux/script-linux-disk-mgmt.lab.html`
-  Fix: Add ProgressManager.completeModule() call to track lab completion
-
-**[TRACK-003]** Lab has no visible progress tracking mechanism
-  File: `houses/script/labs/linux/script-linux-disk-partition-prep.lab.html`
-  Fix: Add ProgressManager.completeModule() call to track lab completion
+### CRITICAL (1)
 
-**[TRACK-003]** Lab has no visible progress tracking mechanism
-  File: `houses/script/labs/linux/script-linux-env-vars.lab.html`
-  Fix: Add ProgressManager.completeModule() call to track lab completion
+**[ID-001]** moduleId 'forge-quiz' has house prefix and ends with -quiz suffix — will break sync
+  File: `houses/forge/quizzes/forge-windows-admin.quiz.html`
+  Current: `forge-quiz`
+  Fix: Change moduleId to 'quiz'
 
-**[TRACK-003]** Lab has no visible progress tracking mechanism
-  File: `houses/script/labs/linux/script-linux-file-mgmt-prep.lab.html`
-  Fix: Add ProgressManager.completeModule() call to track lab completion
+### SUSPECT (42) — heuristic, needs review
 
-**[TRACK-003]** Lab has no visible progress tracking mechanism
-  File: `houses/script/labs/linux/script-linux-file-ops.lab.html`
-  Fix: Add ProgressManager.completeModule() call to track lab completion
+**[HEUR-005]** Duplicate script include: "../../../components/AchievementManager.js" loaded 2 times (lines 8, 912)
+  File: `houses/eye/games/eye-alert-triage.html`
+  Fix: Remove duplicate <script src="../../../components/AchievementManager.js"> tag
 
-**[TRACK-003]** Lab has no visible progress tracking mechanism
-  File: `houses/script/labs/linux/script-linux-file-search.lab.html`
-  Fix: Add ProgressManager.completeModule() call to track lab completion
+**[HEUR-005]** Duplicate script include: "../../../components/AchievementManager.js" loaded 2 times (lines 405, 1117)
+  File: `houses/eye/games/eye-memory-forensics.applet.html`
+  Fix: Remove duplicate <script src="../../../components/AchievementManager.js"> tag
 
-**[TRACK-003]** Lab has no visible progress tracking mechanism
-  File: `houses/script/labs/linux/script-linux-links.lab.html`
-  Fix: Add ProgressManager.completeModule() call to track lab completion
+**[HEUR-005]** Duplicate script include: "../../../components/AchievementManager.js" loaded 2 times (lines 671, 1836)
+  File: `houses/eye/games/eye-threat-modeler.html`
+  Fix: Remove duplicate <script src="../../../components/AchievementManager.js"> tag
 
-**[TRACK-003]** Lab has no visible progress tracking mechanism
-  File: `houses/script/labs/linux/script-linux-log-analysis-prep.lab.html`
-  Fix: Add ProgressManager.completeModule() call to track lab completion
+**[HEUR-005]** Duplicate script include: "../../../components/AchievementManager.js" loaded 2 times (lines 283, 370)
+  File: `houses/forge/games/forge-raid-calculator.applet.html`
+  Fix: Remove duplicate <script src="../../../components/AchievementManager.js"> tag
 
-**[TRACK-003]** Lab has no visible progress tracking mechanism
-  File: `houses/script/labs/linux/script-linux-log-analysis.lab.html`
-  Fix: Add ProgressManager.completeModule() call to track lab completion
+**[HEUR-005]** Duplicate script include: "../../../components/AchievementManager.js" loaded 2 times (lines 415, 1916)
+  File: `houses/key/games/key-dont-leak-the-key.html`
+  Fix: Remove duplicate <script src="../../../components/AchievementManager.js"> tag
 
-**[TRACK-003]** Lab has no visible progress tracking mechanism
-  File: `houses/script/labs/linux/script-linux-log-investigation-prep.lab.html`
-  Fix: Add ProgressManager.completeModule() call to track lab completion
+**[HEUR-005]** Duplicate script include: "../../../components/ModuleProgress.js" loaded 2 times (lines 10, 709)
+  File: `houses/script/clh/script-clh-001-intro.applet.html`
+  Fix: Remove duplicate <script src="../../../components/ModuleProgress.js"> tag
 
-**[TRACK-003]** Lab has no visible progress tracking mechanism
-  File: `houses/script/labs/linux/script-linux-mkdir-drill.lab.html`
-  Fix: Add ProgressManager.completeModule() call to track lab completion
+**[HEUR-005]** Duplicate script include: "../../../components/ModuleProgress.js" loaded 2 times (lines 10, 660)
+  File: `houses/script/clh/script-clh-002-intro.applet.html`
+  Fix: Remove duplicate <script src="../../../components/ModuleProgress.js"> tag
 
-**[TRACK-003]** Lab has no visible progress tracking mechanism
-  File: `houses/script/labs/linux/script-linux-network-config.lab.html`
-  Fix: Add ProgressManager.completeModule() call to track lab completion
+**[HEUR-005]** Duplicate script include: "../../../components/ModuleProgress.js" loaded 2 times (lines 10, 594)
+  File: `houses/script/clh/script-clh-003-intro.applet.html`
+  Fix: Remove duplicate <script src="../../../components/ModuleProgress.js"> tag
 
-**[TRACK-003]** Lab has no visible progress tracking mechanism
-  File: `houses/script/labs/linux/script-linux-package-mgmt.lab.html`
-  Fix: Add ProgressManager.completeModule() call to track lab completion
+**[HEUR-005]** Duplicate script include: "../../../components/ModuleProgress.js" loaded 2 times (lines 10, 778)
+  File: `houses/script/clh/script-clh-004-intro.applet.html`
+  Fix: Remove duplicate <script src="../../../components/ModuleProgress.js"> tag
 
-**[TRACK-003]** Lab has no visible progress tracking mechanism
-  File: `houses/script/labs/linux/script-linux-permissions-drill.lab.html`
-  Fix: Add ProgressManager.completeModule() call to track lab completion
+**[HEUR-005]** Duplicate script include: "../../../components/ModuleProgress.js" loaded 2 times (lines 10, 535)
+  File: `houses/script/clh/script-clh-005-intro.applet.html`
+  Fix: Remove duplicate <script src="../../../components/ModuleProgress.js"> tag
 
-**[TRACK-003]** Lab has no visible progress tracking mechanism
-  File: `houses/script/labs/linux/script-linux-permissions.lab.html`
-  Fix: Add ProgressManager.completeModule() call to track lab completion
+**[HEUR-005]** Duplicate script include: "../../../components/ModuleProgress.js" loaded 2 times (lines 10, 273)
+  File: `houses/script/clh/script-clh-006-intro.applet.html`
+  Fix: Remove duplicate <script src="../../../components/ModuleProgress.js"> tag
 
-**[TRACK-003]** Lab has no visible progress tracking mechanism
-  File: `houses/script/labs/linux/script-linux-process-mgmt.lab.html`
-  Fix: Add ProgressManager.completeModule() call to track lab completion
+**[HEUR-005]** Duplicate script include: "../../../components/ModuleProgress.js" loaded 2 times (lines 10, 241)
+  File: `houses/script/clh/script-clh-007-intro.applet.html`
+  Fix: Remove duplicate <script src="../../../components/ModuleProgress.js"> tag
 
-**[TRACK-003]** Lab has no visible progress tracking mechanism
-  File: `houses/script/labs/linux/script-linux-service-mgmt.lab.html`
-  Fix: Add ProgressManager.completeModule() call to track lab completion
+**[HEUR-005]** Duplicate script include: "../../../components/ModuleProgress.js" loaded 2 times (lines 10, 223)
+  File: `houses/script/clh/script-clh-008-intro.applet.html`
+  Fix: Remove duplicate <script src="../../../components/ModuleProgress.js"> tag
 
-**[TRACK-003]** Lab has no visible progress tracking mechanism
-  File: `houses/script/labs/linux/script-linux-ssh.lab.html`
-  Fix: Add ProgressManager.completeModule() call to track lab completion
+**[HEUR-005]** Duplicate script include: "../../../components/ModuleProgress.js" loaded 2 times (lines 10, 240)
+  File: `houses/script/clh/script-clh-009-intro.applet.html`
+  Fix: Remove duplicate <script src="../../../components/ModuleProgress.js"> tag
 
-**[TRACK-003]** Lab has no visible progress tracking mechanism
-  File: `houses/script/labs/linux/script-linux-sysadmin-reference.lab.html`
-  Fix: Add ProgressManager.completeModule() call to track lab completion
+**[HEUR-005]** Duplicate script include: "../../../components/ModuleProgress.js" loaded 2 times (lines 10, 789)
+  File: `houses/script/clh/script-clh-010-intro.applet.html`
+  Fix: Remove duplicate <script src="../../../components/ModuleProgress.js"> tag
 
-**[TRACK-003]** Lab has no visible progress tracking mechanism
-  File: `houses/script/labs/linux/script-linux-text-viewing.lab.html`
-  Fix: Add ProgressManager.completeModule() call to track lab completion
+**[HEUR-005]** Duplicate script include: "../../../components/ModuleProgress.js" loaded 2 times (lines 10, 259)
+  File: `houses/script/clh/script-clh-011-intro.applet.html`
+  Fix: Remove duplicate <script src="../../../components/ModuleProgress.js"> tag
 
-**[TRACK-003]** Lab has no visible progress tracking mechanism
-  File: `houses/script/labs/linux/script-linux-users.lab.html`
-  Fix: Add ProgressManager.completeModule() call to track lab completion
+**[HEUR-005]** Duplicate script include: "../../../components/ModuleProgress.js" loaded 2 times (lines 10, 239)
+  File: `houses/script/clh/script-clh-012-intro.applet.html`
+  Fix: Remove duplicate <script src="../../../components/ModuleProgress.js"> tag
 
-**[TRACK-003]** Lab has no visible progress tracking mechanism
-  File: `houses/script/labs/linux/script-linux-viewing-drill.lab.html`
-  Fix: Add ProgressManager.completeModule() call to track lab completion
+**[HEUR-005]** Duplicate script include: "../../../components/ModuleProgress.js" loaded 2 times (lines 10, 269)
+  File: `houses/script/clh/script-clh-013-intro.applet.html`
+  Fix: Remove duplicate <script src="../../../components/ModuleProgress.js"> tag
 
-**[TRACK-003]** Lab has no visible progress tracking mechanism
-  File: `houses/script/labs/linux/script-linux-wildcards.lab.html`
-  Fix: Add ProgressManager.completeModule() call to track lab completion
+**[HEUR-005]** Duplicate script include: "../../../components/ModuleProgress.js" loaded 2 times (lines 10, 328)
+  File: `houses/script/clh/script-clh-014-intro.applet.html`
+  Fix: Remove duplicate <script src="../../../components/ModuleProgress.js"> tag
 
-**[TRACK-003]** Lab has no visible progress tracking mechanism
-  File: `houses/script/linux/labs/script-mission-file-operations.lab.html`
-  Fix: Add ProgressManager.completeModule() call to track lab completion
+**[HEUR-005]** Duplicate script include: "../../../components/ModuleProgress.js" loaded 2 times (lines 10, 269)
+  File: `houses/script/clh/script-clh-015-intro.applet.html`
+  Fix: Remove duplicate <script src="../../../components/ModuleProgress.js"> tag
 
-**[TRACK-002]** Presentation has slides but no progress tracking
-  File: `houses/script/tools/script-process-management.tool.html`
-  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
+**[HEUR-005]** Duplicate script include: "../../../components/ModuleProgress.js" loaded 2 times (lines 9, 230)
+  File: `houses/script/clh/script-clh-022-intro.applet.html`
+  Fix: Remove duplicate <script src="../../../components/ModuleProgress.js"> tag
 
-**[TRACK-003]** Lab has no visible progress tracking mechanism
-  File: `houses/shield/applets/operations/shield-cyber-arts-bootcamp.applet.html`
-  Fix: Add ProgressManager.completeModule() call to track lab completion
+**[HEUR-005]** Duplicate script include: "../../../../../../components/ModuleProgress.js" loaded 2 times (lines 10, 709)
+  File: `houses/script/courses/clh/modules/clh-001/script-intro.module.html`
+  Fix: Remove duplicate <script src="../../../../../../components/ModuleProgress.js"> tag
 
-**[TRACK-003]** Lab has no visible progress tracking mechanism
+**[HEUR-005]** Duplicate script include: "../../../../../../components/ModuleProgress.js" loaded 2 times (lines 10, 660)
+  File: `houses/script/courses/clh/modules/clh-002/script-intro.module.html`
+  Fix: Remove duplicate <script src="../../../../../../components/ModuleProgress.js"> tag
+
+**[HEUR-005]** Duplicate script include: "../../../../../../components/ModuleProgress.js" loaded 2 times (lines 10, 594)
+  File: `houses/script/courses/clh/modules/clh-003/script-intro.module.html`
+  Fix: Remove duplicate <script src="../../../../../../components/ModuleProgress.js"> tag
+
+**[HEUR-005]** Duplicate script include: "../../../../../../components/ModuleProgress.js" loaded 2 times (lines 10, 778)
+  File: `houses/script/courses/clh/modules/clh-004/script-intro.module.html`
+  Fix: Remove duplicate <script src="../../../../../../components/ModuleProgress.js"> tag
+
+**[HEUR-005]** Duplicate script include: "../../../../../../components/ModuleProgress.js" loaded 2 times (lines 10, 535)
+  File: `houses/script/courses/clh/modules/clh-005/script-intro.module.html`
+  Fix: Remove duplicate <script src="../../../../../../components/ModuleProgress.js"> tag
+
+**[HEUR-005]** Duplicate script include: "../../../../../../components/ModuleProgress.js" loaded 2 times (lines 10, 273)
+  File: `houses/script/courses/clh/modules/clh-006/script-intro.module.html`
+  Fix: Remove duplicate <script src="../../../../../../components/ModuleProgress.js"> tag
+
+**[HEUR-005]** Duplicate script include: "../../../../../../components/ModuleProgress.js" loaded 2 times (lines 10, 241)
+  File: `houses/script/courses/clh/modules/clh-007/script-intro.module.html`
+  Fix: Remove duplicate <script src="../../../../../../components/ModuleProgress.js"> tag
+
+**[HEUR-005]** Duplicate script include: "../../../../../../components/ModuleProgress.js" loaded 2 times (lines 10, 223)
+  File: `houses/script/courses/clh/modules/clh-008/script-intro.module.html`
+  Fix: Remove duplicate <script src="../../../../../../components/ModuleProgress.js"> tag
+
+**[HEUR-005]** Duplicate script include: "../../../../../../components/ModuleProgress.js" loaded 2 times (lines 10, 240)
+  File: `houses/script/courses/clh/modules/clh-009/script-intro.module.html`
+  Fix: Remove duplicate <script src="../../../../../../components/ModuleProgress.js"> tag
+
+**[HEUR-005]** Duplicate script include: "../../../../../../components/ModuleProgress.js" loaded 2 times (lines 10, 789)
+  File: `houses/script/courses/clh/modules/clh-010/script-intro.module.html`
+  Fix: Remove duplicate <script src="../../../../../../components/ModuleProgress.js"> tag
+
+**[HEUR-005]** Duplicate script include: "../../../../../../components/ModuleProgress.js" loaded 2 times (lines 10, 259)
+  File: `houses/script/courses/clh/modules/clh-011/script-intro.module.html`
+  Fix: Remove duplicate <script src="../../../../../../components/ModuleProgress.js"> tag
+
+**[HEUR-005]** Duplicate script include: "../../../../../../components/ModuleProgress.js" loaded 2 times (lines 10, 239)
+  File: `houses/script/courses/clh/modules/clh-012/script-intro.module.html`
+  Fix: Remove duplicate <script src="../../../../../../components/ModuleProgress.js"> tag
+
+**[HEUR-005]** Duplicate script include: "../../../../../../components/ModuleProgress.js" loaded 2 times (lines 10, 269)
+  File: `houses/script/courses/clh/modules/clh-013/script-intro.module.html`
+  Fix: Remove duplicate <script src="../../../../../../components/ModuleProgress.js"> tag
+
+**[HEUR-005]** Duplicate script include: "../../../../../../components/ModuleProgress.js" loaded 2 times (lines 10, 328)
+  File: `houses/script/courses/clh/modules/clh-014/script-intro.module.html`
+  Fix: Remove duplicate <script src="../../../../../../components/ModuleProgress.js"> tag
+
+**[HEUR-005]** Duplicate script include: "../../../../../../components/ModuleProgress.js" loaded 2 times (lines 10, 269)
+  File: `houses/script/courses/clh/modules/clh-015/script-intro.module.html`
+  Fix: Remove duplicate <script src="../../../../../../components/ModuleProgress.js"> tag
+
+**[HEUR-005]** Duplicate script include: "../../../../../../components/ModuleProgress.js" loaded 2 times (lines 9, 230)
+  File: `houses/script/courses/clh/modules/clh-022/script-intro.module.html`
+  Fix: Remove duplicate <script src="../../../../../../components/ModuleProgress.js"> tag
+
+**[HEUR-005]** Duplicate script include: "../../../../components/ModuleProgress.js" loaded 2 times (lines 9, 1394)
+  File: `houses/script/courses/grep-pipe-mastery/index.html`
+  Fix: Remove duplicate <script src="../../../../components/ModuleProgress.js"> tag
+
+**[HEUR-005]** Duplicate script include: "../../../components/AchievementManager.js" loaded 2 times (lines 415, 1631)
+  File: `houses/script/games/script-dont-kill-the-server.html`
+  Fix: Remove duplicate <script src="../../../components/AchievementManager.js"> tag
+
+**[HEUR-005]** Duplicate script include: "../../../components/AchievementManager.js" loaded 2 times (lines 538, 615)
   File: `houses/shield/games/shield-malware-zoo.lab.html`
-  Fix: Add ProgressManager.completeModule() call to track lab completion
+  Fix: Remove duplicate <script src="../../../components/AchievementManager.js"> tag
 
-**[TRACK-002]** Presentation has slides but no progress tracking
-  File: `houses/shield/presentations/shield-security.presentation.html`
-  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
+**[HEUR-005]** Duplicate script include: "../../../components/AchievementManager.js" loaded 2 times (lines 590, 1536)
+  File: `houses/web/games/web-network-architect.applet.html`
+  Fix: Remove duplicate <script src="../../../components/AchievementManager.js"> tag
 
-**[TRACK-002]** Presentation has slides but no progress tracking
-  File: `houses/shield/tools/shield-bia.tool.html`
-  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
+**[HEUR-005]** Duplicate script include: "../../../components/AchievementManager.js" loaded 2 times (lines 444, 2074)
+  File: `houses/web/games/web-wireless-warzone.applet.html`
+  Fix: Remove duplicate <script src="../../../components/AchievementManager.js"> tag
 
-**[TRACK-002]** Presentation has slides but no progress tracking
-  File: `houses/shield/tools/shield-crisc-risk.tool.html`
-  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
-
-**[TRACK-002]** Presentation has slides but no progress tracking
-  File: `houses/web/presentations/web-arp.presentation.html`
-  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
-
-**[TRACK-002]** Presentation has slides but no progress tracking
-  File: `houses/web/presentations/web-cables.presentation.html`
-  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
-
-**[TRACK-002]** Presentation has slides but no progress tracking
-  File: `houses/web/presentations/web-devices.presentation.html`
-  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
-
-**[TRACK-002]** Presentation has slides but no progress tracking
-  File: `houses/web/presentations/web-dhcp.presentation.html`
-  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
-
-**[TRACK-002]** Presentation has slides but no progress tracking
-  File: `houses/web/presentations/web-dns.presentation.html`
-  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
-
-**[TRACK-002]** Presentation has slides but no progress tracking
-  File: `houses/web/presentations/web-eigrp.presentation.html`
-  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
-
-**[TRACK-002]** Presentation has slides but no progress tracking
-  File: `houses/web/presentations/web-etherchannel.presentation.html`
-  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
-
-**[TRACK-002]** Presentation has slides but no progress tracking
-  File: `houses/web/presentations/web-fhrp.presentation.html`
-  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
-
-**[TRACK-002]** Presentation has slides but no progress tracking
-  File: `houses/web/presentations/web-ipv6.presentation.html`
-  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
-
-**[TRACK-002]** Presentation has slides but no progress tracking
-  File: `houses/web/presentations/web-nat.presentation.html`
-  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
-
-**[TRACK-002]** Presentation has slides but no progress tracking
-  File: `houses/web/presentations/web-network-essentials.presentation.html`
-  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
-
-**[TRACK-002]** Presentation has slides but no progress tracking
-  File: `houses/web/presentations/web-ntp.presentation.html`
-  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
-
-**[TRACK-002]** Presentation has slides but no progress tracking
-  File: `houses/web/presentations/web-osi-deep-dive.presentation.html`
-  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
-
-**[TRACK-002]** Presentation has slides but no progress tracking
-  File: `houses/web/presentations/web-osi.presentation.html`
-  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
-
-**[TRACK-002]** Presentation has slides but no progress tracking
-  File: `houses/web/presentations/web-ospf.presentation.html`
-  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
-
-**[TRACK-002]** Presentation has slides but no progress tracking
-  File: `houses/web/presentations/web-ports.presentation.html`
-  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
-
-**[TRACK-002]** Presentation has slides but no progress tracking
-  File: `houses/web/presentations/web-stp.presentation.html`
-  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
-
-**[TRACK-002]** Presentation has slides but no progress tracking
-  File: `houses/web/presentations/web-subnetting.presentation.html`
-  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
-
-**[TRACK-002]** Presentation has slides but no progress tracking
-  File: `houses/web/presentations/web-switch-operations.presentation.html`
-  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
-
-**[TRACK-002]** Presentation has slides but no progress tracking
-  File: `houses/web/presentations/web-tcp.presentation.html`
-  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
-
-**[TRACK-002]** Presentation has slides but no progress tracking
-  File: `houses/web/presentations/web-topologies.presentation.html`
-  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
-
-**[TRACK-002]** Presentation has slides but no progress tracking
-  File: `houses/web/presentations/web-troubleshooting.presentation.html`
-  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
-
-**[TRACK-002]** Presentation has slides but no progress tracking
-  File: `houses/web/presentations/web-vlan.presentation.html`
-  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
-
-**[TRACK-002]** Presentation has slides but no progress tracking
-  File: `houses/web/presentations/web-wireless-architecture.presentation.html`
-  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
-
-**[TRACK-002]** Presentation has slides but no progress tracking
-  File: `houses/web/presentations/web-wireless.presentation.html`
-  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
-
-### INFO (246)
+### INFO (12)
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `admin/audit-tool.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `dark-arts/ctf-leaderboard.applet.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `dark-arts/vault/ceh-attack-reference.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `dark-arts/vault/cloud-hacking-lab.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `dark-arts/vault/csrf-attack-lab.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `dark-arts/vault/enumeration-lab.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `dark-arts/vault/footprinting-lab.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `dark-arts/vault/gates/gate-11.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `dark-arts/vault/idor-attack-lab.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `dark-arts/vault/ids-evasion-lab.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `dark-arts/vault/index.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `dark-arts/vault/iot-security-lab.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `dark-arts/vault/jwt-attack-lab.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `dark-arts/vault/modules/behavioral-analysis.module.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `dark-arts/vault/modules/dynamic-analysis.module.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `dark-arts/vault/modules/incident-response.module.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `dark-arts/vault/modules/redteam.barricade.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `dark-arts/vault/modules/reverse-engineering.module.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `dark-arts/vault/modules/static-analysis.module.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `dark-arts/vault/network-scanning-lab.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `dark-arts/vault/network-sniffing-lab.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `dark-arts/vault/privilege-escalation-lab.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `dark-arts/vault/session-hijacking-lab.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `dark-arts/vault/social-engineering-advanced.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `dark-arts/vault/steganography-lab.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `dark-arts/vault/tools/hydra-training.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `dark-arts/vault/xss-attacks-lab.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `faq.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/cloud/games/cloud-destroyer.applet.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/cloud/games/cloud-hop.applet.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/cloud/index.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/cloud/labs/cloud-lab.lab.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/cloud/modules/wsa/gauntlet/cloud-gauntlet.module.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/cloud/modules/wsa/gauntlet-advanced/cloud-gauntlet-advanced.module.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/cloud/modules/wsa/m01-fundamentals/cloud-guilab.module.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/cloud/modules/wsa/m01-fundamentals/cloud-presentation.module.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/cloud/modules/wsa/m02-active-directory/cloud-guilab.module.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/cloud/modules/wsa/m03-storage/cloud-guilab.module.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/cloud/modules/wsa/m03-storage/cloud-presentation.module.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/cloud/modules/wsa/m04-hyperv/cloud-guilab.module.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/cloud/modules/wsa/m05-containers/cloud-guilab.module.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/cloud/modules/wsa/m05-containers/cloud-presentation.module.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/cloud/modules/wsa/m05-containers/cloud-pslab.module.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/cloud/modules/wsa/m06-clustering/cloud-guilab.module.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/cloud/modules/wsa/m07-monitoring/cloud-guilab.module.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/cloud/modules/wsa/m08-dns/cloud-guilab.module.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/cloud/modules/wsa/m12-remote-desktop/cloud-presentation.module.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/cloud/modules/wsa/m18-powershell-automation/cloud-presentation.module.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/cloud/presentations/cloud-azure-fundamentals.presentation.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/cloud/presentations/cloud-cloud.presentation.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/cloud/presentations/cloud-concepts.presentation.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/cloud/quizzes/cloud-cse-05.quiz.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/code/applets/code-docker-playground.applet.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/code/applets/code-kubernetes-cluster-sim.applet.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/code/games/code-build-breaker.applet.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/code/games/code-git-blame.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/code/games/code-kill-nine.applet.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/code/tools/code-ansible-playbook.tool.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/code/tools/code-automation.tool.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/code/tools/code-sprint.tool.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/dark-arts/presentations/dark-arts-feh-01.presentation.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/dark-arts/presentations/dark-arts-feh-05.presentation.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/dark-arts/presentations/dark-arts-feh-06.presentation.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/dark-arts/presentations/dark-arts-feh-08.presentation.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/dark-arts/presentations/dark-arts-feh-10.presentation.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/dark-arts/tools/ctf-leaderboard/dark-arts-sample.tool.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/dark-arts/tools/ctf-leaderboard/index.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/eye/applets/cyberops/eye-5-tuple-approach.applet.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/eye/applets/cyberops/eye-attack-surface.applet.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/eye/applets/cyberops/eye-cvss-terminology.applet.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/eye/applets/cyberops/eye-data-types-output.applet.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/eye/applets/cyberops/eye-data-visibility.applet.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/eye/applets/cyberops/eye-detection-methods.applet.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/eye/applets/cyberops/eye-firewall-data.applet.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/eye/applets/cyberops/eye-irp-elements.applet.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/eye/applets/cyberops/eye-network-attacks.applet.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/eye/applets/cyberops/eye-risk-rating.applet.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/eye/applets/cyberops/eye-risk-register.applet.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/eye/applets/cyberops/eye-security-approaches.applet.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/eye/applets/cyberops/eye-source-technologies.applet.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/eye/applets/cyberops/eye-web-attacks.applet.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/eye/applets/cyberops/week3/labs/eye-exploring-nmap.lab.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/eye/applets/cyberops/week3/labs/eye-tracing-route.lab.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/eye/applets/cyberops/week3/labs/eye-verify-ipv4-ipv6.lab.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/eye/applets/cyberops/week4/index.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/eye/applets/cyberops/week4/labs/eye-acl-demo.lab.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/eye/applets/cyberops/week4/labs/eye-packet-flow.lab.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/eye/applets/cyberops/week5/labs/eye-logging-network-activity.lab.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/eye/games/eye-alert-triage.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/eye/games/eye-log-centipede.applet.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/eye/games/eye-memory-forensics.applet.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/eye/games/eye-threat-modeler.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/eye/labs/eye-siem.lab.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/eye/tools/eye-correlation.tool.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/eye/tools/eye-packet.tool.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/eye/tools/eye-siem.tool.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/eye/tools/eye-soc.tool.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/forge/applets/comptia-aplus/core-1/chapters/ch08-cloud/index.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/forge/applets/comptia-aplus/core-1/chapters/ch09-laptops/index.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/forge/applets/comptia-aplus/core-2/index.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/forge/applets/comptia-aplus/core-2/labs/forge-control-panel.lab.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/forge/applets/comptia-aplus/core-2/labs/forge-lab-macos-linux.lab.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/forge/applets/comptia-aplus/core-2/labs/forge-system-tools.lab.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/forge/applets/comptia-aplus/core-2/labs/forge-windows-editions.lab.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/forge/applets/comptia-aplus/core-2/labs/forge-windows-settings.lab.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/forge/applets/forge-command-translator.applet.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/forge/applets/hardware/hard_drive_geometry/forge-hard-drive-geometry-native.applet.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/forge/applets/hardware/peripheral_devices/forge-peripheral-devices.applet.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/forge/games/forge-bit-dash.applet.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/forge/games/forge-chip-match.applet.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/forge/games/forge-rack-stack.applet.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/forge/games/forge-raid-calculator.applet.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/forge/labs/forge-admin-tools.lab.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/forge/labs/forge-control-panel.lab.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/forge/labs/forge-system-tools.lab.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/forge/labs/forge-windows-editions.lab.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/forge/labs/forge-windows-settings.lab.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/forge/presentations/forge-macos-linux-basics.presentation.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/forge/reviews/forge-backup-or-bust.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/forge/tools/forge-raid-level.tool.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/key/games/key-cipher-bubbles.applet.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/key/games/key-crypto-pong.applet.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/key/games/key-dont-leak-the-key.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/script/applets/linux/script-bash-scripting-playground.applet.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/script/applets/linux/script-clh-031-blackout.applet.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/script/applets/linux/script-command-translator.applet.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/script/applets/powershell/script-powershell-playground.applet.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/script/applets/powershell/script-windows-cli-tools.applet.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/script/applets/powershell/script-windows-troubleshooting.applet.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/script/applets/python/script-python-chapter1.applet.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/script/applets/python/script-python-chapter2-strings.applet.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/script/applets/python/script-python-chapter3-flow-control.applet.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/script/applets/python/script-python-chapter4-functions.applet.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/script/applets/python/script-python-chapter5-collections.applet.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/script/applets/python/script-python-chapter6-dictionaries.applet.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/script/applets/python/script-python-chapter7-file-handling.applet.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/script/applets/python/script-python-chapter8-oop.applet.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/script/clh/script-clh-001-intro.applet.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/script/clh/script-clh-002-intro.applet.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/script/clh/script-clh-003-intro.applet.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/script/clh/script-clh-004-intro.applet.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/script/clh/script-clh-005-intro.applet.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/script/clh/script-clh-006-intro.applet.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/script/clh/script-clh-007-intro.applet.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/script/clh/script-clh-008-intro.applet.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/script/clh/script-clh-009-intro.applet.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/script/clh/script-clh-010-intro.applet.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/script/clh/script-clh-011-intro.applet.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/script/clh/script-clh-012-intro.applet.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/script/clh/script-clh-013-intro.applet.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/script/clh/script-clh-014-intro.applet.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/script/clh/script-clh-015-intro.applet.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/script/clh/script-clh-022-intro.applet.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/script/courses/clh/modules/clh-001/script-intro.module.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/script/courses/clh/modules/clh-002/script-intro.module.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/script/courses/clh/modules/clh-003/script-intro.module.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/script/courses/clh/modules/clh-004/script-intro.module.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/script/courses/clh/modules/clh-005/script-intro.module.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/script/courses/clh/modules/clh-006/script-intro.module.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/script/courses/clh/modules/clh-007/script-intro.module.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/script/courses/clh/modules/clh-008/script-intro.module.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/script/courses/clh/modules/clh-009/script-intro.module.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/script/courses/clh/modules/clh-010/script-intro.module.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/script/courses/clh/modules/clh-011/script-intro.module.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/script/courses/clh/modules/clh-012/script-intro.module.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/script/courses/clh/modules/clh-013/script-intro.module.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/script/courses/clh/modules/clh-014/script-intro.module.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/script/courses/clh/modules/clh-015/script-intro.module.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/script/courses/clh/modules/clh-022/script-intro.module.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/script/courses/grep-pipe-mastery/index.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/script/games/script-dont-kill-the-server.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/script/games/script-pipe-snake.applet.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/script/games/script-shell-sprint.applet.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/script/index.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/script/labs/linux/script-linux-disk-mgmt.lab.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/script/labs/linux/script-linux-disk-partition-prep.lab.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/script/labs/linux/script-linux-env-vars.lab.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/script/labs/linux/script-linux-process-mgmt.lab.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/script/linux/script-quick.reference.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/script/linux/tools/script-directory.tool.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/script/linux/tools/script-permission.tool.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/script/linux/tools/script-service.tool.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/script/modules/linux-mastery/script-lm-03-getting-help.module.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/script/modules/linux-mastery/script-lm-04-terminal-environment.module.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/script/modules/python/script-python-immersive-chapter2.module.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/script/modules/python/script-python-immersive-chapter7.module.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/script/reviews/script-linux-cli-review.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/script/tools/script-automation.tool.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/script/tools/script-linux-command.tool.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/script/tools/script-linux-permissions.tool.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/script/tools/script-log-management.tool.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/script/tools/script-package-manager.tool.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/script/tools/script-process-management.tool.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/script/tools/script-windows-registry.tool.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/shield/applets/compliance/cui_overview/shield-cui-overview.applet.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/shield/applets/crypto/hashing_steganography/shield-encryption-ii.applet.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/shield/applets/crypto/hashing_steganography/shield-encryption-task.applet.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/shield/applets/games/hacker_hangman/shield-hangman-native.applet.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/shield/applets/network/shield-browser-security-hardening.applet.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/shield/applets/network/shield-home-network-security.applet.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/shield/applets/network/shield-linux-firewall-builder.applet.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/shield/applets/operations/shield-cysa-analyst-toolkit.applet.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/shield/applets/threats/shield-malware-types.applet.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/shield/games/shield-dr-malware.applet.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/shield/games/shield-threat-runner.applet.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/shield/games/shield-threat-swarm.applet.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/shield/labs/shield-osint-google-dorking.lab.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/shield/presentations/shield-social-engineering.presentation.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/shield/tools/shield-bia.tool.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/shield/tools/shield-data-lifecycle.tool.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/shield/tools/shield-security-models.tool.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/web/applets/ip-addressing/web-binary-decimal-converter.applet.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/web/applets/services/web-server-comparison.applet.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/web/exams/web-networking-midterm.exam.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/web/games/web-network-architect.applet.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/web/games/web-packet-invaders.applet.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/web/games/web-packet-run.applet.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/web/games/web-wireless-warzone.applet.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/web/index.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/web/modules/web-ip-addressing-ch7-10.module.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/web/presentations/web-arp.presentation.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/web/presentations/web-dhcp.presentation.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/web/presentations/web-dns.presentation.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/web/presentations/web-etherchannel.presentation.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/web/presentations/web-ipv6.presentation.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/web/presentations/web-nat.presentation.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/web/presentations/web-osi.presentation.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/web/presentations/web-ports.presentation.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/web/presentations/web-subnetting.presentation.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/web/presentations/web-tcp.presentation.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/web/presentations/web-topologies.presentation.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/web/quizzes/web-networking-ch7-20.quiz.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/web/simulators/index.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/web/simulators/web-packet-tracer-lite-v3.simulator.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/web/textbook/web-networking-textbook-ch7-20.textbook.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/web/tools/web-dns-header.tool.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
