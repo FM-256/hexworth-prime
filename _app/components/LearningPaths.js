@@ -269,7 +269,7 @@ class LearningPaths {
                     prerequisites: ['forge-hardware']
                 },
                 {
-                    id: 'forge-quiz',
+                    id: 'windows-admin',
                     title: 'Windows Admin Challenge',
                     type: 'quiz',
                     difficulty: 'intermediate',
