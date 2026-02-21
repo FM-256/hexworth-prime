@@ -20125,6 +20125,102 @@ const ContentRegistry = {
             prerequisites: ['script-ssh-basics'],
             objectives: ['Harden SSH server configuration', 'Create reverse tunnels', 'Set up SOCKS proxy', 'Use ProxyJump for bastion hosts', 'Configure SSH multiplexing', 'Deploy fail2ban for SSH protection']
         },
+        'script-gpg-encryption': {
+            id: 'script-gpg-encryption',
+            title: 'GPG Encryption Lab',
+            description: 'Hands-on GPG — key generation, keyring management, asymmetric encryption, decryption, and digital signatures',
+            house: 'script',
+            type: 'lab',
+            difficulty: 'intermediate',
+            duration: 40,
+            topics: ['gpg', 'encryption', 'public-key', 'digital-signatures', 'linux'],
+            paths: ['linux-admin'],
+            components: {
+                lab: 'houses/script/linux/labs/script-gpg-encryption.lab.html'
+            },
+            prerequisites: [],
+            objectives: ['Generate GPG key pairs', 'Export and import public keys', 'Encrypt and decrypt files', 'Create and verify digital signatures']
+        },
+        'script-checksum-verify': {
+            id: 'script-checksum-verify',
+            title: 'Checksum Verification Lab',
+            description: 'File integrity verification — MD5, SHA-256, batch checking, tamper detection, and HMAC',
+            house: 'script',
+            type: 'lab',
+            difficulty: 'beginner',
+            duration: 30,
+            topics: ['checksums', 'sha256', 'md5', 'hmac', 'file-integrity', 'linux'],
+            paths: ['linux-admin'],
+            components: {
+                lab: 'houses/script/linux/labs/script-checksum-verify.lab.html'
+            },
+            prerequisites: [],
+            objectives: ['Generate MD5 and SHA-256 checksums', 'Verify downloaded files', 'Detect file tampering', 'Create HMAC for message authentication']
+        },
+        'script-process-monitor': {
+            id: 'script-process-monitor',
+            title: 'Process Monitoring Lab',
+            description: 'Linux process monitoring — top, htop, process signals, job control, and system load diagnosis',
+            house: 'script',
+            type: 'lab',
+            difficulty: 'intermediate',
+            duration: 45,
+            topics: ['htop', 'top', 'processes', 'signals', 'job-control', 'linux'],
+            paths: ['linux-admin'],
+            components: {
+                lab: 'houses/script/linux/labs/script-process-monitor.lab.html'
+            },
+            prerequisites: [],
+            objectives: ['Monitor processes with top and htop', 'Identify resource hogs', 'Send process signals', 'Manage background jobs', 'Diagnose system load']
+        },
+        'script-anonymity-tor': {
+            id: 'script-anonymity-tor',
+            title: 'Anonymity Part 1: Tor Fundamentals',
+            description: 'Tor network fundamentals — onion routing, circuit building, hidden services, and OPSEC limitations',
+            house: 'script',
+            type: 'lab',
+            difficulty: 'advanced',
+            duration: 50,
+            topics: ['tor', 'anonymity', 'onion-routing', 'hidden-services', 'privacy', 'linux'],
+            paths: ['linux-admin'],
+            components: {
+                lab: 'houses/script/linux/labs/script-anonymity-tor.lab.html'
+            },
+            prerequisites: [],
+            objectives: ['Understand onion routing', 'Install and configure Tor', 'Set up hidden services', 'Recognize Tor limitations']
+        },
+        'script-anonymity-vpn': {
+            id: 'script-anonymity-vpn',
+            title: 'Anonymity Part 2: VPN Fundamentals',
+            description: 'VPN technology — WireGuard, OpenVPN, kill switches, and Tor vs VPN decision matrix',
+            house: 'script',
+            type: 'lab',
+            difficulty: 'intermediate',
+            duration: 45,
+            topics: ['vpn', 'wireguard', 'openvpn', 'privacy', 'kill-switch', 'linux'],
+            paths: ['linux-admin'],
+            components: {
+                lab: 'houses/script/linux/labs/script-anonymity-vpn.lab.html'
+            },
+            prerequisites: ['script-anonymity-tor'],
+            objectives: ['Compare VPN protocols', 'Configure WireGuard', 'Set up OpenVPN', 'Implement kill switches', 'Choose VPN vs Tor appropriately']
+        },
+        'script-anonymity-advanced': {
+            id: 'script-anonymity-advanced',
+            title: 'Anonymity Part 3: Advanced Privacy',
+            description: 'Advanced privacy — Tails, Whonix, MAC randomization, DNS privacy, and OPSEC assessment capstone',
+            house: 'script',
+            type: 'lab',
+            difficulty: 'advanced',
+            duration: 55,
+            topics: ['tails', 'whonix', 'mac-randomization', 'dns-privacy', 'opsec', 'linux'],
+            paths: ['linux-admin'],
+            components: {
+                lab: 'houses/script/linux/labs/script-anonymity-advanced.lab.html'
+            },
+            prerequisites: ['script-anonymity-vpn'],
+            objectives: ['Use Tails OS', 'Understand Whonix architecture', 'Randomize MAC addresses', 'Configure DNS privacy', 'Perform OPSEC assessment']
+        },
         // ─── EYE HOUSE — CompTIA CySA+ (CS0-003) ───
         'eye-cysa-ch01-pres': {
             id: 'eye-cysa-ch01-pres',

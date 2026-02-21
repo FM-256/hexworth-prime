@@ -1,0 +1,2238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Anonymity Part 1: Tor Fundamentals | Linux Administration</title>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <style>
+        /* =========================================================
+           ROOT VARIABLES — Script House dark green palette
+           ========================================================= */
+        :root {
+            --script-green:    #22c55e;
+            --script-accent:   #4ade80;
+            --script-glow:     rgba(34, 197, 94, 0.35);
+            --bg-card:         rgba(10, 20, 10, 0.85);
+            --text-primary:    #e8f5e8;
+            --text-secondary:  #7aaa7a;
+            --border:          rgba(34, 197, 94, 0.2);
+
+            /* Derived / aliases */
+            --script-dim:      #15803d;
+            --script-dark:     #0a1a0f;
+            --card-bg:         var(--bg-card);
+            --card-border:     var(--border);
+            --glow:            var(--script-glow);
+            --glow-sm:         rgba(34, 197, 94, 0.10);
+
+            /* Terminal */
+            --term-bg:         #080d08;
+            --term-border:     rgba(34, 197, 94, 0.35);
+            --term-green:      #22c55e;
+            --term-bright:     #86efac;
+            --term-dim:        #166534;
+            --term-prompt:     #4ade80;
+            --term-cursor:     #22c55e;
+
+            /* Status */
+            --ok:    #4ade80;
+            --warn:  #fbbf24;
+            --bad:   #f87171;
+            --info:  #60a5fa;
+
+            /* Layout */
+            --radius-card:  16px;
+            --radius-sm:    8px;
+            --transition:   0.2s ease;
+        }
+
+        /* =========================================================
+           RESET & BASE
+           ========================================================= */
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background: linear-gradient(135deg, #0a0a12, #0a1a0f, #0a250a);
+            color: var(--text-primary);
+            line-height: 1.65;
+            min-height: 100vh;
+        }
+
+        /* =========================================================
+           SITE HEADER
+           ========================================================= */
+        .site-header {
+            background: rgba(5, 10, 5, 0.92);
+            border-bottom: 1px solid var(--card-border);
+            padding: 0.85rem 2rem;
+            position: sticky;
+            top: 0;
+            z-index: 200;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            backdrop-filter: blur(14px);
+        }
+
+        .back-link {
+            color: var(--script-green);
+            text-decoration: none;
+            font-size: 0.88rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+            opacity: 0.85;
+            transition: opacity var(--transition);
+        }
+        .back-link:hover { opacity: 1; }
+        .back-link::before { content: '\2190'; font-size: 1rem; }
+
+        .header-badge {
+            background: linear-gradient(135deg, var(--script-dim), var(--script-dark));
+            border: 1px solid var(--script-green);
+            color: var(--script-accent);
+            padding: 0.28rem 0.9rem;
+            border-radius: 6px;
+            font-size: 0.7rem;
+            font-weight: 700;
+            letter-spacing: 0.1em;
+        }
+
+        /* =========================================================
+           MAIN CONTAINER
+           ========================================================= */
+        .container {
+            max-width: 980px;
+            margin: 0 auto;
+            padding: 2.5rem 1.5rem 5rem;
+        }
+
+        /* =========================================================
+           HERO BANNER
+           ========================================================= */
+        .lab-hero {
+            text-align: center;
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 20px;
+            padding: 2.75rem 2rem 2.25rem;
+            margin-bottom: 2.5rem;
+            position: relative;
+            overflow: hidden;
+        }
+        .lab-hero::before {
+            content: '';
+            position: absolute;
+            top: -80px; left: 50%;
+            transform: translateX(-50%);
+            width: 420px; height: 420px;
+            background: radial-gradient(circle, var(--glow) 0%, transparent 70%);
+            pointer-events: none;
+        }
+
+        .lab-tag {
+            display: inline-block;
+            background: var(--glow-sm);
+            color: var(--script-green);
+            border: 1px solid var(--card-border);
+            padding: 0.28rem 1rem;
+            border-radius: 20px;
+            font-size: 0.72rem;
+            font-weight: 700;
+            letter-spacing: 0.1em;
+            margin-bottom: 1rem;
+        }
+
+        .lab-hero h1 {
+            font-size: 2rem;
+            font-weight: 800;
+            line-height: 1.2;
+            margin-bottom: 0.6rem;
+        }
+        .lab-hero h1 span { color: var(--script-green); }
+
+        .lab-hero p {
+            color: var(--text-secondary);
+            font-size: 0.95rem;
+            max-width: 620px;
+            margin: 0 auto 1.25rem;
+        }
+
+        /* Progress pills row */
+        .progress-row {
+            display: flex;
+            gap: 0.5rem;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin-top: 1.25rem;
+        }
+        .progress-pill {
+            width: 36px; height: 36px;
+            border-radius: 50%;
+            border: 2px solid var(--card-border);
+            background: rgba(0,0,0,0.4);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.75rem;
+            font-weight: 700;
+            color: var(--text-secondary);
+            transition: all var(--transition);
+            cursor: default;
+        }
+        .progress-pill.active {
+            border-color: var(--script-green);
+            color: var(--script-green);
+            box-shadow: 0 0 10px var(--glow);
+        }
+        .progress-pill.done {
+            border-color: var(--ok);
+            background: rgba(74, 222, 128, 0.15);
+            color: var(--ok);
+        }
+
+        /* =========================================================
+           SECTION HEADING
+           ========================================================= */
+        .section-heading {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: var(--script-green);
+            margin: 2.5rem 0 1.25rem;
+            letter-spacing: 0.04em;
+        }
+        .section-heading::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: var(--card-border);
+        }
+
+        /* =========================================================
+           EXERCISE CARD
+           ========================================================= */
+        .exercise {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: var(--radius-card);
+            margin-bottom: 2rem;
+            overflow: hidden;
+            transition: border-color var(--transition);
+        }
+        .exercise.completed { border-color: rgba(74, 222, 128, 0.45); }
+
+        .exercise-header {
+            display: flex;
+            align-items: center;
+            gap: 0.85rem;
+            padding: 1.25rem 1.5rem 1rem;
+            border-bottom: 1px solid var(--card-border);
+        }
+
+        .ex-num {
+            width: 34px; height: 34px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--script-green), var(--script-accent));
+            color: #000;
+            font-weight: 800;
+            font-size: 0.85rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            transition: all var(--transition);
+        }
+        .exercise.completed .ex-num {
+            background: linear-gradient(135deg, var(--ok), #bbf7d0);
+        }
+
+        .ex-title {
+            font-size: 1.05rem;
+            font-weight: 700;
+            flex: 1;
+            color: var(--text-primary);
+        }
+
+        .ex-badge {
+            font-size: 0.68rem;
+            font-weight: 700;
+            padding: 0.18rem 0.65rem;
+            border-radius: 6px;
+            letter-spacing: 0.05em;
+        }
+        .ex-badge.beginner     { background: rgba(34, 197, 94, 0.12); color: var(--script-green); }
+        .ex-badge.intermediate { background: rgba(251, 191, 36, 0.12); color: var(--warn); }
+        .ex-badge.advanced     { background: rgba(248, 113, 113, 0.12); color: var(--bad); }
+
+        .ex-status {
+            font-size: 0.7rem;
+            font-weight: 700;
+            color: var(--ok);
+            opacity: 0;
+            transition: opacity var(--transition);
+        }
+        .exercise.completed .ex-status { opacity: 1; }
+
+        /* =========================================================
+           EXERCISE BODY
+           ========================================================= */
+        .exercise-body {
+            padding: 1.25rem 1.5rem 1.5rem;
+        }
+
+        .ex-desc {
+            color: var(--text-secondary);
+            font-size: 0.92rem;
+            margin-bottom: 1rem;
+        }
+
+        /* =========================================================
+           INSIGHT / CALLOUT BLOCKS
+           ========================================================= */
+        .insight {
+            background: rgba(34, 197, 94, 0.06);
+            border-left: 3px solid var(--script-green);
+            border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+            padding: 0.85rem 1.1rem;
+            margin: 0.85rem 0;
+        }
+        .insight-label {
+            font-size: 0.65rem;
+            font-weight: 700;
+            letter-spacing: 0.12em;
+            color: var(--script-green);
+            margin-bottom: 0.3rem;
+        }
+        .insight p {
+            font-size: 0.87rem;
+            color: var(--text-secondary);
+            margin: 0;
+            line-height: 1.55;
+        }
+        .insight code {
+            background: rgba(34, 197, 94, 0.15);
+            color: var(--script-accent);
+            padding: 0.1em 0.35em;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.85em;
+        }
+        .insight.warn {
+            background: rgba(251, 191, 36, 0.06);
+            border-left-color: var(--warn);
+        }
+        .insight.warn .insight-label { color: var(--warn); }
+        .insight.danger {
+            background: rgba(248, 113, 113, 0.06);
+            border-left-color: var(--bad);
+        }
+        .insight.danger .insight-label { color: var(--bad); }
+        .insight.info {
+            background: rgba(96, 165, 250, 0.06);
+            border-left-color: var(--info);
+        }
+        .insight.info .insight-label { color: var(--info); }
+
+        /* =========================================================
+           TERMINAL SIMULATOR
+           ========================================================= */
+        .terminal-wrapper { margin: 1.1rem 0; }
+
+        .terminal {
+            background: var(--term-bg);
+            border: 1px solid var(--term-border);
+            border-radius: var(--radius-sm);
+            overflow: hidden;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 0.87rem;
+            line-height: 1.55;
+            box-shadow: 0 4px 24px rgba(0,0,0,0.6), inset 0 0 60px rgba(34,197,94,0.02);
+        }
+
+        /* Title bar */
+        .term-titlebar {
+            background: #151a15;
+            border-bottom: 1px solid rgba(34, 197, 94, 0.15);
+            padding: 0.55rem 0.85rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .term-dot { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; }
+        .term-dot.red    { background: #ff5f57; }
+        .term-dot.yellow { background: #febc2e; }
+        .term-dot.green  { background: #28c840; }
+        .term-label {
+            margin-left: 0.5rem;
+            font-size: 0.72rem;
+            color: rgba(134, 239, 172, 0.5);
+            font-family: 'Segoe UI', sans-serif;
+            letter-spacing: 0.04em;
+        }
+
+        /* Output area */
+        .term-output {
+            min-height: 100px;
+            max-height: 340px;
+            overflow-y: auto;
+            padding: 1rem 1.1rem 0.5rem;
+            color: var(--term-green);
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+        .term-output::-webkit-scrollbar { width: 6px; }
+        .term-output::-webkit-scrollbar-track { background: transparent; }
+        .term-output::-webkit-scrollbar-thumb { background: var(--term-dim); border-radius: 3px; }
+
+        /* Color classes inside terminal output */
+        .term-output .t-dim     { color: #4a6e4a; }
+        .term-output .t-bright  { color: var(--term-bright); }
+        .term-output .t-warn    { color: var(--warn); }
+        .term-output .t-bad     { color: var(--bad); }
+        .term-output .t-ok      { color: var(--ok); }
+        .term-output .t-prompt  { color: var(--term-prompt); }
+        .term-output .t-comment { color: #2d6e3a; font-style: italic; }
+        .term-output .t-cmd     { color: var(--term-bright); }
+        .term-output .t-key     { color: #60a5fa; }
+        .term-output .t-onion   { color: #c084fc; }
+
+        /* Input row */
+        .term-input-row {
+            display: flex;
+            align-items: center;
+            padding: 0.5rem 1.1rem 0.85rem;
+            border-top: 1px solid rgba(34, 197, 94, 0.08);
+            gap: 0.5rem;
+        }
+        .term-prompt-label {
+            color: var(--term-prompt);
+            white-space: nowrap;
+            user-select: none;
+            font-size: 0.87rem;
+        }
+        .term-input {
+            flex: 1;
+            background: transparent;
+            border: none;
+            outline: none;
+            color: var(--term-bright);
+            font-family: 'Courier New', monospace;
+            font-size: 0.87rem;
+            caret-color: var(--term-cursor);
+        }
+        .term-input::placeholder { color: rgba(74, 222, 128, 0.25); }
+
+        .term-submit {
+            background: rgba(34, 197, 94, 0.12);
+            border: 1px solid var(--term-border);
+            color: var(--script-green);
+            padding: 0.3rem 0.75rem;
+            border-radius: 5px;
+            font-size: 0.78rem;
+            font-weight: 700;
+            cursor: pointer;
+            font-family: 'Segoe UI', sans-serif;
+            transition: background var(--transition);
+            white-space: nowrap;
+        }
+        .term-submit:hover { background: rgba(34, 197, 94, 0.22); }
+        .term-submit:disabled { opacity: 0.4; cursor: default; }
+
+        /* Hint and attempt counter */
+        .term-meta {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-top: 0.45rem;
+            padding: 0 0.2rem;
+        }
+        .term-hint {
+            font-size: 0.78rem;
+            color: var(--warn);
+            opacity: 0;
+            transition: opacity var(--transition);
+            font-family: 'Courier New', monospace;
+        }
+        .term-hint.visible { opacity: 1; }
+        .term-attempt {
+            font-size: 0.75rem;
+            color: rgba(134, 239, 172, 0.4);
+        }
+
+        /* =========================================================
+           ONION ROUTING DIAGRAM — Exercise 1
+           ========================================================= */
+        .onion-diagram {
+            background: rgba(0, 0, 0, 0.55);
+            border: 1px solid var(--card-border);
+            border-radius: var(--radius-sm);
+            padding: 1.5rem 1.25rem 1.75rem;
+            margin: 1rem 0;
+            position: relative;
+            overflow: hidden;
+            min-height: 240px;
+        }
+
+        .onion-diagram-title {
+            font-size: 0.7rem;
+            font-weight: 700;
+            letter-spacing: 0.1em;
+            color: var(--script-green);
+            margin-bottom: 1.25rem;
+            text-align: center;
+        }
+
+        /* Scrollable relay track */
+        .relay-track {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0;
+            flex-wrap: nowrap;
+            overflow-x: auto;
+            padding-bottom: 0.5rem;
+        }
+
+        /* Individual node box */
+        .relay-node {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.5rem;
+            flex-shrink: 0;
+        }
+
+        .node-box {
+            width: 86px;
+            height: 86px;
+            border-radius: 12px;
+            border: 2px solid var(--card-border);
+            background: rgba(10, 30, 10, 0.8);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 0.3rem;
+            transition: all 0.4s ease;
+            position: relative;
+            cursor: default;
+        }
+        .node-box.active {
+            border-color: var(--script-green);
+            box-shadow: 0 0 18px var(--glow);
+        }
+        .node-box.passed {
+            border-color: rgba(74, 222, 128, 0.5);
+            background: rgba(34, 197, 94, 0.08);
+        }
+        .node-box.client-box { border-color: rgba(96, 165, 250, 0.5); }
+        .node-box.client-box.active { border-color: var(--info); box-shadow: 0 0 18px rgba(96,165,250,0.4); }
+        .node-box.exit-box.passed { border-color: rgba(251, 191, 36, 0.5); }
+
+        .node-icon {
+            font-size: 1.5rem;
+            line-height: 1;
+        }
+        .node-label {
+            font-size: 0.65rem;
+            font-weight: 700;
+            letter-spacing: 0.06em;
+            color: var(--text-secondary);
+            text-align: center;
+        }
+        .node-box.active .node-label { color: var(--script-accent); }
+
+        /* Encryption layer badge on each node */
+        .node-layer {
+            position: absolute;
+            top: -8px;
+            right: -8px;
+            background: rgba(192, 132, 252, 0.9);
+            color: #1a0a2e;
+            font-size: 0.6rem;
+            font-weight: 800;
+            padding: 0.12rem 0.4rem;
+            border-radius: 10px;
+            white-space: nowrap;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+        .node-box.active .node-layer { opacity: 1; }
+        .node-box.passed .node-layer { opacity: 0; }
+
+        /* Arrow connector between nodes */
+        .relay-arrow {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.2rem;
+            width: 56px;
+            flex-shrink: 0;
+        }
+        .arrow-line {
+            width: 100%;
+            height: 2px;
+            background: var(--card-border);
+            position: relative;
+            transition: background 0.4s ease;
+        }
+        .arrow-line.lit { background: var(--script-green); }
+        .arrow-line::after {
+            content: '';
+            position: absolute;
+            right: -1px;
+            top: 50%;
+            transform: translateY(-50%);
+            border-left: 7px solid var(--card-border);
+            border-top: 5px solid transparent;
+            border-bottom: 5px solid transparent;
+            transition: border-color 0.4s ease;
+        }
+        .arrow-line.lit::after { border-left-color: var(--script-green); }
+        .arrow-label {
+            font-size: 0.6rem;
+            color: var(--text-secondary);
+            white-space: nowrap;
+            text-align: center;
+        }
+
+        /* Packet animation dot */
+        .packet-dot {
+            width: 10px; height: 10px;
+            border-radius: 50%;
+            background: var(--script-green);
+            box-shadow: 0 0 8px var(--script-green);
+            position: absolute;
+            top: 50%;
+            left: 0;
+            transform: translate(-50%, -50%);
+            transition: left 0.6s ease;
+            display: none;
+        }
+
+        /* Step-through controls */
+        .onion-controls {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 1rem;
+            margin-top: 1.1rem;
+            flex-wrap: wrap;
+        }
+        .onion-btn {
+            background: rgba(34, 197, 94, 0.1);
+            border: 1px solid var(--card-border);
+            color: var(--script-green);
+            padding: 0.4rem 1.1rem;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            font-weight: 700;
+            cursor: pointer;
+            font-family: 'Segoe UI', sans-serif;
+            transition: all var(--transition);
+        }
+        .onion-btn:hover { background: rgba(34, 197, 94, 0.2); border-color: var(--script-green); }
+        .onion-btn:disabled { opacity: 0.35; cursor: default; }
+
+        .onion-status {
+            font-size: 0.82rem;
+            color: var(--text-secondary);
+            font-family: 'Courier New', monospace;
+            min-width: 260px;
+            text-align: center;
+        }
+
+        /* Encryption layers legend below the diagram */
+        .layer-legend {
+            display: flex;
+            gap: 0.6rem;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin-top: 1rem;
+        }
+        .layer-chip {
+            background: rgba(192, 132, 252, 0.12);
+            border: 1px solid rgba(192, 132, 252, 0.3);
+            color: #c084fc;
+            font-size: 0.7rem;
+            font-weight: 700;
+            padding: 0.2rem 0.65rem;
+            border-radius: 12px;
+            opacity: 0.4;
+            transition: opacity 0.3s ease;
+        }
+        .layer-chip.visible { opacity: 1; }
+        .layer-chip.peeled  { opacity: 0.2; text-decoration: line-through; }
+
+        /* =========================================================
+           TOR BOOTSTRAP ANIMATION — Exercise 2
+           ========================================================= */
+        .bootstrap-wrap {
+            background: rgba(0, 0, 0, 0.5);
+            border: 1px solid var(--card-border);
+            border-radius: var(--radius-sm);
+            padding: 1rem 1.25rem;
+            margin: 0.75rem 0;
+            font-family: 'Courier New', monospace;
+            font-size: 0.82rem;
+            display: none;
+        }
+        .bootstrap-title {
+            color: var(--script-green);
+            font-size: 0.75rem;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            margin-bottom: 0.75rem;
+        }
+        .bootstrap-bar-track {
+            background: rgba(34, 197, 94, 0.1);
+            border-radius: 4px;
+            height: 8px;
+            margin: 0.4rem 0 0.5rem;
+            overflow: hidden;
+        }
+        .bootstrap-bar-fill {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, var(--script-dim), var(--script-green), var(--script-accent));
+            border-radius: 4px;
+            transition: width 0.3s ease;
+        }
+        .bootstrap-log {
+            color: var(--term-green);
+            line-height: 1.7;
+        }
+
+        /* =========================================================
+           TORRC EDITOR — Exercise 3
+           ========================================================= */
+        .torrc-editor {
+            background: #060c06;
+            border: 1px solid var(--term-border);
+            border-radius: var(--radius-sm);
+            overflow: hidden;
+            margin: 0.85rem 0;
+            display: none;
+        }
+        .torrc-titlebar {
+            background: #0f1a0f;
+            border-bottom: 1px solid rgba(34, 197, 94, 0.15);
+            padding: 0.5rem 0.85rem;
+            font-family: 'Courier New', monospace;
+            font-size: 0.72rem;
+            color: rgba(134, 239, 172, 0.5);
+        }
+        .torrc-content {
+            padding: 0.85rem 1.1rem;
+            font-family: 'Courier New', monospace;
+            font-size: 0.83rem;
+            line-height: 1.8;
+            color: var(--term-green);
+            min-height: 120px;
+            white-space: pre;
+        }
+        .torrc-content .tc-comment { color: #2d6e3a; }
+        .torrc-content .tc-key     { color: #86efac; }
+        .torrc-content .tc-val     { color: #c084fc; }
+        .torrc-content .tc-highlight { background: rgba(192, 132, 252, 0.15); }
+
+        /* =========================================================
+           ONION SERVICE STATUS — Exercise 4
+           ========================================================= */
+        .onion-address-reveal {
+            background: rgba(192, 132, 252, 0.06);
+            border: 1px solid rgba(192, 132, 252, 0.25);
+            border-radius: var(--radius-sm);
+            padding: 1rem 1.25rem;
+            margin: 0.75rem 0;
+            font-family: 'Courier New', monospace;
+            font-size: 0.85rem;
+            display: none;
+        }
+        .onion-address-label {
+            font-size: 0.65rem;
+            font-weight: 700;
+            letter-spacing: 0.1em;
+            color: #c084fc;
+            margin-bottom: 0.5rem;
+        }
+        .onion-address-text {
+            color: #e9d5ff;
+            word-break: break-all;
+        }
+
+        /* Rendezvous diagram */
+        .rendezvous-diagram {
+            background: rgba(0, 0, 0, 0.5);
+            border: 1px solid var(--card-border);
+            border-radius: var(--radius-sm);
+            padding: 1rem 1.25rem;
+            margin: 0.85rem 0;
+            font-family: 'Courier New', monospace;
+            font-size: 0.8rem;
+            display: none;
+            overflow-x: auto;
+        }
+        .rendezvous-diagram .rd-title {
+            color: var(--script-green);
+            font-weight: 700;
+            font-size: 0.72rem;
+            letter-spacing: 0.08em;
+            margin-bottom: 0.75rem;
+        }
+        .rendezvous-diagram pre {
+            color: var(--term-green);
+            line-height: 1.7;
+        }
+        .rendezvous-diagram .hl { color: #c084fc; }
+        .rendezvous-diagram .hg { color: var(--script-accent); }
+
+        /* =========================================================
+           QUIZ — Exercise 5
+           ========================================================= */
+        .quiz-block {
+            background: rgba(0, 0, 0, 0.35);
+            border: 1px solid var(--card-border);
+            border-radius: var(--radius-sm);
+            padding: 1.1rem 1.25rem;
+            margin: 0.85rem 0;
+        }
+        .quiz-question {
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 0.85rem;
+        }
+        .quiz-options {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+        .quiz-option {
+            display: flex;
+            align-items: flex-start;
+            gap: 0.65rem;
+            padding: 0.65rem 0.9rem;
+            border-radius: 6px;
+            border: 1px solid var(--card-border);
+            background: rgba(10, 20, 10, 0.6);
+            cursor: pointer;
+            transition: all var(--transition);
+            font-size: 0.87rem;
+            color: var(--text-secondary);
+        }
+        .quiz-option:hover { border-color: var(--script-green); color: var(--text-primary); }
+        .quiz-option.selected { border-color: var(--script-green); background: rgba(34, 197, 94, 0.08); color: var(--text-primary); }
+        .quiz-option.correct  { border-color: var(--ok); background: rgba(74, 222, 128, 0.1); color: var(--ok); }
+        .quiz-option.wrong    { border-color: var(--bad); background: rgba(248, 113, 113, 0.08); color: var(--bad); }
+        .quiz-option.disabled { cursor: default; }
+        .quiz-option input[type="checkbox"] { display: none; }
+        .quiz-check {
+            width: 18px; height: 18px;
+            border: 2px solid var(--card-border);
+            border-radius: 4px;
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.75rem;
+            margin-top: 0.1rem;
+            transition: all var(--transition);
+        }
+        .quiz-option.selected .quiz-check { border-color: var(--script-green); background: rgba(34, 197, 94, 0.2); }
+        .quiz-option.correct  .quiz-check { border-color: var(--ok); background: rgba(74, 222, 128, 0.2); color: var(--ok); }
+        .quiz-option.wrong    .quiz-check { border-color: var(--bad); background: rgba(248, 113, 113, 0.2); color: var(--bad); }
+
+        .quiz-submit {
+            margin-top: 0.85rem;
+            background: rgba(34, 197, 94, 0.12);
+            border: 1px solid var(--card-border);
+            color: var(--script-green);
+            padding: 0.4rem 1.25rem;
+            border-radius: 6px;
+            font-size: 0.82rem;
+            font-weight: 700;
+            cursor: pointer;
+            font-family: 'Segoe UI', sans-serif;
+            transition: all var(--transition);
+        }
+        .quiz-submit:hover { background: rgba(34, 197, 94, 0.22); border-color: var(--script-green); }
+        .quiz-submit:disabled { opacity: 0.4; cursor: default; }
+
+        .quiz-feedback {
+            margin-top: 0.75rem;
+            font-size: 0.85rem;
+            display: none;
+            padding: 0.6rem 0.85rem;
+            border-radius: 6px;
+        }
+        .quiz-feedback.correct { background: rgba(74, 222, 128, 0.08); border: 1px solid rgba(74, 222, 128, 0.3); color: var(--ok); }
+        .quiz-feedback.partial { background: rgba(251, 191, 36, 0.08); border: 1px solid rgba(251, 191, 36, 0.3); color: var(--warn); }
+        .quiz-feedback.wrong   { background: rgba(248, 113, 113, 0.08); border: 1px solid rgba(248, 113, 113, 0.3); color: var(--bad); }
+
+        /* =========================================================
+           DNS LEAK COMPARISON — Exercise 5
+           ========================================================= */
+        .dns-compare {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+            margin: 0.85rem 0;
+        }
+        @media (max-width: 600px) { .dns-compare { grid-template-columns: 1fr; } }
+        .dns-panel {
+            background: rgba(0, 0, 0, 0.5);
+            border: 1px solid var(--card-border);
+            border-radius: var(--radius-sm);
+            overflow: hidden;
+            font-family: 'Courier New', monospace;
+            font-size: 0.8rem;
+        }
+        .dns-panel-header {
+            padding: 0.5rem 0.85rem;
+            font-size: 0.65rem;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+        }
+        .dns-panel-header.leak  { background: rgba(248, 113, 113, 0.15); color: var(--bad); border-bottom: 1px solid rgba(248, 113, 113, 0.2); }
+        .dns-panel-header.safe  { background: rgba(74, 222, 128, 0.1);   color: var(--ok);  border-bottom: 1px solid rgba(74, 222, 128, 0.2); }
+        .dns-panel-body {
+            padding: 0.65rem 0.85rem;
+            color: var(--term-green);
+            line-height: 1.65;
+        }
+        .dns-panel-body .dns-bad  { color: var(--bad); }
+        .dns-panel-body .dns-good { color: var(--ok); }
+        .dns-panel-body .dns-dim  { color: #4a6e4a; }
+
+        /* =========================================================
+           COMPLETION SECTION
+           ========================================================= */
+        .completion-section {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: var(--radius-card);
+            padding: 2.25rem 2rem;
+            text-align: center;
+            margin-top: 3rem;
+        }
+        .completion-section h3 {
+            color: var(--script-green);
+            font-size: 1.3rem;
+            margin-bottom: 0.6rem;
+        }
+        .completion-section p {
+            color: var(--text-secondary);
+            font-size: 0.92rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .overall-progress-track {
+            background: rgba(0, 0, 0, 0.4);
+            border-radius: 8px;
+            height: 10px;
+            margin: 0 auto 1rem;
+            max-width: 480px;
+            overflow: hidden;
+        }
+        .overall-progress-fill {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, var(--script-dim), var(--script-green), var(--script-accent));
+            border-radius: 8px;
+            transition: width 0.5s ease;
+        }
+        .overall-progress-label {
+            font-size: 0.82rem;
+            color: var(--text-secondary);
+            margin-bottom: 1.25rem;
+        }
+        .overall-progress-label span { color: var(--script-green); font-weight: 700; }
+
+        .btn-complete {
+            display: inline-block;
+            background: linear-gradient(135deg, var(--script-dim), var(--script-green));
+            color: #000;
+            font-weight: 700;
+            padding: 0.8rem 2.5rem;
+            border-radius: 10px;
+            border: none;
+            cursor: pointer;
+            font-size: 0.95rem;
+            font-family: 'Segoe UI', sans-serif;
+            transition: opacity var(--transition), transform var(--transition), box-shadow var(--transition);
+        }
+        .btn-complete:hover:not(:disabled) {
+            opacity: 0.9;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 24px var(--glow);
+        }
+        .btn-complete:disabled { opacity: 0.4; cursor: default; transform: none; }
+
+        .complete-msg {
+            margin-top: 1rem;
+            color: var(--ok);
+            font-weight: 600;
+            font-size: 0.92rem;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+
+<!-- ================================================================
+     SITE HEADER
+     ================================================================ -->
+<header class="site-header">
+    <a href="../index.html" class="back-link">Back to Linux Admin</a>
+    <span class="header-badge">SCRIPT HOUSE — LINUX ADMIN</span>
+</header>
+
+<!-- ================================================================
+     MAIN CONTENT
+     ================================================================ -->
+<div class="container">
+
+    <!-- HERO BANNER -->
+    <div class="lab-hero">
+        <div class="lab-tag">INTERACTIVE LAB</div>
+        <h1>Anonymity Part 1: <span>Tor Fundamentals</span></h1>
+        <p>Five interactive exercises covering onion routing architecture, Tor installation, configuration, hidden services, and OPSEC limitations. Features an animated circuit walkthrough.</p>
+        <div class="progress-row" id="progressPills">
+            <div class="progress-pill active" id="pill-1">1</div>
+            <div class="progress-pill"        id="pill-2">2</div>
+            <div class="progress-pill"        id="pill-3">3</div>
+            <div class="progress-pill"        id="pill-4">4</div>
+            <div class="progress-pill"        id="pill-5">5</div>
+        </div>
+    </div>
+
+    <div class="section-heading">Lab Exercises</div>
+
+    <!-- ============================================================
+         EXERCISE 1 — HOW TOR WORKS (ONION ROUTING ANIMATION)
+         ============================================================ -->
+    <div class="exercise" id="ex1">
+        <div class="exercise-header">
+            <div class="ex-num">1</div>
+            <div class="ex-title">How Tor Works: Onion Routing</div>
+            <span class="ex-badge beginner">BEGINNER</span>
+            <span class="ex-status">COMPLETE</span>
+        </div>
+        <div class="exercise-body">
+            <p class="ex-desc">Tor routes traffic through three volunteer-operated relay nodes. Each relay knows only its immediate neighbors — never the full path. Click through each hop to see how encryption layers are peeled at every relay.</p>
+
+            <div class="insight">
+                <div class="insight-label">ONION ROUTING — CORE CONCEPT</div>
+                <p>Before sending data, your Tor client wraps it in <strong>three layers of encryption</strong> — one for each relay. Each relay decrypts its own layer to reveal the next hop address, then forwards the payload. By the time the packet exits, no single node has seen both the origin and destination.</p>
+            </div>
+
+            <!-- ANIMATED ONION ROUTING DIAGRAM -->
+            <div class="onion-diagram">
+                <div class="onion-diagram-title">TOR CIRCUIT — THREE-HOP RELAY PATH</div>
+                <div class="relay-track" id="relayTrack">
+
+                    <!-- YOU (client) -->
+                    <div class="relay-node">
+                        <div class="node-box client-box" id="node-you">
+                            <div class="node-layer" id="layer-you"></div>
+                            <div class="node-icon">💻</div>
+                            <div class="node-label">YOU<br>(Client)</div>
+                        </div>
+                    </div>
+
+                    <!-- Arrow 1 -->
+                    <div class="relay-arrow">
+                        <div class="arrow-line" id="arrow-1" style="position:relative;">
+                            <div class="packet-dot" id="packet-1"></div>
+                        </div>
+                        <div class="arrow-label">Encrypted</div>
+                    </div>
+
+                    <!-- Guard node -->
+                    <div class="relay-node">
+                        <div class="node-box" id="node-guard">
+                            <div class="node-layer" id="layer-guard">Layer 1</div>
+                            <div class="node-icon">🛡️</div>
+                            <div class="node-label">GUARD<br>Relay</div>
+                        </div>
+                    </div>
+
+                    <!-- Arrow 2 -->
+                    <div class="relay-arrow">
+                        <div class="arrow-line" id="arrow-2" style="position:relative;">
+                            <div class="packet-dot" id="packet-2"></div>
+                        </div>
+                        <div class="arrow-label">Encrypted</div>
+                    </div>
+
+                    <!-- Middle node -->
+                    <div class="relay-node">
+                        <div class="node-box" id="node-middle">
+                            <div class="node-layer" id="layer-middle">Layer 2</div>
+                            <div class="node-icon">🔀</div>
+                            <div class="node-label">MIDDLE<br>Relay</div>
+                        </div>
+                    </div>
+
+                    <!-- Arrow 3 -->
+                    <div class="relay-arrow">
+                        <div class="arrow-line" id="arrow-3" style="position:relative;">
+                            <div class="packet-dot" id="packet-3"></div>
+                        </div>
+                        <div class="arrow-label">Encrypted</div>
+                    </div>
+
+                    <!-- Exit node -->
+                    <div class="relay-node">
+                        <div class="node-box exit-box" id="node-exit">
+                            <div class="node-layer" id="layer-exit">Layer 3</div>
+                            <div class="node-icon">🚪</div>
+                            <div class="node-label">EXIT<br>Relay</div>
+                        </div>
+                    </div>
+
+                    <!-- Arrow 4 (cleartext to destination) -->
+                    <div class="relay-arrow">
+                        <div class="arrow-line" id="arrow-4" style="position:relative;">
+                            <div class="packet-dot" id="packet-4"></div>
+                        </div>
+                        <div class="arrow-label">Plaintext*</div>
+                    </div>
+
+                    <!-- Destination -->
+                    <div class="relay-node">
+                        <div class="node-box" id="node-dest" style="border-color:rgba(251,191,36,0.4);">
+                            <div class="node-icon">🌐</div>
+                            <div class="node-label">WEBSITE<br>(Destination)</div>
+                        </div>
+                    </div>
+
+                </div><!-- /relay-track -->
+
+                <!-- Layer legend chips -->
+                <div class="layer-legend">
+                    <div class="layer-chip" id="chip-3">Outer Layer (Guard)</div>
+                    <div class="layer-chip" id="chip-2">Middle Layer (Middle)</div>
+                    <div class="layer-chip" id="chip-1">Inner Layer (Exit)</div>
+                </div>
+
+                <!-- Step controls -->
+                <div class="onion-controls">
+                    <button class="onion-btn" id="btnOnionPrev" onclick="onionStep(-1)" disabled>Prev</button>
+                    <div class="onion-status" id="onionStatus">Click "Next" to start the circuit walkthrough.</div>
+                    <button class="onion-btn" id="btnOnionNext" onclick="onionStep(1)">Next</button>
+                </div>
+            </div><!-- /onion-diagram -->
+
+            <div class="insight warn">
+                <div class="insight-label">RELAY TYPES — WHAT EACH NODE KNOWS</div>
+                <p><strong>Guard (Entry):</strong> Knows your real IP, does not know the destination. <strong>Middle:</strong> Knows neither your IP nor the destination — only the adjacent relays. <strong>Exit:</strong> Knows the destination, does not know your IP. This division is why no single node can de-anonymize you without controlling multiple positions simultaneously.</p>
+            </div>
+
+            <div class="insight">
+                <div class="insight-label">OBJECTIVE</div>
+                <p>Walk through all 5 steps of the circuit to complete this exercise. Use the Next / Prev buttons above.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============================================================
+         EXERCISE 2 — INSTALL & START TOR
+         ============================================================ -->
+    <div class="exercise" id="ex2">
+        <div class="exercise-header">
+            <div class="ex-num">2</div>
+            <div class="ex-title">Install &amp; Start Tor</div>
+            <span class="ex-badge beginner">BEGINNER</span>
+            <span class="ex-status">COMPLETE</span>
+        </div>
+        <div class="exercise-body">
+            <p class="ex-desc">Install Tor, start the service, watch it bootstrap to the network, and verify your traffic is exiting through Tor. A three-step terminal sequence with a live bootstrap animation.</p>
+
+            <div class="insight">
+                <div class="insight-label">OBJECTIVE — STEP 1 OF 3</div>
+                <p>Install Tor using apt. Type: <code>sudo apt install tor</code></p>
+            </div>
+
+            <div class="terminal-wrapper">
+                <div class="terminal">
+                    <div class="term-titlebar">
+                        <div class="term-dot red"></div>
+                        <div class="term-dot yellow"></div>
+                        <div class="term-dot green"></div>
+                        <span class="term-label">student@hexworth: ~</span>
+                    </div>
+                    <div class="term-output" id="out2"></div>
+                    <div class="term-input-row">
+                        <span class="term-prompt-label" id="prompt2">student@hexworth:~$</span>
+                        <input class="term-input" id="input2" type="text" placeholder="type your command..." autocomplete="off" autocorrect="off" spellcheck="false">
+                        <button class="term-submit" id="submit2" onclick="submitCmd(2)">ENTER</button>
+                    </div>
+                </div>
+                <div class="term-meta">
+                    <span class="term-hint" id="hint2">Hint: sudo apt install tor</span>
+                    <span class="term-attempt" id="attempts2"></span>
+                </div>
+            </div>
+
+            <!-- Bootstrap progress — shown after systemctl start -->
+            <div class="bootstrap-wrap" id="bootstrapWrap">
+                <div class="bootstrap-title">TOR BOOTSTRAP PROGRESS</div>
+                <div class="bootstrap-bar-track">
+                    <div class="bootstrap-bar-fill" id="bootstrapBar"></div>
+                </div>
+                <div class="bootstrap-log" id="bootstrapLog"></div>
+            </div>
+
+            <div class="insight warn">
+                <div class="insight-label">KEY INSIGHT — SOCKS5 PROXY</div>
+                <p>Tor exposes a SOCKS5 proxy on <code>localhost:9050</code> by default. Any application that supports SOCKS5 can route through Tor without additional configuration. The <code>curl --socks5</code> flag, <code>torsocks</code> wrapper, and the Tor Browser all use this socket. HTTP traffic exiting through the exit node is unencrypted unless the site uses HTTPS — always prefer HTTPS sites when using Tor.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============================================================
+         EXERCISE 3 — TOR CONFIGURATION (torrc)
+         ============================================================ -->
+    <div class="exercise" id="ex3">
+        <div class="exercise-header">
+            <div class="ex-num">3</div>
+            <div class="ex-title">Tor Configuration — /etc/tor/torrc</div>
+            <span class="ex-badge intermediate">INTERMEDIATE</span>
+            <span class="ex-status">COMPLETE</span>
+        </div>
+        <div class="exercise-body">
+            <p class="ex-desc">The torrc file controls Tor's behavior: exit node country selection, strict routing, and exclusions. You will edit it and understand the trust and censorship implications of each directive.</p>
+
+            <div class="insight">
+                <div class="insight-label">OBJECTIVE — STEP 1 OF 2</div>
+                <p>Open the Tor config file for editing. Type: <code>sudo nano /etc/tor/torrc</code></p>
+            </div>
+
+            <div class="terminal-wrapper">
+                <div class="terminal">
+                    <div class="term-titlebar">
+                        <div class="term-dot red"></div>
+                        <div class="term-dot yellow"></div>
+                        <div class="term-dot green"></div>
+                        <span class="term-label">student@hexworth: ~</span>
+                    </div>
+                    <div class="term-output" id="out3"></div>
+                    <div class="term-input-row">
+                        <span class="term-prompt-label" id="prompt3">student@hexworth:~$</span>
+                        <input class="term-input" id="input3" type="text" placeholder="type your command..." autocomplete="off" autocorrect="off" spellcheck="false">
+                        <button class="term-submit" id="submit3" onclick="submitCmd(3)">ENTER</button>
+                    </div>
+                </div>
+                <div class="term-meta">
+                    <span class="term-hint" id="hint3">Hint: sudo nano /etc/tor/torrc</span>
+                    <span class="term-attempt" id="attempts3"></span>
+                </div>
+            </div>
+
+            <!-- Torrc editor — shown after opening -->
+            <div class="torrc-editor" id="torrcEditor">
+                <div class="torrc-titlebar">GNU nano 7.2  /etc/tor/torrc  [Modified]</div>
+                <div class="torrc-content" id="torrcContent"></div>
+            </div>
+
+            <div class="insight warn">
+                <div class="insight-label">OPSEC — EXIT NODE COUNTRY SELECTION</div>
+                <p>Specifying <code>ExitNodes {us}</code> forces exit traffic through US-based relays. This can help reach geo-restricted content, but it also concentrates trust in one jurisdiction — that government could compel relay operators to log traffic. <code>ExcludeExitNodes {cn},{ru}</code> avoids adversarial infrastructure, but Tor's own position is that restricting nodes weakens the anonymity set. Use country restrictions only when the operational need is clear.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============================================================
+         EXERCISE 4 — .ONION HIDDEN SERVICES
+         ============================================================ -->
+    <div class="exercise" id="ex4">
+        <div class="exercise-header">
+            <div class="ex-num">4</div>
+            <div class="ex-title">.onion Hidden Services</div>
+            <span class="ex-badge intermediate">INTERMEDIATE</span>
+            <span class="ex-status">COMPLETE</span>
+        </div>
+        <div class="exercise-body">
+            <p class="ex-desc">Set up a Tor Hidden Service that makes a local web server accessible via a .onion address — without a public IP or open port. Both client and server use Tor circuits; there is no exit node involved.</p>
+
+            <div class="insight">
+                <div class="insight-label">OBJECTIVE — STEP 1 OF 2</div>
+                <p>Add hidden service directives to torrc. Type: <code>sudo nano /etc/tor/torrc</code></p>
+            </div>
+
+            <div class="terminal-wrapper">
+                <div class="terminal">
+                    <div class="term-titlebar">
+                        <div class="term-dot red"></div>
+                        <div class="term-dot yellow"></div>
+                        <div class="term-dot green"></div>
+                        <span class="term-label">student@hexworth: ~</span>
+                    </div>
+                    <div class="term-output" id="out4"></div>
+                    <div class="term-input-row">
+                        <span class="term-prompt-label" id="prompt4">student@hexworth:~$</span>
+                        <input class="term-input" id="input4" type="text" placeholder="type your command..." autocomplete="off" autocorrect="off" spellcheck="false">
+                        <button class="term-submit" id="submit4" onclick="submitCmd(4)">ENTER</button>
+                    </div>
+                </div>
+                <div class="term-meta">
+                    <span class="term-hint" id="hint4">Hint: sudo nano /etc/tor/torrc</span>
+                    <span class="term-attempt" id="attempts4"></span>
+                </div>
+            </div>
+
+            <!-- .onion address reveal -->
+            <div class="onion-address-reveal" id="onionAddressReveal">
+                <div class="onion-address-label">GENERATED .ONION ADDRESS</div>
+                <div class="onion-address-text" id="onionAddressText"></div>
+            </div>
+
+            <!-- Rendezvous point diagram -->
+            <div class="rendezvous-diagram" id="rendezvousDiagram">
+                <div class="rd-title">HIDDEN SERVICE — RENDEZVOUS POINT ARCHITECTURE</div>
+<pre>
+  CLIENT SIDE                           SERVER SIDE
+  ┌─────────────┐                       ┌─────────────┐
+  │  Tor Client │                       │ Hidden Svc  │
+  │  (Browser)  │                       │ (your site) │
+  └──────┬──────┘                       └──────┬──────┘
+         │ Tor Circuit                         │ Tor Circuit
+         │ (3 hops)                            │ (3 hops)
+         ▼                                     ▼
+  ┌─────────────────────────────────────────────────┐
+  │         <span class="hl">RENDEZVOUS POINT</span> (volunteer relay)       │
+  │  Client picks this relay &amp; tells server         │
+  │  Server builds a circuit TO the same relay      │
+  │  They meet in the middle — <span class="hg">no exit node needed</span>  │
+  └─────────────────────────────────────────────────┘
+
+  .onion address = <span class="hl">public key hash</span> of the service's
+  Ed25519 keypair. Tor uses this to authenticate
+  and route to the hidden service automatically.
+  No DNS, no public IP, no port forwarding needed.
+</pre>
+            </div>
+
+            <div class="insight info">
+                <div class="insight-label">KEY INSIGHT — END-TO-END ENCRYPTION</div>
+                <p>Unlike regular Tor circuits where exit traffic can be plaintext, <code>.onion</code> connections are end-to-end encrypted using the service's Ed25519 key. There is no exit node — both sides use Tor circuits that meet at a <strong>rendezvous point</strong>. This makes .onion services more private and resistant to exit node monitoring than clearnet Tor browsing.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============================================================
+         EXERCISE 5 — TOR LIMITATIONS & OPSEC
+         ============================================================ -->
+    <div class="exercise" id="ex5">
+        <div class="exercise-header">
+            <div class="ex-num">5</div>
+            <div class="ex-title">Tor Limitations &amp; OPSEC</div>
+            <span class="ex-badge advanced">ADVANCED</span>
+            <span class="ex-status">COMPLETE</span>
+        </div>
+        <div class="exercise-body">
+            <p class="ex-desc">Tor is a tool, not a magic cloak. Identify real attack surfaces, understand DNS leaks, and distinguish behaviors that destroy anonymity from behaviors that preserve it.</p>
+
+            <!-- DNS Leak Comparison -->
+            <div class="insight">
+                <div class="insight-label">DNS LEAK — WHAT IT IS AND WHY IT MATTERS</div>
+                <p>A DNS leak occurs when your DNS queries bypass Tor and reach your ISP's resolver, revealing which hostnames you are looking up even if the TCP connection itself is tunneled. Use <code>torsocks</code> to force DNS resolution through Tor as well.</p>
+            </div>
+
+            <div class="dns-compare">
+                <div class="dns-panel">
+                    <div class="dns-panel-header leak">DNS LEAK (Without torsocks)</div>
+                    <div class="dns-panel-body">
+<span class="dns-dim">student@hexworth:~$</span> nslookup example.com
+<span class="dns-dim">
+Server:  192.168.1.1    </span><span class="dns-bad">&lt;-- YOUR ISP resolver</span>
+<span class="dns-dim">Address: 192.168.1.1#53</span>
+
+<span class="dns-bad">DNS query visible to ISP!</span>
+<span class="dns-dim">example.com → 93.184.216.34</span>
+
+<span class="dns-bad">ISP sees: you looked up
+example.com at 14:32 UTC</span>
+                    </div>
+                </div>
+                <div class="dns-panel">
+                    <div class="dns-panel-header safe">NO LEAK (With torsocks)</div>
+                    <div class="dns-panel-body">
+<span class="dns-dim">student@hexworth:~$</span> torsocks nslookup example.com
+<span class="dns-dim">
+Tor SOCKS resolver:   </span><span class="dns-good">&lt;-- exit node resolver</span>
+<span class="dns-dim">127.0.0.1:9050</span>
+
+<span class="dns-good">DNS routed through Tor circuit</span>
+<span class="dns-dim">example.com → 93.184.216.34</span>
+
+<span class="dns-good">ISP sees: encrypted Tor traffic
+(destination unknown)</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quiz 1: What Tor protects against -->
+            <div class="quiz-block" id="quiz1-block">
+                <div class="quiz-question">Which of the following does Tor protect against? (Select all that apply)</div>
+                <div class="quiz-options" id="quiz1-options">
+                    <label class="quiz-option" id="q1-a" onclick="toggleQuizOption('quiz1', 'q1-a')">
+                        <div class="quiz-check" id="q1-a-check"></div>
+                        <span>Your ISP seeing which websites you visit</span>
+                    </label>
+                    <label class="quiz-option" id="q1-b" onclick="toggleQuizOption('quiz1', 'q1-b')">
+                        <div class="quiz-check" id="q1-b-check"></div>
+                        <span>Traffic analysis correlating your IP to a destination IP</span>
+                    </label>
+                    <label class="quiz-option" id="q1-c" onclick="toggleQuizOption('quiz1', 'q1-c')">
+                        <div class="quiz-check" id="q1-c-check"></div>
+                        <span>Malware on your computer stealing your data</span>
+                    </label>
+                    <label class="quiz-option" id="q1-d" onclick="toggleQuizOption('quiz1', 'q1-d')">
+                        <div class="quiz-check" id="q1-d-check"></div>
+                        <span>Exit nodes reading unencrypted HTTP traffic</span>
+                    </label>
+                    <label class="quiz-option" id="q1-e" onclick="toggleQuizOption('quiz1', 'q1-e')">
+                        <div class="quiz-check" id="q1-e-check"></div>
+                        <span>A single relay operator knowing both your IP and destination</span>
+                    </label>
+                </div>
+                <button class="quiz-submit" id="quiz1-submit" onclick="gradeQuiz1()">Check Answers</button>
+                <div class="quiz-feedback" id="quiz1-feedback"></div>
+            </div>
+
+            <!-- Quiz 2: Behaviors that compromise Tor -->
+            <div class="quiz-block" id="quiz2-block" style="margin-top:1rem;">
+                <div class="quiz-question">Which behaviors compromise Tor anonymity? (Select all that apply)</div>
+                <div class="quiz-options" id="quiz2-options">
+                    <label class="quiz-option" id="q2-a" onclick="toggleQuizOption('quiz2', 'q2-a')">
+                        <div class="quiz-check" id="q2-a-check"></div>
+                        <span>Logging into your personal social media account</span>
+                    </label>
+                    <label class="quiz-option" id="q2-b" onclick="toggleQuizOption('quiz2', 'q2-b')">
+                        <div class="quiz-check" id="q2-b-check"></div>
+                        <span>Downloading torrents through Tor</span>
+                    </label>
+                    <label class="quiz-option" id="q2-c" onclick="toggleQuizOption('quiz2', 'q2-c')">
+                        <div class="quiz-check" id="q2-c-check"></div>
+                        <span>Using browser plugins that can make direct internet connections</span>
+                    </label>
+                    <label class="quiz-option" id="q2-d" onclick="toggleQuizOption('quiz2', 'q2-d')">
+                        <div class="quiz-check" id="q2-d-check"></div>
+                        <span>Visiting HTTPS-only .onion services</span>
+                    </label>
+                    <label class="quiz-option" id="q2-e" onclick="toggleQuizOption('quiz2', 'q2-e')">
+                        <div class="quiz-check" id="q2-e-check"></div>
+                        <span>Enabling JavaScript on untrusted sites in Tor Browser</span>
+                    </label>
+                </div>
+                <button class="quiz-submit" id="quiz2-submit" onclick="gradeQuiz2()">Check Answers</button>
+                <div class="quiz-feedback" id="quiz2-feedback"></div>
+            </div>
+
+            <div class="insight danger">
+                <div class="insight-label">CRITICAL OPSEC — TOR IS NOT ENOUGH ALONE</div>
+                <p>Logging into a personal account instantly de-anonymizes you regardless of Tor. Torrent clients often make UDP connections that bypass Tor entirely, leaking your real IP to tracker servers. Browser fingerprinting (canvas, WebGL, fonts, screen size) can identify you even without an IP address. Full-disk encryption, compartmentalization (separate VMs or Tails OS), and disciplined behavior matter more than the network tool itself.</p>
+            </div>
+
+            <!-- Terminal: show torsocks usage -->
+            <div class="insight">
+                <div class="insight-label">OBJECTIVE</div>
+                <p>Run a Tor verification check using curl through the SOCKS5 proxy. Type: <code>curl --socks5 localhost:9050 https://check.torproject.org/api/ip</code></p>
+            </div>
+
+            <div class="terminal-wrapper">
+                <div class="terminal">
+                    <div class="term-titlebar">
+                        <div class="term-dot red"></div>
+                        <div class="term-dot yellow"></div>
+                        <div class="term-dot green"></div>
+                        <span class="term-label">student@hexworth: ~</span>
+                    </div>
+                    <div class="term-output" id="out5"></div>
+                    <div class="term-input-row">
+                        <span class="term-prompt-label" id="prompt5">student@hexworth:~$</span>
+                        <input class="term-input" id="input5" type="text" placeholder="type your command..." autocomplete="off" autocorrect="off" spellcheck="false">
+                        <button class="term-submit" id="submit5" onclick="submitCmd(5)">ENTER</button>
+                    </div>
+                </div>
+                <div class="term-meta">
+                    <span class="term-hint" id="hint5">Hint: curl --socks5 localhost:9050 https://check.torproject.org/api/ip</span>
+                    <span class="term-attempt" id="attempts5"></span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============================================================
+         COMPLETION SECTION
+         ============================================================ -->
+    <div class="completion-section" id="completionSection">
+        <h3>Lab Progress</h3>
+        <p>Complete all five exercises to mark this lab finished and record your progress.</p>
+        <div class="overall-progress-track">
+            <div class="overall-progress-fill" id="overallBar"></div>
+        </div>
+        <div class="overall-progress-label">
+            <span id="completeCount">0</span> / 5 exercises complete
+        </div>
+        <button class="btn-complete" id="btnComplete" onclick="markComplete()" disabled>
+            Mark Lab Complete
+        </button>
+        <div class="complete-msg" id="completeMsg">Lab recorded. Returning to Linux Admin...</div>
+    </div>
+
+</div><!-- /container -->
+
+<!-- ================================================================
+     JAVASCRIPT
+     ================================================================ -->
+<script>
+'use strict';
+
+/* ----------------------------------------------------------------
+   STATE
+   ---------------------------------------------------------------- */
+const state = {
+    attempts:  [0, 0, 0, 0, 0],      // indexed 0–4 (exercise 1–5)
+    completed: [false, false, false, false, false],
+    step:      [0, 0, 0, 0, 0],       // multi-step exercise state
+    onionStep: 0,                      // exercise 1 diagram step (0–5)
+    quiz1Selections: new Set(),
+    quiz2Selections: new Set(),
+    quiz1Done: false,
+    quiz2Done: false
+};
+
+/* ----------------------------------------------------------------
+   EXERCISE 1 — ONION ROUTING ANIMATED DIAGRAM
+   ---------------------------------------------------------------- */
+
+// Each step defines which nodes are active/passed, arrows lit,
+// which layer chips are visible/peeled, and a status message.
+const onionSteps = [
+    {
+        // Step 0: Start — show all layers stacked on client
+        active: 'you',
+        passed: [],
+        litArrows: [],
+        chips: { '3': 'visible', '2': 'visible', '1': 'visible' },
+        msg: 'Your Tor client wraps the payload in 3 encryption layers (innermost = Exit key, outermost = Guard key).'
+    },
+    {
+        // Step 1: Packet travels to Guard relay
+        active: 'guard',
+        passed: ['you'],
+        litArrows: [1],
+        chips: { '3': 'visible', '2': 'visible', '1': 'visible' },
+        msg: 'Guard relay receives the packet. It decrypts its outer layer to reveal: "Forward to Middle at X.X.X.X".'
+    },
+    {
+        // Step 2: Guard peels outer layer, forwards to Middle
+        active: 'middle',
+        passed: ['you', 'guard'],
+        litArrows: [1, 2],
+        chips: { '3': 'peeled', '2': 'visible', '1': 'visible' },
+        msg: 'Outer layer (Guard) peeled. Guard knows: your IP and Middle relay. Does NOT know: destination or inner contents.'
+    },
+    {
+        // Step 3: Middle relay peels its layer, forwards to Exit
+        active: 'exit',
+        passed: ['you', 'guard', 'middle'],
+        litArrows: [1, 2, 3],
+        chips: { '3': 'peeled', '2': 'peeled', '1': 'visible' },
+        msg: 'Middle layer peeled. Middle knows: Guard relay and Exit relay addresses. Knows nothing else.'
+    },
+    {
+        // Step 4: Exit peels final layer, sends plaintext to destination
+        active: 'dest',
+        passed: ['you', 'guard', 'middle', 'exit'],
+        litArrows: [1, 2, 3, 4],
+        chips: { '3': 'peeled', '2': 'peeled', '1': 'peeled' },
+        msg: 'Exit relay peels inner layer. Now sees destination URL but NOT your IP. Sends traffic to website.'
+    },
+    {
+        // Step 5: Response arrives back through same circuit
+        active: 'you',
+        passed: ['you', 'guard', 'middle', 'exit', 'dest'],
+        litArrows: [1, 2, 3, 4],
+        chips: { '3': 'visible', '2': 'visible', '1': 'visible' },
+        msg: 'Response travels back through the circuit, re-encrypted at each hop. Circuit complete. Exercise 1 done!'
+    }
+];
+
+function onionStep(direction) {
+    const nextStep = state.onionStep + direction;
+    if (nextStep < 0 || nextStep >= onionSteps.length) return;
+    state.onionStep = nextStep;
+    renderOnionStep(state.onionStep);
+}
+
+function renderOnionStep(stepIdx) {
+    const step = onionSteps[stepIdx];
+
+    // Update all node boxes
+    const allNodes = ['you', 'guard', 'middle', 'exit', 'dest'];
+    allNodes.forEach(id => {
+        const el = document.getElementById('node-' + id);
+        if (!el) return;
+        el.classList.remove('active', 'passed');
+        if (step.active === id)           el.classList.add('active');
+        else if (step.passed.includes(id)) el.classList.add('passed');
+    });
+
+    // Update arrows
+    [1, 2, 3, 4].forEach(n => {
+        const arrowEl = document.getElementById('arrow-' + n);
+        if (!arrowEl) return;
+        if (step.litArrows.includes(n)) arrowEl.classList.add('lit');
+        else arrowEl.classList.remove('lit');
+    });
+
+    // Update layer chips
+    Object.keys(step.chips).forEach(num => {
+        const chip = document.getElementById('chip-' + num);
+        if (!chip) return;
+        chip.classList.remove('visible', 'peeled');
+        const state = step.chips[num];
+        if (state === 'visible') chip.classList.add('visible');
+        else if (state === 'peeled') chip.classList.add('peeled');
+    });
+
+    // Update status text
+    document.getElementById('onionStatus').textContent = step.msg;
+
+    // Enable/disable navigation buttons
+    document.getElementById('btnOnionPrev').disabled = (stepIdx === 0);
+    document.getElementById('btnOnionNext').disabled = (stepIdx === onionSteps.length - 1);
+
+    // Mark exercise 1 complete when the last step is reached
+    if (stepIdx === onionSteps.length - 1 && !state.completed[0]) {
+        state.completed[0] = true;
+        markExerciseComplete(1);
+    }
+}
+
+// Kick off with step 0 rendered on load
+(function initOnionDiagram() {
+    // Show layer chips as visible initially to illustrate stacking
+    ['chip-1', 'chip-2', 'chip-3'].forEach(id => {
+        document.getElementById(id).classList.add('visible');
+    });
+    // Activate client node to start
+    document.getElementById('node-you').classList.add('active');
+})();
+
+/* ----------------------------------------------------------------
+   EXERCISE COMMAND DEFINITIONS
+   ---------------------------------------------------------------- */
+const exercises = [
+
+    /* === Exercise 1: onion diagram (handled above, no terminal) === */
+    null,
+
+    /* === Exercise 2: Install & start Tor (3-step terminal) === */
+    {
+        steps: [
+            {
+                hint: 'sudo apt install tor',
+                match: inp => inp.includes('apt') && inp.includes('tor'),
+                run: (out) => {
+                    appendLines(out, [
+                        ['t-dim', 'Reading package lists... Done'],
+                        ['t-dim', 'Building dependency tree... Done'],
+                        ['t-dim', 'Reading state information... Done'],
+                        ['t-bright', 'The following NEW packages will be installed:'],
+                        ['t-bright', '  tor tor-geoipdb'],
+                        ['t-dim', '0 upgraded, 2 newly installed, 0 to remove.'],
+                        ['t-dim', 'Need to get 1,523 kB of archives.'],
+                        ['t-ok',  'Fetched 1,523 kB in 1s (1,421 kB/s)'],
+                        ['t-ok',  'Selecting previously unselected package tor.'],
+                        ['t-ok',  'Setting up tor (0.4.8.10-1) ...'],
+                        ['t-ok',  'Created symlink /etc/systemd/system/multi-user.target.wants/tor.service'],
+                        ['t-dim', ''],
+                        ['t-ok',  'Tor installed. Now start the service.'],
+                    ]);
+                    updateHint(2, 'sudo systemctl start tor');
+                    document.getElementById('prompt2').textContent = 'student@hexworth:~$';
+                    document.getElementById('input2').placeholder = 'start the tor service...';
+                }
+            },
+            {
+                hint: 'sudo systemctl start tor',
+                match: inp => inp.includes('systemctl') && (inp.includes('start') || inp.includes('enable')) && inp.includes('tor'),
+                run: (out) => {
+                    appendLines(out, [
+                        ['t-ok',  'tor.service started.'],
+                        ['t-dim', ''],
+                        ['t-bright', 'Watching bootstrap — this takes 30–60 seconds on a real system...'],
+                    ]);
+                    // Kick off animated bootstrap sequence
+                    runBootstrapAnimation();
+                    updateHint(2, 'curl --socks5 localhost:9050 https://check.torproject.org/api/ip');
+                    document.getElementById('input2').placeholder = 'verify Tor is working...';
+                }
+            },
+            {
+                hint: 'curl --socks5 localhost:9050 https://check.torproject.org/api/ip',
+                match: inp => inp.includes('curl') && inp.includes('socks') && inp.includes('tor'),
+                run: (out) => {
+                    appendLines(out, [
+                        ['t-dim', 'Connecting via SOCKS5 localhost:9050...'],
+                        ['t-dim', 'Resolving check.torproject.org via Tor...'],
+                        ['t-dim', ''],
+                        ['t-ok',  '{"IsTor":true,"IP":"185.220.101.47"}'],
+                        ['t-dim', ''],
+                        ['t-ok',  'Congratulations. This connection is using Tor.'],
+                        ['t-bright', 'Exit IP: 185.220.101.47  (Tor exit node in Germany)'],
+                        ['t-dim',   'Your real IP is not visible to the destination.'],
+                    ]);
+                }
+            }
+        ]
+    },
+
+    /* === Exercise 3: torrc configuration (2-step terminal) === */
+    {
+        steps: [
+            {
+                hint: 'sudo nano /etc/tor/torrc',
+                match: inp => (inp.includes('nano') || inp.includes('vim') || inp.includes('vi') || inp.includes('cat')) && inp.includes('torrc'),
+                run: (out) => {
+                    appendLines(out, [
+                        ['t-dim', 'Opening /etc/tor/torrc in nano...'],
+                    ]);
+                    // Reveal the torrc editor widget
+                    const editor = document.getElementById('torrcEditor');
+                    editor.style.display = 'block';
+                    animateTorrc();
+                    updateHint(3, 'sudo systemctl restart tor');
+                    document.getElementById('prompt3').textContent = 'student@hexworth:~$';
+                    document.getElementById('input3').placeholder = 'restart tor to apply changes...';
+                }
+            },
+            {
+                hint: 'sudo systemctl restart tor',
+                match: inp => inp.includes('systemctl') && inp.includes('restart') && inp.includes('tor'),
+                run: (out) => {
+                    appendLines(out, [
+                        ['t-ok',  'tor.service restarted.'],
+                        ['t-dim', ''],
+                        ['t-dim', 'Nov 07 14:33:21 Tor[1241]: Reloading config and starting new circuits...'],
+                        ['t-ok',  'Nov 07 14:33:22 Tor[1241]: ExitNodes set to: {us}'],
+                        ['t-ok',  'Nov 07 14:33:22 Tor[1241]: ExcludeExitNodes: {cn},{ru}'],
+                        ['t-ok',  'Nov 07 14:33:22 Tor[1241]: SocksPort set to 9050'],
+                        ['t-dim', 'Nov 07 14:33:23 Tor[1241]: Bootstrapped 100%: Done'],
+                        ['t-dim', ''],
+                        ['t-ok',  'Configuration applied. New circuits will use US exit nodes.'],
+                    ]);
+                }
+            }
+        ]
+    },
+
+    /* === Exercise 4: .onion hidden service (2-step terminal) === */
+    {
+        steps: [
+            {
+                hint: 'sudo nano /etc/tor/torrc',
+                match: inp => (inp.includes('nano') || inp.includes('vim') || inp.includes('vi') || inp.includes('cat')) && inp.includes('torrc'),
+                run: (out) => {
+                    appendLines(out, [
+                        ['t-dim', 'Opening /etc/tor/torrc...'],
+                        ['t-dim', ''],
+                        ['t-bright', '# Add these lines to torrc:'],
+                        ['t-onion', 'HiddenServiceDir /var/lib/tor/hidden_service/'],
+                        ['t-onion', 'HiddenServicePort 80 127.0.0.1:8080'],
+                        ['t-dim', ''],
+                        ['t-dim', 'Save and exit. Then restart Tor to generate the .onion address.'],
+                    ]);
+                    updateHint(4, 'sudo systemctl restart tor && sudo cat /var/lib/tor/hidden_service/hostname');
+                    document.getElementById('prompt4').textContent = 'student@hexworth:~$';
+                    document.getElementById('input4').placeholder = 'restart tor and read the .onion address...';
+                }
+            },
+            {
+                hint: 'sudo systemctl restart tor && sudo cat /var/lib/tor/hidden_service/hostname',
+                match: inp => inp.includes('restart') && inp.includes('tor') || (inp.includes('cat') && inp.includes('hostname')),
+                run: (out) => {
+                    const onionAddr = 'z4phpwrjj3nxdcm5kpbvxdxfcrlnc3e4hwkb2i6q7d5fnzoxbpvuqd.onion';
+                    appendLines(out, [
+                        ['t-ok',  'tor.service restarted.'],
+                        ['t-dim', 'Nov 07 14:41:02 Tor[1889]: Generated new hidden service key.'],
+                        ['t-ok',  'Nov 07 14:41:04 Tor[1889]: Registered hidden service on rendezvous point.'],
+                        ['t-dim', ''],
+                        ['t-bright', 'cat /var/lib/tor/hidden_service/hostname'],
+                        ['t-onion', onionAddr],
+                        ['t-dim', ''],
+                        ['t-ok',  'Your hidden service is now reachable via Tor Browser.'],
+                    ]);
+                    // Show the onion address card and rendezvous diagram
+                    const addrEl = document.getElementById('onionAddressReveal');
+                    addrEl.style.display = 'block';
+                    document.getElementById('onionAddressText').textContent = onionAddr;
+                    document.getElementById('rendezvousDiagram').style.display = 'block';
+                }
+            }
+        ]
+    },
+
+    /* === Exercise 5: OPSEC / Tor verification (1-step terminal after quiz) === */
+    {
+        steps: [
+            {
+                hint: 'curl --socks5 localhost:9050 https://check.torproject.org/api/ip',
+                match: inp => (inp.includes('curl') || inp.includes('torsocks')) && inp.includes('tor'),
+                run: (out) => {
+                    appendLines(out, [
+                        ['t-dim', 'Routing request through Tor SOCKS5 proxy...'],
+                        ['t-dim', 'Resolving check.torproject.org via exit node DNS...'],
+                        ['t-dim', ''],
+                        ['t-ok',  '{"IsTor":true,"IP":"5.188.62.188"}'],
+                        ['t-dim', ''],
+                        ['t-ok',  'Confirmed: traffic is exiting through Tor.'],
+                        ['t-bright', 'Exit node country: Netherlands'],
+                        ['t-bright', 'Your ISP sees:     encrypted Tor traffic only'],
+                        ['t-bright', 'Destination sees:  exit node IP, not your real IP'],
+                        ['t-dim', ''],
+                        ['t-ok',  'OPSEC reminder: behavior matters more than the tool.'],
+                    ]);
+                }
+            }
+        ]
+    }
+];
+
+/* ----------------------------------------------------------------
+   submitCmd — terminal input handler (exercises 2–5)
+   ---------------------------------------------------------------- */
+function submitCmd(exNum) {
+    const idx    = exNum - 1;
+    const ex     = exercises[idx];
+    if (!ex) return;   // ex1 has no terminal
+
+    const inputEl  = document.getElementById('input'   + exNum);
+    const outEl    = document.getElementById('out'     + exNum);
+    const hintEl   = document.getElementById('hint'    + exNum);
+    const attEl    = document.getElementById('attempts' + exNum);
+    const stepIdx  = state.step[idx];
+    const stepDef  = ex.steps[stepIdx];
+    const raw      = inputEl.value.trim();
+
+    if (!raw) return;
+
+    echoCommand(outEl, raw);
+    inputEl.value = '';
+
+    if (stepDef.match(raw)) {
+        state.attempts[idx] = 0;
+        hintEl.classList.remove('visible');
+        attEl.textContent = '';
+        stepDef.run(outEl, inputEl);
+
+        const isLastStep = (stepIdx === ex.steps.length - 1);
+        if (isLastStep) {
+            // For exercise 5, also require both quizzes complete
+            if (exNum === 5 && !(state.quiz1Done && state.quiz2Done)) {
+                appendLines(outEl, [
+                    ['t-warn', ''],
+                    ['t-warn', 'Complete both quizzes above to finish this exercise.'],
+                ]);
+                // Disable terminal input until quizzes are done
+                inputEl.disabled = true;
+                document.getElementById('submit5').disabled = true;
+                state.step[idx] = stepIdx + 1;   // pre-advance; re-check in quiz grading
+                outEl.scrollTop = outEl.scrollHeight;
+                return;
+            }
+            if (!state.completed[idx]) {
+                state.completed[idx] = true;
+                markExerciseComplete(exNum);
+            }
+            inputEl.disabled = true;
+            inputEl.placeholder = 'Exercise complete';
+            document.getElementById('submit' + exNum).disabled = true;
+        } else {
+            state.step[idx] = stepIdx + 1;
+        }
+    } else {
+        state.attempts[idx]++;
+        const n = state.attempts[idx];
+        attEl.textContent = 'Attempt ' + n;
+        appendLine(outEl, 't-bad', 'bash: command not recognized. Try again.');
+        if (n >= 2) hintEl.classList.add('visible');
+    }
+
+    outEl.scrollTop = outEl.scrollHeight;
+}
+
+/* ----------------------------------------------------------------
+   TOR BOOTSTRAP ANIMATION — exercise 2
+   ---------------------------------------------------------------- */
+function runBootstrapAnimation() {
+    const wrap = document.getElementById('bootstrapWrap');
+    const bar  = document.getElementById('bootstrapBar');
+    const log  = document.getElementById('bootstrapLog');
+    wrap.style.display = 'block';
+
+    const milestones = [
+        { pct: 5,   msg: 'Bootstrapped 5%: Connecting to directory server' },
+        { pct: 14,  msg: 'Bootstrapped 14%: Loading network status docs' },
+        { pct: 25,  msg: 'Bootstrapped 25%: Loading authority certificates' },
+        { pct: 45,  msg: 'Bootstrapped 45%: Asking for relay descriptors' },
+        { pct: 56,  msg: 'Bootstrapped 56%: Loading relay descriptors' },
+        { pct: 75,  msg: 'Bootstrapped 75%: Loading relay descriptors' },
+        { pct: 90,  msg: 'Bootstrapped 90%: Establishing a Tor circuit' },
+        { pct: 100, msg: 'Bootstrapped 100%: Done — Tor is ready.' }
+    ];
+
+    let milestoneIdx = 0;
+
+    function tick() {
+        if (milestoneIdx >= milestones.length) return;
+        const m = milestones[milestoneIdx++];
+        bar.style.width = m.pct + '%';
+
+        const line = document.createElement('div');
+        if (m.pct === 100) {
+            line.style.color = '#4ade80';
+            line.style.fontWeight = '700';
+        } else {
+            line.style.color = '#4a7a4a';
+        }
+        line.textContent = 'Nov 07 14:33:' + (10 + milestoneIdx) + ' Tor[1241]: ' + m.msg;
+        log.appendChild(line);
+        log.scrollTop = log.scrollHeight;
+
+        if (milestoneIdx < milestones.length) {
+            setTimeout(tick, 350 + Math.random() * 200);
+        }
+    }
+
+    tick();
+}
+
+/* ----------------------------------------------------------------
+   TORRC ANIMATION — exercise 3
+   ---------------------------------------------------------------- */
+function animateTorrc() {
+    const content = document.getElementById('torrcContent');
+
+    // Lines to display: [cssClass, text]
+    const lines = [
+        ['tc-comment', '## /etc/tor/torrc — Tor Configuration File'],
+        ['tc-comment', '## Edited by student@hexworth'],
+        ['', ''],
+        ['tc-comment', '# SOCKS proxy port'],
+        ['tc-key', 'SocksPort '],
+        ['tc-val', '9050'],
+        ['', ''],
+        ['tc-comment', '# Exit node country restriction'],
+        ['tc-key tc-highlight', 'ExitNodes '],
+        ['tc-val tc-highlight', '{us}'],
+        ['', ''],
+        ['tc-comment', '# Enforce the exit node restriction strictly'],
+        ['tc-key tc-highlight', 'StrictNodes '],
+        ['tc-val tc-highlight', '1'],
+        ['', ''],
+        ['tc-comment', '# Exclude potentially adversarial exit countries'],
+        ['tc-key tc-highlight', 'ExcludeExitNodes '],
+        ['tc-val tc-highlight', '{cn},{ru}'],
+        ['', ''],
+        ['tc-comment', '# Optional: increase circuit timeout'],
+        ['tc-key', 'CircuitBuildTimeout '],
+        ['tc-val', '60'],
+    ];
+
+    // Render all lines at once (grouped into formatted spans per logical line)
+    const groupedLines = [
+        { cls: 'tc-comment', text: '## /etc/tor/torrc — Tor Configuration File' },
+        { cls: 'tc-comment', text: '## Edited by student@hexworth' },
+        { cls: '',           text: '' },
+        { cls: 'tc-comment', text: '# SOCKS proxy port' },
+        { cls: '',           text: '' },   // placeholder for key+val on same line
+        { cls: '',           text: '' },
+        { cls: 'tc-comment', text: '# Exit node country restriction' },
+        { cls: '',           text: '' },
+        { cls: '',           text: '' },
+        { cls: 'tc-comment', text: '# Enforce the exit node restriction strictly' },
+        { cls: '',           text: '' },
+        { cls: '',           text: '' },
+        { cls: 'tc-comment', text: '# Exclude potentially adversarial exit countries' },
+        { cls: '',           text: '' },
+        { cls: '',           text: '' },
+        { cls: 'tc-comment', text: '# Optional: increase circuit timeout' },
+        { cls: '',           text: '' },
+    ];
+
+    // Build full formatted content as innerHTML using spans
+    const formattedLines = [
+        '<span class="tc-comment">## /etc/tor/torrc — Tor Configuration File</span>',
+        '<span class="tc-comment">## Edited by student@hexworth</span>',
+        '',
+        '<span class="tc-comment"># SOCKS proxy port</span>',
+        '<span class="tc-key">SocksPort </span><span class="tc-val">9050</span>',
+        '',
+        '<span class="tc-comment"># Exit node country restriction</span>',
+        '<span class="tc-key tc-highlight">ExitNodes </span><span class="tc-val tc-highlight">{us}</span>',
+        '',
+        '<span class="tc-comment"># Enforce the exit node restriction strictly</span>',
+        '<span class="tc-key tc-highlight">StrictNodes </span><span class="tc-val tc-highlight">1</span>',
+        '',
+        '<span class="tc-comment"># Exclude potentially adversarial exit countries</span>',
+        '<span class="tc-key tc-highlight">ExcludeExitNodes </span><span class="tc-val tc-highlight">{cn},{ru}</span>',
+        '',
+        '<span class="tc-comment"># Optional: increase circuit timeout</span>',
+        '<span class="tc-key">CircuitBuildTimeout </span><span class="tc-val">60</span>',
+    ];
+
+    // Animate line by line using innerHTML (content is developer-controlled, not user input)
+    let i = 0;
+    function addLine() {
+        if (i >= formattedLines.length) return;
+        const div = document.createElement('div');
+        div.innerHTML = formattedLines[i];
+        content.appendChild(div);
+        i++;
+        setTimeout(addLine, 55);
+    }
+    addLine();
+}
+
+/* ----------------------------------------------------------------
+   QUIZ — EXERCISE 5
+   ---------------------------------------------------------------- */
+
+/* Toggle a checkbox-style quiz option */
+function toggleQuizOption(quizId, optionId) {
+    const sel = quizId === 'quiz1' ? state.quiz1Selections : state.quiz2Selections;
+    const done = quizId === 'quiz1' ? state.quiz1Done : state.quiz2Done;
+    if (done) return;
+
+    const el = document.getElementById(optionId);
+    if (sel.has(optionId)) {
+        sel.delete(optionId);
+        el.classList.remove('selected');
+        el.querySelector('[id$="-check"]').textContent = '';
+    } else {
+        sel.add(optionId);
+        el.classList.add('selected');
+        el.querySelector('[id$="-check"]').textContent = '\u2713';
+    }
+}
+
+/* Quiz 1: ISP visibility + traffic analysis + single relay — correct: a, b, e */
+function gradeQuiz1() {
+    if (state.quiz1Done) return;
+    const correct = new Set(['q1-a', 'q1-b', 'q1-e']);
+    const selected = state.quiz1Selections;
+    const feedback = document.getElementById('quiz1-feedback');
+    const submitBtn = document.getElementById('quiz1-submit');
+
+    // Disable all options
+    ['q1-a', 'q1-b', 'q1-c', 'q1-d', 'q1-e'].forEach(id => {
+        const el = document.getElementById(id);
+        el.classList.add('disabled');
+        if (correct.has(id)) {
+            el.classList.remove('selected', 'wrong');
+            el.classList.add('correct');
+            el.querySelector('[id$="-check"]').textContent = '\u2713';
+        } else if (selected.has(id)) {
+            el.classList.remove('selected');
+            el.classList.add('wrong');
+            el.querySelector('[id$="-check"]').textContent = '\u2717';
+        }
+    });
+
+    submitBtn.disabled = true;
+    state.quiz1Done = true;
+    feedback.style.display = 'block';
+
+    // Score
+    const hits   = [...selected].filter(x => correct.has(x)).length;
+    const misses = [...selected].filter(x => !correct.has(x)).length;
+    const missed = [...correct].filter(x => !selected.has(x)).length;
+
+    if (hits === 3 && misses === 0) {
+        feedback.className = 'quiz-feedback correct';
+        feedback.textContent = 'Correct! Tor protects against ISP visibility, traffic analysis between relays, and single-relay de-anonymization. It does NOT protect against malware or exit node interception of unencrypted traffic.';
+    } else {
+        feedback.className = 'quiz-feedback partial';
+        feedback.textContent = 'Not quite. Correct answers: A, B, E. Tor does NOT protect against endpoint malware (C) or exit nodes reading plaintext HTTP (D) — the exit node always sees the decrypted destination traffic.';
+    }
+
+    checkEx5Completion();
+}
+
+/* Quiz 2: Behaviors that compromise anonymity — correct: a, b, c, e */
+function gradeQuiz2() {
+    if (state.quiz2Done) return;
+    const correct = new Set(['q2-a', 'q2-b', 'q2-c', 'q2-e']);
+    const selected = state.quiz2Selections;
+    const feedback = document.getElementById('quiz2-feedback');
+    const submitBtn = document.getElementById('quiz2-submit');
+
+    ['q2-a', 'q2-b', 'q2-c', 'q2-d', 'q2-e'].forEach(id => {
+        const el = document.getElementById(id);
+        el.classList.add('disabled');
+        if (correct.has(id)) {
+            el.classList.remove('selected', 'wrong');
+            el.classList.add('correct');
+            el.querySelector('[id$="-check"]').textContent = '\u2713';
+        } else if (selected.has(id)) {
+            el.classList.remove('selected');
+            el.classList.add('wrong');
+            el.querySelector('[id$="-check"]').textContent = '\u2717';
+        }
+    });
+
+    submitBtn.disabled = true;
+    state.quiz2Done = true;
+    feedback.style.display = 'block';
+
+    const hits = [...selected].filter(x => correct.has(x)).length;
+    const misses = [...selected].filter(x => !correct.has(x)).length;
+
+    if (hits === 4 && misses === 0) {
+        feedback.className = 'quiz-feedback correct';
+        feedback.textContent = 'Correct! Personal accounts (A) attach identity to the session. Torrents (B) make direct UDP connections outside Tor. Browser plugins (C) can leak real IPs. JavaScript (E) enables fingerprinting and exploit delivery. HTTPS .onion services (D) are safe — they have no exit node and end-to-end encryption.';
+    } else {
+        feedback.className = 'quiz-feedback partial';
+        feedback.textContent = 'Not quite. Correct answers: A, B, C, E. HTTPS .onion services (D) do NOT compromise anonymity — there is no exit node and traffic is end-to-end encrypted using the service\'s Ed25519 key.';
+    }
+
+    checkEx5Completion();
+}
+
+/* After both quizzes pass, re-enable the terminal if needed */
+function checkEx5Completion() {
+    if (!state.quiz1Done || !state.quiz2Done) return;
+
+    // If terminal already completed, mark exercise done directly
+    if (state.step[4] >= exercises[4].steps.length) {
+        if (!state.completed[4]) {
+            state.completed[4] = true;
+            markExerciseComplete(5);
+        }
+        return;
+    }
+
+    // Re-enable terminal so student can type the curl command
+    const inputEl = document.getElementById('input5');
+    const submitEl = document.getElementById('submit5');
+    if (inputEl && inputEl.disabled) {
+        inputEl.disabled = false;
+        inputEl.placeholder = 'both quizzes done — now run the curl command...';
+        if (submitEl) submitEl.disabled = false;
+    }
+}
+
+/* ----------------------------------------------------------------
+   SHARED TERMINAL HELPERS
+   ---------------------------------------------------------------- */
+function echoCommand(outEl, raw) {
+    const line = document.createElement('div');
+    const promptSpan = document.createElement('span');
+    promptSpan.className = 't-prompt';
+    promptSpan.textContent = 'student@hexworth:~$ ';
+    const cmdSpan = document.createElement('span');
+    cmdSpan.className = 't-cmd';
+    cmdSpan.textContent = raw;
+    line.appendChild(promptSpan);
+    line.appendChild(cmdSpan);
+    outEl.appendChild(line);
+}
+
+function appendLine(outEl, cssClass, text) {
+    const div = document.createElement('div');
+    if (cssClass) div.className = cssClass;
+    div.textContent = text;
+    outEl.appendChild(div);
+}
+
+function appendLines(outEl, pairs) {
+    pairs.forEach(([cls, text]) => appendLine(outEl, cls, text));
+}
+
+function updateHint(exNum, hintText) {
+    document.getElementById('hint' + exNum).textContent = 'Hint: ' + hintText;
+}
+
+/* ----------------------------------------------------------------
+   COMPLETION TRACKING
+   ---------------------------------------------------------------- */
+function markExerciseComplete(exNum) {
+    const card = document.getElementById('ex' + exNum);
+    const pill = document.getElementById('pill-' + exNum);
+    if (card) card.classList.add('completed');
+    if (pill) {
+        pill.classList.remove('active');
+        pill.classList.add('done');
+        pill.textContent = '\u2713';
+    }
+    updateOverallProgress();
+}
+
+function updateOverallProgress() {
+    const done = state.completed.filter(Boolean).length;
+    const pct  = (done / 5) * 100;
+    document.getElementById('overallBar').style.width    = pct + '%';
+    document.getElementById('completeCount').textContent = done;
+    if (done === 5) {
+        document.getElementById('btnComplete').disabled = false;
+    }
+}
+
+function markComplete() {
+    document.getElementById('btnComplete').disabled  = true;
+    document.getElementById('completeMsg').style.display = 'block';
+
+    if (typeof ModuleProgress !== 'undefined') {
+        ModuleProgress.complete('script', 'script-anonymity-tor', {
+            returnUrl: '../index.html'
+        });
+    } else {
+        setTimeout(() => { window.location.href = '../index.html'; }, 1800);
+    }
+}
+
+/* ----------------------------------------------------------------
+   ENTER KEY SUPPORT on all terminal inputs
+   ---------------------------------------------------------------- */
+[2, 3, 4, 5].forEach(n => {
+    const inp = document.getElementById('input' + n);
+    if (inp) {
+        inp.addEventListener('keydown', e => {
+            if (e.key === 'Enter') submitCmd(n);
+        });
+    }
+});
+
+/* ----------------------------------------------------------------
+   INIT — set active pill states
+   ---------------------------------------------------------------- */
+(function initPills() {
+    for (let i = 1; i <= 5; i++) {
+        if (!state.completed[i - 1]) {
+            const pill = document.getElementById('pill-' + i);
+            if (pill) pill.classList.add('active');
+        }
+    }
+    updateOverallProgress();
+})();
+</script>
+
+<script src="../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>

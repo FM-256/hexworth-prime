@@ -1,0 +1,1876 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GPG Encryption Lab | Linux Administration</title>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <style>
+        /* ── Reset & custom properties ── */
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --script-green:     #22c55e;
+            --script-accent:    #4ade80;
+            --script-glow:      rgba(34, 197, 94, 0.35);
+            --script-dim:       #15803d;
+            --script-dark:      #0a1a0f;
+            --bg-card:          rgba(10, 20, 10, 0.85);
+            --text-primary:     #e8f5e8;
+            --text-secondary:   #7aaa7a;
+            --border:           rgba(34, 197, 94, 0.2);
+            --border-mid:       rgba(34, 197, 94, 0.35);
+            --glow-soft:        rgba(34, 197, 94, 0.08);
+            --glow-mid:         rgba(34, 197, 94, 0.18);
+            --terminal-bg:      #060d06;
+            --terminal-text:    #4ade80;
+            --terminal-prompt:  #86efac;
+            --terminal-dim:     #2a4a2a;
+            --warn-color:       #fbbf24;
+            --error-color:      #f87171;
+            --ok-color:         #4ade80;
+            --radius-card:      14px;
+            --radius-sm:        8px;
+            --transition-fast:  0.18s ease;
+            --transition-mid:   0.28s ease;
+        }
+
+        /* ── Base ── */
+        body {
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background: linear-gradient(135deg, #0a0a12, #0a1a0f, #0a250a);
+            color: var(--text-primary);
+            line-height: 1.65;
+            min-height: 100vh;
+        }
+
+        /* ── Sticky header ── */
+        .site-header {
+            background: rgba(6, 10, 6, 0.94);
+            border-bottom: 1px solid var(--border);
+            padding: 0.85rem 2rem;
+            position: sticky;
+            top: 0;
+            z-index: 200;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            backdrop-filter: blur(14px);
+        }
+        .back-link {
+            color: var(--script-green);
+            text-decoration: none;
+            font-size: 0.875rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+            transition: opacity var(--transition-fast);
+        }
+        .back-link:hover { opacity: 0.7; }
+        .header-badge {
+            background: linear-gradient(135deg, var(--script-green), var(--script-accent));
+            color: #000;
+            padding: 0.3rem 0.9rem;
+            border-radius: 20px;
+            font-size: 0.72rem;
+            font-weight: 800;
+            letter-spacing: 0.07em;
+        }
+
+        /* ── Layout ── */
+        .container {
+            max-width: 1060px;
+            margin: 0 auto;
+            padding: 2.5rem 1.75rem 5rem;
+        }
+
+        /* ── Hero ── */
+        .lab-hero {
+            text-align: center;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            padding: 2.75rem 2rem 2.25rem;
+            margin-bottom: 2.25rem;
+            position: relative;
+            overflow: hidden;
+        }
+        .lab-hero::before {
+            content: '';
+            position: absolute;
+            top: -80px; left: 50%;
+            transform: translateX(-50%);
+            width: 380px; height: 380px;
+            background: radial-gradient(circle, var(--glow-mid) 0%, transparent 68%);
+            pointer-events: none;
+        }
+        .lab-tag {
+            display: inline-block;
+            background: rgba(34, 197, 94, 0.1);
+            color: var(--script-green);
+            border: 1px solid var(--border);
+            padding: 0.28rem 0.9rem;
+            border-radius: 20px;
+            font-size: 0.72rem;
+            font-weight: 800;
+            letter-spacing: 0.1em;
+            margin-bottom: 0.9rem;
+        }
+        .lab-hero h1 {
+            font-size: 2rem;
+            font-weight: 800;
+            margin-bottom: 0.5rem;
+            line-height: 1.2;
+        }
+        .lab-hero h1 span { color: var(--script-green); }
+        .lab-hero p {
+            color: var(--text-secondary);
+            font-size: 0.93rem;
+            max-width: 620px;
+            margin: 0 auto 1.25rem;
+        }
+
+        /* ── Progress dots ── */
+        .progress-row {
+            display: flex;
+            justify-content: center;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+            margin-top: 1rem;
+        }
+        .prog-dot {
+            width: 36px; height: 36px;
+            border-radius: 50%;
+            border: 2px solid var(--border);
+            background: transparent;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 0.72rem;
+            font-weight: 700;
+            color: var(--text-secondary);
+            transition: all var(--transition-mid);
+            cursor: pointer;
+        }
+        .prog-dot.active {
+            border-color: var(--script-green);
+            color: var(--script-green);
+            box-shadow: 0 0 12px var(--glow-mid);
+        }
+        .prog-dot.done {
+            background: var(--script-green);
+            border-color: var(--script-green);
+            color: #000;
+            font-weight: 800;
+        }
+
+        /* ── Section heading ── */
+        .section-heading {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: var(--script-green);
+            margin: 2.5rem 0 1.25rem;
+        }
+        .section-heading::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: var(--border);
+        }
+
+        /* ── Exercise card ── */
+        .exercise {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-card);
+            margin-bottom: 2rem;
+            overflow: hidden;
+            transition: border-color var(--transition-mid);
+        }
+        .exercise.completed { border-color: var(--script-dim); }
+
+        .exercise-header {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 1.25rem 1.5rem;
+            background: rgba(10, 25, 10, 0.5);
+            border-bottom: 1px solid var(--border);
+            cursor: pointer;
+            user-select: none;
+        }
+        .exercise-header:hover { background: rgba(10, 30, 10, 0.7); }
+
+        .ex-num {
+            width: 36px; height: 36px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--script-green), var(--script-accent));
+            color: #000;
+            font-weight: 800;
+            font-size: 0.85rem;
+            display: flex; align-items: center; justify-content: center;
+            flex-shrink: 0;
+        }
+        .exercise.completed .ex-num {
+            background: linear-gradient(135deg, var(--script-dim), var(--script-green));
+        }
+
+        .ex-info { flex: 1; }
+        .ex-title {
+            font-size: 1rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            line-height: 1.3;
+        }
+        .ex-subtitle {
+            font-size: 0.78rem;
+            color: var(--text-secondary);
+            margin-top: 0.15rem;
+        }
+
+        .ex-badge {
+            font-size: 0.68rem;
+            font-weight: 800;
+            padding: 0.2rem 0.65rem;
+            border-radius: 6px;
+            letter-spacing: 0.05em;
+            flex-shrink: 0;
+        }
+        .beginner      { background: rgba(34,197,94,0.12);   color: var(--script-accent); }
+        .intermediate  { background: rgba(251,191,36,0.12);  color: var(--warn-color); }
+        .advanced      { background: rgba(248,113,113,0.12); color: var(--error-color); }
+
+        .ex-status {
+            font-size: 0.8rem;
+            color: var(--ok-color);
+            font-weight: 700;
+            opacity: 0;
+            transition: opacity var(--transition-fast);
+        }
+        .exercise.completed .ex-status { opacity: 1; }
+
+        .ex-toggle {
+            color: var(--text-secondary);
+            font-size: 1.1rem;
+            transition: transform var(--transition-fast);
+        }
+        .exercise.open .ex-toggle { transform: rotate(180deg); }
+
+        /* Collapsible body */
+        .exercise-body {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.45s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .exercise.open .exercise-body { max-height: 5000px; }
+        .exercise-content { padding: 1.5rem; }
+
+        /* ── Scenario block ── */
+        .scenario {
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            padding: 1rem 1.25rem;
+            margin-bottom: 1.25rem;
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+        }
+        .scenario strong { color: var(--script-green); }
+
+        /* ── Insight box ── */
+        .insight {
+            background: rgba(34, 197, 94, 0.06);
+            border-left: 3px solid var(--script-green);
+            border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+            padding: 0.9rem 1.1rem;
+            margin: 1rem 0;
+        }
+        .insight.warn {
+            background: rgba(251, 191, 36, 0.06);
+            border-left-color: var(--warn-color);
+        }
+        .insight.danger {
+            background: rgba(248, 113, 113, 0.06);
+            border-left-color: var(--error-color);
+        }
+        .insight-label {
+            font-size: 0.65rem;
+            font-weight: 800;
+            letter-spacing: 0.1em;
+            color: var(--script-green);
+            margin-bottom: 0.35rem;
+        }
+        .insight.warn  .insight-label { color: var(--warn-color); }
+        .insight.danger .insight-label { color: var(--error-color); }
+        .insight p {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            margin: 0;
+            line-height: 1.55;
+        }
+        .insight p code {
+            background: rgba(34, 197, 94, 0.12);
+            color: var(--script-accent);
+            padding: 0.1em 0.4em;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.88em;
+        }
+
+        /* ── Inline code ── */
+        code {
+            background: rgba(34, 197, 94, 0.1);
+            color: var(--script-accent);
+            padding: 0.1em 0.4em;
+            border-radius: 4px;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 0.88em;
+        }
+
+        /* ── Concept cards (two-column) ── */
+        .two-col {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+            margin: 1rem 0;
+        }
+        @media (max-width: 640px) { .two-col { grid-template-columns: 1fr; } }
+
+        .concept-card {
+            background: rgba(34, 197, 94, 0.05);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            padding: 0.9rem 1rem;
+        }
+        .concept-card h4 {
+            color: var(--script-accent);
+            font-size: 0.85rem;
+            margin-bottom: 0.4rem;
+        }
+        .concept-card p {
+            color: var(--text-secondary);
+            font-size: 0.82rem;
+            line-height: 1.5;
+        }
+
+        /* ── Diagram block ── */
+        .diagram {
+            background: #050d05;
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            padding: 1.25rem;
+            margin: 1rem 0;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 0.8rem;
+            color: var(--script-accent);
+            line-height: 1.7;
+            overflow-x: auto;
+        }
+        .diagram .dnode  { color: var(--script-green); font-weight: 700; }
+        .diagram .darrow { color: var(--text-secondary); }
+        .diagram .dlabel { color: var(--warn-color); font-style: italic; }
+
+        /* ── Terminal simulator ── */
+        .terminal-wrap {
+            background: var(--terminal-bg);
+            border: 1px solid rgba(34, 197, 94, 0.25);
+            border-radius: var(--radius-sm);
+            overflow: hidden;
+            margin: 1.25rem 0;
+            box-shadow: 0 0 24px rgba(34, 197, 94, 0.05);
+        }
+        .terminal-titlebar {
+            background: rgba(34, 197, 94, 0.07);
+            border-bottom: 1px solid rgba(34, 197, 94, 0.12);
+            padding: 0.45rem 0.9rem;
+            display: flex;
+            align-items: center;
+            gap: 0.55rem;
+        }
+        .tb-dot {
+            width: 11px; height: 11px;
+            border-radius: 50%;
+        }
+        .tb-dot.red    { background: #f87171; }
+        .tb-dot.yellow { background: #fbbf24; }
+        .tb-dot.green  { background: var(--script-green); }
+        .terminal-titlebar span {
+            font-size: 0.73rem;
+            color: var(--text-secondary);
+            margin-left: auto;
+            font-family: 'Courier New', monospace;
+        }
+        .terminal-output {
+            padding: 1rem 1.1rem 0.25rem;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 0.83rem;
+            color: var(--terminal-text);
+            min-height: 120px;
+            max-height: 360px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            word-break: break-all;
+            line-height: 1.75;
+        }
+        .terminal-output .t-prompt { color: var(--terminal-prompt); font-weight: 700; }
+        .terminal-output .t-error  { color: var(--error-color); }
+        .terminal-output .t-ok     { color: var(--ok-color); }
+        .terminal-output .t-info   { color: #93c5fd; }
+        .terminal-output .t-warn   { color: var(--warn-color); }
+        .terminal-output .t-dim    { color: var(--terminal-dim); }
+        .terminal-output .t-key    { color: #fde68a; }
+        .terminal-output .t-sig    { color: #c4b5fd; }
+
+        .terminal-input-row {
+            display: flex;
+            align-items: center;
+            padding: 0.5rem 1.1rem 0.75rem;
+            gap: 0.5rem;
+            border-top: 1px solid rgba(34, 197, 94, 0.08);
+        }
+        .t-input-prompt {
+            font-family: 'Courier New', monospace;
+            font-size: 0.83rem;
+            color: var(--terminal-prompt);
+            white-space: nowrap;
+            flex-shrink: 0;
+            font-weight: 700;
+        }
+        .t-input {
+            flex: 1;
+            background: transparent;
+            border: none;
+            outline: none;
+            color: var(--terminal-text);
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 0.83rem;
+            caret-color: var(--script-green);
+        }
+        .t-input::placeholder { color: var(--terminal-dim); }
+        .t-run-btn {
+            background: rgba(34, 197, 94, 0.12);
+            border: 1px solid var(--border);
+            color: var(--script-green);
+            padding: 0.3rem 0.9rem;
+            border-radius: 6px;
+            font-size: 0.78rem;
+            font-weight: 700;
+            cursor: pointer;
+            font-family: 'Courier New', monospace;
+            transition: all var(--transition-fast);
+            white-space: nowrap;
+        }
+        .t-run-btn:hover { background: rgba(34, 197, 94, 0.22); border-color: var(--script-green); }
+
+        /* ── Hint box ── */
+        .hint-box {
+            background: rgba(251, 191, 36, 0.07);
+            border: 1px solid rgba(251, 191, 36, 0.22);
+            border-radius: var(--radius-sm);
+            padding: 0.75rem 1rem;
+            margin-top: 0.75rem;
+            font-size: 0.84rem;
+            color: var(--warn-color);
+            display: none;
+            line-height: 1.55;
+        }
+        .hint-box.show { display: block; }
+        .hint-box code {
+            background: rgba(251, 191, 36, 0.12);
+            color: #fde68a;
+        }
+
+        /* ── Task step list ── */
+        .task-steps {
+            list-style: none;
+            margin: 0.75rem 0 1rem;
+        }
+        .task-steps li {
+            display: flex;
+            gap: 0.75rem;
+            padding: 0.5rem 0;
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            border-bottom: 1px solid rgba(34, 197, 94, 0.05);
+            align-items: flex-start;
+        }
+        .task-steps li:last-child { border-bottom: none; }
+        .task-step-num {
+            font-family: 'Courier New', monospace;
+            font-weight: 700;
+            color: var(--script-green);
+            flex-shrink: 0;
+            min-width: 1.75rem;
+            padding-top: 0.05rem;
+        }
+
+        /* ── Mark complete button ── */
+        .btn-step-done {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+            background: rgba(34, 197, 94, 0.1);
+            border: 1px solid var(--border);
+            color: var(--script-green);
+            padding: 0.5rem 1.2rem;
+            border-radius: 8px;
+            font-size: 0.83rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all var(--transition-fast);
+            margin-top: 0.85rem;
+        }
+        .btn-step-done:hover { background: rgba(34, 197, 94, 0.2); border-color: var(--script-green); }
+        .btn-step-done:disabled { opacity: 0.45; cursor: default; }
+
+        /* ── Completion panel ── */
+        .completion-panel {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-card);
+            padding: 2.5rem;
+            text-align: center;
+            margin-top: 2.5rem;
+        }
+        .completion-panel h3 {
+            color: var(--script-green);
+            font-size: 1.3rem;
+            margin-bottom: 0.6rem;
+        }
+        .completion-panel p {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            margin-bottom: 1.5rem;
+            max-width: 520px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        .score-display {
+            display: inline-flex;
+            gap: 0.35rem;
+            align-items: baseline;
+            margin-bottom: 1.25rem;
+        }
+        .score-num   { font-size: 2.5rem; font-weight: 800; color: var(--script-green); line-height: 1; }
+        .score-denom { font-size: 1.1rem; color: var(--text-secondary); }
+
+        .btn-complete {
+            display: inline-block;
+            background: linear-gradient(135deg, var(--script-green), var(--script-accent));
+            color: #000;
+            font-weight: 800;
+            padding: 0.85rem 2.5rem;
+            border-radius: 10px;
+            border: none;
+            cursor: pointer;
+            font-size: 0.95rem;
+            transition: opacity var(--transition-fast), transform var(--transition-fast),
+                        box-shadow var(--transition-fast);
+        }
+        .btn-complete:hover:not(:disabled) {
+            opacity: 0.9;
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px var(--script-glow);
+        }
+        .btn-complete:disabled { opacity: 0.4; cursor: default; transform: none; }
+        .complete-msg {
+            margin-top: 1rem;
+            color: var(--ok-color);
+            font-weight: 600;
+            font-size: 0.9rem;
+            display: none;
+        }
+
+        /* ── Blink cursor animation ── */
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50%       { opacity: 0; }
+        }
+        .blink { animation: blink 1s step-start infinite; }
+
+        /* ── Scrollbar styling for terminals ── */
+        .terminal-output::-webkit-scrollbar { width: 4px; }
+        .terminal-output::-webkit-scrollbar-track { background: transparent; }
+        .terminal-output::-webkit-scrollbar-thumb {
+            background: rgba(34, 197, 94, 0.2);
+            border-radius: 4px;
+        }
+
+        /* ── Responsive ── */
+        @media (max-width: 640px) {
+            .container   { padding: 1.5rem 1rem 4rem; }
+            .lab-hero h1 { font-size: 1.5rem; }
+            .site-header { padding: 0.75rem 1rem; }
+            .terminal-output { font-size: 0.78rem; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- ════════════════════════════ HEADER ════════════════════════════ -->
+<header class="site-header">
+    <a href="../index.html" class="back-link">&larr; Back to Linux Admin</a>
+    <span class="header-badge">SCRIPT HOUSE &mdash; LINUX ADMIN</span>
+</header>
+
+<!-- ════════════════════════════ MAIN ════════════════════════════ -->
+<div class="container">
+
+    <!-- Hero -->
+    <div class="lab-hero">
+        <div class="lab-tag">GPG ENCRYPTION &mdash; INTERACTIVE LAB</div>
+        <h1>GNU Privacy Guard <span>(GPG)</span></h1>
+        <p>Generate key pairs, encrypt and decrypt files, import trusted keys, and digitally
+           sign documents &mdash; all through a simulated terminal environment.</p>
+        <div class="progress-row" id="progressRow"></div>
+    </div>
+
+    <div class="section-heading">Lab Exercises</div>
+
+    <!-- ════════════════════════════════════════════════════════════
+         EXERCISE 1 — GENERATE GPG KEY PAIR
+    ════════════════════════════════════════════════════════════════ -->
+    <div class="exercise" id="ex1">
+        <div class="exercise-header" onclick="toggleExercise('ex1')">
+            <div class="ex-num">1</div>
+            <div class="ex-info">
+                <div class="ex-title">Generate a GPG Key Pair</div>
+                <div class="ex-subtitle">RSA 4096-bit key generation with uid and passphrase</div>
+            </div>
+            <span class="ex-badge beginner">BEGINNER</span>
+            <span class="ex-status">&#10003; Done</span>
+            <span class="ex-toggle">&#8964;</span>
+        </div>
+        <div class="exercise-body">
+            <div class="exercise-content">
+
+                <div class="scenario">
+                    <strong>Scenario:</strong> You are setting up a secure communications channel
+                    with your professor. Before you can encrypt anything, you need a personal GPG
+                    key pair &mdash; a public key you share freely and a private key you guard
+                    with your passphrase.
+                </div>
+
+                <div class="two-col">
+                    <div class="concept-card">
+                        <h4>Public Key</h4>
+                        <p>Share with anyone who needs to send you encrypted messages or verify your signatures. Safe to publish on keyservers.</p>
+                    </div>
+                    <div class="concept-card">
+                        <h4>Private Key</h4>
+                        <p>Never shared. Protected by a passphrase. Used to decrypt messages encrypted with your public key and to sign documents.</p>
+                    </div>
+                </div>
+
+                <p style="font-size:0.9rem;color:var(--text-secondary);margin-bottom:0.5rem;">
+                    Run the key generation command. Use <code>gpg --full-generate-key</code>
+                    for the interactive wizard, or the shorthand <code>gpg --gen-key</code>.
+                    The simulator will walk you through the full process.
+                </p>
+
+                <ul class="task-steps">
+                    <li><span class="task-step-num">1.</span>Initiate key generation</li>
+                    <li><span class="task-step-num">2.</span>Confirm the key details are generated</li>
+                </ul>
+
+                <div class="terminal-wrap">
+                    <div class="terminal-titlebar">
+                        <div class="tb-dot red"></div>
+                        <div class="tb-dot yellow"></div>
+                        <div class="tb-dot green"></div>
+                        <span>gpg key generation</span>
+                    </div>
+                    <div class="terminal-output" id="ex1-output"><span class="t-dim"># GPG uses asymmetric cryptography (RSA, EdDSA, etc.)
+# Your key pair is stored in ~/.gnupg/
+# Passphrase protects your private key at rest</span>
+<span class="t-prompt">student@hexworth:~$</span> <span class="blink">_</span>
+</div>
+                    <div class="terminal-input-row">
+                        <span class="t-input-prompt">student@hexworth:~$</span>
+                        <input class="t-input" id="ex1-input" type="text"
+                               placeholder="gpg --full-generate-key"
+                               autocomplete="off" autocorrect="off" spellcheck="false"
+                               onkeydown="if(event.key==='Enter') ex1Run()">
+                        <button class="t-run-btn" onclick="ex1Run()">&#9654; Run</button>
+                    </div>
+                </div>
+
+                <div class="hint-box" id="ex1-hint">
+                    Hint: type <code>gpg --full-generate-key</code> or <code>gpg --gen-key</code>
+                    to start the key generation wizard. Either form is accepted.
+                </div>
+
+                <div class="insight">
+                    <div class="insight-label">KEY PARAMETERS EXPLAINED</div>
+                    <p>
+                        <strong>Key type RSA:</strong> The most widely supported algorithm &mdash;
+                        safe choice for interoperability.<br>
+                        <strong>Key size 4096:</strong> Double the minimum. Computationally expensive
+                        to brute-force &mdash; the NSA considers 2048 adequate through 2030; 4096
+                        gives you a generous margin.<br>
+                        <strong>Expiration:</strong> Setting an expiry date forces you to rotate
+                        keys periodically. A key without an expiry that leaks is permanently
+                        compromised.
+                    </p>
+                </div>
+
+                <div class="insight warn">
+                    <div class="insight-label">PASSPHRASE SECURITY</div>
+                    <p>Your passphrase is the last line of defence if your private key file is
+                    stolen. Use a minimum of 20 characters &mdash; a short random sentence works
+                    well. GPG uses a key-derivation function (KDF) with the passphrase, so
+                    brute-force attacks are slow &mdash; but a weak passphrase still falls quickly.</p>
+                </div>
+
+                <button class="btn-step-done" id="ex1-btn" onclick="markDone('ex1', 0)">
+                    Mark Exercise 1 Complete
+                </button>
+
+            </div>
+        </div>
+    </div>
+
+    <!-- ════════════════════════════════════════════════════════════
+         EXERCISE 2 — LIST & EXPORT KEYS
+    ════════════════════════════════════════════════════════════════ -->
+    <div class="exercise" id="ex2">
+        <div class="exercise-header" onclick="toggleExercise('ex2')">
+            <div class="ex-num">2</div>
+            <div class="ex-info">
+                <div class="ex-title">List &amp; Export Your Keys</div>
+                <div class="ex-subtitle">Inspect the keyring and produce an ASCII-armored public key file</div>
+            </div>
+            <span class="ex-badge beginner">BEGINNER</span>
+            <span class="ex-status">&#10003; Done</span>
+            <span class="ex-toggle">&#8964;</span>
+        </div>
+        <div class="exercise-body">
+            <div class="exercise-content">
+
+                <div class="scenario">
+                    <strong>Scenario:</strong> Your key pair has been generated. Now you need
+                    to inspect what is stored in your keyring and export your public key so
+                    you can share it with the professor.
+                </div>
+
+                <p style="font-size:0.9rem;color:var(--text-secondary);margin-bottom:0.5rem;">
+                    Try both commands. List first, then export:
+                </p>
+                <ul class="task-steps">
+                    <li><span class="task-step-num">1.</span>Run <code>gpg --list-keys</code> to see all keys on your public keyring</li>
+                    <li><span class="task-step-num">2.</span>Run <code>gpg --export -a "student@hexworth"</code> to produce the ASCII block</li>
+                </ul>
+
+                <div class="terminal-wrap">
+                    <div class="terminal-titlebar">
+                        <div class="tb-dot red"></div>
+                        <div class="tb-dot yellow"></div>
+                        <div class="tb-dot green"></div>
+                        <span>gpg keyring inspection</span>
+                    </div>
+                    <div class="terminal-output" id="ex2-output"><span class="t-dim"># Your keyring lives at ~/.gnupg/pubring.kbx (GPG2)
+# --list-keys shows public keys   --list-secret-keys shows private</span>
+<span class="t-prompt">student@hexworth:~$</span> <span class="blink">_</span>
+</div>
+                    <div class="terminal-input-row">
+                        <span class="t-input-prompt">student@hexworth:~$</span>
+                        <input class="t-input" id="ex2-input" type="text"
+                               placeholder="gpg --list-keys"
+                               autocomplete="off" autocorrect="off" spellcheck="false"
+                               onkeydown="if(event.key==='Enter') ex2Run()">
+                        <button class="t-run-btn" onclick="ex2Run()">&#9654; Run</button>
+                    </div>
+                </div>
+
+                <div class="hint-box" id="ex2-hint">
+                    Step 1: <code>gpg --list-keys</code><br>
+                    Step 2: <code>gpg --export -a "student@hexworth" &gt; public.key</code><br>
+                    (The <code>-a</code> flag produces ASCII armor &mdash; readable text instead of binary.)
+                </div>
+
+                <div class="insight">
+                    <div class="insight-label">READING THE KEY LISTING</div>
+                    <p>
+                        <code>pub</code> = master public key. Flags: <code>[SC]</code>
+                        means Sign + Certify.<br>
+                        <code>uid</code> = user identity (name + email).<br>
+                        <code>sub</code> = subkey. Flag: <code>[E]</code> means Encrypt.<br>
+                        GPG uses subkeys so your master key (which never travels the network)
+                        stays safe while the encryption subkey does the day-to-day work.
+                    </p>
+                </div>
+
+                <div class="insight">
+                    <div class="insight-label">THE WEB OF TRUST</div>
+                    <p>GPG does not rely on certificate authorities. Instead, you manually
+                    verify someone's fingerprint (over a phone call, in person, or via a
+                    signed email) and then sign their key. The more respected people have
+                    signed a key, the more trustworthy it is considered. This is the
+                    <em>web of trust</em> model &mdash; decentralised and resilient, but
+                    requires active participation.</p>
+                </div>
+
+                <button class="btn-step-done" id="ex2-btn" onclick="markDone('ex2', 1)">
+                    Mark Exercise 2 Complete
+                </button>
+
+            </div>
+        </div>
+    </div>
+
+    <!-- ════════════════════════════════════════════════════════════
+         EXERCISE 3 — IMPORT A PUBLIC KEY
+    ════════════════════════════════════════════════════════════════ -->
+    <div class="exercise" id="ex3">
+        <div class="exercise-header" onclick="toggleExercise('ex3')">
+            <div class="ex-num">3</div>
+            <div class="ex-info">
+                <div class="ex-title">Import &amp; Verify a Public Key</div>
+                <div class="ex-subtitle">Add the professor's key to your keyring and check the fingerprint</div>
+            </div>
+            <span class="ex-badge intermediate">INTERMEDIATE</span>
+            <span class="ex-status">&#10003; Done</span>
+            <span class="ex-toggle">&#8964;</span>
+        </div>
+        <div class="exercise-body">
+            <div class="exercise-content">
+
+                <div class="scenario">
+                    <strong>Scenario:</strong> The professor has sent you their public key file
+                    (<code>professor.key</code>). Before you can encrypt messages for them, you
+                    must import the key and verify the fingerprint out-of-band to confirm it
+                    has not been tampered with.
+                </div>
+
+                <ul class="task-steps">
+                    <li><span class="task-step-num">1.</span>Import the key with <code>gpg --import professor.key</code></li>
+                    <li><span class="task-step-num">2.</span>Verify the fingerprint with <code>gpg --fingerprint professor@hexworth</code></li>
+                </ul>
+
+                <div class="terminal-wrap">
+                    <div class="terminal-titlebar">
+                        <div class="tb-dot red"></div>
+                        <div class="tb-dot yellow"></div>
+                        <div class="tb-dot green"></div>
+                        <span>gpg import &amp; verify</span>
+                    </div>
+                    <div class="terminal-output" id="ex3-output"><span class="t-dim"># professor.key has been placed in your working directory
+# It contains the professor's RSA-4096 public key</span>
+<span class="t-prompt">student@hexworth:~$</span> <span class="blink">_</span>
+</div>
+                    <div class="terminal-input-row">
+                        <span class="t-input-prompt">student@hexworth:~$</span>
+                        <input class="t-input" id="ex3-input" type="text"
+                               placeholder="gpg --import professor.key"
+                               autocomplete="off" autocorrect="off" spellcheck="false"
+                               onkeydown="if(event.key==='Enter') ex3Run()">
+                        <button class="t-run-btn" onclick="ex3Run()">&#9654; Run</button>
+                    </div>
+                </div>
+
+                <div class="hint-box" id="ex3-hint">
+                    Step 1: <code>gpg --import professor.key</code><br>
+                    Step 2: <code>gpg --fingerprint professor@hexworth</code><br>
+                    Verify the fingerprint over a trusted channel (phone, in person) before
+                    trusting this key for sensitive communications.
+                </div>
+
+                <div class="insight">
+                    <div class="insight-label">TRUST LEVELS</div>
+                    <p>After importing, GPG assigns <em>unknown</em> trust by default.
+                    You can set trust with <code>gpg --edit-key professor@hexworth</code>
+                    then the <code>trust</code> command. Levels: unknown &rarr; undefined
+                    &rarr; marginal &rarr; full &rarr; ultimate. You only assign
+                    <em>ultimate</em> to your own keys.</p>
+                </div>
+
+                <div class="insight warn">
+                    <div class="insight-label">KEY SUBSTITUTION ATTACKS</div>
+                    <p>A man-in-the-middle could send you a fake public key with the
+                    professor's name on it. Without fingerprint verification, you would
+                    encrypt to the attacker's key thinking it belongs to the professor.
+                    <strong>Always verify fingerprints out-of-band</strong> &mdash; via
+                    a voice call, an in-person meeting, or a separate signed channel.</p>
+                </div>
+
+                <button class="btn-step-done" id="ex3-btn" onclick="markDone('ex3', 2)">
+                    Mark Exercise 3 Complete
+                </button>
+
+            </div>
+        </div>
+    </div>
+
+    <!-- ════════════════════════════════════════════════════════════
+         EXERCISE 4 — ENCRYPT A FILE
+    ════════════════════════════════════════════════════════════════ -->
+    <div class="exercise" id="ex4">
+        <div class="exercise-header" onclick="toggleExercise('ex4')">
+            <div class="ex-num">4</div>
+            <div class="ex-info">
+                <div class="ex-title">Encrypt a File for a Recipient</div>
+                <div class="ex-subtitle">Asymmetric encryption using the recipient's public key</div>
+            </div>
+            <span class="ex-badge intermediate">INTERMEDIATE</span>
+            <span class="ex-status">&#10003; Done</span>
+            <span class="ex-toggle">&#8964;</span>
+        </div>
+        <div class="exercise-body">
+            <div class="exercise-content">
+
+                <div class="scenario">
+                    <strong>Scenario:</strong> You need to send a sensitive file
+                    (<code>secret.txt</code>) to the professor. Encrypt it with their public
+                    key so that only the professor's private key can decrypt it.
+                </div>
+
+                <div class="diagram">
+<span class="dnode">[Your file]</span>  +  <span class="dnode">[Professor's public key]</span>
+      <span class="darrow">|</span>
+      <span class="darrow">v</span>  GPG asymmetric encryption
+      <span class="darrow">|</span>
+<span class="dnode">[secret.txt.gpg]</span>  &larr;&mdash;  <span class="dlabel">only professor's private key can open this</span>
+
+Note: GPG internally generates a random session key, encrypts the
+data with AES-256, then encrypts the session key with RSA-4096.
+This hybrid approach gives you speed (AES) + asymmetric security (RSA).
+</div>
+
+                <ul class="task-steps">
+                    <li><span class="task-step-num">1.</span>Encrypt <code>secret.txt</code> for the professor using <code>--encrypt --recipient</code></li>
+                    <li><span class="task-step-num">2.</span>Observe the encrypted output file</li>
+                </ul>
+
+                <div class="terminal-wrap">
+                    <div class="terminal-titlebar">
+                        <div class="tb-dot red"></div>
+                        <div class="tb-dot yellow"></div>
+                        <div class="tb-dot green"></div>
+                        <span>gpg encryption</span>
+                    </div>
+                    <div class="terminal-output" id="ex4-output"><span class="t-dim"># File to encrypt: secret.txt
+# Recipient:        professor@hexworth  (key already imported in Ex 3)</span>
+<span class="t-prompt">student@hexworth:~$</span> <span class="blink">_</span>
+</div>
+                    <div class="terminal-input-row">
+                        <span class="t-input-prompt">student@hexworth:~$</span>
+                        <input class="t-input" id="ex4-input" type="text"
+                               placeholder="gpg --encrypt --recipient professor@hexworth secret.txt"
+                               autocomplete="off" autocorrect="off" spellcheck="false"
+                               onkeydown="if(event.key==='Enter') ex4Run()">
+                        <button class="t-run-btn" onclick="ex4Run()">&#9654; Run</button>
+                    </div>
+                </div>
+
+                <div class="hint-box" id="ex4-hint">
+                    Command: <code>gpg --encrypt --recipient professor@hexworth secret.txt</code><br>
+                    Short form: <code>gpg -e -r professor@hexworth secret.txt</code><br>
+                    Add <code>--armor</code> (<code>-a</code>) to produce a readable ASCII <code>.asc</code>
+                    file instead of binary <code>.gpg</code>.
+                </div>
+
+                <div class="insight">
+                    <div class="insight-label">HYBRID ENCRYPTION INTERNALS</div>
+                    <p>GPG does not directly encrypt your file with RSA &mdash; RSA is too slow for
+                    large data. Instead GPG generates a random 256-bit <em>session key</em>,
+                    encrypts your file with AES-256 using that session key, then encrypts the
+                    session key itself with the recipient's RSA public key. The <code>.gpg</code>
+                    file contains both the encrypted session key and the AES ciphertext. Only the
+                    private key holder can recover the session key and therefore decrypt the file.</p>
+                </div>
+
+                <button class="btn-step-done" id="ex4-btn" onclick="markDone('ex4', 3)">
+                    Mark Exercise 4 Complete
+                </button>
+
+            </div>
+        </div>
+    </div>
+
+    <!-- ════════════════════════════════════════════════════════════
+         EXERCISE 5 — DECRYPT A FILE
+    ════════════════════════════════════════════════════════════════ -->
+    <div class="exercise" id="ex5">
+        <div class="exercise-header" onclick="toggleExercise('ex5')">
+            <div class="ex-num">5</div>
+            <div class="ex-info">
+                <div class="ex-title">Decrypt a Received File</div>
+                <div class="ex-subtitle">Unlock an encrypted message using your private key and passphrase</div>
+            </div>
+            <span class="ex-badge intermediate">INTERMEDIATE</span>
+            <span class="ex-status">&#10003; Done</span>
+            <span class="ex-toggle">&#8964;</span>
+        </div>
+        <div class="exercise-body">
+            <div class="exercise-content">
+
+                <div class="scenario">
+                    <strong>Scenario:</strong> The professor has sent back an encrypted reply:
+                    <code>message.gpg</code>. It was encrypted with your public key. Only your
+                    private key &mdash; protected by your passphrase &mdash; can open it.
+                </div>
+
+                <ul class="task-steps">
+                    <li><span class="task-step-num">1.</span>Decrypt with <code>gpg --decrypt message.gpg</code></li>
+                    <li><span class="task-step-num">2.</span>Enter the passphrase when prompted</li>
+                    <li><span class="task-step-num">3.</span>Read the decrypted content</li>
+                </ul>
+
+                <div class="terminal-wrap">
+                    <div class="terminal-titlebar">
+                        <div class="tb-dot red"></div>
+                        <div class="tb-dot yellow"></div>
+                        <div class="tb-dot green"></div>
+                        <span>gpg decryption</span>
+                    </div>
+                    <div class="terminal-output" id="ex5-output"><span class="t-dim"># message.gpg is in your working directory
+# It was encrypted with your public key (student@hexworth)</span>
+<span class="t-prompt">student@hexworth:~$</span> <span class="blink">_</span>
+</div>
+                    <div class="terminal-input-row">
+                        <span class="t-input-prompt">student@hexworth:~$</span>
+                        <input class="t-input" id="ex5-input" type="text"
+                               placeholder="gpg --decrypt message.gpg"
+                               autocomplete="off" autocorrect="off" spellcheck="false"
+                               onkeydown="if(event.key==='Enter') ex5Run()">
+                        <button class="t-run-btn" onclick="ex5Run()">&#9654; Run</button>
+                    </div>
+                </div>
+
+                <div class="hint-box" id="ex5-hint">
+                    Command: <code>gpg --decrypt message.gpg</code><br>
+                    Short form: <code>gpg -d message.gpg</code><br>
+                    To save output to a file: <code>gpg --output plain.txt --decrypt message.gpg</code>
+                </div>
+
+                <div class="two-col">
+                    <div class="concept-card">
+                        <h4>Why Only You Can Decrypt</h4>
+                        <p>The file's session key was locked with your public key. Your private key
+                        &mdash; which never left your machine &mdash; is the only mathematical
+                        inverse that can unlock it. Even the professor who encrypted it cannot
+                        decrypt it without your private key.</p>
+                    </div>
+                    <div class="concept-card">
+                        <h4>The Passphrase's Role</h4>
+                        <p>Your private key is stored encrypted on disk. The passphrase decrypts
+                        it into memory at the moment of use, then clears it. An attacker with
+                        your key file but not your passphrase still cannot decrypt anything.</p>
+                    </div>
+                </div>
+
+                <div class="insight">
+                    <div class="insight-label">GPG AGENT &amp; CACHING</div>
+                    <p><code>gpg-agent</code> runs in the background and caches your passphrase for
+                    a configurable TTL (default 10 minutes). This is why you are not prompted on
+                    every single GPG operation in a session. You can configure the TTL in
+                    <code>~/.gnupg/gpg-agent.conf</code> with
+                    <code>default-cache-ttl 600</code> (seconds).</p>
+                </div>
+
+                <button class="btn-step-done" id="ex5-btn" onclick="markDone('ex5', 4)">
+                    Mark Exercise 5 Complete
+                </button>
+
+            </div>
+        </div>
+    </div>
+
+    <!-- ════════════════════════════════════════════════════════════
+         EXERCISE 6 — SIGN & VERIFY
+    ════════════════════════════════════════════════════════════════ -->
+    <div class="exercise" id="ex6">
+        <div class="exercise-header" onclick="toggleExercise('ex6')">
+            <div class="ex-num">6</div>
+            <div class="ex-info">
+                <div class="ex-title">Digital Signatures &mdash; Sign &amp; Verify</div>
+                <div class="ex-subtitle">Prove authorship with your private key; verify with the signer's public key</div>
+            </div>
+            <span class="ex-badge advanced">ADVANCED</span>
+            <span class="ex-status">&#10003; Done</span>
+            <span class="ex-toggle">&#8964;</span>
+        </div>
+        <div class="exercise-body">
+            <div class="exercise-content">
+
+                <div class="scenario">
+                    <strong>Scenario:</strong> You want to publish a security advisory
+                    (<code>advisory.txt</code>) and prove it genuinely came from you. You will
+                    sign it with your private key. Anyone with your public key can verify the
+                    signature &mdash; and detect if the document was tampered with after signing.
+                </div>
+
+                <div class="diagram">
+<span class="dnode">[advisory.txt]</span>  &rarr;  SHA-512 hash  &rarr;  RSA sign with <span class="dnode">[your private key]</span>
+                                           <span class="darrow">|</span>
+                               <span class="dnode">[advisory.txt.gpg]</span>  (signed document)
+
+Verification (by anyone with your public key):
+<span class="dnode">[advisory.txt.gpg]</span>  &rarr;  extract signature  &rarr;  decrypt hash with <span class="dnode">[your public key]</span>
+                                           <span class="darrow">|</span>
+                         compare to hash of document content
+                                           <span class="darrow">|</span>
+                  <span class="dlabel">Match = "Good signature"  /  No match = "BAD signature"</span>
+</div>
+
+                <ul class="task-steps">
+                    <li><span class="task-step-num">1.</span>Sign <code>advisory.txt</code> with <code>gpg --sign advisory.txt</code></li>
+                    <li><span class="task-step-num">2.</span>Verify the signature with <code>gpg --verify advisory.txt.gpg</code></li>
+                    <li><span class="task-step-num">3.</span>Simulate a tampered document and observe the "BAD signature" warning</li>
+                </ul>
+
+                <div class="terminal-wrap">
+                    <div class="terminal-titlebar">
+                        <div class="tb-dot red"></div>
+                        <div class="tb-dot yellow"></div>
+                        <div class="tb-dot green"></div>
+                        <span>gpg sign &amp; verify</span>
+                    </div>
+                    <div class="terminal-output" id="ex6-output"><span class="t-dim"># advisory.txt is in your working directory
+# Use --sign to create a binary signed file (.gpg)
+# Use --clearsign for a human-readable signed text block (.asc)
+# Use --detach-sign for a separate signature file (.sig)</span>
+<span class="t-prompt">student@hexworth:~$</span> <span class="blink">_</span>
+</div>
+                    <div class="terminal-input-row">
+                        <span class="t-input-prompt">student@hexworth:~$</span>
+                        <input class="t-input" id="ex6-input" type="text"
+                               placeholder="gpg --sign advisory.txt"
+                               autocomplete="off" autocorrect="off" spellcheck="false"
+                               onkeydown="if(event.key==='Enter') ex6Run()">
+                        <button class="t-run-btn" onclick="ex6Run()">&#9654; Run</button>
+                    </div>
+                </div>
+
+                <div class="hint-box" id="ex6-hint">
+                    Step 1 &mdash; sign: <code>gpg --sign advisory.txt</code><br>
+                    Step 2 &mdash; verify: <code>gpg --verify advisory.txt.gpg</code><br>
+                    Step 3 &mdash; simulate tamper: <code>simulate tamper</code> (special command)<br>
+                    Human-readable alternative: <code>gpg --clearsign advisory.txt</code>
+                </div>
+
+                <div class="insight">
+                    <div class="insight-label">NON-REPUDIATION</div>
+                    <p>A digital signature provides <em>non-repudiation</em>: once you sign a
+                    document with your private key, you cannot credibly deny having signed it.
+                    This is the legal and technical basis for code-signing, software release
+                    announcements, and email authentication (OpenPGP). If your private key is
+                    compromised and you did not revoke it, a forged signature becomes possible
+                    &mdash; which is why key revocation certificates matter.</p>
+                </div>
+
+                <div class="insight">
+                    <div class="insight-label">SIGN vs ENCRYPT vs BOTH</div>
+                    <p>
+                        <strong>Sign only:</strong> Anyone can read the document, but they can
+                        verify it came from you and was not changed.<br>
+                        <strong>Encrypt only:</strong> Only the recipient can read it, but they
+                        cannot prove who sent it.<br>
+                        <strong>Sign then encrypt:</strong> Best of both &mdash; private and
+                        authenticated. Use <code>gpg --sign --encrypt -r recipient@host file</code>.
+                    </p>
+                </div>
+
+                <div class="insight warn">
+                    <div class="insight-label">REVOCATION CERTIFICATES</div>
+                    <p>Generate a revocation certificate immediately after creating a key pair:
+                    <code>gpg --gen-revoke student@hexworth &gt; student-revoke.asc</code>.
+                    Store it offline. If your private key is ever lost or compromised, publish
+                    the revocation certificate to notify the world that your key should no longer
+                    be trusted.</p>
+                </div>
+
+                <button class="btn-step-done" id="ex6-btn" onclick="markDone('ex6', 5)">
+                    Mark Exercise 6 Complete
+                </button>
+
+            </div>
+        </div>
+    </div>
+
+    <!-- ── Completion panel ── -->
+    <div class="completion-panel" id="completionPanel">
+        <h3>Lab Complete</h3>
+        <div class="score-display">
+            <span class="score-num" id="scoreNum">0</span>
+            <span class="score-denom">/ 6 exercises</span>
+        </div>
+        <p id="completionMsg">
+            Complete all six exercises to unlock lab completion credit.
+        </p>
+        <button class="btn-complete" id="btnComplete" onclick="completeModule()" disabled>
+            Complete Lab
+        </button>
+        <div class="complete-msg" id="completeMsgFinal">
+            Lab marked complete. Your GPG fundamentals are solid.
+        </div>
+    </div>
+
+</div><!-- /container -->
+
+<!-- ════════════════════════════ JAVASCRIPT ════════════════════════ -->
+<script>
+/* ──────────────────────────────────────────────────────────────────
+   STATE
+────────────────────────────────────────────────────────────────── */
+const TOTAL = 6;
+
+/** Which exercises are done (index 0-5). */
+const done = new Array(TOTAL).fill(false);
+
+/** Number of wrong attempts per exercise terminal. */
+const wrongCounts = { ex1: 0, ex2: 0, ex3: 0, ex4: 0, ex5: 0, ex6: 0 };
+
+/* ──────────────────────────────────────────────────────────────────
+   UTILITY HELPERS
+────────────────────────────────────────────────────────────────── */
+
+/**
+ * Escape a raw string for safe insertion as HTML text content.
+ * Only escapes the three characters that matter in HTML attribute-free context.
+ * @param {string} str
+ * @returns {string}
+ */
+function escHtml(str) {
+    return str
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+}
+
+/**
+ * Append HTML to a terminal output element and auto-scroll to the bottom.
+ * @param {string} outputId - The element id of the terminal output div.
+ * @param {string} html     - Raw HTML (using t-* span classes) to append.
+ */
+function termAppend(outputId, html) {
+    const el = document.getElementById(outputId);
+    el.innerHTML += html + '\n';
+    el.scrollTop = el.scrollHeight;
+}
+
+/**
+ * Append a prompt line showing the command the user typed.
+ * @param {string} outputId
+ * @param {string} cmd - The raw command string (will be escaped).
+ */
+function termPrompt(outputId, cmd) {
+    termAppend(outputId,
+        `<span class="t-prompt">student@hexworth:~$</span> ${escHtml(cmd)}`);
+}
+
+/**
+ * Clear a text input and return its trimmed value.
+ * @param {string} inputId
+ * @returns {string}
+ */
+function consumeInput(inputId) {
+    const el = document.getElementById(inputId);
+    const val = el.value.trim();
+    el.value = '';
+    return val;
+}
+
+/**
+ * Show the hint box for an exercise if wrongCounts reaches threshold.
+ * @param {string} exId  - e.g. 'ex1'
+ * @param {number} threshold
+ */
+function maybeShowHint(exId, threshold = 2) {
+    if (wrongCounts[exId] >= threshold) {
+        document.getElementById(exId + '-hint').classList.add('show');
+    }
+}
+
+/* ──────────────────────────────────────────────────────────────────
+   EXERCISE TOGGLE (COLLAPSE / EXPAND)
+────────────────────────────────────────────────────────────────── */
+
+/**
+ * Toggle the open/collapsed state of an exercise card.
+ * @param {string} id - exercise element id
+ */
+function toggleExercise(id) {
+    document.getElementById(id).classList.toggle('open');
+}
+
+// Open the first exercise automatically on load.
+document.getElementById('ex1').classList.add('open');
+
+/* ──────────────────────────────────────────────────────────────────
+   PROGRESS DOTS
+────────────────────────────────────────────────────────────────── */
+
+/** Rebuild the hero progress dots to reflect current done[] state. */
+function buildProgressDots() {
+    const row = document.getElementById('progressRow');
+    row.innerHTML = '';
+    for (let i = 0; i < TOTAL; i++) {
+        const dot = document.createElement('div');
+        dot.className = 'prog-dot' +
+            (i === 0 ? ' active' : '') +
+            (done[i]  ? ' done'  : '');
+        dot.textContent = i + 1;
+        dot.title = 'Exercise ' + (i + 1);
+        dot.addEventListener('click', () => {
+            const exEl = document.getElementById('ex' + (i + 1));
+            exEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        });
+        row.appendChild(dot);
+    }
+}
+buildProgressDots();
+
+/* ──────────────────────────────────────────────────────────────────
+   MARK DONE
+────────────────────────────────────────────────────────────────── */
+
+/**
+ * Mark an exercise as complete, update the UI, and refresh the score.
+ * @param {string} exId  - 'ex1' .. 'ex6'
+ * @param {number} index - 0-based index into done[]
+ */
+function markDone(exId, index) {
+    if (done[index]) return;
+    done[index] = true;
+
+    const el  = document.getElementById(exId);
+    const btn = document.getElementById(exId + '-btn');
+
+    el.classList.add('completed');
+    if (btn) { btn.textContent = 'Completed!'; btn.disabled = true; }
+
+    updateScore();
+    buildProgressDots();
+}
+
+/** Update the score counter and enable the complete button when all done. */
+function updateScore() {
+    const count = done.filter(Boolean).length;
+    document.getElementById('scoreNum').textContent = count;
+    const btn = document.getElementById('btnComplete');
+    const msg = document.getElementById('completionMsg');
+
+    if (count === TOTAL) {
+        btn.disabled = false;
+        msg.textContent = 'All six exercises complete. You are ready to submit.';
+    } else {
+        msg.textContent =
+            `${count} of ${TOTAL} exercises complete. Finish all to unlock credit.`;
+    }
+}
+
+/* ──────────────────────────────────────────────────────────────────
+   EXERCISE 1 — GENERATE KEY PAIR
+────────────────────────────────────────────────────────────────── */
+
+/** Track whether the key generation output has been shown. */
+let ex1Generated = false;
+
+/** Handle terminal input for Exercise 1. */
+function ex1Run() {
+    const raw   = consumeInput('ex1-input');
+    if (!raw) return;
+    termPrompt('ex1-output', raw);
+
+    const lower = raw.toLowerCase();
+
+    // Accept: gpg --full-generate-key, gpg --gen-key, gpg -gen-key, or any variant
+    const isGenCmd = lower.includes('gpg') &&
+        (lower.includes('full-generate-key') ||
+         lower.includes('gen-key') ||
+         lower.includes('generate-key'));
+
+    if (isGenCmd) {
+        if (ex1Generated) {
+            termAppend('ex1-output',
+                `<span class="t-warn">gpg: key already present in keyring for student@hexworth</span>`);
+            return;
+        }
+        ex1Generated = true;
+
+        // Simulate the interactive key generation wizard output
+        termAppend('ex1-output',
+            `<span class="t-info">Please select what kind of key you want:</span>` +
+            `\n<span class="t-dim">   (1) RSA and RSA (default)</span>` +
+            `\n<span class="t-dim">   (2) DSA and Elgamal</span>` +
+            `\n<span class="t-dim">   (4) RSA (sign only)</span>` +
+            `\n<span class="t-info">Your selection? </span><span class="t-ok">1</span>`
+        );
+
+        setTimeout(() => {
+            termAppend('ex1-output',
+                `<span class="t-info">RSA keys may be between 1024 and 4096 bits long.</span>` +
+                `\n<span class="t-info">What keysize do you want? (3072) </span><span class="t-ok">4096</span>`
+            );
+        }, 700);
+
+        setTimeout(() => {
+            termAppend('ex1-output',
+                `<span class="t-info">Please specify how long the key should be valid.</span>` +
+                `\n<span class="t-dim">         0 = key does not expire</span>` +
+                `\n<span class="t-dim">      &lt;n&gt;  = key expires in n days</span>` +
+                `\n<span class="t-info">Key is valid for? (0) </span><span class="t-ok">1y</span>`
+            );
+        }, 1400);
+
+        setTimeout(() => {
+            termAppend('ex1-output',
+                `<span class="t-info">GnuPG needs to construct a user ID to identify your key.</span>` +
+                `\n<span class="t-info">Real name: </span><span class="t-ok">Student Hexworth</span>` +
+                `\n<span class="t-info">Email address: </span><span class="t-ok">student@hexworth</span>` +
+                `\n<span class="t-info">Comment: </span><span class="t-ok">Linux Admin Lab Key</span>`
+            );
+        }, 2100);
+
+        setTimeout(() => {
+            termAppend('ex1-output',
+                `<span class="t-info">Enter passphrase: </span>` +
+                `<span class="t-dim">[passphrase hidden]</span>` +
+                `\n<span class="t-info">Repeat passphrase: </span>` +
+                `<span class="t-dim">[passphrase hidden]</span>`
+            );
+        }, 2800);
+
+        setTimeout(() => {
+            termAppend('ex1-output',
+                `\n<span class="t-ok">We need to generate a lot of random bytes. It is a good idea to perform</span>` +
+                `\n<span class="t-ok">some other action (type on the keyboard, move the mouse) during the</span>` +
+                `\n<span class="t-ok">prime generation; this gives the random number generator a better chance</span>` +
+                `\n<span class="t-ok">to gain enough entropy.</span>`
+            );
+        }, 3500);
+
+        setTimeout(() => {
+            termAppend('ex1-output',
+                `\n<span class="t-key">gpg: key 3F8A7C2B1D9E0F45 marked as ultimately trusted</span>` +
+                `\n<span class="t-key">gpg: revocation certificate stored as</span>` +
+                `\n<span class="t-key">     '/home/student/.gnupg/openpgp-revocs.d/3F8A7C2B1D9E0F45.rev'</span>` +
+                `\n<span class="t-ok">public and secret key created and signed.</span>` +
+                `\n` +
+                `\n<span class="t-ok">pub   rsa4096 2026-02-21 [SC] [expires: 2027-02-21]</span>` +
+                `\n<span class="t-ok">      3F8A7C2B1D9E0F45ABCD1234EF567890AABBCCDD3F8A7C2B</span>` +
+                `\n<span class="t-ok">uid                      Student Hexworth &lt;student@hexworth&gt;</span>` +
+                `\n<span class="t-ok">sub   rsa4096 2026-02-21 [E] [expires: 2027-02-21]</span>`
+            );
+            document.getElementById('ex1-input').placeholder = 'gpg --list-keys';
+        }, 4400);
+
+    } else if (lower.includes('gpg') && lower.includes('list')) {
+        // Bonus: accept list-keys as a follow-up
+        termAppend('ex1-output',
+            `<span class="t-ok">/home/student/.gnupg/pubring.kbx</span>` +
+            `\n<span class="t-ok">-------------------------------</span>` +
+            `\n<span class="t-ok">pub   rsa4096 2026-02-21 [SC] [expires: 2027-02-21]</span>` +
+            `\n<span class="t-ok">      3F8A7C2B1D9E0F45ABCD1234EF567890AABBCCDD3F8A7C2B</span>` +
+            `\n<span class="t-ok">uid           [ultimate] Student Hexworth &lt;student@hexworth&gt;</span>` +
+            `\n<span class="t-ok">sub   rsa4096 2026-02-21 [E] [expires: 2027-02-21]</span>`
+        );
+    } else {
+        wrongCounts.ex1++;
+        termAppend('ex1-output',
+            `<span class="t-error">bash: '${escHtml(raw)}' — command not recognised. Try gpg --full-generate-key</span>`);
+        maybeShowHint('ex1');
+    }
+}
+
+/* ──────────────────────────────────────────────────────────────────
+   EXERCISE 2 — LIST & EXPORT KEYS
+────────────────────────────────────────────────────────────────── */
+
+/** Whether the list step has been completed in ex2. */
+let ex2Listed = false;
+
+/** Handle terminal input for Exercise 2. */
+function ex2Run() {
+    const raw   = consumeInput('ex2-input');
+    if (!raw) return;
+    termPrompt('ex2-output', raw);
+
+    const lower = raw.toLowerCase();
+
+    if (lower.includes('list-keys') || lower.includes('list-secret') ||
+        (lower.includes('gpg') && lower.includes('list'))) {
+        ex2Listed = true;
+        termAppend('ex2-output',
+            `<span class="t-ok">/home/student/.gnupg/pubring.kbx</span>` +
+            `\n<span class="t-ok">-------------------------------</span>` +
+            `\n<span class="t-ok">pub   rsa4096 2026-02-21 [SC] [expires: 2027-02-21]</span>` +
+            `\n<span class="t-ok">      3F8A7C2B1D9E0F45ABCD1234EF567890AABBCCDD3F8A7C2B</span>` +
+            `\n<span class="t-ok">uid           [ultimate] Student Hexworth &lt;student@hexworth&gt;</span>` +
+            `\n<span class="t-ok">sub   rsa4096 2026-02-21 [E] [expires: 2027-02-21]</span>` +
+            `\n<span class="t-dim">  [SC] = Sign + Certify  |  [E] = Encrypt</span>` +
+            `\n<span class="t-info">Next: export your public key so others can send you encrypted messages.</span>`
+        );
+        document.getElementById('ex2-input').placeholder = 'gpg --export -a "student@hexworth" > public.key';
+
+    } else if (lower.includes('export') || lower.includes('public.key') ||
+               (lower.includes('gpg') && lower.includes('student@hexworth'))) {
+        termAppend('ex2-output',
+            `<span class="t-ok">-----BEGIN PGP PUBLIC KEY BLOCK-----</span>` +
+            `\n<span class="t-key">mQINBGbT2FsBEADK7vZ9mQfTxpL3H8yNwCjRqA5eP1kXsO6BuVnIc4Gh2Wm9</span>` +
+            `\n<span class="t-key">FdJ7tYkLzQ8nRpCiAe3bMvUs0Xq4hW6gNj2DcKlPsT9fO5VeBx1rZyHmIaGw</span>` +
+            `\n<span class="t-key">K8dNQtJ5vRcUeXoSbpAlMfY7qzEuWi3hTk9rCnP4sLjDxBgOv2FZdm6aRyHp</span>` +
+            `\n<span class="t-key">...</span>` +
+            `\n<span class="t-ok">-----END PGP PUBLIC KEY BLOCK-----</span>` +
+            `\n<span class="t-ok">Public key exported to public.key (3.2 KB)</span>` +
+            `\n<span class="t-info">Share public.key freely — it cannot be used to decrypt your messages.</span>`
+        );
+    } else {
+        wrongCounts.ex2++;
+        termAppend('ex2-output',
+            `<span class="t-error">gpg: unknown command '${escHtml(raw)}'. Try --list-keys or --export.</span>`);
+        maybeShowHint('ex2');
+    }
+}
+
+/* ──────────────────────────────────────────────────────────────────
+   EXERCISE 3 — IMPORT A PUBLIC KEY
+────────────────────────────────────────────────────────────────── */
+
+/** Whether the professor's key has been imported in ex3. */
+let ex3Imported = false;
+
+/** Handle terminal input for Exercise 3. */
+function ex3Run() {
+    const raw   = consumeInput('ex3-input');
+    if (!raw) return;
+    termPrompt('ex3-output', raw);
+
+    const lower = raw.toLowerCase();
+
+    if (lower.includes('import') && (lower.includes('professor') || lower.includes('.key'))) {
+        ex3Imported = true;
+        termAppend('ex3-output',
+            `<span class="t-ok">gpg: key A9C4E2F17B3D8056: public key</span>` +
+            `\n<span class="t-ok">     "Professor Hexworth &lt;professor@hexworth&gt;" imported</span>` +
+            `\n<span class="t-ok">gpg: Total number processed: 1</span>` +
+            `\n<span class="t-ok">gpg:               imported: 1</span>` +
+            `\n<span class="t-info">Key imported. Now verify the fingerprint before trusting it.</span>` +
+            `\n<span class="t-info">Try: gpg --fingerprint professor@hexworth</span>`
+        );
+        document.getElementById('ex3-input').placeholder = 'gpg --fingerprint professor@hexworth';
+
+    } else if (lower.includes('fingerprint') || lower.includes('professor@hexworth')) {
+        if (!ex3Imported) {
+            termAppend('ex3-output',
+                `<span class="t-error">gpg: error reading key: No public key — import it first.</span>`);
+            return;
+        }
+        termAppend('ex3-output',
+            `<span class="t-ok">pub   rsa4096 2025-09-01 [SC] [expires: 2026-09-01]</span>` +
+            `\n<span class="t-key">      A9C4 E2F1 7B3D 8056 CAFE  DEAD BEEF 1234 5678 90AB</span>` +
+            `\n<span class="t-ok">uid           [unknown] Professor Hexworth &lt;professor@hexworth&gt;</span>` +
+            `\n<span class="t-ok">sub   rsa4096 2025-09-01 [E] [expires: 2026-09-01]</span>` +
+            `\n` +
+            `\n<span class="t-warn">IMPORTANT: Verify this fingerprint verbally or in person:</span>` +
+            `\n<span class="t-warn">A9C4 E2F1 7B3D 8056 CAFE  DEAD BEEF 1234 5678 90AB</span>` +
+            `\n<span class="t-dim">Trust level is [unknown] until you manually set it with --edit-key</span>`
+        );
+    } else if (lower.includes('gpg') && (lower.includes('list') || lower.includes('keys'))) {
+        termAppend('ex3-output',
+            `<span class="t-ok">pub   rsa4096 2026-02-21 [SC] [expires: 2027-02-21]</span>` +
+            `\n<span class="t-ok">uid           [ultimate] Student Hexworth &lt;student@hexworth&gt;</span>` +
+            (ex3Imported ? `\n\n<span class="t-ok">pub   rsa4096 2025-09-01 [SC] [expires: 2026-09-01]</span>` +
+            `\n<span class="t-ok">uid           [unknown] Professor Hexworth &lt;professor@hexworth&gt;</span>` : '')
+        );
+    } else {
+        wrongCounts.ex3++;
+        termAppend('ex3-output',
+            `<span class="t-error">gpg: '${escHtml(raw)}' — try: gpg --import professor.key</span>`);
+        maybeShowHint('ex3');
+    }
+}
+
+/* ──────────────────────────────────────────────────────────────────
+   EXERCISE 4 — ENCRYPT A FILE
+────────────────────────────────────────────────────────────────── */
+
+/** Handle terminal input for Exercise 4. */
+function ex4Run() {
+    const raw   = consumeInput('ex4-input');
+    if (!raw) return;
+    termPrompt('ex4-output', raw);
+
+    const lower = raw.toLowerCase();
+
+    // Accept: --encrypt / -e, --recipient / -r, professor, secret.txt
+    const hasEncrypt   = lower.includes('encrypt') || lower.includes(' -e ') || lower.match(/gpg\s+-e\b/);
+    const hasRecipient = lower.includes('recipient') || lower.includes(' -r ');
+    const hasProfessor = lower.includes('professor') || lower.includes('@hexworth');
+    const hasFile      = lower.includes('secret');
+
+    if (hasEncrypt && hasRecipient && hasProfessor && hasFile) {
+        termAppend('ex4-output',
+            `<span class="t-ok">gpg: checking the trustdb</span>` +
+            `\n<span class="t-ok">gpg: marginals needed: 3  completes needed: 1  trust model: pgp</span>` +
+            `\n<span class="t-warn">gpg: WARNING: This key is not certified with a trusted signature!</span>` +
+            `\n<span class="t-warn">gpg:          There is no indication that the signature belongs to the owner.</span>` +
+            `\n<span class="t-ok">Primary key fingerprint: A9C4 E2F1 7B3D 8056 CAFE  DEAD BEEF 1234 5678 90AB</span>` +
+            `\n<span class="t-info">Encrypting for: Professor Hexworth &lt;professor@hexworth&gt;</span>` +
+            `\n<span class="t-ok">Encrypted and wrote to: secret.txt.gpg (2.1 KB)</span>` +
+            `\n<span class="t-dim">Binary GPG format. Add --armor (-a) for ASCII-armored .asc output.</span>`
+        );
+        wrongCounts.ex4 = 0;
+
+    } else if (lower.includes('gpg') && hasEncrypt && !hasRecipient) {
+        termAppend('ex4-output',
+            `<span class="t-error">gpg: no recipient specified</span>` +
+            `\n<span class="t-error">gpg: encryption failed: No user ID</span>` +
+            `\n<span class="t-warn">Add --recipient professor@hexworth to specify who can decrypt.</span>`
+        );
+        wrongCounts.ex4++;
+        maybeShowHint('ex4');
+
+    } else if (lower.includes('ls') || lower.includes('cat secret')) {
+        termAppend('ex4-output',
+            `<span class="t-ok">secret.txt     (46 bytes)   — plaintext</span>` +
+            `\n<span class="t-ok">secret.txt.gpg (2.1 KB)    — encrypted with professor@hexworth RSA-4096</span>`
+        );
+    } else {
+        wrongCounts.ex4++;
+        termAppend('ex4-output',
+            `<span class="t-error">gpg: unknown command. Use: gpg --encrypt --recipient professor@hexworth secret.txt</span>`);
+        maybeShowHint('ex4');
+    }
+}
+
+/* ──────────────────────────────────────────────────────────────────
+   EXERCISE 5 — DECRYPT A FILE
+────────────────────────────────────────────────────────────────── */
+
+/** Whether the decryption has been simulated in ex5. */
+let ex5Decrypted = false;
+
+/** Handle terminal input for Exercise 5. */
+function ex5Run() {
+    const raw   = consumeInput('ex5-input');
+    if (!raw) return;
+    termPrompt('ex5-output', raw);
+
+    const lower = raw.toLowerCase();
+
+    const isDecryptCmd = lower.includes('decrypt') ||
+        (lower.includes('gpg') && lower.includes(' -d ')) ||
+        lower.match(/gpg\s+-d\b/);
+
+    const hasFile = lower.includes('message') || lower.includes('.gpg');
+
+    if (isDecryptCmd && hasFile) {
+        // Simulate passphrase prompt then reveal decrypted content
+        termAppend('ex5-output',
+            `<span class="t-info">gpg: encrypted with 4096-bit RSA key, ID 3F8A7C2B1D9E0F45, created 2026-02-21</span>` +
+            `\n<span class="t-info">      "Student Hexworth &lt;student@hexworth&gt;"</span>` +
+            `\n<span class="t-warn">Enter passphrase: </span><span class="t-dim">[passphrase hidden]</span>`
+        );
+
+        setTimeout(() => {
+            termAppend('ex5-output',
+                `\n<span class="t-ok">gpg: AES256 encrypted data</span>` +
+                `\n<span class="t-ok">gpg: Original file name: 'professor-reply.txt'</span>` +
+                `\n<span class="t-dim">────────────────────── Decrypted Message ──────────────────────</span>` +
+                `\n<span class="t-ok">Good evening, Student.</span>` +
+                `\n` +
+                `\n<span class="t-ok">Your encrypted submission for Lab 11 was received and verified.</span>` +
+                `\n<span class="t-ok">The GPG signature confirms authorship. Well done on the 4096-bit</span>` +
+                `\n<span class="t-ok">key choice &mdash; that shows good security hygiene.</span>` +
+                `\n` +
+                `\n<span class="t-ok">Regards,</span>` +
+                `\n<span class="t-ok">Professor Hexworth</span>` +
+                `\n<span class="t-dim">─────────────────────────────────────────────────────────────</span>`
+            );
+            ex5Decrypted = true;
+        }, 1200);
+        wrongCounts.ex5 = 0;
+
+    } else if (isDecryptCmd && !hasFile) {
+        termAppend('ex5-output',
+            `<span class="t-error">gpg: no filename given</span>` +
+            `\n<span class="t-error">gpg: decryption failed</span>` +
+            `\n<span class="t-warn">Specify the file: gpg --decrypt message.gpg</span>`
+        );
+        wrongCounts.ex5++;
+        maybeShowHint('ex5');
+
+    } else if (lower.includes('ls') || lower.includes('cat')) {
+        termAppend('ex5-output',
+            `<span class="t-ok">message.gpg (1.8 KB)  — binary GPG encrypted data</span>`
+        );
+    } else {
+        wrongCounts.ex5++;
+        termAppend('ex5-output',
+            `<span class="t-error">gpg: unknown command '${escHtml(raw)}'. Try: gpg --decrypt message.gpg</span>`);
+        maybeShowHint('ex5');
+    }
+}
+
+/* ──────────────────────────────────────────────────────────────────
+   EXERCISE 6 — SIGN & VERIFY
+────────────────────────────────────────────────────────────────── */
+
+/** Phase tracker: 0=idle, 1=signed, 2=verified, 3=tamper simulated */
+let ex6Phase = 0;
+
+/** Handle terminal input for Exercise 6. */
+function ex6Run() {
+    const raw   = consumeInput('ex6-input');
+    if (!raw) return;
+    termPrompt('ex6-output', raw);
+
+    const lower = raw.toLowerCase();
+
+    // ── SIGNING COMMANDS ──────────────────────────────────────────
+    const isSignCmd =
+        (lower.includes('gpg') && lower.includes('sign') && !lower.includes('verify')) ||
+        (lower.includes('gpg') && lower.includes('clearsign')) ||
+        (lower.includes('gpg') && lower.includes('detach-sign'));
+
+    // ── VERIFY COMMANDS ───────────────────────────────────────────
+    const isVerifyCmd = lower.includes('gpg') && lower.includes('verify');
+
+    // ── SIMULATE TAMPER ───────────────────────────────────────────
+    const isTamper = lower.includes('simulate tamper') || lower === 'simulate';
+
+    if (isSignCmd && lower.includes('advisory')) {
+        // Sign the advisory
+        ex6Phase = Math.max(ex6Phase, 1);
+        termAppend('ex6-output',
+            `<span class="t-warn">Enter passphrase: </span><span class="t-dim">[passphrase hidden]</span>` +
+            `\n<span class="t-ok">gpg: using "Student Hexworth &lt;student@hexworth&gt;" as default secret key to sign</span>`
+        );
+
+        if (lower.includes('clearsign')) {
+            // Show the clearsign block (human-readable)
+            setTimeout(() => {
+                termAppend('ex6-output',
+                    `\n<span class="t-dim">──────────── advisory.txt.asc ────────────</span>` +
+                    `\n<span class="t-sig">-----BEGIN PGP SIGNED MESSAGE-----</span>` +
+                    `\n<span class="t-sig">Hash: SHA512</span>` +
+                    `\n` +
+                    `\n<span class="t-ok">SECURITY ADVISORY — Hexworth Lab 2026-02-21</span>` +
+                    `\n<span class="t-ok">CVE-2026-XXXX: Remote code execution in simulated service.</span>` +
+                    `\n<span class="t-ok">Patch available. Update immediately.</span>` +
+                    `\n<span class="t-sig">-----BEGIN PGP SIGNATURE-----</span>` +
+                    `\n<span class="t-sig">iQIzBAABCgAdFiEEP4p8Kx2eD0Wr0x...</span>` +
+                    `\n<span class="t-sig">-----END PGP SIGNATURE-----</span>` +
+                    `\n<span class="t-dim">──────────────────────────────────────────</span>` +
+                    `\n<span class="t-info">Signed. Try: gpg --verify advisory.txt.asc</span>`
+                );
+            }, 800);
+        } else {
+            setTimeout(() => {
+                termAppend('ex6-output',
+                    `<span class="t-ok">File 'advisory.txt.gpg' created (signed binary format)</span>` +
+                    `\n<span class="t-info">Next: verify the signature with gpg --verify advisory.txt.gpg</span>`
+                );
+            }, 800);
+        }
+        wrongCounts.ex6 = 0;
+
+    } else if (isVerifyCmd &&
+               (lower.includes('advisory') || lower.includes('.gpg') || lower.includes('.asc'))) {
+
+        if (ex6Phase < 1) {
+            termAppend('ex6-output',
+                `<span class="t-error">gpg: no valid OpenPGP data found — sign the file first.</span>`);
+            return;
+        }
+
+        if (ex6Phase >= 3) {
+            // Tampered document verify — BAD signature
+            termAppend('ex6-output',
+                `\n<span class="t-error">gpg: Signature made Sat 21 Feb 2026 03:14:01 UTC</span>` +
+                `\n<span class="t-error">gpg:                using RSA key 3F8A7C2B1D9E0F45ABCD1234EF567890AABBCCDD3F8A7C2B</span>` +
+                `\n<span class="t-error">gpg: BAD signature from "Student Hexworth &lt;student@hexworth&gt;" [ultimate]</span>` +
+                `\n<span class="t-warn">The document was modified after signing. Signature is INVALID.</span>`
+            );
+        } else {
+            // Good signature verify
+            ex6Phase = Math.max(ex6Phase, 2);
+            termAppend('ex6-output',
+                `\n<span class="t-ok">gpg: Signature made Sat 21 Feb 2026 03:14:01 UTC</span>` +
+                `\n<span class="t-ok">gpg:                using RSA key 3F8A7C2B1D9E0F45ABCD1234EF567890AABBCCDD3F8A7C2B</span>` +
+                `\n<span class="t-ok">gpg: Good signature from "Student Hexworth &lt;student@hexworth&gt;" [ultimate]</span>` +
+                `\n<span class="t-dim">Document is authentic and unmodified since signing.</span>` +
+                `\n<span class="t-info">Now try: simulate tamper (then verify again to see a BAD signature)</span>`
+            );
+        }
+        wrongCounts.ex6 = 0;
+
+    } else if (isTamper) {
+        if (ex6Phase < 1) {
+            termAppend('ex6-output',
+                `<span class="t-error">No signed file to tamper with. Sign advisory.txt first.</span>`);
+            return;
+        }
+        ex6Phase = Math.max(ex6Phase, 3);
+        termAppend('ex6-output',
+            `<span class="t-warn">[ SIMULATION ] Modifying advisory.txt.gpg — appending a rogue line...</span>`
+        );
+        setTimeout(() => {
+            termAppend('ex6-output',
+                `<span class="t-error">echo "Patch is optional, not critical." >> advisory.txt.gpg</span>` +
+                `\n<span class="t-warn">Document content has been altered after signing.</span>` +
+                `\n<span class="t-info">Now run: gpg --verify advisory.txt.gpg</span>`
+            );
+        }, 700);
+
+    } else if (lower.includes('gen-revoke') || lower.includes('gen-revocation')) {
+        termAppend('ex6-output',
+            `<span class="t-ok">sec  rsa4096/3F8A7C2B1D9E0F45 2026-02-21 Student Hexworth &lt;student@hexworth&gt;</span>` +
+            `\n<span class="t-ok">Create a revocation certificate for this key? (y/N) y</span>` +
+            `\n<span class="t-warn">Enter passphrase: </span><span class="t-dim">[passphrase hidden]</span>` +
+            `\n<span class="t-ok">Revocation certificate created.</span>` +
+            `\n<span class="t-ok">Please move it to a medium which you can hide away; if Mallory gets</span>` +
+            `\n<span class="t-ok">access to this certificate he can use it to make your key unusable.</span>` +
+            `\n<span class="t-ok">-----BEGIN PGP PUBLIC KEY BLOCK-----</span>` +
+            `\n<span class="t-key">Comment: This is a revocation certificate</span>` +
+            `\n<span class="t-key">iQI2BCABCgAdFiEEP4p8Kx2eD0Wr...</span>` +
+            `\n<span class="t-ok">-----END PGP PUBLIC KEY BLOCK-----</span>`
+        );
+    } else {
+        wrongCounts.ex6++;
+        termAppend('ex6-output',
+            `<span class="t-error">gpg: '${escHtml(raw)}' — try: gpg --sign advisory.txt</span>`);
+        maybeShowHint('ex6');
+    }
+}
+
+/* ──────────────────────────────────────────────────────────────────
+   MODULE COMPLETION
+────────────────────────────────────────────────────────────────── */
+
+/** Fire ModuleProgress.complete and show the success state. */
+function completeModule() {
+    const btn = document.getElementById('btnComplete');
+    btn.disabled = true;
+    btn.textContent = 'Saving...';
+
+    if (typeof ModuleProgress !== 'undefined') {
+        ModuleProgress.complete('script', 'script-gpg-encryption', {
+            returnUrl: '../index.html'
+        });
+    }
+
+    setTimeout(() => {
+        document.getElementById('completeMsgFinal').style.display = 'block';
+        btn.textContent = 'Completed';
+
+        if (typeof AchievementManager !== 'undefined') {
+            AchievementManager.unlock('gpg_operator');
+        }
+    }, 600);
+}
+
+/* ── Initialise score display ── */
+updateScore();
+</script>
+
+<script src="../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>

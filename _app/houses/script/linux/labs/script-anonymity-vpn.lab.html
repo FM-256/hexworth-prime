@@ -1,0 +1,2008 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Anonymity Part 2: VPN Fundamentals | Linux Administration</title>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <style>
+        /* ── Reset & custom properties ── */
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --script-primary:   #22c55e;
+            --script-secondary: #16a34a;
+            --script-accent:    #86efac;
+            --script-dark:      #052e16;
+            --script-darker:    #022c22;
+            --bg-main:          #0a0a0f;
+            --text-primary:     #f0fdf4;
+            --text-secondary:   #86efac;
+            --text-muted:       #4a7a5a;
+            --border-dim:       rgba(34, 197, 94, 0.18);
+            --border-mid:       rgba(34, 197, 94, 0.35);
+            --glow-soft:        rgba(34, 197, 94, 0.12);
+            --glow-mid:         rgba(34, 197, 94, 0.25);
+            --card-bg:          rgba(5, 46, 22, 0.45);
+            --card-bg-alt:      rgba(2, 44, 34, 0.6);
+            --terminal-bg:      #0a0d0a;
+            --terminal-text:    #4ade80;
+            --terminal-prompt:  #86efac;
+            --terminal-dim:     #2d5a3a;
+            --warn-color:       #fbbf24;
+            --error-color:      #f87171;
+            --ok-color:         #4ade80;
+            --radius-card:      16px;
+            --radius-sm:        8px;
+            --transition-fast:  0.18s ease;
+            --transition-mid:   0.28s ease;
+        }
+
+        /* ── Base ── */
+        body {
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background: var(--bg-main);
+            background-image:
+                radial-gradient(ellipse 70% 50% at 20% 10%, rgba(22, 163, 74, 0.06) 0%, transparent 60%),
+                radial-gradient(ellipse 50% 40% at 80% 80%, rgba(5, 46, 22, 0.12) 0%, transparent 55%);
+            color: var(--text-primary);
+            line-height: 1.65;
+            min-height: 100vh;
+        }
+
+        /* ── Header ── */
+        .site-header {
+            background: rgba(10, 10, 18, 0.94);
+            border-bottom: 1px solid var(--border-dim);
+            padding: 0.85rem 2rem;
+            position: sticky;
+            top: 0;
+            z-index: 200;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            backdrop-filter: blur(14px);
+        }
+        .back-link {
+            color: var(--script-primary);
+            text-decoration: none;
+            font-size: 0.875rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+            transition: opacity var(--transition-fast);
+        }
+        .back-link:hover { opacity: 0.7; }
+        .header-badge {
+            background: linear-gradient(135deg, var(--script-primary), var(--script-accent));
+            color: #000;
+            padding: 0.3rem 0.9rem;
+            border-radius: 20px;
+            font-size: 0.72rem;
+            font-weight: 800;
+            letter-spacing: 0.07em;
+        }
+
+        /* ── Layout ── */
+        .container {
+            max-width: 1060px;
+            margin: 0 auto;
+            padding: 2.5rem 1.75rem 5rem;
+        }
+
+        /* ── Hero ── */
+        .lab-hero {
+            text-align: center;
+            background: var(--card-bg);
+            border: 1px solid var(--border-dim);
+            border-radius: 20px;
+            padding: 2.75rem 2rem 2.25rem;
+            margin-bottom: 2.25rem;
+            position: relative;
+            overflow: hidden;
+        }
+        .lab-hero::before {
+            content: '';
+            position: absolute;
+            top: -80px; left: 50%;
+            transform: translateX(-50%);
+            width: 380px; height: 380px;
+            background: radial-gradient(circle, var(--glow-mid) 0%, transparent 68%);
+            pointer-events: none;
+        }
+        .lab-tag {
+            display: inline-block;
+            background: rgba(34, 197, 94, 0.1);
+            color: var(--script-primary);
+            border: 1px solid var(--border-dim);
+            padding: 0.28rem 0.9rem;
+            border-radius: 20px;
+            font-size: 0.72rem;
+            font-weight: 800;
+            letter-spacing: 0.1em;
+            margin-bottom: 0.9rem;
+        }
+        .lab-hero h1 {
+            font-size: 2rem;
+            font-weight: 800;
+            margin-bottom: 0.5rem;
+            line-height: 1.2;
+        }
+        .lab-hero h1 span { color: var(--script-primary); }
+        .lab-hero p {
+            color: var(--text-secondary);
+            font-size: 0.93rem;
+            max-width: 620px;
+            margin: 0 auto 1.25rem;
+        }
+
+        /* Progress tracker row */
+        .progress-row {
+            display: flex;
+            justify-content: center;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+            margin-top: 1rem;
+        }
+        .prog-dot {
+            width: 32px; height: 32px;
+            border-radius: 50%;
+            border: 2px solid var(--border-dim);
+            background: transparent;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 0.72rem;
+            font-weight: 700;
+            color: var(--text-muted);
+            transition: all var(--transition-mid);
+            cursor: pointer;
+        }
+        .prog-dot.active {
+            border-color: var(--script-primary);
+            color: var(--script-primary);
+            box-shadow: 0 0 10px var(--glow-mid);
+        }
+        .prog-dot.done {
+            background: var(--script-primary);
+            border-color: var(--script-primary);
+            color: #000;
+        }
+
+        /* ── Section heading ── */
+        .section-heading {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            font-size: 1.15rem;
+            font-weight: 700;
+            color: var(--script-primary);
+            margin: 2.5rem 0 1.25rem;
+        }
+        .section-heading::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: var(--border-dim);
+        }
+
+        /* ── Exercise card ── */
+        .exercise {
+            background: var(--card-bg);
+            border: 1px solid var(--border-dim);
+            border-radius: var(--radius-card);
+            margin-bottom: 2rem;
+            overflow: hidden;
+            transition: border-color var(--transition-mid);
+        }
+        .exercise.completed { border-color: var(--script-secondary); }
+        .exercise-header {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 1.25rem 1.5rem;
+            background: rgba(5, 46, 22, 0.35);
+            border-bottom: 1px solid var(--border-dim);
+            cursor: pointer;
+            user-select: none;
+        }
+        .exercise-header:hover { background: rgba(5, 46, 22, 0.55); }
+        .ex-num {
+            width: 34px; height: 34px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--script-primary), var(--script-accent));
+            color: #000;
+            font-weight: 800;
+            font-size: 0.85rem;
+            display: flex; align-items: center; justify-content: center;
+            flex-shrink: 0;
+        }
+        .exercise.completed .ex-num { background: linear-gradient(135deg, #16a34a, #86efac); }
+        .ex-title { font-size: 1rem; font-weight: 700; flex: 1; }
+        .ex-badge {
+            font-size: 0.68rem;
+            font-weight: 800;
+            padding: 0.18rem 0.6rem;
+            border-radius: 6px;
+            letter-spacing: 0.05em;
+        }
+        .ex-badge.intermediate { background: rgba(251,191,36,0.1);  color: var(--warn-color); }
+        .ex-badge.advanced     { background: rgba(248,113,113,0.1); color: var(--error-color); }
+        .ex-badge.expert       { background: rgba(167,139,250,0.1); color: #c4b5fd; }
+        .ex-status {
+            font-size: 0.8rem;
+            color: var(--ok-color);
+            margin-left: 0.5rem;
+            opacity: 0;
+            transition: opacity var(--transition-fast);
+        }
+        .exercise.completed .ex-status { opacity: 1; }
+        .ex-toggle {
+            color: var(--text-muted);
+            font-size: 1.1rem;
+            transition: transform var(--transition-fast);
+        }
+        .exercise.open .ex-toggle { transform: rotate(180deg); }
+
+        /* Collapsible body */
+        .exercise-body {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .exercise.open .exercise-body { max-height: 6000px; }
+        .exercise-content { padding: 1.5rem; }
+
+        /* ── Scenario block ── */
+        .scenario {
+            background: rgba(0,0,0,0.3);
+            border: 1px solid var(--border-dim);
+            border-radius: var(--radius-sm);
+            padding: 1rem 1.25rem;
+            margin-bottom: 1.25rem;
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+        }
+        .scenario strong { color: var(--script-primary); }
+
+        /* ── Insight ── */
+        .insight {
+            background: rgba(34, 197, 94, 0.06);
+            border-left: 3px solid var(--script-primary);
+            border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+            padding: 0.9rem 1.1rem;
+            margin: 1rem 0;
+        }
+        .insight.warn {
+            background: rgba(251,191,36,0.06);
+            border-left-color: var(--warn-color);
+        }
+        .insight.danger {
+            background: rgba(248,113,113,0.06);
+            border-left-color: var(--error-color);
+        }
+        .insight-label {
+            font-size: 0.65rem;
+            font-weight: 800;
+            letter-spacing: 0.1em;
+            color: var(--script-primary);
+            margin-bottom: 0.3rem;
+        }
+        .insight.warn  .insight-label { color: var(--warn-color); }
+        .insight.danger .insight-label { color: var(--error-color); }
+        .insight p {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            margin: 0;
+            line-height: 1.5;
+        }
+
+        /* ── Inline code & pre blocks ── */
+        code {
+            background: rgba(34, 197, 94, 0.1);
+            color: var(--script-accent);
+            padding: 0.1em 0.4em;
+            border-radius: 4px;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 0.88em;
+        }
+        .code-block {
+            background: rgba(0,0,0,0.55);
+            border: 1px solid rgba(34,197,94,0.12);
+            border-radius: var(--radius-sm);
+            padding: 1rem 1.2rem;
+            margin: 0.75rem 0;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 0.84rem;
+            color: var(--script-accent);
+            overflow-x: auto;
+            line-height: 1.85;
+        }
+        .code-block .comment { color: var(--text-muted); font-style: italic; }
+        .code-block .key     { color: var(--warn-color); }
+        .code-block .val     { color: #93c5fd; }
+        .code-block .cmd     { color: var(--script-primary); }
+
+        /* ── Diagram / visual ── */
+        .diagram {
+            background: #050d05;
+            border: 1px solid var(--border-dim);
+            border-radius: var(--radius-sm);
+            padding: 1.25rem;
+            margin: 1rem 0;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 0.8rem;
+            color: var(--script-accent);
+            line-height: 1.7;
+            overflow-x: auto;
+        }
+        .diagram .dnode   { color: var(--script-primary); font-weight: 700; }
+        .diagram .darrow  { color: var(--text-muted); }
+        .diagram .dlabel  { color: var(--warn-color); font-style: italic; }
+        .diagram .dred    { color: var(--error-color); }
+
+        /* ── Terminal simulator ── */
+        .terminal-wrap {
+            background: var(--terminal-bg);
+            border: 1px solid rgba(34,197,94,0.25);
+            border-radius: var(--radius-sm);
+            overflow: hidden;
+            margin: 1.25rem 0;
+            box-shadow: 0 0 20px rgba(34,197,94,0.06);
+        }
+        .terminal-titlebar {
+            background: rgba(34,197,94,0.08);
+            border-bottom: 1px solid rgba(34,197,94,0.15);
+            padding: 0.45rem 0.9rem;
+            display: flex;
+            align-items: center;
+            gap: 0.55rem;
+        }
+        .tb-dot { width: 11px; height: 11px; border-radius: 50%; }
+        .tb-dot.red    { background: #f87171; }
+        .tb-dot.yellow { background: #fbbf24; }
+        .tb-dot.green  { background: var(--script-primary); }
+        .terminal-titlebar span {
+            font-size: 0.73rem;
+            color: var(--text-muted);
+            margin-left: auto;
+            font-family: 'Courier New', monospace;
+        }
+        .terminal-output {
+            padding: 1rem 1.1rem 0.25rem;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 0.83rem;
+            color: var(--terminal-text);
+            min-height: 120px;
+            max-height: 360px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            word-break: break-all;
+            line-height: 1.7;
+        }
+        .terminal-output .t-prompt { color: var(--terminal-prompt); }
+        .terminal-output .t-error  { color: var(--error-color); }
+        .terminal-output .t-ok     { color: var(--ok-color); }
+        .terminal-output .t-info   { color: #93c5fd; }
+        .terminal-output .t-warn   { color: var(--warn-color); }
+        .terminal-output .t-dim    { color: var(--terminal-dim); }
+        .terminal-input-row {
+            display: flex;
+            align-items: center;
+            padding: 0.5rem 1.1rem 0.75rem;
+            gap: 0.5rem;
+            border-top: 1px solid rgba(34,197,94,0.08);
+        }
+        .t-input-prompt {
+            font-family: 'Courier New', monospace;
+            font-size: 0.83rem;
+            color: var(--terminal-prompt);
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+        .t-input {
+            flex: 1;
+            background: transparent;
+            border: none;
+            outline: none;
+            color: var(--terminal-text);
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 0.83rem;
+            caret-color: var(--script-primary);
+        }
+        .t-input::placeholder { color: var(--terminal-dim); }
+        .t-run-btn {
+            background: rgba(34,197,94,0.12);
+            border: 1px solid var(--border-dim);
+            color: var(--script-primary);
+            padding: 0.3rem 0.85rem;
+            border-radius: 6px;
+            font-size: 0.78rem;
+            font-weight: 700;
+            cursor: pointer;
+            font-family: 'Courier New', monospace;
+            transition: all var(--transition-fast);
+            white-space: nowrap;
+        }
+        .t-run-btn:hover { background: rgba(34,197,94,0.22); }
+
+        /* ── Config block ── */
+        .config-block {
+            background: rgba(0,0,0,0.5);
+            border: 1px solid rgba(34,197,94,0.1);
+            border-radius: var(--radius-sm);
+            padding: 1rem 1.2rem;
+            margin: 0.75rem 0;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 0.82rem;
+            color: var(--text-secondary);
+            line-height: 1.8;
+        }
+        .cfg-key     { color: var(--warn-color); }
+        .cfg-val     { color: #93c5fd; }
+        .cfg-section { color: var(--script-primary); font-weight: 700; }
+        .cfg-comment { color: var(--terminal-dim); font-style: italic; }
+
+        /* ── Protocol comparison table ── */
+        .proto-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 0.75rem;
+            margin: 1rem 0;
+        }
+        .proto-card {
+            background: rgba(0,0,0,0.35);
+            border: 2px solid var(--border-dim);
+            border-radius: var(--radius-sm);
+            padding: 1rem;
+            cursor: pointer;
+            transition: all var(--transition-mid);
+            text-align: center;
+        }
+        .proto-card:hover {
+            border-color: var(--script-primary);
+            background: rgba(34,197,94,0.06);
+            transform: translateY(-2px);
+        }
+        .proto-card.active {
+            border-color: var(--script-primary);
+            background: rgba(34,197,94,0.1);
+            box-shadow: 0 0 14px var(--glow-soft);
+        }
+        .proto-name {
+            font-weight: 800;
+            font-size: 0.95rem;
+            color: var(--script-primary);
+            margin-bottom: 0.3rem;
+        }
+        .proto-subtitle {
+            font-size: 0.72rem;
+            color: var(--text-muted);
+            letter-spacing: 0.05em;
+        }
+        .proto-detail {
+            background: rgba(0,0,0,0.4);
+            border: 1px solid var(--border-dim);
+            border-radius: var(--radius-sm);
+            padding: 1.1rem 1.25rem;
+            margin: 0.75rem 0;
+            display: none;
+        }
+        .proto-detail.show { display: block; }
+        .proto-detail-grid {
+            display: grid;
+            grid-template-columns: auto 1fr;
+            gap: 0.3rem 1rem;
+            font-size: 0.85rem;
+        }
+        .pd-label { color: var(--text-muted); font-size: 0.78rem; }
+        .pd-val   { color: var(--text-secondary); }
+        .pd-val.good { color: var(--ok-color); }
+        .pd-val.warn { color: var(--warn-color); }
+        .pd-val.ok   { color: #93c5fd; }
+
+        /* ── Tunnel diagram (animated) ── */
+        .tunnel-diagram {
+            background: #050d05;
+            border: 1px solid var(--border-dim);
+            border-radius: var(--radius-sm);
+            padding: 1.5rem;
+            margin: 1rem 0;
+            text-align: center;
+            overflow: hidden;
+            position: relative;
+        }
+        .tunnel-row {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0;
+            margin: 0.5rem 0;
+            flex-wrap: nowrap;
+        }
+        .tunnel-node {
+            background: rgba(34,197,94,0.12);
+            border: 1px solid var(--border-mid);
+            border-radius: 8px;
+            padding: 0.5rem 0.85rem;
+            font-family: 'Courier New', monospace;
+            font-size: 0.78rem;
+            font-weight: 700;
+            color: var(--script-primary);
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+        .tunnel-node.isp {
+            border-color: rgba(248,113,113,0.4);
+            background: rgba(248,113,113,0.07);
+            color: var(--error-color);
+        }
+        .tunnel-node.vpn-server {
+            border-color: rgba(34,197,94,0.6);
+            background: rgba(34,197,94,0.15);
+        }
+        .tunnel-pipe {
+            flex: 1;
+            height: 2px;
+            min-width: 24px;
+            position: relative;
+        }
+        .tunnel-pipe.encrypted {
+            background: linear-gradient(90deg, var(--script-secondary), var(--script-primary));
+        }
+        .tunnel-pipe.cleartext {
+            background: rgba(248,113,113,0.4);
+        }
+        .tunnel-pipe-label {
+            position: absolute;
+            top: -16px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 0.62rem;
+            white-space: nowrap;
+            font-family: 'Courier New', monospace;
+        }
+        .tunnel-pipe-label.enc  { color: var(--script-primary); }
+        .tunnel-pipe-label.raw  { color: var(--error-color); }
+        .tunnel-legend {
+            display: flex;
+            justify-content: center;
+            gap: 1.5rem;
+            margin-top: 1rem;
+            font-size: 0.75rem;
+            font-family: 'Courier New', monospace;
+        }
+        .leg-item { display: flex; align-items: center; gap: 0.4rem; }
+        .leg-swatch { width: 24px; height: 3px; border-radius: 2px; }
+        .leg-swatch.enc  { background: var(--script-primary); }
+        .leg-swatch.raw  { background: var(--error-color); }
+
+        /* Packet animation */
+        @keyframes packet-move {
+            0%   { left: 0; opacity: 1; }
+            100% { left: calc(100% - 10px); opacity: 0.3; }
+        }
+        .packet-dot {
+            position: absolute;
+            width: 8px; height: 8px;
+            border-radius: 50%;
+            top: 50%; transform: translateY(-50%);
+            animation: packet-move 1.8s linear infinite;
+        }
+        .packet-dot.enc { background: var(--script-primary); }
+        .packet-dot.raw { background: var(--error-color); }
+
+        /* ── Kill switch simulation ── */
+        .ks-status-bar {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            background: rgba(0,0,0,0.4);
+            border: 1px solid var(--border-dim);
+            border-radius: var(--radius-sm);
+            padding: 0.65rem 1rem;
+            margin: 0.75rem 0;
+            font-family: 'Courier New', monospace;
+            font-size: 0.82rem;
+        }
+        .ks-led {
+            width: 10px; height: 10px;
+            border-radius: 50%;
+            flex-shrink: 0;
+            transition: background 0.3s;
+        }
+        .ks-led.green  { background: var(--ok-color); box-shadow: 0 0 6px var(--ok-color); }
+        .ks-led.red    { background: var(--error-color); box-shadow: 0 0 6px var(--error-color); }
+        .ks-led.orange { background: var(--warn-color); box-shadow: 0 0 6px var(--warn-color); }
+
+        /* ── Decision tree (ex5) ── */
+        .scenario-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.75rem;
+            margin: 1rem 0;
+        }
+        .scenario-btn {
+            background: rgba(0,0,0,0.35);
+            border: 2px solid var(--border-dim);
+            border-radius: var(--radius-sm);
+            padding: 0.85rem 1rem;
+            cursor: pointer;
+            text-align: left;
+            transition: all var(--transition-mid);
+            color: var(--text-primary);
+            font-size: 0.85rem;
+        }
+        .scenario-btn:hover {
+            border-color: var(--script-primary);
+            background: rgba(34,197,94,0.06);
+        }
+        .scenario-btn.selected-vpn {
+            border-color: var(--script-primary);
+            background: rgba(34,197,94,0.12);
+        }
+        .scenario-btn.selected-tor {
+            border-color: #a78bfa;
+            background: rgba(167,139,250,0.1);
+        }
+        .scenario-btn.selected-both {
+            border-color: var(--warn-color);
+            background: rgba(251,191,36,0.08);
+        }
+        .scenario-label {
+            font-size: 0.7rem;
+            font-weight: 800;
+            letter-spacing: 0.08em;
+            margin-bottom: 0.25rem;
+            color: var(--text-muted);
+        }
+        .scenario-result {
+            background: rgba(0,0,0,0.4);
+            border: 1px solid var(--border-dim);
+            border-radius: var(--radius-sm);
+            padding: 1rem 1.25rem;
+            margin: 0.75rem 0;
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            display: none;
+            line-height: 1.6;
+        }
+        .scenario-result.show { display: block; }
+        .sr-tool {
+            font-weight: 800;
+            font-size: 1rem;
+            margin-bottom: 0.4rem;
+        }
+        .sr-tool.vpn  { color: var(--script-primary); }
+        .sr-tool.tor  { color: #a78bfa; }
+        .sr-tool.both { color: var(--warn-color); }
+
+        /* Decision tree SVG container */
+        .dtree-wrap {
+            background: #050d05;
+            border: 1px solid var(--border-dim);
+            border-radius: var(--radius-sm);
+            padding: 1.25rem;
+            margin: 1rem 0;
+            overflow-x: auto;
+        }
+
+        /* hint / feedback */
+        .hint-box {
+            background: rgba(251,191,36,0.07);
+            border: 1px solid rgba(251,191,36,0.2);
+            border-radius: var(--radius-sm);
+            padding: 0.75rem 1rem;
+            margin-top: 0.75rem;
+            font-size: 0.84rem;
+            color: var(--warn-color);
+            display: none;
+        }
+        .hint-box.show { display: block; }
+
+        /* complete step button */
+        .btn-step-done {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+            background: rgba(34,197,94,0.1);
+            border: 1px solid var(--border-dim);
+            color: var(--script-primary);
+            padding: 0.45rem 1.1rem;
+            border-radius: 8px;
+            font-size: 0.82rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all var(--transition-fast);
+            margin-top: 0.75rem;
+        }
+        .btn-step-done:hover { background: rgba(34,197,94,0.2); border-color: var(--script-primary); }
+        .btn-step-done:disabled { opacity: 0.45; cursor: default; }
+
+        /* ── Completion section ── */
+        .completion-panel {
+            background: var(--card-bg);
+            border: 1px solid var(--border-dim);
+            border-radius: var(--radius-card);
+            padding: 2.25rem;
+            text-align: center;
+            margin-top: 2.5rem;
+        }
+        .completion-panel h3 {
+            color: var(--script-primary);
+            font-size: 1.25rem;
+            margin-bottom: 0.6rem;
+        }
+        .completion-panel p {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            margin-bottom: 1.5rem;
+            max-width: 520px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        .btn-complete {
+            display: inline-block;
+            background: linear-gradient(135deg, var(--script-primary), var(--script-accent));
+            color: #000;
+            font-weight: 800;
+            padding: 0.8rem 2.25rem;
+            border-radius: 10px;
+            border: none;
+            cursor: pointer;
+            font-size: 0.95rem;
+            transition: opacity var(--transition-fast), transform var(--transition-fast);
+        }
+        .btn-complete:hover { opacity: 0.85; transform: translateY(-2px); }
+        .btn-complete:disabled { opacity: 0.4; cursor: default; transform: none; }
+        .complete-msg {
+            margin-top: 1rem;
+            color: var(--ok-color);
+            font-weight: 600;
+            font-size: 0.9rem;
+            display: none;
+        }
+
+        /* Score tally */
+        .score-display {
+            display: inline-flex;
+            gap: 0.35rem;
+            align-items: baseline;
+            margin-bottom: 1.25rem;
+        }
+        .score-num   { font-size: 2.5rem; font-weight: 800; color: var(--script-primary); line-height: 1; }
+        .score-denom { font-size: 1.1rem; color: var(--text-muted); }
+
+        /* Animated status */
+        @keyframes pulse-green {
+            0%, 100% { opacity: 1; }
+            50%       { opacity: 0.5; }
+        }
+        .blink { animation: pulse-green 1.2s infinite; }
+
+        /* Scrollbar */
+        .terminal-output::-webkit-scrollbar { width: 4px; }
+        .terminal-output::-webkit-scrollbar-track { background: transparent; }
+        .terminal-output::-webkit-scrollbar-thumb { background: var(--script-dark); border-radius: 4px; }
+
+        /* ── Responsive ── */
+        @media (max-width: 640px) {
+            .container { padding: 1.5rem 1rem 4rem; }
+            .lab-hero h1 { font-size: 1.5rem; }
+            .site-header { padding: 0.75rem 1rem; }
+            .proto-grid { grid-template-columns: 1fr; }
+            .scenario-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════ HEADER ═══════════════════════════════ -->
+<header class="site-header">
+    <a href="../index.html" class="back-link">&larr; Back to Linux Admin</a>
+    <span class="header-badge">SCRIPT HOUSE — LINUX ADMIN</span>
+</header>
+
+<!-- ═══════════════════════════════ MAIN ════════════════════════════════ -->
+<div class="container">
+
+    <!-- Hero -->
+    <div class="lab-hero">
+        <div class="lab-tag">ANONYMITY PART 2 — VPN FUNDAMENTALS LAB</div>
+        <h1>Anonymity Part 2: <span>VPN Fundamentals</span></h1>
+        <p>Set up WireGuard and OpenVPN, configure iptables kill switches, and reason clearly about when to use a VPN versus Tor — all in a simulated Linux environment.</p>
+        <div class="progress-row" id="progressRow">
+            <!-- dots injected by JS -->
+        </div>
+    </div>
+
+    <div class="section-heading">Lab Exercises</div>
+
+    <!-- ══════════════════════════════════════════════════════════════════
+         EXERCISE 1 — VPN TYPES & PROTOCOLS
+    ══════════════════════════════════════════════════════════════════════ -->
+    <div class="exercise" id="ex1">
+        <div class="exercise-header" onclick="toggleExercise('ex1')">
+            <div class="ex-num">1</div>
+            <div class="ex-title">VPN Types &amp; Protocols — OpenVPN, WireGuard, IPSec/IKEv2</div>
+            <span class="ex-badge intermediate">INTERMEDIATE</span>
+            <span class="ex-status">&#10003; Done</span>
+            <span class="ex-toggle">&#8964;</span>
+        </div>
+        <div class="exercise-body">
+            <div class="exercise-content">
+
+                <div class="scenario">
+                    <strong>Scenario:</strong> Before deploying a VPN solution, you need to understand the
+                    trade-offs between the major protocols. Select each protocol below to examine its
+                    technical characteristics. Then study the tunnel diagram to understand what a VPN
+                    actually does — and does not — protect.
+                </div>
+
+                <p style="font-size:0.9rem;color:var(--text-secondary);margin-bottom:0.75rem;">
+                    Click each protocol card to see its details:
+                </p>
+
+                <!-- Protocol comparison cards -->
+                <div class="proto-grid">
+                    <div class="proto-card" id="pc-wg" onclick="showProto('wg')">
+                        <div class="proto-name">WireGuard</div>
+                        <div class="proto-subtitle">UDP / PORT 51820</div>
+                    </div>
+                    <div class="proto-card" id="pc-ovpn" onclick="showProto('ovpn')">
+                        <div class="proto-name">OpenVPN</div>
+                        <div class="proto-subtitle">TCP 443 / UDP 1194</div>
+                    </div>
+                    <div class="proto-card" id="pc-ike" onclick="showProto('ike')">
+                        <div class="proto-name">IPSec / IKEv2</div>
+                        <div class="proto-subtitle">UDP 500 / 4500</div>
+                    </div>
+                </div>
+
+                <!-- Protocol detail panel — populated by JS -->
+                <div class="proto-detail" id="proto-detail-panel">
+                    <div class="proto-detail-grid" id="proto-detail-grid"></div>
+                </div>
+
+                <!-- Tunnel diagram -->
+                <p style="font-size:0.88rem;color:var(--text-secondary);margin:1.25rem 0 0.5rem;font-weight:600;">
+                    What a VPN tunnel looks like on the wire:
+                </p>
+                <div class="tunnel-diagram">
+                    <div class="tunnel-row">
+                        <div class="tunnel-node">Your Device</div>
+                        <div class="tunnel-pipe encrypted" style="position:relative;">
+                            <span class="tunnel-pipe-label enc">encrypted</span>
+                            <div class="packet-dot enc"></div>
+                        </div>
+                        <div class="tunnel-node isp">ISP</div>
+                        <div class="tunnel-pipe encrypted" style="position:relative;">
+                            <span class="tunnel-pipe-label enc">still encrypted</span>
+                            <div class="packet-dot enc" style="animation-delay:0.9s;"></div>
+                        </div>
+                        <div class="tunnel-node vpn-server">VPN Server</div>
+                        <div class="tunnel-pipe cleartext" style="position:relative;">
+                            <span class="tunnel-pipe-label raw">cleartext</span>
+                            <div class="packet-dot raw"></div>
+                        </div>
+                        <div class="tunnel-node">Destination</div>
+                    </div>
+                    <div class="tunnel-legend">
+                        <div class="leg-item">
+                            <div class="leg-swatch enc"></div>
+                            <span style="color:var(--script-primary);">encrypted tunnel</span>
+                        </div>
+                        <div class="leg-item">
+                            <div class="leg-swatch raw"></div>
+                            <span style="color:var(--error-color);">cleartext (if no HTTPS)</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="insight">
+                    <div class="insight-label">WHAT A VPN PROTECTS</div>
+                    <p>A VPN encrypts traffic between your device and the VPN server, preventing your
+                    ISP from reading content or logging destination IPs. It also hides your real IP
+                    from websites you visit — they see the VPN server's IP instead.</p>
+                </div>
+                <div class="insight warn">
+                    <div class="insight-label">WHAT A VPN DOES NOT PROTECT</div>
+                    <p>The VPN provider sees all your decrypted traffic (if you visit HTTP sites) and
+                    knows your real IP. You are shifting trust from your ISP to your VPN provider.
+                    A VPN also does not protect against browser fingerprinting, cookies, or malware
+                    on your own machine.</p>
+                </div>
+
+                <button class="btn-step-done" id="ex1-btn" onclick="markDone('ex1', 0)">
+                    Mark Exercise 1 Complete
+                </button>
+
+            </div>
+        </div>
+    </div>
+
+    <!-- ══════════════════════════════════════════════════════════════════
+         EXERCISE 2 — WIREGUARD SETUP
+    ══════════════════════════════════════════════════════════════════════ -->
+    <div class="exercise" id="ex2">
+        <div class="exercise-header" onclick="toggleExercise('ex2')">
+            <div class="ex-num">2</div>
+            <div class="ex-title">WireGuard Setup — Install, Key Generation &amp; wg0 Interface</div>
+            <span class="ex-badge intermediate">INTERMEDIATE</span>
+            <span class="ex-status">&#10003; Done</span>
+            <span class="ex-toggle">&#8964;</span>
+        </div>
+        <div class="exercise-body">
+            <div class="exercise-content">
+
+                <div class="scenario">
+                    <strong>Scenario:</strong> Your organisation has chosen WireGuard for its simplicity,
+                    speed, and small attack surface (~4000 lines of code vs OpenVPN's ~600,000). Walk
+                    through the full setup: install, key generation, configuration, and connection.
+                </div>
+
+                <p style="font-size:0.88rem;color:var(--text-secondary);margin-bottom:0.5rem;">
+                    Run each command in order. The terminal accepts partial matches — focus on the
+                    key tokens of each command.
+                </p>
+
+                <!-- Terminal -->
+                <div class="terminal-wrap">
+                    <div class="terminal-titlebar">
+                        <div class="tb-dot red"></div>
+                        <div class="tb-dot yellow"></div>
+                        <div class="tb-dot green"></div>
+                        <span>wireguard setup</span>
+                    </div>
+                    <div class="terminal-output" id="ex2-output"><span class="t-dim"># WireGuard setup — run commands in order
+# Step 1: install  Step 2: generate keys  Step 3: bring up interface  Step 4: verify</span>
+<span class="t-prompt">
+student@hexworth:~$</span> </div>
+                    <div class="terminal-input-row">
+                        <span class="t-input-prompt">student@hexworth:~$</span>
+                        <input class="t-input" id="ex2-input" type="text"
+                               placeholder="sudo apt install wireguard"
+                               autocomplete="off" autocorrect="off" spellcheck="false"
+                               onkeydown="if(event.key==='Enter') ex2Run()">
+                        <button class="t-run-btn" onclick="ex2Run()">&#9654; Run</button>
+                    </div>
+                </div>
+
+                <div class="hint-box" id="ex2-hint">
+                    Commands to try in order:<br>
+                    1. <code>sudo apt install wireguard</code><br>
+                    2. <code>wg genkey | tee privatekey | wg pubkey &gt; publickey</code><br>
+                    3. <code>sudo wg-quick up wg0</code><br>
+                    4. <code>sudo wg show</code>
+                </div>
+
+                <p style="font-size:0.88rem;color:var(--text-secondary);margin:1rem 0 0.4rem;font-weight:600;">
+                    The <code>/etc/wireguard/wg0.conf</code> you create:
+                </p>
+                <div class="config-block">
+<span class="cfg-comment"># /etc/wireguard/wg0.conf</span>
+<span class="cfg-section">[Interface]</span>
+<span class="cfg-key">PrivateKey</span> = <span class="cfg-val">wEaXi4D9hGkYnP3j7rRf2mLz0bNcV5oQs1Ue8TvX6w=</span>  <span class="cfg-comment"># your private key</span>
+<span class="cfg-key">Address</span>    = <span class="cfg-val">10.8.0.2/24</span>
+<span class="cfg-key">DNS</span>        = <span class="cfg-val">1.1.1.1</span>
+
+<span class="cfg-section">[Peer]</span>
+<span class="cfg-key">PublicKey</span>  = <span class="cfg-val">JkT9mHr3Lp2Yz0XbCnA5eOq7vDi1WsFu4Gk8NjE6cY=</span>  <span class="cfg-comment"># server public key</span>
+<span class="cfg-key">Endpoint</span>   = <span class="cfg-val">vpn.hexworth.io:51820</span>
+<span class="cfg-key">AllowedIPs</span> = <span class="cfg-val">0.0.0.0/0, ::/0</span>              <span class="cfg-comment"># route all traffic</span>
+<span class="cfg-key">PersistentKeepalive</span> = <span class="cfg-val">25</span>
+                </div>
+
+                <div class="insight">
+                    <div class="insight-label">WIREGUARD VS OPENVPN COMPLEXITY</div>
+                    <p>WireGuard has a 4,000-line kernel module vs OpenVPN's 600,000+ lines of userspace
+                    code. Fewer lines means fewer bugs, faster security audits, and a smaller attack
+                    surface. WireGuard also uses a fixed, modern cryptographic suite
+                    (ChaCha20-Poly1305, Curve25519, BLAKE2) — no cipher negotiation means no
+                    downgrade attacks.</p>
+                </div>
+                <div class="insight warn">
+                    <div class="insight-label">PRIVACY CONSIDERATION</div>
+                    <p>WireGuard's default design logs peer IP addresses in kernel memory until the
+                    interface is brought down. If privacy against the VPN server is a concern,
+                    ensure your provider implements IP assignment rotation or uses an obfuscated
+                    front-end (like Mullvad's implementation).</p>
+                </div>
+
+                <button class="btn-step-done" id="ex2-btn" onclick="markDone('ex2', 1)">
+                    Mark Exercise 2 Complete
+                </button>
+
+            </div>
+        </div>
+    </div>
+
+    <!-- ══════════════════════════════════════════════════════════════════
+         EXERCISE 3 — OPENVPN CONFIGURATION
+    ══════════════════════════════════════════════════════════════════════ -->
+    <div class="exercise" id="ex3">
+        <div class="exercise-header" onclick="toggleExercise('ex3')">
+            <div class="ex-num">3</div>
+            <div class="ex-title">OpenVPN Configuration — Import .ovpn &amp; TLS Handshake Analysis</div>
+            <span class="ex-badge intermediate">INTERMEDIATE</span>
+            <span class="ex-status">&#10003; Done</span>
+            <span class="ex-toggle">&#8964;</span>
+        </div>
+        <div class="exercise-body">
+            <div class="exercise-content">
+
+                <div class="scenario">
+                    <strong>Scenario:</strong> Your corporate environment uses OpenVPN because it supports
+                    TCP mode (useful when UDP is blocked on restrictive networks) and has mature enterprise
+                    tooling. You receive a <code>client.ovpn</code> config file and need to connect and
+                    verify the tunnel interface came up.
+                </div>
+
+                <p style="font-size:0.88rem;color:var(--text-secondary);margin-bottom:0.5rem;">
+                    Install OpenVPN, connect, and verify the tunnel interface:
+                </p>
+
+                <div class="terminal-wrap">
+                    <div class="terminal-titlebar">
+                        <div class="tb-dot red"></div>
+                        <div class="tb-dot yellow"></div>
+                        <div class="tb-dot green"></div>
+                        <span>openvpn client</span>
+                    </div>
+                    <div class="terminal-output" id="ex3-output"><span class="t-dim"># client.ovpn has been placed in your home directory.
+# Step 1: install openvpn
+# Step 2: connect with the config file
+# Step 3: verify the tun0 interface</span>
+<span class="t-prompt">
+student@hexworth:~$</span> </div>
+                    <div class="terminal-input-row">
+                        <span class="t-input-prompt">student@hexworth:~$</span>
+                        <input class="t-input" id="ex3-input" type="text"
+                               placeholder="sudo apt install openvpn"
+                               autocomplete="off" autocorrect="off" spellcheck="false"
+                               onkeydown="if(event.key==='Enter') ex3Run()">
+                        <button class="t-run-btn" onclick="ex3Run()">&#9654; Run</button>
+                    </div>
+                </div>
+
+                <div class="hint-box" id="ex3-hint">
+                    Commands to try in order:<br>
+                    1. <code>sudo apt install openvpn</code><br>
+                    2. <code>sudo openvpn --config client.ovpn</code><br>
+                    3. <code>ip addr show tun0</code>
+                </div>
+
+                <div class="insight">
+                    <div class="insight-label">THE TLS HANDSHAKE LOG</div>
+                    <p>When OpenVPN connects, it logs every step of the TLS handshake: certificate
+                    exchange, cipher negotiation (you will see something like
+                    <code>AES-256-GCM</code>), and finally "Initialization Sequence Completed" which
+                    signals the tunnel is live. The <code>tun0</code> interface appearing in
+                    <code>ip addr</code> output is the virtual tunnel device — all traffic routed
+                    through it exits from the VPN server's IP.</p>
+                </div>
+                <div class="insight warn">
+                    <div class="insight-label">TCP vs UDP MODE</div>
+                    <p>OpenVPN over TCP (port 443) is firewall-friendly — it looks like HTTPS and
+                    passes through most corporate/hotel firewalls. However, TCP-over-TCP creates
+                    "TCP meltdown" under packet loss because both the inner and outer protocol
+                    do retransmission. For performance-sensitive work, prefer UDP (port 1194)
+                    whenever the network allows it.</p>
+                </div>
+
+                <button class="btn-step-done" id="ex3-btn" onclick="markDone('ex3', 2)">
+                    Mark Exercise 3 Complete
+                </button>
+
+            </div>
+        </div>
+    </div>
+
+    <!-- ══════════════════════════════════════════════════════════════════
+         EXERCISE 4 — VPN KILL SWITCH
+    ══════════════════════════════════════════════════════════════════════ -->
+    <div class="exercise" id="ex4">
+        <div class="exercise-header" onclick="toggleExercise('ex4')">
+            <div class="ex-num">4</div>
+            <div class="ex-title">VPN Kill Switch — iptables Rules &amp; IP Leak Prevention</div>
+            <span class="ex-badge advanced">ADVANCED</span>
+            <span class="ex-status">&#10003; Done</span>
+            <span class="ex-toggle">&#8964;</span>
+        </div>
+        <div class="exercise-body">
+            <div class="exercise-content">
+
+                <div class="scenario">
+                    <strong>Scenario:</strong> If a VPN connection drops unexpectedly, the OS falls back
+                    to routing traffic over your real interface — exposing your IP to every site you visit.
+                    A kill switch uses iptables to block all non-VPN traffic so that if the tunnel dies,
+                    nothing leaks. Configure and test one now.
+                </div>
+
+                <!-- Live status bar -->
+                <p style="font-size:0.88rem;color:var(--text-secondary);margin-bottom:0.5rem;font-weight:600;">
+                    Current VPN &amp; kill switch state:
+                </p>
+                <div class="ks-status-bar" id="ks-status">
+                    <div class="ks-led orange" id="ks-led"></div>
+                    <span id="ks-text" style="color:var(--warn-color);">VPN: connected &nbsp;|&nbsp; Kill switch: NOT configured (traffic leaks if VPN drops)</span>
+                </div>
+
+                <p style="font-size:0.88rem;color:var(--text-secondary);margin-bottom:0.5rem;">
+                    Apply the kill switch rules, then simulate a VPN disconnect:
+                </p>
+
+                <div class="terminal-wrap">
+                    <div class="terminal-titlebar">
+                        <div class="tb-dot red"></div>
+                        <div class="tb-dot yellow"></div>
+                        <div class="tb-dot green"></div>
+                        <span>iptables kill switch</span>
+                    </div>
+                    <div class="terminal-output" id="ex4-output"><span class="t-dim"># Configure iptables kill switch rules, then simulate a VPN drop.
+# Valid commands: iptables rules below, then: simulate vpn drop</span>
+<span class="t-prompt">
+student@hexworth:~$</span> </div>
+                    <div class="terminal-input-row">
+                        <span class="t-input-prompt">student@hexworth:~$</span>
+                        <input class="t-input" id="ex4-input" type="text"
+                               placeholder="iptables -A OUTPUT -o wg0 -j ACCEPT"
+                               autocomplete="off" autocorrect="off" spellcheck="false"
+                               onkeydown="if(event.key==='Enter') ex4Run()">
+                        <button class="t-run-btn" onclick="ex4Run()">&#9654; Run</button>
+                    </div>
+                </div>
+
+                <div class="hint-box" id="ex4-hint">
+                    Commands to run in order:<br>
+                    1. <code>iptables -A OUTPUT -o wg0 -j ACCEPT</code><br>
+                    2. <code>iptables -A OUTPUT -o eth0 -p udp --dport 51820 -j ACCEPT</code><br>
+                    3. <code>iptables -A OUTPUT -o eth0 -j DROP</code><br>
+                    4. <code>simulate vpn drop</code> — test what happens if wg0 goes down
+                </div>
+
+                <p style="font-size:0.88rem;color:var(--text-secondary);margin:1rem 0 0.4rem;font-weight:600;">
+                    The three rules explained:
+                </p>
+                <div class="code-block">
+<span class="comment"># Rule 1 — Allow all traffic out through the VPN tunnel interface</span>
+<span class="cmd">iptables -A OUTPUT -o wg0 -j ACCEPT</span>
+
+<span class="comment"># Rule 2 — Allow only WireGuard handshake packets on the real interface</span>
+<span class="comment">#          (necessary to re-establish the tunnel if it drops)</span>
+<span class="cmd">iptables -A OUTPUT -o eth0 -p udp --dport 51820 -j ACCEPT</span>
+
+<span class="comment"># Rule 3 — Block everything else leaving the real interface</span>
+<span class="comment">#          (this is the kill switch — no route = no leak)</span>
+<span class="cmd">iptables -A OUTPUT -o eth0 -j DROP</span>
+                </div>
+
+                <div class="insight">
+                    <div class="insight-label">WHY KILL SWITCHES MATTER</div>
+                    <p>VPN software can crash. Network interfaces can flap. Without a kill switch, your
+                    OS will happily route traffic through your real interface the moment the VPN goes
+                    down — often for minutes before you notice. The iptables rules above ensure that
+                    only WireGuard-encapsulated packets (via <code>wg0</code>) and the WireGuard
+                    handshake itself can leave the machine.</p>
+                </div>
+                <div class="insight warn">
+                    <div class="insight-label">PERSISTENCE ACROSS REBOOTS</div>
+                    <p>iptables rules are flushed on reboot by default. Use
+                    <code>iptables-save &gt; /etc/iptables/rules.v4</code> and
+                    install <code>iptables-persistent</code> to restore them at boot. For WireGuard
+                    specifically, add the iptables commands as <code>PostUp</code> and
+                    <code>PreDown</code> hooks in <code>wg0.conf</code>.</p>
+                </div>
+
+                <button class="btn-step-done" id="ex4-btn" onclick="ex4Complete()">
+                    Mark Exercise 4 Complete
+                </button>
+
+            </div>
+        </div>
+    </div>
+
+    <!-- ══════════════════════════════════════════════════════════════════
+         EXERCISE 5 — VPN vs TOR DECISION MATRIX
+    ══════════════════════════════════════════════════════════════════════ -->
+    <div class="exercise" id="ex5">
+        <div class="exercise-header" onclick="toggleExercise('ex5')">
+            <div class="ex-num">5</div>
+            <div class="ex-title">VPN vs Tor — Scenario Decision Matrix</div>
+            <span class="ex-badge advanced">ADVANCED</span>
+            <span class="ex-status">&#10003; Done</span>
+            <span class="ex-toggle">&#8964;</span>
+        </div>
+        <div class="exercise-body">
+            <div class="exercise-content">
+
+                <div class="scenario">
+                    <strong>Scenario:</strong> Knowing how to deploy a VPN is only half the battle.
+                    Knowing <em>when</em> to use a VPN versus Tor — or both, or neither — is the
+                    operational judgment that separates competent admins from security-aware ones.
+                    Work through five real-world scenarios and choose the right tool.
+                </div>
+
+                <p style="font-size:0.88rem;color:var(--text-secondary);margin-bottom:0.75rem;">
+                    Click each scenario to see the recommended tool and reasoning:
+                </p>
+
+                <!-- Decision tree diagram -->
+                <div class="dtree-wrap">
+                    <svg viewBox="0 0 700 260" xmlns="http://www.w3.org/2000/svg"
+                         style="width:100%;max-width:700px;display:block;margin:0 auto;font-family:'Courier New',monospace;">
+                        <!-- Root question -->
+                        <rect x="230" y="10" width="240" height="38" rx="6"
+                              fill="rgba(34,197,94,0.15)" stroke="rgba(34,197,94,0.5)" stroke-width="1.5"/>
+                        <text x="350" y="34" text-anchor="middle" fill="#86efac" font-size="11">Do you need anonymity or just privacy?</text>
+
+                        <!-- Branches -->
+                        <line x1="280" y1="48" x2="160" y2="100" stroke="rgba(34,197,94,0.35)" stroke-width="1.5"/>
+                        <line x1="420" y1="48" x2="540" y2="100" stroke="rgba(34,197,94,0.35)" stroke-width="1.5"/>
+                        <text x="185" y="85" text-anchor="middle" fill="#fbbf24" font-size="10">Privacy</text>
+                        <text x="515" y="85" text-anchor="middle" fill="#fbbf24" font-size="10">Anonymity</text>
+
+                        <!-- Privacy branch -->
+                        <rect x="60" y="100" width="200" height="38" rx="6"
+                              fill="rgba(34,197,94,0.12)" stroke="rgba(34,197,94,0.4)" stroke-width="1.5"/>
+                        <text x="160" y="118" text-anchor="middle" fill="#86efac" font-size="10">Speed &amp; convenience needed?</text>
+                        <text x="160" y="130" text-anchor="middle" fill="#86efac" font-size="10">(streaming, corporate, gaming)</text>
+
+                        <!-- Anonymity branch -->
+                        <rect x="440" y="100" width="200" height="38" rx="6"
+                              fill="rgba(167,139,250,0.12)" stroke="rgba(167,139,250,0.4)" stroke-width="1.5"/>
+                        <text x="540" y="118" text-anchor="middle" fill="#c4b5fd" font-size="10">How high is the risk level?</text>
+                        <text x="540" y="130" text-anchor="middle" fill="#c4b5fd" font-size="10">(journalist, activist, whistleblower)</text>
+
+                        <!-- VPN result -->
+                        <line x1="130" y1="138" x2="100" y2="190" stroke="rgba(34,197,94,0.35)" stroke-width="1.5"/>
+                        <rect x="30" y="190" width="140" height="34" rx="6"
+                              fill="rgba(34,197,94,0.2)" stroke="#22c55e" stroke-width="2"/>
+                        <text x="100" y="211" text-anchor="middle" fill="#22c55e" font-size="12" font-weight="bold">USE VPN</text>
+
+                        <!-- Both result -->
+                        <line x1="190" y1="138" x2="260" y2="190" stroke="rgba(34,197,94,0.35)" stroke-width="1.5"/>
+                        <rect x="190" y="190" width="140" height="34" rx="6"
+                              fill="rgba(251,191,36,0.15)" stroke="#fbbf24" stroke-width="2"/>
+                        <text x="260" y="211" text-anchor="middle" fill="#fbbf24" font-size="12" font-weight="bold">VPN + HTTPS</text>
+
+                        <!-- Tor result -->
+                        <line x1="490" y1="138" x2="430" y2="190" stroke="rgba(167,139,250,0.4)" stroke-width="1.5"/>
+                        <rect x="360" y="190" width="140" height="34" rx="6"
+                              fill="rgba(167,139,250,0.2)" stroke="#a78bfa" stroke-width="2"/>
+                        <text x="430" y="211" text-anchor="middle" fill="#a78bfa" font-size="12" font-weight="bold">USE TOR</text>
+
+                        <!-- VPN+Tor result -->
+                        <line x1="590" y1="138" x2="620" y2="190" stroke="rgba(167,139,250,0.4)" stroke-width="1.5"/>
+                        <rect x="540" y="190" width="140" height="34" rx="6"
+                              fill="rgba(248,113,113,0.15)" stroke="#f87171" stroke-width="2"/>
+                        <text x="610" y="211" text-anchor="middle" fill="#f87171" font-size="12" font-weight="bold">VPN + TOR</text>
+
+                        <!-- Legend labels -->
+                        <text x="100" y="240" text-anchor="middle" fill="#4a7a5a" font-size="9">speed priority</text>
+                        <text x="260" y="240" text-anchor="middle" fill="#4a7a5a" font-size="9">convenience + security</text>
+                        <text x="430" y="240" text-anchor="middle" fill="#4a7a5a" font-size="9">high risk, slow OK</text>
+                        <text x="610" y="240" text-anchor="middle" fill="#4a7a5a" font-size="9">extreme risk, nation-state</text>
+                    </svg>
+                </div>
+
+                <!-- Scenario selection buttons -->
+                <div class="scenario-grid" id="scenario-grid">
+                    <button class="scenario-btn" onclick="showScenario('journalist')">
+                        <div class="scenario-label">SCENARIO A</div>
+                        Journalist in a country that jails reporters for criticising the government. Needs to file stories anonymously.
+                    </button>
+                    <button class="scenario-btn" onclick="showScenario('corporate')">
+                        <div class="scenario-label">SCENARIO B</div>
+                        Remote corporate employee accessing internal HR systems and company databases over coffee shop WiFi.
+                    </button>
+                    <button class="scenario-btn" onclick="showScenario('streaming')">
+                        <div class="scenario-label">SCENARIO C</div>
+                        Traveller abroad wanting to access geo-blocked streaming content from their home country.
+                    </button>
+                    <button class="scenario-btn" onclick="showScenario('whistleblower')">
+                        <div class="scenario-label">SCENARIO D</div>
+                        Whistleblower with evidence of government corruption. Contacting a journalist — nation-state adversary assumed.
+                    </button>
+                    <button class="scenario-btn" onclick="showScenario('gaming')">
+                        <div class="scenario-label">SCENARIO E</div>
+                        Competitive gamer wanting to avoid DDoS attacks and reduce ping to EU servers from North America.
+                    </button>
+                </div>
+
+                <!-- Result panel -->
+                <div class="scenario-result" id="scenario-result">
+                    <div class="sr-tool" id="sr-tool-label"></div>
+                    <div id="sr-reasoning"></div>
+                </div>
+
+                <div id="ex5-score-msg" style="display:none;font-size:0.85rem;color:var(--ok-color);margin-top:0.5rem;"></div>
+
+                <div class="insight">
+                    <div class="insight-label">THE CORE TRADE-OFF</div>
+                    <p><strong style="color:var(--script-primary);">VPN</strong> = you trust your VPN provider not to log or betray you. You get speed
+                    (WireGuard adds ~5 ms latency), stable connections, and real IP masking from sites.
+                    <br><br>
+                    <strong style="color:#a78bfa;">Tor</strong> = you trust no single entity. Traffic is layered through three independent
+                    relays — even if one is compromised, your identity is not. The trade-off: 200–500 ms
+                    added latency and no persistent connections (breaks streaming, VoIP).</p>
+                </div>
+                <div class="insight danger">
+                    <div class="insight-label">THE "VPN + TOR" TRAP</div>
+                    <p>Running Tor over VPN hides Tor usage from your ISP (useful in countries where Tor
+                    is blocked) but does NOT improve anonymity — the VPN provider still knows your real
+                    IP. Running VPN over Tor (Tor first, then VPN) is almost never recommended: it
+                    breaks Tor's anonymity model and adds the VPN as a single point of trust inside
+                    the Tor circuit.</p>
+                </div>
+
+                <button class="btn-step-done" id="ex5-btn" onclick="markDone('ex5', 4)">
+                    Mark Exercise 5 Complete
+                </button>
+
+            </div>
+        </div>
+    </div>
+
+    <!-- Completion panel -->
+    <div class="completion-panel" id="completionPanel">
+        <h3>Lab Complete</h3>
+        <div class="score-display">
+            <span class="score-num" id="scoreNum">0</span>
+            <span class="score-denom">/ 5 exercises</span>
+        </div>
+        <p id="completionMsg">
+            Complete all five exercises to unlock lab completion credit.
+        </p>
+        <button class="btn-complete" id="btnComplete" onclick="completeModule()" disabled>
+            Complete Lab
+        </button>
+        <div class="complete-msg" id="completeMsgFinal">
+            Lab marked complete. VPN fundamentals mastered.
+        </div>
+    </div>
+
+</div><!-- /container -->
+
+<!-- ═══════════════════════════════ JAVASCRIPT ═══════════════════════════ -->
+<script>
+/* ── State ── */
+const TOTAL = 5;
+// Track which exercises are done (index 0-4)
+const done = new Array(TOTAL).fill(false);
+// Wrong attempt counters per terminal
+const wrongCounts = { ex2: 0, ex3: 0, ex4: 0 };
+
+/* ── Exercise toggle ── */
+function toggleExercise(id) {
+    document.getElementById(id).classList.toggle('open');
+}
+
+// Open first exercise by default
+document.getElementById('ex1').classList.add('open');
+
+/* ── Progress dots ── */
+function buildProgressDots() {
+    const row = document.getElementById('progressRow');
+    row.innerHTML = '';
+    for (let i = 0; i < TOTAL; i++) {
+        const dot = document.createElement('div');
+        dot.className = 'prog-dot' + (i === 0 ? ' active' : '') + (done[i] ? ' done' : '');
+        dot.textContent = i + 1;
+        dot.title = 'Exercise ' + (i + 1);
+        dot.addEventListener('click', () => {
+            document.getElementById('ex' + (i + 1)).scrollIntoView({ behavior: 'smooth', block: 'start' });
+        });
+        row.appendChild(dot);
+    }
+}
+buildProgressDots();
+
+/* ── HTML escape helper ── */
+function escHtml(str) {
+    return str
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+}
+
+/* ── Terminal helpers ── */
+/**
+ * Append html content plus a newline to a terminal output element and scroll.
+ * @param {string} outputId
+ * @param {string} html
+ */
+function termAppend(outputId, html) {
+    const el = document.getElementById(outputId);
+    el.innerHTML += html + '\n';
+    el.scrollTop = el.scrollHeight;
+}
+
+function termPrompt(outputId, cmd) {
+    termAppend(outputId,
+        `<span class="t-prompt">student@hexworth:~$</span> ${escHtml(cmd)}`);
+}
+
+/* ── markDone ── */
+/**
+ * Mark an exercise complete, update dots and score tally.
+ * @param {string} exId  - 'ex1' .. 'ex5'
+ * @param {number} index - 0-based index
+ */
+function markDone(exId, index) {
+    if (done[index]) return;
+    done[index] = true;
+
+    document.getElementById(exId).classList.add('completed');
+    const btn = document.getElementById(exId + '-btn');
+    if (btn) { btn.textContent = 'Completed!'; btn.disabled = true; }
+
+    updateScore();
+    buildProgressDots();
+}
+
+function updateScore() {
+    const count = done.filter(Boolean).length;
+    document.getElementById('scoreNum').textContent = count;
+    const btn = document.getElementById('btnComplete');
+    const msg = document.getElementById('completionMsg');
+    if (count === TOTAL) {
+        btn.disabled = false;
+        msg.textContent = 'All exercises complete. You are ready to submit this lab.';
+    } else {
+        msg.textContent = `${count} of ${TOTAL} exercises complete. Finish all to unlock credit.`;
+    }
+}
+
+/* ══════════════════════════════════════════════════════════
+   EXERCISE 1 — Protocol comparison cards
+══════════════════════════════════════════════════════════ */
+
+/**
+ * Protocol data: each entry contains display rows for the detail panel.
+ * rows: [ [label, value, className] ]
+ */
+const PROTO_DATA = {
+    wg: {
+        name: 'WireGuard',
+        rows: [
+            ['Protocol',    'UDP only',                          'ok'],
+            ['Default port','51820',                             'ok'],
+            ['Encryption',  'ChaCha20-Poly1305',                 'good'],
+            ['Key exchange','Curve25519',                        'good'],
+            ['Code size',   '~4,000 lines (kernel module)',      'good'],
+            ['Speed',       'Fastest — kernel-space processing', 'good'],
+            ['Setup',       'Simple — one config file',          'good'],
+            ['Best for',    'Privacy on trusted networks, mobile',  'ok'],
+            ['Weakness',    'Logs peer IPs in kernel memory',    'warn'],
+        ]
+    },
+    ovpn: {
+        name: 'OpenVPN',
+        rows: [
+            ['Protocol',    'TCP (443) or UDP (1194)',           'ok'],
+            ['Default port','1194 UDP / 443 TCP',               'ok'],
+            ['Encryption',  'AES-256-GCM (negotiated)',          'good'],
+            ['Key exchange','RSA / ECDH + TLS',                  'ok'],
+            ['Code size',   '~600,000 lines (userspace)',        'warn'],
+            ['Speed',       'Moderate — userspace overhead',     'warn'],
+            ['Setup',       'Complex — PKI, certificates, tls-auth', 'warn'],
+            ['Best for',    'Firewall bypass (TCP 443), enterprise', 'ok'],
+            ['Weakness',    'TCP-over-TCP meltdown under loss',  'warn'],
+        ]
+    },
+    ike: {
+        name: 'IPSec / IKEv2',
+        rows: [
+            ['Protocol',    'UDP 500 (IKE) + UDP 4500 (NAT-T)', 'ok'],
+            ['Default port','500 / 4500',                        'ok'],
+            ['Encryption',  'AES-256-GCM or AES-256-CBC',       'good'],
+            ['Key exchange','Diffie-Hellman (IKEv2)',            'good'],
+            ['Code size',   'OS kernel — varies by platform',    'ok'],
+            ['Speed',       'Fast — hardware offload on many NICs', 'good'],
+            ['Setup',       'Complex — IKE policy, certificates','warn'],
+            ['Best for',    'Mobile clients (MOBIKE), site-to-site', 'ok'],
+            ['Weakness',    'Often blocked by ISPs (UDP 500)',   'warn'],
+        ]
+    }
+};
+
+/**
+ * Render the selected protocol's detail panel and highlight its card.
+ * @param {string} key - 'wg' | 'ovpn' | 'ike'
+ */
+function showProto(key) {
+    // Highlight active card
+    ['wg', 'ovpn', 'ike'].forEach(k => {
+        document.getElementById('pc-' + k).classList.toggle('active', k === key);
+    });
+
+    const data   = PROTO_DATA[key];
+    const panel  = document.getElementById('proto-detail-panel');
+    const grid   = document.getElementById('proto-detail-grid');
+
+    let html = '';
+    data.rows.forEach(([label, value, cls]) => {
+        html += `<span class="pd-label">${escHtml(label)}</span>`;
+        html += `<span class="pd-val ${cls || ''}">${escHtml(value)}</span>`;
+    });
+    grid.innerHTML = html;
+    panel.classList.add('show');
+}
+
+/* ══════════════════════════════════════════════════════════
+   EXERCISE 2 — WireGuard setup terminal
+══════════════════════════════════════════════════════════ */
+
+// Track which WireGuard setup phase the student is on
+let ex2Phase = 0;
+
+const EX2_PHASES = [
+    {
+        // Phase 0: install
+        tokens: ['apt', 'wireguard'],
+        response: () =>
+            `<span class="t-info">Reading package lists... Done</span>\n` +
+            `<span class="t-info">Building dependency tree... Done</span>\n` +
+            `<span class="t-ok">Setting up wireguard (1.0.20210914-1) ...</span>\n` +
+            `<span class="t-ok">Setting up wireguard-tools (1.0.20210914-1) ...</span>\n` +
+            `<span class="t-dim">WireGuard kernel module: active</span>\n` +
+            `<span class="t-info">Next: generate your key pair</span>`,
+        hint: 'Install with: <code>sudo apt install wireguard</code>'
+    },
+    {
+        // Phase 1: key generation
+        tokens: ['wg genkey', 'genkey'],
+        altTokens: ['genkey'],
+        response: () =>
+            `<span class="t-ok">wEaXi4D9hGkYnP3j7rRf2mLz0bNcV5oQs1Ue8TvX6w=</span>\n` +
+            `<span class="t-dim">(private key written to ./privatekey)</span>\n` +
+            `<span class="t-ok">JkT9mHr3Lp2Yz0XbCnA5eOq7vDi1WsFu4Gk8NjE6cY=</span>\n` +
+            `<span class="t-dim">(public key written to ./publickey)</span>\n` +
+            `<span class="t-info">Next: bring up the interface with wg-quick</span>`,
+        hint: 'Generate keys: <code>wg genkey | tee privatekey | wg pubkey &gt; publickey</code>'
+    },
+    {
+        // Phase 2: wg-quick up
+        tokens: ['wg-quick', 'up'],
+        response: () =>
+            `<span class="t-ok">[#] ip link add wg0 type wireguard</span>\n` +
+            `<span class="t-ok">[#] wg setconf wg0 /dev/fd/63</span>\n` +
+            `<span class="t-ok">[#] ip -4 address add 10.8.0.2/24 dev wg0</span>\n` +
+            `<span class="t-ok">[#] ip link set mtu 1420 up dev wg0</span>\n` +
+            `<span class="t-ok">[#] ip -4 route add 0.0.0.0/0 dev wg0 table 51820</span>\n` +
+            `<span class="t-ok">Interface wg0 is UP. Handshake with vpn.hexworth.io: success</span>\n` +
+            `<span class="t-info">Next: verify with wg show</span>`,
+        hint: 'Bring up: <code>sudo wg-quick up wg0</code>'
+    },
+    {
+        // Phase 3: wg show
+        tokens: ['wg show', 'wg show'],
+        altTokens: ['wg show'],
+        response: () =>
+            `<span class="t-ok">interface: wg0</span>\n` +
+            `<span class="t-ok">  public key: JkT9mHr3Lp2Yz0XbCnA5eOq7vDi1WsFu4Gk8NjE6cY=</span>\n` +
+            `<span class="t-ok">  private key: (hidden)</span>\n` +
+            `<span class="t-ok">  listening port: 51820</span>\n` +
+            `\n` +
+            `<span class="t-ok">peer: JkT9mHr3Lp2Yz0XbCnA5eOq7vDi1WsFu4Gk8NjE6cY=</span>\n` +
+            `<span class="t-ok">  endpoint: 203.0.113.5:51820</span>\n` +
+            `<span class="t-ok">  allowed ips: 0.0.0.0/0, ::/0</span>\n` +
+            `<span class="t-ok">  latest handshake: 2 seconds ago</span>\n` +
+            `<span class="t-ok">  transfer: 142 B received, 368 B sent</span>\n` +
+            `<span class="t-ok blink">  WireGuard tunnel is LIVE.</span>`,
+        hint: 'Verify: <code>sudo wg show</code>'
+    }
+];
+
+function ex2Run() {
+    const input = document.getElementById('ex2-input');
+    const raw   = input.value.trim();
+    if (!raw) return;
+
+    termPrompt('ex2-output', raw);
+    input.value = '';
+
+    const lower = raw.toLowerCase();
+
+    if (ex2Phase >= EX2_PHASES.length) {
+        termAppend('ex2-output', `<span class="t-dim">${escHtml(raw)}: all setup steps complete</span>`);
+        return;
+    }
+
+    const phase = EX2_PHASES[ex2Phase];
+    // Build a flexible match: check if the command contains key tokens for the current phase
+    const phaseMatches = [
+        lower.includes('wireguard') || (lower.includes('apt') && lower.includes('install')),
+        lower.includes('genkey') || (lower.includes('wg') && lower.includes('pubkey')),
+        lower.includes('wg-quick') && lower.includes('up'),
+        lower.includes('wg show') || (lower === 'wg show') || (lower.includes('wg') && lower.includes('show')),
+    ];
+
+    if (phaseMatches[ex2Phase]) {
+        termAppend('ex2-output', phase.response());
+        ex2Phase++;
+        wrongCounts.ex2 = 0;
+    } else {
+        wrongCounts.ex2++;
+        termAppend('ex2-output', `<span class="t-error">bash: command not found or out of order — check the hint</span>`);
+        if (wrongCounts.ex2 >= 2) {
+            document.getElementById('ex2-hint').classList.add('show');
+        }
+    }
+}
+
+/* ══════════════════════════════════════════════════════════
+   EXERCISE 3 — OpenVPN terminal
+══════════════════════════════════════════════════════════ */
+
+let ex3Phase = 0;
+
+// Simulated OpenVPN connection log shown step by step
+const OVPN_LOG = [
+    `<span class="t-info">Reading package lists... Done</span>`,
+    `<span class="t-ok">Setting up openvpn (2.6.8-1) ...</span>`,
+    `<span class="t-dim">OpenVPN installed. Place your .ovpn file in the working directory.</span>`,
+];
+
+const OVPN_CONNECT_LOG = [
+    `<span class="t-info">OpenVPN 2.6.8 x86_64-pc-linux-gnu [SSL (OpenSSL)] [LZO] [EPOLL] built</span>`,
+    `<span class="t-info">TCP/UDP: Preserving recently used remote address</span>`,
+    `<span class="t-info">Attempting to establish TCP connection with vpn.hexworth.io:443</span>`,
+    `<span class="t-ok">TCP connection established with vpn.hexworth.io:443</span>`,
+    `<span class="t-info">TLS: Initial packet from vpn.hexworth.io: sid=a3f2d1b0 7c9e4f22</span>`,
+    `<span class="t-info">VERIFY OK: depth=1, CN=Hexworth VPN CA</span>`,
+    `<span class="t-ok">VERIFY OK: depth=0, CN=vpn.hexworth.io</span>`,
+    `<span class="t-ok">Control Channel: TLSv1.3, cipher TLSv1.3 TLS_AES_256_GCM_SHA384</span>`,
+    `<span class="t-ok">Data Channel: using negotiated cipher 'AES-256-GCM'</span>`,
+    `<span class="t-ok">Outgoing Data Channel: Cipher 'AES-256-GCM' initialized with 256 bit key</span>`,
+    `<span class="t-ok">Incoming Data Channel: Cipher 'AES-256-GCM' initialized with 256 bit key</span>`,
+    `<span class="t-info">TUN/TAP device tun0 opened</span>`,
+    `<span class="t-info">net_iface_up: set tun0 up</span>`,
+    `<span class="t-info">net_addr_v4_add: 10.8.0.6/24 dev tun0</span>`,
+    `<span class="t-ok blink">Initialization Sequence Completed — tunnel is LIVE on tun0</span>`,
+];
+
+function ex3Run() {
+    const input = document.getElementById('ex3-input');
+    const raw   = input.value.trim();
+    if (!raw) return;
+
+    termPrompt('ex3-output', raw);
+    input.value = '';
+
+    const lower = raw.toLowerCase();
+
+    if (ex3Phase === 0) {
+        if (lower.includes('apt') && lower.includes('openvpn')) {
+            OVPN_LOG.forEach((line, i) => {
+                setTimeout(() => termAppend('ex3-output', line), i * 180);
+            });
+            setTimeout(() => {
+                termAppend('ex3-output', `<span class="t-info">Next: sudo openvpn --config client.ovpn</span>`);
+            }, OVPN_LOG.length * 180);
+            ex3Phase = 1;
+            wrongCounts.ex3 = 0;
+        } else {
+            wrongCounts.ex3++;
+            termAppend('ex3-output', `<span class="t-error">openvpn: not found — install it first</span>`);
+            if (wrongCounts.ex3 >= 2) document.getElementById('ex3-hint').classList.add('show');
+        }
+
+    } else if (ex3Phase === 1) {
+        if (lower.includes('openvpn') && (lower.includes('--config') || lower.includes('client.ovpn'))) {
+            // Animate the connection log with delays
+            OVPN_CONNECT_LOG.forEach((line, i) => {
+                setTimeout(() => termAppend('ex3-output', line), i * 220);
+            });
+            setTimeout(() => {
+                termAppend('ex3-output', `<span class="t-info">Next: ip addr show tun0</span>`);
+                ex3Phase = 2;
+            }, OVPN_CONNECT_LOG.length * 220);
+            wrongCounts.ex3 = 0;
+        } else {
+            wrongCounts.ex3++;
+            termAppend('ex3-output', `<span class="t-error">bash: command not recognised — did you mean: sudo openvpn --config client.ovpn?</span>`);
+            if (wrongCounts.ex3 >= 2) document.getElementById('ex3-hint').classList.add('show');
+        }
+
+    } else if (ex3Phase === 2) {
+        if (lower.includes('ip addr') && lower.includes('tun0')) {
+            termAppend('ex3-output',
+                `<span class="t-ok">4: tun0: &lt;POINTOPOINT,MULTICAST,NOARP,UP,LOWER_UP&gt; mtu 1500 qdisc fq_codel state UNKNOWN</span>\n` +
+                `<span class="t-ok">    link/none</span>\n` +
+                `<span class="t-ok">    inet 10.8.0.6/24 scope global tun0</span>\n` +
+                `<span class="t-ok">       valid_lft forever preferred_lft forever</span>\n` +
+                `<span class="t-ok">    inet6 fe80::a4d2:99c1:b3e7:1f2a/64 scope link stable-privacy</span>\n` +
+                `<span class="t-ok">       valid_lft forever preferred_lft forever</span>`
+            );
+            ex3Phase = 3;
+            wrongCounts.ex3 = 0;
+        } else {
+            wrongCounts.ex3++;
+            termAppend('ex3-output', `<span class="t-error">bash: check the tunnel interface with: ip addr show tun0</span>`);
+            if (wrongCounts.ex3 >= 2) document.getElementById('ex3-hint').classList.add('show');
+        }
+
+    } else {
+        termAppend('ex3-output', `<span class="t-dim">${escHtml(raw)}: all OpenVPN steps complete</span>`);
+    }
+}
+
+/* ══════════════════════════════════════════════════════════
+   EXERCISE 4 — Kill switch terminal
+══════════════════════════════════════════════════════════ */
+
+// Track which kill switch rules have been applied
+let ksRules = { wg0Accept: false, eth0Wg: false, eth0Drop: false };
+
+function ex4Run() {
+    const input = document.getElementById('ex4-input');
+    const raw   = input.value.trim();
+    if (!raw) return;
+
+    termPrompt('ex4-output', raw);
+    input.value = '';
+
+    const lower = raw.toLowerCase();
+
+    if (lower.includes('iptables') && lower.includes('-o wg0') && lower.includes('accept')) {
+        ksRules.wg0Accept = true;
+        termAppend('ex4-output', `<span class="t-ok">iptables: rule added — OUTPUT via wg0 ACCEPTED</span>`);
+        updateKsStatus();
+        wrongCounts.ex4 = 0;
+
+    } else if (lower.includes('iptables') && lower.includes('eth0') && lower.includes('51820') && lower.includes('accept')) {
+        ksRules.eth0Wg = true;
+        termAppend('ex4-output', `<span class="t-ok">iptables: rule added — WireGuard handshake on eth0 ACCEPTED (port 51820/udp)</span>`);
+        updateKsStatus();
+        wrongCounts.ex4 = 0;
+
+    } else if (lower.includes('iptables') && lower.includes('-o eth0') && lower.includes('drop')) {
+        if (!ksRules.wg0Accept || !ksRules.eth0Wg) {
+            termAppend('ex4-output', `<span class="t-warn">WARNING: Adding DROP rule before ACCEPT rules — you will lock yourself out. Add the ACCEPT rules first.</span>`);
+        } else {
+            ksRules.eth0Drop = true;
+            termAppend('ex4-output', `<span class="t-ok">iptables: rule added — all other OUTPUT on eth0 DROPPED</span>`);
+            termAppend('ex4-output', `<span class="t-ok">Kill switch ACTIVE. Try: simulate vpn drop</span>`);
+            updateKsStatus();
+            wrongCounts.ex4 = 0;
+        }
+
+    } else if (lower.includes('simulate vpn drop') || lower === 'simulate') {
+        if (!ksRules.eth0Drop) {
+            termAppend('ex4-output',
+                `<span class="t-warn">[ SIMULATION ] wg0 goes down ...</span>\n` +
+                `<span class="t-error">[ LEAK ] Kill switch not configured — traffic routed via eth0</span>\n` +
+                `<span class="t-error">[ LEAK ] Real IP 203.0.113.42 exposed to all destinations</span>\n` +
+                `<span class="t-error">[ LEAK ] curl https://ifconfig.me returned: 203.0.113.42</span>\n` +
+                `<span class="t-warn">Configure the kill switch (all 3 iptables rules) to prevent this.</span>`
+            );
+        } else {
+            termAppend('ex4-output',
+                `<span class="t-warn">[ SIMULATION ] wg0 interface drops — VPN connection lost ...</span>`
+            );
+            setTimeout(() => {
+                termAppend('ex4-output',
+                    `<span class="t-dim">[ kernel ] Routing table: wg0 route removed</span>`
+                );
+            }, 500);
+            setTimeout(() => {
+                termAppend('ex4-output',
+                    `<span class="t-dim">[ kernel ] Fallback route via eth0 found — attempting to send ...</span>`
+                );
+            }, 1000);
+            setTimeout(() => {
+                termAppend('ex4-output',
+                    `<span class="t-ok">[ iptables ] OUTPUT on eth0 — DROPPED (kill switch active)</span>\n` +
+                    `<span class="t-ok">[ iptables ] No packets leaked. Real IP protected.</span>\n` +
+                    `<span class="t-ok">[ network ] All traffic halted until VPN reconnects.</span>\n` +
+                    `<span class="t-ok blink">Kill switch working correctly.</span>`
+                );
+                // Update status bar
+                document.getElementById('ks-led').className = 'ks-led green';
+                document.getElementById('ks-text').style.color = 'var(--ok-color)';
+                document.getElementById('ks-text').textContent = 'VPN: disconnected  |  Kill switch: ACTIVE — traffic blocked, no IP leak';
+            }, 1800);
+        }
+
+    } else if (lower.includes('iptables') && lower.includes('-l')) {
+        // iptables -L output
+        termAppend('ex4-output',
+            `<span class="t-info">Chain OUTPUT (policy ACCEPT)</span>\n` +
+            `<span class="t-info">target   prot opt source     destination</span>\n` +
+            (ksRules.wg0Accept ? `<span class="t-ok">ACCEPT   all  --  anywhere   anywhere   out: wg0</span>\n` : '') +
+            (ksRules.eth0Wg   ? `<span class="t-ok">ACCEPT   udp  --  anywhere   anywhere   out: eth0 udp dpt:51820</span>\n` : '') +
+            (ksRules.eth0Drop  ? `<span class="t-ok">DROP     all  --  anywhere   anywhere   out: eth0</span>\n` : '')
+        );
+
+    } else {
+        wrongCounts.ex4++;
+        termAppend('ex4-output', `<span class="t-error">iptables: unrecognised command — check syntax in the hint</span>`);
+        if (wrongCounts.ex4 >= 2) {
+            document.getElementById('ex4-hint').classList.add('show');
+        }
+    }
+}
+
+/**
+ * Update the kill switch status bar based on which rules have been applied.
+ */
+function updateKsStatus() {
+    const led  = document.getElementById('ks-led');
+    const text = document.getElementById('ks-text');
+
+    if (ksRules.wg0Accept && ksRules.eth0Wg && ksRules.eth0Drop) {
+        led.className = 'ks-led green';
+        text.style.color = 'var(--ok-color)';
+        text.textContent = 'VPN: connected  |  Kill switch: ACTIVE — IP leak protection enabled';
+    } else if (ksRules.wg0Accept || ksRules.eth0Wg) {
+        led.className = 'ks-led orange';
+        text.style.color = 'var(--warn-color)';
+        const remaining = 3 - [ksRules.wg0Accept, ksRules.eth0Wg, ksRules.eth0Drop].filter(Boolean).length;
+        text.textContent = `VPN: connected  |  Kill switch: PARTIAL — ${remaining} rule(s) remaining`;
+    }
+}
+
+/**
+ * Mark exercise 4 done — requires at least 2 of 3 rules to be configured
+ * so the student engaged with the iptables commands.
+ */
+function ex4Complete() {
+    const rulesApplied = [ksRules.wg0Accept, ksRules.eth0Wg, ksRules.eth0Drop].filter(Boolean).length;
+    if (rulesApplied < 2) {
+        // Encourage them to run more commands first
+        document.getElementById('ex4-hint').classList.add('show');
+        termAppend('ex4-output', `<span class="t-warn">Apply at least the first two iptables rules before marking complete.</span>`);
+        return;
+    }
+    markDone('ex4', 3);
+}
+
+/* ══════════════════════════════════════════════════════════
+   EXERCISE 5 — VPN vs Tor scenario matrix
+══════════════════════════════════════════════════════════ */
+
+/**
+ * Scenario data: tool = 'vpn' | 'tor' | 'both' | 'vpn-tor'
+ * Determines display color and reasoning text.
+ */
+const SCENARIOS = {
+    journalist: {
+        tool: 'tor',
+        toolLabel: 'USE: Tor (+ SecureDrop)',
+        toolClass: 'tor',
+        btnClass: 'selected-tor',
+        reasoning: `A journalist in a hostile country faces a nation-state adversary with the ability
+                   to compel VPN providers to hand over logs. <strong style="color:#a78bfa;">Tor</strong> distributes
+                   trust across three independent relays — no single party can deanonymise the user.
+                   Combine with SecureDrop (which runs over Tor) for source communications.
+                   A VPN alone is insufficient because the provider is a single point of failure.`
+    },
+    corporate: {
+        tool: 'vpn',
+        toolLabel: 'USE: VPN (Corporate)',
+        toolClass: 'vpn',
+        btnClass: 'selected-vpn',
+        reasoning: `A corporate employee on public WiFi needs to protect data in transit and access
+                   internal resources. A <strong style="color:#22c55e;">corporate VPN</strong>
+                   (WireGuard or IPSec/IKEv2) satisfies both. Tor would be inappropriate here:
+                   it is too slow for productivity tools, blocks persistent connections, and many
+                   corporate systems actively block Tor exit nodes. Trust model: you already trust
+                   your employer.`
+    },
+    streaming: {
+        tool: 'vpn',
+        toolLabel: 'USE: VPN (commercial)',
+        toolClass: 'vpn',
+        btnClass: 'selected-vpn',
+        reasoning: `Geo-unblocking streaming content requires stable, fast connections with a server
+                   in the target country. <strong style="color:#22c55e;">A commercial VPN</strong>
+                   (Mullvad, ProtonVPN, etc.) delivers this. Tor is completely unsuitable:
+                   streaming services block Tor exit nodes, and the 200-500 ms latency makes
+                   video buffering impractical. Anonymity is not required here — only IP geolocation.`
+    },
+    whistleblower: {
+        tool: 'both',
+        toolLabel: 'USE: Tor over VPN (carefully)',
+        toolClass: 'both',
+        btnClass: 'selected-both',
+        reasoning: `A whistleblower contacting a journalist with a nation-state adversary is the
+                   highest-risk scenario. <strong style="color:#fbbf24;">Tor</strong> should be the
+                   primary tool — ideally from a Tails OS live boot on hardware not linked to you.
+                   Using a VPN <em>before</em> Tor (VPN → Tor) hides Tor usage from your ISP (useful
+                   if Tor is monitored in your country) but does NOT improve anonymity from the
+                   destination. Never use a personal device or account for this.`
+    },
+    gaming: {
+        tool: 'vpn',
+        toolLabel: 'USE: VPN (low-latency focused)',
+        toolClass: 'vpn',
+        btnClass: 'selected-vpn',
+        reasoning: `For gaming, the priority is DDoS protection and potentially reduced latency
+                   via a better routing path. A <strong style="color:#22c55e;">VPN with WireGuard</strong>
+                   (WireGuard adds ~5 ms overhead vs 200-500 ms for Tor) is appropriate.
+                   Services like Mullvad, ExpressVPN, or a personal VPS-hosted WireGuard instance
+                   work well. Tor is completely unsuitable: the latency alone makes online gaming
+                   unplayable, and Tor is designed for TCP-based anonymity, not UDP gaming traffic.`
+    }
+};
+
+// Track how many scenarios the student has reviewed
+let scenariosViewed = new Set();
+
+/**
+ * Display reasoning for a selected scenario.
+ * @param {string} key - scenario identifier
+ */
+function showScenario(key) {
+    const s = SCENARIOS[key];
+    if (!s) return;
+
+    scenariosViewed.add(key);
+
+    // Update button styling
+    document.querySelectorAll('.scenario-btn').forEach(btn => {
+        btn.classList.remove('selected-vpn', 'selected-tor', 'selected-both');
+    });
+    // Find and style the clicked button (match by scenario key via onclick attr)
+    document.querySelectorAll('.scenario-btn').forEach(btn => {
+        if (btn.getAttribute('onclick') === `showScenario('${key}')`) {
+            btn.classList.add(s.btnClass);
+        }
+    });
+
+    // Populate result panel
+    const toolEl = document.getElementById('sr-tool-label');
+    const reasonEl = document.getElementById('sr-reasoning');
+    const resultEl = document.getElementById('scenario-result');
+
+    toolEl.className = `sr-tool ${s.toolClass}`;
+    toolEl.textContent = s.toolLabel;
+    reasonEl.innerHTML = s.reasoning;
+    resultEl.classList.add('show');
+
+    // Show progress message once at least 3 scenarios are reviewed
+    const scoreMsg = document.getElementById('ex5-score-msg');
+    if (scenariosViewed.size >= 3) {
+        scoreMsg.style.display = 'block';
+        scoreMsg.textContent = `${scenariosViewed.size}/5 scenarios reviewed. ${scenariosViewed.size === 5 ? 'All scenarios complete — mark exercise done.' : 'Keep going.'}`;
+    }
+}
+
+/* ══════════════════════════════════════════════════════════
+   Module completion
+══════════════════════════════════════════════════════════ */
+
+function completeModule() {
+    const btn = document.getElementById('btnComplete');
+    btn.disabled = true;
+    btn.textContent = 'Saving...';
+
+    // Fire ModuleProgress completion with return URL
+    if (typeof ModuleProgress !== 'undefined') {
+        ModuleProgress.complete('script', 'script-anonymity-vpn', {
+            returnUrl: '../index.html'
+        });
+    }
+
+    setTimeout(() => {
+        document.getElementById('completeMsgFinal').style.display = 'block';
+        btn.textContent = 'Completed';
+
+        // Unlock achievement if manager is available
+        if (typeof AchievementManager !== 'undefined') {
+            AchievementManager.unlock('vpn_configured');
+        }
+    }, 600);
+}
+
+/* ── Score init ── */
+updateScore();
+</script>
+
+<script src="../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>
