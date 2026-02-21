@@ -1801,133 +1801,133 @@ class LearningPaths {
                     id: 'forge-md100-m01',
                     title: 'Install the Windows Client',
                     type: 'presentation',
-                    href: 'houses/forge/md-100/presentations/md100-m01-install-windows.presentation.html'
+                    href: 'houses/forge/md-100/presentations/forge-md100-m01-install-windows.presentation.html'
                 },
                 {
                     id: 'forge-md100-m02',
                     title: 'Configure Authorization & Authentication',
                     type: 'presentation',
-                    href: 'houses/forge/md-100/presentations/md100-m02-auth-authorization.presentation.html'
+                    href: 'houses/forge/md-100/presentations/forge-md100-m02-auth-authorization.presentation.html'
                 },
                 {
                     id: 'forge-md100-m03',
                     title: 'Post-Installation Settings & Personalization',
                     type: 'presentation',
-                    href: 'houses/forge/md-100/presentations/md100-m03-post-install-config.presentation.html'
+                    href: 'houses/forge/md-100/presentations/forge-md100-m03-post-install-config.presentation.html'
                 },
                 {
                     id: 'forge-md100-m04',
                     title: 'Configuring Networking',
                     type: 'presentation',
-                    href: 'houses/forge/md-100/presentations/md100-m04-networking.presentation.html'
+                    href: 'houses/forge/md-100/presentations/forge-md100-m04-networking.presentation.html'
                 },
                 {
                     id: 'forge-md100-m05',
                     title: 'Configure Storage',
                     type: 'presentation',
-                    href: 'houses/forge/md-100/presentations/md100-m05-storage.presentation.html'
+                    href: 'houses/forge/md-100/presentations/forge-md100-m05-storage.presentation.html'
                 },
                 {
                     id: 'forge-md100-m06',
                     title: 'Configure Data Access & Usage',
                     type: 'presentation',
-                    href: 'houses/forge/md-100/presentations/md100-m06-data-access.presentation.html'
+                    href: 'houses/forge/md-100/presentations/forge-md100-m06-data-access.presentation.html'
                 },
                 {
                     id: 'forge-md100-m07',
                     title: 'Manage Apps & Windows Updates',
                     type: 'presentation',
-                    href: 'houses/forge/md-100/presentations/md100-m07-apps-updates.presentation.html'
+                    href: 'houses/forge/md-100/presentations/forge-md100-m07-apps-updates.presentation.html'
                 },
                 {
                     id: 'forge-md100-m08',
                     title: 'Configure Threat Protection',
                     type: 'presentation',
-                    href: 'houses/forge/md-100/presentations/md100-m08-threat-protection.presentation.html'
+                    href: 'houses/forge/md-100/presentations/forge-md100-m08-threat-protection.presentation.html'
                 },
                 {
                     id: 'forge-md100-m09',
                     title: 'Support the Windows Client',
                     type: 'presentation',
-                    href: 'houses/forge/md-100/presentations/md100-m09-support-environment.presentation.html'
+                    href: 'houses/forge/md-100/presentations/forge-md100-m09-support-environment.presentation.html'
                 },
                 {
                     id: 'forge-md100-m10',
                     title: 'Troubleshoot OS & Apps',
                     type: 'presentation',
-                    href: 'houses/forge/md-100/presentations/md100-m10-troubleshoot-os-apps.presentation.html'
+                    href: 'houses/forge/md-100/presentations/forge-md100-m10-troubleshoot-os-apps.presentation.html'
                 },
                 {
                     id: 'forge-md100-m11',
                     title: 'Troubleshoot Hardware & Drivers',
                     type: 'presentation',
-                    href: 'houses/forge/md-100/presentations/md100-m11-troubleshoot-hardware.presentation.html'
+                    href: 'houses/forge/md-100/presentations/forge-md100-m11-troubleshoot-hardware.presentation.html'
                 },
                 {
                     id: 'forge-md100-m01-lab',
                     title: 'Lab: Install the Windows Client',
                     type: 'lab',
-                    href: 'houses/forge/md-100/labs/md100-m01-install.lab.html'
+                    href: 'houses/forge/md-100/labs/forge-md100-m01-install.lab.html'
                 },
                 {
                     id: 'forge-md100-m02-lab',
                     title: 'Lab: Authorization & Authentication',
                     type: 'lab',
-                    href: 'houses/forge/md-100/labs/md100-m02-auth.lab.html'
+                    href: 'houses/forge/md-100/labs/forge-md100-m02-auth.lab.html'
                 },
                 {
                     id: 'forge-md100-m03-lab',
                     title: 'Lab: Post-Installation Configuration',
                     type: 'lab',
-                    href: 'houses/forge/md-100/labs/md100-m03-config.lab.html'
+                    href: 'houses/forge/md-100/labs/forge-md100-m03-config.lab.html'
                 },
                 {
                     id: 'forge-md100-m04-lab',
                     title: 'Lab: Networking',
                     type: 'lab',
-                    href: 'houses/forge/md-100/labs/md100-m04-networking.lab.html'
+                    href: 'houses/forge/md-100/labs/forge-md100-m04-networking.lab.html'
                 },
                 {
                     id: 'forge-md100-m05-lab',
                     title: 'Lab: Storage Configuration',
                     type: 'lab',
-                    href: 'houses/forge/md-100/labs/md100-m05-storage.lab.html'
+                    href: 'houses/forge/md-100/labs/forge-md100-m05-storage.lab.html'
                 },
                 {
                     id: 'forge-md100-m06-lab',
                     title: 'Lab: Data Access',
                     type: 'lab',
-                    href: 'houses/forge/md-100/labs/md100-m06-data-access.lab.html'
+                    href: 'houses/forge/md-100/labs/forge-md100-m06-data-access.lab.html'
                 },
                 {
                     id: 'forge-md100-m07-lab',
                     title: 'Lab: Apps & Updates',
                     type: 'lab',
-                    href: 'houses/forge/md-100/labs/md100-m07-apps.lab.html'
+                    href: 'houses/forge/md-100/labs/forge-md100-m07-apps.lab.html'
                 },
                 {
                     id: 'forge-md100-m08-lab',
                     title: 'Lab: Threat Protection',
                     type: 'lab',
-                    href: 'houses/forge/md-100/labs/md100-m08-security.lab.html'
+                    href: 'houses/forge/md-100/labs/forge-md100-m08-security.lab.html'
                 },
                 {
                     id: 'forge-md100-m09-lab',
                     title: 'Lab: Support Environment',
                     type: 'lab',
-                    href: 'houses/forge/md-100/labs/md100-m09-support.lab.html'
+                    href: 'houses/forge/md-100/labs/forge-md100-m09-support.lab.html'
                 },
                 {
                     id: 'forge-md100-m10-lab',
                     title: 'Lab: OS & App Troubleshooting',
                     type: 'lab',
-                    href: 'houses/forge/md-100/labs/md100-m10-troubleshoot.lab.html'
+                    href: 'houses/forge/md-100/labs/forge-md100-m10-troubleshoot.lab.html'
                 },
                 {
                     id: 'forge-md100-m11-lab',
                     title: 'Lab: Hardware & Driver Troubleshooting',
                     type: 'lab',
-                    href: 'houses/forge/md-100/labs/md100-m11-hardware.lab.html'
+                    href: 'houses/forge/md-100/labs/forge-md100-m11-hardware.lab.html'
                 }
             ]
         },
@@ -1944,43 +1944,43 @@ class LearningPaths {
                     id: 'cloud-openstack-intro',
                     title: 'Introduction & Environment',
                     type: 'presentation',
-                    href: 'houses/cloud/openstack/presentations/openstack-intro-environment.presentation.html'
+                    href: 'houses/cloud/openstack/presentations/cloud-openstack-intro-environment.presentation.html'
                 },
                 {
                     id: 'cloud-openstack-projects',
                     title: 'OpenStack Projects',
                     type: 'presentation',
-                    href: 'houses/cloud/openstack/presentations/openstack-projects.presentation.html'
+                    href: 'houses/cloud/openstack/presentations/cloud-openstack-projects.presentation.html'
                 },
                 {
                     id: 'cloud-openstack-install',
                     title: 'OpenStack Installation',
                     type: 'presentation',
-                    href: 'houses/cloud/openstack/presentations/openstack-installation.presentation.html'
+                    href: 'houses/cloud/openstack/presentations/cloud-openstack-installation.presentation.html'
                 },
                 {
                     id: 'cloud-openstack-operation',
                     title: 'OpenStack Operation',
                     type: 'presentation',
-                    href: 'houses/cloud/openstack/presentations/openstack-operation.presentation.html'
+                    href: 'houses/cloud/openstack/presentations/cloud-openstack-operation.presentation.html'
                 },
                 {
                     id: 'cloud-openstack-install-lab',
                     title: 'Lab: Install OpenStack',
                     type: 'lab',
-                    href: 'houses/cloud/openstack/labs/openstack-install.lab.html'
+                    href: 'houses/cloud/openstack/labs/cloud-openstack-install.lab.html'
                 },
                 {
                     id: 'cloud-openstack-launch-lab',
                     title: 'Lab: Launch Virtual Machine',
                     type: 'lab',
-                    href: 'houses/cloud/openstack/labs/openstack-launch-vm.lab.html'
+                    href: 'houses/cloud/openstack/labs/cloud-openstack-launch-vm.lab.html'
                 },
                 {
                     id: 'cloud-openstack-advanced-lab',
                     title: 'Lab: Advanced Operations',
                     type: 'lab',
-                    href: 'houses/cloud/openstack/labs/openstack-advanced-ops.lab.html'
+                    href: 'houses/cloud/openstack/labs/cloud-openstack-advanced-ops.lab.html'
                 }
             ]
         },
@@ -2020,22 +2020,22 @@ class LearningPaths {
             color: '#10b981',
             courseHref: 'houses/shield/cyber-framework/index.html',
             modules: [
-                { id: 'shield-cf-mm01', title: 'MM1: Introduction to Legal/Regulatory/Policy Issues', type: 'presentation', href: 'houses/shield/cyber-framework/presentations/cf-mm01-intro.presentation.html' },
-                { id: 'shield-cf-mm01-lab', title: 'MM1 Lab: Cybersecurity Law Foundations', type: 'lab', href: 'houses/shield/cyber-framework/labs/cf-mm01-intro.lab.html' },
-                { id: 'shield-cf-mm02', title: 'MM2: Government Agency Roles & Responsibilities', type: 'presentation', href: 'houses/shield/cyber-framework/presentations/cf-mm02-gov-agencies.presentation.html' },
-                { id: 'shield-cf-mm02-lab', title: 'MM2 Lab: Government Agencies in Cybersecurity', type: 'lab', href: 'houses/shield/cyber-framework/labs/cf-mm02-gov-agencies.lab.html' },
-                { id: 'shield-cf-mm03', title: 'MM3: Major Cybersecurity Legislation', type: 'presentation', href: 'houses/shield/cyber-framework/presentations/cf-mm03-legislation.presentation.html' },
-                { id: 'shield-cf-mm03-lab', title: 'MM3 Lab: CFAA & Data Breach Notification', type: 'lab', href: 'houses/shield/cyber-framework/labs/cf-mm03-legislation.lab.html' },
-                { id: 'shield-cf-mm04', title: 'MM4: Major Regulatory Frameworks', type: 'presentation', href: 'houses/shield/cyber-framework/presentations/cf-mm04-regulatory.presentation.html' },
-                { id: 'shield-cf-mm04-lab', title: 'MM4 Lab: Regulatory Compliance', type: 'lab', href: 'houses/shield/cyber-framework/labs/cf-mm04-regulatory.lab.html' },
-                { id: 'shield-cf-mm05', title: 'MM5: Critical Infrastructure & NIST CSF', type: 'presentation', href: 'houses/shield/cyber-framework/presentations/cf-mm05-nist-cip.presentation.html' },
-                { id: 'shield-cf-mm05-lab', title: 'MM5 Lab: NIST Framework Application', type: 'lab', href: 'houses/shield/cyber-framework/labs/cf-mm05-nist-cip.lab.html' },
-                { id: 'shield-cf-mm06', title: 'MM6: Encryption Law & Policy', type: 'presentation', href: 'houses/shield/cyber-framework/presentations/cf-mm06-encryption.presentation.html' },
-                { id: 'shield-cf-mm06-lab', title: 'MM6 Lab: Encryption Policy Analysis', type: 'lab', href: 'houses/shield/cyber-framework/labs/cf-mm06-encryption.lab.html' },
-                { id: 'shield-cf-mm07', title: 'MM7: Data Breach Litigation', type: 'presentation', href: 'houses/shield/cyber-framework/presentations/cf-mm07-breach-litigation.presentation.html' },
-                { id: 'shield-cf-mm07-lab', title: 'MM7 Lab: Breach Litigation Analysis', type: 'lab', href: 'houses/shield/cyber-framework/labs/cf-mm07-breach-litigation.lab.html' },
-                { id: 'shield-cf-mm08', title: 'MM8: International Law & Cyber War', type: 'presentation', href: 'houses/shield/cyber-framework/presentations/cf-mm08-cyber-war.presentation.html' },
-                { id: 'shield-cf-mm08-lab', title: 'MM8 Lab: International Cyber Law', type: 'lab', href: 'houses/shield/cyber-framework/labs/cf-mm08-cyber-war.lab.html' }
+                { id: 'shield-cf-mm01', title: 'MM1: Introduction to Legal/Regulatory/Policy Issues', type: 'presentation', href: 'houses/shield/cyber-framework/presentations/shield-cf-mm01-intro.presentation.html' },
+                { id: 'shield-cf-mm01-lab', title: 'MM1 Lab: Cybersecurity Law Foundations', type: 'lab', href: 'houses/shield/cyber-framework/labs/shield-cf-mm01-intro.lab.html' },
+                { id: 'shield-cf-mm02', title: 'MM2: Government Agency Roles & Responsibilities', type: 'presentation', href: 'houses/shield/cyber-framework/presentations/shield-cf-mm02-gov-agencies.presentation.html' },
+                { id: 'shield-cf-mm02-lab', title: 'MM2 Lab: Government Agencies in Cybersecurity', type: 'lab', href: 'houses/shield/cyber-framework/labs/shield-cf-mm02-gov-agencies.lab.html' },
+                { id: 'shield-cf-mm03', title: 'MM3: Major Cybersecurity Legislation', type: 'presentation', href: 'houses/shield/cyber-framework/presentations/shield-cf-mm03-legislation.presentation.html' },
+                { id: 'shield-cf-mm03-lab', title: 'MM3 Lab: CFAA & Data Breach Notification', type: 'lab', href: 'houses/shield/cyber-framework/labs/shield-cf-mm03-legislation.lab.html' },
+                { id: 'shield-cf-mm04', title: 'MM4: Major Regulatory Frameworks', type: 'presentation', href: 'houses/shield/cyber-framework/presentations/shield-cf-mm04-regulatory.presentation.html' },
+                { id: 'shield-cf-mm04-lab', title: 'MM4 Lab: Regulatory Compliance', type: 'lab', href: 'houses/shield/cyber-framework/labs/shield-cf-mm04-regulatory.lab.html' },
+                { id: 'shield-cf-mm05', title: 'MM5: Critical Infrastructure & NIST CSF', type: 'presentation', href: 'houses/shield/cyber-framework/presentations/shield-cf-mm05-nist-cip.presentation.html' },
+                { id: 'shield-cf-mm05-lab', title: 'MM5 Lab: NIST Framework Application', type: 'lab', href: 'houses/shield/cyber-framework/labs/shield-cf-mm05-nist-cip.lab.html' },
+                { id: 'shield-cf-mm06', title: 'MM6: Encryption Law & Policy', type: 'presentation', href: 'houses/shield/cyber-framework/presentations/shield-cf-mm06-encryption.presentation.html' },
+                { id: 'shield-cf-mm06-lab', title: 'MM6 Lab: Encryption Policy Analysis', type: 'lab', href: 'houses/shield/cyber-framework/labs/shield-cf-mm06-encryption.lab.html' },
+                { id: 'shield-cf-mm07', title: 'MM7: Data Breach Litigation', type: 'presentation', href: 'houses/shield/cyber-framework/presentations/shield-cf-mm07-breach-litigation.presentation.html' },
+                { id: 'shield-cf-mm07-lab', title: 'MM7 Lab: Breach Litigation Analysis', type: 'lab', href: 'houses/shield/cyber-framework/labs/shield-cf-mm07-breach-litigation.lab.html' },
+                { id: 'shield-cf-mm08', title: 'MM8: International Law & Cyber War', type: 'presentation', href: 'houses/shield/cyber-framework/presentations/shield-cf-mm08-cyber-war.presentation.html' },
+                { id: 'shield-cf-mm08-lab', title: 'MM8 Lab: International Cyber Law', type: 'lab', href: 'houses/shield/cyber-framework/labs/shield-cf-mm08-cyber-war.lab.html' }
             ]
         },
 
@@ -2047,30 +2047,30 @@ class LearningPaths {
             color: '#22c55e',
             courseHref: 'houses/script/linux/index.html',
             modules: [
-                { id: 'script-la-ch01', title: 'Introduction to Linux', type: 'presentation', href: 'houses/script/linux/presentations/la-ch01-intro.presentation.html' },
-                { id: 'script-la-ch01-lab', title: 'Linux Basics Lab', type: 'lab', href: 'houses/script/linux/labs/la-ch01-intro.lab.html' },
-                { id: 'script-la-ch02', title: 'Linux Distributions & Uses', type: 'presentation', href: 'houses/script/linux/presentations/la-ch02-distros.presentation.html' },
-                { id: 'script-la-ch02-lab', title: 'Distributions Lab', type: 'lab', href: 'houses/script/linux/labs/la-ch02-distros.lab.html' },
-                { id: 'script-la-ch03', title: 'Grep, Pipes & Text Processing', type: 'presentation', href: 'houses/script/linux/presentations/la-ch03-grep-pipes.presentation.html' },
-                { id: 'script-la-ch03-lab', title: 'Grep & Pipes Lab', type: 'lab', href: 'houses/script/linux/labs/la-ch03-grep-pipes.lab.html' },
-                { id: 'script-la-ch04', title: 'Process Management & Nice Values', type: 'presentation', href: 'houses/script/linux/presentations/la-ch04-processes.presentation.html' },
-                { id: 'script-la-ch04-lab', title: 'Process Management Lab', type: 'lab', href: 'houses/script/linux/labs/la-ch04-processes.lab.html' },
-                { id: 'script-la-ch05', title: 'Daemons & Services', type: 'presentation', href: 'houses/script/linux/presentations/la-ch05-daemons.presentation.html' },
-                { id: 'script-la-ch05-lab', title: 'Daemons Lab', type: 'lab', href: 'houses/script/linux/labs/la-ch05-daemons.lab.html' },
-                { id: 'script-la-ch06', title: 'Initialization, X Windows & Localization', type: 'presentation', href: 'houses/script/linux/presentations/la-ch06-init-xwindows.presentation.html' },
-                { id: 'script-la-ch06-lab', title: 'Init & X Windows Lab', type: 'lab', href: 'houses/script/linux/labs/la-ch06-init-xwindows.lab.html' },
-                { id: 'script-la-ch07', title: 'Display Managers & User Sessions', type: 'presentation', href: 'houses/script/linux/presentations/la-ch07-display-mgr.presentation.html' },
-                { id: 'script-la-ch07-lab', title: 'Display Managers Lab', type: 'lab', href: 'houses/script/linux/labs/la-ch07-display-mgr.lab.html' },
-                { id: 'script-la-ch08', title: 'Network Interface Configuration', type: 'presentation', href: 'houses/script/linux/presentations/la-ch08-network.presentation.html' },
-                { id: 'script-la-ch08-lab', title: 'Network Configuration Lab', type: 'lab', href: 'houses/script/linux/labs/la-ch08-network.lab.html' },
-                { id: 'script-la-ch09', title: 'IPv4 Protocol & Networking', type: 'presentation', href: 'houses/script/linux/presentations/la-ch09-ipv4.presentation.html' },
-                { id: 'script-la-ch09-lab', title: 'IPv4 Networking Lab', type: 'lab', href: 'houses/script/linux/labs/la-ch09-ipv4.lab.html' },
-                { id: 'script-la-ch10', title: 'File Compression & Archiving', type: 'presentation', href: 'houses/script/linux/presentations/la-ch10-compression.presentation.html' },
-                { id: 'script-la-ch10-lab', title: 'Compression Lab', type: 'lab', href: 'houses/script/linux/labs/la-ch10-compression.lab.html' },
-                { id: 'script-la-ch11', title: 'Linux Encryption', type: 'presentation', href: 'houses/script/linux/presentations/la-ch11-encryption.presentation.html' },
-                { id: 'script-la-ch11-lab', title: 'Encryption Lab', type: 'lab', href: 'houses/script/linux/labs/la-ch11-encryption.lab.html' },
-                { id: 'script-la-ch12', title: 'Compiling Source Code', type: 'presentation', href: 'houses/script/linux/presentations/la-ch12-compile.presentation.html' },
-                { id: 'script-la-ch12-lab', title: 'Source Compilation Lab', type: 'lab', href: 'houses/script/linux/labs/la-ch12-compile.lab.html' }
+                { id: 'script-la-ch01', title: 'Introduction to Linux', type: 'presentation', href: 'houses/script/linux/presentations/script-la-ch01-intro.presentation.html' },
+                { id: 'script-la-ch01-lab', title: 'Linux Basics Lab', type: 'lab', href: 'houses/script/linux/labs/script-la-ch01-intro.lab.html' },
+                { id: 'script-la-ch02', title: 'Linux Distributions & Uses', type: 'presentation', href: 'houses/script/linux/presentations/script-la-ch02-distros.presentation.html' },
+                { id: 'script-la-ch02-lab', title: 'Distributions Lab', type: 'lab', href: 'houses/script/linux/labs/script-la-ch02-distros.lab.html' },
+                { id: 'script-la-ch03', title: 'Grep, Pipes & Text Processing', type: 'presentation', href: 'houses/script/linux/presentations/script-la-ch03-grep-pipes.presentation.html' },
+                { id: 'script-la-ch03-lab', title: 'Grep & Pipes Lab', type: 'lab', href: 'houses/script/linux/labs/script-la-ch03-grep-pipes.lab.html' },
+                { id: 'script-la-ch04', title: 'Process Management & Nice Values', type: 'presentation', href: 'houses/script/linux/presentations/script-la-ch04-processes.presentation.html' },
+                { id: 'script-la-ch04-lab', title: 'Process Management Lab', type: 'lab', href: 'houses/script/linux/labs/script-la-ch04-processes.lab.html' },
+                { id: 'script-la-ch05', title: 'Daemons & Services', type: 'presentation', href: 'houses/script/linux/presentations/script-la-ch05-daemons.presentation.html' },
+                { id: 'script-la-ch05-lab', title: 'Daemons Lab', type: 'lab', href: 'houses/script/linux/labs/script-la-ch05-daemons.lab.html' },
+                { id: 'script-la-ch06', title: 'Initialization, X Windows & Localization', type: 'presentation', href: 'houses/script/linux/presentations/script-la-ch06-init-xwindows.presentation.html' },
+                { id: 'script-la-ch06-lab', title: 'Init & X Windows Lab', type: 'lab', href: 'houses/script/linux/labs/script-la-ch06-init-xwindows.lab.html' },
+                { id: 'script-la-ch07', title: 'Display Managers & User Sessions', type: 'presentation', href: 'houses/script/linux/presentations/script-la-ch07-display-mgr.presentation.html' },
+                { id: 'script-la-ch07-lab', title: 'Display Managers Lab', type: 'lab', href: 'houses/script/linux/labs/script-la-ch07-display-mgr.lab.html' },
+                { id: 'script-la-ch08', title: 'Network Interface Configuration', type: 'presentation', href: 'houses/script/linux/presentations/script-la-ch08-network.presentation.html' },
+                { id: 'script-la-ch08-lab', title: 'Network Configuration Lab', type: 'lab', href: 'houses/script/linux/labs/script-la-ch08-network.lab.html' },
+                { id: 'script-la-ch09', title: 'IPv4 Protocol & Networking', type: 'presentation', href: 'houses/script/linux/presentations/script-la-ch09-ipv4.presentation.html' },
+                { id: 'script-la-ch09-lab', title: 'IPv4 Networking Lab', type: 'lab', href: 'houses/script/linux/labs/script-la-ch09-ipv4.lab.html' },
+                { id: 'script-la-ch10', title: 'File Compression & Archiving', type: 'presentation', href: 'houses/script/linux/presentations/script-la-ch10-compression.presentation.html' },
+                { id: 'script-la-ch10-lab', title: 'Compression Lab', type: 'lab', href: 'houses/script/linux/labs/script-la-ch10-compression.lab.html' },
+                { id: 'script-la-ch11', title: 'Linux Encryption', type: 'presentation', href: 'houses/script/linux/presentations/script-la-ch11-encryption.presentation.html' },
+                { id: 'script-la-ch11-lab', title: 'Encryption Lab', type: 'lab', href: 'houses/script/linux/labs/script-la-ch11-encryption.lab.html' },
+                { id: 'script-la-ch12', title: 'Compiling Source Code', type: 'presentation', href: 'houses/script/linux/presentations/script-la-ch12-compile.presentation.html' },
+                { id: 'script-la-ch12-lab', title: 'Source Compilation Lab', type: 'lab', href: 'houses/script/linux/labs/script-la-ch12-compile.lab.html' }
             ]
         },
 
@@ -2082,38 +2082,38 @@ class LearningPaths {
             color: '#a855f7',
             courseHref: 'houses/eye/cysa/index.html',
             modules: [
-                { id: 'eye-cysa-ch01', title: 'Ch 1: Today\'s Cybersecurity Analyst', type: 'presentation', href: 'houses/eye/cysa/presentations/cysa-ch01-analyst.presentation.html' },
-                { id: 'eye-cysa-ch01-lab', title: 'Ch 1 Lab: Cybersecurity Analyst Foundations', type: 'lab', href: 'houses/eye/cysa/labs/cysa-ch01-analyst.lab.html' },
-                { id: 'eye-cysa-ch02', title: 'Ch 2: Using Threat Intelligence', type: 'presentation', href: 'houses/eye/cysa/presentations/cysa-ch02-threat-intel.presentation.html' },
-                { id: 'eye-cysa-ch02-lab', title: 'Ch 2 Lab: Threat Intelligence Analysis', type: 'lab', href: 'houses/eye/cysa/labs/cysa-ch02-threat-intel.lab.html' },
-                { id: 'eye-cysa-ch03', title: 'Ch 3: Reconnaissance & Intelligence Gathering', type: 'presentation', href: 'houses/eye/cysa/presentations/cysa-ch03-recon.presentation.html' },
-                { id: 'eye-cysa-ch03-lab', title: 'Ch 3 Lab: Reconnaissance Techniques', type: 'lab', href: 'houses/eye/cysa/labs/cysa-ch03-recon.lab.html' },
-                { id: 'eye-cysa-ch04', title: 'Ch 4: Vulnerability Management Program', type: 'presentation', href: 'houses/eye/cysa/presentations/cysa-ch04-vuln-mgmt.presentation.html' },
-                { id: 'eye-cysa-ch04-lab', title: 'Ch 4 Lab: Vulnerability Management', type: 'lab', href: 'houses/eye/cysa/labs/cysa-ch04-vuln-mgmt.lab.html' },
-                { id: 'eye-cysa-ch05', title: 'Ch 5: Analyzing Vulnerability Scans', type: 'presentation', href: 'houses/eye/cysa/presentations/cysa-ch05-vuln-scans.presentation.html' },
-                { id: 'eye-cysa-ch05-lab', title: 'Ch 5 Lab: Vulnerability Scan Analysis', type: 'lab', href: 'houses/eye/cysa/labs/cysa-ch05-vuln-scans.lab.html' },
-                { id: 'eye-cysa-ch06', title: 'Ch 6: Cloud Security', type: 'presentation', href: 'houses/eye/cysa/presentations/cysa-ch06-cloud.presentation.html' },
-                { id: 'eye-cysa-ch06-lab', title: 'Ch 6 Lab: Cloud Security Controls', type: 'lab', href: 'houses/eye/cysa/labs/cysa-ch06-cloud.lab.html' },
-                { id: 'eye-cysa-ch07', title: 'Ch 7: Infrastructure Security & Controls', type: 'presentation', href: 'houses/eye/cysa/presentations/cysa-ch07-infra.presentation.html' },
-                { id: 'eye-cysa-ch07-lab', title: 'Ch 7 Lab: Infrastructure Security', type: 'lab', href: 'houses/eye/cysa/labs/cysa-ch07-infra.lab.html' },
-                { id: 'eye-cysa-ch08', title: 'Ch 8: Identity & Access Management', type: 'presentation', href: 'houses/eye/cysa/presentations/cysa-ch08-iam.presentation.html' },
-                { id: 'eye-cysa-ch08-lab', title: 'Ch 8 Lab: IAM Security', type: 'lab', href: 'houses/eye/cysa/labs/cysa-ch08-iam.lab.html' },
-                { id: 'eye-cysa-ch09', title: 'Ch 9: Software & Hardware Development Security', type: 'presentation', href: 'houses/eye/cysa/presentations/cysa-ch09-dev-security.presentation.html' },
-                { id: 'eye-cysa-ch09-lab', title: 'Ch 9 Lab: Development Security', type: 'lab', href: 'houses/eye/cysa/labs/cysa-ch09-dev-security.lab.html' },
-                { id: 'eye-cysa-ch10', title: 'Ch 10: Security Operations & Monitoring', type: 'presentation', href: 'houses/eye/cysa/presentations/cysa-ch10-secops.presentation.html' },
-                { id: 'eye-cysa-ch10-lab', title: 'Ch 10 Lab: Security Operations', type: 'lab', href: 'houses/eye/cysa/labs/cysa-ch10-secops.lab.html' },
-                { id: 'eye-cysa-ch11', title: 'Ch 11: Building an Incident Response Program', type: 'presentation', href: 'houses/eye/cysa/presentations/cysa-ch11-ir.presentation.html' },
-                { id: 'eye-cysa-ch11-lab', title: 'Ch 11 Lab: Incident Response', type: 'lab', href: 'houses/eye/cysa/labs/cysa-ch11-ir.lab.html' },
-                { id: 'eye-cysa-ch12', title: 'Ch 12: Analyzing Indicators of Compromise', type: 'presentation', href: 'houses/eye/cysa/presentations/cysa-ch12-ioc.presentation.html' },
-                { id: 'eye-cysa-ch12-lab', title: 'Ch 12 Lab: IOC Analysis', type: 'lab', href: 'houses/eye/cysa/labs/cysa-ch12-ioc.lab.html' },
-                { id: 'eye-cysa-ch13', title: 'Ch 13: Forensic Analysis & Techniques', type: 'presentation', href: 'houses/eye/cysa/presentations/cysa-ch13-forensics.presentation.html' },
-                { id: 'eye-cysa-ch13-lab', title: 'Ch 13 Lab: Digital Forensics', type: 'lab', href: 'houses/eye/cysa/labs/cysa-ch13-forensics.lab.html' },
-                { id: 'eye-cysa-ch14', title: 'Ch 14: Containment, Eradication & Recovery', type: 'presentation', href: 'houses/eye/cysa/presentations/cysa-ch14-recovery.presentation.html' },
-                { id: 'eye-cysa-ch14-lab', title: 'Ch 14 Lab: Incident Recovery', type: 'lab', href: 'houses/eye/cysa/labs/cysa-ch14-recovery.lab.html' },
-                { id: 'eye-cysa-ch15', title: 'Ch 15: Risk Management', type: 'presentation', href: 'houses/eye/cysa/presentations/cysa-ch15-risk.presentation.html' },
-                { id: 'eye-cysa-ch15-lab', title: 'Ch 15 Lab: Risk Management', type: 'lab', href: 'houses/eye/cysa/labs/cysa-ch15-risk.lab.html' },
-                { id: 'eye-cysa-ch16', title: 'Ch 16: Policy & Compliance', type: 'presentation', href: 'houses/eye/cysa/presentations/cysa-ch16-compliance.presentation.html' },
-                { id: 'eye-cysa-ch16-lab', title: 'Ch 16 Lab: Policy & Compliance', type: 'lab', href: 'houses/eye/cysa/labs/cysa-ch16-compliance.lab.html' }
+                { id: 'eye-cysa-ch01', title: 'Ch 1: Today\'s Cybersecurity Analyst', type: 'presentation', href: 'houses/eye/cysa/presentations/eye-cysa-ch01-analyst.presentation.html' },
+                { id: 'eye-cysa-ch01-lab', title: 'Ch 1 Lab: Cybersecurity Analyst Foundations', type: 'lab', href: 'houses/eye/cysa/labs/eye-cysa-ch01-analyst.lab.html' },
+                { id: 'eye-cysa-ch02', title: 'Ch 2: Using Threat Intelligence', type: 'presentation', href: 'houses/eye/cysa/presentations/eye-cysa-ch02-threat-intel.presentation.html' },
+                { id: 'eye-cysa-ch02-lab', title: 'Ch 2 Lab: Threat Intelligence Analysis', type: 'lab', href: 'houses/eye/cysa/labs/eye-cysa-ch02-threat-intel.lab.html' },
+                { id: 'eye-cysa-ch03', title: 'Ch 3: Reconnaissance & Intelligence Gathering', type: 'presentation', href: 'houses/eye/cysa/presentations/eye-cysa-ch03-recon.presentation.html' },
+                { id: 'eye-cysa-ch03-lab', title: 'Ch 3 Lab: Reconnaissance Techniques', type: 'lab', href: 'houses/eye/cysa/labs/eye-cysa-ch03-recon.lab.html' },
+                { id: 'eye-cysa-ch04', title: 'Ch 4: Vulnerability Management Program', type: 'presentation', href: 'houses/eye/cysa/presentations/eye-cysa-ch04-vuln-mgmt.presentation.html' },
+                { id: 'eye-cysa-ch04-lab', title: 'Ch 4 Lab: Vulnerability Management', type: 'lab', href: 'houses/eye/cysa/labs/eye-cysa-ch04-vuln-mgmt.lab.html' },
+                { id: 'eye-cysa-ch05', title: 'Ch 5: Analyzing Vulnerability Scans', type: 'presentation', href: 'houses/eye/cysa/presentations/eye-cysa-ch05-vuln-scans.presentation.html' },
+                { id: 'eye-cysa-ch05-lab', title: 'Ch 5 Lab: Vulnerability Scan Analysis', type: 'lab', href: 'houses/eye/cysa/labs/eye-cysa-ch05-vuln-scans.lab.html' },
+                { id: 'eye-cysa-ch06', title: 'Ch 6: Cloud Security', type: 'presentation', href: 'houses/eye/cysa/presentations/eye-cysa-ch06-cloud.presentation.html' },
+                { id: 'eye-cysa-ch06-lab', title: 'Ch 6 Lab: Cloud Security Controls', type: 'lab', href: 'houses/eye/cysa/labs/eye-cysa-ch06-cloud.lab.html' },
+                { id: 'eye-cysa-ch07', title: 'Ch 7: Infrastructure Security & Controls', type: 'presentation', href: 'houses/eye/cysa/presentations/eye-cysa-ch07-infra.presentation.html' },
+                { id: 'eye-cysa-ch07-lab', title: 'Ch 7 Lab: Infrastructure Security', type: 'lab', href: 'houses/eye/cysa/labs/eye-cysa-ch07-infra.lab.html' },
+                { id: 'eye-cysa-ch08', title: 'Ch 8: Identity & Access Management', type: 'presentation', href: 'houses/eye/cysa/presentations/eye-cysa-ch08-iam.presentation.html' },
+                { id: 'eye-cysa-ch08-lab', title: 'Ch 8 Lab: IAM Security', type: 'lab', href: 'houses/eye/cysa/labs/eye-cysa-ch08-iam.lab.html' },
+                { id: 'eye-cysa-ch09', title: 'Ch 9: Software & Hardware Development Security', type: 'presentation', href: 'houses/eye/cysa/presentations/eye-cysa-ch09-dev-security.presentation.html' },
+                { id: 'eye-cysa-ch09-lab', title: 'Ch 9 Lab: Development Security', type: 'lab', href: 'houses/eye/cysa/labs/eye-cysa-ch09-dev-security.lab.html' },
+                { id: 'eye-cysa-ch10', title: 'Ch 10: Security Operations & Monitoring', type: 'presentation', href: 'houses/eye/cysa/presentations/eye-cysa-ch10-secops.presentation.html' },
+                { id: 'eye-cysa-ch10-lab', title: 'Ch 10 Lab: Security Operations', type: 'lab', href: 'houses/eye/cysa/labs/eye-cysa-ch10-secops.lab.html' },
+                { id: 'eye-cysa-ch11', title: 'Ch 11: Building an Incident Response Program', type: 'presentation', href: 'houses/eye/cysa/presentations/eye-cysa-ch11-ir.presentation.html' },
+                { id: 'eye-cysa-ch11-lab', title: 'Ch 11 Lab: Incident Response', type: 'lab', href: 'houses/eye/cysa/labs/eye-cysa-ch11-ir.lab.html' },
+                { id: 'eye-cysa-ch12', title: 'Ch 12: Analyzing Indicators of Compromise', type: 'presentation', href: 'houses/eye/cysa/presentations/eye-cysa-ch12-ioc.presentation.html' },
+                { id: 'eye-cysa-ch12-lab', title: 'Ch 12 Lab: IOC Analysis', type: 'lab', href: 'houses/eye/cysa/labs/eye-cysa-ch12-ioc.lab.html' },
+                { id: 'eye-cysa-ch13', title: 'Ch 13: Forensic Analysis & Techniques', type: 'presentation', href: 'houses/eye/cysa/presentations/eye-cysa-ch13-forensics.presentation.html' },
+                { id: 'eye-cysa-ch13-lab', title: 'Ch 13 Lab: Digital Forensics', type: 'lab', href: 'houses/eye/cysa/labs/eye-cysa-ch13-forensics.lab.html' },
+                { id: 'eye-cysa-ch14', title: 'Ch 14: Containment, Eradication & Recovery', type: 'presentation', href: 'houses/eye/cysa/presentations/eye-cysa-ch14-recovery.presentation.html' },
+                { id: 'eye-cysa-ch14-lab', title: 'Ch 14 Lab: Incident Recovery', type: 'lab', href: 'houses/eye/cysa/labs/eye-cysa-ch14-recovery.lab.html' },
+                { id: 'eye-cysa-ch15', title: 'Ch 15: Risk Management', type: 'presentation', href: 'houses/eye/cysa/presentations/eye-cysa-ch15-risk.presentation.html' },
+                { id: 'eye-cysa-ch15-lab', title: 'Ch 15 Lab: Risk Management', type: 'lab', href: 'houses/eye/cysa/labs/eye-cysa-ch15-risk.lab.html' },
+                { id: 'eye-cysa-ch16', title: 'Ch 16: Policy & Compliance', type: 'presentation', href: 'houses/eye/cysa/presentations/eye-cysa-ch16-compliance.presentation.html' },
+                { id: 'eye-cysa-ch16-lab', title: 'Ch 16 Lab: Policy & Compliance', type: 'lab', href: 'houses/eye/cysa/labs/eye-cysa-ch16-compliance.lab.html' }
             ]
         },
 

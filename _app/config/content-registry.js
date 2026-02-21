@@ -2073,7 +2073,7 @@ const ContentRegistry = {
             topics: ['powershell', 'scripting', 'cmdlets', 'variables'],
             paths: ['linux-mastery'],
             components: {
-                applet: 'houses/script/applets/pwsh-fundamentals.html'
+                applet: 'houses/script/applets/script-pwsh-fundamentals.applet.html'
             },
             prerequisites: [],
             objectives: []
@@ -2090,7 +2090,7 @@ const ContentRegistry = {
             topics: ['powershell', 'pipeline', 'objects', 'filtering'],
             paths: ['linux-mastery'],
             components: {
-                applet: 'houses/script/applets/pwsh-pipeline.html'
+                applet: 'houses/script/applets/script-pwsh-pipeline.applet.html'
             },
             prerequisites: [],
             objectives: []
@@ -2107,7 +2107,7 @@ const ContentRegistry = {
             topics: ['powershell', 'scripting', 'functions', 'error-handling'],
             paths: ['linux-mastery'],
             components: {
-                applet: 'houses/script/applets/pwsh-scripting.html'
+                applet: 'houses/script/applets/script-pwsh-scripting.applet.html'
             },
             prerequisites: [],
             objectives: []
@@ -2124,7 +2124,7 @@ const ContentRegistry = {
             topics: ['powershell', 'administration', 'services', 'remote-management'],
             paths: ['linux-mastery'],
             components: {
-                applet: 'houses/script/applets/pwsh-admin.html'
+                applet: 'houses/script/applets/script-pwsh-admin.applet.html'
             },
             prerequisites: [],
             objectives: []
@@ -2141,7 +2141,7 @@ const ContentRegistry = {
             topics: ['automation', 'scripting', 'task-scheduling', 'workflows'],
             paths: ['linux-mastery'],
             components: {
-                applet: 'houses/script/applets/automation-intro.html'
+                applet: 'houses/script/applets/script-automation-intro.applet.html'
             },
             prerequisites: [],
             objectives: []
@@ -2158,7 +2158,7 @@ const ContentRegistry = {
             topics: ['log-analysis', 'parsing', 'monitoring', 'troubleshooting'],
             paths: ['linux-mastery'],
             components: {
-                applet: 'houses/script/applets/log-analysis.html'
+                applet: 'houses/script/applets/script-log-analysis.applet.html'
             },
             prerequisites: [],
             objectives: []
@@ -2175,7 +2175,7 @@ const ContentRegistry = {
             topics: ['backup', 'disaster-recovery', 'data-protection', 'storage'],
             paths: ['linux-mastery'],
             components: {
-                applet: 'houses/script/applets/backup-strategies.html'
+                applet: 'houses/script/applets/script-backup-strategies.applet.html'
             },
             prerequisites: [],
             objectives: []
@@ -2192,7 +2192,7 @@ const ContentRegistry = {
             topics: ['automation', 'reporting', 'data-collection', 'scheduling'],
             paths: ['linux-mastery'],
             components: {
-                applet: 'houses/script/applets/reporting-automation.html'
+                applet: 'houses/script/applets/script-reporting-automation.applet.html'
             },
             prerequisites: [],
             objectives: []
@@ -7093,7 +7093,7 @@ const ContentRegistry = {
             topics: ['cloud', 'security', 'CSE', 'review', 'comprehensive'],
             paths: ['cse'],
             components: {
-                quiz: 'houses/cloud/cse/reviews/cse-comprehensive-review.html'
+                quiz: 'houses/cloud/cse/reviews/cloud-cse-comprehensive-review.html'
             },
             prerequisites: [],
             objectives: []
@@ -18212,7 +18212,7 @@ const ContentRegistry = {
             topics: ['windows', 'installation', 'deployment', 'editions', 'upgrade'],
             paths: ['md-100'],
             components: {
-                presentation: 'houses/forge/md-100/presentations/md100-m01-install-windows.presentation.html'
+                presentation: 'houses/forge/md-100/presentations/forge-md100-m01-install-windows.presentation.html'
             },
             prerequisites: [],
             objectives: ['Identify Windows editions and their features', 'Evaluate installation and deployment methods']
@@ -18228,7 +18228,7 @@ const ContentRegistry = {
             topics: ['authentication', 'authorization', 'uac', 'azure-ad', 'users', 'groups'],
             paths: ['md-100'],
             components: {
-                presentation: 'houses/forge/md-100/presentations/md100-m02-auth-authorization.presentation.html'
+                presentation: 'houses/forge/md-100/presentations/forge-md100-m02-auth-authorization.presentation.html'
             },
             prerequisites: ['forge-md100-m01'],
             objectives: ['Configure authentication methods', 'Manage users, groups, and UAC']
@@ -18244,7 +18244,7 @@ const ContentRegistry = {
             topics: ['configuration', 'registry', 'group-policy', 'drivers', 'peripherals'],
             paths: ['md-100'],
             components: {
-                presentation: 'houses/forge/md-100/presentations/md100-m03-post-install-config.presentation.html'
+                presentation: 'houses/forge/md-100/presentations/forge-md100-m03-post-install-config.presentation.html'
             },
             prerequisites: ['forge-md100-m02'],
             objectives: ['Configure post-installation settings', 'Manage drivers and device peripherals']
@@ -18260,7 +18260,7 @@ const ContentRegistry = {
             topics: ['networking', 'ip', 'dns', 'vpn', 'remote-access', 'wireless'],
             paths: ['md-100'],
             components: {
-                presentation: 'houses/forge/md-100/presentations/md100-m04-networking.presentation.html'
+                presentation: 'houses/forge/md-100/presentations/forge-md100-m04-networking.presentation.html'
             },
             prerequisites: ['forge-md100-m03'],
             objectives: ['Configure IP networking and name resolution', 'Implement remote access solutions']
@@ -18276,7 +18276,7 @@ const ContentRegistry = {
             topics: ['storage', 'disks', 'volumes', 'ntfs', 'storage-spaces'],
             paths: ['md-100'],
             components: {
-                presentation: 'houses/forge/md-100/presentations/md100-m05-storage.presentation.html'
+                presentation: 'houses/forge/md-100/presentations/forge-md100-m05-storage.presentation.html'
             },
             prerequisites: ['forge-md100-m04'],
             objectives: ['Manage storage devices and volumes', 'Implement Storage Spaces']
@@ -18292,7 +18292,7 @@ const ContentRegistry = {
             topics: ['ntfs', 'permissions', 'sharing', 'onedrive', 'efs'],
             paths: ['md-100'],
             components: {
-                presentation: 'houses/forge/md-100/presentations/md100-m06-data-access.presentation.html'
+                presentation: 'houses/forge/md-100/presentations/forge-md100-m06-data-access.presentation.html'
             },
             prerequisites: ['forge-md100-m05'],
             objectives: ['Configure file access permissions', 'Manage shared folders and user files']
@@ -18308,7 +18308,7 @@ const ContentRegistry = {
             topics: ['apps', 'updates', 'edge', 'wsus', 'servicing'],
             paths: ['md-100'],
             components: {
-                presentation: 'houses/forge/md-100/presentations/md100-m07-apps-updates.presentation.html'
+                presentation: 'houses/forge/md-100/presentations/forge-md100-m07-apps-updates.presentation.html'
             },
             prerequisites: ['forge-md100-m06'],
             objectives: ['Deploy and manage applications', 'Configure Windows Update settings']
@@ -18324,7 +18324,7 @@ const ContentRegistry = {
             topics: ['security', 'defender', 'bitlocker', 'firewall', 'malware'],
             paths: ['md-100'],
             components: {
-                presentation: 'houses/forge/md-100/presentations/md100-m08-threat-protection.presentation.html'
+                presentation: 'houses/forge/md-100/presentations/forge-md100-m08-threat-protection.presentation.html'
             },
             prerequisites: ['forge-md100-m07'],
             objectives: ['Configure Microsoft Defender and BitLocker', 'Implement firewall and advanced protection']
@@ -18340,7 +18340,7 @@ const ContentRegistry = {
             topics: ['troubleshooting', 'diagnostics', 'performance', 'event-viewer', 'recovery'],
             paths: ['md-100'],
             components: {
-                presentation: 'houses/forge/md-100/presentations/md100-m09-support-environment.presentation.html'
+                presentation: 'houses/forge/md-100/presentations/forge-md100-m09-support-environment.presentation.html'
             },
             prerequisites: ['forge-md100-m08'],
             objectives: ['Apply troubleshooting methodologies', 'Use diagnostic and recovery tools']
@@ -18356,7 +18356,7 @@ const ContentRegistry = {
             topics: ['troubleshooting', 'recovery', 'startup', 'services', 'dism', 'sfc'],
             paths: ['md-100'],
             components: {
-                presentation: 'houses/forge/md-100/presentations/md100-m10-troubleshoot-os-apps.presentation.html'
+                presentation: 'houses/forge/md-100/presentations/forge-md100-m10-troubleshoot-os-apps.presentation.html'
             },
             prerequisites: ['forge-md100-m09'],
             objectives: ['Troubleshoot application and startup issues', 'Perform system file repair']
@@ -18372,7 +18372,7 @@ const ContentRegistry = {
             topics: ['hardware', 'drivers', 'bsod', 'diagnostics', 'peripherals'],
             paths: ['md-100'],
             components: {
-                presentation: 'houses/forge/md-100/presentations/md100-m11-troubleshoot-hardware.presentation.html'
+                presentation: 'houses/forge/md-100/presentations/forge-md100-m11-troubleshoot-hardware.presentation.html'
             },
             prerequisites: ['forge-md100-m10'],
             objectives: ['Diagnose driver and hardware failures', 'Analyze BSOD stop codes']
@@ -18388,7 +18388,7 @@ const ContentRegistry = {
             topics: ['windows', 'installation', 'deployment', 'editions'],
             paths: ['md-100'],
             components: {
-                lab: 'houses/forge/md-100/labs/md100-m01-install.lab.html'
+                lab: 'houses/forge/md-100/labs/forge-md100-m01-install.lab.html'
             },
             prerequisites: ['forge-md100-m01'],
             objectives: ['Practice edition selection and deployment planning']
@@ -18404,7 +18404,7 @@ const ContentRegistry = {
             topics: ['authentication', 'users', 'groups', 'uac'],
             paths: ['md-100'],
             components: {
-                lab: 'houses/forge/md-100/labs/md100-m02-auth.lab.html'
+                lab: 'houses/forge/md-100/labs/forge-md100-m02-auth.lab.html'
             },
             prerequisites: ['forge-md100-m02'],
             objectives: ['Practice user/group management and UAC configuration']
@@ -18420,7 +18420,7 @@ const ContentRegistry = {
             topics: ['configuration', 'registry', 'group-policy', 'drivers'],
             paths: ['md-100'],
             components: {
-                lab: 'houses/forge/md-100/labs/md100-m03-config.lab.html'
+                lab: 'houses/forge/md-100/labs/forge-md100-m03-config.lab.html'
             },
             prerequisites: ['forge-md100-m03'],
             objectives: ['Practice configuration using registry, GPO, and Device Manager']
@@ -18436,7 +18436,7 @@ const ContentRegistry = {
             topics: ['networking', 'ip', 'dns', 'vpn'],
             paths: ['md-100'],
             components: {
-                lab: 'houses/forge/md-100/labs/md100-m04-networking.lab.html'
+                lab: 'houses/forge/md-100/labs/forge-md100-m04-networking.lab.html'
             },
             prerequisites: ['forge-md100-m04'],
             objectives: ['Practice IP configuration and network troubleshooting']
@@ -18452,7 +18452,7 @@ const ContentRegistry = {
             topics: ['storage', 'disks', 'volumes', 'storage-spaces'],
             paths: ['md-100'],
             components: {
-                lab: 'houses/forge/md-100/labs/md100-m05-storage.lab.html'
+                lab: 'houses/forge/md-100/labs/forge-md100-m05-storage.lab.html'
             },
             prerequisites: ['forge-md100-m05'],
             objectives: ['Practice disk management and Storage Spaces configuration']
@@ -18468,7 +18468,7 @@ const ContentRegistry = {
             topics: ['ntfs', 'permissions', 'sharing', 'onedrive'],
             paths: ['md-100'],
             components: {
-                lab: 'houses/forge/md-100/labs/md100-m06-data-access.lab.html'
+                lab: 'houses/forge/md-100/labs/forge-md100-m06-data-access.lab.html'
             },
             prerequisites: ['forge-md100-m06'],
             objectives: ['Practice NTFS permission configuration and file sharing']
@@ -18484,7 +18484,7 @@ const ContentRegistry = {
             topics: ['apps', 'updates', 'edge', 'wsus'],
             paths: ['md-100'],
             components: {
-                lab: 'houses/forge/md-100/labs/md100-m07-apps.lab.html'
+                lab: 'houses/forge/md-100/labs/forge-md100-m07-apps.lab.html'
             },
             prerequisites: ['forge-md100-m07'],
             objectives: ['Practice app deployment and update management']
@@ -18500,7 +18500,7 @@ const ContentRegistry = {
             topics: ['security', 'defender', 'bitlocker', 'firewall'],
             paths: ['md-100'],
             components: {
-                lab: 'houses/forge/md-100/labs/md100-m08-security.lab.html'
+                lab: 'houses/forge/md-100/labs/forge-md100-m08-security.lab.html'
             },
             prerequisites: ['forge-md100-m08'],
             objectives: ['Practice security configuration and threat protection']
@@ -18516,7 +18516,7 @@ const ContentRegistry = {
             topics: ['troubleshooting', 'diagnostics', 'event-viewer', 'recovery'],
             paths: ['md-100'],
             components: {
-                lab: 'houses/forge/md-100/labs/md100-m09-support.lab.html'
+                lab: 'houses/forge/md-100/labs/forge-md100-m09-support.lab.html'
             },
             prerequisites: ['forge-md100-m09'],
             objectives: ['Practice using diagnostic and recovery tools']
@@ -18532,7 +18532,7 @@ const ContentRegistry = {
             topics: ['troubleshooting', 'recovery', 'startup', 'dism', 'sfc'],
             paths: ['md-100'],
             components: {
-                lab: 'houses/forge/md-100/labs/md100-m10-troubleshoot.lab.html'
+                lab: 'houses/forge/md-100/labs/forge-md100-m10-troubleshoot.lab.html'
             },
             prerequisites: ['forge-md100-m10'],
             objectives: ['Practice boot repair and system file troubleshooting']
@@ -18548,7 +18548,7 @@ const ContentRegistry = {
             topics: ['hardware', 'drivers', 'bsod', 'diagnostics'],
             paths: ['md-100'],
             components: {
-                lab: 'houses/forge/md-100/labs/md100-m11-hardware.lab.html'
+                lab: 'houses/forge/md-100/labs/forge-md100-m11-hardware.lab.html'
             },
             prerequisites: ['forge-md100-m11'],
             objectives: ['Practice driver troubleshooting and BSOD analysis']
@@ -18564,7 +18564,7 @@ const ContentRegistry = {
             topics: ['windows', 'installation', 'deployment', 'editions'],
             paths: ['md-100'],
             components: {
-                quiz: 'houses/forge/md-100/quizzes/md100-m01-quiz.quiz.html'
+                quiz: 'houses/forge/md-100/quizzes/forge-md100-m01-quiz.quiz.html'
             },
             prerequisites: ['forge-md100-m01-lab'],
             objectives: ['Assess Windows installation knowledge']
@@ -18580,7 +18580,7 @@ const ContentRegistry = {
             topics: ['authentication', 'users', 'groups', 'uac'],
             paths: ['md-100'],
             components: {
-                quiz: 'houses/forge/md-100/quizzes/md100-m02-quiz.quiz.html'
+                quiz: 'houses/forge/md-100/quizzes/forge-md100-m02-quiz.quiz.html'
             },
             prerequisites: ['forge-md100-m02-lab'],
             objectives: ['Assess authentication and authorization knowledge']
@@ -18596,7 +18596,7 @@ const ContentRegistry = {
             topics: ['configuration', 'registry', 'group-policy', 'drivers'],
             paths: ['md-100'],
             components: {
-                quiz: 'houses/forge/md-100/quizzes/md100-m03-quiz.quiz.html'
+                quiz: 'houses/forge/md-100/quizzes/forge-md100-m03-quiz.quiz.html'
             },
             prerequisites: ['forge-md100-m03-lab'],
             objectives: ['Assess configuration and driver management knowledge']
@@ -18612,7 +18612,7 @@ const ContentRegistry = {
             topics: ['networking', 'ip', 'dns', 'vpn'],
             paths: ['md-100'],
             components: {
-                quiz: 'houses/forge/md-100/quizzes/md100-m04-quiz.quiz.html'
+                quiz: 'houses/forge/md-100/quizzes/forge-md100-m04-quiz.quiz.html'
             },
             prerequisites: ['forge-md100-m04-lab'],
             objectives: ['Assess networking configuration knowledge']
@@ -18628,7 +18628,7 @@ const ContentRegistry = {
             topics: ['storage', 'disks', 'volumes', 'storage-spaces'],
             paths: ['md-100'],
             components: {
-                quiz: 'houses/forge/md-100/quizzes/md100-m05-quiz.quiz.html'
+                quiz: 'houses/forge/md-100/quizzes/forge-md100-m05-quiz.quiz.html'
             },
             prerequisites: ['forge-md100-m05-lab'],
             objectives: ['Assess storage management knowledge']
@@ -18644,7 +18644,7 @@ const ContentRegistry = {
             topics: ['ntfs', 'permissions', 'sharing'],
             paths: ['md-100'],
             components: {
-                quiz: 'houses/forge/md-100/quizzes/md100-m06-quiz.quiz.html'
+                quiz: 'houses/forge/md-100/quizzes/forge-md100-m06-quiz.quiz.html'
             },
             prerequisites: ['forge-md100-m06-lab'],
             objectives: ['Assess data access and permission knowledge']
@@ -18660,7 +18660,7 @@ const ContentRegistry = {
             topics: ['apps', 'updates', 'edge', 'wsus'],
             paths: ['md-100'],
             components: {
-                quiz: 'houses/forge/md-100/quizzes/md100-m07-quiz.quiz.html'
+                quiz: 'houses/forge/md-100/quizzes/forge-md100-m07-quiz.quiz.html'
             },
             prerequisites: ['forge-md100-m07-lab'],
             objectives: ['Assess app deployment and update management knowledge']
@@ -18676,7 +18676,7 @@ const ContentRegistry = {
             topics: ['security', 'defender', 'bitlocker', 'firewall'],
             paths: ['md-100'],
             components: {
-                quiz: 'houses/forge/md-100/quizzes/md100-m08-quiz.quiz.html'
+                quiz: 'houses/forge/md-100/quizzes/forge-md100-m08-quiz.quiz.html'
             },
             prerequisites: ['forge-md100-m08-lab'],
             objectives: ['Assess security configuration knowledge']
@@ -18692,7 +18692,7 @@ const ContentRegistry = {
             topics: ['troubleshooting', 'diagnostics', 'event-viewer'],
             paths: ['md-100'],
             components: {
-                quiz: 'houses/forge/md-100/quizzes/md100-m09-quiz.quiz.html'
+                quiz: 'houses/forge/md-100/quizzes/forge-md100-m09-quiz.quiz.html'
             },
             prerequisites: ['forge-md100-m09-lab'],
             objectives: ['Assess troubleshooting methodology and diagnostic tool knowledge']
@@ -18708,7 +18708,7 @@ const ContentRegistry = {
             topics: ['troubleshooting', 'recovery', 'startup', 'dism'],
             paths: ['md-100'],
             components: {
-                quiz: 'houses/forge/md-100/quizzes/md100-m10-quiz.quiz.html'
+                quiz: 'houses/forge/md-100/quizzes/forge-md100-m10-quiz.quiz.html'
             },
             prerequisites: ['forge-md100-m10-lab'],
             objectives: ['Assess OS troubleshooting and repair knowledge']
@@ -18724,7 +18724,7 @@ const ContentRegistry = {
             topics: ['hardware', 'drivers', 'bsod', 'diagnostics'],
             paths: ['md-100'],
             components: {
-                quiz: 'houses/forge/md-100/quizzes/md100-m11-quiz.quiz.html'
+                quiz: 'houses/forge/md-100/quizzes/forge-md100-m11-quiz.quiz.html'
             },
             prerequisites: ['forge-md100-m11-lab'],
             objectives: ['Assess hardware troubleshooting and BSOD analysis knowledge']
@@ -18741,7 +18741,7 @@ const ContentRegistry = {
             topics: ['windows-install', 'auth', 'config', 'networking', 'storage', 'data-access'],
             paths: ['md-100'],
             components: {
-                quiz: 'houses/forge/md-100/reviews/md100-midterm-review.html'
+                quiz: 'houses/forge/md-100/reviews/forge-md100-midterm-review.html'
             },
             prerequisites: ['forge-md100-m06-quiz'],
             objectives: ['Review modules 1-6 for midterm preparation']
@@ -18757,7 +18757,7 @@ const ContentRegistry = {
             topics: ['apps', 'security', 'support', 'troubleshooting', 'hardware'],
             paths: ['md-100'],
             components: {
-                quiz: 'houses/forge/md-100/reviews/md100-final-review.html'
+                quiz: 'houses/forge/md-100/reviews/forge-md100-final-review.html'
             },
             prerequisites: ['forge-md100-m11-quiz'],
             objectives: ['Review modules 7-11 for final exam preparation']
@@ -18773,7 +18773,7 @@ const ContentRegistry = {
             topics: ['deployment', 'identity', 'networking', 'management', 'security', 'troubleshooting'],
             paths: ['md-100'],
             components: {
-                quiz: 'houses/forge/md-100/reviews/md100-comprehensive-review.html'
+                quiz: 'houses/forge/md-100/reviews/forge-md100-comprehensive-review.html'
             },
             prerequisites: ['forge-md100-final-review'],
             objectives: ['Comprehensive exam preparation across all MD-100 domains']
@@ -18790,7 +18790,7 @@ const ContentRegistry = {
             topics: ['openstack', 'iaas', 'cloud-architecture', 'networking'],
             paths: ['openstack'],
             components: {
-                presentation: 'houses/cloud/openstack/presentations/openstack-intro-environment.presentation.html'
+                presentation: 'houses/cloud/openstack/presentations/cloud-openstack-intro-environment.presentation.html'
             },
             prerequisites: [],
             objectives: ['Understand OpenStack architecture and deployment requirements']
@@ -18806,7 +18806,7 @@ const ContentRegistry = {
             topics: ['nova', 'neutron', 'swift', 'cinder', 'keystone', 'glance'],
             paths: ['openstack'],
             components: {
-                presentation: 'houses/cloud/openstack/presentations/openstack-projects.presentation.html'
+                presentation: 'houses/cloud/openstack/presentations/cloud-openstack-projects.presentation.html'
             },
             prerequisites: ['cloud-openstack-intro'],
             objectives: ['Describe core OpenStack projects and their roles']
@@ -18822,7 +18822,7 @@ const ContentRegistry = {
             topics: ['installation', 'keystone', 'glance', 'nova', 'neutron', 'configuration'],
             paths: ['openstack'],
             components: {
-                presentation: 'houses/cloud/openstack/presentations/openstack-installation.presentation.html'
+                presentation: 'houses/cloud/openstack/presentations/cloud-openstack-installation.presentation.html'
             },
             prerequisites: ['cloud-openstack-projects'],
             objectives: ['Walk through OpenStack manual installation process']
@@ -18838,7 +18838,7 @@ const ContentRegistry = {
             topics: ['horizon', 'cli', 'instances', 'floating-ip', 'vnc'],
             paths: ['openstack'],
             components: {
-                presentation: 'houses/cloud/openstack/presentations/openstack-operation.presentation.html'
+                presentation: 'houses/cloud/openstack/presentations/cloud-openstack-operation.presentation.html'
             },
             prerequisites: ['cloud-openstack-install'],
             objectives: ['Manage OpenStack through dashboard and CLI']
@@ -18854,7 +18854,7 @@ const ContentRegistry = {
             topics: ['installation', 'networking', 'configuration', 'services'],
             paths: ['openstack'],
             components: {
-                lab: 'houses/cloud/openstack/labs/openstack-install.lab.html'
+                lab: 'houses/cloud/openstack/labs/cloud-openstack-install.lab.html'
             },
             prerequisites: ['cloud-openstack-intro'],
             objectives: ['Practice OpenStack installation steps']
@@ -18870,7 +18870,7 @@ const ContentRegistry = {
             topics: ['instances', 'images', 'networks', 'security-groups'],
             paths: ['openstack'],
             components: {
-                lab: 'houses/cloud/openstack/labs/openstack-launch-vm.lab.html'
+                lab: 'houses/cloud/openstack/labs/cloud-openstack-launch-vm.lab.html'
             },
             prerequisites: ['cloud-openstack-projects'],
             objectives: ['Launch and configure OpenStack instances']
@@ -18886,7 +18886,7 @@ const ContentRegistry = {
             topics: ['flavors', 'volumes', 'cinder', 'snapshots', 'troubleshooting'],
             paths: ['openstack'],
             components: {
-                lab: 'houses/cloud/openstack/labs/openstack-advanced-ops.lab.html'
+                lab: 'houses/cloud/openstack/labs/cloud-openstack-advanced-ops.lab.html'
             },
             prerequisites: ['cloud-openstack-install'],
             objectives: ['Perform advanced OpenStack administration tasks']
@@ -18902,7 +18902,7 @@ const ContentRegistry = {
             topics: ['openstack', 'architecture', 'requirements', 'networking'],
             paths: ['openstack'],
             components: {
-                quiz: 'houses/cloud/openstack/quizzes/openstack-intro-quiz.quiz.html'
+                quiz: 'houses/cloud/openstack/quizzes/cloud-openstack-intro-quiz.quiz.html'
             },
             prerequisites: ['cloud-openstack-install-lab'],
             objectives: ['Assess understanding of OpenStack fundamentals']
@@ -18918,7 +18918,7 @@ const ContentRegistry = {
             topics: ['nova', 'neutron', 'swift', 'cinder', 'keystone', 'glance'],
             paths: ['openstack'],
             components: {
-                quiz: 'houses/cloud/openstack/quizzes/openstack-projects-quiz.quiz.html'
+                quiz: 'houses/cloud/openstack/quizzes/cloud-openstack-projects-quiz.quiz.html'
             },
             prerequisites: ['cloud-openstack-launch-lab'],
             objectives: ['Assess knowledge of OpenStack project ecosystem']
@@ -18934,7 +18934,7 @@ const ContentRegistry = {
             topics: ['installation', 'configuration', 'services', 'database'],
             paths: ['openstack'],
             components: {
-                quiz: 'houses/cloud/openstack/quizzes/openstack-install-quiz.quiz.html'
+                quiz: 'houses/cloud/openstack/quizzes/cloud-openstack-install-quiz.quiz.html'
             },
             prerequisites: ['cloud-openstack-advanced-lab'],
             objectives: ['Assess OpenStack installation knowledge']
@@ -18950,7 +18950,7 @@ const ContentRegistry = {
             topics: ['horizon', 'cli', 'instances', 'floating-ip'],
             paths: ['openstack'],
             components: {
-                quiz: 'houses/cloud/openstack/quizzes/openstack-operation-quiz.quiz.html'
+                quiz: 'houses/cloud/openstack/quizzes/cloud-openstack-operation-quiz.quiz.html'
             },
             prerequisites: ['cloud-openstack-operation'],
             objectives: ['Assess OpenStack operational knowledge']
@@ -18966,7 +18966,7 @@ const ContentRegistry = {
             topics: ['openstack', 'architecture', 'installation', 'operations', 'projects'],
             paths: ['openstack'],
             components: {
-                quiz: 'houses/cloud/openstack/reviews/openstack-comprehensive-review.html'
+                quiz: 'houses/cloud/openstack/reviews/cloud-openstack-comprehensive-review.html'
             },
             prerequisites: ['cloud-openstack-operation-quiz'],
             objectives: ['Comprehensive OpenStack review for exam preparation']
@@ -19065,7 +19065,7 @@ const ContentRegistry = {
             topics: ['cyber-law', 'CIA-triad', 'threat-actors', 'cybersecurity-policy'],
             paths: ['cyber-framework'],
             components: {
-                presentation: 'houses/shield/cyber-framework/presentations/cf-mm01-intro.presentation.html'
+                presentation: 'houses/shield/cyber-framework/presentations/shield-cf-mm01-intro.presentation.html'
             },
             prerequisites: [],
             objectives: ['Describe cybersecurity concepts', 'Identify threat actors and motives', 'Analyze competing interests in cybersecurity']
@@ -19081,7 +19081,7 @@ const ContentRegistry = {
             topics: ['government-agencies', 'CISA', 'NSA', 'FBI', 'PPD-41', 'NCIRP'],
             paths: ['cyber-framework'],
             components: {
-                presentation: 'houses/shield/cyber-framework/presentations/cf-mm02-gov-agencies.presentation.html'
+                presentation: 'houses/shield/cyber-framework/presentations/shield-cf-mm02-gov-agencies.presentation.html'
             },
             prerequisites: ['shield-cf-mm01-pres'],
             objectives: ['Describe roles of US government agencies', 'Explain federal cyber incident response']
@@ -19097,7 +19097,7 @@ const ContentRegistry = {
             topics: ['CFAA', 'Van-Buren', 'data-breach-notification', 'cybersecurity-legislation'],
             paths: ['cyber-framework'],
             components: {
-                presentation: 'houses/shield/cyber-framework/presentations/cf-mm03-legislation.presentation.html'
+                presentation: 'houses/shield/cyber-framework/presentations/shield-cf-mm03-legislation.presentation.html'
             },
             prerequisites: ['shield-cf-mm02-pres'],
             objectives: ['Explain the CFAA', 'Analyze Van Buren implications', 'Understand state breach notification obligations']
@@ -19113,7 +19113,7 @@ const ContentRegistry = {
             topics: ['FTC', 'HIPAA', 'GLBA', 'SEC', 'regulatory-frameworks'],
             paths: ['cyber-framework'],
             components: {
-                presentation: 'houses/shield/cyber-framework/presentations/cf-mm04-regulatory.presentation.html'
+                presentation: 'houses/shield/cyber-framework/presentations/shield-cf-mm04-regulatory.presentation.html'
             },
             prerequisites: ['shield-cf-mm03-pres'],
             objectives: ['Describe the regulatory environment', 'Identify chief federal regulators', 'Summarize cybersecurity regulations']
@@ -19129,7 +19129,7 @@ const ContentRegistry = {
             topics: ['critical-infrastructure', 'NIST-CSF', 'CISA', 'risk-management'],
             paths: ['cyber-framework'],
             components: {
-                presentation: 'houses/shield/cyber-framework/presentations/cf-mm05-nist-cip.presentation.html'
+                presentation: 'houses/shield/cyber-framework/presentations/shield-cf-mm05-nist-cip.presentation.html'
             },
             prerequisites: ['shield-cf-mm04-pres'],
             objectives: ['Describe DHS CI protection', 'Articulate NIST CSF benefits', 'Summarize CSF components']
@@ -19145,7 +19145,7 @@ const ContentRegistry = {
             topics: ['encryption', 'Apple-v-FBI', 'going-dark', '5th-amendment', 'forced-decryption'],
             paths: ['cyber-framework'],
             components: {
-                presentation: 'houses/shield/cyber-framework/presentations/cf-mm06-encryption.presentation.html'
+                presentation: 'houses/shield/cyber-framework/presentations/shield-cf-mm06-encryption.presentation.html'
             },
             prerequisites: ['shield-cf-mm05-pres'],
             objectives: ['Explain the Going Dark problem', 'Summarize Apple v. FBI', 'Analyze forced decryption under 5th Amendment']
@@ -19161,7 +19161,7 @@ const ContentRegistry = {
             topics: ['breach-litigation', 'negligence', 'standing', 'economic-loss-doctrine'],
             paths: ['cyber-framework'],
             components: {
-                presentation: 'houses/shield/cyber-framework/presentations/cf-mm07-breach-litigation.presentation.html'
+                presentation: 'houses/shield/cyber-framework/presentations/shield-cf-mm07-breach-litigation.presentation.html'
             },
             prerequisites: ['shield-cf-mm06-pres'],
             objectives: ['Identify causes of action in breach cases', 'Explain legal standing', 'Analyze standing hurdles']
@@ -19177,7 +19177,7 @@ const ContentRegistry = {
             topics: ['international-law', 'cyber-war', 'Tallinn-Manual', 'NATO', 'jus-ad-bellum'],
             paths: ['cyber-framework'],
             components: {
-                presentation: 'houses/shield/cyber-framework/presentations/cf-mm08-cyber-war.presentation.html'
+                presentation: 'houses/shield/cyber-framework/presentations/shield-cf-mm08-cyber-war.presentation.html'
             },
             prerequisites: ['shield-cf-mm07-pres'],
             objectives: ['Discuss IL applicability to cyberspace', 'Identify cyber use of force', 'Apply LOAC to cyber operations']
@@ -19193,7 +19193,7 @@ const ContentRegistry = {
             topics: ['CIA-triad', 'threat-actors', 'cybersecurity-policy'],
             paths: ['cyber-framework'],
             components: {
-                quiz: 'houses/shield/cyber-framework/quizzes/cf-mm01-quiz.quiz.html'
+                quiz: 'houses/shield/cyber-framework/quizzes/shield-cf-mm01-quiz.quiz.html'
             },
             prerequisites: ['shield-cf-mm01-pres'],
             objectives: []
@@ -19209,7 +19209,7 @@ const ContentRegistry = {
             topics: ['government-agencies', 'CISA', 'FBI', 'PPD-41'],
             paths: ['cyber-framework'],
             components: {
-                quiz: 'houses/shield/cyber-framework/quizzes/cf-mm02-quiz.quiz.html'
+                quiz: 'houses/shield/cyber-framework/quizzes/shield-cf-mm02-quiz.quiz.html'
             },
             prerequisites: ['shield-cf-mm02-pres'],
             objectives: []
@@ -19225,7 +19225,7 @@ const ContentRegistry = {
             topics: ['CFAA', 'Van-Buren', 'data-breach-notification'],
             paths: ['cyber-framework'],
             components: {
-                quiz: 'houses/shield/cyber-framework/quizzes/cf-mm03-quiz.quiz.html'
+                quiz: 'houses/shield/cyber-framework/quizzes/shield-cf-mm03-quiz.quiz.html'
             },
             prerequisites: ['shield-cf-mm03-pres'],
             objectives: []
@@ -19241,7 +19241,7 @@ const ContentRegistry = {
             topics: ['FTC', 'HIPAA', 'GLBA', 'SEC'],
             paths: ['cyber-framework'],
             components: {
-                quiz: 'houses/shield/cyber-framework/quizzes/cf-mm04-quiz.quiz.html'
+                quiz: 'houses/shield/cyber-framework/quizzes/shield-cf-mm04-quiz.quiz.html'
             },
             prerequisites: ['shield-cf-mm04-pres'],
             objectives: []
@@ -19257,7 +19257,7 @@ const ContentRegistry = {
             topics: ['NIST-CSF', 'critical-infrastructure'],
             paths: ['cyber-framework'],
             components: {
-                quiz: 'houses/shield/cyber-framework/quizzes/cf-mm05-quiz.quiz.html'
+                quiz: 'houses/shield/cyber-framework/quizzes/shield-cf-mm05-quiz.quiz.html'
             },
             prerequisites: ['shield-cf-mm05-pres'],
             objectives: []
@@ -19273,7 +19273,7 @@ const ContentRegistry = {
             topics: ['encryption', 'Apple-v-FBI', '5th-amendment'],
             paths: ['cyber-framework'],
             components: {
-                quiz: 'houses/shield/cyber-framework/quizzes/cf-mm06-quiz.quiz.html'
+                quiz: 'houses/shield/cyber-framework/quizzes/shield-cf-mm06-quiz.quiz.html'
             },
             prerequisites: ['shield-cf-mm06-pres'],
             objectives: []
@@ -19289,7 +19289,7 @@ const ContentRegistry = {
             topics: ['breach-litigation', 'negligence', 'standing'],
             paths: ['cyber-framework'],
             components: {
-                quiz: 'houses/shield/cyber-framework/quizzes/cf-mm07-quiz.quiz.html'
+                quiz: 'houses/shield/cyber-framework/quizzes/shield-cf-mm07-quiz.quiz.html'
             },
             prerequisites: ['shield-cf-mm07-pres'],
             objectives: []
@@ -19305,7 +19305,7 @@ const ContentRegistry = {
             topics: ['international-law', 'cyber-war', 'NATO'],
             paths: ['cyber-framework'],
             components: {
-                quiz: 'houses/shield/cyber-framework/quizzes/cf-mm08-quiz.quiz.html'
+                quiz: 'houses/shield/cyber-framework/quizzes/shield-cf-mm08-quiz.quiz.html'
             },
             prerequisites: ['shield-cf-mm08-pres'],
             objectives: []
@@ -19321,7 +19321,7 @@ const ContentRegistry = {
             topics: ['CIA-triad', 'threat-actors', 'cybersecurity-policy'],
             paths: ['cyber-framework'],
             components: {
-                lab: 'houses/shield/cyber-framework/labs/cf-mm01-intro.lab.html'
+                lab: 'houses/shield/cyber-framework/labs/shield-cf-mm01-intro.lab.html'
             },
             prerequisites: ['shield-cf-mm01-pres'],
             objectives: []
@@ -19337,7 +19337,7 @@ const ContentRegistry = {
             topics: ['government-agencies', 'PPD-41', 'NCIRP'],
             paths: ['cyber-framework'],
             components: {
-                lab: 'houses/shield/cyber-framework/labs/cf-mm02-gov-agencies.lab.html'
+                lab: 'houses/shield/cyber-framework/labs/shield-cf-mm02-gov-agencies.lab.html'
             },
             prerequisites: ['shield-cf-mm02-pres'],
             objectives: []
@@ -19353,7 +19353,7 @@ const ContentRegistry = {
             topics: ['CFAA', 'Van-Buren', 'data-breach-notification'],
             paths: ['cyber-framework'],
             components: {
-                lab: 'houses/shield/cyber-framework/labs/cf-mm03-legislation.lab.html'
+                lab: 'houses/shield/cyber-framework/labs/shield-cf-mm03-legislation.lab.html'
             },
             prerequisites: ['shield-cf-mm03-pres'],
             objectives: []
@@ -19369,7 +19369,7 @@ const ContentRegistry = {
             topics: ['FTC', 'HIPAA', 'GLBA', 'SEC'],
             paths: ['cyber-framework'],
             components: {
-                lab: 'houses/shield/cyber-framework/labs/cf-mm04-regulatory.lab.html'
+                lab: 'houses/shield/cyber-framework/labs/shield-cf-mm04-regulatory.lab.html'
             },
             prerequisites: ['shield-cf-mm04-pres'],
             objectives: []
@@ -19385,7 +19385,7 @@ const ContentRegistry = {
             topics: ['NIST-CSF', 'critical-infrastructure', 'risk-management'],
             paths: ['cyber-framework'],
             components: {
-                lab: 'houses/shield/cyber-framework/labs/cf-mm05-nist-cip.lab.html'
+                lab: 'houses/shield/cyber-framework/labs/shield-cf-mm05-nist-cip.lab.html'
             },
             prerequisites: ['shield-cf-mm05-pres'],
             objectives: []
@@ -19401,7 +19401,7 @@ const ContentRegistry = {
             topics: ['encryption', 'Apple-v-FBI', '5th-amendment'],
             paths: ['cyber-framework'],
             components: {
-                lab: 'houses/shield/cyber-framework/labs/cf-mm06-encryption.lab.html'
+                lab: 'houses/shield/cyber-framework/labs/shield-cf-mm06-encryption.lab.html'
             },
             prerequisites: ['shield-cf-mm06-pres'],
             objectives: []
@@ -19417,7 +19417,7 @@ const ContentRegistry = {
             topics: ['breach-litigation', 'negligence', 'standing'],
             paths: ['cyber-framework'],
             components: {
-                lab: 'houses/shield/cyber-framework/labs/cf-mm07-breach-litigation.lab.html'
+                lab: 'houses/shield/cyber-framework/labs/shield-cf-mm07-breach-litigation.lab.html'
             },
             prerequisites: ['shield-cf-mm07-pres'],
             objectives: []
@@ -19433,7 +19433,7 @@ const ContentRegistry = {
             topics: ['international-law', 'cyber-war', 'NATO', 'Tallinn-Manual'],
             paths: ['cyber-framework'],
             components: {
-                lab: 'houses/shield/cyber-framework/labs/cf-mm08-cyber-war.lab.html'
+                lab: 'houses/shield/cyber-framework/labs/shield-cf-mm08-cyber-war.lab.html'
             },
             prerequisites: ['shield-cf-mm08-pres'],
             objectives: []
@@ -19449,7 +19449,7 @@ const ContentRegistry = {
             topics: ['cyber-law', 'review', 'comprehensive'],
             paths: ['cyber-framework'],
             components: {
-                quiz: 'houses/shield/cyber-framework/reviews/cf-comprehensive-review.html'
+                quiz: 'houses/shield/cyber-framework/reviews/shield-cf-comprehensive-review.html'
             },
             prerequisites: [],
             objectives: []
@@ -19468,7 +19468,7 @@ const ContentRegistry = {
             topics: ["linux","CLI","shell","terminal"],
             paths: ['linux-admin'],
             components: {
-                presentation: 'houses/script/linux/presentations/la-ch01-intro.presentation.html'
+                presentation: 'houses/script/linux/presentations/script-la-ch01-intro.presentation.html'
             },
             prerequisites: [],
             objectives: []
@@ -19484,7 +19484,7 @@ const ContentRegistry = {
             topics: ["linux","CLI","shell","terminal"],
             paths: ['linux-admin'],
             components: {
-                quiz: 'houses/script/linux/quizzes/la-ch01-quiz.quiz.html'
+                quiz: 'houses/script/linux/quizzes/script-la-ch01-quiz.quiz.html'
             },
             prerequisites: ['script-la-ch01-pres'],
             objectives: []
@@ -19500,7 +19500,7 @@ const ContentRegistry = {
             topics: ["linux","CLI","shell","terminal"],
             paths: ['linux-admin'],
             components: {
-                lab: 'houses/script/linux/labs/la-ch01-intro.lab.html'
+                lab: 'houses/script/linux/labs/script-la-ch01-intro.lab.html'
             },
             prerequisites: ['script-la-ch01-pres'],
             objectives: []
@@ -19516,7 +19516,7 @@ const ContentRegistry = {
             topics: ["distributions","Ubuntu","CentOS","Kali"],
             paths: ['linux-admin'],
             components: {
-                presentation: 'houses/script/linux/presentations/la-ch02-distros.presentation.html'
+                presentation: 'houses/script/linux/presentations/script-la-ch02-distros.presentation.html'
             },
             prerequisites: ['script-la-ch01-pres'],
             objectives: []
@@ -19532,7 +19532,7 @@ const ContentRegistry = {
             topics: ["distributions","Ubuntu","CentOS","Kali"],
             paths: ['linux-admin'],
             components: {
-                quiz: 'houses/script/linux/quizzes/la-ch02-quiz.quiz.html'
+                quiz: 'houses/script/linux/quizzes/script-la-ch02-quiz.quiz.html'
             },
             prerequisites: ['script-la-ch02-pres'],
             objectives: []
@@ -19548,7 +19548,7 @@ const ContentRegistry = {
             topics: ["distributions","Ubuntu","CentOS","Kali"],
             paths: ['linux-admin'],
             components: {
-                lab: 'houses/script/linux/labs/la-ch02-distros.lab.html'
+                lab: 'houses/script/linux/labs/script-la-ch02-distros.lab.html'
             },
             prerequisites: ['script-la-ch02-pres'],
             objectives: []
@@ -19564,7 +19564,7 @@ const ContentRegistry = {
             topics: ["grep","pipes","regex","text-processing"],
             paths: ['linux-admin'],
             components: {
-                presentation: 'houses/script/linux/presentations/la-ch03-grep-pipes.presentation.html'
+                presentation: 'houses/script/linux/presentations/script-la-ch03-grep-pipes.presentation.html'
             },
             prerequisites: ['script-la-ch02-pres'],
             objectives: []
@@ -19580,7 +19580,7 @@ const ContentRegistry = {
             topics: ["grep","pipes","regex","text-processing"],
             paths: ['linux-admin'],
             components: {
-                quiz: 'houses/script/linux/quizzes/la-ch03-quiz.quiz.html'
+                quiz: 'houses/script/linux/quizzes/script-la-ch03-quiz.quiz.html'
             },
             prerequisites: ['script-la-ch03-pres'],
             objectives: []
@@ -19596,7 +19596,7 @@ const ContentRegistry = {
             topics: ["grep","pipes","regex","text-processing"],
             paths: ['linux-admin'],
             components: {
-                lab: 'houses/script/linux/labs/la-ch03-grep-pipes.lab.html'
+                lab: 'houses/script/linux/labs/script-la-ch03-grep-pipes.lab.html'
             },
             prerequisites: ['script-la-ch03-pres'],
             objectives: []
@@ -19612,7 +19612,7 @@ const ContentRegistry = {
             topics: ["processes","nice","top","ps","kill"],
             paths: ['linux-admin'],
             components: {
-                presentation: 'houses/script/linux/presentations/la-ch04-processes.presentation.html'
+                presentation: 'houses/script/linux/presentations/script-la-ch04-processes.presentation.html'
             },
             prerequisites: ['script-la-ch03-pres'],
             objectives: []
@@ -19628,7 +19628,7 @@ const ContentRegistry = {
             topics: ["processes","nice","top","ps","kill"],
             paths: ['linux-admin'],
             components: {
-                quiz: 'houses/script/linux/quizzes/la-ch04-quiz.quiz.html'
+                quiz: 'houses/script/linux/quizzes/script-la-ch04-quiz.quiz.html'
             },
             prerequisites: ['script-la-ch04-pres'],
             objectives: []
@@ -19644,7 +19644,7 @@ const ContentRegistry = {
             topics: ["processes","nice","top","ps","kill"],
             paths: ['linux-admin'],
             components: {
-                lab: 'houses/script/linux/labs/la-ch04-processes.lab.html'
+                lab: 'houses/script/linux/labs/script-la-ch04-processes.lab.html'
             },
             prerequisites: ['script-la-ch04-pres'],
             objectives: []
@@ -19660,7 +19660,7 @@ const ContentRegistry = {
             topics: ["daemons","systemd","services","init"],
             paths: ['linux-admin'],
             components: {
-                presentation: 'houses/script/linux/presentations/la-ch05-daemons.presentation.html'
+                presentation: 'houses/script/linux/presentations/script-la-ch05-daemons.presentation.html'
             },
             prerequisites: ['script-la-ch04-pres'],
             objectives: []
@@ -19676,7 +19676,7 @@ const ContentRegistry = {
             topics: ["daemons","systemd","services","init"],
             paths: ['linux-admin'],
             components: {
-                quiz: 'houses/script/linux/quizzes/la-ch05-quiz.quiz.html'
+                quiz: 'houses/script/linux/quizzes/script-la-ch05-quiz.quiz.html'
             },
             prerequisites: ['script-la-ch05-pres'],
             objectives: []
@@ -19692,7 +19692,7 @@ const ContentRegistry = {
             topics: ["daemons","systemd","services","init"],
             paths: ['linux-admin'],
             components: {
-                lab: 'houses/script/linux/labs/la-ch05-daemons.lab.html'
+                lab: 'houses/script/linux/labs/script-la-ch05-daemons.lab.html'
             },
             prerequisites: ['script-la-ch05-pres'],
             objectives: []
@@ -19708,7 +19708,7 @@ const ContentRegistry = {
             topics: ["boot","init","X11","localization"],
             paths: ['linux-admin'],
             components: {
-                presentation: 'houses/script/linux/presentations/la-ch06-init-xwindows.presentation.html'
+                presentation: 'houses/script/linux/presentations/script-la-ch06-init-xwindows.presentation.html'
             },
             prerequisites: ['script-la-ch05-pres'],
             objectives: []
@@ -19724,7 +19724,7 @@ const ContentRegistry = {
             topics: ["boot","init","X11","localization"],
             paths: ['linux-admin'],
             components: {
-                quiz: 'houses/script/linux/quizzes/la-ch06-quiz.quiz.html'
+                quiz: 'houses/script/linux/quizzes/script-la-ch06-quiz.quiz.html'
             },
             prerequisites: ['script-la-ch06-pres'],
             objectives: []
@@ -19740,7 +19740,7 @@ const ContentRegistry = {
             topics: ["boot","init","X11","localization"],
             paths: ['linux-admin'],
             components: {
-                lab: 'houses/script/linux/labs/la-ch06-init-xwindows.lab.html'
+                lab: 'houses/script/linux/labs/script-la-ch06-init-xwindows.lab.html'
             },
             prerequisites: ['script-la-ch06-pres'],
             objectives: []
@@ -19756,7 +19756,7 @@ const ContentRegistry = {
             topics: ["display-manager","GDM","LightDM","sessions"],
             paths: ['linux-admin'],
             components: {
-                presentation: 'houses/script/linux/presentations/la-ch07-display-mgr.presentation.html'
+                presentation: 'houses/script/linux/presentations/script-la-ch07-display-mgr.presentation.html'
             },
             prerequisites: ['script-la-ch06-pres'],
             objectives: []
@@ -19772,7 +19772,7 @@ const ContentRegistry = {
             topics: ["display-manager","GDM","LightDM","sessions"],
             paths: ['linux-admin'],
             components: {
-                quiz: 'houses/script/linux/quizzes/la-ch07-quiz.quiz.html'
+                quiz: 'houses/script/linux/quizzes/script-la-ch07-quiz.quiz.html'
             },
             prerequisites: ['script-la-ch07-pres'],
             objectives: []
@@ -19788,7 +19788,7 @@ const ContentRegistry = {
             topics: ["display-manager","GDM","LightDM","sessions"],
             paths: ['linux-admin'],
             components: {
-                lab: 'houses/script/linux/labs/la-ch07-display-mgr.lab.html'
+                lab: 'houses/script/linux/labs/script-la-ch07-display-mgr.lab.html'
             },
             prerequisites: ['script-la-ch07-pres'],
             objectives: []
@@ -19804,7 +19804,7 @@ const ContentRegistry = {
             topics: ["networking","ifconfig","ip","netplan"],
             paths: ['linux-admin'],
             components: {
-                presentation: 'houses/script/linux/presentations/la-ch08-network.presentation.html'
+                presentation: 'houses/script/linux/presentations/script-la-ch08-network.presentation.html'
             },
             prerequisites: ['script-la-ch07-pres'],
             objectives: []
@@ -19820,7 +19820,7 @@ const ContentRegistry = {
             topics: ["networking","ifconfig","ip","netplan"],
             paths: ['linux-admin'],
             components: {
-                quiz: 'houses/script/linux/quizzes/la-ch08-quiz.quiz.html'
+                quiz: 'houses/script/linux/quizzes/script-la-ch08-quiz.quiz.html'
             },
             prerequisites: ['script-la-ch08-pres'],
             objectives: []
@@ -19836,7 +19836,7 @@ const ContentRegistry = {
             topics: ["networking","ifconfig","ip","netplan"],
             paths: ['linux-admin'],
             components: {
-                lab: 'houses/script/linux/labs/la-ch08-network.lab.html'
+                lab: 'houses/script/linux/labs/script-la-ch08-network.lab.html'
             },
             prerequisites: ['script-la-ch08-pres'],
             objectives: []
@@ -19852,7 +19852,7 @@ const ContentRegistry = {
             topics: ["IPv4","TCP-IP","subnetting","routing"],
             paths: ['linux-admin'],
             components: {
-                presentation: 'houses/script/linux/presentations/la-ch09-ipv4.presentation.html'
+                presentation: 'houses/script/linux/presentations/script-la-ch09-ipv4.presentation.html'
             },
             prerequisites: ['script-la-ch08-pres'],
             objectives: []
@@ -19868,7 +19868,7 @@ const ContentRegistry = {
             topics: ["IPv4","TCP-IP","subnetting","routing"],
             paths: ['linux-admin'],
             components: {
-                quiz: 'houses/script/linux/quizzes/la-ch09-quiz.quiz.html'
+                quiz: 'houses/script/linux/quizzes/script-la-ch09-quiz.quiz.html'
             },
             prerequisites: ['script-la-ch09-pres'],
             objectives: []
@@ -19884,7 +19884,7 @@ const ContentRegistry = {
             topics: ["IPv4","TCP-IP","subnetting","routing"],
             paths: ['linux-admin'],
             components: {
-                lab: 'houses/script/linux/labs/la-ch09-ipv4.lab.html'
+                lab: 'houses/script/linux/labs/script-la-ch09-ipv4.lab.html'
             },
             prerequisites: ['script-la-ch09-pres'],
             objectives: []
@@ -19900,7 +19900,7 @@ const ContentRegistry = {
             topics: ["tar","gzip","bzip2","compression"],
             paths: ['linux-admin'],
             components: {
-                presentation: 'houses/script/linux/presentations/la-ch10-compression.presentation.html'
+                presentation: 'houses/script/linux/presentations/script-la-ch10-compression.presentation.html'
             },
             prerequisites: ['script-la-ch09-pres'],
             objectives: []
@@ -19916,7 +19916,7 @@ const ContentRegistry = {
             topics: ["tar","gzip","bzip2","compression"],
             paths: ['linux-admin'],
             components: {
-                quiz: 'houses/script/linux/quizzes/la-ch10-quiz.quiz.html'
+                quiz: 'houses/script/linux/quizzes/script-la-ch10-quiz.quiz.html'
             },
             prerequisites: ['script-la-ch10-pres'],
             objectives: []
@@ -19932,7 +19932,7 @@ const ContentRegistry = {
             topics: ["tar","gzip","bzip2","compression"],
             paths: ['linux-admin'],
             components: {
-                lab: 'houses/script/linux/labs/la-ch10-compression.lab.html'
+                lab: 'houses/script/linux/labs/script-la-ch10-compression.lab.html'
             },
             prerequisites: ['script-la-ch10-pres'],
             objectives: []
@@ -19948,7 +19948,7 @@ const ContentRegistry = {
             topics: ["GPG","LUKS","encryption","hashing"],
             paths: ['linux-admin'],
             components: {
-                presentation: 'houses/script/linux/presentations/la-ch11-encryption.presentation.html'
+                presentation: 'houses/script/linux/presentations/script-la-ch11-encryption.presentation.html'
             },
             prerequisites: ['script-la-ch10-pres'],
             objectives: []
@@ -19964,7 +19964,7 @@ const ContentRegistry = {
             topics: ["GPG","LUKS","encryption","hashing"],
             paths: ['linux-admin'],
             components: {
-                quiz: 'houses/script/linux/quizzes/la-ch11-quiz.quiz.html'
+                quiz: 'houses/script/linux/quizzes/script-la-ch11-quiz.quiz.html'
             },
             prerequisites: ['script-la-ch11-pres'],
             objectives: []
@@ -19980,7 +19980,7 @@ const ContentRegistry = {
             topics: ["GPG","LUKS","encryption","hashing"],
             paths: ['linux-admin'],
             components: {
-                lab: 'houses/script/linux/labs/la-ch11-encryption.lab.html'
+                lab: 'houses/script/linux/labs/script-la-ch11-encryption.lab.html'
             },
             prerequisites: ['script-la-ch11-pres'],
             objectives: []
@@ -19996,7 +19996,7 @@ const ContentRegistry = {
             topics: ["gcc","make","compilation","source-code"],
             paths: ['linux-admin'],
             components: {
-                presentation: 'houses/script/linux/presentations/la-ch12-compile.presentation.html'
+                presentation: 'houses/script/linux/presentations/script-la-ch12-compile.presentation.html'
             },
             prerequisites: ['script-la-ch11-pres'],
             objectives: []
@@ -20012,7 +20012,7 @@ const ContentRegistry = {
             topics: ["gcc","make","compilation","source-code"],
             paths: ['linux-admin'],
             components: {
-                quiz: 'houses/script/linux/quizzes/la-ch12-quiz.quiz.html'
+                quiz: 'houses/script/linux/quizzes/script-la-ch12-quiz.quiz.html'
             },
             prerequisites: ['script-la-ch12-pres'],
             objectives: []
@@ -20028,7 +20028,7 @@ const ContentRegistry = {
             topics: ["gcc","make","compilation","source-code"],
             paths: ['linux-admin'],
             components: {
-                lab: 'houses/script/linux/labs/la-ch12-compile.lab.html'
+                lab: 'houses/script/linux/labs/script-la-ch12-compile.lab.html'
             },
             prerequisites: ['script-la-ch12-pres'],
             objectives: []
@@ -20044,7 +20044,7 @@ const ContentRegistry = {
             topics: ['linux', 'review', 'comprehensive'],
             paths: ['linux-admin'],
             components: {
-                quiz: 'houses/script/linux/reviews/la-comprehensive-review.html'
+                quiz: 'houses/script/linux/reviews/script-la-comprehensive-review.html'
             },
             prerequisites: [],
             objectives: []
@@ -20061,7 +20061,7 @@ const ContentRegistry = {
             topics: ["SOC","CIA-triad","cybersecurity-analyst","frameworks"],
             paths: ['cysa'],
             components: {
-                presentation: 'houses/eye/cysa/presentations/cysa-ch01-analyst.presentation.html'
+                presentation: 'houses/eye/cysa/presentations/eye-cysa-ch01-analyst.presentation.html'
             },
             prerequisites: [],
             objectives: []
@@ -20077,7 +20077,7 @@ const ContentRegistry = {
             topics: ["SOC","CIA-triad","cybersecurity-analyst","frameworks"],
             paths: ['cysa'],
             components: {
-                quiz: 'houses/eye/cysa/quizzes/cysa-ch01-quiz.quiz.html'
+                quiz: 'houses/eye/cysa/quizzes/eye-cysa-ch01-quiz.quiz.html'
             },
             prerequisites: ['eye-cysa-ch01-pres'],
             objectives: []
@@ -20093,7 +20093,7 @@ const ContentRegistry = {
             topics: ["SOC","CIA-triad","cybersecurity-analyst","frameworks"],
             paths: ['cysa'],
             components: {
-                lab: 'houses/eye/cysa/labs/cysa-ch01-analyst.lab.html'
+                lab: 'houses/eye/cysa/labs/eye-cysa-ch01-analyst.lab.html'
             },
             prerequisites: ['eye-cysa-ch01-pres'],
             objectives: []
@@ -20109,7 +20109,7 @@ const ContentRegistry = {
             topics: ["threat-intelligence","STIX","TAXII","OSINT"],
             paths: ['cysa'],
             components: {
-                presentation: 'houses/eye/cysa/presentations/cysa-ch02-threat-intel.presentation.html'
+                presentation: 'houses/eye/cysa/presentations/eye-cysa-ch02-threat-intel.presentation.html'
             },
             prerequisites: ['eye-cysa-ch01-pres'],
             objectives: []
@@ -20125,7 +20125,7 @@ const ContentRegistry = {
             topics: ["threat-intelligence","STIX","TAXII","OSINT"],
             paths: ['cysa'],
             components: {
-                quiz: 'houses/eye/cysa/quizzes/cysa-ch02-quiz.quiz.html'
+                quiz: 'houses/eye/cysa/quizzes/eye-cysa-ch02-quiz.quiz.html'
             },
             prerequisites: ['eye-cysa-ch02-pres'],
             objectives: []
@@ -20141,7 +20141,7 @@ const ContentRegistry = {
             topics: ["threat-intelligence","STIX","TAXII","OSINT"],
             paths: ['cysa'],
             components: {
-                lab: 'houses/eye/cysa/labs/cysa-ch02-threat-intel.lab.html'
+                lab: 'houses/eye/cysa/labs/eye-cysa-ch02-threat-intel.lab.html'
             },
             prerequisites: ['eye-cysa-ch02-pres'],
             objectives: []
@@ -20157,7 +20157,7 @@ const ContentRegistry = {
             topics: ["reconnaissance","enumeration","OSINT","pentesting"],
             paths: ['cysa'],
             components: {
-                presentation: 'houses/eye/cysa/presentations/cysa-ch03-recon.presentation.html'
+                presentation: 'houses/eye/cysa/presentations/eye-cysa-ch03-recon.presentation.html'
             },
             prerequisites: ['eye-cysa-ch02-pres'],
             objectives: []
@@ -20173,7 +20173,7 @@ const ContentRegistry = {
             topics: ["reconnaissance","enumeration","OSINT","pentesting"],
             paths: ['cysa'],
             components: {
-                quiz: 'houses/eye/cysa/quizzes/cysa-ch03-quiz.quiz.html'
+                quiz: 'houses/eye/cysa/quizzes/eye-cysa-ch03-quiz.quiz.html'
             },
             prerequisites: ['eye-cysa-ch03-pres'],
             objectives: []
@@ -20189,7 +20189,7 @@ const ContentRegistry = {
             topics: ["reconnaissance","enumeration","OSINT","pentesting"],
             paths: ['cysa'],
             components: {
-                lab: 'houses/eye/cysa/labs/cysa-ch03-recon.lab.html'
+                lab: 'houses/eye/cysa/labs/eye-cysa-ch03-recon.lab.html'
             },
             prerequisites: ['eye-cysa-ch03-pres'],
             objectives: []
@@ -20205,7 +20205,7 @@ const ContentRegistry = {
             topics: ["vulnerability-management","risk-assessment","scanning"],
             paths: ['cysa'],
             components: {
-                presentation: 'houses/eye/cysa/presentations/cysa-ch04-vuln-mgmt.presentation.html'
+                presentation: 'houses/eye/cysa/presentations/eye-cysa-ch04-vuln-mgmt.presentation.html'
             },
             prerequisites: ['eye-cysa-ch03-pres'],
             objectives: []
@@ -20221,7 +20221,7 @@ const ContentRegistry = {
             topics: ["vulnerability-management","risk-assessment","scanning"],
             paths: ['cysa'],
             components: {
-                quiz: 'houses/eye/cysa/quizzes/cysa-ch04-quiz.quiz.html'
+                quiz: 'houses/eye/cysa/quizzes/eye-cysa-ch04-quiz.quiz.html'
             },
             prerequisites: ['eye-cysa-ch04-pres'],
             objectives: []
@@ -20237,7 +20237,7 @@ const ContentRegistry = {
             topics: ["vulnerability-management","risk-assessment","scanning"],
             paths: ['cysa'],
             components: {
-                lab: 'houses/eye/cysa/labs/cysa-ch04-vuln-mgmt.lab.html'
+                lab: 'houses/eye/cysa/labs/eye-cysa-ch04-vuln-mgmt.lab.html'
             },
             prerequisites: ['eye-cysa-ch04-pres'],
             objectives: []
@@ -20253,7 +20253,7 @@ const ContentRegistry = {
             topics: ["vulnerability-scanning","CVSS","Nessus","scan-analysis"],
             paths: ['cysa'],
             components: {
-                presentation: 'houses/eye/cysa/presentations/cysa-ch05-vuln-scans.presentation.html'
+                presentation: 'houses/eye/cysa/presentations/eye-cysa-ch05-vuln-scans.presentation.html'
             },
             prerequisites: ['eye-cysa-ch04-pres'],
             objectives: []
@@ -20269,7 +20269,7 @@ const ContentRegistry = {
             topics: ["vulnerability-scanning","CVSS","Nessus","scan-analysis"],
             paths: ['cysa'],
             components: {
-                quiz: 'houses/eye/cysa/quizzes/cysa-ch05-quiz.quiz.html'
+                quiz: 'houses/eye/cysa/quizzes/eye-cysa-ch05-quiz.quiz.html'
             },
             prerequisites: ['eye-cysa-ch05-pres'],
             objectives: []
@@ -20285,7 +20285,7 @@ const ContentRegistry = {
             topics: ["vulnerability-scanning","CVSS","Nessus","scan-analysis"],
             paths: ['cysa'],
             components: {
-                lab: 'houses/eye/cysa/labs/cysa-ch05-vuln-scans.lab.html'
+                lab: 'houses/eye/cysa/labs/eye-cysa-ch05-vuln-scans.lab.html'
             },
             prerequisites: ['eye-cysa-ch05-pres'],
             objectives: []
@@ -20301,7 +20301,7 @@ const ContentRegistry = {
             topics: ["cloud-security","IaaS","PaaS","SaaS","shared-responsibility"],
             paths: ['cysa'],
             components: {
-                presentation: 'houses/eye/cysa/presentations/cysa-ch06-cloud.presentation.html'
+                presentation: 'houses/eye/cysa/presentations/eye-cysa-ch06-cloud.presentation.html'
             },
             prerequisites: ['eye-cysa-ch05-pres'],
             objectives: []
@@ -20317,7 +20317,7 @@ const ContentRegistry = {
             topics: ["cloud-security","IaaS","PaaS","SaaS","shared-responsibility"],
             paths: ['cysa'],
             components: {
-                quiz: 'houses/eye/cysa/quizzes/cysa-ch06-quiz.quiz.html'
+                quiz: 'houses/eye/cysa/quizzes/eye-cysa-ch06-quiz.quiz.html'
             },
             prerequisites: ['eye-cysa-ch06-pres'],
             objectives: []
@@ -20333,7 +20333,7 @@ const ContentRegistry = {
             topics: ["cloud-security","IaaS","PaaS","SaaS","shared-responsibility"],
             paths: ['cysa'],
             components: {
-                lab: 'houses/eye/cysa/labs/cysa-ch06-cloud.lab.html'
+                lab: 'houses/eye/cysa/labs/eye-cysa-ch06-cloud.lab.html'
             },
             prerequisites: ['eye-cysa-ch06-pres'],
             objectives: []
@@ -20349,7 +20349,7 @@ const ContentRegistry = {
             topics: ["infrastructure-security","network-controls","hardening"],
             paths: ['cysa'],
             components: {
-                presentation: 'houses/eye/cysa/presentations/cysa-ch07-infra.presentation.html'
+                presentation: 'houses/eye/cysa/presentations/eye-cysa-ch07-infra.presentation.html'
             },
             prerequisites: ['eye-cysa-ch06-pres'],
             objectives: []
@@ -20365,7 +20365,7 @@ const ContentRegistry = {
             topics: ["infrastructure-security","network-controls","hardening"],
             paths: ['cysa'],
             components: {
-                quiz: 'houses/eye/cysa/quizzes/cysa-ch07-quiz.quiz.html'
+                quiz: 'houses/eye/cysa/quizzes/eye-cysa-ch07-quiz.quiz.html'
             },
             prerequisites: ['eye-cysa-ch07-pres'],
             objectives: []
@@ -20381,7 +20381,7 @@ const ContentRegistry = {
             topics: ["infrastructure-security","network-controls","hardening"],
             paths: ['cysa'],
             components: {
-                lab: 'houses/eye/cysa/labs/cysa-ch07-infra.lab.html'
+                lab: 'houses/eye/cysa/labs/eye-cysa-ch07-infra.lab.html'
             },
             prerequisites: ['eye-cysa-ch07-pres'],
             objectives: []
@@ -20397,7 +20397,7 @@ const ContentRegistry = {
             topics: ["IAM","authentication","authorization","MFA"],
             paths: ['cysa'],
             components: {
-                presentation: 'houses/eye/cysa/presentations/cysa-ch08-iam.presentation.html'
+                presentation: 'houses/eye/cysa/presentations/eye-cysa-ch08-iam.presentation.html'
             },
             prerequisites: ['eye-cysa-ch07-pres'],
             objectives: []
@@ -20413,7 +20413,7 @@ const ContentRegistry = {
             topics: ["IAM","authentication","authorization","MFA"],
             paths: ['cysa'],
             components: {
-                quiz: 'houses/eye/cysa/quizzes/cysa-ch08-quiz.quiz.html'
+                quiz: 'houses/eye/cysa/quizzes/eye-cysa-ch08-quiz.quiz.html'
             },
             prerequisites: ['eye-cysa-ch08-pres'],
             objectives: []
@@ -20429,7 +20429,7 @@ const ContentRegistry = {
             topics: ["IAM","authentication","authorization","MFA"],
             paths: ['cysa'],
             components: {
-                lab: 'houses/eye/cysa/labs/cysa-ch08-iam.lab.html'
+                lab: 'houses/eye/cysa/labs/eye-cysa-ch08-iam.lab.html'
             },
             prerequisites: ['eye-cysa-ch08-pres'],
             objectives: []
@@ -20445,7 +20445,7 @@ const ContentRegistry = {
             topics: ["SDLC","secure-coding","DevSecOps"],
             paths: ['cysa'],
             components: {
-                presentation: 'houses/eye/cysa/presentations/cysa-ch09-dev-security.presentation.html'
+                presentation: 'houses/eye/cysa/presentations/eye-cysa-ch09-dev-security.presentation.html'
             },
             prerequisites: ['eye-cysa-ch08-pres'],
             objectives: []
@@ -20461,7 +20461,7 @@ const ContentRegistry = {
             topics: ["SDLC","secure-coding","DevSecOps"],
             paths: ['cysa'],
             components: {
-                quiz: 'houses/eye/cysa/quizzes/cysa-ch09-quiz.quiz.html'
+                quiz: 'houses/eye/cysa/quizzes/eye-cysa-ch09-quiz.quiz.html'
             },
             prerequisites: ['eye-cysa-ch09-pres'],
             objectives: []
@@ -20477,7 +20477,7 @@ const ContentRegistry = {
             topics: ["SDLC","secure-coding","DevSecOps"],
             paths: ['cysa'],
             components: {
-                lab: 'houses/eye/cysa/labs/cysa-ch09-dev-security.lab.html'
+                lab: 'houses/eye/cysa/labs/eye-cysa-ch09-dev-security.lab.html'
             },
             prerequisites: ['eye-cysa-ch09-pres'],
             objectives: []
@@ -20493,7 +20493,7 @@ const ContentRegistry = {
             topics: ["SIEM","security-monitoring","SOC-operations","logging"],
             paths: ['cysa'],
             components: {
-                presentation: 'houses/eye/cysa/presentations/cysa-ch10-secops.presentation.html'
+                presentation: 'houses/eye/cysa/presentations/eye-cysa-ch10-secops.presentation.html'
             },
             prerequisites: ['eye-cysa-ch09-pres'],
             objectives: []
@@ -20509,7 +20509,7 @@ const ContentRegistry = {
             topics: ["SIEM","security-monitoring","SOC-operations","logging"],
             paths: ['cysa'],
             components: {
-                quiz: 'houses/eye/cysa/quizzes/cysa-ch10-quiz.quiz.html'
+                quiz: 'houses/eye/cysa/quizzes/eye-cysa-ch10-quiz.quiz.html'
             },
             prerequisites: ['eye-cysa-ch10-pres'],
             objectives: []
@@ -20525,7 +20525,7 @@ const ContentRegistry = {
             topics: ["SIEM","security-monitoring","SOC-operations","logging"],
             paths: ['cysa'],
             components: {
-                lab: 'houses/eye/cysa/labs/cysa-ch10-secops.lab.html'
+                lab: 'houses/eye/cysa/labs/eye-cysa-ch10-secops.lab.html'
             },
             prerequisites: ['eye-cysa-ch10-pres'],
             objectives: []
@@ -20541,7 +20541,7 @@ const ContentRegistry = {
             topics: ["incident-response","IR-planning","NIST-800-61"],
             paths: ['cysa'],
             components: {
-                presentation: 'houses/eye/cysa/presentations/cysa-ch11-ir.presentation.html'
+                presentation: 'houses/eye/cysa/presentations/eye-cysa-ch11-ir.presentation.html'
             },
             prerequisites: ['eye-cysa-ch10-pres'],
             objectives: []
@@ -20557,7 +20557,7 @@ const ContentRegistry = {
             topics: ["incident-response","IR-planning","NIST-800-61"],
             paths: ['cysa'],
             components: {
-                quiz: 'houses/eye/cysa/quizzes/cysa-ch11-quiz.quiz.html'
+                quiz: 'houses/eye/cysa/quizzes/eye-cysa-ch11-quiz.quiz.html'
             },
             prerequisites: ['eye-cysa-ch11-pres'],
             objectives: []
@@ -20573,7 +20573,7 @@ const ContentRegistry = {
             topics: ["incident-response","IR-planning","NIST-800-61"],
             paths: ['cysa'],
             components: {
-                lab: 'houses/eye/cysa/labs/cysa-ch11-ir.lab.html'
+                lab: 'houses/eye/cysa/labs/eye-cysa-ch11-ir.lab.html'
             },
             prerequisites: ['eye-cysa-ch11-pres'],
             objectives: []
@@ -20589,7 +20589,7 @@ const ContentRegistry = {
             topics: ["IOC","threat-analysis","malware-indicators","network-indicators"],
             paths: ['cysa'],
             components: {
-                presentation: 'houses/eye/cysa/presentations/cysa-ch12-ioc.presentation.html'
+                presentation: 'houses/eye/cysa/presentations/eye-cysa-ch12-ioc.presentation.html'
             },
             prerequisites: ['eye-cysa-ch11-pres'],
             objectives: []
@@ -20605,7 +20605,7 @@ const ContentRegistry = {
             topics: ["IOC","threat-analysis","malware-indicators","network-indicators"],
             paths: ['cysa'],
             components: {
-                quiz: 'houses/eye/cysa/quizzes/cysa-ch12-quiz.quiz.html'
+                quiz: 'houses/eye/cysa/quizzes/eye-cysa-ch12-quiz.quiz.html'
             },
             prerequisites: ['eye-cysa-ch12-pres'],
             objectives: []
@@ -20621,7 +20621,7 @@ const ContentRegistry = {
             topics: ["IOC","threat-analysis","malware-indicators","network-indicators"],
             paths: ['cysa'],
             components: {
-                lab: 'houses/eye/cysa/labs/cysa-ch12-ioc.lab.html'
+                lab: 'houses/eye/cysa/labs/eye-cysa-ch12-ioc.lab.html'
             },
             prerequisites: ['eye-cysa-ch12-pres'],
             objectives: []
@@ -20637,7 +20637,7 @@ const ContentRegistry = {
             topics: ["digital-forensics","evidence-collection","chain-of-custody"],
             paths: ['cysa'],
             components: {
-                presentation: 'houses/eye/cysa/presentations/cysa-ch13-forensics.presentation.html'
+                presentation: 'houses/eye/cysa/presentations/eye-cysa-ch13-forensics.presentation.html'
             },
             prerequisites: ['eye-cysa-ch12-pres'],
             objectives: []
@@ -20653,7 +20653,7 @@ const ContentRegistry = {
             topics: ["digital-forensics","evidence-collection","chain-of-custody"],
             paths: ['cysa'],
             components: {
-                quiz: 'houses/eye/cysa/quizzes/cysa-ch13-quiz.quiz.html'
+                quiz: 'houses/eye/cysa/quizzes/eye-cysa-ch13-quiz.quiz.html'
             },
             prerequisites: ['eye-cysa-ch13-pres'],
             objectives: []
@@ -20669,7 +20669,7 @@ const ContentRegistry = {
             topics: ["digital-forensics","evidence-collection","chain-of-custody"],
             paths: ['cysa'],
             components: {
-                lab: 'houses/eye/cysa/labs/cysa-ch13-forensics.lab.html'
+                lab: 'houses/eye/cysa/labs/eye-cysa-ch13-forensics.lab.html'
             },
             prerequisites: ['eye-cysa-ch13-pres'],
             objectives: []
@@ -20685,7 +20685,7 @@ const ContentRegistry = {
             topics: ["containment","eradication","recovery","incident-handling"],
             paths: ['cysa'],
             components: {
-                presentation: 'houses/eye/cysa/presentations/cysa-ch14-recovery.presentation.html'
+                presentation: 'houses/eye/cysa/presentations/eye-cysa-ch14-recovery.presentation.html'
             },
             prerequisites: ['eye-cysa-ch13-pres'],
             objectives: []
@@ -20701,7 +20701,7 @@ const ContentRegistry = {
             topics: ["containment","eradication","recovery","incident-handling"],
             paths: ['cysa'],
             components: {
-                quiz: 'houses/eye/cysa/quizzes/cysa-ch14-quiz.quiz.html'
+                quiz: 'houses/eye/cysa/quizzes/eye-cysa-ch14-quiz.quiz.html'
             },
             prerequisites: ['eye-cysa-ch14-pres'],
             objectives: []
@@ -20717,7 +20717,7 @@ const ContentRegistry = {
             topics: ["containment","eradication","recovery","incident-handling"],
             paths: ['cysa'],
             components: {
-                lab: 'houses/eye/cysa/labs/cysa-ch14-recovery.lab.html'
+                lab: 'houses/eye/cysa/labs/eye-cysa-ch14-recovery.lab.html'
             },
             prerequisites: ['eye-cysa-ch14-pres'],
             objectives: []
@@ -20733,7 +20733,7 @@ const ContentRegistry = {
             topics: ["risk-management","risk-frameworks","BIA","risk-mitigation"],
             paths: ['cysa'],
             components: {
-                presentation: 'houses/eye/cysa/presentations/cysa-ch15-risk.presentation.html'
+                presentation: 'houses/eye/cysa/presentations/eye-cysa-ch15-risk.presentation.html'
             },
             prerequisites: ['eye-cysa-ch14-pres'],
             objectives: []
@@ -20749,7 +20749,7 @@ const ContentRegistry = {
             topics: ["risk-management","risk-frameworks","BIA","risk-mitigation"],
             paths: ['cysa'],
             components: {
-                quiz: 'houses/eye/cysa/quizzes/cysa-ch15-quiz.quiz.html'
+                quiz: 'houses/eye/cysa/quizzes/eye-cysa-ch15-quiz.quiz.html'
             },
             prerequisites: ['eye-cysa-ch15-pres'],
             objectives: []
@@ -20765,7 +20765,7 @@ const ContentRegistry = {
             topics: ["risk-management","risk-frameworks","BIA","risk-mitigation"],
             paths: ['cysa'],
             components: {
-                lab: 'houses/eye/cysa/labs/cysa-ch15-risk.lab.html'
+                lab: 'houses/eye/cysa/labs/eye-cysa-ch15-risk.lab.html'
             },
             prerequisites: ['eye-cysa-ch15-pres'],
             objectives: []
@@ -20781,7 +20781,7 @@ const ContentRegistry = {
             topics: ["policy","compliance","governance","regulations"],
             paths: ['cysa'],
             components: {
-                presentation: 'houses/eye/cysa/presentations/cysa-ch16-compliance.presentation.html'
+                presentation: 'houses/eye/cysa/presentations/eye-cysa-ch16-compliance.presentation.html'
             },
             prerequisites: ['eye-cysa-ch15-pres'],
             objectives: []
@@ -20797,7 +20797,7 @@ const ContentRegistry = {
             topics: ["policy","compliance","governance","regulations"],
             paths: ['cysa'],
             components: {
-                quiz: 'houses/eye/cysa/quizzes/cysa-ch16-quiz.quiz.html'
+                quiz: 'houses/eye/cysa/quizzes/eye-cysa-ch16-quiz.quiz.html'
             },
             prerequisites: ['eye-cysa-ch16-pres'],
             objectives: []
@@ -20813,7 +20813,7 @@ const ContentRegistry = {
             topics: ["policy","compliance","governance","regulations"],
             paths: ['cysa'],
             components: {
-                lab: 'houses/eye/cysa/labs/cysa-ch16-compliance.lab.html'
+                lab: 'houses/eye/cysa/labs/eye-cysa-ch16-compliance.lab.html'
             },
             prerequisites: ['eye-cysa-ch16-pres'],
             objectives: []
@@ -20829,7 +20829,7 @@ const ContentRegistry = {
             topics: ['CySA+', 'review', 'comprehensive'],
             paths: ['cysa'],
             components: {
-                quiz: 'houses/eye/cysa/reviews/cysa-comprehensive-review.html'
+                quiz: 'houses/eye/cysa/reviews/eye-cysa-comprehensive-review.html'
             },
             prerequisites: [],
             objectives: []
