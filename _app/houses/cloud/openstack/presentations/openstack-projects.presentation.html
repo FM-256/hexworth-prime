@@ -1,0 +1,685 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <!-- Progress & Achievements -->
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OpenStack: Projects &amp; Services - House of the Cloud</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --cloud-primary: #38bdf8;
+            --cloud-secondary: #0ea5e9;
+            --cloud-accent: #7dd3fc;
+            --cloud-dark: #0c4a6e;
+            --cloud-darker: #082f49;
+            --dark-bg: #0f172a;
+            --darker-bg: #020617;
+            --light-text: #f0f9ff;
+            --gray-text: #94a3b8;
+            --card-bg: #1e293b;
+            --hover-bg: #334155;
+            --ok: #2ed573;
+            --warn: #ffc107;
+            --bad: #ff4757;
+            --border: rgba(56, 189, 248, 0.2);
+        }
+
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: var(--darker-bg);
+            color: var(--light-text);
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* ── Header ── */
+        .header {
+            background: linear-gradient(135deg, var(--cloud-darker) 0%, var(--cloud-dark) 100%);
+            padding: 0.85rem 2rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid var(--border);
+            flex-shrink: 0;
+        }
+
+        .back-button {
+            background: rgba(56, 189, 248, 0.15);
+            border: 1px solid var(--border);
+            color: var(--cloud-accent);
+            padding: 0.4rem 1rem;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 600;
+            text-decoration: none;
+            transition: all 0.2s ease;
+        }
+        .back-button:hover { background: rgba(56, 189, 248, 0.25); transform: translateX(-3px); }
+
+        .header-title { font-size: 1rem; font-weight: 700; color: var(--cloud-primary); letter-spacing: 0.5px; }
+        .course-badge { background: var(--cloud-primary); color: var(--cloud-darker); padding: 0.35rem 1rem; border-radius: 20px; font-size: 0.8rem; font-weight: 700; letter-spacing: 0.5px; }
+
+        /* ── Progress Bar ── */
+        .progress-bar-container {
+            background: var(--card-bg);
+            padding: 0.6rem 2rem;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            border-bottom: 1px solid var(--border);
+            flex-shrink: 0;
+        }
+        .progress-track { flex: 1; background: var(--dark-bg); border-radius: 4px; height: 6px; overflow: hidden; }
+        .progress-fill { height: 100%; background: linear-gradient(90deg, var(--cloud-secondary), var(--cloud-primary)); border-radius: 4px; transition: width 0.4s ease; }
+        .slide-counter { font-size: 0.85rem; color: var(--gray-text); font-weight: 600; white-space: nowrap; }
+        .slide-dots { display: flex; gap: 6px; }
+        .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--hover-bg); cursor: pointer; transition: all 0.2s ease; }
+        .dot.active { background: var(--cloud-primary); transform: scale(1.3); }
+        .dot.visited { background: var(--cloud-dark); }
+
+        /* ── Slide Viewport ── */
+        .slide-viewport { flex: 1; overflow: hidden; position: relative; }
+
+        .slide {
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            padding: 2.5rem 3rem;
+            overflow-y: auto;
+            opacity: 0;
+            transform: translateX(60px);
+            transition: all 0.35s ease;
+            pointer-events: none;
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+        .slide.active { opacity: 1; transform: translateX(0); pointer-events: all; }
+        .slide.exit-left { opacity: 0; transform: translateX(-60px); }
+
+        /* ── Navigation ── */
+        .nav-controls {
+            background: var(--card-bg);
+            border-top: 1px solid var(--border);
+            padding: 0.75rem 2rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-shrink: 0;
+        }
+        .nav-btn {
+            background: rgba(56, 189, 248, 0.1);
+            border: 1px solid var(--border);
+            color: var(--cloud-primary);
+            padding: 0.55rem 1.5rem;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.95rem;
+            font-weight: 600;
+            transition: all 0.2s ease;
+        }
+        .nav-btn:hover:not(:disabled) { background: rgba(56, 189, 248, 0.25); }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .nav-hint { font-size: 0.8rem; color: var(--gray-text); }
+
+        /* ── Typography ── */
+        .slide-title { font-size: 2rem; font-weight: 700; color: var(--cloud-primary); line-height: 1.2; }
+        .slide-subtitle { font-size: 1.1rem; color: var(--gray-text); margin-top: -0.75rem; }
+        .slide-label { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 2px; color: var(--cloud-accent); font-weight: 600; }
+
+        /* ── Cards ── */
+        .card { background: var(--card-bg); border-radius: 12px; padding: 1.5rem; border: 1px solid var(--border); }
+        .card-title { font-size: 1.1rem; font-weight: 700; color: var(--cloud-primary); margin-bottom: 0.75rem; display: flex; align-items: center; gap: 0.5rem; }
+        .card-title .icon { font-size: 1.3rem; }
+
+        .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; }
+        .three-col { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem; }
+
+        ul.checklist { list-style: none; display: flex; flex-direction: column; gap: 0.5rem; }
+        ul.checklist li { display: flex; align-items: flex-start; gap: 0.6rem; font-size: 0.95rem; color: var(--light-text); line-height: 1.5; }
+        ul.checklist li::before { content: '▸'; color: var(--cloud-primary); flex-shrink: 0; margin-top: 0.1rem; }
+
+        .highlight-box { background: rgba(56, 189, 248, 0.08); border: 1px solid var(--border); border-left: 4px solid var(--cloud-primary); border-radius: 8px; padding: 1.25rem 1.5rem; }
+        .highlight-box.ok { background: rgba(46, 213, 115, 0.08); border-left-color: var(--ok); }
+        .highlight-box.warn { background: rgba(255, 193, 7, 0.08); border-left-color: var(--warn); }
+
+        .diagram-box { background: var(--darker-bg); border: 1px solid var(--border); border-radius: 8px; padding: 1.25rem 1.5rem; font-family: 'Courier New', monospace; font-size: 0.82rem; color: var(--cloud-accent); line-height: 1.7; white-space: pre; overflow-x: auto; }
+
+        /* ── Project service cards ── */
+        .service-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; }
+
+        .service-tile {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 1.25rem;
+            transition: all 0.2s ease;
+            cursor: default;
+        }
+        .service-tile:hover { border-color: var(--cloud-secondary); background: var(--hover-bg); }
+
+        .service-tile-name {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: var(--cloud-primary);
+            margin-bottom: 0.25rem;
+        }
+
+        .service-tile-code {
+            font-size: 0.75rem;
+            color: var(--cloud-accent);
+            font-family: 'Courier New', monospace;
+            margin-bottom: 0.6rem;
+            letter-spacing: 0.5px;
+        }
+
+        .service-tile-desc { font-size: 0.85rem; color: var(--gray-text); line-height: 1.5; }
+
+        .deployment-bar {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            margin-top: 0.5rem;
+        }
+        .bar-label { font-size: 0.75rem; color: var(--gray-text); width: 50px; flex-shrink: 0; }
+        .bar-track { flex: 1; background: var(--dark-bg); border-radius: 3px; height: 8px; overflow: hidden; }
+        .bar-fill { height: 100%; background: var(--cloud-primary); border-radius: 3px; }
+        .bar-pct { font-size: 0.75rem; color: var(--cloud-accent); width: 36px; text-align: right; flex-shrink: 0; }
+
+        /* ── Stat row ── */
+        .stat-row { display: flex; gap: 1rem; flex-wrap: wrap; }
+        .stat-badge { background: rgba(56, 189, 248, 0.1); border: 1px solid var(--border); border-radius: 8px; padding: 0.75rem 1.25rem; text-align: center; flex: 1; min-width: 120px; }
+        .stat-value { font-size: 1.5rem; font-weight: 700; color: var(--cloud-primary); }
+        .stat-label { font-size: 0.8rem; color: var(--gray-text); margin-top: 0.2rem; }
+
+        /* ── Title Slide ── */
+        .title-slide-center { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 1.5rem; }
+        .giant-icon { font-size: 5rem; filter: drop-shadow(0 0 20px rgba(56, 189, 248, 0.5)); }
+        .title-slide-title { font-size: 2.5rem; font-weight: 700; color: var(--cloud-primary); line-height: 1.2; }
+        .title-slide-subtitle { font-size: 1.2rem; color: var(--gray-text); max-width: 600px; }
+        .objectives-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; text-align: left; width: 100%; max-width: 700px; }
+        .obj-item { display: flex; align-items: flex-start; gap: 0.6rem; background: var(--card-bg); padding: 0.75rem 1rem; border-radius: 8px; border: 1px solid var(--border); font-size: 0.9rem; }
+        .obj-num { background: var(--cloud-primary); color: var(--cloud-darker); width: 22px; height: 22px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: 700; flex-shrink: 0; }
+
+        /* ── Quiz ── */
+        .quiz-question { background: var(--card-bg); border: 1px solid var(--border); border-radius: 12px; padding: 1.5rem; }
+        .quiz-q-text { font-size: 1rem; font-weight: 600; color: var(--light-text); margin-bottom: 1rem; }
+        .quiz-options { display: flex; flex-direction: column; gap: 0.5rem; }
+        .quiz-option { background: var(--dark-bg); border: 1px solid var(--border); border-radius: 8px; padding: 0.65rem 1rem; cursor: pointer; font-size: 0.9rem; transition: all 0.2s ease; display: flex; align-items: center; gap: 0.75rem; }
+        .quiz-option:hover { background: var(--hover-bg); border-color: var(--cloud-secondary); }
+        .quiz-option.correct { background: rgba(46, 213, 115, 0.15); border-color: var(--ok); color: var(--ok); }
+        .quiz-option.incorrect { background: rgba(255, 71, 87, 0.15); border-color: var(--bad); color: var(--bad); }
+        .quiz-option.revealed { cursor: default; }
+        .quiz-letter { width: 26px; height: 26px; border-radius: 50%; background: var(--hover-bg); display: flex; align-items: center; justify-content: center; font-size: 0.8rem; font-weight: 700; flex-shrink: 0; }
+        .quiz-explanation { display: none; margin-top: 0.75rem; padding: 0.75rem 1rem; background: rgba(46, 213, 115, 0.08); border-left: 3px solid var(--ok); border-radius: 6px; font-size: 0.88rem; color: var(--gray-text); }
+
+        /* ── Summary ── */
+        .summary-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+        .summary-item { background: var(--card-bg); border: 1px solid var(--border); border-radius: 10px; padding: 1.25rem; }
+        .summary-item-title { font-size: 0.9rem; font-weight: 700; color: var(--cloud-primary); margin-bottom: 0.5rem; }
+        .summary-item-text { font-size: 0.85rem; color: var(--gray-text); line-height: 1.5; }
+
+        .complete-btn { background: linear-gradient(135deg, var(--ok), #20bf6b); color: #fff; border: none; padding: 1rem 2.5rem; border-radius: 10px; font-size: 1.1rem; font-weight: 700; cursor: pointer; transition: all 0.2s ease; box-shadow: 0 4px 15px rgba(46, 213, 115, 0.35); }
+        .complete-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(46, 213, 115, 0.45); }
+
+        .slide::-webkit-scrollbar { width: 5px; }
+        .slide::-webkit-scrollbar-track { background: var(--dark-bg); }
+        .slide::-webkit-scrollbar-thumb { background: var(--cloud-dark); border-radius: 3px; }
+
+        @media (max-width: 768px) {
+            .slide { padding: 1.5rem; }
+            .two-col, .three-col, .summary-grid, .objectives-grid, .service-grid { grid-template-columns: 1fr; }
+            .title-slide-title { font-size: 1.8rem; }
+        }
+    </style>
+</head>
+<body>
+
+    <header class="header">
+        <a href="../index.html" class="back-button">← Back to OpenStack Course</a>
+        <div class="header-title">OpenStack: Projects &amp; Services</div>
+        <div class="course-badge">CLOUD HOUSE</div>
+    </header>
+
+    <div class="progress-bar-container">
+        <div class="progress-track"><div class="progress-fill" id="progressFill" style="width:12.5%"></div></div>
+        <span class="slide-counter" id="slideCounter">1 / 8</span>
+        <div class="slide-dots" id="slideDots"></div>
+    </div>
+
+    <div class="slide-viewport" id="slideViewport">
+
+        <!-- Slide 1: Title + Objectives -->
+        <div class="slide active" id="slide-1">
+            <div class="title-slide-center">
+                <div class="giant-icon">🧩</div>
+                <div class="slide-label">Module 2 of 4</div>
+                <div class="title-slide-title">OpenStack Projects &amp; Services</div>
+                <div class="title-slide-subtitle">A deep-dive into every core and notable optional OpenStack project — what each does, how it works, and why it matters.</div>
+                <div class="objectives-grid">
+                    <div class="obj-item"><div class="obj-num">1</div>Map the six core OpenStack services to their functions</div>
+                    <div class="obj-item"><div class="obj-num">2</div>Explain Nova's distributed architecture for compute</div>
+                    <div class="obj-item"><div class="obj-num">3</div>Describe Neutron's SDN pluggable model</div>
+                    <div class="obj-item"><div class="obj-num">4</div>Differentiate Swift (object) vs. Cinder (block) storage</div>
+                    <div class="obj-item"><div class="obj-num">5</div>Explain Keystone's role as the service registry</div>
+                    <div class="obj-item"><div class="obj-num">6</div>Identify deployment rates for optional projects</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 2: Project Overview Map -->
+        <div class="slide" id="slide-2">
+            <div class="slide-label">Slide 2 — Core Projects Overview</div>
+            <div class="slide-title">The Core Projects at a Glance</div>
+            <div class="slide-subtitle">Six essential services that every OpenStack deployment must have to function.</div>
+
+            <div class="service-grid">
+                <div class="service-tile">
+                    <div class="service-tile-name">Nova</div>
+                    <div class="service-tile-code">openstack-nova</div>
+                    <div class="service-tile-desc">Compute service. Manages VM lifecycle: spawn, schedule, migrate, and decommission virtual machines across hypervisor hosts.</div>
+                </div>
+                <div class="service-tile">
+                    <div class="service-tile-name">Neutron</div>
+                    <div class="service-tile-code">openstack-neutron</div>
+                    <div class="service-tile-desc">Networking service. Software Defined Networking — virtual switches, routers, security groups, floating IPs, and DHCP.</div>
+                </div>
+                <div class="service-tile">
+                    <div class="service-tile-name">Swift</div>
+                    <div class="service-tile-code">openstack-swift</div>
+                    <div class="service-tile-desc">Object Storage. Scalable, eventually-consistent, RESTful storage for unstructured data — similar to Amazon S3.</div>
+                </div>
+                <div class="service-tile">
+                    <div class="service-tile-name">Cinder</div>
+                    <div class="service-tile-code">openstack-cinder</div>
+                    <div class="service-tile-desc">Block Storage. Provides persistent block volumes that attach to instances — similar to Amazon EBS.</div>
+                </div>
+                <div class="service-tile">
+                    <div class="service-tile-name">Keystone</div>
+                    <div class="service-tile-code">openstack-keystone</div>
+                    <div class="service-tile-desc">Identity service. Authentication, authorization tokens, service catalog, and role-based access control.</div>
+                </div>
+                <div class="service-tile">
+                    <div class="service-tile-name">Glance</div>
+                    <div class="service-tile-code">openstack-glance</div>
+                    <div class="service-tile-desc">Image service. Stores and retrieves VM disk images in formats like QCOW2, VMDK, and RAW for Nova to boot instances.</div>
+                </div>
+            </div>
+
+            <div class="diagram-box">Service Dependency Order (install in this sequence):
+  Keystone → Glance → Nova → Neutron → Cinder → (Horizon)</div>
+        </div>
+
+        <!-- Slide 3: Nova — Compute -->
+        <div class="slide" id="slide-3">
+            <div class="slide-label">Slide 3 — Nova: Compute</div>
+            <div class="slide-title">Nova: The Compute Engine</div>
+            <div class="slide-subtitle">OpenStack Compute manages the full lifecycle of virtual machine instances across one or many hypervisor hosts.</div>
+
+            <div class="two-col">
+                <div class="card">
+                    <div class="card-title"><span class="icon">⚙️</span> What Nova Does</div>
+                    <ul class="checklist">
+                        <li>Spawning — launches VMs from Glance images on compute hosts</li>
+                        <li>Scheduling — nova-scheduler selects the best compute node</li>
+                        <li>Lifecycle — resize, suspend, resume, snapshot, migrate</li>
+                        <li>Decommissioning — cleanly deletes instances and releases resources</li>
+                        <li>Flavors — pre-defined VM sizes (vcpus, RAM, disk)</li>
+                    </ul>
+                </div>
+                <div class="card">
+                    <div class="card-title"><span class="icon">🏗️</span> Nova's Distributed Components</div>
+                    <ul class="checklist">
+                        <li><strong>nova-api</strong> — Accepts and validates all REST API requests</li>
+                        <li><strong>nova-scheduler</strong> — Chooses compute node using filters/weights</li>
+                        <li><strong>nova-conductor</strong> — Database proxy; isolates compute from DB access</li>
+                        <li><strong>nova-compute</strong> — Runs on each hypervisor; manages VMs via libvirt</li>
+                        <li><strong>nova-novncproxy</strong> — Web-based VNC console access</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-title"><span class="icon">🔄</span> VM Launch Flow</div>
+                <div class="diagram-box">User/API Request
+    │
+    ▼
+nova-api  ──validates──▶  Keystone (token check)
+    │
+    ▼
+nova-scheduler  ──queries──▶  nova-conductor  ──▶  Database
+    │
+    ▼ (selects best compute host)
+nova-compute  ──▶  libvirt/KVM
+    ├── Pull image from Glance
+    ├── Allocate network via Neutron
+    ├── Allocate volume via Cinder (optional)
+    └── Boot VM ✓</div>
+            </div>
+        </div>
+
+        <!-- Slide 4: Neutron + Swift -->
+        <div class="slide" id="slide-4">
+            <div class="slide-label">Slide 4 — Neutron &amp; Swift</div>
+            <div class="slide-title">Neutron: Networking &amp; Swift: Object Storage</div>
+            <div class="slide-subtitle">SDN-based virtual networking and massively scalable object storage.</div>
+
+            <div class="two-col">
+                <div class="card">
+                    <div class="card-title"><span class="icon">🌐</span> Neutron — Software Defined Networking</div>
+                    <ul class="checklist">
+                        <li><strong>Pluggable architecture</strong> — swap backend plugins (OVS, LinuxBridge, OVN)</li>
+                        <li>Creates overlay networks using VXLAN, GRE, or VLAN tagging</li>
+                        <li>Virtual routers provide inter-network routing and NAT</li>
+                        <li>Security groups = stateful firewall rules per port</li>
+                        <li>DHCP agents hand out IP addresses to VMs automatically</li>
+                        <li>Floating IPs map external addresses to tenant VM private IPs</li>
+                        <li>Load Balancer as a Service (LBaaS) and VPNaaS available</li>
+                    </ul>
+                </div>
+                <div class="card">
+                    <div class="card-title"><span class="icon">🗄️</span> Swift — Object Storage</div>
+                    <ul class="checklist">
+                        <li><strong>REST API compatible with Amazon S3</strong> — store/retrieve via HTTP</li>
+                        <li>Data is distributed across multiple storage nodes (no single point of failure)</li>
+                        <li>Replicated 3x by default — survives disk and node failures</li>
+                        <li>Eventually consistent — replicas sync asynchronously</li>
+                        <li>No metadata limits — arbitrary key/value object headers</li>
+                        <li>Scales horizontally by adding storage nodes to the ring</li>
+                        <li>Glance uses Swift as its image storage backend by default</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="highlight-box">
+                <strong style="color:var(--cloud-primary);">Neutron Architecture:</strong> The neutron-server runs on the controller. neutron-linuxbridge-agent (or ovs-agent) runs on compute and network nodes, building the actual data-plane plumbing. The L3 agent handles virtual router operations. All agents report state back to the server via RabbitMQ.
+            </div>
+        </div>
+
+        <!-- Slide 5: Glance + Cinder + Keystone -->
+        <div class="slide" id="slide-5">
+            <div class="slide-label">Slide 5 — Glance, Cinder &amp; Keystone</div>
+            <div class="slide-title">Glance, Cinder &amp; Keystone</div>
+            <div class="slide-subtitle">Image registry, persistent block storage, and the identity backbone of the entire platform.</div>
+
+            <div class="three-col">
+                <div class="card">
+                    <div class="card-title"><span class="icon">🖼️</span> Glance — Image Service</div>
+                    <ul class="checklist">
+                        <li>Central registry of VM disk images</li>
+                        <li>Supports: QCOW2, RAW, VMDK, VHD formats</li>
+                        <li>Multiple storage backends: local filesystem, Swift, Ceph, S3</li>
+                        <li>Images can be public, private, or community-shared</li>
+                        <li>nova-compute pulls images from Glance at launch time</li>
+                    </ul>
+                </div>
+                <div class="card">
+                    <div class="card-title"><span class="icon">💾</span> Cinder — Block Storage</div>
+                    <ul class="checklist">
+                        <li>Persistent volumes that survive VM deletion</li>
+                        <li>Attach/detach volumes from instances dynamically</li>
+                        <li>Backends: LVM (default), Ceph RBD, NetApp, Pure</li>
+                        <li>Snapshot and clone operations on volumes</li>
+                        <li>Boot-from-volume for diskless compute nodes</li>
+                    </ul>
+                </div>
+                <div class="card">
+                    <div class="card-title"><span class="icon">🔑</span> Keystone — Identity</div>
+                    <ul class="checklist">
+                        <li>Issues time-limited bearer tokens (Fernet/UUID)</li>
+                        <li>Maintains the service catalog — each service registers its endpoint</li>
+                        <li>Projects (tenants), Users, Roles, and Domains</li>
+                        <li>External auth: LDAP, OAuth2, SAML2 federation</li>
+                        <li>Every API call is validated against Keystone first</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="highlight-box ok">
+                <strong>Why Keystone is the linchpin:</strong> Before any other service responds to a request, it calls Keystone to validate the token. This is why Keystone must be installed first. The service catalog tells clients where to find every service's API endpoint — without it, nothing can communicate.
+            </div>
+        </div>
+
+        <!-- Slide 6: Optional Projects + Deployment Stats -->
+        <div class="slide" id="slide-6">
+            <div class="slide-label">Slide 6 — Optional Projects</div>
+            <div class="slide-title">Notable Optional Projects</div>
+            <div class="slide-subtitle">These services extend OpenStack's capabilities. Deployment rates show real-world adoption.</div>
+
+            <div class="two-col">
+                <div class="card">
+                    <div class="card-title"><span class="icon">📊</span> Deployment Rates (User Survey)</div>
+                    <div style="display:flex; flex-direction:column; gap:0.6rem; margin-top:0.5rem;">
+                        <div class="deployment-bar">
+                            <span class="bar-label" style="width:80px; font-size:0.8rem; color:var(--cloud-accent);">Horizon</span>
+                            <div class="bar-track"><div class="bar-fill" style="width:87%"></div></div>
+                            <span class="bar-pct">87%</span>
+                        </div>
+                        <div class="deployment-bar">
+                            <span class="bar-label" style="width:80px; font-size:0.8rem; color:var(--cloud-accent);">Heat</span>
+                            <div class="bar-track"><div class="bar-fill" style="width:67%"></div></div>
+                            <span class="bar-pct">67%</span>
+                        </div>
+                        <div class="deployment-bar">
+                            <span class="bar-label" style="width:80px; font-size:0.8rem; color:var(--cloud-accent);">Ceilometer</span>
+                            <div class="bar-track"><div class="bar-fill" style="width:52%"></div></div>
+                            <span class="bar-pct">52%</span>
+                        </div>
+                        <div class="deployment-bar">
+                            <span class="bar-label" style="width:80px; font-size:0.8rem; color:var(--cloud-accent);">Trove</span>
+                            <div class="bar-track"><div class="bar-fill" style="width:24%"></div></div>
+                            <span class="bar-pct">24%</span>
+                        </div>
+                        <div class="deployment-bar">
+                            <span class="bar-label" style="width:80px; font-size:0.8rem; color:var(--cloud-accent);">Sahara</span>
+                            <div class="bar-track"><div class="bar-fill" style="width:14%"></div></div>
+                            <span class="bar-pct">14%</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="card">
+                    <div class="card-title"><span class="icon">🔧</span> What Each Optional Service Does</div>
+                    <ul class="checklist">
+                        <li><strong style="color:var(--cloud-primary);">Horizon</strong> — Web dashboard; GUI for all OpenStack operations</li>
+                        <li><strong style="color:var(--cloud-primary);">Heat</strong> — Orchestration; deploy complex stacks via YAML templates (HOT)</li>
+                        <li><strong style="color:var(--cloud-primary);">Ceilometer</strong> — Telemetry; collects metering data for billing/monitoring</li>
+                        <li><strong style="color:var(--cloud-primary);">Trove</strong> — Database-as-a-Service; managed MySQL, PostgreSQL, Redis</li>
+                        <li><strong style="color:var(--cloud-primary);">Sahara</strong> — Elastic Data Processing; provision Hadoop/Spark clusters</li>
+                        <li><strong style="color:var(--cloud-primary);">Magnum</strong> — Container Orchestration Engine; deploy Kubernetes clusters</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="highlight-box">
+                <strong>Heat HOT Templates</strong> are similar to AWS CloudFormation or Terraform. A single YAML file can define multiple VMs, networks, security groups, and volumes — then Heat provisions them in the correct dependency order automatically.
+            </div>
+        </div>
+
+        <!-- Slide 7: Knowledge Check -->
+        <div class="slide" id="slide-7">
+            <div class="slide-label">Slide 7 — Knowledge Check</div>
+            <div class="slide-title">Knowledge Check</div>
+            <div class="slide-subtitle">Select the best answer for each question, then reveal the explanation.</div>
+
+            <div class="quiz-question">
+                <div class="quiz-q-text">1. Which Nova component acts as a database proxy to isolate compute nodes from direct database access?</div>
+                <div class="quiz-options" id="q1-options">
+                    <div class="quiz-option" onclick="selectOption(this,'q1',false)"><div class="quiz-letter">A</div>nova-api</div>
+                    <div class="quiz-option" onclick="selectOption(this,'q1',false)"><div class="quiz-letter">B</div>nova-scheduler</div>
+                    <div class="quiz-option" onclick="selectOption(this,'q1',true)"><div class="quiz-letter">C</div>nova-conductor</div>
+                    <div class="quiz-option" onclick="selectOption(this,'q1',false)"><div class="quiz-letter">D</div>nova-novncproxy</div>
+                </div>
+                <div class="quiz-explanation" id="q1-exp">Correct! nova-conductor runs on the controller and acts as a database intermediary. Compute nodes do not have direct database credentials — all DB operations go through nova-conductor via RabbitMQ, improving security and allowing rolling upgrades.</div>
+            </div>
+
+            <div class="quiz-question">
+                <div class="quiz-q-text">2. What is the key difference between Swift (object storage) and Cinder (block storage)?</div>
+                <div class="quiz-options" id="q2-options">
+                    <div class="quiz-option" onclick="selectOption(this,'q2',false)"><div class="quiz-letter">A</div>Swift is faster; Cinder is larger capacity</div>
+                    <div class="quiz-option" onclick="selectOption(this,'q2',true)"><div class="quiz-letter">B</div>Swift stores data via REST API (no OS mount); Cinder provides block devices that mount like a disk</div>
+                    <div class="quiz-option" onclick="selectOption(this,'q2',false)"><div class="quiz-letter">C</div>Swift requires replication; Cinder does not</div>
+                    <div class="quiz-option" onclick="selectOption(this,'q2',false)"><div class="quiz-letter">D</div>They are interchangeable — both provide the same interface</div>
+                </div>
+                <div class="quiz-explanation" id="q2-exp">Correct! Swift is accessed via HTTP GET/PUT — applications talk to it as a web service. Cinder volumes appear as raw block devices (e.g., /dev/vdb) that the OS can partition and format like a physical disk. They serve completely different use cases.</div>
+            </div>
+
+            <div class="quiz-question">
+                <div class="quiz-q-text">3. Which optional OpenStack service would you use to deploy a full application stack (VMs + networks + volumes) from a single YAML template?</div>
+                <div class="quiz-options" id="q3-options">
+                    <div class="quiz-option" onclick="selectOption(this,'q3',false)"><div class="quiz-letter">A</div>Ceilometer</div>
+                    <div class="quiz-option" onclick="selectOption(this,'q3',false)"><div class="quiz-letter">B</div>Trove</div>
+                    <div class="quiz-option" onclick="selectOption(this,'q3',true)"><div class="quiz-letter">C</div>Heat</div>
+                    <div class="quiz-option" onclick="selectOption(this,'q3',false)"><div class="quiz-letter">D</div>Horizon</div>
+                </div>
+                <div class="quiz-explanation" id="q3-exp">Correct! Heat is OpenStack's orchestration service. It uses Heat Orchestration Templates (HOT) — YAML files that describe all resources in a stack and their dependencies. Heat is deployed in 67% of OpenStack environments.</div>
+            </div>
+
+            <div class="quiz-question">
+                <div class="quiz-q-text">4. Keystone's service catalog tells OpenStack clients what information?</div>
+                <div class="quiz-options" id="q4-options">
+                    <div class="quiz-option" onclick="selectOption(this,'q4',false)"><div class="quiz-letter">A</div>The list of all running virtual machines</div>
+                    <div class="quiz-option" onclick="selectOption(this,'q4',false)"><div class="quiz-letter">B</div>The current token expiration time</div>
+                    <div class="quiz-option" onclick="selectOption(this,'q4',true)"><div class="quiz-letter">C</div>The API endpoint URLs for every registered service</div>
+                    <div class="quiz-option" onclick="selectOption(this,'q4',false)"><div class="quiz-letter">D</div>The list of available VM flavors</div>
+                </div>
+                <div class="quiz-explanation" id="q4-exp">Correct! The service catalog is returned as part of the authentication response. It lists every OpenStack service (Nova, Neutron, Glance, etc.) and the URL of their API endpoints for each region. Clients use this to know where to send requests.</div>
+            </div>
+        </div>
+
+        <!-- Slide 8: Summary + Complete -->
+        <div class="slide" id="slide-8">
+            <div class="slide-label">Slide 8 — Module Summary</div>
+            <div class="slide-title">Module Summary</div>
+            <div class="slide-subtitle">You now understand the full OpenStack project ecosystem and the role each service plays.</div>
+
+            <div class="summary-grid">
+                <div class="summary-item">
+                    <div class="summary-item-title">Nova — Compute</div>
+                    <div class="summary-item-text">Manages VM lifecycle across hypervisor nodes. Distributed components: api, scheduler, conductor, compute, novncproxy. Communicates via RabbitMQ.</div>
+                </div>
+                <div class="summary-item">
+                    <div class="summary-item-title">Neutron — Networking</div>
+                    <div class="summary-item-text">Software Defined Networking with pluggable backends (OVS, LinuxBridge). Handles virtual switches, routers, security groups, floating IPs, and DHCP.</div>
+                </div>
+                <div class="summary-item">
+                    <div class="summary-item-title">Swift — Object Storage</div>
+                    <div class="summary-item-text">RESTful, eventually-consistent, 3x-replicated object store. Similar to Amazon S3. Scales horizontally. Used as Glance's image backend.</div>
+                </div>
+                <div class="summary-item">
+                    <div class="summary-item-title">Cinder — Block Storage</div>
+                    <div class="summary-item-text">Persistent block volumes that attach to VMs like physical disks. Backends: LVM, Ceph RBD. Supports snapshots, clones, and boot-from-volume.</div>
+                </div>
+                <div class="summary-item">
+                    <div class="summary-item-title">Keystone — Identity</div>
+                    <div class="summary-item-text">Authentication, token issuance, service catalog. Install first. Every API call is validated here. Supports LDAP, OAuth2, and SAML2 federation.</div>
+                </div>
+                <div class="summary-item">
+                    <div class="summary-item-title">Optional: Horizon, Heat</div>
+                    <div class="summary-item-text">Horizon (87% adoption): web dashboard. Heat (67%): orchestration via HOT YAML templates. Ceilometer: telemetry. Trove: DBaaS. Sahara: big data clusters.</div>
+                </div>
+            </div>
+
+            <div style="text-align:center; margin-top: 1rem;">
+                <button class="complete-btn" onclick="ModuleProgress.complete('cloud-openstack-projects', '../index.html')">
+                    Mark Module Complete ✓
+                </button>
+            </div>
+        </div>
+
+    </div><!-- end slide-viewport -->
+
+    <div class="nav-controls">
+        <button class="nav-btn" id="prevBtn" onclick="changeSlide(-1)" disabled>← Previous</button>
+        <span class="nav-hint">Use ← → arrow keys to navigate</span>
+        <button class="nav-btn" id="nextBtn" onclick="changeSlide(1)">Next →</button>
+    </div>
+
+    <script>
+        const TOTAL_SLIDES = 8;
+        let currentSlide = 1;
+        const visited = new Set([1]);
+
+        const dotsContainer = document.getElementById('slideDots');
+        for (let i = 1; i <= TOTAL_SLIDES; i++) {
+            const dot = document.createElement('div');
+            dot.className = 'dot' + (i === 1 ? ' active' : '');
+            dot.title = 'Slide ' + i;
+            dot.addEventListener('click', () => goToSlide(i));
+            dotsContainer.appendChild(dot);
+        }
+
+        function changeSlide(delta) {
+            const target = currentSlide + delta;
+            if (target < 1 || target > TOTAL_SLIDES) return;
+            goToSlide(target);
+        }
+
+        function goToSlide(n) {
+            if (n === currentSlide) return;
+            const leaving = document.getElementById('slide-' + currentSlide);
+            const arriving = document.getElementById('slide-' + n);
+            leaving.classList.add(n > currentSlide ? 'exit-left' : '');
+            leaving.classList.remove('active');
+            setTimeout(() => leaving.classList.remove('exit-left'), 380);
+            arriving.classList.add('active');
+            arriving.style.transform = n > currentSlide ? 'translateX(60px)' : 'translateX(-60px)';
+            arriving.getBoundingClientRect();
+            arriving.style.transform = '';
+            currentSlide = n;
+            visited.add(n);
+            updateUI();
+        }
+
+        function updateUI() {
+            const pct = (currentSlide / TOTAL_SLIDES) * 100;
+            document.getElementById('progressFill').style.width = pct + '%';
+            document.getElementById('slideCounter').textContent = currentSlide + ' / ' + TOTAL_SLIDES;
+            const dots = dotsContainer.querySelectorAll('.dot');
+            dots.forEach((dot, idx) => {
+                const sn = idx + 1;
+                dot.className = 'dot';
+                if (sn === currentSlide) dot.classList.add('active');
+                else if (visited.has(sn)) dot.classList.add('visited');
+            });
+            document.getElementById('prevBtn').disabled = currentSlide === 1;
+            document.getElementById('nextBtn').disabled = currentSlide === TOTAL_SLIDES;
+        }
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowRight' || e.key === 'ArrowDown') changeSlide(1);
+            if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') changeSlide(-1);
+        });
+
+        const answered = {};
+
+        function selectOption(el, qId, isCorrect) {
+            if (answered[qId]) return;
+            answered[qId] = true;
+            const options = document.querySelectorAll('#' + qId + '-options .quiz-option');
+            options.forEach(opt => { opt.classList.add('revealed'); opt.onclick = null; });
+            el.classList.add(isCorrect ? 'correct' : 'incorrect');
+            if (!isCorrect) {
+                const correctOpt = document.querySelector('#' + qId + '-options .quiz-option[data-correct="true"]');
+                if (correctOpt) correctOpt.classList.add('correct');
+            }
+            document.getElementById(qId + '-exp').style.display = 'block';
+        }
+
+        document.querySelectorAll('.quiz-option').forEach(opt => {
+            const orig = opt.getAttribute('onclick') || '';
+            if (orig.includes(',true)')) opt.setAttribute('data-correct', 'true');
+        });
+    </script>
+
+    <script src="../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>

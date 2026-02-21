@@ -1778,6 +1778,59 @@ class LearningPaths {
             ]
         },
 
+        // OpenStack Cloud Platform — Cloud House
+        'openstack': {
+            name: 'OpenStack Cloud Platform',
+            description: 'Infrastructure-as-a-Service cloud operating system — architecture, core projects, installation, and operations',
+            icon: '☁️',
+            color: '#0ea5e9',
+            courseHref: 'houses/cloud/openstack/index.html',
+            modules: [
+                {
+                    id: 'cloud-openstack-intro',
+                    title: 'Introduction & Environment',
+                    type: 'presentation',
+                    href: 'houses/cloud/openstack/presentations/openstack-intro-environment.presentation.html'
+                },
+                {
+                    id: 'cloud-openstack-projects',
+                    title: 'OpenStack Projects',
+                    type: 'presentation',
+                    href: 'houses/cloud/openstack/presentations/openstack-projects.presentation.html'
+                },
+                {
+                    id: 'cloud-openstack-install',
+                    title: 'OpenStack Installation',
+                    type: 'presentation',
+                    href: 'houses/cloud/openstack/presentations/openstack-installation.presentation.html'
+                },
+                {
+                    id: 'cloud-openstack-operation',
+                    title: 'OpenStack Operation',
+                    type: 'presentation',
+                    href: 'houses/cloud/openstack/presentations/openstack-operation.presentation.html'
+                },
+                {
+                    id: 'cloud-openstack-install-lab',
+                    title: 'Lab: Install OpenStack',
+                    type: 'lab',
+                    href: 'houses/cloud/openstack/labs/openstack-install.lab.html'
+                },
+                {
+                    id: 'cloud-openstack-launch-lab',
+                    title: 'Lab: Launch Virtual Machine',
+                    type: 'lab',
+                    href: 'houses/cloud/openstack/labs/openstack-launch-vm.lab.html'
+                },
+                {
+                    id: 'cloud-openstack-advanced-lab',
+                    title: 'Lab: Advanced Operations',
+                    type: 'lab',
+                    href: 'houses/cloud/openstack/labs/openstack-advanced-ops.lab.html'
+                }
+            ]
+        },
+
         // Windows Server Administration (AZ-800) — Cloud House
         'wsa': {
             name: 'Windows Server Administration',

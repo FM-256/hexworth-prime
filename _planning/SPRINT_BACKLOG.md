@@ -3217,4 +3217,297 @@ Completing a standalone presentation (e.g., `forge-windows-editions.presentation
 
 ---
 
-*Last Updated: February 18, 2026 (reconciled marathon results)*
+*Last Updated: February 21, 2026*
+
+---
+
+## MARATHON SPRINT PLAN (February 21, 2026)
+
+**Philosophy:** Every course gets full scaffolding — presentations, labs, quizzes, games, reviews, tools/applets, learning paths, registry entries, progress tracking, and title progressions. The A+ (Forge) and WSA (Cloud) structures are the gold standard. Raw source material gets the complete Hexworth treatment.
+
+---
+
+### SPRINT M-1: Quick Wins (HTML Imports)
+**Status:** Queued
+**Scope:** Restyle existing HTML files — minimal conversion, maximum output
+
+| # | Item | House | What |
+|---|------|-------|------|
+| 1 | Restyle 5 Aplets/ quizzes | Forge/Web | Core 2 Quiz, Networking Ch 7-10, Final Review, Ch 7-20, Week3 |
+| 2 | Import Hash Lab + Stego Lab + presentation | Key | 4 ready HTML files from Code/Hashing/ |
+| 3 | Import Dorking.html | Shield | Google dorking lab |
+| 4 | Import Windows Shortcut.html | Forge | Quick reference tool |
+| 5 | Import core2_roleplay_lab.html | Forge | Interactive roleplay lab |
+| 6 | Import os_core.html | Forge | OS fundamentals reference |
+| 7 | Import encryption labs | Key | Encryption_II, encryption_task, hashing_Lab |
+| 8 | Register all new files in content-registry.js | All | Wire into paths + catalog |
+
+---
+
+### SPRINT M-2: Command Line Hacker (FLAGSHIP)
+**Status:** Queued
+**Scope:** The differentiator — real pcaps, real logs, real investigations. 15-module hybrid curriculum.
+
+| # | Item | House | What |
+|---|------|-------|------|
+| 1 | CLH-001 to CLH-003 | Script | Intro, Navigation, Network Analysis (breach.pcap) |
+| 2 | CLH-004, CLH-005 | Dark Arts | Pattern Hunting (mystery.txt), Anomaly Detection |
+| 3 | CLH-006 to CLH-009 | Script | Permissions, Shell Scripting (basic+advanced), SysAdmin |
+| 4 | CLH-010, CLH-011 | Dark Arts | Log Forensics, DB Reconnaissance (MySQL) |
+| 5 | CLH-012, CLH-014 | Script | Automation, Advanced Techniques |
+| 6 | CLH-013, CLH-015 | Dark Arts | Security Tools, Capstone Investigation |
+| 7 | Title progression system | Script | Recruit → Analyst → Specialist → Engineer → Architect → Hacker |
+| 8 | Learning path + registry | Both | Wire CLH path into LearningPaths.js |
+
+**Source:** `_planning/usb-import/extracted-guides/command-line-hacker/`
+
+---
+
+### SPRINT M-3: MD-100 + Forge Content
+**Status:** ✅ Complete (February 21, 2026)
+**Scope:** Microsoft MD-100 certification curriculum — 11 modules + A+ supplemental
+**Commits:** `48fdd6f2` (core), pending (reviews + supplemental)
+
+| # | Item | House | Status |
+|---|------|-------|--------|
+| 1 | Convert MD-100 M01-M05 | Forge | ✅ 5 presentations |
+| 2 | Convert MD-100 M06-M11 | Forge | ✅ 6 presentations |
+| 3 | Build MD-100 quizzes per module | Forge | ✅ 11 quizzes (15 questions each) |
+| 4 | Build MD-100 labs per module | Forge | ✅ 11 interactive labs |
+| 5 | Build MD-100 review games | Forge | ✅ 3 Jeopardy reviews (midterm, final, comprehensive) |
+| 6 | A+ Core supplemental content | Forge | ✅ Troubleshooting scenarios lab (10 scenarios) |
+| 7 | Learning path + registry | Forge | ✅ md-100 path + 37 registry entries |
+
+**Deliverables:** 37 content files, 1 course index page, md-100 learning path, 37 registry entries
+**Source:** USB MD-100 PDFs (11 modules, ~400 pages total)
+
+---
+
+### SPRINT M-4: Python Course (Code House)
+**Status:** Queued — BLOCKED: Chapters 1 and 7 need locating
+**Scope:** Complete programming curriculum with projects
+
+| # | Item | House | What |
+|---|------|-------|------|
+| 1 | Locate missing Chapters 1 and 7 | Code | User has elsewhere — retrieve first |
+| 2 | Convert Ch 1-4 presentations + labs | Code | Strings, Flow Control, Functions |
+| 3 | Convert Ch 5-8 presentations + labs | Code | GUI, Dictionaries, OOP |
+| 4 | Import "Cracking the Code" lab package | Code | Advanced Python labs |
+| 5 | Import projects (Vending Machine, Bank, Pet Registry) | Code | Hands-on project modules |
+| 6 | Import HTML applets (career explorer, subnet, dns, cve) | Code/Web | Ready-to-restyle tools |
+| 7 | Build quizzes + review games per chapter | Code | Full assessment scaffolding |
+| 8 | Title progression system | Code | Python Apprentice → Developer → Engineer |
+| 9 | Learning path + registry | Code | Wire Python path into system |
+
+**Source:** `Keiser Idrive/programming class/`
+
+---
+
+### SPRINT M-5: EC-Council Cloud Security (CSE v1)
+**Status:** Queued
+**Scope:** Professional certification content — Cloud + Shield + Key crossover (9 modules, 296MB source)
+
+| # | Item | House | What |
+|---|------|-------|------|
+| 1 | Module 00-02 presentations + labs + quizzes | Cloud | Intro, Cloud Fundamentals, IAM |
+| 2 | Module 03 presentations + labs + quizzes | Cloud/Key | Data Protection & Encryption (crossover) |
+| 3 | Module 04-05 presentations + labs + quizzes | Cloud | Network Security, App Security |
+| 4 | Module 06 presentations + labs + quizzes | Shield | Security Monitoring & Incident Response |
+| 5 | Module 07-08 presentations + labs + quizzes | Shield | Risk Assessment, Compliance & Governance |
+| 6 | Build review games per module | Cloud/Shield | Assessment series |
+| 7 | Learning path + registry | Both | Wire CSE path into system |
+
+**Source:** `Keiser Idrive/random/CSE ppt slides.zip`
+
+---
+
+### SPRINT M-6: CySA+ (Eye House)
+**Status:** Queued
+**Scope:** SOC analyst curriculum — 16 chapters + OSINT module
+
+| # | Item | House | What |
+|---|------|-------|------|
+| 1 | Ch 1-4 presentations + labs + quizzes | Eye | Analyst intro, Threat Intel, OSINT, Vuln Management |
+| 2 | Ch 5-8 presentations + labs + quizzes | Eye | Vuln Scanning, Cloud Security, SOC topics |
+| 3 | Ch 9-12 presentations + labs + quizzes | Eye | Continued SOC topics |
+| 4 | Ch 13-16 presentations + labs + quizzes | Eye | Advanced SOC topics |
+| 5 | ISSUE-014: OSINT Browser Extensions module | Eye | 50+ tools (ties into Ch 3) |
+| 6 | Build review games | Eye | Chapter reviews + comprehensive final |
+| 7 | Learning path + registry | Eye | Wire CySA+ path into system |
+
+**Source:** `Training/Comptia/CySA/Slides/`
+
+---
+
+### SPRINT M-7: Linux Curriculum (Script House)
+**Status:** Queued
+**Scope:** 16 chapters + 50 presentations + SSH labs + specialized labs
+
+| # | Item | House | What |
+|---|------|-------|------|
+| 1 | CLI Intro entry module | Script | Gateway module from lesson plan |
+| 2 | Convert Linux Ch 1-8 exercises + presentations | Script | Fundamentals |
+| 3 | Convert Linux Ch 9-16 exercises + presentations | Script | Admin + Advanced |
+| 4 | Convert remaining Linux PPTX presentations | Script | Deep-dive topic presentations |
+| 5 | SSH Labs (basic + bonus) | Script | Hands-on SSH practice |
+| 6 | Import labs (Anonymity 1-3, GPG, Checksum, Compression, htop) | Script | Specialized labs |
+| 7 | Build quizzes + review games per chapter | Script | Full assessment scaffolding |
+| 8 | Title progression | Script | Linux Recruit → Coder → Specialist → Engineer → Architect |
+| 9 | Learning path + registry | Script | Wire Linux path into system |
+
+**Source:** `Linux/`, `Training/Linux/`, `Command line/`, `Keiser Idrive/` PPTX files
+
+---
+
+### SPRINT M-8: OpenStack (Cloud House)
+**Status:** Queued
+**Scope:** Complete curriculum — 4 presentations, 3 labs, 4 quizzes (source ready to convert)
+
+| # | Item | House | What |
+|---|------|-------|------|
+| 1 | Convert 4 PPTX presentations | Cloud | Intro, Projects, Install, Operations |
+| 2 | Convert 3 labs with solutions | Cloud | Install, Launch VM, Advanced Ops |
+| 3 | Convert 4 homework sets to quizzes | Cloud | Assessment per module |
+| 4 | Build review game | Cloud | OpenStack comprehensive review |
+| 5 | Learning path + registry | Cloud | Wire OpenStack path into system |
+
+**Source:** `cloud security/Open Metal/OpenStack based hands-on experimentation infrastructure/`
+
+---
+
+### SPRINT DA-1: Dark Arts + Ethical Hacking
+**Status:** Queued
+**Scope:** Gated content behind CTF progression
+
+| # | Item | House | What |
+|---|------|-------|------|
+| 1 | CTF leaderboard integration | Dark Arts | Wire into Five Gates system |
+| 2 | EHE instructor slides → modules | Dark Arts | Full ethical hacking course with labs + quizzes |
+| 3 | TryHackMe Linux PrivEsc lab | Dark Arts | Privilege escalation module |
+| 4 | Capital One breach case study | Dark Arts/Shield | Breach analysis module |
+| 5 | Web Pentesting (32 extracted MDs) | Dark Arts | Reference material conversion |
+| 6 | Five Gates CTF + Vault completion | Dark Arts | Full gate implementation |
+
+**Source:** `Training/Ethical Hacking/`, `Updated CTF/`, `Data brach/`, `extracted-guides/dark-arts-web-pentesting/`
+
+---
+
+### SPRINT M-9: Shield Policy + Compliance
+**Status:** Queued
+**Scope:** Regulatory and framework content + extracted certification material
+
+| # | Item | House | What |
+|---|------|-------|------|
+| 1 | Cyber Framework MM1-MM4 | Shield | Intro, Government, CFAA, Regulatory |
+| 2 | Cyber Framework MM5-MM8 | Shield | NIST, Encryption Law, Breach Litigation, Cyber War |
+| 3 | Build labs + quizzes per micromodule | Shield | Full scaffolding |
+| 4 | Extracted MDs (CISSP/CRISC/CASP+) → modules | Shield | 295 files → reference modules |
+| 5 | DevOps Automation (50 MDs) → modules | Code | Reference material conversion |
+| 6 | Learning paths + registry | Shield/Code | Wire paths into system |
+
+**Source:** `Cyber Framework/`, `extracted-guides/shield-*/`, `extracted-guides/code-devops-automation/`
+
+---
+
+### SPRINT F-1: The Hive (Escape Rooms)
+**Status:** Queued (B-1 complete, engine built)
+**Scope:** Dungeon crawler floors B-2 through B-10 + Queen's Chamber
+
+| # | Item | House | What |
+|---|------|-------|------|
+| 1 | B-2 Cipher Break | Key | Design doc ready — build it |
+| 2 | B-3 through B-5 | Various | Design + build 3 floors |
+| 3 | B-6 through B-10 | Various | Design + build 5 floors |
+| 4 | Queen's Chamber | Hidden | Final boss floor |
+| 5 | Red Queen antagonist system | Multi | Audio/dialog engine |
+| 6 | Inventory/supply mechanics | Multi | Resource management layer |
+
+**Source:** `_planning/_Escape_rooms/`
+
+---
+
+### SPRINT F-2: Achievements + UX Polish
+**Status:** Queued
+**Scope:** System-wide achievement expansion + UX cleanup
+
+| # | Item | House | What |
+|---|------|-------|------|
+| 1 | Achievement Phase 3: Content tracking | Multi | first_presentation, first_lab, content_marathon, deep_dive |
+| 2 | Achievement Phase 4: House mastery | Multi | Per-house completion badges (8+) |
+| 3 | Achievement Phase 5: Time-based | Multi | weekend_warrior, witching_hour, full_moon, holiday_student |
+| 4 | Achievement Phase 6-8: Milestones, secrets, Dark Arts | Multi | Future badges (deferred until features ship) |
+| 5 | Replace 8 alert() placeholders with styled modals | Multi | UX cleanup |
+| 6 | FLOW-001: Chain remaining 439 unchained files | Multi | Remaining houses (shield, web, script, cloud, code, key, eye) |
+| 7 | Revert FluxCapacitor to hidden easter egg | Multi | After nav is fully complete |
+| 8 | In-app bug report button | Multi | Dashboard footer link → structured form (page, browser, house, gate, timestamp). MVP: Firebase form or structured mailto. Public hexworth-feedback repo for technical users. |
+| 9 | Create public hexworth-feedback repo | GitHub | Issue templates (bug report, feature request) for colleagues and technical users |
+
+**Source:** `_planning/ACHIEVEMENT_GAPS.md`, `_planning/CONTENT_PLACEHOLDERS_2026-01-29.md`
+
+---
+
+### SPRINT M-10: Network-Essentials + Web Gaps
+**Status:** Queued (maintenance mode)
+**Scope:** Network-Essentials bug fixes + Web house gap filling
+
+| # | Item | House | What |
+|---|------|-------|------|
+| 1 | Speaker notes: TCP/IP, NAT/PAT, DHCP | N-E | 3 presentations |
+| 2 | Simulator labs: BGP, QoS, VPN | N-E | 3 labs |
+| 3 | CCNA gaps (0.0.0.0, CIDR) | Web | Fill specific gaps |
+| 4 | SUBNETTING.pptx + Networking slides | Web | Convert presentations |
+
+**Source:** Network-Essentials `_dev/ENHANCEMENT_OPTIONS.md`, USB `Download folder/`
+
+---
+
+### FUTURE (No Sprint Assigned)
+
+| Item | Notes |
+|------|-------|
+| Tabletop card/board game | Vision doc exists at `_planning/tabletop-game/`, not in dev |
+| Digital Life ecosystem evolution | Roadmap at `_planning/DIGITAL_LIFE_EVOLUTION.md`, long-term |
+
+---
+
+**Total: 13 sprints. Full scaffolding on every course. No shortcuts.**
+
+---
+
+## PRIVATE REPO READINESS CHECKLIST
+
+**Purpose:** Track all prerequisites before switching `hexworth-prime` from public to private.
+**Action required:** Manual — GitHub repo Settings → Danger Zone → Change visibility. Nothing automated. Owner flips the switch only when every item below is verified.
+**Created:** February 21, 2026
+
+---
+
+### Prerequisites
+
+| # | Item | Category | Status | Notes |
+|---|------|----------|--------|-------|
+| 1 | In-app bug report button | Feedback | Queued (F-2 #8) | Dashboard footer → structured form with auto-context |
+| 2 | Public `hexworth-feedback` repo | Feedback | Queued (F-2 #9) | Issue templates for bug reports + feature requests |
+| 3 | Audit codebase for public GitHub URL references | Code | Not started | Any hardcoded `github.com/FM-256/hexworth-prime` links |
+| 4 | UpdateManager.js — remove GitHub API dependency | Code | Not started | Hits GitHub releases API + raw version.json — will 404 when private |
+| 5 | UpdateChecker.js — remove GitHub API dependency | Code | Not started | Same issue as UpdateManager |
+| 6 | Host version.json on Firebase (or alternative) | Infra | Not started | Replace raw GitHub source with Firebase-hosted version check |
+| 7 | Verify Firebase deploy pipeline is repo-independent | Infra | Not verified | Should be fine — uses Firebase CLI, not GitHub Pages |
+| 8 | Check for GitHub Pages usage | Infra | Not verified | Free plan requires public repo for Pages; Pro/Team allows private |
+| 9 | Verify no third-party integrations depend on public access | Infra | Not verified | Any webhooks, badges, or external services reading the repo |
+| 10 | Final smoke test | QA | Blocked | Set repo private temporarily, test all app functions, revert if needed |
+
+---
+
+### When to flip the switch
+
+All 10 items above are verified/complete. Owner makes the manual change. No surprises, no breakage.
+
+---
+
+### What does NOT change when going private
+
+- Firebase hosting — unaffected, separate from GitHub visibility
+- App functionality — all content is deployed, not served from GitHub
+- Student access — web app URL stays the same
+- Local development — git clone/push still works with SSH keys

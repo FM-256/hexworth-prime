@@ -1,0 +1,709 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <!-- Progress & Achievements -->
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OpenStack: Installation - House of the Cloud</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --cloud-primary: #38bdf8;
+            --cloud-secondary: #0ea5e9;
+            --cloud-accent: #7dd3fc;
+            --cloud-dark: #0c4a6e;
+            --cloud-darker: #082f49;
+            --dark-bg: #0f172a;
+            --darker-bg: #020617;
+            --light-text: #f0f9ff;
+            --gray-text: #94a3b8;
+            --card-bg: #1e293b;
+            --hover-bg: #334155;
+            --ok: #2ed573;
+            --warn: #ffc107;
+            --bad: #ff4757;
+            --border: rgba(56, 189, 248, 0.2);
+        }
+
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: var(--darker-bg);
+            color: var(--light-text);
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .header {
+            background: linear-gradient(135deg, var(--cloud-darker) 0%, var(--cloud-dark) 100%);
+            padding: 0.85rem 2rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid var(--border);
+            flex-shrink: 0;
+        }
+        .back-button { background: rgba(56,189,248,0.15); border: 1px solid var(--border); color: var(--cloud-accent); padding: 0.4rem 1rem; border-radius: 6px; cursor: pointer; font-size: 0.9rem; font-weight: 600; text-decoration: none; transition: all 0.2s ease; }
+        .back-button:hover { background: rgba(56,189,248,0.25); transform: translateX(-3px); }
+        .header-title { font-size: 1rem; font-weight: 700; color: var(--cloud-primary); letter-spacing: 0.5px; }
+        .course-badge { background: var(--cloud-primary); color: var(--cloud-darker); padding: 0.35rem 1rem; border-radius: 20px; font-size: 0.8rem; font-weight: 700; }
+
+        .progress-bar-container { background: var(--card-bg); padding: 0.6rem 2rem; display: flex; align-items: center; gap: 1rem; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+        .progress-track { flex: 1; background: var(--dark-bg); border-radius: 4px; height: 6px; overflow: hidden; }
+        .progress-fill { height: 100%; background: linear-gradient(90deg, var(--cloud-secondary), var(--cloud-primary)); border-radius: 4px; transition: width 0.4s ease; }
+        .slide-counter { font-size: 0.85rem; color: var(--gray-text); font-weight: 600; white-space: nowrap; }
+        .slide-dots { display: flex; gap: 6px; }
+        .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--hover-bg); cursor: pointer; transition: all 0.2s ease; }
+        .dot.active { background: var(--cloud-primary); transform: scale(1.3); }
+        .dot.visited { background: var(--cloud-dark); }
+
+        .slide-viewport { flex: 1; overflow: hidden; position: relative; }
+        .slide { position: absolute; top: 0; left: 0; right: 0; bottom: 0; padding: 2.5rem 3rem; overflow-y: auto; opacity: 0; transform: translateX(60px); transition: all 0.35s ease; pointer-events: none; display: flex; flex-direction: column; gap: 1.5rem; }
+        .slide.active { opacity: 1; transform: translateX(0); pointer-events: all; }
+        .slide.exit-left { opacity: 0; transform: translateX(-60px); }
+
+        .nav-controls { background: var(--card-bg); border-top: 1px solid var(--border); padding: 0.75rem 2rem; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; }
+        .nav-btn { background: rgba(56,189,248,0.1); border: 1px solid var(--border); color: var(--cloud-primary); padding: 0.55rem 1.5rem; border-radius: 8px; cursor: pointer; font-size: 0.95rem; font-weight: 600; transition: all 0.2s ease; }
+        .nav-btn:hover:not(:disabled) { background: rgba(56,189,248,0.25); }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .nav-hint { font-size: 0.8rem; color: var(--gray-text); }
+
+        .slide-title { font-size: 2rem; font-weight: 700; color: var(--cloud-primary); line-height: 1.2; }
+        .slide-subtitle { font-size: 1.1rem; color: var(--gray-text); margin-top: -0.75rem; }
+        .slide-label { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 2px; color: var(--cloud-accent); font-weight: 600; }
+
+        .card { background: var(--card-bg); border-radius: 12px; padding: 1.5rem; border: 1px solid var(--border); }
+        .card-title { font-size: 1.1rem; font-weight: 700; color: var(--cloud-primary); margin-bottom: 0.75rem; display: flex; align-items: center; gap: 0.5rem; }
+        .card-title .icon { font-size: 1.3rem; }
+        .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; }
+        .three-col { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem; }
+
+        ul.checklist { list-style: none; display: flex; flex-direction: column; gap: 0.5rem; }
+        ul.checklist li { display: flex; align-items: flex-start; gap: 0.6rem; font-size: 0.95rem; color: var(--light-text); line-height: 1.5; }
+        ul.checklist li::before { content: '▸'; color: var(--cloud-primary); flex-shrink: 0; margin-top: 0.1rem; }
+
+        .highlight-box { background: rgba(56,189,248,0.08); border: 1px solid var(--border); border-left: 4px solid var(--cloud-primary); border-radius: 8px; padding: 1.25rem 1.5rem; }
+        .highlight-box.ok { background: rgba(46,213,115,0.08); border-left-color: var(--ok); }
+        .highlight-box.warn { background: rgba(255,193,7,0.08); border-left-color: var(--warn); }
+        .highlight-box.bad { background: rgba(255,71,87,0.08); border-left-color: var(--bad); }
+
+        /* ── Code block ── */
+        .code-block {
+            background: var(--darker-bg);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 1rem 1.25rem;
+            font-family: 'Courier New', monospace;
+            font-size: 0.83rem;
+            color: var(--cloud-accent);
+            line-height: 1.8;
+            overflow-x: auto;
+            position: relative;
+        }
+
+        .code-block .comment { color: #475569; }
+        .code-block .cmd { color: var(--ok); }
+        .code-block .keyword { color: var(--warn); }
+        .code-block .value { color: #c084fc; }
+
+        .diagram-box { background: var(--darker-bg); border: 1px solid var(--border); border-radius: 8px; padding: 1.25rem 1.5rem; font-family: 'Courier New', monospace; font-size: 0.82rem; color: var(--cloud-accent); line-height: 1.7; white-space: pre; overflow-x: auto; }
+
+        /* ── Step indicator ── */
+        .steps-list { display: flex; flex-direction: column; gap: 0.75rem; }
+        .step-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 1rem;
+            padding: 1rem 1.25rem;
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            transition: border-color 0.2s;
+        }
+        .step-item:hover { border-color: var(--cloud-secondary); }
+        .step-num { background: var(--cloud-primary); color: var(--cloud-darker); width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.85rem; font-weight: 700; flex-shrink: 0; margin-top: 0.1rem; }
+        .step-content { flex: 1; }
+        .step-title { font-weight: 700; color: var(--cloud-primary); font-size: 0.95rem; margin-bottom: 0.25rem; }
+        .step-desc { font-size: 0.85rem; color: var(--gray-text); line-height: 1.5; }
+
+        /* ── Config section highlight ── */
+        .config-section {
+            background: var(--darker-bg);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        .config-header {
+            background: rgba(56,189,248,0.1);
+            padding: 0.5rem 1rem;
+            font-family: 'Courier New', monospace;
+            font-size: 0.8rem;
+            color: var(--cloud-accent);
+            border-bottom: 1px solid var(--border);
+        }
+        .config-body {
+            padding: 0.75rem 1rem;
+            font-family: 'Courier New', monospace;
+            font-size: 0.82rem;
+            color: #e2e8f0;
+            line-height: 1.8;
+        }
+        .config-body .section { color: var(--warn); }
+        .config-body .key { color: var(--cloud-accent); }
+        .config-body .val { color: #c084fc; }
+
+        /* ── Method comparison ── */
+        .method-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; }
+        .method-card { background: var(--card-bg); border: 1px solid var(--border); border-radius: 10px; padding: 1.25rem; }
+        .method-name { font-size: 1rem; font-weight: 700; color: var(--cloud-primary); margin-bottom: 0.5rem; }
+        .method-tag { display: inline-block; padding: 0.2rem 0.6rem; border-radius: 20px; font-size: 0.72rem; font-weight: 700; margin-bottom: 0.6rem; }
+        .tag-lab { background: rgba(46,213,115,0.15); color: var(--ok); border: 1px solid rgba(46,213,115,0.3); }
+        .tag-dev { background: rgba(255,193,7,0.15); color: var(--warn); border: 1px solid rgba(255,193,7,0.3); }
+        .tag-prod { background: rgba(255,71,87,0.15); color: var(--bad); border: 1px solid rgba(255,71,87,0.3); }
+
+        /* ── Stat row ── */
+        .stat-row { display: flex; gap: 1rem; flex-wrap: wrap; }
+        .stat-badge { background: rgba(56,189,248,0.1); border: 1px solid var(--border); border-radius: 8px; padding: 0.75rem 1.25rem; text-align: center; flex: 1; min-width: 120px; }
+        .stat-value { font-size: 1.5rem; font-weight: 700; color: var(--cloud-primary); }
+        .stat-label { font-size: 0.8rem; color: var(--gray-text); margin-top: 0.2rem; }
+
+        /* Title slide */
+        .title-slide-center { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 1.5rem; }
+        .giant-icon { font-size: 5rem; filter: drop-shadow(0 0 20px rgba(56,189,248,0.5)); }
+        .title-slide-title { font-size: 2.5rem; font-weight: 700; color: var(--cloud-primary); line-height: 1.2; }
+        .title-slide-subtitle { font-size: 1.2rem; color: var(--gray-text); max-width: 600px; }
+        .objectives-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; text-align: left; width: 100%; max-width: 700px; }
+        .obj-item { display: flex; align-items: flex-start; gap: 0.6rem; background: var(--card-bg); padding: 0.75rem 1rem; border-radius: 8px; border: 1px solid var(--border); font-size: 0.9rem; }
+        .obj-num { background: var(--cloud-primary); color: var(--cloud-darker); width: 22px; height: 22px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: 700; flex-shrink: 0; }
+
+        /* Quiz */
+        .quiz-question { background: var(--card-bg); border: 1px solid var(--border); border-radius: 12px; padding: 1.5rem; }
+        .quiz-q-text { font-size: 1rem; font-weight: 600; color: var(--light-text); margin-bottom: 1rem; }
+        .quiz-options { display: flex; flex-direction: column; gap: 0.5rem; }
+        .quiz-option { background: var(--dark-bg); border: 1px solid var(--border); border-radius: 8px; padding: 0.65rem 1rem; cursor: pointer; font-size: 0.9rem; transition: all 0.2s ease; display: flex; align-items: center; gap: 0.75rem; }
+        .quiz-option:hover { background: var(--hover-bg); border-color: var(--cloud-secondary); }
+        .quiz-option.correct { background: rgba(46,213,115,0.15); border-color: var(--ok); color: var(--ok); }
+        .quiz-option.incorrect { background: rgba(255,71,87,0.15); border-color: var(--bad); color: var(--bad); }
+        .quiz-option.revealed { cursor: default; }
+        .quiz-letter { width: 26px; height: 26px; border-radius: 50%; background: var(--hover-bg); display: flex; align-items: center; justify-content: center; font-size: 0.8rem; font-weight: 700; flex-shrink: 0; }
+        .quiz-explanation { display: none; margin-top: 0.75rem; padding: 0.75rem 1rem; background: rgba(46,213,115,0.08); border-left: 3px solid var(--ok); border-radius: 6px; font-size: 0.88rem; color: var(--gray-text); }
+
+        /* Summary */
+        .summary-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+        .summary-item { background: var(--card-bg); border: 1px solid var(--border); border-radius: 10px; padding: 1.25rem; }
+        .summary-item-title { font-size: 0.9rem; font-weight: 700; color: var(--cloud-primary); margin-bottom: 0.5rem; }
+        .summary-item-text { font-size: 0.85rem; color: var(--gray-text); line-height: 1.5; }
+        .complete-btn { background: linear-gradient(135deg, var(--ok), #20bf6b); color: #fff; border: none; padding: 1rem 2.5rem; border-radius: 10px; font-size: 1.1rem; font-weight: 700; cursor: pointer; transition: all 0.2s ease; box-shadow: 0 4px 15px rgba(46,213,115,0.35); }
+        .complete-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(46,213,115,0.45); }
+
+        .slide::-webkit-scrollbar { width: 5px; }
+        .slide::-webkit-scrollbar-track { background: var(--dark-bg); }
+        .slide::-webkit-scrollbar-thumb { background: var(--cloud-dark); border-radius: 3px; }
+
+        @media (max-width: 768px) {
+            .slide { padding: 1.5rem; }
+            .two-col, .three-col, .summary-grid, .objectives-grid, .method-grid { grid-template-columns: 1fr; }
+            .title-slide-title { font-size: 1.8rem; }
+        }
+    </style>
+</head>
+<body>
+
+    <header class="header">
+        <a href="../index.html" class="back-button">← Back to OpenStack Course</a>
+        <div class="header-title">OpenStack: Installation</div>
+        <div class="course-badge">CLOUD HOUSE</div>
+    </header>
+
+    <div class="progress-bar-container">
+        <div class="progress-track"><div class="progress-fill" id="progressFill" style="width:12.5%"></div></div>
+        <span class="slide-counter" id="slideCounter">1 / 8</span>
+        <div class="slide-dots" id="slideDots"></div>
+    </div>
+
+    <div class="slide-viewport" id="slideViewport">
+
+        <!-- Slide 1: Title + Objectives -->
+        <div class="slide active" id="slide-1">
+            <div class="title-slide-center">
+                <div class="giant-icon">🔧</div>
+                <div class="slide-label">Module 3 of 4</div>
+                <div class="title-slide-title">OpenStack Installation</div>
+                <div class="title-slide-subtitle">Step-by-step installation of a minimal OpenStack cloud — from OS prerequisites through Keystone, Glance, Nova, and Neutron.</div>
+                <div class="objectives-grid">
+                    <div class="obj-item"><div class="obj-num">1</div>Compare manual, scripted, and large-scale installation methods</div>
+                    <div class="obj-item"><div class="obj-num">2</div>Configure network interfaces and /etc/hosts on both nodes</div>
+                    <div class="obj-item"><div class="obj-num">3</div>Install and configure Chrony NTP time synchronization</div>
+                    <div class="obj-item"><div class="obj-num">4</div>Set up MariaDB, RabbitMQ, and Memcached on the controller</div>
+                    <div class="obj-item"><div class="obj-num">5</div>Walk through Keystone and Glance core configuration</div>
+                    <div class="obj-item"><div class="obj-num">6</div>Understand the Nova and Neutron installation sequence</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 2: Installation Methods -->
+        <div class="slide" id="slide-2">
+            <div class="slide-label">Slide 2 — Installation Methods</div>
+            <div class="slide-title">Three Ways to Install OpenStack</div>
+            <div class="slide-subtitle">The approach you choose depends on your purpose — learning, development, or production.</div>
+
+            <div class="method-grid">
+                <div class="method-card">
+                    <div class="method-name">Manual Installation</div>
+                    <div><span class="method-tag tag-lab">Best for Labs</span></div>
+                    <ul class="checklist">
+                        <li>Install and configure each service by hand</li>
+                        <li>Full understanding of every config file and parameter</li>
+                        <li>Follows the official OpenStack documentation (docs.openstack.org)</li>
+                        <li>Slow — multiple hours for a 2-node setup</li>
+                        <li>Best for learning and certification prep</li>
+                    </ul>
+                </div>
+                <div class="method-card">
+                    <div class="method-name">DevStack</div>
+                    <div><span class="method-tag tag-dev">Best for Dev</span></div>
+                    <ul class="checklist">
+                        <li>Shell script that automates the full installation</li>
+                        <li>Runs on a single VM — perfect for development</li>
+                        <li>Configured via a simple <code>local.conf</code> file</li>
+                        <li>Not for production — installs from Git branches</li>
+                        <li>Re-run after reboots; not persistent by default</li>
+                    </ul>
+                </div>
+                <div class="method-card">
+                    <div class="method-name">Large-Scale Tools</div>
+                    <div><span class="method-tag tag-prod">Production</span></div>
+                    <ul class="checklist">
+                        <li>TripleO — OpenStack on OpenStack (bare metal)</li>
+                        <li>Kolla-Ansible — containerized services via Docker</li>
+                        <li>Juju / MAAS — Ubuntu cloud deployment framework</li>
+                        <li>OpenStack-Ansible — roles for multi-node setups</li>
+                        <li>Used by telcos and large enterprise deployments</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="highlight-box warn">
+                <strong>This module follows the manual installation path</strong> — the method used in OpenStack's official documentation. Understanding each step prepares you to troubleshoot any deployment method and is the foundation for professional OpenStack certifications (COA, CKA).
+            </div>
+        </div>
+
+        <!-- Slide 3: Prerequisites — Network & Hosts -->
+        <div class="slide" id="slide-3">
+            <div class="slide-label">Slide 3 — Prerequisites</div>
+            <div class="slide-title">Network Configuration Prerequisites</div>
+            <div class="slide-subtitle">Both nodes must have static IPs, hostname resolution, and correct NIC configuration before any OpenStack package is installed.</div>
+
+            <div class="two-col">
+                <div class="card">
+                    <div class="card-title"><span class="icon">🌐</span> /etc/network/interfaces (Controller)</div>
+                    <div class="code-block"><span class="comment"># Management NIC — static IP</span>
+auto ens3
+iface ens3 inet static
+    address 10.0.0.11
+    netmask 255.255.255.0
+    gateway 10.0.0.1
+    dns-nameservers 8.8.8.8
+
+<span class="comment"># Provider NIC — NO IP assigned</span>
+<span class="comment"># OpenStack bridges this directly</span>
+auto ens4
+iface ens4 inet manual
+    up ip link set dev ens4 up
+    down ip link set dev ens4 down</div>
+                </div>
+                <div class="card">
+                    <div class="card-title"><span class="icon">📋</span> /etc/hosts (Both Nodes)</div>
+                    <div class="code-block"><span class="comment"># OpenStack nodes must resolve</span>
+<span class="comment"># each other by hostname</span>
+127.0.0.1   localhost
+127.0.1.1   controller
+
+<span class="comment"># Management network entries</span>
+10.0.0.11   controller
+10.0.0.31   compute1</div>
+                    <ul class="checklist" style="margin-top:0.75rem;">
+                        <li>Same /etc/hosts on <strong>both</strong> nodes</li>
+                        <li>Services reference each other by hostname (not IP)</li>
+                        <li>Verify with: <code style="color:var(--cloud-accent);">ping -c 4 controller</code></li>
+                        <li>Verify with: <code style="color:var(--cloud-accent);">ping -c 4 compute1</code></li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="highlight-box bad">
+                <strong>Common Mistake:</strong> Leaving /etc/hosts with only 127.0.1.1 entries. When nova-compute on the compute node tries to call the controller's API, it will fail DNS resolution. Always verify hostname resolution from both nodes before proceeding.
+            </div>
+        </div>
+
+        <!-- Slide 4: NTP + OpenStack Client + SQL -->
+        <div class="slide" id="slide-4">
+            <div class="slide-label">Slide 4 — Chrony, Client &amp; MariaDB</div>
+            <div class="slide-title">NTP, OpenStack Client &amp; Database</div>
+            <div class="slide-subtitle">Three infrastructure components that must exist before any OpenStack service is installed.</div>
+
+            <div class="two-col">
+                <div class="card">
+                    <div class="card-title"><span class="icon">⏱️</span> Chrony — NTP Time Synchronization</div>
+                    <ul class="checklist">
+                        <li>All nodes must have synchronized clocks — token expiry depends on it</li>
+                        <li>Controller: acts as NTP server for the cluster</li>
+                        <li>Compute node: syncs time from the controller</li>
+                    </ul>
+                    <div class="code-block" style="margin-top:0.75rem;"><span class="comment"># Controller: /etc/chrony.conf</span>
+server ntp.ubuntu.com iburst
+allow 10.0.0.0/24   <span class="comment"># serve other nodes</span>
+
+<span class="comment"># Compute node: /etc/chrony.conf</span>
+server 10.0.0.11 iburst
+
+<span class="comment"># Apply on both nodes:</span>
+<span class="cmd">systemctl restart chrony</span>
+<span class="cmd">chronyc sources</span></div>
+                </div>
+                <div class="card">
+                    <div class="card-title"><span class="icon">🗄️</span> MariaDB — OpenStack Database</div>
+                    <ul class="checklist">
+                        <li>Installed only on the controller node</li>
+                        <li>Each OpenStack service gets its own database</li>
+                        <li>Must bind to the management IP — not 127.0.0.1</li>
+                    </ul>
+                    <div class="code-block" style="margin-top:0.75rem;"><span class="comment"># /etc/mysql/mariadb.conf.d/99-openstack.cnf</span>
+[mysqld]
+bind-address = <span class="value">10.0.0.11</span>
+
+default-storage-engine = innodb
+innodb_file_per_table = on
+max_connections = <span class="value">4096</span>
+collation-server = <span class="value">utf8_general_ci</span>
+character-set-server = <span class="value">utf8</span>
+
+<span class="comment"># Then run:</span>
+<span class="cmd">mysql_secure_installation</span></div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-title"><span class="icon">🖥️</span> OpenStack Client — Both Nodes</div>
+                <div class="code-block"><span class="comment"># Enable OpenStack repository (Ubuntu example)</span>
+<span class="cmd">apt install software-properties-common</span>
+<span class="cmd">add-apt-repository cloud-archive:yoga</span>
+<span class="cmd">apt update &amp;&amp; apt dist-upgrade</span>
+<span class="cmd">apt install python3-openstackclient</span>   <span class="comment"># install on BOTH nodes</span></div>
+            </div>
+        </div>
+
+        <!-- Slide 5: RabbitMQ + Memcached -->
+        <div class="slide" id="slide-5">
+            <div class="slide-label">Slide 5 — Message Queue &amp; Cache</div>
+            <div class="slide-title">RabbitMQ &amp; Memcached</div>
+            <div class="slide-subtitle">The communication backbone and the token cache — both live on the controller node only.</div>
+
+            <div class="two-col">
+                <div class="card">
+                    <div class="card-title"><span class="icon">📨</span> RabbitMQ — Message Queue</div>
+                    <ul class="checklist">
+                        <li>All inter-service communication uses AMQP via RabbitMQ</li>
+                        <li>nova-conductor queues tasks for nova-compute asynchronously</li>
+                        <li>Neutron agents receive configuration changes via queues</li>
+                        <li>Create a dedicated OpenStack user — never use the default guest</li>
+                    </ul>
+                    <div class="code-block" style="margin-top:0.75rem;"><span class="cmd">apt install rabbitmq-server</span>
+
+<span class="comment"># Create openstack user with password</span>
+<span class="cmd">rabbitmqctl add_user openstack <span class="value">RABBIT_PASS</span></span>
+
+<span class="comment"># Grant full permissions on / vhost</span>
+<span class="cmd">rabbitmqctl set_permissions openstack \
+  ".*" ".*" ".*"</span></div>
+                </div>
+                <div class="card">
+                    <div class="card-title"><span class="icon">⚡</span> Memcached — Token Cache</div>
+                    <ul class="checklist">
+                        <li>Keystone caches authentication tokens in Memcached</li>
+                        <li>Reduces database load — tokens validated from RAM cache</li>
+                        <li>Must listen on the management interface IP</li>
+                        <li>Services reference it as a cache backend in their config</li>
+                    </ul>
+                    <div class="code-block" style="margin-top:0.75rem;"><span class="cmd">apt install memcached python3-memcache</span>
+
+<span class="comment"># /etc/memcached.conf</span>
+<span class="comment"># Change: -l 127.0.0.1 → management IP</span>
+-l <span class="value">10.0.0.11</span>
+
+<span class="cmd">service memcached restart</span></div>
+                </div>
+            </div>
+
+            <div class="diagram-box">Infrastructure Installation Order (Controller Node):
+  1. MariaDB    ─── SQL database backend
+  2. RabbitMQ   ─── AMQP message broker
+  3. Memcached  ─── Token / session cache
+  4. Keystone   ─── Identity (first OpenStack service)
+  5. Glance     ─── Image registry
+  6. Nova       ─── Compute (API on controller, agent on compute)
+  7. Neutron    ─── Networking (server on controller, agents on both)</div>
+        </div>
+
+        <!-- Slide 6: Keystone + Glance Installation -->
+        <div class="slide" id="slide-6">
+            <div class="slide-label">Slide 6 — Keystone &amp; Glance</div>
+            <div class="slide-title">Installing Keystone &amp; Glance</div>
+            <div class="slide-subtitle">Keystone is the identity foundation — it must be bootstrapped first. Glance depends on Keystone for authentication.</div>
+
+            <div class="two-col">
+                <div class="card">
+                    <div class="card-title"><span class="icon">🔑</span> Keystone Installation Summary</div>
+                    <div class="steps-list">
+                        <div class="step-item">
+                            <div class="step-num">1</div>
+                            <div class="step-content">
+                                <div class="step-title">Create Database</div>
+                                <div class="step-desc">CREATE DATABASE keystone; GRANT ALL ON keystone.* TO 'keystone'@'localhost';</div>
+                            </div>
+                        </div>
+                        <div class="step-item">
+                            <div class="step-num">2</div>
+                            <div class="step-content">
+                                <div class="step-title">Configure /etc/keystone/keystone.conf</div>
+                                <div class="step-desc">[database] connection = mysql+pymysql://keystone:PASS@controller/keystone — [token] provider = fernet</div>
+                            </div>
+                        </div>
+                        <div class="step-item">
+                            <div class="step-num">3</div>
+                            <div class="step-content">
+                                <div class="step-title">Sync DB &amp; Bootstrap</div>
+                                <div class="step-desc">keystone-manage db_sync → keystone-manage fernet_setup → keystone-manage bootstrap</div>
+                            </div>
+                        </div>
+                        <div class="step-item">
+                            <div class="step-num">4</div>
+                            <div class="step-content">
+                                <div class="step-title">Create admin-openrc</div>
+                                <div class="step-desc">Source file with OS_AUTH_URL, OS_USERNAME, OS_PASSWORD, OS_PROJECT_NAME, OS_REGION_NAME</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="card">
+                    <div class="card-title"><span class="icon">🖼️</span> Glance Installation Summary</div>
+                    <div class="steps-list">
+                        <div class="step-item">
+                            <div class="step-num">1</div>
+                            <div class="step-content">
+                                <div class="step-title">Create Database &amp; Keystone User</div>
+                                <div class="step-desc">CREATE DATABASE glance; create glance user in Keystone; add to service project with admin role</div>
+                            </div>
+                        </div>
+                        <div class="step-item">
+                            <div class="step-num">2</div>
+                            <div class="step-content">
+                                <div class="step-title">Configure glance-api.conf</div>
+                                <div class="step-desc">[database] connection string; [keystone_authtoken] auth_url, credentials; [glance_store] stores = file,http; filesystem_store_datadir</div>
+                            </div>
+                        </div>
+                        <div class="step-item">
+                            <div class="step-num">3</div>
+                            <div class="step-content">
+                                <div class="step-title">Sync Database &amp; Start Service</div>
+                                <div class="step-desc">glance-manage db_sync → systemctl enable/start openstack-glance-api</div>
+                            </div>
+                        </div>
+                        <div class="step-item">
+                            <div class="step-num">4</div>
+                            <div class="step-content">
+                                <div class="step-title">Upload Test Image</div>
+                                <div class="step-desc">Download CirrOS image → openstack image create --disk-format qcow2 --container-format bare --public cirros</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 7: Knowledge Check -->
+        <div class="slide" id="slide-7">
+            <div class="slide-label">Slide 7 — Knowledge Check</div>
+            <div class="slide-title">Knowledge Check</div>
+            <div class="slide-subtitle">Select the best answer, then reveal the explanation to confirm your understanding.</div>
+
+            <div class="quiz-question">
+                <div class="quiz-q-text">1. Why must the MariaDB bind-address be set to the management network IP (10.0.0.11) rather than 127.0.0.1?</div>
+                <div class="quiz-options" id="q1-options">
+                    <div class="quiz-option" onclick="selectOption(this,'q1',false)"><div class="quiz-letter">A</div>127.0.0.1 is slower than a real network interface</div>
+                    <div class="quiz-option" onclick="selectOption(this,'q1',true)"><div class="quiz-letter">B</div>OpenStack services on remote nodes connect to the controller's database over the network</div>
+                    <div class="quiz-option" onclick="selectOption(this,'q1',false)"><div class="quiz-letter">C</div>MariaDB requires a public IP for SSL certificate validation</div>
+                    <div class="quiz-option" onclick="selectOption(this,'q1',false)"><div class="quiz-letter">D</div>The compute node runs its own copy of MariaDB</div>
+                </div>
+                <div class="quiz-explanation" id="q1-exp">Correct! Services like nova-compute (running on the compute node) need to reach nova's database on the controller over the management network (10.0.0.X). If MariaDB only listens on 127.0.0.1, remote connections will be refused.</div>
+            </div>
+
+            <div class="quiz-question">
+                <div class="quiz-q-text">2. What is the correct service installation order for OpenStack?</div>
+                <div class="quiz-options" id="q2-options">
+                    <div class="quiz-option" onclick="selectOption(this,'q2',false)"><div class="quiz-letter">A</div>Nova → Keystone → Glance → Neutron</div>
+                    <div class="quiz-option" onclick="selectOption(this,'q2',true)"><div class="quiz-letter">B</div>Keystone → Glance → Nova → Neutron</div>
+                    <div class="quiz-option" onclick="selectOption(this,'q2',false)"><div class="quiz-letter">C</div>Neutron → Nova → Keystone → Glance</div>
+                    <div class="quiz-option" onclick="selectOption(this,'q2',false)"><div class="quiz-letter">D</div>MariaDB → Nova → Keystone → Glance</div>
+                </div>
+                <div class="quiz-explanation" id="q2-exp">Correct! Keystone must be first — every other service registers with Keystone and uses it for authentication. Glance second because Nova needs it to pull images. Nova third. Neutron last because nova-network interactions reference existing Nova resources.</div>
+            </div>
+
+            <div class="quiz-question">
+                <div class="quiz-q-text">3. What does the nova-conductor component specifically prevent?</div>
+                <div class="quiz-options" id="q3-options">
+                    <div class="quiz-option" onclick="selectOption(this,'q3',false)"><div class="quiz-letter">A</div>Compute nodes from running too many VMs simultaneously</div>
+                    <div class="quiz-option" onclick="selectOption(this,'q3',false)"><div class="quiz-letter">B</div>Users from launching instances without Glance images</div>
+                    <div class="quiz-option" onclick="selectOption(this,'q3',true)"><div class="quiz-letter">C</div>Compute nodes from having direct database access credentials</div>
+                    <div class="quiz-option" onclick="selectOption(this,'q3',false)"><div class="quiz-letter">D</div>Duplicate API requests from reaching nova-scheduler</div>
+                </div>
+                <div class="quiz-explanation" id="q3-exp">Correct! nova-conductor proxies all database operations for compute nodes. This means compute nodes never need database credentials or direct connectivity to MariaDB — improving security and allowing online upgrades of the conductor without restarting all compute hosts.</div>
+            </div>
+
+            <div class="quiz-question">
+                <div class="quiz-q-text">4. Which tool is most appropriate for a single developer who needs a full OpenStack environment on their laptop for testing a new Neutron plugin?</div>
+                <div class="quiz-options" id="q4-options">
+                    <div class="quiz-option" onclick="selectOption(this,'q4',false)"><div class="quiz-letter">A</div>Kolla-Ansible</div>
+                    <div class="quiz-option" onclick="selectOption(this,'q4',false)"><div class="quiz-letter">B</div>Manual installation following official docs</div>
+                    <div class="quiz-option" onclick="selectOption(this,'q4',true)"><div class="quiz-letter">C</div>DevStack</div>
+                    <div class="quiz-option" onclick="selectOption(this,'q4',false)"><div class="quiz-letter">D</div>TripleO on bare metal</div>
+                </div>
+                <div class="quiz-explanation" id="q4-exp">Correct! DevStack is purpose-built for developers. It runs all services on a single VM, installs from Git branches (so you can test bleeding-edge code), and is configured with a simple local.conf file. Kolla and TripleO are production-grade tools overkill for a single dev workstation.</div>
+            </div>
+        </div>
+
+        <!-- Slide 8: Summary + Complete -->
+        <div class="slide" id="slide-8">
+            <div class="slide-label">Slide 8 — Module Summary</div>
+            <div class="slide-title">Module Summary</div>
+            <div class="slide-subtitle">You have walked through the complete OpenStack installation sequence from OS prerequisites to core service configuration.</div>
+
+            <div class="summary-grid">
+                <div class="summary-item">
+                    <div class="summary-item-title">Installation Methods</div>
+                    <div class="summary-item-text">Manual (labs/learning), DevStack (single-node dev), Kolla-Ansible / TripleO / OpenStack-Ansible (production). Manual builds the deepest understanding.</div>
+                </div>
+                <div class="summary-item">
+                    <div class="summary-item-title">Network Prerequisites</div>
+                    <div class="summary-item-text">Static IPs on management NIC. Provider NIC left with no IP (manual up). /etc/hosts on both nodes must resolve controller and compute hostnames by name.</div>
+                </div>
+                <div class="summary-item">
+                    <div class="summary-item-title">Chrony NTP</div>
+                    <div class="summary-item-text">Controller is NTP server for the cluster. Compute syncs from controller. Clock skew beyond a few seconds will cause token validation failures across services.</div>
+                </div>
+                <div class="summary-item">
+                    <div class="summary-item-title">MariaDB Configuration</div>
+                    <div class="summary-item-text">Bind-address set to management IP. UTF-8 charset. InnoDB storage engine. Each service gets its own database and user with GRANT ALL privileges.</div>
+                </div>
+                <div class="summary-item">
+                    <div class="summary-item-title">RabbitMQ &amp; Memcached</div>
+                    <div class="summary-item-text">RabbitMQ: create dedicated openstack user with full permissions. Memcached: bind to management IP, used by Keystone for token caching to reduce DB load.</div>
+                </div>
+                <div class="summary-item">
+                    <div class="summary-item-title">Keystone → Glance → Nova → Neutron</div>
+                    <div class="summary-item-text">Install in dependency order. Keystone bootstrapped first. Each service: create DB → configure .conf → db_sync → start services → register Keystone endpoint.</div>
+                </div>
+            </div>
+
+            <div style="text-align:center; margin-top: 1rem;">
+                <button class="complete-btn" onclick="ModuleProgress.complete('cloud-openstack-install', '../index.html')">
+                    Mark Module Complete ✓
+                </button>
+            </div>
+        </div>
+
+    </div><!-- end slide-viewport -->
+
+    <div class="nav-controls">
+        <button class="nav-btn" id="prevBtn" onclick="changeSlide(-1)" disabled>← Previous</button>
+        <span class="nav-hint">Use ← → arrow keys to navigate</span>
+        <button class="nav-btn" id="nextBtn" onclick="changeSlide(1)">Next →</button>
+    </div>
+
+    <script>
+        const TOTAL_SLIDES = 8;
+        let currentSlide = 1;
+        const visited = new Set([1]);
+
+        const dotsContainer = document.getElementById('slideDots');
+        for (let i = 1; i <= TOTAL_SLIDES; i++) {
+            const dot = document.createElement('div');
+            dot.className = 'dot' + (i === 1 ? ' active' : '');
+            dot.title = 'Slide ' + i;
+            dot.addEventListener('click', () => goToSlide(i));
+            dotsContainer.appendChild(dot);
+        }
+
+        function changeSlide(delta) {
+            const target = currentSlide + delta;
+            if (target < 1 || target > TOTAL_SLIDES) return;
+            goToSlide(target);
+        }
+
+        function goToSlide(n) {
+            if (n === currentSlide) return;
+            const leaving = document.getElementById('slide-' + currentSlide);
+            const arriving = document.getElementById('slide-' + n);
+            leaving.classList.add(n > currentSlide ? 'exit-left' : '');
+            leaving.classList.remove('active');
+            setTimeout(() => leaving.classList.remove('exit-left'), 380);
+            arriving.classList.add('active');
+            arriving.style.transform = n > currentSlide ? 'translateX(60px)' : 'translateX(-60px)';
+            arriving.getBoundingClientRect();
+            arriving.style.transform = '';
+            currentSlide = n;
+            visited.add(n);
+            updateUI();
+        }
+
+        function updateUI() {
+            const pct = (currentSlide / TOTAL_SLIDES) * 100;
+            document.getElementById('progressFill').style.width = pct + '%';
+            document.getElementById('slideCounter').textContent = currentSlide + ' / ' + TOTAL_SLIDES;
+            const dots = dotsContainer.querySelectorAll('.dot');
+            dots.forEach((dot, idx) => {
+                const sn = idx + 1;
+                dot.className = 'dot';
+                if (sn === currentSlide) dot.classList.add('active');
+                else if (visited.has(sn)) dot.classList.add('visited');
+            });
+            document.getElementById('prevBtn').disabled = currentSlide === 1;
+            document.getElementById('nextBtn').disabled = currentSlide === TOTAL_SLIDES;
+        }
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowRight' || e.key === 'ArrowDown') changeSlide(1);
+            if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') changeSlide(-1);
+        });
+
+        const answered = {};
+
+        function selectOption(el, qId, isCorrect) {
+            if (answered[qId]) return;
+            answered[qId] = true;
+            const options = document.querySelectorAll('#' + qId + '-options .quiz-option');
+            options.forEach(opt => { opt.classList.add('revealed'); opt.onclick = null; });
+            el.classList.add(isCorrect ? 'correct' : 'incorrect');
+            if (!isCorrect) {
+                const correctOpt = document.querySelector('#' + qId + '-options .quiz-option[data-correct="true"]');
+                if (correctOpt) correctOpt.classList.add('correct');
+            }
+            document.getElementById(qId + '-exp').style.display = 'block';
+        }
+
+        document.querySelectorAll('.quiz-option').forEach(opt => {
+            const orig = opt.getAttribute('onclick') || '';
+            if (orig.includes(',true)')) opt.setAttribute('data-correct', 'true');
+        });
+    </script>
+
+    <script src="../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>

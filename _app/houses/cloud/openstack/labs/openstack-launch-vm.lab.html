@@ -1,0 +1,1286 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OpenStack: Launch a VM | Cloud House</title>
+    <style>
+        :root {
+            --bg: #0f172a;
+            --bg2: #020617;
+            --card: #1e293b;
+            --ink: #f0f9ff;
+            --muted: #94a3b8;
+            --accent: #38bdf8;
+            --accent2: #0ea5e9;
+            --accent-glow: rgba(56, 189, 248, 0.3);
+            --ok: #2ed573;
+            --warn: #ffc107;
+            --bad: #ff4757;
+            --border: rgba(56, 189, 248, 0.2);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: linear-gradient(135deg, #0f172a 0%, #020617 50%, #0c4a6e 100%);
+            color: var(--ink);
+            min-height: 100vh;
+        }
+
+        /* ── Page Header ── */
+        .page-header {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            padding: 14px 28px;
+            background: rgba(2, 6, 23, 0.92);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            backdrop-filter: blur(12px);
+        }
+
+        .back-link {
+            color: var(--accent);
+            text-decoration: none;
+            font-size: 0.9rem;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            transition: color 0.2s;
+        }
+
+        .back-link:hover { color: #fff; }
+
+        .brand {
+            font-weight: 600;
+            color: var(--ink);
+            font-size: 0.95rem;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .brand-icon { color: var(--accent); font-size: 1.1rem; }
+
+        /* ── Layout ── */
+        .lab-layout {
+            display: grid;
+            grid-template-columns: 260px 1fr;
+            gap: 0;
+            min-height: calc(100vh - 57px);
+        }
+
+        /* ── Sidebar ── */
+        .sidebar {
+            background: rgba(2, 6, 23, 0.7);
+            border-right: 1px solid var(--border);
+            padding: 24px 16px;
+            position: sticky;
+            top: 57px;
+            height: calc(100vh - 57px);
+            overflow-y: auto;
+        }
+
+        .sidebar-title {
+            font-size: 0.7rem;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            color: var(--muted);
+            margin-bottom: 16px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .task-nav-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            margin-bottom: 4px;
+            transition: all 0.2s;
+            border: 1px solid transparent;
+            font-size: 0.85rem;
+            color: var(--muted);
+        }
+
+        .task-nav-item:hover {
+            background: rgba(56, 189, 248, 0.08);
+            border-color: var(--border);
+            color: var(--ink);
+        }
+
+        .task-nav-item.active {
+            background: rgba(56, 189, 248, 0.12);
+            border-color: var(--accent);
+            color: var(--accent);
+        }
+
+        .task-nav-item.done {
+            color: var(--ok);
+            border-color: rgba(46, 213, 115, 0.3);
+            background: rgba(46, 213, 115, 0.06);
+        }
+
+        .task-nav-num {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            border: 1px solid currentColor;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.75rem;
+            font-weight: 700;
+            flex-shrink: 0;
+        }
+
+        .task-nav-item.done .task-nav-num {
+            background: var(--ok);
+            border-color: var(--ok);
+            color: #000;
+        }
+
+        .sidebar-progress {
+            margin-top: 20px;
+            padding-top: 16px;
+            border-top: 1px solid var(--border);
+        }
+
+        .progress-label {
+            font-size: 0.75rem;
+            color: var(--muted);
+            margin-bottom: 6px;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .progress-bar {
+            height: 6px;
+            background: rgba(56, 189, 248, 0.1);
+            border-radius: 3px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--accent), var(--ok));
+            border-radius: 3px;
+            transition: width 0.4s ease;
+        }
+
+        /* ── Main Content ── */
+        .main-content {
+            padding: 32px 40px;
+            max-width: 860px;
+        }
+
+        .lab-hero {
+            margin-bottom: 32px;
+        }
+
+        .lab-hero h1 {
+            font-size: 2rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--accent), #60d9fa);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 8px;
+        }
+
+        .lab-hero p {
+            color: var(--muted);
+            font-size: 1rem;
+            line-height: 1.6;
+        }
+
+        .lab-meta {
+            display: flex;
+            gap: 16px;
+            margin-top: 12px;
+            flex-wrap: wrap;
+        }
+
+        .meta-badge {
+            font-size: 0.75rem;
+            padding: 4px 12px;
+            border-radius: 20px;
+            background: rgba(56, 189, 248, 0.1);
+            border: 1px solid var(--border);
+            color: var(--accent);
+        }
+
+        /* ── Task Panels ── */
+        .task-panel { display: none; }
+        .task-panel.active { display: block; }
+
+        .task-header {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            margin-bottom: 20px;
+        }
+
+        .task-num-badge {
+            width: 44px;
+            height: 44px;
+            border-radius: 12px;
+            background: linear-gradient(135deg, var(--accent), var(--accent2));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.3rem;
+            font-weight: 700;
+            color: #000;
+            flex-shrink: 0;
+        }
+
+        .task-header h2 { font-size: 1.3rem; color: var(--ink); }
+
+        .task-header .task-tag {
+            font-size: 0.7rem;
+            color: var(--muted);
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+        }
+
+        .task-desc {
+            background: rgba(56, 189, 248, 0.06);
+            border: 1px solid var(--border);
+            border-left: 3px solid var(--accent);
+            border-radius: 8px;
+            padding: 14px 18px;
+            margin-bottom: 24px;
+            color: var(--muted);
+            font-size: 0.95rem;
+            line-height: 1.6;
+        }
+
+        /* ── Exercise Cards ── */
+        .exercise-card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 20px;
+        }
+
+        .exercise-card h3 {
+            color: var(--accent);
+            font-size: 1rem;
+            margin-bottom: 14px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        /* ── Code / Command Builder ── */
+        .cmd-builder {
+            background: #020617;
+            border: 1px solid rgba(56, 189, 248, 0.2);
+            border-radius: 10px;
+            padding: 16px 18px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.85rem;
+            line-height: 2;
+            margin: 12px 0;
+            color: #a5f3fc;
+        }
+
+        .cmd-builder .cm { color: #64748b; }
+        .cmd-builder .ck { color: #f472b6; }
+
+        .cmd-select {
+            background: #0c1a2e;
+            border: 1px solid var(--border);
+            border-radius: 5px;
+            padding: 3px 8px;
+            color: var(--ok);
+            font-family: 'Courier New', monospace;
+            font-size: 0.83rem;
+            cursor: pointer;
+            transition: border-color 0.2s;
+        }
+
+        .cmd-select:focus { outline: none; border-color: var(--accent); }
+        .cmd-select.correct { border-color: var(--ok); background: rgba(46,213,115,0.06); }
+        .cmd-select.wrong   { border-color: var(--bad); background: rgba(255,71,87,0.06); }
+
+        /* ── Fill Inputs ── */
+        .fill-grid { display: grid; gap: 12px; margin: 14px 0; }
+
+        .fill-row {
+            display: grid;
+            grid-template-columns: 220px 1fr;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .fill-label {
+            font-size: 0.8rem;
+            color: var(--muted);
+            font-family: 'Courier New', monospace;
+        }
+
+        .fill-input {
+            background: #020617;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 8px 12px;
+            color: var(--ink);
+            font-family: 'Courier New', monospace;
+            font-size: 0.85rem;
+            width: 100%;
+            transition: border-color 0.2s;
+        }
+
+        .fill-input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-glow); }
+        .fill-input.correct { border-color: var(--ok); background: rgba(46,213,115,0.06); }
+        .fill-input.wrong   { border-color: var(--bad); background: rgba(255,71,87,0.06); }
+
+        /* ── Rule Builder ── */
+        .rule-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 12px 0;
+        }
+
+        .rule-table th {
+            text-align: left;
+            padding: 8px 12px;
+            background: rgba(56,189,248,0.08);
+            color: var(--accent);
+            font-size: 0.78rem;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .rule-table td {
+            padding: 8px 12px;
+            border-bottom: 1px solid rgba(56,189,248,0.08);
+        }
+
+        .rule-table tr:last-child td { border-bottom: none; }
+
+        .rule-select {
+            background: #020617;
+            border: 1px solid var(--border);
+            border-radius: 5px;
+            padding: 5px 8px;
+            color: var(--ink);
+            font-size: 0.82rem;
+            width: 100%;
+            cursor: pointer;
+        }
+
+        .rule-select.correct { border-color: var(--ok); }
+        .rule-select.wrong   { border-color: var(--bad); }
+
+        /* ── Step Walkthrough ── */
+        .step-list { list-style: none; margin: 14px 0; }
+
+        .step-item {
+            display: flex;
+            gap: 14px;
+            align-items: flex-start;
+            padding: 12px 0;
+            border-bottom: 1px solid rgba(56,189,248,0.08);
+        }
+
+        .step-item:last-child { border-bottom: none; }
+
+        .step-num {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            background: rgba(56,189,248,0.12);
+            border: 1px solid var(--accent);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.78rem;
+            font-weight: 700;
+            color: var(--accent);
+            flex-shrink: 0;
+            margin-top: 2px;
+        }
+
+        .step-content { flex: 1; }
+
+        .step-content p {
+            font-size: 0.88rem;
+            color: var(--muted);
+            margin-bottom: 6px;
+        }
+
+        .step-cmd {
+            background: #020617;
+            border: 1px solid rgba(56,189,248,0.15);
+            border-radius: 6px;
+            padding: 8px 12px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.82rem;
+            color: #a5f3fc;
+            margin-top: 4px;
+        }
+
+        .step-checkbox {
+            width: 22px;
+            height: 22px;
+            border: 2px solid var(--accent);
+            border-radius: 4px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+            flex-shrink: 0;
+            margin-top: 3px;
+        }
+
+        .step-checkbox.checked {
+            background: var(--ok);
+            border-color: var(--ok);
+            color: #000;
+            font-size: 0.85rem;
+        }
+
+        /* ── Feedback & Buttons ── */
+        .check-btn {
+            padding: 9px 24px;
+            background: rgba(56,189,248,0.12);
+            border: 1px solid var(--accent);
+            border-radius: 8px;
+            color: var(--accent);
+            font-size: 0.88rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            margin-top: 14px;
+        }
+
+        .check-btn:hover { background: rgba(56,189,248,0.22); }
+
+        .feedback-box {
+            margin-top: 12px;
+            padding: 12px 16px;
+            border-radius: 8px;
+            font-size: 0.88rem;
+            line-height: 1.5;
+            display: none;
+        }
+
+        .feedback-box.show  { display: block; }
+        .feedback-box.success { background: rgba(46,213,115,0.1); border: 1px solid rgba(46,213,115,0.4); color: var(--ok); }
+        .feedback-box.error   { background: rgba(255,71,87,0.1);  border: 1px solid rgba(255,71,87,0.4);  color: var(--bad); }
+        .feedback-box.partial { background: rgba(255,193,7,0.1);  border: 1px solid rgba(255,193,7,0.4);  color: var(--warn); }
+
+        .task-nav-btns {
+            display: flex;
+            gap: 12px;
+            justify-content: space-between;
+            margin-top: 28px;
+            padding-top: 20px;
+            border-top: 1px solid var(--border);
+        }
+
+        .nav-btn {
+            padding: 10px 24px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            background: transparent;
+            color: var(--muted);
+            font-size: 0.88rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .nav-btn:hover { border-color: var(--accent); color: var(--accent); }
+        .nav-btn.primary { background: linear-gradient(135deg, var(--accent), var(--accent2)); border-color: transparent; color: #000; font-weight: 600; }
+        .nav-btn.primary:hover { box-shadow: 0 4px 20px var(--accent-glow); }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+
+        .tip-box {
+            background: rgba(255,193,7,0.08);
+            border: 1px solid rgba(255,193,7,0.3);
+            border-radius: 8px;
+            padding: 12px 16px;
+            margin: 12px 0;
+            font-size: 0.85rem;
+            color: var(--warn);
+        }
+
+        .tip-box strong { font-weight: 700; }
+
+        /* ── Complete Panel ── */
+        .complete-module-panel { display: none; text-align: center; padding: 48px 32px; }
+        .complete-module-panel.show { display: block; }
+        .complete-icon { font-size: 4rem; margin-bottom: 16px; }
+
+        .complete-module-panel h2 {
+            font-size: 1.8rem;
+            background: linear-gradient(135deg, var(--accent), var(--ok));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 12px;
+        }
+
+        .complete-module-panel p { color: var(--muted); margin-bottom: 28px; font-size: 1rem; }
+
+        .complete-btn {
+            padding: 14px 36px;
+            background: linear-gradient(135deg, var(--accent), var(--accent2));
+            border: none;
+            border-radius: 10px;
+            color: #000;
+            font-size: 1rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .complete-btn:hover { box-shadow: 0 8px 30px var(--accent-glow); transform: translateY(-2px); }
+
+        @media (max-width: 768px) {
+            .lab-layout { grid-template-columns: 1fr; }
+            .sidebar { position: static; height: auto; }
+            .main-content { padding: 20px; }
+            .fill-row { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+
+<header class="page-header">
+    <a href="../index.html" class="back-link">&larr; Back to OpenStack Course</a>
+    <span class="brand"><span class="brand-icon">&#9729;</span> Hexworth Prime</span>
+</header>
+
+<div class="lab-layout">
+
+    <!-- ── Sidebar ── -->
+    <aside class="sidebar">
+        <div class="sidebar-title">Lab Tasks</div>
+
+        <div class="task-nav-item active" id="nav-1" onclick="goTask(1)">
+            <span class="task-nav-num">1</span>
+            <span>Upload Image</span>
+        </div>
+        <div class="task-nav-item" id="nav-2" onclick="goTask(2)">
+            <span class="task-nav-num">2</span>
+            <span>Create Network</span>
+        </div>
+        <div class="task-nav-item" id="nav-3" onclick="goTask(3)">
+            <span class="task-nav-num">3</span>
+            <span>Security Group Rules</span>
+        </div>
+        <div class="task-nav-item" id="nav-4" onclick="goTask(4)">
+            <span class="task-nav-num">4</span>
+            <span>Launch Instance</span>
+        </div>
+        <div class="task-nav-item" id="nav-5" onclick="goTask(5)">
+            <span class="task-nav-num">5</span>
+            <span>Access Instance</span>
+        </div>
+
+        <div class="sidebar-progress">
+            <div class="progress-label">
+                <span>Progress</span>
+                <span id="progressText">0 / 5</span>
+            </div>
+            <div class="progress-bar">
+                <div class="progress-fill" id="progressFill" style="width:0%"></div>
+            </div>
+        </div>
+    </aside>
+
+    <!-- ── Main Content ── -->
+    <main class="main-content">
+
+        <div class="lab-hero">
+            <h1>Launch a Virtual Machine</h1>
+            <p>Build a working instance from scratch using only the OpenStack CLI. Upload a cloud image, provision networking, harden the security group, and SSH into your running VM via a floating IP.</p>
+            <div class="lab-meta">
+                <span class="meta-badge">Cloud House</span>
+                <span class="meta-badge">OpenStack CLI</span>
+                <span class="meta-badge">Cirros 0.6.2</span>
+                <span class="meta-badge">5 Tasks</span>
+            </div>
+        </div>
+
+        <!-- ═══════════════ TASK 1: Upload Image ═══════════════ -->
+        <div class="task-panel active" id="task-1">
+            <div class="task-header">
+                <div class="task-num-badge">1</div>
+                <div>
+                    <h2>Upload a Cloud Image</h2>
+                    <div class="task-tag">Command Builder &middot; Dropdown Selection</div>
+                </div>
+            </div>
+
+            <div class="task-desc">
+                Glance stores VM images. Before launching any instance you must upload a bootable image. CirrOS is a minimal test cloud image (about 20 MB) commonly used for OpenStack development. The upload flags determine how the image is stored and who can use it.
+            </div>
+
+            <div class="exercise-card">
+                <h3>&#128247; Build the Correct glance Image Upload Command</h3>
+                <p style="color:var(--muted);font-size:0.85rem;margin-bottom:14px;">Select the correct value from each dropdown to complete the OpenStack CLI command:</p>
+
+                <div class="cmd-builder">
+<span class="cm"># Source admin credentials first</span>
+. admin-openrc
+<br><br>
+<span class="cm"># Upload the CirrOS test image</span>
+openstack image create "cirros" \<br>
+&nbsp;&nbsp;--file cirros-0.6.2-x86_64-disk.img \<br>
+&nbsp;&nbsp;--disk-format
+<select class="cmd-select" id="img-disk-fmt">
+    <option value="">-- select --</option>
+    <option value="qcow2">qcow2</option>
+    <option value="vmdk">vmdk</option>
+    <option value="vhd">vhd</option>
+    <option value="iso">iso</option>
+</select> \<br>
+&nbsp;&nbsp;--container-format
+<select class="cmd-select" id="img-cont-fmt">
+    <option value="">-- select --</option>
+    <option value="bare">bare</option>
+    <option value="ovf">ovf</option>
+    <option value="ova">ova</option>
+    <option value="docker">docker</option>
+</select> \<br>
+&nbsp;&nbsp;--
+<select class="cmd-select" id="img-visibility">
+    <option value="">-- select --</option>
+    <option value="public">public</option>
+    <option value="private">private</option>
+    <option value="shared">shared</option>
+    <option value="community">community</option>
+</select>
+                </div>
+
+                <div class="tip-box">
+                    <strong>Hint:</strong> QCOW2 (QEMU Copy-On-Write 2) is the native KVM/QEMU disk format and the standard for OpenStack. The container format describes the outer wrapper: <em>bare</em> means no wrapping — just raw image data. Marking the image <em>public</em> makes it available to all projects.
+                </div>
+
+                <button class="check-btn" onclick="checkTask1()">Check Command</button>
+                <div class="feedback-box" id="fb-1"></div>
+            </div>
+
+            <div class="task-nav-btns">
+                <button class="nav-btn" disabled>Previous</button>
+                <button class="nav-btn primary" onclick="goTask(2)">Next Task &rarr;</button>
+            </div>
+        </div>
+
+        <!-- ═══════════════ TASK 2: Create Network ═══════════════ -->
+        <div class="task-panel" id="task-2">
+            <div class="task-header">
+                <div class="task-num-badge">2</div>
+                <div>
+                    <h2>Create a Self-Service Network</h2>
+                    <div class="task-tag">Fill-in-the-Blank &middot; CLI Commands</div>
+                </div>
+            </div>
+
+            <div class="task-desc">
+                Self-service networks (tenant networks) allow projects to create isolated Layer 2 segments. You define a subnet CIDR, enable DHCP so instances receive IPs automatically, and set a gateway that allows traffic to reach the provider (external) network via the Neutron router.
+            </div>
+
+            <div class="exercise-card">
+                <h3>&#127760; Complete the Network and Subnet Creation Commands</h3>
+                <p style="color:var(--muted);font-size:0.85rem;margin-bottom:10px;">This creates a private tenant network called <em>selfservice</em> then attaches a subnet to it:</p>
+
+                <div class="fill-grid">
+                    <div class="fill-row">
+                        <label class="fill-label">Network name:</label>
+                        <input class="fill-input" id="net-name" type="text" placeholder="network name" autocomplete="off">
+                    </div>
+                    <div class="fill-row">
+                        <label class="fill-label">Subnet CIDR:</label>
+                        <input class="fill-input" id="net-cidr" type="text" placeholder="e.g. 172.16.1.0/24" autocomplete="off">
+                    </div>
+                    <div class="fill-row">
+                        <label class="fill-label">Gateway IP:</label>
+                        <input class="fill-input" id="net-gw" type="text" placeholder="e.g. 172.16.1.1" autocomplete="off">
+                    </div>
+                    <div class="fill-row">
+                        <label class="fill-label">DHCP enabled:</label>
+                        <input class="fill-input" id="net-dhcp" type="text" placeholder="flag name (no-dhcp or dhcp)" autocomplete="off">
+                    </div>
+                    <div class="fill-row">
+                        <label class="fill-label">IP version:</label>
+                        <input class="fill-input" id="net-ipv" type="text" placeholder="4 or 6" autocomplete="off">
+                    </div>
+                </div>
+
+                <div style="margin-top:14px;">
+                    <p style="color:var(--muted);font-size:0.82rem;margin-bottom:8px;">Resulting commands (based on your answers above):</p>
+                    <div class="step-cmd">
+openstack network create selfservice<br>
+openstack subnet create selfservice \<br>
+&nbsp;&nbsp;--network selfservice \<br>
+&nbsp;&nbsp;--subnet-range <span id="preview-cidr" style="color:var(--ok)">???</span> \<br>
+&nbsp;&nbsp;--gateway <span id="preview-gw" style="color:var(--ok)">???</span> \<br>
+&nbsp;&nbsp;--<span id="preview-dhcp" style="color:var(--ok)">???</span> \<br>
+&nbsp;&nbsp;--ip-version <span id="preview-ipv" style="color:var(--ok)">???</span>
+                    </div>
+                </div>
+
+                <div class="tip-box">
+                    <strong>Convention:</strong> The selfservice subnet uses RFC 1918 private space (172.16.1.0/24 is typical in OpenStack docs). The gateway (.1) is the virtual router interface. DHCP must be enabled so instances get addresses automatically.
+                </div>
+
+                <button class="check-btn" onclick="checkTask2()">Validate Network Config</button>
+                <div class="feedback-box" id="fb-2"></div>
+            </div>
+
+            <div class="task-nav-btns">
+                <button class="nav-btn" onclick="goTask(1)">&larr; Previous</button>
+                <button class="nav-btn primary" onclick="goTask(3)">Next Task &rarr;</button>
+            </div>
+        </div>
+
+        <!-- ═══════════════ TASK 3: Security Group ═══════════════ -->
+        <div class="task-panel" id="task-3">
+            <div class="task-header">
+                <div class="task-num-badge">3</div>
+                <div>
+                    <h2>Security Group Rules</h2>
+                    <div class="task-tag">Interactive Rule Builder</div>
+                </div>
+            </div>
+
+            <div class="task-desc">
+                By default, the <em>default</em> security group blocks all inbound traffic. You need to explicitly allow SSH (TCP/22) for remote management and ICMP for ping connectivity testing. Ingress rules are per-protocol, per-port, and per-source CIDR.
+            </div>
+
+            <div class="exercise-card">
+                <h3>&#128274; Configure Security Group Ingress Rules</h3>
+                <p style="color:var(--muted);font-size:0.85rem;margin-bottom:14px;">Complete both rules that must be added to the default security group. Select the correct values from each dropdown.</p>
+
+                <table class="rule-table">
+                    <thead>
+                        <tr>
+                            <th>Rule #</th>
+                            <th>Direction</th>
+                            <th>Protocol</th>
+                            <th>Port / Type</th>
+                            <th>Remote IP</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>SSH Rule</td>
+                            <td>
+                                <select class="rule-select" id="sg-ssh-dir">
+                                    <option value="">--</option>
+                                    <option value="ingress">ingress</option>
+                                    <option value="egress">egress</option>
+                                </select>
+                            </td>
+                            <td>
+                                <select class="rule-select" id="sg-ssh-proto">
+                                    <option value="">--</option>
+                                    <option value="tcp">tcp</option>
+                                    <option value="udp">udp</option>
+                                    <option value="icmp">icmp</option>
+                                    <option value="all">all</option>
+                                </select>
+                            </td>
+                            <td>
+                                <select class="rule-select" id="sg-ssh-port">
+                                    <option value="">--</option>
+                                    <option value="22">22</option>
+                                    <option value="80">80</option>
+                                    <option value="443">443</option>
+                                    <option value="3389">3389</option>
+                                </select>
+                            </td>
+                            <td>
+                                <select class="rule-select" id="sg-ssh-cidr">
+                                    <option value="">--</option>
+                                    <option value="0.0.0.0/0">0.0.0.0/0</option>
+                                    <option value="10.0.0.0/8">10.0.0.0/8</option>
+                                    <option value="192.168.0.0/16">192.168.0.0/16</option>
+                                    <option value="172.16.0.0/12">172.16.0.0/12</option>
+                                </select>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>ICMP Rule</td>
+                            <td>
+                                <select class="rule-select" id="sg-icmp-dir">
+                                    <option value="">--</option>
+                                    <option value="ingress">ingress</option>
+                                    <option value="egress">egress</option>
+                                </select>
+                            </td>
+                            <td>
+                                <select class="rule-select" id="sg-icmp-proto">
+                                    <option value="">--</option>
+                                    <option value="tcp">tcp</option>
+                                    <option value="udp">udp</option>
+                                    <option value="icmp">icmp</option>
+                                    <option value="all">all</option>
+                                </select>
+                            </td>
+                            <td>
+                                <select class="rule-select" id="sg-icmp-port">
+                                    <option value="">--</option>
+                                    <option value="any">any / all</option>
+                                    <option value="22">22</option>
+                                    <option value="80">80</option>
+                                    <option value="443">443</option>
+                                </select>
+                            </td>
+                            <td>
+                                <select class="rule-select" id="sg-icmp-cidr">
+                                    <option value="">--</option>
+                                    <option value="0.0.0.0/0">0.0.0.0/0</option>
+                                    <option value="10.0.0.0/8">10.0.0.0/8</option>
+                                    <option value="192.168.0.0/16">192.168.0.0/16</option>
+                                    <option value="172.16.0.0/12">172.16.0.0/12</option>
+                                </select>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <div class="tip-box">
+                    <strong>Note:</strong> In a real environment you would restrict SSH to your management CIDR instead of 0.0.0.0/0. For this lab environment 0.0.0.0/0 allows access from any IP. ICMP has no port number — use the "any" option.
+                </div>
+
+                <button class="check-btn" onclick="checkTask3()">Validate Rules</button>
+                <div class="feedback-box" id="fb-3"></div>
+            </div>
+
+            <div class="task-nav-btns">
+                <button class="nav-btn" onclick="goTask(2)">&larr; Previous</button>
+                <button class="nav-btn primary" onclick="goTask(4)">Next Task &rarr;</button>
+            </div>
+        </div>
+
+        <!-- ═══════════════ TASK 4: Launch Instance ═══════════════ -->
+        <div class="task-panel" id="task-4">
+            <div class="task-header">
+                <div class="task-num-badge">4</div>
+                <div>
+                    <h2>Launch an Instance</h2>
+                    <div class="task-tag">Command Assembly &middot; Dropdown Builder</div>
+                </div>
+            </div>
+
+            <div class="task-desc">
+                The <code>openstack server create</code> command assembles all the building blocks: a flavor (hardware profile), an image (boot disk), a network, a security group, and a key pair for SSH authentication. Getting any one of these wrong means the instance will fail to launch or will be unreachable.
+            </div>
+
+            <div class="exercise-card">
+                <h3>&#127760; Assemble the Server Create Command</h3>
+                <p style="color:var(--muted);font-size:0.85rem;margin-bottom:14px;">Select the correct parameter values for each flag:</p>
+
+                <div class="cmd-builder">
+openstack server create \<br>
+&nbsp;&nbsp;--flavor
+<select class="cmd-select" id="srv-flavor">
+    <option value="">-- select --</option>
+    <option value="m1.nano">m1.nano</option>
+    <option value="m1.xlarge">m1.xlarge</option>
+    <option value="m1.huge">m1.huge</option>
+    <option value="m1.bare">m1.bare</option>
+</select> \<br>
+&nbsp;&nbsp;--image
+<select class="cmd-select" id="srv-image">
+    <option value="">-- select --</option>
+    <option value="cirros">cirros</option>
+    <option value="ubuntu-22.04">ubuntu-22.04</option>
+    <option value="windows-server">windows-server</option>
+    <option value="fedora-38">fedora-38</option>
+</select> \<br>
+&nbsp;&nbsp;--nic net-id=
+<select class="cmd-select" id="srv-net">
+    <option value="">-- select --</option>
+    <option value="selfservice">selfservice</option>
+    <option value="public">public</option>
+    <option value="provider">provider</option>
+    <option value="external">external</option>
+</select> \<br>
+&nbsp;&nbsp;--security-group
+<select class="cmd-select" id="srv-sg">
+    <option value="">-- select --</option>
+    <option value="default">default</option>
+    <option value="open-all">open-all</option>
+    <option value="isolated">isolated</option>
+    <option value="none">none</option>
+</select> \<br>
+&nbsp;&nbsp;--key-name
+<select class="cmd-select" id="srv-key">
+    <option value="">-- select --</option>
+    <option value="mykey">mykey</option>
+    <option value="no-keypair">no-keypair</option>
+    <option value="root-key">root-key</option>
+    <option value="windows-cert">windows-cert</option>
+</select> \<br>
+&nbsp;&nbsp;selfservice-instance
+                </div>
+
+                <div class="tip-box">
+                    <strong>Flavor m1.nano:</strong> 1 vCPU, 64 MB RAM, 1 GB disk — the smallest flavor, perfect for CirrOS test images. Always launch on the <em>selfservice</em> (private) network; the public IP is added later via floating IP. The key pair must have been created first with <code>openstack keypair create</code>.
+                </div>
+
+                <button class="check-btn" onclick="checkTask4()">Verify Command</button>
+                <div class="feedback-box" id="fb-4"></div>
+            </div>
+
+            <div class="task-nav-btns">
+                <button class="nav-btn" onclick="goTask(3)">&larr; Previous</button>
+                <button class="nav-btn primary" onclick="goTask(5)">Next Task &rarr;</button>
+            </div>
+        </div>
+
+        <!-- ═══════════════ TASK 5: Access Instance ═══════════════ -->
+        <div class="task-panel" id="task-5">
+            <div class="task-header">
+                <div class="task-num-badge">5</div>
+                <div>
+                    <h2>Access the Instance</h2>
+                    <div class="task-tag">Interactive Walkthrough &middot; Checklist</div>
+                </div>
+            </div>
+
+            <div class="task-desc">
+                Instances on the selfservice network have private IPs only. To reach them from the outside (your management workstation) you must allocate a floating IP from the provider network pool and associate it with the instance's port. Then SSH in using the key pair.
+            </div>
+
+            <div class="exercise-card">
+                <h3>&#128272; Step-by-Step: Floating IP and SSH Access</h3>
+                <p style="color:var(--muted);font-size:0.85rem;margin-bottom:14px;">Work through each step below. Check each step off as you complete or review it.</p>
+
+                <ul class="step-list">
+                    <li class="step-item">
+                        <div class="step-checkbox" onclick="toggleStep(this)" title="Check off this step"></div>
+                        <div class="step-num">1</div>
+                        <div class="step-content">
+                            <p>Allocate a floating IP from the provider (external) network pool:</p>
+                            <div class="step-cmd">openstack floating ip create provider</div>
+                        </div>
+                    </li>
+                    <li class="step-item">
+                        <div class="step-checkbox" onclick="toggleStep(this)" title="Check off this step"></div>
+                        <div class="step-num">2</div>
+                        <div class="step-content">
+                            <p>Note the allocated floating IP address (e.g., 203.0.113.101) shown in the output field <code>floating_ip_address</code>.</p>
+                            <div class="step-cmd">openstack floating ip list</div>
+                        </div>
+                    </li>
+                    <li class="step-item">
+                        <div class="step-checkbox" onclick="toggleStep(this)" title="Check off this step"></div>
+                        <div class="step-num">3</div>
+                        <div class="step-content">
+                            <p>Associate the floating IP with the running instance:</p>
+                            <div class="step-cmd">openstack server add floating ip selfservice-instance 203.0.113.101</div>
+                        </div>
+                    </li>
+                    <li class="step-item">
+                        <div class="step-checkbox" onclick="toggleStep(this)" title="Check off this step"></div>
+                        <div class="step-num">4</div>
+                        <div class="step-content">
+                            <p>Verify the instance has both a fixed and floating IP:</p>
+                            <div class="step-cmd">openstack server show selfservice-instance | grep addresses</div>
+                        </div>
+                    </li>
+                    <li class="step-item">
+                        <div class="step-checkbox" onclick="toggleStep(this)" title="Check off this step"></div>
+                        <div class="step-num">5</div>
+                        <div class="step-content">
+                            <p>Test reachability with ping before attempting SSH:</p>
+                            <div class="step-cmd">ping -c 4 203.0.113.101</div>
+                        </div>
+                    </li>
+                    <li class="step-item">
+                        <div class="step-checkbox" onclick="toggleStep(this)" title="Check off this step"></div>
+                        <div class="step-num">6</div>
+                        <div class="step-content">
+                            <p>SSH into the instance using your key pair (CirrOS default user is <code>cirros</code>):</p>
+                            <div class="step-cmd">ssh -i mykey.pem cirros@203.0.113.101</div>
+                        </div>
+                    </li>
+                </ul>
+
+                <div style="margin-top: 16px;">
+                    <label class="fill-label" style="display:block;margin-bottom:8px;">What is the default CirrOS login password (for console access)?</label>
+                    <input class="fill-input" id="cirros-pw" type="text" placeholder="default password" autocomplete="off" style="max-width:220px;">
+                </div>
+
+                <div class="tip-box">
+                    <strong>Troubleshooting:</strong> If ping fails, check that (1) the router gateway is set to the provider network, (2) the security group allows ICMP ingress, (3) the floating IP is correctly associated. If SSH fails, verify the key pair file permissions are 400.
+                </div>
+
+                <button class="check-btn" onclick="checkTask5()">Complete Access Task</button>
+                <div class="feedback-box" id="fb-5"></div>
+            </div>
+
+            <div class="task-nav-btns">
+                <button class="nav-btn" onclick="goTask(4)">&larr; Previous</button>
+                <button class="nav-btn primary" onclick="showComplete()">Complete Module</button>
+            </div>
+        </div>
+
+        <!-- ═══════════════ COMPLETE ═══════════════ -->
+        <div class="complete-module-panel" id="complete-panel">
+            <div class="complete-icon">&#128640;</div>
+            <h2>Lab Complete!</h2>
+            <p>You uploaded a CirrOS image to Glance, created a self-service network with a properly configured subnet, opened SSH and ICMP in the default security group, launched an m1.nano instance with a key pair, allocated a floating IP, and established SSH access. That is a complete OpenStack VM lifecycle.</p>
+            <button class="complete-btn" id="complete-btn" onclick="completeModule()">Mark Module Complete</button>
+        </div>
+
+    </main>
+</div>
+
+<script src="../../../../components/AchievementManager.js"></script>
+<script src="../../../../components/ModuleProgress.js"></script>
+<script src="../../../../components/FluxCapacitor.js"></script>
+<script>
+'use strict';
+
+const STORAGE_KEY = 'hexworth_openstack_lab2_tasks';
+let completedTasks = new Set(JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'));
+
+function saveState() {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify([...completedTasks]));
+}
+
+// ── Navigation ────────────────────────────────────────────────────────────────
+function goTask(n) {
+    document.querySelectorAll('.task-panel').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.task-nav-item').forEach(nav => nav.classList.remove('active'));
+    document.getElementById('complete-panel').classList.remove('show');
+    document.getElementById('task-' + n).classList.add('active');
+    const navEl = document.getElementById('nav-' + n);
+    if (navEl) navEl.classList.add('active');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function showComplete() {
+    document.querySelectorAll('.task-panel').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.task-nav-item').forEach(nav => nav.classList.remove('active'));
+    document.getElementById('complete-panel').classList.add('show');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+// ── Progress ──────────────────────────────────────────────────────────────────
+function updateProgress() {
+    const count = completedTasks.size;
+    document.getElementById('progressText').textContent = count + ' / 5';
+    document.getElementById('progressFill').style.width = (count / 5 * 100) + '%';
+    for (let i = 1; i <= 5; i++) {
+        const nav = document.getElementById('nav-' + i);
+        if (!nav) continue;
+        if (completedTasks.has(i)) {
+            nav.classList.add('done');
+            nav.querySelector('.task-nav-num').textContent = '✓';
+        }
+    }
+}
+
+function markTaskComplete(n) {
+    completedTasks.add(n);
+    saveState();
+    updateProgress();
+}
+
+function showFeedback(id, type, msg) {
+    const el = document.getElementById('fb-' + id);
+    el.className = 'feedback-box show ' + type;
+    el.textContent = msg;
+}
+
+// ── Live preview for task 2 ───────────────────────────────────────────────────
+['net-cidr','net-gw','net-dhcp','net-ipv'].forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.addEventListener('input', function() {
+        const previewMap = { 'net-cidr': 'preview-cidr', 'net-gw': 'preview-gw', 'net-dhcp': 'preview-dhcp', 'net-ipv': 'preview-ipv' };
+        const previewEl = document.getElementById(previewMap[id]);
+        if (previewEl) previewEl.textContent = this.value || '???';
+    });
+});
+
+// ── Step checkbox ─────────────────────────────────────────────────────────────
+function toggleStep(el) {
+    el.classList.toggle('checked');
+    if (el.classList.contains('checked')) el.textContent = '✓';
+    else el.textContent = '';
+}
+
+// ── TASK 1 ────────────────────────────────────────────────────────────────────
+function checkTask1() {
+    const disk = document.getElementById('img-disk-fmt');
+    const cont = document.getElementById('img-cont-fmt');
+    const vis  = document.getElementById('img-visibility');
+
+    const diskOk = disk.value === 'qcow2';
+    const contOk = cont.value === 'bare';
+    const visOk  = vis.value  === 'public';
+
+    disk.className = 'cmd-select ' + (diskOk ? 'correct' : 'wrong');
+    cont.className = 'cmd-select ' + (contOk ? 'correct' : 'wrong');
+    vis.className  = 'cmd-select ' + (visOk  ? 'correct' : 'wrong');
+
+    if (diskOk && contOk && visOk) {
+        showFeedback(1, 'success', 'Correct! QCOW2 is KVM\'s native copy-on-write format that supports snapshots and thin provisioning. "bare" container format means the image file IS the disk — no outer envelope. Marking it public lets every project in the cloud use this shared base image.');
+        markTaskComplete(1);
+    } else {
+        const correct = [diskOk, contOk, visOk].filter(Boolean).length;
+        showFeedback(1, 'partial', correct + '/3 correct. disk-format = qcow2, container-format = bare, visibility = public.');
+    }
+}
+
+// ── TASK 2 ────────────────────────────────────────────────────────────────────
+function checkTask2() {
+    const name  = document.getElementById('net-name').value.trim().toLowerCase();
+    const cidr  = document.getElementById('net-cidr').value.trim();
+    const gw    = document.getElementById('net-gw').value.trim();
+    const dhcp  = document.getElementById('net-dhcp').value.trim().toLowerCase();
+    const ipv   = document.getElementById('net-ipv').value.trim();
+
+    const nameOk = name === 'selfservice' || name.length > 1;
+    const cidrOk = /^172\.16\.\d+\.0\/24$/.test(cidr) || /^\d+\.\d+\.\d+\.0\/\d+$/.test(cidr);
+    const gwOk   = /^172\.16\.\d+\.1$/.test(gw) || /^\d+\.\d+\.\d+\.\d+$/.test(gw);
+    const dhcpOk = dhcp === 'dhcp' || dhcp === '--dhcp';
+    const ipvOk  = ipv === '4';
+
+    function markInput(id, ok) {
+        const el = document.getElementById(id);
+        el.classList.toggle('correct', ok);
+        el.classList.toggle('wrong', !ok);
+    }
+
+    markInput('net-name', nameOk);
+    markInput('net-cidr', cidrOk);
+    markInput('net-gw',   gwOk);
+    markInput('net-dhcp', dhcpOk);
+    markInput('net-ipv',  ipvOk);
+
+    const score = [nameOk, cidrOk, gwOk, dhcpOk, ipvOk].filter(Boolean).length;
+
+    if (score >= 4) {
+        showFeedback(2, 'success', 'Good work! The selfservice network uses a private RFC 1918 range (172.16.x.0/24 is conventional in OpenStack docs). The gateway is the .1 address on that subnet — Neutron creates a virtual router interface there. --dhcp enables the DNSMASQ DHCP agent so instances automatically get addresses. --ip-version 4 specifies IPv4.');
+        markTaskComplete(2);
+    } else {
+        showFeedback(2, 'partial', score + '/5 fields correct. Network name: selfservice, CIDR: 172.16.1.0/24, gateway: 172.16.1.1, DHCP flag: dhcp, IP version: 4.');
+    }
+}
+
+// ── TASK 3 ────────────────────────────────────────────────────────────────────
+function checkTask3() {
+    const rules = {
+        ssh:  { dir: 'ingress', proto: 'tcp',  port: '22',  cidr: '0.0.0.0/0' },
+        icmp: { dir: 'ingress', proto: 'icmp', port: 'any', cidr: '0.0.0.0/0' }
+    };
+
+    const results = {};
+    let correct = 0;
+
+    for (const [type, expected] of Object.entries(rules)) {
+        const dir   = document.getElementById('sg-' + type + '-dir');
+        const proto = document.getElementById('sg-' + type + '-proto');
+        const port  = document.getElementById('sg-' + type + '-port');
+        const cidr  = document.getElementById('sg-' + type + '-cidr');
+
+        const dirOk   = dir.value   === expected.dir;
+        const protoOk = proto.value === expected.proto;
+        const portOk  = port.value  === expected.port;
+        const cidrOk  = cidr.value  === expected.cidr;
+
+        dir.className   = 'rule-select ' + (dirOk   ? 'correct' : 'wrong');
+        proto.className = 'rule-select ' + (protoOk ? 'correct' : 'wrong');
+        port.className  = 'rule-select ' + (portOk  ? 'correct' : 'wrong');
+        cidr.className  = 'rule-select ' + (cidrOk  ? 'correct' : 'wrong');
+
+        if (dirOk && protoOk && portOk && cidrOk) correct++;
+    }
+
+    if (correct === 2) {
+        showFeedback(3, 'success', 'Both rules correct! SSH (TCP/22) ingress from 0.0.0.0/0 allows remote management from any IP. ICMP ingress from 0.0.0.0/0 allows ping tests. In production you would restrict SSH to known management subnets. OpenStack security groups use a default-deny model — only explicitly allowed traffic passes.');
+        markTaskComplete(3);
+    } else {
+        showFeedback(3, 'partial', correct + '/2 rules complete. SSH: ingress, tcp, port 22, 0.0.0.0/0. ICMP: ingress, icmp, any, 0.0.0.0/0.');
+    }
+}
+
+// ── TASK 4 ────────────────────────────────────────────────────────────────────
+function checkTask4() {
+    const answers = {
+        'srv-flavor': 'm1.nano',
+        'srv-image':  'cirros',
+        'srv-net':    'selfservice',
+        'srv-sg':     'default',
+        'srv-key':    'mykey'
+    };
+
+    let correct = 0;
+    for (const [id, val] of Object.entries(answers)) {
+        const el = document.getElementById(id);
+        const ok = el.value === val;
+        el.className = 'cmd-select ' + (ok ? 'correct' : 'wrong');
+        if (ok) correct++;
+    }
+
+    if (correct === 5) {
+        showFeedback(4, 'success', 'Command assembled correctly! m1.nano is the appropriate flavor for a CirrOS test image — minimal resources. The instance boots on the selfservice (private) network and gets the default security group rules we configured. The key pair (mykey) is injected by cloud-init so you can SSH without a password. The instance name is selfservice-instance.');
+        markTaskComplete(4);
+    } else {
+        showFeedback(4, 'partial', correct + '/5 correct. flavor = m1.nano, image = cirros, network = selfservice, security-group = default, key-name = mykey.');
+    }
+}
+
+// ── TASK 5 ────────────────────────────────────────────────────────────────────
+function checkTask5() {
+    const pw = document.getElementById('cirros-pw').value.trim().toLowerCase();
+    const checked = document.querySelectorAll('.step-checkbox.checked').length;
+    const pwOk = pw === 'gocubsgo' || pw === 'cubswin:)' || pw.length >= 4;
+
+    if (checked >= 4 && pwOk) {
+        showFeedback(5, 'success', 'Access workflow complete! The CirrOS default password is "gocubsgo". The floating IP NATs traffic from the external provider network to the instance\'s private selfservice IP. The Neutron L3 agent performs the SNAT/DNAT at the virtual router. SSH uses the injected key pair for authentication, bypassing password auth entirely.');
+        markTaskComplete(5);
+    } else if (checked < 4) {
+        showFeedback(5, 'partial', 'Please check off at least 4 steps to confirm you have reviewed the access procedure.');
+    } else {
+        showFeedback(5, 'partial', 'All steps checked. Enter the CirrOS default password to complete this task (hint: it\'s a baseball cheer).');
+    }
+}
+
+// ── Module Completion ─────────────────────────────────────────────────────────
+function completeModule() {
+    if (typeof ModuleProgress !== 'undefined') {
+        ModuleProgress.complete('cloud', 'cloud-openstack-launch-lab');
+    }
+    const btn = document.getElementById('complete-btn');
+    btn.textContent = 'Module Recorded!';
+    btn.style.background = 'var(--ok)';
+    btn.disabled = true;
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+completedTasks.forEach(n => {
+    const nav = document.getElementById('nav-' + n);
+    if (nav) {
+        nav.classList.add('done');
+        nav.querySelector('.task-nav-num').textContent = '✓';
+    }
+});
+updateProgress();
+</script>
+</body>
+</html>

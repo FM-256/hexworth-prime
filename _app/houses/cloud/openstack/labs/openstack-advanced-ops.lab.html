@@ -1,0 +1,1081 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OpenStack Advanced Operations | Cloud House</title>
+    <style>
+        :root {
+            --bg: #0f172a;
+            --bg2: #020617;
+            --card: #1e293b;
+            --ink: #f0f9ff;
+            --muted: #94a3b8;
+            --accent: #38bdf8;
+            --accent2: #0ea5e9;
+            --accent-glow: rgba(56, 189, 248, 0.3);
+            --ok: #2ed573;
+            --warn: #ffc107;
+            --bad: #ff4757;
+            --border: rgba(56, 189, 248, 0.2);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: linear-gradient(135deg, #0f172a 0%, #020617 50%, #0c4a6e 100%);
+            color: var(--ink);
+            min-height: 100vh;
+        }
+
+        .page-header {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            padding: 14px 28px;
+            background: rgba(2, 6, 23, 0.92);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            backdrop-filter: blur(12px);
+        }
+
+        .back-link { color: var(--accent); text-decoration: none; font-size: 0.9rem; display: flex; align-items: center; gap: 6px; transition: color 0.2s; }
+        .back-link:hover { color: #fff; }
+        .brand { font-weight: 600; color: var(--ink); font-size: 0.95rem; display: flex; align-items: center; gap: 8px; }
+        .brand-icon { color: var(--accent); font-size: 1.1rem; }
+
+        .lab-layout { display: grid; grid-template-columns: 260px 1fr; gap: 0; min-height: calc(100vh - 57px); }
+
+        .sidebar {
+            background: rgba(2, 6, 23, 0.7);
+            border-right: 1px solid var(--border);
+            padding: 24px 16px;
+            position: sticky;
+            top: 57px;
+            height: calc(100vh - 57px);
+            overflow-y: auto;
+        }
+
+        .sidebar-title { font-size: 0.7rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); margin-bottom: 16px; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
+
+        .task-nav-item { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 8px; cursor: pointer; margin-bottom: 4px; transition: all 0.2s; border: 1px solid transparent; font-size: 0.85rem; color: var(--muted); }
+        .task-nav-item:hover { background: rgba(56,189,248,0.08); border-color: var(--border); color: var(--ink); }
+        .task-nav-item.active { background: rgba(56,189,248,0.12); border-color: var(--accent); color: var(--accent); }
+        .task-nav-item.done { color: var(--ok); border-color: rgba(46,213,115,0.3); background: rgba(46,213,115,0.06); }
+
+        .task-nav-num { width: 24px; height: 24px; border-radius: 50%; border: 1px solid currentColor; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: 700; flex-shrink: 0; }
+        .task-nav-item.done .task-nav-num { background: var(--ok); border-color: var(--ok); color: #000; }
+
+        .sidebar-progress { margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--border); }
+        .progress-label { font-size: 0.75rem; color: var(--muted); margin-bottom: 6px; display: flex; justify-content: space-between; }
+        .progress-bar { height: 6px; background: rgba(56,189,248,0.1); border-radius: 3px; overflow: hidden; }
+        .progress-fill { height: 100%; background: linear-gradient(90deg, var(--accent), var(--ok)); border-radius: 3px; transition: width 0.4s ease; }
+
+        .main-content { padding: 32px 40px; max-width: 860px; }
+
+        .lab-hero { margin-bottom: 32px; }
+        .lab-hero h1 { font-size: 2rem; font-weight: 700; background: linear-gradient(135deg, var(--accent), #60d9fa); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; margin-bottom: 8px; }
+        .lab-hero p { color: var(--muted); font-size: 1rem; line-height: 1.6; }
+        .lab-meta { display: flex; gap: 16px; margin-top: 12px; flex-wrap: wrap; }
+        .meta-badge { font-size: 0.75rem; padding: 4px 12px; border-radius: 20px; background: rgba(56,189,248,0.1); border: 1px solid var(--border); color: var(--accent); }
+
+        .task-panel { display: none; }
+        .task-panel.active { display: block; }
+
+        .task-header { display: flex; align-items: center; gap: 14px; margin-bottom: 20px; }
+        .task-num-badge { width: 44px; height: 44px; border-radius: 12px; background: linear-gradient(135deg, var(--accent), var(--accent2)); display: flex; align-items: center; justify-content: center; font-size: 1.3rem; font-weight: 700; color: #000; flex-shrink: 0; }
+        .task-header h2 { font-size: 1.3rem; color: var(--ink); }
+        .task-header .task-tag { font-size: 0.7rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.1em; }
+
+        .task-desc { background: rgba(56,189,248,0.06); border: 1px solid var(--border); border-left: 3px solid var(--accent); border-radius: 8px; padding: 14px 18px; margin-bottom: 24px; color: var(--muted); font-size: 0.95rem; line-height: 1.6; }
+
+        .exercise-card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 24px; margin-bottom: 20px; }
+        .exercise-card h3 { color: var(--accent); font-size: 1rem; margin-bottom: 14px; }
+
+        /* ── Flavor Builder ── */
+        .flavor-builder-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+            margin: 14px 0;
+        }
+
+        .flavor-card {
+            background: rgba(2,6,23,0.6);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 16px;
+        }
+
+        .flavor-card-title {
+            font-size: 0.82rem;
+            font-weight: 600;
+            color: var(--accent);
+            margin-bottom: 12px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .flavor-field { margin-bottom: 8px; }
+
+        .flavor-field label { font-size: 0.75rem; color: var(--muted); display: block; margin-bottom: 3px; }
+
+        .flavor-input {
+            background: #020617;
+            border: 1px solid var(--border);
+            border-radius: 5px;
+            padding: 5px 10px;
+            color: var(--ink);
+            font-family: 'Courier New', monospace;
+            font-size: 0.82rem;
+            width: 100%;
+            transition: border-color 0.2s;
+        }
+
+        .flavor-input:focus { outline: none; border-color: var(--accent); }
+        .flavor-input.correct { border-color: var(--ok); background: rgba(46,213,115,0.06); }
+        .flavor-input.wrong { border-color: var(--bad); }
+
+        /* ── Code Block ── */
+        .code-block {
+            background: #020617;
+            border: 1px solid rgba(56,189,248,0.15);
+            border-radius: 8px;
+            padding: 14px 16px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.85rem;
+            line-height: 1.7;
+            margin: 12px 0;
+            color: #a5f3fc;
+            overflow-x: auto;
+            white-space: pre;
+        }
+
+        .code-block .cm { color: #64748b; }
+        .code-block .ck { color: #f472b6; }
+        .code-block .cv { color: #fcd34d; }
+
+        /* ── Command Sequence ── */
+        .cmd-sequence { margin: 14px 0; }
+
+        .cmd-seq-item {
+            display: flex;
+            gap: 12px;
+            align-items: flex-start;
+            padding: 10px 0;
+            border-bottom: 1px solid rgba(56,189,248,0.08);
+        }
+
+        .cmd-seq-item:last-child { border-bottom: none; }
+
+        .cmd-seq-num {
+            width: 26px;
+            height: 26px;
+            border-radius: 50%;
+            background: rgba(56,189,248,0.12);
+            border: 1px solid var(--accent);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.75rem;
+            font-weight: 700;
+            color: var(--accent);
+            flex-shrink: 0;
+            margin-top: 2px;
+        }
+
+        .cmd-seq-content { flex: 1; }
+        .cmd-seq-content p { font-size: 0.85rem; color: var(--muted); margin-bottom: 5px; }
+
+        .cmd-seq-cmd {
+            background: #020617;
+            border: 1px solid rgba(56,189,248,0.12);
+            border-radius: 6px;
+            padding: 7px 12px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.82rem;
+            color: #a5f3fc;
+        }
+
+        /* ── Network Topology Builder ── */
+        .topology-canvas {
+            background: #020617;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 20px;
+            margin: 14px 0;
+            position: relative;
+        }
+
+        .topo-row {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0;
+            margin: 8px 0;
+        }
+
+        .topo-node {
+            background: rgba(56,189,248,0.08);
+            border: 1px solid var(--accent);
+            border-radius: 8px;
+            padding: 8px 16px;
+            font-size: 0.78rem;
+            text-align: center;
+            color: var(--accent);
+            min-width: 120px;
+        }
+
+        .topo-node.external { border-color: var(--ok); color: var(--ok); background: rgba(46,213,115,0.06); }
+        .topo-node.router { border-color: var(--warn); color: var(--warn); background: rgba(255,193,7,0.06); }
+        .topo-node.instance { border-color: #a78bfa; color: #a78bfa; background: rgba(167,139,250,0.06); }
+
+        .topo-connector {
+            font-size: 1.2rem;
+            color: var(--muted);
+            padding: 0 8px;
+        }
+
+        /* ── Troubleshooting ── */
+        .scenario-box {
+            background: rgba(255,71,87,0.06);
+            border: 1px solid rgba(255,71,87,0.3);
+            border-radius: 8px;
+            padding: 14px 18px;
+            margin-bottom: 14px;
+        }
+
+        .scenario-box strong { color: var(--bad); }
+        .scenario-box p { font-size: 0.88rem; color: var(--muted); margin-top: 6px; line-height: 1.5; }
+
+        .mc-options { display: grid; gap: 8px; margin: 10px 0; }
+
+        .mc-option {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            padding: 10px 14px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            background: rgba(56,189,248,0.04);
+            cursor: pointer;
+            font-size: 0.86rem;
+            transition: all 0.2s;
+            line-height: 1.4;
+        }
+
+        .mc-option:hover { border-color: var(--accent); background: rgba(56,189,248,0.1); }
+        .mc-option.selected { border-color: var(--accent); background: rgba(56,189,248,0.14); }
+        .mc-option.correct-ans { border-color: var(--ok); background: rgba(46,213,115,0.1); color: var(--ok); }
+        .mc-option.wrong-ans { border-color: var(--bad); background: rgba(255,71,87,0.1); color: var(--bad); }
+
+        .mc-letter {
+            width: 22px;
+            height: 22px;
+            border-radius: 50%;
+            border: 1px solid currentColor;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.72rem;
+            font-weight: 700;
+            flex-shrink: 0;
+        }
+
+        /* ── Check / Feedback / Nav ── */
+        .check-btn { padding: 9px 24px; background: rgba(56,189,248,0.12); border: 1px solid var(--accent); border-radius: 8px; color: var(--accent); font-size: 0.88rem; font-weight: 600; cursor: pointer; transition: all 0.2s; margin-top: 14px; }
+        .check-btn:hover { background: rgba(56,189,248,0.22); }
+
+        .feedback-box { margin-top: 12px; padding: 12px 16px; border-radius: 8px; font-size: 0.88rem; line-height: 1.5; display: none; }
+        .feedback-box.show { display: block; }
+        .feedback-box.success { background: rgba(46,213,115,0.1); border: 1px solid rgba(46,213,115,0.4); color: var(--ok); }
+        .feedback-box.error { background: rgba(255,71,87,0.1); border: 1px solid rgba(255,71,87,0.4); color: var(--bad); }
+        .feedback-box.partial { background: rgba(255,193,7,0.1); border: 1px solid rgba(255,193,7,0.4); color: var(--warn); }
+
+        .task-nav-btns { display: flex; gap: 12px; justify-content: space-between; margin-top: 28px; padding-top: 20px; border-top: 1px solid var(--border); }
+
+        .nav-btn { padding: 10px 24px; border-radius: 8px; border: 1px solid var(--border); background: transparent; color: var(--muted); font-size: 0.88rem; cursor: pointer; transition: all 0.2s; }
+        .nav-btn:hover { border-color: var(--accent); color: var(--accent); }
+        .nav-btn.primary { background: linear-gradient(135deg, var(--accent), var(--accent2)); border-color: transparent; color: #000; font-weight: 600; }
+        .nav-btn.primary:hover { box-shadow: 0 4px 20px var(--accent-glow); }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+
+        .tip-box { background: rgba(255,193,7,0.08); border: 1px solid rgba(255,193,7,0.3); border-radius: 8px; padding: 12px 16px; margin: 12px 0; font-size: 0.85rem; color: var(--warn); }
+        .tip-box strong { font-weight: 700; }
+
+        .complete-module-panel { display: none; text-align: center; padding: 48px 32px; }
+        .complete-module-panel.show { display: block; }
+        .complete-icon { font-size: 4rem; margin-bottom: 16px; }
+        .complete-module-panel h2 { font-size: 1.8rem; background: linear-gradient(135deg, var(--accent), var(--ok)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; margin-bottom: 12px; }
+        .complete-module-panel p { color: var(--muted); margin-bottom: 28px; font-size: 1rem; }
+        .complete-btn { padding: 14px 36px; background: linear-gradient(135deg, var(--accent), var(--accent2)); border: none; border-radius: 10px; color: #000; font-size: 1rem; font-weight: 700; cursor: pointer; transition: all 0.3s; }
+        .complete-btn:hover { box-shadow: 0 8px 30px var(--accent-glow); transform: translateY(-2px); }
+
+        .fill-input { background: #020617; border: 1px solid var(--border); border-radius: 6px; padding: 7px 12px; color: var(--ink); font-family: 'Courier New', monospace; font-size: 0.85rem; width: 100%; transition: border-color 0.2s; }
+        .fill-input:focus { outline: none; border-color: var(--accent); }
+        .fill-input.correct { border-color: var(--ok); background: rgba(46,213,115,0.06); }
+        .fill-input.wrong { border-color: var(--bad); }
+
+        @media (max-width: 768px) {
+            .lab-layout { grid-template-columns: 1fr; }
+            .sidebar { position: static; height: auto; }
+            .main-content { padding: 20px; }
+            .flavor-builder-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+
+<header class="page-header">
+    <a href="../index.html" class="back-link">&larr; Back to OpenStack Course</a>
+    <span class="brand"><span class="brand-icon">&#9729;</span> Hexworth Prime</span>
+</header>
+
+<div class="lab-layout">
+
+    <aside class="sidebar">
+        <div class="sidebar-title">Lab Tasks</div>
+        <div class="task-nav-item active" id="nav-1" onclick="goTask(1)">
+            <span class="task-nav-num">1</span>
+            <span>Flavor Management</span>
+        </div>
+        <div class="task-nav-item" id="nav-2" onclick="goTask(2)">
+            <span class="task-nav-num">2</span>
+            <span>Volume Management</span>
+        </div>
+        <div class="task-nav-item" id="nav-3" onclick="goTask(3)">
+            <span class="task-nav-num">3</span>
+            <span>Network Topology</span>
+        </div>
+        <div class="task-nav-item" id="nav-4" onclick="goTask(4)">
+            <span class="task-nav-num">4</span>
+            <span>Instance Snapshots</span>
+        </div>
+        <div class="task-nav-item" id="nav-5" onclick="goTask(5)">
+            <span class="task-nav-num">5</span>
+            <span>Troubleshooting</span>
+        </div>
+
+        <div class="sidebar-progress">
+            <div class="progress-label">
+                <span>Progress</span>
+                <span id="progressText">0 / 5</span>
+            </div>
+            <div class="progress-bar">
+                <div class="progress-fill" id="progressFill" style="width:0%"></div>
+            </div>
+        </div>
+    </aside>
+
+    <main class="main-content">
+
+        <div class="lab-hero">
+            <h1>Advanced OpenStack Operations</h1>
+            <p>Go beyond the basics. Create custom compute flavors for different workload profiles, manage persistent Cinder volumes, design multi-subnet network topologies, work with instance snapshots, and diagnose real-world OpenStack failures.</p>
+            <div class="lab-meta">
+                <span class="meta-badge">Cloud House</span>
+                <span class="meta-badge">Nova / Cinder / Neutron</span>
+                <span class="meta-badge">Advanced Tier</span>
+                <span class="meta-badge">5 Tasks</span>
+            </div>
+        </div>
+
+        <!-- ═══════════════ TASK 1: Flavor Management ═══════════════ -->
+        <div class="task-panel active" id="task-1">
+            <div class="task-header">
+                <div class="task-num-badge">1</div>
+                <div>
+                    <h2>Flavor Management</h2>
+                    <div class="task-tag">Interactive Flavor Builder</div>
+                </div>
+            </div>
+
+            <div class="task-desc">
+                Flavors define the virtual hardware profile for instances: vCPUs, RAM, and root disk size. A well-designed flavor catalogue matches actual workload requirements. Under-provisioning causes performance degradation; over-provisioning wastes cluster resources. Design three flavors for distinct roles.
+            </div>
+
+            <div class="exercise-card">
+                <h3>&#127381; Design Three Custom Flavors</h3>
+                <p style="color:var(--muted);font-size:0.85rem;margin-bottom:14px;">Fill in the correct specs for each workload. The command format is: <code>openstack flavor create --vcpus N --ram MB --disk GB NAME</code></p>
+
+                <div class="flavor-builder-grid">
+                    <!-- Web Server -->
+                    <div class="flavor-card">
+                        <div class="flavor-card-title">Web Server</div>
+                        <p style="color:var(--muted);font-size:0.78rem;margin-bottom:10px;">Handles HTTP requests. Needs moderate CPU, low-medium RAM. Disk for OS + app only.</p>
+                        <div class="flavor-field">
+                            <label>vCPUs</label>
+                            <input class="flavor-input" id="web-vcpu" type="number" min="1" max="32" placeholder="vCPUs">
+                        </div>
+                        <div class="flavor-field">
+                            <label>RAM (MB)</label>
+                            <input class="flavor-input" id="web-ram" type="number" placeholder="RAM in MB">
+                        </div>
+                        <div class="flavor-field">
+                            <label>Disk (GB)</label>
+                            <input class="flavor-input" id="web-disk" type="number" placeholder="Disk in GB">
+                        </div>
+                        <div class="flavor-field">
+                            <label>Flavor Name</label>
+                            <input class="flavor-input" id="web-name" type="text" placeholder="e.g. m1.web">
+                        </div>
+                    </div>
+
+                    <!-- Database Server -->
+                    <div class="flavor-card">
+                        <div class="flavor-card-title">Database Server</div>
+                        <p style="color:var(--muted);font-size:0.78rem;margin-bottom:10px;">Runs MySQL/PostgreSQL. Needs high RAM for buffer pools. Large disk for data files.</p>
+                        <div class="flavor-field">
+                            <label>vCPUs</label>
+                            <input class="flavor-input" id="db-vcpu" type="number" min="1" max="32" placeholder="vCPUs">
+                        </div>
+                        <div class="flavor-field">
+                            <label>RAM (MB)</label>
+                            <input class="flavor-input" id="db-ram" type="number" placeholder="RAM in MB">
+                        </div>
+                        <div class="flavor-field">
+                            <label>Disk (GB)</label>
+                            <input class="flavor-input" id="db-disk" type="number" placeholder="Disk in GB">
+                        </div>
+                        <div class="flavor-field">
+                            <label>Flavor Name</label>
+                            <input class="flavor-input" id="db-name" type="text" placeholder="e.g. m1.database">
+                        </div>
+                    </div>
+
+                    <!-- Compute Intensive -->
+                    <div class="flavor-card">
+                        <div class="flavor-card-title">Compute Intensive</div>
+                        <p style="color:var(--muted);font-size:0.78rem;margin-bottom:10px;">HPC / ML training. Maximum vCPUs, moderate RAM. Minimal disk (data lives elsewhere).</p>
+                        <div class="flavor-field">
+                            <label>vCPUs</label>
+                            <input class="flavor-input" id="hpc-vcpu" type="number" min="1" max="32" placeholder="vCPUs">
+                        </div>
+                        <div class="flavor-field">
+                            <label>RAM (MB)</label>
+                            <input class="flavor-input" id="hpc-ram" type="number" placeholder="RAM in MB">
+                        </div>
+                        <div class="flavor-field">
+                            <label>Disk (GB)</label>
+                            <input class="flavor-input" id="hpc-disk" type="number" placeholder="Disk in GB">
+                        </div>
+                        <div class="flavor-field">
+                            <label>Flavor Name</label>
+                            <input class="flavor-input" id="hpc-name" type="text" placeholder="e.g. c1.compute">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="tip-box">
+                    <strong>Guidelines:</strong> Web: 2 vCPU, 2048 MB RAM, 20 GB. Database: 4 vCPU, 8192 MB RAM, 100 GB. Compute: 8 vCPU, 4096 MB RAM, 20 GB. RAM for DB must be significantly larger than for web because database engines cache entire buffer pools in memory. Compute flavors maximise CPU count over RAM.
+                </div>
+
+                <button class="check-btn" onclick="checkTask1()">Validate Flavors</button>
+                <div class="feedback-box" id="fb-1"></div>
+            </div>
+
+            <div class="task-nav-btns">
+                <button class="nav-btn" disabled>Previous</button>
+                <button class="nav-btn primary" onclick="goTask(2)">Next Task &rarr;</button>
+            </div>
+        </div>
+
+        <!-- ═══════════════ TASK 2: Volume Management ═══════════════ -->
+        <div class="task-panel" id="task-2">
+            <div class="task-header">
+                <div class="task-num-badge">2</div>
+                <div>
+                    <h2>Volume Management with Cinder</h2>
+                    <div class="task-tag">Command Sequence Exercise</div>
+                </div>
+            </div>
+
+            <div class="task-desc">
+                Cinder volumes are persistent block devices that survive instance termination. Unlike the ephemeral root disk which is tied to the instance lifecycle, a Cinder volume exists independently and can be detached and reattached to different instances. This is critical for database servers and any stateful workload.
+            </div>
+
+            <div class="exercise-card">
+                <h3>&#128190; Complete the Volume Lifecycle Commands</h3>
+                <p style="color:var(--muted);font-size:0.85rem;margin-bottom:12px;">Fill in the blanks to complete each step of the Cinder volume workflow:</p>
+
+                <div class="cmd-sequence">
+                    <div class="cmd-seq-item">
+                        <div class="cmd-seq-num">1</div>
+                        <div class="cmd-seq-content">
+                            <p>Create a 50 GB volume named "database-vol":</p>
+                            <div class="cmd-seq-cmd">openstack volume create --size <input class="fill-input" id="vol-size" type="text" placeholder="size in GB" style="display:inline;width:100px;padding:4px 8px;font-size:0.82rem"> database-vol</div>
+                        </div>
+                    </div>
+
+                    <div class="cmd-seq-item">
+                        <div class="cmd-seq-num">2</div>
+                        <div class="cmd-seq-content">
+                            <p>Verify the volume is available (status must be "available" before attaching):</p>
+                            <div class="cmd-seq-cmd">openstack volume <input class="fill-input" id="vol-list" type="text" placeholder="subcommand" style="display:inline;width:120px;padding:4px 8px;font-size:0.82rem"> database-vol</div>
+                        </div>
+                    </div>
+
+                    <div class="cmd-seq-item">
+                        <div class="cmd-seq-num">3</div>
+                        <div class="cmd-seq-content">
+                            <p>Attach the volume to a running instance named "db-instance":</p>
+                            <div class="cmd-seq-cmd">openstack server <input class="fill-input" id="vol-attach" type="text" placeholder="subcommand" style="display:inline;width:140px;padding:4px 8px;font-size:0.82rem"> db-instance database-vol</div>
+                        </div>
+                    </div>
+
+                    <div class="cmd-seq-item">
+                        <div class="cmd-seq-num">4</div>
+                        <div class="cmd-seq-content">
+                            <p>Inside the instance: partition and format the new disk (it appears as /dev/vdb):</p>
+                            <div style="display:flex;gap:8px;margin-top:5px;">
+                                <div class="cmd-seq-cmd" style="flex:1;">sudo fdisk /dev/vdb &amp;&amp; sudo mkfs.<input class="fill-input" id="vol-fs" type="text" placeholder="filesystem" style="display:inline;width:90px;padding:4px 8px;font-size:0.82rem"> /dev/vdb1</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="cmd-seq-item">
+                        <div class="cmd-seq-num">5</div>
+                        <div class="cmd-seq-content">
+                            <p>Mount the formatted volume at /mnt/data:</p>
+                            <div class="cmd-seq-cmd">sudo <input class="fill-input" id="vol-mount" type="text" placeholder="command" style="display:inline;width:90px;padding:4px 8px;font-size:0.82rem"> /dev/vdb1 /mnt/data</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="tip-box">
+                    <strong>Answers:</strong> (1) size = 50, (2) show, (3) add volume, (4) ext4 is the standard Linux filesystem, (5) mount. Add the mount to /etc/fstab using the disk UUID for persistence across reboots: <code>blkid /dev/vdb1</code> then edit /etc/fstab.
+                </div>
+
+                <button class="check-btn" onclick="checkTask2()">Check Commands</button>
+                <div class="feedback-box" id="fb-2"></div>
+            </div>
+
+            <div class="task-nav-btns">
+                <button class="nav-btn" onclick="goTask(1)">&larr; Previous</button>
+                <button class="nav-btn primary" onclick="goTask(3)">Next Task &rarr;</button>
+            </div>
+        </div>
+
+        <!-- ═══════════════ TASK 3: Network Topology ═══════════════ -->
+        <div class="task-panel" id="task-3">
+            <div class="task-header">
+                <div class="task-num-badge">3</div>
+                <div>
+                    <h2>Multi-Subnet Network Topology</h2>
+                    <div class="task-tag">Topology Design &middot; Q&amp;A</div>
+                </div>
+            </div>
+
+            <div class="task-desc">
+                A production OpenStack deployment uses multiple subnets segmented by function: a web tier (DMZ), an application tier, and a database tier. A Neutron router connects tenant networks to the external provider network and provides SNAT for outbound traffic.
+            </div>
+
+            <div class="exercise-card">
+                <h3>&#127760; Interpret the Network Topology Diagram</h3>
+
+                <div class="topology-canvas">
+                    <div class="topo-row">
+                        <div class="topo-node external">Provider Network<br><small>203.0.113.0/24</small></div>
+                    </div>
+                    <div class="topo-row">
+                        <span class="topo-connector">&#8597;</span>
+                    </div>
+                    <div class="topo-row">
+                        <div class="topo-node router">Neutron Router<br><small>ext-gw: 203.0.113.100</small></div>
+                    </div>
+                    <div class="topo-row" style="gap:40px;">
+                        <span class="topo-connector">&#8595;</span>
+                        <span class="topo-connector">&#8595;</span>
+                        <span class="topo-connector">&#8595;</span>
+                    </div>
+                    <div class="topo-row" style="gap:16px;">
+                        <div class="topo-node">Web Subnet<br><small>10.0.1.0/24</small></div>
+                        <div class="topo-node">App Subnet<br><small>10.0.2.0/24</small></div>
+                        <div class="topo-node">DB Subnet<br><small>10.0.3.0/24</small></div>
+                    </div>
+                    <div class="topo-row" style="gap:16px;">
+                        <div class="topo-node instance">web-01<br><small>10.0.1.10</small></div>
+                        <div class="topo-node instance">app-01<br><small>10.0.2.10</small></div>
+                        <div class="topo-node instance">db-01<br><small>10.0.3.10</small></div>
+                    </div>
+                </div>
+
+                <p style="color:var(--muted);font-size:0.85rem;margin-top:16px;margin-bottom:12px;">Answer the questions about this topology:</p>
+
+                <div style="display:grid;gap:14px;">
+                    <div>
+                        <label style="font-size:0.82rem;color:var(--muted);display:block;margin-bottom:5px;">Q1: Which OpenStack service creates and manages the Neutron Router?</label>
+                        <input class="fill-input" id="topo-q1" type="text" placeholder="service name" autocomplete="off">
+                    </div>
+                    <div>
+                        <label style="font-size:0.82rem;color:var(--muted);display:block;margin-bottom:5px;">Q2: What is the gateway IP for the Web Subnet (10.0.1.0/24) on the router?</label>
+                        <input class="fill-input" id="topo-q2" type="text" placeholder="IP address" autocomplete="off">
+                    </div>
+                    <div>
+                        <label style="font-size:0.82rem;color:var(--muted);display:block;margin-bottom:5px;">Q3: What CLI command sets the external gateway on the router to the provider network?</label>
+                        <input class="fill-input" id="topo-q3" type="text" placeholder="openstack router ..." autocomplete="off">
+                    </div>
+                    <div>
+                        <label style="font-size:0.82rem;color:var(--muted);display:block;margin-bottom:5px;">Q4: Which subnet should NOT have floating IPs allocated (for security isolation)?</label>
+                        <input class="fill-input" id="topo-q4" type="text" placeholder="subnet name/CIDR" autocomplete="off">
+                    </div>
+                </div>
+
+                <div class="tip-box">
+                    <strong>Reference:</strong> The Neutron L3 agent manages routers. Router interfaces get the first usable IP in each subnet (.1). The set gateway command is <code>openstack router set --external-gateway PROVIDER_NET ROUTER_NAME</code>. Database subnets should have no direct external access &mdash; only app-tier instances should reach db-01.
+                </div>
+
+                <button class="check-btn" onclick="checkTask3()">Check Answers</button>
+                <div class="feedback-box" id="fb-3"></div>
+            </div>
+
+            <div class="task-nav-btns">
+                <button class="nav-btn" onclick="goTask(2)">&larr; Previous</button>
+                <button class="nav-btn primary" onclick="goTask(4)">Next Task &rarr;</button>
+            </div>
+        </div>
+
+        <!-- ═══════════════ TASK 4: Snapshots ═══════════════ -->
+        <div class="task-panel" id="task-4">
+            <div class="task-header">
+                <div class="task-num-badge">4</div>
+                <div>
+                    <h2>Instance Snapshots</h2>
+                    <div class="task-tag">Command Sequence &middot; Fill-in-Blank</div>
+                </div>
+            </div>
+
+            <div class="task-desc">
+                An instance snapshot creates a Glance image from the running instance's root disk. This image can be used to launch identical copies of the instance ("golden image" pattern) or to roll back to a known-good state. Nova pauses disk I/O briefly during the snapshot to ensure consistency.
+            </div>
+
+            <div class="exercise-card">
+                <h3>&#128247; Complete the Snapshot Workflow</h3>
+                <p style="color:var(--muted);font-size:0.85rem;margin-bottom:12px;">Fill in the correct subcommand or parameter for each step:</p>
+
+                <div class="cmd-sequence">
+                    <div class="cmd-seq-item">
+                        <div class="cmd-seq-num">1</div>
+                        <div class="cmd-seq-content">
+                            <p>Create a snapshot of a running instance named "web-01":</p>
+                            <div class="cmd-seq-cmd">openstack server <input class="fill-input" id="snap-create" type="text" placeholder="subcommand" style="display:inline;width:140px;padding:4px 8px;font-size:0.82rem"> web-01 web-01-snapshot-v1</div>
+                        </div>
+                    </div>
+
+                    <div class="cmd-seq-item">
+                        <div class="cmd-seq-num">2</div>
+                        <div class="cmd-seq-content">
+                            <p>Wait for the snapshot to become active (poll until status = active):</p>
+                            <div class="cmd-seq-cmd">openstack image show web-01-snapshot-v1 | grep <input class="fill-input" id="snap-status" type="text" placeholder="field name" style="display:inline;width:100px;padding:4px 8px;font-size:0.82rem"></div>
+                        </div>
+                    </div>
+
+                    <div class="cmd-seq-item">
+                        <div class="cmd-seq-num">3</div>
+                        <div class="cmd-seq-content">
+                            <p>Launch a new instance from the snapshot image using the same flavor:</p>
+                            <div class="cmd-seq-cmd">openstack server create \<br>
+&nbsp;&nbsp;--flavor m1.web \<br>
+&nbsp;&nbsp;--image <input class="fill-input" id="snap-img" type="text" placeholder="image name" style="display:inline;width:200px;padding:4px 8px;font-size:0.82rem"> \<br>
+&nbsp;&nbsp;--nic net-id=selfservice \<br>
+&nbsp;&nbsp;web-02</div>
+                        </div>
+                    </div>
+
+                    <div class="cmd-seq-item">
+                        <div class="cmd-seq-num">4</div>
+                        <div class="cmd-seq-content">
+                            <p>List all available images (including snapshots) to verify it exists in Glance:</p>
+                            <div class="cmd-seq-cmd">openstack image <input class="fill-input" id="snap-list" type="text" placeholder="subcommand" style="display:inline;width:100px;padding:4px 8px;font-size:0.82rem"></div>
+                        </div>
+                    </div>
+
+                    <div class="cmd-seq-item">
+                        <div class="cmd-seq-num">5</div>
+                        <div class="cmd-seq-content">
+                            <p>Delete the snapshot image when no longer needed to free Glance storage:</p>
+                            <div class="cmd-seq-cmd">openstack image <input class="fill-input" id="snap-del" type="text" placeholder="subcommand" style="display:inline;width:100px;padding:4px 8px;font-size:0.82rem"> web-01-snapshot-v1</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="tip-box">
+                    <strong>Answers:</strong> (1) image create, (2) status, (3) web-01-snapshot-v1, (4) list, (5) delete. Note: The snapshot is stored in Glance as a regular image. Nova passes the snapshot request through Glance, which saves the disk state. The instance continues running during most of the process; only disk writes are briefly frozen.
+                </div>
+
+                <button class="check-btn" onclick="checkTask4()">Check Commands</button>
+                <div class="feedback-box" id="fb-4"></div>
+            </div>
+
+            <div class="task-nav-btns">
+                <button class="nav-btn" onclick="goTask(3)">&larr; Previous</button>
+                <button class="nav-btn primary" onclick="goTask(5)">Next Task &rarr;</button>
+            </div>
+        </div>
+
+        <!-- ═══════════════ TASK 5: Troubleshooting ═══════════════ -->
+        <div class="task-panel" id="task-5">
+            <div class="task-header">
+                <div class="task-num-badge">5</div>
+                <div>
+                    <h2>OpenStack Troubleshooting</h2>
+                    <div class="task-tag">Scenario-Based &middot; Multiple Choice</div>
+                </div>
+            </div>
+
+            <div class="task-desc">
+                OpenStack failures are rarely obvious. A service may log cryptic errors, an instance may stay stuck in "BUILD" state, or network connectivity may fail silently. Effective troubleshooting requires knowing which logs to read, which commands to run, and which component owns each layer of the stack.
+            </div>
+
+            <div class="exercise-card">
+                <h3>&#128202; Diagnose Three OpenStack Scenarios</h3>
+                <p style="color:var(--muted);font-size:0.85rem;margin-bottom:16px;">Read each scenario and select the most accurate root cause and first remediation step.</p>
+
+                <!-- Scenario 1 -->
+                <div class="scenario-box">
+                    <strong>Scenario 1: Instance Stuck in BUILD State</strong>
+                    <p>You launch a new instance. After 10 minutes it is still in "BUILD" status. The Horizon console shows no boot activity. <code>openstack server show</code> lists no error in the fault field.</p>
+                </div>
+                <div class="mc-options" id="mc-1">
+                    <div class="mc-option" onclick="selectOption(this, 1, false)">
+                        <span class="mc-letter">A</span>
+                        <span>The image in Glance is corrupted. Re-upload the image and retry.</span>
+                    </div>
+                    <div class="mc-option" onclick="selectOption(this, 1, true)">
+                        <span class="mc-letter">B</span>
+                        <span>The nova-scheduler cannot find a suitable compute host. Check nova-scheduler.log for "No valid host" and verify nova-compute is running on the compute node with <code>openstack compute service list</code>.</span>
+                    </div>
+                    <div class="mc-option" onclick="selectOption(this, 1, false)">
+                        <span class="mc-letter">C</span>
+                        <span>The security group is blocking the build process. Delete all security group rules.</span>
+                    </div>
+                    <div class="mc-option" onclick="selectOption(this, 1, false)">
+                        <span class="mc-letter">D</span>
+                        <span>Keystone tokens have expired. Re-source the admin-openrc credentials file.</span>
+                    </div>
+                </div>
+
+                <!-- Scenario 2 -->
+                <div class="scenario-box" style="margin-top:20px;">
+                    <strong>Scenario 2: SSH Refused on Floating IP</strong>
+                    <p>An instance is running (ACTIVE), has a floating IP associated, and ping succeeds. But <code>ssh cirros@203.0.113.101</code> returns "Connection refused" immediately.</p>
+                </div>
+                <div class="mc-options" id="mc-2">
+                    <div class="mc-option" onclick="selectOption(this, 2, false)">
+                        <span class="mc-letter">A</span>
+                        <span>The floating IP is not correctly associated. Disassociate and re-associate the floating IP.</span>
+                    </div>
+                    <div class="mc-option" onclick="selectOption(this, 2, false)">
+                        <span class="mc-letter">B</span>
+                        <span>The neutron-l3-agent is not running. Restart it on the controller node.</span>
+                    </div>
+                    <div class="mc-option" onclick="selectOption(this, 2, true)">
+                        <span class="mc-letter">C</span>
+                        <span>The security group does not have an ingress rule for TCP port 22. Ping works (ICMP is allowed) but SSH is blocked. Add an ingress TCP/22 rule to the security group.</span>
+                    </div>
+                    <div class="mc-option" onclick="selectOption(this, 2, false)">
+                        <span class="mc-letter">D</span>
+                        <span>The CirrOS image does not support SSH. Use a full Ubuntu image instead.</span>
+                    </div>
+                </div>
+
+                <!-- Scenario 3 -->
+                <div class="scenario-box" style="margin-top:20px;">
+                    <strong>Scenario 3: Authentication Failure on CLI</strong>
+                    <p>All OpenStack CLI commands return: <code>The request you have made requires authentication. (HTTP 401)</code>. This worked yesterday. No configuration changes were made.</p>
+                </div>
+                <div class="mc-options" id="mc-3">
+                    <div class="mc-option" onclick="selectOption(this, 3, false)">
+                        <span class="mc-letter">A</span>
+                        <span>The MariaDB service has stopped. Restart mariadb and all OpenStack services.</span>
+                    </div>
+                    <div class="mc-option" onclick="selectOption(this, 3, false)">
+                        <span class="mc-letter">B</span>
+                        <span>The admin user password was changed. Reset it using <code>openstack user password set</code>.</span>
+                    </div>
+                    <div class="mc-option" onclick="selectOption(this, 3, true)">
+                        <span class="mc-letter">C</span>
+                        <span>Fernet token keys have rotated past the allowed window or Keystone is not running. Check <code>systemctl status apache2</code> (Keystone runs via uWSGI/Apache), review /var/log/keystone/keystone.log, and verify the Fernet key repository at /etc/keystone/fernet-keys/ is intact and has correct permissions.</span>
+                    </div>
+                    <div class="mc-option" onclick="selectOption(this, 3, false)">
+                        <span class="mc-letter">D</span>
+                        <span>The admin-openrc file was deleted. Re-create it from memory and re-source it.</span>
+                    </div>
+                </div>
+
+                <button class="check-btn" onclick="checkTask5()">Score Scenarios</button>
+                <div class="feedback-box" id="fb-5"></div>
+            </div>
+
+            <div class="task-nav-btns">
+                <button class="nav-btn" onclick="goTask(4)">&larr; Previous</button>
+                <button class="nav-btn primary" onclick="showComplete()">Complete Module</button>
+            </div>
+        </div>
+
+        <!-- ═══════════════ COMPLETE ═══════════════ -->
+        <div class="complete-module-panel" id="complete-panel">
+            <div class="complete-icon">&#127381;</div>
+            <h2>Advanced Lab Complete!</h2>
+            <p>You designed workload-appropriate compute flavors, mastered the Cinder volume lifecycle, interpreted a multi-tier Neutron topology, executed the snapshot-and-clone workflow, and correctly diagnosed three common OpenStack failure modes. You are now operating at an administrator level.</p>
+            <button class="complete-btn" id="complete-btn" onclick="completeModule()">Mark Module Complete</button>
+        </div>
+
+    </main>
+</div>
+
+<script src="../../../../components/AchievementManager.js"></script>
+<script src="../../../../components/ModuleProgress.js"></script>
+<script src="../../../../components/FluxCapacitor.js"></script>
+<script>
+'use strict';
+
+const STORAGE_KEY = 'hexworth_openstack_lab3_tasks';
+let completedTasks = new Set(JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'));
+
+// Tracking for multiple choice answers
+const mcState = { 1: null, 2: null, 3: null };
+const mcCorrect = { 1: true, 2: true, 3: true }; // tracks correctness of last selection
+
+function saveState() {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify([...completedTasks]));
+}
+
+function goTask(n) {
+    document.querySelectorAll('.task-panel').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.task-nav-item').forEach(nav => nav.classList.remove('active'));
+    document.getElementById('complete-panel').classList.remove('show');
+    document.getElementById('task-' + n).classList.add('active');
+    const navEl = document.getElementById('nav-' + n);
+    if (navEl) navEl.classList.add('active');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function showComplete() {
+    document.querySelectorAll('.task-panel').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.task-nav-item').forEach(nav => nav.classList.remove('active'));
+    document.getElementById('complete-panel').classList.add('show');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function updateProgress() {
+    const count = completedTasks.size;
+    document.getElementById('progressText').textContent = count + ' / 5';
+    document.getElementById('progressFill').style.width = (count / 5 * 100) + '%';
+    for (let i = 1; i <= 5; i++) {
+        const nav = document.getElementById('nav-' + i);
+        if (!nav) continue;
+        if (completedTasks.has(i)) {
+            nav.classList.add('done');
+            nav.querySelector('.task-nav-num').textContent = '✓';
+        }
+    }
+}
+
+function markTaskComplete(n) {
+    completedTasks.add(n);
+    saveState();
+    updateProgress();
+}
+
+function showFeedback(id, type, msg) {
+    const el = document.getElementById('fb-' + id);
+    el.className = 'feedback-box show ' + type;
+    el.textContent = msg;
+}
+
+// ── Multiple Choice Handler ────────────────────────────────────────────────────
+function selectOption(el, scenario, isCorrect) {
+    // Clear previous selection in this scenario
+    el.closest('.mc-options').querySelectorAll('.mc-option').forEach(opt => {
+        opt.classList.remove('selected', 'correct-ans', 'wrong-ans');
+    });
+    el.classList.add('selected');
+    mcState[scenario] = isCorrect;
+}
+
+// ── TASK 1: Flavor Validation ─────────────────────────────────────────────────
+function checkTask1() {
+    const webVcpu = parseInt(document.getElementById('web-vcpu').value);
+    const webRam  = parseInt(document.getElementById('web-ram').value);
+    const webDisk = parseInt(document.getElementById('web-disk').value);
+    const dbVcpu  = parseInt(document.getElementById('db-vcpu').value);
+    const dbRam   = parseInt(document.getElementById('db-ram').value);
+    const dbDisk  = parseInt(document.getElementById('db-disk').value);
+    const hpcVcpu = parseInt(document.getElementById('hpc-vcpu').value);
+    const hpcRam  = parseInt(document.getElementById('hpc-ram').value);
+    const hpcDisk = parseInt(document.getElementById('hpc-disk').value);
+
+    // Validate design principles rather than exact values
+    const webOk  = webVcpu >= 1 && webVcpu <= 4 && webRam >= 1024 && webRam <= 4096 && webDisk >= 10;
+    const dbOk   = dbVcpu >= 2 && dbRam >= 4096 && dbDisk >= 50;  // DB must have high RAM and disk
+    const hpcOk  = hpcVcpu >= 4 && hpcRam >= 2048 && hpcDisk >= 10; // HPC must have many vCPUs
+    const dbRamGtWeb = dbRam > webRam; // DB should have more RAM than web
+
+    function markFlavor(prefix, ok) {
+        ['vcpu','ram','disk','name'].forEach(field => {
+            const el = document.getElementById(prefix + '-' + field);
+            if (!el) return;
+            el.classList.toggle('correct', ok && el.value.length > 0);
+            el.classList.toggle('wrong', !ok || el.value.length === 0);
+        });
+    }
+
+    markFlavor('web', webOk);
+    markFlavor('db', dbOk && dbRamGtWeb);
+    markFlavor('hpc', hpcOk);
+
+    if (webOk && dbOk && hpcOk && dbRamGtWeb) {
+        showFeedback(1, 'success', 'Flavors look well-designed! Key insight: database flavors need dramatically more RAM than web flavors because DB engines (InnoDB, PostgreSQL) cache entire working sets in memory to avoid disk I/O. Compute-intensive flavors maximise vCPU count. Use RAM as the primary differentiator, not CPU alone.');
+        markTaskComplete(1);
+    } else {
+        let hints = [];
+        if (!webOk)         hints.push('Web: 1-4 vCPU, 1024-4096 MB RAM, 10+ GB disk');
+        if (!dbOk)          hints.push('DB: 2+ vCPU, 4096+ MB RAM, 50+ GB disk');
+        if (!dbRamGtWeb)    hints.push('DB RAM must exceed Web RAM significantly');
+        if (!hpcOk)         hints.push('HPC: 4+ vCPU, 2048+ MB RAM');
+        showFeedback(1, 'partial', 'Design corrections needed: ' + hints.join('. '));
+    }
+}
+
+// ── TASK 2: Volume Commands ────────────────────────────────────────────────────
+function checkTask2() {
+    const answers = {
+        'vol-size':   (v) => v === '50',
+        'vol-list':   (v) => v === 'show',
+        'vol-attach': (v) => v === 'add volume',
+        'vol-fs':     (v) => ['ext4', 'xfs'].includes(v),
+        'vol-mount':  (v) => v === 'mount',
+    };
+
+    let correct = 0;
+    for (const [id, validator] of Object.entries(answers)) {
+        const el = document.getElementById(id);
+        const ok = validator(el.value.trim().toLowerCase());
+        el.classList.toggle('correct', ok);
+        el.classList.toggle('wrong', !ok);
+        if (ok) correct++;
+    }
+
+    if (correct >= 4) {
+        showFeedback(2, 'success', 'Volume workflow correct! Key point: always check volume status is "available" before attaching. Once attached, the volume appears as a virtio disk (vdb, vdc, etc.) inside the instance. Always format before mounting — the volume is raw block storage. Use /etc/fstab with UUID (not device name) to ensure correct mounting after reboots, since device names can shift.');
+        markTaskComplete(2);
+    } else {
+        showFeedback(2, 'partial', correct + '/5 correct. (1) 50, (2) show, (3) add volume, (4) ext4, (5) mount.');
+    }
+}
+
+// ── TASK 3: Topology Q&A ───────────────────────────────────────────────────────
+function checkTask3() {
+    const answers = {
+        'topo-q1': (v) => v.toLowerCase().includes('neutron') || v.toLowerCase().includes('l3'),
+        'topo-q2': (v) => v === '10.0.1.1',
+        'topo-q3': (v) => v.toLowerCase().includes('set') && v.toLowerCase().includes('gateway'),
+        'topo-q4': (v) => v.toLowerCase().includes('db') || v.includes('10.0.3'),
+    };
+
+    let correct = 0;
+    for (const [id, validator] of Object.entries(answers)) {
+        const el = document.getElementById(id);
+        const ok = validator(el.value.trim());
+        el.classList.toggle('correct', ok);
+        el.classList.toggle('wrong', !ok);
+        if (ok) correct++;
+    }
+
+    if (correct >= 3) {
+        showFeedback(3, 'success', 'Good understanding of the topology! The Neutron L3 agent manages virtual routers. By convention the router gets the .1 address in each subnet. The set --external-gateway command enables SNAT so tenant instances can reach the internet. The DB subnet should be unreachable from the provider network — only app-tier instances should access port 3306 via security group rules within the tenant network.');
+        markTaskComplete(3);
+    } else {
+        showFeedback(3, 'partial', correct + '/4 correct. Q1: Neutron (L3 agent), Q2: 10.0.1.1, Q3: contains "set" and "gateway", Q4: DB subnet / 10.0.3.0/24.');
+    }
+}
+
+// ── TASK 4: Snapshot Commands ─────────────────────────────────────────────────
+function checkTask4() {
+    const answers = {
+        'snap-create': (v) => v === 'image create',
+        'snap-status': (v) => v === 'status',
+        'snap-img':    (v) => v === 'web-01-snapshot-v1',
+        'snap-list':   (v) => v === 'list',
+        'snap-del':    (v) => v === 'delete',
+    };
+
+    let correct = 0;
+    for (const [id, validator] of Object.entries(answers)) {
+        const el = document.getElementById(id);
+        const ok = validator(el.value.trim().toLowerCase());
+        el.classList.toggle('correct', ok);
+        el.classList.toggle('wrong', !ok);
+        if (ok) correct++;
+    }
+
+    if (correct >= 4) {
+        showFeedback(4, 'success', 'Snapshot workflow correct! The "image create" subcommand under server is the Nova-to-Glance bridge. The snapshot process: Nova asks Glance to reserve space, then streams the instance disk state into Glance. The resulting image is identical to any other Glance image and can be used with any compatible flavor. This "golden image" pattern is fundamental to immutable infrastructure strategies.');
+        markTaskComplete(4);
+    } else {
+        showFeedback(4, 'partial', correct + '/5 correct. (1) image create, (2) status, (3) web-01-snapshot-v1, (4) list, (5) delete.');
+    }
+}
+
+// ── TASK 5: Troubleshooting ───────────────────────────────────────────────────
+function checkTask5() {
+    const s1 = mcState[1];
+    const s2 = mcState[2];
+    const s3 = mcState[3];
+
+    if (s1 === null || s2 === null || s3 === null) {
+        showFeedback(5, 'error', 'Please select an answer for all three scenarios before scoring.');
+        return;
+    }
+
+    // Reveal correct/wrong styling
+    [1, 2, 3].forEach(n => {
+        const opts = document.querySelectorAll('#mc-' + n + ' .mc-option');
+        opts.forEach(opt => {
+            if (opt.classList.contains('selected')) {
+                const correct = mcState[n];
+                opt.classList.remove('selected');
+                opt.classList.add(correct ? 'correct-ans' : 'wrong-ans');
+            }
+        });
+    });
+
+    const score = [s1, s2, s3].filter(Boolean).length;
+
+    if (score === 3) {
+        showFeedback(5, 'success', 'All three scenarios correctly diagnosed! Key diagnostic approach: (1) BUILD stuck = check nova-compute service registration. (2) SSH refused vs ping works = security group layer, not networking. (3) HTTP 401 = check Keystone (Apache/uWSGI), Fernet keys, and service catalog. Always read logs at /var/log/SERVICENAME/ before assuming the issue is in another layer.');
+        markTaskComplete(5);
+    } else {
+        showFeedback(5, 'partial', score + '/3 correct. Scenario 1: nova-scheduler cannot place the instance. Scenario 2: security group missing TCP/22 rule. Scenario 3: Keystone/Apache service issue or Fernet key problem.');
+    }
+}
+
+// ── Module Completion ─────────────────────────────────────────────────────────
+function completeModule() {
+    if (typeof ModuleProgress !== 'undefined') {
+        ModuleProgress.complete('cloud', 'cloud-openstack-advanced-lab');
+    }
+    const btn = document.getElementById('complete-btn');
+    btn.textContent = 'Module Recorded!';
+    btn.style.background = 'var(--ok)';
+    btn.disabled = true;
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+completedTasks.forEach(n => {
+    const nav = document.getElementById('nav-' + n);
+    if (nav) {
+        nav.classList.add('done');
+        nav.querySelector('.task-nav-num').textContent = '✓';
+    }
+});
+updateProgress();
+</script>
+</body>
+</html>

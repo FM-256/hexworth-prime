@@ -11477,6 +11477,22 @@ const ContentRegistry = {
             prerequisites: [],
             objectives: []
         },
+        'forge-troubleshoot-scenarios': {
+            id: 'forge-troubleshoot-scenarios',
+            title: 'A+ Troubleshooting Scenarios',
+            description: 'Interactive troubleshooting scenarios covering 10 real-world A+ exam situations',
+            house: 'forge',
+            type: 'lab',
+            difficulty: 'intermediate',
+            duration: 45,
+            topics: ['troubleshooting', 'hardware', 'networking', 'software', 'mobile'],
+            paths: ['aplus-core1'],
+            components: {
+                lab: 'houses/forge/applets/comptia-aplus/core-1/labs/forge-troubleshooting-scenarios.lab.html'
+            },
+            prerequisites: ['forge-troubleshooting-flowchart'],
+            objectives: ['Practice systematic troubleshooting across all A+ domains']
+        },
         'forge-users-groups': {
             id: 'forge-users-groups',
             title: 'Users, Groups & Permissions',
@@ -18461,6 +18477,248 @@ const ContentRegistry = {
             },
             prerequisites: ['forge-md100-m11-lab'],
             objectives: ['Assess hardware troubleshooting and BSOD analysis knowledge']
+        },
+        // ─── MD-100 REVIEW GAMES ───
+        'forge-md100-midterm-review': {
+            id: 'forge-md100-midterm-review',
+            title: 'MD-100 Midterm Review (M01-M06)',
+            description: 'Jeopardy-style review covering installation, auth, config, networking, storage, and data access',
+            house: 'forge',
+            type: 'quiz',
+            difficulty: 'intermediate',
+            duration: 30,
+            topics: ['windows-install', 'auth', 'config', 'networking', 'storage', 'data-access'],
+            paths: ['md-100'],
+            components: {
+                quiz: 'houses/forge/md-100/reviews/md100-midterm-review.html'
+            },
+            prerequisites: ['forge-md100-m06-quiz'],
+            objectives: ['Review modules 1-6 for midterm preparation']
+        },
+        'forge-md100-final-review': {
+            id: 'forge-md100-final-review',
+            title: 'MD-100 Final Review (M07-M11)',
+            description: 'Jeopardy-style review covering apps, security, support, and troubleshooting',
+            house: 'forge',
+            type: 'quiz',
+            difficulty: 'advanced',
+            duration: 30,
+            topics: ['apps', 'security', 'support', 'troubleshooting', 'hardware'],
+            paths: ['md-100'],
+            components: {
+                quiz: 'houses/forge/md-100/reviews/md100-final-review.html'
+            },
+            prerequisites: ['forge-md100-m11-quiz'],
+            objectives: ['Review modules 7-11 for final exam preparation']
+        },
+        'forge-md100-comprehensive-review': {
+            id: 'forge-md100-comprehensive-review',
+            title: 'MD-100 Comprehensive Review',
+            description: 'Cross-cutting Jeopardy review spanning all 11 modules for full exam prep',
+            house: 'forge',
+            type: 'quiz',
+            difficulty: 'advanced',
+            duration: 40,
+            topics: ['deployment', 'identity', 'networking', 'management', 'security', 'troubleshooting'],
+            paths: ['md-100'],
+            components: {
+                quiz: 'houses/forge/md-100/reviews/md100-comprehensive-review.html'
+            },
+            prerequisites: ['forge-md100-final-review'],
+            objectives: ['Comprehensive exam preparation across all MD-100 domains']
+        },
+        // ─── OPENSTACK (Cloud House) ───
+        'cloud-openstack-intro': {
+            id: 'cloud-openstack-intro',
+            title: 'OpenStack: Introduction & Environment',
+            description: 'OpenStack architecture, origin, hardware/software requirements, networking options',
+            house: 'cloud',
+            type: 'presentation',
+            difficulty: 'beginner',
+            duration: 30,
+            topics: ['openstack', 'iaas', 'cloud-architecture', 'networking'],
+            paths: ['openstack'],
+            components: {
+                presentation: 'houses/cloud/openstack/presentations/openstack-intro-environment.presentation.html'
+            },
+            prerequisites: [],
+            objectives: ['Understand OpenStack architecture and deployment requirements']
+        },
+        'cloud-openstack-projects': {
+            id: 'cloud-openstack-projects',
+            title: 'OpenStack: Core Projects',
+            description: 'Nova, Neutron, Swift, Cinder, Keystone, Glance, Horizon, Heat',
+            house: 'cloud',
+            type: 'presentation',
+            difficulty: 'intermediate',
+            duration: 35,
+            topics: ['nova', 'neutron', 'swift', 'cinder', 'keystone', 'glance'],
+            paths: ['openstack'],
+            components: {
+                presentation: 'houses/cloud/openstack/presentations/openstack-projects.presentation.html'
+            },
+            prerequisites: ['cloud-openstack-intro'],
+            objectives: ['Describe core OpenStack projects and their roles']
+        },
+        'cloud-openstack-install': {
+            id: 'cloud-openstack-install',
+            title: 'OpenStack: Installation',
+            description: 'Manual installation: prerequisites, NTP, MariaDB, RabbitMQ, Keystone, Glance, Nova, Neutron',
+            house: 'cloud',
+            type: 'presentation',
+            difficulty: 'advanced',
+            duration: 40,
+            topics: ['installation', 'keystone', 'glance', 'nova', 'neutron', 'configuration'],
+            paths: ['openstack'],
+            components: {
+                presentation: 'houses/cloud/openstack/presentations/openstack-installation.presentation.html'
+            },
+            prerequisites: ['cloud-openstack-projects'],
+            objectives: ['Walk through OpenStack manual installation process']
+        },
+        'cloud-openstack-operation': {
+            id: 'cloud-openstack-operation',
+            title: 'OpenStack: Operation',
+            description: 'Horizon dashboard, CLI management, launching instances, floating IPs, SSH access',
+            house: 'cloud',
+            type: 'presentation',
+            difficulty: 'intermediate',
+            duration: 30,
+            topics: ['horizon', 'cli', 'instances', 'floating-ip', 'vnc'],
+            paths: ['openstack'],
+            components: {
+                presentation: 'houses/cloud/openstack/presentations/openstack-operation.presentation.html'
+            },
+            prerequisites: ['cloud-openstack-install'],
+            objectives: ['Manage OpenStack through dashboard and CLI']
+        },
+        'cloud-openstack-install-lab': {
+            id: 'cloud-openstack-install-lab',
+            title: 'Lab: Install OpenStack',
+            description: 'Interactive lab covering network config, NTP, database, and core service installation',
+            house: 'cloud',
+            type: 'lab',
+            difficulty: 'advanced',
+            duration: 45,
+            topics: ['installation', 'networking', 'configuration', 'services'],
+            paths: ['openstack'],
+            components: {
+                lab: 'houses/cloud/openstack/labs/openstack-install.lab.html'
+            },
+            prerequisites: ['cloud-openstack-intro'],
+            objectives: ['Practice OpenStack installation steps']
+        },
+        'cloud-openstack-launch-lab': {
+            id: 'cloud-openstack-launch-lab',
+            title: 'Lab: Launch Virtual Machine',
+            description: 'Interactive lab for uploading images, creating networks, and launching instances',
+            house: 'cloud',
+            type: 'lab',
+            difficulty: 'intermediate',
+            duration: 35,
+            topics: ['instances', 'images', 'networks', 'security-groups'],
+            paths: ['openstack'],
+            components: {
+                lab: 'houses/cloud/openstack/labs/openstack-launch-vm.lab.html'
+            },
+            prerequisites: ['cloud-openstack-projects'],
+            objectives: ['Launch and configure OpenStack instances']
+        },
+        'cloud-openstack-advanced-lab': {
+            id: 'cloud-openstack-advanced-lab',
+            title: 'Lab: Advanced OpenStack Operations',
+            description: 'Flavors, volumes, network topology, snapshots, and troubleshooting',
+            house: 'cloud',
+            type: 'lab',
+            difficulty: 'advanced',
+            duration: 40,
+            topics: ['flavors', 'volumes', 'cinder', 'snapshots', 'troubleshooting'],
+            paths: ['openstack'],
+            components: {
+                lab: 'houses/cloud/openstack/labs/openstack-advanced-ops.lab.html'
+            },
+            prerequisites: ['cloud-openstack-install'],
+            objectives: ['Perform advanced OpenStack administration tasks']
+        },
+        'cloud-openstack-intro-quiz': {
+            id: 'cloud-openstack-intro-quiz',
+            title: 'Quiz: Introduction & Environment',
+            description: '15-question assessment on OpenStack fundamentals and architecture',
+            house: 'cloud',
+            type: 'quiz',
+            difficulty: 'beginner',
+            duration: 15,
+            topics: ['openstack', 'architecture', 'requirements', 'networking'],
+            paths: ['openstack'],
+            components: {
+                quiz: 'houses/cloud/openstack/quizzes/openstack-intro-quiz.quiz.html'
+            },
+            prerequisites: ['cloud-openstack-install-lab'],
+            objectives: ['Assess understanding of OpenStack fundamentals']
+        },
+        'cloud-openstack-projects-quiz': {
+            id: 'cloud-openstack-projects-quiz',
+            title: 'Quiz: OpenStack Projects',
+            description: '15-question assessment on core and optional OpenStack projects',
+            house: 'cloud',
+            type: 'quiz',
+            difficulty: 'intermediate',
+            duration: 15,
+            topics: ['nova', 'neutron', 'swift', 'cinder', 'keystone', 'glance'],
+            paths: ['openstack'],
+            components: {
+                quiz: 'houses/cloud/openstack/quizzes/openstack-projects-quiz.quiz.html'
+            },
+            prerequisites: ['cloud-openstack-launch-lab'],
+            objectives: ['Assess knowledge of OpenStack project ecosystem']
+        },
+        'cloud-openstack-install-quiz': {
+            id: 'cloud-openstack-install-quiz',
+            title: 'Quiz: OpenStack Installation',
+            description: '15-question assessment on installation procedures and configuration',
+            house: 'cloud',
+            type: 'quiz',
+            difficulty: 'advanced',
+            duration: 15,
+            topics: ['installation', 'configuration', 'services', 'database'],
+            paths: ['openstack'],
+            components: {
+                quiz: 'houses/cloud/openstack/quizzes/openstack-install-quiz.quiz.html'
+            },
+            prerequisites: ['cloud-openstack-advanced-lab'],
+            objectives: ['Assess OpenStack installation knowledge']
+        },
+        'cloud-openstack-operation-quiz': {
+            id: 'cloud-openstack-operation-quiz',
+            title: 'Quiz: OpenStack Operations',
+            description: '15-question assessment on dashboard and CLI operations',
+            house: 'cloud',
+            type: 'quiz',
+            difficulty: 'intermediate',
+            duration: 15,
+            topics: ['horizon', 'cli', 'instances', 'floating-ip'],
+            paths: ['openstack'],
+            components: {
+                quiz: 'houses/cloud/openstack/quizzes/openstack-operation-quiz.quiz.html'
+            },
+            prerequisites: ['cloud-openstack-operation'],
+            objectives: ['Assess OpenStack operational knowledge']
+        },
+        'cloud-openstack-review': {
+            id: 'cloud-openstack-review',
+            title: 'OpenStack Comprehensive Review',
+            description: 'Jeopardy-style review covering all 4 OpenStack lessons',
+            house: 'cloud',
+            type: 'quiz',
+            difficulty: 'advanced',
+            duration: 30,
+            topics: ['openstack', 'architecture', 'installation', 'operations', 'projects'],
+            paths: ['openstack'],
+            components: {
+                quiz: 'houses/cloud/openstack/reviews/openstack-comprehensive-review.html'
+            },
+            prerequisites: ['cloud-openstack-operation-quiz'],
+            objectives: ['Comprehensive OpenStack review for exam preparation']
         },
         // ─── WEB HOUSE (remaining REG-001 fixes) ───
         'web-troubleshooting-lab': {

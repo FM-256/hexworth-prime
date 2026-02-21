@@ -1,0 +1,716 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <!-- Progress & Achievements -->
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OpenStack: Operation - House of the Cloud</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --cloud-primary: #38bdf8;
+            --cloud-secondary: #0ea5e9;
+            --cloud-accent: #7dd3fc;
+            --cloud-dark: #0c4a6e;
+            --cloud-darker: #082f49;
+            --dark-bg: #0f172a;
+            --darker-bg: #020617;
+            --light-text: #f0f9ff;
+            --gray-text: #94a3b8;
+            --card-bg: #1e293b;
+            --hover-bg: #334155;
+            --ok: #2ed573;
+            --warn: #ffc107;
+            --bad: #ff4757;
+            --border: rgba(56, 189, 248, 0.2);
+        }
+
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: var(--darker-bg);
+            color: var(--light-text);
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .header {
+            background: linear-gradient(135deg, var(--cloud-darker) 0%, var(--cloud-dark) 100%);
+            padding: 0.85rem 2rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid var(--border);
+            flex-shrink: 0;
+        }
+        .back-button { background: rgba(56,189,248,0.15); border: 1px solid var(--border); color: var(--cloud-accent); padding: 0.4rem 1rem; border-radius: 6px; cursor: pointer; font-size: 0.9rem; font-weight: 600; text-decoration: none; transition: all 0.2s ease; }
+        .back-button:hover { background: rgba(56,189,248,0.25); transform: translateX(-3px); }
+        .header-title { font-size: 1rem; font-weight: 700; color: var(--cloud-primary); letter-spacing: 0.5px; }
+        .course-badge { background: var(--cloud-primary); color: var(--cloud-darker); padding: 0.35rem 1rem; border-radius: 20px; font-size: 0.8rem; font-weight: 700; }
+
+        .progress-bar-container { background: var(--card-bg); padding: 0.6rem 2rem; display: flex; align-items: center; gap: 1rem; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+        .progress-track { flex: 1; background: var(--dark-bg); border-radius: 4px; height: 6px; overflow: hidden; }
+        .progress-fill { height: 100%; background: linear-gradient(90deg, var(--cloud-secondary), var(--cloud-primary)); border-radius: 4px; transition: width 0.4s ease; }
+        .slide-counter { font-size: 0.85rem; color: var(--gray-text); font-weight: 600; white-space: nowrap; }
+        .slide-dots { display: flex; gap: 6px; }
+        .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--hover-bg); cursor: pointer; transition: all 0.2s ease; }
+        .dot.active { background: var(--cloud-primary); transform: scale(1.3); }
+        .dot.visited { background: var(--cloud-dark); }
+
+        .slide-viewport { flex: 1; overflow: hidden; position: relative; }
+        .slide { position: absolute; top: 0; left: 0; right: 0; bottom: 0; padding: 2.5rem 3rem; overflow-y: auto; opacity: 0; transform: translateX(60px); transition: all 0.35s ease; pointer-events: none; display: flex; flex-direction: column; gap: 1.5rem; }
+        .slide.active { opacity: 1; transform: translateX(0); pointer-events: all; }
+        .slide.exit-left { opacity: 0; transform: translateX(-60px); }
+
+        .nav-controls { background: var(--card-bg); border-top: 1px solid var(--border); padding: 0.75rem 2rem; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; }
+        .nav-btn { background: rgba(56,189,248,0.1); border: 1px solid var(--border); color: var(--cloud-primary); padding: 0.55rem 1.5rem; border-radius: 8px; cursor: pointer; font-size: 0.95rem; font-weight: 600; transition: all 0.2s ease; }
+        .nav-btn:hover:not(:disabled) { background: rgba(56,189,248,0.25); }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .nav-hint { font-size: 0.8rem; color: var(--gray-text); }
+
+        .slide-title { font-size: 2rem; font-weight: 700; color: var(--cloud-primary); line-height: 1.2; }
+        .slide-subtitle { font-size: 1.1rem; color: var(--gray-text); margin-top: -0.75rem; }
+        .slide-label { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 2px; color: var(--cloud-accent); font-weight: 600; }
+
+        .card { background: var(--card-bg); border-radius: 12px; padding: 1.5rem; border: 1px solid var(--border); }
+        .card-title { font-size: 1.1rem; font-weight: 700; color: var(--cloud-primary); margin-bottom: 0.75rem; display: flex; align-items: center; gap: 0.5rem; }
+        .card-title .icon { font-size: 1.3rem; }
+        .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; }
+        .three-col { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem; }
+
+        ul.checklist { list-style: none; display: flex; flex-direction: column; gap: 0.5rem; }
+        ul.checklist li { display: flex; align-items: flex-start; gap: 0.6rem; font-size: 0.95rem; color: var(--light-text); line-height: 1.5; }
+        ul.checklist li::before { content: '▸'; color: var(--cloud-primary); flex-shrink: 0; margin-top: 0.1rem; }
+
+        .highlight-box { background: rgba(56,189,248,0.08); border: 1px solid var(--border); border-left: 4px solid var(--cloud-primary); border-radius: 8px; padding: 1.25rem 1.5rem; }
+        .highlight-box.ok { background: rgba(46,213,115,0.08); border-left-color: var(--ok); }
+        .highlight-box.warn { background: rgba(255,193,7,0.08); border-left-color: var(--warn); }
+
+        /* ── Code block ── */
+        .code-block { background: var(--darker-bg); border: 1px solid var(--border); border-radius: 8px; padding: 1rem 1.25rem; font-family: 'Courier New', monospace; font-size: 0.83rem; color: var(--cloud-accent); line-height: 1.8; overflow-x: auto; }
+        .code-block .comment { color: #475569; }
+        .code-block .cmd { color: var(--ok); }
+        .code-block .val { color: #c084fc; }
+        .code-block .flag { color: var(--warn); }
+
+        .diagram-box { background: var(--darker-bg); border: 1px solid var(--border); border-radius: 8px; padding: 1.25rem 1.5rem; font-family: 'Courier New', monospace; font-size: 0.82rem; color: var(--cloud-accent); line-height: 1.7; white-space: pre; overflow-x: auto; }
+
+        /* ── Step items ── */
+        .steps-list { display: flex; flex-direction: column; gap: 0.75rem; }
+        .step-item { display: flex; align-items: flex-start; gap: 1rem; padding: 1rem 1.25rem; background: var(--card-bg); border: 1px solid var(--border); border-radius: 10px; transition: border-color 0.2s; }
+        .step-item:hover { border-color: var(--cloud-secondary); }
+        .step-num { background: var(--cloud-primary); color: var(--cloud-darker); width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.85rem; font-weight: 700; flex-shrink: 0; margin-top: 0.1rem; }
+        .step-content { flex: 1; }
+        .step-title { font-weight: 700; color: var(--cloud-primary); font-size: 0.95rem; margin-bottom: 0.25rem; }
+        .step-desc { font-size: 0.85rem; color: var(--gray-text); line-height: 1.5; }
+
+        /* ── Dashboard mock ── */
+        .dashboard-mock {
+            background: var(--dark-bg);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            overflow: hidden;
+        }
+        .dash-topbar {
+            background: rgba(56,189,248,0.12);
+            border-bottom: 1px solid var(--border);
+            padding: 0.5rem 1rem;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            font-size: 0.8rem;
+        }
+        .dash-tab { padding: 0.3rem 0.8rem; border-radius: 4px; cursor: pointer; color: var(--gray-text); }
+        .dash-tab.active { background: var(--cloud-primary); color: var(--cloud-darker); font-weight: 700; }
+        .dash-body { padding: 1rem; display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.75rem; }
+        .dash-widget { background: var(--card-bg); border: 1px solid var(--border); border-radius: 8px; padding: 0.75rem; text-align: center; }
+        .dash-widget-val { font-size: 1.4rem; font-weight: 700; color: var(--cloud-primary); }
+        .dash-widget-label { font-size: 0.7rem; color: var(--gray-text); margin-top: 0.2rem; }
+
+        /* ── Access method boxes ── */
+        .access-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; }
+        .access-card { background: var(--card-bg); border: 1px solid var(--border); border-radius: 10px; padding: 1.25rem; }
+        .access-icon { font-size: 2rem; margin-bottom: 0.5rem; }
+        .access-title { font-weight: 700; color: var(--cloud-primary); margin-bottom: 0.5rem; font-size: 0.95rem; }
+        .access-desc { font-size: 0.83rem; color: var(--gray-text); line-height: 1.5; }
+
+        /* ── Stat row ── */
+        .stat-row { display: flex; gap: 1rem; flex-wrap: wrap; }
+        .stat-badge { background: rgba(56,189,248,0.1); border: 1px solid var(--border); border-radius: 8px; padding: 0.75rem 1.25rem; text-align: center; flex: 1; min-width: 120px; }
+        .stat-value { font-size: 1.5rem; font-weight: 700; color: var(--cloud-primary); }
+        .stat-label { font-size: 0.8rem; color: var(--gray-text); margin-top: 0.2rem; }
+
+        /* ── Instance lifecycle ── */
+        .lifecycle-track {
+            display: flex;
+            align-items: center;
+            gap: 0;
+            margin: 0.5rem 0;
+            overflow-x: auto;
+        }
+        .lc-state {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 0.6rem 1rem;
+            font-size: 0.82rem;
+            font-weight: 600;
+            color: var(--light-text);
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+        .lc-state.active-state { background: rgba(56,189,248,0.15); border-color: var(--cloud-primary); color: var(--cloud-primary); }
+        .lc-state.warn-state { background: rgba(255,193,7,0.15); border-color: var(--warn); color: var(--warn); }
+        .lc-state.bad-state { background: rgba(255,71,87,0.15); border-color: var(--bad); color: var(--bad); }
+        .lc-arrow { color: var(--cloud-dark); font-size: 1.1rem; padding: 0 0.3rem; flex-shrink: 0; }
+
+        /* Title slide */
+        .title-slide-center { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 1.5rem; }
+        .giant-icon { font-size: 5rem; filter: drop-shadow(0 0 20px rgba(56,189,248,0.5)); }
+        .title-slide-title { font-size: 2.5rem; font-weight: 700; color: var(--cloud-primary); line-height: 1.2; }
+        .title-slide-subtitle { font-size: 1.2rem; color: var(--gray-text); max-width: 600px; }
+        .objectives-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; text-align: left; width: 100%; max-width: 700px; }
+        .obj-item { display: flex; align-items: flex-start; gap: 0.6rem; background: var(--card-bg); padding: 0.75rem 1rem; border-radius: 8px; border: 1px solid var(--border); font-size: 0.9rem; }
+        .obj-num { background: var(--cloud-primary); color: var(--cloud-darker); width: 22px; height: 22px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: 700; flex-shrink: 0; }
+
+        /* Quiz */
+        .quiz-question { background: var(--card-bg); border: 1px solid var(--border); border-radius: 12px; padding: 1.5rem; }
+        .quiz-q-text { font-size: 1rem; font-weight: 600; color: var(--light-text); margin-bottom: 1rem; }
+        .quiz-options { display: flex; flex-direction: column; gap: 0.5rem; }
+        .quiz-option { background: var(--dark-bg); border: 1px solid var(--border); border-radius: 8px; padding: 0.65rem 1rem; cursor: pointer; font-size: 0.9rem; transition: all 0.2s ease; display: flex; align-items: center; gap: 0.75rem; }
+        .quiz-option:hover { background: var(--hover-bg); border-color: var(--cloud-secondary); }
+        .quiz-option.correct { background: rgba(46,213,115,0.15); border-color: var(--ok); color: var(--ok); }
+        .quiz-option.incorrect { background: rgba(255,71,87,0.15); border-color: var(--bad); color: var(--bad); }
+        .quiz-option.revealed { cursor: default; }
+        .quiz-letter { width: 26px; height: 26px; border-radius: 50%; background: var(--hover-bg); display: flex; align-items: center; justify-content: center; font-size: 0.8rem; font-weight: 700; flex-shrink: 0; }
+        .quiz-explanation { display: none; margin-top: 0.75rem; padding: 0.75rem 1rem; background: rgba(46,213,115,0.08); border-left: 3px solid var(--ok); border-radius: 6px; font-size: 0.88rem; color: var(--gray-text); }
+
+        /* Summary */
+        .summary-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+        .summary-item { background: var(--card-bg); border: 1px solid var(--border); border-radius: 10px; padding: 1.25rem; }
+        .summary-item-title { font-size: 0.9rem; font-weight: 700; color: var(--cloud-primary); margin-bottom: 0.5rem; }
+        .summary-item-text { font-size: 0.85rem; color: var(--gray-text); line-height: 1.5; }
+        .complete-btn { background: linear-gradient(135deg, var(--ok), #20bf6b); color: #fff; border: none; padding: 1rem 2.5rem; border-radius: 10px; font-size: 1.1rem; font-weight: 700; cursor: pointer; transition: all 0.2s ease; box-shadow: 0 4px 15px rgba(46,213,115,0.35); }
+        .complete-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(46,213,115,0.45); }
+
+        .slide::-webkit-scrollbar { width: 5px; }
+        .slide::-webkit-scrollbar-track { background: var(--dark-bg); }
+        .slide::-webkit-scrollbar-thumb { background: var(--cloud-dark); border-radius: 3px; }
+
+        @media (max-width: 768px) {
+            .slide { padding: 1.5rem; }
+            .two-col, .three-col, .summary-grid, .objectives-grid, .access-grid { grid-template-columns: 1fr; }
+            .title-slide-title { font-size: 1.8rem; }
+            .dash-body { grid-template-columns: 1fr 1fr; }
+        }
+    </style>
+</head>
+<body>
+
+    <header class="header">
+        <a href="../index.html" class="back-button">← Back to OpenStack Course</a>
+        <div class="header-title">OpenStack: Operation</div>
+        <div class="course-badge">CLOUD HOUSE</div>
+    </header>
+
+    <div class="progress-bar-container">
+        <div class="progress-track"><div class="progress-fill" id="progressFill" style="width:12.5%"></div></div>
+        <span class="slide-counter" id="slideCounter">1 / 8</span>
+        <div class="slide-dots" id="slideDots"></div>
+    </div>
+
+    <div class="slide-viewport" id="slideViewport">
+
+        <!-- Slide 1: Title + Objectives -->
+        <div class="slide active" id="slide-1">
+            <div class="title-slide-center">
+                <div class="giant-icon">🚀</div>
+                <div class="slide-label">Module 4 of 4</div>
+                <div class="title-slide-title">OpenStack Operation</div>
+                <div class="title-slide-subtitle">Using your OpenStack cloud — from the Horizon dashboard to the command line, launching instances, managing networks, and accessing VMs.</div>
+                <div class="objectives-grid">
+                    <div class="obj-item"><div class="obj-num">1</div>Install and configure the Horizon web dashboard</div>
+                    <div class="obj-item"><div class="obj-num">2</div>Upload images and configure security groups via dashboard</div>
+                    <div class="obj-item"><div class="obj-num">3</div>Add SSH key pairs and launch an instance</div>
+                    <div class="obj-item"><div class="obj-num">4</div>Use CLI commands to list flavors, images, and networks</div>
+                    <div class="obj-item"><div class="obj-num">5</div>Access instances via VNC console and floating IPs</div>
+                    <div class="obj-item"><div class="obj-num">6</div>Manage the full instance lifecycle (create → delete)</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 2: Horizon Dashboard -->
+        <div class="slide" id="slide-2">
+            <div class="slide-label">Slide 2 — Horizon Dashboard</div>
+            <div class="slide-title">Horizon: The Web Dashboard</div>
+            <div class="slide-subtitle">Horizon provides a graphical interface for all OpenStack operations. Deployed in 87% of OpenStack environments.</div>
+
+            <div class="two-col">
+                <div class="card">
+                    <div class="card-title"><span class="icon">⚙️</span> Installing Horizon</div>
+                    <div class="code-block"><span class="comment"># Install on controller node</span>
+<span class="cmd">apt install openstack-dashboard</span>
+
+<span class="comment"># Key file: /etc/openstack-dashboard/</span>
+<span class="comment">#   local_settings.py</span>
+
+<span class="comment"># Required settings:</span>
+OPENSTACK_HOST = <span class="val">"controller"</span>
+ALLOWED_HOSTS = [<span class="val">'*'</span>]
+SESSION_ENGINE = \
+  <span class="val">'django.contrib.sessions.backends.cache'</span>
+CACHES = {<span class="val">'BACKEND'</span>:
+  <span class="val">'django.core.cache.backends.memcached'</span>
+  <span class="val">'...MemcachedCache'</span>,
+  <span class="val">'LOCATION'</span>: <span class="val">'controller:11211'</span>}
+OPENSTACK_KEYSTONE_URL = \
+  <span class="val">"http://%s/identity/v3"</span> % OPENSTACK_HOST</div>
+                </div>
+                <div class="card">
+                    <div class="card-title"><span class="icon">🖥️</span> Dashboard Preview</div>
+                    <div class="dashboard-mock">
+                        <div class="dash-topbar">
+                            <span class="dash-tab active">Overview</span>
+                            <span class="dash-tab">Instances</span>
+                            <span class="dash-tab">Volumes</span>
+                            <span class="dash-tab">Network</span>
+                        </div>
+                        <div class="dash-body">
+                            <div class="dash-widget"><div class="dash-widget-val" style="color:var(--ok);">3</div><div class="dash-widget-label">Running Instances</div></div>
+                            <div class="dash-widget"><div class="dash-widget-val">12 GB</div><div class="dash-widget-label">RAM Used</div></div>
+                            <div class="dash-widget"><div class="dash-widget-val">8</div><div class="dash-widget-label">vCPUs Used</div></div>
+                            <div class="dash-widget"><div class="dash-widget-val">2</div><div class="dash-widget-label">Networks</div></div>
+                        </div>
+                    </div>
+                    <ul class="checklist" style="margin-top:0.75rem;">
+                        <li>Access at: <code style="color:var(--cloud-accent);">http://controller/horizon</code></li>
+                        <li>Login as <code style="color:var(--cloud-accent);">admin</code> or <code style="color:var(--cloud-accent);">myuser</code></li>
+                        <li>Provides full project scoping (tenant isolation)</li>
+                        <li>All operations translate to REST API calls internally</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 3: Launching Instances via Dashboard -->
+        <div class="slide" id="slide-3">
+            <div class="slide-label">Slide 3 — Launch via Dashboard</div>
+            <div class="slide-title">Launching an Instance via Horizon</div>
+            <div class="slide-subtitle">A six-step workflow that sets up all necessary resources before launching your first virtual machine.</div>
+
+            <div class="steps-list">
+                <div class="step-item">
+                    <div class="step-num">1</div>
+                    <div class="step-content">
+                        <div class="step-title">Upload an Image</div>
+                        <div class="step-desc">Project → Compute → Images → Create Image. Upload a CirrOS (tiny test OS) or Ubuntu cloud image in QCOW2 format. Set visibility to Public so all projects can see it.</div>
+                    </div>
+                </div>
+                <div class="step-item">
+                    <div class="step-num">2</div>
+                    <div class="step-content">
+                        <div class="step-title">Create a Virtual Network</div>
+                        <div class="step-desc">Project → Network → Networks → Create Network. Define a subnet (e.g., 192.168.1.0/24), enable DHCP, and set DNS nameservers. Then create a Router connecting your network to the external provider network.</div>
+                    </div>
+                </div>
+                <div class="step-item">
+                    <div class="step-num">3</div>
+                    <div class="step-content">
+                        <div class="step-title">Configure Security Group Rules</div>
+                        <div class="step-desc">Project → Network → Security Groups → Manage Rules. Add ingress rules for ICMP (ping) and TCP port 22 (SSH). By default, all inbound traffic is denied — you must explicitly allow what you need.</div>
+                    </div>
+                </div>
+                <div class="step-item">
+                    <div class="step-num">4</div>
+                    <div class="step-content">
+                        <div class="step-title">Add an SSH Key Pair</div>
+                        <div class="step-desc">Project → Compute → Key Pairs → Import Public Key. Paste your SSH public key (or generate one in the dashboard). The key is injected into the VM at launch via cloud-init — no passwords needed.</div>
+                    </div>
+                </div>
+                <div class="step-item">
+                    <div class="step-num">5</div>
+                    <div class="step-content">
+                        <div class="step-title">Launch the Instance</div>
+                        <div class="step-desc">Project → Compute → Instances → Launch Instance. Select: image, flavor (m1.small = 1 vCPU / 2 GB RAM), network, security group, and key pair. Click Launch — Nova schedules and boots it within seconds.</div>
+                    </div>
+                </div>
+                <div class="step-item">
+                    <div class="step-num">6</div>
+                    <div class="step-content">
+                        <div class="step-title">Associate a Floating IP</div>
+                        <div class="step-desc">Actions → Associate Floating IP. Allocate a floating IP from the external network pool, then map it to your instance's private IP. This makes the VM reachable from outside the tenant network.</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 4: CLI Operations -->
+        <div class="slide" id="slide-4">
+            <div class="slide-label">Slide 4 — CLI Operations</div>
+            <div class="slide-title">OpenStack CLI: Essential Commands</div>
+            <div class="slide-subtitle">The openstack CLI is the power-user interface — faster, scriptable, and shows everything Horizon hides.</div>
+
+            <div class="two-col">
+                <div class="card">
+                    <div class="card-title"><span class="icon">📋</span> Discovery Commands</div>
+                    <div class="code-block"><span class="comment"># Source your credentials first</span>
+<span class="cmd">source admin-openrc</span>
+
+<span class="comment"># List available VM sizes (flavors)</span>
+<span class="cmd">openstack flavor list</span>
+<span class="comment"># +----+---------+------+------+</span>
+<span class="comment"># | ID | Name    |  RAM | VCPUs|</span>
+<span class="comment"># | 1  | m1.tiny |  512 |  1   |</span>
+<span class="comment"># | 2  | m1.small| 2048 |  1   |</span>
+
+<span class="comment"># List bootable images</span>
+<span class="cmd">openstack image list</span>
+
+<span class="comment"># List available networks</span>
+<span class="cmd">openstack network list</span>
+
+<span class="comment"># List security groups</span>
+<span class="cmd">openstack security group list</span>
+
+<span class="comment"># List your key pairs</span>
+<span class="cmd">openstack keypair list</span></div>
+                </div>
+                <div class="card">
+                    <div class="card-title"><span class="icon">🚀</span> Launch &amp; Manage Instances</div>
+                    <div class="code-block"><span class="comment"># Create a key pair (save .pem file!)</span>
+<span class="cmd">openstack keypair create \
+  <span class="flag">--public-key</span> ~/.ssh/id_rsa.pub mykey</span>
+
+<span class="comment"># Add security group rules (SSH + ping)</span>
+<span class="cmd">openstack security group rule create \
+  <span class="flag">--proto</span> tcp <span class="flag">--dst-port</span> 22 default</span>
+<span class="cmd">openstack security group rule create \
+  <span class="flag">--proto</span> icmp default</span>
+
+<span class="comment"># Launch an instance</span>
+<span class="cmd">openstack server create \
+  <span class="flag">--flavor</span> m1.small \
+  <span class="flag">--image</span> cirros \
+  <span class="flag">--nic</span> net-id=NETWORK_ID \
+  <span class="flag">--security-group</span> default \
+  <span class="flag">--key-name</span> mykey \
+  my-first-instance</span>
+
+<span class="comment"># Check its status</span>
+<span class="cmd">openstack server list</span></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 5: Floating IPs + Network Config -->
+        <div class="slide" id="slide-5">
+            <div class="slide-label">Slide 5 — Network &amp; Floating IPs</div>
+            <div class="slide-title">Network Configuration &amp; Floating IPs</div>
+            <div class="slide-subtitle">Virtual networks, floating IPs, and how they bridge tenant VMs to the external world.</div>
+
+            <div class="two-col">
+                <div class="card">
+                    <div class="card-title"><span class="icon">🌐</span> Creating Virtual Networks via CLI</div>
+                    <div class="code-block"><span class="comment"># Create a provider (external) network</span>
+<span class="comment"># Admin-only — maps to physical network</span>
+<span class="cmd">openstack network create \
+  <span class="flag">--share</span> <span class="flag">--external</span> \
+  <span class="flag">--provider-network-type</span> flat \
+  <span class="flag">--provider-physical-network</span> physnet1 \
+  external</span>
+
+<span class="cmd">openstack subnet create \
+  <span class="flag">--network</span> external \
+  <span class="flag">--subnet-range</span> 203.0.113.0/24 \
+  <span class="flag">--gateway</span> 203.0.113.1 \
+  <span class="flag">--dns-nameserver</span> 8.8.8.8 \
+  ext-subnet</span>
+
+<span class="comment"># Create tenant private network</span>
+<span class="cmd">openstack network create selfservice</span>
+<span class="cmd">openstack subnet create \
+  <span class="flag">--network</span> selfservice \
+  <span class="flag">--subnet-range</span> 172.16.1.0/24 \
+  selfservice-subnet</span></div>
+                </div>
+                <div class="card">
+                    <div class="card-title"><span class="icon">🔀</span> Router &amp; Floating IP Workflow</div>
+                    <div class="steps-list">
+                        <div class="step-item" style="padding: 0.7rem 1rem;">
+                            <div class="step-num" style="width:22px; height:22px; font-size:0.75rem;">1</div>
+                            <div class="step-content">
+                                <div class="step-title" style="font-size:0.85rem;">Create Router</div>
+                                <div class="step-desc">openstack router create router1 — sets up a virtual L3 device</div>
+                            </div>
+                        </div>
+                        <div class="step-item" style="padding: 0.7rem 1rem;">
+                            <div class="step-num" style="width:22px; height:22px; font-size:0.75rem;">2</div>
+                            <div class="step-content">
+                                <div class="step-title" style="font-size:0.85rem;">Set External Gateway</div>
+                                <div class="step-desc">openstack router set --external-gateway external router1</div>
+                            </div>
+                        </div>
+                        <div class="step-item" style="padding: 0.7rem 1rem;">
+                            <div class="step-num" style="width:22px; height:22px; font-size:0.75rem;">3</div>
+                            <div class="step-content">
+                                <div class="step-title" style="font-size:0.85rem;">Add Interface to Private Subnet</div>
+                                <div class="step-desc">openstack router add subnet router1 selfservice-subnet</div>
+                            </div>
+                        </div>
+                        <div class="step-item" style="padding: 0.7rem 1rem;">
+                            <div class="step-num" style="width:22px; height:22px; font-size:0.75rem;">4</div>
+                            <div class="step-content">
+                                <div class="step-title" style="font-size:0.85rem;">Allocate &amp; Associate Floating IP</div>
+                                <div class="step-desc">openstack floating ip create external → openstack server add floating ip INSTANCE FLOAT_IP</div>
+                            </div>
+                        </div>
+                        <div class="step-item" style="padding: 0.7rem 1rem;">
+                            <div class="step-num" style="width:22px; height:22px; font-size:0.75rem;">5</div>
+                            <div class="step-content">
+                                <div class="step-title" style="font-size:0.85rem;">SSH to Instance</div>
+                                <div class="step-desc">ssh -i mykey.pem cirros@203.0.113.X — or ubuntu@ for Ubuntu images</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 6: Instance Access Methods + Lifecycle -->
+        <div class="slide" id="slide-6">
+            <div class="slide-label">Slide 6 — Access &amp; Lifecycle</div>
+            <div class="slide-title">Accessing Instances &amp; Instance Lifecycle</div>
+            <div class="slide-subtitle">Three ways to reach a running VM and the full state machine an OpenStack instance passes through.</div>
+
+            <div class="access-grid">
+                <div class="access-card">
+                    <div class="access-icon">🖥️</div>
+                    <div class="access-title">VNC Console (Horizon)</div>
+                    <div class="access-desc">Horizon → Instances → Actions → Console. Gives a browser-based VNC session to the VM — works even before networking is configured. Great for debugging boot failures. Powered by nova-novncproxy on port 6080.</div>
+                </div>
+                <div class="access-card">
+                    <div class="access-icon">🔑</div>
+                    <div class="access-title">SSH via Floating IP</div>
+                    <div class="access-desc">The standard production access method. Requires: (1) floating IP assigned, (2) security group rule allowing TCP/22, (3) your private key matches the injected public key. Command: <code style="color:var(--cloud-accent); font-size:0.8rem;">ssh -i key.pem USER@FLOAT_IP</code></div>
+                </div>
+                <div class="access-card">
+                    <div class="access-icon">📟</div>
+                    <div class="access-title">Serial Console / Log</div>
+                    <div class="access-desc">openstack console log show INSTANCE — dumps the VM's serial console output. Critical for diagnosing boot failures when the network is not up yet. Also: openstack server ssh --login ubuntu INSTANCE_NAME</div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-title"><span class="icon">🔄</span> Instance State Machine</div>
+                <div class="lifecycle-track">
+                    <div class="lc-state">BUILD</div>
+                    <div class="lc-arrow">→</div>
+                    <div class="lc-state active-state">ACTIVE</div>
+                    <div class="lc-arrow">→</div>
+                    <div class="lc-state warn-state">PAUSED</div>
+                    <div class="lc-arrow">↔</div>
+                    <div class="lc-state active-state">ACTIVE</div>
+                    <div class="lc-arrow">→</div>
+                    <div class="lc-state warn-state">SHUTOFF</div>
+                    <div class="lc-arrow">→</div>
+                    <div class="lc-state active-state">ACTIVE</div>
+                    <div class="lc-arrow">→</div>
+                    <div class="lc-state bad-state">DELETED</div>
+                </div>
+                <ul class="checklist" style="margin-top:0.75rem;">
+                    <li><strong>BUILD</strong> — scheduler assigned host; nova-compute pulling image and setting up networking</li>
+                    <li><strong>ACTIVE</strong> — instance running normally; fully operational</li>
+                    <li><strong>PAUSED</strong> — frozen in RAM (memory preserved); fast resume; host must stay up</li>
+                    <li><strong>SHUTOFF</strong> — OS-level shutdown; disk preserved; can restart cheaply</li>
+                    <li><strong>RESIZE / MIGRATING</strong> — live or cold migration between compute hosts</li>
+                    <li><strong>DELETED</strong> — resources released; disk deleted (unless boot-from-volume)</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Slide 7: Knowledge Check -->
+        <div class="slide" id="slide-7">
+            <div class="slide-label">Slide 7 — Knowledge Check</div>
+            <div class="slide-title">Knowledge Check</div>
+            <div class="slide-subtitle">Test your operational knowledge. Click an answer, then see the explanation.</div>
+
+            <div class="quiz-question">
+                <div class="quiz-q-text">1. You launch an OpenStack instance and it stays in BUILD state indefinitely. Where should you look first to diagnose the issue?</div>
+                <div class="quiz-options" id="q1-options">
+                    <div class="quiz-option" onclick="selectOption(this,'q1',false)"><div class="quiz-letter">A</div>Check the Keystone token expiration time</div>
+                    <div class="quiz-option" onclick="selectOption(this,'q1',true)"><div class="quiz-letter">B</div>Check nova-compute logs on the compute node and run openstack console log show</div>
+                    <div class="quiz-option" onclick="selectOption(this,'q1',false)"><div class="quiz-letter">C</div>Restart the MariaDB service on the controller</div>
+                    <div class="quiz-option" onclick="selectOption(this,'q1',false)"><div class="quiz-letter">D</div>Delete and recreate the flavor</div>
+                </div>
+                <div class="quiz-explanation" id="q1-exp">Correct! BUILD failures are typically caused by nova-compute issues (image download failed, libvirt error, Neutron port creation failure). Check /var/log/nova/nova-compute.log on the compute node. Also run "openstack console log show INSTANCE" to see what the VM printed to its serial console during boot.</div>
+            </div>
+
+            <div class="quiz-question">
+                <div class="quiz-q-text">2. A user can reach their instance via the VNC console but cannot SSH to it using its floating IP. Which is the most likely cause?</div>
+                <div class="quiz-options" id="q2-options">
+                    <div class="quiz-option" onclick="selectOption(this,'q2',false)"><div class="quiz-letter">A</div>The instance is in PAUSED state</div>
+                    <div class="quiz-option" onclick="selectOption(this,'q2',true)"><div class="quiz-letter">B</div>The security group has no inbound rule allowing TCP port 22</div>
+                    <div class="quiz-option" onclick="selectOption(this,'q2',false)"><div class="quiz-letter">C</div>The Glance image was uploaded incorrectly</div>
+                    <div class="quiz-option" onclick="selectOption(this,'q2',false)"><div class="quiz-letter">D</div>Horizon and SSH use different authentication systems</div>
+                </div>
+                <div class="quiz-explanation" id="q2-exp">Correct! By default, OpenStack security groups deny ALL inbound traffic. VNC works through the nova-novncproxy service (not the network), so security groups don't affect it. SSH fails because the security group hasn't been configured to allow TCP/22 inbound. Add that rule and retry.</div>
+            </div>
+
+            <div class="quiz-question">
+                <div class="quiz-q-text">3. What is the purpose of a floating IP in OpenStack?</div>
+                <div class="quiz-options" id="q3-options">
+                    <div class="quiz-option" onclick="selectOption(this,'q3',false)"><div class="quiz-letter">A</div>It replaces DHCP for instances that need a static address</div>
+                    <div class="quiz-option" onclick="selectOption(this,'q3',false)"><div class="quiz-letter">B</div>It provides high-availability failover between two instances</div>
+                    <div class="quiz-option" onclick="selectOption(this,'q3',true)"><div class="quiz-letter">C</div>It NATs an external routable IP to a VM's private tenant network address</div>
+                    <div class="quiz-option" onclick="selectOption(this,'q3',false)"><div class="quiz-letter">D</div>It assigns an IPv6 address to instances that only have IPv4</div>
+                </div>
+                <div class="quiz-explanation" id="q3-exp">Correct! Floating IPs are allocated from the external (provider) network pool and mapped 1:1 to a VM's private tenant IP via NAT on the virtual router. This allows external traffic to reach VMs on private subnets without modifying the VM's own IP configuration.</div>
+            </div>
+
+            <div class="quiz-question">
+                <div class="quiz-q-text">4. Which OpenStack command would you use to see the console output (boot log) of a running instance without using the Horizon dashboard?</div>
+                <div class="quiz-options" id="q4-options">
+                    <div class="quiz-option" onclick="selectOption(this,'q4',false)"><div class="quiz-letter">A</div>openstack server log INSTANCE_NAME</div>
+                    <div class="quiz-option" onclick="selectOption(this,'q4',false)"><div class="quiz-letter">B</div>openstack console url show INSTANCE_NAME</div>
+                    <div class="quiz-option" onclick="selectOption(this,'q4',true)"><div class="quiz-letter">C</div>openstack console log show INSTANCE_NAME</div>
+                    <div class="quiz-option" onclick="selectOption(this,'q4',false)"><div class="quiz-letter">D</div>openstack server output INSTANCE_NAME</div>
+                </div>
+                <div class="quiz-explanation" id="q4-exp">Correct! "openstack console log show INSTANCE_NAME" retrieves the serial console output — everything the VM wrote to ttyS0 during boot. This is invaluable for diagnosing cloud-init failures, network configuration errors, or kernel panics without needing a functioning network connection to the VM.</div>
+            </div>
+        </div>
+
+        <!-- Slide 8: Summary + Complete -->
+        <div class="slide" id="slide-8">
+            <div class="slide-label">Slide 8 — Course Complete</div>
+            <div class="slide-title">Module &amp; Course Summary</div>
+            <div class="slide-subtitle">You have completed all four OpenStack modules. Here is a consolidated summary of what you have learned.</div>
+
+            <div class="summary-grid">
+                <div class="summary-item">
+                    <div class="summary-item-title">Horizon Dashboard</div>
+                    <div class="summary-item-text">Installed on the controller. Configured via local_settings.py — set OPENSTACK_HOST, SESSION_ENGINE to Memcached, and KEYSTONE_URL. Access at http://controller/horizon.</div>
+                </div>
+                <div class="summary-item">
+                    <div class="summary-item-title">Pre-Launch Checklist</div>
+                    <div class="summary-item-text">Before launching an instance: (1) upload an image, (2) create a network and subnet, (3) create a router with external gateway, (4) configure security group rules for ICMP and SSH, (5) import a key pair.</div>
+                </div>
+                <div class="summary-item">
+                    <div class="summary-item-title">CLI Workflow</div>
+                    <div class="summary-item-text">Source admin-openrc or user-openrc first. Use openstack flavor list, image list, network list to discover resources. openstack server create with --flavor, --image, --nic, --key-name, --security-group flags.</div>
+                </div>
+                <div class="summary-item">
+                    <div class="summary-item-title">Floating IPs</div>
+                    <div class="summary-item-text">Allocated from the external network pool. Mapped to VM's private IP via NAT on the virtual router. Required for SSH access from outside the tenant network. Associate with: openstack server add floating ip.</div>
+                </div>
+                <div class="summary-item">
+                    <div class="summary-item-title">Access Methods</div>
+                    <div class="summary-item-text">VNC Console (works without networking — use for boot debugging). SSH via floating IP (standard, requires TCP/22 security group rule). Console log show (serial output, no network needed).</div>
+                </div>
+                <div class="summary-item">
+                    <div class="summary-item-title">Instance Lifecycle</div>
+                    <div class="summary-item-text">States: BUILD → ACTIVE → PAUSED / SHUTOFF → ACTIVE → DELETED. PAUSED keeps RAM (fast resume). SHUTOFF frees RAM (cold). DELETED destroys ephemeral disk. Boot-from-volume survives deletion.</div>
+                </div>
+            </div>
+
+            <div style="text-align:center; margin-top: 1rem;">
+                <button class="complete-btn" onclick="ModuleProgress.complete('cloud-openstack-operation', '../index.html')">
+                    Complete OpenStack Course ✓
+                </button>
+            </div>
+        </div>
+
+    </div><!-- end slide-viewport -->
+
+    <div class="nav-controls">
+        <button class="nav-btn" id="prevBtn" onclick="changeSlide(-1)" disabled>← Previous</button>
+        <span class="nav-hint">Use ← → arrow keys to navigate</span>
+        <button class="nav-btn" id="nextBtn" onclick="changeSlide(1)">Next →</button>
+    </div>
+
+    <script>
+        const TOTAL_SLIDES = 8;
+        let currentSlide = 1;
+        const visited = new Set([1]);
+
+        const dotsContainer = document.getElementById('slideDots');
+        for (let i = 1; i <= TOTAL_SLIDES; i++) {
+            const dot = document.createElement('div');
+            dot.className = 'dot' + (i === 1 ? ' active' : '');
+            dot.title = 'Slide ' + i;
+            dot.addEventListener('click', () => goToSlide(i));
+            dotsContainer.appendChild(dot);
+        }
+
+        function changeSlide(delta) {
+            const target = currentSlide + delta;
+            if (target < 1 || target > TOTAL_SLIDES) return;
+            goToSlide(target);
+        }
+
+        function goToSlide(n) {
+            if (n === currentSlide) return;
+            const leaving = document.getElementById('slide-' + currentSlide);
+            const arriving = document.getElementById('slide-' + n);
+            leaving.classList.add(n > currentSlide ? 'exit-left' : '');
+            leaving.classList.remove('active');
+            setTimeout(() => leaving.classList.remove('exit-left'), 380);
+            arriving.classList.add('active');
+            arriving.style.transform = n > currentSlide ? 'translateX(60px)' : 'translateX(-60px)';
+            arriving.getBoundingClientRect();
+            arriving.style.transform = '';
+            currentSlide = n;
+            visited.add(n);
+            updateUI();
+        }
+
+        function updateUI() {
+            const pct = (currentSlide / TOTAL_SLIDES) * 100;
+            document.getElementById('progressFill').style.width = pct + '%';
+            document.getElementById('slideCounter').textContent = currentSlide + ' / ' + TOTAL_SLIDES;
+            const dots = dotsContainer.querySelectorAll('.dot');
+            dots.forEach((dot, idx) => {
+                const sn = idx + 1;
+                dot.className = 'dot';
+                if (sn === currentSlide) dot.classList.add('active');
+                else if (visited.has(sn)) dot.classList.add('visited');
+            });
+            document.getElementById('prevBtn').disabled = currentSlide === 1;
+            document.getElementById('nextBtn').disabled = currentSlide === TOTAL_SLIDES;
+        }
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowRight' || e.key === 'ArrowDown') changeSlide(1);
+            if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') changeSlide(-1);
+        });
+
+        const answered = {};
+
+        function selectOption(el, qId, isCorrect) {
+            if (answered[qId]) return;
+            answered[qId] = true;
+            const options = document.querySelectorAll('#' + qId + '-options .quiz-option');
+            options.forEach(opt => { opt.classList.add('revealed'); opt.onclick = null; });
+            el.classList.add(isCorrect ? 'correct' : 'incorrect');
+            if (!isCorrect) {
+                const correctOpt = document.querySelector('#' + qId + '-options .quiz-option[data-correct="true"]');
+                if (correctOpt) correctOpt.classList.add('correct');
+            }
+            document.getElementById(qId + '-exp').style.display = 'block';
+        }
+
+        document.querySelectorAll('.quiz-option').forEach(opt => {
+            const orig = opt.getAttribute('onclick') || '';
+            if (orig.includes(',true)')) opt.setAttribute('data-correct', 'true');
+        });
+    </script>
+
+    <script src="../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>
