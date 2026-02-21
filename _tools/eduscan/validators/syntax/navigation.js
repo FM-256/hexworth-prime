@@ -120,6 +120,11 @@ class NavigationValidator {
     _checkDashboardLink(file) {
         const content = file.content || '';
 
+        // HouseRenderer.js / CertPathRenderer.js generate dashboard links dynamically
+        if (/HouseRenderer\.js|CertPathRenderer\.js/i.test(content)) {
+            return [];
+        }
+
         // Pattern 1: href containing dashboard.html
         if (/href\s*=\s*["'][^"']*dashboard\.html/i.test(content)) {
             return [];

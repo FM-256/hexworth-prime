@@ -1,7 +1,7 @@
 ══════════════════════════════════════════════════════════════════════
                          EDUSCAN REPORT
                     Hexworth Prime Content Map
-                    Scanned: 2026-02-21 1:07:44 AM
+                    Scanned: 2026-02-21 1:25:05 AM
 ══════════════════════════════════════════════════════════════════════
 
 
@@ -13,7 +13,7 @@
 | Files Scanned | 1500 |
 | Directories | 474 |
 | Content Files | 1500 |
-| Scan Duration | 710ms |
+| Scan Duration | 182ms |
 
 ### Content by Type
 
@@ -40,18 +40,18 @@
 
 | Severity | Count |
 |----------|-------|
-| Critical | 1 |
-| Suspect | 42 |
+| Critical | 0 |
+| Suspect | 0 |
 | Warning | 0 |
 | Info | 12 |
-| **Total** | **629** |
+| **Total** | **586** |
 
 ### Sync Status
 
 | Status | Count |
 |--------|-------|
-| Ready | 955 |
-| Not Ready | 1 |
+| Ready | 956 |
+| Not Ready | 0 |
 | Unknown | 544 |
 
 
@@ -2426,7 +2426,7 @@
 | forge-windows-editions.presentation | presentation | ✓ | 0 |
 | forge-windows-settings.presentation | presentation | ✓ | 0 |
 | aplus-core2-quiz | quiz | ✓ | 0 |
-| forge-quiz | quiz | ❌ | 1 |
+| windows-admin | quiz | ✓ | 0 |
 | forge-backup-or-bust | presentation | ✓ | 0 |
 | forge-admin-tools.tool | presentation | ✓ | 0 |
 | forge-control-panel.tool | presentation | ✓ | 0 |
@@ -3052,183 +3052,6 @@
 
 ## ISSUES DETECTED
 ══════════════════════════════════════════════════════════════════════
-
-### CRITICAL (1)
-
-**[ID-001]** moduleId 'forge-quiz' has house prefix and ends with -quiz suffix — will break sync
-  File: `houses/forge/quizzes/forge-windows-admin.quiz.html`
-  Current: `forge-quiz`
-  Fix: Change moduleId to 'quiz'
-
-### SUSPECT (42) — heuristic, needs review
-
-**[HEUR-005]** Duplicate script include: "../../../components/AchievementManager.js" loaded 2 times (lines 8, 912)
-  File: `houses/eye/games/eye-alert-triage.html`
-  Fix: Remove duplicate <script src="../../../components/AchievementManager.js"> tag
-
-**[HEUR-005]** Duplicate script include: "../../../components/AchievementManager.js" loaded 2 times (lines 405, 1117)
-  File: `houses/eye/games/eye-memory-forensics.applet.html`
-  Fix: Remove duplicate <script src="../../../components/AchievementManager.js"> tag
-
-**[HEUR-005]** Duplicate script include: "../../../components/AchievementManager.js" loaded 2 times (lines 671, 1836)
-  File: `houses/eye/games/eye-threat-modeler.html`
-  Fix: Remove duplicate <script src="../../../components/AchievementManager.js"> tag
-
-**[HEUR-005]** Duplicate script include: "../../../components/AchievementManager.js" loaded 2 times (lines 283, 370)
-  File: `houses/forge/games/forge-raid-calculator.applet.html`
-  Fix: Remove duplicate <script src="../../../components/AchievementManager.js"> tag
-
-**[HEUR-005]** Duplicate script include: "../../../components/AchievementManager.js" loaded 2 times (lines 415, 1916)
-  File: `houses/key/games/key-dont-leak-the-key.html`
-  Fix: Remove duplicate <script src="../../../components/AchievementManager.js"> tag
-
-**[HEUR-005]** Duplicate script include: "../../../components/ModuleProgress.js" loaded 2 times (lines 10, 709)
-  File: `houses/script/clh/script-clh-001-intro.applet.html`
-  Fix: Remove duplicate <script src="../../../components/ModuleProgress.js"> tag
-
-**[HEUR-005]** Duplicate script include: "../../../components/ModuleProgress.js" loaded 2 times (lines 10, 660)
-  File: `houses/script/clh/script-clh-002-intro.applet.html`
-  Fix: Remove duplicate <script src="../../../components/ModuleProgress.js"> tag
-
-**[HEUR-005]** Duplicate script include: "../../../components/ModuleProgress.js" loaded 2 times (lines 10, 594)
-  File: `houses/script/clh/script-clh-003-intro.applet.html`
-  Fix: Remove duplicate <script src="../../../components/ModuleProgress.js"> tag
-
-**[HEUR-005]** Duplicate script include: "../../../components/ModuleProgress.js" loaded 2 times (lines 10, 778)
-  File: `houses/script/clh/script-clh-004-intro.applet.html`
-  Fix: Remove duplicate <script src="../../../components/ModuleProgress.js"> tag
-
-**[HEUR-005]** Duplicate script include: "../../../components/ModuleProgress.js" loaded 2 times (lines 10, 535)
-  File: `houses/script/clh/script-clh-005-intro.applet.html`
-  Fix: Remove duplicate <script src="../../../components/ModuleProgress.js"> tag
-
-**[HEUR-005]** Duplicate script include: "../../../components/ModuleProgress.js" loaded 2 times (lines 10, 273)
-  File: `houses/script/clh/script-clh-006-intro.applet.html`
-  Fix: Remove duplicate <script src="../../../components/ModuleProgress.js"> tag
-
-**[HEUR-005]** Duplicate script include: "../../../components/ModuleProgress.js" loaded 2 times (lines 10, 241)
-  File: `houses/script/clh/script-clh-007-intro.applet.html`
-  Fix: Remove duplicate <script src="../../../components/ModuleProgress.js"> tag
-
-**[HEUR-005]** Duplicate script include: "../../../components/ModuleProgress.js" loaded 2 times (lines 10, 223)
-  File: `houses/script/clh/script-clh-008-intro.applet.html`
-  Fix: Remove duplicate <script src="../../../components/ModuleProgress.js"> tag
-
-**[HEUR-005]** Duplicate script include: "../../../components/ModuleProgress.js" loaded 2 times (lines 10, 240)
-  File: `houses/script/clh/script-clh-009-intro.applet.html`
-  Fix: Remove duplicate <script src="../../../components/ModuleProgress.js"> tag
-
-**[HEUR-005]** Duplicate script include: "../../../components/ModuleProgress.js" loaded 2 times (lines 10, 789)
-  File: `houses/script/clh/script-clh-010-intro.applet.html`
-  Fix: Remove duplicate <script src="../../../components/ModuleProgress.js"> tag
-
-**[HEUR-005]** Duplicate script include: "../../../components/ModuleProgress.js" loaded 2 times (lines 10, 259)
-  File: `houses/script/clh/script-clh-011-intro.applet.html`
-  Fix: Remove duplicate <script src="../../../components/ModuleProgress.js"> tag
-
-**[HEUR-005]** Duplicate script include: "../../../components/ModuleProgress.js" loaded 2 times (lines 10, 239)
-  File: `houses/script/clh/script-clh-012-intro.applet.html`
-  Fix: Remove duplicate <script src="../../../components/ModuleProgress.js"> tag
-
-**[HEUR-005]** Duplicate script include: "../../../components/ModuleProgress.js" loaded 2 times (lines 10, 269)
-  File: `houses/script/clh/script-clh-013-intro.applet.html`
-  Fix: Remove duplicate <script src="../../../components/ModuleProgress.js"> tag
-
-**[HEUR-005]** Duplicate script include: "../../../components/ModuleProgress.js" loaded 2 times (lines 10, 328)
-  File: `houses/script/clh/script-clh-014-intro.applet.html`
-  Fix: Remove duplicate <script src="../../../components/ModuleProgress.js"> tag
-
-**[HEUR-005]** Duplicate script include: "../../../components/ModuleProgress.js" loaded 2 times (lines 10, 269)
-  File: `houses/script/clh/script-clh-015-intro.applet.html`
-  Fix: Remove duplicate <script src="../../../components/ModuleProgress.js"> tag
-
-**[HEUR-005]** Duplicate script include: "../../../components/ModuleProgress.js" loaded 2 times (lines 9, 230)
-  File: `houses/script/clh/script-clh-022-intro.applet.html`
-  Fix: Remove duplicate <script src="../../../components/ModuleProgress.js"> tag
-
-**[HEUR-005]** Duplicate script include: "../../../../../../components/ModuleProgress.js" loaded 2 times (lines 10, 709)
-  File: `houses/script/courses/clh/modules/clh-001/script-intro.module.html`
-  Fix: Remove duplicate <script src="../../../../../../components/ModuleProgress.js"> tag
-
-**[HEUR-005]** Duplicate script include: "../../../../../../components/ModuleProgress.js" loaded 2 times (lines 10, 660)
-  File: `houses/script/courses/clh/modules/clh-002/script-intro.module.html`
-  Fix: Remove duplicate <script src="../../../../../../components/ModuleProgress.js"> tag
-
-**[HEUR-005]** Duplicate script include: "../../../../../../components/ModuleProgress.js" loaded 2 times (lines 10, 594)
-  File: `houses/script/courses/clh/modules/clh-003/script-intro.module.html`
-  Fix: Remove duplicate <script src="../../../../../../components/ModuleProgress.js"> tag
-
-**[HEUR-005]** Duplicate script include: "../../../../../../components/ModuleProgress.js" loaded 2 times (lines 10, 778)
-  File: `houses/script/courses/clh/modules/clh-004/script-intro.module.html`
-  Fix: Remove duplicate <script src="../../../../../../components/ModuleProgress.js"> tag
-
-**[HEUR-005]** Duplicate script include: "../../../../../../components/ModuleProgress.js" loaded 2 times (lines 10, 535)
-  File: `houses/script/courses/clh/modules/clh-005/script-intro.module.html`
-  Fix: Remove duplicate <script src="../../../../../../components/ModuleProgress.js"> tag
-
-**[HEUR-005]** Duplicate script include: "../../../../../../components/ModuleProgress.js" loaded 2 times (lines 10, 273)
-  File: `houses/script/courses/clh/modules/clh-006/script-intro.module.html`
-  Fix: Remove duplicate <script src="../../../../../../components/ModuleProgress.js"> tag
-
-**[HEUR-005]** Duplicate script include: "../../../../../../components/ModuleProgress.js" loaded 2 times (lines 10, 241)
-  File: `houses/script/courses/clh/modules/clh-007/script-intro.module.html`
-  Fix: Remove duplicate <script src="../../../../../../components/ModuleProgress.js"> tag
-
-**[HEUR-005]** Duplicate script include: "../../../../../../components/ModuleProgress.js" loaded 2 times (lines 10, 223)
-  File: `houses/script/courses/clh/modules/clh-008/script-intro.module.html`
-  Fix: Remove duplicate <script src="../../../../../../components/ModuleProgress.js"> tag
-
-**[HEUR-005]** Duplicate script include: "../../../../../../components/ModuleProgress.js" loaded 2 times (lines 10, 240)
-  File: `houses/script/courses/clh/modules/clh-009/script-intro.module.html`
-  Fix: Remove duplicate <script src="../../../../../../components/ModuleProgress.js"> tag
-
-**[HEUR-005]** Duplicate script include: "../../../../../../components/ModuleProgress.js" loaded 2 times (lines 10, 789)
-  File: `houses/script/courses/clh/modules/clh-010/script-intro.module.html`
-  Fix: Remove duplicate <script src="../../../../../../components/ModuleProgress.js"> tag
-
-**[HEUR-005]** Duplicate script include: "../../../../../../components/ModuleProgress.js" loaded 2 times (lines 10, 259)
-  File: `houses/script/courses/clh/modules/clh-011/script-intro.module.html`
-  Fix: Remove duplicate <script src="../../../../../../components/ModuleProgress.js"> tag
-
-**[HEUR-005]** Duplicate script include: "../../../../../../components/ModuleProgress.js" loaded 2 times (lines 10, 239)
-  File: `houses/script/courses/clh/modules/clh-012/script-intro.module.html`
-  Fix: Remove duplicate <script src="../../../../../../components/ModuleProgress.js"> tag
-
-**[HEUR-005]** Duplicate script include: "../../../../../../components/ModuleProgress.js" loaded 2 times (lines 10, 269)
-  File: `houses/script/courses/clh/modules/clh-013/script-intro.module.html`
-  Fix: Remove duplicate <script src="../../../../../../components/ModuleProgress.js"> tag
-
-**[HEUR-005]** Duplicate script include: "../../../../../../components/ModuleProgress.js" loaded 2 times (lines 10, 328)
-  File: `houses/script/courses/clh/modules/clh-014/script-intro.module.html`
-  Fix: Remove duplicate <script src="../../../../../../components/ModuleProgress.js"> tag
-
-**[HEUR-005]** Duplicate script include: "../../../../../../components/ModuleProgress.js" loaded 2 times (lines 10, 269)
-  File: `houses/script/courses/clh/modules/clh-015/script-intro.module.html`
-  Fix: Remove duplicate <script src="../../../../../../components/ModuleProgress.js"> tag
-
-**[HEUR-005]** Duplicate script include: "../../../../../../components/ModuleProgress.js" loaded 2 times (lines 9, 230)
-  File: `houses/script/courses/clh/modules/clh-022/script-intro.module.html`
-  Fix: Remove duplicate <script src="../../../../../../components/ModuleProgress.js"> tag
-
-**[HEUR-005]** Duplicate script include: "../../../../components/ModuleProgress.js" loaded 2 times (lines 9, 1394)
-  File: `houses/script/courses/grep-pipe-mastery/index.html`
-  Fix: Remove duplicate <script src="../../../../components/ModuleProgress.js"> tag
-
-**[HEUR-005]** Duplicate script include: "../../../components/AchievementManager.js" loaded 2 times (lines 415, 1631)
-  File: `houses/script/games/script-dont-kill-the-server.html`
-  Fix: Remove duplicate <script src="../../../components/AchievementManager.js"> tag
-
-**[HEUR-005]** Duplicate script include: "../../../components/AchievementManager.js" loaded 2 times (lines 538, 615)
-  File: `houses/shield/games/shield-malware-zoo.lab.html`
-  Fix: Remove duplicate <script src="../../../components/AchievementManager.js"> tag
-
-**[HEUR-005]** Duplicate script include: "../../../components/AchievementManager.js" loaded 2 times (lines 590, 1536)
-  File: `houses/web/games/web-network-architect.applet.html`
-  Fix: Remove duplicate <script src="../../../components/AchievementManager.js"> tag
-
-**[HEUR-005]** Duplicate script include: "../../../components/AchievementManager.js" loaded 2 times (lines 444, 2074)
-  File: `houses/web/games/web-wireless-warzone.applet.html`
-  Fix: Remove duplicate <script src="../../../components/AchievementManager.js"> tag
 
 ### INFO (12)
 
