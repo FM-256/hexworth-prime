@@ -10,7 +10,7 @@
 module.exports = {
     'clean.html':             [],
     'html-issues.html':       ['HTML-001', 'HTML-003', 'HTML-005', 'HTML-006', 'HTML-007'],
-    'js-issues.html':         ['JS-001', 'JS-002'],
+    'js-issues.html':         ['JS-001', 'JS-002', 'JS-005'],
     'engine-issues.html':     ['ENG-001', 'ENG-002', 'ENG-003'],
     'path-issues.html':       ['PATH-001', 'PATH-002', 'PATH-003', 'PATH-DUP-001'],
     'path-depth-issues.html': ['PATH-DEPTH-001', 'PATH-DEPTH-002'],

@@ -45,11 +45,13 @@ class JSValidator {
             if (this.profile === 'ci') {
                 // CI mode: only check for critical syntax errors
                 issues.push(...this.checkCriticalSyntaxErrors(file, block));
+                issues.push(...this.checkForEachCloserOnForLoop(file, block));
             } else {
                 // Strict mode: full validation
                 issues.push(...this.checkBracketBalance(file, block));
                 issues.push(...this.checkStringQuotes(file, block));
                 issues.push(...this.checkCommonErrors(file, block));
+                issues.push(...this.checkForEachCloserOnForLoop(file, block));
             }
         }
 
@@ -298,6 +300,80 @@ class JSValidator {
                     line: lineNum,
                     fix: 'Use == or === for comparison'
                 });
+            }
+        }
+
+        return issues;
+    }
+
+    /**
+     * JS-005: Detect forEach-style }); closing a for/for...of/for...in loop.
+     *
+     * A common copy-paste bug: code is converted from .forEach() to a for loop
+     * but the closing }); is left behind instead of just }. This silently
+     * breaks the entire script block because the parser sees an unexpected ')'.
+     *
+     * Pattern detected (across consecutive lines):
+     *   for (...) {       ← opens a for-loop block
+     *     ...
+     *   });               ← forEach-style close (should be just })
+     */
+    checkForEachCloserOnForLoop(file, block) {
+        const issues = [];
+        const lines = block.code.split('\n');
+
+        // Track brace depth to match }); with the correct opening for-loop
+        const forLoopStack = []; // stack of { lineNum, depth } for open for-loops
+        let braceDepth = 0;
+
+        for (let i = 0; i < lines.length; i++) {
+            const line = lines[i];
+            const trimmed = line.trim();
+            const lineNum = block.line + i;
+
+            // Skip comment lines
+            if (trimmed.startsWith('//') || trimmed.startsWith('/*') || trimmed.startsWith('*')) {
+                continue;
+            }
+
+            // Detect for-loop opening: for (...) { or for...of/in
+            // Match the line, then check if a { appears on this line or the next
+            if (/^\s*for\s*\(/.test(line)) {
+                // Count braces on this line to see if the block opens here
+                const openCount = (line.match(/{/g) || []).length;
+                const closeCount = (line.match(/}/g) || []).length;
+                if (openCount > closeCount) {
+                    forLoopStack.push({ lineNum, depth: braceDepth });
+                }
+            }
+
+            // Track brace depth
+            for (const ch of line) {
+                if (ch === '{') braceDepth++;
+                if (ch === '}') braceDepth--;
+            }
+
+            // Detect }); on its own line (the bug pattern)
+            if (/^\s*}\s*\)\s*;?\s*$/.test(trimmed) && forLoopStack.length > 0) {
+                // Check if current brace depth matches the for-loop's opening depth
+                const top = forLoopStack[forLoopStack.length - 1];
+                if (braceDepth === top.depth) {
+                    forLoopStack.pop();
+                    issues.push({
+                        code: 'JS-005',
+                        severity: 'high',
+                        category: 'syntax',
+                        message: `forEach-style closure "})" used to close a for-loop (opened at line ${top.lineNum}). Should be "}" only.`,
+                        file: file.path,
+                        line: lineNum,
+                        fix: 'Replace }); with } — this for-loop is not a .forEach() callback'
+                    });
+                }
+            }
+
+            // Pop for-loops that closed normally (brace depth returned to their level)
+            while (forLoopStack.length > 0 && braceDepth <= forLoopStack[forLoopStack.length - 1].depth) {
+                forLoopStack.pop();
             }
         }
 
