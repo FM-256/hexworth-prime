@@ -1,0 +1,474 @@
+/**
+ * EduScan - Heuristics Validator
+ *
+ * Anomaly detection layer for patterns that don't match known signatures
+ * but "smell wrong." Uses the antivirus quarantine model: flag suspects
+ * with a new 'suspect' severity for human review.
+ *
+ * Rules:
+ * - HEUR-001: Excessive inline scripts (>8 <script> blocks without src)
+ * - HEUR-002: Commented-out code references (<!-- containing <script or <link)
+ * - HEUR-003: TODO/FIXME/HACK markers inside <script> blocks
+ * - HEUR-004: console.log in inline scripts (production hygiene)
+ * - HEUR-005: Duplicate script includes (same src on multiple <script> tags)
+ * - HEUR-006: Hardcoded relative href in shared JS renderer (fragile back links)
+ */
+
+const fs = require('fs');
+const path = require('path');
+
+class HeuristicsValidator {
+    constructor(options = {}) {
+        this.verbose = options.verbose || false;
+        this.profile = options.profile || 'ci';
+        this.rootPath = options.rootPath || './_app';
+
+        // Load quarantine allowlist
+        this.allowlist = this.loadAllowlist();
+    }
+
+    /**
+     * Load quarantine allowlist from JSON file
+     * @returns {Array} Allowlist entries
+     */
+    loadAllowlist() {
+        const allowlistPath = path.resolve(__dirname, '../../quarantine-allowlist.json');
+        try {
+            const raw = fs.readFileSync(allowlistPath, 'utf8');
+            return JSON.parse(raw);
+        } catch (err) {
+            if (this.verbose) {
+                console.log('[HEURISTICS] No allowlist found, using empty list');
+            }
+            return [];
+        }
+    }
+
+    /**
+     * Check if an issue is allowlisted
+     * @param {string} filePath - Relative file path
+     * @param {string} code - Issue code (e.g., HEUR-001)
+     * @returns {boolean} True if allowlisted
+     */
+    isAllowlisted(filePath, code) {
+        const normalized = filePath.replace(/\\/g, '/');
+        return this.allowlist.some(entry =>
+            normalized.includes(entry.file) && entry.code === code
+        );
+    }
+
+    /**
+     * Validate a single file for heuristic anomalies
+     * @param {Object} file - { path, content }
+     * @returns {Array} Issues found
+     */
+    validate(file) {
+        if (this.profile === 'inventory') {
+            return [];
+        }
+
+        const issues = [];
+
+        issues.push(...this.checkExcessiveInlineScripts(file));
+        issues.push(...this.checkCommentedOutCode(file));
+        issues.push(...this.checkTodoMarkers(file));
+        issues.push(...this.checkConsoleLog(file));
+        issues.push(...this.checkDuplicateScriptSrc(file));
+        issues.push(...this.checkUnguardedParseInt(file));
+        issues.push(...this.checkUnguardedLocalStorageArithmetic(file));
+
+        // Filter out allowlisted issues
+        return issues.filter(issue => !this.isAllowlisted(file.path, issue.code));
+    }
+
+    /**
+     * HEUR-001: Excessive inline scripts (>8 <script> blocks without src)
+     */
+    checkExcessiveInlineScripts(file) {
+        const issues = [];
+        const content = file.content;
+
+        // Match <script> tags without src attribute
+        const inlineScriptPattern = /<script(?![^>]*\bsrc\b)[^>]*>/gi;
+        const matches = content.match(inlineScriptPattern);
+        const count = matches ? matches.length : 0;
+
+        if (count > 8) {
+            issues.push({
+                code: 'HEUR-001',
+                severity: 'suspect',
+                category: 'heuristic',
+                message: `Excessive inline scripts: ${count} <script> blocks without src (threshold: 8)`,
+                file: file.path,
+                fix: 'Consider extracting inline scripts to external .js files'
+            });
+        }
+
+        return issues;
+    }
+
+    /**
+     * HEUR-002: Commented-out code references
+     * Detects <!-- comments containing <script or <link patterns
+     */
+    checkCommentedOutCode(file) {
+        const issues = [];
+        const content = file.content;
+
+        const commentPattern = /<!--([\s\S]*?)-->/g;
+        let match;
+
+        while ((match = commentPattern.exec(content)) !== null) {
+            const commentBody = match[1];
+
+            if (/<script\b/i.test(commentBody) || /<link\b/i.test(commentBody)) {
+                const line = this.getLineNumber(content, match.index);
+                issues.push({
+                    code: 'HEUR-002',
+                    severity: 'suspect',
+                    category: 'heuristic',
+                    message: 'Commented-out code reference (script or link tag in HTML comment)',
+                    file: file.path,
+                    line,
+                    fix: 'Remove commented-out code or restore it if needed'
+                });
+            }
+        }
+
+        return issues;
+    }
+
+    /**
+     * HEUR-003: TODO/FIXME/HACK markers inside <script> blocks
+     */
+    checkTodoMarkers(file) {
+        const issues = [];
+        const content = file.content;
+
+        const scriptPattern = /<script(?![^>]*\bsrc\b)[^>]*>([\s\S]*?)<\/script>/gi;
+        let scriptMatch;
+
+        while ((scriptMatch = scriptPattern.exec(content)) !== null) {
+            const scriptContent = scriptMatch[1];
+            const scriptStart = scriptMatch.index;
+            const lines = scriptContent.split('\n');
+
+            for (let i = 0; i < lines.length; i++) {
+                const lineText = lines[i];
+                const markerMatch = lineText.match(/\/\/\s*(TODO|FIXME|HACK)\b/i);
+
+                if (markerMatch) {
+                    const absolutePos = scriptStart + scriptContent.indexOf(lineText);
+                    const line = this.getLineNumber(content, absolutePos);
+                    issues.push({
+                        code: 'HEUR-003',
+                        severity: 'suspect',
+                        category: 'heuristic',
+                        message: `${markerMatch[1].toUpperCase()} marker in script: ${lineText.trim().substring(0, 60)}`,
+                        file: file.path,
+                        line,
+                        fix: `Resolve or remove ${markerMatch[1].toUpperCase()} comment`
+                    });
+                }
+            }
+        }
+
+        return issues;
+    }
+
+    /**
+     * HEUR-004: console.log in inline scripts
+     * Strips JS comments before checking to avoid false positives
+     */
+    checkConsoleLog(file) {
+        const issues = [];
+        const content = file.content;
+
+        const scriptPattern = /<script(?![^>]*\bsrc\b)[^>]*>([\s\S]*?)<\/script>/gi;
+        let scriptMatch;
+
+        while ((scriptMatch = scriptPattern.exec(content)) !== null) {
+            const scriptContent = scriptMatch[1];
+            const scriptStart = scriptMatch.index;
+
+            // Strip single-line and multi-line JS comments
+            const stripped = scriptContent
+                .replace(/\/\/.*$/gm, '')
+                .replace(/\/\*[\s\S]*?\*\//g, '');
+
+            // Find console.log calls in stripped content
+            const logPattern = /console\.log\s*\(/g;
+            let logMatch;
+
+            while ((logMatch = logPattern.exec(stripped)) !== null) {
+                // Map back to original line number approximately
+                const precedingContent = stripped.substring(0, logMatch.index);
+                const lineOffset = precedingContent.split('\n').length - 1;
+                const absolutePos = scriptStart + scriptContent.indexOf('console.log');
+                const line = this.getLineNumber(content, absolutePos);
+
+                issues.push({
+                    code: 'HEUR-004',
+                    severity: 'suspect',
+                    category: 'heuristic',
+                    message: 'console.log() in inline script (production hygiene)',
+                    file: file.path,
+                    line,
+                    fix: 'Remove console.log or replace with proper logging'
+                });
+                break; // One report per script block is enough
+            }
+        }
+
+        return issues;
+    }
+
+    /**
+     * HEUR-005: Duplicate script includes (same src on multiple <script> tags)
+     */
+    checkDuplicateScriptSrc(file) {
+        const issues = [];
+        const content = file.content;
+
+        const srcPattern = /<script[^>]*\bsrc\s*=\s*["']([^"']+)["'][^>]*>/gi;
+        const srcMap = new Map(); // src -> [line numbers]
+        let match;
+
+        while ((match = srcPattern.exec(content)) !== null) {
+            const src = match[1];
+            const line = this.getLineNumber(content, match.index);
+
+            if (!srcMap.has(src)) {
+                srcMap.set(src, []);
+            }
+            srcMap.get(src).push(line);
+        }
+
+        for (const [src, lines] of srcMap) {
+            if (lines.length > 1) {
+                issues.push({
+                    code: 'HEUR-005',
+                    severity: 'suspect',
+                    category: 'heuristic',
+                    message: `Duplicate script include: "${src}" loaded ${lines.length} times (lines ${lines.join(', ')})`,
+                    file: file.path,
+                    line: lines[1], // Report at second occurrence
+                    fix: `Remove duplicate <script src="${src}"> tag`
+                });
+            }
+        }
+
+        return issues;
+    }
+
+    /**
+     * MATH-001: Unguarded parseInt() — missing fallback for NaN.
+     *
+     * parseInt() returns NaN when the input can't be parsed. Without a
+     * fallback (|| 0), NaN propagates through arithmetic and corrupts
+     * displayed values ("NaN%", "NaN GB", etc.).
+     *
+     * Detects: parseInt(x) not followed by || or ?? on the same line.
+     * Ignores: parseInt(x, radix) used in a comparison or return statement
+     *          where NaN is handled at the call site.
+     */
+    checkUnguardedParseInt(file) {
+        const issues = [];
+        const content = file.content;
+        let fileHit = false; // One report per file max
+
+        const scriptPattern = /<script(?![^>]*\bsrc\b)[^>]*>([\s\S]*?)<\/script>/gi;
+        let scriptMatch;
+
+        while ((scriptMatch = scriptPattern.exec(content)) !== null) {
+            if (fileHit) break;
+            const scriptContent = scriptMatch[1];
+            const scriptStart = scriptMatch.index;
+            const lines = scriptContent.split('\n');
+
+            for (let i = 0; i < lines.length; i++) {
+                if (fileHit) break;
+                const line = lines[i];
+
+                // Skip comments
+                const trimmed = line.trim();
+                if (trimmed.startsWith('//') || trimmed.startsWith('*')) continue;
+
+                // Only flag: parseInt() combined with + - * / on the SAME line
+                // AND not guarded with || or ??
+                if (!/\bparseInt\s*\(/.test(line)) continue;
+
+                // Must have arithmetic operator on the same line as parseInt
+                // Pattern: parseInt(...) + something  OR  something + parseInt(...)
+                const hasArithmetic = /\bparseInt\s*\([^)]*\)\s*[+\-*/]/.test(line) ||
+                                     /[+\-*/]\s*parseInt\s*\(/.test(line);
+                if (!hasArithmetic) continue;
+
+                // Check if guarded: parseInt(...) || or parseInt(...) ??
+                if (/\bparseInt\s*\([^)]*\)\s*(\|\||[?][?])/.test(line)) continue;
+
+                const absolutePos = scriptStart + scriptContent.indexOf(line);
+                const lineNum = this.getLineNumber(content, absolutePos);
+
+                issues.push({
+                    code: 'MATH-001',
+                    severity: 'suspect',
+                    category: 'heuristic',
+                    message: `Unguarded parseInt() in arithmetic — NaN will propagate if input is invalid`,
+                    file: file.path,
+                    line: lineNum,
+                    fix: 'Add fallback: (parseInt(value, 10) || 0)'
+                });
+                fileHit = true;
+            }
+        }
+
+        return issues;
+    }
+
+    /**
+     * DATA-001: localStorage.getItem() in arithmetic without Number() coercion.
+     *
+     * localStorage stores strings. Using getItem() directly in arithmetic
+     * causes string concatenation instead of addition:
+     *   xp += localStorage.getItem('xp')  // "50" + "10" = "5010" not 60
+     *
+     * Detects: getItem() used with += or + without Number()/parseInt()/parseFloat().
+     */
+    checkUnguardedLocalStorageArithmetic(file) {
+        const issues = [];
+        const content = file.content;
+
+        const scriptPattern = /<script(?![^>]*\bsrc\b)[^>]*>([\s\S]*?)<\/script>/gi;
+        let scriptMatch;
+
+        while ((scriptMatch = scriptPattern.exec(content)) !== null) {
+            const scriptContent = scriptMatch[1];
+            const scriptStart = scriptMatch.index;
+            const lines = scriptContent.split('\n');
+
+            for (let i = 0; i < lines.length; i++) {
+                const line = lines[i];
+                const trimmed = line.trim();
+
+                // Skip comments
+                if (trimmed.startsWith('//') || trimmed.startsWith('*')) continue;
+
+                // Pattern 1: += localStorage.getItem(...) without Number wrapper
+                if (/\+=\s*localStorage\.getItem\s*\(/.test(line) &&
+                    !/Number\s*\(\s*localStorage\.getItem/.test(line) &&
+                    !/parseInt\s*\(\s*localStorage\.getItem/.test(line) &&
+                    !/parseFloat\s*\(\s*localStorage\.getItem/.test(line)) {
+                    const absolutePos = scriptStart + scriptContent.indexOf(line);
+                    const lineNum = this.getLineNumber(content, absolutePos);
+
+                    issues.push({
+                        code: 'DATA-001',
+                        severity: 'suspect',
+                        category: 'heuristic',
+                        message: `localStorage.getItem() used in += without Number() coercion — causes string concatenation instead of addition`,
+                        file: file.path,
+                        line: lineNum,
+                        fix: 'Wrap with Number(): += Number(localStorage.getItem(...))'
+                    });
+                    continue;
+                }
+
+                // Pattern 2: arithmetic operator with getItem on either side
+                if (/localStorage\.getItem\s*\([^)]*\)\s*[+\-*/]/.test(line) ||
+                    /[+\-*/]\s*localStorage\.getItem\s*\(/.test(line)) {
+                    // Check it's not already wrapped
+                    if (/Number\s*\(\s*localStorage\.getItem/.test(line) ||
+                        /parseInt\s*\(\s*localStorage\.getItem/.test(line) ||
+                        /parseFloat\s*\(\s*localStorage\.getItem/.test(line)) {
+                        continue;
+                    }
+
+                    const absolutePos = scriptStart + scriptContent.indexOf(line);
+                    const lineNum = this.getLineNumber(content, absolutePos);
+
+                    issues.push({
+                        code: 'DATA-001',
+                        severity: 'suspect',
+                        category: 'heuristic',
+                        message: `localStorage.getItem() in arithmetic expression without Number() coercion — returns string, not number`,
+                        file: file.path,
+                        line: lineNum,
+                        fix: 'Wrap with Number(): Number(localStorage.getItem(...))'
+                    });
+                }
+            }
+        }
+
+        return issues;
+    }
+
+    /**
+     * HEUR-006: Hardcoded relative href in shared JS renderer
+     *
+     * Scans .js files in the components/ directory for hardcoded relative
+     * href attributes (e.g., href="../../index.html"). These are fragile
+     * because shared renderers are loaded by consumer pages at different
+     * directory depths, so the relative path resolves differently depending
+     * on which page loads the renderer.
+     *
+     * This is a GLOBAL scan — called once, not per-file.
+     * @returns {Array} Issues found
+     */
+    validateRendererLinks() {
+        const issues = [];
+        const componentsDir = path.resolve(this.rootPath, 'components');
+
+        let jsFiles;
+        try {
+            jsFiles = fs.readdirSync(componentsDir)
+                .filter(f => f.endsWith('.js') && /renderer/i.test(f));
+        } catch (err) {
+            return issues;
+        }
+
+        for (const filename of jsFiles) {
+            const filePath = path.join(componentsDir, filename);
+            let content;
+            try {
+                content = fs.readFileSync(filePath, 'utf8');
+            } catch (err) {
+                continue;
+            }
+
+            // Match href="..." with relative paths (starts with ../ or ./)
+            const hrefPattern = /href\s*=\s*["'](\.\.\/[^"']+)["']/g;
+            let match;
+
+            while ((match = hrefPattern.exec(content)) !== null) {
+                const href = match[1];
+                const line = this.getLineNumber(content, match.index);
+
+                if (this.isAllowlisted(`components/${filename}`, 'HEUR-006')) {
+                    continue;
+                }
+
+                issues.push({
+                    code: 'HEUR-006',
+                    severity: 'suspect',
+                    category: 'heuristic',
+                    message: `Hardcoded relative href in shared renderer: ${href} — resolves differently depending on consumer page depth`,
+                    file: `components/${filename}`,
+                    line,
+                    fix: `Use absolute path from site root (e.g., /houses/shield/index.html) instead of relative path`
+                });
+            }
+        }
+
+        return issues;
+    }
+
+    /**
+     * Get line number from character position
+     */
+    getLineNumber(content, position) {
+        return content.substring(0, position).split('\n').length;
+    }
+}
+
+module.exports = HeuristicsValidator;

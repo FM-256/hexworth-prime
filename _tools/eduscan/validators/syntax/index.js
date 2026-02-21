@@ -17,6 +17,7 @@ const NamingValidator = require('./naming');
 const HeuristicsValidator = require('./heuristics');
 const ContentCatalogValidator = require('./content-catalog');
 const DependencyCheckValidator = require('./dependency-check');
+const CSPValidator = require('./csp');
 
 class SyntaxValidator {
     constructor(options = {}) {
@@ -67,6 +68,10 @@ class SyntaxValidator {
         this.dependencyCheckValidator = new DependencyCheckValidator({
             verbose: this.verbose,
             profile: this.profile
+        });
+        this.cspValidator = new CSPValidator({
+            verbose: this.verbose,
+            rootPath: this.rootPath
         });
     }
 
@@ -142,6 +147,17 @@ class SyntaxValidator {
             results.summary.heuristicErrors += rendererLinkResults.length;
             if (this.verbose) {
                 console.log(`[SYNTAX] RendererLinks: ${rendererLinkResults.length} issues`);
+            }
+        }
+
+        // Run CSP validation (global, cross-references firebase.json)
+        const cspResults = this.cspValidator.validate();
+        if (cspResults.issues.length > 0) {
+            results.issues.push(...cspResults.issues);
+            if (!results.summary.cspErrors) results.summary.cspErrors = 0;
+            results.summary.cspErrors += cspResults.issues.length;
+            if (this.verbose) {
+                console.log(`[SYNTAX] CSP: ${cspResults.issues.length} issues`);
             }
         }
 

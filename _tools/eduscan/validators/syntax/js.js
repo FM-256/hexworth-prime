@@ -46,12 +46,16 @@ class JSValidator {
                 // CI mode: only check for critical syntax errors
                 issues.push(...this.checkCriticalSyntaxErrors(file, block));
                 issues.push(...this.checkForEachCloserOnForLoop(file, block));
+                issues.push(...this.checkAwaitInNonAsyncCallback(file, block));
+                issues.push(...this.checkConstIIFEWithWindowAccess(file, block));
             } else {
                 // Strict mode: full validation
                 issues.push(...this.checkBracketBalance(file, block));
                 issues.push(...this.checkStringQuotes(file, block));
                 issues.push(...this.checkCommonErrors(file, block));
                 issues.push(...this.checkForEachCloserOnForLoop(file, block));
+                issues.push(...this.checkAwaitInNonAsyncCallback(file, block));
+                issues.push(...this.checkConstIIFEWithWindowAccess(file, block));
             }
         }
 
@@ -374,6 +378,169 @@ class JSValidator {
             // Pop for-loops that closed normally (brace depth returned to their level)
             while (forLoopStack.length > 0 && braceDepth <= forLoopStack[forLoopStack.length - 1].depth) {
                 forLoopStack.pop();
+            }
+        }
+
+        return issues;
+    }
+
+    /**
+     * JS-006: Detect `await` inside non-async forEach/map/filter/reduce callback.
+     *
+     * Using await inside a non-async callback is a syntax error that breaks the
+     * entire <script> block. The browser silently fails to parse the script,
+     * leaving all functions undefined and the UI dead.
+     *
+     * Detects patterns like:
+     *   items.forEach((item) => {
+     *       await doSomething(item);  // BUG: arrow function is not async
+     *   });
+     */
+    checkAwaitInNonAsyncCallback(file, block) {
+        const issues = [];
+        const lines = block.code.split('\n');
+        const callbackMethods = /\.\s*(forEach|map|filter|reduce|some|every|find|findIndex|flatMap)\s*\(/;
+
+        // Track function scopes: { type, lineNum, depth, isAsync }
+        // type: 'callback' (forEach etc.) or 'nested' (any inner function/arrow)
+        const scopeStack = [];
+        let braceDepth = 0;
+
+        for (let i = 0; i < lines.length; i++) {
+            const line = lines[i];
+            const lineNum = block.line + i;
+            const trimmed = line.trim();
+
+            // Skip comment lines
+            if (trimmed.startsWith('//') || trimmed.startsWith('/*') || trimmed.startsWith('*')) {
+                continue;
+            }
+
+            // Detect callback method opening (forEach, map, etc.)
+            const methodMatch = line.match(callbackMethods);
+            if (methodMatch) {
+                const method = methodMatch[1];
+                const afterMethod = line.substring(line.indexOf(methodMatch[0]) + methodMatch[0].length);
+                const isAsync = /^\s*async\b/.test(afterMethod);
+
+                if (line.includes('{')) {
+                    scopeStack.push({
+                        type: 'callback',
+                        method,
+                        lineNum,
+                        depth: braceDepth,
+                        isAsync
+                    });
+                }
+            }
+            // Detect nested async function/arrow inside a callback
+            // Patterns: async () => {, async function() {, async (x) => {
+            else if (scopeStack.length > 0 && /\basync\b/.test(line) && line.includes('{')) {
+                // Check if this is a new function scope (arrow or function keyword)
+                if (/\basync\s+(?:\([^)]*\)|[a-zA-Z_$]\w*)\s*=>\s*\{/.test(line) ||
+                    /\basync\s+function\b/.test(line) ||
+                    /=\s*async\s*\([^)]*\)\s*=>\s*\{/.test(line) ||
+                    /=\s*async\s*\(\s*\)\s*=>\s*\{/.test(line)) {
+                    scopeStack.push({
+                        type: 'nested',
+                        lineNum,
+                        depth: braceDepth,
+                        isAsync: true
+                    });
+                }
+            }
+
+            // Track brace depth
+            for (const ch of line) {
+                if (ch === '{') braceDepth++;
+                if (ch === '}') braceDepth--;
+            }
+
+            // Pop scopes that have closed
+            while (scopeStack.length > 0 && braceDepth <= scopeStack[scopeStack.length - 1].depth) {
+                scopeStack.pop();
+            }
+
+            // Check for await usage
+            if (scopeStack.length > 0 && /\bawait\b/.test(trimmed)) {
+                // Find the innermost scope — if it's async (nested or callback), await is fine
+                const top = scopeStack[scopeStack.length - 1];
+                if (!top.isAsync && top.type === 'callback') {
+                    issues.push({
+                        code: 'JS-006',
+                        severity: 'high',
+                        category: 'syntax',
+                        message: `await used inside non-async .${top.method}() callback (line ${top.lineNum}). This is a syntax error that breaks the entire script block.`,
+                        file: file.path,
+                        line: lineNum,
+                        fix: `Add async to the .${top.method}() callback, or convert to a for...of loop`
+                    });
+                }
+            }
+        }
+
+        return issues;
+    }
+
+    /**
+     * SCOPE-001: Detect const/let IIFE at script top-level with window.Name access.
+     *
+     * In a regular <script> block, `const X = (() => {...})()` creates X in the
+     * global lexical scope but NOT as a property of window. If other code accesses
+     * window.X, it will be undefined. The fix is to use `var` instead.
+     *
+     * Detects:
+     *   const HiveEngine = (() => { ... })();
+     *   // ... later in same file:
+     *   window.HiveEngine.init()  // undefined!
+     */
+    checkConstIIFEWithWindowAccess(file, block) {
+        const issues = [];
+        const lines = block.code.split('\n');
+
+        // Phase 1: Find const/let IIFE declarations at top-level (brace depth 0)
+        const iifeNames = [];
+        let braceDepth = 0;
+
+        for (let i = 0; i < lines.length; i++) {
+            const line = lines[i];
+            const lineNum = block.line + i;
+
+            // Only check at top-level scope (braceDepth 0)
+            if (braceDepth === 0) {
+                // Match: const/let Name = (() => { or (function() {
+                const iifeMatch = line.match(/^\s*(const|let)\s+([A-Z]\w+)\s*=\s*\(\s*(?:\(\s*\)\s*=>|function\s*\()/);
+                if (iifeMatch) {
+                    iifeNames.push({
+                        keyword: iifeMatch[1],
+                        name: iifeMatch[2],
+                        lineNum
+                    });
+                }
+            }
+
+            for (const ch of line) {
+                if (ch === '{') braceDepth++;
+                if (ch === '}') braceDepth--;
+            }
+        }
+
+        if (iifeNames.length === 0) return issues;
+
+        // Phase 2: Check if window.Name is referenced anywhere in the full file content
+        const fullContent = file.content || '';
+        for (const iife of iifeNames) {
+            const windowPattern = new RegExp(`\\bwindow\\.${iife.name}\\b`);
+            if (windowPattern.test(fullContent)) {
+                issues.push({
+                    code: 'SCOPE-001',
+                    severity: 'high',
+                    category: 'syntax',
+                    message: `${iife.keyword} ${iife.name} (IIFE) is not accessible via window.${iife.name}. Use var instead.`,
+                    file: file.path,
+                    line: iife.lineNum,
+                    fix: `Change "${iife.keyword} ${iife.name} = ..." to "var ${iife.name} = ..." for window-level access`
+                });
             }
         }
 

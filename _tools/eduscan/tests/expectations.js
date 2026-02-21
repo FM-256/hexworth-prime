@@ -10,14 +10,14 @@
 module.exports = {
     'clean.html':             [],
     'html-issues.html':       ['HTML-001', 'HTML-003', 'HTML-005', 'HTML-006', 'HTML-007'],
-    'js-issues.html':         ['JS-001', 'JS-002', 'JS-005'],
+    'js-issues.html':         ['JS-001', 'JS-002', 'JS-005', 'JS-006'],
     'engine-issues.html':     ['ENG-001', 'ENG-002', 'ENG-003'],
     'path-issues.html':       ['PATH-001', 'PATH-002', 'PATH-003', 'PATH-DUP-001'],
     'path-depth-issues.html': ['PATH-DEPTH-001', 'PATH-DEPTH-002'],
     'naming-issues.html':     ['NAME-002'],
     'html-strict-issues.html': ['HTML-004', 'HTML-008', 'HTML-009', 'HTML-010'],
-    'js-strict-issues.html':   ['JS-003', 'JS-004'],
+    'js-strict-issues.html':   ['JS-003', 'JS-004', 'SCOPE-001'],
     'path-strict-issues.html': ['PATH-004', 'PATH-005'],
     'naming-full-issues.html': ['NAME-003', 'NAME-004'],
-    'heuristic-issues.html':   ['HEUR-001', 'HEUR-002', 'HEUR-003', 'HEUR-004', 'HEUR-005']
+    'heuristic-issues.html':   ['HEUR-001', 'HEUR-002', 'HEUR-003', 'HEUR-004', 'HEUR-005', 'MATH-001', 'DATA-001']
 };
