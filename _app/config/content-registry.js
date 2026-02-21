@@ -6943,6 +6943,22 @@ const ContentRegistry = {
                 'Integrate M01-07 concepts into comprehensive compliance scenarios'
             ]
         },
+        'cloud-cse-comprehensive-review': {
+            id: 'cloud-cse-comprehensive-review',
+            title: 'CSE Comprehensive Review',
+            description: 'Jeopardy-style review game covering all 8 modules of the EC-Council Cloud Security Engineer course',
+            house: 'cloud',
+            type: 'quiz',
+            difficulty: 'advanced',
+            duration: 30,
+            topics: ['cloud', 'security', 'CSE', 'review', 'comprehensive'],
+            paths: ['cse'],
+            components: {
+                quiz: 'houses/cloud/cse/reviews/cse-comprehensive-review.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
 
         'forge-admin-tools-explorer': {
             id: 'forge-admin-tools-explorer',
