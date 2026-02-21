@@ -215,33 +215,11 @@ const FirestoreManager = (function() {
             const { data } = snapshot.data();
             if (!data || typeof data !== 'object') return 0;
 
-            // Recursive deep merge: cloud as base, local wins on scalar conflicts,
-            // objects merge recursively, arrays union by JSON equality
-            function deepMerge(cloud, local) {
-                if (Array.isArray(cloud) && Array.isArray(local)) {
-                    const seen = new Set(local.map(i => JSON.stringify(i)));
-                    const result = [...local];
-                    for (const item of cloud) {
-                        if (!seen.has(JSON.stringify(item))) result.push(item);
-                    }
-                    return result;
-                }
-                if (cloud && local
-                    && typeof cloud === 'object' && typeof local === 'object'
-                    && !Array.isArray(cloud) && !Array.isArray(local)) {
-                    const result = { ...cloud };
-                    for (const [k, v] of Object.entries(local)) {
-                        if (k in result && result[k] && v
-                            && typeof result[k] === 'object' && typeof v === 'object') {
-                            result[k] = deepMerge(result[k], v);
-                        } else {
-                            result[k] = v;
-                        }
-                    }
-                    return result;
-                }
-                return local; // scalar: local wins
-            }
+            // Deep merge via SyncUtils (extracted for testability)
+            // Rules: arrays union, objects recurse, scalars local wins
+            const deepMerge = (typeof SyncUtils !== 'undefined')
+                ? SyncUtils.deepMerge
+                : function(cloud, local) { return local; }; // fallback: local wins
 
             let restored = 0;
             let merged = 0;
