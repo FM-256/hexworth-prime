@@ -1,0 +1,603 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CySA+ Ch 12 Lab: Analyzing IOCs — Eye House</title>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root { --eye: #a855f7; --eye2: #c084fc; --eye-glow: rgba(168,85,247,0.3); --bg: #0a0a12; --bg2: #120a1a; --bg3: #1a0a25; --card: rgba(15,10,25,0.85); --ink: #e8e8f0; --muted: #9988bb; --ok: #4ade80; --warn: #fbbf24; --bad: #f87171; --border: rgba(168,85,247,0.22); --blue: #60a5fa; }
+        body { font-family: 'Segoe UI', system-ui, sans-serif; background: linear-gradient(135deg, var(--bg), var(--bg2), var(--bg3)); color: var(--ink); min-height: 100vh; padding-bottom: 60px; }
+        .page-header { display: flex; align-items: center; justify-content: space-between; padding: 16px 32px; background: rgba(10,10,18,0.9); border-bottom: 1px solid var(--border); backdrop-filter: blur(10px); position: sticky; top: 0; z-index: 100; }
+        .back-link { color: var(--eye2); text-decoration: none; font-size: 0.9rem; font-weight: 600; }
+        .back-link:hover { opacity: 0.7; }
+        .brand { font-size: 0.78rem; color: var(--muted); letter-spacing: 0.1em; text-transform: uppercase; }
+        .container { max-width: 1000px; margin: 0 auto; padding: 40px 20px; }
+        .lab-header { text-align: center; padding: 36px 24px; background: var(--card); border: 1px solid var(--border); border-radius: 20px; margin-bottom: 32px; position: relative; overflow: hidden; }
+        .lab-header::before { content: ''; position: absolute; top: -60px; left: 50%; transform: translateX(-50%); width: 360px; height: 360px; background: radial-gradient(circle, var(--eye-glow) 0%, transparent 70%); pointer-events: none; }
+        .lab-tag { display: inline-block; background: rgba(168,85,247,0.15); color: var(--eye); border: 1px solid var(--border); padding: 0.3rem 1rem; border-radius: 20px; font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; margin-bottom: 1rem; }
+        .lab-header h1 { font-size: 1.9rem; font-weight: 800; margin-bottom: 0.6rem; }
+        .lab-header h1 span { color: var(--eye); }
+        .lab-header p { color: var(--muted); font-size: 1rem; max-width: 680px; margin: 0 auto; }
+        .progress-bar { background: rgba(255,255,255,0.08); border-radius: 10px; height: 10px; margin: 20px 0 8px; overflow: hidden; }
+        .progress-fill { height: 100%; background: linear-gradient(90deg, var(--eye), var(--eye2)); border-radius: 10px; transition: width 0.5s ease; width: 0%; }
+        .progress-text { text-align: center; color: var(--muted); font-size: 0.85rem; }
+        .exercise { background: var(--card); border: 1px solid var(--border); border-radius: 14px; margin-bottom: 20px; overflow: hidden; }
+        .exercise-header { background: rgba(168,85,247,0.08); padding: 18px 22px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; transition: background 0.2s; }
+        .exercise-header:hover { background: rgba(168,85,247,0.14); }
+        .exercise-title { display: flex; align-items: center; gap: 14px; }
+        .ex-num { background: linear-gradient(135deg, var(--eye), var(--eye2)); color: #fff; width: 34px; height: 34px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 0.9rem; flex-shrink: 0; }
+        .ex-name { font-size: 1.1rem; color: var(--ink); font-weight: 600; }
+        .ex-status { padding: 4px 14px; border-radius: 20px; font-size: 0.82rem; font-weight: 600; }
+        .status-pending { background: rgba(100,100,100,0.3); color: #888; }
+        .status-complete { background: rgba(74,222,128,0.15); color: var(--ok); }
+        .exercise-content { padding: 24px; display: none; }
+        .exercise.active .exercise-content { display: block; }
+        .scenario { background: rgba(96,165,250,0.08); border-left: 4px solid var(--blue); padding: 14px 18px; margin-bottom: 18px; border-radius: 0 8px 8px 0; }
+        .scenario h4 { color: var(--blue); margin-bottom: 6px; font-size: 0.95rem; }
+        .scenario p { font-size: 0.88rem; color: var(--muted); margin: 0; }
+        .concept-box { background: rgba(251,191,36,0.08); border-left: 3px solid var(--warn); padding: 14px 18px; margin: 14px 0; border-radius: 0 8px 8px 0; }
+        .concept-box h4 { color: var(--warn); margin-bottom: 8px; font-size: 0.88rem; font-weight: 700; }
+        .concept-box p, .concept-box li { font-size: 0.85rem; color: var(--muted); line-height: 1.5; }
+        .concept-box ul { margin-left: 18px; }
+        .task-list { list-style: none; margin: 16px 0; }
+        .task-item { padding: 11px 14px; margin: 7px 0; background: rgba(255,255,255,0.02); border-radius: 8px; display: flex; align-items: flex-start; gap: 12px; border: 1px solid rgba(255,255,255,0.05); }
+        .task-item input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--eye); flex-shrink: 0; margin-top: 2px; }
+        .task-item.checked { background: rgba(74,222,128,0.04); border-color: rgba(74,222,128,0.15); }
+        .task-item.checked label { text-decoration: line-through; color: #555; }
+        .task-item label { font-size: 0.88rem; color: var(--muted); cursor: pointer; line-height: 1.5; }
+        .q-section { background: rgba(168,85,247,0.08); border-radius: 10px; padding: 18px; margin: 16px 0; border: 1px solid rgba(168,85,247,0.2); }
+        .q-section h4 { color: var(--eye2); margin-bottom: 10px; font-size: 0.92rem; }
+        .q-section textarea { width: 100%; min-height: 110px; background: rgba(0,0,0,0.35); border: 1px solid rgba(168,85,247,0.25); border-radius: 8px; padding: 10px 14px; color: var(--ink); font-family: inherit; font-size: 0.88rem; resize: vertical; }
+        .q-section textarea:focus { outline: none; border-color: var(--eye); }
+        .data-table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 0.85rem; }
+        .data-table th { text-align: left; padding: 8px 12px; background: rgba(168,85,247,0.12); color: var(--eye); font-size: 0.78rem; font-weight: 700; letter-spacing: 0.05em; border-bottom: 1px solid var(--border); }
+        .data-table td { padding: 8px 12px; color: var(--muted); border-bottom: 1px solid rgba(168,85,247,0.07); vertical-align: top; }
+        .data-table tr:last-child td { border-bottom: none; }
+        .td-key { color: var(--eye2); font-weight: 700; }
+        .netflow-block { background: rgba(0,0,0,0.45); border-radius: 8px; padding: 16px 20px; margin: 12px 0; font-family: 'Courier New', monospace; font-size: 0.78rem; color: var(--ok); border: 1px solid rgba(74,222,128,0.15); line-height: 1.9; overflow-x: auto; white-space: pre; }
+        .ioc-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin: 14px 0; }
+        .ioc-card { background: rgba(168,85,247,0.07); border: 1px solid var(--border); border-radius: 10px; padding: 14px; }
+        .ioc-card h4 { color: var(--eye); font-size: 0.85rem; font-weight: 700; margin-bottom: 8px; }
+        .ioc-card ul { list-style: none; }
+        .ioc-card ul li { font-size: 0.8rem; color: var(--muted); padding: 3px 0; border-bottom: 1px solid rgba(168,85,247,0.07); }
+        .ioc-card ul li:last-child { border-bottom: none; }
+        .mitre-card { background: rgba(248,113,113,0.06); border: 1px solid rgba(248,113,113,0.2); border-radius: 10px; padding: 14px 18px; margin: 8px 0; }
+        .mitre-card h4 { color: var(--bad); font-size: 0.88rem; margin-bottom: 6px; }
+        .mitre-card p { font-size: 0.82rem; color: var(--muted); }
+        .complete-btn { background: linear-gradient(135deg, var(--eye), var(--eye2)); color: #fff; border: none; padding: 11px 28px; border-radius: 8px; font-size: 0.95rem; font-weight: 700; cursor: pointer; margin-top: 14px; transition: transform 0.2s, box-shadow 0.2s; }
+        .complete-btn:hover { transform: translateY(-2px); box-shadow: 0 4px 15px var(--eye-glow); }
+        .complete-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+        .completion-badge { display: none; text-align: center; padding: 36px; background: rgba(74,222,128,0.05); border-radius: 16px; border: 2px solid rgba(74,222,128,0.25); margin-top: 28px; }
+        .completion-badge.show { display: block; animation: fadeIn 0.5s ease; }
+        .completion-badge h2 { color: var(--ok); font-size: 1.8rem; margin-bottom: 10px; }
+        .completion-badge p { color: var(--muted); margin-bottom: 18px; }
+        .next-link { display: inline-block; background: linear-gradient(135deg, var(--eye), var(--eye2)); color: #fff; padding: 11px 24px; border-radius: 8px; text-decoration: none; font-weight: 700; margin: 5px; font-size: 0.9rem; }
+        @keyframes fadeIn { from{opacity:0;transform:translateY(18px)} to{opacity:1;transform:translateY(0)} }
+    </style>
+</head>
+<body>
+
+<header class="page-header">
+    <a href="../index.html" class="back-link">&larr; Back to CySA+</a>
+    <span class="brand">Eye House &mdash; CySA+ Lab</span>
+</header>
+
+<div class="container">
+
+    <div class="lab-header">
+        <div class="lab-tag">EYE HOUSE &mdash; CySA+ &mdash; CHAPTER 12 LAB</div>
+        <h1>Analyzing <span>Indicators of Compromise</span></h1>
+        <p>Apply network traffic analysis techniques, examine host-based artifacts and registry anomalies, map attacker behaviors to the MITRE ATT&amp;CK framework, and practice rogue device detection and filesystem integrity monitoring.</p>
+        <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+        <div class="progress-text" id="progressText">0 of 16 tasks completed</div>
+    </div>
+
+    <!-- EXERCISE 1: Network Traffic Analysis -->
+    <div class="exercise" id="ex1">
+        <div class="exercise-header" onclick="toggleEx('ex1')">
+            <div class="exercise-title">
+                <div class="ex-num">1</div>
+                <div class="ex-name">Network Traffic Analysis and Beaconing Detection</div>
+            </div>
+            <span class="ex-status status-pending" id="status-ex1">Pending</span>
+        </div>
+        <div class="exercise-content">
+
+            <div class="scenario">
+                <h4>Scenario: Suspicious Outbound Traffic — Apex Manufacturing</h4>
+                <p>Your SIEM has flagged a workstation (10.10.5.47) making regular outbound HTTPS connections to an unusual external IP (185.220.101.34) every 4 minutes. Netflow data and passive monitoring captures are available. Determine whether this is benign or a command-and-control (C2) beaconing pattern.</p>
+            </div>
+
+            <div class="concept-box">
+                <h4>Three Methods of Network Monitoring</h4>
+                <ul>
+                    <li><strong>Router-Based (Netflow/RMON/SNMP):</strong> Samples traffic at interface — counts flows, not content. Netflow captures 5-tuple (src IP, dst IP, src port, dst port, protocol), byte counts, and timing. Useful for pattern detection at scale.</li>
+                    <li><strong>Active Monitoring (Ping/iPerf):</strong> Sends probes to measure availability, latency, packet loss, and bandwidth baseline. Cannot detect content of existing flows.</li>
+                    <li><strong>Passive Monitoring (Network Tap):</strong> Copies all traffic between two devices. Provides full packet capture for after-the-fact analysis — rate, protocol, content. Most detail, highest storage cost.</li>
+                </ul>
+            </div>
+
+            <p style="color:var(--eye2); font-weight:700; margin:14px 0 8px; font-size:0.88rem;">Netflow Records — Workstation 10.10.5.47 (past 60 minutes)</p>
+
+            <div class="netflow-block">SRC_IP         DST_IP           PROTO  SRC_PORT  DST_PORT  BYTES     START               DURATION
+10.10.5.47     185.220.101.34   TCP    52841     443       1,847     2024-03-12 08:00:14   0.8s
+10.10.5.47     185.220.101.34   TCP    52914     443       1,823     2024-03-12 08:04:13   0.7s
+10.10.5.47     185.220.101.34   TCP    53002     443       1,851     2024-03-12 08:08:15   0.9s
+10.10.5.47     185.220.101.34   TCP    53188     443       1,839     2024-03-12 08:12:14   0.8s
+10.10.5.47     185.220.101.34   TCP    53341     443       1,846     2024-03-12 08:16:13   0.8s
+10.10.5.47     185.220.101.34   TCP    53509     443       1,852     2024-03-12 08:20:14   0.7s
+10.10.5.47     185.220.101.34   TCP    53677     443       1,841     2024-03-12 08:24:15   0.9s
+10.10.5.47     185.220.101.34   TCP    53820     443       1,849     2024-03-12 08:28:13   0.8s
+10.10.5.47     185.220.101.34   TCP    53998     443       1,847     2024-03-12 08:32:14   0.8s
+10.10.5.47     185.220.101.34   TCP    54167     443       1,854     2024-03-12 08:36:15   0.7s
+10.10.5.47     185.220.101.34   TCP    54321     443       1,843     2024-03-12 08:40:14   0.9s
+10.10.5.47     185.220.101.34   TCP    54498     443       1,851     2024-03-12 08:44:14   0.8s
+10.10.5.47     185.220.101.34   TCP    54677     443       1,847     2024-03-12 08:48:13   0.8s
+10.10.5.47     185.220.101.34   TCP    54842     443       1,853     2024-03-12 08:52:15   0.7s
+10.10.5.47     185.220.101.34   TCP    55001     443       1,845     2024-03-12 08:56:13   0.8s</div>
+
+            <ul class="task-list" id="tasks-ex1">
+                <li class="task-item" data-id="1-1">
+                    <input type="checkbox" id="t1-1" onchange="taskChange('1-1', this)">
+                    <label for="t1-1">Analyze the Netflow data and identify the three specific characteristics that indicate this is a C2 beaconing pattern rather than normal user-initiated HTTPS traffic (consider interval regularity, byte count consistency, and session duration).</label>
+                </li>
+                <li class="task-item" data-id="1-2">
+                    <input type="checkbox" id="t1-2" onchange="taskChange('1-2', this)">
+                    <label for="t1-2">Determine which monitoring method would be most useful for capturing the actual payload content of these HTTPS sessions for malware analysis. Explain the tradeoffs versus Netflow-only analysis.</label>
+                </li>
+                <li class="task-item" data-id="1-3">
+                    <input type="checkbox" id="t1-3" onchange="taskChange('1-3', this)">
+                    <label for="t1-3">The destination IP 185.220.101.34 resolves to a different FQDN on each DNS query. Identify the DNS-based evasion technique this suggests and explain how it complicates IP-based blocking. What detection method is effective against this technique?</label>
+                </li>
+                <li class="task-item" data-id="1-4">
+                    <input type="checkbox" id="t1-4" onchange="taskChange('1-4', this)">
+                    <label for="t1-4">Recommend a containment action for workstation 10.10.5.47 and identify two additional network data sources (besides Netflow) that should be collected immediately as evidence before isolation.</label>
+                </li>
+            </ul>
+
+            <div class="q-section">
+                <h4>Network Traffic Analysis: Findings and Recommendations</h4>
+                <textarea id="notes-ex1" placeholder="Document: (1) beaconing indicators in the data, (2) monitoring method for payload capture, (3) DNS evasion technique identified, (4) containment recommendation and evidence sources..." oninput="saveNotes()"></textarea>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- EXERCISE 2: Host Artifact Examination -->
+    <div class="exercise" id="ex2">
+        <div class="exercise-header" onclick="toggleEx('ex2')">
+            <div class="exercise-title">
+                <div class="ex-num">2</div>
+                <div class="ex-name">Host-Based Artifact Examination</div>
+            </div>
+            <span class="ex-status status-pending" id="status-ex2">Pending</span>
+        </div>
+        <div class="exercise-content">
+
+            <div class="scenario">
+                <h4>Scenario: Compromised Endpoint — Workstation WS-APEX-047</h4>
+                <p>You have isolated workstation WS-APEX-047 (Windows 10) and are now conducting a live host examination. The endpoint agent has flagged several anomalies. Analyze the host-based artifacts below to identify indicators of compromise and determine attacker persistence mechanisms.</p>
+            </div>
+
+            <p style="color:var(--eye2); font-weight:700; margin:14px 0 8px; font-size:0.88rem;">Host Artifact Data — WS-APEX-047</p>
+
+            <table class="data-table">
+                <thead>
+                    <tr><th>Artifact Type</th><th>Finding</th><th>Suspicious?</th></tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td class="td-key">Running Process</td>
+                        <td>Process "svch0st.exe" running from C:\Users\jsmith\AppData\Local\Temp\ with PID 3847. Parent process: explorer.exe</td>
+                        <td style="color:var(--bad);">High — svchost masquerade</td>
+                    </tr>
+                    <tr>
+                        <td class="td-key">Registry Run Key</td>
+                        <td>HKCU\SOFTWARE\Microsoft\Windows\CurrentVersion\Run — "UpdateHelper" = "C:\Users\jsmith\AppData\Local\Temp\svch0st.exe"</td>
+                        <td style="color:var(--bad);">High — persistence mechanism</td>
+                    </tr>
+                    <tr>
+                        <td class="td-key">Scheduled Task</td>
+                        <td>Task "\Microsoft\Windows\UpdateOrchestrator\RefreshSettings2" — runs every 4 minutes, action: C:\Users\jsmith\AppData\Local\Temp\updater.bat</td>
+                        <td style="color:var(--bad);">High — beacon timing match</td>
+                    </tr>
+                    <tr>
+                        <td class="td-key">File System</td>
+                        <td>New files in C:\Users\jsmith\AppData\Local\Temp: svch0st.exe (hash: 3a8f2b...), updater.bat, config.enc — created 2024-03-11 23:14:52</td>
+                        <td style="color:var(--bad);">High — dropped payloads</td>
+                    </tr>
+                    <tr>
+                        <td class="td-key">Memory</td>
+                        <td>svch0st.exe has injected threads into legitimate lsass.exe process; encrypted memory segments detected</td>
+                        <td style="color:var(--bad);">Critical — credential harvesting</td>
+                    </tr>
+                    <tr>
+                        <td class="td-key">Authentication Logs</td>
+                        <td>Successful NTLM authentication from WS-APEX-047 to 3 other workstations at 23:47, 00:12, 00:38 using jsmith credentials</td>
+                        <td style="color:var(--bad);">High — lateral movement</td>
+                    </tr>
+                    <tr>
+                        <td class="td-key">Drive Utilization</td>
+                        <td>C: drive at normal capacity. No unusual large files. USB device (SanDisk, 32GB) last connected 2024-03-11 22:58:43</td>
+                        <td style="color:var(--warn);">Medium — initial access vector?</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <div class="concept-box">
+                <h4>Host IOC Categories</h4>
+                <ul>
+                    <li><strong>Process Masquerading:</strong> Naming rogue processes to look like legitimate OS components (svchost vs svch0st). Common with rootkits and RATs.</li>
+                    <li><strong>Registry Run Keys:</strong> HKCU/HKLM Run and RunOnce keys — favorite attacker persistence location. Executed on every user login.</li>
+                    <li><strong>Unauthorized Scheduled Tasks:</strong> Similar to cron on Linux — runs arbitrary code at defined intervals. Difficult to detect without task inventory baseline.</li>
+                    <li><strong>Filesystem Integrity:</strong> Tools like Tripwire and AIDE detect unauthorized file creation, modification, permission changes, and attribute changes.</li>
+                </ul>
+            </div>
+
+            <ul class="task-list" id="tasks-ex2">
+                <li class="task-item" data-id="2-1">
+                    <input type="checkbox" id="t2-1" onchange="taskChange('2-1', this)">
+                    <label for="t2-1">Identify the two persistence mechanisms present on WS-APEX-047. For each, name the specific registry path or scheduled task name and explain why attackers prefer these locations for maintaining access.</label>
+                </li>
+                <li class="task-item" data-id="2-2">
+                    <input type="checkbox" id="t2-2" onchange="taskChange('2-2', this)">
+                    <label for="t2-2">Explain the significance of svch0st.exe injecting threads into lsass.exe. What credential material can be extracted from lsass memory, and what tool is commonly used for this technique?</label>
+                </li>
+                <li class="task-item" data-id="2-3">
+                    <input type="checkbox" id="t2-3" onchange="taskChange('2-3', this)">
+                    <label for="t2-3">Analyze the authentication log entries. What attack phase does lateral movement to three additional workstations represent? What should the CSIRT do immediately regarding those three workstations?</label>
+                </li>
+                <li class="task-item" data-id="2-4">
+                    <input type="checkbox" id="t2-4" onchange="taskChange('2-4', this)">
+                    <label for="t2-4">The USB device was connected 16 minutes before the malware files appeared. Assess this as a potential initial access vector. What filesystem and log evidence would confirm or deny USB-based delivery? What Windows tool shows USB device history?</label>
+                </li>
+            </ul>
+
+            <div class="q-section">
+                <h4>Host Artifact Analysis: Complete Findings</h4>
+                <textarea id="notes-ex2" placeholder="Document: (1) persistence mechanisms with paths, (2) lsass injection significance and common tool, (3) lateral movement assessment and response, (4) USB initial access analysis..." oninput="saveNotes()"></textarea>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- EXERCISE 3: MITRE ATT&CK Mapping -->
+    <div class="exercise" id="ex3">
+        <div class="exercise-header" onclick="toggleEx('ex3')">
+            <div class="exercise-title">
+                <div class="ex-num">3</div>
+                <div class="ex-name">MITRE ATT&amp;CK Framework Mapping</div>
+            </div>
+            <span class="ex-status status-pending" id="status-ex3">Pending</span>
+        </div>
+        <div class="exercise-content">
+
+            <div class="scenario">
+                <h4>Task: Map the Apex Manufacturing Attack to MITRE ATT&amp;CK</h4>
+                <p>Using all artifacts collected from the network and host investigations, map the observed attacker behaviors to MITRE ATT&CK tactics and techniques. This mapping enables threat intelligence sharing, detection rule development, and gap analysis of your defensive coverage.</p>
+            </div>
+
+            <div class="concept-box">
+                <h4>MITRE ATT&amp;CK Tactics (The "Why" — ordered by attack lifecycle)</h4>
+                <ul>
+                    <li><strong>Initial Access (TA0001):</strong> Gaining first foothold in the environment</li>
+                    <li><strong>Execution (TA0002):</strong> Running attacker-controlled code</li>
+                    <li><strong>Persistence (TA0003):</strong> Maintaining access across reboots</li>
+                    <li><strong>Privilege Escalation (TA0004):</strong> Gaining higher permission levels</li>
+                    <li><strong>Defense Evasion (TA0005):</strong> Avoiding detection mechanisms</li>
+                    <li><strong>Credential Access (TA0006):</strong> Stealing account credentials</li>
+                    <li><strong>Discovery (TA0007):</strong> Exploring the environment</li>
+                    <li><strong>Lateral Movement (TA0008):</strong> Moving to other systems</li>
+                    <li><strong>Collection (TA0009):</strong> Gathering data of interest</li>
+                    <li><strong>Command and Control (TA0011):</strong> Communicating with compromised systems</li>
+                    <li><strong>Exfiltration (TA0010):</strong> Stealing data out of the environment</li>
+                </ul>
+            </div>
+
+            <p style="color:var(--eye2); font-weight:700; margin:16px 0 8px; font-size:0.88rem;">Observed Behaviors to Map</p>
+
+            <div class="mitre-card">
+                <h4>Behavior 1: USB device connected, malware files appeared 16 minutes later</h4>
+                <p>Tactic: _____ | Technique: T1091 — Replication Through Removable Media</p>
+            </div>
+            <div class="mitre-card">
+                <h4>Behavior 2: svch0st.exe process named to mimic legitimate svchost.exe</h4>
+                <p>Tactic: _____ | Technique: T1036.005 — Masquerading: Match Legitimate Name or Location</p>
+            </div>
+            <div class="mitre-card">
+                <h4>Behavior 3: Registry Run Key "UpdateHelper" added to HKCU\...\Run</h4>
+                <p>Tactic: _____ | Technique: T1547.001 — Boot or Logon Autostart: Registry Run Keys / Startup Folder</p>
+            </div>
+            <div class="mitre-card">
+                <h4>Behavior 4: svch0st.exe injects threads into lsass.exe to dump credentials</h4>
+                <p>Tactic: _____ | Technique: T1003.001 — OS Credential Dumping: LSASS Memory</p>
+            </div>
+            <div class="mitre-card">
+                <h4>Behavior 5: NTLM authentication from WS-APEX-047 to three other workstations using jsmith credentials</h4>
+                <p>Tactic: _____ | Technique: T1550.002 — Use Alternate Authentication Material: Pass the Hash</p>
+            </div>
+            <div class="mitre-card">
+                <h4>Behavior 6: Regular 4-minute HTTPS beaconing to 185.220.101.34</h4>
+                <p>Tactic: _____ | Technique: T1071.001 — Application Layer Protocol: Web Protocols</p>
+            </div>
+
+            <ul class="task-list" id="tasks-ex3">
+                <li class="task-item" data-id="3-1">
+                    <input type="checkbox" id="t3-1" onchange="taskChange('3-1', this)">
+                    <label for="t3-1">Complete the tactic mapping for all six observed behaviors above. Write the tactic name and TA number for each (e.g., "Persistence (TA0003)"). Use the tactic reference list provided.</label>
+                </li>
+                <li class="task-item" data-id="3-2">
+                    <input type="checkbox" id="t3-2" onchange="taskChange('3-2', this)">
+                    <label for="t3-2">Based on the ATT&amp;CK mapping, reconstruct the attack timeline in chronological order. Identify the likely sequence: Initial Access → Execution → Persistence → Credential Access → Lateral Movement → C2.</label>
+                </li>
+                <li class="task-item" data-id="3-3">
+                    <input type="checkbox" id="t3-3" onchange="taskChange('3-3', this)">
+                    <label for="t3-3">Identify two defensive mitigations from the ATT&amp;CK framework that would have prevented or detected the Persistence technique (T1547.001). What monitoring capability detects Registry Run Key modifications?</label>
+                </li>
+                <li class="task-item" data-id="3-4">
+                    <input type="checkbox" id="t3-4" onchange="taskChange('3-4', this)">
+                    <label for="t3-4">Explain how UEBA (User and Entity Behavior Analytics) would have flagged the jsmith account's lateral movement, even if no malware signature was detected. What baseline behavioral anomaly would trigger a UEBA alert?</label>
+                </li>
+            </ul>
+
+            <div class="q-section">
+                <h4>ATT&amp;CK Mapping: Complete Tactic Assignment and Analysis</h4>
+                <textarea id="notes-ex3" placeholder="Write all 6 tactic mappings, reconstruct the full attack timeline, identify persistence mitigations, and explain the UEBA detection scenario..." oninput="saveNotes()"></textarea>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- EXERCISE 4: Rogue Device Detection and Filesystem Integrity -->
+    <div class="exercise" id="ex4">
+        <div class="exercise-header" onclick="toggleEx('ex4')">
+            <div class="exercise-title">
+                <div class="ex-num">4</div>
+                <div class="ex-name">Rogue Device Detection and Filesystem Integrity Monitoring</div>
+            </div>
+            <span class="ex-status status-pending" id="status-ex4">Pending</span>
+        </div>
+        <div class="exercise-content">
+
+            <div class="scenario">
+                <h4>Scenario: Apex Manufacturing Campus Sweep</h4>
+                <p>During the incident response, the CSIRT suspects the attacker may have placed a rogue wireless access point in the building to establish an alternate network foothold. Additionally, the file integrity monitoring system on a Linux application server has generated alerts. Investigate both.</p>
+            </div>
+
+            <p style="color:var(--eye2); font-weight:700; margin:14px 0 8px; font-size:0.88rem;">Rogue Device Detection Methods</p>
+
+            <table class="data-table">
+                <thead>
+                    <tr><th>Method</th><th>What It Detects</th><th>Tool/Mechanism</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td class="td-key">MAC Address Validation</td><td>Unknown devices on the network; validate OUI against known vendor codes</td><td>DHCP logs, NAC (Network Access Control)</td></tr>
+                    <tr><td class="td-key">Network Scanning</td><td>All live hosts — compare against approved device inventory</td><td>Nmap, network discovery tools</td></tr>
+                    <tr><td class="td-key">Physical Site Inspection</td><td>Unauthorized wired or wireless devices physically connected to infrastructure</td><td>Manual walk-through, port security audit</td></tr>
+                    <tr><td class="td-key">Wireless Survey</td><td>Rogue access points (Evil Twin, unsanctioned APs) — map SSIDs and BSSIDs</td><td>Wireless scanner (Kismet, WiFi Pineapple detection)</td></tr>
+                    <tr><td class="td-key">Traffic Behavior Analysis</td><td>Unusual traffic patterns from an unknown MAC/IP — beaconing, scanning activity</td><td>SIEM, Netflow analysis</td></tr>
+                </tbody>
+            </table>
+
+            <p style="color:var(--eye2); font-weight:700; margin:16px 0 8px; font-size:0.88rem;">File Integrity Monitoring Alert — Linux App Server (APP-SRV-03)</p>
+
+            <div class="netflow-block">AIDE Alert Report — 2024-03-12 09:14:22
+Host: APP-SRV-03 (Ubuntu 22.04)
+
+CHANGED: /usr/bin/ps
+  Permissions: 755 -&gt; 755 (unchanged)
+  Owner:       root -&gt; root (unchanged)
+  Size:        137,240 -&gt; 158,912 CHANGED
+  SHA256:      a3f9e2...d4c8b1 -&gt; 7f2a91...c3e490 CHANGED
+  Last modified: 2024-03-11 23:22:14
+
+ADDED: /usr/lib/libaudit.so.2.bak
+  SHA256: 9a1b3c...f7e204
+  Owner: root
+  Permissions: 644
+  Created: 2024-03-11 23:22:18
+
+ADDED: /tmp/.hidden_c2_config
+  SHA256: 4e7f2a...b9c130
+  Owner: jsmith
+  Permissions: 600
+  Created: 2024-03-12 00:04:51
+
+CHANGED: /etc/crontab
+  SHA256: 8b2c4e...a1d390 -&gt; 2f9a11...d7c044 CHANGED
+  Last modified: 2024-03-12 00:05:03</div>
+
+            <div class="ioc-grid">
+                <div class="ioc-card">
+                    <h4>Network IOCs</h4>
+                    <ul>
+                        <li>Beaconing pattern (4-min interval)</li>
+                        <li>Unusual bandwidth consumption</li>
+                        <li>DGA / double-flux DNS</li>
+                        <li>Traffic to known C2 IP ranges</li>
+                        <li>Unexpected protocol on port</li>
+                    </ul>
+                </div>
+                <div class="ioc-card">
+                    <h4>Host IOCs</h4>
+                    <ul>
+                        <li>Process masquerading</li>
+                        <li>Registry Run Key modification</li>
+                        <li>Unauthorized scheduled task</li>
+                        <li>Unexpected user account creation</li>
+                        <li>Abnormal OS process behavior</li>
+                    </ul>
+                </div>
+                <div class="ioc-card">
+                    <h4>Application IOCs</h4>
+                    <ul>
+                        <li>New unauthorized accounts</li>
+                        <li>Unexpected outbound connections</li>
+                        <li>Anomalous output or garbage data</li>
+                        <li>Service interruption / memory overflow</li>
+                        <li>Authentication errors at unusual hours</li>
+                    </ul>
+                </div>
+            </div>
+
+            <ul class="task-list" id="tasks-ex4">
+                <li class="task-item" data-id="4-1">
+                    <input type="checkbox" id="t4-1" onchange="taskChange('4-1', this)">
+                    <label for="t4-1">Analyze the AIDE alert for APP-SRV-03. Explain why the modification to /usr/bin/ps is a critical finding — what capability does a trojanized "ps" binary give an attacker, and what technique does this represent (rootkit, anti-forensics, output manipulation)?</label>
+                </li>
+                <li class="task-item" data-id="4-2">
+                    <input type="checkbox" id="t4-2" onchange="taskChange('4-2', this)">
+                    <label for="t4-2">Identify the persistence mechanism on APP-SRV-03 and explain how /etc/crontab modification compares to the Windows Scheduled Task technique found on WS-APEX-047. What Linux command would display all crontab entries from all users?</label>
+                </li>
+                <li class="task-item" data-id="4-3">
+                    <input type="checkbox" id="t4-3" onchange="taskChange('4-3', this)">
+                    <label for="t4-3">Design a rogue wireless AP detection procedure for Apex Manufacturing. Include: (1) passive scan method, (2) BSSID comparison approach, (3) how to identify an Evil Twin (same SSID as legitimate AP), and (4) network-based detection using SIEM/Netflow.</label>
+                </li>
+                <li class="task-item" data-id="4-4">
+                    <input type="checkbox" id="t4-4" onchange="taskChange('4-4', this)">
+                    <label for="t4-4">Compare Tripwire vs AIDE for filesystem integrity monitoring. What is the core function of both tools, why must the baseline database be stored off the monitored system (or cryptographically signed), and name a third tool that performs similar monitoring with SIEM integration capability.</label>
+                </li>
+            </ul>
+
+            <div class="q-section">
+                <h4>Rogue Device and Filesystem Integrity Analysis</h4>
+                <textarea id="notes-ex4" placeholder="Analyze the trojanized ps binary, explain Linux crontab persistence, design the rogue AP detection procedure, and compare Tripwire/AIDE/Wazuh..." oninput="saveNotes()"></textarea>
+            </div>
+
+            <button class="complete-btn" id="completeBtn" onclick="markComplete()">Mark Lab Complete</button>
+            <div class="completion-badge" id="completionBadge">
+                <h2>Lab Complete</h2>
+                <p>You have analyzed network-level C2 beaconing, examined host-based persistence artifacts, mapped attacker behaviors to MITRE ATT&amp;CK, and applied filesystem integrity and rogue device detection techniques.</p>
+                <a href="../index.html" class="next-link">Back to CySA+ Index</a>
+            </div>
+
+        </div>
+    </div>
+
+</div>
+
+<script src="../../../../components/FluxCapacitor.js"></script>
+<script>
+    // --- State ---
+    const STORAGE_KEY = 'eye_cysa_ch12_lab';
+    const TOTAL_TASKS = 16;
+
+    // --- Exercise toggle ---
+    function toggleEx(id) {
+        const el = document.getElementById(id);
+        el.classList.toggle('active');
+    }
+
+    // --- Task completion ---
+    function taskChange(id, cb) {
+        const li = cb.closest('.task-item');
+        li.classList.toggle('checked', cb.checked);
+        updateProgress();
+        saveNotes();
+    }
+
+    // --- Progress calculation ---
+    function updateProgress() {
+        const all = document.querySelectorAll('.task-item input[type="checkbox"]');
+        let done = 0;
+        all.forEach(cb => { if (cb.checked) done++; });
+
+        const pct = Math.round((done / TOTAL_TASKS) * 100);
+        document.getElementById('progressFill').style.width = pct + '%';
+        document.getElementById('progressText').textContent = done + ' of ' + TOTAL_TASKS + ' tasks completed';
+
+        // Update per-exercise status badges
+        ['ex1','ex2','ex3','ex4'].forEach(exId => {
+            const exCbs = document.querySelectorAll('#tasks-' + exId + ' input[type="checkbox"]');
+            let exDone = 0;
+            exCbs.forEach(c => { if (c.checked) exDone++; });
+            const badge = document.getElementById('status-' + exId);
+            if (exDone === exCbs.length && exCbs.length > 0) {
+                badge.textContent = 'Complete';
+                badge.className = 'ex-status status-complete';
+            } else {
+                badge.textContent = 'Pending';
+                badge.className = 'ex-status status-pending';
+            }
+        });
+    }
+
+    // --- Persist state to localStorage ---
+    function saveNotes() {
+        const state = {};
+        document.querySelectorAll('.task-item input[type="checkbox"]').forEach(cb => {
+            state['cb_' + cb.id] = cb.checked;
+        });
+        ['ex1','ex2','ex3','ex4'].forEach(exId => {
+            const ta = document.getElementById('notes-' + exId);
+            if (ta) state['notes_' + exId] = ta.value;
+        });
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    }
+
+    // --- Load persisted state ---
+    function loadState() {
+        try {
+            const raw = localStorage.getItem(STORAGE_KEY);
+            if (!raw) return;
+            const state = JSON.parse(raw);
+            Object.keys(state).forEach(key => {
+                if (key.startsWith('cb_')) {
+                    const cb = document.getElementById(key.replace('cb_', ''));
+                    if (cb) {
+                        cb.checked = state[key];
+                        cb.closest('.task-item').classList.toggle('checked', state[key]);
+                    }
+                }
+                if (key.startsWith('notes_')) {
+                    const ta = document.getElementById('notes_' + key.replace('notes_', ''));
+                    if (ta) ta.value = state[key];
+                }
+            });
+        } catch(e) {}
+        updateProgress();
+    }
+
+    // --- Mark lab complete ---
+    function markComplete() {
+        const btn = document.getElementById('completeBtn');
+        const badge = document.getElementById('completionBadge');
+        btn.disabled = true;
+        btn.textContent = 'Saving...';
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('eye', 'eye-cysa-ch12-lab');
+        }
+        setTimeout(() => {
+            btn.textContent = 'Completed';
+            badge.classList.add('show');
+            badge.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }, 600);
+    }
+
+    // --- Check if already completed ---
+    (function checkCompleted() {
+        try {
+            const progress = JSON.parse(localStorage.getItem('hexworth_progress') || '{}');
+            if (progress['eye-cysa-ch12-lab']) {
+                const btn = document.getElementById('completeBtn');
+                const badge = document.getElementById('completionBadge');
+                if (btn) { btn.disabled = true; btn.textContent = 'Completed'; }
+                if (badge) badge.classList.add('show');
+            }
+        } catch(e) {}
+    })();
+
+    // --- Open first exercise by default ---
+    document.getElementById('ex1').classList.add('active');
+
+    // --- Init ---
+    loadState();
+</script>
+
+</body>
+</html>

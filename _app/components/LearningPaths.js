@@ -1891,6 +1891,48 @@ class LearningPaths {
             ]
         },
 
+        // CompTIA CySA+ (CS0-003) — Eye House
+        'cysa': {
+            name: 'CompTIA CySA+',
+            description: 'CS0-003 — SOC analyst curriculum: threat intelligence, vulnerability management, cloud security, IAM, security operations, incident response, forensics, risk management, compliance',
+            icon: '👁️',
+            color: '#a855f7',
+            modules: [
+                { id: 'eye-cysa-ch01', title: 'Ch 1: Today\'s Cybersecurity Analyst', type: 'presentation', href: 'houses/eye/cysa/presentations/cysa-ch01-analyst.presentation.html' },
+                { id: 'eye-cysa-ch01-lab', title: 'Ch 1 Lab: Cybersecurity Analyst Foundations', type: 'lab', href: 'houses/eye/cysa/labs/cysa-ch01-analyst.lab.html' },
+                { id: 'eye-cysa-ch02', title: 'Ch 2: Using Threat Intelligence', type: 'presentation', href: 'houses/eye/cysa/presentations/cysa-ch02-threat-intel.presentation.html' },
+                { id: 'eye-cysa-ch02-lab', title: 'Ch 2 Lab: Threat Intelligence Analysis', type: 'lab', href: 'houses/eye/cysa/labs/cysa-ch02-threat-intel.lab.html' },
+                { id: 'eye-cysa-ch03', title: 'Ch 3: Reconnaissance & Intelligence Gathering', type: 'presentation', href: 'houses/eye/cysa/presentations/cysa-ch03-recon.presentation.html' },
+                { id: 'eye-cysa-ch03-lab', title: 'Ch 3 Lab: Reconnaissance Techniques', type: 'lab', href: 'houses/eye/cysa/labs/cysa-ch03-recon.lab.html' },
+                { id: 'eye-cysa-ch04', title: 'Ch 4: Vulnerability Management Program', type: 'presentation', href: 'houses/eye/cysa/presentations/cysa-ch04-vuln-mgmt.presentation.html' },
+                { id: 'eye-cysa-ch04-lab', title: 'Ch 4 Lab: Vulnerability Management', type: 'lab', href: 'houses/eye/cysa/labs/cysa-ch04-vuln-mgmt.lab.html' },
+                { id: 'eye-cysa-ch05', title: 'Ch 5: Analyzing Vulnerability Scans', type: 'presentation', href: 'houses/eye/cysa/presentations/cysa-ch05-vuln-scans.presentation.html' },
+                { id: 'eye-cysa-ch05-lab', title: 'Ch 5 Lab: Vulnerability Scan Analysis', type: 'lab', href: 'houses/eye/cysa/labs/cysa-ch05-vuln-scans.lab.html' },
+                { id: 'eye-cysa-ch06', title: 'Ch 6: Cloud Security', type: 'presentation', href: 'houses/eye/cysa/presentations/cysa-ch06-cloud.presentation.html' },
+                { id: 'eye-cysa-ch06-lab', title: 'Ch 6 Lab: Cloud Security Controls', type: 'lab', href: 'houses/eye/cysa/labs/cysa-ch06-cloud.lab.html' },
+                { id: 'eye-cysa-ch07', title: 'Ch 7: Infrastructure Security & Controls', type: 'presentation', href: 'houses/eye/cysa/presentations/cysa-ch07-infra.presentation.html' },
+                { id: 'eye-cysa-ch07-lab', title: 'Ch 7 Lab: Infrastructure Security', type: 'lab', href: 'houses/eye/cysa/labs/cysa-ch07-infra.lab.html' },
+                { id: 'eye-cysa-ch08', title: 'Ch 8: Identity & Access Management', type: 'presentation', href: 'houses/eye/cysa/presentations/cysa-ch08-iam.presentation.html' },
+                { id: 'eye-cysa-ch08-lab', title: 'Ch 8 Lab: IAM Security', type: 'lab', href: 'houses/eye/cysa/labs/cysa-ch08-iam.lab.html' },
+                { id: 'eye-cysa-ch09', title: 'Ch 9: Software & Hardware Development Security', type: 'presentation', href: 'houses/eye/cysa/presentations/cysa-ch09-dev-security.presentation.html' },
+                { id: 'eye-cysa-ch09-lab', title: 'Ch 9 Lab: Development Security', type: 'lab', href: 'houses/eye/cysa/labs/cysa-ch09-dev-security.lab.html' },
+                { id: 'eye-cysa-ch10', title: 'Ch 10: Security Operations & Monitoring', type: 'presentation', href: 'houses/eye/cysa/presentations/cysa-ch10-secops.presentation.html' },
+                { id: 'eye-cysa-ch10-lab', title: 'Ch 10 Lab: Security Operations', type: 'lab', href: 'houses/eye/cysa/labs/cysa-ch10-secops.lab.html' },
+                { id: 'eye-cysa-ch11', title: 'Ch 11: Building an Incident Response Program', type: 'presentation', href: 'houses/eye/cysa/presentations/cysa-ch11-ir.presentation.html' },
+                { id: 'eye-cysa-ch11-lab', title: 'Ch 11 Lab: Incident Response', type: 'lab', href: 'houses/eye/cysa/labs/cysa-ch11-ir.lab.html' },
+                { id: 'eye-cysa-ch12', title: 'Ch 12: Analyzing Indicators of Compromise', type: 'presentation', href: 'houses/eye/cysa/presentations/cysa-ch12-ioc.presentation.html' },
+                { id: 'eye-cysa-ch12-lab', title: 'Ch 12 Lab: IOC Analysis', type: 'lab', href: 'houses/eye/cysa/labs/cysa-ch12-ioc.lab.html' },
+                { id: 'eye-cysa-ch13', title: 'Ch 13: Forensic Analysis & Techniques', type: 'presentation', href: 'houses/eye/cysa/presentations/cysa-ch13-forensics.presentation.html' },
+                { id: 'eye-cysa-ch13-lab', title: 'Ch 13 Lab: Digital Forensics', type: 'lab', href: 'houses/eye/cysa/labs/cysa-ch13-forensics.lab.html' },
+                { id: 'eye-cysa-ch14', title: 'Ch 14: Containment, Eradication & Recovery', type: 'presentation', href: 'houses/eye/cysa/presentations/cysa-ch14-recovery.presentation.html' },
+                { id: 'eye-cysa-ch14-lab', title: 'Ch 14 Lab: Incident Recovery', type: 'lab', href: 'houses/eye/cysa/labs/cysa-ch14-recovery.lab.html' },
+                { id: 'eye-cysa-ch15', title: 'Ch 15: Risk Management', type: 'presentation', href: 'houses/eye/cysa/presentations/cysa-ch15-risk.presentation.html' },
+                { id: 'eye-cysa-ch15-lab', title: 'Ch 15 Lab: Risk Management', type: 'lab', href: 'houses/eye/cysa/labs/cysa-ch15-risk.lab.html' },
+                { id: 'eye-cysa-ch16', title: 'Ch 16: Policy & Compliance', type: 'presentation', href: 'houses/eye/cysa/presentations/cysa-ch16-compliance.presentation.html' },
+                { id: 'eye-cysa-ch16-lab', title: 'Ch 16 Lab: Policy & Compliance', type: 'lab', href: 'houses/eye/cysa/labs/cysa-ch16-compliance.lab.html' }
+            ]
+        },
+
         // Windows Server Administration (AZ-800) — Cloud House
         'wsa': {
             name: 'Windows Server Administration',

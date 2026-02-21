@@ -19219,6 +19219,792 @@ const ContentRegistry = {
             prerequisites: [],
             objectives: []
         },
+
+        // ─── EYE HOUSE — CompTIA CySA+ (CS0-003) ───
+        'eye-cysa-ch01-pres': {
+            id: 'eye-cysa-ch01-pres',
+            title: 'CySA+ Ch 1: Today's Cybersecurity Analyst',
+            description: 'CompTIA CySA+ Chapter 1 — Today's Cybersecurity Analyst',
+            house: 'eye',
+            type: 'presentation',
+            difficulty: 'intermediate',
+            duration: 35,
+            topics: ["SOC","CIA-triad","cybersecurity-analyst","frameworks"],
+            paths: ['cysa'],
+            components: {
+                presentation: 'houses/eye/cysa/presentations/cysa-ch01-analyst.presentation.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'eye-cysa-ch01-quiz': {
+            id: 'eye-cysa-ch01-quiz',
+            title: 'CySA+ Ch 1 Quiz: Today's Cybersecurity Analyst',
+            description: 'Quiz on CySA+ Chapter 1 — Today's Cybersecurity Analyst',
+            house: 'eye',
+            type: 'quiz',
+            difficulty: 'intermediate',
+            duration: 15,
+            topics: ["SOC","CIA-triad","cybersecurity-analyst","frameworks"],
+            paths: ['cysa'],
+            components: {
+                quiz: 'houses/eye/cysa/quizzes/cysa-ch01-quiz.quiz.html'
+            },
+            prerequisites: ['eye-cysa-ch01-pres'],
+            objectives: []
+        },
+        'eye-cysa-ch01-lab': {
+            id: 'eye-cysa-ch01-lab',
+            title: 'CySA+ Ch 1 Lab: Today's Cybersecurity Analyst',
+            description: 'Hands-on lab for CySA+ Chapter 1 — Today's Cybersecurity Analyst',
+            house: 'eye',
+            type: 'lab',
+            difficulty: 'intermediate',
+            duration: 45,
+            topics: ["SOC","CIA-triad","cybersecurity-analyst","frameworks"],
+            paths: ['cysa'],
+            components: {
+                lab: 'houses/eye/cysa/labs/cysa-ch01-analyst.lab.html'
+            },
+            prerequisites: ['eye-cysa-ch01-pres'],
+            objectives: []
+        },
+        'eye-cysa-ch02-pres': {
+            id: 'eye-cysa-ch02-pres',
+            title: 'CySA+ Ch 2: Using Threat Intelligence',
+            description: 'CompTIA CySA+ Chapter 2 — Using Threat Intelligence',
+            house: 'eye',
+            type: 'presentation',
+            difficulty: 'intermediate',
+            duration: 35,
+            topics: ["threat-intelligence","STIX","TAXII","OSINT"],
+            paths: ['cysa'],
+            components: {
+                presentation: 'houses/eye/cysa/presentations/cysa-ch02-threat-intel.presentation.html'
+            },
+            prerequisites: ['eye-cysa-ch01-pres'],
+            objectives: []
+        },
+        'eye-cysa-ch02-quiz': {
+            id: 'eye-cysa-ch02-quiz',
+            title: 'CySA+ Ch 2 Quiz: Using Threat Intelligence',
+            description: 'Quiz on CySA+ Chapter 2 — Using Threat Intelligence',
+            house: 'eye',
+            type: 'quiz',
+            difficulty: 'intermediate',
+            duration: 15,
+            topics: ["threat-intelligence","STIX","TAXII","OSINT"],
+            paths: ['cysa'],
+            components: {
+                quiz: 'houses/eye/cysa/quizzes/cysa-ch02-quiz.quiz.html'
+            },
+            prerequisites: ['eye-cysa-ch02-pres'],
+            objectives: []
+        },
+        'eye-cysa-ch02-lab': {
+            id: 'eye-cysa-ch02-lab',
+            title: 'CySA+ Ch 2 Lab: Using Threat Intelligence',
+            description: 'Hands-on lab for CySA+ Chapter 2 — Using Threat Intelligence',
+            house: 'eye',
+            type: 'lab',
+            difficulty: 'intermediate',
+            duration: 45,
+            topics: ["threat-intelligence","STIX","TAXII","OSINT"],
+            paths: ['cysa'],
+            components: {
+                lab: 'houses/eye/cysa/labs/cysa-ch02-threat-intel.lab.html'
+            },
+            prerequisites: ['eye-cysa-ch02-pres'],
+            objectives: []
+        },
+        'eye-cysa-ch03-pres': {
+            id: 'eye-cysa-ch03-pres',
+            title: 'CySA+ Ch 3: Reconnaissance & Intelligence Gathering',
+            description: 'CompTIA CySA+ Chapter 3 — Reconnaissance & Intelligence Gathering',
+            house: 'eye',
+            type: 'presentation',
+            difficulty: 'intermediate',
+            duration: 35,
+            topics: ["reconnaissance","enumeration","OSINT","pentesting"],
+            paths: ['cysa'],
+            components: {
+                presentation: 'houses/eye/cysa/presentations/cysa-ch03-recon.presentation.html'
+            },
+            prerequisites: ['eye-cysa-ch02-pres'],
+            objectives: []
+        },
+        'eye-cysa-ch03-quiz': {
+            id: 'eye-cysa-ch03-quiz',
+            title: 'CySA+ Ch 3 Quiz: Reconnaissance & Intelligence Gathering',
+            description: 'Quiz on CySA+ Chapter 3 — Reconnaissance & Intelligence Gathering',
+            house: 'eye',
+            type: 'quiz',
+            difficulty: 'intermediate',
+            duration: 15,
+            topics: ["reconnaissance","enumeration","OSINT","pentesting"],
+            paths: ['cysa'],
+            components: {
+                quiz: 'houses/eye/cysa/quizzes/cysa-ch03-quiz.quiz.html'
+            },
+            prerequisites: ['eye-cysa-ch03-pres'],
+            objectives: []
+        },
+        'eye-cysa-ch03-lab': {
+            id: 'eye-cysa-ch03-lab',
+            title: 'CySA+ Ch 3 Lab: Reconnaissance & Intelligence Gathering',
+            description: 'Hands-on lab for CySA+ Chapter 3 — Reconnaissance & Intelligence Gathering',
+            house: 'eye',
+            type: 'lab',
+            difficulty: 'intermediate',
+            duration: 45,
+            topics: ["reconnaissance","enumeration","OSINT","pentesting"],
+            paths: ['cysa'],
+            components: {
+                lab: 'houses/eye/cysa/labs/cysa-ch03-recon.lab.html'
+            },
+            prerequisites: ['eye-cysa-ch03-pres'],
+            objectives: []
+        },
+        'eye-cysa-ch04-pres': {
+            id: 'eye-cysa-ch04-pres',
+            title: 'CySA+ Ch 4: Vulnerability Management Program',
+            description: 'CompTIA CySA+ Chapter 4 — Vulnerability Management Program',
+            house: 'eye',
+            type: 'presentation',
+            difficulty: 'intermediate',
+            duration: 35,
+            topics: ["vulnerability-management","risk-assessment","scanning"],
+            paths: ['cysa'],
+            components: {
+                presentation: 'houses/eye/cysa/presentations/cysa-ch04-vuln-mgmt.presentation.html'
+            },
+            prerequisites: ['eye-cysa-ch03-pres'],
+            objectives: []
+        },
+        'eye-cysa-ch04-quiz': {
+            id: 'eye-cysa-ch04-quiz',
+            title: 'CySA+ Ch 4 Quiz: Vulnerability Management Program',
+            description: 'Quiz on CySA+ Chapter 4 — Vulnerability Management Program',
+            house: 'eye',
+            type: 'quiz',
+            difficulty: 'intermediate',
+            duration: 15,
+            topics: ["vulnerability-management","risk-assessment","scanning"],
+            paths: ['cysa'],
+            components: {
+                quiz: 'houses/eye/cysa/quizzes/cysa-ch04-quiz.quiz.html'
+            },
+            prerequisites: ['eye-cysa-ch04-pres'],
+            objectives: []
+        },
+        'eye-cysa-ch04-lab': {
+            id: 'eye-cysa-ch04-lab',
+            title: 'CySA+ Ch 4 Lab: Vulnerability Management Program',
+            description: 'Hands-on lab for CySA+ Chapter 4 — Vulnerability Management Program',
+            house: 'eye',
+            type: 'lab',
+            difficulty: 'intermediate',
+            duration: 45,
+            topics: ["vulnerability-management","risk-assessment","scanning"],
+            paths: ['cysa'],
+            components: {
+                lab: 'houses/eye/cysa/labs/cysa-ch04-vuln-mgmt.lab.html'
+            },
+            prerequisites: ['eye-cysa-ch04-pres'],
+            objectives: []
+        },
+        'eye-cysa-ch05-pres': {
+            id: 'eye-cysa-ch05-pres',
+            title: 'CySA+ Ch 5: Analyzing Vulnerability Scans',
+            description: 'CompTIA CySA+ Chapter 5 — Analyzing Vulnerability Scans',
+            house: 'eye',
+            type: 'presentation',
+            difficulty: 'intermediate',
+            duration: 35,
+            topics: ["vulnerability-scanning","CVSS","Nessus","scan-analysis"],
+            paths: ['cysa'],
+            components: {
+                presentation: 'houses/eye/cysa/presentations/cysa-ch05-vuln-scans.presentation.html'
+            },
+            prerequisites: ['eye-cysa-ch04-pres'],
+            objectives: []
+        },
+        'eye-cysa-ch05-quiz': {
+            id: 'eye-cysa-ch05-quiz',
+            title: 'CySA+ Ch 5 Quiz: Analyzing Vulnerability Scans',
+            description: 'Quiz on CySA+ Chapter 5 — Analyzing Vulnerability Scans',
+            house: 'eye',
+            type: 'quiz',
+            difficulty: 'intermediate',
+            duration: 15,
+            topics: ["vulnerability-scanning","CVSS","Nessus","scan-analysis"],
+            paths: ['cysa'],
+            components: {
+                quiz: 'houses/eye/cysa/quizzes/cysa-ch05-quiz.quiz.html'
+            },
+            prerequisites: ['eye-cysa-ch05-pres'],
+            objectives: []
+        },
+        'eye-cysa-ch05-lab': {
+            id: 'eye-cysa-ch05-lab',
+            title: 'CySA+ Ch 5 Lab: Analyzing Vulnerability Scans',
+            description: 'Hands-on lab for CySA+ Chapter 5 — Analyzing Vulnerability Scans',
+            house: 'eye',
+            type: 'lab',
+            difficulty: 'intermediate',
+            duration: 45,
+            topics: ["vulnerability-scanning","CVSS","Nessus","scan-analysis"],
+            paths: ['cysa'],
+            components: {
+                lab: 'houses/eye/cysa/labs/cysa-ch05-vuln-scans.lab.html'
+            },
+            prerequisites: ['eye-cysa-ch05-pres'],
+            objectives: []
+        },
+        'eye-cysa-ch06-pres': {
+            id: 'eye-cysa-ch06-pres',
+            title: 'CySA+ Ch 6: Cloud Security',
+            description: 'CompTIA CySA+ Chapter 6 — Cloud Security',
+            house: 'eye',
+            type: 'presentation',
+            difficulty: 'intermediate',
+            duration: 35,
+            topics: ["cloud-security","IaaS","PaaS","SaaS","shared-responsibility"],
+            paths: ['cysa'],
+            components: {
+                presentation: 'houses/eye/cysa/presentations/cysa-ch06-cloud.presentation.html'
+            },
+            prerequisites: ['eye-cysa-ch05-pres'],
+            objectives: []
+        },
+        'eye-cysa-ch06-quiz': {
+            id: 'eye-cysa-ch06-quiz',
+            title: 'CySA+ Ch 6 Quiz: Cloud Security',
+            description: 'Quiz on CySA+ Chapter 6 — Cloud Security',
+            house: 'eye',
+            type: 'quiz',
+            difficulty: 'intermediate',
+            duration: 15,
+            topics: ["cloud-security","IaaS","PaaS","SaaS","shared-responsibility"],
+            paths: ['cysa'],
+            components: {
+                quiz: 'houses/eye/cysa/quizzes/cysa-ch06-quiz.quiz.html'
+            },
+            prerequisites: ['eye-cysa-ch06-pres'],
+            objectives: []
+        },
+        'eye-cysa-ch06-lab': {
+            id: 'eye-cysa-ch06-lab',
+            title: 'CySA+ Ch 6 Lab: Cloud Security',
+            description: 'Hands-on lab for CySA+ Chapter 6 — Cloud Security',
+            house: 'eye',
+            type: 'lab',
+            difficulty: 'intermediate',
+            duration: 45,
+            topics: ["cloud-security","IaaS","PaaS","SaaS","shared-responsibility"],
+            paths: ['cysa'],
+            components: {
+                lab: 'houses/eye/cysa/labs/cysa-ch06-cloud.lab.html'
+            },
+            prerequisites: ['eye-cysa-ch06-pres'],
+            objectives: []
+        },
+        'eye-cysa-ch07-pres': {
+            id: 'eye-cysa-ch07-pres',
+            title: 'CySA+ Ch 7: Infrastructure Security & Controls',
+            description: 'CompTIA CySA+ Chapter 7 — Infrastructure Security & Controls',
+            house: 'eye',
+            type: 'presentation',
+            difficulty: 'intermediate',
+            duration: 35,
+            topics: ["infrastructure-security","network-controls","hardening"],
+            paths: ['cysa'],
+            components: {
+                presentation: 'houses/eye/cysa/presentations/cysa-ch07-infra.presentation.html'
+            },
+            prerequisites: ['eye-cysa-ch06-pres'],
+            objectives: []
+        },
+        'eye-cysa-ch07-quiz': {
+            id: 'eye-cysa-ch07-quiz',
+            title: 'CySA+ Ch 7 Quiz: Infrastructure Security & Controls',
+            description: 'Quiz on CySA+ Chapter 7 — Infrastructure Security & Controls',
+            house: 'eye',
+            type: 'quiz',
+            difficulty: 'intermediate',
+            duration: 15,
+            topics: ["infrastructure-security","network-controls","hardening"],
+            paths: ['cysa'],
+            components: {
+                quiz: 'houses/eye/cysa/quizzes/cysa-ch07-quiz.quiz.html'
+            },
+            prerequisites: ['eye-cysa-ch07-pres'],
+            objectives: []
+        },
+        'eye-cysa-ch07-lab': {
+            id: 'eye-cysa-ch07-lab',
+            title: 'CySA+ Ch 7 Lab: Infrastructure Security & Controls',
+            description: 'Hands-on lab for CySA+ Chapter 7 — Infrastructure Security & Controls',
+            house: 'eye',
+            type: 'lab',
+            difficulty: 'intermediate',
+            duration: 45,
+            topics: ["infrastructure-security","network-controls","hardening"],
+            paths: ['cysa'],
+            components: {
+                lab: 'houses/eye/cysa/labs/cysa-ch07-infra.lab.html'
+            },
+            prerequisites: ['eye-cysa-ch07-pres'],
+            objectives: []
+        },
+        'eye-cysa-ch08-pres': {
+            id: 'eye-cysa-ch08-pres',
+            title: 'CySA+ Ch 8: Identity & Access Management',
+            description: 'CompTIA CySA+ Chapter 8 — Identity & Access Management',
+            house: 'eye',
+            type: 'presentation',
+            difficulty: 'intermediate',
+            duration: 35,
+            topics: ["IAM","authentication","authorization","MFA"],
+            paths: ['cysa'],
+            components: {
+                presentation: 'houses/eye/cysa/presentations/cysa-ch08-iam.presentation.html'
+            },
+            prerequisites: ['eye-cysa-ch07-pres'],
+            objectives: []
+        },
+        'eye-cysa-ch08-quiz': {
+            id: 'eye-cysa-ch08-quiz',
+            title: 'CySA+ Ch 8 Quiz: Identity & Access Management',
+            description: 'Quiz on CySA+ Chapter 8 — Identity & Access Management',
+            house: 'eye',
+            type: 'quiz',
+            difficulty: 'intermediate',
+            duration: 15,
+            topics: ["IAM","authentication","authorization","MFA"],
+            paths: ['cysa'],
+            components: {
+                quiz: 'houses/eye/cysa/quizzes/cysa-ch08-quiz.quiz.html'
+            },
+            prerequisites: ['eye-cysa-ch08-pres'],
+            objectives: []
+        },
+        'eye-cysa-ch08-lab': {
+            id: 'eye-cysa-ch08-lab',
+            title: 'CySA+ Ch 8 Lab: Identity & Access Management',
+            description: 'Hands-on lab for CySA+ Chapter 8 — Identity & Access Management',
+            house: 'eye',
+            type: 'lab',
+            difficulty: 'intermediate',
+            duration: 45,
+            topics: ["IAM","authentication","authorization","MFA"],
+            paths: ['cysa'],
+            components: {
+                lab: 'houses/eye/cysa/labs/cysa-ch08-iam.lab.html'
+            },
+            prerequisites: ['eye-cysa-ch08-pres'],
+            objectives: []
+        },
+        'eye-cysa-ch09-pres': {
+            id: 'eye-cysa-ch09-pres',
+            title: 'CySA+ Ch 9: Software & Hardware Development Security',
+            description: 'CompTIA CySA+ Chapter 9 — Software & Hardware Development Security',
+            house: 'eye',
+            type: 'presentation',
+            difficulty: 'advanced',
+            duration: 35,
+            topics: ["SDLC","secure-coding","DevSecOps"],
+            paths: ['cysa'],
+            components: {
+                presentation: 'houses/eye/cysa/presentations/cysa-ch09-dev-security.presentation.html'
+            },
+            prerequisites: ['eye-cysa-ch08-pres'],
+            objectives: []
+        },
+        'eye-cysa-ch09-quiz': {
+            id: 'eye-cysa-ch09-quiz',
+            title: 'CySA+ Ch 9 Quiz: Software & Hardware Development Security',
+            description: 'Quiz on CySA+ Chapter 9 — Software & Hardware Development Security',
+            house: 'eye',
+            type: 'quiz',
+            difficulty: 'advanced',
+            duration: 15,
+            topics: ["SDLC","secure-coding","DevSecOps"],
+            paths: ['cysa'],
+            components: {
+                quiz: 'houses/eye/cysa/quizzes/cysa-ch09-quiz.quiz.html'
+            },
+            prerequisites: ['eye-cysa-ch09-pres'],
+            objectives: []
+        },
+        'eye-cysa-ch09-lab': {
+            id: 'eye-cysa-ch09-lab',
+            title: 'CySA+ Ch 9 Lab: Software & Hardware Development Security',
+            description: 'Hands-on lab for CySA+ Chapter 9 — Software & Hardware Development Security',
+            house: 'eye',
+            type: 'lab',
+            difficulty: 'advanced',
+            duration: 45,
+            topics: ["SDLC","secure-coding","DevSecOps"],
+            paths: ['cysa'],
+            components: {
+                lab: 'houses/eye/cysa/labs/cysa-ch09-dev-security.lab.html'
+            },
+            prerequisites: ['eye-cysa-ch09-pres'],
+            objectives: []
+        },
+        'eye-cysa-ch10-pres': {
+            id: 'eye-cysa-ch10-pres',
+            title: 'CySA+ Ch 10: Security Operations & Monitoring',
+            description: 'CompTIA CySA+ Chapter 10 — Security Operations & Monitoring',
+            house: 'eye',
+            type: 'presentation',
+            difficulty: 'advanced',
+            duration: 35,
+            topics: ["SIEM","security-monitoring","SOC-operations","logging"],
+            paths: ['cysa'],
+            components: {
+                presentation: 'houses/eye/cysa/presentations/cysa-ch10-secops.presentation.html'
+            },
+            prerequisites: ['eye-cysa-ch09-pres'],
+            objectives: []
+        },
+        'eye-cysa-ch10-quiz': {
+            id: 'eye-cysa-ch10-quiz',
+            title: 'CySA+ Ch 10 Quiz: Security Operations & Monitoring',
+            description: 'Quiz on CySA+ Chapter 10 — Security Operations & Monitoring',
+            house: 'eye',
+            type: 'quiz',
+            difficulty: 'advanced',
+            duration: 15,
+            topics: ["SIEM","security-monitoring","SOC-operations","logging"],
+            paths: ['cysa'],
+            components: {
+                quiz: 'houses/eye/cysa/quizzes/cysa-ch10-quiz.quiz.html'
+            },
+            prerequisites: ['eye-cysa-ch10-pres'],
+            objectives: []
+        },
+        'eye-cysa-ch10-lab': {
+            id: 'eye-cysa-ch10-lab',
+            title: 'CySA+ Ch 10 Lab: Security Operations & Monitoring',
+            description: 'Hands-on lab for CySA+ Chapter 10 — Security Operations & Monitoring',
+            house: 'eye',
+            type: 'lab',
+            difficulty: 'advanced',
+            duration: 45,
+            topics: ["SIEM","security-monitoring","SOC-operations","logging"],
+            paths: ['cysa'],
+            components: {
+                lab: 'houses/eye/cysa/labs/cysa-ch10-secops.lab.html'
+            },
+            prerequisites: ['eye-cysa-ch10-pres'],
+            objectives: []
+        },
+        'eye-cysa-ch11-pres': {
+            id: 'eye-cysa-ch11-pres',
+            title: 'CySA+ Ch 11: Building an Incident Response Program',
+            description: 'CompTIA CySA+ Chapter 11 — Building an Incident Response Program',
+            house: 'eye',
+            type: 'presentation',
+            difficulty: 'advanced',
+            duration: 35,
+            topics: ["incident-response","IR-planning","NIST-800-61"],
+            paths: ['cysa'],
+            components: {
+                presentation: 'houses/eye/cysa/presentations/cysa-ch11-ir.presentation.html'
+            },
+            prerequisites: ['eye-cysa-ch10-pres'],
+            objectives: []
+        },
+        'eye-cysa-ch11-quiz': {
+            id: 'eye-cysa-ch11-quiz',
+            title: 'CySA+ Ch 11 Quiz: Building an Incident Response Program',
+            description: 'Quiz on CySA+ Chapter 11 — Building an Incident Response Program',
+            house: 'eye',
+            type: 'quiz',
+            difficulty: 'advanced',
+            duration: 15,
+            topics: ["incident-response","IR-planning","NIST-800-61"],
+            paths: ['cysa'],
+            components: {
+                quiz: 'houses/eye/cysa/quizzes/cysa-ch11-quiz.quiz.html'
+            },
+            prerequisites: ['eye-cysa-ch11-pres'],
+            objectives: []
+        },
+        'eye-cysa-ch11-lab': {
+            id: 'eye-cysa-ch11-lab',
+            title: 'CySA+ Ch 11 Lab: Building an Incident Response Program',
+            description: 'Hands-on lab for CySA+ Chapter 11 — Building an Incident Response Program',
+            house: 'eye',
+            type: 'lab',
+            difficulty: 'advanced',
+            duration: 45,
+            topics: ["incident-response","IR-planning","NIST-800-61"],
+            paths: ['cysa'],
+            components: {
+                lab: 'houses/eye/cysa/labs/cysa-ch11-ir.lab.html'
+            },
+            prerequisites: ['eye-cysa-ch11-pres'],
+            objectives: []
+        },
+        'eye-cysa-ch12-pres': {
+            id: 'eye-cysa-ch12-pres',
+            title: 'CySA+ Ch 12: Analyzing Indicators of Compromise',
+            description: 'CompTIA CySA+ Chapter 12 — Analyzing Indicators of Compromise',
+            house: 'eye',
+            type: 'presentation',
+            difficulty: 'advanced',
+            duration: 35,
+            topics: ["IOC","threat-analysis","malware-indicators","network-indicators"],
+            paths: ['cysa'],
+            components: {
+                presentation: 'houses/eye/cysa/presentations/cysa-ch12-ioc.presentation.html'
+            },
+            prerequisites: ['eye-cysa-ch11-pres'],
+            objectives: []
+        },
+        'eye-cysa-ch12-quiz': {
+            id: 'eye-cysa-ch12-quiz',
+            title: 'CySA+ Ch 12 Quiz: Analyzing Indicators of Compromise',
+            description: 'Quiz on CySA+ Chapter 12 — Analyzing Indicators of Compromise',
+            house: 'eye',
+            type: 'quiz',
+            difficulty: 'advanced',
+            duration: 15,
+            topics: ["IOC","threat-analysis","malware-indicators","network-indicators"],
+            paths: ['cysa'],
+            components: {
+                quiz: 'houses/eye/cysa/quizzes/cysa-ch12-quiz.quiz.html'
+            },
+            prerequisites: ['eye-cysa-ch12-pres'],
+            objectives: []
+        },
+        'eye-cysa-ch12-lab': {
+            id: 'eye-cysa-ch12-lab',
+            title: 'CySA+ Ch 12 Lab: Analyzing Indicators of Compromise',
+            description: 'Hands-on lab for CySA+ Chapter 12 — Analyzing Indicators of Compromise',
+            house: 'eye',
+            type: 'lab',
+            difficulty: 'advanced',
+            duration: 45,
+            topics: ["IOC","threat-analysis","malware-indicators","network-indicators"],
+            paths: ['cysa'],
+            components: {
+                lab: 'houses/eye/cysa/labs/cysa-ch12-ioc.lab.html'
+            },
+            prerequisites: ['eye-cysa-ch12-pres'],
+            objectives: []
+        },
+        'eye-cysa-ch13-pres': {
+            id: 'eye-cysa-ch13-pres',
+            title: 'CySA+ Ch 13: Forensic Analysis & Techniques',
+            description: 'CompTIA CySA+ Chapter 13 — Forensic Analysis & Techniques',
+            house: 'eye',
+            type: 'presentation',
+            difficulty: 'advanced',
+            duration: 35,
+            topics: ["digital-forensics","evidence-collection","chain-of-custody"],
+            paths: ['cysa'],
+            components: {
+                presentation: 'houses/eye/cysa/presentations/cysa-ch13-forensics.presentation.html'
+            },
+            prerequisites: ['eye-cysa-ch12-pres'],
+            objectives: []
+        },
+        'eye-cysa-ch13-quiz': {
+            id: 'eye-cysa-ch13-quiz',
+            title: 'CySA+ Ch 13 Quiz: Forensic Analysis & Techniques',
+            description: 'Quiz on CySA+ Chapter 13 — Forensic Analysis & Techniques',
+            house: 'eye',
+            type: 'quiz',
+            difficulty: 'advanced',
+            duration: 15,
+            topics: ["digital-forensics","evidence-collection","chain-of-custody"],
+            paths: ['cysa'],
+            components: {
+                quiz: 'houses/eye/cysa/quizzes/cysa-ch13-quiz.quiz.html'
+            },
+            prerequisites: ['eye-cysa-ch13-pres'],
+            objectives: []
+        },
+        'eye-cysa-ch13-lab': {
+            id: 'eye-cysa-ch13-lab',
+            title: 'CySA+ Ch 13 Lab: Forensic Analysis & Techniques',
+            description: 'Hands-on lab for CySA+ Chapter 13 — Forensic Analysis & Techniques',
+            house: 'eye',
+            type: 'lab',
+            difficulty: 'advanced',
+            duration: 45,
+            topics: ["digital-forensics","evidence-collection","chain-of-custody"],
+            paths: ['cysa'],
+            components: {
+                lab: 'houses/eye/cysa/labs/cysa-ch13-forensics.lab.html'
+            },
+            prerequisites: ['eye-cysa-ch13-pres'],
+            objectives: []
+        },
+        'eye-cysa-ch14-pres': {
+            id: 'eye-cysa-ch14-pres',
+            title: 'CySA+ Ch 14: Containment, Eradication & Recovery',
+            description: 'CompTIA CySA+ Chapter 14 — Containment, Eradication & Recovery',
+            house: 'eye',
+            type: 'presentation',
+            difficulty: 'advanced',
+            duration: 35,
+            topics: ["containment","eradication","recovery","incident-handling"],
+            paths: ['cysa'],
+            components: {
+                presentation: 'houses/eye/cysa/presentations/cysa-ch14-recovery.presentation.html'
+            },
+            prerequisites: ['eye-cysa-ch13-pres'],
+            objectives: []
+        },
+        'eye-cysa-ch14-quiz': {
+            id: 'eye-cysa-ch14-quiz',
+            title: 'CySA+ Ch 14 Quiz: Containment, Eradication & Recovery',
+            description: 'Quiz on CySA+ Chapter 14 — Containment, Eradication & Recovery',
+            house: 'eye',
+            type: 'quiz',
+            difficulty: 'advanced',
+            duration: 15,
+            topics: ["containment","eradication","recovery","incident-handling"],
+            paths: ['cysa'],
+            components: {
+                quiz: 'houses/eye/cysa/quizzes/cysa-ch14-quiz.quiz.html'
+            },
+            prerequisites: ['eye-cysa-ch14-pres'],
+            objectives: []
+        },
+        'eye-cysa-ch14-lab': {
+            id: 'eye-cysa-ch14-lab',
+            title: 'CySA+ Ch 14 Lab: Containment, Eradication & Recovery',
+            description: 'Hands-on lab for CySA+ Chapter 14 — Containment, Eradication & Recovery',
+            house: 'eye',
+            type: 'lab',
+            difficulty: 'advanced',
+            duration: 45,
+            topics: ["containment","eradication","recovery","incident-handling"],
+            paths: ['cysa'],
+            components: {
+                lab: 'houses/eye/cysa/labs/cysa-ch14-recovery.lab.html'
+            },
+            prerequisites: ['eye-cysa-ch14-pres'],
+            objectives: []
+        },
+        'eye-cysa-ch15-pres': {
+            id: 'eye-cysa-ch15-pres',
+            title: 'CySA+ Ch 15: Risk Management',
+            description: 'CompTIA CySA+ Chapter 15 — Risk Management',
+            house: 'eye',
+            type: 'presentation',
+            difficulty: 'advanced',
+            duration: 35,
+            topics: ["risk-management","risk-frameworks","BIA","risk-mitigation"],
+            paths: ['cysa'],
+            components: {
+                presentation: 'houses/eye/cysa/presentations/cysa-ch15-risk.presentation.html'
+            },
+            prerequisites: ['eye-cysa-ch14-pres'],
+            objectives: []
+        },
+        'eye-cysa-ch15-quiz': {
+            id: 'eye-cysa-ch15-quiz',
+            title: 'CySA+ Ch 15 Quiz: Risk Management',
+            description: 'Quiz on CySA+ Chapter 15 — Risk Management',
+            house: 'eye',
+            type: 'quiz',
+            difficulty: 'advanced',
+            duration: 15,
+            topics: ["risk-management","risk-frameworks","BIA","risk-mitigation"],
+            paths: ['cysa'],
+            components: {
+                quiz: 'houses/eye/cysa/quizzes/cysa-ch15-quiz.quiz.html'
+            },
+            prerequisites: ['eye-cysa-ch15-pres'],
+            objectives: []
+        },
+        'eye-cysa-ch15-lab': {
+            id: 'eye-cysa-ch15-lab',
+            title: 'CySA+ Ch 15 Lab: Risk Management',
+            description: 'Hands-on lab for CySA+ Chapter 15 — Risk Management',
+            house: 'eye',
+            type: 'lab',
+            difficulty: 'advanced',
+            duration: 45,
+            topics: ["risk-management","risk-frameworks","BIA","risk-mitigation"],
+            paths: ['cysa'],
+            components: {
+                lab: 'houses/eye/cysa/labs/cysa-ch15-risk.lab.html'
+            },
+            prerequisites: ['eye-cysa-ch15-pres'],
+            objectives: []
+        },
+        'eye-cysa-ch16-pres': {
+            id: 'eye-cysa-ch16-pres',
+            title: 'CySA+ Ch 16: Policy & Compliance',
+            description: 'CompTIA CySA+ Chapter 16 — Policy & Compliance',
+            house: 'eye',
+            type: 'presentation',
+            difficulty: 'advanced',
+            duration: 35,
+            topics: ["policy","compliance","governance","regulations"],
+            paths: ['cysa'],
+            components: {
+                presentation: 'houses/eye/cysa/presentations/cysa-ch16-compliance.presentation.html'
+            },
+            prerequisites: ['eye-cysa-ch15-pres'],
+            objectives: []
+        },
+        'eye-cysa-ch16-quiz': {
+            id: 'eye-cysa-ch16-quiz',
+            title: 'CySA+ Ch 16 Quiz: Policy & Compliance',
+            description: 'Quiz on CySA+ Chapter 16 — Policy & Compliance',
+            house: 'eye',
+            type: 'quiz',
+            difficulty: 'advanced',
+            duration: 15,
+            topics: ["policy","compliance","governance","regulations"],
+            paths: ['cysa'],
+            components: {
+                quiz: 'houses/eye/cysa/quizzes/cysa-ch16-quiz.quiz.html'
+            },
+            prerequisites: ['eye-cysa-ch16-pres'],
+            objectives: []
+        },
+        'eye-cysa-ch16-lab': {
+            id: 'eye-cysa-ch16-lab',
+            title: 'CySA+ Ch 16 Lab: Policy & Compliance',
+            description: 'Hands-on lab for CySA+ Chapter 16 — Policy & Compliance',
+            house: 'eye',
+            type: 'lab',
+            difficulty: 'advanced',
+            duration: 45,
+            topics: ["policy","compliance","governance","regulations"],
+            paths: ['cysa'],
+            components: {
+                lab: 'houses/eye/cysa/labs/cysa-ch16-compliance.lab.html'
+            },
+            prerequisites: ['eye-cysa-ch16-pres'],
+            objectives: []
+        },
+        'eye-cysa-comprehensive-review': {
+            id: 'eye-cysa-comprehensive-review',
+            title: 'CySA+ Comprehensive Review',
+            description: 'Jeopardy-style review game covering all 16 chapters of the CompTIA CySA+ course',
+            house: 'eye',
+            type: 'quiz',
+            difficulty: 'advanced',
+            duration: 30,
+            topics: ['CySA+', 'review', 'comprehensive'],
+            paths: ['cysa'],
+            components: {
+                quiz: 'houses/eye/cysa/reviews/cysa-comprehensive-review.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
         // ─── CLOUD HOUSE (remaining REG-001 fixes) ───
         'cloud-architect': {
             id: 'cloud-architect',

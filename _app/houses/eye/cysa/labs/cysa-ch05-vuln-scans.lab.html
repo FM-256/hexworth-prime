@@ -1,0 +1,597 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ch 5 Lab: Vulnerability Scan Analysis — CySA+ | Eye House</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --eye-primary: #a855f7; --eye-secondary: #c084fc;
+            --eye-glow: rgba(168,85,247,0.3);
+            --bg-card: rgba(18,10,26,0.9);
+            --text: #ede9f6; --muted: #9d8bb5;
+            --ok: #4ade80; --warn: #fbbf24; --bad: #f87171;
+            --border: rgba(168,85,247,0.2);
+        }
+        body { font-family: 'Segoe UI', system-ui, sans-serif; background: linear-gradient(135deg, #0a0a12, #120a1a, #1a0a25); color: var(--text); min-height: 100vh; padding-bottom: 60px; }
+        .page-header { display: flex; align-items: center; justify-content: space-between; padding: 16px 32px; background: rgba(10,10,18,0.9); border-bottom: 1px solid var(--border); backdrop-filter: blur(12px); position: sticky; top: 0; z-index: 100; }
+        .back-link { color: var(--eye-secondary); text-decoration: none; font-size: 0.9rem; font-weight: 600; display: flex; align-items: center; gap: 6px; transition: opacity 0.2s; }
+        .back-link:hover { opacity: 0.7; }
+        .brand { font-size: 0.78rem; color: var(--muted); letter-spacing: 0.1em; text-transform: uppercase; }
+        .container { max-width: 1020px; margin: 0 auto; padding: 32px 20px; }
+        .lab-header { text-align: center; padding: 32px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 18px; margin-bottom: 28px; position: relative; overflow: hidden; }
+        .lab-header::before { content: ''; position: absolute; top: -60px; left: 50%; transform: translateX(-50%); width: 300px; height: 300px; background: radial-gradient(circle, var(--eye-glow) 0%, transparent 70%); pointer-events: none; }
+        .lab-tag { display: inline-block; background: rgba(168,85,247,0.14); color: var(--eye-secondary); border: 1px solid var(--border); padding: 0.25rem 0.9rem; border-radius: 20px; font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; margin-bottom: 1rem; }
+        .lab-header h1 { font-size: 1.9rem; font-weight: 800; color: var(--text); margin-bottom: 0.6rem; }
+        .lab-header h1 span { color: var(--eye-primary); }
+        .lab-header p { color: var(--muted); font-size: 1rem; max-width: 620px; margin: 0 auto; }
+        .progress-bar { background: rgba(255,255,255,0.08); border-radius: 10px; height: 10px; margin: 20px 0 8px; overflow: hidden; }
+        .progress-fill { height: 100%; background: linear-gradient(90deg, var(--eye-primary), var(--eye-secondary)); border-radius: 10px; transition: width 0.5s ease; width: 0%; }
+        .progress-text { text-align: center; color: var(--muted); font-size: 0.85rem; }
+        .exercise { background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.08); border-radius: 14px; margin-bottom: 22px; overflow: hidden; }
+        .exercise-header { background: rgba(168,85,247,0.08); padding: 18px 22px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; transition: background 0.2s; }
+        .exercise-header:hover { background: rgba(168,85,247,0.14); }
+        .exercise-title { display: flex; align-items: center; gap: 14px; }
+        .exercise-number { background: var(--eye-primary); color: #fff; width: 34px; height: 34px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.95rem; flex-shrink: 0; }
+        .exercise-name { font-size: 1.1rem; font-weight: 600; color: var(--text); }
+        .exercise-status { padding: 4px 14px; border-radius: 20px; font-size: 0.82rem; font-weight: 600; }
+        .status-pending { background: rgba(100,100,100,0.25); color: #888; }
+        .status-complete { background: rgba(74,222,128,0.18); color: #4ade80; }
+        .exercise-content { padding: 24px; display: none; }
+        .exercise.active .exercise-content { display: block; }
+        .scenario { background: rgba(96,165,250,0.08); border-left: 4px solid #60a5fa; padding: 14px 18px; margin-bottom: 20px; border-radius: 0 8px 8px 0; }
+        .scenario h4 { color: #60a5fa; margin-bottom: 6px; font-size: 0.95rem; }
+        .scenario p { font-size: 0.9rem; color: var(--muted); margin: 0; }
+        .scan-output { background: rgba(0,0,0,0.5); border: 1px solid rgba(168,85,247,0.25); border-radius: 10px; padding: 16px 20px; margin: 14px 0; font-family: 'Courier New', monospace; font-size: 0.83rem; overflow-x: auto; white-space: pre-wrap; color: var(--eye-secondary); line-height: 1.6; }
+        .task-list { list-style: none; margin: 18px 0; }
+        .task-item { padding: 11px 14px; margin: 7px 0; background: rgba(255,255,255,0.02); border-radius: 8px; display: flex; align-items: center; gap: 12px; border: 1px solid rgba(255,255,255,0.05); }
+        .task-item input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--eye-primary); flex-shrink: 0; cursor: pointer; }
+        .task-item label { font-size: 0.9rem; color: var(--muted); cursor: pointer; }
+        .task-item.checked { background: rgba(74,222,128,0.04); border-color: rgba(74,222,128,0.18); }
+        .task-item.checked label { text-decoration: line-through; color: #555; }
+        .question-block { background: rgba(168,85,247,0.08); border: 1px solid var(--border); border-radius: 10px; padding: 18px 20px; margin: 18px 0; }
+        .question-block h4 { color: var(--eye-secondary); margin-bottom: 10px; font-size: 0.95rem; }
+        .question-block p { font-size: 0.88rem; color: var(--muted); margin-bottom: 10px; }
+        .question-block textarea { width: 100%; min-height: 90px; background: rgba(0,0,0,0.35); border: 1px solid rgba(168,85,247,0.28); border-radius: 8px; padding: 10px 12px; color: var(--text); font-family: inherit; font-size: 0.88rem; resize: vertical; }
+        .question-block textarea:focus { outline: none; border-color: var(--eye-primary); }
+        .complete-btn { background: linear-gradient(135deg, var(--eye-primary), var(--eye-secondary)); color: #fff; border: none; padding: 11px 28px; border-radius: 8px; font-size: 0.95rem; font-weight: 600; cursor: pointer; margin-top: 14px; transition: transform 0.2s, box-shadow 0.2s; }
+        .complete-btn:hover { transform: translateY(-2px); box-shadow: 0 4px 16px var(--eye-glow); }
+        .complete-btn:disabled { opacity: 0.45; cursor: not-allowed; transform: none; box-shadow: none; }
+        .cvss-calc { background: rgba(0,0,0,0.4); border: 1px solid var(--border); border-radius: 12px; padding: 18px; margin: 14px 0; }
+        .cvss-calc h4 { color: var(--eye-primary); margin-bottom: 12px; font-size: 0.9rem; font-weight: 700; }
+        .cvss-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
+        .cvss-field label { display: block; font-size: 0.78rem; color: var(--muted); margin-bottom: 4px; font-weight: 600; }
+        .cvss-field select { width: 100%; background: rgba(0,0,0,0.4); border: 1px solid var(--border); border-radius: 6px; padding: 7px 10px; color: var(--text); font-size: 0.85rem; cursor: pointer; }
+        .cvss-field select:focus { outline: none; border-color: var(--eye-primary); }
+        .cvss-result { text-align: center; padding: 14px; background: rgba(168,85,247,0.1); border-radius: 8px; margin-top: 12px; }
+        .cvss-score-display { font-size: 2.5rem; font-weight: 800; }
+        .cvss-rating-display { font-size: 0.85rem; font-weight: 700; margin-top: 4px; }
+        .score-none { color: #60a5fa; } .score-low { color: var(--ok); } .score-medium { color: var(--warn); } .score-high { color: #fb923c; } .score-critical { color: var(--bad); }
+        .concept-box { background: rgba(251,191,36,0.07); border-left: 3px solid var(--warn); padding: 14px 16px; margin: 14px 0; border-radius: 0 8px 8px 0; }
+        .concept-box h4 { color: var(--warn); margin-bottom: 8px; font-size: 0.9rem; }
+        .concept-box p, .concept-box ul { font-size: 0.87rem; color: var(--muted); }
+        .concept-box ul { padding-left: 1.2rem; }
+        .concept-box ul li { margin-bottom: 0.3rem; }
+        .priority-table { width: 100%; border-collapse: collapse; margin: 14px 0; font-size: 0.87rem; }
+        .priority-table th { text-align: left; padding: 0.6rem 1rem; background: rgba(168,85,247,0.1); color: var(--eye-primary); font-size: 0.78rem; font-weight: 700; border-bottom: 1px solid var(--border); }
+        .priority-table td { padding: 0.65rem 1rem; color: var(--muted); border-bottom: 1px solid rgba(168,85,247,0.07); vertical-align: top; }
+        .priority-table tr:last-child td { border-bottom: none; }
+        .completion-badge { display: none; text-align: center; padding: 36px; background: rgba(74,222,128,0.07); border: 2px solid rgba(74,222,128,0.28); border-radius: 16px; margin-top: 28px; }
+        .completion-badge.show { display: block; animation: fadeIn 0.5s ease; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        .completion-badge h2 { color: var(--ok); font-size: 1.8rem; margin-bottom: 8px; }
+        .completion-badge p { color: var(--muted); margin-bottom: 18px; }
+        .nav-links { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; margin-top: 16px; }
+        .nav-link { display: inline-block; background: linear-gradient(135deg, var(--eye-primary), var(--eye-secondary)); color: #fff; padding: 11px 24px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 0.9rem; }
+        .section-label { font-size: 0.85rem; font-weight: 700; color: var(--eye-secondary); margin: 16px 0 8px; }
+        @media (max-width: 600px) { .cvss-grid { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+
+<header class="page-header">
+    <a href="../index.html" class="back-link">&larr; Back to CySA+</a>
+    <span class="brand">Eye House &mdash; CySA+ Labs</span>
+</header>
+
+<div class="container">
+
+    <div class="lab-header">
+        <div class="lab-tag">CH 5 LAB</div>
+        <h1>Vulnerability <span>Scan Analysis</span></h1>
+        <p>Interpret simulated Nessus scan output, calculate CVSS scores with a live calculator, validate findings for false positives, and build a prioritized remediation plan.</p>
+        <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+        <div class="progress-text"><span id="completedCount">0</span> of 4 exercises completed</div>
+    </div>
+
+    <!-- Exercise 1: Reading Scan Output -->
+    <div class="exercise active" data-exercise="1">
+        <div class="exercise-header" onclick="toggleExercise(1)">
+            <div class="exercise-title">
+                <div class="exercise-number">1</div>
+                <div class="exercise-name">Interpreting Nessus Scan Output</div>
+            </div>
+            <span class="exercise-status status-pending" id="status1">Pending</span>
+        </div>
+        <div class="exercise-content">
+            <div class="scenario">
+                <h4>Scenario: Production Web Server Scan</h4>
+                <p>You are a CySA+ analyst reviewing Nessus scan results against a production web server (10.10.1.50). Analyze the findings and answer the follow-up questions.</p>
+            </div>
+
+            <div class="scan-output">NESSUS VULNERABILITY SCAN REPORT
+Target: 10.10.1.50 (prod-web-01) | Scan: 2026-02-21
+
+FINDING 1 [CRITICAL] EternalBlue SMBv1 Remote Code Execution
+  CVE: CVE-2017-0144 | CVSS: 9.3
+  Vector: AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H
+  Port: 445/tcp (SMB)
+  Risk: Remote unauthenticated attacker can execute arbitrary code.
+  Fix: Apply MS17-010 patch. Disable SMBv1.
+
+FINDING 2 [MEDIUM] SSL Certificate Cannot Be Trusted (Self-Signed)
+  CVE: N/A | CVSS: 5.4
+  Vector: AV:N/AC:L/PR:N/UI:R/S:U/C:L/I:L/A:N
+  Port: 443/tcp (HTTPS)
+  Risk: Users receive browser warnings; MITM possible if users bypass.
+  Fix: Replace self-signed cert with CA-signed certificate.
+
+FINDING 3 [LOW] SSH Server CBC Mode Ciphers Enabled
+  CVE: CVE-2008-5161 | CVSS: 2.6
+  Vector: AV:N/AC:H/PR:N/UI:N/S:U/C:L/I:N/A:N
+  Port: 22/tcp (SSH)
+  Risk: May allow recovery of plaintext from ciphertext in rare conditions.
+  Fix: Disable CBC ciphers in /etc/ssh/sshd_config.
+
+FINDING 4 [INFO] HTTP Server Type and Version Disclosure
+  CVE: N/A | CVSS: N/A
+  Port: 80/tcp (HTTP)
+  Risk: Server header "Apache/2.4.41 Ubuntu" aids attacker recon.
+  Fix: Set ServerTokens Prod in Apache configuration.</div>
+
+            <ul class="task-list">
+                <li class="task-item"><input type="checkbox" id="t1-1" onchange="checkTask(1)"><label for="t1-1">Identify the highest-severity finding and explain why it is the top priority for immediate remediation</label></li>
+                <li class="task-item"><input type="checkbox" id="t1-2" onchange="checkTask(1)"><label for="t1-2">Explain the informational finding: what risk does it pose and how would you address it?</label></li>
+                <li class="task-item"><input type="checkbox" id="t1-3" onchange="checkTask(1)"><label for="t1-3">Review Finding 1's CVSS vector — identify why PR:N and UI:N make this especially dangerous</label></li>
+                <li class="task-item"><input type="checkbox" id="t1-4" onchange="checkTask(1)"><label for="t1-4">Determine which finding might qualify for a documented exception and under what conditions</label></li>
+            </ul>
+
+            <div class="question-block">
+                <h4>Analyst Response</h4>
+                <p>Finding 1 (EternalBlue) is on a production server that cannot be rebooted for 72 hours. Describe your immediate response, who you notify, and what compensating controls you implement until the patch can be applied.</p>
+                <textarea id="q1" placeholder="Describe your incident response approach for this Critical finding..."></textarea>
+            </div>
+
+            <button class="complete-btn" onclick="completeExercise(1)" id="btn1">Mark Exercise Complete</button>
+        </div>
+    </div>
+
+    <!-- Exercise 2: CVSS Calculator -->
+    <div class="exercise" data-exercise="2">
+        <div class="exercise-header" onclick="toggleExercise(2)">
+            <div class="exercise-title">
+                <div class="exercise-number">2</div>
+                <div class="exercise-name">Interactive CVSS Score Calculator</div>
+            </div>
+            <span class="exercise-status status-pending" id="status2">Pending</span>
+        </div>
+        <div class="exercise-content">
+            <div class="scenario">
+                <h4>Scenario: Calculate CVSS for Two New Vulnerabilities</h4>
+                <p>Use the live CVSS v3.0 calculator below to evaluate two practice vulnerabilities. Adjust the dropdowns and observe how each metric changes the score.</p>
+            </div>
+
+            <div class="cvss-calc">
+                <h4>CVSS v3.0 Base Score Calculator</h4>
+                <div class="cvss-grid">
+                    <div class="cvss-field">
+                        <label>Attack Vector (AV)</label>
+                        <select id="av" onchange="calcCVSS()">
+                            <option value="0.85">Network (N)</option>
+                            <option value="0.62">Adjacent (A)</option>
+                            <option value="0.55">Local (L)</option>
+                            <option value="0.20">Physical (P)</option>
+                        </select>
+                    </div>
+                    <div class="cvss-field">
+                        <label>Attack Complexity (AC)</label>
+                        <select id="ac" onchange="calcCVSS()">
+                            <option value="0.77">Low (L)</option>
+                            <option value="0.44">High (H)</option>
+                        </select>
+                    </div>
+                    <div class="cvss-field">
+                        <label>Privileges Required (PR)</label>
+                        <select id="pr" onchange="calcCVSS()">
+                            <option value="0.85">None (N)</option>
+                            <option value="0.62">Low (L)</option>
+                            <option value="0.27">High (H)</option>
+                        </select>
+                    </div>
+                    <div class="cvss-field">
+                        <label>User Interaction (UI)</label>
+                        <select id="ui" onchange="calcCVSS()">
+                            <option value="0.85">None (N)</option>
+                            <option value="0.62">Required (R)</option>
+                        </select>
+                    </div>
+                    <div class="cvss-field">
+                        <label>Scope (S)</label>
+                        <select id="sc" onchange="calcCVSS()">
+                            <option value="U">Unchanged (U)</option>
+                            <option value="C">Changed (C)</option>
+                        </select>
+                    </div>
+                    <div class="cvss-field">
+                        <label>Confidentiality (C)</label>
+                        <select id="cc" onchange="calcCVSS()">
+                            <option value="0.56">High (H)</option>
+                            <option value="0.22">Low (L)</option>
+                            <option value="0.00">None (N)</option>
+                        </select>
+                    </div>
+                    <div class="cvss-field">
+                        <label>Integrity (I)</label>
+                        <select id="ic" onchange="calcCVSS()">
+                            <option value="0.56">High (H)</option>
+                            <option value="0.22">Low (L)</option>
+                            <option value="0.00">None (N)</option>
+                        </select>
+                    </div>
+                    <div class="cvss-field">
+                        <label>Availability (A)</label>
+                        <select id="avc" onchange="calcCVSS()">
+                            <option value="0.56">High (H)</option>
+                            <option value="0.22">Low (L)</option>
+                            <option value="0.00">None (N)</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="cvss-result">
+                    <div class="cvss-score-display score-critical" id="cvssScore">9.8</div>
+                    <div class="cvss-rating-display score-critical" id="cvssRating">CRITICAL</div>
+                    <div style="font-size: 0.75rem; color: var(--muted); margin-top: 6px;" id="cvssVector">AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H</div>
+                </div>
+            </div>
+
+            <div class="concept-box">
+                <h4>Practice: Calculate Scores for These Two Vulnerabilities</h4>
+                <ul>
+                    <li><strong>Vuln A (SQL Injection):</strong> AV:N, AC:L, PR:N, UI:N, S:U, C:H, I:H, A:N</li>
+                    <li><strong>Vuln B (Local Priv Esc):</strong> AV:L, AC:L, PR:L, UI:N, S:U, C:H, I:H, A:H</li>
+                </ul>
+            </div>
+
+            <ul class="task-list">
+                <li class="task-item"><input type="checkbox" id="t2-1" onchange="checkTask(2)"><label for="t2-1">Calculate and record the CVSS score for Vuln A (SQL injection)</label></li>
+                <li class="task-item"><input type="checkbox" id="t2-2" onchange="checkTask(2)"><label for="t2-2">Calculate and record the CVSS score for Vuln B (local privilege escalation)</label></li>
+                <li class="task-item"><input type="checkbox" id="t2-3" onchange="checkTask(2)"><label for="t2-3">Change Scope to "Changed" and observe how the score changes — understand why scope matters</label></li>
+                <li class="task-item"><input type="checkbox" id="t2-4" onchange="checkTask(2)"><label for="t2-4">Verify the formula: if Impact = 0, Base Score = 0 (set all impact metrics to None)</label></li>
+            </ul>
+
+            <div class="question-block">
+                <h4>Prioritization Question</h4>
+                <p>Both Vuln A (SQL injection, internet-facing) and Vuln B (local priv esc, requires existing access) are on the same server. If Vuln B scores higher numerically, which would you remediate first and why? Consider factors beyond the raw CVSS score in your justification.</p>
+                <textarea id="q2" placeholder="Compare and justify remediation priority..."></textarea>
+            </div>
+
+            <button class="complete-btn" onclick="completeExercise(2)" id="btn2">Mark Exercise Complete</button>
+        </div>
+    </div>
+
+    <!-- Exercise 3: False Positive Analysis -->
+    <div class="exercise" data-exercise="3">
+        <div class="exercise-header" onclick="toggleExercise(3)">
+            <div class="exercise-title">
+                <div class="exercise-number">3</div>
+                <div class="exercise-name">False Positive Validation</div>
+            </div>
+            <span class="exercise-status status-pending" id="status3">Pending</span>
+        </div>
+        <div class="exercise-content">
+            <div class="scenario">
+                <h4>Scenario: Contradictory Scan Evidence</h4>
+                <p>Nessus reports Apache 2.2.3 with a critical CVE. The admin says the server was patched to Apache 2.4.54 last month. Your job: determine if this is a false positive and what corrective action is needed.</p>
+            </div>
+
+            <div class="scan-output">NESSUS FINDING: Apache HTTP Server 2.2.3 - Remote Code Execution
+CVE: CVE-2006-3918 | CVSS: 7.8 (HIGH)
+Evidence: HTTP Server Header returned: "Apache/2.2.3 (Unix)"
+Port: 80/tcp
+
+ADMIN NOTES:
+  Patch Date: 2026-01-15
+  New Version: Apache 2.4.54
+  Change Ticket: CHG-2024-0891 (CLOSED)
+  Apache config: ServerTokens Full [displays full version string]
+
+ACTUAL SERVER STATE (manually verified):
+  $ apache2 -v
+  Server version: Apache/2.4.54 (Ubuntu)
+
+  $ dpkg -l apache2
+  ii  apache2  2.4.54-2ubuntu1  amd64  Apache HTTP Server
+
+EXPLANATION:
+  ServerTokens Full causes Apache to report version in HTTP headers.
+  However, the scanner found "Apache/2.2.3" -- an OLD cached banner.
+
+  Root cause: Load balancer in front of web server caches responses.
+  Cached response still contains old banner from before the patch.
+  The scanner read the load balancer cache, not the actual server.</div>
+
+            <ul class="task-list">
+                <li class="task-item"><input type="checkbox" id="t3-1" onchange="checkTask(3)"><label for="t3-1">Determine whether this is a true false positive or a real vulnerability in the load balancer</label></li>
+                <li class="task-item"><input type="checkbox" id="t3-2" onchange="checkTask(3)"><label for="t3-2">Identify the corrective action needed to fix the underlying cause (not just suppress the finding)</label></li>
+                <li class="task-item"><input type="checkbox" id="t3-3" onchange="checkTask(3)"><label for="t3-3">Explain how ServerTokens configuration contributes to scanner false positives in this scenario</label></li>
+                <li class="task-item"><input type="checkbox" id="t3-4" onchange="checkTask(3)"><label for="t3-4">Describe the steps to document this finding correctly in the scanner once verified</label></li>
+            </ul>
+
+            <div class="concept-box">
+                <h4>Key Validation Methods</h4>
+                <ul>
+                    <li>Check patch status: verify installed package version against CVE affected versions</li>
+                    <li>Verify configuration: confirm the actual running state, not just what was reported</li>
+                    <li>Check for cached responses: load balancers and CDNs can serve stale banner data</li>
+                    <li>Attempt controlled exploitation: if safe to do so, confirm exploitability against the actual target</li>
+                    <li>Cross-reference with CMDB: does asset inventory reflect the correct version?</li>
+                </ul>
+            </div>
+
+            <div class="question-block">
+                <h4>Documentation Question</h4>
+                <p>This finding turned out to be a false positive caused by a load balancer cache serving stale headers. Write the documented exception note you would enter in Nessus to explain why this finding is suppressed, including what validation was performed and what the real remediation is.</p>
+                <textarea id="q3" placeholder="Write your documented exception/false positive note..."></textarea>
+            </div>
+
+            <button class="complete-btn" onclick="completeExercise(3)" id="btn3">Mark Exercise Complete</button>
+        </div>
+    </div>
+
+    <!-- Exercise 4: Remediation Prioritization -->
+    <div class="exercise" data-exercise="4">
+        <div class="exercise-header" onclick="toggleExercise(4)">
+            <div class="exercise-title">
+                <div class="exercise-number">4</div>
+                <div class="exercise-name">Remediation Prioritization Matrix</div>
+            </div>
+            <span class="exercise-status status-pending" id="status4">Pending</span>
+        </div>
+        <div class="exercise-content">
+            <div class="scenario">
+                <h4>Scenario: Monthly Scan — Prioritize 5 Findings</h4>
+                <p>You have received this month's scan report with 5 findings across three servers. You have limited IT resources and can only patch two servers this week. Build your remediation priority order and justify it.</p>
+            </div>
+
+            <div class="scan-output">MONTHLY SCAN RESULTS — 2026-02-21
+
+[1] CRITICAL  10.0 | Server: prod-payroll-01 | CVE-2021-44228 (Log4Shell)
+    Exposure: Internet-facing API endpoint | Exploit: Public, actively used
+    Business Impact: Payroll database access — HIGH business criticality
+
+[2] CRITICAL   9.8 | Server: dev-test-02 | CVE-2021-26084 (Confluence RCE)
+    Exposure: Internal development server, no external access
+    Business Impact: Development notes only — LOW business criticality
+
+[3] HIGH       8.2 | Server: prod-payroll-01 | Missing Windows patch (KB5014699)
+    Exposure: Internet-facing | Exploit: Requires local access after initial breach
+    Business Impact: Post-compromise privilege escalation — MEDIUM criticality
+
+[4] MEDIUM     5.9 | Server: prod-auth-01 | Weak TLS cipher suites (RC4 enabled)
+    Exposure: Internet-facing authentication server
+    Business Impact: Authentication server — CRITICAL business function
+
+[5] LOW        2.6 | Server: dev-test-02 | SSH CBC mode ciphers
+    Exposure: Internal only | Exploit: Requires MITM on internal network
+    Business Impact: Development server — LOW criticality</div>
+
+            <div class="section-label">Build Your Remediation Priority Order</div>
+            <table class="priority-table">
+                <thead>
+                    <tr>
+                        <th>Priority</th>
+                        <th>Finding</th>
+                        <th>Your Justification</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td style="color: var(--bad); font-weight: 700;">1 — Immediate</td>
+                        <td style="color: var(--muted);">Log4Shell on prod-payroll-01</td>
+                        <td style="color: var(--muted);">Internet-exposed + active exploitation + critical business data = Emergency</td>
+                    </tr>
+                    <tr>
+                        <td style="color: #fb923c; font-weight: 700;">2 — Urgent</td>
+                        <td style="color: var(--muted);">RC4 ciphers on prod-auth-01</td>
+                        <td style="color: var(--muted);">Critical function (auth server) + internet-exposed, even though CVSS is only Medium</td>
+                    </tr>
+                    <tr>
+                        <td style="color: var(--warn); font-weight: 700;">3 — Within 2 weeks</td>
+                        <td style="color: var(--muted);">Windows patch on prod-payroll-01</td>
+                        <td style="color: var(--muted);">Post-compromise escalation path on already-targeted server</td>
+                    </tr>
+                    <tr>
+                        <td style="color: var(--ok); font-weight: 700;">4 — Planned</td>
+                        <td style="color: var(--muted);">Confluence RCE on dev-test-02</td>
+                        <td style="color: var(--muted);">Critical CVSS but internal-only, low business impact</td>
+                    </tr>
+                    <tr>
+                        <td style="color: #60a5fa; font-weight: 700;">5 — Next cycle</td>
+                        <td style="color: var(--muted);">SSH CBC on dev-test-02</td>
+                        <td style="color: var(--muted);">Low severity, internal only, low criticality</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <ul class="task-list">
+                <li class="task-item"><input type="checkbox" id="t4-1" onchange="checkTask(4)"><label for="t4-1">Explain why Finding 4 (RC4, MEDIUM) ranks above Finding 2 (Confluence, CRITICAL) in this context</label></li>
+                <li class="task-item"><input type="checkbox" id="t4-2" onchange="checkTask(4)"><label for="t4-2">Identify what additional data sources you would check to validate this prioritization</label></li>
+                <li class="task-item"><input type="checkbox" id="t4-3" onchange="checkTask(4)"><label for="t4-3">Draft a brief risk communication to the IT manager explaining why the dev server waits</label></li>
+                <li class="task-item"><input type="checkbox" id="t4-4" onchange="checkTask(4)"><label for="t4-4">Identify what compensating controls you would apply to prod-payroll-01 if Log4Shell cannot be patched immediately</label></li>
+            </ul>
+
+            <div class="question-block">
+                <h4>Final Reflection</h4>
+                <p>Write a 3-4 sentence executive summary explaining your prioritization approach to a non-technical manager. Focus on business risk, not CVSS scores. Frame it in terms of what could happen if each issue is not addressed promptly.</p>
+                <textarea id="q4" placeholder="Write your executive-level risk summary..."></textarea>
+            </div>
+
+            <button class="complete-btn" onclick="completeExercise(4)" id="btn4">Mark Exercise Complete</button>
+        </div>
+    </div>
+
+    <!-- Completion Badge -->
+    <div class="completion-badge" id="completionBadge">
+        <h2>Lab Complete</h2>
+        <p>You have completed all vulnerability scan analysis exercises. You can interpret scanner output, calculate CVSS scores, validate false positives, and prioritize remediations by business risk.</p>
+        <div class="nav-links">
+            <a href="../quizzes/cysa-ch05-quiz.quiz.html" class="nav-link">Take the Quiz</a>
+            <a href="../index.html" class="nav-link">Back to CySA+</a>
+        </div>
+    </div>
+
+</div>
+
+<script>
+    const TOTAL = 4;
+    let completed = new Set();
+
+    document.addEventListener('DOMContentLoaded', () => {
+        loadProgress();
+        updateBar();
+        calcCVSS();
+    });
+
+    function toggleExercise(num) {
+        const ex = document.querySelector('[data-exercise="' + num + '"]');
+        const wasActive = ex.classList.contains('active');
+        document.querySelectorAll('.exercise').forEach(e => e.classList.remove('active'));
+        if (!wasActive) ex.classList.add('active');
+    }
+
+    function checkTask(num) {
+        const ex = document.querySelector('[data-exercise="' + num + '"]');
+        ex.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+            cb.closest('.task-item').classList.toggle('checked', cb.checked);
+        });
+        saveProgress();
+    }
+
+    function completeExercise(num) {
+        completed.add(num);
+        document.getElementById('status' + num).textContent = 'Complete';
+        document.getElementById('status' + num).className = 'exercise-status status-complete';
+        const btn = document.getElementById('btn' + num);
+        btn.textContent = 'Completed';
+        btn.disabled = true;
+        updateBar();
+        saveProgress();
+        if (num < TOTAL) setTimeout(() => toggleExercise(num + 1), 400);
+        if (completed.size === TOTAL) {
+            document.getElementById('completionBadge').classList.add('show');
+            if (typeof ModuleProgress !== 'undefined') {
+                ModuleProgress.complete('eye', 'eye-cysa-ch05-lab');
+            }
+        }
+    }
+
+    function updateBar() {
+        const pct = (completed.size / TOTAL) * 100;
+        document.getElementById('progressFill').style.width = pct + '%';
+        document.getElementById('completedCount').textContent = completed.size;
+    }
+
+    function saveProgress() {
+        const data = { completed: Array.from(completed), checks: {}, answers: {} };
+        document.querySelectorAll('input[type="checkbox"]').forEach(cb => { data.checks[cb.id] = cb.checked; });
+        document.querySelectorAll('textarea').forEach(ta => { data.answers[ta.id] = ta.value; });
+        try { localStorage.setItem('eye_cysa_ch05_lab', JSON.stringify(data)); } catch(e) {}
+    }
+
+    function loadProgress() {
+        try {
+            const raw = localStorage.getItem('eye_cysa_ch05_lab');
+            if (!raw) return;
+            const data = JSON.parse(raw);
+            if (data.completed) {
+                data.completed.forEach(n => {
+                    completed.add(n);
+                    document.getElementById('status' + n).textContent = 'Complete';
+                    document.getElementById('status' + n).className = 'exercise-status status-complete';
+                    const btn = document.getElementById('btn' + n);
+                    if (btn) { btn.textContent = 'Completed'; btn.disabled = true; }
+                });
+            }
+            if (data.checks) {
+                Object.entries(data.checks).forEach(([id, val]) => {
+                    const cb = document.getElementById(id);
+                    if (cb) { cb.checked = val; if (val) cb.closest('.task-item').classList.add('checked'); }
+                });
+            }
+            if (data.answers) {
+                Object.entries(data.answers).forEach(([id, val]) => {
+                    const ta = document.getElementById(id);
+                    if (ta) ta.value = val;
+                });
+            }
+            if (completed.size === TOTAL) document.getElementById('completionBadge').classList.add('show');
+        } catch(e) {}
+    }
+
+    // Live CVSS calculator
+    function calcCVSS() {
+        const av  = parseFloat(document.getElementById('av').value);
+        const ac  = parseFloat(document.getElementById('ac').value);
+        const pr  = parseFloat(document.getElementById('pr').value);
+        const ui  = parseFloat(document.getElementById('ui').value);
+        const sc  = document.getElementById('sc').value;
+        const c   = parseFloat(document.getElementById('cc').value);
+        const i   = parseFloat(document.getElementById('ic').value);
+        const a   = parseFloat(document.getElementById('avc').value);
+
+        const iss = 1 - (1 - c) * (1 - i) * (1 - a);
+        let impact;
+        if (sc === 'U') { impact = 6.42 * iss; }
+        else { impact = 7.52 * (iss - 0.029) - 3.25 * Math.pow((iss - 0.02), 15); }
+        if (iss <= 0) { updateScore(0); return; }
+        const exploit = 8.22 * av * ac * pr * ui;
+        let raw = impact + exploit;
+        if (sc === 'C') raw = raw * 1.08;
+        const score = Math.min(10, Math.round(raw * 10) / 10);
+        updateScore(score);
+    }
+
+    function updateScore(score) {
+        const el = document.getElementById('cvssScore');
+        const rat = document.getElementById('cvssRating');
+        const vec = document.getElementById('cvssVector');
+        el.textContent = score.toFixed(1);
+        let cls, label;
+        if (score === 0) { cls = 'score-none'; label = 'NONE'; }
+        else if (score < 4) { cls = 'score-low'; label = 'LOW'; }
+        else if (score < 7) { cls = 'score-medium'; label = 'MEDIUM'; }
+        else if (score < 9) { cls = 'score-high'; label = 'HIGH'; }
+        else { cls = 'score-critical'; label = 'CRITICAL'; }
+        el.className = 'cvss-score-display ' + cls;
+        rat.className = 'cvss-rating-display ' + cls;
+        rat.textContent = label;
+        const avV = ['N','A','L','P'][[0.85,0.62,0.55,0.20].indexOf(parseFloat(document.getElementById('av').value))] || '?';
+        const acV = parseFloat(document.getElementById('ac').value) === 0.77 ? 'L' : 'H';
+        const prV = ['N','L','H'][[0.85,0.62,0.27].indexOf(parseFloat(document.getElementById('pr').value))] || '?';
+        const uiV = parseFloat(document.getElementById('ui').value) === 0.85 ? 'N' : 'R';
+        const scV = document.getElementById('sc').value;
+        const ccV = parseFloat(document.getElementById('cc').value) === 0.56 ? 'H' : parseFloat(document.getElementById('cc').value) === 0.22 ? 'L' : 'N';
+        const icV = parseFloat(document.getElementById('ic').value) === 0.56 ? 'H' : parseFloat(document.getElementById('ic').value) === 0.22 ? 'L' : 'N';
+        const avcV = parseFloat(document.getElementById('avc').value) === 0.56 ? 'H' : parseFloat(document.getElementById('avc').value) === 0.22 ? 'L' : 'N';
+        vec.textContent = 'AV:' + avV + '/AC:' + acV + '/PR:' + prV + '/UI:' + uiV + '/S:' + scV + '/C:' + ccV + '/I:' + icV + '/A:' + avcV;
+    }
+</script>
+
+<script src="../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>

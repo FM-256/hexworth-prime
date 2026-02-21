@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CySA+ Ch 12: Analyzing Indicators of Compromise — Eye House</title>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --eye-primary: #a855f7;
+            --eye-secondary: #c084fc;
+            --eye-glow: rgba(168, 85, 247, 0.35);
+            --bg-dark: #0a0a12;
+            --bg-card: rgba(15, 10, 25, 0.85);
+            --text-primary: #e8e8f0;
+            --text-secondary: #9988bb;
+            --ok: #4ade80;
+            --warn: #fbbf24;
+            --bad: #f87171;
+            --border: rgba(168, 85, 247, 0.22);
+        }
+        body { font-family: 'Segoe UI', system-ui, sans-serif; background: linear-gradient(135deg, #0a0a12, #120a1a, #1a0a25); color: var(--text-primary); line-height: 1.7; min-height: 100vh; }
+        .site-header { background: rgba(10, 10, 18, 0.95); border-bottom: 1px solid var(--border); padding: 0.9rem 2rem; position: sticky; top: 0; z-index: 100; display: flex; align-items: center; justify-content: space-between; backdrop-filter: blur(10px); }
+        .back-link { color: var(--eye-primary); text-decoration: none; font-size: 0.9rem; font-weight: 600; display: flex; align-items: center; gap: 0.4rem; transition: opacity 0.2s; }
+        .back-link:hover { opacity: 0.75; }
+        .header-badge { background: linear-gradient(135deg, var(--eye-primary), var(--eye-secondary)); color: #fff; padding: 0.35rem 1rem; border-radius: 20px; font-size: 0.78rem; font-weight: 700; letter-spacing: 0.05em; }
+        .container { max-width: 1100px; margin: 0 auto; padding: 2.5rem 2rem 4rem; }
+        .hero { text-align: center; padding: 3.5rem 2rem 2.5rem; background: var(--bg-card); border: 1px solid var(--border); border-radius: 20px; margin-bottom: 2.5rem; position: relative; overflow: hidden; }
+        .hero::before { content: ''; position: absolute; top: -80px; left: 50%; transform: translateX(-50%); width: 420px; height: 420px; background: radial-gradient(circle, var(--eye-glow) 0%, transparent 70%); pointer-events: none; }
+        .module-tag { display: inline-block; background: rgba(168, 85, 247, 0.15); color: var(--eye-primary); border: 1px solid var(--border); padding: 0.3rem 1rem; border-radius: 20px; font-size: 0.78rem; font-weight: 700; letter-spacing: 0.08em; margin-bottom: 1.2rem; }
+        .hero h1 { font-size: 2.1rem; font-weight: 800; margin-bottom: 0.75rem; line-height: 1.25; }
+        .hero h1 span { color: var(--eye-primary); }
+        .hero p { color: var(--text-secondary); font-size: 1.05rem; max-width: 700px; margin: 0 auto; }
+        .section-heading { display: flex; align-items: center; gap: 0.75rem; font-size: 1.35rem; font-weight: 700; color: var(--eye-primary); margin: 2.5rem 0 1.25rem; }
+        .section-heading::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+        .card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 16px; padding: 1.75rem; margin-bottom: 1.5rem; }
+        .card h3 { font-size: 1.1rem; color: var(--eye-secondary); margin-bottom: 0.9rem; }
+        .card p { color: var(--text-secondary); font-size: 0.95rem; margin-bottom: 0.7rem; }
+        .card p:last-child { margin-bottom: 0; }
+        .data-table { width: 100%; border-collapse: collapse; margin: 0.75rem 0; }
+        .data-table th { text-align: left; padding: 0.6rem 1rem; background: rgba(168, 85, 247, 0.12); color: var(--eye-primary); font-size: 0.8rem; font-weight: 700; letter-spacing: 0.05em; border-bottom: 1px solid var(--border); }
+        .data-table td { padding: 0.65rem 1rem; font-size: 0.85rem; color: var(--text-secondary); border-bottom: 1px solid rgba(168, 85, 247, 0.08); vertical-align: top; }
+        .data-table tr:last-child td { border-bottom: none; }
+        .data-table tr:hover td { background: rgba(168, 85, 247, 0.04); }
+        .td-key { color: var(--eye-secondary); font-weight: 700; white-space: nowrap; }
+        .ioc-tier-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin-bottom: 1.5rem; }
+        .ioc-tier { background: var(--bg-card); border: 1px solid var(--border); border-radius: 14px; padding: 1.5rem; }
+        .ioc-tier-label { font-size: 0.72rem; font-weight: 700; letter-spacing: 0.1em; color: var(--eye-primary); margin-bottom: 0.5rem; }
+        .ioc-tier h4 { font-size: 1rem; font-weight: 700; color: var(--eye-secondary); margin-bottom: 0.75rem; }
+        .ioc-tier ul { list-style: none; }
+        .ioc-tier li { font-size: 0.82rem; color: var(--text-secondary); padding: 0.25rem 0 0.25rem 1rem; position: relative; }
+        .ioc-tier li::before { content: '|'; position: absolute; left: 0; color: var(--eye-primary); font-weight: 700; }
+        .monitoring-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; margin-bottom: 1.5rem; }
+        .monitor-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 1.25rem; }
+        .monitor-card h4 { font-size: 0.9rem; font-weight: 700; color: var(--eye-secondary); margin-bottom: 0.5rem; }
+        .monitor-card p { font-size: 0.82rem; color: var(--text-secondary); margin: 0; }
+        .attack-tactic { background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; padding: 1rem; margin-bottom: 0.75rem; display: grid; grid-template-columns: 140px 1fr; gap: 1rem; align-items: start; }
+        .tactic-id { color: var(--eye-primary); font-weight: 700; font-family: monospace; font-size: 0.88rem; }
+        .tactic-body h5 { font-size: 0.9rem; color: var(--text-primary); margin-bottom: 0.2rem; }
+        .tactic-body p { font-size: 0.8rem; color: var(--text-secondary); margin: 0; }
+        .insight { background: rgba(168, 85, 247, 0.07); border-left: 4px solid var(--eye-primary); border-radius: 0 12px 12px 0; padding: 1.25rem 1.5rem; margin: 1.25rem 0; }
+        .insight-label { font-size: 0.72rem; font-weight: 700; letter-spacing: 0.1em; color: var(--eye-primary); margin-bottom: 0.4rem; }
+        .insight p { font-size: 0.9rem; color: var(--text-secondary); margin: 0; }
+        .tools-strip { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.75rem; margin-bottom: 1.5rem; }
+        .tool-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; padding: 1rem; text-align: center; }
+        .tool-card h5 { font-size: 0.88rem; font-weight: 700; color: var(--eye-secondary); margin-bottom: 0.25rem; }
+        .tool-card p { font-size: 0.78rem; color: var(--text-secondary); margin: 0; }
+        .completion-bar { background: var(--bg-card); border: 1px solid var(--border); border-radius: 16px; padding: 2rem; text-align: center; margin-top: 3rem; }
+        .completion-bar h3 { color: var(--eye-primary); margin-bottom: 0.75rem; font-size: 1.2rem; }
+        .completion-bar p { color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 1.25rem; }
+        .btn-complete { display: inline-block; background: linear-gradient(135deg, var(--eye-primary), var(--eye-secondary)); color: #fff; font-weight: 700; padding: 0.75rem 2rem; border-radius: 10px; border: none; cursor: pointer; font-size: 0.95rem; transition: opacity 0.2s, transform 0.2s; }
+        .btn-complete:hover { opacity: 0.88; transform: translateY(-2px); }
+        .btn-complete:disabled { opacity: 0.5; cursor: default; transform: none; }
+        .complete-msg { margin-top: 1rem; color: var(--ok); font-weight: 600; font-size: 0.9rem; display: none; }
+        @media (max-width: 768px) { .ioc-tier-grid { grid-template-columns: 1fr; } .monitoring-grid { grid-template-columns: 1fr; } .tools-strip { grid-template-columns: repeat(2, 1fr); } .attack-tactic { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+
+<header class="site-header">
+    <a href="../index.html" class="back-link">&larr; Back to CySA+</a>
+    <span class="header-badge">EYE HOUSE &mdash; CySA+</span>
+</header>
+
+<div class="container">
+
+    <div class="hero">
+        <div class="module-tag">CHAPTER 12 &mdash; PRESENTATION</div>
+        <h1>Analyzing <span>Indicators of Compromise</span></h1>
+        <p>Network event monitoring methods (router-based, active, passive), network IOC taxonomy, host-level indicators, application anomalies, detection techniques, rogue device identification, and MITRE ATT&amp;CK framework mapping.</p>
+    </div>
+
+    <!-- Slide 1: Network Event Monitoring -->
+    <div class="section-heading">Slide 1 &mdash; Network Event Monitoring Methods</div>
+    <div class="card">
+        <h3>Three Approaches to Network Monitoring</h3>
+        <p>Many incidents begin with the discovery of suspicious or unexpected network traffic. Network event analysis is a core daily task for cybersecurity analysts — gathering, correlating, and analyzing data from different systems and sensors to detect or prevent incidents.</p>
+    </div>
+    <div class="ioc-tier-grid">
+        <div class="ioc-tier">
+            <div class="ioc-tier-label">METHOD 1</div>
+            <h4>Router-Based Monitoring</h4>
+            <ul>
+                <li>Netflow, sFlow, J-Flow standards</li>
+                <li>Count information at interface level</li>
+                <li>Samples traffic (1:100, 1:1000)</li>
+                <li>RMON operates at OSI Layers 1-4</li>
+                <li>SNMP collects device (not traffic) data</li>
+                <li>SNMPv3 adds encryption and authentication</li>
+            </ul>
+        </div>
+        <div class="ioc-tier">
+            <div class="ioc-tier-label">METHOD 2</div>
+            <h4>Active Network Monitoring</h4>
+            <ul>
+                <li>Sends requests to remote systems</li>
+                <li>Collects availability, route, delay data</li>
+                <li>Ping: ICMP-based up/down and latency</li>
+                <li>iPerf: measures max bandwidth of links</li>
+                <li>Useful for establishing baselines</li>
+                <li>Does not capture actual traffic content</li>
+            </ul>
+        </div>
+        <div class="ioc-tier">
+            <div class="ioc-tier-label">METHOD 3</div>
+            <h4>Passive Monitoring</h4>
+            <ul>
+                <li>Network tap copies all traffic</li>
+                <li>No impact on production traffic</li>
+                <li>Detailed: rate, protocols, content</li>
+                <li>Useful for after-the-fact analysis</li>
+                <li>SPAN/mirror ports on managed switches</li>
+                <li>Full packet capture possible</li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- Slide 2: Network Monitoring Tools -->
+    <div class="section-heading">Slide 2 &mdash; Network Monitoring Tools</div>
+    <div class="tools-strip">
+        <div class="tool-card">
+            <h5>PRTG</h5>
+            <p>Paessler Router Traffic Grapher. Packet sniffing, flows, SNMP, WMI. Server and bandwidth monitoring.</p>
+        </div>
+        <div class="tool-card">
+            <h5>SolarWinds NTA</h5>
+            <p>Flow sources, utilization analysis, endpoint identification. Network Fault Detection and availability monitoring.</p>
+        </div>
+        <div class="tool-card">
+            <h5>Nagios</h5>
+            <p>Network and system log monitoring. GUI for system/service monitoring. Thresholds are user-configured, not CVE-based.</p>
+        </div>
+        <div class="tool-card">
+            <h5>Cacti</h5>
+            <p>Open source. Uses SNMP polling to gain status of network devices. Graph-based visualization of performance data.</p>
+        </div>
+        <div class="tool-card">
+            <h5>Wireshark</h5>
+            <p>Full packet capture and deep protocol analysis. Manual analysis of captured traffic. Protocol decode library.</p>
+        </div>
+        <div class="tool-card">
+            <h5>Zeek (Bro)</h5>
+            <p>Network security monitor. Generates structured logs from traffic. Programmable analysis engine for custom detection.</p>
+        </div>
+        <div class="tool-card">
+            <h5>Suricata</h5>
+            <p>IDS/IPS with multi-threading. Signature-based detection plus protocol identification. Compatible with Snort rules.</p>
+        </div>
+        <div class="tool-card">
+            <h5>Tcpdump</h5>
+            <p>CLI packet capture. Lightweight, available on every Linux system. Essential for command-line incident response.</p>
+        </div>
+    </div>
+
+    <!-- Slide 3: Network IOC Types -->
+    <div class="section-heading">Slide 3 &mdash; Network Indicators of Compromise</div>
+    <div class="card">
+        <h3>Common Network Event Anomalies</h3>
+        <table class="data-table">
+            <thead>
+                <tr><th>IOC Type</th><th>Description</th><th>Detection Approach</th></tr>
+            </thead>
+            <tbody>
+                <tr><td class="td-key">Beaconing</td><td>Malware regularly contacts C2 infrastructure. Heartbeat signal sent via HTTP/HTTPS at fixed intervals. Hard to detect because it looks like normal web traffic.</td><td>Time-series analysis, frequency analysis, JA3 TLS fingerprinting, known-bad IP/domain reputation</td></tr>
+                <tr><td class="td-key">Unusual Bandwidth</td><td>Spikes indicate potential data exfiltration or DoS attack staging. Drops may indicate link failure or filtering.</td><td>Netflow baseline deviation alerts, capacity monitoring thresholds</td></tr>
+                <tr><td class="td-key">Link/Connection Failure</td><td>Hardware, firmware, or software issues — or intentional attack (cable cutting, interface flooding). May not be security-related.</td><td>Network monitoring tools, SNMP traps, optical power monitoring</td></tr>
+                <tr><td class="td-key">Unexpected Traffic Types</td><td>VPN traffic where none expected, IPv6 tunnels in IPv4-only environment, protocols on non-standard ports, tor exit node communication</td><td>Protocol analysis, port/application baselines, IDS signatures</td></tr>
+                <tr><td class="td-key">Port Scans / Probes</td><td>Reconnaissance activity. Sequential port connections from a single source, or distributed scanning from multiple sources.</td><td>Rate-based firewall rules, IDS signatures, SIEM correlation on connection attempts</td></tr>
+                <tr><td class="td-key">DoS / DDoS Signatures</td><td>Volumetric attacks overwhelming bandwidth. Protocol attacks exploiting handshakes. Application layer attacks targeting specific services.</td><td>Baseline deviation thresholds, upstream scrubbing services (Akamai, Cloudflare), rate limiting</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Slide 4: Host-Based Indicators -->
+    <div class="section-heading">Slide 4 &mdash; Host-Based Indicators of Compromise</div>
+    <div class="monitoring-grid">
+        <div class="monitor-card">
+            <h4>CPU / Memory Anomalies</h4>
+            <p>Unexpected CPU spikes may indicate crypto-mining, exploit execution, or DoS. Consistently high utilization without known cause warrants investigation. Memory leaks — programs not releasing memory — can be induced by malware or indicate a compromised process.</p>
+        </div>
+        <div class="monitor-card">
+            <h4>Filesystem Changes</h4>
+            <p>New files in unexpected locations, permission changes, modified system binaries, or files with timestamps inconsistent with system activity. Tools: Tripwire, AIDE, Wazuh Security Platform monitor for unauthorized changes in real time.</p>
+        </div>
+        <div class="monitor-card">
+            <h4>Registry Modifications (Windows)</h4>
+            <p>Run keys (HKLM\Software\Microsoft\Windows\CurrentVersion\Run) are a favorite attacker persistence mechanism. Unauthorized entries in startup folders or Run keys indicate persistent malware. Agent-based monitoring required on workstations.</p>
+        </div>
+        <div class="monitor-card">
+            <h4>Unauthorized Scheduled Tasks</h4>
+            <p>Attackers create scheduled tasks to maintain access or execute malware on a schedule. Windows Task Scheduler shows task details and execution history. On Linux, check crontab -l and /etc/cron.*/ directories for unauthorized entries.</p>
+        </div>
+        <div class="monitor-card">
+            <h4>Abnormal Process Behavior</h4>
+            <p>Rootkits and malware inject into legitimate processes (svchost.exe, lsass.exe) or use names similar to legitimate processes (svch0st.exe, Isass.exe with capital i). Metasploit has built-in process injection capabilities. Baseline process lists are essential.</p>
+        </div>
+        <div class="monitor-card">
+            <h4>Unauthorized User/Account Activity</h4>
+            <p>New accounts created without authorization, privilege escalation events, accounts with excessive permissions, logins from unexpected geographic locations or at unusual hours. Central management tools (SIEM) correlate authentication logs across all systems.</p>
+        </div>
+    </div>
+    <div class="card">
+        <h3>Windows System Monitoring Tools</h3>
+        <table class="data-table">
+            <thead><tr><th>Tool</th><th>Command</th><th>Capability</th></tr></thead>
+            <tbody>
+                <tr><td class="td-key">Resource Monitor</td><td>resmon</td><td>CPU, Memory, Disk, Network utilization with process-level detail and real-time graphs</td></tr>
+                <tr><td class="td-key">Performance Monitor</td><td>perfmon</td><td>Detailed counters for energy, disk, network. Supports remote system data collection for enterprise-wide view</td></tr>
+                <tr><td class="td-key">Process Explorer</td><td>Sysinternals</td><td>Enhanced task manager showing parent-child process relationships, DLL dependencies, verified signers</td></tr>
+                <tr><td class="td-key">Autoruns</td><td>Sysinternals</td><td>Comprehensive view of all persistence mechanisms — the most comprehensive tool for finding unauthorized startup entries</td></tr>
+            </tbody>
+        </table>
+    </div>
+    <div class="card">
+        <h3>Linux System Monitoring Commands</h3>
+        <table class="data-table">
+            <thead><tr><th>Command</th><th>Purpose</th></tr></thead>
+            <tbody>
+                <tr><td class="td-key">ps aux</td><td>All running processes with CPU and memory utilization, user, and full command line</td></tr>
+                <tr><td class="td-key">top / htop</td><td>Like ps, but interactive with real-time updates and sorting by resource consumption</td></tr>
+                <tr><td class="td-key">df -h</td><td>Disk usage report — detect drives that are filling up (potential log deletion or staging area)</td></tr>
+                <tr><td class="td-key">w / who</td><td>Currently logged-on accounts and what processes they are running — spot unauthorized sessions</td></tr>
+                <tr><td class="td-key">netstat -tulpn / ss</td><td>Open ports and listening services with associated process IDs — identify unauthorized network listeners</td></tr>
+                <tr><td class="td-key">last / lastlog</td><td>Login history — identify unusual login times, locations, or accounts</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Slide 5: Application Indicators -->
+    <div class="section-heading">Slide 5 &mdash; Application Indicators of Compromise</div>
+    <div class="card">
+        <h3>Application-Level Anomaly Detection</h3>
+        <table class="data-table">
+            <thead><tr><th>Indicator</th><th>Description</th><th>Investigation Steps</th></tr></thead>
+            <tbody>
+                <tr><td class="td-key">Anomalous Activity</td><td>Application behavior that does not match established baseline — unusual transaction volumes, API call rates, or data access patterns</td><td>Compare to baseline; check logs for error spikes, authentication failures, or unusual user accounts</td></tr>
+                <tr><td class="td-key">New Unauthorized Accounts</td><td>User accounts created within the application without following normal provisioning process — possible attacker persistence or privilege escalation</td><td>Verify against HR/provisioning records; check creation source IP and time</td></tr>
+                <tr><td class="td-key">Unexpected Output</td><td>Improper, garbled, or maliciously modified output — may indicate data injection, content modification, or compromised application</td><td>Compare current output to known-good baseline; check for data integrity violations</td></tr>
+                <tr><td class="td-key">Unexpected Outbound Comms</td><td>Application initiating connections it should not — data exfiltration, C2 communication, or lateral movement staging</td><td>Network monitoring for unexpected destinations; check application process netstat output</td></tr>
+                <tr><td class="td-key">Service Interruption</td><td>Could be simple failure or DDoS attack. Application/service monitoring detects availability issues.</td><td>Determine if traffic volume is elevated (DDoS) or if service crashed internally; check application error logs</td></tr>
+                <tr><td class="td-key">Memory Overflows</td><td>Causes OS errors and crashes. Hard to detect in real time — easier to analyze after a crash from crash dump files.</td><td>Analyze crash dumps with WinDbg or gdb; check Event Viewer for Application Error events</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Slide 6: Rogue Device Detection -->
+    <div class="section-heading">Slide 6 &mdash; Detecting Rogue Devices</div>
+    <div class="card">
+        <h3>Rogue Wired and Wireless Devices</h3>
+        <table class="data-table">
+            <thead><tr><th>Detection Method</th><th>Application</th></tr></thead>
+            <tbody>
+                <tr><td class="td-key">MAC Address Validation</td><td>Compare all network-connected device MACs against an authorized device database. Flag unknown MACs immediately. Check vendor OUI prefix against known-good vendors.</td></tr>
+                <tr><td class="td-key">Network Scanning</td><td>Regular Nmap scans of all subnets to identify devices. Compare results against asset inventory. New devices that appear between scans require investigation.</td></tr>
+                <tr><td class="td-key">Physical Site Inspection</td><td>Walk the facility looking for unauthorized devices plugged into network jacks, unauthorized switches/hubs, or rogue wireless access points.</td></tr>
+                <tr><td class="td-key">Traffic Behavior Analysis</td><td>Unusual traffic patterns from an IP or MAC that doesn't match expected behavior for that network segment — rogue devices often generate distinctive traffic.</td></tr>
+                <tr><td class="td-key">Wireless Surveys</td><td>Use wireless scanning tools to map all access points in the facility. Rogue APs appear as unexpected SSIDs or unrecognized BSSIDs. Evil Twin attacks use identical SSIDs to steal credentials.</td></tr>
+                <tr><td class="td-key">802.1X NAC</td><td>Network Access Control requires authentication before granting network access. Prevents unauthorized devices from connecting even if physically plugged in.</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Slide 7: MITRE ATT&CK -->
+    <div class="section-heading">Slide 7 &mdash; MITRE ATT&amp;CK Framework: Mapping IOCs to Tactics</div>
+    <div class="card">
+        <h3>ATT&amp;CK: Adversarial Tactics, Techniques, and Common Knowledge</h3>
+        <p>The MITRE ATT&amp;CK framework is a globally accessible knowledge base of adversary tactics and techniques based on real-world observations. It provides a common language for describing attacker behavior, mapping detections to specific techniques, and identifying coverage gaps. The framework has three matrices: Enterprise (Windows/Linux/macOS), Mobile, and ICS/OT.</p>
+    </div>
+    <div class="attack-tactic">
+        <div class="tactic-id">TA0001<br>Initial Access</div>
+        <div class="tactic-body"><h5>Getting Into the Network</h5><p>Phishing (T1566), Valid Accounts (T1078), Exploit Public-Facing Application (T1190). IOC: unusual logons, exploit traffic in WAF logs, credential stuffing attempts.</p></div>
+    </div>
+    <div class="attack-tactic">
+        <div class="tactic-id">TA0002<br>Execution</div>
+        <div class="tactic-body"><h5>Running Malicious Code</h5><p>Command and Script Interpreter (T1059), Scheduled Task/Job (T1053). IOC: PowerShell execution with encoded commands, unusual scheduled tasks, script interpreter spawning network connections.</p></div>
+    </div>
+    <div class="attack-tactic">
+        <div class="tactic-id">TA0003<br>Persistence</div>
+        <div class="tactic-body"><h5>Maintaining a Foothold</h5><p>Registry Run Keys (T1547.001), Boot/Logon Startup (T1037), Create Account (T1136). IOC: new registry run keys, new accounts, startup folder modifications.</p></div>
+    </div>
+    <div class="attack-tactic">
+        <div class="tactic-id">TA0010<br>Exfiltration</div>
+        <div class="tactic-body"><h5>Stealing Data</h5><p>Exfiltration Over C2 Channel (T1041), Exfiltration Over Alternative Protocol (T1048), Exfiltration to Cloud Storage (T1567). IOC: large outbound transfers, DNS TXT record usage, unexpected cloud service connections.</p></div>
+    </div>
+    <div class="attack-tactic">
+        <div class="tactic-id">TA0011<br>C2 / Command &amp; Control</div>
+        <div class="tactic-body"><h5>Communicating with Compromised Systems</h5><p>Application Layer Protocol (T1071), Encrypted Channel (T1573), Dynamic Resolution / DGA (T1568). IOC: beaconing traffic, DGA-generated domains, non-standard ports with encrypted traffic.</p></div>
+    </div>
+    <div class="insight">
+        <div class="insight-label">THREAT HUNTING APPLICATION</div>
+        <p>ATT&amp;CK is not just a reference — it is an active threat hunting framework. For each technique in the matrix, MITRE provides data sources needed to detect it, detection notes, and known malware/groups that use it. Analysts use ATT&amp;CK Navigator to visualize their detection coverage gaps: green means you have detections, red means blind spots. Those red cells become your threat hunting priorities.</p>
+    </div>
+
+    <!-- Slide 8: Behavior Analysis -->
+    <div class="section-heading">Slide 8 &mdash; Behavior Analysis: UEBA and Anomaly Detection</div>
+    <div class="card">
+        <h3>User and Entity Behavior Analytics (UEBA)</h3>
+        <p>UEBA analyzes normal user behavior to detect anomalous patterns. Unlike signature-based detection, UEBA can identify previously unknown attack patterns by focusing on behavioral deviation from established baselines.</p>
+        <p><strong style="color: var(--eye-secondary);">How it works:</strong> Machine learning and statistical analysis create baseline behavior profiles for each user and entity (devices, applications, services). Actions that deviate from the baseline — logging in at 3 AM, downloading 10x normal data volume, accessing sensitive files not in normal work scope — generate risk scores and alerts.</p>
+        <p><strong style="color: var(--eye-secondary);">Key differentiator:</strong> A fired employee's credentials used the day after termination would not match a signature (valid credentials, valid login) but would be immediately flagged by UEBA (account that logged in every weekday is now active at 2 AM from a foreign IP).</p>
+    </div>
+    <div class="card">
+        <h3>Filesystem Monitoring for Threat Detection</h3>
+        <p>Real-time filesystem monitoring detects unauthorized or unexpected changes as they happen. Monitoring focuses on files, permissions, ownership, and file attributes — generating alerts when protected files are modified.</p>
+        <p><strong style="color: var(--eye-secondary);">Tools:</strong> Tripwire (commercial and open source), OSSEC/Wazuh, commercial HIDS (Host-based Intrusion Detection Systems), AIDE (Advanced Intrusion Detection Environment). These tools create cryptographic hashes of protected files at baseline; any change in hash value triggers an alert.</p>
+    </div>
+    <div class="insight">
+        <div class="insight-label">FIELD INSIGHT: THE BASELINE IMPERATIVE</div>
+        <p>Every detection technique in Chapter 12 depends on one capability: knowing what normal looks like. Beaconing detection requires a network baseline. CPU anomaly detection requires a performance baseline. UEBA requires a behavioral baseline. Filesystem monitoring requires a known-good baseline. Without baselines, everything looks like noise. Establishing and maintaining baselines — and updating them as the environment legitimately changes — is the most important operational discipline in security monitoring.</p>
+    </div>
+
+    <!-- Completion -->
+    <div class="completion-bar">
+        <h3>Chapter 12 Presentation Complete</h3>
+        <p>Mark this presentation complete to record your progress toward CySA+ readiness.</p>
+        <button class="btn-complete" id="completeBtn" onclick="markComplete()">Mark as Complete</button>
+        <div class="complete-msg" id="completeMsg">Progress saved. Proceed to the Chapter 12 quiz to test your knowledge.</div>
+    </div>
+
+</div>
+
+<script src="../../../../components/FluxCapacitor.js"></script>
+<script>
+    function markComplete() {
+        const btn = document.getElementById('completeBtn');
+        const msg = document.getElementById('completeMsg');
+        btn.disabled = true;
+        btn.textContent = 'Saving...';
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('eye', 'eye-cysa-ch12');
+        }
+        btn.textContent = 'Completed';
+        msg.style.display = 'block';
+    }
+    (function checkCompleted() {
+        const progress = JSON.parse(localStorage.getItem('hexworth_progress') || '{}');
+        if (progress['eye-cysa-ch12']) {
+            const btn = document.getElementById('completeBtn');
+            btn.textContent = 'Completed';
+            btn.disabled = true;
+            document.getElementById('completeMsg').style.display = 'block';
+        }
+    })();
+</script>
+</body>
+</html>

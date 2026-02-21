@@ -1,0 +1,1367 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Ch8 Lab: Identity &amp; Access Management — Eye House</title>
+  <script src="../../../../components/AccessGuard.js"></script>
+  <script>AccessGuard.require('sorted');</script>
+  <script src="../../../../components/AchievementManager.js"></script>
+  <script src="../../../../components/ModuleProgress.js"></script>
+  <style>
+    /* ── Eye House Design Tokens ── */
+    :root {
+      --eye-primary:   #a855f7;
+      --eye-secondary: #c084fc;
+      --eye-dark:      #7c3aed;
+      --eye-glow:      rgba(168, 85, 247, 0.35);
+      --bg-deep:       #0a0a12;
+      --bg-mid:        #120a1a;
+      --bg-surface:    #1a0f26;
+      --bg-card:       #1e1030;
+      --border:        rgba(168, 85, 247, 0.22);
+      --border-bright: rgba(168, 85, 247, 0.55);
+      --text-primary:  #f0e6ff;
+      --text-muted:    #9d8ab5;
+      --text-dim:      #6b5a82;
+      --success:       #22c55e;
+      --warning:       #f59e0b;
+      --danger:        #ef4444;
+      --info:          #38bdf8;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: linear-gradient(135deg, #0a0a12, #120a1a, #1a0a25);
+      color: var(--text-primary);
+      min-height: 100vh;
+      line-height: 1.6;
+    }
+
+    /* ── Header ── */
+    .site-header {
+      position: sticky; top: 0; z-index: 100;
+      background: rgba(10, 10, 18, 0.92);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+      padding: 0.75rem 2rem;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .back-link {
+      color: var(--eye-secondary); text-decoration: none;
+      font-size: 0.85rem; display: flex; align-items: center; gap: 0.4rem;
+      transition: color 0.2s;
+    }
+    .back-link:hover { color: #fff; }
+    .header-badge {
+      font-size: 0.72rem; font-weight: 700; letter-spacing: 0.12em;
+      color: var(--eye-primary);
+      background: rgba(168, 85, 247, 0.12);
+      border: 1px solid var(--border);
+      padding: 0.25rem 0.75rem; border-radius: 20px;
+    }
+
+    /* ── Hero ── */
+    .hero {
+      text-align: center; padding: 3rem 2rem 2rem;
+      border-bottom: 1px solid var(--border);
+    }
+    .lab-icon {
+      font-size: 3rem; margin-bottom: 1rem;
+      filter: drop-shadow(0 0 18px var(--eye-primary));
+    }
+    .hero h1 {
+      font-size: 2rem; font-weight: 800;
+      background: linear-gradient(135deg, var(--eye-primary), var(--eye-secondary), #e879f9);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      background-clip: text; margin-bottom: 0.5rem;
+    }
+    .hero .subtitle {
+      color: var(--text-muted); font-size: 1rem;
+      max-width: 620px; margin: 0 auto 1.5rem;
+    }
+    .lab-meta {
+      display: flex; gap: 1.5rem; justify-content: center; flex-wrap: wrap;
+    }
+    .meta-item {
+      display: flex; align-items: center; gap: 0.4rem;
+      font-size: 0.82rem; color: var(--text-muted);
+    }
+    .meta-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--eye-primary); }
+
+    /* ── Container ── */
+    .container { max-width: 960px; margin: 0 auto; padding: 2rem; }
+
+    /* ── Objectives ── */
+    .objectives-card {
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: 12px; padding: 1.5rem; margin-bottom: 2rem;
+    }
+    .objectives-card h3 {
+      color: var(--eye-secondary); font-size: 0.85rem;
+      text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 1rem;
+    }
+    .obj-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 0.6rem; list-style: none; }
+    .obj-list li { display: flex; align-items: flex-start; gap: 0.5rem; font-size: 0.88rem; color: var(--text-muted); }
+    .obj-list li::before { content: '▸'; color: var(--eye-primary); flex-shrink: 0; margin-top: 0.1rem; }
+
+    /* ── Exercise Accordion ── */
+    .exercise {
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: 14px; margin-bottom: 1.5rem; overflow: hidden;
+      transition: border-color 0.3s;
+    }
+    .exercise.completed { border-color: rgba(34, 197, 94, 0.45); }
+    .exercise.active   { border-color: var(--border-bright); }
+
+    .ex-header {
+      display: flex; align-items: center; gap: 1rem;
+      padding: 1.25rem 1.5rem;
+      cursor: pointer; user-select: none; transition: background 0.2s;
+    }
+    .ex-header:hover { background: rgba(168, 85, 247, 0.06); }
+
+    .ex-num {
+      width: 36px; height: 36px; border-radius: 50%; flex-shrink: 0;
+      background: rgba(168, 85, 247, 0.15);
+      border: 1px solid var(--border-bright);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.9rem; font-weight: 700; color: var(--eye-primary);
+    }
+    .exercise.completed .ex-num {
+      background: rgba(34, 197, 94, 0.15); border-color: rgba(34, 197, 94, 0.5);
+      color: var(--success);
+    }
+    .ex-title { flex: 1; }
+    .ex-title strong { font-size: 1rem; color: var(--text-primary); display: block; }
+    .ex-title span   { font-size: 0.8rem; color: var(--text-muted); }
+
+    .ex-status {
+      font-size: 0.75rem; padding: 0.2rem 0.6rem; border-radius: 10px; font-weight: 600;
+      background: rgba(168, 85, 247, 0.1); color: var(--eye-secondary); border: 1px solid var(--border);
+    }
+    .exercise.completed .ex-status {
+      background: rgba(34, 197, 94, 0.1); color: var(--success); border-color: rgba(34, 197, 94, 0.3);
+    }
+    .ex-chevron { color: var(--text-dim); font-size: 0.9rem; transition: transform 0.3s; }
+    .exercise.active .ex-chevron { transform: rotate(90deg); }
+
+    /* ── Exercise Body ── */
+    .ex-body {
+      display: none; padding: 0 1.5rem 1.5rem;
+      border-top: 1px solid var(--border);
+    }
+    .exercise.active .ex-body { display: block; }
+
+    /* ── Scenario ── */
+    .scenario {
+      background: rgba(168, 85, 247, 0.07);
+      border-left: 3px solid var(--eye-primary);
+      border-radius: 0 8px 8px 0;
+      padding: 1rem 1.25rem; margin: 1.25rem 0;
+      font-size: 0.9rem; color: var(--text-muted);
+    }
+    .scenario strong { color: var(--eye-secondary); display: block; margin-bottom: 0.3rem; }
+
+    /* ── Section label ── */
+    .section-label {
+      font-size: 0.78rem; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.1em; color: var(--eye-primary); margin: 1.25rem 0 0.6rem;
+    }
+
+    /* ── Policy Builder ── */
+    .policy-builder {
+      border: 1px solid var(--border); border-radius: 10px; overflow: hidden; margin: 1rem 0;
+    }
+    .pb-header {
+      background: rgba(168,85,247,0.12); padding: 0.65rem 1rem;
+      font-size: 0.78rem; font-weight: 700; color: var(--eye-secondary);
+      text-transform: uppercase; letter-spacing: 0.07em;
+      display: grid; grid-template-columns: 2fr 1.5fr 1.5fr 2fr;
+      gap: 0.5rem;
+    }
+    .pb-row {
+      display: grid; grid-template-columns: 2fr 1.5fr 1.5fr 2fr;
+      gap: 0.5rem; align-items: center;
+      padding: 0.6rem 1rem;
+      border-top: 1px solid var(--border);
+      font-size: 0.83rem;
+    }
+    .pb-row:hover { background: rgba(168,85,247,0.04); }
+    .pb-label { color: var(--text-muted); }
+    .pb-select {
+      background: rgba(10,8,20,0.8); border: 1px solid var(--border);
+      border-radius: 6px; color: var(--text-primary);
+      padding: 0.3rem 0.4rem; font-size: 0.8rem; cursor: pointer; width: 100%;
+    }
+    .pb-select:focus { outline: none; border-color: var(--eye-primary); }
+    .pb-note { color: var(--text-dim); font-size: 0.78rem; font-style: italic; }
+
+    /* ── Access model cards ── */
+    .model-grid {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 0.75rem; margin: 1rem 0;
+    }
+    .model-card {
+      background: rgba(168,85,247,0.07); border: 1px solid var(--border);
+      border-radius: 8px; padding: 0.85rem; cursor: pointer;
+      transition: background 0.2s, border-color 0.2s;
+    }
+    .model-card:hover { background: rgba(168,85,247,0.12); border-color: var(--border-bright); }
+    .model-card.selected {
+      background: rgba(168,85,247,0.2); border-color: var(--eye-primary);
+    }
+    .model-card .mc-name { font-size: 0.85rem; font-weight: 700; color: var(--eye-secondary); margin-bottom: 0.2rem; }
+    .model-card .mc-desc { font-size: 0.75rem; color: var(--text-dim); }
+
+    /* ── MFA Evaluation Table ── */
+    .mfa-table {
+      width: 100%; border-collapse: collapse; font-size: 0.83rem; margin: 1rem 0;
+    }
+    .mfa-table th {
+      background: rgba(168,85,247,0.12); color: var(--eye-secondary);
+      padding: 0.65rem 0.85rem; text-align: left; font-weight: 700;
+      border-bottom: 1px solid var(--border-bright);
+      font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.06em;
+    }
+    .mfa-table td {
+      padding: 0.6rem 0.85rem; border-bottom: 1px solid var(--border);
+      color: var(--text-muted); vertical-align: middle;
+    }
+    .mfa-table tr:last-child td { border-bottom: none; }
+    .mfa-table tr:hover td { background: rgba(168,85,247,0.04); }
+    .mfa-select {
+      background: rgba(10,8,20,0.8); border: 1px solid var(--border);
+      border-radius: 6px; color: var(--text-primary);
+      padding: 0.3rem 0.5rem; font-size: 0.8rem; cursor: pointer;
+    }
+    .mfa-select:focus { outline: none; border-color: var(--eye-primary); }
+
+    /* ── Severity badges ── */
+    .sev { display: inline-block; padding: 0.15rem 0.5rem; border-radius: 4px; font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; }
+    .sev-critical { background: rgba(239,68,68,0.18); color: #fca5a5; border: 1px solid rgba(239,68,68,0.4); }
+    .sev-high     { background: rgba(245,158,11,0.18); color: #fcd34d; border: 1px solid rgba(245,158,11,0.4); }
+    .sev-medium   { background: rgba(251,191,36,0.14); color: #fde68a; border: 1px solid rgba(251,191,36,0.35); }
+    .sev-low      { background: rgba(56,189,248,0.14); color: #93c5fd; border: 1px solid rgba(56,189,248,0.35); }
+    .sev-good     { background: rgba(34,197,94,0.12); color: #86efac; border: 1px solid rgba(34,197,94,0.35); }
+
+    /* ── Timeline / Account Lifecycle ── */
+    .lifecycle {
+      display: flex; flex-direction: column; gap: 0; margin: 1rem 0;
+      position: relative;
+    }
+    .lifecycle::before {
+      content: ''; position: absolute; left: 20px; top: 0; bottom: 0;
+      width: 2px; background: var(--border);
+    }
+    .lc-step {
+      display: flex; align-items: flex-start; gap: 1rem;
+      padding: 0.75rem 0.75rem 0.75rem 0;
+      position: relative;
+    }
+    .lc-dot {
+      width: 40px; height: 40px; border-radius: 50%; flex-shrink: 0;
+      background: rgba(168,85,247,0.15); border: 2px solid var(--border-bright);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1rem; z-index: 1;
+    }
+    .lc-dot.danger  { background: rgba(239,68,68,0.15); border-color: rgba(239,68,68,0.5); }
+    .lc-dot.warning { background: rgba(245,158,11,0.15); border-color: rgba(245,158,11,0.5); }
+    .lc-dot.success { background: rgba(34,197,94,0.15); border-color: rgba(34,197,94,0.5); }
+    .lc-content { flex: 1; }
+    .lc-phase { font-size: 0.85rem; font-weight: 700; color: var(--text-primary); margin-bottom: 0.2rem; }
+    .lc-desc  { font-size: 0.8rem; color: var(--text-muted); }
+
+    /* ── PAM Checklist ── */
+    .pam-grid {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 0.75rem; margin: 1rem 0;
+    }
+    .pam-item {
+      background: rgba(168,85,247,0.07); border: 1px solid var(--border);
+      border-radius: 8px; padding: 0.85rem 1rem;
+      display: flex; align-items: flex-start; gap: 0.75rem;
+    }
+    .pam-item input[type=checkbox] {
+      width: 16px; height: 16px; accent-color: var(--eye-primary);
+      flex-shrink: 0; margin-top: 0.15rem; cursor: pointer;
+    }
+    .pam-item label { cursor: pointer; font-size: 0.83rem; color: var(--text-muted); }
+    .pam-item input:checked + label { color: var(--text-primary); }
+
+    /* ── Attack simulation table ── */
+    .attack-table {
+      width: 100%; border-collapse: collapse; font-size: 0.82rem; margin: 1rem 0;
+    }
+    .attack-table th {
+      background: rgba(239,68,68,0.12); color: #fca5a5;
+      padding: 0.6rem 0.85rem; text-align: left; font-weight: 700;
+      border-bottom: 1px solid rgba(239,68,68,0.3);
+      font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.06em;
+    }
+    .attack-table td {
+      padding: 0.55rem 0.85rem; border-bottom: 1px solid var(--border);
+      color: var(--text-muted); vertical-align: top;
+    }
+    .attack-table tr:last-child td { border-bottom: none; }
+    .attack-table tr:hover td { background: rgba(239,68,68,0.03); }
+
+    /* ── Textarea ── */
+    .answer-area {
+      width: 100%; background: rgba(10,8,20,0.7); border: 1px solid var(--border);
+      border-radius: 8px; color: var(--text-primary); font-size: 0.88rem;
+      font-family: inherit; padding: 0.75rem 1rem;
+      resize: vertical; min-height: 90px; transition: border-color 0.2s; margin-top: 0.4rem;
+    }
+    .answer-area:focus { outline: none; border-color: var(--eye-primary); }
+    .answer-label { font-size: 0.82rem; color: var(--text-muted); margin-top: 1rem; display: block; }
+
+    /* ── Hint / Insight ── */
+    .hint-box {
+      background: rgba(168,85,247,0.07); border: 1px solid var(--border);
+      border-radius: 8px; padding: 0.85rem 1rem; margin: 0.75rem 0;
+      font-size: 0.83rem; color: var(--text-muted);
+    }
+    .hint-box strong { color: var(--eye-secondary); }
+
+    .insight-box {
+      background: rgba(56,189,248,0.06); border-left: 3px solid var(--info);
+      border-radius: 0 8px 8px 0; padding: 0.85rem 1rem; margin: 0.75rem 0;
+      font-size: 0.83rem; color: var(--text-muted);
+    }
+    .insight-box strong { color: var(--info); }
+
+    .warning-box {
+      background: rgba(245,158,11,0.07); border-left: 3px solid var(--warning);
+      border-radius: 0 8px 8px 0; padding: 0.85rem 1rem; margin: 0.75rem 0;
+      font-size: 0.83rem; color: var(--text-muted);
+    }
+    .warning-box strong { color: var(--warning); }
+
+    /* ── Code block ── */
+    .code-block {
+      background: #080615; border: 1px solid var(--border); border-radius: 8px;
+      padding: 1rem 1.25rem; font-family: 'Consolas', 'Courier New', monospace;
+      font-size: 0.82rem; color: #c4b5fd; white-space: pre-wrap;
+      overflow-x: auto; line-height: 1.6; margin: 0.75rem 0;
+    }
+    .code-block .kw  { color: #f0abfc; }
+    .code-block .val { color: #86efac; }
+    .code-block .key { color: #fde68a; }
+    .code-block .cmt { color: #6b7280; font-style: italic; }
+
+    /* ── Complete Button ── */
+    .btn-complete {
+      display: inline-flex; align-items: center; gap: 0.5rem;
+      background: linear-gradient(135deg, var(--eye-dark), var(--eye-primary));
+      color: #fff; border: none; border-radius: 8px;
+      padding: 0.65rem 1.4rem; font-size: 0.88rem; font-weight: 600;
+      cursor: pointer; transition: opacity 0.2s, transform 0.15s; margin-top: 1.25rem;
+    }
+    .btn-complete:hover { opacity: 0.88; transform: translateY(-1px); }
+
+    /* ── Completion Banner ── */
+    .completion-banner {
+      display: none; text-align: center;
+      background: linear-gradient(135deg, rgba(34,197,94,0.1), rgba(168,85,247,0.1));
+      border: 1px solid rgba(34,197,94,0.35); border-radius: 14px;
+      padding: 2.5rem 2rem; margin-top: 2rem;
+    }
+    .completion-banner.show { display: block; }
+    .completion-banner .trophy { font-size: 3rem; margin-bottom: 0.75rem; }
+    .completion-banner h2 { font-size: 1.5rem; font-weight: 800; color: var(--success); margin-bottom: 0.5rem; }
+    .completion-banner p { color: var(--text-muted); font-size: 0.9rem; }
+
+    /* ── Footer ── */
+    .site-footer {
+      text-align: center; padding: 2rem;
+      border-top: 1px solid var(--border);
+      color: var(--text-dim); font-size: 0.8rem; margin-top: 3rem;
+    }
+
+    /* ── Responsive ── */
+    @media (max-width: 640px) {
+      .hero h1 { font-size: 1.5rem; }
+      .container { padding: 1rem; }
+      .pb-header, .pb-row { grid-template-columns: 1fr 1fr; }
+      .pb-header span:nth-child(3), .pb-row span:nth-child(3) { display: none; }
+      .pb-header span:nth-child(4), .pb-row span:nth-child(4) { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ── Header ── -->
+<header class="site-header">
+  <a href="../index.html" class="back-link">&larr; Back to CySA+</a>
+  <span class="header-badge">EYE HOUSE &mdash; CySA+</span>
+</header>
+
+<!-- ── Hero ── -->
+<div class="hero">
+  <div class="lab-icon">&#128274;</div>
+  <h1>Identity &amp; Access Management Lab</h1>
+  <p class="subtitle">
+    Design access control policies, evaluate MFA implementations, audit privileged
+    access management, and analyze IAM attack scenarios common in enterprise environments.
+  </p>
+  <div class="lab-meta">
+    <span class="meta-item"><span class="meta-dot"></span>Chapter 8</span>
+    <span class="meta-item"><span class="meta-dot"></span>4 Exercises</span>
+    <span class="meta-item"><span class="meta-dot"></span>Intermediate</span>
+    <span class="meta-item"><span class="meta-dot"></span>~50 min</span>
+  </div>
+</div>
+
+<div class="container">
+
+  <!-- Objectives -->
+  <div class="objectives-card">
+    <h3>Lab Objectives</h3>
+    <ul class="obj-list">
+      <li>Design role-based access policies for a multi-department organization</li>
+      <li>Select appropriate access control models for given scenarios</li>
+      <li>Evaluate MFA implementations against threat scenarios</li>
+      <li>Audit a PAM deployment and identify privilege creep risks</li>
+      <li>Analyze IAM-specific attack techniques and detection strategies</li>
+    </ul>
+  </div>
+
+  <!-- ════════════════════════════════════════════
+       Exercise 1 — Access Policy Design
+  ═════════════════════════════════════════════ -->
+  <div class="exercise" id="ex1">
+    <div class="ex-header" onclick="toggleEx('ex1')">
+      <div class="ex-num">1</div>
+      <div class="ex-title">
+        <strong>Access Policy Design</strong>
+        <span>Define RBAC roles and select access control models for Meridian Financial Corp</span>
+      </div>
+      <span class="ex-status" id="status1">Not Started</span>
+      <span class="ex-chevron">&#9654;</span>
+    </div>
+    <div class="ex-body">
+
+      <div class="scenario">
+        <strong>Scenario</strong>
+        Meridian Financial Corp has 5 departments with distinct data access requirements.
+        You are designing the IAM policy for their new ERP system. Configure the access
+        permissions below, then justify your model selection.
+      </div>
+
+      <div class="section-label">Access Policy Builder</div>
+      <p style="font-size:0.83rem;color:var(--text-muted);margin-bottom:0.75rem;">
+        For each role, select the access level for each resource category.
+        Options: No Access, Read Only, Read-Write, Full Control.
+      </p>
+
+      <div class="policy-builder">
+        <div class="pb-header">
+          <span>Role</span>
+          <span>Financial Records</span>
+          <span>HR Records</span>
+          <span>System Config</span>
+        </div>
+        <div class="pb-row">
+          <span class="pb-label">IT Administrator</span>
+          <select class="pb-select" id="pol1a" onchange="saveProgress()">
+            <option value="">--</option>
+            <option value="none">No Access</option>
+            <option value="ro">Read Only</option>
+            <option value="rw">Read-Write</option>
+            <option value="fc">Full Control</option>
+          </select>
+          <select class="pb-select" id="pol1b" onchange="saveProgress()">
+            <option value="">--</option>
+            <option value="none">No Access</option>
+            <option value="ro">Read Only</option>
+            <option value="rw">Read-Write</option>
+            <option value="fc">Full Control</option>
+          </select>
+          <select class="pb-select" id="pol1c" onchange="saveProgress()">
+            <option value="">--</option>
+            <option value="none">No Access</option>
+            <option value="ro">Read Only</option>
+            <option value="rw">Read-Write</option>
+            <option value="fc">Full Control</option>
+          </select>
+        </div>
+        <div class="pb-row">
+          <span class="pb-label">Finance Analyst</span>
+          <select class="pb-select" id="pol2a" onchange="saveProgress()">
+            <option value="">--</option>
+            <option value="none">No Access</option>
+            <option value="ro">Read Only</option>
+            <option value="rw">Read-Write</option>
+            <option value="fc">Full Control</option>
+          </select>
+          <select class="pb-select" id="pol2b" onchange="saveProgress()">
+            <option value="">--</option>
+            <option value="none">No Access</option>
+            <option value="ro">Read Only</option>
+            <option value="rw">Read-Write</option>
+            <option value="fc">Full Control</option>
+          </select>
+          <select class="pb-select" id="pol2c" onchange="saveProgress()">
+            <option value="">--</option>
+            <option value="none">No Access</option>
+            <option value="ro">Read Only</option>
+            <option value="rw">Read-Write</option>
+            <option value="fc">Full Control</option>
+          </select>
+        </div>
+        <div class="pb-row">
+          <span class="pb-label">HR Manager</span>
+          <select class="pb-select" id="pol3a" onchange="saveProgress()">
+            <option value="">--</option>
+            <option value="none">No Access</option>
+            <option value="ro">Read Only</option>
+            <option value="rw">Read-Write</option>
+            <option value="fc">Full Control</option>
+          </select>
+          <select class="pb-select" id="pol3b" onchange="saveProgress()">
+            <option value="">--</option>
+            <option value="none">No Access</option>
+            <option value="ro">Read Only</option>
+            <option value="rw">Read-Write</option>
+            <option value="fc">Full Control</option>
+          </select>
+          <select class="pb-select" id="pol3c" onchange="saveProgress()">
+            <option value="">--</option>
+            <option value="none">No Access</option>
+            <option value="ro">Read Only</option>
+            <option value="rw">Read-Write</option>
+            <option value="fc">Full Control</option>
+          </select>
+        </div>
+        <div class="pb-row">
+          <span class="pb-label">External Auditor</span>
+          <select class="pb-select" id="pol4a" onchange="saveProgress()">
+            <option value="">--</option>
+            <option value="none">No Access</option>
+            <option value="ro">Read Only</option>
+            <option value="rw">Read-Write</option>
+            <option value="fc">Full Control</option>
+          </select>
+          <select class="pb-select" id="pol4b" onchange="saveProgress()">
+            <option value="">--</option>
+            <option value="none">No Access</option>
+            <option value="ro">Read Only</option>
+            <option value="rw">Read-Write</option>
+            <option value="fc">Full Control</option>
+          </select>
+          <select class="pb-select" id="pol4c" onchange="saveProgress()">
+            <option value="">--</option>
+            <option value="none">No Access</option>
+            <option value="ro">Read Only</option>
+            <option value="rw">Read-Write</option>
+            <option value="fc">Full Control</option>
+          </select>
+        </div>
+        <div class="pb-row">
+          <span class="pb-label">Security Analyst</span>
+          <select class="pb-select" id="pol5a" onchange="saveProgress()">
+            <option value="">--</option>
+            <option value="none">No Access</option>
+            <option value="ro">Read Only</option>
+            <option value="rw">Read-Write</option>
+            <option value="fc">Full Control</option>
+          </select>
+          <select class="pb-select" id="pol5b" onchange="saveProgress()">
+            <option value="">--</option>
+            <option value="none">No Access</option>
+            <option value="ro">Read Only</option>
+            <option value="rw">Read-Write</option>
+            <option value="fc">Full Control</option>
+          </select>
+          <select class="pb-select" id="pol5c" onchange="saveProgress()">
+            <option value="">--</option>
+            <option value="none">No Access</option>
+            <option value="ro">Read Only</option>
+            <option value="rw">Read-Write</option>
+            <option value="fc">Full Control</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="section-label">Access Control Model Selection</div>
+      <p style="font-size:0.83rem;color:var(--text-muted);margin-bottom:0.75rem;">
+        Click the model that best fits the Meridian ERP policy you just designed.
+      </p>
+      <div class="model-grid">
+        <div class="model-card" id="model-rbac" onclick="selectModel('rbac')">
+          <div class="mc-name">RBAC</div>
+          <div class="mc-desc">Role-Based Access Control — permissions assigned to job roles</div>
+        </div>
+        <div class="model-card" id="model-abac" onclick="selectModel('abac')">
+          <div class="mc-name">ABAC</div>
+          <div class="mc-desc">Attribute-Based — access by attributes (dept, time, location)</div>
+        </div>
+        <div class="model-card" id="model-mac" onclick="selectModel('mac')">
+          <div class="mc-name">MAC</div>
+          <div class="mc-desc">Mandatory — OS-enforced security labels (used in gov/military)</div>
+        </div>
+        <div class="model-card" id="model-dac" onclick="selectModel('dac')">
+          <div class="mc-name">DAC</div>
+          <div class="mc-desc">Discretionary — resource owners set permissions (NTFS-style)</div>
+        </div>
+        <div class="model-card" id="model-rule" onclick="selectModel('rule')">
+          <div class="mc-name">Rule-Based</div>
+          <div class="mc-desc">Firewall-style rules — allow/deny by conditions</div>
+        </div>
+      </div>
+      <input type="hidden" id="selectedModel" value="" />
+
+      <label class="answer-label" for="q1a">
+        Justify your model selection. Why is this model the best fit for a
+        financial corporation with defined job roles? What are two limitations of this
+        model in a dynamic environment?
+      </label>
+      <textarea class="answer-area" id="q1a" rows="4" placeholder="Explain why this access control model fits Meridian's structure and note its limitations..." onchange="saveProgress()"></textarea>
+
+      <label class="answer-label" for="q1b">
+        The External Auditor role is a temporary contractor engaged for 3 months.
+        What additional IAM controls beyond access policy should you implement for this
+        account? (Consider: account expiry, monitoring, scope limitation)
+      </label>
+      <textarea class="answer-area" id="q1b" rows="3" placeholder="Describe time-limited, monitored access controls for temporary accounts..." onchange="saveProgress()"></textarea>
+
+      <div class="insight-box">
+        <strong>CySA+ Insight:</strong> RBAC is the dominant model in enterprise environments
+        because job functions map cleanly to roles. ABAC adds dynamism (e.g., "Finance Analyst
+        can access records only from corporate network, 9am-6pm") but requires more complex
+        policy engines. The exam will often describe a scenario and ask you to identify the
+        access control model — focus on what drives the access decision: role, label, attribute,
+        or owner permission.
+      </div>
+
+      <button class="btn-complete" onclick="completeEx(1)">Mark Exercise 1 Complete</button>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════════════
+       Exercise 2 — MFA Evaluation
+  ═════════════════════════════════════════════ -->
+  <div class="exercise" id="ex2">
+    <div class="ex-header" onclick="toggleEx('ex2')">
+      <div class="ex-num">2</div>
+      <div class="ex-title">
+        <strong>MFA Implementation Evaluation</strong>
+        <span>Assess MFA methods against attack scenarios and select appropriate controls</span>
+      </div>
+      <span class="ex-status" id="status2">Not Started</span>
+      <span class="ex-chevron">&#9654;</span>
+    </div>
+    <div class="ex-body">
+
+      <div class="scenario">
+        <strong>Scenario</strong>
+        Meridian is evaluating MFA options for three different user populations:
+        (1) 300 office employees accessing the ERP from corporate network,
+        (2) 40 remote workers accessing via VPN,
+        (3) 6 privileged administrators managing cloud infrastructure.
+        Assess each MFA method below against the listed attack vectors.
+      </div>
+
+      <div class="section-label">MFA Method Risk Assessment</div>
+      <p style="font-size:0.83rem;color:var(--text-muted);margin-bottom:0.75rem;">
+        For each MFA method, rate its resistance to each attack type:
+        Strong, Moderate, or Weak.
+      </p>
+
+      <table class="mfa-table">
+        <thead>
+          <tr>
+            <th style="width:25%;">MFA Method</th>
+            <th style="width:20%;">SMS OTP</th>
+            <th style="width:20%;">Authenticator App (TOTP)</th>
+            <th style="width:20%;">Push Notification</th>
+            <th style="width:15%;">FIDO2 Hardware Key</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td style="color:var(--text-primary);">SIM Swapping Attack</td>
+            <td>
+              <select class="mfa-select" id="mfa1a" onchange="saveProgress()">
+                <option value="">--</option>
+                <option value="strong">Strong</option>
+                <option value="moderate">Moderate</option>
+                <option value="weak">Weak</option>
+              </select>
+            </td>
+            <td>
+              <select class="mfa-select" id="mfa1b" onchange="saveProgress()">
+                <option value="">--</option>
+                <option value="strong">Strong</option>
+                <option value="moderate">Moderate</option>
+                <option value="weak">Weak</option>
+              </select>
+            </td>
+            <td>
+              <select class="mfa-select" id="mfa1c" onchange="saveProgress()">
+                <option value="">--</option>
+                <option value="strong">Strong</option>
+                <option value="moderate">Moderate</option>
+                <option value="weak">Weak</option>
+              </select>
+            </td>
+            <td>
+              <select class="mfa-select" id="mfa1d" onchange="saveProgress()">
+                <option value="">--</option>
+                <option value="strong">Strong</option>
+                <option value="moderate">Moderate</option>
+                <option value="weak">Weak</option>
+              </select>
+            </td>
+          </tr>
+          <tr>
+            <td style="color:var(--text-primary);">Real-Time Phishing (Evilginx)</td>
+            <td>
+              <select class="mfa-select" id="mfa2a" onchange="saveProgress()">
+                <option value="">--</option>
+                <option value="strong">Strong</option>
+                <option value="moderate">Moderate</option>
+                <option value="weak">Weak</option>
+              </select>
+            </td>
+            <td>
+              <select class="mfa-select" id="mfa2b" onchange="saveProgress()">
+                <option value="">--</option>
+                <option value="strong">Strong</option>
+                <option value="moderate">Moderate</option>
+                <option value="weak">Weak</option>
+              </select>
+            </td>
+            <td>
+              <select class="mfa-select" id="mfa2c" onchange="saveProgress()">
+                <option value="">--</option>
+                <option value="strong">Strong</option>
+                <option value="moderate">Moderate</option>
+                <option value="weak">Weak</option>
+              </select>
+            </td>
+            <td>
+              <select class="mfa-select" id="mfa2d" onchange="saveProgress()">
+                <option value="">--</option>
+                <option value="strong">Strong</option>
+                <option value="moderate">Moderate</option>
+                <option value="weak">Weak</option>
+              </select>
+            </td>
+          </tr>
+          <tr>
+            <td style="color:var(--text-primary);">MFA Fatigue (Push Bombing)</td>
+            <td>
+              <select class="mfa-select" id="mfa3a" onchange="saveProgress()">
+                <option value="">--</option>
+                <option value="strong">Strong</option>
+                <option value="moderate">Moderate</option>
+                <option value="weak">Weak</option>
+              </select>
+            </td>
+            <td>
+              <select class="mfa-select" id="mfa3b" onchange="saveProgress()">
+                <option value="">--</option>
+                <option value="strong">Strong</option>
+                <option value="moderate">Moderate</option>
+                <option value="weak">Weak</option>
+              </select>
+            </td>
+            <td>
+              <select class="mfa-select" id="mfa3c" onchange="saveProgress()">
+                <option value="">--</option>
+                <option value="strong">Strong</option>
+                <option value="moderate">Moderate</option>
+                <option value="weak">Weak</option>
+              </select>
+            </td>
+            <td>
+              <select class="mfa-select" id="mfa3d" onchange="saveProgress()">
+                <option value="">--</option>
+                <option value="strong">Strong</option>
+                <option value="moderate">Moderate</option>
+                <option value="weak">Weak</option>
+              </select>
+            </td>
+          </tr>
+          <tr>
+            <td style="color:var(--text-primary);">Malware / Token Theft</td>
+            <td>
+              <select class="mfa-select" id="mfa4a" onchange="saveProgress()">
+                <option value="">--</option>
+                <option value="strong">Strong</option>
+                <option value="moderate">Moderate</option>
+                <option value="weak">Weak</option>
+              </select>
+            </td>
+            <td>
+              <select class="mfa-select" id="mfa4b" onchange="saveProgress()">
+                <option value="">--</option>
+                <option value="strong">Strong</option>
+                <option value="moderate">Moderate</option>
+                <option value="weak">Weak</option>
+              </select>
+            </td>
+            <td>
+              <select class="mfa-select" id="mfa4c" onchange="saveProgress()">
+                <option value="">--</option>
+                <option value="strong">Strong</option>
+                <option value="moderate">Moderate</option>
+                <option value="weak">Weak</option>
+              </select>
+            </td>
+            <td>
+              <select class="mfa-select" id="mfa4d" onchange="saveProgress()">
+                <option value="">--</option>
+                <option value="strong">Strong</option>
+                <option value="moderate">Moderate</option>
+                <option value="weak">Weak</option>
+              </select>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="hint-box">
+        <strong>Key Concept:</strong> FIDO2 hardware keys (YubiKey, etc.) are phishing-resistant
+        because they use origin-bound cryptographic attestation — the key response is tied to
+        the legitimate domain. A phishing site cannot replay the credential because the origin
+        check fails. SMS and TOTP are vulnerable to real-time MITM phishing because the code
+        is domain-agnostic. Push notifications are vulnerable to fatigue attacks (Uber breach 2022).
+      </div>
+
+      <label class="answer-label" for="q2a">
+        Recommend one MFA method for each of the three user populations at Meridian.
+        Justify each recommendation with reference to the threat model and user experience
+        constraints for that group.
+      </label>
+      <textarea class="answer-area" id="q2a" rows="5" placeholder="Recommend MFA for: (1) office employees, (2) remote workers, (3) privileged admins. Justify each..." onchange="saveProgress()"></textarea>
+
+      <label class="answer-label" for="q2b">
+        Describe what constitutes TRUE multi-factor authentication. Why does a password +
+        security question NOT qualify as MFA? What two factor categories are involved in
+        password + TOTP?
+      </label>
+      <textarea class="answer-area" id="q2b" rows="3" placeholder="Define true MFA using the three factor categories and analyze the examples above..." onchange="saveProgress()"></textarea>
+
+      <div class="insight-box">
+        <strong>CySA+ Insight:</strong> The five MFA factor categories on the CySA+ exam are:
+        (1) Knowledge — something you know (password, PIN, security questions),
+        (2) Possession — something you have (phone, smart card, hardware token),
+        (3) Biometric — something you are (fingerprint, retina, face),
+        (4) Location — somewhere you are (geofencing, trusted IP range),
+        (5) Behavior/Context — how you behave (typing cadence, device posture).
+        True MFA requires factors from at least two DIFFERENT categories.
+      </div>
+
+      <button class="btn-complete" onclick="completeEx(2)">Mark Exercise 2 Complete</button>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════════════
+       Exercise 3 — PAM Audit
+  ═════════════════════════════════════════════ -->
+  <div class="exercise" id="ex3">
+    <div class="ex-header" onclick="toggleEx('ex3')">
+      <div class="ex-num">3</div>
+      <div class="ex-title">
+        <strong>Privileged Access Management Audit</strong>
+        <span>Identify privilege creep, review PAM controls, and map account lifecycle phases</span>
+      </div>
+      <span class="ex-status" id="status3">Not Started</span>
+      <span class="ex-chevron">&#9654;</span>
+    </div>
+    <div class="ex-body">
+
+      <div class="scenario">
+        <strong>Scenario</strong>
+        Meridian has grown rapidly over 3 years. An internal audit flagged significant privilege
+        creep across 12 privileged accounts. Below is an extract from the PAM audit report
+        showing account configurations. Identify the violations and recommend remediations.
+      </div>
+
+      <div class="section-label">PAM Audit Findings</div>
+      <table class="attack-table">
+        <thead>
+          <tr>
+            <th>Account</th>
+            <th>Current Privileges</th>
+            <th>Job Function</th>
+            <th>Violation</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>svc_backup</code></td>
+            <td>Domain Admin, Local Admin on all hosts</td>
+            <td>Automated backup service account</td>
+            <td><span class="sev sev-critical">Privilege Creep</span></td>
+          </tr>
+          <tr>
+            <td><code>jsmith</code> (left company 6 months ago)</td>
+            <td>Finance Read-Write, VPN access active</td>
+            <td>Former Finance Analyst</td>
+            <td><span class="sev sev-critical">Orphaned Account</span></td>
+          </tr>
+          <tr>
+            <td><code>admin_prod</code></td>
+            <td>Shared password among 4 admins</td>
+            <td>Production server administration</td>
+            <td><span class="sev sev-high">Shared Credential</span></td>
+          </tr>
+          <tr>
+            <td><code>dev_sarah</code></td>
+            <td>Dev DB access + Production DB Read</td>
+            <td>Developer (no production responsibilities)</td>
+            <td><span class="sev sev-high">Privilege Creep</span></td>
+          </tr>
+          <tr>
+            <td><code>mgr_chen</code></td>
+            <td>Kept HR Read-Write from prior role + Finance Read from 2 promotions ago</td>
+            <td>Current: IT Manager</td>
+            <td><span class="sev sev-high">Accumulated Rights</span></td>
+          </tr>
+          <tr>
+            <td><code>audit_ext</code></td>
+            <td>External auditor account from 18 months ago, still active</td>
+            <td>Engagement ended; no current relationship</td>
+            <td><span class="sev sev-critical">Stale Privileged Account</span></td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="section-label">Account Lifecycle Phases</div>
+      <p style="font-size:0.83rem;color:var(--text-muted);margin-bottom:0.75rem;">
+        Review the lifecycle phases below. The audit found failures at multiple stages.
+        Identify which lifecycle phase was skipped or failed for each finding above.
+      </p>
+
+      <div class="lifecycle">
+        <div class="lc-step">
+          <div class="lc-dot success">&#43;</div>
+          <div class="lc-content">
+            <div class="lc-phase">1. Provisioning</div>
+            <div class="lc-desc">Account creation with minimum necessary privileges based on job role. Approval workflow required for privileged access. Service accounts get dedicated, unique credentials.</div>
+          </div>
+        </div>
+        <div class="lc-step">
+          <div class="lc-dot">&#8635;</div>
+          <div class="lc-content">
+            <div class="lc-phase">2. Maintenance &amp; Role Changes</div>
+            <div class="lc-desc">When employees change roles, previous privileges are revoked before new privileges are granted. User access reviews (UAR) performed quarterly. No accumulated rights across roles.</div>
+          </div>
+        </div>
+        <div class="lc-step">
+          <div class="lc-dot warning">&#9201;</div>
+          <div class="lc-content">
+            <div class="lc-phase">3. Periodic Access Review</div>
+            <div class="lc-desc">Formal quarterly review of all privileged accounts. Managers certify that direct reports still require their current access level. Results documented for compliance.</div>
+          </div>
+        </div>
+        <div class="lc-step">
+          <div class="lc-dot danger">&#8855;</div>
+          <div class="lc-content">
+            <div class="lc-phase">4. Offboarding &amp; Termination</div>
+            <div class="lc-desc">Account disabled within 24 hours of termination. All access tokens, VPN certs, and API keys revoked. Shared credentials rotated immediately. HR-to-IT process SLA enforced.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="section-label">PAM Best Practices Checklist</div>
+      <p style="font-size:0.83rem;color:var(--text-muted);margin-bottom:0.75rem;">
+        Check each PAM control that Meridian should implement to remediate the findings above.
+      </p>
+
+      <div class="pam-grid">
+        <div class="pam-item">
+          <input type="checkbox" id="pam1" onchange="saveProgress()">
+          <label for="pam1"><strong>Just-In-Time (JIT) Access</strong> — Privileged access granted on-demand for a limited time window, then automatically revoked.</label>
+        </div>
+        <div class="pam-item">
+          <input type="checkbox" id="pam2" onchange="saveProgress()">
+          <label for="pam2"><strong>Separate Privileged Accounts</strong> — Admins use a dedicated privileged account distinct from their standard daily-use account.</label>
+        </div>
+        <div class="pam-item">
+          <input type="checkbox" id="pam3" onchange="saveProgress()">
+          <label for="pam3"><strong>Password Vaulting</strong> — All shared and service account credentials stored in a PAM vault (e.g., CyberArk, Delinea) with automatic rotation.</label>
+        </div>
+        <div class="pam-item">
+          <input type="checkbox" id="pam4" onchange="saveProgress()">
+          <label for="pam4"><strong>Session Recording</strong> — All privileged sessions recorded and retained for forensic review. Full keylogging for RDP and SSH.</label>
+        </div>
+        <div class="pam-item">
+          <input type="checkbox" id="pam5" onchange="saveProgress()">
+          <label for="pam5"><strong>Quarterly User Access Review (UAR)</strong> — Formal attestation by managers that each employee's access is still appropriate.</label>
+        </div>
+        <div class="pam-item">
+          <input type="checkbox" id="pam6" onchange="saveProgress()">
+          <label for="pam6"><strong>Automated Offboarding Workflow</strong> — HR termination triggers automatic account disable + credential revocation within 4 hours.</label>
+        </div>
+        <div class="pam-item">
+          <input type="checkbox" id="pam7" onchange="saveProgress()">
+          <label for="pam7"><strong>Least Privilege for Service Accounts</strong> — Service accounts get only the minimum permissions required for their specific function, never domain admin.</label>
+        </div>
+        <div class="pam-item">
+          <input type="checkbox" id="pam8" onchange="saveProgress()">
+          <label for="pam8"><strong>SIEM Alerting on Stale Accounts</strong> — Alert fires if any disabled or orphaned account generates an authentication attempt.</label>
+        </div>
+      </div>
+
+      <label class="answer-label" for="q3a">
+        The <code>svc_backup</code> service account has Domain Admin rights. Explain the
+        specific attack risk this creates. What is the minimum privilege that a backup
+        service account actually requires?
+      </label>
+      <textarea class="answer-area" id="q3a" rows="3" placeholder="Explain attack impact of over-privileged service account and define minimum necessary rights..." onchange="saveProgress()"></textarea>
+
+      <label class="answer-label" for="q3b">
+        Define "privilege creep" and explain how quarterly user access reviews (UAR)
+        function as a compensating control. What is the difference between privilege
+        creep and an orphaned account?
+      </label>
+      <textarea class="answer-area" id="q3b" rows="3" placeholder="Define privilege creep, explain UAR remediation, distinguish orphaned accounts..." onchange="saveProgress()"></textarea>
+
+      <div class="warning-box">
+        <strong>Real-World Note:</strong> The Uber breach (2022) involved an attacker purchasing
+        compromised VPN credentials for a contractor whose access was not properly offboarded.
+        Combined with MFA fatigue, this yielded full internal access. Both privilege creep
+        and orphaned accounts are among the top IAM failure modes in breach post-mortems.
+      </div>
+
+      <button class="btn-complete" onclick="completeEx(3)">Mark Exercise 3 Complete</button>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════════════
+       Exercise 4 — IAM Attack Analysis
+  ═════════════════════════════════════════════ -->
+  <div class="exercise" id="ex4">
+    <div class="ex-header" onclick="toggleEx('ex4')">
+      <div class="ex-num">4</div>
+      <div class="ex-title">
+        <strong>IAM Attack Analysis &amp; Detection</strong>
+        <span>Map attack techniques to detection strategies and SIEM use cases</span>
+      </div>
+      <span class="ex-status" id="status4">Not Started</span>
+      <span class="ex-chevron">&#9654;</span>
+    </div>
+    <div class="ex-body">
+
+      <div class="scenario">
+        <strong>Scenario</strong>
+        The Meridian SOC has received multiple alerts over a 72-hour window. Review each
+        alert and the associated log evidence below. For each scenario, identify the IAM
+        attack technique, the attack phase (initial access, lateral movement, persistence,
+        exfiltration), and the recommended detection/response action.
+      </div>
+
+      <!-- Alert 1 -->
+      <div class="section-label">Alert 1 — Kerberos TGT Anomaly</div>
+      <div class="code-block"><span class="cmt">// Windows Security Event Log — Domain Controller</span>
+Event ID: <span class="val">4768</span>  <span class="cmt">// Kerberos Authentication Service (TGT Request)</span>
+Account Name:  <span class="key">krbtgt</span>
+Client Address: 10.0.0.40  <span class="cmt">// Dev workstation</span>
+Ticket Options: <span class="val">0x40810010</span>
+Encryption Type: <span class="val">0x12</span>  <span class="cmt">// AES256 — unexpected for this env</span>
+
+<span class="cmt">// 23 minutes later — multiple service ticket requests:</span>
+Event ID: <span class="val">4769</span>  <span class="cmt">// Kerberos Service Ticket (TGS)</span>
+Account Name:  <span class="key">mgr_chen</span>   <span class="cmt">// IT Manager</span>
+Service Name:  cifs/financeserver01
+Service Name:  cifs/hrserver02
+Service Name:  cifs/proddb01
+Client Address: 10.0.0.40  <span class="cmt">// Same dev workstation</span>
+
+<span class="cmt">// NOTE: mgr_chen has not logged into 10.0.0.40 — no Event 4624 from this host</span></div>
+
+      <label class="answer-label" for="q4a">
+        What IAM attack technique does this alert sequence indicate? What does it mean
+        that mgr_chen's TGS requests originated from 10.0.0.40 without a prior Event 4624
+        (logon)? What should the SOC analyst do first?
+      </label>
+      <textarea class="answer-area" id="q4a" rows="4" placeholder="Identify attack (hint: Pass-the-Ticket / Golden Ticket), explain the logon anomaly, and describe triage steps..." onchange="saveProgress()"></textarea>
+
+      <!-- Alert 2 -->
+      <div class="section-label">Alert 2 — OAuth Token Abuse</div>
+      <div class="code-block"><span class="cmt">// Azure AD Sign-In Log</span>
+UserPrincipalName: finance.analyst@meridian.com
+Application:       <span class="key">Unknown App (AppID: a8f7c2e1-...)</span>
+Grant Type:        <span class="val">authorization_code</span>
+IP Address:        185.234.x.x  <span class="cmt">// Eastern Europe — not normal user location</span>
+MFA Status:        <span class="val">SUCCESS</span>  <span class="cmt">// Passed MFA</span>
+Conditional Access: <span class="val">NOT APPLIED</span>  <span class="cmt">// App not in Conditional Access policy</span>
+
+<span class="cmt">// 12 minutes later:</span>
+Microsoft Graph API calls:
+  GET /v1.0/me/mailFolders/Inbox/messages  <span class="cmt">// Email read</span>
+  GET /v1.0/me/drive/root/children         <span class="cmt">// OneDrive enumeration</span>
+  GET /v1.0/users                          <span class="cmt">// Directory enumeration</span></div>
+
+      <label class="answer-label" for="q4b">
+        This alert describes an OAuth-based attack. What specific technique was likely used
+        to obtain the access token despite successful MFA? Why does "MFA Status: SUCCESS"
+        not mean the account is safe? What conditional access policy would have blocked this?
+      </label>
+      <textarea class="answer-area" id="q4b" rows="4" placeholder="Identify OAuth phishing / consent grant attack, explain why MFA passed, describe policy remediation..." onchange="saveProgress()"></textarea>
+
+      <!-- Alert 3 -->
+      <div class="section-label">Alert 3 — Terminated Employee Access</div>
+      <div class="code-block"><span class="cmt">// SIEM Correlation Alert — HIGH PRIORITY</span>
+Rule: <span class="key">Terminated_Employee_Access_Attempt</span>
+Severity: <span class="val">CRITICAL</span>
+
+Event details:
+  Account:      <span class="key">jsmith</span>
+  Status:       <span class="val">ACTIVE</span>  <span class="cmt">// Should be DISABLED — termination 6 months ago</span>
+  Source IP:    203.0.x.x  <span class="cmt">// Residential ISP, Eastern Europe</span>
+  Auth Method:  VPN pre-shared key
+  Auth Result:  <span class="val">SUCCESS</span>
+
+Post-auth activity:
+  10:14:03  Connected to VPN
+  10:14:22  Accessed \\financeserver01\FY2025_Budgets\  <span class="cmt">// 847 MB downloaded</span>
+  10:17:40  Accessed \\hrserver02\Employee_Records\     <span class="cmt">// 233 MB downloaded</span>
+  10:19:01  VPN disconnected</div>
+
+      <label class="answer-label" for="q4c">
+        This is an active incident. List your immediate response steps in priority order.
+        Which IAM lifecycle failure directly caused this breach? What two controls, if
+        implemented, would have prevented this access entirely?
+      </label>
+      <textarea class="answer-area" id="q4c" rows="5" placeholder="List IR steps, identify lifecycle failure phase, name two preventive controls..." onchange="saveProgress()"></textarea>
+
+      <!-- Alert 4 -->
+      <div class="section-label">Alert 4 — LDAP Enumeration</div>
+      <div class="code-block"><span class="cmt">// Network IDS Alert + Domain Controller Log</span>
+Source:      10.0.0.40  <span class="cmt">// Dev workstation — same host as Alert 1</span>
+Destination: 10.0.0.1:389  <span class="cmt">// Domain Controller, LDAP port</span>
+Protocol:    LDAP (unencrypted)
+
+LDAP Queries (volume: 2,847 queries in 4 minutes):
+  (&(objectClass=user)(memberOf=CN=Domain Admins,...))
+  (&(objectClass=user)(memberOf=CN=Finance,...))
+  (&(objectClass=computer)(operatingSystem=*Server*))
+  (&(objectClass=group)(name=*admin*))
+
+<span class="cmt">// BloodHound attack path identified in SIEM enrichment:</span>
+<span class="cmt">// dev_sarah -[MemberOf]-> DomainUsers -[GenericWrite]-> mgr_chen -[MemberOf]-> Domain Admins</span></div>
+
+      <label class="answer-label" for="q4d">
+        What is this alert detecting, and which tool commonly generates this LDAP query
+        pattern? What does the BloodHound attack path mean in plain English? What ONE
+        configuration change to mgr_chen's account would break this specific attack path?
+      </label>
+      <textarea class="answer-area" id="q4d" rows="4" placeholder="Identify LDAP enumeration tool, explain BloodHound path, recommend breaking the chain..." onchange="saveProgress()"></textarea>
+
+      <div class="insight-box">
+        <strong>CySA+ Insight:</strong> These four alerts represent the most common IAM attack
+        sequence in modern breaches: (1) credential compromise, (2) Kerberos ticket abuse for
+        lateral movement, (3) orphaned account exploitation for exfiltration, (4) LDAP/BloodHound
+        enumeration for privilege escalation planning. On the exam, know that Golden Ticket attacks
+        require the krbtgt hash, Pass-the-Ticket uses stolen TGT/TGS tickets, and LDAP enumeration
+        with BloodHound is reconnaissance — not yet an attack but a critical indicator of a
+        sophisticated threat actor.
+      </div>
+
+      <div class="section-label">Detection Summary Matrix</div>
+      <table class="attack-table">
+        <thead>
+          <tr>
+            <th>Attack</th>
+            <th>Key Log Source</th>
+            <th>Detection Indicator</th>
+            <th>Prevention Control</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="sev sev-critical">Pass-the-Ticket</span></td>
+            <td>Windows Security / DC Event Log</td>
+            <td>TGS request without prior TGT logon (Event 4769 without 4624)</td>
+            <td>Privileged Access Workstations (PAW), Credential Guard</td>
+          </tr>
+          <tr>
+            <td><span class="sev sev-critical">OAuth Phishing</span></td>
+            <td>Azure AD Sign-In Log</td>
+            <td>Unknown AppID with Graph API calls; MFA passed but location anomalous</td>
+            <td>Conditional Access: require compliant device; restrict OAuth app consent</td>
+          </tr>
+          <tr>
+            <td><span class="sev sev-critical">Orphaned Account</span></td>
+            <td>SIEM / AD audit</td>
+            <td>Authentication from terminated account; HR-to-IT process gap</td>
+            <td>Automated offboarding SLA; regular account reconciliation</td>
+          </tr>
+          <tr>
+            <td><span class="sev sev-high">LDAP Enumeration</span></td>
+            <td>Network IDS / DC LDAP log</td>
+            <td>High-volume LDAP queries; BloodHound-characteristic query patterns</td>
+            <td>Enforce LDAP signing; restrict LDAP to specific management hosts</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <button class="btn-complete" onclick="completeEx(4)">Mark Exercise 4 Complete</button>
+    </div>
+  </div>
+
+  <!-- ── Completion Banner ── -->
+  <div class="completion-banner" id="completionBanner">
+    <div class="trophy">&#127942;</div>
+    <h2>Lab Complete!</h2>
+    <p>
+      You have completed the Identity &amp; Access Management lab.<br>
+      IAM design, MFA evaluation, PAM auditing, and attack detection are high-weight
+      topics on the CySA+ exam. Progress has been saved.
+    </p>
+  </div>
+
+</div><!-- /.container -->
+
+<footer class="site-footer">
+  <p>Hexworth Prime &mdash; Eye House &mdash; CySA+ Chapter 8</p>
+</footer>
+
+<script src="../../../../components/FluxCapacitor.js"></script>
+<script>
+// ── State ──────────────────────────────────────────────────────────────────
+const STORAGE_KEY = 'eye_cysa_ch08_lab';
+const completedExercises = new Set();
+let selectedModelValue = '';
+
+// ── Accordion Toggle ────────────────────────────────────────────────────────
+function toggleEx(id) {
+  const el = document.getElementById(id);
+  const isActive = el.classList.contains('active');
+  document.querySelectorAll('.exercise').forEach(e => e.classList.remove('active'));
+  if (!isActive) el.classList.add('active');
+}
+
+// ── Access Control Model Selection ─────────────────────────────────────────
+function selectModel(modelKey) {
+  // Clear all
+  document.querySelectorAll('.model-card').forEach(c => c.classList.remove('selected'));
+  // Highlight selected
+  const card = document.getElementById('model-' + modelKey);
+  if (card) card.classList.add('selected');
+  selectedModelValue = modelKey;
+  const hiddenInput = document.getElementById('selectedModel');
+  if (hiddenInput) hiddenInput.value = modelKey;
+  saveProgress();
+}
+
+// ── Exercise Completion ─────────────────────────────────────────────────────
+function completeEx(num) {
+  completedExercises.add(num);
+  const el = document.getElementById('ex' + num);
+  el.classList.add('completed');
+  el.classList.remove('active');
+  const statusEl = document.getElementById('status' + num);
+  if (statusEl) statusEl.textContent = 'Complete';
+
+  saveProgress();
+  checkAllComplete();
+}
+
+// ── Check All Complete ──────────────────────────────────────────────────────
+function checkAllComplete() {
+  if (completedExercises.size >= 4) {
+    const banner = document.getElementById('completionBanner');
+    banner.classList.add('show');
+    banner.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+    if (typeof ModuleProgress !== 'undefined') {
+      ModuleProgress.complete('eye', 'eye-cysa-ch08-lab');
+    }
+    if (typeof AchievementManager !== 'undefined') {
+      AchievementManager.unlock('lab_complete');
+    }
+  }
+}
+
+// ── Save Progress ───────────────────────────────────────────────────────────
+function saveProgress() {
+  const data = {
+    completed: Array.from(completedExercises),
+    checkboxes: {},
+    textareas: {},
+    selects: {},
+    selectedModel: selectedModelValue
+  };
+
+  document.querySelectorAll('input[type=checkbox]').forEach(cb => {
+    data.checkboxes[cb.id] = cb.checked;
+  });
+
+  document.querySelectorAll('textarea').forEach(ta => {
+    data.textareas[ta.id] = ta.value;
+  });
+
+  // All select elements (policy builder, MFA table, selects)
+  document.querySelectorAll('select').forEach(sel => {
+    if (sel.id) data.selects[sel.id] = sel.value;
+  });
+
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+}
+
+// ── Load Progress ───────────────────────────────────────────────────────────
+function loadProgress() {
+  const raw = localStorage.getItem(STORAGE_KEY);
+  if (!raw) return;
+
+  let data;
+  try { data = JSON.parse(raw); } catch(e) { return; }
+
+  if (data.completed) {
+    data.completed.forEach(num => {
+      completedExercises.add(num);
+      const el = document.getElementById('ex' + num);
+      if (el) el.classList.add('completed');
+      const statusEl = document.getElementById('status' + num);
+      if (statusEl) statusEl.textContent = 'Complete';
+    });
+  }
+
+  if (data.checkboxes) {
+    Object.entries(data.checkboxes).forEach(([id, val]) => {
+      const el = document.getElementById(id);
+      if (el) el.checked = val;
+    });
+  }
+
+  if (data.textareas) {
+    Object.entries(data.textareas).forEach(([id, val]) => {
+      const el = document.getElementById(id);
+      if (el) el.value = val;
+    });
+  }
+
+  if (data.selects) {
+    Object.entries(data.selects).forEach(([id, val]) => {
+      const el = document.getElementById(id);
+      if (el) el.value = val;
+    });
+  }
+
+  if (data.selectedModel) {
+    selectModel(data.selectedModel);
+  }
+
+  checkAllComplete();
+}
+
+// ── Init ────────────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  loadProgress();
+  // Open first exercise by default if no saved state
+  if (!localStorage.getItem(STORAGE_KEY)) {
+    toggleEx('ex1');
+  }
+});
+</script>
+</body>
+</html>

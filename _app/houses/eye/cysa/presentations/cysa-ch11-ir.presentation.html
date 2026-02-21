@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CySA+ Ch 11: Building an Incident Response Program — Eye House</title>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --eye-primary: #a855f7;
+            --eye-secondary: #c084fc;
+            --eye-glow: rgba(168, 85, 247, 0.35);
+            --bg-dark: #0a0a12;
+            --bg-card: rgba(15, 10, 25, 0.85);
+            --text-primary: #e8e8f0;
+            --text-secondary: #9988bb;
+            --ok: #4ade80;
+            --warn: #fbbf24;
+            --bad: #f87171;
+            --border: rgba(168, 85, 247, 0.22);
+        }
+        body { font-family: 'Segoe UI', system-ui, sans-serif; background: linear-gradient(135deg, #0a0a12, #120a1a, #1a0a25); color: var(--text-primary); line-height: 1.7; min-height: 100vh; }
+        .site-header { background: rgba(10, 10, 18, 0.95); border-bottom: 1px solid var(--border); padding: 0.9rem 2rem; position: sticky; top: 0; z-index: 100; display: flex; align-items: center; justify-content: space-between; backdrop-filter: blur(10px); }
+        .back-link { color: var(--eye-primary); text-decoration: none; font-size: 0.9rem; font-weight: 600; display: flex; align-items: center; gap: 0.4rem; transition: opacity 0.2s; }
+        .back-link:hover { opacity: 0.75; }
+        .header-badge { background: linear-gradient(135deg, var(--eye-primary), var(--eye-secondary)); color: #fff; padding: 0.35rem 1rem; border-radius: 20px; font-size: 0.78rem; font-weight: 700; letter-spacing: 0.05em; }
+        .container { max-width: 1100px; margin: 0 auto; padding: 2.5rem 2rem 4rem; }
+        .hero { text-align: center; padding: 3.5rem 2rem 2.5rem; background: var(--bg-card); border: 1px solid var(--border); border-radius: 20px; margin-bottom: 2.5rem; position: relative; overflow: hidden; }
+        .hero::before { content: ''; position: absolute; top: -80px; left: 50%; transform: translateX(-50%); width: 420px; height: 420px; background: radial-gradient(circle, var(--eye-glow) 0%, transparent 70%); pointer-events: none; }
+        .module-tag { display: inline-block; background: rgba(168, 85, 247, 0.15); color: var(--eye-primary); border: 1px solid var(--border); padding: 0.3rem 1rem; border-radius: 20px; font-size: 0.78rem; font-weight: 700; letter-spacing: 0.08em; margin-bottom: 1.2rem; }
+        .hero h1 { font-size: 2.1rem; font-weight: 800; margin-bottom: 0.75rem; line-height: 1.25; }
+        .hero h1 span { color: var(--eye-primary); }
+        .hero p { color: var(--text-secondary); font-size: 1.05rem; max-width: 700px; margin: 0 auto; }
+        .section-heading { display: flex; align-items: center; gap: 0.75rem; font-size: 1.35rem; font-weight: 700; color: var(--eye-primary); margin: 2.5rem 0 1.25rem; }
+        .section-heading::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+        .card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 16px; padding: 1.75rem; margin-bottom: 1.5rem; }
+        .card h3 { font-size: 1.1rem; color: var(--eye-secondary); margin-bottom: 0.9rem; }
+        .card p { color: var(--text-secondary); font-size: 0.95rem; margin-bottom: 0.7rem; }
+        .card p:last-child { margin-bottom: 0; }
+
+        /* IR Phase Flow */
+        .phase-flow { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-bottom: 1.5rem; position: relative; }
+        .phase-flow::before { content: ''; position: absolute; top: 2.2rem; left: 12%; right: 12%; height: 2px; background: linear-gradient(90deg, var(--eye-primary), var(--eye-secondary)); z-index: 0; }
+        .ir-phase { background: var(--bg-card); border: 1px solid var(--border); border-radius: 14px; padding: 1.25rem 1rem; text-align: center; position: relative; z-index: 1; }
+        .ir-phase-num { width: 44px; height: 44px; background: linear-gradient(135deg, var(--eye-primary), var(--eye-secondary)); border-radius: 50%; line-height: 44px; font-weight: 800; font-size: 1rem; color: #fff; margin: 0 auto 0.75rem; display: block; }
+        .ir-phase h4 { font-size: 0.9rem; font-weight: 700; color: var(--eye-secondary); margin-bottom: 0.35rem; }
+        .ir-phase p { font-size: 0.78rem; color: var(--text-secondary); margin: 0; }
+
+        .data-table { width: 100%; border-collapse: collapse; margin: 0.75rem 0; }
+        .data-table th { text-align: left; padding: 0.6rem 1rem; background: rgba(168, 85, 247, 0.12); color: var(--eye-primary); font-size: 0.8rem; font-weight: 700; letter-spacing: 0.05em; border-bottom: 1px solid var(--border); }
+        .data-table td { padding: 0.65rem 1rem; font-size: 0.85rem; color: var(--text-secondary); border-bottom: 1px solid rgba(168, 85, 247, 0.08); vertical-align: top; }
+        .data-table tr:last-child td { border-bottom: none; }
+        .data-table tr:hover td { background: rgba(168, 85, 247, 0.04); }
+        .td-key { color: var(--eye-secondary); font-weight: 700; white-space: nowrap; }
+
+        .members-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin-bottom: 1.5rem; }
+        .member-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 1.25rem; }
+        .member-card h4 { font-size: 0.9rem; font-weight: 700; color: var(--eye-secondary); margin-bottom: 0.5rem; }
+        .member-card p { font-size: 0.82rem; color: var(--text-secondary); margin: 0; }
+
+        .classification-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; margin-bottom: 1.5rem; }
+        .class-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 1.25rem; }
+        .class-card h4 { font-size: 0.9rem; font-weight: 700; color: var(--eye-secondary); margin-bottom: 0.5rem; }
+        .class-card p { font-size: 0.82rem; color: var(--text-secondary); margin: 0; }
+
+        .insight { background: rgba(168, 85, 247, 0.07); border-left: 4px solid var(--eye-primary); border-radius: 0 12px 12px 0; padding: 1.25rem 1.5rem; margin: 1.25rem 0; }
+        .insight-label { font-size: 0.72rem; font-weight: 700; letter-spacing: 0.1em; color: var(--eye-primary); margin-bottom: 0.4rem; }
+        .insight p { font-size: 0.9rem; color: var(--text-secondary); margin: 0; }
+
+        .playbook-list { list-style: none; margin: 0.5rem 0; }
+        .playbook-list li { padding: 0.5rem 0 0.5rem 1.5rem; position: relative; font-size: 0.88rem; color: var(--text-secondary); border-bottom: 1px solid rgba(168, 85, 247, 0.08); }
+        .playbook-list li:last-child { border-bottom: none; }
+        .playbook-list li::before { content: '>>'; position: absolute; left: 0; color: var(--eye-primary); font-weight: 700; font-size: 0.75rem; }
+
+        .completion-bar { background: var(--bg-card); border: 1px solid var(--border); border-radius: 16px; padding: 2rem; text-align: center; margin-top: 3rem; }
+        .completion-bar h3 { color: var(--eye-primary); margin-bottom: 0.75rem; font-size: 1.2rem; }
+        .completion-bar p { color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 1.25rem; }
+        .btn-complete { display: inline-block; background: linear-gradient(135deg, var(--eye-primary), var(--eye-secondary)); color: #fff; font-weight: 700; padding: 0.75rem 2rem; border-radius: 10px; border: none; cursor: pointer; font-size: 0.95rem; transition: opacity 0.2s, transform 0.2s; }
+        .btn-complete:hover { opacity: 0.88; transform: translateY(-2px); }
+        .btn-complete:disabled { opacity: 0.5; cursor: default; transform: none; }
+        .complete-msg { margin-top: 1rem; color: var(--ok); font-weight: 600; font-size: 0.9rem; display: none; }
+
+        @media (max-width: 768px) { .phase-flow { grid-template-columns: repeat(2, 1fr); } .phase-flow::before { display: none; } .members-grid { grid-template-columns: 1fr; } .classification-grid { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+
+<header class="site-header">
+    <a href="../index.html" class="back-link">&larr; Back to CySA+</a>
+    <span class="header-badge">EYE HOUSE &mdash; CySA+</span>
+</header>
+
+<div class="container">
+
+    <div class="hero">
+        <div class="module-tag">CHAPTER 11 &mdash; PRESENTATION</div>
+        <h1>Building an <span>Incident Response Program</span></h1>
+        <p>NIST SP 800-61 IR phases, CSIRT composition, policy and playbook development, incident classification, severity rating, communication plans, post-incident activity, and lessons learned methodology.</p>
+    </div>
+
+    <!-- Slide 1: IR Terminology -->
+    <div class="section-heading">Slide 1 &mdash; Security Incident Terminology</div>
+    <div class="card">
+        <h3>Events vs. Incidents — A Critical Distinction</h3>
+        <p><strong style="color: var(--eye-secondary);">Event:</strong> Any observable occurrence in a system or network. A user logging in is an event. A failed login is an event. Events are neutral — they are simply things that happened.</p>
+        <p><strong style="color: var(--eye-secondary);">Adverse Event:</strong> Any event with negative consequences. A server crash is an adverse event. A user receiving a phishing email is an adverse event. Adverse events require attention but may not be security incidents.</p>
+        <p><strong style="color: var(--eye-secondary);">Security Incident:</strong> An imminent threat of violation, or a violation itself, of a security policy, acceptable use policy, or standard security practice. Incidents require a formal response.</p>
+        <p><strong style="color: var(--eye-secondary);">CSIRT:</strong> Computer Security Incident Response Team — the team of professionals responsible for handling security incidents using standardized procedures.</p>
+    </div>
+    <div class="insight">
+        <div class="insight-label">CRITICAL EXAM CONCEPT</div>
+        <p>Not every event is an incident, but every incident contains at least one event. This hierarchy shapes how analysts triage and escalate. An analyst's job is to determine whether a stream of events constitutes an incident requiring formal response activation.</p>
+    </div>
+
+    <!-- Slide 2: NIST IR Phases -->
+    <div class="section-heading">Slide 2 &mdash; NIST SP 800-61 Incident Response Phases</div>
+    <div class="phase-flow">
+        <div class="ir-phase">
+            <span class="ir-phase-num">1</span>
+            <h4>Preparation</h4>
+            <p>Build the team, policies, procedures, tools, and communication plans before an incident occurs.</p>
+        </div>
+        <div class="ir-phase">
+            <span class="ir-phase-num">2</span>
+            <h4>Detection &amp; Analysis</h4>
+            <p>Identify and validate incidents from alerts, logs, public information, and human reports.</p>
+        </div>
+        <div class="ir-phase">
+            <span class="ir-phase-num">3</span>
+            <h4>Containment, Eradication &amp; Recovery</h4>
+            <p>Stop the spread, remove the threat, and restore normal operations.</p>
+        </div>
+        <div class="ir-phase">
+            <span class="ir-phase-num">4</span>
+            <h4>Post-Incident Activity</h4>
+            <p>Event reconstruction, lessons learned, evidence retention, process improvement.</p>
+        </div>
+    </div>
+    <div class="card">
+        <h3>Phase 1: Preparation — Building Before You Need It</h3>
+        <p>Preparation takes the most time and is the most overlooked phase. It requires a proper policy foundation, built cyber defenses, trained personnel, and pre-staged response kits.</p>
+        <p><strong style="color: var(--eye-secondary);">Incident Response Toolkit must include:</strong> Digital forensic workstations, forensic software, packet capture devices, spare network gear, backup devices, blank removable media, collection/analysis/reporting laptops, portable printers, office supplies, and evidence collection materials.</p>
+    </div>
+
+    <!-- Slide 3: Detection and Analysis -->
+    <div class="section-heading">Slide 3 &mdash; Detection and Analysis</div>
+    <div class="card">
+        <h3>Detection Sources</h3>
+        <table class="data-table">
+            <thead>
+                <tr><th>Source</th><th>Examples</th><th>Analyst Action</th></tr>
+            </thead>
+            <tbody>
+                <tr><td class="td-key">Automated Alerts</td><td>IDS/IPS, SIEM, antivirus, DLP, EDR alerts</td><td>Triage against known-good baselines, correlate across sources</td></tr>
+                <tr><td class="td-key">Log Review</td><td>OS, service, application, network device, flow logs</td><td>Search for IOCs, anomalies, correlation between events</td></tr>
+                <tr><td class="td-key">Public Information</td><td>Vendor security bulletins, threat intel feeds, news</td><td>Proactively hunt for indicators before internal detection fires</td></tr>
+                <tr><td class="td-key">Human Reports</td><td>Users, administrators, help desk tickets reporting suspicious activity</td><td>Treat all human-reported suspicious activity as potentially valid until ruled out</td></tr>
+            </tbody>
+        </table>
+    </div>
+    <div class="card">
+        <h3>Analysis Best Practices (NIST 800-61)</h3>
+        <ul class="playbook-list">
+            <li>Profile networks and systems to establish behavioral baselines before incidents occur</li>
+            <li>Understand normal behavior — you cannot detect abnormal without knowing normal</li>
+            <li>Create and enforce a logging policy ensuring all critical systems generate useful logs</li>
+            <li>Perform event correlation — single events rarely tell the full story; the pattern matters</li>
+            <li>Synchronize clocks across all systems — NTP ensures timestamps correlate across log sources</li>
+            <li>Maintain a knowledge base of past incidents, IOCs, and network topology</li>
+            <li>Capture network traffic at the perimeter and internally for forensic capability</li>
+            <li>Filter the noise — tune alerts to reduce false positives that exhaust analyst capacity</li>
+        </ul>
+    </div>
+
+    <!-- Slide 4: Containment, Eradication, Recovery -->
+    <div class="section-heading">Slide 4 &mdash; Containment, Eradication, and Recovery</div>
+    <div class="card">
+        <h3>Phase 3: Stopping the Damage and Restoring Operations</h3>
+        <p>Containment strategy must be chosen before action is taken. The wrong strategy can destroy forensic evidence, tip off the attacker, or cause greater damage. Document the decision and rationale.</p>
+        <table class="data-table">
+            <thead>
+                <tr><th>Step</th><th>Activity</th><th>Key Consideration</th></tr>
+            </thead>
+            <tbody>
+                <tr><td class="td-key">1. Select Strategy</td><td>Choose containment approach based on incident type, impact, and business requirements</td><td>Short-term vs. long-term containment; some require immediate isolation, others require monitoring to gather intelligence</td></tr>
+                <tr><td class="td-key">2. Limit Damage</td><td>Implement the chosen containment strategy</td><td>Network isolation, account disabling, system quarantine, firewall ACL changes</td></tr>
+                <tr><td class="td-key">3. Gather Evidence</td><td>Collect forensic evidence before eradication destroys artifacts</td><td>Volatile evidence (memory, running processes) first; then disk imaging; chain of custody documentation</td></tr>
+                <tr><td class="td-key">4. Eradicate</td><td>Remove malware, close access vectors, patch vulnerabilities</td><td>Verify the root cause is eliminated, not just the symptom</td></tr>
+                <tr><td class="td-key">5. Recover</td><td>Restore systems and verify normal operations</td><td>Restore from known-good backups; monitor restored systems closely for re-infection</td></tr>
+                <tr><td class="td-key">6. Attribution</td><td>Identify the attacking system or attacker (if feasible)</td><td>Attribution is difficult, often irrelevant to recovery, but may have legal and threat intelligence value</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Slide 5: Post-Incident Activity -->
+    <div class="section-heading">Slide 5 &mdash; Post-Incident Activity</div>
+    <div class="card">
+        <h3>Phase 4: Learning and Improving</h3>
+        <p>The CSIRT is not done when the incident is contained and eradicated. The post-incident phase is where the organization grows in resilience — if the lessons are actually implemented.</p>
+    </div>
+    <div class="card">
+        <h3>Lessons Learned Review — Key Questions (NIST 800-61)</h3>
+        <ul class="playbook-list">
+            <li>What happened, and exactly when did each event occur? Build a precise timeline.</li>
+            <li>How did staff perform? Were the right people involved at the right times?</li>
+            <li>Were existing procedures followed? If not, why not?</li>
+            <li>Were procedures adequate for this type of incident? What gaps were exposed?</li>
+            <li>What should have been done differently at each phase?</li>
+            <li>Was information shared effectively internally and with appropriate external parties?</li>
+            <li>How could we have detected the incident sooner? What monitoring gaps exist?</li>
+            <li>What new tools, resources, or training does the organization need?</li>
+        </ul>
+    </div>
+    <div class="card">
+        <h3>Evidence Retention Requirements</h3>
+        <p><strong style="color: var(--eye-secondary);">US Government agencies:</strong> Must retain all incident handling records for 3 years due to legal requirements.</p>
+        <p><strong style="color: var(--eye-secondary);">Private organizations:</strong> Most maintain records for 2 years unless regulatory requirements (HIPAA, PCI-DSS, SOX) mandate longer retention periods.</p>
+        <p>Evidence retention covers: incident timelines, forensic images, logs, communications, decisions made and their rationale, and remediation actions taken.</p>
+    </div>
+
+    <!-- Slide 6: IR Foundation (Policy, Procedures, Playbooks) -->
+    <div class="section-heading">Slide 6 &mdash; IR Foundation: Policy, Procedures, and Playbooks</div>
+    <div class="card">
+        <h3>IR Policy — The High-Level Authority Document</h3>
+        <p>The IR policy is the foundation of the organization's incident response program. It guides efforts at a high level, provides authority for response actions, is approved by the CEO or CIO, and should be written to remain relevant for years without modification.</p>
+        <p><strong style="color: var(--eye-secondary);">Required policy contents:</strong> Statement of management commitment, purpose, objectives, scope, definitional terms, roles/responsibilities/authority, priority/rating scheme, incident prioritization scheme, performance measures for CSIRT, reporting requirements, and contact information.</p>
+    </div>
+    <div class="card">
+        <h3>Playbooks — Incident-Specific Response Procedures</h3>
+        <p>A playbook describes the response to a specific high-severity incident type. Unlike general procedures, playbooks provide step-by-step, decision-tree guidance optimized for a particular scenario. Common playbook types:</p>
+        <ul class="playbook-list">
+            <li>Data breach of financial information or PII</li>
+            <li>Phishing attack targeting customers or employees</li>
+            <li>Web server defacement or DDoS attack</li>
+            <li>Loss or theft of corporate laptop or mobile device</li>
+            <li>Network intrusion / unauthorized access</li>
+            <li>Windows Golden Ticket attack (Kerberos compromise)</li>
+            <li>Ransomware infection and recovery</li>
+        </ul>
+    </div>
+
+    <!-- Slide 7: CSIRT Composition -->
+    <div class="section-heading">Slide 7 &mdash; CSIRT Composition and Scope</div>
+    <div class="members-grid">
+        <div class="member-card">
+            <h4>Technical SMEs</h4>
+            <p>System engineers, network administrators, database administrators. Provide technical expertise to investigate systems and implement remediation actions.</p>
+        </div>
+        <div class="member-card">
+            <h4>IT Support Staff</h4>
+            <p>Execute technical actions as directed by CSIRT leadership. Handle reimaging, account resets, firewall changes, and physical system access.</p>
+        </div>
+        <div class="member-card">
+            <h4>Legal Counsel</h4>
+            <p>Ensure all response actions comply with legal, policy, and regulatory requirements. Must be consulted before engaging law enforcement or preserving evidence for litigation.</p>
+        </div>
+        <div class="member-card">
+            <h4>Human Resources</h4>
+            <p>Investigate possible employee misconduct when incidents involve insider threats. Coordinate disciplinary actions and manage personnel matters arising from the incident.</p>
+        </div>
+        <div class="member-card">
+            <h4>Public Relations</h4>
+            <p>Coordinate all communication with media and public. Ensures consistent messaging and prevents unauthorized disclosures that could damage the organization or compromise the investigation.</p>
+        </div>
+        <div class="member-card">
+            <h4>Executive Leadership</h4>
+            <p>CISO, CIO, CEO awareness and decision authority. Approve major response decisions — including law enforcement notification, public disclosure, and business impact decisions.</p>
+        </div>
+    </div>
+
+    <!-- Slide 8: Incident Classification -->
+    <div class="section-heading">Slide 8 &mdash; Incident Classification and Severity Rating</div>
+    <div class="card">
+        <h3>NIST SP 800-61 Threat Classification Categories</h3>
+        <table class="data-table">
+            <thead>
+                <tr><th>Category</th><th>Description</th></tr>
+            </thead>
+            <tbody>
+                <tr><td class="td-key">External / Removable Media</td><td>Attack executed via removable media or peripheral device (USB, external drive, rogue hardware)</td></tr>
+                <tr><td class="td-key">Attrition</td><td>Brute-force attacks to compromise, deny, or degrade services, systems, or networks</td></tr>
+                <tr><td class="td-key">Web</td><td>Attack executed from a web-based application or site (drive-by, SQLi, XSS against web app)</td></tr>
+                <tr><td class="td-key">Email</td><td>Attack executed from email or attachment (phishing, malicious macro, BEC)</td></tr>
+                <tr><td class="td-key">Impersonation</td><td>Attack that replaces something benign with something malicious — spoofing, MITM, SQL injection that replaces legitimate data</td></tr>
+                <tr><td class="td-key">Improper Usage</td><td>Violation of organization's Acceptable Use Policy (P2P programs, unauthorized software, data exfiltration by employee)</td></tr>
+                <tr><td class="td-key">Loss / Theft</td><td>Computing device or media is lost or stolen</td></tr>
+                <tr><td class="td-key">APT</td><td>Not an official NIST category but critical in practice. Nation-state or organized crime actors with high skill, zero-day exploits, long dwell times, and specific targeting objectives.</td></tr>
+            </tbody>
+        </table>
+    </div>
+    <div class="classification-grid">
+        <div class="class-card">
+            <h4>Severity: Functional Impact</h4>
+            <p>Degree of impairment to organizational operations. Ranges from No Effect to Loss of Functionality — considering whether mission-critical systems are impaired and for how long.</p>
+        </div>
+        <div class="class-card">
+            <h4>Severity: Economic Impact</h4>
+            <p>Financial loss to the organization. Includes direct losses, incident response costs, regulatory fines, legal liability, and reputational damage quantification.</p>
+        </div>
+        <div class="class-card">
+            <h4>Severity: Recoverability</h4>
+            <p>Amount of time and resources required to recover from the incident. Ranges from Regular (predictable, few hours) through Extended (significant time, external resources) to Not Recoverable.</p>
+        </div>
+        <div class="class-card">
+            <h4>Severity: Information Impact</h4>
+            <p>Degree of information compromise. Considers data classification (public, sensitive, classified) and whether data was disclosed, modified, or destroyed.</p>
+        </div>
+    </div>
+    <div class="insight">
+        <div class="insight-label">OPERATIONS PERSPECTIVE</div>
+        <p>In real IR operations, the out-of-band communication requirement is critical. If your SIEM and email are compromised, you cannot coordinate the response through those channels. Pre-established out-of-band means: personal cell phones, Signal, pre-printed contact lists, and conference bridges not running on corporate infrastructure. This is planned during Preparation — not figured out during an active incident.</p>
+    </div>
+
+    <!-- Completion -->
+    <div class="completion-bar">
+        <h3>Chapter 11 Presentation Complete</h3>
+        <p>Mark this presentation complete to record your progress toward CySA+ readiness.</p>
+        <button class="btn-complete" id="completeBtn" onclick="markComplete()">Mark as Complete</button>
+        <div class="complete-msg" id="completeMsg">Progress saved. Proceed to the Chapter 11 quiz to test your knowledge.</div>
+    </div>
+
+</div>
+
+<script src="../../../../components/FluxCapacitor.js"></script>
+<script>
+    function markComplete() {
+        const btn = document.getElementById('completeBtn');
+        const msg = document.getElementById('completeMsg');
+        btn.disabled = true;
+        btn.textContent = 'Saving...';
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('eye', 'eye-cysa-ch11');
+        }
+        btn.textContent = 'Completed';
+        msg.style.display = 'block';
+    }
+    (function checkCompleted() {
+        const progress = JSON.parse(localStorage.getItem('hexworth_progress') || '{}');
+        if (progress['eye-cysa-ch11']) {
+            const btn = document.getElementById('completeBtn');
+            btn.textContent = 'Completed';
+            btn.disabled = true;
+            document.getElementById('completeMsg').style.display = 'block';
+        }
+    })();
+</script>
+</body>
+</html>

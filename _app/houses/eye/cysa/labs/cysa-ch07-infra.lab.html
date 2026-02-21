@@ -1,0 +1,1312 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Ch7 Lab: Infrastructure Security — Eye House</title>
+  <script src="../../../../components/AccessGuard.js"></script>
+  <script>AccessGuard.require('sorted');</script>
+  <script src="../../../../components/AchievementManager.js"></script>
+  <script src="../../../../components/ModuleProgress.js"></script>
+  <style>
+    /* ── Eye House Design Tokens ── */
+    :root {
+      --eye-primary:   #a855f7;
+      --eye-secondary: #c084fc;
+      --eye-dark:      #7c3aed;
+      --eye-glow:      rgba(168, 85, 247, 0.35);
+      --bg-deep:       #0a0a12;
+      --bg-mid:        #120a1a;
+      --bg-surface:    #1a0f26;
+      --bg-card:       #1e1030;
+      --border:        rgba(168, 85, 247, 0.22);
+      --border-bright: rgba(168, 85, 247, 0.55);
+      --text-primary:  #f0e6ff;
+      --text-muted:    #9d8ab5;
+      --text-dim:      #6b5a82;
+      --success:       #22c55e;
+      --warning:       #f59e0b;
+      --danger:        #ef4444;
+      --info:          #38bdf8;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: linear-gradient(135deg, #0a0a12, #120a1a, #1a0a25);
+      color: var(--text-primary);
+      min-height: 100vh;
+      line-height: 1.6;
+    }
+
+    /* ── Header ── */
+    .site-header {
+      position: sticky; top: 0; z-index: 100;
+      background: rgba(10, 10, 18, 0.92);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+      padding: 0.75rem 2rem;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .back-link {
+      color: var(--eye-secondary);
+      text-decoration: none; font-size: 0.85rem;
+      display: flex; align-items: center; gap: 0.4rem;
+      transition: color 0.2s;
+    }
+    .back-link:hover { color: #fff; }
+    .header-badge {
+      font-size: 0.72rem; font-weight: 700; letter-spacing: 0.12em;
+      color: var(--eye-primary);
+      background: rgba(168, 85, 247, 0.12);
+      border: 1px solid var(--border);
+      padding: 0.25rem 0.75rem; border-radius: 20px;
+    }
+
+    /* ── Hero ── */
+    .hero {
+      text-align: center;
+      padding: 3rem 2rem 2rem;
+      border-bottom: 1px solid var(--border);
+    }
+    .lab-icon {
+      font-size: 3rem; margin-bottom: 1rem;
+      filter: drop-shadow(0 0 18px var(--eye-primary));
+    }
+    .hero h1 {
+      font-size: 2rem; font-weight: 800;
+      background: linear-gradient(135deg, var(--eye-primary), var(--eye-secondary), #e879f9);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      background-clip: text; margin-bottom: 0.5rem;
+    }
+    .hero .subtitle {
+      color: var(--text-muted); font-size: 1rem; max-width: 600px; margin: 0 auto 1.5rem;
+    }
+    .lab-meta {
+      display: flex; gap: 1.5rem; justify-content: center; flex-wrap: wrap;
+    }
+    .meta-item {
+      display: flex; align-items: center; gap: 0.4rem;
+      font-size: 0.82rem; color: var(--text-muted);
+    }
+    .meta-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--eye-primary); }
+
+    /* ── Main container ── */
+    .container { max-width: 960px; margin: 0 auto; padding: 2rem; }
+
+    /* ── Objectives ── */
+    .objectives-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.5rem;
+      margin-bottom: 2rem;
+    }
+    .objectives-card h3 {
+      color: var(--eye-secondary); font-size: 0.85rem;
+      text-transform: uppercase; letter-spacing: 0.1em;
+      margin-bottom: 1rem;
+    }
+    .obj-list {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 0.6rem; list-style: none;
+    }
+    .obj-list li {
+      display: flex; align-items: flex-start; gap: 0.5rem;
+      font-size: 0.88rem; color: var(--text-muted);
+    }
+    .obj-list li::before {
+      content: '▸'; color: var(--eye-primary); flex-shrink: 0; margin-top: 0.1rem;
+    }
+
+    /* ── Exercise Accordion ── */
+    .exercise {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      margin-bottom: 1.5rem;
+      overflow: hidden;
+      transition: border-color 0.3s;
+    }
+    .exercise.completed { border-color: rgba(34, 197, 94, 0.45); }
+    .exercise.active   { border-color: var(--border-bright); }
+
+    .ex-header {
+      display: flex; align-items: center; gap: 1rem;
+      padding: 1.25rem 1.5rem;
+      cursor: pointer; user-select: none;
+      transition: background 0.2s;
+    }
+    .ex-header:hover { background: rgba(168, 85, 247, 0.06); }
+
+    .ex-num {
+      width: 36px; height: 36px; border-radius: 50%; flex-shrink: 0;
+      background: rgba(168, 85, 247, 0.15);
+      border: 1px solid var(--border-bright);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.9rem; font-weight: 700; color: var(--eye-primary);
+    }
+    .exercise.completed .ex-num {
+      background: rgba(34, 197, 94, 0.15);
+      border-color: rgba(34, 197, 94, 0.5);
+      color: var(--success);
+    }
+
+    .ex-title { flex: 1; }
+    .ex-title strong { font-size: 1rem; color: var(--text-primary); display: block; }
+    .ex-title span   { font-size: 0.8rem; color: var(--text-muted); }
+
+    .ex-status {
+      font-size: 0.75rem; padding: 0.2rem 0.6rem; border-radius: 10px;
+      font-weight: 600;
+      background: rgba(168, 85, 247, 0.1);
+      color: var(--eye-secondary);
+      border: 1px solid var(--border);
+    }
+    .exercise.completed .ex-status {
+      background: rgba(34, 197, 94, 0.1);
+      color: var(--success);
+      border-color: rgba(34, 197, 94, 0.3);
+    }
+
+    .ex-chevron { color: var(--text-dim); font-size: 0.9rem; transition: transform 0.3s; }
+    .exercise.active .ex-chevron { transform: rotate(90deg); }
+
+    /* ── Exercise Content ── */
+    .ex-body {
+      display: none; padding: 0 1.5rem 1.5rem;
+      border-top: 1px solid var(--border);
+    }
+    .exercise.active .ex-body { display: block; }
+
+    /* ── Scenario block ── */
+    .scenario {
+      background: rgba(168, 85, 247, 0.07);
+      border-left: 3px solid var(--eye-primary);
+      border-radius: 0 8px 8px 0;
+      padding: 1rem 1.25rem;
+      margin: 1.25rem 0;
+      font-size: 0.9rem; color: var(--text-muted);
+    }
+    .scenario strong { color: var(--eye-secondary); display: block; margin-bottom: 0.3rem; }
+
+    /* ── Section label ── */
+    .section-label {
+      font-size: 0.78rem; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.1em; color: var(--eye-primary);
+      margin: 1.25rem 0 0.6rem;
+    }
+
+    /* ── Network Diagram (monospace art) ── */
+    .diagram-block {
+      background: #0d0820;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1.25rem;
+      font-family: 'Consolas', 'Courier New', monospace;
+      font-size: 0.8rem;
+      color: #c4b5fd;
+      white-space: pre;
+      overflow-x: auto;
+      line-height: 1.5;
+    }
+
+    /* ── Info Grid ── */
+    .info-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 0.75rem;
+      margin: 1rem 0;
+    }
+    .info-card {
+      background: rgba(168, 85, 247, 0.07);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 0.9rem;
+    }
+    .info-card .ic-label {
+      font-size: 0.72rem; text-transform: uppercase;
+      letter-spacing: 0.08em; color: var(--text-dim);
+      margin-bottom: 0.25rem;
+    }
+    .info-card .ic-value {
+      font-size: 0.9rem; color: var(--text-primary); font-weight: 600;
+    }
+    .info-card .ic-sub {
+      font-size: 0.78rem; color: var(--text-muted); margin-top: 0.15rem;
+    }
+
+    /* ── Checklist ── */
+    .check-list { list-style: none; display: flex; flex-direction: column; gap: 0.6rem; }
+    .check-item {
+      display: flex; align-items: flex-start; gap: 0.75rem;
+      padding: 0.7rem 0.9rem;
+      background: rgba(168, 85, 247, 0.05);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background 0.2s, border-color 0.2s;
+    }
+    .check-item:hover { background: rgba(168, 85, 247, 0.1); border-color: var(--border-bright); }
+    .check-item input[type=checkbox] {
+      width: 16px; height: 16px; accent-color: var(--eye-primary);
+      flex-shrink: 0; margin-top: 0.15rem; cursor: pointer;
+    }
+    .check-item label { cursor: pointer; font-size: 0.88rem; color: var(--text-muted); }
+    .check-item input:checked + label { color: var(--text-primary); }
+
+    /* ── Finding Rows ── */
+    .findings-table {
+      width: 100%; border-collapse: collapse; font-size: 0.83rem; margin: 1rem 0;
+    }
+    .findings-table th {
+      background: rgba(168, 85, 247, 0.12);
+      color: var(--eye-secondary);
+      padding: 0.65rem 0.85rem;
+      text-align: left; font-weight: 700;
+      border-bottom: 1px solid var(--border-bright);
+      font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.07em;
+    }
+    .findings-table td {
+      padding: 0.6rem 0.85rem;
+      border-bottom: 1px solid var(--border);
+      color: var(--text-muted);
+      vertical-align: top;
+    }
+    .findings-table tr:last-child td { border-bottom: none; }
+    .findings-table tr:hover td { background: rgba(168, 85, 247, 0.04); }
+
+    /* ── Severity badges ── */
+    .sev {
+      display: inline-block; padding: 0.15rem 0.5rem;
+      border-radius: 4px; font-size: 0.72rem; font-weight: 700;
+      text-transform: uppercase; letter-spacing: 0.05em;
+    }
+    .sev-critical { background: rgba(239,68,68,0.18); color: #fca5a5; border: 1px solid rgba(239,68,68,0.4); }
+    .sev-high     { background: rgba(245,158,11,0.18); color: #fcd34d; border: 1px solid rgba(245,158,11,0.4); }
+    .sev-medium   { background: rgba(251,191,36,0.14); color: #fde68a; border: 1px solid rgba(251,191,36,0.35); }
+    .sev-low      { background: rgba(56,189,248,0.14); color: #93c5fd; border: 1px solid rgba(56,189,248,0.35); }
+    .sev-info     { background: rgba(168,85,247,0.12); color: #c4b5fd; border: 1px solid var(--border); }
+
+    /* ── IDS Rule block ── */
+    .rule-block {
+      background: #080615;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1rem 1.25rem;
+      font-family: 'Consolas', 'Courier New', monospace;
+      font-size: 0.82rem;
+      color: #a5f3fc;
+      white-space: pre-wrap;
+      overflow-x: auto;
+      line-height: 1.6;
+      margin: 0.75rem 0;
+    }
+    .rule-block .kw  { color: #f0abfc; }
+    .rule-block .str { color: #86efac; }
+    .rule-block .num { color: #fde68a; }
+    .rule-block .cmt { color: #6b7280; font-style: italic; }
+
+    /* ── Textarea ── */
+    .answer-area {
+      width: 100%;
+      background: rgba(10, 8, 20, 0.7);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text-primary);
+      font-size: 0.88rem;
+      font-family: inherit;
+      padding: 0.75rem 1rem;
+      resize: vertical; min-height: 90px;
+      transition: border-color 0.2s;
+      margin-top: 0.4rem;
+    }
+    .answer-area:focus { outline: none; border-color: var(--eye-primary); }
+    .answer-label { font-size: 0.82rem; color: var(--text-muted); margin-top: 1rem; display: block; }
+
+    /* ── Hint / Insight ── */
+    .hint-box {
+      background: rgba(168, 85, 247, 0.07);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 0.85rem 1rem;
+      margin: 0.75rem 0;
+      font-size: 0.83rem; color: var(--text-muted);
+    }
+    .hint-box strong { color: var(--eye-secondary); }
+
+    .insight-box {
+      background: rgba(56, 189, 248, 0.06);
+      border-left: 3px solid var(--info);
+      border-radius: 0 8px 8px 0;
+      padding: 0.85rem 1rem;
+      margin: 0.75rem 0;
+      font-size: 0.83rem; color: var(--text-muted);
+    }
+    .insight-box strong { color: var(--info); }
+
+    /* ── Hardening table ── */
+    .harden-table {
+      width: 100%; border-collapse: collapse; font-size: 0.83rem; margin: 1rem 0;
+    }
+    .harden-table th {
+      background: rgba(168, 85, 247, 0.12);
+      color: var(--eye-secondary);
+      padding: 0.6rem 0.85rem;
+      text-align: left; font-weight: 700;
+      border-bottom: 1px solid var(--border-bright);
+      font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.06em;
+    }
+    .harden-table td {
+      padding: 0.55rem 0.85rem;
+      border-bottom: 1px solid var(--border);
+      vertical-align: middle;
+    }
+    .harden-table tr:last-child td { border-bottom: none; }
+    .harden-select {
+      background: rgba(10,8,20,0.8);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text-primary);
+      padding: 0.3rem 0.5rem;
+      font-size: 0.82rem;
+      cursor: pointer;
+    }
+    .harden-select:focus { outline: none; border-color: var(--eye-primary); }
+    .harden-label { color: var(--text-muted); }
+
+    /* ── Priority drag list ── */
+    .drag-list {
+      display: flex; flex-direction: column; gap: 0.5rem;
+      margin: 0.75rem 0;
+    }
+    .drag-item {
+      display: flex; align-items: center; gap: 0.75rem;
+      padding: 0.75rem 1rem;
+      background: rgba(168, 85, 247, 0.07);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      cursor: grab;
+      transition: background 0.2s, border-color 0.2s, transform 0.15s;
+      user-select: none;
+    }
+    .drag-item:hover { background: rgba(168, 85, 247, 0.12); border-color: var(--border-bright); }
+    .drag-item.dragging { opacity: 0.5; transform: scale(0.98); }
+    .drag-item.drag-over { border-color: var(--eye-primary); background: rgba(168,85,247,0.18); }
+    .drag-handle { color: var(--text-dim); font-size: 1.1rem; }
+    .drag-rank {
+      width: 28px; height: 28px; border-radius: 50%;
+      background: rgba(168,85,247,0.2); border: 1px solid var(--border-bright);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.8rem; font-weight: 700; color: var(--eye-primary);
+    }
+    .drag-text { flex: 1; font-size: 0.88rem; color: var(--text-muted); }
+
+    /* ── Complete Button ── */
+    .btn-complete {
+      display: inline-flex; align-items: center; gap: 0.5rem;
+      background: linear-gradient(135deg, var(--eye-dark), var(--eye-primary));
+      color: #fff; border: none; border-radius: 8px;
+      padding: 0.65rem 1.4rem; font-size: 0.88rem; font-weight: 600;
+      cursor: pointer; transition: opacity 0.2s, transform 0.15s;
+      margin-top: 1.25rem;
+    }
+    .btn-complete:hover { opacity: 0.88; transform: translateY(-1px); }
+    .btn-complete:disabled { opacity: 0.45; cursor: default; transform: none; }
+
+    /* ── Completion badge ── */
+    .completion-banner {
+      display: none;
+      text-align: center;
+      background: linear-gradient(135deg, rgba(34,197,94,0.1), rgba(168,85,247,0.1));
+      border: 1px solid rgba(34,197,94,0.35);
+      border-radius: 14px;
+      padding: 2.5rem 2rem;
+      margin-top: 2rem;
+    }
+    .completion-banner.show { display: block; }
+    .completion-banner .trophy { font-size: 3rem; margin-bottom: 0.75rem; }
+    .completion-banner h2 {
+      font-size: 1.5rem; font-weight: 800; color: var(--success); margin-bottom: 0.5rem;
+    }
+    .completion-banner p { color: var(--text-muted); font-size: 0.9rem; }
+
+    /* ── Footer ── */
+    .site-footer {
+      text-align: center; padding: 2rem;
+      border-top: 1px solid var(--border);
+      color: var(--text-dim); font-size: 0.8rem; margin-top: 3rem;
+    }
+
+    /* ── Responsive ── */
+    @media (max-width: 640px) {
+      .hero h1 { font-size: 1.5rem; }
+      .container { padding: 1rem; }
+      .ex-header { padding: 1rem; }
+      .diagram-block { font-size: 0.68rem; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ── Header ── -->
+<header class="site-header">
+  <a href="../index.html" class="back-link">&larr; Back to CySA+</a>
+  <span class="header-badge">EYE HOUSE &mdash; CySA+</span>
+</header>
+
+<!-- ── Hero ── -->
+<div class="hero">
+  <div class="lab-icon">&#127970;</div>
+  <h1>Infrastructure Security Lab</h1>
+  <p class="subtitle">
+    Analyze network diagrams, apply infrastructure hardening checklists,
+    and interpret IDS/IPS Snort rules to identify misconfigurations and attack patterns.
+  </p>
+  <div class="lab-meta">
+    <span class="meta-item"><span class="meta-dot"></span>Chapter 7</span>
+    <span class="meta-item"><span class="meta-dot"></span>4 Exercises</span>
+    <span class="meta-item"><span class="meta-dot"></span>Intermediate</span>
+    <span class="meta-item"><span class="meta-dot"></span>~50 min</span>
+  </div>
+</div>
+
+<div class="container">
+
+  <!-- Objectives -->
+  <div class="objectives-card">
+    <h3>Lab Objectives</h3>
+    <ul class="obj-list">
+      <li>Map network architecture and identify zone violations</li>
+      <li>Apply defense-in-depth and Zero Trust principles</li>
+      <li>Complete an infrastructure hardening checklist</li>
+      <li>Interpret Snort IDS/IPS rules and classify alert types</li>
+      <li>Prioritize remediation actions by risk and feasibility</li>
+    </ul>
+  </div>
+
+  <!-- ════════════════════════════════════════════
+       Exercise 1 — Network Architecture Analysis
+  ═════════════════════════════════════════════ -->
+  <div class="exercise" id="ex1">
+    <div class="ex-header" onclick="toggleEx('ex1')">
+      <div class="ex-num">1</div>
+      <div class="ex-title">
+        <strong>Network Architecture Analysis</strong>
+        <span>Identify zone violations and segmentation gaps in an enterprise diagram</span>
+      </div>
+      <span class="ex-status" id="status1">Not Started</span>
+      <span class="ex-chevron">&#9654;</span>
+    </div>
+    <div class="ex-body">
+
+      <div class="scenario">
+        <strong>Scenario</strong>
+        You are a CySA+ analyst reviewing the network architecture of Meridian Financial Corp
+        before a third-party audit. The diagram below represents the current state. Identify
+        misconfigurations, missing controls, and zone violations.
+      </div>
+
+      <div class="section-label">Current Network Diagram</div>
+      <div class="diagram-block" id="netDiagram">
+INTERNET
+    |
+    |  (No firewall shown)
+    |
+[Core Switch — flat Layer 2 — VLAN 1 untagged]
+    |         |         |         |         |
+[Web Svr]  [DB Svr]  [HR PC]  [Finance PC]  [Dev Workstation]
+10.0.0.10  10.0.0.20  10.0.0.30  10.0.0.31   10.0.0.40
+
+Additional notes from network documentation:
+  - Web Server (10.0.0.10): Apache 2.4, port 80/443 open, SSH admin on port 22
+  - DB Server (10.0.0.20): MySQL 5.7, port 3306 open — reachable from ALL hosts
+  - HR / Finance PCs: no endpoint security agent installed
+  - Dev Workstation (10.0.0.40): developer has local admin; runs Docker
+  - No IDS/IPS deployed
+  - No jump server; admins SSH directly to all servers
+  - Remote workers VPN directly to the core switch segment
+</div>
+
+      <div class="section-label">Architecture Problems Checklist</div>
+      <p style="font-size:0.83rem;color:var(--text-muted);margin-bottom:0.6rem;">
+        Check every architectural problem you identify in this network.
+      </p>
+      <ul class="check-list">
+        <li class="check-item">
+          <input type="checkbox" id="c1a" onchange="saveProgress()">
+          <label for="c1a"><strong>Flat network</strong> — All hosts on the same VLAN with no segmentation between user, server, and DMZ zones.</label>
+        </li>
+        <li class="check-item">
+          <input type="checkbox" id="c1b" onchange="saveProgress()">
+          <label for="c1b"><strong>No perimeter firewall</strong> — Internet traffic reaches the core switch with no stateful inspection or ACL filtering.</label>
+        </li>
+        <li class="check-item">
+          <input type="checkbox" id="c1c" onchange="saveProgress()">
+          <label for="c1c"><strong>Database exposed on flat network</strong> — Port 3306 reachable by all hosts including end-user PCs; violates least privilege segmentation.</label>
+        </li>
+        <li class="check-item">
+          <input type="checkbox" id="c1d" onchange="saveProgress()">
+          <label for="c1d"><strong>No DMZ for the web server</strong> — The web server is internet-facing but shares the same segment as internal databases and HR systems.</label>
+        </li>
+        <li class="check-item">
+          <input type="checkbox" id="c1e" onchange="saveProgress()">
+          <label for="c1e"><strong>No jump server / bastion host</strong> — Administrators SSH directly to all servers from any workstation, bypassing centralized access logging.</label>
+        </li>
+        <li class="check-item">
+          <input type="checkbox" id="c1f" onchange="saveProgress()">
+          <label for="c1f"><strong>VPN terminates on core switch segment</strong> — Remote workers land inside the internal network without an intermediate firewall or NAC check.</label>
+        </li>
+        <li class="check-item">
+          <input type="checkbox" id="c1g" onchange="saveProgress()">
+          <label for="c1g"><strong>Unmanaged endpoints</strong> — HR/Finance PCs have no endpoint security agent; no NAC enforcing posture before granting network access.</label>
+        </li>
+        <li class="check-item">
+          <input type="checkbox" id="c1h" onchange="saveProgress()">
+          <label for="c1h"><strong>Developer with local admin running Docker</strong> — Privilege abuse risk; container escape could laterally compromise the flat network.</label>
+        </li>
+      </ul>
+
+      <div class="section-label">Redesign Questions</div>
+      <label class="answer-label" for="q1a">
+        1. Propose a segmented zone architecture for Meridian. Name at least four zones and
+           which hosts belong in each zone. (Example: DMZ, Server, User, Management)
+      </label>
+      <textarea class="answer-area" id="q1a" rows="5" placeholder="Describe your proposed zone layout..." onchange="saveProgress()"></textarea>
+
+      <label class="answer-label" for="q1b">
+        2. What control would you add FIRST and why? (Consider: perimeter firewall, IDS/IPS,
+           jump server, NAC, VLAN segmentation)
+      </label>
+      <textarea class="answer-area" id="q1b" rows="4" placeholder="Identify the highest-priority control and your rationale..." onchange="saveProgress()"></textarea>
+
+      <div class="insight-box">
+        <strong>CySA+ Insight:</strong> On the exam, "flat network" is always the highest-risk
+        architecture because a single compromised host provides unrestricted lateral movement.
+        VLAN segmentation + inter-VLAN firewall rules is the foundational defense. DMZ isolation
+        of internet-facing systems is the second critical control.
+      </div>
+
+      <button class="btn-complete" onclick="completeEx(1)">Mark Exercise 1 Complete</button>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════════════
+       Exercise 2 — Infrastructure Hardening Checklist
+  ═════════════════════════════════════════════ -->
+  <div class="exercise" id="ex2">
+    <div class="ex-header" onclick="toggleEx('ex2')">
+      <div class="ex-num">2</div>
+      <div class="ex-title">
+        <strong>Infrastructure Hardening Checklist</strong>
+        <span>Classify controls and assess implementation status for a Linux web server</span>
+      </div>
+      <span class="ex-status" id="status2">Not Started</span>
+      <span class="ex-chevron">&#9654;</span>
+    </div>
+    <div class="ex-body">
+
+      <div class="scenario">
+        <strong>Scenario</strong>
+        The Meridian web server (10.0.0.10) passed a compliance audit 18 months ago but has
+        not been re-assessed. A junior analyst ran <code>sudo lynis audit system</code> and
+        returned a Hardening Index of 42/100. Your job: review the checklist items below,
+        classify each control, and record recommended remediation actions.
+      </div>
+
+      <div class="section-label">Lynis Finding Summary</div>
+      <table class="findings-table">
+        <thead>
+          <tr>
+            <th>Finding</th>
+            <th>Category</th>
+            <th>Current State</th>
+            <th>Priority</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>SSH root login enabled (<code>PermitRootLogin yes</code>)</td>
+            <td><span class="sev sev-critical">Authentication</span></td>
+            <td>Enabled</td>
+            <td><span class="sev sev-critical">Critical</span></td>
+          </tr>
+          <tr>
+            <td>Password authentication allowed for SSH</td>
+            <td><span class="sev sev-high">Authentication</span></td>
+            <td>Enabled</td>
+            <td><span class="sev sev-high">High</span></td>
+          </tr>
+          <tr>
+            <td>UFW firewall not enabled</td>
+            <td><span class="sev sev-critical">Network</span></td>
+            <td>Inactive</td>
+            <td><span class="sev sev-critical">Critical</span></td>
+          </tr>
+          <tr>
+            <td>AIDE (file integrity monitor) not installed</td>
+            <td><span class="sev sev-medium">Monitoring</span></td>
+            <td>Missing</td>
+            <td><span class="sev sev-medium">Medium</span></td>
+          </tr>
+          <tr>
+            <td>Automatic security updates disabled</td>
+            <td><span class="sev sev-high">Patch Mgmt</span></td>
+            <td>Manual only</td>
+            <td><span class="sev sev-high">High</span></td>
+          </tr>
+          <tr>
+            <td>Core dump not restricted (<code>/proc/sys/fs/suid_dumpable</code> = 2)</td>
+            <td><span class="sev sev-medium">System Config</span></td>
+            <td>Unrestricted</td>
+            <td><span class="sev sev-medium">Medium</span></td>
+          </tr>
+          <tr>
+            <td>Auditd not running</td>
+            <td><span class="sev sev-high">Logging</span></td>
+            <td>Stopped</td>
+            <td><span class="sev sev-high">High</span></td>
+          </tr>
+          <tr>
+            <td>Unused services: telnetd, rsh, rexec detected in inetd.conf</td>
+            <td><span class="sev sev-critical">Attack Surface</span></td>
+            <td>Active</td>
+            <td><span class="sev sev-critical">Critical</span></td>
+          </tr>
+          <tr>
+            <td>Kernel sysctl hardening parameters not set (IP forwarding, SYN cookies)</td>
+            <td><span class="sev sev-medium">Network</span></td>
+            <td>Defaults</td>
+            <td><span class="sev sev-medium">Medium</span></td>
+          </tr>
+          <tr>
+            <td>NTP not synchronized (clock drift 4m 32s)</td>
+            <td><span class="sev sev-low">Log Integrity</span></td>
+            <td>Unsynchronized</td>
+            <td><span class="sev sev-low">Low</span></td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="section-label">Control Classification Exercise</div>
+      <p style="font-size:0.83rem;color:var(--text-muted);margin-bottom:0.75rem;">
+        For each finding below, select its <strong>control type</strong>
+        (Technical / Administrative / Physical) and
+        <strong>control function</strong> (Preventive / Detective / Corrective / Deterrent).
+      </p>
+
+      <table class="harden-table">
+        <thead>
+          <tr>
+            <th style="width:38%;">Hardening Action</th>
+            <th style="width:28%;">Control Type</th>
+            <th style="width:34%;">Control Function</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="harden-label">Disable SSH root login</td>
+            <td>
+              <select class="harden-select" id="ht1t" onchange="saveProgress()">
+                <option value="">-- Select --</option>
+                <option value="Technical">Technical</option>
+                <option value="Administrative">Administrative</option>
+                <option value="Physical">Physical</option>
+              </select>
+            </td>
+            <td>
+              <select class="harden-select" id="ht1f" onchange="saveProgress()">
+                <option value="">-- Select --</option>
+                <option value="Preventive">Preventive</option>
+                <option value="Detective">Detective</option>
+                <option value="Corrective">Corrective</option>
+                <option value="Deterrent">Deterrent</option>
+              </select>
+            </td>
+          </tr>
+          <tr>
+            <td class="harden-label">Enable auditd logging</td>
+            <td>
+              <select class="harden-select" id="ht2t" onchange="saveProgress()">
+                <option value="">-- Select --</option>
+                <option value="Technical">Technical</option>
+                <option value="Administrative">Administrative</option>
+                <option value="Physical">Physical</option>
+              </select>
+            </td>
+            <td>
+              <select class="harden-select" id="ht2f" onchange="saveProgress()">
+                <option value="">-- Select --</option>
+                <option value="Preventive">Preventive</option>
+                <option value="Detective">Detective</option>
+                <option value="Corrective">Corrective</option>
+                <option value="Deterrent">Deterrent</option>
+              </select>
+            </td>
+          </tr>
+          <tr>
+            <td class="harden-label">Remove telnetd / rsh services</td>
+            <td>
+              <select class="harden-select" id="ht3t" onchange="saveProgress()">
+                <option value="">-- Select --</option>
+                <option value="Technical">Technical</option>
+                <option value="Administrative">Administrative</option>
+                <option value="Physical">Physical</option>
+              </select>
+            </td>
+            <td>
+              <select class="harden-select" id="ht3f" onchange="saveProgress()">
+                <option value="">-- Select --</option>
+                <option value="Preventive">Preventive</option>
+                <option value="Detective">Detective</option>
+                <option value="Corrective">Corrective</option>
+                <option value="Deterrent">Deterrent</option>
+              </select>
+            </td>
+          </tr>
+          <tr>
+            <td class="harden-label">Install AIDE file integrity monitor</td>
+            <td>
+              <select class="harden-select" id="ht4t" onchange="saveProgress()">
+                <option value="">-- Select --</option>
+                <option value="Technical">Technical</option>
+                <option value="Administrative">Administrative</option>
+                <option value="Physical">Physical</option>
+              </select>
+            </td>
+            <td>
+              <select class="harden-select" id="ht4f" onchange="saveProgress()">
+                <option value="">-- Select --</option>
+                <option value="Preventive">Preventive</option>
+                <option value="Detective">Detective</option>
+                <option value="Corrective">Corrective</option>
+                <option value="Deterrent">Deterrent</option>
+              </select>
+            </td>
+          </tr>
+          <tr>
+            <td class="harden-label">Enable automatic security updates</td>
+            <td>
+              <select class="harden-select" id="ht5t" onchange="saveProgress()">
+                <option value="">-- Select --</option>
+                <option value="Technical">Technical</option>
+                <option value="Administrative">Administrative</option>
+                <option value="Physical">Physical</option>
+              </select>
+            </td>
+            <td>
+              <select class="harden-select" id="ht5f" onchange="saveProgress()">
+                <option value="">-- Select --</option>
+                <option value="Preventive">Preventive</option>
+                <option value="Detective">Detective</option>
+                <option value="Corrective">Corrective</option>
+                <option value="Deterrent">Deterrent</option>
+              </select>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="hint-box">
+        <strong>Hint:</strong> Control types are about the nature of the mechanism (Technical =
+        software/hardware, Administrative = policy/process, Physical = locks/cameras). Functions
+        describe timing and intent: Preventive stops the attack, Detective finds it after,
+        Corrective recovers from it, Deterrent discourages it.
+      </div>
+
+      <label class="answer-label" for="q2a">
+        Why is NTP synchronization listed as a "Low" priority but is still included in a
+        hardening checklist? What security function does accurate time serve?
+      </label>
+      <textarea class="answer-area" id="q2a" rows="3" placeholder="Explain the security significance of NTP in incident response contexts..." onchange="saveProgress()"></textarea>
+
+      <button class="btn-complete" onclick="completeEx(2)">Mark Exercise 2 Complete</button>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════════════
+       Exercise 3 — IDS Rule Analysis
+  ═════════════════════════════════════════════ -->
+  <div class="exercise" id="ex3">
+    <div class="ex-header" onclick="toggleEx('ex3')">
+      <div class="ex-num">3</div>
+      <div class="ex-title">
+        <strong>IDS / IPS Rule Analysis</strong>
+        <span>Interpret Snort rules and classify the attack patterns they detect</span>
+      </div>
+      <span class="ex-status" id="status3">Not Started</span>
+      <span class="ex-chevron">&#9654;</span>
+    </div>
+    <div class="ex-body">
+
+      <div class="scenario">
+        <strong>Scenario</strong>
+        After deploying Snort as a network IDS on the newly segmented Meridian network, the
+        security team needs to review and tune the rule set. You have been given five rules to
+        analyze. For each rule, identify the attack type it detects, the detection method,
+        and whether any tuning is likely required.
+      </div>
+
+      <!-- Rule 1 -->
+      <div class="section-label">Rule 1</div>
+      <div class="rule-block"><span class="kw">alert</span> tcp <span class="str">$EXTERNAL_NET</span> <span class="str">any</span> -&gt; <span class="str">$HOME_NET</span> <span class="num">22</span> (
+  <span class="kw">msg</span>:<span class="str">"SSH Brute Force Attempt"</span>;
+  <span class="kw">flow</span>:to_server,established;
+  <span class="kw">threshold</span>: type both, track by_src, count <span class="num">5</span>, seconds <span class="num">60</span>;
+  <span class="kw">classtype</span>:attempted-admin;
+  <span class="kw">sid</span>:<span class="num">1000001</span>; <span class="kw">rev</span>:<span class="num">1</span>;
+)</div>
+      <label class="answer-label" for="q3a">
+        What attack does Rule 1 detect? What does the <code>threshold</code> keyword do?
+        Why might a legitimate admin trigger this rule?
+      </label>
+      <textarea class="answer-area" id="q3a" rows="3" placeholder="Identify attack type, explain threshold logic, and note tuning considerations..." onchange="saveProgress()"></textarea>
+
+      <!-- Rule 2 -->
+      <div class="section-label">Rule 2</div>
+      <div class="rule-block"><span class="kw">alert</span> tcp <span class="str">$HOME_NET</span> <span class="str">any</span> -&gt; <span class="str">$SQL_SERVERS</span> <span class="num">3306</span> (
+  <span class="kw">msg</span>:<span class="str">"SQL Injection Attempt - UNION SELECT"</span>;
+  <span class="kw">flow</span>:to_server,established;
+  <span class="kw">content</span>:<span class="str">"UNION"</span>; <span class="kw">nocase</span>;
+  <span class="kw">content</span>:<span class="str">"SELECT"</span>; <span class="kw">nocase</span>;
+  <span class="kw">classtype</span>:web-application-attack;
+  <span class="kw">sid</span>:<span class="num">1000002</span>; <span class="kw">rev</span>:<span class="num">1</span>;
+)</div>
+      <label class="answer-label" for="q3b">
+        What attack does Rule 2 detect? What is a significant weakness of matching on
+        "UNION" and "SELECT" individually (without proximity)? How could an attacker evade it?
+      </label>
+      <textarea class="answer-area" id="q3b" rows="3" placeholder="Identify attack, explain content matching weakness, and evasion technique..." onchange="saveProgress()"></textarea>
+
+      <!-- Rule 3 -->
+      <div class="section-label">Rule 3</div>
+      <div class="rule-block"><span class="kw">alert</span> icmp <span class="str">$EXTERNAL_NET</span> <span class="str">any</span> -&gt; <span class="str">$HOME_NET</span> <span class="str">any</span> (
+  <span class="kw">msg</span>:<span class="str">"ICMP Ping Sweep Detected"</span>;
+  <span class="kw">itype</span>:<span class="num">8</span>;
+  <span class="kw">threshold</span>: type both, track by_src, count <span class="num">10</span>, seconds <span class="num">5</span>;
+  <span class="kw">classtype</span>:network-scan;
+  <span class="kw">sid</span>:<span class="num">1000003</span>; <span class="kw">rev</span>:<span class="num">1</span>;
+)</div>
+      <label class="answer-label" for="q3c">
+        What does <code>itype:8</code> mean? What technique does this rule detect?
+        Should this rule be in IDS (alert) or IPS (drop/reject) mode? Justify your answer.
+      </label>
+      <textarea class="answer-area" id="q3c" rows="3" placeholder="Explain itype:8, detection technique, and IDS vs IPS mode justification..." onchange="saveProgress()"></textarea>
+
+      <!-- Rule 4 -->
+      <div class="section-label">Rule 4</div>
+      <div class="rule-block"><span class="kw">alert</span> tcp <span class="str">$EXTERNAL_NET</span> <span class="str">any</span> -&gt; <span class="str">$HTTP_SERVERS</span> <span class="num">80</span> (
+  <span class="kw">msg</span>:<span class="str">"ET WEB_SERVER Possible CVE-2021-41773 Apache Path Traversal"</span>;
+  <span class="kw">flow</span>:established,to_server;
+  <span class="kw">content</span>:<span class="str">"/cgi-bin/.%2e/"</span>;
+  <span class="kw">http_uri</span>;
+  <span class="kw">classtype</span>:attempted-admin;
+  <span class="kw">metadata</span>: cve CVE-2021-41773;
+  <span class="kw">sid</span>:<span class="num">1000004</span>; <span class="kw">rev</span>:<span class="num">2</span>;
+)</div>
+      <label class="answer-label" for="q3d">
+        Rule 4 references CVE-2021-41773. Describe the vulnerability class this rule covers
+        (path traversal). What does <code>%2e</code> represent, and why does the rule look
+        for it rather than a simple "/" traversal? Is this rule signature-based or anomaly-based?
+      </label>
+      <textarea class="answer-area" id="q3d" rows="3" placeholder="Describe path traversal, URL encoding, and detection method classification..." onchange="saveProgress()"></textarea>
+
+      <!-- Rule 5 -->
+      <div class="section-label">Rule 5</div>
+      <div class="rule-block"><span class="kw">alert</span> tcp <span class="str">$HOME_NET</span> <span class="str">any</span> -&gt; <span class="str">$EXTERNAL_NET</span> <span class="str">any</span> (
+  <span class="kw">msg</span>:<span class="str">"Possible C2 Beacon - Periodic Outbound Connection"</span>;
+  <span class="kw">flow</span>:to_server,established;
+  <span class="kw">detection_filter</span>: track by_src, count <span class="num">30</span>, seconds <span class="num">3600</span>;
+  <span class="kw">classtype</span>:trojan-activity;
+  <span class="kw">sid</span>:<span class="num">1000005</span>; <span class="kw">rev</span>:<span class="num">1</span>;
+)</div>
+      <label class="answer-label" for="q3e">
+        Rule 5 attempts to detect C2 beaconing. Why is this rule prone to false positives?
+        What additional context (from SIEM, EDR, or DNS logs) would help distinguish a
+        legitimate application from actual C2 activity?
+      </label>
+      <textarea class="answer-area" id="q3e" rows="3" placeholder="Explain false positive risk and corroborating data sources for triage..." onchange="saveProgress()"></textarea>
+
+      <div class="insight-box">
+        <strong>CySA+ Insight:</strong> IDS/IPS rules have two fundamental detection approaches —
+        signature-based (content match, exact pattern) and anomaly/behavior-based (statistical
+        deviation from baseline). Rules 1–4 above are signature-based; Rule 5 attempts behavioral
+        detection. On the exam, know that signature-based rules generate zero-day blind spots,
+        while behavioral rules generate false positives. Tuning IDS means finding the balance.
+      </div>
+
+      <button class="btn-complete" onclick="completeEx(3)">Mark Exercise 3 Complete</button>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════════════
+       Exercise 4 — Remediation Prioritization
+  ═════════════════════════════════════════════ -->
+  <div class="exercise" id="ex4">
+    <div class="ex-header" onclick="toggleEx('ex4')">
+      <div class="ex-num">4</div>
+      <div class="ex-title">
+        <strong>Remediation Priority Matrix</strong>
+        <span>Rank infrastructure findings using risk, exploitability, and business impact</span>
+      </div>
+      <span class="ex-status" id="status4">Not Started</span>
+      <span class="ex-chevron">&#9654;</span>
+    </div>
+    <div class="ex-body">
+
+      <div class="scenario">
+        <strong>Scenario</strong>
+        The security team produced the following finding list from the combined network diagram
+        review, Lynis hardening audit, and IDS rule testing. Leadership has allocated limited
+        IT resources for the next sprint (one week). You must rank these findings for remediation
+        order and defend your prioritization.
+      </div>
+
+      <div class="section-label">Unranked Findings</div>
+      <table class="findings-table">
+        <thead>
+          <tr>
+            <th style="width:30%;">Finding</th>
+            <th style="width:15%;">CVSS</th>
+            <th style="width:20%;">Exploitability</th>
+            <th style="width:35%;">Business Context</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>A.</strong> Flat network — no VLAN segmentation</td>
+            <td><span class="sev sev-high">8.5 High</span></td>
+            <td>Requires initial foothold</td>
+            <td>Any compromised host enables full lateral movement</td>
+          </tr>
+          <tr>
+            <td><strong>B.</strong> SSH root login enabled on web server</td>
+            <td><span class="sev sev-critical">9.8 Critical</span></td>
+            <td>Internet-exposed, port 22 open</td>
+            <td>Single SSH brute-force could yield root on internet-facing host</td>
+          </tr>
+          <tr>
+            <td><strong>C.</strong> telnetd / rsh active on web server</td>
+            <td><span class="sev sev-critical">9.1 Critical</span></td>
+            <td>Immediate, no auth required for rsh</td>
+            <td>Plaintext credentials, immediate remote code execution risk</td>
+          </tr>
+          <tr>
+            <td><strong>D.</strong> Auditd not running (no host logging)</td>
+            <td><span class="sev sev-medium">5.5 Medium</span></td>
+            <td>Does not enable attack; detection gap</td>
+            <td>No audit trail — regulatory and IR impact; PCI-DSS violation</td>
+          </tr>
+          <tr>
+            <td><strong>E.</strong> MySQL port 3306 reachable by all hosts</td>
+            <td><span class="sev sev-high">7.8 High</span></td>
+            <td>Internal network only</td>
+            <td>Developer workstation can directly query financial database</td>
+          </tr>
+          <tr>
+            <td><strong>F.</strong> No IDS/IPS deployed</td>
+            <td><span class="sev sev-medium">N/A</span></td>
+            <td>Detection gap only</td>
+            <td>Attacks in progress are invisible; no alert feed for SIEM</td>
+          </tr>
+          <tr>
+            <td><strong>G.</strong> NTP clock drift (4m 32s)</td>
+            <td><span class="sev sev-low">2.1 Low</span></td>
+            <td>None directly</td>
+            <td>Log correlation errors; Kerberos tickets break &gt;5min skew</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="section-label">Drag to Rank (Highest Priority = Top)</div>
+      <p style="font-size:0.83rem;color:var(--text-muted);margin-bottom:0.75rem;">
+        Drag the findings below into your recommended remediation order.
+        Drag items up or down to reorder.
+      </p>
+      <div class="drag-list" id="rankList">
+        <div class="drag-item" draggable="true" data-id="C">
+          <span class="drag-handle">&#8942;&#8942;</span>
+          <span class="drag-rank">?</span>
+          <span class="drag-text"><strong>C.</strong> telnetd / rsh active — immediate RCE risk</span>
+        </div>
+        <div class="drag-item" draggable="true" data-id="B">
+          <span class="drag-handle">&#8942;&#8942;</span>
+          <span class="drag-rank">?</span>
+          <span class="drag-text"><strong>B.</strong> SSH root login — internet-exposed brute force</span>
+        </div>
+        <div class="drag-item" draggable="true" data-id="E">
+          <span class="drag-handle">&#8942;&#8942;</span>
+          <span class="drag-rank">?</span>
+          <span class="drag-text"><strong>E.</strong> MySQL reachable by all — database exposure</span>
+        </div>
+        <div class="drag-item" draggable="true" data-id="A">
+          <span class="drag-handle">&#8942;&#8942;</span>
+          <span class="drag-rank">?</span>
+          <span class="drag-text"><strong>A.</strong> Flat network — enables lateral movement</span>
+        </div>
+        <div class="drag-item" draggable="true" data-id="D">
+          <span class="drag-handle">&#8942;&#8942;</span>
+          <span class="drag-rank">?</span>
+          <span class="drag-text"><strong>D.</strong> Auditd not running — no host audit trail</span>
+        </div>
+        <div class="drag-item" draggable="true" data-id="F">
+          <span class="drag-handle">&#8942;&#8942;</span>
+          <span class="drag-rank">?</span>
+          <span class="drag-text"><strong>F.</strong> No IDS/IPS — detection gap</span>
+        </div>
+        <div class="drag-item" draggable="true" data-id="G">
+          <span class="drag-handle">&#8942;&#8942;</span>
+          <span class="drag-rank">?</span>
+          <span class="drag-text"><strong>G.</strong> NTP clock drift — log integrity risk</span>
+        </div>
+      </div>
+
+      <label class="answer-label" for="q4a">
+        Defend your top 3 choices. Explain why CVSS score alone is insufficient — what other
+        factors (network exposure, business context, ease of remediation) drove your ranking?
+      </label>
+      <textarea class="answer-area" id="q4a" rows="5" placeholder="Justify your top 3 ranked items with risk-based reasoning..." onchange="saveProgress()"></textarea>
+
+      <label class="answer-label" for="q4b">
+        Finding D (auditd not running) has a CVSS of 5.5 Medium yet many security frameworks
+        (PCI-DSS, HIPAA) would mandate it be fixed immediately. Explain the distinction between
+        CVSS-based prioritization and compliance-driven prioritization.
+      </label>
+      <textarea class="answer-area" id="q4b" rows="3" placeholder="Compare CVSS scoring context vs compliance mandate rationale..." onchange="saveProgress()"></textarea>
+
+      <div class="insight-box">
+        <strong>CySA+ Insight:</strong> Real-world prioritization balances four factors —
+        CVSS score, network exposure (internet-facing vs internal), exploitability in your
+        specific environment, and business context (regulatory, data sensitivity, system
+        criticality). On the CySA+ exam, internet-exposed critical findings always rank above
+        internal medium findings, and detection gaps (logging, IDS) often rank higher than
+        their CVSS suggests due to compliance and IR requirements.
+      </div>
+
+      <button class="btn-complete" onclick="completeEx(4)">Mark Exercise 4 Complete</button>
+    </div>
+  </div>
+
+  <!-- ── Completion Banner ── -->
+  <div class="completion-banner" id="completionBanner">
+    <div class="trophy">&#127942;</div>
+    <h2>Lab Complete!</h2>
+    <p>
+      You have completed the Infrastructure Security lab.<br>
+      Network analysis, hardening checklists, IDS rules, and prioritization are core
+      CySA+ analyst skills. Progress has been saved.
+    </p>
+  </div>
+
+</div><!-- /.container -->
+
+<footer class="site-footer">
+  <p>Hexworth Prime &mdash; Eye House &mdash; CySA+ Chapter 7</p>
+</footer>
+
+<script src="../../../../components/FluxCapacitor.js"></script>
+<script>
+// ── State ──────────────────────────────────────────────────────────────────
+const STORAGE_KEY = 'eye_cysa_ch07_lab';
+const completedExercises = new Set();
+let dragSrc = null;
+
+// ── Accordion Toggle ────────────────────────────────────────────────────────
+function toggleEx(id) {
+  const el = document.getElementById(id);
+  const isActive = el.classList.contains('active');
+  // Close all
+  document.querySelectorAll('.exercise').forEach(e => e.classList.remove('active'));
+  if (!isActive) el.classList.add('active');
+}
+
+// ── Exercise Completion ─────────────────────────────────────────────────────
+function completeEx(num) {
+  completedExercises.add(num);
+  const el = document.getElementById('ex' + num);
+  el.classList.add('completed');
+  el.classList.remove('active');
+  const statusEl = document.getElementById('status' + num);
+  if (statusEl) statusEl.textContent = 'Complete';
+
+  saveProgress();
+  checkAllComplete();
+}
+
+// ── Check all complete ──────────────────────────────────────────────────────
+function checkAllComplete() {
+  if (completedExercises.size >= 4) {
+    document.getElementById('completionBanner').classList.add('show');
+    // Scroll to banner
+    document.getElementById('completionBanner').scrollIntoView({ behavior: 'smooth', block: 'center' });
+    // Fire ModuleProgress
+    if (typeof ModuleProgress !== 'undefined') {
+      ModuleProgress.complete('eye', 'eye-cysa-ch07-lab');
+    }
+    if (typeof AchievementManager !== 'undefined') {
+      AchievementManager.unlock('lab_complete');
+    }
+  }
+}
+
+// ── Drag-and-Drop Ranking ───────────────────────────────────────────────────
+function initDragAndDrop() {
+  const list = document.getElementById('rankList');
+  if (!list) return;
+
+  list.addEventListener('dragstart', e => {
+    dragSrc = e.target.closest('.drag-item');
+    if (dragSrc) {
+      dragSrc.classList.add('dragging');
+      e.dataTransfer.effectAllowed = 'move';
+    }
+  });
+
+  list.addEventListener('dragend', e => {
+    document.querySelectorAll('.drag-item').forEach(i => {
+      i.classList.remove('dragging', 'drag-over');
+    });
+    updateRanks();
+    saveProgress();
+  });
+
+  list.addEventListener('dragover', e => {
+    e.preventDefault();
+    const target = e.target.closest('.drag-item');
+    if (target && target !== dragSrc) {
+      // Clear all drag-over indicators
+      document.querySelectorAll('.drag-item').forEach(i => i.classList.remove('drag-over'));
+      target.classList.add('drag-over');
+
+      // Determine insertion position
+      const rect = target.getBoundingClientRect();
+      const midY = rect.top + rect.height / 2;
+      if (e.clientY < midY) {
+        list.insertBefore(dragSrc, target);
+      } else {
+        list.insertBefore(dragSrc, target.nextSibling);
+      }
+    }
+  });
+
+  list.addEventListener('drop', e => {
+    e.preventDefault();
+  });
+}
+
+function updateRanks() {
+  const items = document.querySelectorAll('#rankList .drag-item');
+  items.forEach((item, idx) => {
+    const rankEl = item.querySelector('.drag-rank');
+    if (rankEl) rankEl.textContent = idx + 1;
+  });
+}
+
+// ── Save Progress ───────────────────────────────────────────────────────────
+function saveProgress() {
+  const data = {
+    completed: Array.from(completedExercises),
+    checkboxes: {},
+    textareas: {},
+    selects: {},
+    rankOrder: []
+  };
+
+  // Checkboxes
+  document.querySelectorAll('input[type=checkbox]').forEach(cb => {
+    data.checkboxes[cb.id] = cb.checked;
+  });
+
+  // Textareas
+  document.querySelectorAll('textarea').forEach(ta => {
+    data.textareas[ta.id] = ta.value;
+  });
+
+  // Selects (hardening table)
+  document.querySelectorAll('select.harden-select').forEach(sel => {
+    data.selects[sel.id] = sel.value;
+  });
+
+  // Drag rank order
+  document.querySelectorAll('#rankList .drag-item').forEach(item => {
+    data.rankOrder.push(item.dataset.id);
+  });
+
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+}
+
+// ── Load Progress ───────────────────────────────────────────────────────────
+function loadProgress() {
+  const raw = localStorage.getItem(STORAGE_KEY);
+  if (!raw) return;
+
+  let data;
+  try { data = JSON.parse(raw); } catch(e) { return; }
+
+  // Restore completed exercises
+  if (data.completed) {
+    data.completed.forEach(num => {
+      completedExercises.add(num);
+      const el = document.getElementById('ex' + num);
+      if (el) el.classList.add('completed');
+      const statusEl = document.getElementById('status' + num);
+      if (statusEl) statusEl.textContent = 'Complete';
+    });
+  }
+
+  // Restore checkboxes
+  if (data.checkboxes) {
+    Object.entries(data.checkboxes).forEach(([id, val]) => {
+      const el = document.getElementById(id);
+      if (el) el.checked = val;
+    });
+  }
+
+  // Restore textareas
+  if (data.textareas) {
+    Object.entries(data.textareas).forEach(([id, val]) => {
+      const el = document.getElementById(id);
+      if (el) el.value = val;
+    });
+  }
+
+  // Restore selects
+  if (data.selects) {
+    Object.entries(data.selects).forEach(([id, val]) => {
+      const el = document.getElementById(id);
+      if (el) el.value = val;
+    });
+  }
+
+  // Restore drag order
+  if (data.rankOrder && data.rankOrder.length > 0) {
+    const list = document.getElementById('rankList');
+    if (list) {
+      const itemMap = {};
+      list.querySelectorAll('.drag-item').forEach(item => {
+        itemMap[item.dataset.id] = item;
+      });
+      data.rankOrder.forEach(id => {
+        if (itemMap[id]) list.appendChild(itemMap[id]);
+      });
+    }
+  }
+
+  updateRanks();
+  checkAllComplete();
+}
+
+// ── Init ────────────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  initDragAndDrop();
+  updateRanks();
+  loadProgress();
+  // Open first exercise by default
+  if (!localStorage.getItem(STORAGE_KEY)) {
+    toggleEx('ex1');
+  }
+});
+</script>
+</body>
+</html>

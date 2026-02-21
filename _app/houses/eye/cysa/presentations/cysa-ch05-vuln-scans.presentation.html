@@ -1,0 +1,654 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ch 5: Analyzing Vulnerability Scans — CySA+ | Eye House</title>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --eye-primary:   #a855f7;
+            --eye-secondary: #c084fc;
+            --eye-glow:      rgba(168, 85, 247, 0.35);
+            --bg-dark:       #0a0a12;
+            --bg-mid:        #120a1a;
+            --bg-deep:       #1a0a25;
+            --bg-card:       rgba(18, 10, 26, 0.85);
+            --text-primary:  #ede9f6;
+            --text-secondary:#9d8bb5;
+            --ok:            #4ade80;
+            --warn:          #fbbf24;
+            --bad:           #f87171;
+            --border:        rgba(168, 85, 247, 0.22);
+        }
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: linear-gradient(135deg, #0a0a12, #120a1a, #1a0a25);
+            color: var(--text-primary);
+            line-height: 1.7;
+            min-height: 100vh;
+        }
+
+        /* Header */
+        .site-header {
+            background: rgba(10, 10, 18, 0.96);
+            border-bottom: 1px solid var(--border);
+            padding: 0.9rem 2rem;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            backdrop-filter: blur(12px);
+        }
+        .back-link {
+            color: var(--eye-secondary);
+            text-decoration: none;
+            font-size: 0.9rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+            transition: opacity 0.2s;
+        }
+        .back-link:hover { opacity: 0.72; }
+        .header-badge {
+            background: linear-gradient(135deg, var(--eye-primary), var(--eye-secondary));
+            color: #fff;
+            padding: 0.35rem 1rem;
+            border-radius: 20px;
+            font-size: 0.78rem;
+            font-weight: 700;
+            letter-spacing: 0.05em;
+        }
+
+        /* Container */
+        .container { max-width: 1100px; margin: 0 auto; padding: 2.5rem 2rem 4rem; }
+
+        /* Hero */
+        .hero {
+            text-align: center;
+            padding: 3.5rem 2rem 2.5rem;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            margin-bottom: 2.5rem;
+            position: relative;
+            overflow: hidden;
+        }
+        .hero::before {
+            content: '';
+            position: absolute;
+            top: -80px; left: 50%; transform: translateX(-50%);
+            width: 420px; height: 420px;
+            background: radial-gradient(circle, var(--eye-glow) 0%, transparent 70%);
+            pointer-events: none;
+        }
+        .module-tag {
+            display: inline-block;
+            background: rgba(168, 85, 247, 0.14);
+            color: var(--eye-secondary);
+            border: 1px solid var(--border);
+            padding: 0.3rem 1rem;
+            border-radius: 20px;
+            font-size: 0.78rem;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            margin-bottom: 1.2rem;
+        }
+        .hero h1 {
+            font-size: 2.2rem;
+            font-weight: 800;
+            color: var(--text-primary);
+            margin-bottom: 0.75rem;
+            line-height: 1.25;
+        }
+        .hero h1 span { color: var(--eye-primary); }
+        .hero p {
+            color: var(--text-secondary);
+            font-size: 1.05rem;
+            max-width: 680px;
+            margin: 0 auto;
+        }
+
+        /* Section heading */
+        .section-heading {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            font-size: 1.35rem;
+            font-weight: 700;
+            color: var(--eye-primary);
+            margin: 2.5rem 0 1.25rem;
+        }
+        .section-heading::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: var(--border);
+        }
+
+        /* Card base */
+        .card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 1.75rem;
+            margin-bottom: 1.5rem;
+        }
+        .card h3 {
+            font-size: 1.12rem;
+            color: var(--eye-secondary);
+            margin-bottom: 0.9rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .card p { color: var(--text-secondary); font-size: 0.95rem; margin-bottom: 0.75rem; }
+        .card p:last-child { margin-bottom: 0; }
+        .card ul { color: var(--text-secondary); font-size: 0.93rem; padding-left: 1.4rem; }
+        .card ul li { margin-bottom: 0.4rem; }
+
+        /* Two-col grid */
+        .two-col {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.25rem;
+            margin-bottom: 1.5rem;
+        }
+
+        /* Three-col grid */
+        .three-col {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1.25rem;
+            margin-bottom: 1.5rem;
+        }
+
+        /* Metric card */
+        .metric-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 1.4rem;
+            transition: transform 0.22s, box-shadow 0.22s;
+        }
+        .metric-card:hover { transform: translateY(-3px); box-shadow: 0 8px 28px var(--eye-glow); }
+        .metric-title {
+            font-size: 0.8rem;
+            font-weight: 700;
+            letter-spacing: 0.07em;
+            color: var(--eye-primary);
+            margin-bottom: 0.5rem;
+            text-transform: uppercase;
+        }
+        .metric-card p { font-size: 0.87rem; color: var(--text-secondary); margin: 0; }
+
+        /* CVSS formula block */
+        .formula-block {
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid rgba(168, 85, 247, 0.3);
+            border-radius: 12px;
+            padding: 1.25rem 1.5rem;
+            margin: 1rem 0;
+            font-family: 'Courier New', monospace;
+            font-size: 0.88rem;
+            color: var(--eye-secondary);
+            overflow-x: auto;
+            white-space: pre;
+        }
+
+        /* Score table */
+        .score-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 0.75rem;
+            font-size: 0.88rem;
+        }
+        .score-table th {
+            text-align: left;
+            padding: 0.6rem 1rem;
+            background: rgba(168, 85, 247, 0.1);
+            color: var(--eye-primary);
+            font-size: 0.78rem;
+            font-weight: 700;
+            letter-spacing: 0.05em;
+            border-bottom: 1px solid var(--border);
+        }
+        .score-table td {
+            padding: 0.65rem 1rem;
+            color: var(--text-secondary);
+            border-bottom: 1px solid rgba(168, 85, 247, 0.07);
+            vertical-align: top;
+        }
+        .score-table tr:last-child td { border-bottom: none; }
+        .score-table tr:hover td { background: rgba(168, 85, 247, 0.04); }
+        .td-bold { color: var(--text-primary); font-weight: 600; }
+        .severity-crit { color: #f87171; font-weight: 700; }
+        .severity-high { color: #fb923c; font-weight: 700; }
+        .severity-med  { color: #fbbf24; font-weight: 700; }
+        .severity-low  { color: #4ade80; font-weight: 700; }
+        .severity-info { color: #60a5fa; font-weight: 700; }
+
+        /* Insight block */
+        .insight {
+            background: rgba(168, 85, 247, 0.06);
+            border-left: 4px solid var(--eye-primary);
+            border-radius: 0 12px 12px 0;
+            padding: 1.25rem 1.5rem;
+            margin-top: 1.25rem;
+        }
+        .insight-label {
+            font-size: 0.72rem;
+            font-weight: 700;
+            letter-spacing: 0.1em;
+            color: var(--eye-primary);
+            margin-bottom: 0.4rem;
+        }
+        .insight p { font-size: 0.9rem; color: var(--text-secondary); margin: 0; }
+
+        /* Alert-style callout */
+        .callout {
+            border-radius: 12px;
+            padding: 1.25rem 1.5rem;
+            margin-bottom: 1.25rem;
+            font-size: 0.92rem;
+        }
+        .callout-warn {
+            background: rgba(251, 191, 36, 0.07);
+            border: 1px solid rgba(251, 191, 36, 0.3);
+            color: #fbbf24;
+        }
+        .callout-ok {
+            background: rgba(74, 222, 128, 0.07);
+            border: 1px solid rgba(74, 222, 128, 0.3);
+            color: #4ade80;
+        }
+        .callout-label {
+            font-weight: 700;
+            font-size: 0.75rem;
+            letter-spacing: 0.08em;
+            margin-bottom: 0.4rem;
+        }
+        .callout p { font-size: 0.9rem; color: var(--text-secondary); margin: 0.4rem 0 0; }
+
+        /* Vuln category grid */
+        .vuln-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+        .vuln-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 1.3rem;
+        }
+        .vuln-card h4 {
+            font-size: 0.92rem;
+            font-weight: 700;
+            color: var(--eye-secondary);
+            margin-bottom: 0.6rem;
+        }
+        .vuln-card ul { color: var(--text-secondary); font-size: 0.85rem; padding-left: 1.2rem; }
+        .vuln-card ul li { margin-bottom: 0.35rem; }
+
+        /* Completion */
+        .completion-bar {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 2rem;
+            text-align: center;
+            margin-top: 3rem;
+        }
+        .completion-bar h3 { color: var(--eye-primary); margin-bottom: 0.75rem; font-size: 1.2rem; }
+        .completion-bar p { color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 1.25rem; }
+        .btn-complete {
+            display: inline-block;
+            background: linear-gradient(135deg, var(--eye-primary), var(--eye-secondary));
+            color: #fff;
+            font-weight: 700;
+            padding: 0.75rem 2rem;
+            border-radius: 10px;
+            border: none;
+            cursor: pointer;
+            font-size: 0.95rem;
+            transition: opacity 0.2s, transform 0.2s;
+        }
+        .btn-complete:hover { opacity: 0.85; transform: translateY(-2px); }
+        .btn-complete:disabled { opacity: 0.45; cursor: default; transform: none; }
+        .complete-msg {
+            margin-top: 1rem;
+            color: var(--ok);
+            font-weight: 600;
+            font-size: 0.9rem;
+            display: none;
+        }
+
+        @media (max-width: 768px) {
+            .two-col, .three-col, .vuln-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+
+<header class="site-header">
+    <a href="../index.html" class="back-link">&larr; Back to CySA+</a>
+    <span class="header-badge">EYE HOUSE — CySA+</span>
+</header>
+
+<div class="container">
+
+    <!-- Hero -->
+    <div class="hero">
+        <div class="module-tag">CH 5 — PRESENTATION</div>
+        <h1>Analyzing <span>Vulnerability Scans</span></h1>
+        <p>Interpreting Nessus and Qualys output, calculating CVSS scores, validating results, and prioritizing remediation across server, network, web, and IoT vulnerability categories.</p>
+    </div>
+
+    <!-- Slide 1: Scan Report Anatomy -->
+    <div class="section-heading">Slide 1 — Anatomy of a Vulnerability Scan Report</div>
+    <div class="card">
+        <h3>What a Scanner Report Tells You</h3>
+        <p>Tools like Nessus and Qualys produce structured reports. Every finding contains the same core fields. Learning to read these fields efficiently is the core CySA+ analyst skill.</p>
+    </div>
+    <div class="three-col">
+        <div class="metric-card">
+            <div class="metric-title">Vulnerability Name & Severity</div>
+            <p>Human-readable label plus overall severity rating (Critical / High / Medium / Low / Info). First filter analysts apply to prioritize workload.</p>
+        </div>
+        <div class="metric-card">
+            <div class="metric-title">Detailed Description</div>
+            <p>Technical explanation of the vulnerability — what it is, why it exists, and what versions or configurations are affected. Maps to CVE or plugin IDs.</p>
+        </div>
+        <div class="metric-card">
+            <div class="metric-title">Solution & References</div>
+            <p>Vendor patches, configuration changes, and workarounds. References link to NVD, vendor advisories, and CERT. Your remediation roadmap starts here.</p>
+        </div>
+        <div class="metric-card">
+            <div class="metric-title">Output (Evidence)</div>
+            <p>Raw evidence collected by the scanner — banner grabs, service responses, certificate data. Confirms the finding is real and aids manual validation.</p>
+        </div>
+        <div class="metric-card">
+            <div class="metric-title">Port / Hosts Affected</div>
+            <p>Which systems and services are vulnerable. Critical for scoping remediation — one finding may affect hundreds of hosts in an enterprise environment.</p>
+        </div>
+        <div class="metric-card">
+            <div class="metric-title">Risk Information (CVSS)</div>
+            <p>Numeric score (0–10) with vector string. CVSS provides context-independent severity. Organizations add environmental scores to reflect actual business impact.</p>
+        </div>
+    </div>
+    <div class="insight">
+        <div class="insight-label">ANALYST MINDSET</div>
+        <p>Scanners find hundreds of findings. Your job is not to fix everything — it is to fix the right things first. CVSS score plus asset criticality plus exploitability in the wild drives the real prioritization decision, not just the raw CVSS number.</p>
+    </div>
+
+    <!-- Slide 2: CVSS Overview -->
+    <div class="section-heading">Slide 2 — Understanding CVSS v3.0</div>
+    <div class="card">
+        <h3>Common Vulnerability Scoring System</h3>
+        <p>CVSS is an open industry standard for communicating the severity of a vulnerability. Version 3.0 evaluates two dimensions: how easy is it to exploit, and what is the impact if exploited. Each metric has discrete values that translate to numeric weights.</p>
+    </div>
+    <div class="two-col">
+        <div>
+            <div class="metric-card" style="margin-bottom: 1rem;">
+                <div class="metric-title">Exploitability Metrics</div>
+                <p><strong>Attack Vector (AV)</strong> — Network, Adjacent, Local, Physical</p>
+                <p style="margin-top: 0.5rem;"><strong>Attack Complexity (AC)</strong> — Low, High</p>
+                <p style="margin-top: 0.5rem;"><strong>Privileges Required (PR)</strong> — None, Low, High</p>
+                <p style="margin-top: 0.5rem;"><strong>User Interaction (UI)</strong> — None, Required</p>
+            </div>
+        </div>
+        <div>
+            <div class="metric-card" style="margin-bottom: 1rem;">
+                <div class="metric-title">Impact Metrics</div>
+                <p><strong>Confidentiality (C)</strong> — None, Low, High</p>
+                <p style="margin-top: 0.5rem;"><strong>Integrity (I)</strong> — None, Low, High</p>
+                <p style="margin-top: 0.5rem;"><strong>Availability (A)</strong> — None, Low, High</p>
+                <p style="margin-top: 0.5rem;"><strong>Scope (S)</strong> — Unchanged, Changed</p>
+            </div>
+        </div>
+    </div>
+    <div class="card">
+        <h3>Worked Example — SSL Vulnerability</h3>
+        <p>Vector string: <code style="color: var(--eye-secondary);">CVSS:3.0/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:N/A:N</code></p>
+        <p style="margin-top: 0.6rem;">Decoded: Exploitable over the Network, Low complexity, No privileges required, No user interaction needed. Scope Unchanged. Confidentiality impact High, Integrity None, Availability None.</p>
+    </div>
+
+    <!-- Slide 3: CVSS Calculation -->
+    <div class="section-heading">Slide 3 — Calculating the CVSS Base Score</div>
+    <div class="card">
+        <h3>Step 1: Calculate Impact Sub-Score (ISS)</h3>
+        <p>ISS summarizes the three impact metrics. Formula:</p>
+        <div class="formula-block">ISS = 1 - [(1 - C_score) x (1 - I_score) x (1 - A_score)]
+
+SSL Example:
+ISS = 1 - [(1 - 0.56) x (1 - 0.00) x (1 - 0.00)]
+ISS = 1 - [0.44 x 1.00 x 1.00]
+ISS = 0.56</div>
+    </div>
+    <div class="two-col">
+        <div class="card">
+            <h3>Step 2: Calculate Impact Score</h3>
+            <div class="formula-block">If Scope = Unchanged:
+  Impact = 6.42 x ISS
+  Impact = 6.42 x 0.56 = 3.60
+
+If Scope = Changed:
+  Impact = 7.52 x (ISS - 0.029)
+           - 3.25 x (ISS - 0.02)^15</div>
+        </div>
+        <div class="card">
+            <h3>Step 3: Exploitability Score</h3>
+            <div class="formula-block">Exploit = 8.22 x AV x AC x PR x UI
+
+SSL Example:
+= 8.22 x 0.85 x 0.77 x 0.85 x 0.85
+= 3.89</div>
+        </div>
+    </div>
+    <div class="card">
+        <h3>Step 4: Base Score Rules</h3>
+        <ul>
+            <li>If Impact score = 0, Base Score = 0 (no impact = no severity)</li>
+            <li>If Scope = Unchanged: Base Score = Impact + Exploitability</li>
+            <li>If Scope = Changed: Base Score = (Impact + Exploitability) x 1.08</li>
+            <li>Maximum Base Score is 10.0. If calculated value exceeds 10, cap at 10.</li>
+            <li>SSL Example: 3.60 + 3.89 = 7.49 — rounded to <strong>7.5 HIGH</strong></li>
+        </ul>
+    </div>
+
+    <!-- Slide 4: Severity Categories -->
+    <div class="section-heading">Slide 4 — CVSS Severity Categories</div>
+    <div class="card">
+        <h3>Categorizing CVSS Base Scores</h3>
+        <table class="score-table">
+            <thead>
+                <tr>
+                    <th>Rating</th>
+                    <th>Score Range</th>
+                    <th>Typical Action</th>
+                    <th>Example</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td class="severity-crit">Critical</td>
+                    <td>9.0 – 10.0</td>
+                    <td>Emergency patch within 24–72 hours. Treat as incident until patched.</td>
+                    <td>Log4Shell (10.0), EternalBlue (9.3)</td>
+                </tr>
+                <tr>
+                    <td class="severity-high">High</td>
+                    <td>7.0 – 8.9</td>
+                    <td>Patch within 2 weeks. Monitor for active exploitation.</td>
+                    <td>Heartbleed (7.5), Shellshock (9.8 — note: above threshold)</td>
+                </tr>
+                <tr>
+                    <td class="severity-med">Medium</td>
+                    <td>4.0 – 6.9</td>
+                    <td>Patch within 30–90 days per organizational SLA.</td>
+                    <td>CSRF vulnerabilities, weak cipher configurations</td>
+                </tr>
+                <tr>
+                    <td class="severity-low">Low</td>
+                    <td>0.1 – 3.9</td>
+                    <td>Patch in next maintenance window. Low urgency.</td>
+                    <td>Information disclosure, verbose error messages</td>
+                </tr>
+                <tr>
+                    <td class="severity-info">None / Info</td>
+                    <td>0.0</td>
+                    <td>Informational — no direct impact but may aid reconnaissance.</td>
+                    <td>Open ports, service banners, ICMP responses</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+    <div class="insight">
+        <div class="insight-label">EXAM POINT</div>
+        <p>CVSS is a severity measure, not a risk measure. A Critical CVSS on an air-gapped lab machine is lower organizational risk than a Medium CVSS on an internet-facing payment server. The Environmental Score modifies Base Score to account for your specific context — confidentiality requirements, remediation level, and report confidence.</p>
+    </div>
+
+    <!-- Slide 5: Validating Results -->
+    <div class="section-heading">Slide 5 — Validating Scan Results</div>
+    <div class="three-col">
+        <div class="metric-card">
+            <div class="metric-title">False Positives</div>
+            <p>Scanner reports a vulnerability that does not actually exist. High false positive rates waste analyst time and erode trust in the scanner tool. Validate by checking patch status, attempting controlled exploitation, or verifying configuration.</p>
+        </div>
+        <div class="metric-card">
+            <div class="metric-title">Documented Exceptions</div>
+            <p>Known vulnerabilities that management has formally accepted as risk. Once documented, suppressed in scanner to prevent repeated false alarm fatigue. Requires periodic review — accepted risk can become unacceptable as threat landscape changes.</p>
+        </div>
+        <div class="metric-card">
+            <div class="metric-title">Informational Results</div>
+            <p>Not vulnerabilities per se — configurations that aid adversary reconnaissance. Open ports, running services, software versions. May not need patching but should be reviewed for necessity (attack surface reduction).</p>
+        </div>
+    </div>
+    <div class="card">
+        <h3>Reconciling Scan Results with Other Data Sources</h3>
+        <p>Scanner output alone is insufficient. Cross-reference with:</p>
+        <ul>
+            <li><strong>System logs:</strong> Has the vulnerability already been exploited? Look for exploitation signatures.</li>
+            <li><strong>SIEM:</strong> Correlate scan findings with alert history. Prioritize vulns with active exploit attempts.</li>
+            <li><strong>Configuration Management (CMDB):</strong> Confirm asset details, patch history, and compensating controls.</li>
+            <li><strong>Trend Analysis:</strong> Compare current scan to previous scans. New findings vs. recurring unpatched vulns tell different stories.</li>
+        </ul>
+    </div>
+
+    <!-- Slide 6: Common Vulnerability Categories -->
+    <div class="section-heading">Slide 6 — Common Vulnerability Categories</div>
+    <div class="vuln-grid">
+        <div class="vuln-card">
+            <h4>Server & Host Vulnerabilities</h4>
+            <ul>
+                <li><strong>Missing patches</strong> — Most common finding. Improper patch management.</li>
+                <li><strong>Unsupported software</strong> — End-of-life products receive no security updates.</li>
+                <li><strong>Buffer overflows</strong> — Attacker writes past allocated memory; can enable code execution. 85%+ of 2016 breaches.</li>
+                <li><strong>Privilege escalation</strong> — Kernel-mode exploits granting admin (e.g., Dirty COW, CVE-2016-7255).</li>
+                <li><strong>Arbitrary/remote code execution</strong> — Attacker runs software on victim machine.</li>
+                <li><strong>Insecure protocols</strong> — FTP, Telnet, SMBv1 transmit data in cleartext.</li>
+                <li><strong>Debug modes enabled</strong> — Verbose output aids attacker reconnaissance.</li>
+            </ul>
+        </div>
+        <div class="vuln-card">
+            <h4>Network Vulnerabilities</h4>
+            <ul>
+                <li><strong>Missing firmware updates</strong> — Network devices run firmware that needs patching like any OS.</li>
+                <li><strong>Outdated SSL/TLS</strong> — SSLv2/3 and TLS 1.0/1.1 are insecure. Require TLS 1.2 minimum; prefer TLS 1.3.</li>
+                <li><strong>Insecure cipher suites</strong> — Protocol and cipher are separate concerns. Weak ciphers (RC4, DES, 3DES) must be disabled.</li>
+                <li><strong>Certificate problems</strong> — Name mismatches, expired certs, unknown CAs all trigger warnings and MITM risk.</li>
+                <li><strong>DNS vulnerabilities</strong> — Amplification attacks, zone transfer exposure, buffer overflow in DNS daemons.</li>
+                <li><strong>Internal IP disclosure</strong> — Misconfigured NAT leaks internal IP space in HTTP headers.</li>
+                <li><strong>VPN misconfigurations</strong> — Missing firmware patches plus weak tunnel configurations.</li>
+            </ul>
+        </div>
+        <div class="vuln-card">
+            <h4>Virtualization & IoT Vulnerabilities</h4>
+            <ul>
+                <li><strong>VM Escape</strong> — Most severe virt issue. Attacker breaks out of guest VM to reach the hypervisor host. Pwn2Own 2017 demo chained 3 exploits.</li>
+                <li><strong>Management interface exposure</strong> — Hypervisor management planes must use 2FA and network isolation.</li>
+                <li><strong>Virtual host/guest patching</strong> — VMs need OS and software updates just like physical hosts.</li>
+                <li><strong>SCADA/ICS/PLC systems</strong> — Industrial control systems often run legacy software with no patch path.</li>
+                <li><strong>SoC / RTOS / FPGA</strong> — Embedded systems with limited security controls, often internet-connected.</li>
+                <li><strong>CAN bus</strong> — Automotive/industrial network with no authentication — direct vehicle compromise risk.</li>
+            </ul>
+        </div>
+        <div class="vuln-card">
+            <h4>Web Application Vulnerabilities</h4>
+            <ul>
+                <li><strong>SQL Injection</strong> — Attacker sends DB commands through web input. Prevented via parameterized queries and least-privilege DB accounts.</li>
+                <li><strong>XSS (Persistent/Reflected/DOM)</strong> — Malicious scripts execute in victim's browser. Victim is the user, not the server.</li>
+                <li><strong>CSRF</strong> — Forces authenticated user to perform unintended actions (fund transfer, password change).</li>
+                <li><strong>Directory Traversal</strong> — ../../../etc/passwd style attacks navigate outside web root.</li>
+                <li><strong>Authentication flaws</strong> — Password spraying, credential stuffing, session hijacking, MITM attacks.</li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- Slide 7: Prioritization Strategy -->
+    <div class="section-heading">Slide 7 — Prioritization & Remediation Strategy</div>
+    <div class="two-col">
+        <div class="callout callout-warn">
+            <div class="callout-label">CVSS ALONE IS NOT ENOUGH</div>
+            <p>A CVSS 9.8 on a printer in a locked server room may be lower priority than a CVSS 7.2 on an internet-facing authentication server. Combine CVSS with: asset criticality, network exposure, presence of public exploit code (CISA KEV catalog), and compensating controls.</p>
+        </div>
+        <div class="callout callout-ok">
+            <div class="callout-label">PRIORITIZATION FRAMEWORK</div>
+            <p>1. Critical/High + Internet-exposed + Active exploit = Immediate (24-72h). 2. Critical/High + Internal only = Urgent (1-2 weeks). 3. Medium + Exploit exists = Standard (30 days). 4. Medium/Low + No exploit = Planned (next cycle). 5. Info = Review for attack surface reduction.</p>
+        </div>
+    </div>
+    <div class="card">
+        <h3>Trend Analysis — The Long View</h3>
+        <p>Point-in-time scans show current state. Trend analysis over time reveals whether your program is working. Track: total open findings by severity over time, mean time to remediate (MTTR) by severity, recurring findings (repeatedly opened/closed), and new findings introduced per sprint or release cycle.</p>
+    </div>
+    <div class="insight">
+        <div class="insight-label">PROFESSOR'S FIELD NOTE</div>
+        <p>In real SOC work, the scanner queue never empties. The skill is not fixing all vulnerabilities — it is articulating risk to business leadership in terms they understand, so resources flow to the right problems. A CVSS score is a technical artifact. Your job is to translate it into business impact: "This unpatched server can be exploited remotely with no credentials. An attacker who owns this box owns the patient database." That conversation gets patches approved.</p>
+    </div>
+
+    <!-- Completion -->
+    <div class="completion-bar">
+        <h3>Presentation Complete</h3>
+        <p>Mark this presentation complete to record your progress toward the CySA+ certification track.</p>
+        <button class="btn-complete" id="completeBtn" onclick="markComplete()">Mark as Complete</button>
+        <div class="complete-msg" id="completeMsg">Progress saved. Take the Chapter 5 quiz to test your knowledge.</div>
+    </div>
+
+</div>
+
+<script src="../../../../components/FluxCapacitor.js"></script>
+<script>
+    function markComplete() {
+        const btn = document.getElementById('completeBtn');
+        const msg = document.getElementById('completeMsg');
+        btn.disabled = true;
+        btn.textContent = 'Saving...';
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('eye', 'eye-cysa-ch05');
+        }
+        btn.textContent = 'Completed';
+        msg.style.display = 'block';
+    }
+
+    // Restore completed state on load
+    (function checkCompleted() {
+        const progress = JSON.parse(localStorage.getItem('hexworth_progress') || '{}');
+        if (progress['eye-cysa-ch05']) {
+            const btn = document.getElementById('completeBtn');
+            btn.textContent = 'Completed';
+            btn.disabled = true;
+            document.getElementById('completeMsg').style.display = 'block';
+        }
+    })();
+</script>
+</body>
+</html>

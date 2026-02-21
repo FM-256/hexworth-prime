@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ch 2 Lab: Threat Intelligence Analysis — CySA+ | Eye House</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --eye-primary: #a855f7;
+            --eye-secondary: #c084fc;
+            --eye-glow: rgba(168,85,247,0.35);
+            --bg-card: rgba(18,10,26,0.85);
+            --text: #e8e8f0;
+            --muted: #9988bb;
+            --ok: #2ed573;
+            --warn: #ffc107;
+            --bad: #ff4757;
+            --border: rgba(168,85,247,0.2);
+        }
+        body { font-family: 'Segoe UI', system-ui, sans-serif; background: linear-gradient(135deg, #0a0a12 0%, #120a1a 50%, #1a0a25 100%); color: var(--text); min-height: 100vh; padding: 20px; }
+        .container { max-width: 1000px; margin: 0 auto; }
+        .back-link { display: inline-flex; align-items: center; gap: 8px; color: var(--muted); text-decoration: none; margin-bottom: 20px; font-size: 0.9rem; transition: color 0.2s; }
+        .back-link:hover { color: var(--eye-primary); }
+        .header { text-align: center; margin-bottom: 30px; padding: 30px; background: rgba(168,85,247,0.07); border-radius: 16px; border: 1px solid var(--border); position: relative; overflow: hidden; }
+        .header::before { content: ''; position: absolute; top: -60px; left: 50%; transform: translateX(-50%); width: 300px; height: 300px; background: radial-gradient(circle, var(--eye-glow) 0%, transparent 70%); pointer-events: none; }
+        .header h1 { font-size: 2rem; color: var(--eye-primary); margin-bottom: 10px; position: relative; }
+        .header p { color: var(--muted); font-size: 1rem; position: relative; }
+        .header-badge { display: inline-block; background: linear-gradient(135deg, var(--eye-primary), var(--eye-secondary)); color: #000; padding: 0.25rem 0.85rem; border-radius: 20px; font-size: 0.75rem; font-weight: 700; letter-spacing: 0.06em; margin-bottom: 0.75rem; }
+        .progress-bar { background: rgba(255,255,255,0.08); border-radius: 10px; height: 10px; margin: 20px 0 6px; overflow: hidden; }
+        .progress-fill { height: 100%; background: linear-gradient(90deg, var(--eye-primary), var(--eye-secondary)); border-radius: 10px; transition: width 0.5s ease; width: 0%; }
+        .progress-text { text-align: center; color: var(--muted); font-size: 0.85rem; }
+        .exercise { background: rgba(255,255,255,0.02); border-radius: 12px; border: 1px solid rgba(255,255,255,0.08); margin-bottom: 20px; overflow: hidden; }
+        .exercise-header { background: rgba(168,85,247,0.08); padding: 18px 20px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; transition: background 0.2s; }
+        .exercise-header:hover { background: rgba(168,85,247,0.14); }
+        .exercise-title { display: flex; align-items: center; gap: 14px; }
+        .exercise-number { background: linear-gradient(135deg, var(--eye-primary), var(--eye-secondary)); color: #000; width: 34px; height: 34px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.9rem; flex-shrink: 0; }
+        .exercise-name { font-size: 1.1rem; color: var(--text); font-weight: 600; }
+        .exercise-status { padding: 4px 14px; border-radius: 20px; font-size: 0.82rem; font-weight: 600; }
+        .status-pending { background: rgba(100,100,100,0.25); color: var(--muted); }
+        .status-complete { background: rgba(46,222,128,0.15); color: var(--ok); border: 1px solid rgba(46,222,128,0.3); }
+        .exercise-content { padding: 24px; display: none; }
+        .exercise.active .exercise-content { display: block; }
+        .scenario { background: rgba(59,130,246,0.08); border-left: 4px solid #3b82f6; padding: 14px 18px; margin-bottom: 20px; border-radius: 0 8px 8px 0; }
+        .scenario h4 { color: #60a5fa; margin-bottom: 8px; font-size: 0.95rem; }
+        .scenario p { color: var(--muted); font-size: 0.9rem; }
+        .concept-box { background: rgba(251,191,36,0.08); border-left: 3px solid #fbbf24; padding: 14px 18px; margin: 14px 0; border-radius: 0 8px 8px 0; }
+        .concept-box h4 { color: #fbbf24; margin-bottom: 8px; font-size: 0.9rem; }
+        .concept-box ul { margin-left: 18px; }
+        .concept-box li { color: var(--muted); font-size: 0.88rem; margin-bottom: 4px; }
+        .diagram { background: rgba(0,0,0,0.5); border: 1px solid var(--border); border-radius: 10px; padding: 18px; margin: 14px 0; font-family: 'Courier New', monospace; font-size: 0.82rem; color: #a8ff78; overflow-x: auto; white-space: pre; line-height: 1.6; }
+        .task-list { list-style: none; margin: 16px 0; }
+        .task-item { padding: 11px 14px; margin: 7px 0; background: rgba(255,255,255,0.02); border-radius: 8px; display: flex; align-items: center; gap: 12px; border: 1px solid rgba(255,255,255,0.05); }
+        .task-item input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--eye-primary); flex-shrink: 0; }
+        .task-item.checked { background: rgba(46,222,128,0.04); border-color: rgba(46,222,128,0.15); }
+        .task-item.checked label { text-decoration: line-through; color: var(--muted); }
+        .task-item label { font-size: 0.9rem; color: var(--text); cursor: pointer; }
+        .question-section { background: rgba(168,85,247,0.07); border-radius: 10px; padding: 18px; margin: 18px 0; border: 1px solid var(--border); }
+        .question-section h4 { color: var(--eye-primary); margin-bottom: 12px; font-size: 0.95rem; }
+        .question-section p { color: var(--muted); font-size: 0.88rem; margin-bottom: 10px; }
+        .question-section textarea { width: 100%; min-height: 100px; background: rgba(0,0,0,0.35); border: 1px solid rgba(168,85,247,0.25); border-radius: 8px; padding: 12px; color: var(--text); font-family: inherit; resize: vertical; font-size: 0.9rem; }
+        .question-section textarea:focus { outline: none; border-color: var(--eye-primary); }
+        .complete-btn { background: linear-gradient(135deg, var(--eye-primary), var(--eye-secondary)); color: #000; border: none; padding: 11px 28px; border-radius: 8px; font-size: 0.95rem; font-weight: 600; cursor: pointer; margin-top: 14px; transition: transform 0.2s, box-shadow 0.2s; }
+        .complete-btn:hover { transform: translateY(-2px); box-shadow: 0 4px 18px var(--eye-glow); }
+        .complete-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+        .comparison-table { width: 100%; border-collapse: collapse; margin: 14px 0; font-size: 0.88rem; }
+        .comparison-table th, .comparison-table td { border: 1px solid rgba(168,85,247,0.15); padding: 9px 12px; text-align: left; }
+        .comparison-table th { background: rgba(168,85,247,0.15); color: var(--eye-primary); font-weight: 700; }
+        .comparison-table tr:nth-child(even) td { background: rgba(168,85,247,0.03); }
+        .comparison-table td { color: var(--muted); }
+        .completion-badge { display: none; text-align: center; padding: 40px; background: rgba(46,213,115,0.07); border-radius: 16px; border: 1px solid rgba(46,213,115,0.25); margin-top: 30px; }
+        .completion-badge.show { display: block; animation: fadeIn 0.5s ease; }
+        .completion-badge h2 { color: var(--ok); font-size: 1.8rem; margin-bottom: 10px; }
+        .completion-badge p { color: var(--muted); margin-bottom: 20px; }
+        .next-steps { margin-top: 18px; display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+        .next-steps a { display: inline-block; background: linear-gradient(135deg, var(--eye-primary), var(--eye-secondary)); color: #000; padding: 10px 22px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 0.9rem; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
+</head>
+<body>
+<div class="container">
+    <a href="../index.html" class="back-link">&larr; Back to CySA+</a>
+
+    <div class="header">
+        <div class="header-badge">EYE HOUSE — CySA+</div>
+        <h1>Threat Intelligence Analysis Lab</h1>
+        <p>STIX object construction, threat feed evaluation, IOC correlation, confidence scoring, and attack framework mapping exercises</p>
+        <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+        <div class="progress-text"><span id="completedCount">0</span> of 5 exercises completed</div>
+    </div>
+
+    <!-- Exercise 1: STIX Objects -->
+    <div class="exercise active" data-exercise="1">
+        <div class="exercise-header" onclick="toggleExercise(1)">
+            <div class="exercise-title">
+                <div class="exercise-number">1</div>
+                <div class="exercise-name">STIX Object Construction and Relationship Mapping</div>
+            </div>
+            <span class="exercise-status status-pending" id="status1">Pending</span>
+        </div>
+        <div class="exercise-content">
+            <div class="scenario">
+                <h4>Scenario: Documenting a Threat Actor Campaign</h4>
+                <p>Your threat intelligence team has observed a campaign targeting financial institutions. You need to document this campaign using STIX domain objects and define the relationships between them for sharing via TAXII with your ISAC.</p>
+            </div>
+
+            <div class="diagram">STIX 2.1 DOMAIN OBJECTS (12 types):
+
+  1. Attack Pattern   - How the attack is carried out (mapped to ATT&CK TTPs)
+  2. Campaign         - Grouping of related adversary behaviors over time
+  3. Course of Action - Recommended mitigations or remediations
+  4. Identity         - Organizations, groups, individuals
+  5. Indicator        - Pattern for detecting malicious activity (IOCs)
+  6. Intrusion Set    - Clustered behaviors attributed to one actor over time
+  7. Malware          - Specific malicious software (family, type, behavior)
+  8. Observed Data    - Raw data observed during analysis
+  9. Report           - Collection of threat intelligence about a topic
+ 10. Threat Actor     - Individual or group with malicious intent
+ 11. Tool             - Legitimate software used for attacks (e.g., Mimikatz)
+ 12. Vulnerability    - Specific CVE or weakness being exploited
+
+RELATIONSHIP TYPES:
+  - uses:       Threat Actor uses Malware, Tool, Attack Pattern
+  - targets:    Campaign targets Identity (victim organization)
+  - indicates:  Indicator indicates Attack Pattern or Malware
+  - mitigates:  Course of Action mitigates Vulnerability or Attack Pattern
+  - attributed-to: Intrusion Set attributed-to Threat Actor
+
+EXAMPLE STIX CHAIN for financial sector campaign:
+  [Threat Actor: APT-FIN7] --uses--> [Tool: Cobalt Strike]
+  [Threat Actor: APT-FIN7] --uses--> [Attack Pattern: Spear Phishing]
+  [Campaign: Operation QuarterBreak] --targets--> [Identity: Bank Corp]
+  [Indicator: hash:abc123] --indicates--> [Malware: Carbanak]</div>
+
+            <ul class="task-list">
+                <li class="task-item"><input type="checkbox" id="t1-1" onchange="checkTask(1)"><label for="t1-1">Identify all 12 STIX domain object types and understand their purpose</label></li>
+                <li class="task-item"><input type="checkbox" id="t1-2" onchange="checkTask(1)"><label for="t1-2">Construct a STIX relationship chain for a ransomware campaign against a hospital (minimum 5 objects linked by relationships)</label></li>
+                <li class="task-item"><input type="checkbox" id="t1-3" onchange="checkTask(1)"><label for="t1-3">Explain the difference between STIX and TAXII and why both are required for intelligence sharing</label></li>
+                <li class="task-item"><input type="checkbox" id="t1-4" onchange="checkTask(1)"><label for="t1-4">Research how MISP (Malware Information Sharing Platform) implements STIX and TAXII in practice</label></li>
+            </ul>
+
+            <div class="question-section">
+                <h4>STIX Design Exercise</h4>
+                <p>A threat actor group (call them "ShadowBrokers-2") is using a spear-phishing campaign to deliver a backdoor trojan called "GhostRAT-v3" against US defense contractors. They then use Mimikatz for credential theft. Design a STIX object map: list at least 6 STIX domain objects, write out 5 specific relationships between them using STIX relationship types, and explain what information each relationship provides to a defender receiving this intelligence via TAXII.</p>
+                <textarea id="q1" placeholder="List STIX objects, define relationships, and explain defender value..."></textarea>
+            </div>
+            <button class="complete-btn" onclick="completeExercise(1)" id="btn1">Mark Complete</button>
+        </div>
+    </div>
+
+    <!-- Exercise 2: Confidence Scoring -->
+    <div class="exercise" data-exercise="2">
+        <div class="exercise-header" onclick="toggleExercise(2)">
+            <div class="exercise-title">
+                <div class="exercise-number">2</div>
+                <div class="exercise-name">Threat Intelligence Confidence Scoring and Feed Evaluation</div>
+            </div>
+            <span class="exercise-status status-pending" id="status2">Pending</span>
+        </div>
+        <div class="exercise-content">
+            <div class="scenario">
+                <h4>Scenario: Evaluating Five Intelligence Reports</h4>
+                <p>Your team has received five threat intelligence reports from different sources over the past week. You must assign confidence scores, assess quality, and decide which to act on immediately, which to monitor, and which to deprioritize.</p>
+            </div>
+
+            <table class="comparison-table">
+                <tr>
+                    <th>Report</th>
+                    <th>Source</th>
+                    <th>Details</th>
+                    <th>Confidence Assessment</th>
+                </tr>
+                <tr>
+                    <td><strong>Report A</strong></td>
+                    <td>FS-ISAC (Financial ISAC)</td>
+                    <td>Three FS-ISAC member banks independently observed the same malware hash targeting wire transfer systems. Full technical analysis provided.</td>
+                    <td>CONFIRMED (90-100) — Multiple independent sources, direct analysis</td>
+                </tr>
+                <tr>
+                    <td><strong>Report B</strong></td>
+                    <td>Open Twitter / social media</td>
+                    <td>A single security researcher tweets about a new attack but provides no indicators, no samples, and no technical evidence.</td>
+                    <td>IMPROBABLE (2-29) — Single unverified source, no technical evidence</td>
+                </tr>
+                <tr>
+                    <td><strong>Report C</strong></td>
+                    <td>Vendor threat blog</td>
+                    <td>Major vendor describes a new threat actor with 3 technical IOCs, logical attribution based on TTP overlap with known group, but no direct confirmation.</td>
+                    <td>PROBABLE (70-89) — Credible vendor, logical inference, limited direct confirmation</td>
+                </tr>
+                <tr>
+                    <td><strong>Report D</strong></td>
+                    <td>Internal SOC alert</td>
+                    <td>Your own SIEM flagged suspicious behavior from one internal host. Initial analysis suggests possible compromise but investigation is ongoing.</td>
+                    <td>POSSIBLE (50-69) — Internal data, plausible, not yet confirmed</td>
+                </tr>
+                <tr>
+                    <td><strong>Report E</strong></td>
+                    <td>Anonymous tip line</td>
+                    <td>Anonymous tip claims a specific employee is selling data, but no supporting evidence and information contradicts known access patterns.</td>
+                    <td>DOUBTFUL (30-49) — Anonymous, contradictory with known data</td>
+                </tr>
+            </table>
+
+            <ul class="task-list">
+                <li class="task-item"><input type="checkbox" id="t2-1" onchange="checkTask(2)"><label for="t2-1">Review the confidence level reasoning for all five reports and understand the assessment rationale</label></li>
+                <li class="task-item"><input type="checkbox" id="t2-2" onchange="checkTask(2)"><label for="t2-2">Identify what additional information would raise Report B from Improbable to Possible or Probable</label></li>
+                <li class="task-item"><input type="checkbox" id="t2-3" onchange="checkTask(2)"><label for="t2-3">Explain why a Doubtful-scored report (Report E) should not be completely ignored despite its low confidence</label></li>
+                <li class="task-item"><input type="checkbox" id="t2-4" onchange="checkTask(2)"><label for="t2-4">Research ThreatConnect's confidence scoring framework and compare it to the MISP confidence scale</label></li>
+            </ul>
+
+            <div class="question-section">
+                <h4>Intelligence Triage Decision</h4>
+                <p>You receive a Probable (75) confidence report that a threat actor specifically targeting healthcare organizations is actively exploiting CVE-2024-9999 (a RCE vulnerability in your VPN product). The CVE is unpatched and a patch won't be available for 10 days. You also receive a Confirmed (95) report about a low-severity credential stuffing campaign against healthcare portals. Explain: (a) how confidence scoring affects your response priority, (b) what immediate actions you take for each report, and (c) what compensating controls you implement while the patch is unavailable.</p>
+                <textarea id="q2" placeholder="Describe how you triage based on confidence, severity, and exposure — then detail specific actions..."></textarea>
+            </div>
+            <button class="complete-btn" onclick="completeExercise(2)" id="btn2">Mark Complete</button>
+        </div>
+    </div>
+
+    <!-- Exercise 3: IOC Correlation -->
+    <div class="exercise" data-exercise="3">
+        <div class="exercise-header" onclick="toggleExercise(3)">
+            <div class="exercise-title">
+                <div class="exercise-number">3</div>
+                <div class="exercise-name">IOC Correlation and Threat Feed Matching</div>
+            </div>
+            <span class="exercise-status status-pending" id="status3">Pending</span>
+        </div>
+        <div class="exercise-content">
+            <div class="scenario">
+                <h4>Scenario: Correlating Indicators Across Multiple Feeds</h4>
+                <p>Your SIEM has ingested IOCs from three different threat feeds. You must correlate these IOCs against internal log data to determine if your organization has been targeted or compromised by the threat actor described in the intelligence.</p>
+            </div>
+
+            <div class="diagram">IOC TYPES AND THEIR DETECTION SOURCES:
+
+  IOC Type         | Detection Method              | Evasion Difficulty
+  ─────────────────┼───────────────────────────────┼──────────────────
+  File Hash (MD5)  | AV/EDR signature match        | Low (easy to change)
+  IP Address       | Firewall/proxy block lists     | Low (IPs rotate fast)
+  Domain Name      | DNS sinkholes, proxy filtering | Medium
+  URL              | Web proxy, browser filter      | Medium
+  Email Address    | Email gateway, OSINT           | Medium
+  Registry Key     | EDR behavioral rule            | High (OS-level)
+  File Path/Name   | EDR behavioral rule            | Low (easy to change)
+  Network Behavior | Behavioral analytics (UEBA)    | High (hard to fake)
+  Mutex Name       | Memory forensics               | High (unique per sample)
+
+PYRAMID OF PAIN (David Bianco):
+  Attacker Pain to Change   | IOC Type
+  ──────────────────────────┼──────────────────
+  Easy (low pain to us)     | Hash values
+  Easy                      | IP addresses
+  Simple                    | Domain names
+  Annoying                  | Network/host artifacts
+  Challenging               | TTPs (tactics, techniques, procedures)
+  Very Hard (high pain)     | TTPs at the behavioral level
+
+LESSON: Blocking hashes is easy to evade; detecting TTPs is durable</div>
+
+            <ul class="task-list">
+                <li class="task-item"><input type="checkbox" id="t3-1" onchange="checkTask(3)"><label for="t3-1">Study the IOC types table and understand why hash-based detection is easy to evade</label></li>
+                <li class="task-item"><input type="checkbox" id="t3-2" onchange="checkTask(3)"><label for="t3-2">Explain the Pyramid of Pain concept and why TTP-based detection is more valuable than hash-based detection</label></li>
+                <li class="task-item"><input type="checkbox" id="t3-3" onchange="checkTask(3)"><label for="t3-3">Design a hypothetical IOC correlation workflow: how would your SIEM match incoming IOCs against internal logs?</label></li>
+                <li class="task-item"><input type="checkbox" id="t3-4" onchange="checkTask(3)"><label for="t3-4">Research how CISA's Automated Indicator Sharing (AIS) program works and what IOC types it shares</label></li>
+            </ul>
+
+            <div class="question-section">
+                <h4>IOC Correlation Challenge</h4>
+                <p>Your threat intelligence feed provides: (1) File hash: a1b2c3d4e5f6... (2) C2 IP: 185.220.101.47 (3) Mutex: "\BaseNamedObjects\AHNDC" (4) User-Agent string: "Mozilla/4.0 (compatible; MSIE 6.0; FakeBrowser)". Your SIEM shows that host 10.0.5.22 made 47 connections to 185.220.101.47 over the past 6 hours. Explain: (a) which IOC type is most reliable as confirmation of compromise and why (using Pyramid of Pain), (b) what additional artifacts you would look for on host 10.0.5.22, and (c) what immediate containment actions you take.</p>
+                <textarea id="q3" placeholder="Apply Pyramid of Pain, describe forensic analysis steps, and define containment actions..."></textarea>
+            </div>
+            <button class="complete-btn" onclick="completeExercise(3)" id="btn3">Mark Complete</button>
+        </div>
+    </div>
+
+    <!-- Exercise 4: Attack Framework Mapping -->
+    <div class="exercise" data-exercise="4">
+        <div class="exercise-header" onclick="toggleExercise(4)">
+            <div class="exercise-title">
+                <div class="exercise-number">4</div>
+                <div class="exercise-name">MITRE ATT&amp;CK Mapping: From IOCs to Tactics</div>
+            </div>
+            <span class="exercise-status status-pending" id="status4">Pending</span>
+        </div>
+        <div class="exercise-content">
+            <div class="scenario">
+                <h4>Scenario: Mapping a Real Attack to ATT&amp;CK</h4>
+                <p>Your SOC has investigated a successful intrusion. You have a detailed timeline of adversary actions. Your job is to map each action to MITRE ATT&amp;CK tactics and techniques to build a comprehensive picture of the attack and identify detection gaps.</p>
+            </div>
+
+            <table class="comparison-table">
+                <tr>
+                    <th>Attacker Action</th>
+                    <th>ATT&CK Tactic</th>
+                    <th>Example Technique</th>
+                </tr>
+                <tr><td>Sent targeted phishing email with malicious attachment to finance team</td><td>Initial Access (TA0001)</td><td>Spear Phishing Attachment (T1566.001)</td></tr>
+                <tr><td>Malicious Word macro executed PowerShell script on victim machine</td><td>Execution (TA0002)</td><td>Command and Scripting Interpreter: PowerShell (T1059.001)</td></tr>
+                <tr><td>Created scheduled task to survive reboots</td><td>Persistence (TA0003)</td><td>Scheduled Task/Job: Scheduled Task (T1053.005)</td></tr>
+                <tr><td>Ran Mimikatz to dump LSASS memory for credentials</td><td>Credential Access (TA0006)</td><td>OS Credential Dumping: LSASS Memory (T1003.001)</td></tr>
+                <tr><td>Used stolen admin credentials to access file servers via SMB</td><td>Lateral Movement (TA0008)</td><td>Remote Services: SMB/Windows Admin Shares (T1021.002)</td></tr>
+                <tr><td>Staged data in compressed archive on C:\Windows\Temp</td><td>Collection (TA0009)</td><td>Archive Collected Data (T1560)</td></tr>
+                <tr><td>Uploaded data via HTTPS to attacker-controlled cloud storage</td><td>Exfiltration (TA0010)</td><td>Exfiltration Over Web Service (T1567)</td></tr>
+            </table>
+
+            <ul class="task-list">
+                <li class="task-item"><input type="checkbox" id="t4-1" onchange="checkTask(4)"><label for="t4-1">Review the full ATT&CK tactic list (14 tactics) at attack.mitre.org and understand their sequence</label></li>
+                <li class="task-item"><input type="checkbox" id="t4-2" onchange="checkTask(4)"><label for="t4-2">For each technique in the table, identify at least one detection strategy and one mitigation from the ATT&CK framework</label></li>
+                <li class="task-item"><input type="checkbox" id="t4-3" onchange="checkTask(4)"><label for="t4-3">Identify which ATT&CK tactics from the table above have no detection controls in a basic Windows environment</label></li>
+                <li class="task-item"><input type="checkbox" id="t4-4" onchange="checkTask(4)"><label for="t4-4">Compare MITRE ATT&CK to the Lockheed Martin Kill Chain — which provides more actionable defensive detail?</label></li>
+            </ul>
+
+            <div class="question-section">
+                <h4>Detection Gap Analysis</h4>
+                <p>Using the ATT&CK mapping table above, your organization has the following detection capabilities: email gateway (scans attachments), Windows Defender AV (no EDR), no PowerShell logging, no Sysmon, no network traffic analysis, and standard Windows Event Log collection. Identify which of the seven attack stages you would detect, which you would miss entirely, and design a prioritized list of three detection capability improvements that would close the most critical gaps — with specific tool/configuration recommendations.</p>
+                <textarea id="q4" placeholder="Map your detections, identify gaps, and recommend prioritized improvements with specifics..."></textarea>
+            </div>
+            <button class="complete-btn" onclick="completeExercise(4)" id="btn4">Mark Complete</button>
+        </div>
+    </div>
+
+    <!-- Exercise 5: Threat Hunting -->
+    <div class="exercise" data-exercise="5">
+        <div class="exercise-header" onclick="toggleExercise(5)">
+            <div class="exercise-title">
+                <div class="exercise-number">5</div>
+                <div class="exercise-name">Proactive Threat Hunting: Hypothesis Design</div>
+            </div>
+            <span class="exercise-status status-pending" id="status5">Pending</span>
+        </div>
+        <div class="exercise-content">
+            <div class="scenario">
+                <h4>Scenario: Building Your First Threat Hunt</h4>
+                <p>Following a threat intelligence report that a nation-state actor (APT group) has been targeting your industry using living-off-the-land techniques (using legitimate Windows tools for malicious purposes), your CISO asks you to design and execute a threat hunt. No alerts have fired. No incidents are known. You must proactively search for evidence of compromise.</p>
+            </div>
+
+            <div class="diagram">THREAT HUNT PROCESS:
+
+Step 1: HYPOTHESIS
+  "Nation-state actor has achieved persistence on our network
+   using scheduled tasks created via PowerShell, and is beaconing
+   to C2 infrastructure over HTTPS on non-standard ports."
+
+Step 2: DEFINE HUNTING QUESTIONS
+  - Are there any scheduled tasks created in the last 90 days
+    via PowerShell (schtasks.exe parent: powershell.exe)?
+  - Are there processes making outbound HTTPS connections to
+    IP addresses NOT in our known-good list on port 8443?
+  - Are there any base64-encoded command-line arguments in
+    PowerShell process creation logs?
+  - Are there LSASS access events from processes other than
+    known security software?
+
+Step 3: COLLECT AND ANALYZE DATA
+  - Data sources: Windows Event Logs (Security, System, PowerShell)
+  - Sysmon (if deployed): process creation, network connections
+  - EDR telemetry: file writes, registry changes, network
+  - Network logs: proxy logs, DNS queries, flow data
+
+Step 4: INTERPRET FINDINGS
+  - True positives: evidence of adversary activity → respond
+  - False positives: normal admin activity → document as baseline
+  - No findings: validates current detection coverage (or hunt better)
+
+Step 5: IMPROVE DETECTION
+  - Create SIEM detection rules based on hunting findings
+  - Add IOCs to threat feed blocklists
+  - Document TTPs discovered for future hunts</div>
+
+            <ul class="task-list">
+                <li class="task-item"><input type="checkbox" id="t5-1" onchange="checkTask(5)"><label for="t5-1">Understand the five-step threat hunting process in the diagram</label></li>
+                <li class="task-item"><input type="checkbox" id="t5-2" onchange="checkTask(5)"><label for="t5-2">Write two additional hunting hypotheses based on different ATT&CK tactics (choose from Credential Access or Defense Evasion)</label></li>
+                <li class="task-item"><input type="checkbox" id="t5-3" onchange="checkTask(5)"><label for="t5-3">Identify five data sources required for effective threat hunting in a Windows enterprise environment</label></li>
+                <li class="task-item"><input type="checkbox" id="t5-4" onchange="checkTask(5)"><label for="t5-4">Explain why a hunt that finds nothing is still valuable — what has been proven by a clean hunt?</label></li>
+            </ul>
+
+            <div class="question-section">
+                <h4>Complete Hunt Design</h4>
+                <p>Design a complete threat hunt based on the following intelligence: Your H-ISAC feed reports that a threat actor targeting healthcare organizations uses WMI (Windows Management Instrumentation) to establish persistence and move laterally without creating files on disk (fileless attack). Design your hunt: (a) Write a specific, testable hypothesis, (b) List 4 specific data sources and what you are looking for in each, (c) Write 3 specific queries or search conditions you would run in your SIEM, (d) Define what a true positive looks like vs. a false positive for WMI-based lateral movement.</p>
+                <textarea id="q5" placeholder="Write your hypothesis, data sources, queries, and true/false positive definitions..."></textarea>
+            </div>
+            <button class="complete-btn" onclick="completeExercise(5)" id="btn5">Mark Complete</button>
+        </div>
+    </div>
+
+    <!-- Completion Badge -->
+    <div class="completion-badge" id="completionBadge">
+        <h2>Threat Intelligence Lab Complete</h2>
+        <p>You have mastered STIX object construction, confidence scoring, IOC correlation, ATT&CK mapping, and proactive threat hunting design.</p>
+        <div class="next-steps">
+            <a href="../quizzes/cysa-ch02-quiz.quiz.html">Take the Chapter 2 Quiz</a>
+            <a href="../index.html">Back to CySA+</a>
+        </div>
+    </div>
+</div>
+
+<script>
+    const TOTAL = 5;
+    let completedExercises = new Set();
+    document.addEventListener('DOMContentLoaded', () => { loadProgress(); updateProgressBar(); });
+    function toggleExercise(num) {
+        const ex = document.querySelector(`[data-exercise="${num}"]`);
+        const wasActive = ex.classList.contains('active');
+        document.querySelectorAll('.exercise').forEach(e => e.classList.remove('active'));
+        if (!wasActive) ex.classList.add('active');
+    }
+    function checkTask(num) {
+        document.querySelector(`[data-exercise="${num}"]`).querySelectorAll('input[type="checkbox"]').forEach(cb => { cb.closest('.task-item').classList.toggle('checked', cb.checked); });
+        saveProgress();
+    }
+    function completeExercise(num) {
+        completedExercises.add(num);
+        document.getElementById(`status${num}`).textContent = 'Complete';
+        document.getElementById(`status${num}`).className = 'exercise-status status-complete';
+        document.getElementById(`btn${num}`).textContent = 'Completed';
+        document.getElementById(`btn${num}`).disabled = true;
+        updateProgressBar();
+        saveProgress();
+        if (num < TOTAL) setTimeout(() => toggleExercise(num + 1), 400);
+        if (completedExercises.size === TOTAL) {
+            document.getElementById('completionBadge').classList.add('show');
+            if (typeof ModuleProgress !== 'undefined') { ModuleProgress.complete('eye', 'eye-cysa-ch02-lab'); }
+        }
+    }
+    function updateProgressBar() {
+        document.getElementById('progressFill').style.width = (completedExercises.size / TOTAL * 100) + '%';
+        document.getElementById('completedCount').textContent = completedExercises.size;
+    }
+    function saveProgress() {
+        const data = { completed: Array.from(completedExercises), checkboxes: {}, answers: {} };
+        document.querySelectorAll('input[type="checkbox"]').forEach(cb => { data.checkboxes[cb.id] = cb.checked; });
+        document.querySelectorAll('textarea').forEach(ta => { data.answers[ta.id] = ta.value; });
+        localStorage.setItem('eye_cysa_ch02_lab', JSON.stringify(data));
+    }
+    function loadProgress() {
+        const saved = localStorage.getItem('eye_cysa_ch02_lab');
+        if (!saved) return;
+        const data = JSON.parse(saved);
+        if (data.completed) data.completed.forEach(num => { completedExercises.add(num); document.getElementById(`status${num}`).textContent = 'Complete'; document.getElementById(`status${num}`).className = 'exercise-status status-complete'; document.getElementById(`btn${num}`).textContent = 'Completed'; document.getElementById(`btn${num}`).disabled = true; });
+        if (data.checkboxes) Object.entries(data.checkboxes).forEach(([id, checked]) => { const cb = document.getElementById(id); if (cb) { cb.checked = checked; if (checked) cb.closest('.task-item').classList.add('checked'); } });
+        if (data.answers) Object.entries(data.answers).forEach(([id, val]) => { const ta = document.getElementById(id); if (ta) ta.value = val; });
+        if (completedExercises.size === TOTAL) document.getElementById('completionBadge').classList.add('show');
+    }
+</script>
+<script src="../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>

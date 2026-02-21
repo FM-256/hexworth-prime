@@ -1,0 +1,549 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Risk Management Lab — CySA+ Eye House</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root { --eye-primary: #a855f7; --eye-secondary: #c084fc; --bg-main: linear-gradient(135deg, #0a0a12, #120a1a, #1a0a25); --card: rgba(15,10,25,0.9); --text: #e8e8f0; --muted: #8080a0; --ok: #34d399; --warn: #fbbf24; --bad: #f87171; --border: rgba(168,85,247,0.22); }
+        body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg-main); color: var(--text); min-height: 100vh; padding: 0 0 60px; }
+        .site-header { background: rgba(10,5,20,0.96); border-bottom: 1px solid var(--border); padding: 0.9rem 2rem; position: sticky; top: 0; z-index: 100; display: flex; align-items: center; justify-content: space-between; backdrop-filter: blur(12px); }
+        .back-link { color: var(--eye-secondary); text-decoration: none; font-size: 0.9rem; font-weight: 600; display: flex; align-items: center; gap: 0.4rem; transition: opacity 0.2s; }
+        .back-link:hover { opacity: 0.75; }
+        .header-badge { background: linear-gradient(135deg, var(--eye-primary), var(--eye-secondary)); color: #fff; padding: 0.35rem 1rem; border-radius: 20px; font-size: 0.78rem; font-weight: 700; letter-spacing: 0.05em; }
+        .container { max-width: 1000px; margin: 0 auto; padding: 30px 20px; }
+        .lab-header { text-align: center; margin-bottom: 30px; padding: 30px; background: rgba(168,85,247,0.08); border-radius: 16px; border: 1px solid var(--border); }
+        .lab-header h1 { font-size: 2.1rem; color: var(--eye-primary); margin-bottom: 10px; }
+        .lab-header p { color: var(--muted); font-size: 1.05rem; }
+        .progress-bar { background: rgba(255,255,255,0.1); border-radius: 10px; height: 10px; margin: 18px 0; overflow: hidden; }
+        .progress-fill { height: 100%; background: linear-gradient(90deg, var(--eye-primary), var(--eye-secondary)); border-radius: 10px; transition: width 0.5s ease; width: 0%; }
+        .progress-text { text-align: center; color: var(--muted); font-size: 0.88rem; }
+        .exercise { background: rgba(255,255,255,0.025); border-radius: 12px; border: 1px solid var(--border); margin-bottom: 22px; overflow: hidden; }
+        .exercise-header { background: rgba(168,85,247,0.09); padding: 18px 20px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; transition: background 0.2s; }
+        .exercise-header:hover { background: rgba(168,85,247,0.15); }
+        .exercise-title { display: flex; align-items: center; gap: 14px; }
+        .exercise-number { background: linear-gradient(135deg, var(--eye-primary), var(--eye-secondary)); color: #fff; width: 34px; height: 34px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.88rem; flex-shrink: 0; }
+        .exercise-name { font-size: 1.1rem; color: var(--text); font-weight: 600; }
+        .exercise-status { padding: 4px 14px; border-radius: 20px; font-size: 0.82rem; font-weight: 600; }
+        .status-pending { background: rgba(100,100,120,0.3); color: #888; }
+        .status-complete { background: rgba(52,211,153,0.18); color: var(--ok); }
+        .exercise-content { padding: 24px; display: none; }
+        .exercise.active .exercise-content { display: block; }
+        .scenario { background: rgba(99,102,241,0.08); border-left: 4px solid #818cf8; padding: 14px 18px; margin-bottom: 18px; border-radius: 0 8px 8px 0; }
+        .scenario h4 { color: #a5b4fc; margin-bottom: 6px; font-size: 0.95rem; }
+        .scenario p { color: var(--muted); font-size: 0.9rem; margin: 0; }
+        .concept-box { background: rgba(251,191,36,0.07); border-left: 3px solid var(--warn); padding: 14px 18px; margin: 14px 0; border-radius: 0 8px 8px 0; }
+        .concept-box h4 { color: var(--warn); margin-bottom: 8px; font-size: 0.9rem; }
+        .concept-box p, .concept-box li { color: var(--muted); font-size: 0.86rem; margin: 0; line-height: 1.6; }
+        .concept-box ul { margin-left: 18px; }
+        /* BIA calculation table */
+        .bia-table { width: 100%; border-collapse: collapse; margin: 14px 0; font-size: 0.86rem; }
+        .bia-table th { padding: 0.6rem 1rem; background: rgba(168,85,247,0.14); color: var(--eye-secondary); font-size: 0.78rem; font-weight: 700; text-align: left; border-bottom: 1px solid var(--border); }
+        .bia-table td { padding: 0.6rem 1rem; color: var(--muted); border-bottom: 1px solid rgba(168,85,247,0.06); vertical-align: middle; }
+        .bia-table td input[type="text"] { background: rgba(0,0,0,0.35); border: 1px solid rgba(168,85,247,0.25); border-radius: 6px; padding: 5px 9px; color: var(--text); font-family: inherit; font-size: 0.85rem; width: 90%; }
+        .bia-table td input[type="text"]:focus { outline: none; border-color: var(--eye-primary); }
+        /* Risk register table */
+        .rr-table { width: 100%; border-collapse: collapse; margin: 14px 0; font-size: 0.84rem; }
+        .rr-table th { padding: 0.55rem 0.8rem; background: rgba(168,85,247,0.14); color: var(--eye-secondary); font-size: 0.78rem; font-weight: 700; text-align: left; border-bottom: 1px solid var(--border); }
+        .rr-table td { padding: 0.55rem 0.8rem; color: var(--muted); border-bottom: 1px solid rgba(168,85,247,0.06); }
+        .rr-table td input { background: rgba(0,0,0,0.3); border: 1px solid rgba(168,85,247,0.2); border-radius: 4px; padding: 4px 7px; color: var(--text); font-size: 0.8rem; width: 100%; }
+        .rr-table td input:focus { outline: none; border-color: var(--eye-primary); }
+        .risk-high { background: rgba(248,113,113,0.08) !important; }
+        .risk-med { background: rgba(251,191,36,0.06) !important; }
+        .risk-low { background: rgba(52,211,153,0.05) !important; }
+        /* Task list */
+        .task-list { list-style: none; margin: 16px 0; }
+        .task-item { padding: 10px 14px; margin: 7px 0; background: rgba(255,255,255,0.02); border-radius: 8px; display: flex; align-items: flex-start; gap: 11px; border: 1px solid rgba(255,255,255,0.05); }
+        .task-item input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--eye-primary); flex-shrink: 0; margin-top: 2px; }
+        .task-item.checked { background: rgba(52,211,153,0.05); border-color: rgba(52,211,153,0.2); }
+        .task-item.checked label { text-decoration: line-through; color: #555; }
+        .task-item label { color: var(--muted); font-size: 0.9rem; cursor: pointer; line-height: 1.5; }
+        /* Calculation helper */
+        .calc-helper { background: rgba(168,85,247,0.08); border: 1px solid var(--border); border-radius: 10px; padding: 16px; margin: 14px 0; }
+        .calc-helper h4 { color: var(--eye-primary); font-size: 0.9rem; margin-bottom: 10px; }
+        .calc-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 10px; }
+        .calc-input-group { display: flex; flex-direction: column; gap: 4px; }
+        .calc-input-group label { font-size: 0.72rem; color: var(--eye-secondary); font-weight: 700; letter-spacing: 0.05em; }
+        .calc-input-group input { background: rgba(0,0,0,0.4); border: 1px solid rgba(168,85,247,0.3); border-radius: 6px; padding: 6px 10px; color: var(--text); font-size: 0.88rem; }
+        .calc-input-group input:focus { outline: none; border-color: var(--eye-primary); }
+        .calc-result { background: rgba(0,0,0,0.4); border: 1px solid rgba(168,85,247,0.3); border-radius: 8px; padding: 12px; display: flex; gap: 20px; align-items: center; flex-wrap: wrap; }
+        .calc-result span { font-size: 0.9rem; color: var(--text); }
+        .calc-result strong { color: var(--warn); font-size: 1.1rem; }
+        .calc-btn { background: linear-gradient(135deg, var(--eye-primary), var(--eye-secondary)); color: #fff; border: none; padding: 8px 20px; border-radius: 6px; cursor: pointer; font-size: 0.88rem; font-weight: 600; transition: opacity 0.2s; }
+        .calc-btn:hover { opacity: 0.85; }
+        /* Question area */
+        .question-section { background: rgba(168,85,247,0.06); border-radius: 10px; padding: 18px; margin: 16px 0; }
+        .question-section h4 { color: var(--eye-primary); margin-bottom: 12px; font-size: 0.92rem; }
+        .question-section textarea { width: 100%; min-height: 100px; background: rgba(0,0,0,0.35); border: 1px solid rgba(168,85,247,0.3); border-radius: 8px; padding: 11px; color: var(--text); font-family: inherit; font-size: 0.9rem; resize: vertical; }
+        .question-section textarea:focus { outline: none; border-color: var(--eye-primary); }
+        .complete-btn { background: linear-gradient(135deg, var(--eye-primary), var(--eye-secondary)); color: #fff; border: none; padding: 11px 28px; border-radius: 8px; font-size: 0.95rem; font-weight: 600; cursor: pointer; margin-top: 14px; transition: transform 0.2s, box-shadow 0.2s; }
+        .complete-btn:hover { transform: translateY(-2px); box-shadow: 0 4px 18px rgba(168,85,247,0.4); }
+        .complete-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+        .completion-badge { display: none; text-align: center; padding: 40px; background: rgba(52,211,153,0.07); border-radius: 16px; border: 2px solid rgba(52,211,153,0.3); margin-top: 30px; }
+        .completion-badge.show { display: block; animation: fadeIn 0.5s ease; }
+        .completion-badge h2 { color: var(--ok); font-size: 2rem; margin-bottom: 10px; }
+        .badge-desc { color: var(--muted); margin-bottom: 20px; font-size: 0.95rem; }
+        .next-steps a { display: inline-block; background: linear-gradient(135deg, var(--eye-primary), var(--eye-secondary)); color: #fff; padding: 11px 24px; border-radius: 8px; text-decoration: none; font-weight: 600; margin: 5px; font-size: 0.9rem; }
+        @keyframes fadeIn { from{opacity:0;transform:translateY(20px)} to{opacity:1;transform:translateY(0)} }
+        @media (max-width: 640px) { .calc-row { grid-template-columns: 1fr 1fr; } }
+    </style>
+</head>
+<body>
+
+<header class="site-header">
+    <a href="../index.html" class="back-link">&larr; Back to CySA+</a>
+    <span class="header-badge">EYE HOUSE — CySA+</span>
+</header>
+
+<div class="container">
+    <div class="lab-header">
+        <h1>Risk Management Lab</h1>
+        <p>Chapter 15 — BIA exercise, ALE calculations, risk register creation, and risk treatment planning</p>
+        <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+        <div class="progress-text"><span id="completedCount">0</span> of 4 exercises completed</div>
+    </div>
+
+    <!-- Exercise 1: ALE Calculations -->
+    <div class="exercise active" data-exercise="1">
+        <div class="exercise-header" onclick="toggleExercise(1)">
+            <div class="exercise-title">
+                <div class="exercise-number">1</div>
+                <div class="exercise-name">Quantitative Risk: ALE Calculator</div>
+            </div>
+            <span class="exercise-status status-pending" id="status1">Pending</span>
+        </div>
+        <div class="exercise-content">
+            <div class="scenario">
+                <h4>Scenario: Financial Justification for Security Controls</h4>
+                <p>Your CISO needs financial justification for three proposed security investments. Use quantitative risk analysis to calculate the Annualized Loss Expectancy for each risk, then determine which controls are cost-justified.</p>
+            </div>
+
+            <div class="calc-helper">
+                <h4>ALE Calculator — Enter values and click Calculate</h4>
+                <div class="calc-row">
+                    <div class="calc-input-group">
+                        <label>ASSET VALUE ($)</label>
+                        <input type="number" id="calcAV" placeholder="500000">
+                    </div>
+                    <div class="calc-input-group">
+                        <label>EXPOSURE FACTOR (%)</label>
+                        <input type="number" id="calcEF" placeholder="40" min="0" max="100">
+                    </div>
+                    <div class="calc-input-group">
+                        <label>OCCURRENCES/YEAR</label>
+                        <input type="number" id="calcARO" placeholder="0.5" step="0.1">
+                    </div>
+                    <div class="calc-input-group" style="justify-content: flex-end;">
+                        <label>&nbsp;</label>
+                        <button class="calc-btn" onclick="calculateALE()">Calculate ALE</button>
+                    </div>
+                </div>
+                <div class="calc-result">
+                    <span>SLE = <strong id="calcSLE">$0</strong></span>
+                    <span>ALE = <strong id="calcALE">$0</strong></span>
+                    <span style="color: var(--muted); font-size: 0.82rem;">Formula: SLE = AV &times; EF &nbsp;|&nbsp; ALE = SLE &times; ARO</span>
+                </div>
+            </div>
+
+            <h4 style="color: var(--eye-secondary); margin: 16px 0 8px;">Practice Scenarios</h4>
+            <table class="bia-table">
+                <thead>
+                    <tr><th>Risk Scenario</th><th>AV</th><th>EF</th><th>ARO</th><th>Control Cost/yr</th><th>Your ALE</th><th>Justified?</th></tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Web app DDoS attack</td>
+                        <td>$50,000/hr × 4 hrs</td>
+                        <td>90%</td>
+                        <td>2x/yr</td>
+                        <td>$60,000</td>
+                        <td><input type="text" id="sc1ale" placeholder="$..."></td>
+                        <td><input type="text" id="sc1just" placeholder="Yes/No"></td>
+                    </tr>
+                    <tr>
+                        <td>Ransomware on file servers</td>
+                        <td>$800,000</td>
+                        <td>65%</td>
+                        <td>0.3x/yr</td>
+                        <td>$40,000</td>
+                        <td><input type="text" id="sc2ale" placeholder="$..."></td>
+                        <td><input type="text" id="sc2just" placeholder="Yes/No"></td>
+                    </tr>
+                    <tr>
+                        <td>Laptop theft with customer PII</td>
+                        <td>$200,000</td>
+                        <td>100%</td>
+                        <td>4x/yr</td>
+                        <td>$15,000</td>
+                        <td><input type="text" id="sc3ale" placeholder="$..."></td>
+                        <td><input type="text" id="sc3just" placeholder="Yes/No"></td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <div class="concept-box">
+                <h4>ALE Answer Key (verify your work)</h4>
+                <ul>
+                    <li><strong>DDoS:</strong> AV = $200,000 | SLE = $180,000 | ALE = $360,000 | Control: $60,000 — JUSTIFIED (saves $300,000/yr)</li>
+                    <li><strong>Ransomware:</strong> AV = $800,000 | SLE = $520,000 | ALE = $156,000 | Control: $40,000 — JUSTIFIED (saves $116,000/yr)</li>
+                    <li><strong>Laptop theft:</strong> AV = $200,000 | SLE = $200,000 | ALE = $800,000 | Control: $15,000 — JUSTIFIED (saves $785,000/yr)</li>
+                </ul>
+            </div>
+
+            <ul class="task-list">
+                <li class="task-item">
+                    <input type="checkbox" id="t1-1" onchange="checkTask(1)">
+                    <label for="t1-1">Complete all three ALE calculations in the table above using the calculator or manual formula</label>
+                </li>
+                <li class="task-item">
+                    <input type="checkbox" id="t1-2" onchange="checkTask(1)">
+                    <label for="t1-2">Understand that ALE is the maximum you should spend on a control annually — a $15,000 laptop encryption solution against an $800,000 ALE has extraordinary ROI</label>
+                </li>
+                <li class="task-item">
+                    <input type="checkbox" id="t1-3" onchange="checkTask(1)">
+                    <label for="t1-3">Recognize that ALE is not the full picture — qualitative factors (reputational damage, regulatory fines, customer trust) may justify controls beyond what ALE alone supports</label>
+                </li>
+            </ul>
+
+            <button class="complete-btn" onclick="completeExercise(1)" id="btn1">Mark Exercise Complete</button>
+        </div>
+    </div>
+
+    <!-- Exercise 2: BIA Exercise -->
+    <div class="exercise" data-exercise="2">
+        <div class="exercise-header" onclick="toggleExercise(2)">
+            <div class="exercise-title">
+                <div class="exercise-number">2</div>
+                <div class="exercise-name">Business Impact Analysis (BIA)</div>
+            </div>
+            <span class="exercise-status status-pending" id="status2">Pending</span>
+        </div>
+        <div class="exercise-content">
+            <div class="scenario">
+                <h4>Scenario: BIA for a Regional Bank</h4>
+                <p>A regional bank with $2B in assets must complete a BIA to support their DR/BCP planning and regulatory requirements. Complete the BIA table for the 5 critical systems below by determining their financial impact per hour of downtime, RTO, and RPO.</p>
+            </div>
+
+            <table class="bia-table">
+                <thead>
+                    <tr><th>Business Function</th><th>Hourly Impact</th><th>Max Tolerable Downtime</th><th>Your RTO</th><th>Your RPO</th></tr>
+                </thead>
+                <tbody>
+                    <tr class="risk-high">
+                        <td><strong>Core Banking System</strong><br><small style="color: var(--muted);">All transactions, deposits, withdrawals</small></td>
+                        <td style="color: var(--bad);">$500K+/hr (regulatory + customer)</td>
+                        <td>2 hours</td>
+                        <td><input type="text" id="bia1rto" placeholder="e.g. 2 hours"></td>
+                        <td><input type="text" id="bia1rpo" placeholder="e.g. 5 minutes"></td>
+                    </tr>
+                    <tr class="risk-high">
+                        <td><strong>Online Banking Portal</strong><br><small style="color: var(--muted);">Customer-facing web interface</small></td>
+                        <td style="color: var(--warn);">$80K/hr (revenue loss + brand)</td>
+                        <td>4 hours</td>
+                        <td><input type="text" id="bia2rto" placeholder=""></td>
+                        <td><input type="text" id="bia2rpo" placeholder=""></td>
+                    </tr>
+                    <tr class="risk-med">
+                        <td><strong>Email System</strong><br><small style="color: var(--muted);">Internal and external communications</small></td>
+                        <td style="color: var(--muted);">$15K/hr (productivity)</td>
+                        <td>8 hours</td>
+                        <td><input type="text" id="bia3rto" placeholder=""></td>
+                        <td><input type="text" id="bia3rpo" placeholder=""></td>
+                    </tr>
+                    <tr class="risk-med">
+                        <td><strong>ATM Network</strong><br><small style="color: var(--muted);">Cash dispensing infrastructure</small></td>
+                        <td style="color: var(--warn);">$200K/hr (regulatory + customer)</td>
+                        <td>3 hours</td>
+                        <td><input type="text" id="bia4rto" placeholder=""></td>
+                        <td><input type="text" id="bia4rpo" placeholder=""></td>
+                    </tr>
+                    <tr class="risk-low">
+                        <td><strong>HR/Payroll System</strong><br><small style="color: var(--muted);">Employee compensation processing</small></td>
+                        <td style="color: var(--muted);">$5K/hr (except payroll cycle)</td>
+                        <td>24-72 hours</td>
+                        <td><input type="text" id="bia5rto" placeholder=""></td>
+                        <td><input type="text" id="bia5rpo" placeholder=""></td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <ul class="task-list">
+                <li class="task-item">
+                    <input type="checkbox" id="t2-1" onchange="checkTask(2)">
+                    <label for="t2-1">Complete all 5 RTO and RPO fields — RTO must be equal to or less than the Maximum Tolerable Downtime; RPO should reflect the acceptable data loss for each function</label>
+                </li>
+                <li class="task-item">
+                    <input type="checkbox" id="t2-2" onchange="checkTask(2)">
+                    <label for="t2-2">Understand that RTO must always be less than or equal to the Maximum Tolerable Downtime (MTD) — RTO is your recovery target; MTD is the hard deadline before catastrophic business impact</label>
+                </li>
+                <li class="task-item">
+                    <input type="checkbox" id="t2-3" onchange="checkTask(2)">
+                    <label for="t2-3">Know that a low RPO (5 minutes) requires near-real-time replication or synchronous write commits — this is expensive; the RPO drives the backup/replication technology decision</label>
+                </li>
+            </ul>
+
+            <div class="question-section">
+                <h4>BIA-Driven Decision: Replication Technology</h4>
+                <p>The Core Banking System has an RPO of 5 minutes. The email system has an RPO of 1 hour. What backup/replication technology approach would you recommend for each, and what is the cost/complexity tradeoff between them?</p>
+                <textarea id="q2" placeholder="Compare replication technologies for 5-minute RPO vs. 1-hour RPO and justify your recommendations..."></textarea>
+            </div>
+            <button class="complete-btn" onclick="completeExercise(2)" id="btn2">Mark Exercise Complete</button>
+        </div>
+    </div>
+
+    <!-- Exercise 3: Risk Register -->
+    <div class="exercise" data-exercise="3">
+        <div class="exercise-header" onclick="toggleExercise(3)">
+            <div class="exercise-title">
+                <div class="exercise-number">3</div>
+                <div class="exercise-name">Risk Register Creation</div>
+            </div>
+            <span class="exercise-status status-pending" id="status3">Pending</span>
+        </div>
+        <div class="exercise-content">
+            <div class="scenario">
+                <h4>Scenario: Building a Risk Register for a SaaS Company</h4>
+                <p>A SaaS company asked you to create their first formal risk register. Complete the register below for 5 identified risks by entering probability, impact, risk score (P × I), and selecting the appropriate treatment strategy.</p>
+            </div>
+
+            <table class="rr-table">
+                <thead>
+                    <tr><th>Risk ID</th><th>Risk Description</th><th>Probability<br>(1-5)</th><th>Impact<br>(1-5)</th><th>Score<br>(P×I)</th><th>Treatment</th><th>Owner</th></tr>
+                </thead>
+                <tbody>
+                    <tr class="risk-high">
+                        <td>R-001</td>
+                        <td>API key exposure in public GitHub repository</td>
+                        <td><input id="rr1p" placeholder="4"></td>
+                        <td><input id="rr1i" placeholder="5"></td>
+                        <td><input id="rr1s" placeholder="20"></td>
+                        <td><input id="rr1t" placeholder="Mitigate/Avoid/Transfer/Accept"></td>
+                        <td><input id="rr1o" placeholder="DevSecOps Lead"></td>
+                    </tr>
+                    <tr class="risk-high">
+                        <td>R-002</td>
+                        <td>Third-party dependency with critical CVE (no patch available)</td>
+                        <td><input id="rr2p" placeholder="3"></td>
+                        <td><input id="rr2i" placeholder="4"></td>
+                        <td><input id="rr2s" placeholder="12"></td>
+                        <td><input id="rr2t" placeholder="Mitigate/Avoid/Transfer/Accept"></td>
+                        <td><input id="rr2o" placeholder="Engineering Lead"></td>
+                    </tr>
+                    <tr class="risk-med">
+                        <td>R-003</td>
+                        <td>Single availability zone hosting (no geographic redundancy)</td>
+                        <td><input id="rr3p" placeholder="2"></td>
+                        <td><input id="rr3i" placeholder="4"></td>
+                        <td><input id="rr3s" placeholder="8"></td>
+                        <td><input id="rr3t" placeholder="Mitigate/Avoid/Transfer/Accept"></td>
+                        <td><input id="rr3o" placeholder="Infrastructure Lead"></td>
+                    </tr>
+                    <tr class="risk-med">
+                        <td>R-004</td>
+                        <td>MFA not enforced on all admin accounts</td>
+                        <td><input id="rr4p" placeholder="3"></td>
+                        <td><input id="rr4i" placeholder="5"></td>
+                        <td><input id="rr4s" placeholder="15"></td>
+                        <td><input id="rr4t" placeholder="Mitigate/Avoid/Transfer/Accept"></td>
+                        <td><input id="rr4o" placeholder="IAM Team"></td>
+                    </tr>
+                    <tr class="risk-low">
+                        <td>R-005</td>
+                        <td>Minor regulatory non-compliance in EU data retention</td>
+                        <td><input id="rr5p" placeholder="2"></td>
+                        <td><input id="rr5i" placeholder="3"></td>
+                        <td><input id="rr5s" placeholder="6"></td>
+                        <td><input id="rr5t" placeholder="Mitigate/Avoid/Transfer/Accept"></td>
+                        <td><input id="rr5o" placeholder="Privacy Counsel"></td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <ul class="task-list">
+                <li class="task-item">
+                    <input type="checkbox" id="t3-1" onchange="checkTask(3)">
+                    <label for="t3-1">Complete all fields in the risk register — note that R-001 (API key exposure) should be Avoid/Mitigate (scan repos, rotate keys, prevent public exposure) — NOT Accept</label>
+                </li>
+                <li class="task-item">
+                    <input type="checkbox" id="t3-2" onchange="checkTask(3)">
+                    <label for="t3-2">Understand that R-003 (single availability zone) at lower probability might be Transferred (cloud availability SLA + cyber insurance) or Accepted with documented residual risk</label>
+                </li>
+                <li class="task-item">
+                    <input type="checkbox" id="t3-3" onchange="checkTask(3)">
+                    <label for="t3-3">Know that every accepted risk must have documented owner sign-off — silent acceptance is not a legitimate risk management strategy</label>
+                </li>
+            </ul>
+            <button class="complete-btn" onclick="completeExercise(3)" id="btn3">Mark Exercise Complete</button>
+        </div>
+    </div>
+
+    <!-- Exercise 4: Risk Treatment Planning -->
+    <div class="exercise" data-exercise="4">
+        <div class="exercise-header" onclick="toggleExercise(4)">
+            <div class="exercise-title">
+                <div class="exercise-number">4</div>
+                <div class="exercise-name">Risk Treatment Planning and CIA Triad Analysis</div>
+            </div>
+            <span class="exercise-status status-pending" id="status4">Pending</span>
+        </div>
+        <div class="exercise-content">
+            <div class="scenario">
+                <h4>Scenario: Threat Scenario Classification and Treatment</h4>
+                <p>For each security scenario below, identify which CIA triad objective is primarily violated, whether the threat is primarily a threat actor or environmental, and propose a specific countermeasure.</p>
+            </div>
+
+            <ul class="task-list">
+                <li class="task-item">
+                    <input type="checkbox" id="t4-1" onchange="checkTask(4)">
+                    <label for="t4-1">SCENARIO A: An attacker intercepts an unencrypted API call and reads customer account data. CIA objective violated: _______ . Primary threat type: _______ . Countermeasure: _______</label>
+                </li>
+                <li class="task-item">
+                    <input type="checkbox" id="t4-2" onchange="checkTask(4)">
+                    <label for="t4-2">SCENARIO B: SQL injection modifies transaction records in a financial database, changing payment amounts. CIA objective violated: _______ . Countermeasure: _______</label>
+                </li>
+                <li class="task-item">
+                    <input type="checkbox" id="t4-3" onchange="checkTask(4)">
+                    <label for="t4-3">SCENARIO C: A hurricane destroys a data center, taking down customer services for 3 days. CIA objective violated: _______ . Primary threat type: _______ . Countermeasure: _______</label>
+                </li>
+                <li class="task-item">
+                    <input type="checkbox" id="t4-4" onchange="checkTask(4)">
+                    <label for="t4-4">SCENARIO D: An employee steals a laptop containing unencrypted intellectual property. CIA objective(s) violated: _______ . Risk treatment strategy: _______ . Countermeasure: _______</label>
+                </li>
+            </ul>
+
+            <div class="concept-box">
+                <h4>Answer Key for CIA Analysis</h4>
+                <ul>
+                    <li><strong>A: Confidentiality</strong> — Threat actor. Countermeasure: TLS/HTTPS for all API communications, certificate pinning</li>
+                    <li><strong>B: Integrity</strong> — Threat actor. Countermeasure: Input validation, parameterized queries, database activity monitoring, integrity hashing</li>
+                    <li><strong>C: Availability</strong> — Environmental/natural. Countermeasure: Geographic redundancy, DR site, cloud failover, BCP activation</li>
+                    <li><strong>D: Confidentiality (and possibly Integrity)</strong> — Insider threat. Treatment: Mitigate. Countermeasure: Full-disk encryption, DLP, screen privacy filters, clean desk policy</li>
+                </ul>
+            </div>
+
+            <div class="question-section">
+                <h4>Red Team vs. Blue Team: What is Purple Teaming?</h4>
+                <p>Your organization wants to improve SOC detection capabilities. Compare the value of a traditional red team exercise vs. a purple team exercise for this specific objective. Which would you recommend and why? What are the limitations of each approach?</p>
+                <textarea id="q4" placeholder="Compare traditional red team vs. purple team for improving SOC detection, and justify your recommendation..."></textarea>
+            </div>
+            <button class="complete-btn" onclick="completeExercise(4)" id="btn4">Mark Exercise Complete</button>
+        </div>
+    </div>
+
+    <!-- Completion Badge -->
+    <div class="completion-badge" id="completionBadge">
+        <h2>Risk Management Lab Complete</h2>
+        <p class="badge-desc">You have practiced ALE calculations, BIA creation with RTO/RPO, risk register construction, and CIA triad threat classification. These skills are directly tested on the CySA+ exam.</p>
+        <div class="next-steps">
+            <a href="../quizzes/cysa-ch15-quiz.quiz.html">Take the Ch 15 Quiz</a>
+            <a href="../index.html">Back to CySA+</a>
+        </div>
+    </div>
+</div>
+
+<script src="../../../../components/FluxCapacitor.js"></script>
+<script>
+    const TOTAL_EXERCISES = 4;
+    let completedExercises = new Set();
+    const STORE_KEY = 'eye_cysa_ch15_risk_lab';
+
+    document.addEventListener('DOMContentLoaded', () => { loadProgress(); updateProgressBar(); });
+
+    function calculateALE() {
+        const av = parseFloat(document.getElementById('calcAV').value) || 0;
+        const ef = parseFloat(document.getElementById('calcEF').value) / 100 || 0;
+        const aro = parseFloat(document.getElementById('calcARO').value) || 0;
+        const sle = av * ef;
+        const ale = sle * aro;
+        const fmt = v => '$' + Math.round(v).toLocaleString();
+        document.getElementById('calcSLE').textContent = fmt(sle);
+        document.getElementById('calcALE').textContent = fmt(ale);
+    }
+
+    function toggleExercise(num) {
+        const el = document.querySelector(`[data-exercise="${num}"]`);
+        const wasActive = el.classList.contains('active');
+        document.querySelectorAll('.exercise').forEach(e => e.classList.remove('active'));
+        if (!wasActive) el.classList.add('active');
+    }
+
+    function checkTask(exerciseNum) {
+        const ex = document.querySelector(`[data-exercise="${exerciseNum}"]`);
+        ex.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+            const item = cb.closest('.task-item');
+            if (item) item.classList.toggle('checked', cb.checked);
+        });
+        saveProgress();
+    }
+
+    function completeExercise(num) {
+        completedExercises.add(num);
+        document.getElementById(`status${num}`).textContent = 'Complete';
+        document.getElementById(`status${num}`).className = 'exercise-status status-complete';
+        document.getElementById(`btn${num}`).textContent = 'Completed';
+        document.getElementById(`btn${num}`).disabled = true;
+        updateProgressBar(); saveProgress();
+        if (num < TOTAL_EXERCISES) setTimeout(() => toggleExercise(num + 1), 500);
+        if (completedExercises.size === TOTAL_EXERCISES) {
+            document.getElementById('completionBadge').classList.add('show');
+            if (typeof ModuleProgress !== 'undefined') ModuleProgress.complete('eye', 'eye-cysa-ch15-lab');
+        }
+    }
+
+    function updateProgressBar() {
+        const pct = (completedExercises.size / TOTAL_EXERCISES) * 100;
+        document.getElementById('progressFill').style.width = pct + '%';
+        document.getElementById('completedCount').textContent = completedExercises.size;
+    }
+
+    function saveProgress() {
+        const data = { completed: Array.from(completedExercises), checkboxes: {}, inputs: {}, answers: {} };
+        document.querySelectorAll('input[type="checkbox"]').forEach(cb => { data.checkboxes[cb.id] = cb.checked; });
+        document.querySelectorAll('input[type="text"], input[type="number"]').forEach(inp => { if (inp.id) data.inputs[inp.id] = inp.value; });
+        document.querySelectorAll('textarea').forEach(ta => { data.answers[ta.id] = ta.value; });
+        try { localStorage.setItem(STORE_KEY, JSON.stringify(data)); } catch(e) {}
+    }
+
+    function loadProgress() {
+        try {
+            const saved = localStorage.getItem(STORE_KEY);
+            if (!saved) return;
+            const data = JSON.parse(saved);
+            if (data.completed) {
+                data.completed.forEach(num => {
+                    completedExercises.add(num);
+                    document.getElementById(`status${num}`).textContent = 'Complete';
+                    document.getElementById(`status${num}`).className = 'exercise-status status-complete';
+                    document.getElementById(`btn${num}`).textContent = 'Completed';
+                    document.getElementById(`btn${num}`).disabled = true;
+                });
+            }
+            if (data.checkboxes) {
+                Object.entries(data.checkboxes).forEach(([id, checked]) => {
+                    const cb = document.getElementById(id);
+                    if (cb) { cb.checked = checked; const item = cb.closest('.task-item'); if (item && checked) item.classList.add('checked'); }
+                });
+            }
+            if (data.inputs) {
+                Object.entries(data.inputs).forEach(([id, value]) => {
+                    const el = document.getElementById(id);
+                    if (el) el.value = value;
+                });
+            }
+            if (data.answers) {
+                Object.entries(data.answers).forEach(([id, value]) => {
+                    const ta = document.getElementById(id);
+                    if (ta) ta.value = value;
+                });
+            }
+            if (completedExercises.size === TOTAL_EXERCISES) document.getElementById('completionBadge').classList.add('show');
+        } catch(e) {}
+    }
+</script>
+</body>
+</html>
