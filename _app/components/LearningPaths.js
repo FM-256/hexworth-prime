@@ -1865,6 +1865,32 @@ class LearningPaths {
             ]
         },
 
+        // Cyber Law & Policy Framework — Shield House
+        'cyber-framework': {
+            name: 'Cyber Law & Policy Framework',
+            description: 'Law and Policy of Cybersecurity — legal landscape, government roles, CFAA, regulatory frameworks, NIST CSF, encryption law, breach litigation, and international cyber law',
+            icon: '⚖️',
+            color: '#10b981',
+            modules: [
+                { id: 'shield-cf-mm01', title: 'MM1: Introduction to Legal/Regulatory/Policy Issues', type: 'presentation', href: 'houses/shield/cyber-framework/presentations/cf-mm01-intro.presentation.html' },
+                { id: 'shield-cf-mm01-lab', title: 'MM1 Lab: Cybersecurity Law Foundations', type: 'lab', href: 'houses/shield/cyber-framework/labs/cf-mm01-intro.lab.html' },
+                { id: 'shield-cf-mm02', title: 'MM2: Government Agency Roles & Responsibilities', type: 'presentation', href: 'houses/shield/cyber-framework/presentations/cf-mm02-gov-agencies.presentation.html' },
+                { id: 'shield-cf-mm02-lab', title: 'MM2 Lab: Government Agencies in Cybersecurity', type: 'lab', href: 'houses/shield/cyber-framework/labs/cf-mm02-gov-agencies.lab.html' },
+                { id: 'shield-cf-mm03', title: 'MM3: Major Cybersecurity Legislation', type: 'presentation', href: 'houses/shield/cyber-framework/presentations/cf-mm03-legislation.presentation.html' },
+                { id: 'shield-cf-mm03-lab', title: 'MM3 Lab: CFAA & Data Breach Notification', type: 'lab', href: 'houses/shield/cyber-framework/labs/cf-mm03-legislation.lab.html' },
+                { id: 'shield-cf-mm04', title: 'MM4: Major Regulatory Frameworks', type: 'presentation', href: 'houses/shield/cyber-framework/presentations/cf-mm04-regulatory.presentation.html' },
+                { id: 'shield-cf-mm04-lab', title: 'MM4 Lab: Regulatory Compliance', type: 'lab', href: 'houses/shield/cyber-framework/labs/cf-mm04-regulatory.lab.html' },
+                { id: 'shield-cf-mm05', title: 'MM5: Critical Infrastructure & NIST CSF', type: 'presentation', href: 'houses/shield/cyber-framework/presentations/cf-mm05-nist-cip.presentation.html' },
+                { id: 'shield-cf-mm05-lab', title: 'MM5 Lab: NIST Framework Application', type: 'lab', href: 'houses/shield/cyber-framework/labs/cf-mm05-nist-cip.lab.html' },
+                { id: 'shield-cf-mm06', title: 'MM6: Encryption Law & Policy', type: 'presentation', href: 'houses/shield/cyber-framework/presentations/cf-mm06-encryption.presentation.html' },
+                { id: 'shield-cf-mm06-lab', title: 'MM6 Lab: Encryption Policy Analysis', type: 'lab', href: 'houses/shield/cyber-framework/labs/cf-mm06-encryption.lab.html' },
+                { id: 'shield-cf-mm07', title: 'MM7: Data Breach Litigation', type: 'presentation', href: 'houses/shield/cyber-framework/presentations/cf-mm07-breach-litigation.presentation.html' },
+                { id: 'shield-cf-mm07-lab', title: 'MM7 Lab: Breach Litigation Analysis', type: 'lab', href: 'houses/shield/cyber-framework/labs/cf-mm07-breach-litigation.lab.html' },
+                { id: 'shield-cf-mm08', title: 'MM8: International Law & Cyber War', type: 'presentation', href: 'houses/shield/cyber-framework/presentations/cf-mm08-cyber-war.presentation.html' },
+                { id: 'shield-cf-mm08-lab', title: 'MM8 Lab: International Cyber Law', type: 'lab', href: 'houses/shield/cyber-framework/labs/cf-mm08-cyber-war.lab.html' }
+            ]
+        },
+
         // Windows Server Administration (AZ-800) — Cloud House
         'wsa': {
             name: 'Windows Server Administration',

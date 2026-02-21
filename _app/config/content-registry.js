@@ -18802,6 +18802,407 @@ const ContentRegistry = {
             prerequisites: [],
             objectives: []
         },
+        // ─── SHIELD HOUSE — Cyber Law & Policy Framework ───
+        'shield-cf-mm01-pres': {
+            id: 'shield-cf-mm01-pres',
+            title: 'MM1: Introduction to Legal/Regulatory/Policy Issues',
+            description: 'Cyber Framework Micromodule 1 — CIA Triad, threat actors, motives, cybersecurity knowledge gap, competing interests in cybersecurity policy',
+            house: 'shield',
+            type: 'presentation',
+            difficulty: 'intermediate',
+            duration: 30,
+            topics: ['cyber-law', 'CIA-triad', 'threat-actors', 'cybersecurity-policy'],
+            paths: ['cyber-framework'],
+            components: {
+                presentation: 'houses/shield/cyber-framework/presentations/cf-mm01-intro.presentation.html'
+            },
+            prerequisites: [],
+            objectives: ['Describe cybersecurity concepts', 'Identify threat actors and motives', 'Analyze competing interests in cybersecurity']
+        },
+        'shield-cf-mm02-pres': {
+            id: 'shield-cf-mm02-pres',
+            title: 'MM2: Government Agency Roles & Responsibilities',
+            description: 'Cyber Framework Micromodule 2 — DOJ/FBI, NIST, DHS, CISA, NSA, US Cyber Command, regulatory agencies, PPD-41, NCIRP',
+            house: 'shield',
+            type: 'presentation',
+            difficulty: 'intermediate',
+            duration: 35,
+            topics: ['government-agencies', 'CISA', 'NSA', 'FBI', 'PPD-41', 'NCIRP'],
+            paths: ['cyber-framework'],
+            components: {
+                presentation: 'houses/shield/cyber-framework/presentations/cf-mm02-gov-agencies.presentation.html'
+            },
+            prerequisites: ['shield-cf-mm01-pres'],
+            objectives: ['Describe roles of US government agencies', 'Explain federal cyber incident response']
+        },
+        'shield-cf-mm03-pres': {
+            id: 'shield-cf-mm03-pres',
+            title: 'MM3: Major Cybersecurity Legislation',
+            description: 'Cyber Framework Micromodule 3 — CFAA (18 USC 1030), Van Buren v. US, state data breach notification laws',
+            house: 'shield',
+            type: 'presentation',
+            difficulty: 'intermediate',
+            duration: 35,
+            topics: ['CFAA', 'Van-Buren', 'data-breach-notification', 'cybersecurity-legislation'],
+            paths: ['cyber-framework'],
+            components: {
+                presentation: 'houses/shield/cyber-framework/presentations/cf-mm03-legislation.presentation.html'
+            },
+            prerequisites: ['shield-cf-mm02-pres'],
+            objectives: ['Explain the CFAA', 'Analyze Van Buren implications', 'Understand state breach notification obligations']
+        },
+        'shield-cf-mm04-pres': {
+            id: 'shield-cf-mm04-pres',
+            title: 'MM4: Major Regulatory Frameworks',
+            description: 'Cyber Framework Micromodule 4 — FTC Section 5, HIPAA Security Rule, GLBA Safeguards Rule, SEC cyber disclosures',
+            house: 'shield',
+            type: 'presentation',
+            difficulty: 'intermediate',
+            duration: 35,
+            topics: ['FTC', 'HIPAA', 'GLBA', 'SEC', 'regulatory-frameworks'],
+            paths: ['cyber-framework'],
+            components: {
+                presentation: 'houses/shield/cyber-framework/presentations/cf-mm04-regulatory.presentation.html'
+            },
+            prerequisites: ['shield-cf-mm03-pres'],
+            objectives: ['Describe the regulatory environment', 'Identify chief federal regulators', 'Summarize cybersecurity regulations']
+        },
+        'shield-cf-mm05-pres': {
+            id: 'shield-cf-mm05-pres',
+            title: 'MM5: Critical Infrastructure & NIST CSF',
+            description: 'Cyber Framework Micromodule 5 — 16 CI sectors, DHS/CISA protection, NIST Cybersecurity Framework 2.0 (Core, Tiers, Profiles)',
+            house: 'shield',
+            type: 'presentation',
+            difficulty: 'intermediate',
+            duration: 30,
+            topics: ['critical-infrastructure', 'NIST-CSF', 'CISA', 'risk-management'],
+            paths: ['cyber-framework'],
+            components: {
+                presentation: 'houses/shield/cyber-framework/presentations/cf-mm05-nist-cip.presentation.html'
+            },
+            prerequisites: ['shield-cf-mm04-pres'],
+            objectives: ['Describe DHS CI protection', 'Articulate NIST CSF benefits', 'Summarize CSF components']
+        },
+        'shield-cf-mm06-pres': {
+            id: 'shield-cf-mm06-pres',
+            title: 'MM6: Encryption Law & Policy',
+            description: 'Cyber Framework Micromodule 6 — Going Dark problem, Apple v. FBI, encryption backdoors, 5th Amendment forced decryption, Foregone Conclusion Doctrine',
+            house: 'shield',
+            type: 'presentation',
+            difficulty: 'advanced',
+            duration: 35,
+            topics: ['encryption', 'Apple-v-FBI', 'going-dark', '5th-amendment', 'forced-decryption'],
+            paths: ['cyber-framework'],
+            components: {
+                presentation: 'houses/shield/cyber-framework/presentations/cf-mm06-encryption.presentation.html'
+            },
+            prerequisites: ['shield-cf-mm05-pres'],
+            objectives: ['Explain the Going Dark problem', 'Summarize Apple v. FBI', 'Analyze forced decryption under 5th Amendment']
+        },
+        'shield-cf-mm07-pres': {
+            id: 'shield-cf-mm07-pres',
+            title: 'MM7: Data Breach Litigation',
+            description: 'Cyber Framework Micromodule 7 — negligence claims, Article III standing, Economic Loss Doctrine, Clapper, Remijas, Spokeo, TransUnion cases',
+            house: 'shield',
+            type: 'presentation',
+            difficulty: 'advanced',
+            duration: 35,
+            topics: ['breach-litigation', 'negligence', 'standing', 'economic-loss-doctrine'],
+            paths: ['cyber-framework'],
+            components: {
+                presentation: 'houses/shield/cyber-framework/presentations/cf-mm07-breach-litigation.presentation.html'
+            },
+            prerequisites: ['shield-cf-mm06-pres'],
+            objectives: ['Identify causes of action in breach cases', 'Explain legal standing', 'Analyze standing hurdles']
+        },
+        'shield-cf-mm08-pres': {
+            id: 'shield-cf-mm08-pres',
+            title: 'MM8: International Law & Cyber War',
+            description: 'Cyber Framework Micromodule 8 — international law in cyberspace, Tallinn Manual, jus ad bellum, jus in bello, NATO Article 5, use of force doctrine',
+            house: 'shield',
+            type: 'presentation',
+            difficulty: 'advanced',
+            duration: 40,
+            topics: ['international-law', 'cyber-war', 'Tallinn-Manual', 'NATO', 'jus-ad-bellum'],
+            paths: ['cyber-framework'],
+            components: {
+                presentation: 'houses/shield/cyber-framework/presentations/cf-mm08-cyber-war.presentation.html'
+            },
+            prerequisites: ['shield-cf-mm07-pres'],
+            objectives: ['Discuss IL applicability to cyberspace', 'Identify cyber use of force', 'Apply LOAC to cyber operations']
+        },
+        'shield-cf-mm01-quiz': {
+            id: 'shield-cf-mm01-quiz',
+            title: 'MM1 Quiz: Cybersecurity Fundamentals',
+            description: 'Quiz on CIA Triad, threat actors, motives, competing interests in cybersecurity',
+            house: 'shield',
+            type: 'quiz',
+            difficulty: 'intermediate',
+            duration: 15,
+            topics: ['CIA-triad', 'threat-actors', 'cybersecurity-policy'],
+            paths: ['cyber-framework'],
+            components: {
+                quiz: 'houses/shield/cyber-framework/quizzes/cf-mm01-quiz.quiz.html'
+            },
+            prerequisites: ['shield-cf-mm01-pres'],
+            objectives: []
+        },
+        'shield-cf-mm02-quiz': {
+            id: 'shield-cf-mm02-quiz',
+            title: 'MM2 Quiz: Government Agencies',
+            description: 'Quiz on US government agency roles in cybersecurity',
+            house: 'shield',
+            type: 'quiz',
+            difficulty: 'intermediate',
+            duration: 15,
+            topics: ['government-agencies', 'CISA', 'FBI', 'PPD-41'],
+            paths: ['cyber-framework'],
+            components: {
+                quiz: 'houses/shield/cyber-framework/quizzes/cf-mm02-quiz.quiz.html'
+            },
+            prerequisites: ['shield-cf-mm02-pres'],
+            objectives: []
+        },
+        'shield-cf-mm03-quiz': {
+            id: 'shield-cf-mm03-quiz',
+            title: 'MM3 Quiz: CFAA & Data Breach Laws',
+            description: 'Quiz on CFAA, Van Buren, state data breach notification laws',
+            house: 'shield',
+            type: 'quiz',
+            difficulty: 'intermediate',
+            duration: 15,
+            topics: ['CFAA', 'Van-Buren', 'data-breach-notification'],
+            paths: ['cyber-framework'],
+            components: {
+                quiz: 'houses/shield/cyber-framework/quizzes/cf-mm03-quiz.quiz.html'
+            },
+            prerequisites: ['shield-cf-mm03-pres'],
+            objectives: []
+        },
+        'shield-cf-mm04-quiz': {
+            id: 'shield-cf-mm04-quiz',
+            title: 'MM4 Quiz: Regulatory Frameworks',
+            description: 'Quiz on FTC, HIPAA, GLBA, SEC regulatory frameworks',
+            house: 'shield',
+            type: 'quiz',
+            difficulty: 'intermediate',
+            duration: 15,
+            topics: ['FTC', 'HIPAA', 'GLBA', 'SEC'],
+            paths: ['cyber-framework'],
+            components: {
+                quiz: 'houses/shield/cyber-framework/quizzes/cf-mm04-quiz.quiz.html'
+            },
+            prerequisites: ['shield-cf-mm04-pres'],
+            objectives: []
+        },
+        'shield-cf-mm05-quiz': {
+            id: 'shield-cf-mm05-quiz',
+            title: 'MM5 Quiz: NIST CSF & Critical Infrastructure',
+            description: 'Quiz on NIST Cybersecurity Framework, critical infrastructure protection',
+            house: 'shield',
+            type: 'quiz',
+            difficulty: 'intermediate',
+            duration: 15,
+            topics: ['NIST-CSF', 'critical-infrastructure'],
+            paths: ['cyber-framework'],
+            components: {
+                quiz: 'houses/shield/cyber-framework/quizzes/cf-mm05-quiz.quiz.html'
+            },
+            prerequisites: ['shield-cf-mm05-pres'],
+            objectives: []
+        },
+        'shield-cf-mm06-quiz': {
+            id: 'shield-cf-mm06-quiz',
+            title: 'MM6 Quiz: Encryption Law',
+            description: 'Quiz on encryption policy, Apple v. FBI, forced decryption, 5th Amendment',
+            house: 'shield',
+            type: 'quiz',
+            difficulty: 'advanced',
+            duration: 15,
+            topics: ['encryption', 'Apple-v-FBI', '5th-amendment'],
+            paths: ['cyber-framework'],
+            components: {
+                quiz: 'houses/shield/cyber-framework/quizzes/cf-mm06-quiz.quiz.html'
+            },
+            prerequisites: ['shield-cf-mm06-pres'],
+            objectives: []
+        },
+        'shield-cf-mm07-quiz': {
+            id: 'shield-cf-mm07-quiz',
+            title: 'MM7 Quiz: Breach Litigation',
+            description: 'Quiz on negligence claims, Article III standing, landmark breach cases',
+            house: 'shield',
+            type: 'quiz',
+            difficulty: 'advanced',
+            duration: 15,
+            topics: ['breach-litigation', 'negligence', 'standing'],
+            paths: ['cyber-framework'],
+            components: {
+                quiz: 'houses/shield/cyber-framework/quizzes/cf-mm07-quiz.quiz.html'
+            },
+            prerequisites: ['shield-cf-mm07-pres'],
+            objectives: []
+        },
+        'shield-cf-mm08-quiz': {
+            id: 'shield-cf-mm08-quiz',
+            title: 'MM8 Quiz: International Law & Cyber War',
+            description: 'Quiz on international law in cyberspace, use of force, Tallinn Manual, NATO Article 5',
+            house: 'shield',
+            type: 'quiz',
+            difficulty: 'advanced',
+            duration: 15,
+            topics: ['international-law', 'cyber-war', 'NATO'],
+            paths: ['cyber-framework'],
+            components: {
+                quiz: 'houses/shield/cyber-framework/quizzes/cf-mm08-quiz.quiz.html'
+            },
+            prerequisites: ['shield-cf-mm08-pres'],
+            objectives: []
+        },
+        'shield-cf-mm01-lab': {
+            id: 'shield-cf-mm01-lab',
+            title: 'MM1 Lab: Cybersecurity Law Foundations',
+            description: 'Hands-on lab analyzing CIA Triad impacts, threat actor profiling, motive analysis, and competing interests',
+            house: 'shield',
+            type: 'lab',
+            difficulty: 'intermediate',
+            duration: 45,
+            topics: ['CIA-triad', 'threat-actors', 'cybersecurity-policy'],
+            paths: ['cyber-framework'],
+            components: {
+                lab: 'houses/shield/cyber-framework/labs/cf-mm01-intro.lab.html'
+            },
+            prerequisites: ['shield-cf-mm01-pres'],
+            objectives: []
+        },
+        'shield-cf-mm02-lab': {
+            id: 'shield-cf-mm02-lab',
+            title: 'MM2 Lab: Government Agencies in Cybersecurity',
+            description: 'Lab on agency mission matching, cyber incident response scenarios, NCIRP application',
+            house: 'shield',
+            type: 'lab',
+            difficulty: 'intermediate',
+            duration: 45,
+            topics: ['government-agencies', 'PPD-41', 'NCIRP'],
+            paths: ['cyber-framework'],
+            components: {
+                lab: 'houses/shield/cyber-framework/labs/cf-mm02-gov-agencies.lab.html'
+            },
+            prerequisites: ['shield-cf-mm02-pres'],
+            objectives: []
+        },
+        'shield-cf-mm03-lab': {
+            id: 'shield-cf-mm03-lab',
+            title: 'MM3 Lab: CFAA & Data Breach Notification',
+            description: 'Lab on CFAA case analysis, Van Buren application, multi-state breach notification compliance',
+            house: 'shield',
+            type: 'lab',
+            difficulty: 'intermediate',
+            duration: 45,
+            topics: ['CFAA', 'Van-Buren', 'data-breach-notification'],
+            paths: ['cyber-framework'],
+            components: {
+                lab: 'houses/shield/cyber-framework/labs/cf-mm03-legislation.lab.html'
+            },
+            prerequisites: ['shield-cf-mm03-pres'],
+            objectives: []
+        },
+        'shield-cf-mm04-lab': {
+            id: 'shield-cf-mm04-lab',
+            title: 'MM4 Lab: Regulatory Compliance',
+            description: 'Lab on regulatory compliance mapping, FTC consent order analysis, HIPAA assessment, SEC disclosure',
+            house: 'shield',
+            type: 'lab',
+            difficulty: 'intermediate',
+            duration: 45,
+            topics: ['FTC', 'HIPAA', 'GLBA', 'SEC'],
+            paths: ['cyber-framework'],
+            components: {
+                lab: 'houses/shield/cyber-framework/labs/cf-mm04-regulatory.lab.html'
+            },
+            prerequisites: ['shield-cf-mm04-pres'],
+            objectives: []
+        },
+        'shield-cf-mm05-lab': {
+            id: 'shield-cf-mm05-lab',
+            title: 'MM5 Lab: NIST Framework Application',
+            description: 'Lab on CSF core function mapping, implementation tier assessment, profile gap analysis, CI sector analysis',
+            house: 'shield',
+            type: 'lab',
+            difficulty: 'intermediate',
+            duration: 45,
+            topics: ['NIST-CSF', 'critical-infrastructure', 'risk-management'],
+            paths: ['cyber-framework'],
+            components: {
+                lab: 'houses/shield/cyber-framework/labs/cf-mm05-nist-cip.lab.html'
+            },
+            prerequisites: ['shield-cf-mm05-pres'],
+            objectives: []
+        },
+        'shield-cf-mm06-lab': {
+            id: 'shield-cf-mm06-lab',
+            title: 'MM6 Lab: Encryption Policy Analysis',
+            description: 'Lab on Going Dark debate, Apple v. FBI case brief, 5th Amendment decryption scenarios, Foregone Conclusion analysis',
+            house: 'shield',
+            type: 'lab',
+            difficulty: 'advanced',
+            duration: 50,
+            topics: ['encryption', 'Apple-v-FBI', '5th-amendment'],
+            paths: ['cyber-framework'],
+            components: {
+                lab: 'houses/shield/cyber-framework/labs/cf-mm06-encryption.lab.html'
+            },
+            prerequisites: ['shield-cf-mm06-pres'],
+            objectives: []
+        },
+        'shield-cf-mm07-lab': {
+            id: 'shield-cf-mm07-lab',
+            title: 'MM7 Lab: Breach Litigation Analysis',
+            description: 'Lab on negligence elements, standing analysis, case comparison, Economic Loss Doctrine application',
+            house: 'shield',
+            type: 'lab',
+            difficulty: 'advanced',
+            duration: 50,
+            topics: ['breach-litigation', 'negligence', 'standing'],
+            paths: ['cyber-framework'],
+            components: {
+                lab: 'houses/shield/cyber-framework/labs/cf-mm07-breach-litigation.lab.html'
+            },
+            prerequisites: ['shield-cf-mm07-pres'],
+            objectives: []
+        },
+        'shield-cf-mm08-lab': {
+            id: 'shield-cf-mm08-lab',
+            title: 'MM8 Lab: International Cyber Law',
+            description: 'Lab on use of force spectrum, Tallinn Manual application, IHL principles, NATO Article 5 scenarios',
+            house: 'shield',
+            type: 'lab',
+            difficulty: 'advanced',
+            duration: 50,
+            topics: ['international-law', 'cyber-war', 'NATO', 'Tallinn-Manual'],
+            paths: ['cyber-framework'],
+            components: {
+                lab: 'houses/shield/cyber-framework/labs/cf-mm08-cyber-war.lab.html'
+            },
+            prerequisites: ['shield-cf-mm08-pres'],
+            objectives: []
+        },
+        'shield-cf-comprehensive-review': {
+            id: 'shield-cf-comprehensive-review',
+            title: 'Cyber Framework Comprehensive Review',
+            description: 'Jeopardy-style review game covering all 8 micromodules of the Cyber Law & Policy Framework course',
+            house: 'shield',
+            type: 'quiz',
+            difficulty: 'advanced',
+            duration: 30,
+            topics: ['cyber-law', 'review', 'comprehensive'],
+            paths: ['cyber-framework'],
+            components: {
+                quiz: 'houses/shield/cyber-framework/reviews/cf-comprehensive-review.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
         // ─── CLOUD HOUSE (remaining REG-001 fixes) ───
         'cloud-architect': {
             id: 'cloud-architect',
