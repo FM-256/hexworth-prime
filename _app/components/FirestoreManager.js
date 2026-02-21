@@ -215,6 +215,34 @@ const FirestoreManager = (function() {
             const { data } = snapshot.data();
             if (!data || typeof data !== 'object') return 0;
 
+            // Recursive deep merge: cloud as base, local wins on scalar conflicts,
+            // objects merge recursively, arrays union by JSON equality
+            function deepMerge(cloud, local) {
+                if (Array.isArray(cloud) && Array.isArray(local)) {
+                    const seen = new Set(local.map(i => JSON.stringify(i)));
+                    const result = [...local];
+                    for (const item of cloud) {
+                        if (!seen.has(JSON.stringify(item))) result.push(item);
+                    }
+                    return result;
+                }
+                if (cloud && local
+                    && typeof cloud === 'object' && typeof local === 'object'
+                    && !Array.isArray(cloud) && !Array.isArray(local)) {
+                    const result = { ...cloud };
+                    for (const [k, v] of Object.entries(local)) {
+                        if (k in result && result[k] && v
+                            && typeof result[k] === 'object' && typeof v === 'object') {
+                            result[k] = deepMerge(result[k], v);
+                        } else {
+                            result[k] = v;
+                        }
+                    }
+                    return result;
+                }
+                return local; // scalar: local wins
+            }
+
             let restored = 0;
             let merged = 0;
             for (const [key, value] of Object.entries(data)) {
@@ -225,30 +253,14 @@ const FirestoreManager = (function() {
                     localStorage.setItem(key, value);
                     restored++;
                 } else if (local !== value) {
-                    // Key exists locally with different value — try to merge JSON objects/arrays
+                    // Key exists locally with different value — try to deep merge
                     try {
                         const cloudParsed = JSON.parse(value);
                         const localParsed = JSON.parse(local);
-                        // Both are arrays: union them
-                        if (Array.isArray(cloudParsed) && Array.isArray(localParsed)) {
-                            const unionSet = new Set([...localParsed, ...cloudParsed]);
-                            localStorage.setItem(key, JSON.stringify([...unionSet]));
-                            merged++;
-                        // Both are objects: deep merge one level (cloud as base, local wins per-key)
-                        } else if (cloudParsed && localParsed
-                                   && typeof cloudParsed === 'object' && typeof localParsed === 'object'
-                                   && !Array.isArray(cloudParsed) && !Array.isArray(localParsed)) {
-                            const mergedObj = { ...cloudParsed };
-                            for (const [k, v] of Object.entries(localParsed)) {
-                                if (v && typeof v === 'object' && !Array.isArray(v)
-                                    && mergedObj[k] && typeof mergedObj[k] === 'object' && !Array.isArray(mergedObj[k])) {
-                                    // Nested objects: merge keys (cloud fills gaps, local wins)
-                                    mergedObj[k] = { ...mergedObj[k], ...v };
-                                } else {
-                                    mergedObj[k] = v;
-                                }
-                            }
-                            localStorage.setItem(key, JSON.stringify(mergedObj));
+                        if (typeof cloudParsed === 'object' && cloudParsed !== null
+                            && typeof localParsed === 'object' && localParsed !== null) {
+                            const mergedResult = deepMerge(cloudParsed, localParsed);
+                            localStorage.setItem(key, JSON.stringify(mergedResult));
                             merged++;
                         }
                         // Scalars or type mismatch: keep local (no overwrite)
