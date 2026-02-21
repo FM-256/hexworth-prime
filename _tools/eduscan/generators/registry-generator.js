@@ -278,8 +278,23 @@ function computeGroupKey(info) {
         return `${clhMatch[1]}::course::${clhMatch[2]}-${clhMatch[3]}`;
     }
 
-    // For files in the same house, group by base name
-    // Base name = filename without type suffix (e.g., "forge-windows-editions")
+    // For module-directory-structured content (e.g., WSA modules),
+    // group by the module directory path
+    const moduleDirMatch = info.relativePath.match(
+        /houses\/([^/]+)\/modules\/([^/]+)\/([^/]+)\//
+    );
+    if (moduleDirMatch) {
+        return `${moduleDirMatch[1]}::moddir::${moduleDirMatch[2]}-${moduleDirMatch[3]}`;
+    }
+
+    // For files whose base name doesn't start with the house prefix,
+    // include parent directory to avoid collisions across subdirectories
+    const parentDir = path.dirname(info.relativePath);
+    if (!info.baseName.startsWith(`${info.house}-`)) {
+        return `${info.house}::${parentDir}::${info.baseName}`;
+    }
+
+    // Default: group by house + base name
     return `${info.house}::${info.baseName}`;
 }
 
@@ -292,11 +307,19 @@ function buildEntryFromGroup(group) {
     // Determine entry type
     let entryType = deriveEntryType(files);
 
-    // Build components map
+    // Build components map — handle collisions by appending a suffix
     const components = {};
+    const keyCount = {};
     for (const file of files) {
-        const componentKey = mapTypeToComponentKey(file.contentType);
+        let componentKey = mapTypeToComponentKey(file.contentType);
         if (componentKey) {
+            if (components[componentKey]) {
+                // Collision: derive a unique key from the filename
+                const fileStem = deriveBaseName(file.filename);
+                const shortSuffix = fileStem.replace(/^[^-]+-/, ''); // strip house prefix
+                componentKey = shortSuffix || componentKey + (keyCount[componentKey] || 2);
+            }
+            keyCount[componentKey] = (keyCount[componentKey] || 1) + 1;
             components[componentKey] = file.componentPath;
         }
     }
@@ -348,6 +371,12 @@ function deriveEntryId(group) {
     if (groupKey.includes('::course::')) {
         const coursePart = groupKey.split('::course::')[1];
         return `${house}-${coursePart}`;
+    }
+
+    // Module-directory-structured content (e.g., WSA)
+    if (groupKey.includes('::moddir::')) {
+        const moddirPart = groupKey.split('::moddir::')[1];
+        return `${house}-${moddirPart}`;
     }
 
     // Use the base name; ensure house prefix
@@ -469,7 +498,8 @@ function formatEntry(entry, indent = '        ') {
     for (let i = 0; i < compEntries.length; i++) {
         const [key, val] = compEntries[i];
         const comma = i < compEntries.length - 1 ? ',' : '';
-        lines.push(`${indent}        ${key}: '${val}'${comma}`);
+        const quotedKey = key.includes('-') ? `'${key}'` : key;
+        lines.push(`${indent}        ${quotedKey}: '${val}'${comma}`);
     }
 
     lines.push(`${indent}    },`);

@@ -99,7 +99,7 @@ class ValidatorOrchestrator {
         let started = false;
         let endIndex = startIndex;
 
-        for (let i = startIndex; i < content.length && i < startIndex + 1000; i++) {
+        for (let i = startIndex; i < content.length && i < startIndex + 5000; i++) {
             if (content[i] === '{') {
                 braceCount++;
                 started = true;

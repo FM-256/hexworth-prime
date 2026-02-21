@@ -17045,6 +17045,1451 @@ const ContentRegistry = {
             objectives: []
         },
 
+// ═══════════════════════════════════════════════════════════════
+        // AUTO-GENERATED ENTRIES (registry-generator.js)
+        // Generated: 2026-02-21
+        // ═══════════════════════════════════════════════════════════════
+
+        // ─── FORGE HOUSE (auto-generated) ───
+        'forge-aplus-core2': {
+            id: 'forge-aplus-core2',
+            title: 'CompTIA A+ Certification Quiz – Chapters 19–22',
+            description: 'CompTIA A+ Certification Quiz – Chapters 19–22 — module content for forge house',
+            house: 'forge',
+            type: 'module',
+            difficulty: 'beginner',
+            duration: 45,
+            topics: ['comptia', 'certification', 'chapters', 'hardware', 'systems'],
+            paths: [],
+            components: {
+                quiz: 'houses/forge/applets/comptia-aplus/core-2/quizzes/forge-aplus-core2.quiz.html',
+                'aplus-core2': 'houses/forge/quizzes/forge-aplus-core2.quiz.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'forge-aplus-core2-ch19-22': {
+            id: 'forge-aplus-core2-ch19-22',
+            title: 'A+ Core 2: Chapters 19-22',
+            description: 'A+ Core 2: Chapters 19-22 — module content for forge house',
+            house: 'forge',
+            type: 'module',
+            difficulty: 'beginner',
+            duration: 45,
+            topics: ['core', 'chapters', '19-22', 'hardware', 'systems'],
+            paths: [],
+            components: {
+                quiz: 'houses/forge/applets/comptia-aplus/core-2/quizzes/forge-aplus-core2-ch19-22.quiz.html',
+                'aplus-core2-ch19-22': 'houses/forge/quizzes/forge-aplus-core2-ch19-22.quiz.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'forge-lab-macos-linux': {
+            id: 'forge-lab-macos-linux',
+            title: 'macOS and Linux Fundamentals',
+            description: 'macOS and Linux Fundamentals — module content for forge house',
+            house: 'forge',
+            type: 'module',
+            difficulty: 'beginner',
+            duration: 45,
+            topics: ['macos', 'linux', 'hardware', 'systems'],
+            paths: [],
+            components: {
+                lab: 'houses/forge/applets/comptia-aplus/core-2/labs/forge-lab-macos-linux.lab.html',
+                'lab-macos-linux': 'houses/forge/labs/forge-lab-macos-linux.lab.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+
+        // ─── SHIELD HOUSE (auto-generated) ───
+        'shield-crypto-aes': {
+            id: 'shield-crypto-aes',
+            title: 'AES',
+            description: 'AES — module content for shield house',
+            house: 'shield',
+            type: 'module',
+            difficulty: 'beginner',
+            duration: 45,
+            topics: ['aes', 'security', 'defense'],
+            paths: [],
+            components: {
+                applet: 'houses/shield/applets/crypto/aes/shield-crypto-aes.applet.html',
+                'crypto-aes': 'houses/shield/applets/crypto/shield-crypto-aes.applet.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'shield-crypto-block-ciphers': {
+            id: 'shield-crypto-block-ciphers',
+            title: 'Block Cipher Modes',
+            description: 'Block Cipher Modes — module content for shield house',
+            house: 'shield',
+            type: 'module',
+            difficulty: 'beginner',
+            duration: 45,
+            topics: ['block', 'cipher', 'modes', 'security', 'defense'],
+            paths: [],
+            components: {
+                applet: 'houses/shield/applets/crypto/block_ciphers/shield-crypto-block-ciphers.applet.html',
+                'crypto-block-ciphers': 'houses/shield/applets/crypto/shield-crypto-block-ciphers.applet.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'shield-crypto-caesar': {
+            id: 'shield-crypto-caesar',
+            title: 'Caesar Cipher',
+            description: 'Caesar Cipher — module content for shield house',
+            house: 'shield',
+            type: 'module',
+            difficulty: 'beginner',
+            duration: 45,
+            topics: ['caesar', 'cipher', 'security', 'defense'],
+            paths: [],
+            components: {
+                applet: 'houses/shield/applets/crypto/caesar/shield-crypto-caesar.applet.html',
+                'crypto-caesar': 'houses/shield/applets/crypto/shield-crypto-caesar.applet.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'shield-crypto-diffie-hellman': {
+            id: 'shield-crypto-diffie-hellman',
+            title: 'Diffie-Hellman Key Exchange',
+            description: 'Diffie-Hellman Key Exchange — module content for shield house',
+            house: 'shield',
+            type: 'module',
+            difficulty: 'beginner',
+            duration: 45,
+            topics: ['diffie-hellman', 'key', 'exchange', 'security', 'defense'],
+            paths: [],
+            components: {
+                applet: 'houses/shield/applets/crypto/diffie_hellman/shield-crypto-diffie-hellman.applet.html',
+                'crypto-diffie-hellman': 'houses/shield/applets/crypto/shield-crypto-diffie-hellman.applet.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'shield-crypto-digital-signatures': {
+            id: 'shield-crypto-digital-signatures',
+            title: 'Digital Signatures',
+            description: 'Digital Signatures — module content for shield house',
+            house: 'shield',
+            type: 'module',
+            difficulty: 'beginner',
+            duration: 45,
+            topics: ['digital', 'signatures', 'security', 'defense'],
+            paths: [],
+            components: {
+                applet: 'houses/shield/applets/crypto/digital_signatures/shield-crypto-digital-signatures.applet.html',
+                'crypto-digital-signatures': 'houses/shield/applets/crypto/shield-crypto-digital-signatures.applet.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'shield-crypto-hashing': {
+            id: 'shield-crypto-hashing',
+            title: 'Cryptographic Hashing',
+            description: 'Cryptographic Hashing — module content for shield house',
+            house: 'shield',
+            type: 'module',
+            difficulty: 'beginner',
+            duration: 45,
+            topics: ['cryptographic', 'hashing', 'security', 'defense'],
+            paths: [],
+            components: {
+                applet: 'houses/shield/applets/crypto/hashing/shield-crypto-hashing.applet.html',
+                'crypto-hashing': 'houses/shield/applets/crypto/shield-crypto-hashing.applet.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'shield-crypto-hmac': {
+            id: 'shield-crypto-hmac',
+            title: 'HMAC',
+            description: 'HMAC — module content for shield house',
+            house: 'shield',
+            type: 'module',
+            difficulty: 'beginner',
+            duration: 45,
+            topics: ['hmac', 'security', 'defense'],
+            paths: [],
+            components: {
+                applet: 'houses/shield/applets/crypto/hmac/shield-crypto-hmac.applet.html',
+                'crypto-hmac': 'houses/shield/applets/crypto/shield-crypto-hmac.applet.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'shield-crypto-key-exchange': {
+            id: 'shield-crypto-key-exchange',
+            title: 'Key Exchange Mechanisms',
+            description: 'Key Exchange Mechanisms — module content for shield house',
+            house: 'shield',
+            type: 'module',
+            difficulty: 'beginner',
+            duration: 45,
+            topics: ['key', 'exchange', 'mechanisms', 'security', 'defense'],
+            paths: [],
+            components: {
+                applet: 'houses/shield/applets/crypto/key_exchange/shield-crypto-key-exchange.applet.html',
+                'crypto-key-exchange': 'houses/shield/applets/crypto/shield-crypto-key-exchange.applet.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'shield-crypto-pki': {
+            id: 'shield-crypto-pki',
+            title: 'Public Key Infrastructure',
+            description: 'Public Key Infrastructure — module content for shield house',
+            house: 'shield',
+            type: 'module',
+            difficulty: 'beginner',
+            duration: 45,
+            topics: ['public', 'key', 'infrastructure', 'security', 'defense'],
+            paths: [],
+            components: {
+                applet: 'houses/shield/applets/crypto/pki/shield-crypto-pki.applet.html',
+                'crypto-pki': 'houses/shield/applets/crypto/shield-crypto-pki.applet.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'shield-crypto-rsa': {
+            id: 'shield-crypto-rsa',
+            title: 'RSA Algorithm',
+            description: 'RSA Algorithm — module content for shield house',
+            house: 'shield',
+            type: 'module',
+            difficulty: 'beginner',
+            duration: 45,
+            topics: ['rsa', 'algorithm', 'security', 'defense'],
+            paths: [],
+            components: {
+                applet: 'houses/shield/applets/crypto/rsa/shield-crypto-rsa.applet.html',
+                'crypto-rsa': 'houses/shield/applets/crypto/shield-crypto-rsa.applet.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+
+        // ─── CLOUD HOUSE (auto-generated) ───
+        'cloud-wsa-m01-fundamentals': {
+            id: 'cloud-wsa-m01-fundamentals',
+            title: 'WSA M01 GUI Lab: Server Manager Configuration',
+            description: 'WSA M01 GUI Lab: Server Manager Configuration — module content for cloud house',
+            house: 'cloud',
+            type: 'module',
+            difficulty: 'beginner',
+            duration: 45,
+            topics: ['wsa', 'm01', 'gui', 'cloud', 'infrastructure'],
+            paths: [],
+            components: {
+                module: 'houses/cloud/modules/wsa/m01-fundamentals/cloud-guilab.module.html',
+                presentation: 'houses/cloud/modules/wsa/m01-fundamentals/cloud-presentation.module.html',
+                pslab: 'houses/cloud/modules/wsa/m01-fundamentals/cloud-pslab.module.html',
+                quizquiz: 'houses/cloud/modules/wsa/m01-fundamentals/cloud-quizquiz.module.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'cloud-wsa-m02-active-directory': {
+            id: 'cloud-wsa-m02-active-directory',
+            title: 'WSA M02 GUI Lab: AD Users & Computers',
+            description: 'WSA M02 GUI Lab: AD Users & Computers — module content for cloud house',
+            house: 'cloud',
+            type: 'module',
+            difficulty: 'beginner',
+            duration: 45,
+            topics: ['wsa', 'm02', 'gui', 'cloud', 'infrastructure'],
+            paths: [],
+            components: {
+                module: 'houses/cloud/modules/wsa/m02-active-directory/cloud-guilab.module.html',
+                presentation: 'houses/cloud/modules/wsa/m02-active-directory/cloud-presentation.module.html',
+                pslab: 'houses/cloud/modules/wsa/m02-active-directory/cloud-pslab.module.html',
+                quizquiz: 'houses/cloud/modules/wsa/m02-active-directory/cloud-quizquiz.module.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'cloud-wsa-m03-storage': {
+            id: 'cloud-wsa-m03-storage',
+            title: 'WSA M03 GUI Lab: Disk Management',
+            description: 'WSA M03 GUI Lab: Disk Management — module content for cloud house',
+            house: 'cloud',
+            type: 'module',
+            difficulty: 'beginner',
+            duration: 45,
+            topics: ['wsa', 'm03', 'gui', 'cloud', 'infrastructure'],
+            paths: [],
+            components: {
+                module: 'houses/cloud/modules/wsa/m03-storage/cloud-guilab.module.html',
+                presentation: 'houses/cloud/modules/wsa/m03-storage/cloud-presentation.module.html',
+                pslab: 'houses/cloud/modules/wsa/m03-storage/cloud-pslab.module.html',
+                quizquiz: 'houses/cloud/modules/wsa/m03-storage/cloud-quizquiz.module.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'cloud-wsa-m04-hyperv': {
+            id: 'cloud-wsa-m04-hyperv',
+            title: 'WSA M04 GUI Lab: Hyper-V Manager',
+            description: 'WSA M04 GUI Lab: Hyper-V Manager — module content for cloud house',
+            house: 'cloud',
+            type: 'module',
+            difficulty: 'beginner',
+            duration: 45,
+            topics: ['wsa', 'm04', 'gui', 'cloud', 'infrastructure'],
+            paths: [],
+            components: {
+                module: 'houses/cloud/modules/wsa/m04-hyperv/cloud-guilab.module.html',
+                presentation: 'houses/cloud/modules/wsa/m04-hyperv/cloud-presentation.module.html',
+                pslab: 'houses/cloud/modules/wsa/m04-hyperv/cloud-pslab.module.html',
+                quizquiz: 'houses/cloud/modules/wsa/m04-hyperv/cloud-quizquiz.module.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'cloud-wsa-m05-containers': {
+            id: 'cloud-wsa-m05-containers',
+            title: 'WSA M05 GUI Lab: Container Management',
+            description: 'WSA M05 GUI Lab: Container Management — module content for cloud house',
+            house: 'cloud',
+            type: 'module',
+            difficulty: 'beginner',
+            duration: 45,
+            topics: ['wsa', 'm05', 'gui', 'cloud', 'infrastructure'],
+            paths: [],
+            components: {
+                module: 'houses/cloud/modules/wsa/m05-containers/cloud-guilab.module.html',
+                presentation: 'houses/cloud/modules/wsa/m05-containers/cloud-presentation.module.html',
+                pslab: 'houses/cloud/modules/wsa/m05-containers/cloud-pslab.module.html',
+                quizquiz: 'houses/cloud/modules/wsa/m05-containers/cloud-quizquiz.module.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'cloud-wsa-m06-clustering': {
+            id: 'cloud-wsa-m06-clustering',
+            title: 'WSA M06 GUI Lab: Failover Cluster Manager',
+            description: 'WSA M06 GUI Lab: Failover Cluster Manager — module content for cloud house',
+            house: 'cloud',
+            type: 'module',
+            difficulty: 'beginner',
+            duration: 45,
+            topics: ['wsa', 'm06', 'gui', 'cloud', 'infrastructure'],
+            paths: [],
+            components: {
+                module: 'houses/cloud/modules/wsa/m06-clustering/cloud-guilab.module.html',
+                presentation: 'houses/cloud/modules/wsa/m06-clustering/cloud-presentation.module.html',
+                pslab: 'houses/cloud/modules/wsa/m06-clustering/cloud-pslab.module.html',
+                quizquiz: 'houses/cloud/modules/wsa/m06-clustering/cloud-quizquiz.module.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'cloud-wsa-m07-monitoring': {
+            id: 'cloud-wsa-m07-monitoring',
+            title: 'WSA M07 GUI Lab: Event Viewer & Performance Monitor',
+            description: 'WSA M07 GUI Lab: Event Viewer & Performance Monitor — module content for cloud house',
+            house: 'cloud',
+            type: 'module',
+            difficulty: 'beginner',
+            duration: 45,
+            topics: ['wsa', 'm07', 'gui', 'cloud', 'infrastructure'],
+            paths: [],
+            components: {
+                module: 'houses/cloud/modules/wsa/m07-monitoring/cloud-guilab.module.html',
+                presentation: 'houses/cloud/modules/wsa/m07-monitoring/cloud-presentation.module.html',
+                pslab: 'houses/cloud/modules/wsa/m07-monitoring/cloud-pslab.module.html',
+                quizquiz: 'houses/cloud/modules/wsa/m07-monitoring/cloud-quizquiz.module.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'cloud-wsa-m08-dns': {
+            id: 'cloud-wsa-m08-dns',
+            title: 'WSA M08 GUI Lab: DNS Manager',
+            description: 'WSA M08 GUI Lab: DNS Manager — module content for cloud house',
+            house: 'cloud',
+            type: 'module',
+            difficulty: 'beginner',
+            duration: 45,
+            topics: ['wsa', 'm08', 'gui', 'cloud', 'infrastructure'],
+            paths: [],
+            components: {
+                module: 'houses/cloud/modules/wsa/m08-dns/cloud-guilab.module.html',
+                presentation: 'houses/cloud/modules/wsa/m08-dns/cloud-presentation.module.html',
+                pslab: 'houses/cloud/modules/wsa/m08-dns/cloud-pslab.module.html',
+                quizquiz: 'houses/cloud/modules/wsa/m08-dns/cloud-quizquiz.module.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'cloud-wsa-m09-dhcp': {
+            id: 'cloud-wsa-m09-dhcp',
+            title: 'WSA M09 GUI Lab: DHCP Console',
+            description: 'WSA M09 GUI Lab: DHCP Console — module content for cloud house',
+            house: 'cloud',
+            type: 'module',
+            difficulty: 'beginner',
+            duration: 45,
+            topics: ['wsa', 'm09', 'gui', 'cloud', 'infrastructure'],
+            paths: [],
+            components: {
+                module: 'houses/cloud/modules/wsa/m09-dhcp/cloud-guilab.module.html',
+                presentation: 'houses/cloud/modules/wsa/m09-dhcp/cloud-presentation.module.html',
+                pslab: 'houses/cloud/modules/wsa/m09-dhcp/cloud-pslab.module.html',
+                quizquiz: 'houses/cloud/modules/wsa/m09-dhcp/cloud-quizquiz.module.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'cloud-wsa-m10-group-policy': {
+            id: 'cloud-wsa-m10-group-policy',
+            title: 'WSA M10 GUI Lab: Group Policy Management',
+            description: 'WSA M10 GUI Lab: Group Policy Management — module content for cloud house',
+            house: 'cloud',
+            type: 'module',
+            difficulty: 'beginner',
+            duration: 45,
+            topics: ['wsa', 'm10', 'gui', 'cloud', 'infrastructure'],
+            paths: [],
+            components: {
+                module: 'houses/cloud/modules/wsa/m10-group-policy/cloud-guilab.module.html',
+                presentation: 'houses/cloud/modules/wsa/m10-group-policy/cloud-presentation.module.html',
+                pslab: 'houses/cloud/modules/wsa/m10-group-policy/cloud-pslab.module.html',
+                quizquiz: 'houses/cloud/modules/wsa/m10-group-policy/cloud-quizquiz.module.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'cloud-wsa-m11-iis': {
+            id: 'cloud-wsa-m11-iis',
+            title: 'WSA M11 GUI Lab: IIS Manager',
+            description: 'WSA M11 GUI Lab: IIS Manager — module content for cloud house',
+            house: 'cloud',
+            type: 'module',
+            difficulty: 'beginner',
+            duration: 45,
+            topics: ['wsa', 'm11', 'gui', 'cloud', 'infrastructure'],
+            paths: [],
+            components: {
+                module: 'houses/cloud/modules/wsa/m11-iis/cloud-guilab.module.html',
+                presentation: 'houses/cloud/modules/wsa/m11-iis/cloud-presentation.module.html',
+                pslab: 'houses/cloud/modules/wsa/m11-iis/cloud-pslab.module.html',
+                quizquiz: 'houses/cloud/modules/wsa/m11-iis/cloud-quizquiz.module.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'cloud-wsa-m12-remote-desktop': {
+            id: 'cloud-wsa-m12-remote-desktop',
+            title: 'WSA M12 GUI Lab: Remote Desktop Services',
+            description: 'WSA M12 GUI Lab: Remote Desktop Services — module content for cloud house',
+            house: 'cloud',
+            type: 'module',
+            difficulty: 'beginner',
+            duration: 45,
+            topics: ['wsa', 'm12', 'gui', 'cloud', 'infrastructure'],
+            paths: [],
+            components: {
+                module: 'houses/cloud/modules/wsa/m12-remote-desktop/cloud-guilab.module.html',
+                presentation: 'houses/cloud/modules/wsa/m12-remote-desktop/cloud-presentation.module.html',
+                pslab: 'houses/cloud/modules/wsa/m12-remote-desktop/cloud-pslab.module.html',
+                quizquiz: 'houses/cloud/modules/wsa/m12-remote-desktop/cloud-quizquiz.module.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'cloud-wsa-m13-certificate-services': {
+            id: 'cloud-wsa-m13-certificate-services',
+            title: 'WSA M13 GUI Lab: Certificate Authority',
+            description: 'WSA M13 GUI Lab: Certificate Authority — module content for cloud house',
+            house: 'cloud',
+            type: 'module',
+            difficulty: 'beginner',
+            duration: 45,
+            topics: ['wsa', 'm13', 'gui', 'cloud', 'infrastructure'],
+            paths: [],
+            components: {
+                module: 'houses/cloud/modules/wsa/m13-certificate-services/cloud-guilab.module.html',
+                presentation: 'houses/cloud/modules/wsa/m13-certificate-services/cloud-presentation.module.html',
+                pslab: 'houses/cloud/modules/wsa/m13-certificate-services/cloud-pslab.module.html',
+                quizquiz: 'houses/cloud/modules/wsa/m13-certificate-services/cloud-quizquiz.module.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'cloud-wsa-m14-advanced-networking': {
+            id: 'cloud-wsa-m14-advanced-networking',
+            title: 'WSA M14 GUI Lab: Advanced Networking',
+            description: 'WSA M14 GUI Lab: Advanced Networking — module content for cloud house',
+            house: 'cloud',
+            type: 'module',
+            difficulty: 'beginner',
+            duration: 45,
+            topics: ['wsa', 'm14', 'gui', 'cloud', 'infrastructure'],
+            paths: [],
+            components: {
+                module: 'houses/cloud/modules/wsa/m14-advanced-networking/cloud-guilab.module.html',
+                presentation: 'houses/cloud/modules/wsa/m14-advanced-networking/cloud-presentation.module.html',
+                pslab: 'houses/cloud/modules/wsa/m14-advanced-networking/cloud-pslab.module.html',
+                quizquiz: 'houses/cloud/modules/wsa/m14-advanced-networking/cloud-quizquiz.module.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'cloud-wsa-m15-ad-sites': {
+            id: 'cloud-wsa-m15-ad-sites',
+            title: 'WSA M15 GUI Lab: AD Sites & Services',
+            description: 'WSA M15 GUI Lab: AD Sites & Services — module content for cloud house',
+            house: 'cloud',
+            type: 'module',
+            difficulty: 'beginner',
+            duration: 45,
+            topics: ['wsa', 'm15', 'gui', 'cloud', 'infrastructure'],
+            paths: [],
+            components: {
+                module: 'houses/cloud/modules/wsa/m15-ad-sites/cloud-guilab.module.html',
+                presentation: 'houses/cloud/modules/wsa/m15-ad-sites/cloud-presentation.module.html',
+                pslab: 'houses/cloud/modules/wsa/m15-ad-sites/cloud-pslab.module.html',
+                quizquiz: 'houses/cloud/modules/wsa/m15-ad-sites/cloud-quizquiz.module.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'cloud-wsa-m16-backup-recovery': {
+            id: 'cloud-wsa-m16-backup-recovery',
+            title: 'WSA M16 GUI Lab: Windows Server Backup',
+            description: 'WSA M16 GUI Lab: Windows Server Backup — module content for cloud house',
+            house: 'cloud',
+            type: 'module',
+            difficulty: 'beginner',
+            duration: 45,
+            topics: ['wsa', 'm16', 'gui', 'cloud', 'infrastructure'],
+            paths: [],
+            components: {
+                module: 'houses/cloud/modules/wsa/m16-backup-recovery/cloud-guilab.module.html',
+                presentation: 'houses/cloud/modules/wsa/m16-backup-recovery/cloud-presentation.module.html',
+                pslab: 'houses/cloud/modules/wsa/m16-backup-recovery/cloud-pslab.module.html',
+                quizquiz: 'houses/cloud/modules/wsa/m16-backup-recovery/cloud-quizquiz.module.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'cloud-wsa-m17-firewall-security': {
+            id: 'cloud-wsa-m17-firewall-security',
+            title: 'WSA M17 GUI Lab: Windows Firewall',
+            description: 'WSA M17 GUI Lab: Windows Firewall — module content for cloud house',
+            house: 'cloud',
+            type: 'module',
+            difficulty: 'beginner',
+            duration: 45,
+            topics: ['wsa', 'm17', 'gui', 'cloud', 'infrastructure'],
+            paths: [],
+            components: {
+                module: 'houses/cloud/modules/wsa/m17-firewall-security/cloud-guilab.module.html',
+                presentation: 'houses/cloud/modules/wsa/m17-firewall-security/cloud-presentation.module.html',
+                pslab: 'houses/cloud/modules/wsa/m17-firewall-security/cloud-pslab.module.html',
+                quizquiz: 'houses/cloud/modules/wsa/m17-firewall-security/cloud-quizquiz.module.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'cloud-wsa-m18-powershell-automation': {
+            id: 'cloud-wsa-m18-powershell-automation',
+            title: 'WSA M18 GUI Lab: PowerShell Automation',
+            description: 'WSA M18 GUI Lab: PowerShell Automation — module content for cloud house',
+            house: 'cloud',
+            type: 'module',
+            difficulty: 'beginner',
+            duration: 45,
+            topics: ['wsa', 'm18', 'gui', 'cloud', 'infrastructure'],
+            paths: [],
+            components: {
+                module: 'houses/cloud/modules/wsa/m18-powershell-automation/cloud-guilab.module.html',
+                presentation: 'houses/cloud/modules/wsa/m18-powershell-automation/cloud-presentation.module.html',
+                pslab: 'houses/cloud/modules/wsa/m18-powershell-automation/cloud-pslab.module.html',
+                quizquiz: 'houses/cloud/modules/wsa/m18-powershell-automation/cloud-quizquiz.module.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'cloud-wsa-m19-troubleshooting-migration': {
+            id: 'cloud-wsa-m19-troubleshooting-migration',
+            title: 'WSA M19 GUI Lab: Troubleshooting & Migration',
+            description: 'WSA M19 GUI Lab: Troubleshooting & Migration — module content for cloud house',
+            house: 'cloud',
+            type: 'module',
+            difficulty: 'beginner',
+            duration: 45,
+            topics: ['wsa', 'm19', 'gui', 'cloud', 'infrastructure'],
+            paths: [],
+            components: {
+                module: 'houses/cloud/modules/wsa/m19-troubleshooting-migration/cloud-guilab.module.html',
+                presentation: 'houses/cloud/modules/wsa/m19-troubleshooting-migration/cloud-presentation.module.html',
+                pslab: 'houses/cloud/modules/wsa/m19-troubleshooting-migration/cloud-pslab.module.html',
+                quizquiz: 'houses/cloud/modules/wsa/m19-troubleshooting-migration/cloud-quizquiz.module.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'cloud-wsa-m20-failsafe-capstone': {
+            id: 'cloud-wsa-m20-failsafe-capstone',
+            title: 'FAILSAFE Simulation',
+            description: 'FAILSAFE Simulation — module content for cloud house',
+            house: 'cloud',
+            type: 'module',
+            difficulty: 'beginner',
+            duration: 45,
+            topics: ['failsafe', 'simulation', 'cloud', 'infrastructure'],
+            paths: [],
+            components: {
+                module: 'houses/cloud/modules/wsa/m20-failsafe-capstone/cloud-simulation.module.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+
+// ─── FORGE HOUSE (remaining REG-001 fixes) ───
+        'forge-core2-admin-tools': {
+            id: 'forge-core2-admin-tools',
+            title: 'Administrative Tools Lab (Core 2)',
+            description: 'Administrative Tools Lab (Core 2) — module content for forge house',
+            house: 'forge',
+            type: 'module',
+            difficulty: 'beginner',
+            duration: 45,
+            topics: ['administrative', 'tools', 'hardware', 'systems'],
+            paths: [],
+            components: {
+                lab: 'houses/forge/applets/comptia-aplus/core-2/labs/forge-admin-tools.lab.html',
+                presentation: 'houses/forge/applets/comptia-aplus/core-2/presentations/forge-admin-tools.presentation.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'forge-core2-control-panel': {
+            id: 'forge-core2-control-panel',
+            title: 'Control Panel Lab (Core 2)',
+            description: 'Control Panel Lab (Core 2) — module content for forge house',
+            house: 'forge',
+            type: 'module',
+            difficulty: 'beginner',
+            duration: 45,
+            topics: ['control', 'panel', 'hardware', 'systems'],
+            paths: [],
+            components: {
+                lab: 'houses/forge/applets/comptia-aplus/core-2/labs/forge-control-panel.lab.html',
+                presentation: 'houses/forge/applets/comptia-aplus/core-2/presentations/forge-control-panel.presentation.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'forge-core2-roleplay-v2': {
+            id: 'forge-core2-roleplay-v2',
+            title: 'Core 2 Roleplay Lab - IT Support Scenarios',
+            description: 'Core 2 Roleplay Lab - IT Support Scenarios (Core 2) — lab content for forge house',
+            house: 'forge',
+            type: 'lab',
+            difficulty: 'beginner',
+            duration: 30,
+            topics: ['roleplay', 'support', 'scenarios', 'hardware', 'systems'],
+            paths: [],
+            components: {
+                lab: 'houses/forge/applets/comptia-aplus/core-2/labs/forge-core2-roleplay.lab.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'forge-core2-system-tools': {
+            id: 'forge-core2-system-tools',
+            title: 'System Tools Lab (Core 2)',
+            description: 'System Tools Lab (Core 2) — module content for forge house',
+            house: 'forge',
+            type: 'module',
+            difficulty: 'beginner',
+            duration: 45,
+            topics: ['system', 'tools', 'hardware', 'systems'],
+            paths: [],
+            components: {
+                lab: 'houses/forge/applets/comptia-aplus/core-2/labs/forge-system-tools.lab.html',
+                presentation: 'houses/forge/applets/comptia-aplus/core-2/presentations/forge-system-tools.presentation.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'forge-core2-windows-editions': {
+            id: 'forge-core2-windows-editions',
+            title: 'Windows Editions Lab (Core 2)',
+            description: 'Windows Editions Lab (Core 2) — module content for forge house',
+            house: 'forge',
+            type: 'module',
+            difficulty: 'beginner',
+            duration: 45,
+            topics: ['windows', 'editions', 'hardware', 'systems'],
+            paths: [],
+            components: {
+                lab: 'houses/forge/applets/comptia-aplus/core-2/labs/forge-windows-editions.lab.html',
+                presentation: 'houses/forge/applets/comptia-aplus/core-2/presentations/forge-windows-editions.presentation.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'forge-core2-windows-settings': {
+            id: 'forge-core2-windows-settings',
+            title: 'Windows Settings Lab (Core 2)',
+            description: 'Windows Settings Lab (Core 2) — module content for forge house',
+            house: 'forge',
+            type: 'module',
+            difficulty: 'beginner',
+            duration: 45,
+            topics: ['windows', 'settings', 'hardware', 'systems'],
+            paths: [],
+            components: {
+                lab: 'houses/forge/applets/comptia-aplus/core-2/labs/forge-windows-settings.lab.html',
+                presentation: 'houses/forge/applets/comptia-aplus/core-2/presentations/forge-windows-settings.presentation.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'forge-core2-macos-linux-basics': {
+            id: 'forge-core2-macos-linux-basics',
+            title: 'macOS & Linux Basics (Core 2)',
+            description: 'macOS & Linux Basics (Core 2) — presentation content for forge house',
+            house: 'forge',
+            type: 'presentation',
+            difficulty: 'beginner',
+            duration: 20,
+            topics: ['macos', 'linux', 'basics', 'hardware', 'systems'],
+            paths: [],
+            components: {
+                presentation: 'houses/forge/applets/comptia-aplus/core-2/presentations/forge-macos-linux-basics.presentation.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'forge-core2-windows-shortcuts': {
+            id: 'forge-core2-windows-shortcuts',
+            title: 'Windows Keyboard Shortcuts (Core 2)',
+            description: 'Windows Keyboard Shortcuts (Core 2) — applet content for forge house',
+            house: 'forge',
+            type: 'applet',
+            difficulty: 'beginner',
+            duration: 25,
+            topics: ['windows', 'keyboard', 'shortcuts', 'hardware', 'systems'],
+            paths: [],
+            components: {
+                applet: 'houses/forge/applets/comptia-aplus/core-2/reference/forge-windows-shortcuts.applet.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'forge-backup-or-bust': {
+            id: 'forge-backup-or-bust',
+            title: 'Backup or Bust | Under Renovation',
+            description: 'Backup or Bust | Under Renovation — tool content for forge house',
+            house: 'forge',
+            type: 'tool',
+            difficulty: 'beginner',
+            duration: 20,
+            topics: ['backup', 'bust', 'under', 'hardware', 'systems'],
+            paths: [],
+            components: {
+                tool: 'houses/forge/reviews/forge-backup-or-bust.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'forge-admin-tools-tool': {
+            id: 'forge-admin-tools-tool',
+            title: 'Administrative Tools Explorer',
+            description: 'Administrative Tools Explorer — tool content for forge house',
+            house: 'forge',
+            type: 'tool',
+            difficulty: 'beginner',
+            duration: 20,
+            topics: ['administrative', 'tools', 'explorer', 'hardware', 'systems'],
+            paths: [],
+            components: {
+                tool: 'houses/forge/tools/forge-admin-tools.tool.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'forge-control-panel-tool': {
+            id: 'forge-control-panel-tool',
+            title: 'Control Panel Explorer',
+            description: 'Control Panel Explorer — tool content for forge house',
+            house: 'forge',
+            type: 'tool',
+            difficulty: 'beginner',
+            duration: 20,
+            topics: ['control', 'panel', 'explorer', 'hardware', 'systems'],
+            paths: [],
+            components: {
+                tool: 'houses/forge/tools/forge-control-panel.tool.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'forge-system-tools-sim-tool': {
+            id: 'forge-system-tools-sim-tool',
+            title: 'System Tools Simulator',
+            description: 'System Tools Simulator — tool content for forge house',
+            house: 'forge',
+            type: 'tool',
+            difficulty: 'beginner',
+            duration: 20,
+            topics: ['system', 'tools', 'simulator', 'hardware', 'systems'],
+            paths: [],
+            components: {
+                tool: 'houses/forge/tools/forge-system-tools-sim.tool.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'forge-windows-edition-selector-tool': {
+            id: 'forge-windows-edition-selector-tool',
+            title: 'Windows Edition Selector',
+            description: 'Windows Edition Selector — tool content for forge house',
+            house: 'forge',
+            type: 'tool',
+            difficulty: 'beginner',
+            duration: 20,
+            topics: ['windows', 'edition', 'selector', 'hardware', 'systems'],
+            paths: [],
+            components: {
+                tool: 'houses/forge/tools/forge-windows-edition-selector.tool.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        // ─── WEB HOUSE (remaining REG-001 fixes) ───
+        'web-troubleshooting-lab': {
+            id: 'web-troubleshooting-lab',
+            title: 'Network Troubleshooting Lab',
+            description: 'Network Troubleshooting Lab — lab content for web house',
+            house: 'web',
+            type: 'lab',
+            difficulty: 'beginner',
+            duration: 30,
+            topics: ['network', 'troubleshooting', 'networking', 'protocols'],
+            paths: [],
+            components: {
+                lab: 'houses/web/labs/web-troubleshooting.lab.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'web-dns-resolver-race': {
+            id: 'web-dns-resolver-race',
+            title: 'DNS Resolver Race',
+            description: 'DNS Resolver Race — tool content for web house',
+            house: 'web',
+            type: 'tool',
+            difficulty: 'beginner',
+            duration: 20,
+            topics: ['resolver', 'race', 'networking', 'protocols'],
+            paths: [],
+            components: {
+                tool: 'houses/web/reviews/web-dns-resolver-race.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'web-subnet-siege': {
+            id: 'web-subnet-siege',
+            title: 'Subnet Siege',
+            description: 'Subnet Siege — tool content for web house',
+            house: 'web',
+            type: 'tool',
+            difficulty: 'beginner',
+            duration: 20,
+            topics: ['subnet', 'siege', 'networking', 'protocols'],
+            paths: [],
+            components: {
+                tool: 'houses/web/reviews/web-subnet-siege.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        // ─── SHIELD HOUSE (remaining REG-001 fixes) ───
+        'shield-hash-v3-v2': {
+            id: 'shield-hash-v3-v2',
+            title: 'Hashing & Steganography — Interactive Presentation',
+            description: 'Hashing & Steganography — Interactive Presentation — applet content for shield house',
+            house: 'shield',
+            type: 'applet',
+            difficulty: 'beginner',
+            duration: 25,
+            topics: ['hashing', 'steganography', 'interactive', 'security', 'defense'],
+            paths: [],
+            components: {
+                applet: 'houses/shield/applets/crypto/hashing_steganography/shield-hash-v3.applet.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'shield-stego-v2': {
+            id: 'shield-stego-v2',
+            title: 'Hashing & Steganography — Interactive Presentation',
+            description: 'Hashing & Steganography — Interactive Presentation — applet content for shield house',
+            house: 'shield',
+            type: 'applet',
+            difficulty: 'beginner',
+            duration: 25,
+            topics: ['hashing', 'steganography', 'interactive', 'security', 'defense'],
+            paths: [],
+            components: {
+                applet: 'houses/shield/applets/crypto/hashing_steganography/shield-stego.applet.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        // ─── CLOUD HOUSE (remaining REG-001 fixes) ───
+        'cloud-architect': {
+            id: 'cloud-architect',
+            title: 'Cloud Architect',
+            description: 'Cloud Architect — tool content for cloud house',
+            house: 'cloud',
+            type: 'tool',
+            difficulty: 'beginner',
+            duration: 20,
+            topics: ['cloud', 'architect', 'infrastructure'],
+            paths: [],
+            components: {
+                tool: 'houses/cloud/games/cloud-architect.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'cloud-concepts-v2': {
+            id: 'cloud-concepts-v2',
+            title: 'Cloud Computing Concepts',
+            description: 'Cloud Computing Concepts — presentation content for cloud house',
+            house: 'cloud',
+            type: 'presentation',
+            difficulty: 'beginner',
+            duration: 20,
+            topics: ['cloud', 'computing', 'concepts', 'infrastructure'],
+            paths: [],
+            components: {
+                presentation: 'houses/cloud/presentations/cloud-concepts.presentation.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        // ─── SCRIPT HOUSE (remaining REG-001 fixes) ───
+        'script-clh-016-quiz': {
+            id: 'script-clh-016-quiz',
+            title: 'CLH-016 Quiz: System Intel',
+            description: 'CLH-016 Quiz: System Intel — quiz content for script house',
+            house: 'script',
+            type: 'quiz',
+            difficulty: 'beginner',
+            duration: 15,
+            topics: ['clh016', 'quiz', 'system', 'scripting', 'automation'],
+            paths: [],
+            components: {
+                quiz: 'houses/script/clh/script-clh-016.quiz.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'script-clh-017-quiz': {
+            id: 'script-clh-017-quiz',
+            title: 'CLH-017 Quiz: Find & Locate',
+            description: 'CLH-017 Quiz: Find & Locate — quiz content for script house',
+            house: 'script',
+            type: 'quiz',
+            difficulty: 'beginner',
+            duration: 15,
+            topics: ['clh017', 'quiz', 'find', 'scripting', 'automation'],
+            paths: [],
+            components: {
+                quiz: 'houses/script/clh/script-clh-017.quiz.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'script-clh-018-quiz': {
+            id: 'script-clh-018-quiz',
+            title: 'CLH-018 Quiz: Archive Operations',
+            description: 'CLH-018 Quiz: Archive Operations — quiz content for script house',
+            house: 'script',
+            type: 'quiz',
+            difficulty: 'beginner',
+            duration: 15,
+            topics: ['clh018', 'quiz', 'archive', 'scripting', 'automation'],
+            paths: [],
+            components: {
+                quiz: 'houses/script/clh/script-clh-018.quiz.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'script-clh-019-quiz': {
+            id: 'script-clh-019-quiz',
+            title: 'CLH-019 Quiz: Disk Forensics',
+            description: 'CLH-019 Quiz: Disk Forensics — quiz content for script house',
+            house: 'script',
+            type: 'quiz',
+            difficulty: 'beginner',
+            duration: 15,
+            topics: ['clh019', 'quiz', 'disk', 'scripting', 'automation'],
+            paths: [],
+            components: {
+                quiz: 'houses/script/clh/script-clh-019.quiz.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'script-clh-020-quiz': {
+            id: 'script-clh-020-quiz',
+            title: 'CLH-020 Quiz: User Reconnaissance',
+            description: 'CLH-020 Quiz: User Reconnaissance — quiz content for script house',
+            house: 'script',
+            type: 'quiz',
+            difficulty: 'beginner',
+            duration: 15,
+            topics: ['clh020', 'quiz', 'user', 'scripting', 'automation'],
+            paths: [],
+            components: {
+                quiz: 'houses/script/clh/script-clh-020.quiz.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'script-clh-021-quiz': {
+            id: 'script-clh-021-quiz',
+            title: 'CLH-021 Quiz: SSH Operations',
+            description: 'CLH-021 Quiz: SSH Operations — quiz content for script house',
+            house: 'script',
+            type: 'quiz',
+            difficulty: 'beginner',
+            duration: 15,
+            topics: ['clh021', 'quiz', 'operations', 'scripting', 'automation'],
+            paths: [],
+            components: {
+                quiz: 'houses/script/clh/script-clh-021.quiz.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'script-clh-022-quiz': {
+            id: 'script-clh-022-quiz',
+            title: 'CLH-022 Quiz: Network Reconnaissance',
+            description: 'CLH-022 Quiz: Network Reconnaissance — quiz content for script house',
+            house: 'script',
+            type: 'quiz',
+            difficulty: 'beginner',
+            duration: 15,
+            topics: ['clh022', 'quiz', 'network', 'scripting', 'automation'],
+            paths: [],
+            components: {
+                quiz: 'houses/script/clh/script-clh-022.quiz.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'script-clh-023-quiz': {
+            id: 'script-clh-023-quiz',
+            title: 'CLH-023 Quiz: Service Management',
+            description: 'CLH-023 Quiz: Service Management — quiz content for script house',
+            house: 'script',
+            type: 'quiz',
+            difficulty: 'beginner',
+            duration: 15,
+            topics: ['clh023', 'quiz', 'service', 'scripting', 'automation'],
+            paths: [],
+            components: {
+                quiz: 'houses/script/clh/script-clh-023.quiz.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'script-clh-024-quiz': {
+            id: 'script-clh-024-quiz',
+            title: 'CLH-024 Quiz: Scheduled Tasks',
+            description: 'CLH-024 Quiz: Scheduled Tasks — quiz content for script house',
+            house: 'script',
+            type: 'quiz',
+            difficulty: 'beginner',
+            duration: 15,
+            topics: ['clh024', 'quiz', 'scheduled', 'scripting', 'automation'],
+            paths: [],
+            components: {
+                quiz: 'houses/script/clh/script-clh-024.quiz.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'script-clh-025-quiz': {
+            id: 'script-clh-025-quiz',
+            title: 'CLH-025 Quiz: Package Management',
+            description: 'CLH-025 Quiz: Package Management — quiz content for script house',
+            house: 'script',
+            type: 'quiz',
+            difficulty: 'beginner',
+            duration: 15,
+            topics: ['clh025', 'quiz', 'package', 'scripting', 'automation'],
+            paths: [],
+            components: {
+                quiz: 'houses/script/clh/script-clh-025.quiz.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'script-clh-026-quiz': {
+            id: 'script-clh-026-quiz',
+            title: 'CLH-026 Quiz: Access Control',
+            description: 'CLH-026 Quiz: Access Control — quiz content for script house',
+            house: 'script',
+            type: 'quiz',
+            difficulty: 'beginner',
+            duration: 15,
+            topics: ['clh026', 'quiz', 'access', 'scripting', 'automation'],
+            paths: [],
+            components: {
+                quiz: 'houses/script/clh/script-clh-026.quiz.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'script-clh-027-quiz': {
+            id: 'script-clh-027-quiz',
+            title: 'CLH-027 Quiz: User Management',
+            description: 'CLH-027 Quiz: User Management — quiz content for script house',
+            house: 'script',
+            type: 'quiz',
+            difficulty: 'beginner',
+            duration: 15,
+            topics: ['clh027', 'quiz', 'user', 'scripting', 'automation'],
+            paths: [],
+            components: {
+                quiz: 'houses/script/clh/script-clh-027.quiz.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'script-clh-028-quiz': {
+            id: 'script-clh-028-quiz',
+            title: 'CLH-028 Quiz: System Monitoring',
+            description: 'CLH-028 Quiz: System Monitoring — quiz content for script house',
+            house: 'script',
+            type: 'quiz',
+            difficulty: 'beginner',
+            duration: 15,
+            topics: ['clh028', 'quiz', 'system', 'scripting', 'automation'],
+            paths: [],
+            components: {
+                quiz: 'houses/script/clh/script-clh-028.quiz.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'script-clh-029-quiz': {
+            id: 'script-clh-029-quiz',
+            title: 'CLH-029 Quiz: Vim Essentials',
+            description: 'CLH-029 Quiz: Vim Essentials — quiz content for script house',
+            house: 'script',
+            type: 'quiz',
+            difficulty: 'beginner',
+            duration: 15,
+            topics: ['clh029', 'quiz', 'essentials', 'scripting', 'automation'],
+            paths: [],
+            components: {
+                quiz: 'houses/script/clh/script-clh-029.quiz.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'script-clh-030-quiz': {
+            id: 'script-clh-030-quiz',
+            title: 'CLH-030 Certification: Shadow Agent Exam',
+            description: 'CLH-030 Certification: Shadow Agent Exam — quiz content for script house',
+            house: 'script',
+            type: 'quiz',
+            difficulty: 'beginner',
+            duration: 15,
+            topics: ['clh030', 'certification', 'shadow', 'scripting', 'automation'],
+            paths: [],
+            components: {
+                quiz: 'houses/script/clh/script-clh-030.quiz.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'script-dont-kill-the-server': {
+            id: 'script-dont-kill-the-server',
+            title: 'Don\'t Kill the Server',
+            description: 'Don\'t Kill the Server — tool content for script house',
+            house: 'script',
+            type: 'tool',
+            difficulty: 'beginner',
+            duration: 20,
+            topics: ['dont', 'kill', 'server', 'scripting', 'automation'],
+            paths: [],
+            components: {
+                tool: 'houses/script/games/script-dont-kill-the-server.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'script-linux-permissions-lab': {
+            id: 'script-linux-permissions-lab',
+            title: 'Mission: File Permissions',
+            description: 'Mission: File Permissions — lab content for script house',
+            house: 'script',
+            type: 'lab',
+            difficulty: 'beginner',
+            duration: 30,
+            topics: ['mission', 'file', 'permissions', 'scripting', 'automation'],
+            paths: [],
+            components: {
+                lab: 'houses/script/labs/linux/script-linux-permissions.lab.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'script-linux-cli-review': {
+            id: 'script-linux-cli-review',
+            title: 'Linux & CLI Review',
+            description: 'Linux & CLI Review — tool content for script house',
+            house: 'script',
+            type: 'tool',
+            difficulty: 'beginner',
+            duration: 20,
+            topics: ['linux', 'review', 'scripting', 'automation'],
+            paths: [],
+            components: {
+                tool: 'houses/script/reviews/script-linux-cli-review.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'script-permission-puzzle': {
+            id: 'script-permission-puzzle',
+            title: 'Permission Puzzle',
+            description: 'Permission Puzzle — tool content for script house',
+            house: 'script',
+            type: 'tool',
+            difficulty: 'beginner',
+            duration: 20,
+            topics: ['permission', 'puzzle', 'scripting', 'automation'],
+            paths: [],
+            components: {
+                tool: 'houses/script/reviews/script-permission-puzzle.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        // ─── EYE HOUSE (remaining REG-001 fixes) ───
+        'eye-log-correlation-lab': {
+            id: 'eye-log-correlation-lab',
+            title: 'Lab 5: Log Correlation Analysis',
+            description: 'Lab 5: Log Correlation Analysis — lab content for eye house',
+            house: 'eye',
+            type: 'lab',
+            difficulty: 'beginner',
+            duration: 30,
+            topics: ['correlation', 'analysis', 'monitoring'],
+            paths: [],
+            components: {
+                lab: 'houses/eye/applets/cyberops/week7/labs/eye-log-correlation.lab.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'eye-alert-triage': {
+            id: 'eye-alert-triage',
+            title: 'Alert Triage',
+            description: 'Alert Triage — tool content for eye house',
+            house: 'eye',
+            type: 'tool',
+            difficulty: 'beginner',
+            duration: 20,
+            topics: ['alert', 'triage', 'monitoring', 'analysis'],
+            paths: [],
+            components: {
+                tool: 'houses/eye/games/eye-alert-triage.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'eye-threat-modeler': {
+            id: 'eye-threat-modeler',
+            title: 'STRIDE Threat Modeler',
+            description: 'STRIDE Threat Modeler — tool content for eye house',
+            house: 'eye',
+            type: 'tool',
+            difficulty: 'beginner',
+            duration: 20,
+            topics: ['stride', 'threat', 'modeler', 'monitoring', 'analysis'],
+            paths: [],
+            components: {
+                tool: 'houses/eye/games/eye-threat-modeler.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        // ─── KEY HOUSE (remaining REG-001 fixes) ───
+        'key-dont-leak-the-key': {
+            id: 'key-dont-leak-the-key',
+            title: 'Don\'t Leak the Key',
+            description: 'Don\'t Leak the Key — tool content for key house',
+            house: 'key',
+            type: 'tool',
+            difficulty: 'beginner',
+            duration: 20,
+            topics: ['dont', 'leak', 'cryptography', 'encryption'],
+            paths: [],
+            components: {
+                tool: 'houses/key/games/key-dont-leak-the-key.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'key-tls-ssl': {
+            id: 'key-tls-ssl',
+            title: 'TLS/SSL Explained',
+            description: 'TLS/SSL Explained — presentation content for key house',
+            house: 'key',
+            type: 'presentation',
+            difficulty: 'beginner',
+            duration: 20,
+            topics: ['tlsssl', 'explained', 'cryptography', 'encryption'],
+            paths: [],
+            components: {
+                presentation: 'houses/key/presentations/key-tls-ssl.presentation.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'key-hash-cracker': {
+            id: 'key-hash-cracker',
+            title: 'Hash Cracker',
+            description: 'Hash Cracker — tool content for key house',
+            house: 'key',
+            type: 'tool',
+            difficulty: 'beginner',
+            duration: 20,
+            topics: ['hash', 'cracker', 'cryptography', 'encryption'],
+            paths: [],
+            components: {
+                tool: 'houses/key/reviews/key-hash-cracker.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        // ─── CODE HOUSE (remaining REG-001 fixes) ───
+        'code-unit-testing-v2': {
+            id: 'code-unit-testing-v2',
+            title: 'Unit Testing Hands-On Lab',
+            description: 'Unit Testing Hands-On Lab — module content for code house',
+            house: 'code',
+            type: 'module',
+            difficulty: 'beginner',
+            duration: 45,
+            topics: ['unit', 'testing', 'handson', 'programming', 'development'],
+            paths: [],
+            components: {
+                lab: 'houses/code/labs/code-unit-testing.lab.html',
+                quiz: 'houses/code/quizzes/code-unit-testing.quiz.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'code-git-blame': {
+            id: 'code-git-blame',
+            title: 'git blame v2.43 - Pipeline Forensics',
+            description: 'git blame v2.43 - Pipeline Forensics — tool content for code house',
+            house: 'code',
+            type: 'tool',
+            difficulty: 'beginner',
+            duration: 20,
+            topics: ['blame', 'v243', 'pipeline', 'programming', 'development'],
+            paths: [],
+            components: {
+                tool: 'houses/code/games/code-git-blame.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        // ─── GENERAL / NON-HOUSE (remaining REG-001 fixes) ───
+        'general-audit-tool': {
+            id: 'general-audit-tool',
+            title: 'Content Audit Tool',
+            description: 'Content Audit Tool — tool content for Hexworth Prime',
+            house: 'general',
+            type: 'tool',
+            difficulty: 'beginner',
+            duration: 20,
+            topics: ['content', 'audit', 'tool', 'platform', 'utility'],
+            paths: [],
+            components: {
+                tool: 'admin/audit-tool.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'general-faq': {
+            id: 'general-faq',
+            title: 'Faq',
+            description: 'Faq — tool content for Hexworth Prime',
+            house: 'general',
+            type: 'tool',
+            difficulty: 'beginner',
+            duration: 20,
+            topics: ['platform', 'utility'],
+            paths: [],
+            components: {
+                tool: 'faq.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'general-product-info': {
+            id: 'general-product-info',
+            title: 'Hexworth Prime - Product Overview',
+            description: 'Hexworth Prime - Product Overview — tool content for Hexworth Prime',
+            house: 'general',
+            type: 'tool',
+            difficulty: 'beginner',
+            duration: 20,
+            topics: ['hexworth', 'prime', 'product', 'platform', 'utility'],
+            paths: [],
+            components: {
+                tool: 'product-info.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'general-a2-shadow-encoder': {
+            id: 'general-a2-shadow-encoder',
+            title: 'Box A2: The Shadow Encoder | CTF Arena',
+            description: 'Box A2: The Shadow Encoder | CTF Arena — tool content for Hexworth Prime',
+            house: 'general',
+            type: 'tool',
+            difficulty: 'beginner',
+            duration: 20,
+            topics: ['shadow', 'encoder', 'arena', 'platform', 'utility'],
+            paths: [],
+            components: {
+                tool: 'workshop/a2-shadow-encoder/current.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+
+
+
+
+
         // ─── DARK ARTS - Offensive Security (auto-generated) ───
         'dark-arts-buffer-overflow-lab': {
             id: 'dark-arts-buffer-overflow-lab',
