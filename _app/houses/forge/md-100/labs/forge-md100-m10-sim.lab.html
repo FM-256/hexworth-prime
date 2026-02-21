@@ -1,0 +1,1690 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Operation: Phoenix - MD-100 Day 10</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            min-height: 100vh;
+            background: #0c0c0c;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: #e0d0c0;
+        }
+
+        .lab-header {
+            padding: 15px 30px;
+            background: rgba(10, 10, 15, 0.95);
+            border-bottom: 1px solid rgba(234, 88, 12, 0.2);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .header-left { display: flex; align-items: center; gap: 20px; }
+
+        .back-btn {
+            padding: 8px 16px;
+            background: rgba(234, 88, 12, 0.1);
+            border: 1px solid rgba(234, 88, 12, 0.3);
+            border-radius: 6px;
+            color: #f97316;
+            text-decoration: none;
+            font-size: 0.85rem;
+            transition: all 0.2s ease;
+        }
+        .back-btn:hover { background: rgba(234, 88, 12, 0.2); }
+
+        .lab-title { font-size: 1rem; color: #f5e6d0; font-weight: 500; }
+
+        .lab-badge {
+            padding: 4px 12px;
+            background: rgba(220, 38, 38, 0.2);
+            border: 1px solid rgba(220, 38, 38, 0.4);
+            border-radius: 12px;
+            font-size: 0.7rem;
+            color: #ef4444;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+            animation: urgentPulse 2s ease infinite;
+        }
+
+        @keyframes urgentPulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.6; }
+        }
+
+        .task-progress { display: flex; align-items: center; gap: 10px; font-size: 0.85rem; color: #9a8070; }
+        .task-count { color: #f97316; font-weight: 600; }
+
+        .lab-container {
+            display: grid;
+            grid-template-columns: 320px 1fr;
+            min-height: calc(100vh - 61px);
+        }
+
+        /* Objectives Panel */
+        .task-panel {
+            background: rgba(15, 12, 8, 0.95);
+            border-right: 1px solid rgba(234, 88, 12, 0.15);
+            padding: 20px;
+            overflow-y: auto;
+            position: sticky;
+            top: 61px;
+            height: calc(100vh - 61px);
+        }
+
+        .panel-heading {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: #ea580c;
+            margin-bottom: 8px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid rgba(234, 88, 12, 0.2);
+        }
+
+        .mission-brief {
+            background: rgba(220, 38, 38, 0.08);
+            border: 1px solid rgba(220, 38, 38, 0.25);
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 15px;
+            font-size: 0.78rem;
+            color: #fca5a5;
+            line-height: 1.5;
+        }
+        .mission-brief .brief-from { color: #ef4444; font-weight: 600; margin-bottom: 4px; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.05em; }
+
+        .task-item {
+            background: rgba(234, 88, 12, 0.04);
+            border: 1px solid rgba(234, 88, 12, 0.1);
+            border-radius: 8px;
+            padding: 10px 12px;
+            margin-bottom: 6px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .task-item:hover { background: rgba(234, 88, 12, 0.08); border-color: rgba(234, 88, 12, 0.25); }
+        .task-item.active { border-left: 3px solid #ea580c; background: rgba(234, 88, 12, 0.1); }
+        .task-item.completed { border-color: rgba(34, 197, 94, 0.4); background: rgba(34, 197, 94, 0.04); }
+        .task-item.completed .task-title::before { content: '\2713 '; color: #22c55e; }
+
+        .task-title { font-size: 0.8rem; color: #f5e6d0; margin-bottom: 2px; font-weight: 500; }
+        .task-desc { font-size: 0.68rem; color: #7a6a5a; }
+
+        /* GUI Workspace */
+        .main-content { padding: 25px; overflow-y: auto; }
+
+        .exercise-section { display: none; }
+        .exercise-section.active { display: block; }
+
+        .exercise-title { font-size: 1.15rem; color: #f97316; margin-bottom: 6px; font-weight: 600; }
+        .exercise-intro { font-size: 0.88rem; color: #9a8070; margin-bottom: 20px; line-height: 1.6; }
+
+        /* Toast Notifications */
+        .toast-container {
+            position: fixed;
+            top: 75px;
+            right: 20px;
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .toast {
+            padding: 12px 18px;
+            border-radius: 8px;
+            font-size: 0.82rem;
+            line-height: 1.4;
+            max-width: 360px;
+            animation: toastIn 0.3s ease, toastOut 0.3s ease 5.7s forwards;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+        }
+        .toast .toast-from { font-weight: 700; font-size: 0.75rem; margin-bottom: 3px; text-transform: uppercase; letter-spacing: 0.03em; }
+        .toast-sarah { background: rgba(59, 130, 246, 0.15); border: 1px solid rgba(59, 130, 246, 0.3); color: #93c5fd; }
+        .toast-sarah .toast-from { color: #60a5fa; }
+        .toast-marcus { background: rgba(34, 197, 94, 0.12); border: 1px solid rgba(34, 197, 94, 0.3); color: #86efac; }
+        .toast-marcus .toast-from { color: #22c55e; }
+        .toast-james { background: rgba(234, 179, 8, 0.12); border: 1px solid rgba(234, 179, 8, 0.3); color: #fde68a; }
+        .toast-james .toast-from { color: #eab308; }
+        .toast-system { background: rgba(220, 38, 38, 0.12); border: 1px solid rgba(220, 38, 38, 0.3); color: #fca5a5; }
+        .toast-system .toast-from { color: #ef4444; }
+
+        @keyframes toastIn { from { transform: translateX(100px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        @keyframes toastOut { from { opacity: 1; } to { opacity: 0; transform: translateX(40px); } }
+
+        /* WinRE Environment */
+        .winre-screen {
+            background: #0050a0;
+            border-radius: 10px;
+            padding: 40px;
+            margin-bottom: 20px;
+            min-height: 350px;
+            position: relative;
+            color: white;
+        }
+        .winre-screen h2 { font-size: 1.4rem; font-weight: 300; margin-bottom: 25px; }
+        .winre-screen p { font-size: 0.9rem; font-weight: 300; margin-bottom: 20px; opacity: 0.9; }
+        .winre-tiles { display: flex; gap: 15px; flex-wrap: wrap; }
+        .winre-tile {
+            width: 140px; height: 100px;
+            background: rgba(255,255,255,0.08);
+            border: 1px solid rgba(255,255,255,0.15);
+            border-radius: 6px;
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+            gap: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+            padding: 10px;
+            text-align: center;
+        }
+        .winre-tile:hover { background: rgba(255,255,255,0.15); border-color: rgba(255,255,255,0.3); }
+        .winre-tile .tile-icon { font-size: 1.5rem; }
+        .winre-tile .tile-label { font-size: 0.72rem; font-weight: 400; }
+        .winre-tile.disabled { opacity: 0.4; cursor: not-allowed; }
+
+        /* Advanced Boot Options */
+        .boot-menu {
+            background: #000;
+            border: 1px solid #333;
+            border-radius: 10px;
+            padding: 30px;
+            font-family: 'Consolas', monospace;
+            margin-bottom: 20px;
+        }
+        .boot-menu h3 { color: #fff; font-size: 1rem; margin-bottom: 5px; }
+        .boot-menu .boot-subtitle { color: #888; font-size: 0.8rem; margin-bottom: 20px; }
+        .boot-option {
+            padding: 8px 14px;
+            color: #ccc;
+            font-size: 0.85rem;
+            cursor: pointer;
+            border-radius: 4px;
+            margin-bottom: 3px;
+            transition: background 0.15s;
+        }
+        .boot-option:hover { background: #1a3a5c; color: #fff; }
+        .boot-option.selected { background: #0078d7; color: #fff; }
+
+        /* Safe Mode Desktop */
+        .safemode-desktop {
+            background: #000;
+            border: 2px solid #444;
+            border-radius: 10px;
+            padding: 30px;
+            margin-bottom: 20px;
+            position: relative;
+            min-height: 200px;
+        }
+        .safemode-watermark {
+            position: absolute;
+            top: 10px; right: 15px;
+            color: #fff;
+            font-size: 0.75rem;
+            opacity: 0.7;
+            text-align: right;
+            line-height: 1.4;
+        }
+        .safemode-watermark span { display: block; }
+
+        /* Terminal / Command Prompt */
+        .cmd-window {
+            background: #0c0c0c;
+            border: 1px solid rgba(234, 88, 12, 0.3);
+            border-radius: 10px;
+            overflow: hidden;
+            margin-bottom: 20px;
+        }
+        .cmd-titlebar {
+            background: #1a1a2e;
+            padding: 6px 14px;
+            font-size: 0.75rem;
+            color: #aaa;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            border-bottom: 1px solid #333;
+        }
+        .cmd-body {
+            padding: 15px;
+            font-family: 'Consolas', 'Courier New', monospace;
+            font-size: 0.82rem;
+            color: #ccc;
+            min-height: 180px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .cmd-body .cmd-line-out { margin-bottom: 2px; white-space: pre-wrap; }
+        .cmd-body .cmd-success { color: #86efac; }
+        .cmd-body .cmd-error { color: #fca5a5; }
+        .cmd-body .cmd-warn { color: #fde68a; }
+        .cmd-body .cmd-info { color: #93c5fd; }
+        .cmd-input-row {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin-top: 8px;
+        }
+        .cmd-prompt-text { color: #ccc; font-family: 'Consolas', monospace; font-size: 0.82rem; white-space: nowrap; }
+        .cmd-input {
+            flex: 1;
+            background: transparent;
+            border: none;
+            color: #f0f0f0;
+            font-family: 'Consolas', monospace;
+            font-size: 0.82rem;
+            outline: none;
+            caret-color: #ccc;
+        }
+
+        /* Event Viewer */
+        .eventviewer {
+            background: rgba(20, 16, 12, 0.9);
+            border: 1px solid rgba(234, 88, 12, 0.2);
+            border-radius: 10px;
+            overflow: hidden;
+            margin-bottom: 20px;
+        }
+        .ev-titlebar { background: rgba(234, 88, 12, 0.1); padding: 8px 14px; font-size: 0.8rem; color: #f97316; font-weight: 600; border-bottom: 1px solid rgba(234, 88, 12, 0.15); }
+        .ev-toolbar { padding: 6px 14px; display: flex; gap: 8px; border-bottom: 1px solid rgba(234, 88, 12, 0.1); }
+        .ev-toolbar-btn {
+            padding: 4px 10px; background: rgba(234, 88, 12, 0.08); border: 1px solid rgba(234, 88, 12, 0.15);
+            border-radius: 4px; color: #c0b0a0; font-size: 0.72rem; cursor: pointer; font-family: inherit;
+        }
+        .ev-toolbar-btn:hover { background: rgba(234, 88, 12, 0.15); }
+        .ev-table { width: 100%; border-collapse: collapse; }
+        .ev-table th { padding: 6px 10px; background: rgba(234, 88, 12, 0.08); color: #f97316; font-size: 0.7rem; text-align: left; text-transform: uppercase; letter-spacing: 0.05em; }
+        .ev-table td { padding: 6px 10px; border-bottom: 1px solid rgba(234, 88, 12, 0.05); font-size: 0.78rem; color: #c0b0a0; }
+        .ev-table tr.ev-error td:first-child { color: #ef4444; }
+        .ev-table tr.ev-warn td:first-child { color: #eab308; }
+        .ev-table tr.ev-info td:first-child { color: #60a5fa; }
+        .ev-table tr { cursor: pointer; }
+        .ev-table tr:hover td { background: rgba(234, 88, 12, 0.06); }
+        .ev-table tr.selected td { background: rgba(234, 88, 12, 0.12); }
+        .ev-detail { padding: 12px 14px; border-top: 1px solid rgba(234, 88, 12, 0.1); font-size: 0.78rem; color: #9a8070; line-height: 1.5; display: none; }
+        .ev-detail.show { display: block; }
+
+        /* System Restore Wizard */
+        .restore-wizard {
+            background: rgba(20, 16, 12, 0.9);
+            border: 1px solid rgba(234, 88, 12, 0.2);
+            border-radius: 10px;
+            padding: 25px;
+            margin-bottom: 20px;
+        }
+        .restore-wizard h4 { color: #f97316; font-size: 0.9rem; margin-bottom: 5px; }
+        .restore-wizard .rw-subtitle { color: #7a6a5a; font-size: 0.78rem; margin-bottom: 15px; }
+        .restore-point {
+            padding: 10px 14px;
+            border: 1px solid rgba(234, 88, 12, 0.15);
+            border-radius: 6px;
+            margin-bottom: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .restore-point:hover { border-color: rgba(234, 88, 12, 0.4); background: rgba(234, 88, 12, 0.06); }
+        .restore-point.selected { border-color: #f97316; background: rgba(234, 88, 12, 0.12); }
+        .restore-point .rp-date { font-size: 0.82rem; color: #f5e6d0; }
+        .restore-point .rp-desc { font-size: 0.75rem; color: #9a8070; }
+        .restore-point .rp-type { font-size: 0.7rem; color: #7a6a5a; padding: 2px 8px; background: rgba(234, 88, 12, 0.1); border-radius: 10px; }
+        .no-points-msg { color: #fca5a5; font-size: 0.82rem; font-style: italic; margin: 10px 0; }
+        .show-more-link { color: #60a5fa; font-size: 0.78rem; cursor: pointer; text-decoration: underline; margin-top: 8px; display: inline-block; }
+        .show-more-link:hover { color: #93c5fd; }
+
+        /* Progress simulation */
+        .progress-sim {
+            background: rgba(30, 25, 20, 0.8);
+            border: 1px solid rgba(234, 88, 12, 0.2);
+            border-radius: 8px;
+            padding: 15px;
+            margin: 15px 0;
+        }
+        .progress-label { font-size: 0.82rem; color: #c0b0a0; margin-bottom: 8px; }
+        .progress-bar-track {
+            height: 8px;
+            background: rgba(234, 88, 12, 0.1);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+        .progress-bar-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #ea580c, #f97316);
+            border-radius: 4px;
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+        .progress-bar-fill.success { background: linear-gradient(90deg, #16a34a, #22c55e); }
+        .progress-bar-fill.error { background: linear-gradient(90deg, #dc2626, #ef4444); }
+        .progress-pct { font-size: 0.75rem; color: #9a8070; margin-top: 4px; text-align: right; }
+
+        /* Action buttons */
+        .action-btn {
+            padding: 10px 22px;
+            background: linear-gradient(135deg, #ea580c, #c2410c);
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-size: 0.85rem;
+            font-weight: 600;
+            cursor: pointer;
+            font-family: inherit;
+            transition: all 0.2s ease;
+            margin-right: 8px;
+            margin-top: 10px;
+        }
+        .action-btn:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 4px 15px rgba(234, 88, 12, 0.3); }
+        .action-btn:disabled { opacity: 0.4; cursor: default; transform: none; }
+        .action-btn.secondary { background: rgba(234, 88, 12, 0.15); border: 1px solid rgba(234, 88, 12, 0.3); }
+        .action-btn.success { background: linear-gradient(135deg, #22c55e, #16a34a); }
+
+        /* Info callout */
+        .info-callout {
+            background: rgba(96, 165, 250, 0.08);
+            border-left: 3px solid rgba(96, 165, 250, 0.5);
+            border-radius: 4px;
+            padding: 12px 16px;
+            margin: 15px 0;
+            font-size: 0.82rem;
+            color: #93c5fd;
+            line-height: 1.5;
+        }
+
+        .warn-callout {
+            background: rgba(234, 179, 8, 0.08);
+            border-left: 3px solid rgba(234, 179, 8, 0.5);
+            border-radius: 4px;
+            padding: 12px 16px;
+            margin: 15px 0;
+            font-size: 0.82rem;
+            color: #fde68a;
+            line-height: 1.5;
+        }
+
+        .error-callout {
+            background: rgba(220, 38, 38, 0.08);
+            border-left: 3px solid rgba(220, 38, 38, 0.5);
+            border-radius: 4px;
+            padding: 12px 16px;
+            margin: 15px 0;
+            font-size: 0.82rem;
+            color: #fca5a5;
+            line-height: 1.5;
+        }
+
+        /* Reset options panel */
+        .reset-panel {
+            background: #0050a0;
+            border-radius: 10px;
+            padding: 30px;
+            margin-bottom: 20px;
+            color: white;
+        }
+        .reset-panel h3 { font-weight: 300; margin-bottom: 15px; }
+        .reset-option {
+            background: rgba(255,255,255,0.08);
+            border: 1px solid rgba(255,255,255,0.15);
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 10px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .reset-option:hover { background: rgba(255,255,255,0.15); }
+        .reset-option h4 { font-size: 0.9rem; font-weight: 500; margin-bottom: 4px; }
+        .reset-option p { font-size: 0.78rem; opacity: 0.8; }
+        .reset-option.disabled-option { opacity: 0.3; cursor: not-allowed; position: relative; }
+        .reset-option .greyed-tag { position: absolute; top: 8px; right: 12px; font-size: 0.65rem; color: #fca5a5; background: rgba(220,38,38,0.2); padding: 2px 8px; border-radius: 10px; }
+
+        /* Restore point creator */
+        .rp-creator {
+            background: rgba(20, 16, 12, 0.9);
+            border: 1px solid rgba(234, 88, 12, 0.2);
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 15px;
+        }
+        .rp-creator h4 { color: #f97316; font-size: 0.85rem; margin-bottom: 12px; }
+        .rp-input {
+            background: rgba(30, 25, 20, 0.9);
+            border: 1px solid rgba(234, 88, 12, 0.25);
+            border-radius: 6px;
+            color: #c0b0a0;
+            padding: 8px 12px;
+            font-size: 0.85rem;
+            font-family: inherit;
+            width: 100%;
+            margin-bottom: 10px;
+        }
+        .rp-input:focus { outline: none; border-color: #f97316; }
+        .machine-check { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; font-size: 0.82rem; color: #c0b0a0; }
+        .machine-check input { accent-color: #f97316; }
+        .machine-check.done { color: #86efac; }
+
+        /* Feedback */
+        .feedback-box {
+            margin-top: 15px;
+            padding: 14px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            line-height: 1.5;
+            display: none;
+        }
+        .feedback-box.correct { background: rgba(34, 197, 94, 0.1); border: 1px solid rgba(34, 197, 94, 0.3); color: #86efac; }
+        .feedback-box.incorrect { background: rgba(220, 38, 38, 0.1); border: 1px solid rgba(220, 38, 38, 0.3); color: #fca5a5; }
+        .feedback-box.show { display: block; }
+
+        /* Chkdsk table */
+        .chkdsk-output {
+            font-family: 'Consolas', monospace;
+            font-size: 0.78rem;
+            color: #ccc;
+            background: #0c0c0c;
+            padding: 12px;
+            border-radius: 6px;
+            margin: 10px 0;
+            line-height: 1.6;
+            white-space: pre-wrap;
+        }
+
+        /* Complete section */
+        .complete-section {
+            display: none;
+            margin-top: 40px;
+            padding: 30px;
+            background: rgba(34, 197, 94, 0.06);
+            border: 1px solid rgba(34, 197, 94, 0.2);
+            border-radius: 12px;
+            text-align: center;
+        }
+        .complete-section.show { display: block; }
+        .complete-section h3 { color: #22c55e; font-size: 1.2rem; margin-bottom: 10px; }
+        .complete-section p { color: #9a8070; font-size: 0.9rem; margin-bottom: 20px; line-height: 1.6; }
+
+        .complete-btn {
+            padding: 14px 32px;
+            background: linear-gradient(135deg, #22c55e, #16a34a);
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-size: 1rem;
+            font-weight: 700;
+            cursor: pointer;
+            font-family: inherit;
+            transition: all 0.2s ease;
+        }
+        .complete-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(34, 197, 94, 0.35); }
+
+        @keyframes taskPulse {
+            0%, 100% { box-shadow: none; }
+            50% { box-shadow: 0 0 12px rgba(34, 197, 94, 0.5); }
+        }
+        .task-item.just-completed { animation: taskPulse 0.6s ease; }
+
+        .hidden { display: none !important; }
+
+        @media (max-width: 900px) {
+            .lab-container { grid-template-columns: 1fr; }
+            .task-panel { position: static; height: auto; }
+            .winre-tiles { justify-content: center; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="toast-container" id="toastContainer"></div>
+
+    <header class="lab-header">
+        <div class="header-left">
+            <a href="../index.html" class="back-btn">&larr; Back to MD-100</a>
+            <span class="lab-title">Day 10: Operation Phoenix</span>
+            <span class="lab-badge">Critical Incident</span>
+        </div>
+        <div class="task-progress">
+            <span>Objectives:</span>
+            <span class="task-count" id="taskCount">0 / 12</span>
+        </div>
+    </header>
+
+    <div class="lab-container">
+
+        <aside class="task-panel">
+            <div class="panel-heading">Mission Objectives</div>
+            <div class="mission-brief">
+                <div class="brief-from">Sarah Chen - 5:47 AM</div>
+                Forge-1, we have a major incident. The malware from Tuesday had a second payload we missed &mdash; a time-delayed wiper. It triggered at 2am. Twelve workstations won't boot. The file server is showing filesystem corruption. We have backups from yesterday but I need these machines operational by 9am. This is the worst day of my career. Please tell me you can handle this.
+            </div>
+
+            <div class="task-item active" data-task="1" onclick="showTask(1)">
+                <div class="task-title">1. Assess Machine 1</div>
+                <div class="task-desc">Access WinRE from recovery screen</div>
+            </div>
+            <div class="task-item" data-task="2" onclick="showTask(2)">
+                <div class="task-title">2. Attempt Startup Repair</div>
+                <div class="task-desc">Run automatic repair (it will fail)</div>
+            </div>
+            <div class="task-item" data-task="3" onclick="showTask(3)">
+                <div class="task-title">3. Fix Boot Sector</div>
+                <div class="task-desc">Run bootrec commands in WinRE CMD</div>
+            </div>
+            <div class="task-item" data-task="4" onclick="showTask(4)">
+                <div class="task-title">4. Boot to Safe Mode</div>
+                <div class="task-desc">Use Startup Settings for Safe Mode + Net</div>
+            </div>
+            <div class="task-item" data-task="5" onclick="showTask(5)">
+                <div class="task-title">5. Repair System Files</div>
+                <div class="task-desc">SFC + DISM in Safe Mode</div>
+            </div>
+            <div class="task-item" data-task="6" onclick="showTask(6)">
+                <div class="task-title">6. System Restore Machine 2</div>
+                <div class="task-desc">Restore from yesterday's restore point</div>
+            </div>
+            <div class="task-item" data-task="7" onclick="showTask(7)">
+                <div class="task-title">7. Fix CRM App Crash</div>
+                <div class="task-desc">Event Viewer diagnosis + config restore</div>
+            </div>
+            <div class="task-item" data-task="8" onclick="showTask(8)">
+                <div class="task-title">8. Recover Machine 3</div>
+                <div class="task-desc">System Image Recovery from backup</div>
+            </div>
+            <div class="task-item" data-task="9" onclick="showTask(9)">
+                <div class="task-title">9. Reset Machine 4</div>
+                <div class="task-desc">Factory reset conference room PC</div>
+            </div>
+            <div class="task-item" data-task="10" onclick="showTask(10)">
+                <div class="task-title">10. Repair File Server</div>
+                <div class="task-desc">chkdsk /f /r on corrupted D: drive</div>
+            </div>
+            <div class="task-item" data-task="11" onclick="showTask(11)">
+                <div class="task-title">11. Verify All Recoveries</div>
+                <div class="task-desc">Boot each machine, check logs</div>
+            </div>
+            <div class="task-item" data-task="12" onclick="showTask(12)">
+                <div class="task-title">12. Create Restore Points</div>
+                <div class="task-desc">Baseline restore points on all machines</div>
+            </div>
+        </aside>
+
+        <main class="main-content">
+
+            <!-- ====== TASK 1: Assess Machine 1 ====== -->
+            <section class="exercise-section active" id="task-1">
+                <div class="exercise-title">Objective 1: Assess Machine 1 in WinRE</div>
+                <div class="exercise-intro">Machine 1 boots to a "Recovery: Your PC ran into a problem" screen. Access the Windows Recovery Environment to begin diagnosis.</div>
+
+                <div class="winre-screen" id="winre-recovery">
+                    <div style="font-size:3rem; margin-bottom:15px;">:(</div>
+                    <h2>Recovery</h2>
+                    <p>Your PC/Device needs to be repaired.<br>
+                    The Boot Configuration Data file is missing some required information.<br>
+                    File: \BCD<br>
+                    Error code: 0xc0000034</p>
+                    <p style="opacity:0.7; font-size:0.82rem;">Press F1 for recovery environment<br>Press F8 for startup settings<br>Press Esc for UEFI Firmware Settings</p>
+                    <div style="margin-top:20px;">
+                        <button class="action-btn" onclick="enterWinRE()">Press F1 - Enter Recovery Environment</button>
+                    </div>
+                </div>
+
+                <div class="winre-screen hidden" id="winre-choose">
+                    <h2>Choose an option</h2>
+                    <div class="winre-tiles">
+                        <div class="winre-tile" onclick="showToast('system', 'Cannot continue to Windows - boot files are corrupted.')">
+                            <div class="tile-icon">&#9654;</div>
+                            <div class="tile-label">Continue</div>
+                        </div>
+                        <div class="winre-tile" onclick="openTroubleshoot()">
+                            <div class="tile-icon">&#9881;</div>
+                            <div class="tile-label">Troubleshoot</div>
+                        </div>
+                        <div class="winre-tile" onclick="showToast('system', 'Not yet - we need to fix this machine first.')">
+                            <div class="tile-icon">&#9211;</div>
+                            <div class="tile-label">Turn off your PC</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="winre-screen hidden" id="winre-troubleshoot">
+                    <h2>Troubleshoot</h2>
+                    <p>Reset your PC or see advanced options.</p>
+                    <div class="winre-tiles">
+                        <div class="winre-tile disabled" onclick="showToast('system', 'We will use Reset for Machine 4 later. This machine has critical data.')">
+                            <div class="tile-icon">&#8634;</div>
+                            <div class="tile-label">Reset this PC</div>
+                        </div>
+                        <div class="winre-tile" onclick="openAdvanced()">
+                            <div class="tile-icon">&#9881;</div>
+                            <div class="tile-label">Advanced options</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="winre-screen hidden" id="winre-advanced">
+                    <h2>Advanced options</h2>
+                    <div class="winre-tiles">
+                        <div class="winre-tile" id="tile-startup-repair" onclick="completeTask1()">
+                            <div class="tile-icon">&#128295;</div>
+                            <div class="tile-label">Startup Repair</div>
+                        </div>
+                        <div class="winre-tile" id="tile-sys-restore">
+                            <div class="tile-icon">&#128197;</div>
+                            <div class="tile-label">System Restore</div>
+                        </div>
+                        <div class="winre-tile" id="tile-cmd">
+                            <div class="tile-icon">&#9000;</div>
+                            <div class="tile-label">Command Prompt</div>
+                        </div>
+                        <div class="winre-tile" id="tile-image-recovery">
+                            <div class="tile-icon">&#128190;</div>
+                            <div class="tile-label">System Image Recovery</div>
+                        </div>
+                        <div class="winre-tile" id="tile-startup-settings">
+                            <div class="tile-icon">&#9881;</div>
+                            <div class="tile-label">Startup Settings</div>
+                        </div>
+                        <div class="winre-tile">
+                            <div class="tile-icon">&#9000;</div>
+                            <div class="tile-label">UEFI Firmware</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="info-callout hidden" id="task1-info">
+                    You have successfully accessed WinRE and can see all Advanced options. The error code 0xc0000034 indicates a corrupted or missing BCD (Boot Configuration Data) file. Startup Repair should be attempted first as it handles common boot issues automatically.
+                </div>
+            </section>
+
+            <!-- ====== TASK 2: Startup Repair (Fails) ====== -->
+            <section class="exercise-section" id="task-2">
+                <div class="exercise-title">Objective 2: Attempt Startup Repair</div>
+                <div class="exercise-intro">Run the automatic Startup Repair tool. It will analyze boot issues and attempt to fix them.</div>
+
+                <div id="repair-running" class="winre-screen">
+                    <h2>Startup Repair</h2>
+                    <p>Diagnosing your PC...</p>
+                    <div class="progress-sim" style="background: rgba(255,255,255,0.05); border-color: rgba(255,255,255,0.1);">
+                        <div class="progress-bar-track" style="background: rgba(255,255,255,0.1);">
+                            <div class="progress-bar-fill" id="repair-progress" style="background: linear-gradient(90deg, #60a5fa, #3b82f6);"></div>
+                        </div>
+                        <div class="progress-pct" id="repair-pct" style="color: rgba(255,255,255,0.6);">0%</div>
+                    </div>
+                    <button class="action-btn" id="btn-run-repair" onclick="runStartupRepair()">Run Startup Repair</button>
+                </div>
+
+                <div id="repair-failed" class="hidden">
+                    <div class="winre-screen" style="background: #3a0a0a;">
+                        <h2>Startup Repair couldn't repair your PC</h2>
+                        <p>Press "Advanced options" to try other tools to fix your PC or "Shut down" to turn off your PC.</p>
+                        <p style="font-size:0.78rem; opacity:0.7;">Log file: X:\Windows\System32\Logfiles\Srt\SrtTrail.txt</p>
+                        <div style="margin-top:15px; font-size: 0.78rem; background: rgba(0,0,0,0.3); padding: 12px; border-radius: 6px; font-family: Consolas, monospace; line-height: 1.6;">
+                            Session details:<br>
+                            Boot critical file: \windows\system32\winload.efi is OK<br>
+                            Boot critical file: \BCD status: 0xc0000034 - <span style="color:#fca5a5">FILE NOT FOUND</span><br>
+                            Boot critical file: \bootmgr status: OK<br>
+                            MBR/Boot sector: <span style="color:#fca5a5">CORRUPT - sectors 0-62 damaged</span><br>
+                            Repair action: Attempted automatic BCD rebuild - <span style="color:#fca5a5">FAILED</span><br>
+                            Root cause: Wiper payload overwrote boot sector and BCD store
+                        </div>
+                    </div>
+
+                    <div class="info-callout">
+                        <strong>Analysis:</strong> Startup Repair failed because the damage is too severe for automatic repair. The boot sector and BCD are both corrupted by the wiper. Manual repair with bootrec commands is needed. This is a common scenario when malware targets boot infrastructure.
+                    </div>
+
+                    <button class="action-btn" onclick="completeTask2()">Acknowledge &amp; Continue to Manual Repair</button>
+                </div>
+            </section>
+
+            <!-- ====== TASK 3: Fix Boot Sector ====== -->
+            <section class="exercise-section" id="task-3">
+                <div class="exercise-title">Objective 3: Fix the Boot Sector</div>
+                <div class="exercise-intro">Open Command Prompt in WinRE. Run the bootrec commands to repair the MBR, boot sector, and rebuild BCD. Type each command and press Enter.</div>
+
+                <div class="warn-callout" id="fixboot-warn" style="display:none;">
+                    <strong>Note:</strong> The <code>bootrec /fixboot</code> command returned "Access is denied" because this is a UEFI system. On UEFI systems, use <code>bcdboot C:\Windows</code> instead to write the boot files to the EFI System Partition.
+                </div>
+
+                <div class="cmd-window">
+                    <div class="cmd-titlebar">Command Prompt - WinRE</div>
+                    <div class="cmd-body" id="cmd-output-3">
+                        <div class="cmd-line-out">Microsoft Windows [Version 10.0.19045]</div>
+                        <div class="cmd-line-out">(c) Microsoft Corporation. All rights reserved.</div>
+                        <div class="cmd-line-out">&nbsp;</div>
+                    </div>
+                    <div class="cmd-input-row" style="padding: 0 15px 15px;">
+                        <span class="cmd-prompt-text">X:\Sources&gt;</span>
+                        <input type="text" class="cmd-input" id="cmd-input-3" placeholder="Type command here..." onkeydown="if(event.key==='Enter')execBootCmd()">
+                    </div>
+                </div>
+
+                <div class="info-callout">
+                    <strong>Required commands (in order):</strong><br>
+                    1. <code>bootrec /fixmbr</code> - Writes a new MBR to the system partition<br>
+                    2. <code>bootrec /fixboot</code> - Writes a new boot sector (will fail on UEFI - expected!)<br>
+                    3. <code>bcdboot C:\Windows</code> - Copies boot files to EFI System Partition (UEFI fix)<br>
+                    4. <code>bootrec /rebuildbcd</code> - Scans for Windows installations and rebuilds BCD store
+                </div>
+            </section>
+
+            <!-- ====== TASK 4: Boot to Safe Mode ====== -->
+            <section class="exercise-section" id="task-4">
+                <div class="exercise-title">Objective 4: Boot to Safe Mode</div>
+                <div class="exercise-intro">Machine 1 now boots past the BCD screen but crashes at login due to a corrupted driver. Use Startup Settings to boot into Safe Mode with Networking.</div>
+
+                <div class="boot-menu" id="boot-menu">
+                    <h3>Advanced Boot Options</h3>
+                    <div class="boot-subtitle">Choose an operating system to start, or press a key:<br>(Use the arrow keys to highlight your choice, then press ENTER.)</div>
+
+                    <div class="boot-option" onclick="selectBoot(this, 'safe')" data-val="safe">4) Enable Safe Mode</div>
+                    <div class="boot-option" onclick="selectBoot(this, 'safenet')" data-val="safenet">5) Enable Safe Mode with Networking</div>
+                    <div class="boot-option" onclick="selectBoot(this, 'safecmd')" data-val="safecmd">6) Enable Safe Mode with Command Prompt</div>
+                    <div class="boot-option" onclick="selectBoot(this, 'log')" data-val="log">7) Enable Boot Logging</div>
+                    <div class="boot-option" onclick="selectBoot(this, 'vga')" data-val="vga">8) Enable Low-Resolution Video</div>
+                    <div class="boot-option" onclick="selectBoot(this, 'debug')" data-val="debug">9) Debugging Mode</div>
+                    <div class="boot-option" onclick="selectBoot(this, 'dsig')" data-val="dsig">10) Disable Driver Signature Enforcement</div>
+                </div>
+
+                <div class="feedback-box" id="boot-feedback"></div>
+
+                <button class="action-btn" id="btn-boot" onclick="confirmBoot()" disabled>Boot with Selected Option</button>
+            </section>
+
+            <!-- ====== TASK 5: Repair System Files ====== -->
+            <section class="exercise-section" id="task-5">
+                <div class="exercise-title">Objective 5: Repair System Files</div>
+                <div class="exercise-intro">In Safe Mode with Networking, run SFC and DISM to repair corrupted system files. Type each command in the correct order.</div>
+
+                <div class="safemode-desktop" id="safemode-5">
+                    <div class="safemode-watermark">
+                        <span>Safe Mode with Networking</span>
+                        <span>Windows 10 Pro Build 19045</span>
+                    </div>
+
+                    <div class="cmd-window" style="margin-top: 30px;">
+                        <div class="cmd-titlebar">Administrator: Command Prompt - Safe Mode</div>
+                        <div class="cmd-body" id="cmd-output-5">
+                            <div class="cmd-line-out">Microsoft Windows [Version 10.0.19045]</div>
+                            <div class="cmd-line-out">(c) Microsoft Corporation. All rights reserved.</div>
+                            <div class="cmd-line-out">&nbsp;</div>
+                        </div>
+                        <div class="cmd-input-row" style="padding: 0 15px 15px;">
+                            <span class="cmd-prompt-text">C:\Windows\System32&gt;</span>
+                            <input type="text" class="cmd-input" id="cmd-input-5" placeholder="Type command here..." onkeydown="if(event.key==='Enter')execRepairCmd()">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="info-callout">
+                    <strong>Correct sequence:</strong><br>
+                    1. <code>sfc /scannow</code> - Scan system files (will find 14 corrupt, repair 11, fail on 3)<br>
+                    2. <code>DISM /Online /Cleanup-Image /RestoreHealth</code> - Repair component store via Windows Update (needs networking!)<br>
+                    3. <code>sfc /scannow</code> - Re-run SFC to repair the remaining 3 files using the fixed component store
+                </div>
+            </section>
+
+            <!-- ====== TASK 6: System Restore Machine 2 ====== -->
+            <section class="exercise-section" id="task-6">
+                <div class="exercise-title">Objective 6: System Restore Machine 2</div>
+                <div class="exercise-intro">Machine 2 is in worse shape - even Safe Mode crashes. Access WinRE and use System Restore to roll back to yesterday's restore point (before the wiper triggered at 2am).</div>
+
+                <div class="restore-wizard" id="restore-step1">
+                    <h4>System Restore</h4>
+                    <div class="rw-subtitle">Restore system files and settings to an earlier point in time.</div>
+
+                    <p style="font-size:0.82rem; color:#c0b0a0; margin-bottom:12px;">Select a restore point from the list below:</p>
+
+                    <div id="initial-points">
+                        <div class="no-points-msg" id="no-points-msg">No restore points were found on this system.</div>
+                        <div class="show-more-link" id="show-more-btn" onclick="showMorePoints()">Show more restore points</div>
+                    </div>
+
+                    <div id="expanded-points" class="hidden">
+                        <div class="restore-point" onclick="selectRP(this, 'old')" data-rp="old">
+                            <div>
+                                <div class="rp-date">02/15/2026 3:00:00 AM</div>
+                                <div class="rp-desc">Windows Update - KB5034441</div>
+                            </div>
+                            <div class="rp-type">Automatic</div>
+                        </div>
+                        <div class="restore-point" onclick="selectRP(this, 'good')" data-rp="good">
+                            <div>
+                                <div class="rp-date">02/20/2026 11:30:00 PM</div>
+                                <div class="rp-desc">Scheduled checkpoint - Pre-backup</div>
+                            </div>
+                            <div class="rp-type">System</div>
+                        </div>
+                    </div>
+
+                    <div class="feedback-box" id="rp-feedback"></div>
+                    <button class="action-btn" id="btn-restore" onclick="startRestore()" disabled>Next &gt;</button>
+                </div>
+
+                <div id="restore-running" class="hidden">
+                    <div class="progress-sim">
+                        <div class="progress-label">System Restore is restoring the system to 02/20/2026 11:30:00 PM...</div>
+                        <div class="progress-bar-track">
+                            <div class="progress-bar-fill" id="restore-progress"></div>
+                        </div>
+                        <div class="progress-pct" id="restore-pct">0%</div>
+                    </div>
+                </div>
+
+                <div id="restore-complete" class="hidden">
+                    <div class="info-callout" style="border-left-color: rgba(34, 197, 94, 0.5); background: rgba(34, 197, 94, 0.08); color: #86efac;">
+                        <strong>System Restore completed successfully.</strong><br>
+                        The system has been restored to 02/20/2026 11:30:00 PM. The computer must be restarted to complete the process. All system files have been reverted to their state before the wiper triggered.
+                    </div>
+                    <button class="action-btn success" onclick="completeTask6()">Restart Machine 2</button>
+                </div>
+            </section>
+
+            <!-- ====== TASK 7: Fix CRM App Crash ====== -->
+            <section class="exercise-section" id="task-7">
+                <div class="exercise-title">Objective 7: Fix the CRM Application Crash</div>
+                <div class="exercise-intro">After the System Restore, Machine 2 boots normally but the CRM application (MeridianCRM.exe) crashes on launch. Use Event Viewer to diagnose the cause, then repair the config file.</div>
+
+                <div class="eventviewer">
+                    <div class="ev-titlebar">Event Viewer - Application Log</div>
+                    <div class="ev-toolbar">
+                        <button class="ev-toolbar-btn" onclick="filterEvents('all')">All Events</button>
+                        <button class="ev-toolbar-btn" onclick="filterEvents('error')">Errors Only</button>
+                        <button class="ev-toolbar-btn" onclick="filterEvents('warn')">Warnings Only</button>
+                    </div>
+                    <table class="ev-table">
+                        <thead>
+                            <tr><th>Level</th><th>Date/Time</th><th>Source</th><th>Event ID</th><th>Description</th></tr>
+                        </thead>
+                        <tbody id="ev-tbody">
+                            <tr class="ev-error" onclick="selectEvent(this, 'crm')">
+                                <td>Error</td><td>02/21/2026 6:12 AM</td><td>Application Error</td><td>1000</td>
+                                <td>Faulting application: MeridianCRM.exe, Exception: 0xc0000005</td>
+                            </tr>
+                            <tr class="ev-error" onclick="selectEvent(this, 'crm-config')">
+                                <td>Error</td><td>02/21/2026 6:12 AM</td><td>MeridianCRM</td><td>5001</td>
+                                <td>Configuration file corrupt: C:\Program Files\MeridianCRM\app.config</td>
+                            </tr>
+                            <tr class="ev-warn" onclick="selectEvent(this, 'dotnet')">
+                                <td>Warning</td><td>02/21/2026 6:11 AM</td><td>.NET Runtime</td><td>1026</td>
+                                <td>Application: MeridianCRM.exe Framework Version: v4.0.30319</td>
+                            </tr>
+                            <tr class="ev-info" onclick="selectEvent(this, 'restore-done')">
+                                <td>Information</td><td>02/21/2026 6:05 AM</td><td>System Restore</td><td>8216</td>
+                                <td>System Restore completed successfully</td>
+                            </tr>
+                            <tr class="ev-error" onclick="selectEvent(this, 'wiper')">
+                                <td>Error</td><td>02/21/2026 2:01 AM</td><td>Security</td><td>4688</td>
+                                <td>A new process was created: wiper_payload.exe (terminated by restore)</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    <div class="ev-detail" id="ev-detail">Click an event to view details.</div>
+                </div>
+
+                <div id="crm-fix-section" class="hidden">
+                    <div class="warn-callout">
+                        <strong>Diagnosis:</strong> Event ID 5001 from MeridianCRM indicates the app.config file is corrupt. The wiper damaged it before System Restore captured the last checkpoint. We need to restore the config from the backup copy.
+                    </div>
+
+                    <p style="font-size:0.85rem; color:#c0b0a0; margin:15px 0;">Which command restores the backup config file?</p>
+                    <div style="display: flex; flex-direction: column; gap: 8px;">
+                        <button class="action-btn secondary" style="text-align:left; width:100%;" onclick="checkCRMfix('wrong', this)">sfc /scannow - scan and repair system files</button>
+                        <button class="action-btn secondary" style="text-align:left; width:100%;" onclick="checkCRMfix('correct', this)">copy "C:\Program Files\MeridianCRM\app.config.bak" "C:\Program Files\MeridianCRM\app.config"</button>
+                        <button class="action-btn secondary" style="text-align:left; width:100%;" onclick="checkCRMfix('wrong', this)">regedit - fix the registry keys for MeridianCRM</button>
+                        <button class="action-btn secondary" style="text-align:left; width:100%;" onclick="checkCRMfix('wrong', this)">Reinstall MeridianCRM from scratch</button>
+                    </div>
+                    <div class="feedback-box" id="crm-feedback"></div>
+                </div>
+            </section>
+
+            <!-- ====== TASK 8: System Image Recovery Machine 3 ====== -->
+            <section class="exercise-section" id="task-8">
+                <div class="exercise-title">Objective 8: Recover Machine 3 from System Image</div>
+                <div class="exercise-intro">Machine 3 is unrecoverable by individual repair tools - the OS partition is severely damaged. Use System Image Recovery in WinRE to restore from the last system image backup (taken yesterday at 10 PM).</div>
+
+                <div class="winre-screen">
+                    <h2>System Image Recovery</h2>
+                    <p>Re-image your computer using a system image backup.</p>
+
+                    <div style="background: rgba(255,255,255,0.05); padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+                        <p style="font-size: 0.85rem; margin-bottom: 8px;"><strong>Available system images:</strong></p>
+                        <div class="restore-point" onclick="selectImage(this)" style="border-color: rgba(255,255,255,0.2);">
+                            <div>
+                                <div class="rp-date" style="color:white;">02/20/2026 10:00:00 PM</div>
+                                <div class="rp-desc" style="color:rgba(255,255,255,0.7);">Full system image - Machine 3 (C: drive, 89.4 GB)</div>
+                            </div>
+                            <div class="rp-type" style="background:rgba(255,255,255,0.1);">Network Backup</div>
+                        </div>
+                    </div>
+
+                    <div class="info-callout" style="background: rgba(255,255,255,0.05); border-left-color: rgba(255,255,255,0.3); color: rgba(255,255,255,0.8);">
+                        <strong>Warning:</strong> System Image Recovery will replace ALL data on the target drive with the contents of the system image. Any data created after 02/20/2026 10:00 PM will be lost.
+                    </div>
+
+                    <button class="action-btn" id="btn-image-recover" onclick="startImageRecovery()" disabled>Restore System Image</button>
+                </div>
+
+                <div id="image-running" class="hidden">
+                    <div class="progress-sim">
+                        <div class="progress-label">Restoring system image to Machine 3... (89.4 GB)</div>
+                        <div class="progress-bar-track">
+                            <div class="progress-bar-fill" id="image-progress"></div>
+                        </div>
+                        <div class="progress-pct" id="image-pct">0%</div>
+                    </div>
+                </div>
+
+                <div id="image-complete" class="hidden">
+                    <div class="info-callout" style="border-left-color: rgba(34, 197, 94, 0.5); background: rgba(34, 197, 94, 0.08); color: #86efac;">
+                        <strong>System Image Recovery completed successfully.</strong><br>
+                        Machine 3 has been restored to its state from 02/20/2026 10:00 PM. The system will restart automatically.
+                    </div>
+                </div>
+            </section>
+
+            <!-- ====== TASK 9: Reset Machine 4 ====== -->
+            <section class="exercise-section" id="task-9">
+                <div class="exercise-title">Objective 9: Reset Machine 4</div>
+                <div class="exercise-intro">Machine 4 is a shared conference room PC with no critical data. Use "Reset this PC" to factory reset it. But there is a complication...</div>
+
+                <div class="reset-panel" id="reset-step1">
+                    <h3>Reset this PC</h3>
+                    <p style="font-size:0.85rem; opacity:0.9; margin-bottom:20px;">Choose an option:</p>
+
+                    <div class="reset-option" onclick="showToast('system', 'This is a conference room PC with no user data. Choose Remove Everything for a clean reset.')">
+                        <h4>Keep my files</h4>
+                        <p>Removes apps and settings, but keeps your personal files.</p>
+                    </div>
+                    <div class="reset-option disabled-option" id="reset-remove-all" onclick="tryReset()">
+                        <h4>Remove everything</h4>
+                        <p>Removes all of your personal files, apps, and settings.</p>
+                        <div class="greyed-tag">Unavailable</div>
+                    </div>
+                </div>
+
+                <div id="reset-blocked" class="hidden">
+                    <div class="error-callout">
+                        <strong>Error:</strong> "Unable to reset your PC. A required drive partition is missing." The recovery partition has been corrupted by the wiper. The local reset option is unavailable.
+                    </div>
+
+                    <div class="warn-callout">
+                        <strong>Solution:</strong> When the recovery partition is corrupted, you must use Windows installation media (USB drive) to perform the reset. Select the approach below:
+                    </div>
+
+                    <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 12px;">
+                        <button class="action-btn secondary" style="text-align:left; width:100%;" onclick="checkResetFix('wrong', this)">Download a recovery partition repair tool from the internet</button>
+                        <button class="action-btn secondary" style="text-align:left; width:100%;" onclick="checkResetFix('correct', this)">Boot from Windows 10 installation USB &gt; Install now &gt; Custom install &gt; Format C: &gt; Clean install</button>
+                        <button class="action-btn secondary" style="text-align:left; width:100%;" onclick="checkResetFix('wrong', this)">Use DISM to repair the recovery partition from within WinRE</button>
+                        <button class="action-btn secondary" style="text-align:left; width:100%;" onclick="checkResetFix('wrong', this)">Copy the recovery partition from Machine 1 using xcopy</button>
+                    </div>
+                    <div class="feedback-box" id="reset-feedback"></div>
+                </div>
+
+                <div id="reset-running" class="hidden">
+                    <div class="progress-sim">
+                        <div class="progress-label">Installing Windows 10 Pro on Machine 4 from USB media...</div>
+                        <div class="progress-bar-track">
+                            <div class="progress-bar-fill" id="reset-progress"></div>
+                        </div>
+                        <div class="progress-pct" id="reset-pct">0%</div>
+                    </div>
+                </div>
+
+                <div id="reset-complete" class="hidden">
+                    <div class="info-callout" style="border-left-color: rgba(34, 197, 94, 0.5); background: rgba(34, 197, 94, 0.08); color: #86efac;">
+                        <strong>Machine 4 has been rebuilt from USB installation media.</strong><br>
+                        Clean Windows 10 Pro installed. OOBE completed. Machine 4 is ready for conference room configuration.
+                    </div>
+                </div>
+            </section>
+
+            <!-- ====== TASK 10: Repair File Server ====== -->
+            <section class="exercise-section" id="task-10">
+                <div class="exercise-title">Objective 10: Repair File Server Filesystem</div>
+                <div class="exercise-intro">The file server's D: drive (data volume) is showing filesystem corruption from the wiper. Run chkdsk to find and repair errors.</div>
+
+                <div class="cmd-window">
+                    <div class="cmd-titlebar">Administrator: Command Prompt - File Server</div>
+                    <div class="cmd-body" id="cmd-output-10">
+                        <div class="cmd-line-out">Microsoft Windows [Version 10.0.19045]</div>
+                        <div class="cmd-line-out">(c) Microsoft Corporation. All rights reserved.</div>
+                        <div class="cmd-line-out">&nbsp;</div>
+                    </div>
+                    <div class="cmd-input-row" style="padding: 0 15px 15px;">
+                        <span class="cmd-prompt-text">C:\Windows\System32&gt;</span>
+                        <input type="text" class="cmd-input" id="cmd-input-10" placeholder="Type chkdsk command..." onkeydown="if(event.key==='Enter')execChkdsk()">
+                    </div>
+                </div>
+
+                <div class="info-callout">
+                    <strong>Required command:</strong> <code>chkdsk D: /f /r</code><br>
+                    /f - Fixes errors on the disk<br>
+                    /r - Locates bad sectors and recovers readable information (includes /f)
+                </div>
+            </section>
+
+            <!-- ====== TASK 11: Verify All Recoveries ====== -->
+            <section class="exercise-section" id="task-11">
+                <div class="exercise-title">Objective 11: Verify All Recoveries</div>
+                <div class="exercise-intro">Boot each recovered machine, verify login works, check system event logs for new errors, and confirm network connectivity. Check off each verification as you complete it.</div>
+
+                <div style="display: flex; flex-direction: column; gap: 8px;">
+                    <label class="machine-check" id="v-m1"><input type="checkbox" onchange="checkVerify()"> Machine 1: Boots normally, login successful, no new Event Viewer errors, ping gateway OK</label>
+                    <label class="machine-check" id="v-m2"><input type="checkbox" onchange="checkVerify()"> Machine 2: Boots normally, CRM app launches, System Restore log shows success, network OK</label>
+                    <label class="machine-check" id="v-m3"><input type="checkbox" onchange="checkVerify()"> Machine 3: Boots from restored image, all applications functional, data intact from 02/20 backup</label>
+                    <label class="machine-check" id="v-m4"><input type="checkbox" onchange="checkVerify()"> Machine 4: Clean install complete, OOBE done, domain joined, conference room profile loaded</label>
+                    <label class="machine-check" id="v-fs"><input type="checkbox" onchange="checkVerify()"> File Server: D: drive accessible, chkdsk clean on re-scan, shared folders operational</label>
+                    <label class="machine-check" id="v-rest"><input type="checkbox" onchange="checkVerify()"> Remaining 8 workstations: Applied same recovery procedure (boot repair or System Restore), all verified operational</label>
+                </div>
+
+                <div class="feedback-box" id="verify-feedback"></div>
+            </section>
+
+            <!-- ====== TASK 12: Create Restore Points ====== -->
+            <section class="exercise-section" id="task-12">
+                <div class="exercise-title">Objective 12: Create Restore Points</div>
+                <div class="exercise-intro">On every recovered machine, manually create a new restore point as a known-good baseline. Name it with the post-incident recovery convention.</div>
+
+                <div class="rp-creator">
+                    <h4>Create Restore Point</h4>
+                    <p style="font-size:0.82rem; color:#9a8070; margin-bottom:12px;">Enter a name for the restore point (should include "Post-Incident-Recovery" and today's date):</p>
+                    <input type="text" class="rp-input" id="rp-name" placeholder="e.g., Post-Incident-Recovery-2026-02-21">
+
+                    <p style="font-size:0.82rem; color:#9a8070; margin: 12px 0 8px;">Select machines to create restore points on:</p>
+                    <label class="machine-check" id="rp-m1"><input type="checkbox"> Machine 1 (boot repair + SFC/DISM)</label>
+                    <label class="machine-check" id="rp-m2"><input type="checkbox"> Machine 2 (System Restore + CRM fix)</label>
+                    <label class="machine-check" id="rp-m3"><input type="checkbox"> Machine 3 (image recovery)</label>
+                    <label class="machine-check" id="rp-m4"><input type="checkbox"> Machine 4 (clean install)</label>
+                    <label class="machine-check" id="rp-fs"><input type="checkbox"> File Server (chkdsk repair)</label>
+                    <label class="machine-check" id="rp-rest"><input type="checkbox"> Remaining 8 workstations</label>
+
+                    <button class="action-btn" onclick="createRestorePoints()" style="margin-top:12px;">Create Restore Points</button>
+                    <div class="feedback-box" id="rp-feedback-final"></div>
+                </div>
+            </section>
+
+            <!-- ====== COMPLETE ====== -->
+            <div class="complete-section" id="completeSection">
+                <h3>Operation: Phoenix - Mission Complete</h3>
+                <p>Twelve machines down. Twelve machines recovered. All before 9am.<br><br>
+                You navigated WinRE, performed manual boot repairs with bootrec, ran SFC and DISM in the correct sequence, executed System Restore from shadow copies, recovered a system from image backup, performed a clean install when the recovery partition failed, repaired filesystem corruption with chkdsk, and established known-good restore points across the fleet.<br><br>
+                <em>"I don't know what Forge Solutions pays you but it's not enough."</em> - Sarah Chen</p>
+                <button class="complete-btn" onclick="completeModule()">Complete Module &amp; Return</button>
+            </div>
+
+        </main>
+    </div>
+
+    <script>
+        const totalTasks = 12;
+        const completedTasks = new Set();
+
+        // ===== NAVIGATION =====
+        function showTask(num) {
+            document.querySelectorAll('.exercise-section').forEach(s => s.classList.remove('active'));
+            document.getElementById('task-' + num).classList.add('active');
+            document.querySelectorAll('.task-item').forEach(t => t.classList.remove('active'));
+            document.querySelector('[data-task="' + num + '"]').classList.add('active');
+        }
+
+        function markTaskComplete(num) {
+            if (completedTasks.has(num)) return;
+            completedTasks.add(num);
+            const item = document.querySelector('[data-task="' + num + '"]');
+            item.classList.add('completed', 'just-completed');
+            setTimeout(() => item.classList.remove('just-completed'), 700);
+            document.getElementById('taskCount').textContent = completedTasks.size + ' / ' + totalTasks;
+            if (completedTasks.size === totalTasks) {
+                document.getElementById('completeSection').classList.add('show');
+                setTimeout(() => {
+                    document.getElementById('completeSection').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                }, 300);
+            }
+        }
+
+        // ===== TOAST NOTIFICATIONS =====
+        function showToast(type, message, from) {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            toast.className = 'toast toast-' + type;
+            const names = { sarah: 'Sarah Chen', marcus: 'Marcus Webb', james: 'James Park', system: 'System' };
+            toast.innerHTML = '<div class="toast-from">' + (from || names[type] || type) + '</div>' + message;
+            container.appendChild(toast);
+            setTimeout(() => { if (toast.parentNode) toast.remove(); }, 6000);
+        }
+
+        // ===== TASK 1: WinRE Navigation =====
+        function enterWinRE() {
+            document.getElementById('winre-recovery').classList.add('hidden');
+            document.getElementById('winre-choose').classList.remove('hidden');
+            showToast('sarah', 'Good, you are in the recovery environment. Navigate to Troubleshoot > Advanced options.');
+        }
+
+        function openTroubleshoot() {
+            document.getElementById('winre-choose').classList.add('hidden');
+            document.getElementById('winre-troubleshoot').classList.remove('hidden');
+        }
+
+        function openAdvanced() {
+            document.getElementById('winre-troubleshoot').classList.add('hidden');
+            document.getElementById('winre-advanced').classList.remove('hidden');
+            document.getElementById('task1-info').classList.remove('hidden');
+            markTaskComplete(1);
+            showToast('sarah', 'You can see all the recovery tools. Try Startup Repair first - it handles common boot issues automatically.');
+        }
+
+        function completeTask1() {
+            showTask(2);
+        }
+
+        // ===== TASK 2: Startup Repair =====
+        function runStartupRepair() {
+            document.getElementById('btn-run-repair').disabled = true;
+            let pct = 0;
+            const bar = document.getElementById('repair-progress');
+            const lbl = document.getElementById('repair-pct');
+            const interval = setInterval(() => {
+                pct += Math.random() * 8;
+                if (pct > 100) pct = 100;
+                bar.style.width = pct + '%';
+                lbl.textContent = Math.round(pct) + '%';
+                if (pct >= 100) {
+                    clearInterval(interval);
+                    bar.classList.add('error');
+                    setTimeout(() => {
+                        document.getElementById('repair-running').classList.add('hidden');
+                        document.getElementById('repair-failed').classList.remove('hidden');
+                    }, 500);
+                }
+            }, 200);
+        }
+
+        function completeTask2() {
+            markTaskComplete(2);
+            showToast('james', 'Startup Repair can not fix deep boot sector corruption from malware. You will need to go manual with bootrec commands.');
+            showTask(3);
+        }
+
+        // ===== TASK 3: Boot Repair Commands =====
+        let bootCmdStep = 0;
+        const bootCmds = [
+            {
+                match: ['bootrec /fixmbr', 'bootrec/fixmbr'],
+                output: '<div class="cmd-line-out cmd-success">The operation completed successfully.</div>',
+                next: true
+            },
+            {
+                match: ['bootrec /fixboot', 'bootrec/fixboot'],
+                output: '<div class="cmd-line-out cmd-error">The volume does not contain a recognized file system.</div><div class="cmd-line-out cmd-error">Access is denied.</div>',
+                next: true,
+                warn: true
+            },
+            {
+                match: ['bcdboot c:\\windows', 'bcdboot c:/windows', 'bcdboot c:\\Windows'],
+                output: '<div class="cmd-line-out cmd-success">Boot files successfully created.</div><div class="cmd-line-out cmd-info">EFI System Partition boot files have been written.</div>',
+                next: true
+            },
+            {
+                match: ['bootrec /rebuildbcd', 'bootrec/rebuildbcd'],
+                output: '<div class="cmd-line-out">Scanning all disks for Windows installations.</div><div class="cmd-line-out">&nbsp;</div><div class="cmd-line-out">Successfully scanned Windows installations.</div><div class="cmd-line-out">Total identified Windows installations: 1</div><div class="cmd-line-out">[1] C:\\Windows</div><div class="cmd-line-out">Add installation to boot list? <span class="cmd-success">Yes</span></div><div class="cmd-line-out cmd-success">The operation completed successfully.</div>',
+                next: false,
+                complete: true
+            }
+        ];
+
+        function execBootCmd() {
+            const input = document.getElementById('cmd-input-3');
+            const output = document.getElementById('cmd-output-3');
+            const cmd = input.value.trim();
+            if (!cmd) return;
+
+            output.innerHTML += '<div class="cmd-line-out">X:\\Sources&gt; ' + cmd + '</div>';
+            input.value = '';
+
+            if (bootCmdStep >= bootCmds.length) {
+                output.innerHTML += '<div class="cmd-line-out cmd-warn">All boot repair commands completed. Move to next objective.</div>';
+                return;
+            }
+
+            const expected = bootCmds[bootCmdStep];
+            const cmdLower = cmd.toLowerCase().replace(/\s+/g, ' ').trim();
+            const matched = expected.match.some(m => cmdLower === m.toLowerCase());
+
+            if (matched) {
+                output.innerHTML += expected.output;
+                if (expected.warn) {
+                    document.getElementById('fixboot-warn').style.display = 'block';
+                    showToast('system', 'Access denied on UEFI system. Use bcdboot C:\\Windows instead to write EFI boot files.');
+                }
+                bootCmdStep++;
+                if (expected.complete) {
+                    markTaskComplete(3);
+                    showToast('sarah', 'Boot sector repaired! The machine should boot now. But it is crashing at login - we need Safe Mode.');
+                    output.innerHTML += '<div class="cmd-line-out">&nbsp;</div><div class="cmd-line-out cmd-success">All boot repair commands completed successfully. Machine 1 boot infrastructure restored.</div>';
+                }
+            } else {
+                const hints = [
+                    'Expected: bootrec /fixmbr',
+                    'Expected: bootrec /fixboot',
+                    'Expected: bcdboot C:\\Windows (UEFI alternative)',
+                    'Expected: bootrec /rebuildbcd'
+                ];
+                output.innerHTML += '<div class="cmd-line-out cmd-error">Incorrect command. ' + (hints[bootCmdStep] || '') + '</div>';
+            }
+            output.scrollTop = output.scrollHeight;
+        }
+
+        // ===== TASK 4: Safe Mode Boot =====
+        let selectedBoot = null;
+        function selectBoot(el, val) {
+            document.querySelectorAll('.boot-option').forEach(o => o.classList.remove('selected'));
+            el.classList.add('selected');
+            selectedBoot = val;
+            document.getElementById('btn-boot').disabled = false;
+        }
+
+        function confirmBoot() {
+            const fb = document.getElementById('boot-feedback');
+            if (selectedBoot === 'safenet') {
+                fb.className = 'feedback-box correct show';
+                fb.textContent = 'Correct! Safe Mode with Networking loads minimal drivers plus network services. This is critical because DISM /RestoreHealth needs Windows Update access (via networking) to repair the component store. Basic Safe Mode would not have network access, causing DISM to fail.';
+                markTaskComplete(4);
+                showToast('sarah', 'Good call on networking. DISM will need internet access for the component store repair.');
+                document.getElementById('btn-boot').disabled = true;
+            } else if (selectedBoot === 'safe') {
+                fb.className = 'feedback-box incorrect show';
+                fb.textContent = 'Almost right, but basic Safe Mode has no network access. DISM /Online /Cleanup-Image /RestoreHealth needs to contact Windows Update to download repair files. Choose "Safe Mode with Networking" instead.';
+            } else {
+                fb.className = 'feedback-box incorrect show';
+                fb.textContent = 'That option won\'t help here. We need Safe Mode with Networking specifically - it provides the minimal driver environment to avoid the crash plus network access for DISM to reach Windows Update.';
+            }
+        }
+
+        // ===== TASK 5: SFC + DISM =====
+        let repairStep = 0;
+        function execRepairCmd() {
+            const input = document.getElementById('cmd-input-5');
+            const output = document.getElementById('cmd-output-5');
+            const cmd = input.value.trim();
+            if (!cmd) return;
+
+            output.innerHTML += '<div class="cmd-line-out">C:\\Windows\\System32&gt; ' + cmd + '</div>';
+            input.value = '';
+            const cmdLower = cmd.toLowerCase().replace(/\s+/g, ' ').trim();
+
+            if (repairStep === 0 && (cmdLower === 'sfc /scannow' || cmdLower === 'sfc/scannow')) {
+                output.innerHTML += '<div class="cmd-line-out">&nbsp;</div><div class="cmd-line-out">Beginning system scan. This process will take some time.</div>';
+                simulateProgress(output, 'Verification', function() {
+                    output.innerHTML += '<div class="cmd-line-out">&nbsp;</div><div class="cmd-line-out cmd-warn">Windows Resource Protection found corrupt files but was unable to fix some of them.</div><div class="cmd-line-out">Files scanned: 12,847</div><div class="cmd-line-out">Corrupt files found: 14</div><div class="cmd-line-out cmd-success">Files repaired: 11</div><div class="cmd-line-out cmd-error">Files unable to repair: 3</div><div class="cmd-line-out">Details: CBS.Log  windir\\Logs\\CBS\\CBS.log</div>';
+                    repairStep = 1;
+                    showToast('system', 'SFC found 14 corrupt files, repaired 11, but 3 remain. The component store itself may be damaged. Run DISM to repair it.');
+                    output.scrollTop = output.scrollHeight;
+                });
+            } else if (repairStep === 1 && cmdLower.includes('dism') && cmdLower.includes('restorehealth')) {
+                output.innerHTML += '<div class="cmd-line-out">&nbsp;</div><div class="cmd-line-out">Deployment Image Servicing and Management tool</div><div class="cmd-line-out">Version: 10.0.19041.3636</div><div class="cmd-line-out">&nbsp;</div><div class="cmd-line-out">Image Version: 10.0.19045.4291</div><div class="cmd-line-out">&nbsp;</div>';
+                simulateProgress(output, 'Restoring image', function() {
+                    output.innerHTML += '<div class="cmd-line-out">&nbsp;</div><div class="cmd-line-out cmd-success">The restore operation completed successfully.</div><div class="cmd-line-out">The component store has been repaired.</div><div class="cmd-line-out">Components repaired: 3 (ntoskrnl.exe, ci.dll, hal.dll)</div>';
+                    repairStep = 2;
+                    showToast('system', 'DISM repaired the component store. Now re-run SFC to fix those remaining 3 files.');
+                    output.scrollTop = output.scrollHeight;
+                });
+            } else if (repairStep === 2 && (cmdLower === 'sfc /scannow' || cmdLower === 'sfc/scannow')) {
+                output.innerHTML += '<div class="cmd-line-out">&nbsp;</div><div class="cmd-line-out">Beginning system scan. This process will take some time.</div>';
+                simulateProgress(output, 'Verification', function() {
+                    output.innerHTML += '<div class="cmd-line-out">&nbsp;</div><div class="cmd-line-out cmd-success">Windows Resource Protection found corrupt files and successfully repaired them.</div><div class="cmd-line-out">Files scanned: 12,847</div><div class="cmd-line-out">Corrupt files found: 3</div><div class="cmd-line-out cmd-success">Files repaired: 3</div><div class="cmd-line-out cmd-success">All system files verified. Machine 1 system integrity restored.</div>';
+                    repairStep = 3;
+                    markTaskComplete(5);
+                    showToast('sarah', 'Machine 1 system files are clean. Moving to Machine 2 - it is in worse shape.');
+                    output.scrollTop = output.scrollHeight;
+                });
+            } else {
+                const hints = ['Expected: sfc /scannow', 'Expected: DISM /Online /Cleanup-Image /RestoreHealth', 'Expected: sfc /scannow (re-run after DISM)'];
+                output.innerHTML += '<div class="cmd-line-out cmd-error">' + (hints[repairStep] || 'All repair steps completed.') + '</div>';
+                output.scrollTop = output.scrollHeight;
+            }
+        }
+
+        function simulateProgress(outputEl, label, callback) {
+            let pct = 0;
+            const interval = setInterval(() => {
+                pct += Math.floor(Math.random() * 12) + 3;
+                if (pct > 100) pct = 100;
+                const last = outputEl.querySelector('.progress-line');
+                if (last) last.remove();
+                const line = document.createElement('div');
+                line.className = 'cmd-line-out cmd-info progress-line';
+                line.textContent = label + ' ' + pct + '% complete...';
+                outputEl.appendChild(line);
+                outputEl.scrollTop = outputEl.scrollHeight;
+                if (pct >= 100) {
+                    clearInterval(interval);
+                    if (last) last.remove();
+                    const doneLine = outputEl.querySelector('.progress-line');
+                    if (doneLine) doneLine.remove();
+                    callback();
+                }
+            }, 250);
+        }
+
+        // ===== TASK 6: System Restore =====
+        let selectedRP = null;
+        function showMorePoints() {
+            document.getElementById('no-points-msg').classList.add('hidden');
+            document.getElementById('show-more-btn').classList.add('hidden');
+            document.getElementById('expanded-points').classList.remove('hidden');
+            showToast('system', 'Shadow copy restore points found. The wiper deleted the standard restore points, but the shadow copies survived.');
+        }
+
+        function selectRP(el, val) {
+            document.querySelectorAll('.restore-point').forEach(r => r.classList.remove('selected'));
+            el.classList.add('selected');
+            selectedRP = val;
+            document.getElementById('btn-restore').disabled = false;
+        }
+
+        function startRestore() {
+            const fb = document.getElementById('rp-feedback');
+            if (selectedRP === 'good') {
+                fb.className = 'feedback-box correct show';
+                fb.textContent = 'Correct! The 02/20 11:30 PM restore point is the most recent point before the wiper triggered at 2 AM. This maximizes data preservation while ensuring a clean state.';
+                document.getElementById('btn-restore').disabled = true;
+                document.getElementById('restore-step1').classList.add('hidden');
+                document.getElementById('restore-running').classList.remove('hidden');
+                fb.classList.remove('show');
+                runProgressBar('restore-progress', 'restore-pct', function() {
+                    document.getElementById('restore-running').classList.add('hidden');
+                    document.getElementById('restore-complete').classList.remove('hidden');
+                });
+            } else {
+                fb.className = 'feedback-box incorrect show';
+                fb.textContent = 'The 02/15 restore point is over a week old. Choose the most recent point before the incident (02/20 at 11:30 PM) to minimize data loss.';
+            }
+        }
+
+        function completeTask6() {
+            markTaskComplete(6);
+            showToast('marcus', 'Machine 2 is booting! But the CRM app is crashing. Can you check it?');
+            showTask(7);
+        }
+
+        // ===== TASK 7: CRM Fix =====
+        const eventDetails = {
+            'crm': 'Faulting application name: MeridianCRM.exe, version: 4.2.1.0\nFaulting module name: KERNELBASE.dll\nException code: 0xc0000005 (Access Violation)\nFault offset: 0x0000000000034b29\nFaulting process id: 0x1a2c\nApplication start time: 2026-02-21T06:12:01.442Z',
+            'crm-config': 'MeridianCRM Configuration Error:\nFailed to parse configuration file: C:\\Program Files\\MeridianCRM\\app.config\nError: XML parsing error at line 1, position 0 - invalid character (0x00)\nThe configuration file appears to be filled with null bytes.\nBackup config exists at: C:\\Program Files\\MeridianCRM\\app.config.bak',
+            'dotnet': '.NET Runtime warning:\nApplication MeridianCRM.exe encountered a fatal error.\nThe application requested process termination through System.Environment.FailFast(string message).\nMessage: Configuration file corrupt - cannot continue.',
+            'restore-done': 'System Restore completed successfully.\nRestore point used: Scheduled checkpoint - Pre-backup (02/20/2026 11:30 PM)\nAffected programs: 3 programs removed, 0 programs restored\nAffected drivers: 2 drivers restored to previous versions',
+            'wiper': 'A new process has been created.\nCreator: SYSTEM\nProcess: C:\\Windows\\Temp\\wiper_payload.exe\nCommand Line: wiper_payload.exe --target=boot,config,data --delay=0\nNote: Process was terminated when System Restore reverted the system state.'
+        };
+
+        let eventsFound = false;
+        function selectEvent(row, key) {
+            document.querySelectorAll('.ev-table tr').forEach(r => r.classList.remove('selected'));
+            row.classList.add('selected');
+            const detail = document.getElementById('ev-detail');
+            detail.classList.add('show');
+            detail.innerHTML = '<pre style="white-space:pre-wrap; font-family:Consolas,monospace; font-size:0.78rem;">' + eventDetails[key] + '</pre>';
+            if (key === 'crm-config' && !eventsFound) {
+                eventsFound = true;
+                document.getElementById('crm-fix-section').classList.remove('hidden');
+                showToast('system', 'Found it! Event ID 5001 shows the config file is corrupted. A backup config exists.');
+            }
+        }
+
+        function filterEvents(type) {
+            const rows = document.querySelectorAll('#ev-tbody tr');
+            rows.forEach(r => {
+                if (type === 'all') { r.style.display = ''; return; }
+                r.style.display = r.classList.contains('ev-' + type) ? '' : 'none';
+            });
+        }
+
+        function checkCRMfix(result, btn) {
+            document.querySelectorAll('#crm-fix-section button').forEach(b => b.disabled = true);
+            const fb = document.getElementById('crm-feedback');
+            if (result === 'correct') {
+                btn.style.borderColor = '#22c55e';
+                btn.style.color = '#86efac';
+                fb.className = 'feedback-box correct show';
+                fb.textContent = 'Correct! The backup config file (app.config.bak) was created by MeridianCRM\'s installer as a safety copy. Copying it over the corrupted file restores the app\'s configuration. SFC would not help here because this is an application file, not a system file.';
+                markTaskComplete(7);
+                showToast('marcus', 'CRM is running again! Machine 2 is fully operational. Three down, many to go.');
+            } else {
+                btn.style.borderColor = '#dc2626';
+                btn.style.color = '#fca5a5';
+                fb.className = 'feedback-box incorrect show';
+                fb.textContent = 'Not the best approach. The Event Viewer clearly shows the config file is corrupt and a .bak copy exists. The simplest fix is to copy the backup over the corrupted file. SFC only repairs Windows system files, not application configs.';
+            }
+        }
+
+        // ===== TASK 8: System Image Recovery =====
+        function selectImage(el) {
+            el.classList.add('selected');
+            document.getElementById('btn-image-recover').disabled = false;
+        }
+
+        function startImageRecovery() {
+            document.getElementById('btn-image-recover').disabled = true;
+            document.getElementById('image-running').classList.remove('hidden');
+            runProgressBar('image-progress', 'image-pct', function() {
+                document.getElementById('image-running').classList.add('hidden');
+                document.getElementById('image-complete').classList.remove('hidden');
+                markTaskComplete(8);
+                showToast('sarah', 'Machine 3 is restored from image. Moving to Machine 4 - the conference room PC.');
+            });
+        }
+
+        // ===== TASK 9: Reset Machine 4 =====
+        function tryReset() {
+            document.getElementById('reset-step1').classList.add('hidden');
+            document.getElementById('reset-blocked').classList.remove('hidden');
+            showToast('system', 'Reset failed! The wiper corrupted the recovery partition. You need installation media.');
+        }
+
+        function checkResetFix(result, btn) {
+            document.querySelectorAll('#reset-blocked button').forEach(b => b.disabled = true);
+            const fb = document.getElementById('reset-feedback');
+            if (result === 'correct') {
+                btn.style.borderColor = '#22c55e';
+                btn.style.color = '#86efac';
+                fb.className = 'feedback-box correct show';
+                fb.textContent = 'Correct! When the recovery partition is corrupted, booting from Windows installation USB media and performing a clean custom install is the proper recovery path. This creates a new recovery partition and installs a clean OS.';
+                document.getElementById('reset-blocked').classList.add('hidden');
+                document.getElementById('reset-running').classList.remove('hidden');
+                runProgressBar('reset-progress', 'reset-pct', function() {
+                    document.getElementById('reset-running').classList.add('hidden');
+                    document.getElementById('reset-complete').classList.remove('hidden');
+                    markTaskComplete(9);
+                    showToast('sarah', 'Machine 4 rebuilt. Now the file server - it has filesystem corruption.');
+                });
+            } else {
+                btn.style.borderColor = '#dc2626';
+                btn.style.color = '#fca5a5';
+                fb.className = 'feedback-box incorrect show';
+                fb.textContent = 'That approach will not work. When the recovery partition is gone, you must use external installation media (USB/DVD) to perform a clean install. There is no way to repair a corrupted recovery partition from within WinRE.';
+            }
+        }
+
+        // ===== TASK 10: chkdsk =====
+        function execChkdsk() {
+            const input = document.getElementById('cmd-input-10');
+            const output = document.getElementById('cmd-output-10');
+            const cmd = input.value.trim();
+            if (!cmd) return;
+
+            output.innerHTML += '<div class="cmd-line-out">C:\\Windows\\System32&gt; ' + cmd + '</div>';
+            input.value = '';
+            const cmdLower = cmd.toLowerCase().replace(/\s+/g, ' ').trim();
+
+            if (cmdLower.includes('chkdsk') && cmdLower.includes('d:') && cmdLower.includes('/f')) {
+                const hasR = cmdLower.includes('/r');
+                output.innerHTML += '<div class="cmd-line-out">&nbsp;</div><div class="cmd-line-out">The type of the file system is NTFS.</div><div class="cmd-line-out">Volume label is DATA.</div><div class="cmd-line-out">&nbsp;</div>';
+
+                if (!cmdLower.includes('/r') && cmdLower.includes('/f')) {
+                    simulateChkdsk(output, false);
+                } else {
+                    simulateChkdsk(output, true);
+                }
+            } else if (cmdLower.includes('chkdsk') && !cmdLower.includes('d:')) {
+                output.innerHTML += '<div class="cmd-line-out cmd-error">Specify the target volume. Use: chkdsk D: /f /r</div>';
+            } else {
+                output.innerHTML += '<div class="cmd-line-out cmd-error">Expected command: chkdsk D: /f /r</div>';
+            }
+            output.scrollTop = output.scrollHeight;
+        }
+
+        function simulateChkdsk(outputEl, hasR) {
+            let step = 0;
+            const stages = [
+                'Stage 1: Examining basic file system structure...',
+                '  1024 file records processed.',
+                '  File verification completed. 7 large file records processed.',
+                hasR ? '' : '',
+                'Stage 2: Examining file name linkage...',
+                '  1198 index entries processed.',
+                '  Index verification completed. 2 unindexed files processed.',
+                '  Deleting orphan file record segment 847.',
+                '  Deleting orphan file record segment 1201.',
+                '',
+                'Stage 3: Examining security descriptors...',
+                '  Security descriptor verification completed. 128 data files processed.',
+                '',
+            ];
+
+            if (hasR) {
+                stages.push('Stage 4: Looking for bad clusters in user file data...');
+                stages.push('  458,752 clusters processed.');
+                stages.push('');
+                stages.push('Stage 5: Looking for bad free space clusters...');
+                stages.push('  12,448 free clusters processed.');
+                stages.push('  3 bad clusters found in free space.');
+            }
+
+            stages.push('');
+            stages.push('Windows has made corrections to the file system.');
+            stages.push('');
+            stages.push('  460,800 MB total disk space.');
+            stages.push('  412,847 MB in 8,472 files.');
+            stages.push('      128 MB in 347 indexes.');
+            stages.push(hasR ? '       12 MB in bad sectors.' : '        0 MB in bad sectors.');
+            stages.push('   47,813 MB available on disk.');
+            stages.push('');
+            stages.push('    4,096 bytes in each allocation unit.');
+            stages.push('  117,964,800 total allocation units on disk.');
+            stages.push('   12,240,000 allocation units available on disk.');
+            stages.push('');
+
+            const interval = setInterval(() => {
+                if (step >= stages.length) {
+                    clearInterval(interval);
+                    outputEl.innerHTML += '<div class="cmd-line-out cmd-success">Chkdsk completed. Filesystem errors corrected. ' + (hasR ? '3 bad sectors found and marked.' : '') + '</div>';
+                    markTaskComplete(10);
+                    showToast('sarah', 'File server filesystem is repaired. Now verify all machines are operational.');
+                    outputEl.scrollTop = outputEl.scrollHeight;
+                    return;
+                }
+                if (stages[step]) {
+                    const color = stages[step].includes('bad') ? 'cmd-warn' : stages[step].includes('Deleting orphan') ? 'cmd-error' : '';
+                    outputEl.innerHTML += '<div class="cmd-line-out ' + color + '">' + stages[step] + '</div>';
+                }
+                step++;
+                outputEl.scrollTop = outputEl.scrollHeight;
+            }, 150);
+        }
+
+        // ===== TASK 11: Verify =====
+        function checkVerify() {
+            const checks = ['v-m1', 'v-m2', 'v-m3', 'v-m4', 'v-fs', 'v-rest'];
+            let allChecked = true;
+            checks.forEach(id => {
+                const el = document.getElementById(id);
+                const cb = el.querySelector('input');
+                if (cb.checked) {
+                    el.classList.add('done');
+                } else {
+                    el.classList.remove('done');
+                    allChecked = false;
+                }
+            });
+
+            if (allChecked) {
+                const fb = document.getElementById('verify-feedback');
+                fb.className = 'feedback-box correct show';
+                fb.textContent = 'All recoveries verified. Every machine boots, logs in, has no new errors, and has network connectivity. The fleet is operational.';
+                markTaskComplete(11);
+                showToast('sarah', 'All machines verified operational. One last step - create restore points as our new known-good baseline.');
+            }
+        }
+
+        // ===== TASK 12: Restore Points =====
+        function createRestorePoints() {
+            const name = document.getElementById('rp-name').value.trim();
+            const fb = document.getElementById('rp-feedback-final');
+            const checks = ['rp-m1', 'rp-m2', 'rp-m3', 'rp-m4', 'rp-fs', 'rp-rest'];
+            let allChecked = true;
+            checks.forEach(id => {
+                if (!document.getElementById(id).querySelector('input').checked) allChecked = false;
+            });
+
+            if (!name.toLowerCase().includes('post-incident') && !name.toLowerCase().includes('recovery')) {
+                fb.className = 'feedback-box incorrect show';
+                fb.textContent = 'The restore point name should include "Post-Incident-Recovery" to clearly identify it as the post-incident baseline. Example: Post-Incident-Recovery-2026-02-21';
+                return;
+            }
+
+            if (!allChecked) {
+                fb.className = 'feedback-box incorrect show';
+                fb.textContent = 'Select ALL machines. Every recovered machine needs a restore point as a known-good baseline.';
+                return;
+            }
+
+            fb.className = 'feedback-box correct show';
+            fb.textContent = 'Restore points created on all machines with name: "' + name + '". These serve as the new known-good baseline. If any issues arise in the coming days, we can roll back to this verified clean state.';
+            checks.forEach(id => document.getElementById(id).classList.add('done'));
+            markTaskComplete(12);
+            showToast('sarah', 'Twelve machines down. Twelve machines recovered. You did it before 9am. I do not know what Forge Solutions pays you but it is not enough.');
+        }
+
+        // ===== UTILITY =====
+        function runProgressBar(barId, pctId, callback) {
+            let pct = 0;
+            const bar = document.getElementById(barId);
+            const lbl = document.getElementById(pctId);
+            const interval = setInterval(() => {
+                pct += Math.random() * 6 + 1;
+                if (pct > 100) pct = 100;
+                bar.style.width = pct + '%';
+                lbl.textContent = Math.round(pct) + '%';
+                if (pct >= 100) {
+                    clearInterval(interval);
+                    bar.classList.add('success');
+                    setTimeout(callback, 500);
+                }
+            }, 120);
+        }
+
+        function completeModule() {
+            ModuleProgress.complete('forge', 'forge-md100-m10-lab', {
+                returnUrl: '../index.html'
+            });
+        }
+
+        // Initial toast on load
+        setTimeout(() => {
+            showToast('sarah', 'Forge-1, clock is ticking. We have until 9am. Start with Machine 1 - it is in the recovery screen.', 'Sarah Chen - 5:47 AM');
+        }, 800);
+    </script>
+
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <script src="../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>
