@@ -68,7 +68,7 @@ const ContentRegistry = {
                 applet: 'houses/forge/applets/forge-settings.tool.html',
                 lab: 'houses/forge/labs/forge-windows-settings.lab.html'
             },
-            prerequisites: ['forge-windows-settings'],
+            prerequisites: ['forge-windows-editions'],
             objectives: [
                 'Access Control Panel via multiple methods',
                 'Navigate category and icon views',
@@ -3006,7 +3006,8 @@ const ContentRegistry = {
             topics: ['risk-management', 'security'],
             paths: ['security-plus', 'aplus-core1', 'security-operations'],
             components: {
-                quiz: 'houses/shield/applets/compliance/cmmc_quiz/shield-cmmc-comprehensive.quiz.html'
+                quiz: 'houses/shield/applets/compliance/cmmc_quiz/shield-cmmc-comprehensive.quiz.html',
+                applet: 'houses/shield/applets/compliance/cmmc_quiz/shield-cmmc-quiz.applet.html'
             },
             prerequisites: [],
             objectives: []
@@ -9984,7 +9985,7 @@ const ContentRegistry = {
             topics: ['monitoring'],
             paths: ['security-operations', 'security-plus'],
             components: {
-                presentation: 'houses/eye/labs/eye-correlation.lab.html'
+                lab: 'houses/eye/labs/eye-incident-timeline.lab.html'
             },
             prerequisites: [],
             objectives: []
@@ -11586,7 +11587,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 30,
             topics: ['dns', 'troubleshooting', 'networking', 'protocols'],
-            paths: [],
+            paths: ['comptia-network'],
             components: {
                 lab: 'houses/web/labs/web-dns-troubleshooting.lab.html'
             },
@@ -11602,7 +11603,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 30,
             topics: ['firewall', 'rules', 'networking', 'protocols'],
-            paths: [],
+            paths: ['comptia-network'],
             components: {
                 lab: 'houses/web/labs/web-firewall-rules.lab.html'
             },
@@ -11618,7 +11619,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['ipv6', 'challenge', 'networking', 'protocols'],
-            paths: [],
+            paths: ['comptia-network'],
             components: {
                 applet: 'houses/web/applets/ip-addressing/ipv6-challenge/web-ip-ipv6-challenge.applet.html'
             },
@@ -11634,7 +11635,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['mac', 'addressing', 'networking', 'protocols'],
-            paths: [],
+            paths: ['comptia-network'],
             components: {
                 applet: 'houses/web/applets/ip-addressing/mac-addressing/web-ip-mac-addressing.applet.html'
             },
@@ -11650,7 +11651,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 15,
             topics: ['cumulative', 'troubleshooting', 'guide', 'networking', 'protocols'],
-            paths: [],
+            paths: ['comptia-network'],
             components: {
                 reference: 'houses/web/troubleshooting/web-lab-troubleshooting.reference.html'
             },
@@ -11666,7 +11667,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['network', 'architect', 'networking', 'protocols'],
-            paths: [],
+            paths: ['comptia-network'],
             components: {
                 applet: 'houses/web/games/web-network-architect.applet.html'
             },
@@ -11682,7 +11683,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 15,
             topics: ['networking', 'interactive', 'guide', 'protocols'],
-            paths: [],
+            paths: ['comptia-network'],
             components: {
                 quiz: 'houses/web/quizzes/web-networking-ch7-10.quiz.html'
             },
@@ -11698,7 +11699,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 15,
             topics: ['networking', 'interactive', 'textbook', 'protocols'],
-            paths: [],
+            paths: ['comptia-network'],
             components: {
                 quiz: 'houses/web/quizzes/web-networking-ch7-20.quiz.html'
             },
@@ -11714,7 +11715,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 15,
             topics: ['networking', 'exam', 'flashcards', 'protocols'],
-            paths: [],
+            paths: ['comptia-network'],
             components: {
                 quiz: 'houses/web/quizzes/web-networking-final-review.quiz.html'
             },
@@ -11730,7 +11731,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 45,
             topics: ['osi', 'model', 'layers', 'networking', 'protocols'],
-            paths: [],
+            paths: ['comptia-network'],
             components: {
                 presentation: 'houses/web/presentations/web-osi.presentation.html',
                 quiz: 'houses/web/quizzes/web-osi.quiz.html',
@@ -11748,7 +11749,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 30,
             topics: ['packet', 'analysis', 'networking', 'protocols'],
-            paths: [],
+            paths: ['comptia-network'],
             components: {
                 lab: 'houses/web/labs/web-packet-analysis.lab.html'
             },
@@ -11764,7 +11765,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['packet', 'invaders', 'networking', 'protocols'],
-            paths: [],
+            paths: ['comptia-network'],
             components: {
                 applet: 'houses/web/games/web-packet-invaders.applet.html'
             },
@@ -11780,7 +11781,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['packet', 'run', 'networking', 'protocols'],
-            paths: [],
+            paths: ['comptia-network'],
             components: {
                 applet: 'houses/web/games/web-packet-run.applet.html'
             },
@@ -11796,7 +11797,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['packet', 'sniffer', 'networking', 'protocols'],
-            paths: [],
+            paths: ['comptia-network'],
             components: {
                 applet: 'houses/web/games/web-packet-sniffer.applet.html'
             },
@@ -11812,7 +11813,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 30,
             topics: ['subnetting', 'networking', 'protocols'],
-            paths: [],
+            paths: ['comptia-network'],
             components: {
                 lab: 'houses/web/labs/web-subnetting-practice.lab.html'
             },
@@ -11828,7 +11829,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 30,
             topics: ['vlan', 'configuration', 'networking', 'protocols'],
-            paths: [],
+            paths: ['ccna'],
             components: {
                 lab: 'houses/web/labs/web-vlan-config.lab.html'
             },
@@ -11844,7 +11845,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 15,
             topics: ['networking', 'ports', 'protocols'],
-            paths: [],
+            paths: ['comptia-network'],
             components: {
                 quiz: 'houses/web/quizzes/web-week3.quiz.html'
             },
@@ -11860,7 +11861,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['wireless', 'warzone', 'networking', 'protocols'],
-            paths: [],
+            paths: ['comptia-network'],
             components: {
                 applet: 'houses/web/games/web-wireless-warzone.applet.html'
             },
@@ -11878,7 +11879,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['cmmc', 'framework', 'overview', 'security', 'defense'],
-            paths: [],
+            paths: ['security-plus'],
             components: {
                 applet: 'houses/shield/applets/compliance/cmmc_overview/shield-cmmc-overview.applet.html'
             },
@@ -11894,7 +11895,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['cryptographic', 'protocols', 'security', 'defense'],
-            paths: [],
+            paths: ['security-plus'],
             components: {
                 applet: 'houses/shield/applets/crypto/crypto_protocols/shield-crypto-crypto-protocols.applet.html'
             },
@@ -11910,7 +11911,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['cryptography', 'security', 'defense'],
-            paths: [],
+            paths: ['security-plus'],
             components: {
                 applet: 'houses/shield/applets/crypto/cryptography_intro/shield-crypto-cryptography-intro.applet.html'
             },
@@ -11926,7 +11927,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['encryption', 'data', 'formatting', 'security', 'defense'],
-            paths: [],
+            paths: ['security-plus'],
             components: {
                 applet: 'houses/shield/applets/crypto/encrypt_data/shield-crypto-encryption.applet.html'
             },
@@ -11942,7 +11943,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['hashing', 'step-by-step', 'walkthrough', 'security', 'defense'],
-            paths: [],
+            paths: ['security-plus'],
             components: {
                 applet: 'houses/shield/applets/crypto/hashing_walkthrough/shield-crypto-hashing-walkthrough.applet.html'
             },
@@ -11958,7 +11959,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 45,
             topics: ['crypto', 'steganography', 'security', 'defense'],
-            paths: [],
+            paths: ['security-plus'],
             components: {
                 applet: 'houses/shield/applets/crypto/steganography/shield-crypto-steganography.applet.html'
             },
@@ -11974,7 +11975,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 45,
             topics: ['crypto', 'stream', 'ciphers', 'security', 'defense'],
-            paths: [],
+            paths: ['security-plus'],
             components: {
                 applet: 'houses/shield/applets/crypto/stream_ciphers/shield-crypto-stream-ciphers.applet.html'
             },
@@ -11990,7 +11991,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['symmetric', 'asymmetric', 'encryption', 'security', 'defense'],
-            paths: [],
+            paths: ['security-plus'],
             components: {
                 applet: 'houses/shield/applets/crypto/symmetric_vs_asymmetric/shield-crypto-symmetric-vs-asymmetric.applet.html'
             },
@@ -12006,7 +12007,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['malware', 'security', 'defense'],
-            paths: [],
+            paths: ['security-plus'],
             components: {
                 applet: 'houses/shield/games/shield-dr-malware.applet.html'
             },
@@ -12022,7 +12023,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 30,
             topics: ['mission', 'audit', 'logging', 'security', 'defense'],
-            paths: [],
+            paths: ['security-plus'],
             components: {
                 lab: 'houses/shield/labs/linux/shield-linux-audit.lab.html'
             },
@@ -12038,7 +12039,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 30,
             topics: ['audit', 'log', 'drill', 'security', 'defense'],
-            paths: [],
+            paths: ['security-plus'],
             components: {
                 lab: 'houses/shield/labs/linux/shield-linux-audit-drill.lab.html'
             },
@@ -12054,7 +12055,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 30,
             topics: ['mission', 'file', 'integrity', 'security', 'defense'],
-            paths: [],
+            paths: ['security-plus'],
             components: {
                 lab: 'houses/shield/labs/linux/shield-linux-file-integrity.lab.html'
             },
@@ -12070,7 +12071,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 30,
             topics: ['mission', 'firewall', 'configuration', 'security', 'defense'],
-            paths: [],
+            paths: ['security-plus'],
             components: {
                 lab: 'houses/shield/labs/linux/shield-linux-firewall.lab.html'
             },
@@ -12086,7 +12087,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 30,
             topics: ['firewall', 'rules', 'drill', 'security', 'defense'],
-            paths: [],
+            paths: ['security-plus'],
             components: {
                 lab: 'houses/shield/labs/linux/shield-linux-firewall-drill.lab.html'
             },
@@ -12102,7 +12103,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 30,
             topics: ['capstone', 'full', 'server', 'security', 'defense'],
-            paths: [],
+            paths: ['security-plus'],
             components: {
                 lab: 'houses/shield/labs/linux/shield-linux-hardening.lab.html'
             },
@@ -12118,7 +12119,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 30,
             topics: ['mission', 'password', 'policy', 'security', 'defense'],
-            paths: [],
+            paths: ['security-plus'],
             components: {
                 lab: 'houses/shield/labs/linux/shield-linux-password-policy.lab.html'
             },
@@ -12134,7 +12135,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 30,
             topics: ['permissions', 'drill', 'security', 'defense'],
-            paths: [],
+            paths: ['security-plus'],
             components: {
                 lab: 'houses/shield/labs/linux/shield-linux-perms-drill.lab.html'
             },
@@ -12150,7 +12151,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 30,
             topics: ['mission', 'selinuxapparmor', 'security', 'defense'],
-            paths: [],
+            paths: ['security-plus'],
             components: {
                 lab: 'houses/shield/labs/linux/shield-linux-selinux.lab.html'
             },
@@ -12166,7 +12167,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 30,
             topics: ['ssh', 'hardening', 'drill', 'security', 'defense'],
-            paths: [],
+            paths: ['security-plus'],
             components: {
                 lab: 'houses/shield/labs/linux/shield-linux-ssh-drill.lab.html'
             },
@@ -12182,7 +12183,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 30,
             topics: ['ssh', 'hardening', 'prep', 'security', 'defense'],
-            paths: [],
+            paths: ['security-plus'],
             components: {
                 lab: 'houses/shield/labs/linux/shield-linux-ssh-hardening-prep.lab.html'
             },
@@ -12198,7 +12199,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 30,
             topics: ['mission', 'secure', 'ssh', 'security', 'defense'],
-            paths: [],
+            paths: ['security-plus'],
             components: {
                 lab: 'houses/shield/labs/linux/shield-linux-ssh-security.lab.html'
             },
@@ -12214,7 +12215,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 30,
             topics: ['mission', 'privilege', 'management', 'security', 'defense'],
-            paths: [],
+            paths: ['security-plus'],
             components: {
                 lab: 'houses/shield/labs/linux/shield-linux-sudo.lab.html'
             },
@@ -12230,7 +12231,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 30,
             topics: ['sudo', 'policy', 'prep', 'security', 'defense'],
-            paths: [],
+            paths: ['security-plus'],
             components: {
                 lab: 'houses/shield/labs/linux/shield-linux-sudo-policy-prep.lab.html'
             },
@@ -12246,7 +12247,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 30,
             topics: ['malware', 'zoo', 'security', 'defense'],
-            paths: [],
+            paths: ['security-plus'],
             components: {
                 lab: 'houses/shield/games/shield-malware-zoo.lab.html'
             },
@@ -12262,7 +12263,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['social', 'engineering', 'attacks', 'security', 'defense'],
-            paths: [],
+            paths: ['security-plus'],
             components: {
                 presentation: 'houses/shield/presentations/shield-social-engineering.presentation.html'
             },
@@ -12278,7 +12279,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['threat', 'code', 'injection', 'security', 'defense'],
-            paths: [],
+            paths: ['security-plus'],
             components: {
                 applet: 'houses/shield/applets/threats/code_injection_attack/shield-threat-code-injection.applet.html'
             },
@@ -12294,7 +12295,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['threat', 'google', 'hacking', 'security', 'defense'],
-            paths: [],
+            paths: ['security-plus'],
             components: {
                 applet: 'houses/shield/applets/threats/google_hacking/shield-threat-google-hacking.applet.html'
             },
@@ -12310,7 +12311,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['threat', 'heartbleed', 'security', 'defense'],
-            paths: [],
+            paths: ['security-plus'],
             components: {
                 applet: 'houses/shield/applets/threats/heartbleed_attack/shield-threat-heartbleed.applet.html'
             },
@@ -12326,7 +12327,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['threat', 'meltdown', 'spectre', 'security', 'defense'],
-            paths: [],
+            paths: ['security-plus'],
             components: {
                 applet: 'houses/shield/applets/threats/meltdown_spectre/shield-threat-meltdown-spectre.applet.html'
             },
@@ -12342,7 +12343,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['threat', 'pen', 'testing', 'security', 'defense'],
-            paths: [],
+            paths: ['security-plus'],
             components: {
                 applet: 'houses/shield/applets/threats/pen_testing_methodology/shield-threat-pen-testing.applet.html'
             },
@@ -12358,7 +12359,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['threat', 'runner', 'security', 'defense'],
-            paths: [],
+            paths: ['security-plus'],
             components: {
                 applet: 'houses/shield/games/shield-threat-runner.applet.html'
             },
@@ -12374,7 +12375,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['threat', 'social', 'engineering', 'security', 'defense'],
-            paths: [],
+            paths: ['security-plus'],
             components: {
                 applet: 'houses/shield/applets/threats/social_engineering_tactics/shield-threat-social-engineering-tactics.applet.html'
             },
@@ -12390,7 +12391,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['threat', 'spoofing', 'security', 'defense'],
-            paths: [],
+            paths: ['security-plus'],
             components: {
                 applet: 'houses/shield/applets/threats/spoofing_attacks/shield-threat-spoofing.applet.html'
             },
@@ -12406,7 +12407,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['threat', 'stuxnet', 'security', 'defense'],
-            paths: [],
+            paths: ['security-plus'],
             components: {
                 applet: 'houses/shield/applets/threats/stuxnet/shield-threat-stuxnet.applet.html'
             },
@@ -12422,7 +12423,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['threat', 'swarm', 'security', 'defense'],
-            paths: [],
+            paths: ['security-plus'],
             components: {
                 applet: 'houses/shield/games/shield-threat-swarm.applet.html'
             },
@@ -12438,7 +12439,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['threat', 'actors', 'security', 'defense'],
-            paths: [],
+            paths: ['security-plus'],
             components: {
                 applet: 'houses/shield/applets/threats/threat_actors/shield-threat-threat-actors.applet.html'
             },
@@ -12456,7 +12457,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['attack', 'path', 'cloud', 'infrastructure'],
-            paths: [],
+            paths: ['wsa'],
             components: {
                 applet: 'houses/cloud/games/cloud-ad-attack-path.applet.html'
             },
@@ -12472,7 +12473,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['cloud', 'destroyer', 'infrastructure'],
-            paths: [],
+            paths: ['cse'],
             components: {
                 applet: 'houses/cloud/games/cloud-destroyer.applet.html'
             },
@@ -12488,7 +12489,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 45,
             topics: ['wsa', 'skills', 'gauntlet', 'cloud', 'infrastructure'],
-            paths: [],
+            paths: ['wsa'],
             components: {
                 module: 'houses/cloud/modules/wsa/gauntlet/cloud-gauntlet.module.html'
             },
@@ -12504,7 +12505,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 45,
             topics: ['wsa', 'skills', 'gauntlet', 'cloud', 'infrastructure'],
-            paths: [],
+            paths: ['wsa'],
             components: {
                 module: 'houses/cloud/modules/wsa/gauntlet-advanced/cloud-gauntlet-advanced.module.html'
             },
@@ -12520,7 +12521,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 30,
             topics: ['wsa', 'm01', 'gui', 'cloud', 'infrastructure'],
-            paths: [],
+            paths: ['wsa'],
             components: {
                 lab: 'houses/cloud/labs/cloud-gui.lab.html'
             },
@@ -12536,7 +12537,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 45,
             topics: ['wsa', 'gui', 'style', 'cloud', 'infrastructure'],
-            paths: [],
+            paths: ['wsa'],
             components: {
                 module: 'houses/cloud/modules/wsa/cloud-gui-style-samples.module.html'
             },
@@ -12552,7 +12553,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 45,
             topics: ['wsa', 'm01', 'gui', 'cloud', 'infrastructure'],
-            paths: [],
+            paths: ['wsa'],
             components: {
                 module: 'houses/cloud/modules/wsa/m19-troubleshooting-migration/cloud-guilab.module.html'
             },
@@ -12568,7 +12569,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['cloud', 'hop', 'infrastructure'],
-            paths: [],
+            paths: ['cse'],
             components: {
                 applet: 'houses/cloud/games/cloud-hop.applet.html'
             },
@@ -12584,7 +12585,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 30,
             topics: ['wsa', 'm01', 'powershell', 'cloud', 'infrastructure'],
-            paths: [],
+            paths: ['wsa'],
             components: {
                 lab: 'houses/cloud/labs/cloud-ps.lab.html'
             },
@@ -12600,7 +12601,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 45,
             topics: ['wsa', 'm01', 'powershell', 'cloud', 'infrastructure'],
-            paths: [],
+            paths: ['wsa'],
             components: {
                 module: 'houses/cloud/modules/wsa/m19-troubleshooting-migration/cloud-pslab.module.html'
             },
@@ -12616,7 +12617,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 15,
             topics: ['wsa', 'm01', 'windows', 'cloud', 'infrastructure'],
-            paths: [],
+            paths: ['wsa'],
             components: {
                 quiz: 'houses/cloud/quizzes/cloud-quiz.quiz.html'
             },
@@ -12632,7 +12633,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 45,
             topics: ['wsa', 'm01', 'server', 'cloud', 'infrastructure'],
-            paths: [],
+            paths: ['wsa'],
             components: {
                 module: 'houses/cloud/modules/wsa/m19-troubleshooting-migration/cloud-quizquiz.module.html'
             },
@@ -12648,7 +12649,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 45,
             topics: ['pod', 'crossing', 'docker', 'cloud', 'infrastructure'],
-            paths: [],
+            paths: ['wsa'],
             components: {
                 module: 'houses/cloud/modules/wsa/games/cloud-save-the-pod.module.html'
             },
@@ -12664,7 +12665,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 45,
             topics: ['failsafe', 'simulation', 'cloud', 'infrastructure'],
-            paths: [],
+            paths: ['wsa'],
             components: {
                 module: 'houses/cloud/modules/wsa/midterm-outpost/cloud-simulation.module.html'
             },
@@ -12680,7 +12681,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 45,
             topics: ['windows', 'server', 'cloud', 'infrastructure'],
-            paths: [],
+            paths: ['wsa'],
             components: {
                 module: 'houses/cloud/modules/wsa/reviews/cloud-wsa-review.module.html'
             },
@@ -12698,7 +12699,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 30,
             topics: ['mission', 'bash', 'arrays', 'linux', 'command-line'],
-            paths: [],
+            paths: ['linux-mastery'],
             components: {
                 lab: 'houses/script/labs/linux/script-bash-arrays.lab.html'
             },
@@ -12714,7 +12715,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 30,
             topics: ['mission', 'bash', 'linux', 'command-line'],
-            paths: [],
+            paths: ['linux-mastery'],
             components: {
                 lab: 'houses/script/labs/linux/script-bash-basics.lab.html'
             },
@@ -12730,7 +12731,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 30,
             topics: ['mission', 'bash', 'conditionals', 'linux', 'command-line'],
-            paths: [],
+            paths: ['linux-mastery'],
             components: {
                 lab: 'houses/script/labs/linux/script-bash-conditionals.lab.html'
             },
@@ -12746,7 +12747,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 30,
             topics: ['bash', 'conditionals', 'drill', 'linux', 'command-line'],
-            paths: [],
+            paths: ['linux-mastery'],
             components: {
                 lab: 'houses/script/labs/linux/script-bash-conditions-drill.lab.html'
             },
@@ -12762,7 +12763,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 30,
             topics: ['mission', 'bash', 'cron', 'linux', 'command-line'],
-            paths: [],
+            paths: ['linux-mastery'],
             components: {
                 lab: 'houses/script/labs/linux/script-bash-cron.lab.html'
             },
@@ -12778,7 +12779,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 30,
             topics: ['prep', 'cron', 'backup', 'linux', 'command-line'],
-            paths: [],
+            paths: ['linux-mastery'],
             components: {
                 lab: 'houses/script/labs/linux/script-bash-cron-setup-prep.lab.html'
             },
@@ -12794,7 +12795,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 30,
             topics: ['mission', 'bash', 'functions', 'linux', 'command-line'],
-            paths: [],
+            paths: ['linux-mastery'],
             components: {
                 lab: 'houses/script/labs/linux/script-bash-functions.lab.html'
             },
@@ -12810,7 +12811,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 30,
             topics: ['mission', 'redirection', 'linux', 'command-line'],
-            paths: [],
+            paths: ['linux-mastery'],
             components: {
                 lab: 'houses/script/labs/linux/script-bash-io-redirect.lab.html'
             },
@@ -12826,7 +12827,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 30,
             topics: ['prep', 'log', 'processor', 'linux', 'command-line'],
-            paths: [],
+            paths: ['linux-mastery'],
             components: {
                 lab: 'houses/script/labs/linux/script-bash-log-processor-prep.lab.html'
             },
@@ -12842,7 +12843,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 30,
             topics: ['mission', 'bash', 'loops', 'linux', 'command-line'],
-            paths: [],
+            paths: ['linux-mastery'],
             components: {
                 lab: 'houses/script/labs/linux/script-bash-loops.lab.html'
             },
@@ -12858,7 +12859,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 30,
             topics: ['bash', 'loops', 'drill', 'linux', 'command-line'],
-            paths: [],
+            paths: ['linux-mastery'],
             components: {
                 lab: 'houses/script/labs/linux/script-bash-loops-drill.lab.html'
             },
@@ -12874,7 +12875,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 30,
             topics: ['mission', 'bash', 'pipes', 'linux', 'command-line'],
-            paths: [],
+            paths: ['linux-mastery'],
             components: {
                 lab: 'houses/script/labs/linux/script-bash-pipes.lab.html'
             },
@@ -12890,7 +12891,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 30,
             topics: ['bash', 'redirect', 'drill', 'linux', 'command-line'],
-            paths: [],
+            paths: ['linux-mastery'],
             components: {
                 lab: 'houses/script/labs/linux/script-bash-redirect-drill.lab.html'
             },
@@ -12906,7 +12907,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 30,
             topics: ['bash', 'variables', 'drill', 'linux', 'command-line'],
-            paths: [],
+            paths: ['linux-mastery'],
             components: {
                 lab: 'houses/script/labs/linux/script-bash-variables-drill.lab.html'
             },
@@ -12922,7 +12923,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['blacksite', 'terminal', 'linux', 'command-line'],
-            paths: [],
+            paths: ['linux-mastery'],
             components: {
                 applet: 'houses/script/courses/grep-pipe-mastery/script-blacksite-demo.applet.html'
             },
@@ -12938,7 +12939,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 45,
             topics: ['certificate', 'zero', 'python', 'linux', 'command-line'],
-            paths: [],
+            paths: ['python-fundamentals'],
             components: {
                 module: 'houses/script/modules/python/script-certificate.module.html'
             },
@@ -12954,7 +12955,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['clh-001', 'hacker', 'cli', 'linux', 'command-line'],
-            paths: [],
+            paths: ['linux-mastery'],
             components: {
                 applet: 'houses/script/applets/linux/script-clh-001-intro-to-hacker-cli.applet.html'
             },
@@ -12970,7 +12971,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['clh-002', 'navigation', 'reconnaissance', 'linux', 'command-line'],
-            paths: [],
+            paths: ['linux-mastery'],
             components: {
                 applet: 'houses/script/applets/linux/script-clh-002-navigation-recon.applet.html'
             },
@@ -12986,7 +12987,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['clh-003', 'pattern', 'hunting', 'linux', 'command-line'],
-            paths: [],
+            paths: ['linux-mastery'],
             components: {
                 applet: 'houses/script/applets/linux/script-clh-003-pattern-hunting.applet.html'
             },
@@ -13002,7 +13003,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['clh-004', 'process', 'investigation', 'linux', 'command-line'],
-            paths: [],
+            paths: ['linux-mastery'],
             components: {
                 applet: 'houses/script/applets/linux/script-clh-004-process-investigation.applet.html'
             },
@@ -13018,7 +13019,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['clh-005', 'log', 'analysis', 'linux', 'command-line'],
-            paths: [],
+            paths: ['linux-mastery'],
             components: {
                 applet: 'houses/script/applets/linux/script-clh-005-log-analysis.applet.html'
             },
@@ -13034,7 +13035,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['clh-006', 'file', 'operations', 'linux', 'command-line'],
-            paths: [],
+            paths: ['linux-mastery'],
             components: {
                 applet: 'houses/script/applets/linux/script-clh-006-file-operations.applet.html'
             },
@@ -13050,7 +13051,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['clh-007', 'permissions', 'access', 'linux', 'command-line'],
-            paths: [],
+            paths: ['linux-mastery'],
             components: {
                 applet: 'houses/script/applets/linux/script-clh-007-permissions.applet.html'
             },
@@ -13066,7 +13067,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['clh-008', 'shell', 'scripting', 'linux', 'command-line'],
-            paths: [],
+            paths: ['linux-mastery'],
             components: {
                 applet: 'houses/script/applets/linux/script-clh-008-shell-scripting.applet.html'
             },
@@ -13082,7 +13083,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['clh-009', 'text', 'processing', 'linux', 'command-line'],
-            paths: [],
+            paths: ['linux-mastery'],
             components: {
                 applet: 'houses/script/applets/linux/script-clh-009-text-processing.applet.html'
             },
@@ -13098,7 +13099,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['clh-010', 'redirection', 'linux', 'command-line'],
-            paths: [],
+            paths: ['linux-mastery'],
             components: {
                 applet: 'houses/script/applets/linux/script-clh-010-io-redirection.applet.html'
             },
@@ -13114,7 +13115,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['clh-011', 'grep', 'regex', 'linux', 'command-line'],
-            paths: [],
+            paths: ['linux-mastery'],
             components: {
                 applet: 'houses/script/applets/linux/script-clh-011-advanced-grep.applet.html'
             },
@@ -13130,7 +13131,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['clh-012', 'network', 'linux', 'command-line'],
-            paths: [],
+            paths: ['linux-mastery'],
             components: {
                 applet: 'houses/script/applets/linux/script-clh-012-network-basics.applet.html'
             },
@@ -13146,7 +13147,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['clh-013', 'environment', 'variables', 'linux', 'command-line'],
-            paths: [],
+            paths: ['linux-mastery'],
             components: {
                 applet: 'houses/script/applets/linux/script-clh-013-environment.applet.html'
             },
@@ -13162,7 +13163,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['clh-014', 'process', 'control', 'linux', 'command-line'],
-            paths: [],
+            paths: ['linux-mastery'],
             components: {
                 applet: 'houses/script/applets/linux/script-clh-014-process-control.applet.html'
             },
@@ -13178,7 +13179,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['clh-015', 'capstone', 'mission', 'linux', 'command-line'],
-            paths: [],
+            paths: ['linux-mastery'],
             components: {
                 applet: 'houses/script/applets/linux/script-clh-015-capstone.applet.html'
             },
@@ -13194,7 +13195,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['clh-016', 'system', 'intel', 'linux', 'command-line'],
-            paths: [],
+            paths: ['linux-mastery'],
             components: {
                 applet: 'houses/script/clh/script-clh-016-intro.applet.html'
             },
@@ -13210,7 +13211,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['clh-016', 'system', 'intel', 'linux', 'command-line'],
-            paths: [],
+            paths: ['linux-mastery'],
             components: {
                 applet: 'houses/script/applets/linux/script-clh-016-system-intel.applet.html'
             },
@@ -13226,7 +13227,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['clh-017', 'find', 'locate', 'linux', 'command-line'],
-            paths: [],
+            paths: ['linux-mastery'],
             components: {
                 applet: 'houses/script/applets/linux/script-clh-017-find-locate.applet.html'
             },
@@ -13242,7 +13243,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['clh-017', 'find', 'locate', 'linux', 'command-line'],
-            paths: [],
+            paths: ['linux-mastery'],
             components: {
                 applet: 'houses/script/clh/script-clh-017-intro.applet.html'
             },
@@ -13258,7 +13259,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['clh-018', 'archive', 'operations', 'linux', 'command-line'],
-            paths: [],
+            paths: ['linux-mastery'],
             components: {
                 applet: 'houses/script/applets/linux/script-clh-018-archive-ops.applet.html'
             },
@@ -13274,7 +13275,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['clh-018', 'archive', 'operations', 'linux', 'command-line'],
-            paths: [],
+            paths: ['linux-mastery'],
             components: {
                 applet: 'houses/script/clh/script-clh-018-intro.applet.html'
             },
@@ -13290,7 +13291,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['clh-019', 'disk', 'forensics', 'linux', 'command-line'],
-            paths: [],
+            paths: ['linux-mastery'],
             components: {
                 applet: 'houses/script/applets/linux/script-clh-019-disk-forensics.applet.html'
             },
@@ -13306,7 +13307,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['clh-019', 'disk', 'forensics', 'linux', 'command-line'],
-            paths: [],
+            paths: ['linux-mastery'],
             components: {
                 applet: 'houses/script/clh/script-clh-019-intro.applet.html'
             },
@@ -13322,7 +13323,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['clh-020', 'user', 'reconnaissance', 'linux', 'command-line'],
-            paths: [],
+            paths: ['linux-mastery'],
             components: {
                 applet: 'houses/script/clh/script-clh-020-intro.applet.html'
             },
@@ -13338,7 +13339,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['clh-020', 'user', 'reconnaissance', 'linux', 'command-line'],
-            paths: [],
+            paths: ['linux-mastery'],
             components: {
                 applet: 'houses/script/applets/linux/script-clh-020-user-recon.applet.html'
             },
@@ -13354,7 +13355,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['clh-021', 'ssh', 'operations', 'linux', 'command-line'],
-            paths: [],
+            paths: ['linux-mastery'],
             components: {
                 applet: 'houses/script/clh/script-clh-021-intro.applet.html'
             },
@@ -13370,7 +13371,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['clh-021', 'ssh', 'operations', 'linux', 'command-line'],
-            paths: [],
+            paths: ['linux-mastery'],
             components: {
                 applet: 'houses/script/applets/linux/script-clh-021-ssh-ops.applet.html'
             },
@@ -13386,7 +13387,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['clh-022', 'network', 'reconnaissance', 'linux', 'command-line'],
-            paths: [],
+            paths: ['linux-mastery'],
             components: {
                 applet: 'houses/script/clh/script-clh-022-intro.applet.html'
             },
@@ -13402,7 +13403,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['clh-022', 'network', 'reconnaissance', 'linux', 'command-line'],
-            paths: [],
+            paths: ['linux-mastery'],
             components: {
                 applet: 'houses/script/applets/linux/script-clh-022-network-recon.applet.html'
             },
@@ -13418,7 +13419,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['clh-023', 'service', 'management', 'linux', 'command-line'],
-            paths: [],
+            paths: ['linux-mastery'],
             components: {
                 applet: 'houses/script/clh/script-clh-023-intro.applet.html'
             },
@@ -13434,7 +13435,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['clh-023', 'service', 'management', 'linux', 'command-line'],
-            paths: [],
+            paths: ['linux-mastery'],
             components: {
                 applet: 'houses/script/applets/linux/script-clh-023-services.applet.html'
             },
@@ -13450,7 +13451,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['clh-024', 'scheduled', 'tasks', 'linux', 'command-line'],
-            paths: [],
+            paths: ['linux-mastery'],
             components: {
                 applet: 'houses/script/applets/linux/script-clh-024-cron.applet.html'
             },
@@ -13466,7 +13467,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['clh-024', 'scheduled', 'tasks', 'linux', 'command-line'],
-            paths: [],
+            paths: ['linux-mastery'],
             components: {
                 applet: 'houses/script/clh/script-clh-024-intro.applet.html'
             },
@@ -13482,7 +13483,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['clh-025', 'package', 'management', 'linux', 'command-line'],
-            paths: [],
+            paths: ['linux-mastery'],
             components: {
                 applet: 'houses/script/clh/script-clh-025-intro.applet.html'
             },
@@ -13498,7 +13499,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['clh-025', 'package', 'management', 'linux', 'command-line'],
-            paths: [],
+            paths: ['linux-mastery'],
             components: {
                 applet: 'houses/script/applets/linux/script-clh-025-packages.applet.html'
             },
@@ -13514,7 +13515,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['clh-026', 'access', 'control', 'linux', 'command-line'],
-            paths: [],
+            paths: ['linux-mastery'],
             components: {
                 applet: 'houses/script/applets/linux/script-clh-026-access.applet.html'
             },
@@ -13530,7 +13531,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['clh-026', 'access', 'control', 'linux', 'command-line'],
-            paths: [],
+            paths: ['linux-mastery'],
             components: {
                 applet: 'houses/script/clh/script-clh-026-intro.applet.html'
             },
@@ -13546,7 +13547,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['clh-027', 'user', 'management', 'linux', 'command-line'],
-            paths: [],
+            paths: ['linux-mastery'],
             components: {
                 applet: 'houses/script/clh/script-clh-027-intro.applet.html'
             },
@@ -13562,7 +13563,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['clh-027', 'user', 'management', 'linux', 'command-line'],
-            paths: [],
+            paths: ['linux-mastery'],
             components: {
                 applet: 'houses/script/applets/linux/script-clh-027-users.applet.html'
             },
@@ -13578,7 +13579,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['clh-028', 'system', 'monitoring', 'linux', 'command-line'],
-            paths: [],
+            paths: ['linux-mastery'],
             components: {
                 applet: 'houses/script/clh/script-clh-028-intro.applet.html'
             },
@@ -13594,7 +13595,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['clh-028', 'system', 'monitoring', 'linux', 'command-line'],
-            paths: [],
+            paths: ['linux-mastery'],
             components: {
                 applet: 'houses/script/applets/linux/script-clh-028-monitoring.applet.html'
             },
@@ -13610,7 +13611,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['clh-029', 'vim', 'linux', 'command-line'],
-            paths: [],
+            paths: ['linux-mastery'],
             components: {
                 applet: 'houses/script/clh/script-clh-029-intro.applet.html'
             },
@@ -13626,7 +13627,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['clh-029', 'vim', 'linux', 'command-line'],
-            paths: [],
+            paths: ['linux-mastery'],
             components: {
                 applet: 'houses/script/applets/linux/script-clh-029-vim.applet.html'
             },
@@ -13642,7 +13643,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['clh-030', 'operation', 'chimera', 'linux', 'command-line'],
-            paths: [],
+            paths: ['linux-mastery'],
             components: {
                 applet: 'houses/script/applets/linux/script-clh-030-chimera.applet.html'
             },
@@ -13658,7 +13659,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['clh-030', 'final', 'operation', 'linux', 'command-line'],
-            paths: [],
+            paths: ['linux-mastery'],
             components: {
                 applet: 'houses/script/clh/script-clh-030-intro.applet.html'
             },
@@ -13674,7 +13675,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['clh-031', 'operation', 'blackout', 'linux', 'command-line'],
-            paths: [],
+            paths: ['linux-mastery'],
             components: {
                 applet: 'houses/script/applets/linux/script-clh-031-blackout.applet.html'
             },
@@ -13690,7 +13691,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 30,
             topics: ['cron', 'job', 'builder', 'linux', 'command-line'],
-            paths: [],
+            paths: ['linux-mastery'],
             components: {
                 lab: 'houses/script/labs/script-cron-builder.lab.html'
             },
@@ -13706,7 +13707,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['linux', 'directory', 'explorer', 'command-line'],
-            paths: [],
+            paths: ['linux-mastery'],
             components: {
                 applet: 'houses/script/linux/tools/script-directory.tool.html'
             },
@@ -13722,7 +13723,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 30,
             topics: ['mission', 'compression', 'archives', 'linux', 'command-line'],
-            paths: [],
+            paths: ['linux-mastery'],
             components: {
                 lab: 'houses/script/labs/linux/script-linux-compression.lab.html'
             },
@@ -13738,7 +13739,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 30,
             topics: ['disk', 'drill', 'linux', 'command-line'],
-            paths: [],
+            paths: ['linux-mastery'],
             components: {
                 lab: 'houses/script/labs/linux/script-linux-disk-drill.lab.html'
             },
@@ -13754,7 +13755,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 30,
             topics: ['disk', 'management', 'mission', 'linux', 'command-line'],
-            paths: [],
+            paths: ['linux-mastery'],
             components: {
                 lab: 'houses/script/labs/linux/script-linux-disk-mgmt.lab.html'
             },
@@ -13770,7 +13771,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 30,
             topics: ['disk', 'partition', 'prep', 'linux', 'command-line'],
-            paths: [],
+            paths: ['linux-mastery'],
             components: {
                 lab: 'houses/script/labs/linux/script-linux-disk-partition-prep.lab.html'
             },
@@ -13786,7 +13787,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 30,
             topics: ['environment', 'variables', 'mission', 'linux', 'command-line'],
-            paths: [],
+            paths: ['linux-mastery'],
             components: {
                 lab: 'houses/script/labs/linux/script-linux-env-vars.lab.html'
             },
@@ -13802,7 +13803,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 30,
             topics: ['prep', 'file', 'management', 'linux', 'command-line'],
-            paths: [],
+            paths: ['linux-mastery'],
             components: {
                 lab: 'houses/script/labs/linux/script-linux-file-mgmt-prep.lab.html'
             },
@@ -13818,7 +13819,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 30,
             topics: ['mission', 'file', 'operations', 'linux', 'command-line'],
-            paths: [],
+            paths: ['linux-mastery'],
             components: {
                 lab: 'houses/script/labs/linux/script-linux-file-ops.lab.html'
             },
@@ -13834,7 +13835,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 30,
             topics: ['mission', 'file', 'searching', 'linux', 'command-line'],
-            paths: [],
+            paths: ['linux-mastery'],
             components: {
                 lab: 'houses/script/labs/linux/script-linux-file-search.lab.html'
             },
@@ -13850,7 +13851,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 30,
             topics: ['file', 'finding', 'drill', 'linux', 'command-line'],
-            paths: [],
+            paths: ['linux-mastery'],
             components: {
                 lab: 'houses/script/labs/linux/script-linux-find-drill.lab.html'
             },
@@ -13866,7 +13867,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 30,
             topics: ['mission', 'links', 'symlinks', 'linux', 'command-line'],
-            paths: [],
+            paths: ['linux-mastery'],
             components: {
                 lab: 'houses/script/labs/linux/script-linux-links.lab.html'
             },
@@ -13882,7 +13883,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 30,
             topics: ['log', 'analysis', 'mission', 'linux', 'command-line'],
-            paths: [],
+            paths: ['linux-mastery'],
             components: {
                 lab: 'houses/script/labs/linux/script-linux-log-analysis.lab.html'
             },
@@ -13898,7 +13899,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 30,
             topics: ['log', 'analysis', 'mission', 'linux', 'command-line'],
-            paths: [],
+            paths: ['linux-mastery'],
             components: {
                 lab: 'houses/script/labs/linux/script-linux-log-analysis-mission.lab.html'
             },
@@ -13914,7 +13915,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 30,
             topics: ['prep', 'log', 'analysis', 'linux', 'command-line'],
-            paths: [],
+            paths: ['linux-mastery'],
             components: {
                 lab: 'houses/script/labs/linux/script-linux-log-analysis-prep.lab.html'
             },
@@ -13930,7 +13931,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 30,
             topics: ['log', 'investigation', 'prep', 'linux', 'command-line'],
-            paths: [],
+            paths: ['linux-mastery'],
             components: {
                 lab: 'houses/script/labs/linux/script-linux-log-investigation-prep.lab.html'
             },
@@ -13946,7 +13947,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 30,
             topics: ['directory', 'builder', 'drill', 'linux', 'command-line'],
-            paths: [],
+            paths: ['linux-mastery'],
             components: {
                 lab: 'houses/script/labs/linux/script-linux-mkdir-drill.lab.html'
             },
@@ -13962,7 +13963,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 30,
             topics: ['navigation', 'drill', 'linux', 'command-line'],
-            paths: [],
+            paths: ['linux-mastery'],
             components: {
                 lab: 'houses/script/labs/linux/script-linux-nav-drill.lab.html'
             },
@@ -13978,7 +13979,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 30,
             topics: ['network', 'configuration', 'mission', 'linux', 'command-line'],
-            paths: [],
+            paths: ['linux-mastery'],
             components: {
                 lab: 'houses/script/labs/linux/script-linux-network-config.lab.html'
             },
@@ -13994,7 +13995,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 30,
             topics: ['network', 'drill', 'linux', 'command-line'],
-            paths: [],
+            paths: ['linux-mastery'],
             components: {
                 lab: 'houses/script/labs/linux/script-linux-network-drill.lab.html'
             },
@@ -14010,7 +14011,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 30,
             topics: ['package', 'management', 'mission', 'linux', 'command-line'],
-            paths: [],
+            paths: ['linux-mastery'],
             components: {
                 lab: 'houses/script/labs/linux/script-linux-package-mgmt.lab.html'
             },
@@ -14026,7 +14027,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 30,
             topics: ['permissions', 'drill', 'linux', 'command-line'],
-            paths: [],
+            paths: ['linux-mastery'],
             components: {
                 lab: 'houses/script/labs/linux/script-linux-permissions-drill.lab.html'
             },
@@ -14042,7 +14043,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 30,
             topics: ['process', 'drill', 'linux', 'command-line'],
-            paths: [],
+            paths: ['linux-mastery'],
             components: {
                 lab: 'houses/script/labs/linux/script-linux-process-drill.lab.html'
             },
@@ -14058,7 +14059,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 30,
             topics: ['process', 'lifecycle', 'visualizer', 'linux', 'command-line'],
-            paths: [],
+            paths: ['linux-mastery'],
             components: {
                 lab: 'houses/script/labs/linux/script-linux-process-lifecycle.lab.html'
             },
@@ -14074,7 +14075,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 30,
             topics: ['process', 'management', 'mission', 'linux', 'command-line'],
-            paths: [],
+            paths: ['linux-mastery'],
             components: {
                 lab: 'houses/script/labs/linux/script-linux-process-mgmt.lab.html'
             },
@@ -14090,7 +14091,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 30,
             topics: ['service', 'drill', 'linux', 'command-line'],
-            paths: [],
+            paths: ['linux-mastery'],
             components: {
                 lab: 'houses/script/labs/linux/script-linux-service-drill.lab.html'
             },
@@ -14106,7 +14107,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 30,
             topics: ['service', 'management', 'mission', 'linux', 'command-line'],
-            paths: [],
+            paths: ['linux-mastery'],
             components: {
                 lab: 'houses/script/labs/linux/script-linux-service-mgmt.lab.html'
             },
@@ -14122,7 +14123,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 30,
             topics: ['ssh', 'operations', 'mission', 'linux', 'command-line'],
-            paths: [],
+            paths: ['linux-mastery'],
             components: {
                 lab: 'houses/script/labs/linux/script-linux-ssh.lab.html'
             },
@@ -14138,7 +14139,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 30,
             topics: ['sysadmin', 'quick', 'reference', 'linux', 'command-line'],
-            paths: [],
+            paths: ['linux-mastery'],
             components: {
                 lab: 'houses/script/labs/linux/script-linux-sysadmin-reference.lab.html'
             },
@@ -14154,7 +14155,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 30,
             topics: ['service', 'management', 'mission', 'linux', 'command-line'],
-            paths: [],
+            paths: ['linux-mastery'],
             components: {
                 lab: 'houses/script/labs/linux/script-linux-systemctl.lab.html'
             },
@@ -14170,7 +14171,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 30,
             topics: ['mission', 'text', 'viewing', 'linux', 'command-line'],
-            paths: [],
+            paths: ['linux-mastery'],
             components: {
                 lab: 'houses/script/labs/linux/script-linux-text-viewing.lab.html'
             },
@@ -14186,7 +14187,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 30,
             topics: ['mission', 'user', 'management', 'linux', 'command-line'],
-            paths: [],
+            paths: ['linux-mastery'],
             components: {
                 lab: 'houses/script/labs/linux/script-linux-users.lab.html'
             },
@@ -14202,7 +14203,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 30,
             topics: ['file', 'viewing', 'drill', 'linux', 'command-line'],
-            paths: [],
+            paths: ['linux-mastery'],
             components: {
                 lab: 'houses/script/labs/linux/script-linux-viewing-drill.lab.html'
             },
@@ -14218,7 +14219,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 30,
             topics: ['mission', 'wildcards', 'globbing', 'linux', 'command-line'],
-            paths: [],
+            paths: ['linux-mastery'],
             components: {
                 lab: 'houses/script/labs/linux/script-linux-wildcards.lab.html'
             },
@@ -14234,7 +14235,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 45,
             topics: ['lm-01', 'welcome', 'linux', 'command-line'],
-            paths: [],
+            paths: ['linux-mastery'],
             components: {
                 module: 'houses/script/modules/linux-mastery/script-lm-01-welcome.module.html'
             },
@@ -14250,7 +14251,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 45,
             topics: ['lm-02', 'your', 'first', 'linux', 'command-line'],
-            paths: [],
+            paths: ['linux-mastery'],
             components: {
                 module: 'houses/script/modules/linux-mastery/script-lm-02-first-commands.module.html'
             },
@@ -14266,7 +14267,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 45,
             topics: ['lm-03', 'getting', 'help', 'linux', 'command-line'],
-            paths: [],
+            paths: ['linux-mastery'],
             components: {
                 module: 'houses/script/modules/linux-mastery/script-lm-03-getting-help.module.html'
             },
@@ -14282,7 +14283,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 45,
             topics: ['lm-04', 'terminal', 'environment', 'linux', 'command-line'],
-            paths: [],
+            paths: ['linux-mastery'],
             components: {
                 module: 'houses/script/modules/linux-mastery/script-lm-04-terminal-environment.module.html'
             },
@@ -14298,7 +14299,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 45,
             topics: ['lm-05', 'section', 'linux', 'command-line'],
-            paths: [],
+            paths: ['linux-mastery'],
             components: {
                 module: 'houses/script/modules/linux-mastery/script-lm-05-section1-practice.module.html'
             },
@@ -14314,7 +14315,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 45,
             topics: ['lm-06', 'directory', 'navigation', 'linux', 'command-line'],
-            paths: [],
+            paths: ['linux-mastery'],
             components: {
                 module: 'houses/script/modules/linux-mastery/script-lm-06-navigation.module.html'
             },
@@ -14330,7 +14331,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 45,
             topics: ['lm-07', 'listing', 'files', 'linux', 'command-line'],
-            paths: [],
+            paths: ['linux-mastery'],
             components: {
                 module: 'houses/script/modules/linux-mastery/script-lm-07-listing-files.module.html'
             },
@@ -14346,7 +14347,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 45,
             topics: ['lm-08', 'file', 'operations', 'linux', 'command-line'],
-            paths: [],
+            paths: ['linux-mastery'],
             components: {
                 module: 'houses/script/modules/linux-mastery/script-lm-08-file-operations.module.html'
             },
@@ -14362,7 +14363,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 45,
             topics: ['lm-09', 'copy', 'move', 'linux', 'command-line'],
-            paths: [],
+            paths: ['linux-mastery'],
             components: {
                 module: 'houses/script/modules/linux-mastery/script-lm-09-copy-move.module.html'
             },
@@ -14378,7 +14379,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 45,
             topics: ['lm-10', 'viewing', 'files', 'linux', 'command-line'],
-            paths: [],
+            paths: ['linux-mastery'],
             components: {
                 module: 'houses/script/modules/linux-mastery/script-lm-10-viewing-files.module.html'
             },
@@ -14394,7 +14395,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 45,
             topics: ['lm-11', 'finding', 'files', 'linux', 'command-line'],
-            paths: [],
+            paths: ['linux-mastery'],
             components: {
                 module: 'houses/script/modules/linux-mastery/script-lm-11-finding-files.module.html'
             },
@@ -14410,7 +14411,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 45,
             topics: ['lm-12', 'section', 'linux', 'command-line'],
-            paths: [],
+            paths: ['linux-mastery'],
             components: {
                 module: 'houses/script/modules/linux-mastery/script-lm-12-section2-practice.module.html'
             },
@@ -14426,7 +14427,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 45,
             topics: ['lm-13', 'grep', 'linux', 'command-line'],
-            paths: [],
+            paths: ['linux-mastery'],
             components: {
                 module: 'houses/script/modules/linux-mastery/script-lm-13-grep-basics.module.html'
             },
@@ -14442,7 +14443,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 45,
             topics: ['lm-14', 'regular', 'expressions', 'linux', 'command-line'],
-            paths: [],
+            paths: ['linux-mastery'],
             components: {
                 module: 'houses/script/modules/linux-mastery/script-lm-14-regular-expressions.module.html'
             },
@@ -14458,7 +14459,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 45,
             topics: ['lm-15', 'sed', 'stream', 'linux', 'command-line'],
-            paths: [],
+            paths: ['linux-mastery'],
             components: {
                 module: 'houses/script/modules/linux-mastery/script-lm-15-sed-editor.module.html'
             },
@@ -14474,7 +14475,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 45,
             topics: ['lm-16', 'awk', 'processing', 'linux', 'command-line'],
-            paths: [],
+            paths: ['linux-mastery'],
             components: {
                 module: 'houses/script/modules/linux-mastery/script-lm-16-awk-processing.module.html'
             },
@@ -14490,7 +14491,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 45,
             topics: ['lm-17', 'sort', 'uniq', 'linux', 'command-line'],
-            paths: [],
+            paths: ['linux-mastery'],
             components: {
                 module: 'houses/script/modules/linux-mastery/script-lm-17-sort-uniq.module.html'
             },
@@ -14506,7 +14507,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 45,
             topics: ['lm-18', 'cut', 'paste', 'linux', 'command-line'],
-            paths: [],
+            paths: ['linux-mastery'],
             components: {
                 module: 'houses/script/modules/linux-mastery/script-lm-18-cut-paste.module.html'
             },
@@ -14522,7 +14523,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 45,
             topics: ['lm-19', 'text', 'pipelines', 'linux', 'command-line'],
-            paths: [],
+            paths: ['linux-mastery'],
             components: {
                 module: 'houses/script/modules/linux-mastery/script-lm-19-text-pipelines.module.html'
             },
@@ -14538,7 +14539,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 45,
             topics: ['lm-20', 'section', 'linux', 'command-line'],
-            paths: [],
+            paths: ['linux-mastery'],
             components: {
                 module: 'houses/script/modules/linux-mastery/script-lm-20-section3-practice.module.html'
             },
@@ -14554,7 +14555,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 45,
             topics: ['lm-21', 'users', 'groups', 'linux', 'command-line'],
-            paths: [],
+            paths: ['linux-mastery'],
             components: {
                 module: 'houses/script/modules/linux-mastery/script-lm-21-users-groups.module.html'
             },
@@ -14570,7 +14571,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 45,
             topics: ['lm-22', 'file', 'permissions', 'linux', 'command-line'],
-            paths: [],
+            paths: ['linux-mastery'],
             components: {
                 module: 'houses/script/modules/linux-mastery/script-lm-22-file-permissions.module.html'
             },
@@ -14586,7 +14587,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 45,
             topics: ['lm-23', 'chmod', 'linux', 'command-line'],
-            paths: [],
+            paths: ['linux-mastery'],
             components: {
                 module: 'houses/script/modules/linux-mastery/script-lm-23-chmod.module.html'
             },
@@ -14602,7 +14603,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 45,
             topics: ['lm-24', 'chown', 'linux', 'command-line'],
-            paths: [],
+            paths: ['linux-mastery'],
             components: {
                 module: 'houses/script/modules/linux-mastery/script-lm-24-chown.module.html'
             },
@@ -14618,7 +14619,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 45,
             topics: ['lm-25', 'sudo', 'linux', 'command-line'],
-            paths: [],
+            paths: ['linux-mastery'],
             components: {
                 module: 'houses/script/modules/linux-mastery/script-lm-25-sudo.module.html'
             },
@@ -14634,7 +14635,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 45,
             topics: ['lm-26', 'special', 'permissions', 'linux', 'command-line'],
-            paths: [],
+            paths: ['linux-mastery'],
             components: {
                 module: 'houses/script/modules/linux-mastery/script-lm-26-special-permissions.module.html'
             },
@@ -14650,7 +14651,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 45,
             topics: ['lm-27', 'section', 'linux', 'command-line'],
-            paths: [],
+            paths: ['linux-mastery'],
             components: {
                 module: 'houses/script/modules/linux-mastery/script-lm-27-section4-practice.module.html'
             },
@@ -14666,7 +14667,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 45,
             topics: ['lm-28', 'process', 'linux', 'command-line'],
-            paths: [],
+            paths: ['linux-mastery'],
             components: {
                 module: 'houses/script/modules/linux-mastery/script-lm-28-process-basics.module.html'
             },
@@ -14682,7 +14683,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 45,
             topics: ['lm-29', 'top', 'linux', 'command-line'],
-            paths: [],
+            paths: ['linux-mastery'],
             components: {
                 module: 'houses/script/modules/linux-mastery/script-lm-29-ps-top.module.html'
             },
@@ -14698,7 +14699,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 45,
             topics: ['lm-30', 'background', 'jobs', 'linux', 'command-line'],
-            paths: [],
+            paths: ['linux-mastery'],
             components: {
                 module: 'houses/script/modules/linux-mastery/script-lm-30-background-jobs.module.html'
             },
@@ -14714,7 +14715,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 45,
             topics: ['lm-31', 'signals', 'kill', 'linux', 'command-line'],
-            paths: [],
+            paths: ['linux-mastery'],
             components: {
                 module: 'houses/script/modules/linux-mastery/script-lm-31-signals-kill.module.html'
             },
@@ -14730,7 +14731,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 45,
             topics: ['lm-32', 'cron', 'linux', 'command-line'],
-            paths: [],
+            paths: ['linux-mastery'],
             components: {
                 module: 'houses/script/modules/linux-mastery/script-lm-32-cron.module.html'
             },
@@ -14746,7 +14747,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 45,
             topics: ['lm-33', 'systemd', 'linux', 'command-line'],
-            paths: [],
+            paths: ['linux-mastery'],
             components: {
                 module: 'houses/script/modules/linux-mastery/script-lm-33-systemd.module.html'
             },
@@ -14762,7 +14763,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 45,
             topics: ['lm-34', 'section', 'linux', 'command-line'],
-            paths: [],
+            paths: ['linux-mastery'],
             components: {
                 module: 'houses/script/modules/linux-mastery/script-lm-34-section5-practice.module.html'
             },
@@ -14778,7 +14779,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 45,
             topics: ['lm-35', 'network', 'info', 'linux', 'command-line'],
-            paths: [],
+            paths: ['linux-mastery'],
             components: {
                 module: 'houses/script/modules/linux-mastery/script-lm-35-network-info.module.html'
             },
@@ -14794,7 +14795,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 45,
             topics: ['lm-36', 'connectivity', 'linux', 'command-line'],
-            paths: [],
+            paths: ['linux-mastery'],
             components: {
                 module: 'houses/script/modules/linux-mastery/script-lm-36-connectivity.module.html'
             },
@@ -14810,7 +14811,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 45,
             topics: ['lm-37', 'dns', 'tools', 'linux', 'command-line'],
-            paths: [],
+            paths: ['linux-mastery'],
             components: {
                 module: 'houses/script/modules/linux-mastery/script-lm-37-dns-tools.module.html'
             },
@@ -14826,7 +14827,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 45,
             topics: ['lm-38', 'downloading', 'linux', 'command-line'],
-            paths: [],
+            paths: ['linux-mastery'],
             components: {
                 module: 'houses/script/modules/linux-mastery/script-lm-38-downloading.module.html'
             },
@@ -14842,7 +14843,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 45,
             topics: ['lm-39', 'ssh', 'linux', 'command-line'],
-            paths: [],
+            paths: ['linux-mastery'],
             components: {
                 module: 'houses/script/modules/linux-mastery/script-lm-39-ssh-basics.module.html'
             },
@@ -14858,7 +14859,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 45,
             topics: ['lm-40', 'section', 'linux', 'command-line'],
-            paths: [],
+            paths: ['linux-mastery'],
             components: {
                 module: 'houses/script/modules/linux-mastery/script-lm-40-section6-practice.module.html'
             },
@@ -14874,7 +14875,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 45,
             topics: ['lm-41', 'first', 'script', 'linux', 'command-line'],
-            paths: [],
+            paths: ['linux-mastery'],
             components: {
                 module: 'houses/script/modules/linux-mastery/script-lm-41-first-script.module.html'
             },
@@ -14890,7 +14891,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 45,
             topics: ['lm-42', 'variables', 'linux', 'command-line'],
-            paths: [],
+            paths: ['linux-mastery'],
             components: {
                 module: 'houses/script/modules/linux-mastery/script-lm-42-variables.module.html'
             },
@@ -14906,7 +14907,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 45,
             topics: ['lm-43', 'user', 'input', 'linux', 'command-line'],
-            paths: [],
+            paths: ['linux-mastery'],
             components: {
                 module: 'houses/script/modules/linux-mastery/script-lm-43-user-input.module.html'
             },
@@ -14922,7 +14923,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 45,
             topics: ['lm-44', 'conditionals', 'linux', 'command-line'],
-            paths: [],
+            paths: ['linux-mastery'],
             components: {
                 module: 'houses/script/modules/linux-mastery/script-lm-44-conditionals.module.html'
             },
@@ -14938,7 +14939,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 45,
             topics: ['lm-45', 'loops', 'linux', 'command-line'],
-            paths: [],
+            paths: ['linux-mastery'],
             components: {
                 module: 'houses/script/modules/linux-mastery/script-lm-45-loops.module.html'
             },
@@ -14954,7 +14955,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 45,
             topics: ['lm-46', 'functions', 'linux', 'command-line'],
-            paths: [],
+            paths: ['linux-mastery'],
             components: {
                 module: 'houses/script/modules/linux-mastery/script-lm-46-functions.module.html'
             },
@@ -14970,7 +14971,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 45,
             topics: ['lm-47', 'practical', 'scripts', 'linux', 'command-line'],
-            paths: [],
+            paths: ['linux-mastery'],
             components: {
                 module: 'houses/script/modules/linux-mastery/script-lm-47-practical-scripts.module.html'
             },
@@ -14986,7 +14987,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 45,
             topics: ['lm-48', 'section', 'linux', 'command-line'],
-            paths: [],
+            paths: ['linux-mastery'],
             components: {
                 module: 'houses/script/modules/linux-mastery/script-lm-48-section7-practice.module.html'
             },
@@ -15002,7 +15003,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 45,
             topics: ['lm-49', 'links', 'linux', 'command-line'],
-            paths: [],
+            paths: ['linux-mastery'],
             components: {
                 module: 'houses/script/modules/linux-mastery/script-lm-49-links.module.html'
             },
@@ -15018,7 +15019,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 45,
             topics: ['lm-50', 'text', 'editors', 'linux', 'command-line'],
-            paths: [],
+            paths: ['linux-mastery'],
             components: {
                 module: 'houses/script/modules/linux-mastery/script-lm-50-text-editors.module.html'
             },
@@ -15034,7 +15035,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 45,
             topics: ['lm-51', 'package', 'management', 'linux', 'command-line'],
-            paths: [],
+            paths: ['linux-mastery'],
             components: {
                 module: 'houses/script/modules/linux-mastery/script-lm-51-package-management.module.html'
             },
@@ -15050,7 +15051,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 45,
             topics: ['lm-52', 'environment', 'path', 'linux', 'command-line'],
-            paths: [],
+            paths: ['linux-mastery'],
             components: {
                 module: 'houses/script/modules/linux-mastery/script-lm-52-environment-path.module.html'
             },
@@ -15066,7 +15067,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 45,
             topics: ['lm-53', 'next', 'steps', 'linux', 'command-line'],
-            paths: [],
+            paths: ['linux-mastery'],
             components: {
                 module: 'houses/script/modules/linux-mastery/script-lm-53-next-steps.module.html'
             },
@@ -15082,7 +15083,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 30,
             topics: ['mission', 'file', 'operations', 'linux', 'command-line'],
-            paths: [],
+            paths: ['linux-mastery'],
             components: {
                 lab: 'houses/script/linux/labs/script-mission-file-operations.lab.html'
             },
@@ -15098,7 +15099,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 30,
             topics: ['mission', 'file', 'search', 'linux', 'command-line'],
-            paths: [],
+            paths: ['linux-mastery'],
             components: {
                 lab: 'houses/script/linux/labs/script-mission-file-search.lab.html'
             },
@@ -15114,7 +15115,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 30,
             topics: ['mission', 'server', 'permissions', 'linux', 'command-line'],
-            paths: [],
+            paths: ['linux-mastery'],
             components: {
                 lab: 'houses/script/linux/labs/script-mission-permissions.lab.html'
             },
@@ -15130,7 +15131,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 30,
             topics: ['mission', 'log', 'analysis', 'linux', 'command-line'],
-            paths: [],
+            paths: ['linux-mastery'],
             components: {
                 lab: 'houses/script/linux/labs/script-mission-text-viewing.lab.html'
             },
@@ -15146,7 +15147,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 30,
             topics: ['patch', 'tuesday', 'vulnerability', 'linux', 'command-line'],
-            paths: [],
+            paths: ['linux-mastery'],
             components: {
                 lab: 'houses/script/labs/script-patch-tuesday.lab.html'
             },
@@ -15162,7 +15163,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['linux', 'permission', 'calculator', 'command-line'],
-            paths: [],
+            paths: ['linux-mastery'],
             components: {
                 applet: 'houses/script/linux/tools/script-permission.tool.html'
             },
@@ -15178,7 +15179,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['pipe', 'snake', 'linux', 'command-line'],
-            paths: [],
+            paths: ['linux-mastery'],
             components: {
                 applet: 'houses/script/games/script-pipe-snake.applet.html'
             },
@@ -15194,7 +15195,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['process', 'lifecycle', 'linux', 'command-line'],
-            paths: [],
+            paths: ['linux-mastery'],
             components: {
                 applet: 'houses/script/linux/tools/script-process.tool.html'
             },
@@ -15210,7 +15211,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 30,
             topics: ['chapter', 'practical', 'exam', 'linux', 'command-line'],
-            paths: [],
+            paths: ['python-fundamentals'],
             components: {
                 quiz: 'houses/script/exams/script-python-exam-chapter1.exam.html'
             },
@@ -15226,7 +15227,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 30,
             topics: ['chapter', 'practical', 'exam', 'linux', 'command-line'],
-            paths: [],
+            paths: ['python-fundamentals'],
             components: {
                 quiz: 'houses/script/exams/script-python-exam-chapter2.exam.html'
             },
@@ -15242,7 +15243,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 30,
             topics: ['chapter', 'practical', 'exam', 'linux', 'command-line'],
-            paths: [],
+            paths: ['python-fundamentals'],
             components: {
                 quiz: 'houses/script/exams/script-python-exam-chapter3.exam.html'
             },
@@ -15258,7 +15259,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 30,
             topics: ['python', 'chapter', 'exam', 'linux', 'command-line'],
-            paths: [],
+            paths: ['python-fundamentals'],
             components: {
                 quiz: 'houses/script/exams/script-python-exam-chapter4.exam.html'
             },
@@ -15274,7 +15275,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 30,
             topics: ['python', 'chapter', 'exam', 'linux', 'command-line'],
-            paths: [],
+            paths: ['python-fundamentals'],
             components: {
                 quiz: 'houses/script/exams/script-python-exam-chapter5.exam.html'
             },
@@ -15290,7 +15291,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 30,
             topics: ['python', 'chapter', 'exam', 'linux', 'command-line'],
-            paths: [],
+            paths: ['python-fundamentals'],
             components: {
                 quiz: 'houses/script/exams/script-python-exam-chapter6.exam.html'
             },
@@ -15306,7 +15307,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 30,
             topics: ['python', 'chapter', 'exam', 'linux', 'command-line'],
-            paths: [],
+            paths: ['python-fundamentals'],
             components: {
                 quiz: 'houses/script/exams/script-python-exam-chapter7.exam.html'
             },
@@ -15322,7 +15323,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 30,
             topics: ['python', 'chapter', 'exam', 'linux', 'command-line'],
-            paths: [],
+            paths: ['python-fundamentals'],
             components: {
                 quiz: 'houses/script/exams/script-python-exam-chapter8.exam.html'
             },
@@ -15338,7 +15339,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 45,
             topics: ['python', 'chapter', 'first', 'linux', 'command-line'],
-            paths: [],
+            paths: ['python-fundamentals'],
             components: {
                 module: 'houses/script/modules/python/script-python-immersive-chapter1.module.html'
             },
@@ -15354,7 +15355,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 45,
             topics: ['python', 'chapter', 'strings', 'linux', 'command-line'],
-            paths: [],
+            paths: ['python-fundamentals'],
             components: {
                 module: 'houses/script/modules/python/script-python-immersive-chapter2.module.html'
             },
@@ -15370,7 +15371,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 45,
             topics: ['python', 'chapter', 'flow', 'linux', 'command-line'],
-            paths: [],
+            paths: ['python-fundamentals'],
             components: {
                 module: 'houses/script/modules/python/script-python-immersive-chapter3.module.html'
             },
@@ -15386,7 +15387,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 45,
             topics: ['python', 'chapter', 'functions', 'linux', 'command-line'],
-            paths: [],
+            paths: ['python-fundamentals'],
             components: {
                 module: 'houses/script/modules/python/script-python-immersive-chapter4.module.html'
             },
@@ -15402,7 +15403,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 45,
             topics: ['python', 'chapter', 'collections', 'linux', 'command-line'],
-            paths: [],
+            paths: ['python-fundamentals'],
             components: {
                 module: 'houses/script/modules/python/script-python-immersive-chapter5.module.html'
             },
@@ -15418,7 +15419,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 45,
             topics: ['python', 'chapter', 'dictionaries', 'linux', 'command-line'],
-            paths: [],
+            paths: ['python-fundamentals'],
             components: {
                 module: 'houses/script/modules/python/script-python-immersive-chapter6.module.html'
             },
@@ -15434,7 +15435,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 45,
             topics: ['python', 'chapter', 'file', 'linux', 'command-line'],
-            paths: [],
+            paths: ['python-fundamentals'],
             components: {
                 module: 'houses/script/modules/python/script-python-immersive-chapter7.module.html'
             },
@@ -15450,7 +15451,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 45,
             topics: ['python', 'chapter', 'object-oriented', 'linux', 'command-line'],
-            paths: [],
+            paths: ['python-fundamentals'],
             components: {
                 module: 'houses/script/modules/python/script-python-immersive-chapter8.module.html'
             },
@@ -15466,7 +15467,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 15,
             topics: ['linux', 'quick', 'reference', 'command-line'],
-            paths: [],
+            paths: ['linux-mastery'],
             components: {
                 reference: 'houses/script/linux/script-quick.reference.html'
             },
@@ -15482,7 +15483,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['service', 'dependency', 'map', 'linux', 'command-line'],
-            paths: [],
+            paths: ['linux-mastery'],
             components: {
                 applet: 'houses/script/linux/tools/script-service.tool.html'
             },
@@ -15498,7 +15499,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['shell', 'sprint', 'linux', 'command-line'],
-            paths: [],
+            paths: ['linux-mastery'],
             components: {
                 applet: 'houses/script/games/script-shell-sprint.applet.html'
             },
@@ -15514,7 +15515,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 30,
             topics: ['file', 'navigation', 'warmup', 'linux', 'command-line'],
-            paths: [],
+            paths: ['linux-mastery'],
             components: {
                 lab: 'houses/script/linux/labs/script-template-warmup.lab.html'
             },
@@ -15530,7 +15531,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['ubuntu', 'security', 'components', 'linux', 'command-line'],
-            paths: [],
+            paths: ['linux-mastery'],
             components: {
                 applet: 'houses/script/applets/linux/script-ubuntu-components.applet.html'
             },
@@ -15546,7 +15547,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 30,
             topics: ['directory', 'navigation', 'warmup', 'linux', 'command-line'],
-            paths: [],
+            paths: ['linux-mastery'],
             components: {
                 lab: 'houses/script/linux/labs/script-warmup-navigation.lab.html'
             },
@@ -15564,7 +15565,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['5-tuple', 'approach', 'monitoring', 'analysis'],
-            paths: [],
+            paths: ['security-operations'],
             components: {
                 applet: 'houses/eye/applets/cyberops/eye-5-tuple-approach.applet.html'
             },
@@ -15580,7 +15581,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 30,
             topics: ['acl', 'demonstration', 'monitoring', 'analysis'],
-            paths: [],
+            paths: ['security-operations'],
             components: {
                 lab: 'houses/eye/applets/cyberops/week4/labs/eye-acl-demo.lab.html'
             },
@@ -15596,7 +15597,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['application', 'visibility', 'control', 'monitoring', 'analysis'],
-            paths: [],
+            paths: ['security-operations'],
             components: {
                 applet: 'houses/eye/applets/cyberops/eye-app-visibility-control.applet.html'
             },
@@ -15612,7 +15613,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['interpret', 'artifact', 'elements', 'monitoring', 'analysis'],
-            paths: [],
+            paths: ['security-operations'],
             components: {
                 applet: 'houses/eye/applets/cyberops/eye-artifact-elements.applet.html'
             },
@@ -15628,7 +15629,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 30,
             topics: ['asymmetric', 'encryption', 'monitoring', 'analysis'],
-            paths: [],
+            paths: ['security-operations'],
             components: {
                 lab: 'houses/eye/applets/cyberops/week6/labs/eye-asymmetric-encryption.lab.html'
             },
@@ -15644,7 +15645,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['attack', 'surface', 'management', 'monitoring', 'analysis'],
-            paths: [],
+            paths: ['security-operations'],
             components: {
                 applet: 'houses/eye/applets/cyberops/eye-attack-surface.applet.html'
             },
@@ -15660,7 +15661,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['attack', 'surface', 'vulnerability', 'monitoring', 'analysis'],
-            paths: [],
+            paths: ['security-operations'],
             components: {
                 applet: 'houses/eye/applets/cyberops/eye-attack-surface-vuln.applet.html'
             },
@@ -15676,7 +15677,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['attribution', 'investigation', 'monitoring', 'analysis'],
-            paths: [],
+            paths: ['security-operations'],
             components: {
                 applet: 'houses/eye/applets/cyberops/eye-attribution-investigation.applet.html'
             },
@@ -15692,7 +15693,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 45,
             topics: ['certificate', 'monitoring', 'analysis'],
-            paths: [],
+            paths: ['security-operations'],
             components: {
                 module: 'houses/eye/modules/cyberops/eye-certificate.module.html'
             },
@@ -15708,7 +15709,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 30,
             topics: ['certificate', 'stores', 'monitoring', 'analysis'],
-            paths: [],
+            paths: ['security-operations'],
             components: {
                 lab: 'houses/eye/applets/cyberops/week6/labs/eye-certificate-stores.lab.html'
             },
@@ -15724,7 +15725,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 30,
             topics: ['chain', 'custody', 'monitoring', 'analysis'],
-            paths: [],
+            paths: ['security-operations'],
             components: {
                 lab: 'houses/eye/applets/cyberops/week7/labs/eye-chain-of-custody.lab.html'
             },
@@ -15740,7 +15741,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['content', 'filtering', 'data', 'monitoring', 'analysis'],
-            paths: [],
+            paths: ['security-operations'],
             components: {
                 applet: 'houses/eye/applets/cyberops/eye-content-filtering.applet.html'
             },
@@ -15756,7 +15757,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['cvss', 'terminology', 'monitoring', 'analysis'],
-            paths: [],
+            paths: ['security-operations'],
             components: {
                 applet: 'houses/eye/applets/cyberops/eye-cvss-terminology.applet.html'
             },
@@ -15772,7 +15773,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['data', 'loss', 'from', 'monitoring', 'analysis'],
-            paths: [],
+            paths: ['security-operations'],
             components: {
                 applet: 'houses/eye/applets/cyberops/eye-data-loss-traffic.applet.html'
             },
@@ -15788,7 +15789,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['data', 'types', 'from', 'monitoring', 'analysis'],
-            paths: [],
+            paths: ['security-operations'],
             components: {
                 applet: 'houses/eye/applets/cyberops/eye-data-types-output.applet.html'
             },
@@ -15804,7 +15805,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['data', 'visibility', 'monitoring', 'analysis'],
-            paths: [],
+            paths: ['security-operations'],
             components: {
                 applet: 'houses/eye/applets/cyberops/eye-data-visibility.applet.html'
             },
@@ -15820,7 +15821,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['data', 'visibility', 'challenges', 'monitoring', 'analysis'],
-            paths: [],
+            paths: ['security-operations'],
             components: {
                 applet: 'houses/eye/applets/cyberops/eye-data-visibility-challenges.applet.html'
             },
@@ -15836,7 +15837,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['detection', 'methods', 'monitoring', 'analysis'],
-            paths: [],
+            paths: ['security-operations'],
             components: {
                 applet: 'houses/eye/applets/cyberops/eye-detection-methods.applet.html'
             },
@@ -15852,7 +15853,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 30,
             topics: ['digital', 'signatures', 'monitoring', 'analysis'],
-            paths: [],
+            paths: ['security-operations'],
             components: {
                 lab: 'houses/eye/applets/cyberops/week6/labs/eye-digital-signatures.lab.html'
             },
@@ -15868,7 +15869,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['compare', 'disk', 'images', 'monitoring', 'analysis'],
-            paths: [],
+            paths: ['security-operations'],
             components: {
                 applet: 'houses/eye/applets/cyberops/eye-disk-images.applet.html'
             },
@@ -15884,7 +15885,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 30,
             topics: ['exploring', 'dns', 'traffic', 'monitoring', 'analysis'],
-            paths: [],
+            paths: ['security-operations'],
             components: {
                 lab: 'houses/eye/applets/cyberops/week5/labs/eye-dns-traffic.lab.html'
             },
@@ -15900,23 +15901,119 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['endpoint', 'attacks', 'monitoring', 'analysis'],
-            paths: [],
+            paths: ['security-operations'],
             components: {
                 applet: 'houses/eye/applets/cyberops/eye-endpoint-attacks.applet.html'
             },
             prerequisites: [],
             objectives: []
         },
-        'eye-evaluation': {
-            id: 'eye-evaluation',
+        'eye-evaluation-week1': {
+            id: 'eye-evaluation-week1',
             title: 'Week 1 Evaluation',
-            description: 'Week 1 Evaluation — module content for eye house',
+            description: 'CyberOps Week 1 Evaluation',
             house: 'eye',
             type: 'module',
             difficulty: 'beginner',
             duration: 45,
             topics: ['week', 'evaluation', 'monitoring', 'analysis'],
-            paths: [],
+            paths: ['security-operations'],
+            components: {
+                applet: 'houses/eye/applets/cyberops/week1/eye-evaluation.applet.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'eye-evaluation-week2': {
+            id: 'eye-evaluation-week2',
+            title: 'Week 2 Evaluation',
+            description: 'CyberOps Week 2 Evaluation',
+            house: 'eye',
+            type: 'module',
+            difficulty: 'beginner',
+            duration: 45,
+            topics: ['week', 'evaluation', 'monitoring', 'analysis'],
+            paths: ['security-operations'],
+            components: {
+                applet: 'houses/eye/applets/cyberops/week2/eye-evaluation.applet.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'eye-evaluation-week3': {
+            id: 'eye-evaluation-week3',
+            title: 'Week 3 Evaluation',
+            description: 'CyberOps Week 3 Evaluation',
+            house: 'eye',
+            type: 'module',
+            difficulty: 'beginner',
+            duration: 45,
+            topics: ['week', 'evaluation', 'monitoring', 'analysis'],
+            paths: ['security-operations'],
+            components: {
+                applet: 'houses/eye/applets/cyberops/week3/eye-evaluation.applet.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'eye-evaluation-week4': {
+            id: 'eye-evaluation-week4',
+            title: 'Week 4 Evaluation',
+            description: 'CyberOps Week 4 Evaluation',
+            house: 'eye',
+            type: 'module',
+            difficulty: 'beginner',
+            duration: 45,
+            topics: ['week', 'evaluation', 'monitoring', 'analysis'],
+            paths: ['security-operations'],
+            components: {
+                applet: 'houses/eye/applets/cyberops/week4/eye-evaluation.applet.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'eye-evaluation-week5': {
+            id: 'eye-evaluation-week5',
+            title: 'Week 5 Evaluation',
+            description: 'CyberOps Week 5 Evaluation',
+            house: 'eye',
+            type: 'module',
+            difficulty: 'beginner',
+            duration: 45,
+            topics: ['week', 'evaluation', 'monitoring', 'analysis'],
+            paths: ['security-operations'],
+            components: {
+                applet: 'houses/eye/applets/cyberops/week5/eye-evaluation.applet.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'eye-evaluation-week6': {
+            id: 'eye-evaluation-week6',
+            title: 'Week 6 Evaluation',
+            description: 'CyberOps Week 6 Evaluation',
+            house: 'eye',
+            type: 'module',
+            difficulty: 'beginner',
+            duration: 45,
+            topics: ['week', 'evaluation', 'monitoring', 'analysis'],
+            paths: ['security-operations'],
+            components: {
+                applet: 'houses/eye/applets/cyberops/week6/eye-evaluation.applet.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
+        'eye-evaluation-week7': {
+            id: 'eye-evaluation-week7',
+            title: 'Week 7 Evaluation',
+            description: 'CyberOps Week 7 Evaluation',
+            house: 'eye',
+            type: 'module',
+            difficulty: 'beginner',
+            duration: 45,
+            topics: ['week', 'evaluation', 'monitoring', 'analysis'],
+            paths: ['security-operations'],
             components: {
                 applet: 'houses/eye/applets/cyberops/week7/eye-evaluation.applet.html'
             },
@@ -15932,7 +16029,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['evasion', 'obfuscation', 'monitoring', 'analysis'],
-            paths: [],
+            paths: ['security-operations'],
             components: {
                 applet: 'houses/eye/applets/cyberops/eye-evasion-obfuscation.applet.html'
             },
@@ -15948,7 +16045,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['types', 'evidence', 'monitoring', 'analysis'],
-            paths: [],
+            paths: ['security-operations'],
             components: {
                 applet: 'houses/eye/applets/cyberops/eye-evidence-types.applet.html'
             },
@@ -15964,7 +16061,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 30,
             topics: ['interactive', 'nmap', 'monitoring', 'analysis'],
-            paths: [],
+            paths: ['security-operations'],
             components: {
                 lab: 'houses/eye/applets/cyberops/week3/labs/eye-exploring-nmap.lab.html'
             },
@@ -15980,7 +16077,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['firewall', 'log', 'analysis', 'monitoring'],
-            paths: [],
+            paths: ['security-operations'],
             components: {
                 applet: 'houses/eye/applets/cyberops/eye-firewall-data.applet.html'
             },
@@ -15996,7 +16093,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['compare', 'firewall', 'operations', 'monitoring', 'analysis'],
-            paths: [],
+            paths: ['security-operations'],
             components: {
                 applet: 'houses/eye/applets/cyberops/eye-firewall-operations.applet.html'
             },
@@ -16012,7 +16109,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['forensic', 'evidence', 'elements', 'monitoring', 'analysis'],
-            paths: [],
+            paths: ['security-operations'],
             components: {
                 applet: 'houses/eye/applets/cyberops/eye-forensic-elements.applet.html'
             },
@@ -16028,7 +16125,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['google', 'dork', 'syntax', 'monitoring', 'analysis'],
-            paths: [],
+            paths: ['security-operations'],
             components: {
                 applet: 'houses/eye/applets/osint/eye-google-dorking.applet.html'
             },
@@ -16044,7 +16141,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 30,
             topics: ['hashing', 'openssl', 'monitoring', 'analysis'],
-            paths: [],
+            paths: ['security-operations'],
             components: {
                 lab: 'houses/eye/applets/cyberops/week6/labs/eye-hashing-openssl.lab.html'
             },
@@ -16060,7 +16157,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 30,
             topics: ['eye', 'full', 'incident', 'monitoring', 'analysis'],
-            paths: [],
+            paths: ['security-operations'],
             components: {
                 lab: 'houses/eye/applets/cyberops/week7/labs/eye-incident-handling.lab.html'
             },
@@ -16076,7 +16173,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['identify', 'intrusion', 'elements', 'monitoring', 'analysis'],
-            paths: [],
+            paths: ['security-operations'],
             components: {
                 applet: 'houses/eye/applets/cyberops/eye-intrusion-elements.applet.html'
             },
@@ -16092,7 +16189,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['categorize', 'intrusion', 'events', 'monitoring', 'analysis'],
-            paths: [],
+            paths: ['security-operations'],
             components: {
                 applet: 'houses/eye/applets/cyberops/eye-intrusion-events.applet.html'
             },
@@ -16108,7 +16205,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['elements', 'irp', 'monitoring', 'analysis'],
-            paths: [],
+            paths: ['security-operations'],
             components: {
                 applet: 'houses/eye/applets/cyberops/eye-irp-elements.applet.html'
             },
@@ -16124,7 +16221,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 30,
             topics: ['106', 'top', 'hacker', 'monitoring', 'analysis'],
-            paths: [],
+            paths: ['security-operations'],
             components: {
                 lab: 'houses/eye/applets/cyberops/labs/eye-lab-1-0-6-top-hacker.lab.html'
             },
@@ -16140,7 +16237,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 30,
             topics: ['123', 'learning', 'details', 'monitoring', 'analysis'],
-            paths: [],
+            paths: ['security-operations'],
             components: {
                 lab: 'houses/eye/applets/cyberops/labs/eye-lab-1-2-3-attack-details.lab.html'
             },
@@ -16156,7 +16253,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 30,
             topics: ['225', 'becoming', 'defender', 'monitoring', 'analysis'],
-            paths: [],
+            paths: ['security-operations'],
             components: {
                 lab: 'houses/eye/applets/cyberops/labs/eye-lab-2-2-5-becoming-defender.lab.html'
             },
@@ -16172,7 +16269,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 30,
             topics: ['303', 'identify', 'running', 'monitoring', 'analysis'],
-            paths: [],
+            paths: ['security-operations'],
             components: {
                 lab: 'houses/eye/applets/cyberops/labs/eye-lab-3-0-3-running-processes.lab.html'
             },
@@ -16188,7 +16285,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 30,
             topics: ['3211', 'processes', 'threads', 'monitoring', 'analysis'],
-            paths: [],
+            paths: ['security-operations'],
             components: {
                 lab: 'houses/eye/applets/cyberops/labs/eye-lab-3-2-11-windows-internals.lab.html'
             },
@@ -16204,7 +16301,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 30,
             topics: ['3310', 'create', 'user', 'monitoring', 'analysis'],
-            paths: [],
+            paths: ['security-operations'],
             components: {
                 lab: 'houses/eye/applets/cyberops/labs/eye-lab-3-3-10-user-accounts.lab.html'
             },
@@ -16220,7 +16317,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 30,
             topics: ['linux', 'servers', 'monitoring', 'analysis'],
-            paths: [],
+            paths: ['security-operations'],
             components: {
                 lab: 'houses/eye/applets/cyberops/week2/labs/eye-linux-servers.lab.html'
             },
@@ -16236,7 +16333,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['log', 'centipede', 'monitoring', 'analysis'],
-            paths: [],
+            paths: ['security-operations'],
             components: {
                 applet: 'houses/eye/games/eye-log-centipede.applet.html'
             },
@@ -16252,7 +16349,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 30,
             topics: ['log', 'detective', 'monitoring', 'analysis'],
-            paths: [],
+            paths: ['security-operations'],
             components: {
                 lab: 'houses/eye/labs/eye-log-detective.lab.html'
             },
@@ -16268,7 +16365,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 30,
             topics: ['logging', 'network', 'activity', 'monitoring', 'analysis'],
-            paths: [],
+            paths: ['security-operations'],
             components: {
                 lab: 'houses/eye/applets/cyberops/week5/labs/eye-logging-network-activity.lab.html'
             },
@@ -16284,7 +16381,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['malware', 'analysis', 'output', 'monitoring'],
-            paths: [],
+            paths: ['security-operations'],
             components: {
                 applet: 'houses/eye/applets/cyberops/eye-malware-analysis-output.applet.html'
             },
@@ -16300,7 +16397,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 45,
             topics: ['memory', 'forensics', 'monitoring', 'analysis'],
-            paths: [],
+            paths: ['security-operations'],
             components: {
                 lab: 'houses/eye/applets/cyberops/week7/labs/eye-memory-forensics.lab.html',
                 applet: 'houses/eye/games/eye-memory-forensics.applet.html'
@@ -16317,7 +16414,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 30,
             topics: ['attacking', 'mysql', 'database', 'monitoring', 'analysis'],
-            paths: [],
+            paths: ['security-operations'],
             components: {
                 lab: 'houses/eye/applets/cyberops/week5/labs/eye-mysql-attack.lab.html'
             },
@@ -16333,7 +16430,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['network', 'attacks', 'detection', 'monitoring', 'analysis'],
-            paths: [],
+            paths: ['security-operations'],
             components: {
                 applet: 'houses/eye/applets/cyberops/eye-network-attacks.applet.html'
             },
@@ -16349,7 +16446,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 30,
             topics: ['network', 'forensics', 'monitoring', 'analysis'],
-            paths: [],
+            paths: ['security-operations'],
             components: {
                 lab: 'houses/eye/applets/cyberops/week7/labs/eye-network-forensics.lab.html'
             },
@@ -16365,7 +16462,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['network', 'server', 'profiling', 'monitoring', 'analysis'],
-            paths: [],
+            paths: ['security-operations'],
             components: {
                 applet: 'houses/eye/applets/cyberops/eye-network-profiling.applet.html'
             },
@@ -16381,7 +16478,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['nist', '800-86', 'concepts', 'monitoring', 'analysis'],
-            paths: [],
+            paths: ['security-operations'],
             components: {
                 applet: 'houses/eye/applets/cyberops/eye-nist-800-86.applet.html'
             },
@@ -16397,7 +16494,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['nsm', 'data', 'types', 'monitoring', 'analysis'],
-            paths: [],
+            paths: ['security-operations'],
             components: {
                 applet: 'houses/eye/applets/cyberops/eye-nsm-data-types.applet.html'
             },
@@ -16413,7 +16510,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 30,
             topics: ['packet', 'flow', 'visualization', 'monitoring', 'analysis'],
-            paths: [],
+            paths: ['security-operations'],
             components: {
                 lab: 'houses/eye/applets/cyberops/week4/labs/eye-packet-flow.lab.html'
             },
@@ -16429,7 +16526,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 30,
             topics: ['eye', 'pcap', 'forensics', 'monitoring', 'analysis'],
-            paths: [],
+            paths: ['security-operations'],
             components: {
                 lab: 'houses/eye/applets/cyberops/week7/labs/eye-pcap-forensics.lab.html'
             },
@@ -16445,7 +16542,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['protected', 'data', 'monitoring', 'analysis'],
-            paths: [],
+            paths: ['security-operations'],
             components: {
                 applet: 'houses/eye/applets/cyberops/eye-protected-data.applet.html'
             },
@@ -16461,7 +16558,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['regular', 'expressions', 'monitoring', 'analysis'],
-            paths: [],
+            paths: ['security-operations'],
             components: {
                 applet: 'houses/eye/applets/cyberops/eye-regular-expressions.applet.html'
             },
@@ -16477,7 +16574,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['risk', 'rating', 'monitoring', 'analysis'],
-            paths: [],
+            paths: ['security-operations'],
             components: {
                 applet: 'houses/eye/applets/cyberops/eye-risk-rating.applet.html'
             },
@@ -16493,7 +16590,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['risk', 'register', 'monitoring', 'analysis'],
-            paths: [],
+            paths: ['security-operations'],
             components: {
                 applet: 'houses/eye/applets/cyberops/eye-risk-register.applet.html'
             },
@@ -16509,7 +16606,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['security', 'approaches', 'monitoring', 'analysis'],
-            paths: [],
+            paths: ['security-operations'],
             components: {
                 applet: 'houses/eye/applets/cyberops/eye-security-approaches.applet.html'
             },
@@ -16525,7 +16622,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['security', 'policy', 'management', 'monitoring', 'analysis'],
-            paths: [],
+            paths: ['security-operations'],
             components: {
                 applet: 'houses/eye/applets/cyberops/eye-security-policy.applet.html'
             },
@@ -16541,7 +16638,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 30,
             topics: ['reading', 'server', 'logs', 'monitoring', 'analysis'],
-            paths: [],
+            paths: ['security-operations'],
             components: {
                 lab: 'houses/eye/applets/cyberops/week5/labs/eye-server-logs.lab.html'
             },
@@ -16557,7 +16654,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['siem', 'overview', 'monitoring', 'analysis'],
-            paths: [],
+            paths: ['security-operations'],
             components: {
                 applet: 'houses/eye/applets/cyberops/eye-siem-overview.applet.html'
             },
@@ -16573,7 +16670,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 30,
             topics: ['eye', 'snort', 'ids', 'monitoring', 'analysis'],
-            paths: [],
+            paths: ['security-operations'],
             components: {
                 lab: 'houses/eye/applets/cyberops/week7/labs/eye-snort-rules.lab.html'
             },
@@ -16589,7 +16686,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['soc', 'metrics', 'scope', 'monitoring', 'analysis'],
-            paths: [],
+            paths: ['security-operations'],
             components: {
                 applet: 'houses/eye/applets/cyberops/eye-soc-metrics.applet.html'
             },
@@ -16605,7 +16702,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['soc', 'overview', 'monitoring', 'analysis'],
-            paths: [],
+            paths: ['security-operations'],
             components: {
                 applet: 'houses/eye/applets/cyberops/eye-soc-overview.applet.html'
             },
@@ -16621,7 +16718,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 30,
             topics: ['soc', 'alert', 'triage', 'monitoring', 'analysis'],
-            paths: [],
+            paths: ['security-operations'],
             components: {
                 lab: 'houses/eye/applets/cyberops/week5/labs/eye-soc-triage.lab.html'
             },
@@ -16637,7 +16734,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['source', 'technologies', 'events', 'monitoring', 'analysis'],
-            paths: [],
+            paths: ['security-operations'],
             components: {
                 applet: 'houses/eye/applets/cyberops/eye-source-technologies.applet.html'
             },
@@ -16653,7 +16750,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 30,
             topics: ['symmetric', 'encryption', 'monitoring', 'analysis'],
-            paths: [],
+            paths: ['security-operations'],
             components: {
                 lab: 'houses/eye/applets/cyberops/week6/labs/eye-symmetric-encryption.lab.html'
             },
@@ -16669,7 +16766,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['extract', 'files', 'from', 'monitoring', 'analysis'],
-            paths: [],
+            paths: ['security-operations'],
             components: {
                 applet: 'houses/eye/applets/cyberops/eye-tcp-stream-extraction.applet.html'
             },
@@ -16685,7 +16782,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['tcpdump', 'netflow', 'monitoring', 'analysis'],
-            paths: [],
+            paths: ['security-operations'],
             components: {
                 applet: 'houses/eye/applets/cyberops/eye-tcpdump-netflow.applet.html'
             },
@@ -16701,7 +16798,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 30,
             topics: ['eye', 'threat', 'actor', 'monitoring', 'analysis'],
-            paths: [],
+            paths: ['security-operations'],
             components: {
                 lab: 'houses/eye/applets/cyberops/week7/labs/eye-threat-actor-profiling.lab.html'
             },
@@ -16717,7 +16814,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 30,
             topics: ['tlsssl', 'analysis', 'monitoring'],
-            paths: [],
+            paths: ['security-operations'],
             components: {
                 lab: 'houses/eye/applets/cyberops/week6/labs/eye-tls-ssl-analysis.lab.html'
             },
@@ -16733,7 +16830,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 30,
             topics: ['interactive', 'traceroute', 'monitoring', 'analysis'],
-            paths: [],
+            paths: ['security-operations'],
             components: {
                 lab: 'houses/eye/applets/cyberops/week3/labs/eye-tracing-route.lab.html'
             },
@@ -16749,7 +16846,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['traffic', 'analysis', 'techniques', 'monitoring'],
-            paths: [],
+            paths: ['security-operations'],
             components: {
                 applet: 'houses/eye/applets/cyberops/eye-traffic-analysis.applet.html'
             },
@@ -16765,7 +16862,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 30,
             topics: ['verify', 'ipv4', 'ipv6', 'monitoring', 'analysis'],
-            paths: [],
+            paths: ['security-operations'],
             components: {
                 lab: 'houses/eye/applets/cyberops/week3/labs/eye-verify-ipv4-ipv6.lab.html'
             },
@@ -16781,7 +16878,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 30,
             topics: ['vpn', 'monitoring', 'analysis'],
-            paths: [],
+            paths: ['security-operations'],
             components: {
                 lab: 'houses/eye/applets/cyberops/week6/labs/eye-vpn-fundamentals.lab.html'
             },
@@ -16797,7 +16894,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['web', 'application', 'attacks', 'monitoring', 'analysis'],
-            paths: [],
+            paths: ['security-operations'],
             components: {
                 applet: 'houses/eye/applets/cyberops/eye-web-attacks.applet.html'
             },
@@ -16813,7 +16910,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 30,
             topics: ['whats', 'going', 'monitoring', 'analysis'],
-            paths: [],
+            paths: ['security-operations'],
             components: {
                 lab: 'houses/eye/applets/cyberops/week5/labs/eye-whats-going-on.lab.html'
             },
@@ -16829,7 +16926,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 30,
             topics: ['windows', 'system', 'resources', 'monitoring', 'analysis'],
-            paths: [],
+            paths: ['security-operations'],
             components: {
                 lab: 'houses/eye/applets/cyberops/week2/labs/eye-windows-system-resources.lab.html'
             },
@@ -16845,7 +16942,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 30,
             topics: ['windows', 'task', 'manager', 'monitoring', 'analysis'],
-            paths: [],
+            paths: ['security-operations'],
             components: {
                 lab: 'houses/eye/applets/cyberops/week2/labs/eye-windows-task-manager.lab.html'
             },
@@ -16861,7 +16958,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 30,
             topics: ['wireshark', 'crypto', 'analysis', 'monitoring'],
-            paths: [],
+            paths: ['security-operations'],
             components: {
                 lab: 'houses/eye/applets/cyberops/week6/labs/eye-wireshark-crypto.lab.html'
             },
@@ -16877,7 +16974,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 30,
             topics: ['wireshark', 'ethernet', 'frames', 'monitoring', 'analysis'],
-            paths: [],
+            paths: ['security-operations'],
             components: {
                 lab: 'houses/eye/applets/cyberops/week3/labs/eye-wireshark-ethernet.lab.html'
             },
@@ -16893,7 +16990,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 30,
             topics: ['wireshark', 'httphttps', 'monitoring', 'analysis'],
-            paths: [],
+            paths: ['security-operations'],
             components: {
                 lab: 'houses/eye/applets/cyberops/week4/labs/eye-wireshark-http-https.lab.html'
             },
@@ -16909,7 +17006,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 30,
             topics: ['wireshark', 'monitoring', 'analysis'],
-            paths: [],
+            paths: ['security-operations'],
             components: {
                 lab: 'houses/eye/applets/cyberops/week3/labs/eye-wireshark-intro.lab.html'
             },
@@ -16925,7 +17022,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 30,
             topics: ['wireshark', 'tcp', '3-way', 'monitoring', 'analysis'],
-            paths: [],
+            paths: ['security-operations'],
             components: {
                 lab: 'houses/eye/applets/cyberops/week3/labs/eye-wireshark-tcp-handshake.lab.html'
             },
@@ -16941,7 +17038,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 30,
             topics: ['wireshark', 'tcpudp', 'monitoring', 'analysis'],
-            paths: [],
+            paths: ['security-operations'],
             components: {
                 lab: 'houses/eye/applets/cyberops/week4/labs/eye-wireshark-tcp-udp.lab.html'
             },
@@ -16957,7 +17054,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 30,
             topics: ['wireshark', 'udpdns', 'monitoring', 'analysis'],
-            paths: [],
+            paths: ['security-operations'],
             components: {
                 lab: 'houses/eye/applets/cyberops/week4/labs/eye-wireshark-udp-dns.lab.html'
             },
@@ -16975,7 +17072,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['cipher', 'bubbles', 'cryptography', 'encryption'],
-            paths: [],
+            paths: ['cryptography-track'],
             components: {
                 applet: 'houses/key/games/key-cipher-bubbles.applet.html'
             },
@@ -16991,7 +17088,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['cipher', 'cracker', 'cryptography', 'encryption'],
-            paths: [],
+            paths: ['cryptography-track'],
             components: {
                 presentation: 'houses/key/games/key-cipher-cracker.presentation.html'
             },
@@ -17007,7 +17104,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['crypto', 'pong', 'cryptography', 'encryption'],
-            paths: [],
+            paths: ['cryptography-track'],
             components: {
                 applet: 'houses/key/games/key-crypto-pong.applet.html'
             },
@@ -17023,7 +17120,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 30,
             topics: ['firewall', 'builder', 'cryptography', 'encryption'],
-            paths: [],
+            paths: ['cryptography-track'],
             components: {
                 lab: 'houses/key/labs/key-firewall-builder.lab.html'
             },
@@ -17102,7 +17199,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['build', 'breaker', 'development', 'devops'],
-            paths: [],
+            paths: ['devops-fundamentals'],
             components: {
                 applet: 'houses/code/games/code-build-breaker.applet.html'
             },
@@ -17118,7 +17215,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['kill', 'v10', 'uprising', 'development', 'devops'],
-            paths: [],
+            paths: ['devops-fundamentals'],
             components: {
                 applet: 'houses/code/games/code-kill-nine.applet.html'
             },
@@ -17134,7 +17231,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['kubernetes', 'rescue', 'development', 'devops'],
-            paths: [],
+            paths: ['devops-fundamentals'],
             components: {
                 applet: 'houses/code/games/code-kubernetes-rescue.applet.html'
             },
@@ -17210,7 +17307,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 45,
             topics: ['aes', 'security', 'defense'],
-            paths: [],
+            paths: ['security-plus'],
             components: {
                 applet: 'houses/shield/applets/crypto/aes/shield-crypto-aes.applet.html',
                 'crypto-aes': 'houses/shield/applets/crypto/shield-crypto-aes.applet.html'
@@ -17227,7 +17324,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 45,
             topics: ['block', 'cipher', 'modes', 'security', 'defense'],
-            paths: [],
+            paths: ['security-plus'],
             components: {
                 applet: 'houses/shield/applets/crypto/block_ciphers/shield-crypto-block-ciphers.applet.html',
                 'crypto-block-ciphers': 'houses/shield/applets/crypto/shield-crypto-block-ciphers.applet.html'
@@ -17244,7 +17341,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 45,
             topics: ['caesar', 'cipher', 'security', 'defense'],
-            paths: [],
+            paths: ['security-plus'],
             components: {
                 applet: 'houses/shield/applets/crypto/caesar/shield-crypto-caesar.applet.html',
                 'crypto-caesar': 'houses/shield/applets/crypto/shield-crypto-caesar.applet.html'
@@ -17261,7 +17358,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 45,
             topics: ['diffie-hellman', 'key', 'exchange', 'security', 'defense'],
-            paths: [],
+            paths: ['security-plus'],
             components: {
                 applet: 'houses/shield/applets/crypto/diffie_hellman/shield-crypto-diffie-hellman.applet.html',
                 'crypto-diffie-hellman': 'houses/shield/applets/crypto/shield-crypto-diffie-hellman.applet.html'
@@ -17278,7 +17375,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 45,
             topics: ['digital', 'signatures', 'security', 'defense'],
-            paths: [],
+            paths: ['security-plus'],
             components: {
                 applet: 'houses/shield/applets/crypto/digital_signatures/shield-crypto-digital-signatures.applet.html',
                 'crypto-digital-signatures': 'houses/shield/applets/crypto/shield-crypto-digital-signatures.applet.html'
@@ -17295,7 +17392,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 45,
             topics: ['cryptographic', 'hashing', 'security', 'defense'],
-            paths: [],
+            paths: ['security-plus'],
             components: {
                 applet: 'houses/shield/applets/crypto/hashing/shield-crypto-hashing.applet.html',
                 'crypto-hashing': 'houses/shield/applets/crypto/shield-crypto-hashing.applet.html'
@@ -17312,7 +17409,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 45,
             topics: ['hmac', 'security', 'defense'],
-            paths: [],
+            paths: ['security-plus'],
             components: {
                 applet: 'houses/shield/applets/crypto/hmac/shield-crypto-hmac.applet.html',
                 'crypto-hmac': 'houses/shield/applets/crypto/shield-crypto-hmac.applet.html'
@@ -17329,7 +17426,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 45,
             topics: ['key', 'exchange', 'mechanisms', 'security', 'defense'],
-            paths: [],
+            paths: ['security-plus'],
             components: {
                 applet: 'houses/shield/applets/crypto/key_exchange/shield-crypto-key-exchange.applet.html',
                 'crypto-key-exchange': 'houses/shield/applets/crypto/shield-crypto-key-exchange.applet.html'
@@ -17346,7 +17443,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 45,
             topics: ['public', 'key', 'infrastructure', 'security', 'defense'],
-            paths: [],
+            paths: ['security-plus'],
             components: {
                 applet: 'houses/shield/applets/crypto/pki/shield-crypto-pki.applet.html',
                 'crypto-pki': 'houses/shield/applets/crypto/shield-crypto-pki.applet.html'
@@ -17363,7 +17460,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 45,
             topics: ['rsa', 'algorithm', 'security', 'defense'],
-            paths: [],
+            paths: ['security-plus'],
             components: {
                 applet: 'houses/shield/applets/crypto/rsa/shield-crypto-rsa.applet.html',
                 'crypto-rsa': 'houses/shield/applets/crypto/shield-crypto-rsa.applet.html'
@@ -17382,7 +17479,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 45,
             topics: ['wsa', 'm01', 'gui', 'cloud', 'infrastructure'],
-            paths: [],
+            paths: ['wsa'],
             components: {
                 module: 'houses/cloud/modules/wsa/m01-fundamentals/cloud-guilab.module.html',
                 presentation: 'houses/cloud/modules/wsa/m01-fundamentals/cloud-presentation.module.html',
@@ -17401,7 +17498,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 45,
             topics: ['wsa', 'm02', 'gui', 'cloud', 'infrastructure'],
-            paths: [],
+            paths: ['wsa'],
             components: {
                 module: 'houses/cloud/modules/wsa/m02-active-directory/cloud-guilab.module.html',
                 presentation: 'houses/cloud/modules/wsa/m02-active-directory/cloud-presentation.module.html',
@@ -17420,7 +17517,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 45,
             topics: ['wsa', 'm03', 'gui', 'cloud', 'infrastructure'],
-            paths: [],
+            paths: ['wsa'],
             components: {
                 module: 'houses/cloud/modules/wsa/m03-storage/cloud-guilab.module.html',
                 presentation: 'houses/cloud/modules/wsa/m03-storage/cloud-presentation.module.html',
@@ -17439,7 +17536,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 45,
             topics: ['wsa', 'm04', 'gui', 'cloud', 'infrastructure'],
-            paths: [],
+            paths: ['wsa'],
             components: {
                 module: 'houses/cloud/modules/wsa/m04-hyperv/cloud-guilab.module.html',
                 presentation: 'houses/cloud/modules/wsa/m04-hyperv/cloud-presentation.module.html',
@@ -17458,7 +17555,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 45,
             topics: ['wsa', 'm05', 'gui', 'cloud', 'infrastructure'],
-            paths: [],
+            paths: ['wsa'],
             components: {
                 module: 'houses/cloud/modules/wsa/m05-containers/cloud-guilab.module.html',
                 presentation: 'houses/cloud/modules/wsa/m05-containers/cloud-presentation.module.html',
@@ -17477,7 +17574,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 45,
             topics: ['wsa', 'm06', 'gui', 'cloud', 'infrastructure'],
-            paths: [],
+            paths: ['wsa'],
             components: {
                 module: 'houses/cloud/modules/wsa/m06-clustering/cloud-guilab.module.html',
                 presentation: 'houses/cloud/modules/wsa/m06-clustering/cloud-presentation.module.html',
@@ -17496,7 +17593,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 45,
             topics: ['wsa', 'm07', 'gui', 'cloud', 'infrastructure'],
-            paths: [],
+            paths: ['wsa'],
             components: {
                 module: 'houses/cloud/modules/wsa/m07-monitoring/cloud-guilab.module.html',
                 presentation: 'houses/cloud/modules/wsa/m07-monitoring/cloud-presentation.module.html',
@@ -17515,7 +17612,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 45,
             topics: ['wsa', 'm08', 'gui', 'cloud', 'infrastructure'],
-            paths: [],
+            paths: ['wsa'],
             components: {
                 module: 'houses/cloud/modules/wsa/m08-dns/cloud-guilab.module.html',
                 presentation: 'houses/cloud/modules/wsa/m08-dns/cloud-presentation.module.html',
@@ -17534,7 +17631,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 45,
             topics: ['wsa', 'm09', 'gui', 'cloud', 'infrastructure'],
-            paths: [],
+            paths: ['wsa'],
             components: {
                 module: 'houses/cloud/modules/wsa/m09-dhcp/cloud-guilab.module.html',
                 presentation: 'houses/cloud/modules/wsa/m09-dhcp/cloud-presentation.module.html',
@@ -17553,7 +17650,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 45,
             topics: ['wsa', 'm10', 'gui', 'cloud', 'infrastructure'],
-            paths: [],
+            paths: ['wsa'],
             components: {
                 module: 'houses/cloud/modules/wsa/m10-group-policy/cloud-guilab.module.html',
                 presentation: 'houses/cloud/modules/wsa/m10-group-policy/cloud-presentation.module.html',
@@ -17572,7 +17669,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 45,
             topics: ['wsa', 'm11', 'gui', 'cloud', 'infrastructure'],
-            paths: [],
+            paths: ['wsa'],
             components: {
                 module: 'houses/cloud/modules/wsa/m11-iis/cloud-guilab.module.html',
                 presentation: 'houses/cloud/modules/wsa/m11-iis/cloud-presentation.module.html',
@@ -17591,7 +17688,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 45,
             topics: ['wsa', 'm12', 'gui', 'cloud', 'infrastructure'],
-            paths: [],
+            paths: ['wsa'],
             components: {
                 module: 'houses/cloud/modules/wsa/m12-remote-desktop/cloud-guilab.module.html',
                 presentation: 'houses/cloud/modules/wsa/m12-remote-desktop/cloud-presentation.module.html',
@@ -17610,7 +17707,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 45,
             topics: ['wsa', 'm13', 'gui', 'cloud', 'infrastructure'],
-            paths: [],
+            paths: ['wsa'],
             components: {
                 module: 'houses/cloud/modules/wsa/m13-certificate-services/cloud-guilab.module.html',
                 presentation: 'houses/cloud/modules/wsa/m13-certificate-services/cloud-presentation.module.html',
@@ -17629,7 +17726,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 45,
             topics: ['wsa', 'm14', 'gui', 'cloud', 'infrastructure'],
-            paths: [],
+            paths: ['wsa'],
             components: {
                 module: 'houses/cloud/modules/wsa/m14-advanced-networking/cloud-guilab.module.html',
                 presentation: 'houses/cloud/modules/wsa/m14-advanced-networking/cloud-presentation.module.html',
@@ -17648,7 +17745,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 45,
             topics: ['wsa', 'm15', 'gui', 'cloud', 'infrastructure'],
-            paths: [],
+            paths: ['wsa'],
             components: {
                 module: 'houses/cloud/modules/wsa/m15-ad-sites/cloud-guilab.module.html',
                 presentation: 'houses/cloud/modules/wsa/m15-ad-sites/cloud-presentation.module.html',
@@ -17667,7 +17764,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 45,
             topics: ['wsa', 'm16', 'gui', 'cloud', 'infrastructure'],
-            paths: [],
+            paths: ['wsa'],
             components: {
                 module: 'houses/cloud/modules/wsa/m16-backup-recovery/cloud-guilab.module.html',
                 presentation: 'houses/cloud/modules/wsa/m16-backup-recovery/cloud-presentation.module.html',
@@ -17686,7 +17783,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 45,
             topics: ['wsa', 'm17', 'gui', 'cloud', 'infrastructure'],
-            paths: [],
+            paths: ['wsa'],
             components: {
                 module: 'houses/cloud/modules/wsa/m17-firewall-security/cloud-guilab.module.html',
                 presentation: 'houses/cloud/modules/wsa/m17-firewall-security/cloud-presentation.module.html',
@@ -17705,7 +17802,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 45,
             topics: ['wsa', 'm18', 'gui', 'cloud', 'infrastructure'],
-            paths: [],
+            paths: ['wsa'],
             components: {
                 module: 'houses/cloud/modules/wsa/m18-powershell-automation/cloud-guilab.module.html',
                 presentation: 'houses/cloud/modules/wsa/m18-powershell-automation/cloud-presentation.module.html',
@@ -17724,7 +17821,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 45,
             topics: ['wsa', 'm19', 'gui', 'cloud', 'infrastructure'],
-            paths: [],
+            paths: ['wsa'],
             components: {
                 module: 'houses/cloud/modules/wsa/m19-troubleshooting-migration/cloud-guilab.module.html',
                 presentation: 'houses/cloud/modules/wsa/m19-troubleshooting-migration/cloud-presentation.module.html',
@@ -17743,7 +17840,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 45,
             topics: ['failsafe', 'simulation', 'cloud', 'infrastructure'],
-            paths: [],
+            paths: ['wsa'],
             components: {
                 module: 'houses/cloud/modules/wsa/m20-failsafe-capstone/cloud-simulation.module.html'
             },
@@ -18746,7 +18843,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 30,
             topics: ['network', 'troubleshooting', 'networking', 'protocols'],
-            paths: [],
+            paths: ['comptia-network'],
             components: {
                 lab: 'houses/web/labs/web-troubleshooting.lab.html'
             },
@@ -18762,7 +18859,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['resolver', 'race', 'networking', 'protocols'],
-            paths: [],
+            paths: ['comptia-network'],
             components: {
                 tool: 'houses/web/reviews/web-dns-resolver-race.html'
             },
@@ -18778,7 +18875,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['subnet', 'siege', 'networking', 'protocols'],
-            paths: [],
+            paths: ['comptia-network'],
             components: {
                 tool: 'houses/web/reviews/web-subnet-siege.html'
             },
@@ -18795,7 +18892,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['hashing', 'steganography', 'interactive', 'security', 'defense'],
-            paths: [],
+            paths: ['security-plus'],
             components: {
                 applet: 'houses/shield/applets/crypto/hashing_steganography/shield-hash-v3.applet.html'
             },
@@ -18811,7 +18908,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['hashing', 'steganography', 'interactive', 'security', 'defense'],
-            paths: [],
+            paths: ['security-plus'],
             components: {
                 applet: 'houses/shield/applets/crypto/hashing_steganography/shield-stego.applet.html'
             },
@@ -20609,7 +20706,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['cloud', 'architect', 'infrastructure'],
-            paths: [],
+            paths: ['cse'],
             components: {
                 tool: 'houses/cloud/games/cloud-architect.html'
             },
@@ -20625,7 +20722,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['cloud', 'computing', 'concepts', 'infrastructure'],
-            paths: [],
+            paths: ['cse'],
             components: {
                 presentation: 'houses/cloud/presentations/cloud-concepts.presentation.html'
             },
@@ -20642,7 +20739,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 15,
             topics: ['clh016', 'quiz', 'system', 'scripting', 'automation'],
-            paths: [],
+            paths: ['linux-mastery'],
             components: {
                 quiz: 'houses/script/clh/script-clh-016.quiz.html'
             },
@@ -20658,7 +20755,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 15,
             topics: ['clh017', 'quiz', 'find', 'scripting', 'automation'],
-            paths: [],
+            paths: ['linux-mastery'],
             components: {
                 quiz: 'houses/script/clh/script-clh-017.quiz.html'
             },
@@ -20674,7 +20771,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 15,
             topics: ['clh018', 'quiz', 'archive', 'scripting', 'automation'],
-            paths: [],
+            paths: ['linux-mastery'],
             components: {
                 quiz: 'houses/script/clh/script-clh-018.quiz.html'
             },
@@ -20690,7 +20787,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 15,
             topics: ['clh019', 'quiz', 'disk', 'scripting', 'automation'],
-            paths: [],
+            paths: ['linux-mastery'],
             components: {
                 quiz: 'houses/script/clh/script-clh-019.quiz.html'
             },
@@ -20706,7 +20803,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 15,
             topics: ['clh020', 'quiz', 'user', 'scripting', 'automation'],
-            paths: [],
+            paths: ['linux-mastery'],
             components: {
                 quiz: 'houses/script/clh/script-clh-020.quiz.html'
             },
@@ -20722,7 +20819,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 15,
             topics: ['clh021', 'quiz', 'operations', 'scripting', 'automation'],
-            paths: [],
+            paths: ['linux-mastery'],
             components: {
                 quiz: 'houses/script/clh/script-clh-021.quiz.html'
             },
@@ -20738,7 +20835,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 15,
             topics: ['clh022', 'quiz', 'network', 'scripting', 'automation'],
-            paths: [],
+            paths: ['linux-mastery'],
             components: {
                 quiz: 'houses/script/clh/script-clh-022.quiz.html'
             },
@@ -20754,7 +20851,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 15,
             topics: ['clh023', 'quiz', 'service', 'scripting', 'automation'],
-            paths: [],
+            paths: ['linux-mastery'],
             components: {
                 quiz: 'houses/script/clh/script-clh-023.quiz.html'
             },
@@ -20770,7 +20867,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 15,
             topics: ['clh024', 'quiz', 'scheduled', 'scripting', 'automation'],
-            paths: [],
+            paths: ['linux-mastery'],
             components: {
                 quiz: 'houses/script/clh/script-clh-024.quiz.html'
             },
@@ -20786,7 +20883,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 15,
             topics: ['clh025', 'quiz', 'package', 'scripting', 'automation'],
-            paths: [],
+            paths: ['linux-mastery'],
             components: {
                 quiz: 'houses/script/clh/script-clh-025.quiz.html'
             },
@@ -20802,7 +20899,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 15,
             topics: ['clh026', 'quiz', 'access', 'scripting', 'automation'],
-            paths: [],
+            paths: ['linux-mastery'],
             components: {
                 quiz: 'houses/script/clh/script-clh-026.quiz.html'
             },
@@ -20818,7 +20915,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 15,
             topics: ['clh027', 'quiz', 'user', 'scripting', 'automation'],
-            paths: [],
+            paths: ['linux-mastery'],
             components: {
                 quiz: 'houses/script/clh/script-clh-027.quiz.html'
             },
@@ -20834,7 +20931,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 15,
             topics: ['clh028', 'quiz', 'system', 'scripting', 'automation'],
-            paths: [],
+            paths: ['linux-mastery'],
             components: {
                 quiz: 'houses/script/clh/script-clh-028.quiz.html'
             },
@@ -20850,7 +20947,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 15,
             topics: ['clh029', 'quiz', 'essentials', 'scripting', 'automation'],
-            paths: [],
+            paths: ['linux-mastery'],
             components: {
                 quiz: 'houses/script/clh/script-clh-029.quiz.html'
             },
@@ -20866,7 +20963,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 15,
             topics: ['clh030', 'certification', 'shadow', 'scripting', 'automation'],
-            paths: [],
+            paths: ['linux-mastery'],
             components: {
                 quiz: 'houses/script/clh/script-clh-030.quiz.html'
             },
@@ -20882,7 +20979,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['dont', 'kill', 'server', 'scripting', 'automation'],
-            paths: [],
+            paths: ['linux-mastery'],
             components: {
                 tool: 'houses/script/games/script-dont-kill-the-server.html'
             },
@@ -20898,7 +20995,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 30,
             topics: ['mission', 'file', 'permissions', 'scripting', 'automation'],
-            paths: [],
+            paths: ['linux-mastery'],
             components: {
                 lab: 'houses/script/labs/linux/script-linux-permissions.lab.html'
             },
@@ -20914,7 +21011,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['linux', 'review', 'scripting', 'automation'],
-            paths: [],
+            paths: ['linux-mastery'],
             components: {
                 tool: 'houses/script/reviews/script-linux-cli-review.html'
             },
@@ -20930,7 +21027,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['permission', 'puzzle', 'scripting', 'automation'],
-            paths: [],
+            paths: ['linux-mastery'],
             components: {
                 tool: 'houses/script/reviews/script-permission-puzzle.html'
             },
@@ -20947,7 +21044,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 30,
             topics: ['correlation', 'analysis', 'monitoring'],
-            paths: [],
+            paths: ['security-operations'],
             components: {
                 lab: 'houses/eye/applets/cyberops/week7/labs/eye-log-correlation.lab.html'
             },
@@ -20963,7 +21060,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['alert', 'triage', 'monitoring', 'analysis'],
-            paths: [],
+            paths: ['security-operations'],
             components: {
                 tool: 'houses/eye/games/eye-alert-triage.html'
             },
@@ -20979,7 +21076,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['stride', 'threat', 'modeler', 'monitoring', 'analysis'],
-            paths: [],
+            paths: ['security-operations'],
             components: {
                 tool: 'houses/eye/games/eye-threat-modeler.html'
             },
@@ -20996,7 +21093,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['dont', 'leak', 'cryptography', 'encryption'],
-            paths: [],
+            paths: ['cryptography-track'],
             components: {
                 tool: 'houses/key/games/key-dont-leak-the-key.html'
             },
@@ -21012,7 +21109,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['tlsssl', 'explained', 'cryptography', 'encryption'],
-            paths: [],
+            paths: ['cryptography-track'],
             components: {
                 presentation: 'houses/key/presentations/key-tls-ssl.presentation.html'
             },
@@ -21028,7 +21125,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['hash', 'cracker', 'cryptography', 'encryption'],
-            paths: [],
+            paths: ['cryptography-track'],
             components: {
                 tool: 'houses/key/reviews/key-hash-cracker.html'
             },
@@ -21045,7 +21142,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 45,
             topics: ['unit', 'testing', 'handson', 'programming', 'development'],
-            paths: [],
+            paths: ['devops-fundamentals'],
             components: {
                 lab: 'houses/code/labs/code-unit-testing.lab.html',
                 quiz: 'houses/code/quizzes/code-unit-testing.quiz.html'
@@ -21062,7 +21159,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 20,
             topics: ['blame', 'v243', 'pipeline', 'programming', 'development'],
-            paths: [],
+            paths: ['devops-fundamentals'],
             components: {
                 tool: 'houses/code/games/code-git-blame.html'
             },
@@ -22285,7 +22382,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 10,
             topics: ['tier', 'locked', 'offensive-security', 'ethical-hacking'],
-            paths: [],
+            paths: ['security-operations'],
             components: {
                 barricade: 'dark-arts/vault/modules/tier-locked.barricade.html'
             },

@@ -772,7 +772,152 @@ class LearningPaths {
             description: 'Python fundamentals — strings, flow control, functions, GUI, dictionaries, OOP',
             icon: '🐍',
             color: '#3b82f6',
-            modules: []
+            modules: [
+                {
+                    id: 'python-ch1-presentation',
+                    title: 'Chapter 1: The First Bit',
+                    type: 'presentation',
+                    difficulty: 'beginner',
+                    duration: '30 min',
+                    href: 'houses/script/presentations/python/script-python-chapter1.presentation.html',
+                    prerequisites: []
+                },
+                {
+                    id: 'python-ch1-immersive',
+                    title: 'Chapter 1: Immersive Lab',
+                    type: 'lab',
+                    difficulty: 'beginner',
+                    duration: '45 min',
+                    href: 'houses/script/modules/python/script-python-immersive-chapter1.module.html',
+                    prerequisites: ['python-ch1-presentation']
+                },
+                {
+                    id: 'python-ch2-presentation',
+                    title: 'Chapter 2: Strings & Input',
+                    type: 'presentation',
+                    difficulty: 'beginner',
+                    duration: '30 min',
+                    href: 'houses/script/presentations/python/script-python-chapter2.presentation.html',
+                    prerequisites: ['python-ch1-immersive']
+                },
+                {
+                    id: 'python-ch2-immersive',
+                    title: 'Chapter 2: Immersive Lab',
+                    type: 'lab',
+                    difficulty: 'beginner',
+                    duration: '45 min',
+                    href: 'houses/script/modules/python/script-python-immersive-chapter2.module.html',
+                    prerequisites: ['python-ch2-presentation']
+                },
+                {
+                    id: 'python-ch3-presentation',
+                    title: 'Chapter 3: Flow Control',
+                    type: 'presentation',
+                    difficulty: 'beginner',
+                    duration: '35 min',
+                    href: 'houses/script/presentations/python/script-python-chapter3.presentation.html',
+                    prerequisites: ['python-ch2-immersive']
+                },
+                {
+                    id: 'python-ch3-immersive',
+                    title: 'Chapter 3: Immersive Lab',
+                    type: 'lab',
+                    difficulty: 'beginner',
+                    duration: '45 min',
+                    href: 'houses/script/modules/python/script-python-immersive-chapter3.module.html',
+                    prerequisites: ['python-ch3-presentation']
+                },
+                {
+                    id: 'python-ch4-presentation',
+                    title: 'Chapter 4: Functions',
+                    type: 'presentation',
+                    difficulty: 'intermediate',
+                    duration: '35 min',
+                    href: 'houses/script/presentations/python/script-python-chapter4.presentation.html',
+                    prerequisites: ['python-ch3-immersive']
+                },
+                {
+                    id: 'python-ch4-immersive',
+                    title: 'Chapter 4: Immersive Lab',
+                    type: 'lab',
+                    difficulty: 'intermediate',
+                    duration: '45 min',
+                    href: 'houses/script/modules/python/script-python-immersive-chapter4.module.html',
+                    prerequisites: ['python-ch4-presentation']
+                },
+                {
+                    id: 'python-ch5-presentation',
+                    title: 'Chapter 5: Collections',
+                    type: 'presentation',
+                    difficulty: 'intermediate',
+                    duration: '35 min',
+                    href: 'houses/script/presentations/python/script-python-chapter5.presentation.html',
+                    prerequisites: ['python-ch4-immersive']
+                },
+                {
+                    id: 'python-ch5-immersive',
+                    title: 'Chapter 5: Immersive Lab',
+                    type: 'lab',
+                    difficulty: 'intermediate',
+                    duration: '45 min',
+                    href: 'houses/script/modules/python/script-python-immersive-chapter5.module.html',
+                    prerequisites: ['python-ch5-presentation']
+                },
+                {
+                    id: 'python-ch6-presentation',
+                    title: 'Chapter 6: Dictionaries',
+                    type: 'presentation',
+                    difficulty: 'intermediate',
+                    duration: '35 min',
+                    href: 'houses/script/presentations/python/script-python-chapter6.presentation.html',
+                    prerequisites: ['python-ch5-immersive']
+                },
+                {
+                    id: 'python-ch6-immersive',
+                    title: 'Chapter 6: Immersive Lab',
+                    type: 'lab',
+                    difficulty: 'intermediate',
+                    duration: '45 min',
+                    href: 'houses/script/modules/python/script-python-immersive-chapter6.module.html',
+                    prerequisites: ['python-ch6-presentation']
+                },
+                {
+                    id: 'python-ch7-presentation',
+                    title: 'Chapter 7: File Handling',
+                    type: 'presentation',
+                    difficulty: 'intermediate',
+                    duration: '35 min',
+                    href: 'houses/script/presentations/python/script-python-chapter7.presentation.html',
+                    prerequisites: ['python-ch6-immersive']
+                },
+                {
+                    id: 'python-ch7-immersive',
+                    title: 'Chapter 7: Immersive Lab',
+                    type: 'lab',
+                    difficulty: 'intermediate',
+                    duration: '45 min',
+                    href: 'houses/script/modules/python/script-python-immersive-chapter7.module.html',
+                    prerequisites: ['python-ch7-presentation']
+                },
+                {
+                    id: 'python-ch8-presentation',
+                    title: 'Chapter 8: Object-Oriented Programming',
+                    type: 'presentation',
+                    difficulty: 'advanced',
+                    duration: '40 min',
+                    href: 'houses/script/presentations/python/script-python-chapter8.presentation.html',
+                    prerequisites: ['python-ch7-immersive']
+                },
+                {
+                    id: 'python-ch8-immersive',
+                    title: 'Chapter 8: Immersive Lab',
+                    type: 'lab',
+                    difficulty: 'advanced',
+                    duration: '45 min',
+                    href: 'houses/script/modules/python/script-python-immersive-chapter8.module.html',
+                    prerequisites: ['python-ch8-presentation']
+                }
+            ]
         },
 
         'devops-fundamentals': {
