@@ -1,0 +1,1595 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Operation: Containment - MD-100 Sim Lab</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            min-height: 100vh;
+            background: #0c0c0c;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: #e0d0c0;
+        }
+
+        /* ─── Header ─── */
+        .lab-header {
+            padding: 15px 30px;
+            background: rgba(10, 10, 15, 0.95);
+            border-bottom: 1px solid rgba(234, 88, 12, 0.2);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 200;
+        }
+        .header-left { display: flex; align-items: center; gap: 20px; }
+        .back-btn {
+            padding: 8px 16px;
+            background: rgba(234, 88, 12, 0.1);
+            border: 1px solid rgba(234, 88, 12, 0.3);
+            border-radius: 6px;
+            color: #f97316;
+            text-decoration: none;
+            font-size: 0.85rem;
+            transition: all 0.2s ease;
+        }
+        .back-btn:hover { background: rgba(234, 88, 12, 0.2); }
+        .lab-title { font-size: 1rem; color: #f5e6d0; font-weight: 500; }
+        .lab-badge {
+            padding: 4px 12px;
+            background: rgba(220, 38, 38, 0.2);
+            border: 1px solid rgba(220, 38, 38, 0.4);
+            border-radius: 12px;
+            font-size: 0.7rem;
+            color: #ef4444;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+        }
+        .task-progress { display: flex; align-items: center; gap: 10px; font-size: 0.85rem; color: #9a8070; }
+        .task-count { color: #f97316; font-weight: 600; }
+
+        /* ─── Mission Brief (Urgent) ─── */
+        .mission-brief {
+            background: linear-gradient(135deg, rgba(220,38,38,0.1), rgba(220,38,38,0.03));
+            border-bottom: 1px solid rgba(220, 38, 38, 0.2);
+            padding: 16px 30px;
+            font-size: 0.85rem;
+            color: #fca5a5;
+            line-height: 1.6;
+        }
+        .mission-brief strong { color: #ef4444; }
+
+        /* ─── Two-Column Layout ─── */
+        .lab-container {
+            display: grid;
+            grid-template-columns: 320px 1fr;
+            min-height: calc(100vh - 120px);
+        }
+
+        /* ─── Objectives Panel ─── */
+        .objectives-panel {
+            background: rgba(15, 12, 8, 0.95);
+            border-right: 1px solid rgba(234, 88, 12, 0.15);
+            padding: 20px;
+            overflow-y: auto;
+            position: sticky;
+            top: 61px;
+            height: calc(100vh - 61px);
+        }
+        .panel-heading {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: #ea580c;
+            margin-bottom: 15px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid rgba(234, 88, 12, 0.2);
+        }
+        .objective-item {
+            background: rgba(234, 88, 12, 0.04);
+            border: 1px solid rgba(234, 88, 12, 0.1);
+            border-radius: 8px;
+            padding: 10px 12px;
+            margin-bottom: 6px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .objective-item:hover { background: rgba(234, 88, 12, 0.08); border-color: rgba(234, 88, 12, 0.25); }
+        .objective-item.active { border-left: 3px solid #ea580c; background: rgba(234, 88, 12, 0.1); }
+        .objective-item.completed { border-color: rgba(34, 197, 94, 0.4); background: rgba(34, 197, 94, 0.04); }
+        .objective-item.completed .obj-title::before { content: '\2713 '; color: #22c55e; }
+        .obj-title { font-size: 0.8rem; color: #f5e6d0; margin-bottom: 2px; font-weight: 500; }
+        .obj-desc { font-size: 0.7rem; color: #7a6a5a; }
+
+        /* ─── GUI Workspace ─── */
+        .gui-workspace {
+            padding: 20px;
+            overflow-y: auto;
+            background: #1a1a1a;
+        }
+
+        /* Panel nav */
+        .panel-nav {
+            display: flex;
+            gap: 6px;
+            padding: 10px 16px;
+            background: #252528;
+            border-bottom: 1px solid #3e3e42;
+            flex-wrap: wrap;
+        }
+        .panel-nav-btn {
+            padding: 6px 14px;
+            background: #2d2d30;
+            border: 1px solid #3e3e42;
+            border-radius: 4px;
+            color: #999;
+            font-size: 0.78rem;
+            cursor: pointer;
+            font-family: inherit;
+            transition: all 0.15s;
+        }
+        .panel-nav-btn:hover { background: #3e3e42; color: #ccc; }
+        .panel-nav-btn.active { background: #2563eb; border-color: #3b82f6; color: white; }
+
+        /* Windows-style panels */
+        .win-panel {
+            background: #2d2d30;
+            border: 1px solid #3e3e42;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            overflow: hidden;
+            display: none;
+        }
+        .win-panel.active { display: block; }
+        .win-titlebar {
+            background: linear-gradient(180deg, #3e3e42, #333337);
+            padding: 8px 14px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #4a4a4e;
+        }
+        .win-titlebar-text { font-size: 0.82rem; color: #cccccc; font-weight: 500; }
+        .win-titlebar-controls { display: flex; gap: 6px; }
+        .win-titlebar-controls span { width: 14px; height: 14px; border-radius: 50%; display: inline-block; }
+        .win-ctrl-min { background: #f59e0b; }
+        .win-ctrl-max { background: #22c55e; }
+        .win-ctrl-close { background: #ef4444; }
+        .win-body { padding: 16px; }
+
+        /* Security Center Dashboard */
+        .sec-dashboard { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+        .sec-card {
+            background: #252528;
+            border: 1px solid #3e3e42;
+            border-radius: 8px;
+            padding: 16px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .sec-card:hover { border-color: #555; }
+        .sec-card-icon { font-size: 1.8rem; margin-bottom: 8px; }
+        .sec-card-title { font-size: 0.9rem; color: #e0e0e0; font-weight: 600; margin-bottom: 4px; }
+        .sec-card-status { font-size: 0.78rem; display: flex; align-items: center; gap: 6px; }
+        .sec-card.danger .sec-card-status { color: #ef4444; }
+        .sec-card.warning .sec-card-status { color: #f59e0b; }
+        .sec-card.ok .sec-card-status { color: #22c55e; }
+
+        /* Status dot */
+        .status-dot {
+            width: 8px; height: 8px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 4px;
+        }
+        .status-dot.green { background: #22c55e; }
+        .status-dot.red { background: #ef4444; }
+        .status-dot.yellow { background: #f59e0b; }
+        .status-dot.blue { background: #3b82f6; }
+
+        /* Win table */
+        .win-table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+        .win-table th {
+            padding: 8px 12px;
+            background: #252528;
+            color: #999;
+            font-weight: 500;
+            text-align: left;
+            border-bottom: 1px solid #3e3e42;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+        }
+        .win-table td {
+            padding: 8px 12px;
+            border-bottom: 1px solid rgba(62,62,66,0.5);
+            color: #bbb;
+        }
+        .win-table tr:hover { background: rgba(96,165,250,0.05); }
+        .win-table tr.highlight-danger { background: rgba(239,68,68,0.06); }
+        .win-table tr.highlight-danger td { color: #fca5a5; }
+
+        /* Buttons */
+        .win-btn {
+            padding: 7px 16px;
+            background: #3e3e42;
+            border: 1px solid #555;
+            border-radius: 4px;
+            color: #ccc;
+            font-size: 0.8rem;
+            cursor: pointer;
+            font-family: inherit;
+            transition: all 0.15s;
+        }
+        .win-btn:hover { background: #4a4a50; }
+        .win-btn:disabled { opacity: 0.4; cursor: default; }
+        .win-btn-primary { background: #2563eb; border-color: #3b82f6; color: white; }
+        .win-btn-primary:hover { background: #1d4ed8; }
+        .win-btn-danger { background: #dc2626; border-color: #ef4444; color: white; }
+        .win-btn-danger:hover { background: #b91c1c; }
+        .win-btn-success { background: #16a34a; border-color: #22c55e; color: white; }
+
+        /* Progress bar */
+        .progress-bar-container {
+            background: #1e1e1e;
+            border: 1px solid #3e3e42;
+            border-radius: 4px;
+            height: 24px;
+            overflow: hidden;
+            margin: 10px 0;
+        }
+        .progress-bar-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #2563eb, #3b82f6);
+            border-radius: 4px;
+            transition: width 0.5s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.72rem;
+            color: white;
+            font-weight: 600;
+            min-width: 40px;
+        }
+        .progress-bar-fill.success { background: linear-gradient(90deg, #16a34a, #22c55e); }
+        .progress-bar-fill.error { background: linear-gradient(90deg, #dc2626, #ef4444); }
+
+        /* Form elements */
+        .form-group { margin-bottom: 14px; }
+        .form-label { display: block; font-size: 0.78rem; color: #999; margin-bottom: 5px; }
+        .form-input, .form-select, .form-textarea {
+            width: 100%;
+            padding: 8px 12px;
+            background: #1e1e1e;
+            border: 1px solid #3e3e42;
+            border-radius: 4px;
+            color: #ccc;
+            font-size: 0.82rem;
+            font-family: inherit;
+        }
+        .form-textarea { min-height: 80px; resize: vertical; }
+        .form-input:focus, .form-select:focus, .form-textarea:focus { outline: none; border-color: #60a5fa; }
+        .form-checkbox { display: flex; align-items: center; gap: 8px; font-size: 0.82rem; color: #bbb; margin-bottom: 8px; }
+        .form-checkbox input { accent-color: #60a5fa; }
+
+        /* Toggle switch */
+        .toggle-switch {
+            width: 42px;
+            height: 22px;
+            background: #555;
+            border-radius: 12px;
+            position: relative;
+            cursor: pointer;
+            transition: background 0.2s;
+            flex-shrink: 0;
+        }
+        .toggle-switch.on { background: #2563eb; }
+        .toggle-switch::after {
+            content: '';
+            position: absolute;
+            width: 18px;
+            height: 18px;
+            background: white;
+            border-radius: 50%;
+            top: 2px;
+            left: 2px;
+            transition: transform 0.2s;
+        }
+        .toggle-switch.on::after { transform: translateX(20px); }
+
+        .settings-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 0;
+            border-bottom: 1px solid rgba(62,62,66,0.4);
+        }
+        .settings-row:last-child { border-bottom: none; }
+        .settings-label { font-size: 0.85rem; color: #ccc; }
+        .settings-sublabel { font-size: 0.75rem; color: #777; margin-top: 2px; }
+
+        /* Toast notifications */
+        .toast-container {
+            position: fixed;
+            top: 80px;
+            right: 20px;
+            z-index: 400;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .toast {
+            background: #2d2d30;
+            border: 1px solid #3e3e42;
+            border-radius: 8px;
+            padding: 14px 18px;
+            min-width: 320px;
+            max-width: 420px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+            animation: toastIn 0.3s ease;
+            font-size: 0.82rem;
+        }
+        .toast.info { border-left: 4px solid #3b82f6; }
+        .toast.success { border-left: 4px solid #22c55e; }
+        .toast.warning { border-left: 4px solid #f59e0b; }
+        .toast.error { border-left: 4px solid #ef4444; }
+        .toast-title { font-weight: 600; color: #e0e0e0; margin-bottom: 4px; }
+        .toast-msg { color: #999; line-height: 1.4; }
+        .toast-character { font-size: 0.72rem; color: #666; margin-top: 6px; font-style: italic; }
+        @keyframes toastIn { from { opacity: 0; transform: translateX(30px); } to { opacity: 1; transform: translateX(0); } }
+        @keyframes toastOut { from { opacity: 1; } to { opacity: 0; transform: translateX(30px); } }
+
+        /* Modal */
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.7);
+            z-index: 300;
+            display: none;
+            justify-content: center;
+            align-items: center;
+        }
+        .modal-overlay.show { display: flex; }
+        .modal-dialog {
+            background: #2d2d30;
+            border: 1px solid #3e3e42;
+            border-radius: 8px;
+            width: 90%;
+            max-width: 560px;
+            box-shadow: 0 8px 30px rgba(0,0,0,0.5);
+        }
+        .modal-header {
+            padding: 14px 20px;
+            border-bottom: 1px solid #3e3e42;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .modal-header h3 { font-size: 0.9rem; color: #e0e0e0; font-weight: 500; }
+        .modal-close { background: none; border: none; color: #888; font-size: 1.2rem; cursor: pointer; padding: 4px 8px; border-radius: 4px; }
+        .modal-close:hover { background: rgba(255,255,255,0.1); }
+        .modal-body { padding: 20px; font-size: 0.85rem; color: #bbb; line-height: 1.6; }
+        .modal-footer { padding: 14px 20px; border-top: 1px solid #3e3e42; display: flex; justify-content: flex-end; gap: 10px; }
+
+        /* Sub-panel sections */
+        .sub-panel { display: none; }
+        .sub-panel.active { display: block; }
+
+        /* Scan animation */
+        .scan-file {
+            font-family: 'Consolas', monospace;
+            font-size: 0.75rem;
+            color: #666;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        /* Hosts file editor */
+        .hosts-editor {
+            font-family: 'Consolas', monospace;
+            font-size: 0.8rem;
+            background: #1e1e1e;
+            border: 1px solid #3e3e42;
+            border-radius: 4px;
+            padding: 12px;
+            white-space: pre;
+            color: #888;
+            line-height: 1.6;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        .hosts-editor .comment { color: #608b4e; }
+        .hosts-editor .entry { color: #9cdcfe; }
+
+        /* Completion */
+        .complete-section {
+            display: none;
+            margin-top: 30px;
+            padding: 30px;
+            background: rgba(34, 197, 94, 0.06);
+            border: 1px solid rgba(34, 197, 94, 0.2);
+            border-radius: 12px;
+            text-align: center;
+        }
+        .complete-section.show { display: block; }
+        .complete-section h3 { color: #22c55e; font-size: 1.2rem; margin-bottom: 8px; }
+        .complete-section p { color: #9a8070; font-size: 0.9rem; margin-bottom: 20px; }
+        .complete-btn {
+            padding: 14px 32px;
+            background: linear-gradient(135deg, #22c55e, #16a34a);
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-size: 1rem;
+            font-weight: 700;
+            cursor: pointer;
+            font-family: inherit;
+            transition: all 0.2s ease;
+        }
+        .complete-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(34, 197, 94, 0.35); }
+
+        @keyframes taskPulse {
+            0%, 100% { box-shadow: none; }
+            50% { box-shadow: 0 0 12px rgba(34, 197, 94, 0.5); }
+        }
+        .objective-item.just-completed { animation: taskPulse 0.6s ease; }
+
+        /* Spinner */
+        .spinner {
+            width: 20px; height: 20px;
+            border: 2px solid rgba(96,165,250,0.2);
+            border-top-color: #60a5fa;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            display: inline-block;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* Firewall rule form */
+        .fw-rule-form { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+        /* GP tree */
+        .gp-tree { font-size: 0.82rem; }
+        .gp-node { padding-left: 20px; }
+        .gp-node-label {
+            padding: 5px 10px;
+            cursor: pointer;
+            color: #bbb;
+            border-radius: 3px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .gp-node-label:hover { background: rgba(96,165,250,0.08); }
+        .gp-icon { font-size: 0.9rem; }
+        .gp-children { display: block; }
+
+        @media (max-width: 900px) {
+            .lab-container { grid-template-columns: 1fr; }
+            .objectives-panel { position: static; height: auto; }
+            .sec-dashboard { grid-template-columns: 1fr; }
+            .fw-rule-form { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+
+    <header class="lab-header">
+        <div class="header-left">
+            <a href="../index.html" class="back-btn">&larr; Back to MD-100</a>
+            <span class="lab-title">Operation: Containment</span>
+            <span class="lab-badge">URGENT &mdash; Day 8</span>
+        </div>
+        <div class="task-progress">
+            <span>Objectives:</span>
+            <span class="task-count" id="objCount">0 / 12</span>
+        </div>
+    </header>
+
+    <div class="mission-brief">
+        <strong>URGENT BRIEF &mdash; James Park:</strong>
+        "We have a situation. Defender flagged malware on three Marketing workstations &mdash; same payload, different infection times. Looks like a phishing email. I've isolated the switch port but I need you to contain this, clean the infections, harden the fleet, and make sure this doesn't happen again. The auditor is STILL HERE. If she finds out before we contain it, we fail the audit."
+    </div>
+
+    <div class="lab-container">
+
+        <!-- ── Objectives Panel ── -->
+        <aside class="objectives-panel">
+            <div class="panel-heading">Objectives (12)</div>
+
+            <div class="objective-item active" data-obj="1" onclick="showObj(1)">
+                <div class="obj-title">1. Assess Threat History</div>
+                <div class="obj-desc">Review Defender threat detections</div>
+            </div>
+            <div class="objective-item" data-obj="2" onclick="showObj(2)">
+                <div class="obj-title">2. Run Full Scan</div>
+                <div class="obj-desc">Full scan on infected machine</div>
+            </div>
+            <div class="objective-item" data-obj="3" onclick="showObj(3)">
+                <div class="obj-title">3. Quarantine Threats</div>
+                <div class="obj-desc">Quarantine all detected malware</div>
+            </div>
+            <div class="objective-item" data-obj="4" onclick="showObj(4)">
+                <div class="obj-title">4. Enable Real-Time Protection</div>
+                <div class="obj-desc">Ray disabled it for "performance"</div>
+            </div>
+            <div class="objective-item" data-obj="5" onclick="showObj(5)">
+                <div class="obj-title">5. Update Definitions</div>
+                <div class="obj-desc">Definitions are 45 days old</div>
+            </div>
+            <div class="objective-item" data-obj="6" onclick="showObj(6)">
+                <div class="obj-title">6. Block Outbound Port 4444</div>
+                <div class="obj-desc">Create firewall rule for C2 channel</div>
+            </div>
+            <div class="objective-item" data-obj="7" onclick="showObj(7)">
+                <div class="obj-title">7. Block Phishing Domain</div>
+                <div class="obj-desc">Add to hosts file</div>
+            </div>
+            <div class="objective-item" data-obj="8" onclick="showObj(8)">
+                <div class="obj-title">8. Enable BitLocker</div>
+                <div class="obj-desc">TPM + PIN on Diana's laptop</div>
+            </div>
+            <div class="objective-item" data-obj="9" onclick="showObj(9)">
+                <div class="obj-title">9. Configure ASR Rules</div>
+                <div class="obj-desc">Attack Surface Reduction via GP</div>
+            </div>
+            <div class="objective-item" data-obj="10" onclick="showObj(10)">
+                <div class="obj-title">10. Controlled Folder Access</div>
+                <div class="obj-desc">Protect Documents and Finance folders</div>
+            </div>
+            <div class="objective-item" data-obj="11" onclick="showObj(11)">
+                <div class="obj-title">11. Configure SmartScreen</div>
+                <div class="obj-desc">Block unrecognized apps</div>
+            </div>
+            <div class="objective-item" data-obj="12" onclick="showObj(12)">
+                <div class="obj-title">12. Generate Incident Report</div>
+                <div class="obj-desc">Document the incident timeline</div>
+            </div>
+        </aside>
+
+        <!-- ── GUI Workspace ── -->
+        <main class="gui-workspace">
+
+            <div class="panel-nav">
+                <button class="panel-nav-btn active" onclick="showPanel('security')">Windows Security</button>
+                <button class="panel-nav-btn" onclick="showPanel('defender')">Virus &amp; Threat</button>
+                <button class="panel-nav-btn" onclick="showPanel('firewall')">Firewall</button>
+                <button class="panel-nav-btn" onclick="showPanel('hosts')">Hosts File</button>
+                <button class="panel-nav-btn" onclick="showPanel('bitlocker')">BitLocker</button>
+                <button class="panel-nav-btn" onclick="showPanel('gpedit')">Group Policy</button>
+                <button class="panel-nav-btn" onclick="showPanel('smartscreen')">SmartScreen</button>
+                <button class="panel-nav-btn" onclick="showPanel('report')">Incident Report</button>
+            </div>
+
+            <!-- ═══ Windows Security Center Dashboard ═══ -->
+            <div class="win-panel active" id="panel-security">
+                <div class="win-titlebar">
+                    <span class="win-titlebar-text">Windows Security</span>
+                    <div class="win-titlebar-controls">
+                        <span class="win-ctrl-min"></span><span class="win-ctrl-max"></span><span class="win-ctrl-close"></span>
+                    </div>
+                </div>
+                <div class="win-body">
+                    <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px;">
+                        <div style="width:40px;height:40px;background:#1e1e1e;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:1.4rem;">&#128737;</div>
+                        <div>
+                            <h3 style="font-size:1rem;color:#e0e0e0;">Security at a glance</h3>
+                            <p style="font-size:0.78rem;color:#ef4444;" id="sec-overview">Action needed &mdash; Threats detected on this device</p>
+                        </div>
+                    </div>
+
+                    <div class="sec-dashboard">
+                        <div class="sec-card danger" id="sec-vtp" onclick="showPanel('defender')">
+                            <div class="sec-card-icon">&#128737;</div>
+                            <div class="sec-card-title">Virus &amp; Threat Protection</div>
+                            <div class="sec-card-status" id="vtp-status">
+                                <span class="status-dot red"></span>Threats found
+                            </div>
+                        </div>
+                        <div class="sec-card warning" id="sec-fw" onclick="showPanel('firewall')">
+                            <div class="sec-card-icon">&#128293;</div>
+                            <div class="sec-card-title">Firewall &amp; Network</div>
+                            <div class="sec-card-status" id="fw-status">
+                                <span class="status-dot yellow"></span>Review recommended
+                            </div>
+                        </div>
+                        <div class="sec-card warning" id="sec-device" onclick="showPanel('bitlocker')">
+                            <div class="sec-card-icon">&#128187;</div>
+                            <div class="sec-card-title">Device Security</div>
+                            <div class="sec-card-status" id="dev-status">
+                                <span class="status-dot yellow"></span>BitLocker not enabled
+                            </div>
+                        </div>
+                        <div class="sec-card warning" id="sec-app" onclick="showPanel('smartscreen')">
+                            <div class="sec-card-icon">&#127760;</div>
+                            <div class="sec-card-title">App &amp; Browser Control</div>
+                            <div class="sec-card-status" id="app-status">
+                                <span class="status-dot yellow"></span>SmartScreen needs configuration
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ═══ Virus & Threat Protection ═══ -->
+            <div class="win-panel" id="panel-defender">
+                <div class="win-titlebar">
+                    <span class="win-titlebar-text">Virus &amp; Threat Protection</span>
+                    <div class="win-titlebar-controls">
+                        <span class="win-ctrl-min"></span><span class="win-ctrl-max"></span><span class="win-ctrl-close"></span>
+                    </div>
+                </div>
+                <div class="win-body">
+                    <!-- Threat History -->
+                    <div id="def-threat-history">
+                        <h4 style="font-size:0.85rem;color:#ef4444;margin-bottom:10px;">Threat History</h4>
+                        <table class="win-table">
+                            <thead>
+                                <tr><th>Threat</th><th>Machine</th><th>File Path</th><th>Detected</th><th>Status</th></tr>
+                            </thead>
+                            <tbody>
+                                <tr class="highlight-danger">
+                                    <td>Trojan:Win32/Meridian.A</td>
+                                    <td>MKT-WS01</td>
+                                    <td style="font-family:Consolas;font-size:0.75rem;">C:\Users\jdoe\AppData\Local\Temp\update_helper.exe</td>
+                                    <td>Feb 21, 06:14 AM</td>
+                                    <td><span style="color:#ef4444;">Active</span></td>
+                                </tr>
+                                <tr class="highlight-danger">
+                                    <td>Trojan:Win32/Meridian.A</td>
+                                    <td>MKT-WS02</td>
+                                    <td style="font-family:Consolas;font-size:0.75rem;">C:\Users\asmith\Downloads\invoice_final.exe</td>
+                                    <td>Feb 21, 07:02 AM</td>
+                                    <td><span style="color:#ef4444;">Active</span></td>
+                                </tr>
+                                <tr class="highlight-danger">
+                                    <td>Trojan:Win32/Meridian.A</td>
+                                    <td>MKT-WS03</td>
+                                    <td style="font-family:Consolas;font-size:0.75rem;">C:\Users\bwilson\AppData\Roaming\svchost_helper.exe</td>
+                                    <td>Feb 21, 08:30 AM</td>
+                                    <td><span style="color:#ef4444;">Active</span></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                        <button class="win-btn" style="margin-top:12px;" id="btn-assess" onclick="assessThreats()">Review Threat Details</button>
+                    </div>
+
+                    <!-- Scan section -->
+                    <div id="def-scan" style="margin-top:20px;padding-top:16px;border-top:1px solid #3e3e42;">
+                        <h4 style="font-size:0.85rem;color:#e0e0e0;margin-bottom:10px;">Scan Options</h4>
+                        <div style="display:flex;gap:10px;flex-wrap:wrap;">
+                            <button class="win-btn" onclick="runScan('quick')" id="btn-quick-scan">Quick Scan</button>
+                            <button class="win-btn win-btn-primary" onclick="runScan('full')" id="btn-full-scan">Full Scan</button>
+                            <button class="win-btn" onclick="runScan('custom')">Custom Scan</button>
+                        </div>
+                        <div id="scan-progress" style="display:none;margin-top:16px;">
+                            <div style="display:flex;justify-content:space-between;margin-bottom:6px;">
+                                <span style="color:#e0e0e0;font-size:0.82rem;" id="scan-label">Full scan in progress...</span>
+                                <span style="color:#999;font-size:0.82rem;" id="scan-count">0 files scanned</span>
+                            </div>
+                            <div class="progress-bar-container">
+                                <div class="progress-bar-fill" id="scan-bar" style="width:0%;">0%</div>
+                            </div>
+                            <div class="scan-file" id="scan-current-file">Scanning...</div>
+                        </div>
+                        <div id="scan-results" style="display:none;margin-top:16px;">
+                            <div style="padding:12px;background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.2);border-radius:6px;">
+                                <h4 style="color:#ef4444;font-size:0.85rem;margin-bottom:8px;">5 threats found</h4>
+                                <table class="win-table" style="font-size:0.78rem;">
+                                    <thead><tr><th>Threat</th><th>Location</th><th>Type</th><th>Action</th></tr></thead>
+                                    <tbody id="scan-results-body"></tbody>
+                                </table>
+                                <button class="win-btn win-btn-danger" style="margin-top:12px;" id="btn-quarantine-all" onclick="quarantineAll()">Quarantine All Threats</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Real-time protection -->
+                    <div style="margin-top:20px;padding-top:16px;border-top:1px solid #3e3e42;">
+                        <h4 style="font-size:0.85rem;color:#e0e0e0;margin-bottom:10px;">Protection Settings</h4>
+                        <div class="settings-row">
+                            <div>
+                                <div class="settings-label">Real-time protection</div>
+                                <div class="settings-sublabel" id="rtp-sublabel" style="color:#ef4444;">DISABLED &mdash; Your device is vulnerable</div>
+                            </div>
+                            <div class="toggle-switch" id="rtp-toggle" onclick="toggleRealTime()"></div>
+                        </div>
+                        <div class="settings-row">
+                            <div>
+                                <div class="settings-label">Protection definitions</div>
+                                <div class="settings-sublabel" id="def-sublabel" style="color:#f59e0b;">Last updated: January 7, 2026 (45 days ago)</div>
+                            </div>
+                            <button class="win-btn" id="btn-update-defs" onclick="updateDefinitions()">Update Now</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ═══ Firewall ═══ -->
+            <div class="win-panel" id="panel-firewall">
+                <div class="win-titlebar">
+                    <span class="win-titlebar-text">Windows Defender Firewall with Advanced Security</span>
+                    <div class="win-titlebar-controls">
+                        <span class="win-ctrl-min"></span><span class="win-ctrl-max"></span><span class="win-ctrl-close"></span>
+                    </div>
+                </div>
+                <div class="win-body">
+                    <div style="display:flex;gap:20px;">
+                        <!-- Left nav -->
+                        <div style="width:200px;border-right:1px solid #3e3e42;padding-right:16px;">
+                            <div style="font-size:0.78rem;color:#999;text-transform:uppercase;margin-bottom:8px;">Navigation</div>
+                            <div style="padding:6px 10px;font-size:0.82rem;color:#bbb;cursor:pointer;border-radius:3px;" onclick="showFwSection('inbound')">Inbound Rules</div>
+                            <div style="padding:6px 10px;font-size:0.82rem;color:#60a5fa;cursor:pointer;border-radius:3px;background:rgba(96,165,250,0.1);" onclick="showFwSection('outbound')">Outbound Rules</div>
+                            <div style="padding:6px 10px;font-size:0.82rem;color:#bbb;cursor:pointer;border-radius:3px;">Connection Security</div>
+                            <div style="padding:6px 10px;font-size:0.82rem;color:#bbb;cursor:pointer;border-radius:3px;">Monitoring</div>
+                        </div>
+                        <!-- Content -->
+                        <div style="flex:1;">
+                            <h4 style="font-size:0.85rem;color:#e0e0e0;margin-bottom:12px;">Outbound Rules</h4>
+                            <div style="padding:10px;background:rgba(239,68,68,0.06);border:1px solid rgba(239,68,68,0.15);border-radius:6px;margin-bottom:16px;">
+                                <span style="color:#ef4444;font-size:0.82rem;"><span class="status-dot red"></span>C2 traffic detected on port 4444 (TCP/UDP). Create an outbound block rule immediately.</span>
+                            </div>
+
+                            <table class="win-table" id="fw-rules-table">
+                                <thead><tr><th>Name</th><th>Direction</th><th>Action</th><th>Protocol</th><th>Port</th><th>Status</th></tr></thead>
+                                <tbody id="fw-rules-body">
+                                    <tr><td>Core Networking</td><td>Outbound</td><td style="color:#22c55e;">Allow</td><td>TCP</td><td>80,443</td><td>Enabled</td></tr>
+                                    <tr><td>DNS</td><td>Outbound</td><td style="color:#22c55e;">Allow</td><td>UDP</td><td>53</td><td>Enabled</td></tr>
+                                </tbody>
+                            </table>
+
+                            <h4 style="font-size:0.85rem;color:#e0e0e0;margin:20px 0 12px;">Create New Outbound Rule</h4>
+                            <div class="fw-rule-form">
+                                <div class="form-group">
+                                    <div class="form-label">Rule Name</div>
+                                    <input class="form-input" id="fw-name" type="text" placeholder="e.g. Block C2 Port 4444">
+                                </div>
+                                <div class="form-group">
+                                    <div class="form-label">Action</div>
+                                    <select class="form-select" id="fw-action">
+                                        <option value="">-- Select --</option>
+                                        <option value="allow">Allow</option>
+                                        <option value="block">Block</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <div class="form-label">Protocol</div>
+                                    <select class="form-select" id="fw-protocol">
+                                        <option value="tcp-udp">TCP and UDP</option>
+                                        <option value="tcp">TCP only</option>
+                                        <option value="udp">UDP only</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <div class="form-label">Port</div>
+                                    <input class="form-input" id="fw-port" type="text" placeholder="e.g. 4444">
+                                </div>
+                            </div>
+                            <button class="win-btn win-btn-primary" onclick="createFwRule()" style="margin-top:10px;">Create Rule</button>
+                            <div id="fw-feedback" style="margin-top:10px;font-size:0.82rem;display:none;"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ═══ Hosts File ═══ -->
+            <div class="win-panel" id="panel-hosts">
+                <div class="win-titlebar">
+                    <span class="win-titlebar-text">C:\Windows\System32\drivers\etc\hosts</span>
+                    <div class="win-titlebar-controls">
+                        <span class="win-ctrl-min"></span><span class="win-ctrl-max"></span><span class="win-ctrl-close"></span>
+                    </div>
+                </div>
+                <div class="win-body">
+                    <p style="font-size:0.82rem;color:#999;margin-bottom:12px;">Add an entry to block the phishing domain used in the attack.</p>
+                    <div class="hosts-editor" id="hosts-content"><span class="comment"># Copyright (c) Microsoft Corporation.</span>
+<span class="comment"># This is a sample HOSTS file used by Microsoft TCP/IP.</span>
+<span class="comment">#</span>
+<span class="comment"># localhost name resolution is handled within DNS itself.</span>
+<span class="entry">127.0.0.1       localhost</span>
+<span class="entry">::1             localhost</span>
+<span class="comment"># Meridian custom entries</span>
+<span class="entry">10.0.2.10       meridian-dc01.meridian.local</span>
+<span class="entry">10.0.2.20       meridian-fs01.meridian.local</span></div>
+
+                    <div style="margin-top:16px;">
+                        <div class="form-label">Add new hosts entry to block phishing domain:</div>
+                        <div style="display:flex;gap:10px;align-items:center;">
+                            <input class="form-input" id="hosts-ip" type="text" placeholder="IP address" style="width:150px;" value="127.0.0.1">
+                            <input class="form-input" id="hosts-domain" type="text" placeholder="Domain to block" style="flex:1;">
+                            <button class="win-btn win-btn-primary" onclick="addHostsEntry()">Add Entry</button>
+                        </div>
+                        <div id="hosts-feedback" style="margin-top:8px;font-size:0.82rem;display:none;"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ═══ BitLocker ═══ -->
+            <div class="win-panel" id="panel-bitlocker">
+                <div class="win-titlebar">
+                    <span class="win-titlebar-text">BitLocker Drive Encryption</span>
+                    <div class="win-titlebar-controls">
+                        <span class="win-ctrl-min"></span><span class="win-ctrl-max"></span><span class="win-ctrl-close"></span>
+                    </div>
+                </div>
+                <div class="win-body">
+                    <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">
+                        <div style="font-size:1.5rem;">&#128274;</div>
+                        <div>
+                            <h4 style="color:#e0e0e0;font-size:0.9rem;">Diana Torres' Laptop &mdash; C: Drive</h4>
+                            <p style="font-size:0.78rem;color:#999;">BitLocker is currently OFF. Financial data is unencrypted.</p>
+                        </div>
+                    </div>
+
+                    <!-- TPM status -->
+                    <div id="bl-tpm-warning" style="padding:12px;background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.2);border-radius:6px;margin-bottom:16px;">
+                        <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+                            <span class="status-dot red"></span>
+                            <span style="color:#ef4444;font-weight:500;font-size:0.85rem;">TPM not initialized</span>
+                        </div>
+                        <p style="font-size:0.78rem;color:#999;">BitLocker requires TPM 2.0. The Security Processor on this device is present but not initialized.</p>
+                        <button class="win-btn" style="margin-top:8px;" onclick="enableTPM()">Initialize TPM</button>
+                    </div>
+
+                    <div id="bl-tpm-ok" style="display:none;padding:12px;background:rgba(34,197,94,0.08);border:1px solid rgba(34,197,94,0.15);border-radius:6px;margin-bottom:16px;">
+                        <span class="status-dot green"></span>
+                        <span style="color:#22c55e;font-size:0.82rem;">TPM 2.0 initialized and ready.</span>
+                    </div>
+
+                    <!-- BitLocker config -->
+                    <div id="bl-config" style="display:none;">
+                        <h4 style="font-size:0.85rem;color:#e0e0e0;margin-bottom:10px;">Configure BitLocker Encryption</h4>
+                        <div class="form-group">
+                            <div class="form-label">Authentication Method</div>
+                            <select class="form-select" id="bl-auth">
+                                <option value="">-- Select --</option>
+                                <option value="tpm-only">TPM only (automatic unlock)</option>
+                                <option value="tpm-pin">TPM + PIN (recommended)</option>
+                                <option value="tpm-usb">TPM + USB key</option>
+                                <option value="password">Password only (no TPM)</option>
+                            </select>
+                        </div>
+                        <div class="form-group" id="bl-pin-group" style="display:none;">
+                            <div class="form-label">BitLocker PIN (6-20 digits)</div>
+                            <input class="form-input" id="bl-pin" type="password" placeholder="Enter PIN" maxlength="20" style="width:200px;">
+                        </div>
+                        <div class="form-group">
+                            <div class="form-label">Recovery Key Backup</div>
+                            <select class="form-select" id="bl-recovery">
+                                <option value="">-- Select --</option>
+                                <option value="file">Save to file</option>
+                                <option value="ad">Save to Active Directory</option>
+                                <option value="print">Print recovery key</option>
+                            </select>
+                        </div>
+                        <button class="win-btn win-btn-primary" onclick="enableBitLocker()" id="btn-enable-bl">Enable BitLocker</button>
+                        <div id="bl-feedback" style="margin-top:10px;font-size:0.82rem;display:none;"></div>
+                    </div>
+
+                    <!-- BitLocker encrypting -->
+                    <div id="bl-encrypting" style="display:none;">
+                        <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+                            <div class="spinner"></div>
+                            <span style="color:#60a5fa;font-size:0.85rem;">Encrypting drive...</span>
+                        </div>
+                        <div class="progress-bar-container">
+                            <div class="progress-bar-fill" id="bl-progress" style="width:0%;">0%</div>
+                        </div>
+                    </div>
+
+                    <!-- BitLocker complete -->
+                    <div id="bl-complete" style="display:none;">
+                        <div style="padding:16px;background:rgba(34,197,94,0.08);border:1px solid rgba(34,197,94,0.2);border-radius:6px;">
+                            <span class="status-dot green"></span>
+                            <span style="color:#22c55e;font-weight:600;font-size:0.85rem;">BitLocker Enabled</span>
+                            <p style="font-size:0.78rem;color:#999;margin-top:6px;">C: drive is encrypted with AES-256. Authentication: TPM + PIN. Recovery key saved.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ═══ Group Policy (ASR + Controlled Folder) ═══ -->
+            <div class="win-panel" id="panel-gpedit">
+                <div class="win-titlebar">
+                    <span class="win-titlebar-text">Local Group Policy Editor &mdash; Security Policies</span>
+                    <div class="win-titlebar-controls">
+                        <span class="win-ctrl-min"></span><span class="win-ctrl-max"></span><span class="win-ctrl-close"></span>
+                    </div>
+                </div>
+                <div class="win-body">
+                    <!-- ASR Rules -->
+                    <div id="gp-asr">
+                        <h4 style="font-size:0.85rem;color:#e0e0e0;margin-bottom:10px;">Attack Surface Reduction Rules</h4>
+                        <p style="font-size:0.78rem;color:#888;margin-bottom:14px;">Enable ASR rules to reduce the attack surface on managed workstations.</p>
+                        <div class="form-checkbox">
+                            <input type="checkbox" id="asr-email" onchange="checkASR()"> <span>Block executable content from email client and webmail</span>
+                        </div>
+                        <div class="form-checkbox">
+                            <input type="checkbox" id="asr-office" onchange="checkASR()"> <span>Block Office applications from creating child processes</span>
+                        </div>
+                        <div class="form-checkbox">
+                            <input type="checkbox" id="asr-usb" onchange="checkASR()"> <span>Block untrusted and unsigned processes that run from USB</span>
+                        </div>
+                        <div class="form-checkbox">
+                            <input type="checkbox" id="asr-scripts"> <span>Block JavaScript and VBScript from launching executables</span>
+                        </div>
+                        <div class="form-checkbox">
+                            <input type="checkbox" id="asr-wmi"> <span>Block process creations from WMI event subscriptions</span>
+                        </div>
+                        <button class="win-btn win-btn-primary" onclick="applyASR()" style="margin-top:10px;">Apply ASR Policy</button>
+                        <div id="asr-feedback" style="margin-top:10px;font-size:0.82rem;display:none;"></div>
+                    </div>
+
+                    <!-- Controlled Folder Access -->
+                    <div style="margin-top:24px;padding-top:16px;border-top:1px solid #3e3e42;" id="gp-cfa">
+                        <h4 style="font-size:0.85rem;color:#e0e0e0;margin-bottom:10px;">Controlled Folder Access</h4>
+                        <p style="font-size:0.78rem;color:#888;margin-bottom:14px;">Protect important folders from unauthorized modification by untrusted processes.</p>
+                        <div class="settings-row">
+                            <div>
+                                <div class="settings-label">Controlled Folder Access</div>
+                                <div class="settings-sublabel" id="cfa-status">Disabled</div>
+                            </div>
+                            <div class="toggle-switch" id="cfa-toggle" onclick="toggleCFA()"></div>
+                        </div>
+                        <div id="cfa-folders" style="display:none;margin-top:12px;">
+                            <div class="form-label">Protected Folders:</div>
+                            <div class="form-checkbox">
+                                <input type="checkbox" id="cfa-documents" onchange="checkCFA()"> <span>C:\Users\*\Documents</span>
+                            </div>
+                            <div class="form-checkbox">
+                                <input type="checkbox" id="cfa-desktop" onchange="checkCFA()"> <span>C:\Users\*\Desktop</span>
+                            </div>
+                            <div class="form-checkbox">
+                                <input type="checkbox" id="cfa-finance" onchange="checkCFA()"> <span>D:\Shares\Finance</span>
+                            </div>
+                            <div class="form-checkbox">
+                                <input type="checkbox"> <span>C:\Users\*\Pictures</span>
+                            </div>
+                            <button class="win-btn win-btn-primary" onclick="applyCFA()" style="margin-top:8px;">Apply Folder Protection</button>
+                            <div id="cfa-feedback" style="margin-top:8px;font-size:0.82rem;display:none;"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ═══ SmartScreen ═══ -->
+            <div class="win-panel" id="panel-smartscreen">
+                <div class="win-titlebar">
+                    <span class="win-titlebar-text">App &amp; Browser Control &mdash; SmartScreen</span>
+                    <div class="win-titlebar-controls">
+                        <span class="win-ctrl-min"></span><span class="win-ctrl-max"></span><span class="win-ctrl-close"></span>
+                    </div>
+                </div>
+                <div class="win-body">
+                    <h4 style="font-size:0.85rem;color:#e0e0e0;margin-bottom:14px;">SmartScreen Settings</h4>
+
+                    <div class="settings-row">
+                        <div>
+                            <div class="settings-label">Check apps and files</div>
+                            <div class="settings-sublabel">SmartScreen for unrecognized apps</div>
+                        </div>
+                        <select class="form-select" id="ss-apps" style="width:140px;" onchange="checkSmartScreen()">
+                            <option value="off">Off</option>
+                            <option value="warn">Warn</option>
+                            <option value="block">Block</option>
+                        </select>
+                    </div>
+
+                    <div class="settings-row">
+                        <div>
+                            <div class="settings-label">SmartScreen for Microsoft Edge</div>
+                            <div class="settings-sublabel">Protect against malicious sites and downloads</div>
+                        </div>
+                        <div class="toggle-switch" id="ss-edge-toggle" onclick="this.classList.toggle('on');checkSmartScreen()"></div>
+                    </div>
+
+                    <div class="settings-row">
+                        <div>
+                            <div class="settings-label">SmartScreen for Microsoft Store apps</div>
+                            <div class="settings-sublabel">Check web content used by Store apps</div>
+                        </div>
+                        <div class="toggle-switch" id="ss-store-toggle" onclick="this.classList.toggle('on');checkSmartScreen()"></div>
+                    </div>
+
+                    <div id="ss-feedback" style="margin-top:14px;font-size:0.82rem;display:none;"></div>
+                </div>
+            </div>
+
+            <!-- ═══ Incident Report ═══ -->
+            <div class="win-panel" id="panel-report">
+                <div class="win-titlebar">
+                    <span class="win-titlebar-text">Incident Response Report</span>
+                    <div class="win-titlebar-controls">
+                        <span class="win-ctrl-min"></span><span class="win-ctrl-max"></span><span class="win-ctrl-close"></span>
+                    </div>
+                </div>
+                <div class="win-body">
+                    <h4 style="font-size:0.85rem;color:#e0e0e0;margin-bottom:14px;">Security Incident Report &mdash; IR-2026-0221</h4>
+
+                    <div class="form-group">
+                        <div class="form-label">Incident Type</div>
+                        <select class="form-select" id="rpt-type">
+                            <option value="">-- Select --</option>
+                            <option value="malware">Malware Infection</option>
+                            <option value="phishing">Phishing Attack</option>
+                            <option value="ransomware">Ransomware</option>
+                            <option value="data-breach">Data Breach</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <div class="form-label">Affected Machines (comma-separated)</div>
+                        <input class="form-input" id="rpt-machines" type="text" placeholder="e.g. MKT-WS01, MKT-WS02, MKT-WS03">
+                    </div>
+
+                    <div class="form-group">
+                        <div class="form-label">Malware Identified</div>
+                        <input class="form-input" id="rpt-malware" type="text" placeholder="e.g. Trojan:Win32/Meridian.A">
+                    </div>
+
+                    <div class="form-group">
+                        <div class="form-label">Initial Infection Vector</div>
+                        <select class="form-select" id="rpt-vector">
+                            <option value="">-- Select --</option>
+                            <option value="phishing-email">Phishing email with malicious attachment</option>
+                            <option value="drive-by">Drive-by download</option>
+                            <option value="usb">USB media</option>
+                            <option value="supply-chain">Supply chain compromise</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <div class="form-label">Containment Actions Taken</div>
+                        <textarea class="form-textarea" id="rpt-actions" placeholder="List all containment and remediation steps..."></textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <div class="form-label">Hardening Measures Implemented</div>
+                        <textarea class="form-textarea" id="rpt-hardening" placeholder="List security improvements applied..."></textarea>
+                    </div>
+
+                    <button class="win-btn win-btn-primary" onclick="submitReport()">Submit Incident Report</button>
+                    <div id="rpt-feedback" style="margin-top:10px;font-size:0.82rem;display:none;"></div>
+                </div>
+            </div>
+
+            <!-- ═══ Completion Banner ═══ -->
+            <div class="complete-section" id="completeSection">
+                <h3>Mission Complete &mdash; Operation: Containment</h3>
+                <p>Three machines clean, definitions updated, ASR rules active, BitLocker on the executive laptop. Incident documented.</p>
+                <p style="font-size:0.82rem;color:#777;margin-bottom:16px;"><em>James Park: "Contained. I'll handle the auditor &mdash; you just bought us a pass. Sarah says payroll is running slow &mdash; that's you tomorrow."</em></p>
+                <button class="complete-btn" onclick="completeModule()">Complete Mission &amp; Return</button>
+            </div>
+
+        </main>
+    </div>
+
+    <!-- Toast Container -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <!-- Modal -->
+    <div class="modal-overlay" id="modalOverlay">
+        <div class="modal-dialog" id="modalDialog">
+            <div class="modal-header">
+                <h3 id="modalTitle">Dialog</h3>
+                <button class="modal-close" onclick="closeModal()">&times;</button>
+            </div>
+            <div class="modal-body" id="modalBody"></div>
+            <div class="modal-footer" id="modalFooter"></div>
+        </div>
+    </div>
+
+    <script>
+    // ═══════════════════════════════════════════════════
+    //  STATE
+    // ═══════════════════════════════════════════════════
+    const totalObj = 12;
+    const done = new Set();
+    const state = {
+        threatsAssessed: false,
+        scanComplete: false,
+        quarantined: false,
+        startupCleared: false,
+        quarantineStuck: false,
+        realtimeOn: false,
+        defsUpdated: false,
+        fwRuleCreated: false,
+        hostsBlocked: false,
+        tpmReady: false,
+        bitlockerOn: false,
+        asrApplied: false,
+        cfaEnabled: false,
+        cfaApplied: false,
+        smartscreenDone: false,
+        reportSubmitted: false
+    };
+
+    // ═══════════════════════════════════════════════════
+    //  NAVIGATION
+    // ═══════════════════════════════════════════════════
+    function showObj(num) {
+        document.querySelectorAll('.objective-item').forEach(el => el.classList.remove('active'));
+        document.querySelector('[data-obj="' + num + '"]').classList.add('active');
+        const map = {1:'defender',2:'defender',3:'defender',4:'defender',5:'defender',6:'firewall',7:'hosts',8:'bitlocker',9:'gpedit',10:'gpedit',11:'smartscreen',12:'report'};
+        if (map[num]) showPanel(map[num]);
+    }
+
+    function showPanel(id) {
+        document.querySelectorAll('.win-panel').forEach(p => p.classList.remove('active'));
+        const p = document.getElementById('panel-' + id);
+        if (p) p.classList.add('active');
+        document.querySelectorAll('.panel-nav-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.panel-nav-btn').forEach(b => {
+            const txt = b.textContent.toLowerCase();
+            if (id === 'security' && txt.includes('windows security')) b.classList.add('active');
+            else if (id === 'defender' && txt.includes('virus')) b.classList.add('active');
+            else if (id === 'firewall' && txt.includes('firewall')) b.classList.add('active');
+            else if (id === 'hosts' && txt.includes('hosts')) b.classList.add('active');
+            else if (id === 'bitlocker' && txt.includes('bit')) b.classList.add('active');
+            else if (id === 'gpedit' && txt.includes('group')) b.classList.add('active');
+            else if (id === 'smartscreen' && txt.includes('smart')) b.classList.add('active');
+            else if (id === 'report' && txt.includes('incident')) b.classList.add('active');
+        });
+    }
+
+    // ═══════════════════════════════════════════════════
+    //  OBJECTIVE TRACKING
+    // ═══════════════════════════════════════════════════
+    function markDone(num) {
+        if (done.has(num)) return;
+        done.add(num);
+        const item = document.querySelector('[data-obj="' + num + '"]');
+        item.classList.add('completed', 'just-completed');
+        setTimeout(() => item.classList.remove('just-completed'), 700);
+        document.getElementById('objCount').textContent = done.size + ' / ' + totalObj;
+        if (done.size === totalObj) {
+            document.getElementById('completeSection').classList.add('show');
+            setTimeout(() => document.getElementById('completeSection').scrollIntoView({ behavior:'smooth', block:'nearest' }), 300);
+        }
+    }
+
+    // ═══════════════════════════════════════════════════
+    //  TOASTS & MODAL
+    // ═══════════════════════════════════════════════════
+    function showToast(type, title, msg, character, dur) {
+        dur = dur || 5000;
+        const c = document.getElementById('toastContainer');
+        const t = document.createElement('div');
+        t.className = 'toast ' + type;
+        t.innerHTML = '<div class="toast-title">' + title + '</div><div class="toast-msg">' + msg + '</div>' + (character ? '<div class="toast-character">&mdash; ' + character + '</div>' : '');
+        c.appendChild(t);
+        setTimeout(() => { t.style.animation = 'toastOut 0.3s ease forwards'; setTimeout(() => t.remove(), 300); }, dur);
+    }
+    function showModal(title, body, footer) {
+        document.getElementById('modalTitle').textContent = title;
+        document.getElementById('modalBody').innerHTML = body;
+        document.getElementById('modalFooter').innerHTML = footer || '';
+        document.getElementById('modalOverlay').classList.add('show');
+    }
+    function closeModal() { document.getElementById('modalOverlay').classList.remove('show'); }
+
+    // ═══════════════════════════════════════════════════
+    //  OBJ 1: ASSESS THREATS
+    // ═══════════════════════════════════════════════════
+    function assessThreats() {
+        state.threatsAssessed = true;
+        showModal('Threat Analysis', '<p style="color:#ef4444;font-weight:600;">Trojan:Win32/Meridian.A</p><p style="font-size:0.82rem;color:#bbb;margin-top:8px;">A trojan designed to establish a reverse shell on port 4444. Delivered via phishing email with a fake invoice attachment.</p><ul style="font-size:0.82rem;color:#999;margin:12px 0 0 16px;line-height:1.8;"><li><strong>MKT-WS01:</strong> Infected 06:14 AM via email attachment</li><li><strong>MKT-WS02:</strong> Infected 07:02 AM via downloaded invoice</li><li><strong>MKT-WS03:</strong> Infected 08:30 AM via roaming profile persistence</li></ul><p style="font-size:0.78rem;color:#f59e0b;margin-top:12px;">Note: Malware includes persistence mechanism in AppData\\Roaming and Startup folder.</p>', '<button class="win-btn win-btn-primary" onclick="closeModal()">Acknowledged</button>');
+        markDone(1);
+        showToast('warning', 'Threat Identified', 'Trojan:Win32/Meridian.A found on 3 machines. C2 on port 4444.', 'James Park', 6000);
+    }
+
+    // ═══════════════════════════════════════════════════
+    //  OBJ 2: FULL SCAN
+    // ═══════════════════════════════════════════════════
+    function runScan(type) {
+        if (type !== 'full') {
+            showToast('warning', 'Use Full Scan', 'A Quick Scan may miss deeply embedded threats. Run a Full Scan for thorough detection.', null, 4000);
+            return;
+        }
+        document.getElementById('btn-full-scan').disabled = true;
+        document.getElementById('btn-quick-scan').disabled = true;
+        document.getElementById('scan-progress').style.display = 'block';
+
+        const bar = document.getElementById('scan-bar');
+        const countEl = document.getElementById('scan-count');
+        const fileEl = document.getElementById('scan-current-file');
+        const paths = ['C:\\Windows\\System32\\svchost.exe','C:\\Windows\\explorer.exe','C:\\Program Files\\MeridianCRM\\crm.exe','C:\\Users\\jdoe\\AppData\\Local\\Temp\\update_helper.exe [THREAT]','C:\\Users\\jdoe\\AppData\\Local\\Temp\\dropper_v2.dll [THREAT]','C:\\Users\\jdoe\\AppData\\Roaming\\svchost_helper.exe [THREAT]','C:\\Users\\jdoe\\AppData\\Roaming\\Microsoft\\Windows\\Start Menu\\Programs\\Startup\\updater.lnk [THREAT]','C:\\Users\\asmith\\Downloads\\invoice_final.exe [THREAT]','C:\\Windows\\System32\\drivers\\etc\\hosts','C:\\Program Files (x86)\\Common Files\\system.dll'];
+
+        let i = 0;
+        let fileCount = 0;
+        const interval = setInterval(() => {
+            if (i < paths.length) {
+                fileCount += Math.floor(Math.random() * 8000) + 2000;
+                const pct = Math.min(Math.round(((i + 1) / paths.length) * 100), 100);
+                bar.style.width = pct + '%';
+                bar.textContent = pct + '%';
+                countEl.textContent = fileCount.toLocaleString() + ' files scanned';
+                fileEl.textContent = 'Scanning: ' + paths[i];
+                if (paths[i].includes('[THREAT]')) fileEl.style.color = '#ef4444';
+                else fileEl.style.color = '#666';
+                i++;
+            } else {
+                clearInterval(interval);
+                bar.classList.add('success');
+                state.scanComplete = true;
+                markDone(2);
+                setTimeout(() => {
+                    document.getElementById('scan-progress').style.display = 'none';
+                    document.getElementById('scan-results').style.display = 'block';
+                    const tbody = document.getElementById('scan-results-body');
+                    const threats = [
+                        ['Trojan:Win32/Meridian.A','%TEMP%\\update_helper.exe','Trojan (dropper)'],
+                        ['Trojan:Win32/Meridian.A!dl','%TEMP%\\dropper_v2.dll','Trojan (payload)'],
+                        ['Trojan:Win32/Meridian.A','%AppData%\\svchost_helper.exe','Trojan (C2 agent)'],
+                        ['Behavior:Win32/Persistence.A','Startup\\updater.lnk','Persistence mechanism'],
+                        ['Trojan:Win32/Meridian.A','Downloads\\invoice_final.exe','Trojan (initial dropper)']
+                    ];
+                    threats.forEach(t => {
+                        const tr = document.createElement('tr');
+                        tr.className = 'highlight-danger';
+                        tr.innerHTML = '<td style="color:#ef4444;">' + t[0] + '</td><td style="font-family:Consolas;font-size:0.72rem;">' + t[1] + '</td><td>' + t[2] + '</td><td><span style="color:#ef4444;">Active</span></td>';
+                        tbody.appendChild(tr);
+                    });
+                    showToast('error', '5 Threats Found', 'Full scan complete: 3 trojans, 1 DLL payload, 1 persistence mechanism.', 'Windows Defender', 6000);
+                }, 600);
+            }
+        }, 800);
+    }
+
+    // ═══════════════════════════════════════════════════
+    //  OBJ 3: QUARANTINE
+    // ═══════════════════════════════════════════════════
+    function quarantineAll() {
+        if (!state.scanComplete) return;
+        if (!state.startupCleared) {
+            state.quarantineStuck = true;
+            showModal('Quarantine Warning', '<p style="color:#f59e0b;">Cannot fully quarantine: The persistence mechanism in the Startup folder keeps regenerating the malware.</p><p style="font-size:0.82rem;color:#999;margin-top:8px;">The file <code>updater.lnk</code> in the Startup folder is relaunching the trojan. Disable the startup entry first.</p><p style="font-size:0.82rem;color:#888;margin-top:8px;">Check Startup Programs (Task Manager > Startup tab) and disable the malicious entry.</p>',
+                '<button class="win-btn" onclick="closeModal()">Cancel</button><button class="win-btn win-btn-danger" onclick="disableStartupEntry()">Disable Startup Entry &amp; Retry</button>');
+            return;
+        }
+        finishQuarantine();
+    }
+
+    function disableStartupEntry() {
+        state.startupCleared = true;
+        closeModal();
+        showToast('info', 'Startup Entry Disabled', 'Malicious startup entry "MeridianUpdater" has been disabled.', null, 3000);
+        setTimeout(() => finishQuarantine(), 500);
+    }
+
+    function finishQuarantine() {
+        state.quarantined = true;
+        document.getElementById('btn-quarantine-all').disabled = true;
+        document.getElementById('btn-quarantine-all').textContent = 'All Quarantined';
+        const rows = document.getElementById('scan-results-body').querySelectorAll('tr');
+        rows.forEach(r => {
+            r.classList.remove('highlight-danger');
+            const cells = r.querySelectorAll('td');
+            if (cells[3]) cells[3].innerHTML = '<span style="color:#22c55e;">Quarantined</span>';
+        });
+        markDone(3);
+        showToast('success', 'Threats Quarantined', 'All 5 threats quarantined. Persistence mechanism disabled.', 'Windows Defender', 5000);
+        // Update Security Center
+        document.getElementById('vtp-status').innerHTML = '<span class="status-dot green"></span>No current threats';
+        document.getElementById('sec-vtp').classList.remove('danger');
+        document.getElementById('sec-vtp').classList.add('ok');
+    }
+
+    // ═══════════════════════════════════════════════════
+    //  OBJ 4: REAL-TIME PROTECTION
+    // ═══════════════════════════════════════════════════
+    function toggleRealTime() {
+        const toggle = document.getElementById('rtp-toggle');
+        toggle.classList.toggle('on');
+        if (toggle.classList.contains('on')) {
+            state.realtimeOn = true;
+            document.getElementById('rtp-sublabel').textContent = 'Enabled - Your device is being protected';
+            document.getElementById('rtp-sublabel').style.color = '#22c55e';
+            markDone(4);
+            showToast('success', 'Real-Time Protection', 'Real-time protection enabled. Threats will be detected immediately.', null, 4000);
+        } else {
+            document.getElementById('rtp-sublabel').textContent = 'DISABLED - Your device is vulnerable';
+            document.getElementById('rtp-sublabel').style.color = '#ef4444';
+        }
+    }
+
+    // ═══════════════════════════════════════════════════
+    //  OBJ 5: UPDATE DEFINITIONS
+    // ═══════════════════════════════════════════════════
+    function updateDefinitions() {
+        const btn = document.getElementById('btn-update-defs');
+        btn.disabled = true;
+        btn.textContent = 'Updating...';
+        setTimeout(() => {
+            state.defsUpdated = true;
+            btn.textContent = 'Up to date';
+            document.getElementById('def-sublabel').textContent = 'Last updated: February 21, 2026 (just now)';
+            document.getElementById('def-sublabel').style.color = '#22c55e';
+            markDone(5);
+            showToast('success', 'Definitions Updated', 'Protection definitions updated to the latest version.', null, 4000);
+        }, 2500);
+    }
+
+    // ═══════════════════════════════════════════════════
+    //  OBJ 6: FIREWALL RULE
+    // ═══════════════════════════════════════════════════
+    function showFwSection(section) { /* visual only */ }
+
+    function createFwRule() {
+        const name = document.getElementById('fw-name').value.trim();
+        const action = document.getElementById('fw-action').value;
+        const protocol = document.getElementById('fw-protocol').value;
+        const port = document.getElementById('fw-port').value.trim();
+        const fb = document.getElementById('fw-feedback');
+
+        if (!name || !action || !port) {
+            fb.style.display = 'block'; fb.style.color = '#fca5a5'; fb.textContent = 'All fields are required.';
+            return;
+        }
+        if (port !== '4444') {
+            fb.style.display = 'block'; fb.style.color = '#fca5a5'; fb.textContent = 'The C2 traffic is on port 4444. Block that port.';
+            return;
+        }
+        if (action === 'allow') {
+            fb.style.display = 'block'; fb.style.color = '#fca5a5';
+            fb.textContent = 'Wrong action! You selected "Allow" - this would PERMIT C2 traffic. Select "Block" to stop it.';
+            showToast('error', 'Wrong Firewall Action', 'You just allowed outbound traffic on the C2 port! Change to BLOCK.', 'James Park', 6000);
+            return;
+        }
+
+        state.fwRuleCreated = true;
+        const tbody = document.getElementById('fw-rules-body');
+        const tr = document.createElement('tr');
+        tr.style.background = 'rgba(34,197,94,0.06)';
+        const protoText = protocol === 'tcp-udp' ? 'TCP/UDP' : protocol.toUpperCase();
+        tr.innerHTML = '<td>' + name + '</td><td>Outbound</td><td style="color:#ef4444;">Block</td><td>' + protoText + '</td><td>' + port + '</td><td style="color:#22c55e;">Enabled</td>';
+        tbody.appendChild(tr);
+        fb.style.display = 'block'; fb.style.color = '#86efac';
+        fb.textContent = 'Outbound block rule created for port ' + port + '. C2 channel is now blocked.';
+        markDone(6);
+        showToast('success', 'Firewall Rule Created', 'Outbound port 4444 blocked. C2 channel severed.', 'James Park', 5000);
+        document.getElementById('fw-status').innerHTML = '<span class="status-dot green"></span>C2 port blocked';
+        document.getElementById('sec-fw').classList.remove('warning');
+        document.getElementById('sec-fw').classList.add('ok');
+    }
+
+    // ═══════════════════════════════════════════════════
+    //  OBJ 7: BLOCK PHISHING DOMAIN
+    // ═══════════════════════════════════════════════════
+    function addHostsEntry() {
+        const ip = document.getElementById('hosts-ip').value.trim();
+        const domain = document.getElementById('hosts-domain').value.trim();
+        const fb = document.getElementById('hosts-feedback');
+
+        if (!domain) {
+            fb.style.display = 'block'; fb.style.color = '#fca5a5'; fb.textContent = 'Enter the phishing domain to block.';
+            return;
+        }
+        if (!domain.includes('malicious-update') && !domain.includes('meridian-portal')) {
+            fb.style.display = 'block'; fb.style.color = '#fca5a5';
+            fb.textContent = 'That is not the phishing domain. Block: malicious-update.meridian-portal.com';
+            return;
+        }
+        if (ip !== '127.0.0.1') {
+            fb.style.display = 'block'; fb.style.color = '#fca5a5';
+            fb.textContent = 'Redirect to 127.0.0.1 (localhost) to block the domain.';
+            return;
+        }
+
+        state.hostsBlocked = true;
+        const content = document.getElementById('hosts-content');
+        content.innerHTML += '\n<span class="comment"># Blocked - Phishing domain (IR-2026-0221)</span>\n<span class="entry" style="color:#22c55e;">127.0.0.1       ' + domain + '</span>';
+        fb.style.display = 'block'; fb.style.color = '#86efac';
+        fb.textContent = 'Domain blocked via hosts file. DNS requests will resolve to localhost.';
+        markDone(7);
+        showToast('success', 'Domain Blocked', 'malicious-update.meridian-portal.com now resolves to 127.0.0.1.', null, 4000);
+    }
+
+    // ═══════════════════════════════════════════════════
+    //  OBJ 8: BITLOCKER
+    // ═══════════════════════════════════════════════════
+    function enableTPM() {
+        showToast('info', 'Initializing TPM', 'Security Processor initialization in progress...', null, 3000);
+        setTimeout(() => {
+            state.tpmReady = true;
+            document.getElementById('bl-tpm-warning').style.display = 'none';
+            document.getElementById('bl-tpm-ok').style.display = 'block';
+            document.getElementById('bl-config').style.display = 'block';
+            showToast('success', 'TPM Ready', 'TPM 2.0 initialized. You can now enable BitLocker.', null, 4000);
+        }, 2000);
+    }
+
+    document.getElementById('bl-auth').addEventListener('change', function() {
+        document.getElementById('bl-pin-group').style.display = this.value === 'tpm-pin' ? 'block' : 'none';
+    });
+
+    function enableBitLocker() {
+        const auth = document.getElementById('bl-auth').value;
+        const recovery = document.getElementById('bl-recovery').value;
+        const fb = document.getElementById('bl-feedback');
+
+        if (!auth || !recovery) {
+            fb.style.display = 'block'; fb.style.color = '#fca5a5'; fb.textContent = 'Select authentication method and recovery key backup.';
+            return;
+        }
+        if (auth !== 'tpm-pin') {
+            fb.style.display = 'block'; fb.style.color = '#fca5a5';
+            fb.textContent = 'For executive laptops with sensitive data, TPM + PIN is the recommended authentication method.';
+            return;
+        }
+        const pin = document.getElementById('bl-pin').value;
+        if (pin.length < 6) {
+            fb.style.display = 'block'; fb.style.color = '#fca5a5'; fb.textContent = 'PIN must be at least 6 characters.';
+            return;
+        }
+
+        document.getElementById('bl-config').style.display = 'none';
+        document.getElementById('bl-encrypting').style.display = 'block';
+        const bar = document.getElementById('bl-progress');
+        let pct = 0;
+        const interval = setInterval(() => {
+            pct += Math.random() * 12 + 3;
+            if (pct >= 100) {
+                pct = 100;
+                clearInterval(interval);
+                bar.style.width = '100%';
+                bar.textContent = '100%';
+                bar.classList.add('success');
+                setTimeout(() => {
+                    document.getElementById('bl-encrypting').style.display = 'none';
+                    document.getElementById('bl-complete').style.display = 'block';
+                    state.bitlockerOn = true;
+                    markDone(8);
+                    showToast('success', 'BitLocker Enabled', 'C: drive encrypted with TPM + PIN. Recovery key saved.', null, 5000);
+                    document.getElementById('dev-status').innerHTML = '<span class="status-dot green"></span>BitLocker enabled';
+                    document.getElementById('sec-device').classList.remove('warning');
+                    document.getElementById('sec-device').classList.add('ok');
+                }, 500);
+            }
+            bar.style.width = Math.min(pct, 100) + '%';
+            bar.textContent = Math.round(Math.min(pct, 100)) + '%';
+        }, 400);
+    }
+
+    // ═══════════════════════════════════════════════════
+    //  OBJ 9: ASR RULES
+    // ═══════════════════════════════════════════════════
+    function checkASR() {}
+    function applyASR() {
+        const email = document.getElementById('asr-email').checked;
+        const office = document.getElementById('asr-office').checked;
+        const usb = document.getElementById('asr-usb').checked;
+        const fb = document.getElementById('asr-feedback');
+
+        if (!email || !office || !usb) {
+            fb.style.display = 'block'; fb.style.color = '#fca5a5';
+            fb.textContent = 'Enable at minimum: Block executable from email, Block Office child processes, and Block untrusted USB processes.';
+            return;
+        }
+        state.asrApplied = true;
+        fb.style.display = 'block'; fb.style.color = '#86efac';
+        fb.textContent = 'ASR rules applied. Email executables, Office child processes, and untrusted USB processes are now blocked.';
+        markDone(9);
+        showToast('success', 'ASR Rules Active', 'Attack Surface Reduction rules enforced across managed workstations.', null, 5000);
+    }
+
+    // ═══════════════════════════════════════════════════
+    //  OBJ 10: CONTROLLED FOLDER ACCESS
+    // ═══════════════════════════════════════════════════
+    function toggleCFA() {
+        const toggle = document.getElementById('cfa-toggle');
+        toggle.classList.toggle('on');
+        state.cfaEnabled = toggle.classList.contains('on');
+        document.getElementById('cfa-folders').style.display = state.cfaEnabled ? 'block' : 'none';
+        document.getElementById('cfa-status').textContent = state.cfaEnabled ? 'Enabled' : 'Disabled';
+        document.getElementById('cfa-status').style.color = state.cfaEnabled ? '#22c55e' : '#999';
+    }
+
+    function checkCFA() {}
+    function applyCFA() {
+        const docs = document.getElementById('cfa-documents').checked;
+        const desktop = document.getElementById('cfa-desktop').checked;
+        const finance = document.getElementById('cfa-finance').checked;
+        const fb = document.getElementById('cfa-feedback');
+
+        if (!docs || !desktop || !finance) {
+            fb.style.display = 'block'; fb.style.color = '#fca5a5';
+            fb.textContent = 'Protect Documents, Desktop, and Finance folders as specified.';
+            return;
+        }
+        state.cfaApplied = true;
+        fb.style.display = 'block'; fb.style.color = '#86efac';
+        fb.textContent = 'Controlled Folder Access enabled for Documents, Desktop, and Finance folders.';
+        markDone(10);
+        showToast('success', 'Folders Protected', 'Controlled Folder Access active. Unauthorized apps cannot modify protected folders.', null, 5000);
+    }
+
+    // ═══════════════════════════════════════════════════
+    //  OBJ 11: SMARTSCREEN
+    // ═══════════════════════════════════════════════════
+    function checkSmartScreen() {
+        const apps = document.getElementById('ss-apps').value;
+        const edge = document.getElementById('ss-edge-toggle').classList.contains('on');
+        const store = document.getElementById('ss-store-toggle').classList.contains('on');
+        const fb = document.getElementById('ss-feedback');
+
+        if (apps === 'block' && edge && store) {
+            state.smartscreenDone = true;
+            fb.style.display = 'block'; fb.style.color = '#86efac';
+            fb.textContent = 'SmartScreen fully configured: Block unrecognized apps, Edge protection on, Store protection on.';
+            markDone(11);
+            showToast('success', 'SmartScreen Configured', 'All SmartScreen protections enabled and set to Block.', null, 4000);
+            document.getElementById('app-status').innerHTML = '<span class="status-dot green"></span>SmartScreen active';
+            document.getElementById('sec-app').classList.remove('warning');
+            document.getElementById('sec-app').classList.add('ok');
+        } else {
+            fb.style.display = 'block'; fb.style.color = '#f59e0b';
+            const missing = [];
+            if (apps !== 'block') missing.push('Set app check to "Block"');
+            if (!edge) missing.push('Enable Edge SmartScreen');
+            if (!store) missing.push('Enable Store SmartScreen');
+            fb.textContent = 'Not complete: ' + missing.join(', ');
+        }
+    }
+
+    // ═══════════════════════════════════════════════════
+    //  OBJ 12: INCIDENT REPORT
+    // ═══════════════════════════════════════════════════
+    function submitReport() {
+        const type = document.getElementById('rpt-type').value;
+        const machines = document.getElementById('rpt-machines').value.trim();
+        const malware = document.getElementById('rpt-malware').value.trim();
+        const vector = document.getElementById('rpt-vector').value;
+        const actions = document.getElementById('rpt-actions').value.trim();
+        const hardening = document.getElementById('rpt-hardening').value.trim();
+        const fb = document.getElementById('rpt-feedback');
+
+        const errors = [];
+        if (type !== 'malware') errors.push('Incident type should be "Malware Infection"');
+        if (!machines.includes('MKT-WS01') || !machines.includes('MKT-WS02') || !machines.includes('MKT-WS03')) errors.push('List all 3 affected machines: MKT-WS01, MKT-WS02, MKT-WS03');
+        if (!malware.toLowerCase().includes('meridian')) errors.push('Include the malware name: Trojan:Win32/Meridian.A');
+        if (vector !== 'phishing-email') errors.push('Infection vector was phishing email');
+        if (actions.length < 20) errors.push('Describe containment actions in more detail');
+        if (hardening.length < 20) errors.push('Describe hardening measures in more detail');
+
+        if (errors.length > 0) {
+            fb.style.display = 'block'; fb.style.color = '#fca5a5';
+            fb.innerHTML = 'Report incomplete:<br>' + errors.map(e => '&bull; ' + e).join('<br>');
+            return;
+        }
+
+        state.reportSubmitted = true;
+        fb.style.display = 'block'; fb.style.color = '#86efac';
+        fb.textContent = 'Incident report IR-2026-0221 submitted successfully. Copy sent to James Park and Sarah Chen.';
+        markDone(12);
+        showToast('success', 'Report Submitted', 'Incident documented. This is going in the compliance record.', 'James Park', 6000);
+    }
+
+    // ═══════════════════════════════════════════════════
+    //  MODULE COMPLETE
+    // ═══════════════════════════════════════════════════
+    function completeModule() {
+        ModuleProgress.complete('forge', 'forge-md100-m08-lab', {
+            returnUrl: '../index.html'
+        });
+    }
+
+    // ═══════════════════════════════════════════════════
+    //  INIT
+    // ═══════════════════════════════════════════════════
+    setTimeout(() => {
+        showToast('error', 'URGENT: Day 8 &mdash; Operation: Containment', 'Malware on 3 Marketing workstations. Contain, clean, harden. Auditor is still here.', 'James Park', 9000);
+    }, 800);
+    </script>
+
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <script src="../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>
