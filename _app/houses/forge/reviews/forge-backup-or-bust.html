@@ -3,201 +3,2256 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Backup or Bust | House of the Forge</title>
+
+    <!-- Access control: user must be sorted into a house -->
     <script src="../../../components/AccessGuard.js"></script>
     <script>AccessGuard.require('sorted');</script>
-    <!-- Progress & Achievements -->
     <script src="../../../components/AchievementManager.js"></script>
-    <script src="../../../components/ModuleProgress.js">
-        function completeModule() {
+    <script src="../../../components/ModuleProgress.js"></script>
+
+    <style>
+        /* ============================================================
+           ROOT TOKENS & RESET
+           ============================================================ */
+        :root {
+            --forge-primary:   #f97316;
+            --forge-secondary: #ea580c;
+            --forge-accent:    #fdba74;
+            --forge-dark:      #7c2d12;
+            --forge-glow:      rgba(249, 115, 22, 0.35);
+            --bg-main:         #0a0a0a;
+            --bg-panel:        #111111;
+            --bg-card:         #1a1a1a;
+            --bg-card-hover:   #222222;
+            --text-primary:    #e0e0e0;
+            --text-muted:      #888;
+            --text-dim:        #555;
+            --border:          rgba(249, 115, 22, 0.2);
+            --border-bright:   rgba(249, 115, 22, 0.5);
+            --ok:              #22c55e;
+            --warn:            #eab308;
+            --danger:          #ef4444;
+            --info:            #3b82f6;
+            --radius:          8px;
+            --font-mono:       'Courier New', Courier, monospace;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: var(--font-mono);
+            background: var(--bg-main);
+            color: var(--text-primary);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow-x: hidden;
+        }
+
+        /* ============================================================
+           TOP NAV BAR
+           ============================================================ */
+        .top-bar {
+            background: rgba(0, 0, 0, 0.6);
+            border-bottom: 1px solid var(--border);
+            padding: 0.75rem 1.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-shrink: 0;
+            backdrop-filter: blur(4px);
+        }
+
+        .back-link {
+            color: var(--forge-primary);
+            text-decoration: none;
+            font-size: 0.8rem;
+            letter-spacing: 0.08em;
+            transition: color 0.2s, transform 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+        }
+        .back-link:hover { color: var(--forge-accent); transform: translateX(-3px); }
+
+        .top-bar-title {
+            font-size: 0.75rem;
+            letter-spacing: 0.2em;
+            color: var(--text-dim);
+            text-transform: uppercase;
+        }
+
+        /* ============================================================
+           SCREEN LAYER SYSTEM
+           ============================================================ */
+        .screen {
+            display: none;
+            flex: 1;
+            flex-direction: column;
+        }
+        .screen.active {
+            display: flex;
+            animation: screenFadeIn 0.35s ease-out;
+        }
+        @keyframes screenFadeIn {
+            from { opacity: 0; transform: translateY(8px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+
+        /* ============================================================
+           INTRO / TITLE SCREEN
+           ============================================================ */
+        #screen-intro {
+            align-items: center;
+            justify-content: center;
+            padding: 2rem;
+            text-align: center;
+        }
+
+        .intro-badge {
+            font-size: 0.65rem;
+            letter-spacing: 0.35em;
+            color: var(--forge-primary);
+            text-transform: uppercase;
+            margin-bottom: 0.75rem;
+            opacity: 0.8;
+        }
+
+        .intro-title {
+            font-size: clamp(2rem, 5vw, 3.5rem);
+            font-weight: bold;
+            letter-spacing: 0.05em;
+            background: linear-gradient(135deg, var(--forge-primary), var(--forge-accent));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 0.5rem;
+            text-shadow: none;
+            filter: drop-shadow(0 0 20px var(--forge-glow));
+        }
+
+        .intro-sub {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            letter-spacing: 0.06em;
+            margin-bottom: 2.5rem;
+        }
+
+        .intro-scenario {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 1.5rem 2rem;
+            max-width: 640px;
+            text-align: left;
+            margin-bottom: 2rem;
+        }
+
+        .scenario-label {
+            font-size: 0.6rem;
+            letter-spacing: 0.3em;
+            color: var(--forge-primary);
+            text-transform: uppercase;
+            margin-bottom: 0.75rem;
+        }
+
+        .scenario-text {
+            font-size: 0.85rem;
+            color: var(--text-primary);
+            line-height: 1.7;
+        }
+
+        .intro-rules {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 1rem;
+            max-width: 700px;
+            width: 100%;
+            margin-bottom: 2.5rem;
+        }
+
+        .rule-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 1rem;
+            text-align: left;
+        }
+
+        .rule-icon {
+            font-size: 1.3rem;
+            margin-bottom: 0.4rem;
+        }
+
+        .rule-label {
+            font-size: 0.65rem;
+            letter-spacing: 0.15em;
+            color: var(--forge-primary);
+            text-transform: uppercase;
+            margin-bottom: 0.25rem;
+        }
+
+        .rule-desc {
+            font-size: 0.72rem;
+            color: var(--text-muted);
+            line-height: 1.5;
+        }
+
+        /* ============================================================
+           BUTTONS (shared)
+           ============================================================ */
+        .btn {
+            display: inline-block;
+            padding: 0.7rem 1.8rem;
+            border-radius: var(--radius);
+            border: none;
+            cursor: pointer;
+            font-family: var(--font-mono);
+            font-size: 0.85rem;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            transition: all 0.2s;
+            text-decoration: none;
+        }
+
+        .btn-primary {
+            background: var(--forge-primary);
+            color: #000;
+            font-weight: bold;
+        }
+        .btn-primary:hover {
+            background: var(--forge-accent);
+            box-shadow: 0 0 20px var(--forge-glow);
+            transform: translateY(-2px);
+        }
+
+        .btn-secondary {
+            background: transparent;
+            color: var(--forge-primary);
+            border: 1px solid var(--border-bright);
+        }
+        .btn-secondary:hover {
+            background: rgba(249, 115, 22, 0.1);
+            border-color: var(--forge-primary);
+        }
+
+        .btn-danger {
+            background: var(--danger);
+            color: #fff;
+            font-weight: bold;
+        }
+        .btn-danger:hover {
+            background: #dc2626;
+            box-shadow: 0 0 16px rgba(239, 68, 68, 0.4);
+        }
+
+        .btn-ok {
+            background: var(--ok);
+            color: #000;
+            font-weight: bold;
+        }
+        .btn-ok:hover { background: #16a34a; }
+
+        .btn:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+            transform: none !important;
+            box-shadow: none !important;
+        }
+
+        /* ============================================================
+           MAIN GAME SCREEN LAYOUT
+           ============================================================ */
+        #screen-game {
+            flex-direction: row;
+            gap: 0;
+            overflow: hidden;
+            height: calc(100vh - 49px); /* subtract top bar */
+        }
+
+        /* Left sidebar: HUD stats */
+        .hud-sidebar {
+            width: 220px;
+            flex-shrink: 0;
+            background: rgba(0,0,0,0.4);
+            border-right: 1px solid var(--border);
+            padding: 1rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            overflow-y: auto;
+        }
+
+        /* Center: main action area */
+        .game-center {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* Right sidebar: log feed */
+        .log-sidebar {
+            width: 240px;
+            flex-shrink: 0;
+            background: rgba(0,0,0,0.3);
+            border-left: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* ============================================================
+           HUD SIDEBAR WIDGETS
+           ============================================================ */
+        .hud-section-label {
+            font-size: 0.55rem;
+            letter-spacing: 0.3em;
+            color: var(--forge-dark);
+            text-transform: uppercase;
+            margin-bottom: 0.3rem;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 0.25rem;
+        }
+
+        .hud-stat {
+            margin-bottom: 0.6rem;
+        }
+
+        .hud-stat-label {
+            font-size: 0.6rem;
+            color: var(--text-muted);
+            letter-spacing: 0.08em;
+        }
+
+        .hud-stat-value {
+            font-size: 1.1rem;
+            color: var(--forge-accent);
+            font-weight: bold;
+        }
+
+        .hud-stat-value.danger { color: var(--danger); }
+        .hud-stat-value.warn   { color: var(--warn); }
+        .hud-stat-value.ok     { color: var(--ok); }
+
+        /* Day progress bar */
+        .day-track {
+            display: flex;
+            gap: 3px;
+            flex-wrap: wrap;
+        }
+        .day-pip {
+            width: 16px;
+            height: 16px;
+            border-radius: 3px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            font-size: 0.45rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-dim);
+            transition: all 0.3s;
+        }
+        .day-pip.done     { background: var(--forge-secondary); border-color: var(--forge-primary); color: #000; }
+        .day-pip.active   { background: var(--forge-primary); border-color: var(--forge-accent); color: #000; animation: pipPulse 1s infinite; }
+        .day-pip.disaster { background: var(--danger); border-color: #dc2626; color: #fff; }
+        @keyframes pipPulse {
+            0%, 100% { box-shadow: 0 0 0 0 var(--forge-glow); }
+            50%       { box-shadow: 0 0 0 4px var(--forge-glow); }
+        }
+
+        /* Integrity meter bar */
+        .integrity-bar-wrap {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            height: 12px;
+            overflow: hidden;
+        }
+        .integrity-bar-fill {
+            height: 100%;
+            border-radius: 4px;
+            transition: width 0.6s ease, background 0.3s;
+        }
+
+        /* Token tokens display */
+        .token-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 4px;
+        }
+        .token-pip {
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: var(--forge-primary);
+            border: 1px solid var(--forge-accent);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.6rem;
+            color: #000;
+            font-weight: bold;
+            transition: all 0.2s;
+        }
+        .token-pip.spent { background: var(--bg-card); border-color: var(--border); color: var(--text-dim); }
+
+        /* ============================================================
+           SERVER RACK VISUALIZATION
+           ============================================================ */
+        .server-area {
+            padding: 1rem;
+            border-bottom: 1px solid var(--border);
+            flex-shrink: 0;
+        }
+
+        .server-area-label {
+            font-size: 0.6rem;
+            letter-spacing: 0.2em;
+            color: var(--forge-primary);
+            text-transform: uppercase;
+            margin-bottom: 0.75rem;
+        }
+
+        .server-rack {
+            display: flex;
+            gap: 0.6rem;
+            flex-wrap: wrap;
+        }
+
+        .server-unit {
+            width: 100px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 0.5rem;
+            cursor: default;
+            position: relative;
+            transition: border-color 0.3s, box-shadow 0.3s;
+        }
+        .server-unit.selected {
+            border-color: var(--forge-primary);
+            box-shadow: 0 0 12px var(--forge-glow);
+        }
+        .server-unit.damaged {
+            border-color: var(--danger);
+            box-shadow: 0 0 10px rgba(239, 68, 68, 0.3);
+        }
+        .server-unit.protected {
+            border-color: var(--ok);
+        }
+
+        .server-name {
+            font-size: 0.62rem;
+            color: var(--forge-accent);
+            letter-spacing: 0.08em;
+            font-weight: bold;
+            margin-bottom: 0.2rem;
+        }
+
+        .server-role {
+            font-size: 0.55rem;
+            color: var(--text-muted);
+            margin-bottom: 0.4rem;
+        }
+
+        .server-health-bar {
+            background: #1a1a1a;
+            height: 4px;
+            border-radius: 2px;
+            overflow: hidden;
+            margin-bottom: 0.3rem;
+        }
+        .server-health-fill {
+            height: 100%;
+            border-radius: 2px;
+            transition: width 0.4s, background 0.3s;
+        }
+
+        .server-backup-badges {
+            display: flex;
+            gap: 2px;
+            flex-wrap: wrap;
+        }
+        .backup-badge {
+            font-size: 0.5rem;
+            padding: 1px 4px;
+            border-radius: 2px;
+            letter-spacing: 0.05em;
+        }
+        .backup-badge.full  { background: rgba(34, 197, 94, 0.2);  color: var(--ok);   border: 1px solid rgba(34, 197, 94, 0.3);   }
+        .backup-badge.diff  { background: rgba(59, 130, 246, 0.2); color: #60a5fa;     border: 1px solid rgba(59, 130, 246, 0.3);   }
+        .backup-badge.incr  { background: rgba(234, 179, 8, 0.2);  color: var(--warn); border: 1px solid rgba(234, 179, 8, 0.3);    }
+        .backup-badge.test  { background: rgba(168, 85, 247, 0.2); color: #c084fc;     border: 1px solid rgba(168, 85, 247, 0.3);   }
+
+        .server-status-dot {
+            position: absolute;
+            top: 6px;
+            right: 6px;
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: var(--ok);
+        }
+        .server-status-dot.offline { background: var(--danger); animation: dotBlink 0.8s infinite; }
+        .server-status-dot.warn    { background: var(--warn); }
+        @keyframes dotBlink {
+            0%, 100% { opacity: 1; }
+            50%       { opacity: 0.2; }
+        }
+
+        /* ============================================================
+           ACTION PANEL (center-bottom)
+           ============================================================ */
+        .action-area {
+            flex: 1;
+            padding: 1rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            overflow-y: auto;
+        }
+
+        .action-phase-label {
+            font-size: 0.6rem;
+            letter-spacing: 0.25em;
+            color: var(--forge-primary);
+            text-transform: uppercase;
+        }
+
+        .action-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 0.6rem;
+        }
+
+        .action-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 0.75rem 1rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            flex-direction: column;
+            gap: 0.3rem;
+            position: relative;
+            overflow: hidden;
+        }
+        .action-card:hover:not(.disabled) {
+            border-color: var(--forge-primary);
+            background: var(--bg-card-hover);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 14px var(--forge-glow);
+        }
+        .action-card.disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+        .action-card.selected-action {
+            border-color: var(--forge-accent);
+            background: rgba(249, 115, 22, 0.1);
+        }
+
+        .action-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .action-name {
+            font-size: 0.78rem;
+            color: var(--forge-accent);
+            font-weight: bold;
+            letter-spacing: 0.05em;
+        }
+
+        .action-cost {
+            font-size: 0.65rem;
+            color: var(--forge-primary);
+            letter-spacing: 0.05em;
+        }
+
+        .action-desc {
+            font-size: 0.65rem;
+            color: var(--text-muted);
+            line-height: 1.4;
+        }
+
+        .action-stats {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+
+        .action-stat {
+            font-size: 0.55rem;
+            padding: 1px 5px;
+            border-radius: 3px;
+        }
+        .action-stat.rpo { background: rgba(59, 130, 246, 0.15); color: #60a5fa; }
+        .action-stat.rto { background: rgba(168, 85, 247, 0.15); color: #c084fc; }
+        .action-stat.tip { background: rgba(249, 115, 22, 0.1); color: var(--forge-primary); }
+
+        /* Queue of planned actions */
+        .action-queue {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 0.75rem 1rem;
+        }
+
+        .queue-header {
+            font-size: 0.6rem;
+            letter-spacing: 0.2em;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            margin-bottom: 0.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .queue-item {
+            font-size: 0.72rem;
+            color: var(--text-primary);
+            padding: 0.3rem 0;
+            border-bottom: 1px solid rgba(255,255,255,0.04);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .queue-item:last-child { border-bottom: none; }
+        .queue-item-icon { color: var(--forge-primary); }
+
+        .queue-empty {
+            font-size: 0.68rem;
+            color: var(--text-dim);
+            font-style: italic;
+        }
+
+        .commit-bar {
+            display: flex;
+            gap: 0.75rem;
+            align-items: center;
+            padding: 0.75rem 1rem;
+            background: rgba(0,0,0,0.3);
+            border-top: 1px solid var(--border);
+        }
+
+        .tokens-remaining {
+            font-size: 0.7rem;
+            color: var(--text-muted);
+            flex: 1;
+        }
+        .tokens-remaining span { color: var(--forge-primary); font-weight: bold; }
+
+        /* ============================================================
+           EVENT / DISASTER OVERLAY
+           ============================================================ */
+        .disaster-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.85);
+            z-index: 500;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+        }
+        .disaster-overlay.visible {
+            display: flex;
+            animation: overlayIn 0.2s ease-out;
+        }
+        @keyframes overlayIn {
+            from { opacity: 0; }
+            to   { opacity: 1; }
+        }
+
+        .disaster-box {
+            background: var(--bg-panel);
+            border: 2px solid var(--danger);
+            border-radius: 12px;
+            padding: 2rem;
+            max-width: 540px;
+            width: 90%;
+            box-shadow: 0 0 60px rgba(239, 68, 68, 0.4);
+            animation: disasterShake 0.5s ease-out;
+        }
+        @keyframes disasterShake {
+            0%  { transform: translateX(-8px); }
+            20% { transform: translateX(8px); }
+            40% { transform: translateX(-5px); }
+            60% { transform: translateX(5px); }
+            80% { transform: translateX(-2px); }
+            100%{ transform: translateX(0); }
+        }
+
+        .disaster-type-label {
+            font-size: 0.6rem;
+            letter-spacing: 0.3em;
+            color: var(--danger);
+            text-transform: uppercase;
+            margin-bottom: 0.5rem;
+        }
+
+        .disaster-title {
+            font-size: 1.4rem;
+            color: #fff;
+            font-weight: bold;
+            margin-bottom: 0.75rem;
+        }
+
+        .disaster-desc {
+            font-size: 0.82rem;
+            color: var(--text-muted);
+            line-height: 1.7;
+            margin-bottom: 1.25rem;
+        }
+
+        .recovery-options {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            margin-bottom: 1.25rem;
+        }
+
+        .recovery-option {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 0.7rem 1rem;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: all 0.2s;
+        }
+        .recovery-option:hover {
+            border-color: var(--forge-primary);
+            background: rgba(249,115,22,0.08);
+        }
+        .recovery-option.unavailable {
+            opacity: 0.35;
+            cursor: not-allowed;
+        }
+        .recovery-option-left { display: flex; flex-direction: column; gap: 0.2rem; }
+        .recovery-option-name { font-size: 0.8rem; color: var(--text-primary); }
+        .recovery-option-desc { font-size: 0.65rem; color: var(--text-muted); }
+        .recovery-option-right { text-align: right; }
+        .recovery-loss { font-size: 0.7rem; color: var(--danger); }
+        .recovery-time  { font-size: 0.65rem; color: var(--text-muted); }
+
+        .disaster-insight {
+            background: rgba(249,115,22,0.07);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 0.75rem;
+            font-size: 0.7rem;
+            color: var(--forge-accent);
+            line-height: 1.5;
+        }
+        .disaster-insight strong { color: var(--forge-primary); }
+
+        /* Ransomware special: screen tint flash */
+        body.ransomware-flash { animation: ransomwareFlash 0.6s ease-out; }
+        @keyframes ransomwareFlash {
+            0%  { background-color: rgba(239,68,68,0.3); }
+            100%{ background-color: var(--bg-main); }
+        }
+
+        /* ============================================================
+           SAFE DAY OVERLAY (no disaster)
+           ============================================================ */
+        .safe-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.8);
+            z-index: 500;
+            display: none;
+            align-items: center;
+            justify-content: center;
+        }
+        .safe-overlay.visible { display: flex; animation: overlayIn 0.2s ease-out; }
+        .safe-box {
+            background: var(--bg-panel);
+            border: 2px solid var(--ok);
+            border-radius: 12px;
+            padding: 2rem;
+            max-width: 420px;
+            width: 90%;
+            text-align: center;
+            box-shadow: 0 0 40px rgba(34,197,94,0.25);
+        }
+        .safe-title { font-size: 1.2rem; color: var(--ok); font-weight: bold; margin-bottom: 0.5rem; }
+        .safe-desc  { font-size: 0.8rem; color: var(--text-muted); margin-bottom: 1.25rem; line-height: 1.6; }
+
+        /* ============================================================
+           LOG SIDEBAR
+           ============================================================ */
+        .log-header {
+            padding: 0.6rem 0.75rem;
+            border-bottom: 1px solid var(--border);
+            font-size: 0.55rem;
+            letter-spacing: 0.25em;
+            color: var(--forge-dark);
+            text-transform: uppercase;
+            flex-shrink: 0;
+        }
+
+        .log-feed {
+            flex: 1;
+            overflow-y: auto;
+            padding: 0.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.3rem;
+        }
+
+        .log-entry {
+            font-size: 0.62rem;
+            line-height: 1.45;
+            padding: 0.25rem 0.4rem;
+            border-radius: 4px;
+            border-left: 2px solid transparent;
+        }
+        .log-entry.info    { color: var(--text-muted); border-left-color: var(--info); }
+        .log-entry.ok      { color: #4ade80; border-left-color: var(--ok); }
+        .log-entry.warn    { color: #facc15; border-left-color: var(--warn); }
+        .log-entry.danger  { color: #f87171; border-left-color: var(--danger); }
+        .log-entry.system  { color: var(--forge-primary); border-left-color: var(--forge-primary); }
+
+        .log-timestamp {
+            color: var(--text-dim);
+            font-size: 0.55rem;
+        }
+
+        /* ============================================================
+           END SCREEN
+           ============================================================ */
+        #screen-end {
+            align-items: center;
+            justify-content: center;
+            padding: 2rem;
+            text-align: center;
+        }
+
+        .end-rank-badge {
+            font-size: 5rem;
+            margin-bottom: 0.5rem;
+            filter: drop-shadow(0 0 20px var(--forge-glow));
+        }
+
+        .end-rank-label {
+            font-size: 0.65rem;
+            letter-spacing: 0.4em;
+            color: var(--forge-primary);
+            text-transform: uppercase;
+            margin-bottom: 0.25rem;
+        }
+
+        .end-rank-value {
+            font-size: 3rem;
+            font-weight: bold;
+            margin-bottom: 0.25rem;
+        }
+        .end-rank-value.s { color: #fbbf24; }
+        .end-rank-value.a { color: var(--ok); }
+        .end-rank-value.b { color: var(--info); }
+        .end-rank-value.c { color: var(--warn); }
+        .end-rank-value.bust { color: var(--danger); }
+
+        .end-integrity-display {
+            font-size: 1.5rem;
+            color: var(--text-primary);
+            margin-bottom: 2rem;
+        }
+
+        .end-stats-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1rem;
+            max-width: 500px;
+            width: 100%;
+            margin-bottom: 2rem;
+        }
+
+        .end-stat-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 1rem;
+        }
+
+        .end-stat-val {
+            font-size: 1.4rem;
+            color: var(--forge-accent);
+            font-weight: bold;
+        }
+
+        .end-stat-lbl {
+            font-size: 0.6rem;
+            color: var(--text-muted);
+            letter-spacing: 0.08em;
+            margin-top: 0.2rem;
+        }
+
+        .end-debrief {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 1.25rem 1.5rem;
+            max-width: 600px;
+            width: 100%;
+            text-align: left;
+            margin-bottom: 2rem;
+        }
+
+        .end-debrief-label {
+            font-size: 0.6rem;
+            letter-spacing: 0.25em;
+            color: var(--forge-primary);
+            text-transform: uppercase;
+            margin-bottom: 0.75rem;
+        }
+
+        .end-lesson {
+            display: flex;
+            gap: 0.5rem;
+            align-items: flex-start;
+            margin-bottom: 0.5rem;
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            line-height: 1.5;
+        }
+        .end-lesson-icon { color: var(--forge-primary); flex-shrink: 0; margin-top: 1px; }
+
+        .end-actions { display: flex; gap: 1rem; }
+
+        /* ============================================================
+           SCROLLBAR STYLING
+           ============================================================ */
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--forge-dark); }
+
+        /* ============================================================
+           UTILITY
+           ============================================================ */
+        .txt-ok     { color: var(--ok); }
+        .txt-warn   { color: var(--warn); }
+        .txt-danger { color: var(--danger); }
+        .txt-dim    { color: var(--text-dim); }
+
+        .section-divider {
+            border: none;
+            border-top: 1px solid var(--border);
+            margin: 0.25rem 0;
+        }
+
+        /* highlight pulse when a new server is added */
+        @keyframes serverAdd {
+            0%   { box-shadow: 0 0 0 0 var(--ok); }
+            50%  { box-shadow: 0 0 0 8px rgba(34,197,94,0); }
+            100% { box-shadow: 0 0 0 0 transparent; }
+        }
+        .server-unit.new-pulse { animation: serverAdd 0.8s ease-out; }
+
+        /* ============================================================
+           RESPONSIVE: collapse sidebars below 900px
+           ============================================================ */
+        @media (max-width: 900px) {
+            #screen-game { flex-direction: column; height: auto; overflow: auto; }
+            .hud-sidebar { width: 100%; flex-direction: row; flex-wrap: wrap; border-right: none; border-bottom: 1px solid var(--border); padding: 0.75rem; }
+            .log-sidebar { width: 100%; height: 140px; border-left: none; border-top: 1px solid var(--border); }
+            .action-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- TOP NAV BAR -->
+    <div class="top-bar">
+        <a href="../index.html" class="back-link">&#8592; Forge House</a>
+        <span class="top-bar-title">House of the Forge &mdash; Backup or Bust</span>
+        <span style="font-size:0.7rem; color:var(--text-dim)" id="top-day-counter">Day 0 / 10</span>
+    </div>
+
+    <!-- ================================================================
+         SCREEN: INTRO
+    ================================================================ -->
+    <div id="screen-intro" class="screen active">
+        <p class="intro-badge">House of the Forge &bull; Simulation</p>
+        <h1 class="intro-title">Backup or Bust</h1>
+        <p class="intro-sub">A Sysadmin Disaster Survival Simulation</p>
+
+        <div class="intro-scenario">
+            <div class="scenario-label">Mission Brief</div>
+            <p class="scenario-text">
+                You're the new sysadmin at <strong>Hexworth Industries</strong>. Your predecessor
+                was fired for "storing backups on the same server being backed up."<br><br>
+                You inherit a 2-server fleet that will grow to 5 as the company expands.
+                Each day, allocate your limited backup budget wisely. Disasters are coming.
+                How much data survives depends entirely on the choices you make right now.
+            </p>
+        </div>
+
+        <div class="intro-rules">
+            <div class="rule-card">
+                <div class="rule-icon">&#128176;</div>
+                <div class="rule-label">Token Budget</div>
+                <div class="rule-desc">Each day you receive 3&ndash;5 backup tokens. Spend them on backup operations before committing the day.</div>
+            </div>
+            <div class="rule-card">
+                <div class="rule-icon">&#9889;</div>
+                <div class="rule-label">Disaster Events</div>
+                <div class="rule-desc">~40% chance of a disaster each day, rising with difficulty. When it hits, your backup chain determines survival.</div>
+            </div>
+            <div class="rule-card">
+                <div class="rule-icon">&#128190;</div>
+                <div class="rule-label">Backup Types</div>
+                <div class="rule-desc">Full (3T), Differential (2T), Incremental (1T), Test Restore (1T). Each has different RPO/RTO tradeoffs.</div>
+            </div>
+            <div class="rule-card">
+                <div class="rule-icon">&#128200;</div>
+                <div class="rule-label">Data Integrity</div>
+                <div class="rule-desc">Starts at 100%. Each unrecovered disaster drains it. Reach 10 days with integrity intact to win.</div>
+            </div>
+        </div>
+
+        <button class="btn btn-primary" onclick="Game.startGame()">DEPLOY TO PRODUCTION</button>
+    </div>
+
+    <!-- ================================================================
+         SCREEN: GAME
+    ================================================================ -->
+    <div id="screen-game" class="screen">
+
+        <!-- LEFT HUD SIDEBAR -->
+        <aside class="hud-sidebar">
+
+            <div>
+                <div class="hud-section-label">Status</div>
+                <div class="hud-stat">
+                    <div class="hud-stat-label">Day</div>
+                    <div class="hud-stat-value" id="hud-day">1</div>
+                </div>
+                <div class="hud-stat">
+                    <div class="hud-stat-label">Phase</div>
+                    <div class="hud-stat-value" style="font-size:0.75rem; letter-spacing:0.06em" id="hud-phase">Planning</div>
+                </div>
+            </div>
+
+            <div>
+                <div class="hud-section-label">Progress</div>
+                <div class="day-track" id="day-track"></div>
+            </div>
+
+            <div>
+                <div class="hud-section-label">Data Integrity</div>
+                <div class="hud-stat">
+                    <div class="hud-stat-value" id="hud-integrity">100%</div>
+                    <div class="integrity-bar-wrap" style="margin-top:0.4rem">
+                        <div class="integrity-bar-fill" id="integrity-bar" style="width:100%; background:var(--ok)"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div>
+                <div class="hud-section-label">Today's Tokens</div>
+                <div class="hud-stat">
+                    <div class="token-row" id="token-display"></div>
+                    <div style="font-size:0.6rem; color:var(--text-muted); margin-top:0.3rem">
+                        <span id="token-count">0</span> remaining
+                    </div>
+                </div>
+            </div>
+
+            <hr class="section-divider">
+
+            <div>
+                <div class="hud-section-label">Records</div>
+                <div class="hud-stat">
+                    <div class="hud-stat-label">Disasters Survived</div>
+                    <div class="hud-stat-value ok" id="hud-survived">0</div>
+                </div>
+                <div class="hud-stat">
+                    <div class="hud-stat-label">Disasters Failed</div>
+                    <div class="hud-stat-value danger" id="hud-failed">0</div>
+                </div>
+                <div class="hud-stat">
+                    <div class="hud-stat-label">Backups Performed</div>
+                    <div class="hud-stat-value" id="hud-backups">0</div>
+                </div>
+            </div>
+
+        </aside>
+
+        <!-- CENTER MAIN AREA -->
+        <main class="game-center">
+
+            <!-- Server Rack -->
+            <div class="server-area">
+                <div class="server-area-label">Server Fleet</div>
+                <div class="server-rack" id="server-rack"></div>
+            </div>
+
+            <!-- Action Panel -->
+            <div class="action-area">
+
+                <div class="action-phase-label" id="action-phase-label">CHOOSE BACKUP ACTIONS</div>
+
+                <!-- Backup action cards - rendered dynamically -->
+                <div class="action-grid" id="action-grid"></div>
+
+                <!-- Planned queue -->
+                <div class="action-queue">
+                    <div class="queue-header">
+                        <span>Scheduled for today</span>
+                        <button class="btn btn-secondary" style="padding:2px 10px; font-size:0.6rem"
+                            onclick="Game.clearQueue()">CLEAR</button>
+                    </div>
+                    <div id="queue-list">
+                        <span class="queue-empty">No actions queued. Budget unspent tokens accumulate as savings.</span>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Commit bar -->
+            <div class="commit-bar">
+                <span class="tokens-remaining">
+                    Tokens remaining: <span id="commit-tokens">0</span>
+                </span>
+                <button class="btn btn-primary" id="commit-btn" onclick="Game.commitDay()">
+                    COMMIT DAY &#8594;
+                </button>
+            </div>
+
+        </main>
+
+        <!-- RIGHT LOG SIDEBAR -->
+        <aside class="log-sidebar">
+            <div class="log-header">System Log</div>
+            <div class="log-feed" id="log-feed"></div>
+        </aside>
+
+    </div>
+
+    <!-- ================================================================
+         SCREEN: END
+    ================================================================ -->
+    <div id="screen-end" class="screen">
+        <div class="end-rank-badge" id="end-icon">&#128190;</div>
+        <div class="end-rank-label">Final Rank</div>
+        <div class="end-rank-value" id="end-rank">A</div>
+        <div class="end-integrity-display">
+            Data Integrity: <span id="end-integrity">0%</span>
+        </div>
+
+        <div class="end-stats-grid">
+            <div class="end-stat-card">
+                <div class="end-stat-val" id="end-survived">0</div>
+                <div class="end-stat-lbl">Disasters<br>Survived</div>
+            </div>
+            <div class="end-stat-card">
+                <div class="end-stat-val" id="end-backups">0</div>
+                <div class="end-stat-lbl">Backups<br>Performed</div>
+            </div>
+            <div class="end-stat-card">
+                <div class="end-stat-val" id="end-failures">0</div>
+                <div class="end-stat-lbl">Data Loss<br>Events</div>
+            </div>
+        </div>
+
+        <div class="end-debrief">
+            <div class="end-debrief-label">Mission Debrief</div>
+            <div class="end-lesson">
+                <span class="end-lesson-icon">&#9656;</span>
+                <span><strong>Full backups</strong> are expensive but provide a single-step restore with the lowest RTO. Use them as your foundation.</span>
+            </div>
+            <div class="end-lesson">
+                <span class="end-lesson-icon">&#9656;</span>
+                <span><strong>Incremental backups</strong> save storage and tokens, but a broken chain means partial or no recovery.</span>
+            </div>
+            <div class="end-lesson">
+                <span class="end-lesson-icon">&#9656;</span>
+                <span><strong>Test restores</strong> validate your backup chain. An untested backup is an assumption, not a guarantee.</span>
+            </div>
+            <div class="end-lesson">
+                <span class="end-lesson-icon">&#9656;</span>
+                <span><strong>The 3-2-1 rule:</strong> 3 copies, 2 different media types, 1 offsite. Ransomware encrypts online backups too.</span>
+            </div>
+            <div class="end-lesson">
+                <span class="end-lesson-icon">&#9656;</span>
+                <span><strong>RPO vs RTO:</strong> RPO is how much data you can afford to lose. RTO is how fast you must recover. Both require planning before the disaster.</span>
+            </div>
+        </div>
+
+        <div class="end-actions">
+            <button class="btn btn-secondary" onclick="Game.restartGame()">PLAY AGAIN</button>
+            <button class="btn btn-primary" id="end-complete-btn" onclick="Game.completeModule()">
+                COMPLETE MODULE
+            </button>
+        </div>
+    </div>
+
+    <!-- ================================================================
+         DISASTER EVENT OVERLAY
+    ================================================================ -->
+    <div class="disaster-overlay" id="disaster-overlay">
+        <div class="disaster-box">
+            <div class="disaster-type-label" id="disaster-type-label">CRITICAL ALERT</div>
+            <div class="disaster-title" id="disaster-title">Drive Failure</div>
+            <div class="disaster-desc" id="disaster-desc"></div>
+
+            <div class="recovery-options" id="recovery-options"></div>
+
+            <div class="disaster-insight" id="disaster-insight"></div>
+        </div>
+    </div>
+
+    <!-- ================================================================
+         SAFE DAY OVERLAY
+    ================================================================ -->
+    <div class="safe-overlay" id="safe-overlay">
+        <div class="safe-box">
+            <div class="safe-title" id="safe-title">All Clear</div>
+            <div class="safe-desc" id="safe-desc">No disasters today. Your preparation paid off.</div>
+            <button class="btn btn-ok" onclick="Game.closeSafeOverlay()">CONTINUE TO DAY <span id="safe-next-day">2</span></button>
+        </div>
+    </div>
+
+    <!-- ================================================================
+         JAVASCRIPT GAME ENGINE
+    ================================================================ -->
+    <script>
+    /**
+     * Backup or Bust - Game Engine
+     * A sysadmin disaster survival simulation teaching backup strategy concepts.
+     *
+     * Architecture:
+     *   State   - All mutable game data lives in `state`
+     *   CONFIG  - All tunable constants (token costs, disaster chances, etc.)
+     *   ACTIONS - Backup action definitions
+     *   EVENTS  - Disaster event catalog
+     *   Game    - Public API exposed to HTML onclick handlers
+     *   Render  - All DOM mutation functions
+     *   Log     - System log helpers
+     */
+
+    'use strict';
+
+    /* ================================================================
+       CONFIGURATION CONSTANTS
+    ================================================================ */
+    const CONFIG = {
+        TOTAL_DAYS: 10,
+
+        // Token budget per day - increases slightly mid-game as fleet grows
+        TOKENS_PER_DAY: [0, 4, 4, 5, 5, 4, 5, 5, 5, 5, 5], // index = day number (1-based)
+
+        // Base disaster probability per day (0-1). Scales up as difficulty rises.
+        BASE_DISASTER_CHANCE: 0.38,
+        DISASTER_CHANCE_SCALING: 0.025, // added per day after day 3
+
+        // Integrity penalties when no usable backup exists for a disaster
+        NO_BACKUP_PENALTY: 25,     // % per affected server with no backup
+        PARTIAL_BACKUP_PENALTY: 10, // % when chain is incomplete
+
+        // Server fleet growth schedule: which day each server becomes active
+        // Day 1 starts with servers 0 and 1
+        SERVER_UNLOCK_DAY: [1, 1, 3, 6, 9],
+
+        // Ransomware: if online-only backups exist, chance they are also compromised
+        RANSOMWARE_ONLINE_COMPROMISE_CHANCE: 0.6,
+    };
+
+    /* ================================================================
+       ACTION DEFINITIONS
+       Each action entry has:
+         id        - unique key
+         name      - display label
+         cost      - token cost
+         icon      - emoji
+         desc      - short description for players
+         rpo       - Recovery Point Objective label
+         rto       - Recovery Time Objective label
+         tip       - educational insight shown in tooltip area
+         backupKey - key stored in server.backups[] to record the backup type
+         isOffsite - whether this action counts as offsite (for 3-2-1 rule)
+    ================================================================ */
+    const ACTIONS = [
+        {
+            id: 'full',
+            name: 'Full Backup',
+            cost: 3,
+            icon: '&#128190;',
+            desc: 'Complete snapshot of all server data. Standalone restore. Expensive but reliable.',
+            rpo: 'RPO: up to 24h',
+            rto: 'RTO: 30 min',
+            tip: 'A full backup contains everything. It\'s the anchor of any backup chain.',
+            backupKey: 'full',
+            isOffsite: false,
+        },
+        {
+            id: 'diff',
+            name: 'Differential',
+            cost: 2,
+            icon: '&#128443;',
+            desc: 'Backs up all data changed since the last full backup. Faster than full, needs full to restore.',
+            rpo: 'RPO: ~12h',
+            rto: 'RTO: 45 min',
+            tip: 'Differential grows larger each day until the next full backup is taken.',
+            backupKey: 'diff',
+            isOffsite: false,
+        },
+        {
+            id: 'incr',
+            name: 'Incremental',
+            cost: 1,
+            icon: '&#128196;',
+            desc: 'Backs up only data changed since the last backup of any type. Cheapest, but restore requires the full chain.',
+            rpo: 'RPO: ~4h',
+            rto: 'RTO: 90 min',
+            tip: 'Miss one incremental link and the entire chain after it becomes unrestorable.',
+            backupKey: 'incr',
+            isOffsite: false,
+        },
+        {
+            id: 'test',
+            name: 'Test Restore',
+            cost: 1,
+            icon: '&#9745;',
+            desc: 'Verify the backup chain by performing a trial restore. Detects silent corruption. Critical for audit compliance.',
+            rpo: 'N/A',
+            rto: 'N/A',
+            tip: 'A backup that\'s never been tested is just wishful thinking.',
+            backupKey: 'tested',
+            isOffsite: false,
+        },
+        {
+            id: 'offsite',
+            name: 'Offsite Sync',
+            cost: 2,
+            icon: '&#127760;',
+            desc: 'Replicates the latest full backup to an offsite location. Required for the 3-2-1 rule. Immune to ransomware and physical disasters.',
+            rpo: 'RPO: ~24h',
+            rto: 'RTO: 60 min',
+            tip: 'The 3-2-1 rule: 3 copies, 2 media types, 1 offsite. Ransomware can\'t reach offline/offsite backups.',
+            backupKey: 'offsite',
+            isOffsite: true,
+        },
+        {
+            id: 'cloud',
+            name: 'Cloud Snapshot',
+            cost: 2,
+            icon: '&#9729;',
+            desc: 'Instant cloud-based snapshot. Online backup - fast to restore but vulnerable to ransomware encryption.',
+            rpo: 'RPO: ~1h',
+            rto: 'RTO: 20 min',
+            tip: 'Cloud backups are online. Ransomware with sufficient privileges can reach and encrypt them.',
+            backupKey: 'cloud',
+            isOffsite: false,
+        },
+    ];
+
+    /* ================================================================
+       DISASTER CATALOG
+       Each event has:
+         id           - unique key
+         type         - display category label
+         title        - headline text
+         icon         - emoji
+         desc         - narrative description
+         affectsAll   - whether it hits all servers or just one random
+         ransomware   - flag for ransomware-specific logic
+         physicalDestruction - flag: destroys even offsite local copies
+         insight      - teaching point shown after disaster resolves
+    ================================================================ */
+    const EVENTS = [
+        {
+            id: 'drive_failure',
+            type: 'HARDWARE FAILURE',
+            title: 'Drive Failure Detected',
+            icon: '&#128290;',
+            desc: 'A storage drive on one of your servers has reported a SMART error and is now unresponsive. Data on that volume is inaccessible.',
+            affectsAll: false,
+            ransomware: false,
+            physicalDestruction: false,
+            insight: '<strong>Lesson:</strong> RAID is NOT a backup. Drive failures are the most common disaster. Full backups taken before the failure are your best recovery option.',
+        },
+        {
+            id: 'ransomware',
+            type: 'SECURITY INCIDENT',
+            title: 'Ransomware Outbreak',
+            icon: '&#128274;',
+            desc: 'Malicious software has encrypted files across your server fleet. A ransom note has appeared on the console. All online backups may also be compromised.',
+            affectsAll: true,
+            ransomware: true,
+            physicalDestruction: false,
+            insight: '<strong>Lesson:</strong> Ransomware can traverse network shares and encrypt online backups. Offsite and offline backups (tape, cold cloud) are the only safe recovery paths.',
+        },
+        {
+            id: 'accidental_delete',
+            type: 'HUMAN ERROR',
+            title: 'rm -rf in Production',
+            icon: '&#128169;',
+            desc: 'A junior admin ran a recursive delete command against the wrong directory. Approximately 40GB of production data is gone.',
+            affectsAll: false,
+            ransomware: false,
+            physicalDestruction: false,
+            insight: '<strong>Lesson:</strong> Human error accounts for the majority of data loss incidents. Incremental backups with short RPO windows minimize data exposure.',
+        },
+        {
+            id: 'corruption',
+            type: 'DATA CORRUPTION',
+            title: 'Silent Filesystem Corruption',
+            icon: '&#128301;',
+            desc: 'A bug in a storage driver has been silently corrupting data for the past 72 hours. The corruption propagated into all backups taken during that window.',
+            affectsAll: false,
+            ransomware: false,
+            physicalDestruction: false,
+            insight: '<strong>Lesson:</strong> Silent corruption is why test restores matter. Without validation, you may discover your backups are corrupt only when you need them most.',
+        },
+        {
+            id: 'power_outage',
+            type: 'POWER EVENT',
+            title: 'Datacenter Power Failure',
+            icon: '&#9889;',
+            desc: 'A transformer failure has knocked out power to the datacenter. Servers went down hard mid-write. Filesystem journals are inconsistent.',
+            affectsAll: true,
+            ransomware: false,
+            physicalDestruction: false,
+            insight: '<strong>Lesson:</strong> Power events can corrupt in-flight writes. UPS and generator coverage reduce exposure, but a recent backup is your true safety net.',
+        },
+        {
+            id: 'natural_disaster',
+            type: 'PHYSICAL DISASTER',
+            title: 'Flood Damage',
+            icon: '&#127754;',
+            desc: 'A water pipe burst above the server room. Multiple servers and their attached storage are physically destroyed. Local backups on the same site are also lost.',
+            affectsAll: true,
+            ransomware: false,
+            physicalDestruction: true,
+            insight: '<strong>Lesson:</strong> Physical disasters destroy on-site backups along with primary data. The "1 offsite" in the 3-2-1 rule exists specifically for this scenario.',
+        },
+        {
+            id: 'stolen_hardware',
+            type: 'PHYSICAL SECURITY',
+            title: 'Server Hardware Stolen',
+            icon: '&#128081;',
+            desc: 'A server was physically removed from the rack during the weekend. Drive encryption was not enforced on that unit.',
+            affectsAll: false,
+            ransomware: false,
+            physicalDestruction: false,
+            insight: '<strong>Lesson:</strong> Physical security is part of the security posture. Encryption at rest protects stolen hardware. Backups protect the data availability aspect.',
+        },
+    ];
+
+    /* ================================================================
+       SERVER DEFINITIONS
+       Servers have roles that add context to disaster narratives.
+    ================================================================ */
+    const SERVER_DEFS = [
+        { id: 'srv-01', name: 'SRV-01', role: 'File Server',    unlockDay: 1 },
+        { id: 'srv-02', name: 'SRV-02', role: 'Web Server',     unlockDay: 1 },
+        { id: 'srv-03', name: 'SRV-03', role: 'DB Primary',     unlockDay: 3 },
+        { id: 'srv-04', name: 'SRV-04', role: 'Mail Server',    unlockDay: 6 },
+        { id: 'srv-05', name: 'SRV-05', role: 'DevOps Runner',  unlockDay: 9 },
+    ];
+
+    /* ================================================================
+       GAME STATE
+    ================================================================ */
+    let state = {};
+
+    function initState() {
+        state = {
+            day: 1,
+            integrity: 100,
+            tokensAvailable: CONFIG.TOKENS_PER_DAY[1],
+            tokensSaved: 0,        // unspent tokens carry over (max 2)
+            queue: [],             // [{action, serverId}] planned for current day
+            servers: [],           // active server objects
+            log: [],               // log entries
+            survivedDisasters: 0,
+            failedDisasters: 0,
+            backupsPerformed: 0,
+            gameOver: false,
+            pendingDisaster: null, // disaster event object during resolution
+        };
+
+        // Build active servers for day 1
+        state.servers = SERVER_DEFS
+            .filter(def => def.unlockDay <= 1)
+            .map(def => buildServer(def));
+    }
+
+    function buildServer(def) {
+        return {
+            id: def.id,
+            name: def.name,
+            role: def.role,
+            unlockDay: def.unlockDay,
+            health: 100,
+            online: true,
+            backups: [],       // array of backup keys: 'full', 'diff', 'incr', 'tested', 'offsite', 'cloud'
+            lastFull: null,    // day of last full backup
+            lastAny: null,     // day of last backup of any type
+            chainBroken: false,// incremental chain is broken
+            testedThisRound: false,
+        };
+    }
+
+    /* ================================================================
+       LOG HELPERS
+    ================================================================ */
+    const Log = {
+        _push(type, msg) {
+            const entry = { type, msg, day: state.day };
+            state.log.unshift(entry); // newest at top
+            Render.appendLog(entry);
+        },
+        info(msg)    { this._push('info', msg); },
+        ok(msg)      { this._push('ok', msg); },
+        warn(msg)    { this._push('warn', msg); },
+        danger(msg)  { this._push('danger', msg); },
+        system(msg)  { this._push('system', msg); },
+    };
+
+    /* ================================================================
+       GAME LOGIC
+    ================================================================ */
+    const Game = {
+
+        /** Entry point - initialize and show game screen */
+        startGame() {
+            initState();
+            Render.showScreen('screen-game');
+            Render.buildDayTrack();
+            Render.refreshAll();
+            Log.system('=== BACKUP OR BUST INITIATED ===');
+            Log.system('Day 1 begins. Threats are minimal for now.');
+            Log.info('Budget: ' + state.tokensAvailable + ' tokens. Choose wisely.');
+        },
+
+        /** Restart from scratch */
+        restartGame() {
+            Game.startGame();
+        },
+
+        /** Add action to the day's queue */
+        queueAction(actionId, serverId) {
+            const action = ACTIONS.find(a => a.id === actionId);
+            const server = state.servers.find(s => s.id === serverId);
+            if (!action || !server) return;
+
+            // Check affordability
+            const totalSpent = state.queue.reduce((sum, q) => sum + ACTIONS.find(a => a.id === q.actionId).cost, 0);
+            const remaining = state.tokensAvailable - totalSpent;
+            if (action.cost > remaining) {
+                Log.warn('Not enough tokens for ' + action.name + ' on ' + server.name + '.');
+                return;
+            }
+
+            // Validate: test restore requires at least one backup
+            if (actionId === 'test' && server.backups.filter(b => ['full','diff','incr','cloud'].includes(b)).length === 0) {
+                Log.warn(server.name + ': Cannot test restore - no backup exists to test.');
+                return;
+            }
+
+            // Validate: differential/incremental require a prior full backup
+            if ((actionId === 'diff' || actionId === 'incr') && !server.lastFull) {
+                Log.warn(server.name + ': Cannot run ' + action.name + ' without a prior full backup. Run a Full Backup first.');
+                return;
+            }
+
+            // Validate: offsite requires a full backup
+            if (actionId === 'offsite' && !server.lastFull) {
+                Log.warn(server.name + ': Offsite sync requires a full backup on this server first.');
+                return;
+            }
+
+            state.queue.push({ actionId, serverId });
+            Log.info('Queued: ' + action.name + ' -> ' + server.name + ' (' + action.cost + 'T)');
+            Render.refreshQueue();
+            Render.refreshTokenDisplay();
+            Render.refreshCommitBar();
+        },
+
+        /** Remove all queued actions for the day */
+        clearQueue() {
+            state.queue = [];
+            Log.info('Action queue cleared.');
+            Render.refreshQueue();
+            Render.refreshTokenDisplay();
+            Render.refreshCommitBar();
+        },
+
+        /** Commit: apply actions, then roll for disaster */
+        commitDay() {
+            if (state.gameOver) return;
+
+            document.getElementById('commit-btn').disabled = true;
+
+            // Apply queued actions to server state
+            const spentThisDay = Game._applyQueuedActions();
+
+            // Carry over unspent tokens (max 2 rollover cap)
+            const remainingTokens = state.tokensAvailable - spentThisDay;
+            const rollover = Math.min(2, remainingTokens);
+            if (rollover > 0) {
+                Log.info(rollover + ' token(s) saved for tomorrow (max rollover: 2).');
+            }
+
+            // Mark day pip as done provisionally
+            Render.setDayPip(state.day, 'done');
+
+            // Roll for disaster
+            const disasterChance = Game._getDisasterChance();
+            const roll = Math.random();
+
+            if (roll < disasterChance) {
+                // DISASTER DAY
+                const event = Game._pickDisasterEvent();
+                state.pendingDisaster = event;
+                Render.setDayPip(state.day, 'disaster');
+                Game._showDisasterOverlay(event, rollover);
+            } else {
+                // SAFE DAY
+                Game._advanceDay(rollover);
+                Game._showSafeOverlay();
+            }
+        },
+
+        /** Apply each queued action to the relevant server */
+        _applyQueuedActions() {
+            let totalCost = 0;
+
+            state.queue.forEach(({ actionId, serverId }) => {
+                const action = ACTIONS.find(a => a.id === actionId);
+                const server = state.servers.find(s => s.id === serverId);
+                if (!action || !server) return;
+
+                totalCost += action.cost;
+                state.backupsPerformed++;
+
+                // Update server backup state
+                if (actionId === 'full') {
+                    server.backups = server.backups.filter(b => b === 'offsite' || b === 'tested');
+                    server.backups.push('full');
+                    server.lastFull = state.day;
+                    server.lastAny = state.day;
+                    server.chainBroken = false;
+                    Log.ok(server.name + ': Full backup completed (day ' + state.day + ').');
+                } else if (actionId === 'diff') {
+                    server.backups = server.backups.filter(b => !['diff','incr','cloud'].includes(b));
+                    server.backups.push('diff');
+                    server.lastAny = state.day;
+                    Log.ok(server.name + ': Differential backup completed.');
+                } else if (actionId === 'incr') {
+                    server.backups.push('incr');
+                    server.lastAny = state.day;
+                    Log.ok(server.name + ': Incremental backup added to chain.');
+                } else if (actionId === 'test') {
+                    server.testedThisRound = true;
+                    if (!server.backups.includes('tested')) {
+                        server.backups.push('tested');
+                    }
+                    Log.ok(server.name + ': Test restore successful - backup chain verified.');
+                } else if (actionId === 'offsite') {
+                    if (!server.backups.includes('offsite')) {
+                        server.backups.push('offsite');
+                    }
+                    Log.ok(server.name + ': Offsite sync completed.');
+                } else if (actionId === 'cloud') {
+                    if (!server.backups.includes('cloud')) {
+                        server.backups.push('cloud');
+                    }
+                    server.lastAny = state.day;
+                    Log.ok(server.name + ': Cloud snapshot created.');
+                }
+            });
+
+            state.queue = [];
+            return totalCost;
+        },
+
+        /** Calculate disaster probability for current day */
+        _getDisasterChance() {
+            const extra = Math.max(0, state.day - 3) * CONFIG.DISASTER_CHANCE_SCALING;
+            return Math.min(0.85, CONFIG.BASE_DISASTER_CHANCE + extra);
+        },
+
+        /** Pick a random disaster event from the catalog */
+        _pickDisasterEvent() {
+            return EVENTS[Math.floor(Math.random() * EVENTS.length)];
+        },
+
+        /** Build and show the disaster resolution overlay */
+        _showDisasterOverlay(event, rollover) {
+            Log.danger('DISASTER: ' + event.title + ' on Day ' + state.day + '!');
+
+            // Determine affected servers
+            let affectedServers;
+            if (event.affectsAll) {
+                affectedServers = state.servers.filter(s => s.online);
+            } else {
+                const online = state.servers.filter(s => s.online);
+                affectedServers = [online[Math.floor(Math.random() * online.length)]];
+            }
+
+            // Set overlay content
+            document.getElementById('disaster-type-label').textContent = event.type;
+            document.getElementById('disaster-title').textContent = event.title;
+            document.getElementById('disaster-desc').textContent = event.desc;
+            document.getElementById('disaster-insight').innerHTML = event.insight;
+
+            // Ransomware screen flash
+            if (event.ransomware) {
+                document.body.classList.add('ransomware-flash');
+                setTimeout(() => document.body.classList.remove('ransomware-flash'), 700);
+            }
+
+            // Build recovery options per affected server
+            const optContainer = document.getElementById('recovery-options');
+            optContainer.innerHTML = '';
+
+            affectedServers.forEach(server => {
+                const opts = Game._buildRecoveryOptions(server, event);
+                const serverHeader = document.createElement('div');
+                serverHeader.style.cssText = 'font-size:0.65rem; color:var(--forge-primary); letter-spacing:0.12em; margin-bottom:0.4rem; margin-top:0.6rem; text-transform:uppercase;';
+                serverHeader.textContent = server.name + ' (' + server.role + ')';
+                optContainer.appendChild(serverHeader);
+
+                opts.forEach(opt => {
+                    const el = document.createElement('div');
+                    el.className = 'recovery-option' + (opt.available ? '' : ' unavailable');
+                    el.innerHTML = `
+                        <div class="recovery-option-left">
+                            <div class="recovery-option-name">${opt.name}</div>
+                            <div class="recovery-option-desc">${opt.desc}</div>
+                        </div>
+                        <div class="recovery-option-right">
+                            <div class="recovery-loss">${opt.integrityLoss > 0 ? '-' + opt.integrityLoss + '% integrity' : 'No data loss'}</div>
+                            <div class="recovery-time">${opt.rto}</div>
+                        </div>
+                    `;
+                    if (opt.available) {
+                        el.onclick = () => Game._resolveDisaster(affectedServers, event, opt, rollover);
+                    }
+                    optContainer.appendChild(el);
+                });
+            });
+
+            // Store metadata for resolution
+            state.pendingDisaster = { event, affectedServers, rollover };
+
+            document.getElementById('disaster-overlay').classList.add('visible');
+        },
+
+        /**
+         * Build the list of recovery options available to a server.
+         * Returns array of {name, desc, available, integrityLoss, rto, type}
+         */
+        _buildRecoveryOptions(server, event) {
+            const opts = [];
+            const hasOffsite = server.backups.includes('offsite');
+            const hasFull    = server.backups.includes('full');
+            const hasDiff    = server.backups.includes('diff');
+            const hasIncr    = server.backups.includes('incr');
+            const hasCloud   = server.backups.includes('cloud');
+            const isTested   = server.backups.includes('tested');
+            const testedBonus = isTested ? 5 : 0; // tested backups recover slightly more
+
+            // Ransomware compromises online backups (full, diff, incr, cloud)
+            const ransomwareActive = event.ransomware;
+            const onlineCompromised = ransomwareActive && Math.random() < CONFIG.RANSOMWARE_ONLINE_COMPROMISE_CHANCE;
+
+            // Physical destruction eliminates on-site backups
+            const physicalDestroyed = event.physicalDestruction;
+
+            // --- OFFSITE RECOVERY ---
+            if (hasOffsite && !physicalDestroyed) {
+                opts.push({
+                    name: 'Restore from Offsite',
+                    desc: 'Air-gapped offsite copy - immune to ransomware and local failures',
+                    available: true,
+                    integrityLoss: Math.max(0, 8 - testedBonus),
+                    rto: 'RTO: ~60 min',
+                    type: 'offsite',
+                });
+            }
+
+            // --- FULL BACKUP RECOVERY ---
+            if (hasFull && !physicalDestroyed) {
+                const compromised = ransomwareActive && onlineCompromised;
+                opts.push({
+                    name: compromised ? 'Full Backup (ENCRYPTED by ransomware)' : 'Restore from Full Backup',
+                    desc: compromised
+                        ? 'Ransomware reached this online backup. Cannot restore.'
+                        : 'Restore from the last full backup. Single-step, reliable.',
+                    available: !compromised,
+                    integrityLoss: compromised ? 0 : Math.max(0, 12 - testedBonus),
+                    rto: 'RTO: ~30 min',
+                    type: 'full',
+                });
+            }
+
+            // --- DIFFERENTIAL RECOVERY (requires full) ---
+            if (hasDiff && hasFull && !physicalDestroyed) {
+                const compromised = ransomwareActive && onlineCompromised;
+                opts.push({
+                    name: compromised ? 'Differential (ENCRYPTED)' : 'Full + Differential Restore',
+                    desc: compromised
+                        ? 'Ransomware encrypted this differential backup.'
+                        : 'Restore from last full + latest differential. Good RPO.',
+                    available: !compromised,
+                    integrityLoss: compromised ? 0 : Math.max(0, 8 - testedBonus),
+                    rto: 'RTO: ~45 min',
+                    type: 'diff',
+                });
+            }
+
+            // --- INCREMENTAL CHAIN RECOVERY ---
+            if (hasIncr && hasFull && !server.chainBroken && !physicalDestroyed) {
+                const compromised = ransomwareActive && onlineCompromised;
+                opts.push({
+                    name: compromised ? 'Incremental Chain (ENCRYPTED)' : 'Full + Incremental Chain',
+                    desc: compromised
+                        ? 'Ransomware encrypted backup chain.'
+                        : 'Restore full + all incrementals in sequence. Best RPO, slower RTO.',
+                    available: !compromised,
+                    integrityLoss: compromised ? 0 : Math.max(0, 5 - testedBonus),
+                    rto: 'RTO: ~90 min',
+                    type: 'incr',
+                });
+            } else if (hasIncr && hasFull && server.chainBroken && !physicalDestroyed) {
+                opts.push({
+                    name: 'Broken Incremental Chain',
+                    desc: 'One or more incremental links are missing. Chain cannot be restored beyond the break point.',
+                    available: false,
+                    integrityLoss: 0,
+                    rto: 'N/A',
+                    type: 'incr_broken',
+                });
+            }
+
+            // --- CLOUD SNAPSHOT ---
+            if (hasCloud && !physicalDestroyed) {
+                const compromised = ransomwareActive && onlineCompromised;
+                opts.push({
+                    name: compromised ? 'Cloud Snapshot (ENCRYPTED)' : 'Restore from Cloud Snapshot',
+                    desc: compromised
+                        ? 'Ransomware with cloud credentials encrypted this snapshot too.'
+                        : 'Cloud snapshot available. Fastest restore, online backup so ransomware risk.',
+                    available: !compromised,
+                    integrityLoss: compromised ? 0 : Math.max(0, 6 - testedBonus),
+                    rto: 'RTO: ~20 min',
+                    type: 'cloud',
+                });
+            }
+
+            // --- NO BACKUP / REBUILD FROM SCRATCH ---
+            opts.push({
+                name: 'Rebuild from Scratch',
+                desc: 'No usable backup. Rebuild the server manually. Significant data loss.',
+                available: true,
+                integrityLoss: CONFIG.NO_BACKUP_PENALTY,
+                rto: 'RTO: 8-24 hours',
+                type: 'none',
+            });
+
+            return opts;
+        },
+
+        /** Called when the player clicks a recovery option */
+        _resolveDisaster(affectedServers, event, chosenOption, rollover) {
+            document.getElementById('disaster-overlay').classList.remove('visible');
+
+            let totalLoss = chosenOption.integrityLoss;
+
+            // If there are multiple affected servers and the player picks a single option,
+            // apply the same recovery path logic to all (simplification for playability)
+            affectedServers.forEach(server => {
+                if (chosenOption.type === 'none') {
+                    Log.danger(server.name + ': Rebuilt from scratch. Major data loss.');
+                    server.backups = []; // wipe backup record
+                    server.lastFull = null;
+                    server.lastAny = null;
+                    state.failedDisasters++;
+                } else {
+                    Log.ok(server.name + ': Recovered via ' + chosenOption.name + '.');
+                    // Invalidate backups after recovery (they represent the recovered state)
+                    server.backups = server.backups.filter(b => b === 'offsite');
+                    server.chainBroken = false;
+                    state.survivedDisasters++;
+                }
+                server.health = Math.max(0, 100 - totalLoss);
+            });
+
+            state.integrity = Math.max(0, state.integrity - totalLoss);
+
+            if (state.integrity <= 0) {
+                state.integrity = 0;
+                Game._endGame();
+                return;
+            }
+
+            Log.warn('Data integrity now: ' + Math.round(state.integrity) + '%');
+            Game._advanceDay(rollover);
+        },
+
+        /** Close safe overlay and continue */
+        closeSafeOverlay() {
+            document.getElementById('safe-overlay').classList.remove('visible');
+        },
+
+        /** Show the "all clear" overlay for a safe day */
+        _showSafeOverlay() {
+            state.survivedDisasters += 0; // no disaster to survive
+            const nextDay = state.day + 1;
+            document.getElementById('safe-title').textContent =
+                state.day === CONFIG.TOTAL_DAYS ? 'Final Day Complete' : 'All Clear - Day ' + state.day;
+            document.getElementById('safe-desc').textContent =
+                state.day === CONFIG.TOTAL_DAYS
+                    ? 'You survived all 10 days. Final assessment incoming.'
+                    : 'No disaster struck today. Your preparation holds. The threat window is always open - stay ready.';
+            document.getElementById('safe-next-day').textContent = nextDay;
+            document.getElementById('safe-overlay').classList.add('visible');
+            Log.ok('Day ' + state.day + ': No disaster. Fleet is healthy.');
+        },
+
+        /** Move to the next day or end game */
+        _advanceDay(rollover) {
+            if (state.day >= CONFIG.TOTAL_DAYS) {
+                Game._endGame();
+                return;
+            }
+
+            state.day++;
+
+            // Check for new server unlocks
+            const newServers = SERVER_DEFS.filter(def =>
+                def.unlockDay === state.day &&
+                !state.servers.find(s => s.id === def.id)
+            );
+            newServers.forEach(def => {
+                const newSrv = buildServer(def);
+                state.servers.push(newSrv);
+                Log.system('New server online: ' + def.name + ' (' + def.role + '). Add it to your backup plan!');
+            });
+
+            // Token refresh: base amount + rollover (max 2 saved)
+            const base = CONFIG.TOKENS_PER_DAY[state.day] || 5;
+            state.tokensAvailable = base + Math.min(2, rollover);
+            state.queue = [];
+
+            Render.refreshAll();
+            Render.setDayPip(state.day, 'active');
+            document.getElementById('commit-btn').disabled = false;
+            Log.system('--- Day ' + state.day + ' begins. Budget: ' + state.tokensAvailable + ' tokens ---');
+        },
+
+        /** Finalize the simulation and show results */
+        _endGame() {
+            state.gameOver = true;
+            const integ = Math.round(state.integrity);
+            let rank, rankClass, icon, rankDesc;
+
+            if (integ >= 90) {
+                rank = 'S'; rankClass = 's'; icon = '&#127942;';
+                rankDesc = 'Exceptional. Your backup strategy withstood every disaster with minimal data loss.';
+            } else if (integ >= 75) {
+                rank = 'A'; rankClass = 'a'; icon = '&#128077;';
+                rankDesc = 'Strong performance. Minor gaps in coverage, but your systems stayed largely intact.';
+            } else if (integ >= 50) {
+                rank = 'B'; rankClass = 'b'; icon = '&#128578;';
+                rankDesc = 'Adequate. You survived, but data loss was significant. Revisit your backup frequency.';
+            } else if (integ > 0) {
+                rank = 'C'; rankClass = 'c'; icon = '&#128533;';
+                rankDesc = 'Critical failure averted, barely. Your backup strategy needs major improvement.';
+            } else {
+                rank = 'BUST'; rankClass = 'bust'; icon = '&#128128;';
+                rankDesc = 'Total data loss. The company is ruined. Review: full backups, offsite copies, test restores.';
+            }
+
+            Render.showScreen('screen-end');
+            document.getElementById('end-rank').textContent = rank;
+            document.getElementById('end-rank').className = 'end-rank-value ' + rankClass;
+            document.getElementById('end-icon').innerHTML = icon;
+            document.getElementById('end-integrity').textContent = integ + '%';
+            document.getElementById('end-survived').textContent = state.survivedDisasters;
+            document.getElementById('end-backups').textContent = state.backupsPerformed;
+            document.getElementById('end-failures').textContent = state.failedDisasters;
+
+            // Only show complete button for passing grades (A, S, or B minimum)
+            const completeBtn = document.getElementById('end-complete-btn');
+            if (integ < 50) {
+                completeBtn.style.display = 'none';
+            }
+        },
+
+        /** Trigger ModuleProgress completion */
+        completeModule() {
             if (typeof ModuleProgress !== 'undefined') {
                 ModuleProgress.complete('forge', 'forge-backup-or-bust', {
                     returnUrl: '../index.html'
                 });
+            } else {
+                window.location.href = '../index.html';
             }
-        }
+        },
+    };
+
+    /* ================================================================
+       RENDER LAYER
+       All DOM mutations go through Render.*
+    ================================================================ */
+    const Render = {
+
+        showScreen(id) {
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            document.getElementById(id).classList.add('active');
+        },
+
+        refreshAll() {
+            Render.refreshHUD();
+            Render.refreshServers();
+            Render.refreshActionGrid();
+            Render.refreshQueue();
+            Render.refreshTokenDisplay();
+            Render.refreshCommitBar();
+            Render.refreshDayTrack();
+        },
+
+        refreshHUD() {
+            const integ = Math.round(state.integrity);
+            document.getElementById('hud-day').textContent = state.day;
+            document.getElementById('top-day-counter').textContent = 'Day ' + state.day + ' / ' + CONFIG.TOTAL_DAYS;
+            document.getElementById('hud-phase').textContent = 'Planning';
+            document.getElementById('hud-integrity').textContent = integ + '%';
+            document.getElementById('hud-survived').textContent = state.survivedDisasters;
+            document.getElementById('hud-failed').textContent = state.failedDisasters;
+            document.getElementById('hud-backups').textContent = state.backupsPerformed;
+
+            // Integrity bar color
+            const bar = document.getElementById('integrity-bar');
+            bar.style.width = integ + '%';
+            bar.style.background = integ > 70 ? 'var(--ok)' : integ > 40 ? 'var(--warn)' : 'var(--danger)';
+
+            // Integrity value color
+            const valEl = document.getElementById('hud-integrity');
+            valEl.className = 'hud-stat-value ' + (integ > 70 ? 'ok' : integ > 40 ? 'warn' : 'danger');
+        },
+
+        refreshTokenDisplay() {
+            const totalSpent = state.queue.reduce((sum, q) => {
+                const a = ACTIONS.find(a => a.id === q.actionId);
+                return sum + (a ? a.cost : 0);
+            }, 0);
+            const remaining = state.tokensAvailable - totalSpent;
+
+            const display = document.getElementById('token-display');
+            display.innerHTML = '';
+            for (let i = 0; i < state.tokensAvailable; i++) {
+                const pip = document.createElement('div');
+                pip.className = 'token-pip' + (i < (state.tokensAvailable - remaining) ? ' spent' : '');
+                pip.textContent = 'T';
+                display.appendChild(pip);
+            }
+            document.getElementById('token-count').textContent = remaining;
+        },
+
+        buildDayTrack() {
+            const track = document.getElementById('day-track');
+            track.innerHTML = '';
+            for (let d = 1; d <= CONFIG.TOTAL_DAYS; d++) {
+                const pip = document.createElement('div');
+                pip.className = 'day-pip' + (d === 1 ? ' active' : '');
+                pip.id = 'day-pip-' + d;
+                pip.textContent = d;
+                track.appendChild(pip);
+            }
+        },
+
+        refreshDayTrack() {
+            for (let d = 1; d <= CONFIG.TOTAL_DAYS; d++) {
+                const pip = document.getElementById('day-pip-' + d);
+                if (!pip) continue;
+                if (d < state.day) {
+                    if (!pip.classList.contains('disaster')) {
+                        pip.className = 'day-pip done';
+                    }
+                } else if (d === state.day) {
+                    if (!pip.classList.contains('disaster')) {
+                        pip.className = 'day-pip active';
+                    }
+                } else {
+                    pip.className = 'day-pip';
+                }
+            }
+        },
+
+        setDayPip(day, status) {
+            const pip = document.getElementById('day-pip-' + day);
+            if (!pip) return;
+            pip.className = 'day-pip ' + status;
+        },
+
+        refreshServers() {
+            const rack = document.getElementById('server-rack');
+            rack.innerHTML = '';
+
+            state.servers.forEach(server => {
+                const el = document.createElement('div');
+                el.className = 'server-unit' + (!server.online ? ' damaged' : (server.backups.length > 0 ? ' protected' : ''));
+                el.id = 'server-' + server.id;
+
+                const statusClass = !server.online ? 'offline' : server.health < 50 ? 'warn' : '';
+
+                const badges = server.backups.map(b => {
+                    const cls = b === 'full' ? 'full' : b === 'diff' ? 'diff' : b === 'incr' ? 'incr' : b === 'tested' ? 'test' : b === 'offsite' ? 'full' : 'diff';
+                    const label = b === 'offsite' ? 'OFF' : b.toUpperCase().slice(0, 4);
+                    return '<span class="backup-badge ' + cls + '">' + label + '</span>';
+                }).join('');
+
+                el.innerHTML = `
+                    <div class="server-status-dot ${statusClass}"></div>
+                    <div class="server-name">${server.name}</div>
+                    <div class="server-role">${server.role}</div>
+                    <div class="server-health-bar">
+                        <div class="server-health-fill" style="width:${server.health}%; background:${server.health > 60 ? 'var(--ok)' : server.health > 30 ? 'var(--warn)' : 'var(--danger)'}"></div>
+                    </div>
+                    <div class="server-backup-badges">${badges || '<span style="font-size:0.5rem; color:var(--text-dim)">no backup</span>'}</div>
+                `;
+
+                rack.appendChild(el);
+            });
+        },
+
+        refreshActionGrid() {
+            const grid = document.getElementById('action-grid');
+            grid.innerHTML = '';
+
+            // Build one set of action cards for each server
+            state.servers.forEach(server => {
+                const serverLabel = document.createElement('div');
+                serverLabel.style.cssText = 'grid-column: 1 / -1; font-size:0.6rem; letter-spacing:0.2em; color:var(--text-muted); text-transform:uppercase; margin-top:0.4rem; padding-bottom:0.25rem; border-bottom:1px solid var(--border);';
+                serverLabel.textContent = server.name + ' — ' + server.role;
+                grid.appendChild(serverLabel);
+
+                ACTIONS.forEach(action => {
+                    const totalSpent = state.queue.reduce((sum, q) => {
+                        const a = ACTIONS.find(a => a.id === q.actionId);
+                        return sum + (a ? a.cost : 0);
+                    }, 0);
+                    const remaining = state.tokensAvailable - totalSpent;
+                    const canAfford = action.cost <= remaining;
+
+                    // Validation checks for card disabled state
+                    let blockReason = '';
+                    if (!canAfford) blockReason = 'Not enough tokens';
+                    if (action.id === 'test' && server.backups.filter(b => ['full','diff','incr','cloud'].includes(b)).length === 0) {
+                        blockReason = 'Requires existing backup';
+                    }
+                    if ((action.id === 'diff' || action.id === 'incr') && !server.lastFull) {
+                        blockReason = 'Requires a full backup first';
+                    }
+                    if (action.id === 'offsite' && !server.lastFull) {
+                        blockReason = 'Requires a full backup first';
+                    }
+
+                    const disabled = blockReason !== '';
+
+                    const card = document.createElement('div');
+                    card.className = 'action-card' + (disabled ? ' disabled' : '');
+                    card.title = disabled ? blockReason : action.tip;
+                    card.innerHTML = `
+                        <div class="action-card-header">
+                            <span class="action-name">${action.icon} ${action.name}</span>
+                            <span class="action-cost">${action.cost}T</span>
+                        </div>
+                        <div class="action-desc">${action.desc}</div>
+                        <div class="action-stats">
+                            ${action.rpo !== 'N/A' ? '<span class="action-stat rpo">' + action.rpo + '</span>' : ''}
+                            ${action.rto !== 'N/A' ? '<span class="action-stat rto">' + action.rto + '</span>' : ''}
+                            ${disabled && blockReason ? '<span class="action-stat tip" style="color:var(--danger)">' + blockReason + '</span>' : ''}
+                        </div>
+                    `;
+
+                    if (!disabled) {
+                        card.onclick = () => Game.queueAction(action.id, server.id);
+                    }
+
+                    grid.appendChild(card);
+                });
+            });
+        },
+
+        refreshQueue() {
+            const list = document.getElementById('queue-list');
+            list.innerHTML = '';
+
+            if (state.queue.length === 0) {
+                const empty = document.createElement('span');
+                empty.className = 'queue-empty';
+                empty.textContent = 'No actions queued. Unspent tokens roll over (max 2).';
+                list.appendChild(empty);
+                return;
+            }
+
+            state.queue.forEach(({ actionId, serverId }) => {
+                const action = ACTIONS.find(a => a.id === actionId);
+                const server = state.servers.find(s => s.id === serverId);
+                const el = document.createElement('div');
+                el.className = 'queue-item';
+                el.innerHTML = `
+                    <span class="queue-item-icon">${action.icon}</span>
+                    <span>${action.name}</span>
+                    <span style="color:var(--text-dim); font-size:0.65rem">&#8594;</span>
+                    <span style="color:var(--forge-accent)">${server.name}</span>
+                    <span style="color:var(--text-dim); margin-left:auto; font-size:0.65rem">${action.cost}T</span>
+                `;
+                list.appendChild(el);
+            });
+        },
+
+        refreshCommitBar() {
+            const totalSpent = state.queue.reduce((sum, q) => {
+                const a = ACTIONS.find(a => a.id === q.actionId);
+                return sum + (a ? a.cost : 0);
+            }, 0);
+            const remaining = state.tokensAvailable - totalSpent;
+            document.getElementById('commit-tokens').textContent = remaining;
+        },
+
+        appendLog(entry) {
+            const feed = document.getElementById('log-feed');
+            const el = document.createElement('div');
+            el.className = 'log-entry ' + entry.type;
+            el.innerHTML = '<span class="log-timestamp">D' + entry.day + '</span> ' + entry.msg;
+            // Prepend so newest is at top
+            feed.insertBefore(el, feed.firstChild);
+        },
+    };
+
+    /* ================================================================
+       BOOT: Auto-set first day pip and wire intro screen
+    ================================================================ */
+    document.addEventListener('DOMContentLoaded', () => {
+        // Intro screen is shown by default via CSS .active class.
+        // Nothing to do on load except ensure overlays are hidden.
+        document.getElementById('disaster-overlay').style.display = '';
+        document.getElementById('safe-overlay').style.display = '';
+    });
     </script>
-    <title>Backup or Bust | Under Renovation</title>
-    <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body {
-            font-family: 'Courier New', monospace;
-            background: #0a0a0f;
-            color: #b0b0c0;
-            min-height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            overflow: hidden;
-            position: relative;
-        }
-        body::before {
-            content: '';
-            position: fixed;
-            top: 50%; left: 50%;
-            transform: translate(-50%, -50%);
-            width: 800px; height: 800px;
-            background: radial-gradient(circle, rgba(251,146,60,0.05) 0%, rgba(200,100,30,0.02) 30%, transparent 60%);
-            pointer-events: none;
-            animation: pulse 4s ease-in-out infinite;
-        }
-        @keyframes pulse {
-            0%, 100% { opacity: 0.6; transform: translate(-50%, -50%) scale(1); }
-            50% { opacity: 1; transform: translate(-50%, -50%) scale(1.1); }
-        }
-        .particle {
-            position: fixed;
-            width: 2px; height: 2px;
-            background: rgba(251,146,60,0.3);
-            border-radius: 50%;
-            pointer-events: none;
-            animation: drift 15s infinite linear;
-        }
-        @keyframes drift {
-            0% { transform: translateY(100vh) translateX(0); opacity: 0; }
-            10% { opacity: 0.6; }
-            90% { opacity: 0.6; }
-            100% { transform: translateY(-10vh) translateX(30px); opacity: 0; }
-        }
-        .container {
-            text-align: center;
-            padding: 40px;
-            position: relative;
-            z-index: 10;
-            max-width: 550px;
-        }
-        .icon {
-            width: 140px; height: 140px;
-            margin: 0 auto 35px;
-        }
-        .icon svg {
-            width: 100%; height: 100%;
-            filter: drop-shadow(0 0 25px rgba(251,146,60,0.3));
-            animation: glow 3s ease-in-out infinite;
-        }
-        @keyframes glow {
-            0%, 100% { filter: drop-shadow(0 0 20px rgba(251,146,60,0.2)); }
-            50% { filter: drop-shadow(0 0 40px rgba(251,146,60,0.5)); }
-        }
-        .tag { font-size: 0.6rem; letter-spacing: 0.4em; color: #5a4030; text-transform: uppercase; margin-bottom: 12px; }
-        .title { font-size: 1.6rem; color: #fb923c; letter-spacing: 0.08em; margin-bottom: 8px; text-shadow: 0 0 25px rgba(251,146,60,0.3); }
-        .subtitle { font-size: 0.8rem; color: #7a5a3a; letter-spacing: 0.04em; margin-bottom: 35px; }
-        .banner {
-            background: rgba(251,146,60,0.05);
-            border: 1px solid rgba(251,146,60,0.12);
-            border-radius: 8px;
-            padding: 28px;
-            margin-bottom: 25px;
-            position: relative;
-            overflow: hidden;
-        }
-        .banner::before {
-            content: '';
-            position: absolute;
-            top: 0; left: -100%;
-            width: 50%; height: 100%;
-            background: linear-gradient(90deg, transparent, rgba(251,146,60,0.03), transparent);
-            animation: scan 4s ease-in-out infinite;
-        }
-        @keyframes scan { 0% { left: -50%; } 100% { left: 150%; } }
-        .status {
-            font-size: 0.65rem; letter-spacing: 0.3em; color: #fb923c;
-            text-transform: uppercase; margin-bottom: 10px;
-            animation: blink 2s ease-in-out infinite;
-        }
-        @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
-        .desc { font-size: 0.7rem; color: #6a5040; line-height: 1.8; }
-        .preview { margin-top: 25px; text-align: left; }
-        .preview-label { font-size: 0.55rem; letter-spacing: 0.3em; color: #4a3a28; text-transform: uppercase; margin-bottom: 12px; }
-        .preview-item { display: flex; align-items: center; gap: 12px; padding: 8px 0; border-bottom: 1px solid rgba(251,146,60,0.05); }
-        .preview-item:last-child { border-bottom: none; }
-        .preview-icon { font-size: 0.85rem; width: 24px; text-align: center; opacity: 0.5; }
-        .preview-text { font-size: 0.65rem; color: #5a4a38; letter-spacing: 0.02em; }
-        .preview-text strong { color: #8a6a48; font-weight: normal; }
-        .note {
-            margin-top: 30px; padding: 10px 18px;
-            background: rgba(251,146,60,0.03);
-            border: 1px dashed rgba(251,146,60,0.1);
-            border-radius: 4px;
-            font-size: 0.5rem; letter-spacing: 0.15em; color: #4a3a28; text-transform: uppercase;
-        }
-        .return {
-            display: inline-block; margin-top: 25px; padding: 10px 28px;
-            border: 1px solid rgba(251,146,60,0.15); border-radius: 20px;
-            color: #5a4a38; font-size: 0.65rem; letter-spacing: 0.12em;
-            text-decoration: none; transition: all 0.3s;
-        }
-        .return:hover { border-color: rgba(251,146,60,0.4); color: #fb923c; box-shadow: 0 0 18px rgba(251,146,60,0.1); }
-        @media (max-width: 600px) { .icon { width: 100px; height: 100px; } .title { font-size: 1.2rem; } .container { padding: 20px; } }
-    </style>
-</head>
-<body>
-    <div class="particle" style="left:12%;animation-delay:0s;animation-duration:13s"></div>
-    <div class="particle" style="left:28%;animation-delay:3s;animation-duration:16s"></div>
-    <div class="particle" style="left:45%;animation-delay:1s;animation-duration:14s"></div>
-    <div class="particle" style="left:62%;animation-delay:5s;animation-duration:17s"></div>
-    <div class="particle" style="left:78%;animation-delay:2s;animation-duration:12s"></div>
-    <div class="particle" style="left:90%;animation-delay:4s;animation-duration:15s"></div>
 
-    <div class="container">
-        <div class="icon">
-            <svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
-                <!-- Wrench + gear icon -->
-                <circle cx="100" cy="100" r="88" fill="none" stroke="rgba(251,146,60,0.12)" stroke-width="2"/>
-                <!-- Gear -->
-                <g transform="translate(100,90)">
-                    <circle r="22" fill="none" stroke="rgba(251,146,60,0.4)" stroke-width="3"/>
-                    <circle r="10" fill="rgba(251,146,60,0.15)" stroke="rgba(251,146,60,0.4)" stroke-width="2"/>
-                    <!-- Teeth -->
-                    <rect x="-4" y="-30" width="8" height="12" rx="2" fill="rgba(251,146,60,0.3)"/>
-                    <rect x="-4" y="18" width="8" height="12" rx="2" fill="rgba(251,146,60,0.3)"/>
-                    <rect x="-30" y="-4" width="12" height="8" rx="2" fill="rgba(251,146,60,0.3)"/>
-                    <rect x="18" y="-4" width="12" height="8" rx="2" fill="rgba(251,146,60,0.3)"/>
-                    <!-- Diagonal teeth -->
-                    <rect x="14" y="-26" width="8" height="12" rx="2" fill="rgba(251,146,60,0.3)" transform="rotate(45 18 -20)"/>
-                    <rect x="-22" y="14" width="8" height="12" rx="2" fill="rgba(251,146,60,0.3)" transform="rotate(45 -18 20)"/>
-                    <rect x="-22" y="-26" width="8" height="12" rx="2" fill="rgba(251,146,60,0.3)" transform="rotate(-45 -18 -20)"/>
-                    <rect x="14" y="14" width="8" height="12" rx="2" fill="rgba(251,146,60,0.3)" transform="rotate(-45 18 20)"/>
-                </g>
-                <text x="100" y="168" text-anchor="middle" fill="rgba(251,146,60,0.5)" font-family="Courier New" font-size="11" font-weight="bold">FORGE</text>
-            </svg>
-        </div>
-
-        <div class="tag">House of the Forge</div>
-        <h1 class="title">Backup or Bust</h1>
-        <p class="subtitle">Under Renovation</p>
-
-        <div class="banner">
-            <div class="status">Upgrade in Progress</div>
-            <p class="desc">
-                This module is being rebuilt with enhanced<br>
-                game mechanics and interactive challenges.<br>
-                Check back soon for the upgraded version.
-            </p>
-        </div>
-
-        <div class="preview">
-            <div class="preview-label">What's Coming</div>
-            <div class="preview-item">
-                <span class="preview-icon">&#9881;</span>
-                <span class="preview-text"><strong>Skill-based gameplay</strong> &mdash; earn your answers through action</span>
-            </div>
-            <div class="preview-item">
-                <span class="preview-icon">&#128190;</span>
-                <span class="preview-text"><strong>Data recovery mechanics</strong> &mdash; rescue data under pressure</span>
-            </div>
-            <div class="preview-item">
-                <span class="preview-icon">&#9889;</span>
-                <span class="preview-text"><strong>Disaster scenarios</strong> &mdash; ransomware, hardware failure, corruption</span>
-            </div>
-        </div>
-
-        <div class="note">Workshop Recall // Upgrade Cycle</div>
-
-        <a href="../index.html" class="return">Return to Forge</a>
-    </div>
-
-    <div style="text-align:center; padding:20px; margin-top:10px;">
-        <button onclick="completeModule()" style="background:#22c55e; color:#fff; border:none; padding:12px 32px; border-radius:8px; font-size:1rem; cursor:pointer; box-shadow:0 2px 8px rgba(34,197,94,0.3);">Complete Module ✓</button>
-    </div>
+    <!-- FluxCapacitor: must be last before closing body -->
+    <script src="../../../components/FluxCapacitor.js"></script>
 </body>
 </html>
