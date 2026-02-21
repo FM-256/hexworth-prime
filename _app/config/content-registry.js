@@ -774,7 +774,7 @@ const ContentRegistry = {
             difficulty: 'intermediate',
             duration: 45,
             topics: ['monitoring', 'siem', 'incident-response', 'cloud-security'],
-            paths: ['comptia-security', 'ec-council-cse'],
+            paths: ['cse'],
             components: {
                 presentation: 'houses/shield/presentations/shield-cse-06-security-monitoring-incident-response.presentation.html'
             },
@@ -790,7 +790,7 @@ const ContentRegistry = {
             difficulty: 'intermediate',
             duration: 45,
             topics: ['risk-management', 'nist', 'controls', 'cloud-security'],
-            paths: ['comptia-security', 'ec-council-cse'],
+            paths: ['cse'],
             components: {
                 presentation: 'houses/shield/presentations/shield-cse-07-risk-assessment-management.presentation.html'
             },
@@ -806,7 +806,7 @@ const ContentRegistry = {
             difficulty: 'intermediate',
             duration: 45,
             topics: ['compliance', 'governance', 'gdpr', 'hipaa', 'pci-dss'],
-            paths: ['comptia-security', 'ec-council-cse'],
+            paths: ['cse'],
             components: {
                 presentation: 'houses/shield/presentations/shield-cse-08-compliance-governance.presentation.html'
             },
@@ -822,7 +822,7 @@ const ContentRegistry = {
             difficulty: 'intermediate',
             duration: 15,
             topics: ['monitoring', 'siem', 'incident-response'],
-            paths: ['ec-council-cse'],
+            paths: ['cse'],
             components: {
                 quiz: 'houses/shield/quizzes/shield-cse-06.quiz.html'
             },
@@ -838,7 +838,7 @@ const ContentRegistry = {
             difficulty: 'intermediate',
             duration: 15,
             topics: ['risk-management', 'nist'],
-            paths: ['ec-council-cse'],
+            paths: ['cse'],
             components: {
                 quiz: 'houses/shield/quizzes/shield-cse-07.quiz.html'
             },
@@ -854,7 +854,7 @@ const ContentRegistry = {
             difficulty: 'intermediate',
             duration: 15,
             topics: ['compliance', 'governance'],
-            paths: ['ec-council-cse'],
+            paths: ['cse'],
             components: {
                 quiz: 'houses/shield/quizzes/shield-cse-08.quiz.html'
             },
@@ -4428,7 +4428,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['risk-management', 'security'],
-            paths: ['comptia-security', 'security-fundamentals'],
+            paths: ['cse'],
             components: {
                 presentation: 'houses/shield/presentations/shield-cse-06-security-monitoring-incident-response.presentation.html'
             },
@@ -4444,7 +4444,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['risk-management', 'security'],
-            paths: ['comptia-security', 'security-fundamentals', 'security-operations'],
+            paths: ['cse'],
             components: {
                 presentation: 'houses/shield/presentations/shield-cse-07-risk-assessment-management.presentation.html'
             },
@@ -4460,7 +4460,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['risk-management', 'security'],
-            paths: ['comptia-security', 'security-fundamentals', 'security-operations'],
+            paths: ['cse'],
             components: {
                 presentation: 'houses/shield/presentations/shield-cse-08-compliance-governance.presentation.html'
             },
@@ -4476,7 +4476,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 15,
             topics: ['risk-management', 'security'],
-            paths: ['comptia-security', 'security-fundamentals'],
+            paths: ['cse'],
             components: {
                 quiz: 'houses/shield/quizzes/shield-cse-06.quiz.html'
             },
@@ -4492,7 +4492,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 15,
             topics: ['risk-management', 'security'],
-            paths: ['comptia-security', 'security-fundamentals', 'security-operations'],
+            paths: ['cse'],
             components: {
                 quiz: 'houses/shield/quizzes/shield-cse-07.quiz.html'
             },
@@ -4508,7 +4508,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 15,
             topics: ['risk-management', 'security'],
-            paths: ['comptia-security', 'security-fundamentals', 'security-operations'],
+            paths: ['cse'],
             components: {
                 quiz: 'houses/shield/quizzes/shield-cse-08.quiz.html'
             },
@@ -6390,7 +6390,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['cloud'],
-            paths: ['cloud-fundamentals'],
+            paths: ['cse'],
             components: {
                 presentation: 'houses/cloud/presentations/cloud-cse-01-cloud-fundamentals.presentation.html'
             },
@@ -6406,7 +6406,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['cloud'],
-            paths: ['cloud-fundamentals', 'aws-ccp'],
+            paths: ['cse'],
             components: {
                 presentation: 'houses/cloud/presentations/cloud-cse-02-identity-access-management.presentation.html'
             },
@@ -6422,7 +6422,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['cloud', 'encryption'],
-            paths: ['cloud-fundamentals', 'cryptography-track'],
+            paths: ['cse'],
             components: {
                 presentation: 'houses/cloud/presentations/cloud-cse-03-data-protection-encryption.presentation.html'
             },
@@ -6438,7 +6438,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['cloud', 'networking'],
-            paths: ['cloud-fundamentals', 'comptia-network', 'comptia-security'],
+            paths: ['cse'],
             components: {
                 presentation: 'houses/cloud/presentations/cloud-cse-04-network-security.presentation.html'
             },
@@ -6454,7 +6454,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['cloud'],
-            paths: ['cloud-fundamentals', 'comptia-security'],
+            paths: ['cse'],
             components: {
                 presentation: 'houses/cloud/presentations/cloud-cse-05-application-security.presentation.html'
             },
@@ -6470,7 +6470,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 15,
             topics: ['cloud'],
-            paths: ['cloud-fundamentals'],
+            paths: ['cse'],
             components: {
                 quiz: 'houses/cloud/quizzes/cloud-cse-01.quiz.html'
             },
@@ -6486,7 +6486,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 15,
             topics: ['cloud'],
-            paths: ['cloud-fundamentals', 'aws-ccp'],
+            paths: ['cse'],
             components: {
                 quiz: 'houses/cloud/quizzes/cloud-cse-02.quiz.html'
             },
@@ -6502,7 +6502,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 15,
             topics: ['cloud'],
-            paths: ['cloud-fundamentals'],
+            paths: ['cse'],
             components: {
                 quiz: 'houses/cloud/quizzes/cloud-cse-03.quiz.html'
             },
@@ -6518,7 +6518,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 15,
             topics: ['cloud', 'networking'],
-            paths: ['cloud-fundamentals', 'comptia-network', 'comptia-security'],
+            paths: ['cse'],
             components: {
                 quiz: 'houses/cloud/quizzes/cloud-cse-04.quiz.html'
             },
@@ -6534,7 +6534,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 15,
             topics: ['cloud'],
-            paths: ['cloud-fundamentals', 'comptia-security'],
+            paths: ['cse'],
             components: {
                 quiz: 'houses/cloud/quizzes/cloud-cse-05.quiz.html'
             },
@@ -6550,7 +6550,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['cloud'],
-            paths: ['cloud-fundamentals', 'comptia-security'],
+            paths: ['cse'],
             components: {
                 presentation: 'houses/cloud/presentations/cloud-cse-06-security-monitoring-ir.presentation.html'
             },
@@ -6566,7 +6566,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 15,
             topics: ['cloud'],
-            paths: ['cloud-fundamentals'],
+            paths: ['cse'],
             components: {
                 quiz: 'houses/cloud/quizzes/cloud-cse-06.quiz.html'
             },
@@ -6582,7 +6582,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['cloud'],
-            paths: ['cloud-fundamentals', 'security-operations'],
+            paths: ['cse'],
             components: {
                 presentation: 'houses/cloud/presentations/cloud-cse-07-risk-assessment.presentation.html'
             },
@@ -6598,7 +6598,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 15,
             topics: ['cloud'],
-            paths: ['cloud-fundamentals', 'security-operations'],
+            paths: ['cse'],
             components: {
                 quiz: 'houses/cloud/quizzes/cloud-cse-07.quiz.html'
             },
@@ -6614,7 +6614,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 25,
             topics: ['cloud'],
-            paths: ['cloud-fundamentals', 'security-operations'],
+            paths: ['cse'],
             components: {
                 presentation: 'houses/cloud/presentations/cloud-cse-08-compliance-governance.presentation.html'
             },
@@ -6630,7 +6630,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 15,
             topics: ['cloud'],
-            paths: ['cloud-fundamentals', 'security-operations'],
+            paths: ['cse'],
             components: {
                 quiz: 'houses/cloud/quizzes/cloud-cse-08.quiz.html'
             },
@@ -6719,7 +6719,7 @@ const ContentRegistry = {
             difficulty: 'beginner',
             duration: 90,
             topics: ['cloud', 'security', 'iaas', 'paas', 'saas', 'shared-responsibility', 'zero-trust', 'cloud-architecture'],
-            paths: ['cloud-security-essentials', 'comptia-security'],
+            paths: ['cse'],
             components: {
                 presentation: 'houses/cloud/presentations/cloud-cse-module01.presentation.html',
                 lab: 'houses/cloud/labs/cloud-cse-module01.lab.html',
@@ -6747,7 +6747,7 @@ const ContentRegistry = {
             difficulty: 'intermediate',
             duration: 90,
             topics: ['cloud', 'security', 'iam', 'rbac', 'sso', 'mfa', 'federation', 'zero-trust', 'least-privilege'],
-            paths: ['cloud-security-essentials', 'comptia-security'],
+            paths: ['cse'],
             components: {
                 presentation: 'houses/cloud/presentations/cloud-cse-module02.presentation.html',
                 lab: 'houses/cloud/labs/cloud-cse-module02.lab.html',
@@ -6776,7 +6776,7 @@ const ContentRegistry = {
             difficulty: 'advanced',
             duration: 100,
             topics: ['cloud', 'security', 'encryption', 'data-protection', 'key-management', 'dlp', 'disaster-recovery', 'backup'],
-            paths: ['cloud-security-essentials', 'comptia-security'],
+            paths: ['cse'],
             components: {
                 presentation: 'houses/cloud/presentations/cloud-cse-module03.presentation.html',
                 lab: 'houses/cloud/labs/cloud-cse-module03.lab.html',
@@ -6805,7 +6805,7 @@ const ContentRegistry = {
             difficulty: 'advanced',
             duration: 100,
             topics: ['cloud', 'security', 'networking', 'vpc', 'firewall', 'nacl', 'security-groups', 'bastion', 'waf', 'ids', 'ips'],
-            paths: ['cloud-security-essentials', 'comptia-security'],
+            paths: ['cse'],
             components: {
                 presentation: 'houses/cloud/presentations/cloud-cse-module04.presentation.html',
                 lab: 'houses/cloud/labs/cloud-cse-module04.lab.html',
@@ -6835,7 +6835,7 @@ const ContentRegistry = {
             difficulty: 'advanced',
             duration: 110,
             topics: ['cloud', 'security', 'application-security', 'sdlc', 'waf', 'owasp', 'sast', 'dast', 'api', 'serverless', 'containers', 'kubernetes'],
-            paths: ['cloud-security-essentials', 'comptia-security'],
+            paths: ['cse'],
             components: {
                 presentation: 'houses/cloud/presentations/cloud-cse-module05.presentation.html',
                 lab: 'houses/cloud/labs/cloud-cse-module05.lab.html',
@@ -6865,7 +6865,7 @@ const ContentRegistry = {
             difficulty: 'advanced',
             duration: 120,
             topics: ['cloud', 'security', 'monitoring', 'siem', 'soar', 'cspm', 'cnapp', 'incident-response', 'logging', 'forensics'],
-            paths: ['cloud-security-essentials', 'comptia-security', 'soc-analyst'],
+            paths: ['cse'],
             components: {
                 presentation: 'houses/cloud/presentations/cloud-cse-module06.presentation.html',
                 lab: 'houses/cloud/labs/cloud-cse-module06.lab.html',
@@ -6894,7 +6894,7 @@ const ContentRegistry = {
             difficulty: 'advanced',
             duration: 120,
             topics: ['cloud', 'security', 'risk-assessment', 'nist-rmf', 'bcp', 'drp', 'quantitative-analysis', 'threat-modeling'],
-            paths: ['cloud-security-essentials', 'comptia-security', 'risk-management'],
+            paths: ['cse'],
             components: {
                 presentation: 'houses/cloud/presentations/cloud-cse-module07.presentation.html',
                 lab: 'houses/cloud/labs/cloud-cse-module07.lab.html',
@@ -6924,7 +6924,7 @@ const ContentRegistry = {
             difficulty: 'advanced',
             duration: 130,
             topics: ['cloud', 'security', 'compliance', 'governance', 'gdpr', 'hipaa', 'pci-dss', 'nist', 'iso27001', 'fedramp', 'auditing', 'penetration-testing'],
-            paths: ['cloud-security-essentials', 'comptia-security', 'compliance-professional'],
+            paths: ['cse'],
             components: {
                 presentation: 'houses/cloud/presentations/cloud-cse-module08.presentation.html',
                 lab: 'houses/cloud/labs/cloud-cse-module08.lab.html',

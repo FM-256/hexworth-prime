@@ -1831,6 +1831,32 @@ class LearningPaths {
             ]
         },
 
+        // EC-Council Cloud Security Engineer (CSE v1) — Cloud + Shield
+        'cse': {
+            name: 'EC-Council Cloud Security Engineer',
+            description: 'CSE v1 — cloud fundamentals, IAM, data protection, network security, app security, monitoring, risk, compliance',
+            icon: '🛡️',
+            color: '#0ea5e9',
+            modules: [
+                { id: 'cse-01-fundamentals', title: 'Cloud Computing Fundamentals', type: 'presentation', href: 'houses/cloud/presentations/cloud-cse-01-cloud-fundamentals.presentation.html' },
+                { id: 'cse-02-iam', title: 'Identity & Access Management', type: 'presentation', href: 'houses/cloud/presentations/cloud-cse-02-identity-access-management.presentation.html' },
+                { id: 'cse-03-encryption', title: 'Data Protection & Encryption', type: 'presentation', href: 'houses/cloud/presentations/cloud-cse-03-data-protection-encryption.presentation.html' },
+                { id: 'cse-04-network', title: 'Network Security in Cloud', type: 'presentation', href: 'houses/cloud/presentations/cloud-cse-04-network-security.presentation.html' },
+                { id: 'cse-05-appsec', title: 'Application Security in Cloud', type: 'presentation', href: 'houses/cloud/presentations/cloud-cse-05-application-security.presentation.html' },
+                { id: 'cse-06-monitoring', title: 'Security Monitoring & Incident Response', type: 'presentation', href: 'houses/cloud/presentations/cloud-cse-06-security-monitoring-ir.presentation.html' },
+                { id: 'cse-07-risk', title: 'Risk Assessment & Management', type: 'presentation', href: 'houses/cloud/presentations/cloud-cse-07-risk-assessment.presentation.html' },
+                { id: 'cse-08-compliance', title: 'Compliance & Governance', type: 'presentation', href: 'houses/cloud/presentations/cloud-cse-08-compliance-governance.presentation.html' },
+                { id: 'cse-module01', title: 'Module 1: Cloud Fundamentals Lab', type: 'lab', href: 'houses/cloud/labs/cloud-cse-module01.lab.html' },
+                { id: 'cse-module02', title: 'Module 2: IAM Lab', type: 'lab', href: 'houses/cloud/labs/cloud-cse-module02.lab.html' },
+                { id: 'cse-module03', title: 'Module 3: Encryption Lab', type: 'lab', href: 'houses/cloud/labs/cloud-cse-module03.lab.html' },
+                { id: 'cse-module04', title: 'Module 4: Network Security Lab', type: 'lab', href: 'houses/cloud/labs/cloud-cse-module04.lab.html' },
+                { id: 'cse-module05', title: 'Module 5: App Security Lab', type: 'lab', href: 'houses/cloud/labs/cloud-cse-module05.lab.html' },
+                { id: 'cse-module06', title: 'Module 6: Monitoring Lab', type: 'lab', href: 'houses/cloud/labs/cloud-cse-module06.lab.html' },
+                { id: 'cse-module07', title: 'Module 7: Risk Assessment Lab', type: 'lab', href: 'houses/cloud/labs/cloud-cse-module07.lab.html' },
+                { id: 'cse-module08', title: 'Module 8: Compliance Lab', type: 'lab', href: 'houses/cloud/labs/cloud-cse-module08.lab.html' }
+            ]
+        },
+
         // Windows Server Administration (AZ-800) — Cloud House
         'wsa': {
             name: 'Windows Server Administration',
