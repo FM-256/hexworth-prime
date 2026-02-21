@@ -298,14 +298,30 @@ class HeuristicsValidator {
                 // AND not guarded with || or ??
                 if (!/\bparseInt\s*\(/.test(line)) continue;
 
-                // Must have arithmetic operator on the same line as parseInt
-                // Pattern: parseInt(...) + something  OR  something + parseInt(...)
-                const hasArithmetic = /\bparseInt\s*\([^)]*\)\s*[+\-*/]/.test(line) ||
-                                     /[+\-*/]\s*parseInt\s*\(/.test(line);
-                if (!hasArithmetic) continue;
+                // Find the FULL parseInt(...) call by tracking paren depth
+                // This avoids false positives from nested parens and regex literals
+                const parseIntStart = line.search(/\bparseInt\s*\(/);
+                if (parseIntStart === -1) continue;
+                const openIdx = line.indexOf('(', parseIntStart + 8);
+                let depth = 1, closeIdx = -1;
+                for (let c = openIdx + 1; c < line.length; c++) {
+                    if (line[c] === '(') depth++;
+                    else if (line[c] === ')') { depth--; if (depth === 0) { closeIdx = c; break; } }
+                }
+                if (closeIdx === -1) continue;
+
+                // Check what follows the full parseInt(...) call
+                const afterCall = line.slice(closeIdx + 1).trimStart();
+                // Check what precedes parseInt
+                const beforeCall = line.slice(0, parseIntStart).trimEnd();
+
+                // Must have arithmetic operator OUTSIDE the call
+                const hasArithmeticAfter = /^[+\-*/]/.test(afterCall);
+                const hasArithmeticBefore = /[+\-*/]$/.test(beforeCall);
+                if (!hasArithmeticAfter && !hasArithmeticBefore) continue;
 
                 // Check if guarded: parseInt(...) || or parseInt(...) ??
-                if (/\bparseInt\s*\([^)]*\)\s*(\|\||[?][?])/.test(line)) continue;
+                if (/^(\|\||[?][?])/.test(afterCall)) continue;
 
                 const absolutePos = scriptStart + scriptContent.indexOf(line);
                 const lineNum = this.getLineNumber(content, absolutePos);
