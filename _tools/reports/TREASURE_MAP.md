@@ -1,7 +1,7 @@
 ══════════════════════════════════════════════════════════════════════
                          EDUSCAN REPORT
                     Hexworth Prime Content Map
-                    Scanned: 2026-02-21 9:55:21 AM
+                    Scanned: 2026-02-21 12:09:47 PM
 ══════════════════════════════════════════════════════════════════════
 
 
@@ -10,18 +10,18 @@
 
 | Metric | Value |
 |--------|-------|
-| Files Scanned | 1685 |
-| Directories | 499 |
-| Content Files | 1685 |
-| Scan Duration | 281ms |
+| Files Scanned | 1717 |
+| Directories | 501 |
+| Content Files | 1717 |
+| Scan Duration | 910ms |
 
 ### Content by Type
 
 | Type | Count |
 |------|-------|
-| presentation | 741 |
-| html | 550 |
-| lab | 254 |
+| presentation | 757 |
+| html | 554 |
+| lab | 266 |
 | quiz | 130 |
 | applet | 10 |
 
@@ -29,8 +29,8 @@
 
 | Metric | Value |
 |--------|-------|
-| Total Modules | 1523 |
-| Available | 1518 |
+| Total Modules | 1551 |
+| Available | 1546 |
 | Missing Hrefs (CAT-001) | 0 |
 | Undeclared Files (CAT-002) | 0 |
 | Empty Hrefs (CAT-003) | 0 |
@@ -50,9 +50,9 @@
 
 | Status | Count |
 |--------|-------|
-| Ready | 1135 |
+| Ready | 1163 |
 | Not Ready | 0 |
-| Unknown | 550 |
+| Unknown | 554 |
 
 
 ## FILE HIERARCHY
@@ -572,6 +572,9 @@
 │   │   │   ├── ❓ code-kubernetes.quiz.html
 │   │   │   ├── ❓ code-terraform.quiz.html
 │   │   │   └── ❓ code-unit-testing.quiz.html
+│   │   ├── 📁 reviews
+│   │   │   ├── 📄 code-devops-comprehensive-review.html
+│   │   │   └── 📍 index.html
 │   │   └── 📁 tools
 │   │       ├── 📄 code-ansible-playbook.tool.html
 │   │       ├── 📄 code-api.tool.html
@@ -589,6 +592,17 @@
 │   ├── 📁 dark-arts
 │   │   ├── 📍 index.html
 │   │   ├── 📁 labs [labs]
+│   │   │   ├── 🔬 dark-arts-feh-01.lab.html
+│   │   │   ├── 🔬 dark-arts-feh-02.lab.html
+│   │   │   ├── 🔬 dark-arts-feh-03.lab.html
+│   │   │   ├── 🔬 dark-arts-feh-04.lab.html
+│   │   │   ├── 🔬 dark-arts-feh-05.lab.html
+│   │   │   ├── 🔬 dark-arts-feh-06.lab.html
+│   │   │   ├── 🔬 dark-arts-feh-07.lab.html
+│   │   │   ├── 🔬 dark-arts-feh-08.lab.html
+│   │   │   ├── 🔬 dark-arts-feh-09.lab.html
+│   │   │   ├── 🔬 dark-arts-feh-10.lab.html
+│   │   │   └── 📍 index.html
 │   │   ├── 📁 presentations [presentations]
 │   │   │   ├── 📊 dark-arts-feh-01.presentation.html
 │   │   │   ├── 📊 dark-arts-feh-02.presentation.html
@@ -601,6 +615,20 @@
 │   │   │   ├── 📊 dark-arts-feh-09.presentation.html
 │   │   │   └── 📊 dark-arts-feh-10.presentation.html
 │   │   ├── 📁 quizzes [quizzes]
+│   │   │   ├── ❓ dark-arts-feh-01.quiz.html
+│   │   │   ├── ❓ dark-arts-feh-02.quiz.html
+│   │   │   ├── ❓ dark-arts-feh-03.quiz.html
+│   │   │   ├── ❓ dark-arts-feh-04.quiz.html
+│   │   │   ├── ❓ dark-arts-feh-05.quiz.html
+│   │   │   ├── ❓ dark-arts-feh-06.quiz.html
+│   │   │   ├── ❓ dark-arts-feh-07.quiz.html
+│   │   │   ├── ❓ dark-arts-feh-08.quiz.html
+│   │   │   ├── ❓ dark-arts-feh-09.quiz.html
+│   │   │   ├── ❓ dark-arts-feh-10.quiz.html
+│   │   │   └── 📍 index.html
+│   │   ├── 📁 reviews
+│   │   │   ├── 📄 dark-arts-feh-comprehensive-review.html
+│   │   │   └── 📍 index.html
 │   │   └── 📁 tools
 │   │       └── 📁 ctf-leaderboard
 │   │           ├── 📄 dark-arts-sample.tool.html
@@ -1526,6 +1554,11 @@
 │   │   ├── 📁 linux
 │   │   │   ├── 📍 index.html
 │   │   │   ├── 📁 labs [labs]
+│   │   │   │   ├── 🔬 script-anonymity-advanced.lab.html
+│   │   │   │   ├── 🔬 script-anonymity-tor.lab.html
+│   │   │   │   ├── 🔬 script-anonymity-vpn.lab.html
+│   │   │   │   ├── 🔬 script-checksum-verify.lab.html
+│   │   │   │   ├── 🔬 script-gpg-encryption.lab.html
 │   │   │   │   ├── 🔬 script-la-ch01-intro.lab.html
 │   │   │   │   ├── 🔬 script-la-ch02-distros.lab.html
 │   │   │   │   ├── 🔬 script-la-ch03-grep-pipes.lab.html
@@ -1542,6 +1575,7 @@
 │   │   │   │   ├── 🔬 script-mission-file-search.lab.html
 │   │   │   │   ├── 🔬 script-mission-permissions.lab.html
 │   │   │   │   ├── 🔬 script-mission-text-viewing.lab.html
+│   │   │   │   ├── 🔬 script-process-monitor.lab.html
 │   │   │   │   ├── 🔬 script-ssh-advanced.lab.html
 │   │   │   │   ├── 🔬 script-ssh-basics.lab.html
 │   │   │   │   ├── 🔬 script-template-warmup.lab.html
@@ -2431,6 +2465,7 @@
 | kubernetes-quiz | quiz | ✓ | 0 |
 | terraform-quiz | quiz | ✓ | 0 |
 | unit-testing-quiz | quiz | ✓ | 0 |
+| code-devops-comprehensive-review | presentation | ✓ | 0 |
 | code-ansible-playbook.tool | presentation | ✓ | 0 |
 | code-automation.tool | presentation | ✓ | 0 |
 | code-sprint.tool | presentation | ✓ | 0 |
@@ -3036,6 +3071,11 @@
 | script-powershell.lab | lab | ✓ | 0 |
 | script-python.lab | lab | ✓ | 0 |
 | script-sysadmin.lab | lab | ✓ | 0 |
+| script-anonymity-advanced.lab | lab | ✓ | 0 |
+| script-anonymity-tor.lab | lab | ✓ | 0 |
+| script-anonymity-vpn.lab | lab | ✓ | 0 |
+| script-checksum-verify.lab | lab | ✓ | 0 |
+| script-gpg-encryption.lab | lab | ✓ | 0 |
 | script-la-ch01-intro.lab | presentation | ✓ | 0 |
 | script-la-ch02-distros.lab | presentation | ✓ | 0 |
 | script-la-ch03-grep-pipes.lab | presentation | ✓ | 0 |
@@ -3052,6 +3092,7 @@
 | script-mission-file-search.lab | lab | ✓ | 0 |
 | script-mission-permissions.lab | lab | ✓ | 0 |
 | script-mission-text-viewing.lab | lab | ✓ | 0 |
+| script-process-monitor.lab | lab | ✓ | 0 |
 | script-ssh-advanced.lab | lab | ✓ | 0 |
 | script-ssh-basics.lab | lab | ✓ | 0 |
 | script-template-warmup.lab | presentation | ✓ | 0 |
@@ -3334,6 +3375,16 @@
 | xss-attacks-lab | presentation | ✓ | 0 |
 | dashboard | applet | ✓ | 0 |
 | faq | applet | ✓ | 1 |
+| dark-arts-feh-01.lab | presentation | ✓ | 0 |
+| dark-arts-feh-02.lab | lab | ✓ | 0 |
+| dark-arts-feh-03.lab | lab | ✓ | 0 |
+| dark-arts-feh-04.lab | presentation | ✓ | 0 |
+| dark-arts-feh-05.lab | lab | ✓ | 0 |
+| dark-arts-feh-06.lab | lab | ✓ | 0 |
+| dark-arts-feh-07.lab | lab | ✓ | 0 |
+| dark-arts-feh-08.lab | presentation | ✓ | 0 |
+| dark-arts-feh-09.lab | presentation | ✓ | 0 |
+| dark-arts-feh-10.lab | lab | ✓ | 0 |
 | dark-arts-feh-01.presentation | presentation | ✓ | 0 |
 | dark-arts-feh-02.presentation | presentation | ✓ | 0 |
 | dark-arts-feh-03.presentation | presentation | ✓ | 0 |
@@ -3344,6 +3395,17 @@
 | dark-arts-feh-08.presentation | presentation | ✓ | 0 |
 | dark-arts-feh-09.presentation | presentation | ✓ | 0 |
 | dark-arts-feh-10.presentation | presentation | ✓ | 0 |
+| dark-arts-feh-01.quiz | presentation | ✓ | 0 |
+| dark-arts-feh-02.quiz | presentation | ✓ | 0 |
+| dark-arts-feh-03.quiz | presentation | ✓ | 0 |
+| dark-arts-feh-04.quiz | presentation | ✓ | 0 |
+| dark-arts-feh-05.quiz | presentation | ✓ | 0 |
+| dark-arts-feh-06.quiz | presentation | ✓ | 0 |
+| dark-arts-feh-07.quiz | presentation | ✓ | 0 |
+| dark-arts-feh-08.quiz | presentation | ✓ | 0 |
+| dark-arts-feh-09.quiz | presentation | ✓ | 0 |
+| dark-arts-feh-10.quiz | presentation | ✓ | 0 |
+| dark-arts-feh-comprehensive-review | presentation | ✓ | 0 |
 | dark-arts-sample.tool | presentation | ✓ | 0 |
 | index | presentation | ✓ | 0 |
 | product-info | applet | ✓ | 1 |

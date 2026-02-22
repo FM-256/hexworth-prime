@@ -76,7 +76,8 @@ class SyntaxValidator {
         });
         this.navigationValidator = new NavigationValidator({
             verbose: this.verbose,
-            profile: this.profile
+            profile: this.profile,
+            rootPath: this.rootPath
         });
     }
 

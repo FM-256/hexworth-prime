@@ -557,7 +557,7 @@
             return;
         }
 
-        var opts = { limit: MAX_RESULTS, status: null };
+        var opts = { limit: MAX_RESULTS, status: 'available' };
         if (activeFilter) opts.type = activeFilter;
 
         var results = ContentCatalog.search(query, opts);
