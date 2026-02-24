@@ -1077,6 +1077,11 @@ LESSONS LEARNED:
     </div>
 
     <script src="../progress.js"></script>
+    <!-- Cross-device sync -->
+    <script src="../../../../../components/FirebaseAuth.js"></script>
+    <script src="../../../../../utils/SyncUtils.js"></script>
+    <script src="../../../../../components/FirestoreManager.js"></script>
+    <script src="../../../../../components/ProgressRestore.js"></script>
     <script>
         const STORAGE_KEY = 'wsa-failsafe-capstone';
 
@@ -1160,6 +1165,8 @@ LESSONS LEARNED:
         // ========================================
         // State Persistence
         // ========================================
+        const SYNC_KEY = 'wsa-failsafe-capstone-sync'; // lightweight, syncs across devices
+
         function saveState() {
             // Gather completed objective IDs
             const completedObjectives = [];
@@ -1197,24 +1204,86 @@ LESSONS LEARNED:
             } catch (e) {
                 // Storage full or unavailable — silent fail
             }
+
+            // Lightweight sync key (objectives + recoveryState only, no terminal/docs)
+            try {
+                localStorage.setItem(SYNC_KEY, JSON.stringify({
+                    completedObjectives,
+                    recoveryState,
+                    startedAt,
+                    timestamp: Date.now()
+                }));
+            } catch(e) { /* non-critical */ }
         }
 
         function loadState() {
             try {
                 const raw = localStorage.getItem(STORAGE_KEY);
-                if (!raw) return null;
-                return JSON.parse(raw);
+                if (raw) {
+                    const saved = JSON.parse(raw);
+                    // Merge sync key completions (another device may have more)
+                    _mergeSyncCompletions(saved);
+                    return saved;
+                }
+
+                // Fallback: try lightweight sync key (synced from another device)
+                const syncRaw = localStorage.getItem(SYNC_KEY);
+                if (syncRaw) {
+                    const syncData = JSON.parse(syncRaw);
+                    return {
+                        completedObjectives: syncData.completedObjectives || [],
+                        recoveryState: syncData.recoveryState || {},
+                        startedAt: syncData.startedAt,
+                        timestamp: syncData.timestamp,
+                        terminalLines: [],
+                        commandHistory: [],
+                        docsContent: '',
+                        _fromSync: true
+                    };
+                }
+
+                return null;
             } catch (e) {
                 return null;
             }
         }
 
+        function _mergeSyncCompletions(saved) {
+            try {
+                const syncRaw = localStorage.getItem(SYNC_KEY);
+                if (!syncRaw) return;
+                const syncData = JSON.parse(syncRaw);
+                if (!syncData.completedObjectives) return;
+                const existing = new Set(saved.completedObjectives || []);
+                let merged = 0;
+                syncData.completedObjectives.forEach(id => {
+                    if (!existing.has(id)) {
+                        saved.completedObjectives.push(id);
+                        merged++;
+                    }
+                });
+                if (merged > 0) console.log(`[Capstone] Merged ${merged} completions from cloud sync`);
+            } catch(e) { /* non-critical */ }
+        }
+
+        function _getCloudCompletionData() {
+            try {
+                if (typeof WSAProgress !== 'undefined') {
+                    const mod = WSAProgress.getModule('capstone');
+                    if (mod && mod.guiLab && typeof mod.guiLab === 'object') return mod.guiLab;
+                }
+            } catch(e) {}
+            return null;
+        }
+
         function clearSavedState() {
             localStorage.removeItem(STORAGE_KEY);
+            // NOTE: SYNC_KEY is preserved so other devices can see completion
         }
 
         function startFresh() {
             clearSavedState();
+            localStorage.removeItem(SYNC_KEY);
             // Also clear the old failsafe-docs key for consistency
             localStorage.removeItem('failsafe-docs');
             startedAt = Date.now();
@@ -1224,6 +1293,7 @@ LESSONS LEARNED:
             });
             recoveryState = { serverDeployed: false, fsmoSeized: false, metadataCleanedUp: false, newDCPromoted: false, backupSelected: null };
             document.getElementById('resumeOverlay').classList.remove('show');
+            document.getElementById('completionOverlay').classList.remove('show');
             buildObjectivesSidebar();
             updateProgress();
             // Show briefing on fresh start
@@ -1234,6 +1304,8 @@ LESSONS LEARNED:
             document.getElementById('resumeOverlay').classList.remove('show');
             const saved = loadState();
             if (!saved) return;
+            // Ensure sync key exists (for devices that had state before this update)
+            setTimeout(() => saveState(), 500);
 
             // Restore recoveryState
             if (saved.recoveryState) {
@@ -1868,14 +1940,21 @@ LESSONS LEARNED:
                 // Build resume info text
                 const completedCount = saved.completedObjectives ? saved.completedObjectives.length : 0;
                 const elapsed = saved.timestamp ? getTimeAgo(saved.timestamp) : 'unknown';
+                const suffix = saved._fromSync ? ' (synced from another device)' : '';
                 const resumeInfo = document.getElementById('resumeInfo');
-                resumeInfo.innerHTML = `${completedCount}/24 objectives completed<br>Last active: ${elapsed}`;
+                resumeInfo.innerHTML = `${completedCount}/24 objectives completed<br>Last active: ${elapsed}${suffix}`;
 
                 // Show resume overlay
                 document.getElementById('resumeOverlay').classList.add('show');
             } else {
-                // No saved state — show briefing for first-time users
-                toggleBriefing();
+                // No saved state — check if completed on another device
+                const completionData = _getCloudCompletionData();
+                if (completionData) {
+                    document.getElementById('completionOverlay').classList.add('show');
+                } else {
+                    // Truly fresh — show briefing
+                    toggleBriefing();
+                }
             }
 
             // Load saved docs from either source
@@ -1901,6 +1980,28 @@ LESSONS LEARNED:
         }
         // Save on tab close/navigation to prevent progress loss
         window.addEventListener('beforeunload', () => { saveState(); });
+
+        // If cloud sync restores progress after page load, re-check
+        window.addEventListener('hexworth:progressRestored', (e) => {
+            if (e.detail.addedToLocal > 0) {
+                const raw = localStorage.getItem(STORAGE_KEY);
+                if (!raw) {
+                    const syncRaw = localStorage.getItem(SYNC_KEY);
+                    if (syncRaw) {
+                        try {
+                            const syncData = JSON.parse(syncRaw);
+                            const count = (syncData.completedObjectives || []).length;
+                            const resumeInfo = document.getElementById('resumeInfo');
+                            resumeInfo.innerHTML = `${count}/24 objectives completed<br>(synced from another device)`;
+                            document.getElementById('resumeOverlay').classList.add('show');
+                        } catch(e2) {}
+                    } else {
+                        const completionData = _getCloudCompletionData();
+                        if (completionData) document.getElementById('completionOverlay').classList.add('show');
+                    }
+                }
+            }
+        });
     </script>
     <script src="../../../../../components/FluxCapacitor.js"></script>
 </body>

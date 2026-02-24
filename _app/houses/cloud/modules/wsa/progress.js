@@ -11,12 +11,12 @@ const WSAProgress = (function() {
     const MODULES = [
         'm01', 'm02', 'm03', 'm04', 'm05', 'm06', 'm07', 'm08', 'm09', 'm10',
         'm11', 'm12', 'm13', 'm14', 'm15', 'm16', 'm17', 'm18', 'm19', 'm20',
-        'midterm', 'gauntlet-advanced', 'capstone'
+        'midterm', 'gauntlet', 'gauntlet-advanced', 'capstone'
     ];
 
     // Special modules that count as complete with ANY single component done
     // (unlike regular modules which require all 4 components)
-    const SPECIAL_MODULES = new Set(['midterm', 'capstone', 'gauntlet-advanced']);
+    const SPECIAL_MODULES = new Set(['midterm', 'capstone', 'gauntlet', 'gauntlet-advanced']);
 
     // Component types
     const COMPONENTS = ['presentation', 'guiLab', 'psLab', 'quiz'];
