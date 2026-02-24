@@ -183,8 +183,29 @@ const FirestoreManager = (function() {
 
             const localState = _collectSyncableState();
 
-            // Merge: cloud data as base, local data overlays (local wins on conflicts)
-            const merged = { ...existingData, ...localState };
+            // Deep merge per key: preserves completion monotonicity
+            // (a sparse device can't overwrite a full device's progress)
+            const deepMerge = (typeof SyncUtils !== 'undefined')
+                ? SyncUtils.deepMerge
+                : function(cloud, local) { return local; };
+
+            const merged = { ...existingData };
+            for (const [key, localValue] of Object.entries(localState)) {
+                const cloudValue = existingData[key];
+                if (!cloudValue || cloudValue === localValue) {
+                    merged[key] = localValue;
+                } else {
+                    // Both exist and differ — deep merge the JSON values
+                    try {
+                        const cloudParsed = JSON.parse(cloudValue);
+                        const localParsed = JSON.parse(localValue);
+                        merged[key] = JSON.stringify(deepMerge(cloudParsed, localParsed));
+                    } catch (e) {
+                        // Not JSON — local wins for non-JSON strings
+                        merged[key] = localValue;
+                    }
+                }
+            }
 
             await setDoc(syncRef, {
                 data: merged,
@@ -199,7 +220,8 @@ const FirestoreManager = (function() {
 
     /**
      * Restore bulk localStorage from Firestore sync blob.
-     * Only restores keys that don't already exist locally (no overwrite).
+     * Missing keys: restored from cloud.
+     * Existing keys: deep-merged with completion monotonicity (truthy wins).
      */
     async function _restoreSyncBlob(uid) {
         try {
@@ -215,11 +237,11 @@ const FirestoreManager = (function() {
             const { data } = snapshot.data();
             if (!data || typeof data !== 'object') return 0;
 
-            // Deep merge via SyncUtils (extracted for testability)
-            // Rules: arrays union, objects recurse, scalars local wins
+            // Deep merge via SyncUtils — enforces completion monotonicity:
+            // booleans: truthy wins, numbers: Math.max, objects: recursive merge
             const deepMerge = (typeof SyncUtils !== 'undefined')
                 ? SyncUtils.deepMerge
-                : function(cloud, local) { return local; }; // fallback: local wins
+                : function(cloud, local) { return local; };
 
             let restored = 0;
             let merged = 0;
@@ -231,19 +253,24 @@ const FirestoreManager = (function() {
                     localStorage.setItem(key, value);
                     restored++;
                 } else if (local !== value) {
-                    // Key exists locally with different value — try to deep merge
+                    // Key exists locally with different value — deep merge
                     try {
                         const cloudParsed = JSON.parse(value);
                         const localParsed = JSON.parse(local);
-                        if (typeof cloudParsed === 'object' && cloudParsed !== null
-                            && typeof localParsed === 'object' && localParsed !== null) {
-                            const mergedResult = deepMerge(cloudParsed, localParsed);
-                            localStorage.setItem(key, JSON.stringify(mergedResult));
-                            merged++;
-                        }
-                        // Scalars or type mismatch: keep local (no overwrite)
+                        const mergedResult = deepMerge(cloudParsed, localParsed);
+                        localStorage.setItem(key, JSON.stringify(mergedResult));
+                        merged++;
                     } catch (e) {
-                        // Not JSON — keep local value
+                        // Not JSON — apply scalar monotonicity
+                        if (value === 'true' && local !== 'true') {
+                            localStorage.setItem(key, value);
+                            merged++;
+                        } else if (/^\d+$/.test(value) && /^\d+$/.test(local)) {
+                            if (parseInt(value, 10) > parseInt(local, 10)) {
+                                localStorage.setItem(key, value);
+                                merged++;
+                            }
+                        }
                     }
                 }
             }
