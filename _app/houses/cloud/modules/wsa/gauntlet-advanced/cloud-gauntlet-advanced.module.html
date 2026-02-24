@@ -1305,7 +1305,12 @@
     function loadState() {
         try {
             const raw = localStorage.getItem(STORAGE_KEY);
-            if (raw) return _applyFullState(JSON.parse(raw));
+            if (raw) {
+                _applyFullState(JSON.parse(raw));
+                // Merge in sync key completions (may have more from another device)
+                _mergeSyncCompletions();
+                return true;
+            }
 
             // Fallback: try lightweight sync key (synced from another device)
             const syncRaw = localStorage.getItem(SYNC_KEY);
@@ -1338,6 +1343,29 @@
             activeServer = saved.activeServer || 'hq';
             return true;
         } catch(e) { return false; }
+    }
+
+    /**
+     * After loading local state, merge any additional completions from the sync key.
+     * Completion monotonicity: true never reverts to false.
+     */
+    function _mergeSyncCompletions() {
+        try {
+            const syncRaw = localStorage.getItem(SYNC_KEY);
+            if (!syncRaw) return;
+            const syncData = JSON.parse(syncRaw);
+            let merged = 0;
+            syncData.objectives.forEach(so => {
+                const obj = objectives.find(o => o.id === so.id);
+                if (obj && !obj.completed && so.completed) {
+                    obj.completed = true;
+                    merged++;
+                }
+            });
+            if (merged > 0) {
+                console.log(`[Gauntlet] Merged ${merged} completions from cloud sync`);
+            }
+        } catch(e) { /* non-critical */ }
     }
 
     /**
