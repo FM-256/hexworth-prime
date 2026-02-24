@@ -2437,11 +2437,29 @@ class AchievementSystem {
      * Show achievement notification
      */
     static showAchievementNotification(achievement) {
+        // Badge image with emoji fallback
+        let iconHTML = achievement.icon;
+        if (achievement.id) {
+            const badgePath = (function() {
+                try {
+                    const s = document.querySelector('script[src*="AchievementSystem"]');
+                    if (s) {
+                        const src = s.getAttribute('src');
+                        const ci = src.lastIndexOf('components/');
+                        if (ci >= 0) return src.substring(0, ci) + 'assets/images/badges/';
+                    }
+                } catch(e) {}
+                return 'assets/images/badges/';
+            })();
+            const url = badgePath + achievement.id + '.webp';
+            iconHTML = '<img src="' + url + '" alt="" style="width:48px;height:48px;border-radius:50%;object-fit:cover;box-shadow:0 2px 12px rgba(255,215,0,0.4);" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'inline\';">'
+                     + '<span style="display:none;">' + achievement.icon + '</span>';
+        }
         const notification = document.createElement('div');
         notification.className = 'hexworth-achievement-notification';
         notification.innerHTML = `
             <div class="achievement-content">
-                <div class="achievement-icon">${achievement.icon}</div>
+                <div class="achievement-icon">${iconHTML}</div>
                 <div class="achievement-info">
                     <div class="achievement-label">Achievement Unlocked!</div>
                     <div class="achievement-name">${achievement.name}</div>
