@@ -11,8 +11,12 @@ const WSAProgress = (function() {
     const MODULES = [
         'm01', 'm02', 'm03', 'm04', 'm05', 'm06', 'm07', 'm08', 'm09', 'm10',
         'm11', 'm12', 'm13', 'm14', 'm15', 'm16', 'm17', 'm18', 'm19', 'm20',
-        'midterm', 'capstone'
+        'midterm', 'gauntlet-advanced', 'capstone'
     ];
+
+    // Special modules that count as complete with ANY single component done
+    // (unlike regular modules which require all 4 components)
+    const SPECIAL_MODULES = new Set(['midterm', 'capstone', 'gauntlet-advanced']);
 
     // Component types
     const COMPONENTS = ['presentation', 'guiLab', 'psLab', 'quiz'];
@@ -156,6 +160,12 @@ const WSAProgress = (function() {
             return 'not-started';
         }
 
+        // Special modules (midterm, capstone, gauntlet-advanced) complete with any 1 component
+        if (SPECIAL_MODULES.has(moduleId)) {
+            const anyComplete = COMPONENTS.some(c => _isComplete(progress[c]));
+            return anyComplete ? 'complete' : 'opened';
+        }
+
         const completed = COMPONENTS.filter(c => _isComplete(progress[c])).length;
 
         if (completed >= 4) {
@@ -202,10 +212,11 @@ const WSAProgress = (function() {
         let completedComponents = 0;
 
         MODULES.forEach(m => {
-            if (m === 'midterm' || m === 'capstone') {
-                // Projects count as 1 component
+            if (SPECIAL_MODULES.has(m)) {
+                // Special modules (midterm, capstone, gauntlet-advanced) count as 1 component
                 totalComponents += 1;
-                if (all[m]?.complete) completedComponents += 1;
+                const anyDone = COMPONENTS.some(c => _isComplete(all[m]?.[c]));
+                if (all[m]?.complete || anyDone) completedComponents += 1;
             } else {
                 totalComponents += 4;
                 COMPONENTS.forEach(c => {

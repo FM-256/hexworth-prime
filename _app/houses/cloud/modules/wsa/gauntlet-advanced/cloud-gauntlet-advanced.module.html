@@ -496,6 +496,11 @@
     <script src="../progress.js"></script>
     <script src="../../../../../components/WSAState.js"></script>
     <script src="../../../../../components/GUISimulator.js"></script>
+    <!-- Cross-device sync: restore completion data from cloud before checkResume -->
+    <script src="../../../../../components/FirebaseAuth.js"></script>
+    <script src="../../../../../utils/SyncUtils.js"></script>
+    <script src="../../../../../components/FirestoreManager.js"></script>
+    <script src="../../../../../components/ProgressRestore.js"></script>
 
     <!-- Header -->
     <div class="g-header">
@@ -1671,7 +1676,53 @@
                 document.getElementById('resumeInfo').textContent = `${done}/135 objectives completed | Time: ${elapsed}`;
                 document.getElementById('resumeOverlay').classList.add('show');
             } catch(e) { initFresh(); }
-        } else { initFresh(); }
+        } else {
+            // No local gauntlet state — check if completed on another device via wsa-course-progress
+            const completionData = _getCloudCompletionData();
+            if (completionData) {
+                _showPreviouslyCompleted(completionData);
+            } else {
+                initFresh();
+            }
+        }
+    }
+
+    /**
+     * Check wsa-course-progress for gauntlet-advanced completion data
+     * (synced from another device via cloud sync blob)
+     */
+    function _getCloudCompletionData() {
+        try {
+            if (typeof WSAProgress !== 'undefined') {
+                const mod = WSAProgress.getModule('gauntlet-advanced');
+                if (mod && mod.guiLab && typeof mod.guiLab === 'object') {
+                    return mod.guiLab; // { score, grade, hintsUsed, fixBonus }
+                }
+            }
+        } catch(e) {}
+        return null;
+    }
+
+    /**
+     * Show completion overlay for a gauntlet completed on another device
+     */
+    function _showPreviouslyCompleted(data) {
+        const card = document.getElementById('completionCard');
+        card.innerHTML = `
+            <h2>GAUNTLET COMPLETE</h2>
+            <div class="g-complete-score">${data.score ?? '?'}/100${data.fixBonus>0?` <span style="color:#22c55e;font-size:1.5rem">(+${data.fixBonus} Fix Bonus)</span>`:''}</div>
+            <div class="g-complete-grade ${data.grade || ''}">${data.grade || '—'}</div>
+            <div class="g-complete-stats">
+                <p>Hints Used: ${data.hintsUsed ?? '?'}</p>
+                <p>135/135 Objectives Complete</p>
+                <p style="color:#60a5fa;font-size:0.85rem;margin-top:8px">Completed on another device</p>
+            </div>
+            <div class="g-complete-actions">
+                <a href="index.html" class="g-complete-btn secondary">Back to Briefing</a>
+                <button class="g-complete-btn primary" onclick="startFresh()">Start Fresh Attempt</button>
+            </div>
+        `;
+        document.getElementById('completionOverlay').classList.add('show');
     }
 
     function resumeAttempt() {
@@ -4179,6 +4230,20 @@ function toggleTask(idx) {
     // INITIALIZATION
     // ═══════════════════════════════════════════════════════════════
     document.addEventListener('DOMContentLoaded', checkResume);
+
+    // If cloud sync restores progress after page load, re-check for completion
+    window.addEventListener('hexworth:progressRestored', (e) => {
+        if (e.detail.addedToLocal > 0) {
+            const raw = localStorage.getItem(STORAGE_KEY);
+            if (!raw) {
+                // No local gauntlet state but sync may have brought wsa-course-progress
+                const completionData = _getCloudCompletionData();
+                if (completionData) {
+                    _showPreviouslyCompleted(completionData);
+                }
+            }
+        }
+    });
     
         function completeModule() {
             if (typeof ModuleProgress !== 'undefined') {
