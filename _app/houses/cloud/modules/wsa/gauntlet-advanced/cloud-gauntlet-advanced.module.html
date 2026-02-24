@@ -1277,22 +1277,46 @@
     // ═══════════════════════════════════════════════════════════════
     // PERSISTENCE
     // ═══════════════════════════════════════════════════════════════
+    const SYNC_KEY = 'wsa-advanced-gauntlet-sync'; // lightweight, < 10KB, syncs across devices
+
     function saveState() {
+        const objData = objectives.map(o => ({id:o.id,completed:o.completed,hintsRevealed:o.hintsRevealed}));
         const data = {
             state, startedAt,
-            objectives: objectives.map(o => ({id:o.id,completed:o.completed,hintsRevealed:o.hintsRevealed})),
+            objectives: objData,
             scoring: {totalPenalty:scoring.totalPenalty},
             activeServer,
             lastSaved: Date.now()
         };
         try { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); } catch(e) { notify('⚠ Save failed — storage full', 'warn'); }
+
+        // Also save a lightweight sync-friendly key (objectives + scoring only, no server state)
+        // This stays under the 10KB sync blob limit and syncs across devices
+        try {
+            localStorage.setItem(SYNC_KEY, JSON.stringify({
+                objectives: objData,
+                scoring: {totalPenalty:scoring.totalPenalty},
+                startedAt,
+                lastSaved: Date.now()
+            }));
+        } catch(e) { /* non-critical */ }
     }
 
     function loadState() {
         try {
             const raw = localStorage.getItem(STORAGE_KEY);
-            if (!raw) return false;
-            const saved = JSON.parse(raw);
+            if (raw) return _applyFullState(JSON.parse(raw));
+
+            // Fallback: try lightweight sync key (synced from another device)
+            const syncRaw = localStorage.getItem(SYNC_KEY);
+            if (syncRaw) return _applySyncState(JSON.parse(syncRaw));
+
+            return false;
+        } catch(e) { return false; }
+    }
+
+    function _applyFullState(saved) {
+        try {
             // Deep merge state
             function deepMerge(target, source) {
                 for (const key in source) {
@@ -1312,6 +1336,25 @@
             scoring.totalPenalty = saved.scoring.totalPenalty;
             startedAt = saved.startedAt;
             activeServer = saved.activeServer || 'hq';
+            return true;
+        } catch(e) { return false; }
+    }
+
+    /**
+     * Restore from lightweight sync key (objectives + scoring only, no server state).
+     * Server configs stay at defaults, but all objective completion flags are restored.
+     */
+    function _applySyncState(syncData) {
+        try {
+            syncData.objectives.forEach(so => {
+                const obj = objectives.find(o => o.id === so.id);
+                if (obj) { obj.completed = so.completed; obj.hintsRevealed = so.hintsRevealed; }
+            });
+            scoring.totalPenalty = syncData.scoring.totalPenalty;
+            startedAt = syncData.startedAt;
+            activeServer = 'hq';
+            // Server state stays at defaults — only objective progress matters for review
+            initBrokenConfigs();
             return true;
         } catch(e) { return false; }
     }
@@ -1660,6 +1703,7 @@
     function resetGauntlet() {
         if (!confirm('Reset ALL advanced gauntlet progress? This cannot be undone.')) return;
         localStorage.removeItem(STORAGE_KEY);
+        localStorage.removeItem(SYNC_KEY);
         location.reload();
     }
 
@@ -1677,13 +1721,28 @@
                 document.getElementById('resumeOverlay').classList.add('show');
             } catch(e) { initFresh(); }
         } else {
-            // No local gauntlet state — check if completed on another device via wsa-course-progress
-            const completionData = _getCloudCompletionData();
-            if (completionData) {
-                _showPreviouslyCompleted(completionData);
+            // No full state — check the lightweight sync key (synced from another device)
+            const syncRaw = localStorage.getItem(SYNC_KEY);
+            if (syncRaw) {
+                try {
+                    const syncData = JSON.parse(syncRaw);
+                    const done = syncData.objectives.filter(o=>o.completed).length;
+                    const elapsed = formatTime(Date.now() - syncData.startedAt);
+                    document.getElementById('resumeInfo').textContent = `${done}/135 objectives completed | Time: ${elapsed} (synced from another device)`;
+                    document.getElementById('resumeOverlay').classList.add('show');
+                } catch(e) { _checkCompletionOrFresh(); }
             } else {
-                initFresh();
+                _checkCompletionOrFresh();
             }
+        }
+    }
+
+    function _checkCompletionOrFresh() {
+        const completionData = _getCloudCompletionData();
+        if (completionData) {
+            _showPreviouslyCompleted(completionData);
+        } else {
+            initFresh();
         }
     }
 
@@ -1730,11 +1789,15 @@
         loadState();
         initUI();
         checkAllObjectives();
+        // Ensure sync key exists (for devices that had full state before this update)
+        saveState();
     }
 
     function startFresh() {
         document.getElementById('resumeOverlay').classList.remove('show');
+        document.getElementById('completionOverlay').classList.remove('show');
         localStorage.removeItem(STORAGE_KEY);
+        localStorage.removeItem(SYNC_KEY);
         state = createDefaultState();
         initBrokenConfigs();
         objectives.forEach(o => { o.completed = false; o.hintsRevealed = 0; });
@@ -4236,10 +4299,20 @@ function toggleTask(idx) {
         if (e.detail.addedToLocal > 0) {
             const raw = localStorage.getItem(STORAGE_KEY);
             if (!raw) {
-                // No local gauntlet state but sync may have brought wsa-course-progress
-                const completionData = _getCloudCompletionData();
-                if (completionData) {
-                    _showPreviouslyCompleted(completionData);
+                // No full state — check sync key first (has individual objectives)
+                const syncRaw = localStorage.getItem(SYNC_KEY);
+                if (syncRaw) {
+                    try {
+                        const syncData = JSON.parse(syncRaw);
+                        const done = syncData.objectives.filter(o=>o.completed).length;
+                        const elapsed = formatTime(Date.now() - syncData.startedAt);
+                        document.getElementById('resumeInfo').textContent = `${done}/135 objectives completed | Time: ${elapsed} (synced from another device)`;
+                        document.getElementById('resumeOverlay').classList.add('show');
+                    } catch(e2) {}
+                } else {
+                    // Fall back to course-progress completion record
+                    const completionData = _getCloudCompletionData();
+                    if (completionData) _showPreviouslyCompleted(completionData);
                 }
             }
         }
