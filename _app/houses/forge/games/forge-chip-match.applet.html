@@ -625,26 +625,44 @@ function activateSpecial(tile) {
     return false;
 }
 
-// Gravity - make tiles fall
+// Gravity - compact tiles down, fill gaps from top
 function applyGravity() {
     let moved = false;
 
     for (let c = 0; c < GRID_SIZE; c++) {
+        // Collect surviving (non-removing) tiles bottom-to-top
+        const survivors = [];
         for (let r = GRID_SIZE - 1; r >= 0; r--) {
-            if (grid[r][c].removing) {
-                // Shift everything above down
-                for (let rr = r; rr > 0; rr--) {
-                    grid[rr][c] = grid[rr-1][c];
-                    grid[rr][c].row = rr;
-                    grid[rr][c].targetY = GRID_OFFSET_Y + rr * TILE_SIZE;
-                    grid[rr][c].falling = true;
-                }
-                // Create new tile at top
-                grid[0][c] = createTile(0, c);
-                grid[0][c].y = GRID_OFFSET_Y - TILE_SIZE;
-                grid[0][c].falling = true;
+            if (!grid[r][c].removing) {
+                survivors.push(grid[r][c]);
+            }
+        }
+
+        // Place survivors at the bottom of the column
+        let writeRow = GRID_SIZE - 1;
+        for (let i = 0; i < survivors.length; i++) {
+            const tile = survivors[i];
+            if (tile.row !== writeRow) {
+                tile.row = writeRow;
+                tile.col = c;
+                tile.targetX = GRID_OFFSET_X + c * TILE_SIZE;
+                tile.targetY = GRID_OFFSET_Y + writeRow * TILE_SIZE;
+                tile.falling = true;
                 moved = true;
             }
+            grid[writeRow][c] = tile;
+            writeRow--;
+        }
+
+        // Fill remaining top slots with new tiles (drop in from above)
+        let spawnOffset = 1;
+        for (let r = writeRow; r >= 0; r--) {
+            const newTile = createTile(r, c);
+            newTile.y = GRID_OFFSET_Y - spawnOffset * TILE_SIZE;
+            newTile.falling = true;
+            grid[r][c] = newTile;
+            moved = true;
+            spawnOffset++;
         }
     }
 
@@ -657,16 +675,18 @@ function swapTiles(r1, c1, r2, c2) {
     grid[r1][c1] = grid[r2][c2];
     grid[r2][c2] = temp;
 
-    // Update positions
+    // Update positions and animate
     grid[r1][c1].row = r1;
     grid[r1][c1].col = c1;
     grid[r1][c1].targetX = GRID_OFFSET_X + c1 * TILE_SIZE;
     grid[r1][c1].targetY = GRID_OFFSET_Y + r1 * TILE_SIZE;
+    grid[r1][c1].falling = true;
 
     grid[r2][c2].row = r2;
     grid[r2][c2].col = c2;
     grid[r2][c2].targetX = GRID_OFFSET_X + c2 * TILE_SIZE;
     grid[r2][c2].targetY = GRID_OFFSET_Y + r2 * TILE_SIZE;
+    grid[r2][c2].falling = true;
 }
 
 // Check if swap creates a match
@@ -941,11 +961,11 @@ function update() {
 
             // Remove animation
             if (tile.removing) {
-                tile.removeProgress += 0.15;
-                allStable = false;
-                if (tile.removeProgress >= 1) {
-                    // Fully removed
+                if (tile.removeProgress < 1) {
+                    tile.removeProgress += 0.15;
+                    allStable = false;
                 }
+                // removeProgress >= 1 means ready for gravity cleanup
             }
 
             // Fall animation
@@ -965,22 +985,36 @@ function update() {
         }
     }
 
-    // Cascade logic
+    // Cascade logic — only act when all tiles are stable (done falling/removing)
     if (allStable && !processingMatches) {
-        const matches = findMatches();
-        if (matches.length > 0) {
-            processingMatches = true;
-            processMatches(matches);
-            cascadeTimer = 20;
+        // First, clear any fully-removed tiles via gravity
+        let hasRemoving = false;
+        for (let r = 0; r < GRID_SIZE; r++) {
+            for (let c = 0; c < GRID_SIZE; c++) {
+                if (grid[r][c].removing && grid[r][c].removeProgress >= 1) {
+                    hasRemoving = true;
+                }
+            }
+        }
+
+        if (hasRemoving) {
+            applyGravity();
         } else {
-            combo = 0;
+            // Check for new matches after gravity settles
+            const matches = findMatches();
+            if (matches.length > 0) {
+                processingMatches = true;
+                processMatches(matches);
+                cascadeTimer = 15;
+            } else {
+                combo = 0;
+            }
         }
     }
 
     if (cascadeTimer > 0) {
         cascadeTimer--;
         if (cascadeTimer === 0) {
-            applyGravity();
             processingMatches = false;
         }
     }
