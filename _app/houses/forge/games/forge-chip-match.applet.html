@@ -258,6 +258,7 @@
                 <div class="component-box"><div class="component-icon">🟨</div><div class="component-name">PSU</div></div>
                 <div class="component-box"><div class="component-icon">🔵</div><div class="component-name">FAN</div></div>
                 <div class="component-box"><div class="component-icon">🟪</div><div class="component-name">MOBO</div></div>
+                <div class="component-box"><div class="component-icon">🟫</div><div class="component-name">NIC</div></div>
             </div>
         </div>
         <div class="help-section">
@@ -321,7 +322,8 @@ const COMPONENTS = [
     { id: 3, name: 'SSD', color: '#94a3b8', darkColor: '#475569', icon: '⬜' },
     { id: 4, name: 'PSU', color: '#f59e0b', darkColor: '#d97706', icon: '🟨' },
     { id: 5, name: 'FAN', color: '#06b6d4', darkColor: '#0e7490', icon: '🔵' },
-    { id: 6, name: 'MOBO', color: '#a855f7', darkColor: '#7e22ce', icon: '🟪' }
+    { id: 6, name: 'MOBO', color: '#a855f7', darkColor: '#7e22ce', icon: '🟪' },
+    { id: 7, name: 'NIC', color: '#f472b6', darkColor: '#be185d', icon: '🟫' }
 ];
 
 // Special tile types
@@ -349,18 +351,21 @@ let screenFlash = 0;
 let screenFlashColor = '#ffffff';
 
 // Level configuration
+// Level progression: more types = harder matches, faster speed = less think time
 const LEVEL_CONFIG = [
-    { level: 1, drain: 0.040, target: 1000 },
-    { level: 2, drain: 0.045, target: 1500 },
-    { level: 3, drain: 0.050, target: 2200 },
-    { level: 4, drain: 0.055, target: 3000 },
-    { level: 5, drain: 0.060, target: 4000 },
-    { level: 6, drain: 0.065, target: 5200 },
-    { level: 7, drain: 0.070, target: 6500 },
-    { level: 8, drain: 0.080, target: 8000 },
-    { level: 9, drain: 0.090, target: 10000 },
-    { level: 10, drain: 0.100, target: 12500 }
+    { level: 1,  drain: 0.040, target: 1000,  types: 5, speed: 0.20 },
+    { level: 2,  drain: 0.045, target: 1500,  types: 5, speed: 0.22 },
+    { level: 3,  drain: 0.050, target: 2200,  types: 6, speed: 0.23 },
+    { level: 4,  drain: 0.055, target: 3000,  types: 6, speed: 0.25 },
+    { level: 5,  drain: 0.060, target: 4000,  types: 6, speed: 0.26 },
+    { level: 6,  drain: 0.065, target: 5200,  types: 7, speed: 0.28 },
+    { level: 7,  drain: 0.070, target: 6500,  types: 7, speed: 0.30 },
+    { level: 8,  drain: 0.080, target: 8000,  types: 7, speed: 0.32 },
+    { level: 9,  drain: 0.090, target: 10000, types: 8, speed: 0.34 },
+    { level: 10, drain: 0.100, target: 12500, types: 8, speed: 0.36 }
 ];
+let activeTypes = 5;
+let activeSpeed = 0.20;
 
 // Initialize grid
 function createGrid() {
@@ -376,7 +381,7 @@ function createGrid() {
 }
 
 function createTile(r, c) {
-    const typeId = Math.floor(Math.random() * COMPONENTS.length);
+    const typeId = Math.floor(Math.random() * activeTypes);
     return {
         type: typeId,
         row: r,
@@ -935,6 +940,8 @@ function startGame() {
     drainRate = config.drain;
     targetScore = config.target;
     charge = maxCharge;
+    activeTypes = config.types;
+    activeSpeed = config.speed;
 
     createGrid();
     selected = null;
@@ -972,6 +979,8 @@ function nextLevel() {
     drainRate = config.drain;
     targetScore = config.target;
     charge = maxCharge;
+    activeTypes = config.types;
+    activeSpeed = config.speed;
     levelComplete = false;
     gameRunning = true;
     combo = 0;
@@ -1036,6 +1045,7 @@ function update() {
         if (level >= 10) {
             if (typeof GameTracker !== 'undefined') GameTracker.record('chipmatch', { score, result: 'mastered' });
             if (window.AchievementManager) AchievementManager.unlock('game_chipmatch');
+            if (typeof ModuleProgress !== 'undefined') ModuleProgress.complete('forge', 'forge-chip-match', { returnUrl: '../index.html' });
             if (!localStorage.getItem('game_chipmatch_xp_awarded')) {
                 localStorage.setItem('game_chipmatch_xp_awarded', 'true');
                 let xp = parseInt(localStorage.getItem('hexworth_xp') || '0');
@@ -1084,8 +1094,8 @@ function update() {
                 const dx = tile.targetX - tile.x;
                 const dy = tile.targetY - tile.y;
                 if (Math.abs(dx) > 1 || Math.abs(dy) > 1) {
-                    tile.x += dx * 0.25;
-                    tile.y += dy * 0.25;
+                    tile.x += dx * activeSpeed;
+                    tile.y += dy * activeSpeed;
                     allStable = false;
                 } else {
                     tile.x = tile.targetX;
@@ -1451,19 +1461,7 @@ gameLoop();
 </script>
 <script src="../../../components/GameTracker.js"></script>
 <script src="../../../components/GameScoreboard.js"></script>
-<script src="../../../components/AchievementSystem.js">
-        function completeModule() {
-            if (typeof ModuleProgress !== 'undefined') {
-                ModuleProgress.complete('forge', 'forge-chip-match', {
-                    returnUrl: '../index.html'
-                });
-            }
-        }
-    </script>
-
-    <div style="text-align:center; padding:20px; margin-top:10px;">
-        <button onclick="completeModule()" style="background:#22c55e; color:#fff; border:none; padding:12px 32px; border-radius:8px; font-size:1rem; cursor:pointer; box-shadow:0 2px 8px rgba(34,197,94,0.3);">Complete Module ✓</button>
-    </div>
+<script src="../../../components/AchievementSystem.js"></script>
 <script src="../../../components/FluxCapacitor.js"></script>
 </body>
 </html>
