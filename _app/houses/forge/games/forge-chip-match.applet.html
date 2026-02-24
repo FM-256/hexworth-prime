@@ -237,8 +237,8 @@
                 <div class="stat-value" id="comboDisplay">×1</div>
             </div>
             <div class="stat-item">
-                <div class="stat-label">BEST</div>
-                <div class="stat-value" id="bestDisplay">×1</div>
+                <div class="stat-label">HIGH SCORE</div>
+                <div class="stat-value" id="bestDisplay">0</div>
             </div>
         </div>
     </div>
@@ -338,6 +338,11 @@ let particles = [];
 let hintTimer = 0;
 let hintTiles = null;
 let transitionTimer = 0;
+let highScore = parseInt(localStorage.getItem('game_chipmatch_best') || '0');
+let floatingTexts = [];
+let screenShake = 0;
+let screenFlash = 0;
+let screenFlashColor = '#ffffff';
 
 // Level configuration
 const LEVEL_CONFIG = [
@@ -517,6 +522,15 @@ function processMatches(matches) {
         else if (length === 4) points += 100;
         else if (length >= 5) points += 200;
 
+        // Auto-activate existing specials caught in this match
+        tiles.forEach(t => {
+            const tile = grid[t.r][t.c];
+            if (tile.special && !tile.removing) {
+                activateSpecial(tile);
+                tile.special = null;
+            }
+        });
+
         // Mark tiles for removal
         tiles.forEach(t => {
             const tile = grid[t.r][t.c];
@@ -525,7 +539,7 @@ function processMatches(matches) {
             spawnParticles(tile.x + TILE_SIZE/2, tile.y + TILE_SIZE/2, COMPONENTS[tile.type].color);
         });
 
-        // Create special tiles
+        // Create special tiles + visual effects
         if (length === 4) {
             // Surge component - row/column clear
             const centerIdx = Math.floor(tiles.length / 2);
@@ -533,6 +547,11 @@ function processMatches(matches) {
             grid[centerTile.r][centerTile.c].special = SPECIAL_SURGE;
             grid[centerTile.r][centerTile.c].specialDirection = direction;
             grid[centerTile.r][centerTile.c].removing = false;
+            const tx = grid[centerTile.r][centerTile.c].x + TILE_SIZE / 2;
+            const ty = grid[centerTile.r][centerTile.c].y + TILE_SIZE / 2;
+            spawnFloatingText(tx, ty, 'SURGE!', '#f97316', 20);
+            triggerScreenEffect(3, 8, '#f97316');
+            spawnParticles(tx, ty, '#f97316', 20);
             sfxSpecial();
         } else if (length >= 5) {
             // EMP chip - clear all of type
@@ -540,6 +559,11 @@ function processMatches(matches) {
             const centerTile = tiles[centerIdx];
             grid[centerTile.r][centerTile.c].special = SPECIAL_EMP;
             grid[centerTile.r][centerTile.c].removing = false;
+            const tx = grid[centerTile.r][centerTile.c].x + TILE_SIZE / 2;
+            const ty = grid[centerTile.r][centerTile.c].y + TILE_SIZE / 2;
+            spawnFloatingText(tx, ty, 'EMP!', '#facc15', 26);
+            triggerScreenEffect(6, 12, '#facc15');
+            spawnParticles(tx, ty, '#facc15', 30);
             sfxSpecial();
         }
     });
@@ -550,12 +574,33 @@ function processMatches(matches) {
         tile.special = SPECIAL_SHORT;
         tile.removing = false;
         points += 100;
+        const tx = tile.x + TILE_SIZE / 2;
+        const ty = tile.y + TILE_SIZE / 2;
+        spawnFloatingText(tx, ty, 'SHORT CIRCUIT!', '#22d3ee', 18);
+        triggerScreenEffect(4, 10, '#22d3ee');
+        spawnParticles(tx, ty, '#22d3ee', 25);
         sfxSpecial();
     });
 
-    score += Math.floor(points * combo);
-    if (combo > 1) sfxCombo();
-    else sfxMatch();
+    const earned = Math.floor(points * combo);
+    score += earned;
+
+    // Combo floating text
+    if (combo > 1) {
+        const cx = GRID_OFFSET_X + (GRID_SIZE * TILE_SIZE) / 2;
+        const cy = GRID_OFFSET_Y + (GRID_SIZE * TILE_SIZE) / 2;
+        spawnFloatingText(cx, cy - 20, `COMBO x${combo}!`, '#fb923c', 18 + Math.min(combo, 8) * 2);
+        triggerScreenEffect(combo, combo * 2, '#fb923c');
+        sfxCombo();
+    } else {
+        sfxMatch();
+    }
+
+    // Update high score live
+    if (score > highScore) {
+        highScore = score;
+        localStorage.setItem('game_chipmatch_best', score.toString());
+    }
 
     return true;
 }
@@ -733,6 +778,16 @@ function spawnParticles(x, y, color, count = 8) {
     }
 }
 
+// Floating text + screen effects
+function spawnFloatingText(x, y, text, color, size = 16) {
+    floatingTexts.push({ x, y, text, color, size, life: 50, maxLife: 50, vy: -2 });
+}
+
+function triggerScreenEffect(shake, flash, flashColor) {
+    screenShake = Math.max(screenShake, shake || 0);
+    if (flash) { screenFlash = flash; screenFlashColor = flashColor || '#ffffff'; }
+}
+
 // Input handling
 document.addEventListener('keydown', e => {
     if (e.key === '?' || e.key === '/') { toggleHelpPanel(); return; }
@@ -864,6 +919,9 @@ function startGame() {
     createGrid();
     selected = null;
     particles = [];
+    floatingTexts = [];
+    screenShake = 0;
+    screenFlash = 0;
 }
 
 function nextLevel() {
@@ -894,6 +952,7 @@ function nextLevel() {
     moves = config.moves;
     targetScore = config.target;
     levelComplete = false;
+    gameRunning = true;
     combo = 0;
 
     createGrid();
@@ -916,7 +975,7 @@ function update() {
     document.getElementById('targetDisplay').textContent = targetScore;
     document.getElementById('movesDisplay').textContent = moves;
     document.getElementById('comboDisplay').textContent = `×${combo || 1}`;
-    document.getElementById('bestDisplay').textContent = `×${bestCombo}`;
+    document.getElementById('bestDisplay').textContent = highScore;
 
     const progress = Math.min(100, (score / targetScore) * 100);
     document.getElementById('progressFill').style.width = progress + '%';
@@ -936,6 +995,25 @@ function update() {
         levelComplete = true;
         gameRunning = false;
         sfxLevelComplete();
+        if (score > highScore) {
+            highScore = score;
+            localStorage.setItem('game_chipmatch_best', score.toString());
+        }
+        // Track mastery on level 10
+        if (level >= 10) {
+            if (typeof GameTracker !== 'undefined') GameTracker.record('chipmatch', { score, result: 'mastered' });
+            if (window.AchievementManager) AchievementManager.unlock('game_chipmatch');
+            if (!localStorage.getItem('game_chipmatch_xp_awarded')) {
+                localStorage.setItem('game_chipmatch_xp_awarded', 'true');
+                let xp = parseInt(localStorage.getItem('hexworth_xp') || '0');
+                xp += 35;
+                localStorage.setItem('hexworth_xp', xp.toString());
+                if (window.FirestoreManager) {
+                    const uid = localStorage.getItem('hexworth_uid');
+                    if (uid) FirestoreManager.addXP(uid, 35, 'chip match: mastered all levels');
+                }
+            }
+        }
         return;
     }
 
@@ -946,8 +1024,10 @@ function update() {
             gameOver = true;
             gameRunning = false;
             if (typeof GameTracker !== 'undefined') GameTracker.record('chipmatch', { score: score, result: 'failure' });
-            const best = parseInt(localStorage.getItem('game_chipmatch_best') || '0');
-            if (score > best) localStorage.setItem('game_chipmatch_best', score.toString());
+            if (score > highScore) {
+                highScore = score;
+                localStorage.setItem('game_chipmatch_best', score.toString());
+            }
             sfxGameOver();
             return;
         }
@@ -1028,6 +1108,14 @@ function update() {
     });
     particles = particles.filter(p => p.life > 0);
 
+    // Floating text
+    floatingTexts.forEach(ft => { ft.y += ft.vy; ft.life--; });
+    floatingTexts = floatingTexts.filter(ft => ft.life > 0);
+
+    // Screen effects
+    if (screenShake > 0) { screenShake *= 0.85; if (screenShake < 0.3) screenShake = 0; }
+    if (screenFlash > 0) screenFlash--;
+
     // Demo AI
     if (demoMode && Math.random() < 0.02) {
         const possibleMoves = findPossibleMoves();
@@ -1075,19 +1163,23 @@ function drawTile(tile) {
     ctx.textBaseline = 'middle';
     ctx.fillText(comp.name, cx, cy);
 
-    // Special indicator
+    // Special indicator - pulsing glow
     if (tile.special) {
-        ctx.fillStyle = '#f97316';
-        ctx.strokeStyle = '#fb923c';
+        const pulse = Math.sin(Date.now() * 0.008) * 0.3 + 0.7;
+        const spColor = tile.special === SPECIAL_SURGE ? '#f97316' :
+                        tile.special === SPECIAL_EMP ? '#facc15' : '#22d3ee';
+        ctx.shadowColor = spColor;
+        ctx.shadowBlur = 15 * pulse;
+        ctx.strokeStyle = spColor;
         ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.arc(x + size - 8, y + 8, 6, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.stroke();
+        ctx.strokeRect(x, y, size, size);
+        ctx.shadowBlur = 0;
 
-        ctx.fillStyle = '#ffffff';
-        ctx.font = 'bold 10px Arial';
-        ctx.fillText('★', x + size - 8, y + 9);
+        ctx.fillStyle = spColor;
+        ctx.font = 'bold 8px Courier New';
+        const spLabel = tile.special === SPECIAL_SURGE ? 'SURGE' :
+                       tile.special === SPECIAL_EMP ? 'EMP' : 'ZAP';
+        ctx.fillText(spLabel, cx, cy + 14);
     }
 
     ctx.restore();
@@ -1215,21 +1307,24 @@ function drawOverlays() {
         ctx.fillStyle = '#ffffff';
         ctx.font = '18px Courier New';
         ctx.fillText(`Score: ${score}`, W/2, H/2);
-        ctx.fillText(`Best Combo: ×${bestCombo}`, W/2, H/2 + 30);
+        ctx.fillText(`Best Combo: x${bestCombo}`, W/2, H/2 + 30);
+        ctx.fillStyle = '#f97316';
+        ctx.font = '14px Courier New';
+        ctx.fillText(`High Score: ${highScore}`, W/2, H/2 + 55);
 
         if (level < 10) {
             ctx.fillStyle = '#a16207';
             ctx.font = '13px Courier New';
             const blink = Math.sin(Date.now() * 0.004) > 0;
-            if (blink) ctx.fillText('[ PRESS SPACE FOR NEXT LEVEL ]', W/2, H/2 + 70);
+            if (blink) ctx.fillText('[ PRESS SPACE FOR NEXT LEVEL ]', W/2, H/2 + 85);
         } else {
             ctx.fillStyle = '#f97316';
             ctx.font = 'bold 20px Courier New';
-            ctx.fillText('ALL LEVELS MASTERED!', W/2, H/2 + 65);
+            ctx.fillText('ALL LEVELS MASTERED!', W/2, H/2 + 80);
             ctx.fillStyle = '#a16207';
             ctx.font = '13px Courier New';
             const blink = Math.sin(Date.now() * 0.004) > 0;
-            if (blink) ctx.fillText('[ PRESS SPACE TO RESTART ]', W/2, H/2 + 95);
+            if (blink) ctx.fillText('[ PRESS SPACE TO RESTART ]', W/2, H/2 + 110);
         }
     }
 
@@ -1246,7 +1341,9 @@ function drawOverlays() {
         ctx.font = '16px Courier New';
         ctx.fillText(`Level Reached: ${level}`, W/2, H/2);
         ctx.fillText(`Final Score: ${score}`, W/2, H/2 + 25);
-        ctx.fillText(`Best Combo: ×${bestCombo}`, W/2, H/2 + 50);
+        ctx.fillStyle = '#f97316';
+        ctx.font = '14px Courier New';
+        ctx.fillText(`High Score: ${highScore}`, W/2, H/2 + 50);
 
         ctx.fillStyle = '#a16207';
         ctx.font = '13px Courier New';
@@ -1255,10 +1352,34 @@ function drawOverlays() {
     }
 }
 
+function drawFloatingText() {
+    floatingTexts.forEach(ft => {
+        const alpha = ft.life / ft.maxLife;
+        const scale = 1 + (1 - alpha) * 0.3;
+        ctx.save();
+        ctx.globalAlpha = alpha;
+        ctx.fillStyle = ft.color;
+        ctx.strokeStyle = '#000';
+        ctx.lineWidth = 3;
+        ctx.font = `bold ${Math.round(ft.size * scale)}px Courier New`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.strokeText(ft.text, ft.x, ft.y);
+        ctx.fillText(ft.text, ft.x, ft.y);
+        ctx.restore();
+    });
+}
+
 function draw() {
     ctx.clearRect(0, 0, W, H);
     ctx.fillStyle = '#0a0a0a';
     ctx.fillRect(0, 0, W, H);
+
+    ctx.save();
+    if (screenShake > 0) {
+        ctx.translate((Math.random() - 0.5) * screenShake * 2,
+                      (Math.random() - 0.5) * screenShake * 2);
+    }
 
     drawHeader();
     drawGrid();
@@ -1267,6 +1388,18 @@ function draw() {
     drawSelection();
     drawCursor();
     drawParticles();
+    drawFloatingText();
+
+    ctx.restore();
+
+    if (screenFlash > 0) {
+        ctx.save();
+        ctx.globalAlpha = screenFlash * 0.04;
+        ctx.fillStyle = screenFlashColor;
+        ctx.fillRect(0, 0, W, H);
+        ctx.restore();
+    }
+
     drawOverlays();
 }
 
