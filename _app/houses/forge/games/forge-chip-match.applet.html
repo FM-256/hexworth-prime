@@ -190,7 +190,7 @@
             </div>
             <div class="lore-section">
                 <h3>OBJECTIVES</h3>
-                <p>Meet the target score before running out of moves. Each level increases quotas. Ten levels to master certification.</p>
+                <p>Keep the UPS charged while meeting production quotas. Matches restore power. Each level drains faster. Ten levels to master certification.</p>
             </div>
             <div class="lore-section lore-keys">
                 <h3>CONTROLS</h3>
@@ -229,8 +229,11 @@
                 </div>
             </div>
             <div class="stat-item">
-                <div class="stat-label">MOVES LEFT</div>
-                <div class="stat-value" id="movesDisplay">20</div>
+                <div class="stat-label">UPS CHARGE</div>
+                <div class="stat-value" id="chargeDisplay">100%</div>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="chargeFill" style="width: 100%; background: linear-gradient(90deg, #22c55e, #4ade80);"></div>
+                </div>
             </div>
             <div class="stat-item">
                 <div class="stat-label">COMBO</div>
@@ -265,7 +268,7 @@
         </div>
         <div class="help-section">
             <h3>SCORING</h3>
-            <p>• 3-match: 50 points<br>• 4-match: 100 points + Surge<br>• 5-match: 200 points + EMP<br>• L/T shape: 150 points + Short Circuit<br>• Combos multiply your score!</p>
+            <p>• 3-match: 50 pts (+6% power)<br>• 4-match: 100 pts (+12% power) + Surge<br>• 5-match: 200 pts (+22% power) + EMP<br>• L/T shape: 150 pts (+18% power) + Short Circuit<br>• Combos multiply score and restore bonus power!</p>
         </div>
         <p style="text-align:center;color:#a16207;margin-top:12px;font-size:11px;">Press ? to close</p>
     </div>
@@ -328,7 +331,8 @@ const SPECIAL_SHORT = 'short';      // 3x3 explosion
 
 // Game state
 let gameRunning = false, demoMode = true, gameOver = false, levelComplete = false;
-let level = 1, score = 0, moves = 20, targetScore = 1000;
+let level = 1, score = 0, targetScore = 1000;
+let charge = 100, maxCharge = 100, drainRate = 0.040;
 let combo = 0, bestCombo = 1;
 let grid = [];
 let selected = null;
@@ -346,16 +350,16 @@ let screenFlashColor = '#ffffff';
 
 // Level configuration
 const LEVEL_CONFIG = [
-    { level: 1, moves: 20, target: 1000 },
-    { level: 2, moves: 22, target: 1500 },
-    { level: 3, moves: 24, target: 2200 },
-    { level: 4, moves: 25, target: 3000 },
-    { level: 5, moves: 26, target: 4000 },
-    { level: 6, moves: 28, target: 5200 },
-    { level: 7, moves: 28, target: 6500 },
-    { level: 8, moves: 30, target: 8000 },
-    { level: 9, moves: 30, target: 10000 },
-    { level: 10, moves: 32, target: 12500 }
+    { level: 1, drain: 0.040, target: 1000 },
+    { level: 2, drain: 0.045, target: 1500 },
+    { level: 3, drain: 0.050, target: 2200 },
+    { level: 4, drain: 0.055, target: 3000 },
+    { level: 5, drain: 0.060, target: 4000 },
+    { level: 6, drain: 0.065, target: 5200 },
+    { level: 7, drain: 0.070, target: 6500 },
+    { level: 8, drain: 0.080, target: 8000 },
+    { level: 9, drain: 0.090, target: 10000 },
+    { level: 10, drain: 0.100, target: 12500 }
 ];
 
 // Initialize grid
@@ -600,6 +604,22 @@ function processMatches(matches) {
     if (score > highScore) {
         highScore = score;
         localStorage.setItem('game_chipmatch_best', score.toString());
+    }
+
+    // Restore UPS charge from matches
+    let chargeGain = 0;
+    matches.forEach(match => {
+        if (match.length >= 5) chargeGain += 22;
+        else if (match.length === 4) chargeGain += 12;
+        else chargeGain += 6;
+    });
+    chargeGain += specialShapes.length * 18;
+    if (combo > 1) chargeGain += combo * 4;
+    if (chargeGain > 0) {
+        charge = Math.min(maxCharge, charge + chargeGain);
+        const fx = GRID_OFFSET_X + GRID_SIZE * TILE_SIZE + 30;
+        const fy = GRID_OFFSET_Y + GRID_SIZE * TILE_SIZE / 2;
+        spawnFloatingText(fx, fy, `+${chargeGain}%`, '#22c55e', 14);
     }
 
     return true;
@@ -865,7 +885,6 @@ function handleTileClick(r, c) {
             if (specialActivated || isValidSwap(selected.r, selected.c, r, c)) {
                 swapTiles(selected.r, selected.c, r, c);
                 sfxSwap();
-                moves--;
                 selected = null;
                 transitionTimer = 25; // Animation time
             } else {
@@ -913,8 +932,9 @@ function startGame() {
     bestCombo = 1;
 
     const config = LEVEL_CONFIG[0];
-    moves = config.moves;
+    drainRate = config.drain;
     targetScore = config.target;
+    charge = maxCharge;
 
     createGrid();
     selected = null;
@@ -949,8 +969,9 @@ function nextLevel() {
     }
 
     const config = LEVEL_CONFIG[level - 1];
-    moves = config.moves;
+    drainRate = config.drain;
     targetScore = config.target;
+    charge = maxCharge;
     levelComplete = false;
     gameRunning = true;
     combo = 0;
@@ -973,7 +994,13 @@ function update() {
     document.getElementById('levelDisplay').textContent = level;
     document.getElementById('scoreDisplay').textContent = score;
     document.getElementById('targetDisplay').textContent = targetScore;
-    document.getElementById('movesDisplay').textContent = moves;
+    const chargePercent = Math.max(0, Math.round(charge));
+    document.getElementById('chargeDisplay').textContent = chargePercent + '%';
+    const chargeFill = document.getElementById('chargeFill');
+    chargeFill.style.width = chargePercent + '%';
+    chargeFill.style.background = chargePercent > 60 ? 'linear-gradient(90deg, #22c55e, #4ade80)' :
+                                   chargePercent > 30 ? 'linear-gradient(90deg, #f59e0b, #fbbf24)' :
+                                   'linear-gradient(90deg, #ef4444, #f87171)';
     document.getElementById('comboDisplay').textContent = `×${combo || 1}`;
     document.getElementById('bestDisplay').textContent = highScore;
 
@@ -984,6 +1011,12 @@ function update() {
     if (hintTimer === 0) hintTiles = null;
 
     if (!gameRunning && !demoMode) return;
+
+    // Drain UPS charge
+    if (!demoMode) {
+        charge -= drainRate;
+        if (charge < 15 && Math.random() < 0.05) triggerScreenEffect(1, 3, '#ef4444');
+    }
 
     if (transitionTimer > 0) {
         transitionTimer--;
@@ -1017,20 +1050,18 @@ function update() {
         return;
     }
 
-    // Check game over
-    if (moves <= 0 && !gameOver && !demoMode) {
-        const possibleMoves = findPossibleMoves();
-        if (possibleMoves.length === 0 || score < targetScore) {
-            gameOver = true;
-            gameRunning = false;
-            if (typeof GameTracker !== 'undefined') GameTracker.record('chipmatch', { score: score, result: 'failure' });
-            if (score > highScore) {
-                highScore = score;
-                localStorage.setItem('game_chipmatch_best', score.toString());
-            }
-            sfxGameOver();
-            return;
+    // Check game over - UPS depleted
+    if (charge <= 0 && !gameOver && !demoMode) {
+        charge = 0;
+        gameOver = true;
+        gameRunning = false;
+        if (typeof GameTracker !== 'undefined') GameTracker.record('chipmatch', { score: score, result: 'failure' });
+        if (score > highScore) {
+            highScore = score;
+            localStorage.setItem('game_chipmatch_best', score.toString());
         }
+        sfxGameOver();
+        return;
     }
 
     // Animate tiles
@@ -1088,6 +1119,10 @@ function update() {
                 cascadeTimer = 15;
             } else {
                 combo = 0;
+                // Shuffle board if no possible moves remain
+                if (!demoMode && findPossibleMoves().length === 0) {
+                    createGrid();
+                }
             }
         }
     }
@@ -1335,7 +1370,7 @@ function drawOverlays() {
         ctx.fillStyle = '#ef4444';
         ctx.font = 'bold 34px Courier New';
         ctx.textAlign = 'center';
-        ctx.fillText('PRODUCTION FAILED', W/2, H/2 - 50);
+        ctx.fillText('POWER DEPLETED', W/2, H/2 - 50);
 
         ctx.fillStyle = '#ffffff';
         ctx.font = '16px Courier New';
