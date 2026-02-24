@@ -793,12 +793,28 @@ class ProgressManager {
         const storedLevel = (typeof progress.level === 'number' && isFinite(progress.level) && progress.level >= 1) ? progress.level : 1;
         const level = Math.max(computedLevel, storedLevel);
 
-        // Sync reconciled values back to both stores so they stay aligned
-        if (xp !== progressXP || level !== storedLevel) {
+        // Sync reconciled values back to both stores so they stay aligned.
+        // GUARD: Only write back if progress has real data (not empty defaults).
+        // If hexworth_progress was unreadable, getProgress() returns defaults with
+        // no house data — writing that back would wipe all completions.
+        const hasRealData = (progress.completedModules && progress.completedModules.length > 0)
+            || Object.keys(progress.houses || {}).some(h => {
+                const house = progress.houses[h];
+                return house && (house.modulesCompleted || []).length > 0;
+            })
+            || Object.keys(this.HOUSES).some(h => progress[h] && typeof progress[h] === 'object' && !Array.isArray(progress[h]));
+
+        if ((xp !== progressXP || level !== storedLevel) && hasRealData) {
             try {
                 progress.xp = xp;
                 progress.level = level;
                 localStorage.setItem(this.STORAGE_KEYS.PROGRESS, JSON.stringify(progress));
+                localStorage.setItem('hexworth_xp', String(xp));
+                localStorage.setItem('hexworth_level', String(level));
+            } catch (e) { /* best-effort sync */ }
+        } else if (xp !== progressXP || level !== storedLevel) {
+            // Only update standalone scalar keys — don't touch hexworth_progress
+            try {
                 localStorage.setItem('hexworth_xp', String(xp));
                 localStorage.setItem('hexworth_level', String(level));
             } catch (e) { /* best-effort sync */ }

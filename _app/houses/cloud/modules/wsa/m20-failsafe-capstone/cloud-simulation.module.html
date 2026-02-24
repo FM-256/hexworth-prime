@@ -1082,6 +1082,7 @@ LESSONS LEARNED:
     <script src="../../../../../utils/SyncUtils.js"></script>
     <script src="../../../../../components/FirestoreManager.js"></script>
     <script src="../../../../../components/ProgressRestore.js"></script>
+    <script src="../../../../../components/StateFederation.js"></script>
     <script>
         const STORAGE_KEY = 'wsa-failsafe-capstone';
 
@@ -1163,9 +1164,50 @@ LESSONS LEARNED:
         }
 
         // ========================================
-        // State Persistence
+        // State Persistence (StateFederation)
         // ========================================
-        const SYNC_KEY = 'wsa-failsafe-capstone-sync'; // lightweight, syncs across devices
+        const _fed = StateFederation.register({
+            storageKey: STORAGE_KEY,
+            syncKey: 'wsa-failsafe-capstone-sync',
+            courseProgressKey: 'capstone',
+            courseProgressProvider: 'wsa',
+            courseProgressComponent: 'guiLab',
+
+            extract: (full) => ({
+                completedObjectives: full.completedObjectives,
+                recoveryState: full.recoveryState,
+                startedAt: full.startedAt,
+                timestamp: Date.now()
+            }),
+
+            merge: (full, sync) => {
+                if (!sync.completedObjectives) return;
+                const existing = new Set(full.completedObjectives || []);
+                sync.completedObjectives.forEach(id => {
+                    if (!existing.has(id)) full.completedObjectives.push(id);
+                });
+            },
+
+            fromSync: (sync) => ({
+                completedObjectives: sync.completedObjectives || [],
+                recoveryState: sync.recoveryState || {},
+                startedAt: sync.startedAt,
+                timestamp: sync.timestamp,
+                terminalLines: [],
+                commandHistory: [],
+                docsContent: '',
+                _fromSync: true
+            }),
+
+            fromCompletion: (data) => data,
+
+            resumeText: (data, source) => {
+                if (source === 'completion') return null;
+                const count = (data.completedObjectives || []).length;
+                const suffix = source === 'sync' ? ' (synced from another device)' : '';
+                return `${count}/24 objectives completed${suffix}`;
+            }
+        });
 
         function saveState() {
             // Gather completed objective IDs
@@ -1189,7 +1231,7 @@ LESSONS LEARNED:
             // Cap terminal lines to prevent localStorage bloat
             const cappedLines = terminalLines.slice(-TERMINAL_MAX_LINES);
 
-            const state = {
+            _fed.save({
                 recoveryState: recoveryState,
                 completedObjectives: completedObjectives,
                 terminalLines: cappedLines,
@@ -1197,93 +1239,23 @@ LESSONS LEARNED:
                 docsContent: document.getElementById('docsEditor').value,
                 startedAt: startedAt,
                 timestamp: Date.now()
-            };
-
-            try {
-                localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-            } catch (e) {
-                // Storage full or unavailable — silent fail
-            }
-
-            // Lightweight sync key (objectives + recoveryState only, no terminal/docs)
-            try {
-                localStorage.setItem(SYNC_KEY, JSON.stringify({
-                    completedObjectives,
-                    recoveryState,
-                    startedAt,
-                    timestamp: Date.now()
-                }));
-            } catch(e) { /* non-critical */ }
+            });
         }
 
         function loadState() {
-            try {
-                const raw = localStorage.getItem(STORAGE_KEY);
-                if (raw) {
-                    const saved = JSON.parse(raw);
-                    // Merge sync key completions (another device may have more)
-                    _mergeSyncCompletions(saved);
-                    return saved;
-                }
-
-                // Fallback: try lightweight sync key (synced from another device)
-                const syncRaw = localStorage.getItem(SYNC_KEY);
-                if (syncRaw) {
-                    const syncData = JSON.parse(syncRaw);
-                    return {
-                        completedObjectives: syncData.completedObjectives || [],
-                        recoveryState: syncData.recoveryState || {},
-                        startedAt: syncData.startedAt,
-                        timestamp: syncData.timestamp,
-                        terminalLines: [],
-                        commandHistory: [],
-                        docsContent: '',
-                        _fromSync: true
-                    };
-                }
-
-                return null;
-            } catch (e) {
-                return null;
-            }
-        }
-
-        function _mergeSyncCompletions(saved) {
-            try {
-                const syncRaw = localStorage.getItem(SYNC_KEY);
-                if (!syncRaw) return;
-                const syncData = JSON.parse(syncRaw);
-                if (!syncData.completedObjectives) return;
-                const existing = new Set(saved.completedObjectives || []);
-                let merged = 0;
-                syncData.completedObjectives.forEach(id => {
-                    if (!existing.has(id)) {
-                        saved.completedObjectives.push(id);
-                        merged++;
-                    }
-                });
-                if (merged > 0) console.log(`[Capstone] Merged ${merged} completions from cloud sync`);
-            } catch(e) { /* non-critical */ }
-        }
-
-        function _getCloudCompletionData() {
-            try {
-                if (typeof WSAProgress !== 'undefined') {
-                    const mod = WSAProgress.getModule('capstone');
-                    if (mod && mod.guiLab && typeof mod.guiLab === 'object') return mod.guiLab;
-                }
-            } catch(e) {}
-            return null;
+            const result = _fed.load();
+            if (!result.data || result.source === 'completion') return null;
+            return result.data;
         }
 
         function clearSavedState() {
-            localStorage.removeItem(STORAGE_KEY);
-            // NOTE: SYNC_KEY is preserved so other devices can see completion
+            _fed.clearFull();
+            // NOTE: sync key is preserved so other devices can see completion
         }
 
         function startFresh() {
             clearSavedState();
-            localStorage.removeItem(SYNC_KEY);
+            _fed.reset(); // clears both keys for a full reset
             // Also clear the old failsafe-docs key for consistency
             localStorage.removeItem('failsafe-docs');
             startedAt = Date.now();
@@ -1934,32 +1906,29 @@ LESSONS LEARNED:
         // Initialization
         // ========================================
         (function init() {
-            const saved = loadState();
+            const resume = _fed.getResume();
 
-            if (saved) {
-                // Build resume info text
+            if (resume.hasResume && resume.source !== 'completion') {
+                const saved = resume.data;
                 const completedCount = saved.completedObjectives ? saved.completedObjectives.length : 0;
                 const elapsed = saved.timestamp ? getTimeAgo(saved.timestamp) : 'unknown';
-                const suffix = saved._fromSync ? ' (synced from another device)' : '';
+                const suffix = resume.source === 'sync' ? ' (synced from another device)' : '';
                 const resumeInfo = document.getElementById('resumeInfo');
                 resumeInfo.innerHTML = `${completedCount}/24 objectives completed<br>Last active: ${elapsed}${suffix}`;
 
                 // Show resume overlay
                 document.getElementById('resumeOverlay').classList.add('show');
+            } else if (resume.hasResume && resume.source === 'completion') {
+                // Completed on another device
+                document.getElementById('completionOverlay').classList.add('show');
             } else {
-                // No saved state — check if completed on another device
-                const completionData = _getCloudCompletionData();
-                if (completionData) {
-                    document.getElementById('completionOverlay').classList.add('show');
-                } else {
-                    // Truly fresh — show briefing
-                    toggleBriefing();
-                }
+                // Truly fresh — show briefing
+                toggleBriefing();
             }
 
             // Load saved docs from either source
             const savedDocs = localStorage.getItem('failsafe-docs');
-            if (savedDocs && !saved) {
+            if (savedDocs && !resume.hasResume) {
                 document.getElementById('docsEditor').value = savedDocs;
             }
 
@@ -1982,24 +1951,17 @@ LESSONS LEARNED:
         window.addEventListener('beforeunload', () => { saveState(); });
 
         // If cloud sync restores progress after page load, re-check
-        window.addEventListener('hexworth:progressRestored', (e) => {
-            if (e.detail.addedToLocal > 0) {
-                const raw = localStorage.getItem(STORAGE_KEY);
-                if (!raw) {
-                    const syncRaw = localStorage.getItem(SYNC_KEY);
-                    if (syncRaw) {
-                        try {
-                            const syncData = JSON.parse(syncRaw);
-                            const count = (syncData.completedObjectives || []).length;
-                            const resumeInfo = document.getElementById('resumeInfo');
-                            resumeInfo.innerHTML = `${count}/24 objectives completed<br>(synced from another device)`;
-                            document.getElementById('resumeOverlay').classList.add('show');
-                        } catch(e2) {}
-                    } else {
-                        const completionData = _getCloudCompletionData();
-                        if (completionData) document.getElementById('completionOverlay').classList.add('show');
-                    }
-                }
+        window.addEventListener('stateFederation:restored', (e) => {
+            if (e.detail.storageKey !== STORAGE_KEY) return;
+            const resume = _fed.getResume();
+            if (!resume.hasResume) return;
+            if (resume.source === 'completion') {
+                document.getElementById('completionOverlay').classList.add('show');
+            } else if (!localStorage.getItem(STORAGE_KEY)) {
+                const count = (resume.data.completedObjectives || []).length;
+                const resumeInfo = document.getElementById('resumeInfo');
+                resumeInfo.innerHTML = `${count}/24 objectives completed<br>(synced from another device)`;
+                document.getElementById('resumeOverlay').classList.add('show');
             }
         });
     </script>

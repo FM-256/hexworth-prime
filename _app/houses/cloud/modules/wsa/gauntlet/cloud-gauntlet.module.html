@@ -485,6 +485,7 @@
     <script src="../../../../../utils/SyncUtils.js"></script>
     <script src="../../../../../components/FirestoreManager.js"></script>
     <script src="../../../../../components/ProgressRestore.js"></script>
+    <script src="../../../../../components/StateFederation.js"></script>
 
     <!-- Header -->
     <div class="g-header">
@@ -897,84 +898,76 @@
         }
     };
 
-    // ── Persistence ──
-    const SYNC_KEY = 'wsa-gauntlet-sync'; // lightweight, < 10KB, syncs across devices
+    // ── Persistence (StateFederation) ──
+    const _fed = StateFederation.register({
+        storageKey: STORAGE_KEY,
+        syncKey: 'wsa-gauntlet-sync',
+        courseProgressKey: 'gauntlet',
+        courseProgressProvider: 'wsa',
+        courseProgressComponent: 'guiLab',
+
+        extract: (full) => ({
+            objectives: full.objectives,
+            scoring: full.scoring,
+            startedAt: full.startedAt,
+            lastSaved: Date.now()
+        }),
+
+        merge: (full, sync) => {
+            if (!sync.objectives) return;
+            sync.objectives.forEach(so => {
+                const fo = full.objectives.find(o => o.id === so.id);
+                if (fo && !fo.completed && so.completed) fo.completed = true;
+            });
+        },
+
+        fromSync: (sync) => {
+            // Apply sync objectives into live objects
+            sync.objectives.forEach(so => {
+                const obj = objectives.find(o => o.id === so.id);
+                if (obj) { obj.completed = so.completed; obj.hintsRevealed = so.hintsRevealed; }
+            });
+            scoring.totalPenalty = sync.scoring.totalPenalty;
+            startedAt = sync.startedAt;
+            return sync;
+        },
+
+        fromCompletion: (data) => data,
+
+        resumeText: (data, source) => {
+            if (source === 'completion') return null; // handled separately
+            const objs = data.objectives || [];
+            const done = objs.filter(o => o.completed).length;
+            const elapsed = formatTime(Date.now() - (data.startedAt || Date.now()));
+            const suffix = source === 'sync' ? ' (synced from another device)' : '';
+            return `${done}/75 objectives completed | Time: ${elapsed}${suffix}`;
+        }
+    });
 
     function saveState() {
         const objData = objectives.map(o => ({ id: o.id, completed: o.completed, hintsRevealed: o.hintsRevealed }));
-        const data = {
+        _fed.save({
             state, startedAt,
             objectives: objData,
             scoring: { totalPenalty: scoring.totalPenalty },
             lastSaved: Date.now()
-        };
-        try { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); } catch(e) { notify('⚠ Save failed — storage full', 'warn'); }
-
-        // Lightweight sync key (objectives + scoring only, no server state)
-        try {
-            localStorage.setItem(SYNC_KEY, JSON.stringify({
-                objectives: objData,
-                scoring: { totalPenalty: scoring.totalPenalty },
-                startedAt,
-                lastSaved: Date.now()
-            }));
-        } catch(e) { /* non-critical */ }
+        });
     }
 
     function loadState() {
-        try {
-            const raw = localStorage.getItem(STORAGE_KEY);
-            if (raw) {
-                const saved = JSON.parse(raw);
-                Object.assign(state, saved.state);
-                saved.objectives.forEach(so => {
-                    const obj = objectives.find(o => o.id === so.id);
-                    if (obj) { obj.completed = so.completed; obj.hintsRevealed = so.hintsRevealed; }
-                });
-                scoring.totalPenalty = saved.scoring.totalPenalty;
-                startedAt = saved.startedAt;
-                // Merge additional completions from sync key (another device may have more)
-                _mergeSyncCompletions();
-                return true;
-            }
-
-            // Fallback: try lightweight sync key (synced from another device)
-            const syncRaw = localStorage.getItem(SYNC_KEY);
-            if (syncRaw) {
-                const syncData = JSON.parse(syncRaw);
-                syncData.objectives.forEach(so => {
-                    const obj = objectives.find(o => o.id === so.id);
-                    if (obj) { obj.completed = so.completed; obj.hintsRevealed = so.hintsRevealed; }
-                });
-                scoring.totalPenalty = syncData.scoring.totalPenalty;
-                startedAt = syncData.startedAt;
-                return true;
-            }
-
-            return false;
-        } catch(e) { return false; }
-    }
-
-    function _mergeSyncCompletions() {
-        try {
-            const syncRaw = localStorage.getItem(SYNC_KEY);
-            if (!syncRaw) return;
-            const syncData = JSON.parse(syncRaw);
-            syncData.objectives.forEach(so => {
-                const obj = objectives.find(o => o.id === so.id);
-                if (obj && !obj.completed && so.completed) obj.completed = true;
-            });
-        } catch(e) { /* non-critical */ }
-    }
-
-    function _getCloudCompletionData() {
-        try {
-            if (typeof WSAProgress !== 'undefined') {
-                const mod = WSAProgress.getModule('gauntlet');
-                if (mod && mod.guiLab && typeof mod.guiLab === 'object') return mod.guiLab;
-            }
-        } catch(e) {}
-        return null;
+        const result = _fed.load();
+        if (!result.data || result.source === 'completion') return false;
+        if (result.source === 'sync') return true; // fromSync already applied to live objects
+        // source === 'local': apply full state
+        const saved = result.data;
+        Object.assign(state, saved.state);
+        saved.objectives.forEach(so => {
+            const obj = objectives.find(o => o.id === so.id);
+            if (obj) { obj.completed = so.completed; obj.hintsRevealed = so.hintsRevealed; }
+        });
+        scoring.totalPenalty = saved.scoring.totalPenalty;
+        startedAt = saved.startedAt;
+        return true;
     }
 
     function _showPreviouslyCompleted(data) {
@@ -1651,45 +1644,19 @@
     // ── Reset ──
     function resetGauntlet() {
         if (!confirm('Reset ALL gauntlet progress? This cannot be undone.')) return;
-        localStorage.removeItem(STORAGE_KEY);
-        localStorage.removeItem(SYNC_KEY);
+        _fed.reset();
         location.reload();
     }
 
     // ── Resume Logic ──
     function checkResume() {
-        const raw = localStorage.getItem(STORAGE_KEY);
-        if (raw) {
-            try {
-                const saved = JSON.parse(raw);
-                const done = saved.objectives.filter(o => o.completed).length;
-                const elapsed = formatTime(Date.now() - saved.startedAt);
-                document.getElementById('resumeInfo').textContent = `${done}/75 objectives completed | Time: ${elapsed}`;
-                document.getElementById('resumeOverlay').classList.add('show');
-            } catch(e) { initFresh(); }
+        const resume = _fed.getResume();
+        if (!resume.hasResume) { initFresh(); return; }
+        if (resume.source === 'completion') {
+            _showPreviouslyCompleted(resume.data);
         } else {
-            // No full state — check sync key (synced from another device)
-            const syncRaw = localStorage.getItem(SYNC_KEY);
-            if (syncRaw) {
-                try {
-                    const syncData = JSON.parse(syncRaw);
-                    const done = syncData.objectives.filter(o => o.completed).length;
-                    const elapsed = formatTime(Date.now() - syncData.startedAt);
-                    document.getElementById('resumeInfo').textContent = `${done}/75 objectives completed | Time: ${elapsed} (synced from another device)`;
-                    document.getElementById('resumeOverlay').classList.add('show');
-                } catch(e) { _checkCompletionOrFresh(); }
-            } else {
-                _checkCompletionOrFresh();
-            }
-        }
-    }
-
-    function _checkCompletionOrFresh() {
-        const completionData = _getCloudCompletionData();
-        if (completionData) {
-            _showPreviouslyCompleted(completionData);
-        } else {
-            initFresh();
+            document.getElementById('resumeInfo').textContent = resume.text;
+            document.getElementById('resumeOverlay').classList.add('show');
         }
     }
 
@@ -1705,8 +1672,7 @@
     function startFresh() {
         document.getElementById('resumeOverlay').classList.remove('show');
         document.getElementById('completionOverlay').classList.remove('show');
-        localStorage.removeItem(STORAGE_KEY);
-        localStorage.removeItem(SYNC_KEY);
+        _fed.reset();
         state = JSON.parse(JSON.stringify(defaultState));
         objectives.forEach(o => { o.completed = false; o.hintsRevealed = 0; });
         scoring.totalPenalty = 0;
@@ -3013,24 +2979,15 @@
     document.addEventListener('DOMContentLoaded', checkResume);
 
     // If cloud sync restores progress after page load, re-check
-    window.addEventListener('hexworth:progressRestored', (e) => {
-        if (e.detail.addedToLocal > 0) {
-            const raw = localStorage.getItem(STORAGE_KEY);
-            if (!raw) {
-                const syncRaw = localStorage.getItem(SYNC_KEY);
-                if (syncRaw) {
-                    try {
-                        const syncData = JSON.parse(syncRaw);
-                        const done = syncData.objectives.filter(o=>o.completed).length;
-                        const elapsed = formatTime(Date.now() - syncData.startedAt);
-                        document.getElementById('resumeInfo').textContent = `${done}/75 objectives completed | Time: ${elapsed} (synced from another device)`;
-                        document.getElementById('resumeOverlay').classList.add('show');
-                    } catch(e2) {}
-                } else {
-                    const completionData = _getCloudCompletionData();
-                    if (completionData) _showPreviouslyCompleted(completionData);
-                }
-            }
+    window.addEventListener('stateFederation:restored', (e) => {
+        if (e.detail.storageKey !== STORAGE_KEY) return;
+        const resume = _fed.getResume();
+        if (!resume.hasResume) return;
+        if (resume.source === 'completion') {
+            _showPreviouslyCompleted(resume.data);
+        } else if (!localStorage.getItem(STORAGE_KEY)) {
+            document.getElementById('resumeInfo').textContent = resume.text;
+            document.getElementById('resumeOverlay').classList.add('show');
         }
     });
 

@@ -774,6 +774,7 @@
     <script src="../../../../../utils/SyncUtils.js"></script>
     <script src="../../../../../components/FirestoreManager.js"></script>
     <script src="../../../../../components/ProgressRestore.js"></script>
+    <script src="../../../../../components/StateFederation.js"></script>
     <script>
     // ============================================
     // STATE MANAGEMENT
@@ -823,6 +824,26 @@
 
     let state = JSON.parse(JSON.stringify(defaultState));
 
+    // StateFederation: midterm objectives are computed from state (no stored flags),
+    // so fromSync is null. Only Tier 3 (course completion) provides cross-device detection.
+    // extract() saves a lightweight objective snapshot for future sync use.
+    const _fed = StateFederation.register({
+        storageKey: STORAGE_KEY,
+        syncKey: 'outpost-simulation-sync',
+        courseProgressKey: 'midterm',
+        courseProgressProvider: 'wsa',
+        courseProgressComponent: 'guiLab',
+
+        extract: (full) => ({
+            timestamp: Date.now()
+        }),
+
+        merge: null,
+        fromSync: null,
+        fromCompletion: (data) => data,
+        resumeText: null
+    });
+
     function loadState() {
         try {
             const saved = localStorage.getItem(STORAGE_KEY);
@@ -850,11 +871,7 @@
 
     let _renderPending = false;
     function saveState() {
-        try {
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-        } catch (e) {
-            console.error('Error saving state:', e);
-        }
+        _fed.save(state);
         if (!_renderPending) {
             _renderPending = true;
             requestAnimationFrame(() => {
@@ -873,7 +890,7 @@
     function resetSimulation() {
         if (confirm('Reset all simulation progress? This cannot be undone.')) {
             state = JSON.parse(JSON.stringify(defaultState));
-            localStorage.removeItem(STORAGE_KEY);
+            _fed.reset();
             localStorage.removeItem('outpost-docs');
             location.reload();
         }
@@ -4535,21 +4552,18 @@ SHADOW COPIES:
     function _checkMidtermCloudCompletion() {
         const raw = localStorage.getItem(STORAGE_KEY);
         if (!raw) {
-            try {
-                if (typeof WSAProgress !== 'undefined') {
-                    const mod = WSAProgress.getModule('midterm');
-                    if (mod && mod.guiLab && typeof mod.guiLab === 'object') {
-                        document.getElementById('completionOverlay').classList.add('show');
-                    }
-                }
-            } catch(e) {}
+            const result = _fed.load();
+            if (result.source === 'completion') {
+                document.getElementById('completionOverlay').classList.add('show');
+            }
         }
     }
     _checkMidtermCloudCompletion();
 
     // If cloud sync restores progress after page load, re-check
-    window.addEventListener('hexworth:progressRestored', (e) => {
-        if (e.detail.addedToLocal > 0) _checkMidtermCloudCompletion();
+    window.addEventListener('stateFederation:restored', (e) => {
+        if (e.detail.storageKey !== STORAGE_KEY) return;
+        _checkMidtermCloudCompletion();
     });
     </script>
     <script src="../../../../../components/FluxCapacitor.js"></script>
