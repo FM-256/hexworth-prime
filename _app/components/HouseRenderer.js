@@ -47,6 +47,9 @@ const HouseRenderer = (function() {
 
     function init(cfg) {
         config = cfg;
+        if (!config.emblem && config.houseId) {
+            config.emblem = `../../assets/images/emblems/${config.houseId}.webp`;
+        }
         injectCSS();
         renderPage();
         initTabs();
@@ -133,7 +136,8 @@ const HouseRenderer = (function() {
                 border-radius: 25px;
             }
 
-            .house-icon { font-size: 1.5rem; }
+            .house-icon { font-size: 1.5rem; display: flex; align-items: center; }
+            .house-icon img { width: 28px; height: 28px; border-radius: 50%; object-fit: cover; }
 
             .house-badge-text {
                 font-size: 0.75rem;
@@ -179,6 +183,15 @@ const HouseRenderer = (function() {
                 font-size: 5rem;
                 margin-bottom: 25px;
                 filter: drop-shadow(0 0 30px var(--house-glow));
+            }
+
+            .hero-icon img {
+                width: 120px;
+                height: 120px;
+                border-radius: 50%;
+                border: 3px solid var(--house-primary);
+                box-shadow: 0 0 40px var(--house-glow), 0 0 80px rgba(0,0,0,0.4);
+                object-fit: cover;
             }
 
             .hero-title {
@@ -757,7 +770,7 @@ const HouseRenderer = (function() {
                     <span>Dashboard</span>
                 </a>
                 <div class="house-badge">
-                    <span class="house-icon">${config.icon}</span>
+                    <span class="house-icon">${config.emblem ? `<img src="${config.emblem}" alt="${config.fullTitle}" onerror="this.outerHTML='${config.icon}'">` : config.icon}</span>
                     <span class="house-badge-text">${config.fullTitle}</span>
                 </div>
             </div>
@@ -774,7 +787,7 @@ const HouseRenderer = (function() {
         // Hero
         main.innerHTML = `
             <section class="hero-section">
-                <div class="hero-icon">${config.icon}</div>
+                <div class="hero-icon">${config.emblem ? `<img src="${config.emblem}" alt="${config.fullTitle} emblem" onerror="this.outerHTML='${config.icon}'">` : config.icon}</div>
                 <h1 class="hero-title">House of the <span>${config.title}</span></h1>
                 <p class="hero-domain">${config.domain}</p>
                 <p class="hero-description">${config.description}</p>

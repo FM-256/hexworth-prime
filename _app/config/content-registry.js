@@ -23016,6 +23016,7 @@ const ContentRegistry = {
             name: 'House of the Web',
             shortName: 'The Web',
             icon: '🕸️',
+            emblem: 'assets/images/emblems/web.webp',
             domain: 'Networking & Connections',
             color: '#60a5fa',
             description: 'Master the interconnected world of networks and protocols'
@@ -23025,6 +23026,7 @@ const ContentRegistry = {
             name: 'House of the Shield',
             shortName: 'The Shield',
             icon: '🛡️',
+            emblem: 'assets/images/emblems/shield.webp',
             domain: 'Security & Defense',
             color: '#f87171',
             description: 'Defend systems and protect against threats'
@@ -23034,6 +23036,7 @@ const ContentRegistry = {
             name: 'House of the Forge',
             shortName: 'The Forge',
             icon: '⚒️',
+            emblem: 'assets/images/emblems/forge.webp',
             domain: 'Hardware & Systems',
             color: '#fbbf24',
             description: 'Build and configure the physical and virtual machines'
@@ -23043,6 +23046,7 @@ const ContentRegistry = {
             name: 'House of the Script',
             shortName: 'The Script',
             icon: '📜',
+            emblem: 'assets/images/emblems/script.webp',
             domain: 'Automation & Efficiency',
             color: '#a78bfa',
             description: 'Automate everything, script once run forever'
@@ -23052,6 +23056,7 @@ const ContentRegistry = {
             name: 'House of the Cloud',
             shortName: 'The Cloud',
             icon: '☁️',
+            emblem: 'assets/images/emblems/cloud.webp',
             domain: 'Infrastructure & Scale',
             color: '#38bdf8',
             description: 'Build empires in the ether, scale infinitely'
@@ -23061,6 +23066,7 @@ const ContentRegistry = {
             name: 'House of the Code',
             shortName: 'The Code',
             icon: '💻',
+            emblem: 'assets/images/emblems/code.webp',
             domain: 'Development & Engineering',
             color: '#4ade80',
             description: 'Create software that shapes the digital world'
@@ -23070,6 +23076,7 @@ const ContentRegistry = {
             name: 'House of the Key',
             shortName: 'The Key',
             icon: '🔑',
+            emblem: 'assets/images/emblems/key.webp',
             domain: 'Cryptography & Secrets',
             color: '#f472b6',
             description: 'Guard secrets with the power of mathematics'
@@ -23079,6 +23086,7 @@ const ContentRegistry = {
             name: 'House of the Eye',
             shortName: 'The Eye',
             icon: '👁️',
+            emblem: 'assets/images/emblems/eye.webp',
             domain: 'Monitoring & Analysis',
             color: '#c084fc',
             description: 'See everything, analyze all, miss nothing'
@@ -23139,6 +23147,7 @@ const ContentRegistry = {
             name: 'House of the Dark Arts',
             shortName: 'The Dark Arts',
             icon: '🌑',
+            emblem: 'assets/images/emblems/dark-arts.webp',
             domain: 'Offensive Security',
             color: '#6b21a8',
             description: 'Understand attacks to build better defenses'
@@ -23148,6 +23157,7 @@ const ContentRegistry = {
             name: 'The Factionless',
             shortName: 'Factionless',
             icon: '⚡',
+            emblem: 'assets/images/emblems/divergent.webp',
             domain: 'All Domains',
             color: '#ff00ff',
             description: 'You cannot be contained. All houses are open to you.',
