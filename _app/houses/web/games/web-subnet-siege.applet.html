@@ -1,0 +1,2301 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../components/AchievementManager.js"></script>
+    <script src="../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Subnet Siege - Hexworth Prime</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background: #0a0a1a;
+            color: #ffffff;
+            font-family: 'Courier New', monospace;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            overflow: hidden;
+        }
+        .back-link {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            color: #3b82f6;
+            text-decoration: none;
+            font-size: 16px;
+            cursor: pointer;
+            z-index: 100;
+            transition: color 0.3s;
+        }
+        .back-link:hover { color: #60a5fa; }
+        #muteBtn {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: #3b82f6;
+            color: #0a0a1a;
+            border: none;
+            padding: 8px 16px;
+            cursor: pointer;
+            font-family: 'Courier New', monospace;
+            font-weight: bold;
+            z-index: 10;
+        }
+        #muteBtn:hover { background: #2563eb; }
+        #gameWrapper {
+            display: flex;
+            align-items: flex-start;
+            justify-content: center;
+            gap: 0;
+        }
+        /* ---- LEFT LORE PANEL ---- */
+        #lorePanel {
+            width: 220px;
+            background: linear-gradient(180deg, #0d1829 0%, #0a0a1a 100%);
+            border: 2px solid #1e3a5f;
+            border-right: none;
+            padding: 16px;
+            font-size: 11px;
+            color: #64748b;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            height: 600px;
+            overflow-y: auto;
+        }
+        .lore-title {
+            background: linear-gradient(135deg, #1e40af 0%, #0891b2 100%);
+            color: #ffffff;
+            font-size: 14px;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            border-bottom: 2px solid #06b6d4;
+            padding: 10px 8px;
+            text-align: center;
+            box-shadow: 0 2px 12px rgba(6,182,212,0.4);
+            margin: -16px -16px 0 -16px;
+        }
+        .lore-section h3 {
+            color: #06b6d4;
+            font-size: 10px;
+            margin-bottom: 5px;
+            border-left: 3px solid #3b82f6;
+            padding-left: 5px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        .lore-section p { line-height: 1.5; margin-bottom: 3px; }
+        .lore-keys p { margin-bottom: 3px; }
+        .lore-keys span { color: #3b82f6; font-weight: bold; }
+        .lore-stat-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 3px 0;
+            border-bottom: 1px solid rgba(30,58,95,0.5);
+            font-size: 10px;
+        }
+        .lore-stat-row span:last-child { color: #06b6d4; font-weight: bold; }
+        .wave-brief {
+            background: rgba(6,182,212,0.08);
+            border: 1px solid rgba(6,182,212,0.3);
+            padding: 8px;
+            font-size: 10px;
+            line-height: 1.6;
+        }
+        .wave-brief .wbr-title { color: #06b6d4; font-weight: bold; margin-bottom: 4px; }
+        .wave-brief .wbr-threat { color: #f87171; }
+        .wave-brief .wbr-safe { color: #4ade80; }
+        /* ---- CANVAS ---- */
+        #gameContainer {
+            position: relative;
+        }
+        #gameCanvas {
+            border: 2px solid #1e3a5f;
+            border-left: 3px solid #3b82f6;
+            border-right: 3px solid #3b82f6;
+            display: block;
+            background: #0a0a1a;
+            cursor: pointer;
+            box-shadow: 0 0 30px rgba(59,130,246,0.2);
+        }
+        /* ---- RIGHT STATS + TOWER PANEL ---- */
+        #statsPanel {
+            width: 220px;
+            background: linear-gradient(180deg, #0d1829 0%, #0a0a1a 100%);
+            border: 2px solid #1e3a5f;
+            border-left: none;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            height: 600px;
+            overflow-y: auto;
+        }
+        .stats-title {
+            color: #06b6d4;
+            font-size: 12px;
+            font-weight: bold;
+            text-align: center;
+            border-bottom: 1px solid #1e3a5f;
+            padding-bottom: 6px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        .stat-item {
+            font-size: 10px;
+            color: #64748b;
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+        .stat-label { color: #94a3b8; font-size: 9px; text-transform: uppercase; }
+        .stat-value { color: #3b82f6; font-size: 16px; font-weight: bold; }
+        .stat-value.warn { color: #f59e0b; }
+        .stat-value.danger { color: #ef4444; }
+        .hp-bar {
+            background: rgba(30,58,95,0.4);
+            height: 6px;
+            border: 1px solid #1e3a5f;
+            margin-top: 3px;
+            overflow: hidden;
+        }
+        .hp-fill {
+            background: linear-gradient(90deg, #22c55e, #4ade80);
+            height: 100%;
+            transition: width 0.3s ease;
+        }
+        /* Tower selection buttons */
+        .tower-btn {
+            background: rgba(10,10,26,0.8);
+            border: 2px solid #1e3a5f;
+            color: #94a3b8;
+            padding: 7px 6px;
+            cursor: pointer;
+            font-family: 'Courier New', monospace;
+            font-size: 10px;
+            text-align: left;
+            transition: all 0.2s;
+            position: relative;
+        }
+        .tower-btn:hover:not(:disabled) {
+            border-color: #3b82f6;
+            color: #ffffff;
+            background: rgba(59,130,246,0.15);
+        }
+        .tower-btn.selected {
+            border-color: #06b6d4;
+            background: rgba(6,182,212,0.2);
+            color: #ffffff;
+        }
+        .tower-btn:disabled {
+            opacity: 0.35;
+            cursor: not-allowed;
+        }
+        .tower-btn .tbtn-name { font-weight: bold; font-size: 11px; }
+        .tower-btn .tbtn-cidr { color: #06b6d4; font-size: 10px; }
+        .tower-btn .tbtn-cost { color: #f59e0b; font-size: 10px; float: right; }
+        .tower-btn .tbtn-stats { color: #64748b; font-size: 9px; margin-top: 2px; }
+
+        /* Subnet chooser overlay (inside statsPanel) */
+        #subnetChooser {
+            display: none;
+            background: rgba(6,18,42,0.98);
+            border: 2px solid #06b6d4;
+            padding: 10px;
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 50;
+            overflow-y: auto;
+        }
+        #subnetChooser .sc-title {
+            color: #06b6d4;
+            font-size: 11px;
+            font-weight: bold;
+            margin-bottom: 8px;
+            text-align: center;
+        }
+        #subnetChooser .sc-question {
+            color: #94a3b8;
+            font-size: 10px;
+            margin-bottom: 8px;
+            line-height: 1.5;
+        }
+        .subnet-opt {
+            background: rgba(30,58,95,0.3);
+            border: 1px solid #1e3a5f;
+            color: #94a3b8;
+            padding: 8px;
+            margin-bottom: 5px;
+            cursor: pointer;
+            font-family: 'Courier New', monospace;
+            font-size: 11px;
+            transition: all 0.15s;
+            width: 100%;
+            text-align: left;
+        }
+        .subnet-opt:hover {
+            border-color: #06b6d4;
+            color: #ffffff;
+            background: rgba(6,182,212,0.15);
+        }
+        .subnet-opt.correct { border-color: #22c55e; color: #22c55e; background: rgba(34,197,94,0.1); }
+        .subnet-opt.wrong { border-color: #ef4444; color: #ef4444; background: rgba(239,68,68,0.1); }
+        #subnetChooser .sc-cancel {
+            color: #64748b;
+            font-size: 10px;
+            cursor: pointer;
+            text-align: center;
+            margin-top: 6px;
+        }
+        #subnetChooser .sc-cancel:hover { color: #94a3b8; }
+
+        /* Sell button in panel */
+        #sellBtn {
+            background: rgba(239,68,68,0.1);
+            border: 1px solid rgba(239,68,68,0.4);
+            color: #f87171;
+            padding: 6px;
+            cursor: pointer;
+            font-family: 'Courier New', monospace;
+            font-size: 10px;
+            transition: all 0.2s;
+        }
+        #sellBtn:hover { background: rgba(239,68,68,0.2); border-color: #ef4444; }
+        #sellBtn.active { border-color: #ef4444; background: rgba(239,68,68,0.25); color: #ffffff; }
+        #nextWaveBtn {
+            background: linear-gradient(135deg, #1e40af, #0891b2);
+            border: 2px solid #06b6d4;
+            color: #ffffff;
+            padding: 10px;
+            cursor: pointer;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            transition: all 0.2s;
+            width: 100%;
+        }
+        #nextWaveBtn:hover { background: linear-gradient(135deg, #2563eb, #0e7490); }
+        #nextWaveBtn:disabled { opacity: 0.3; cursor: not-allowed; }
+        #controls {
+            text-align: center;
+            margin-top: 10px;
+            color: #3b82f6;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <a class="back-link" onclick="window.location.href = '../index.html'">← Back</a>
+    <button id="muteBtn" onclick="toggleMute()">MUTE</button>
+
+    <div id="gameWrapper">
+        <!-- LEFT: Lore / Info Panel -->
+        <div id="lorePanel">
+            <div class="lore-title">SUBNET SIEGE</div>
+            <div class="lore-section">
+                <h3>MISSION BRIEF</h3>
+                <p>Threat packets are flooding your network. Deploy firewall towers configured with the correct subnet filters to block hostile traffic without disrupting legitimate flows.</p>
+            </div>
+            <div class="lore-section">
+                <h3>TOWER TYPES</h3>
+                <p style="color:#ef4444;font-size:10px;">RED = Threat packets (block!)</p>
+                <p style="color:#22c55e;font-size:10px;">GREEN = Legitimate traffic (pass!)</p>
+                <p style="height:4px;"></p>
+                <p style="color:#3b82f6;font-size:10px;">SCANNER /24 — Broad filter</p>
+                <p style="color:#06b6d4;font-size:10px;">FIREWALL /26 — Mid precision</p>
+                <p style="color:#a855f7;font-size:10px;">IDS /28 — High precision</p>
+                <p style="color:#f59e0b;font-size:10px;">WAF /30 — Surgical filter</p>
+            </div>
+            <div class="lore-section">
+                <h3>WAVE STATUS</h3>
+                <div id="waveStatusBlock">
+                    <div class="lore-stat-row"><span>Wave</span><span id="loreWave">—</span></div>
+                    <div class="lore-stat-row"><span>Threats Blocked</span><span id="loreBlocked">0</span></div>
+                    <div class="lore-stat-row"><span>Threats Missed</span><span id="loreMissed">0</span></div>
+                    <div class="lore-stat-row"><span>False Positives</span><span id="loreFP">0</span></div>
+                    <div class="lore-stat-row"><span>Combo</span><span id="loreCombo">x1</span></div>
+                </div>
+            </div>
+            <div class="lore-section">
+                <h3>NEXT WAVE INTEL</h3>
+                <div class="wave-brief" id="waveBriefing">
+                    <div class="wbr-title">INITIALIZING...</div>
+                    <div>Press SPACE or click canvas to begin.</div>
+                </div>
+            </div>
+            <div class="lore-section lore-keys">
+                <h3>CONTROLS</h3>
+                <p><span>CLICK</span> Select tower / place</p>
+                <p><span>SPACE</span> Start wave</p>
+                <p><span>S</span> Toggle sell mode</p>
+                <p><span>ESC</span> Cancel placement</p>
+                <p><span>M</span> Toggle sound</p>
+            </div>
+        </div>
+
+        <!-- CENTER: Canvas -->
+        <div id="gameContainer">
+            <canvas id="gameCanvas" width="700" height="600"></canvas>
+        </div>
+
+        <!-- RIGHT: Stats + Tower Selection -->
+        <div id="statsPanel" style="position:relative;">
+            <!-- Subnet chooser overlays the stats panel when placing a tower -->
+            <div id="subnetChooser" style="display:none;">
+                <div class="sc-title">CONFIGURE SUBNET FILTER</div>
+                <div class="sc-question" id="scQuestion"></div>
+                <div id="scOptions"></div>
+                <div class="sc-cancel" onclick="cancelPlacement()">[ Cancel ]</div>
+            </div>
+            <div class="stats-title">NETWORK OPS</div>
+            <div class="stat-item">
+                <div class="stat-label">Server HP</div>
+                <div class="stat-value" id="hpDisplay">100</div>
+                <div class="hp-bar"><div class="hp-fill" id="hpFill" style="width:100%"></div></div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-label">Credits</div>
+                <div class="stat-value" id="creditsDisplay">500</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-label">Score</div>
+                <div class="stat-value" id="scoreDisplay">0</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-label">High Score</div>
+                <div class="stat-value" id="bestDisplay">0</div>
+            </div>
+
+            <div class="stats-title" style="margin-top:4px;">DEPLOY TOWER</div>
+            <button class="tower-btn" id="btnScanner" onclick="selectTowerType('scanner')">
+                <span class="tbtn-name" style="color:#3b82f6;">SCANNER</span>
+                <span class="tbtn-cost">100c</span>
+                <div class="tbtn-cidr">/24 — 256 IPs</div>
+                <div class="tbtn-stats">Rng:150 | Rate:Slow | Dmg:1</div>
+            </button>
+            <button class="tower-btn" id="btnFirewall" onclick="selectTowerType('firewall')">
+                <span class="tbtn-name" style="color:#06b6d4;">FIREWALL</span>
+                <span class="tbtn-cost">200c</span>
+                <div class="tbtn-cidr">/26 — 64 IPs</div>
+                <div class="tbtn-stats">Rng:130 | Rate:Med | Dmg:2</div>
+            </button>
+            <button class="tower-btn" id="btnIDS" onclick="selectTowerType('ids')">
+                <span class="tbtn-name" style="color:#a855f7;">IDS</span>
+                <span class="tbtn-cost">350c</span>
+                <div class="tbtn-cidr">/28 — 16 IPs</div>
+                <div class="tbtn-stats">Rng:110 | Rate:Fast | Dmg:3</div>
+            </button>
+            <button class="tower-btn" id="btnWAF" onclick="selectTowerType('waf')">
+                <span class="tbtn-name" style="color:#f59e0b;">WAF</span>
+                <span class="tbtn-cost">500c</span>
+                <div class="tbtn-cidr">/30 — 4 IPs</div>
+                <div class="tbtn-stats">Rng:90 | Rate:V.Fast | Dmg:5</div>
+            </button>
+            <button id="sellBtn" onclick="toggleSellMode()">[ SELL TOWER (50% refund) ]</button>
+            <button id="nextWaveBtn" onclick="startNextWave()" disabled>START WAVE 1</button>
+        </div>
+    </div>
+
+    <div id="controls">CLICK TOWER TYPE → CLICK SPOT → CHOOSE SUBNET | S=SELL | ESC=CANCEL | M=MUTE</div>
+
+<script>
+// ============================================================
+// CANVAS SETUP
+// ============================================================
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+const W = canvas.width;   // 700
+const H = canvas.height;  // 600
+
+// ============================================================
+// AUDIO SYSTEM (Web Audio API synthesized sounds)
+// ============================================================
+let muted = false;
+let audioCtx = null;
+
+function ensureAudio() {
+    if (!audioCtx) {
+        try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch(e) {}
+    }
+}
+
+function playSound(freq, dur, type = 'square', vol = 0.12) {
+    if (muted || !audioCtx) return;
+    try {
+        const o = audioCtx.createOscillator();
+        const g = audioCtx.createGain();
+        o.type = type;
+        o.frequency.setValueAtTime(freq, audioCtx.currentTime);
+        g.gain.setValueAtTime(vol, audioCtx.currentTime);
+        g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + dur);
+        o.connect(g);
+        g.connect(audioCtx.destination);
+        o.start();
+        o.stop(audioCtx.currentTime + dur);
+    } catch(e) {}
+}
+
+function sfxPlace()  { playSound(440, 0.1, 'sine', 0.12); playSound(660, 0.1, 'sine', 0.1); }
+function sfxFire()   { playSound(880, 0.06, 'square', 0.07); }
+function sfxKill()   { playSound(440, 0.08, 'square', 0.1); playSound(220, 0.12, 'sawtooth', 0.08); }
+function sfxMiss()   { playSound(150, 0.3, 'sawtooth', 0.14); }
+function sfxFP()     { playSound(300, 0.15, 'sawtooth', 0.1); }
+function sfxWaveComplete() {
+    playSound(523, 0.1, 'sine', 0.12);
+    setTimeout(() => playSound(659, 0.1, 'sine', 0.12), 120);
+    setTimeout(() => playSound(784, 0.2, 'sine', 0.12), 240);
+}
+function sfxGameOver() {
+    playSound(300, 0.15, 'sawtooth', 0.15);
+    setTimeout(() => playSound(200, 0.15, 'sawtooth', 0.15), 150);
+    setTimeout(() => playSound(100, 0.35, 'sawtooth', 0.15), 300);
+}
+function sfxVictory() {
+    [523,659,784,1047].forEach((f,i) => setTimeout(() => playSound(f, 0.2, 'sine', 0.13), i * 150));
+}
+function sfxWrong()  { playSound(220, 0.2, 'square', 0.1); }
+function toggleMute() { muted = !muted; document.getElementById('muteBtn').textContent = muted ? 'UNMUTE' : 'MUTE'; }
+
+// ============================================================
+// SUBNET UTILITY FUNCTIONS
+// ============================================================
+function ipToNum(ip) {
+    return ip.split('.').reduce((n, o) => (n << 8) + parseInt(o), 0) >>> 0;
+}
+function numToIp(n) {
+    return [(n>>>24)&255, (n>>>16)&255, (n>>>8)&255, n&255].join('.');
+}
+function getNetworkAddr(ipNum, cidr) {
+    const mask = cidr === 0 ? 0 : (~0 << (32 - cidr)) >>> 0;
+    return (ipNum & mask) >>> 0;
+}
+function isInSubnet(ipNum, networkNum, cidr) {
+    const mask = cidr === 0 ? 0 : (~0 << (32 - cidr)) >>> 0;
+    return (ipNum & mask) >>> 0 === networkNum;
+}
+function randomIpInSubnet(networkNum, cidr) {
+    const hostBits = 32 - cidr;
+    const maxHost = (1 << hostBits) - 1;
+    const hostPart = Math.floor(Math.random() * (maxHost - 1)) + 1; // avoid .0 and broadcast
+    return numToIp((networkNum | hostPart) >>> 0);
+}
+
+// ============================================================
+// PATH DEFINITION (waypoints for packets to follow)
+// Snake path left→right across canvas
+// ============================================================
+const PATH_WAYPOINTS = [
+    { x: -20,  y: 100 },   // off-screen start (spawn point)
+    { x: 120,  y: 100 },
+    { x: 120,  y: 220 },
+    { x: 580,  y: 220 },
+    { x: 580,  y: 100 },
+    { x: 420,  y: 100 },
+    { x: 420,  y: 340 },
+    { x: 160,  y: 340 },
+    { x: 160,  y: 460 },
+    { x: 540,  y: 460 },
+    { x: 540,  y: 370 },
+    { x: 680,  y: 370 },   // reaches server
+    { x: 720,  y: 370 }    // fully off-screen (despawn = hit)
+];
+
+// ============================================================
+// TOWER SPOT DEFINITIONS (x,y positions for placement circles)
+// Placed adjacent to the path but not on it
+// ============================================================
+const TOWER_SPOTS = [
+    { x: 60,  y: 160 },    // 0 - near first vertical
+    { x: 200, y: 160 },    // 1 - near top corridor
+    { x: 340, y: 160 },    // 2
+    { x: 500, y: 160 },    // 3
+    { x: 500, y: 280 },    // 4 - near second horizontal
+    { x: 300, y: 280 },    // 5
+    { x: 220, y: 280 },    // 6
+    { x: 220, y: 400 },    // 7 - near third horizontal
+    { x: 380, y: 400 },    // 8
+    { x: 540, y: 520 },    // 9 - near final horizontal
+];
+
+// ============================================================
+// WAVE DEFINITIONS
+// Each wave specifies threat and safe IP pools, spawn count
+// ============================================================
+const WAVE_DATA = [
+    {
+        num: 1,
+        name: "Port Scan",
+        brief: { title: "WAVE 1: Port Scan", threat: "Threats: 10.0.0.x range", safe: "Safe: 192.168.1.x range", hint: "Tip: A /24 SCANNER covers all 256 addresses in a .x range." },
+        threatCidr: 24,
+        threatNets: [{ net: '10.0.0.0',   cidr: 24 }],
+        safeNets:   [{ net: '192.168.1.0', cidr: 24 }],
+        count: 14,
+        speed: 0.8,
+        hp: 1,
+        damage: 1,
+        spawnInterval: 120
+    },
+    {
+        num: 2,
+        name: "Probe Attack",
+        brief: { title: "WAVE 2: Probe Attack", threat: "Threats: 10.0.1.x range", safe: "Safe: 10.0.2.x (same first two octets!)", hint: "Tip: Third octet differs — configure /24 for the right network." },
+        threatCidr: 24,
+        threatNets: [{ net: '10.0.1.0', cidr: 24 }],
+        safeNets:   [{ net: '10.0.2.0', cidr: 24 }],
+        count: 18,
+        speed: 0.9,
+        hp: 1,
+        damage: 1,
+        spawnInterval: 105
+    },
+    {
+        num: 3,
+        name: "Network Recon",
+        brief: { title: "WAVE 3: Network Recon", threat: "Threats: 172.16.10.x", safe: "Safe: 172.16.20.x (more packets this wave)", hint: "Tip: Watch the third octet carefully — 10 vs 20." },
+        threatCidr: 24,
+        threatNets: [{ net: '172.16.10.0', cidr: 24 }],
+        safeNets:   [{ net: '172.16.20.0', cidr: 24 }],
+        count: 26,
+        speed: 1.0,
+        hp: 2,
+        damage: 1,
+        spawnInterval: 82
+    },
+    {
+        num: 4,
+        name: "Subnet Breach",
+        brief: { title: "WAVE 4: Subnet Breach", threat: "Threats: 192.168.5.64/26", safe: "Safe: .0/26 and .128/26 (same /24 block!)", hint: "Tip: You need a /26 FIREWALL — 256-host /24 is too broad and would block safe traffic." },
+        threatCidr: 26,
+        threatNets: [{ net: '192.168.5.64',  cidr: 26 }],
+        safeNets:   [{ net: '192.168.5.0',   cidr: 26 }, { net: '192.168.5.128', cidr: 26 }],
+        count: 28,
+        speed: 1.1,
+        hp: 2,
+        damage: 2,
+        spawnInterval: 75
+    },
+    {
+        num: 5,
+        name: "Dual Vector",
+        brief: { title: "WAVE 5: Dual Vector", threat: "Threats from TWO /26 ranges — need multiple towers!", safe: "Safe traffic between threats", hint: "Tip: Deploy a /26 FIREWALL for each threat network. Economy matters now." },
+        threatCidr: 26,
+        threatNets: [{ net: '10.10.1.0',  cidr: 26 }, { net: '10.10.1.128', cidr: 26 }],
+        safeNets:   [{ net: '10.10.1.64', cidr: 26 }],
+        count: 34,
+        speed: 1.2,
+        hp: 3,
+        damage: 2,
+        spawnInterval: 65
+    },
+    {
+        num: 6,
+        name: "Precision Strike",
+        brief: { title: "WAVE 6: Precision Strike", threat: "Threats: TWO /28 ranges (172.20.5.16 + .48)", safe: "Safe: neighboring /28 blocks in 172.20.5.x", hint: "Tip: Use IDS /28 towers — each targets exactly 16 IPs." },
+        threatCidr: 28,
+        threatNets: [{ net: '172.20.5.16', cidr: 28 }, { net: '172.20.5.48', cidr: 28 }],
+        safeNets:   [{ net: '172.20.5.0',  cidr: 28 }, { net: '172.20.5.32', cidr: 28 }],
+        count: 36,
+        speed: 1.3,
+        hp: 3,
+        damage: 2,
+        spawnInterval: 58
+    },
+    {
+        num: 7,
+        name: "Mixed Signals",
+        brief: { title: "WAVE 7: Mixed Signals", threat: "THREE /28 threat ranges — fast packets!", safe: "Safe /28 blocks interspersed — precision required", hint: "Tip: Multiple IDS towers needed. Misconfigurations are devastating here." },
+        threatCidr: 28,
+        threatNets: [{ net: '10.0.5.16', cidr: 28 }, { net: '10.0.5.64', cidr: 28 }, { net: '10.0.5.96', cidr: 28 }],
+        safeNets:   [{ net: '10.0.5.0',  cidr: 28 }, { net: '10.0.5.48', cidr: 28 }, { net: '10.0.5.80', cidr: 28 }],
+        count: 40,
+        speed: 1.4,
+        hp: 4,
+        damage: 3,
+        spawnInterval: 50
+    },
+    {
+        num: 8,
+        name: "Narrow Target",
+        brief: { title: "WAVE 8: Narrow Target", threat: "Specific /28 threat in HEAVY safe traffic", safe: "Most traffic is legitimate — false positives cost dearly!", hint: "Tip: Precise IDS /28 placement is critical. Wrong subnet = disaster." },
+        threatCidr: 28,
+        threatNets: [{ net: '192.168.100.32', cidr: 28 }],
+        safeNets:   [{ net: '192.168.100.0',  cidr: 28 }, { net: '192.168.100.16', cidr: 28 }, { net: '192.168.100.48', cidr: 28 }, { net: '192.168.100.64', cidr: 28 }],
+        count: 42,
+        speed: 1.5,
+        hp: 4,
+        damage: 3,
+        spawnInterval: 46
+    },
+    {
+        num: 9,
+        name: "Surgical Response",
+        brief: { title: "WAVE 9: Surgical Response", threat: "Threats: TWO /30 ranges (4 hosts each!)", safe: "Rest of /24 is legitimate — only WAF /30 is precise enough", hint: "Tip: WAF /30 covers exactly 4 addresses. Two threats = two WAFs = 1000c." },
+        threatCidr: 30,
+        threatNets: [{ net: '192.168.100.200', cidr: 30 }, { net: '192.168.100.208', cidr: 30 }],
+        safeNets:   [{ net: '192.168.100.0',   cidr: 24 }],
+        count: 38,
+        speed: 1.6,
+        hp: 5,
+        damage: 3,
+        spawnInterval: 44
+    },
+    {
+        num: 10,
+        name: "Full Breach",
+        brief: { title: "WAVE 10: FULL BREACH", threat: "ALL CIDR sizes, multiple vectors — APT BOSS INBOUND!", safe: "Broad legitimate traffic across all ranges", hint: "Tip: Deploy ALL tower types. The APT boss has 30 HP and deals massive damage." },
+        threatCidr: 26,
+        threatNets: [
+            { net: '10.0.0.0',           cidr: 24 },
+            { net: '172.16.1.64',         cidr: 26 },
+            { net: '192.168.50.16',       cidr: 28 },
+            { net: '10.200.100.200',      cidr: 30 }
+        ],
+        safeNets: [
+            { net: '172.16.2.0',  cidr: 24 },
+            { net: '192.168.1.0', cidr: 24 }
+        ],
+        count: 48,
+        bossPacket: true,
+        speed: 1.7,
+        hp: 6,
+        damage: 4,
+        spawnInterval: 38
+    }
+];
+
+// ============================================================
+// TOWER TYPE CONFIGURATION
+// ============================================================
+const TOWER_TYPES = {
+    scanner: {
+        name: 'SCANNER',
+        cidr: 24,
+        range: 150,
+        fireRate: 120,   // ticks between shots
+        damage: 1,
+        cost: 100,
+        color: '#3b82f6',
+        glowColor: 'rgba(59,130,246,0.4)'
+    },
+    firewall: {
+        name: 'FIREWALL',
+        cidr: 26,
+        range: 130,
+        fireRate: 80,
+        damage: 2,
+        cost: 200,
+        color: '#06b6d4',
+        glowColor: 'rgba(6,182,212,0.4)'
+    },
+    ids: {
+        name: 'IDS',
+        cidr: 28,
+        range: 110,
+        fireRate: 50,
+        damage: 3,
+        cost: 350,
+        color: '#a855f7',
+        glowColor: 'rgba(168,85,247,0.4)'
+    },
+    waf: {
+        name: 'WAF',
+        cidr: 30,
+        range: 90,
+        fireRate: 30,
+        damage: 5,
+        cost: 500,
+        color: '#f59e0b',
+        glowColor: 'rgba(245,158,11,0.4)'
+    }
+};
+
+// ============================================================
+// GAME STATE
+// ============================================================
+const STATE_MENU   = 'MENU';
+const STATE_PREP   = 'PREP';
+const STATE_WAVE   = 'WAVE';
+const STATE_OVER   = 'GAME_OVER';
+const STATE_WIN    = 'VICTORY';
+
+let gameState   = STATE_MENU;
+let currentWave = 0;      // 0-indexed into WAVE_DATA
+let serverHP    = 100;
+let credits     = 500;
+let score       = 0;
+let combo       = 1;
+let waveBlocked = 0;
+let waveMissed  = 0;
+let waveFP      = 0;      // false positives (blocked legit packets)
+let totalBlocked = 0;
+let totalMissed  = 0;
+let totalFP      = 0;
+
+let highScore = parseInt(localStorage.getItem('game_subnetsiege_best') || '0');
+let waveScore    = 0;
+let peakCombo    = 1;
+let frameCount   = 0;
+let lastWaveResults = null;
+
+// Placement state machine
+let selectedTowerType = null;  // key from TOWER_TYPES
+let pendingSpotIndex  = null;  // which spot was clicked
+let pendingSubnetOpts = [];    // array of {network, label, isCorrect}
+let sellMode          = false;
+let hoveredSpot       = -1;
+let hoveredTower      = -1;
+
+// Game objects
+let towers      = [];   // { spotIndex, type, networkAddr, cidr, fireCooldown, level, misconfigured }
+let packets     = [];   // packet objects traversing the path
+let projectiles = [];   // bullets from towers
+let particles   = [];
+let floatingTexts = [];
+let screenShake = 0;
+let screenFlash = 0;
+let screenFlashColor = '#ffffff';
+
+// Wave spawning
+let spawnTimer    = 0;
+let spawnQueue    = [];   // array of packet objects to spawn
+let waveComplete  = false;
+let waveCompleteTimer = 0;
+
+// Demo mode (menu screen auto-animation)
+let demoTimer = 0;
+
+// Animation frame
+let lastTime = 0;
+let rafId    = null;
+
+// ============================================================
+// SUBNET OPTION GENERATION
+// Given a wave's threat net info, generate 4 choices for a CIDR
+// ============================================================
+function generateSubnetOptions(cidr, threatNets) {
+    // Determine the "correct" network: first threat network that matches this CIDR
+    const relevantThreats = threatNets.filter(n => n.cidr === cidr);
+    let correctNetNum;
+    if (relevantThreats.length > 0) {
+        correctNetNum = getNetworkAddr(ipToNum(relevantThreats[0].net), cidr);
+    } else {
+        // Fallback: pick first threat net and compute /cidr network for it
+        correctNetNum = getNetworkAddr(ipToNum(threatNets[0].net), cidr);
+    }
+
+    const correctIp = numToIp(correctNetNum);
+    const blockSize = 1 << (32 - cidr);
+
+    // Generate 3 distractors in the same /16 or /8 block
+    const distractors = new Set();
+    const baseNum = correctNetNum;
+
+    // Neighboring networks in the same /24 or /16 parent
+    for (let offset of [-3,-2,-1,1,2,3,4]) {
+        const candidate = ((baseNum + offset * blockSize) >>> 0);
+        const candidateIp = numToIp(candidate);
+        if (candidateIp !== correctIp && distractors.size < 3) {
+            distractors.add(candidateIp);
+        }
+    }
+
+    // If we still need more, generate from adjacent /8
+    let extra = 1;
+    while (distractors.size < 3) {
+        const candidate = ((baseNum + extra * blockSize * 4) >>> 0);
+        const candidateIp = numToIp(candidate);
+        if (candidateIp !== correctIp) distractors.add(candidateIp);
+        extra++;
+        if (extra > 20) break;
+    }
+
+    const opts = [
+        { network: correctNetNum, label: `${correctIp}/${cidr}`, isCorrect: true }
+    ];
+    [...distractors].slice(0, 3).forEach(ip => {
+        opts.push({ network: getNetworkAddr(ipToNum(ip), cidr), label: `${ip}/${cidr}`, isCorrect: false });
+    });
+
+    // Shuffle
+    for (let i = opts.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [opts[i], opts[j]] = [opts[j], opts[i]];
+    }
+    return opts;
+}
+
+// ============================================================
+// PACKET GENERATION for a wave
+// ============================================================
+function generatePackets(waveData) {
+    const packets = [];
+    const total = waveData.count;
+    // Roughly 60% threats, 40% safe (with some randomness)
+    for (let i = 0; i < total; i++) {
+        const isThreat = Math.random() < 0.58;
+        let ip, netNum, cidr;
+        if (isThreat) {
+            const pool = waveData.threatNets;
+            const chosen = pool[Math.floor(Math.random() * pool.length)];
+            netNum = getNetworkAddr(ipToNum(chosen.net), chosen.cidr);
+            cidr = chosen.cidr;
+            ip = randomIpInSubnet(netNum, cidr);
+        } else {
+            const pool = waveData.safeNets;
+            const chosen = pool[Math.floor(Math.random() * pool.length)];
+            netNum = getNetworkAddr(ipToNum(chosen.net), chosen.cidr);
+            cidr = chosen.cidr;
+            ip = randomIpInSubnet(netNum, cidr);
+        }
+
+        packets.push({
+            id: Math.random(),
+            ip,
+            ipNum: ipToNum(ip),
+            isThreat,
+            hp: waveData.hp,
+            maxHp: waveData.hp,
+            speed: waveData.speed * (0.9 + Math.random() * 0.2),
+            waypointIndex: 0,
+            x: PATH_WAYPOINTS[0].x,
+            y: PATH_WAYPOINTS[0].y,
+            progress: 0,
+            alive: true,
+            reachedEnd: false,
+            flash: 0,
+            trail: [],
+            wobble: 0
+        });
+    }
+
+    // Wave 10: add boss packet
+    if (waveData.bossPacket) {
+        const bossNet = getNetworkAddr(ipToNum('10.0.0.0'), 24);
+        packets.push({
+            id: 'apt-boss',
+            ip: '10.0.0.1',
+            ipNum: ipToNum('10.0.0.1'),
+            isThreat: true,
+            isBoss: true,
+            hp: 30,
+            maxHp: 30,
+            speed: waveData.speed * 0.6,
+            waypointIndex: 0,
+            x: PATH_WAYPOINTS[0].x,
+            y: PATH_WAYPOINTS[0].y,
+            progress: 0,
+            alive: true,
+            reachedEnd: false,
+            flash: 0,
+            trail: [],
+            wobble: 0
+        });
+    }
+
+    // Shuffle to intermix threats and safe
+    for (let i = packets.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [packets[i], packets[j]] = [packets[j], packets[i]];
+    }
+    return packets;
+}
+
+// ============================================================
+// GAME INITIALIZATION
+// ============================================================
+function initGame() {
+    currentWave  = 0;
+    serverHP     = 100;
+    credits      = 500;
+    score        = 0;
+    combo        = 1;
+    waveBlocked  = 0;
+    waveMissed   = 0;
+    waveFP       = 0;
+    totalBlocked = 0;
+    totalMissed  = 0;
+    totalFP      = 0;
+    towers       = [];
+    packets      = [];
+    projectiles  = [];
+    particles    = [];
+    floatingTexts = [];
+    spawnQueue   = [];
+    spawnTimer   = 0;
+    waveComplete = false;
+    lastWaveResults = null;
+    selectedTowerType = null;
+    pendingSpotIndex  = null;
+    sellMode = false;
+    hideSubnetChooser();
+    gameState = STATE_PREP;
+    updateUI();
+    updateWaveBriefing();
+    updateNextWaveBtn();
+}
+
+// ============================================================
+// UI UPDATE HELPERS
+// ============================================================
+function updateUI() {
+    const hp = Math.max(0, serverHP);
+    document.getElementById('hpDisplay').textContent = hp;
+    const hpEl = document.getElementById('hpDisplay');
+    hpEl.className = 'stat-value' + (hp <= 30 ? ' danger' : hp <= 60 ? ' warn' : '');
+    document.getElementById('hpFill').style.width = hp + '%';
+    document.getElementById('hpFill').style.background = hp > 60 ? 'linear-gradient(90deg,#22c55e,#4ade80)' :
+                                                          hp > 30 ? 'linear-gradient(90deg,#f59e0b,#fbbf24)' :
+                                                                    'linear-gradient(90deg,#ef4444,#f87171)';
+    document.getElementById('creditsDisplay').textContent = credits;
+    document.getElementById('scoreDisplay').textContent = score;
+    document.getElementById('bestDisplay').textContent = highScore;
+    document.getElementById('loreWave').textContent    = currentWave > 0 ? `${currentWave}/10` : '—';
+    document.getElementById('loreBlocked').textContent = waveBlocked;
+    document.getElementById('loreMissed').textContent  = waveMissed;
+    document.getElementById('loreFP').textContent      = waveFP;
+    document.getElementById('loreCombo').textContent   = `x${combo}`;
+
+    // Update tower button disabled states
+    Object.entries(TOWER_TYPES).forEach(([key, cfg]) => {
+        const btnId = { scanner: 'btnScanner', firewall: 'btnFirewall', ids: 'btnIDS', waf: 'btnWAF' }[key];
+        const btn = document.getElementById(btnId);
+        if (btn) {
+            btn.disabled = (credits < cfg.cost) || (gameState === STATE_WAVE);
+            btn.classList.toggle('selected', selectedTowerType === key);
+        }
+    });
+
+    const sellBtn = document.getElementById('sellBtn');
+    sellBtn.classList.toggle('active', sellMode);
+}
+
+function updateWaveBriefing() {
+    const el = document.getElementById('waveBriefing');
+    if (currentWave >= WAVE_DATA.length) {
+        el.innerHTML = '<div class="wbr-title">ALL WAVES CLEARED</div>';
+        return;
+    }
+    const b = WAVE_DATA[currentWave].brief;
+    el.innerHTML = `
+        <div class="wbr-title">${b.title}</div>
+        <div class="wbr-threat">${b.threat}</div>
+        <div class="wbr-safe">${b.safe}</div>
+        <div style="color:#94a3b8;margin-top:4px;font-size:9px;">${b.hint}</div>
+    `;
+}
+
+function updateNextWaveBtn() {
+    const btn = document.getElementById('nextWaveBtn');
+    if (gameState === STATE_WAVE) {
+        btn.disabled = true;
+        btn.textContent = `WAVE ${currentWave} IN PROGRESS`;
+    } else if (gameState === STATE_PREP && currentWave < 10) {
+        btn.disabled = false;
+        btn.textContent = `START WAVE ${currentWave + 1}`;
+    } else {
+        btn.disabled = true;
+        btn.textContent = '—';
+    }
+}
+
+// ============================================================
+// TOWER PLACEMENT FLOW
+// ============================================================
+function selectTowerType(key) {
+    ensureAudio();
+    if (gameState === STATE_WAVE) return;
+    if (credits < TOWER_TYPES[key].cost) return;
+    sellMode = false;
+    if (selectedTowerType === key) {
+        selectedTowerType = null;
+        pendingSpotIndex = null;
+        hideSubnetChooser();
+    } else {
+        selectedTowerType = key;
+        pendingSpotIndex = null;
+        hideSubnetChooser();
+    }
+    updateUI();
+}
+
+function handleSpotClick(spotIndex) {
+    if (sellMode) {
+        // Sell the tower at this spot
+        const towerIdx = towers.findIndex(t => t.spotIndex === spotIndex);
+        if (towerIdx !== -1) {
+            const t = towers[towerIdx];
+            const refund = Math.floor(TOWER_TYPES[t.type].cost * 0.5);
+            credits += refund;
+            towers.splice(towerIdx, 1);
+            spawnFloatingText(
+                TOWER_SPOTS[spotIndex].x, TOWER_SPOTS[spotIndex].y - 20,
+                `+${refund}c`, '#f59e0b'
+            );
+            sfxPlace();
+            updateUI();
+        }
+        return;
+    }
+
+    if (!selectedTowerType) return;
+
+    // Check spot not already occupied
+    if (towers.find(t => t.spotIndex === spotIndex)) return;
+
+    // Check credits
+    const cfg = TOWER_TYPES[selectedTowerType];
+    if (credits < cfg.cost) return;
+
+    pendingSpotIndex = spotIndex;
+
+    // Generate subnet options based on current wave's threat info
+    const waveIdx = Math.min(currentWave, WAVE_DATA.length - 1);
+    const waveData = WAVE_DATA[waveIdx > 0 ? waveIdx : 0];
+    pendingSubnetOpts = generateSubnetOptions(cfg.cidr, waveData.threatNets);
+
+    showSubnetChooser(cfg, pendingSubnetOpts);
+}
+
+function showSubnetChooser(cfg, opts) {
+    const chooser = document.getElementById('subnetChooser');
+    const qEl     = document.getElementById('scQuestion');
+    const optsEl  = document.getElementById('scOptions');
+
+    qEl.textContent = `Select the correct /${cfg.cidr} network address to filter threat traffic:`;
+
+    optsEl.innerHTML = '';
+    opts.forEach((opt, i) => {
+        const btn = document.createElement('button');
+        btn.className = 'subnet-opt';
+        btn.textContent = opt.label;
+        btn.onclick = () => confirmSubnet(i);
+        optsEl.appendChild(btn);
+    });
+
+    chooser.style.display = 'block';
+    // Position chooser over stats panel
+    chooser.style.right  = '0';
+    chooser.style.bottom = 'auto';
+    chooser.style.top    = '0';
+    chooser.style.height = '600px';
+}
+
+function hideSubnetChooser() {
+    document.getElementById('subnetChooser').style.display = 'none';
+    pendingSubnetOpts = [];
+}
+
+function confirmSubnet(optIndex) {
+    if (pendingSpotIndex === null) return;
+    const opt = pendingSubnetOpts[optIndex];
+    const cfg = TOWER_TYPES[selectedTowerType];
+    const spot = TOWER_SPOTS[pendingSpotIndex];
+
+    // Visual feedback
+    const btns = document.querySelectorAll('.subnet-opt');
+    btns.forEach((b, i) => {
+        b.classList.toggle('correct', pendingSubnetOpts[i].isCorrect);
+        b.classList.toggle('wrong', !pendingSubnetOpts[i].isCorrect && i === optIndex);
+        b.disabled = true;
+    });
+
+    let cost = cfg.cost;
+    let penaltyText = '';
+
+    if (!opt.isCorrect) {
+        // Misconfiguration penalty: 50% extra cost
+        cost = Math.floor(cfg.cost * 1.5);
+        penaltyText = ' [MISCONFIGURED +50%]';
+        sfxWrong();
+        spawnFloatingText(spot.x, spot.y - 30, 'MISCONFIGURED!', '#f59e0b');
+    } else {
+        sfxPlace();
+        spawnFloatingText(spot.x, spot.y - 30, 'SUBNET OK', '#22c55e');
+    }
+
+    // Deduct credits
+    credits -= Math.min(cost, credits);
+
+    // Place tower
+    towers.push({
+        spotIndex: pendingSpotIndex,
+        type: selectedTowerType,
+        networkAddr: opt.network,
+        cidr: cfg.cidr,
+        range: cfg.range,
+        fireRate: cfg.fireRate,
+        damage: cfg.damage,
+        color: cfg.color,
+        glowColor: cfg.glowColor,
+        fireCooldown: 0,
+        misconfigured: !opt.isCorrect,
+        pulsePhase: Math.random() * Math.PI * 2,
+        name: cfg.name
+    });
+
+    // Brief delay then close chooser
+    setTimeout(() => {
+        hideSubnetChooser();
+        selectedTowerType = null;
+        pendingSpotIndex = null;
+        updateUI();
+    }, 600);
+
+    updateUI();
+}
+
+function cancelPlacement() {
+    selectedTowerType = null;
+    pendingSpotIndex  = null;
+    hideSubnetChooser();
+    updateUI();
+}
+
+function toggleSellMode() {
+    ensureAudio();
+    sellMode = !sellMode;
+    if (sellMode) selectedTowerType = null;
+    updateUI();
+}
+
+// ============================================================
+// WAVE MANAGEMENT
+// ============================================================
+function startNextWave() {
+    if (gameState !== STATE_PREP) return;
+    if (currentWave >= 10) return;
+    ensureAudio();
+
+    currentWave++;
+    const waveData = WAVE_DATA[currentWave - 1];
+
+    waveBlocked = 0;
+    waveMissed  = 0;
+    waveFP      = 0;
+    combo       = 1;
+    waveScore   = 0;
+    peakCombo   = 1;
+    spawnQueue  = generatePackets(waveData);
+    spawnTimer  = 0;
+    packets     = [];
+    projectiles = [];
+    waveComplete = false;
+    gameState   = STATE_WAVE;
+    selectedTowerType = null;
+    sellMode = false;
+    hideSubnetChooser();
+    updateUI();
+    updateNextWaveBtn();
+    updateWaveBriefing();
+}
+
+function checkWaveComplete() {
+    if (gameState !== STATE_WAVE) return;
+    if (spawnQueue.length === 0 && packets.filter(p => p.alive).length === 0) {
+        waveComplete = true;
+        waveCompleteTimer = 300; // 5 seconds at 60fps for score breakdown
+        gameState = STATE_PREP;
+        sfxWaveComplete();
+
+        // Award credits
+        const baseCredits = 60 + currentWave * 15;
+        const perfBonus   = waveFP === 0 && waveMissed === 0 ? 120 : 0;
+        const earnedCreds = baseCredits + perfBonus;
+        credits += earnedCreds;
+
+        // Wave clear score bonuses
+        const waveClearBase = 300 * currentWave;
+        const perfectBonus  = waveFP === 0 && waveMissed === 0 ? 500 : 0;
+        const accuracyPct   = waveBlocked > 0 ? Math.round(waveBlocked / (waveBlocked + waveFP) * 100) : 100;
+        const accuracyBonus = accuracyPct >= 100 ? 200 : accuracyPct >= 90 ? 100 : 0;
+        const waveClearScore = waveClearBase + perfectBonus + accuracyBonus;
+        score     += waveClearScore;
+        waveScore += waveClearScore;
+
+        totalBlocked += waveBlocked;
+        totalMissed  += waveMissed;
+        totalFP      += waveFP;
+
+        if (score > highScore) {
+            highScore = score;
+            localStorage.setItem('game_subnetsiege_best', highScore.toString());
+        }
+
+        // Store wave results for the wave complete banner
+        lastWaveResults = {
+            wave: currentWave,
+            waveScore,
+            kills: waveBlocked,
+            missed: waveMissed,
+            fp: waveFP,
+            peakCombo,
+            accuracy: accuracyPct,
+            perfectBonus,
+            accuracyBonus,
+            clearBonus: waveClearBase,
+            credits: earnedCreds
+        };
+
+        if (currentWave >= 10) {
+            triggerVictory();
+            return;
+        }
+
+        updateWaveBriefing();
+        updateNextWaveBtn();
+        updateUI();
+    }
+}
+
+// ============================================================
+// VICTORY AND GAME OVER
+// ============================================================
+function triggerVictory() {
+    gameState = STATE_WIN;
+    sfxVictory();
+
+    if (typeof GameTracker !== 'undefined') {
+        GameTracker.record('subnets', { score, result: 'success' });
+    }
+    if (window.AchievementManager) AchievementManager.unlock('game_subnetsiege');
+    if (typeof ModuleProgress !== 'undefined') {
+        ModuleProgress.complete('web', 'web-subnet-siege', { returnUrl: '../index.html' });
+    }
+    if (!localStorage.getItem('game_subnetsiege_xp_awarded')) {
+        localStorage.setItem('game_subnetsiege_xp_awarded', 'true');
+        let xp = parseInt(localStorage.getItem('hexworth_xp') || '0');
+        xp += 35;
+        localStorage.setItem('hexworth_xp', xp.toString());
+        if (window.FirestoreManager) {
+            const uid = localStorage.getItem('hexworth_uid');
+            if (uid) FirestoreManager.addXP(uid, 35, 'subnet siege: all 10 waves cleared');
+        }
+    }
+    updateNextWaveBtn();
+}
+
+function triggerGameOver() {
+    gameState = STATE_OVER;
+    sfxGameOver();
+    screenShake = 20;
+    screenFlash = 30;
+    screenFlashColor = '#ef4444';
+
+    if (typeof GameTracker !== 'undefined') {
+        GameTracker.record('subnets', { score, wavesCompleted: currentWave, result: 'failure' });
+    }
+    if (score > highScore) {
+        highScore = score;
+        localStorage.setItem('game_subnetsiege_best', highScore.toString());
+    }
+    updateNextWaveBtn();
+}
+
+// ============================================================
+// PACKET MOVEMENT (waypoint interpolation)
+// ============================================================
+function updatePackets(dt) {
+    // Spawn from queue
+    spawnTimer++;
+    const waveInterval = currentWave > 0 ? WAVE_DATA[currentWave - 1].spawnInterval : 100;
+    if (spawnTimer >= waveInterval && spawnQueue.length > 0) {
+        const p = spawnQueue.shift();
+        p.x = PATH_WAYPOINTS[0].x;
+        p.y = PATH_WAYPOINTS[0].y;
+        packets.push(p);
+        spawnTimer = 0;
+    }
+
+    for (const p of packets) {
+        if (!p.alive || p.reachedEnd) continue;
+
+        p.wobble += 0.1;
+        p.flash  = Math.max(0, p.flash - 1);
+
+        // Store trail
+        p.trail.push({ x: p.x, y: p.y });
+        if (p.trail.length > 8) p.trail.shift();
+
+        // Move toward next waypoint
+        const target = PATH_WAYPOINTS[p.waypointIndex + 1];
+        if (!target) {
+            // Reached server
+            p.reachedEnd = true;
+            p.alive = false;
+            if (p.isThreat) {
+                const dmg = currentWave > 0 ? WAVE_DATA[currentWave - 1].damage : 1;
+                serverHP = Math.max(0, serverHP - (p.isBoss ? dmg * 5 : dmg));
+                waveMissed++;
+                combo = 1;
+                sfxMiss();
+                screenShake = p.isBoss ? 18 : 8;
+                screenFlash = p.isBoss ? 25 : 12;
+                screenFlashColor = '#ef4444';
+                spawnFloatingText(TOWER_SPOTS[9].x + 30, TOWER_SPOTS[9].y, `−${p.isBoss ? dmg * 5 : dmg} HP`, '#ef4444');
+                spawnParticles(660, 370, '#ef4444', p.isBoss ? 20 : 10);
+                if (serverHP <= 0) {
+                    triggerGameOver();
+                }
+            }
+            // Legit packets that slip through are fine (not penalized here)
+            updateUI();
+            continue;
+        }
+
+        const dx = target.x - p.x;
+        const dy = target.y - p.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        const moveSpeed = p.speed * 1.5;
+
+        if (dist <= moveSpeed) {
+            p.x = target.x;
+            p.y = target.y;
+            p.waypointIndex++;
+        } else {
+            p.x += (dx / dist) * moveSpeed;
+            p.y += (dy / dist) * moveSpeed;
+        }
+    }
+}
+
+// ============================================================
+// TOWER SHOOTING LOGIC
+// ============================================================
+function updateTowers() {
+    for (const tower of towers) {
+        tower.fireCooldown = Math.max(0, tower.fireCooldown - 1);
+        if (tower.fireCooldown > 0) continue;
+
+        const spot = TOWER_SPOTS[tower.spotIndex];
+
+        // Find target: closest living threat packet in range that matches this subnet
+        let bestTarget = null;
+        let bestDist   = Infinity;
+
+        for (const p of packets) {
+            if (!p.alive || p.reachedEnd) continue;
+            const dx = p.x - spot.x;
+            const dy = p.y - spot.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            if (dist > tower.range) continue;
+
+            // Check if this packet's IP is in this tower's subnet
+            const inSubnet = isInSubnet(p.ipNum, tower.networkAddr, tower.cidr);
+
+            // Misconfigured towers fire at anything in their range
+            if (inSubnet || tower.misconfigured) {
+                if (dist < bestDist) {
+                    bestDist   = dist;
+                    bestTarget = p;
+                }
+            }
+        }
+
+        if (bestTarget) {
+            tower.fireCooldown = tower.fireRate;
+            // Determine if this is a false positive (firing at legit packet)
+            const isFP = !bestTarget.isThreat;
+
+            projectiles.push({
+                x: spot.x,
+                y: spot.y,
+                targetId: bestTarget.id,
+                damage: tower.damage,
+                speed: 5,
+                color: tower.color,
+                isFP,
+                size: 4
+            });
+            sfxFire();
+        }
+    }
+}
+
+// ============================================================
+// PROJECTILE MOVEMENT AND HIT DETECTION
+// ============================================================
+function updateProjectiles() {
+    for (let i = projectiles.length - 1; i >= 0; i--) {
+        const proj = projectiles[i];
+        const target = packets.find(p => p.id === proj.targetId && p.alive);
+
+        if (!target) {
+            projectiles.splice(i, 1);
+            continue;
+        }
+
+        const dx = target.x - proj.x;
+        const dy = target.y - proj.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+
+        if (dist <= proj.speed) {
+            // Hit
+            target.hp -= proj.damage;
+            target.flash = 8;
+            projectiles.splice(i, 1);
+
+            if (proj.isFP) {
+                // False positive — penalize score
+                score  = Math.max(0, score - 50);
+                combo  = 1;
+                waveFP++;
+                sfxFP();
+                spawnFloatingText(target.x, target.y - 20, 'FALSE POSITIVE!', '#f59e0b');
+                spawnParticles(target.x, target.y, '#f59e0b', 5);
+            } else {
+                // Damaged threat
+                if (target.hp <= 0) {
+                    target.alive = false;
+                    waveBlocked++;
+                    const waveMult = 1 + (currentWave - 1) * 0.15;
+                    const pts = Math.round(100 * combo * waveMult);
+                    score += pts;
+                    waveScore += pts;
+                    combo = Math.min(combo + 1, 10);
+                    peakCombo = Math.max(peakCombo, combo);
+                    sfxKill();
+                    spawnFloatingText(target.x, target.y - 20, `+${pts}`, '#06b6d4');
+                    spawnParticles(target.x, target.y, target.isBoss ? '#ff4444' : '#ef4444', target.isBoss ? 25 : 12);
+                    if (target.isBoss) {
+                        screenShake = 12;
+                        screenFlash = 15;
+                        screenFlashColor = '#06b6d4';
+                        spawnFloatingText(target.x, target.y - 40, 'APT TERMINATED!', '#06b6d4');
+                    }
+                }
+            }
+
+            if (score > highScore) {
+                highScore = score;
+                localStorage.setItem('game_subnetsiege_best', highScore.toString());
+            }
+            updateUI();
+        } else {
+            proj.x += (dx / dist) * proj.speed;
+            proj.y += (dy / dist) * proj.speed;
+        }
+    }
+}
+
+// ============================================================
+// PARTICLE SYSTEM
+// ============================================================
+function spawnParticles(x, y, color, count = 10) {
+    for (let i = 0; i < count; i++) {
+        const angle = Math.random() * Math.PI * 2;
+        const speed = Math.random() * 3 + 1;
+        particles.push({
+            x, y,
+            vx: Math.cos(angle) * speed,
+            vy: Math.sin(angle) * speed - 1,
+            life: 30 + Math.random() * 20,
+            maxLife: 50,
+            color,
+            size: Math.random() * 4 + 1
+        });
+    }
+}
+
+function updateParticles() {
+    for (let i = particles.length - 1; i >= 0; i--) {
+        const p = particles[i];
+        p.x  += p.vx;
+        p.y  += p.vy;
+        p.vy += 0.1; // gravity
+        p.life--;
+        if (p.life <= 0) particles.splice(i, 1);
+    }
+}
+
+function spawnFloatingText(x, y, text, color) {
+    floatingTexts.push({ x, y, text, color, life: 70, maxLife: 70 });
+}
+
+function updateFloatingTexts() {
+    for (let i = floatingTexts.length - 1; i >= 0; i--) {
+        floatingTexts[i].y -= 0.8;
+        floatingTexts[i].life--;
+        if (floatingTexts[i].life <= 0) floatingTexts.splice(i, 1);
+    }
+}
+
+// ============================================================
+// DRAWING FUNCTIONS
+// ============================================================
+
+// Draw background grid
+function drawBackground() {
+    ctx.fillStyle = '#0a0a1a';
+    ctx.fillRect(0, 0, W, H);
+
+    ctx.strokeStyle = 'rgba(30,58,95,0.18)';
+    ctx.lineWidth = 0.5;
+    for (let x = 0; x < W; x += 40) {
+        ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke();
+    }
+    for (let y = 0; y < H; y += 40) {
+        ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke();
+    }
+}
+
+// Draw the network path (wide road with dashed centerline)
+function drawPath() {
+    const pts = PATH_WAYPOINTS;
+
+    // Shadow glow under path
+    ctx.shadowColor = 'rgba(59,130,246,0.15)';
+    ctx.shadowBlur  = 18;
+
+    // Road fill
+    ctx.strokeStyle = '#0d1f3d';
+    ctx.lineWidth   = 44;
+    ctx.lineJoin    = 'round';
+    ctx.lineCap     = 'round';
+    ctx.beginPath();
+    ctx.moveTo(pts[0].x, pts[0].y);
+    for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y);
+    ctx.stroke();
+
+    // Road border glow lines
+    ctx.shadowColor = 'rgba(59,130,246,0.4)';
+    ctx.shadowBlur  = 8;
+    ctx.strokeStyle = 'rgba(59,130,246,0.3)';
+    ctx.lineWidth   = 44;
+    ctx.stroke();
+
+    ctx.shadowBlur = 0;
+
+    // Road surface
+    ctx.strokeStyle = '#112240';
+    ctx.lineWidth   = 40;
+    ctx.stroke();
+
+    // Dashed centerline
+    const dashTime = Date.now() * 0.003;
+    ctx.strokeStyle = 'rgba(99,120,180,0.25)';
+    ctx.lineWidth   = 1;
+    ctx.setLineDash([12, 10]);
+    ctx.lineDashOffset = -dashTime * 20;
+    ctx.beginPath();
+    ctx.moveTo(pts[0].x, pts[0].y);
+    for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.lineDashOffset = 0;
+}
+
+// Draw tower placement spots
+function drawTowerSpots() {
+    const time = Date.now() * 0.003;
+
+    TOWER_SPOTS.forEach((spot, i) => {
+        const occupied = towers.find(t => t.spotIndex === i);
+        const isHovered = hoveredSpot === i;
+        const isSelected = pendingSpotIndex === i;
+        const isValidTarget = selectedTowerType && !occupied && !sellMode;
+        const isSellTarget  = sellMode && occupied;
+
+        if (!occupied) {
+            // Empty spot
+            const pulse = Math.sin(time + i * 0.8) * 0.3 + 0.5;
+            ctx.strokeStyle = isValidTarget
+                ? `rgba(6,182,212,${pulse})`
+                : `rgba(59,130,246,${pulse * 0.4})`;
+            ctx.lineWidth   = isValidTarget ? 2 : 1;
+            ctx.shadowColor = isValidTarget ? '#06b6d4' : '#3b82f6';
+            ctx.shadowBlur  = isValidTarget ? 12 : 4;
+
+            // Hexagon shape
+            ctx.beginPath();
+            for (let k = 0; k < 6; k++) {
+                const angle = (Math.PI / 3) * k - Math.PI / 6;
+                const r = 18;
+                const hx = spot.x + Math.cos(angle) * r;
+                const hy = spot.y + Math.sin(angle) * r;
+                if (k === 0) ctx.moveTo(hx, hy); else ctx.lineTo(hx, hy);
+            }
+            ctx.closePath();
+            ctx.stroke();
+            ctx.shadowBlur = 0;
+
+            if (isValidTarget) {
+                ctx.fillStyle = 'rgba(6,182,212,0.08)';
+                ctx.fill();
+            }
+        } else {
+            // Tower drawn separately
+        }
+    });
+}
+
+// Draw towers on placed spots
+function drawTowers() {
+    const time = Date.now() * 0.004;
+
+    for (const tower of towers) {
+        const spot    = TOWER_SPOTS[tower.spotIndex];
+        const pulse   = Math.sin(time + tower.pulsePhase) * 0.3 + 0.7;
+        const isHover = hoveredTower === tower.spotIndex;
+
+        // Range circle on hover
+        if (isHover) {
+            ctx.strokeStyle = tower.color + '40';
+            ctx.lineWidth   = 1;
+            ctx.setLineDash([4, 4]);
+            ctx.beginPath();
+            ctx.arc(spot.x, spot.y, tower.range, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.setLineDash([]);
+        }
+
+        // Outer glow ring
+        ctx.shadowColor = tower.color;
+        ctx.shadowBlur  = 15 * pulse;
+        ctx.strokeStyle = tower.color;
+        ctx.lineWidth   = 2;
+        ctx.beginPath();
+        ctx.arc(spot.x, spot.y, 20, 0, Math.PI * 2);
+        ctx.stroke();
+
+        // Tower body
+        ctx.fillStyle   = tower.misconfigured ? '#2d1a00' : '#0d1829';
+        ctx.beginPath();
+        ctx.arc(spot.x, spot.y, 18, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.shadowBlur = 0;
+
+        // Inner dot
+        ctx.fillStyle = tower.color;
+        ctx.beginPath();
+        ctx.arc(spot.x, spot.y, 6, 0, Math.PI * 2);
+        ctx.fill();
+
+        // CIDR label
+        ctx.fillStyle   = tower.misconfigured ? '#f59e0b' : '#ffffff';
+        ctx.font        = 'bold 9px Courier New';
+        ctx.textAlign   = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('/' + tower.cidr, spot.x, spot.y + 28);
+
+        // Tower type abbreviation
+        ctx.fillStyle   = tower.color;
+        ctx.font        = 'bold 7px Courier New';
+        ctx.fillText(tower.name.slice(0, 4), spot.x, spot.y - 28);
+
+        // Misconfigured warning triangle
+        if (tower.misconfigured) {
+            ctx.fillStyle = '#f59e0b';
+            ctx.font = 'bold 10px monospace';
+            ctx.fillText('!', spot.x + 14, spot.y - 14);
+        }
+    }
+    ctx.shadowBlur = 0;
+    ctx.textBaseline = 'alphabetic';
+}
+
+// Draw individual packet
+function drawPacket(p) {
+    if (!p.alive || p.reachedEnd) return;
+
+    const flash    = p.flash > 0;
+    const baseColor = p.isThreat ? '#ef4444' : '#22c55e';
+    const glowColor = p.isThreat ? 'rgba(239,68,68,0.6)' : 'rgba(34,197,94,0.6)';
+    const w = p.isBoss ? 64 : 46;
+    const h = p.isBoss ? 24 : 18;
+
+    // Trail
+    p.trail.forEach((pt, ti) => {
+        const alpha = (ti / p.trail.length) * 0.35;
+        ctx.fillStyle = p.isThreat
+            ? `rgba(239,68,68,${alpha})`
+            : `rgba(34,197,94,${alpha})`;
+        ctx.beginPath();
+        ctx.arc(pt.x, pt.y, h / 2 * (ti / p.trail.length), 0, Math.PI * 2);
+        ctx.fill();
+    });
+
+    // Glow
+    ctx.shadowColor = glowColor;
+    ctx.shadowBlur  = flash ? 24 : (p.isBoss ? 20 : 12);
+
+    // Body (rounded rect)
+    const rx = p.x - w / 2;
+    const ry = p.y - h / 2;
+    const r  = 4;
+    ctx.fillStyle   = flash ? '#ffffff' : (p.isBoss ? '#1a0000' : '#0a0a1a');
+    ctx.strokeStyle = flash ? '#ffffff' : baseColor;
+    ctx.lineWidth   = p.isBoss ? 3 : 2;
+    ctx.beginPath();
+    ctx.moveTo(rx + r, ry);
+    ctx.lineTo(rx + w - r, ry);
+    ctx.arcTo(rx + w, ry, rx + w, ry + r, r);
+    ctx.lineTo(rx + w, ry + h - r);
+    ctx.arcTo(rx + w, ry + h, rx + w - r, ry + h, r);
+    ctx.lineTo(rx + r, ry + h);
+    ctx.arcTo(rx, ry + h, rx, ry + h - r, r);
+    ctx.lineTo(rx, ry + r);
+    ctx.arcTo(rx, ry, rx + r, ry, r);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.shadowBlur = 0;
+
+    // IP address text
+    ctx.fillStyle    = flash ? '#000000' : (p.isBoss ? '#ff4444' : baseColor);
+    ctx.font         = p.isBoss ? 'bold 9px Courier New' : '8px Courier New';
+    ctx.textAlign    = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(p.isBoss ? 'APT: ' + p.ip : p.ip, p.x, p.y);
+
+    // HP bar for packets with more than 1 HP
+    if (p.maxHp > 1) {
+        const bw = w - 6;
+        const bx = p.x - bw / 2;
+        const by = ry - 6;
+        ctx.fillStyle = 'rgba(0,0,0,0.5)';
+        ctx.fillRect(bx, by, bw, 3);
+        ctx.fillStyle = baseColor;
+        ctx.fillRect(bx, by, bw * (p.hp / p.maxHp), 3);
+    }
+
+    ctx.textBaseline = 'alphabetic';
+}
+
+// Draw projectiles
+function drawProjectiles() {
+    for (const proj of projectiles) {
+        ctx.shadowColor = proj.color;
+        ctx.shadowBlur  = 10;
+        ctx.fillStyle   = proj.color;
+        ctx.beginPath();
+        ctx.arc(proj.x, proj.y, proj.size, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.shadowBlur = 0;
+    }
+}
+
+// Draw particles
+function drawParticles() {
+    for (const p of particles) {
+        const alpha = p.life / p.maxLife;
+        ctx.globalAlpha = alpha;
+        ctx.fillStyle   = p.color;
+        ctx.shadowColor = p.color;
+        ctx.shadowBlur  = 6;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.size * alpha, 0, Math.PI * 2);
+        ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+    ctx.shadowBlur  = 0;
+}
+
+// Draw floating score text
+function drawFloatingTexts() {
+    for (const ft of floatingTexts) {
+        const alpha = ft.life / ft.maxLife;
+        ctx.globalAlpha  = alpha;
+        ctx.fillStyle    = ft.color;
+        ctx.font         = 'bold 13px Courier New';
+        ctx.textAlign    = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.shadowColor  = ft.color;
+        ctx.shadowBlur   = 8;
+        ctx.fillText(ft.text, ft.x, ft.y);
+    }
+    ctx.globalAlpha  = 1;
+    ctx.shadowBlur   = 0;
+    ctx.textBaseline = 'alphabetic';
+}
+
+// Draw server/castle icon at end of path
+function drawServer() {
+    const sx = 672, sy = 370;
+    const w = 36, h = 50;
+    const hpRatio = serverHP / 100;
+
+    // Glow intensity based on HP
+    const glowColor = hpRatio > 0.6 ? '#22c55e' : hpRatio > 0.3 ? '#f59e0b' : '#ef4444';
+    ctx.shadowColor = glowColor;
+    ctx.shadowBlur  = 18 + Math.sin(Date.now() * 0.004) * 6;
+
+    // Server rack body
+    ctx.fillStyle   = '#0d1829';
+    ctx.strokeStyle = glowColor;
+    ctx.lineWidth   = 2;
+    ctx.fillRect(sx - w/2, sy - h/2, w, h);
+    ctx.strokeRect(sx - w/2, sy - h/2, w, h);
+
+    ctx.shadowBlur = 0;
+
+    // Drive bays
+    for (let i = 0; i < 4; i++) {
+        ctx.fillStyle = i < Math.ceil(hpRatio * 4) ? glowColor : '#1e3a5f';
+        ctx.fillRect(sx - w/2 + 4, sy - h/2 + 5 + i * 10, w - 8, 7);
+    }
+
+    // Status LED
+    ctx.fillStyle  = glowColor;
+    ctx.shadowColor = glowColor;
+    ctx.shadowBlur  = 10;
+    ctx.beginPath();
+    ctx.arc(sx + w/2 - 6, sy - h/2 + 6, 3, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.shadowBlur = 0;
+
+    // HP bar above server
+    const barW = 60, barH = 6;
+    const barX = sx - barW/2, barY = sy - h/2 - 14;
+    ctx.fillStyle = 'rgba(0,0,0,0.6)';
+    ctx.fillRect(barX, barY, barW, barH);
+    ctx.fillStyle = glowColor;
+    ctx.fillRect(barX, barY, barW * hpRatio, barH);
+    ctx.strokeStyle = '#1e3a5f';
+    ctx.lineWidth   = 1;
+    ctx.strokeRect(barX, barY, barW, barH);
+
+    // SERVER label
+    ctx.fillStyle    = '#ffffff';
+    ctx.font         = '7px Courier New';
+    ctx.textAlign    = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('SERVER', sx, sy + h/2 + 8);
+    ctx.textBaseline = 'alphabetic';
+}
+
+// Draw screen flash overlay
+function drawScreenFlash() {
+    if (screenFlash > 0) {
+        ctx.fillStyle = screenFlashColor.replace(')', `,${screenFlash / 40})`).replace('rgb', 'rgba').replace('#', 'rgba(').replace('rgba(', 'rgba(');
+        // Simpler approach:
+        const alpha = screenFlash / 40;
+        ctx.save();
+        ctx.globalAlpha = alpha * 0.6;
+        ctx.fillStyle   = screenFlashColor;
+        ctx.fillRect(0, 0, W, H);
+        ctx.restore();
+        screenFlash--;
+    }
+}
+
+// Draw MENU overlay
+function drawMenu() {
+    // Semi-transparent overlay
+    ctx.fillStyle = 'rgba(10,10,26,0.82)';
+    ctx.fillRect(0, 0, W, H);
+
+    // Title
+    ctx.shadowColor = '#06b6d4';
+    ctx.shadowBlur  = 30;
+    ctx.fillStyle   = '#ffffff';
+    ctx.font        = 'bold 42px Courier New';
+    ctx.textAlign   = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('SUBNET SIEGE', W/2, H/2 - 100);
+
+    ctx.shadowColor = '#3b82f6';
+    ctx.shadowBlur  = 16;
+    ctx.fillStyle   = '#06b6d4';
+    ctx.font        = '16px Courier New';
+    ctx.fillText('TOWER DEFENSE  |  SUBNETTING', W/2, H/2 - 55);
+
+    ctx.shadowBlur  = 0;
+    ctx.fillStyle   = '#64748b';
+    ctx.font        = '12px Courier New';
+    ctx.fillText('Configure firewall towers with correct CIDR subnets', W/2, H/2 - 15);
+    ctx.fillText('to block threat packets — without stopping legitimate traffic.', W/2, H/2 + 10);
+
+    // Start prompt
+    const pulse = Math.sin(Date.now() * 0.005) * 0.4 + 0.6;
+    ctx.globalAlpha  = pulse;
+    ctx.fillStyle    = '#3b82f6';
+    ctx.shadowColor  = '#3b82f6';
+    ctx.shadowBlur   = 12;
+    ctx.font         = 'bold 18px Courier New';
+    ctx.fillText('[ CLICK or PRESS SPACE TO START ]', W/2, H/2 + 70);
+    ctx.globalAlpha  = 1;
+    ctx.shadowBlur   = 0;
+
+    // High score
+    if (highScore > 0) {
+        ctx.fillStyle = '#475569';
+        ctx.font      = '12px Courier New';
+        ctx.fillText(`Best Score: ${highScore}`, W/2, H/2 + 110);
+    }
+
+    ctx.textBaseline = 'alphabetic';
+    ctx.textAlign    = 'left';
+}
+
+// Draw GAME OVER overlay
+function drawGameOver() {
+    ctx.fillStyle = 'rgba(10,0,0,0.88)';
+    ctx.fillRect(0, 0, W, H);
+
+    ctx.shadowColor  = '#ef4444';
+    ctx.shadowBlur   = 30;
+    ctx.fillStyle    = '#ef4444';
+    ctx.font         = 'bold 38px Courier New';
+    ctx.textAlign    = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('SERVER DESTROYED', W/2, H/2 - 110);
+
+    ctx.shadowBlur  = 0;
+    ctx.fillStyle   = '#94a3b8';
+    ctx.font        = '14px Courier New';
+    ctx.fillText(`Waves Survived: ${currentWave - 1}/10`, W/2, H/2 - 60);
+
+    ctx.fillStyle = '#ffffff'; ctx.font = 'bold 22px Courier New';
+    ctx.fillText(`SCORE: ${score.toLocaleString()}`, W/2, H/2 - 30);
+
+    ctx.fillStyle = '#64748b'; ctx.font = '11px Courier New';
+    if (score >= highScore && score > 0) {
+        ctx.fillStyle = '#f59e0b';
+        ctx.fillText('NEW HIGH SCORE!', W/2, H/2 - 8);
+    }
+
+    ctx.fillStyle = '#94a3b8'; ctx.font = '12px Courier New';
+    ctx.fillText(`Blocked: ${totalBlocked}  |  Missed: ${totalMissed}  |  False Pos: ${totalFP}`, W/2, H/2 + 16);
+    const totalAcc = totalBlocked > 0 ? Math.round(totalBlocked / (totalBlocked + totalFP) * 100) : 0;
+    ctx.fillText(`Accuracy: ${totalAcc}%  |  Towers: ${towers.length}`, W/2, H/2 + 36);
+
+    const pulse = Math.sin(Date.now() * 0.005) * 0.4 + 0.6;
+    ctx.globalAlpha  = pulse;
+    ctx.fillStyle    = '#3b82f6';
+    ctx.shadowColor  = '#3b82f6';
+    ctx.shadowBlur   = 12;
+    ctx.font         = 'bold 16px Courier New';
+    ctx.fillText('[ CLICK or SPACE TO RETRY ]', W/2, H/2 + 80);
+    ctx.globalAlpha  = 1;
+    ctx.shadowBlur   = 0;
+
+    ctx.textBaseline = 'alphabetic';
+    ctx.textAlign    = 'left';
+}
+
+// Draw VICTORY overlay
+function drawVictory() {
+    ctx.fillStyle = 'rgba(0,10,20,0.88)';
+    ctx.fillRect(0, 0, W, H);
+
+    ctx.shadowColor = '#06b6d4';
+    ctx.shadowBlur  = 40;
+    ctx.fillStyle   = '#ffffff';
+    ctx.font        = 'bold 36px Courier New';
+    ctx.textAlign   = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('NETWORK SECURED', W/2, H/2 - 120);
+
+    ctx.shadowColor = '#22c55e';
+    ctx.shadowBlur  = 20;
+    ctx.fillStyle   = '#22c55e';
+    ctx.font        = '18px Courier New';
+    ctx.fillText('ALL 10 WAVES CLEARED', W/2, H/2 - 78);
+
+    ctx.shadowBlur = 0;
+
+    // Score
+    ctx.fillStyle = '#ffffff'; ctx.font = 'bold 26px Courier New';
+    ctx.fillText(`FINAL SCORE: ${score.toLocaleString()}`, W/2, H/2 - 40);
+
+    if (score >= highScore && score > 0) {
+        ctx.fillStyle = '#f59e0b'; ctx.font = 'bold 13px Courier New';
+        ctx.fillText('NEW HIGH SCORE!', W/2, H/2 - 16);
+    }
+
+    // Stats
+    ctx.fillStyle = '#94a3b8'; ctx.font = '12px Courier New';
+    ctx.fillText(`Blocked: ${totalBlocked}  |  Missed: ${totalMissed}  |  False Pos: ${totalFP}`, W/2, H/2 + 6);
+    const totalAcc = totalBlocked > 0 ? Math.round(totalBlocked / (totalBlocked + totalFP) * 100) : 0;
+    ctx.fillText(`Accuracy: ${totalAcc}%  |  Towers: ${towers.length}`, W/2, H/2 + 26);
+
+    ctx.fillStyle = '#f59e0b'; ctx.font = '12px Courier New';
+    ctx.fillText('+35 XP AWARDED', W/2, H/2 + 55);
+
+    const pulse = Math.sin(Date.now() * 0.005) * 0.4 + 0.6;
+    ctx.globalAlpha  = pulse;
+    ctx.fillStyle    = '#06b6d4';
+    ctx.shadowColor  = '#06b6d4';
+    ctx.shadowBlur   = 12;
+    ctx.font         = 'bold 15px Courier New';
+    ctx.fillText('[ CLICK or SPACE TO PLAY AGAIN ]', W/2, H/2 + 90);
+    ctx.globalAlpha  = 1;
+    ctx.shadowBlur   = 0;
+
+    ctx.textBaseline = 'alphabetic';
+    ctx.textAlign    = 'left';
+}
+
+// Draw wave in-progress HUD
+function drawWaveHUD() {
+    if (gameState !== STATE_WAVE && gameState !== STATE_PREP) return;
+
+    // Wave label top-center
+    ctx.fillStyle    = '#1e3a5f';
+    ctx.fillRect(W/2 - 70, 6, 140, 22);
+    ctx.strokeStyle  = '#3b82f6';
+    ctx.lineWidth    = 1;
+    ctx.strokeRect(W/2 - 70, 6, 140, 22);
+    ctx.fillStyle    = '#06b6d4';
+    ctx.font         = 'bold 11px Courier New';
+    ctx.textAlign    = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(
+        gameState === STATE_WAVE
+            ? `WAVE ${currentWave}/10  |  QUEUE: ${spawnQueue.length + packets.filter(p=>p.alive).length}`
+            : `PREP — WAVE ${currentWave + 1} READY`,
+        W/2, 17
+    );
+    ctx.textBaseline = 'alphabetic';
+    ctx.textAlign    = 'left';
+}
+
+// Draw wave complete banner with score breakdown
+function drawWaveComplete() {
+    if (!waveComplete || waveCompleteTimer <= 0 || !lastWaveResults) return;
+    const r = lastWaveResults;
+    const alpha = Math.min(1, waveCompleteTimer / 30);
+    ctx.globalAlpha = alpha;
+
+    const boxW = 440, boxH = 150;
+    const bx = W/2 - boxW/2, by = H/2 - boxH/2;
+
+    // Background
+    ctx.fillStyle = 'rgba(6,18,42,0.92)';
+    ctx.fillRect(bx, by, boxW, boxH);
+    ctx.strokeStyle = '#06b6d4';
+    ctx.lineWidth   = 2;
+    ctx.strokeRect(bx, by, boxW, boxH);
+
+    ctx.textAlign    = 'center';
+    ctx.textBaseline = 'middle';
+
+    // Title
+    const isPerfect = r.fp === 0 && r.missed === 0;
+    ctx.fillStyle = isPerfect ? '#22c55e' : '#06b6d4';
+    ctx.font      = 'bold 20px Courier New';
+    ctx.fillText(`WAVE ${r.wave} COMPLETE${isPerfect ? ' — PERFECT!' : ''}`, W/2, by + 22);
+
+    // Divider
+    ctx.strokeStyle = 'rgba(6,182,212,0.3)';
+    ctx.lineWidth   = 1;
+    ctx.beginPath(); ctx.moveTo(bx + 20, by + 38); ctx.lineTo(bx + boxW - 20, by + 38); ctx.stroke();
+
+    // Stats row
+    ctx.font      = '11px Courier New';
+    ctx.fillStyle = '#94a3b8';
+    ctx.fillText(`Blocked: ${r.kills}  |  Missed: ${r.missed}  |  False Pos: ${r.fp}  |  Accuracy: ${r.accuracy}%`, W/2, by + 54);
+
+    // Score breakdown
+    ctx.font      = '10px Courier New';
+    ctx.textAlign = 'left';
+    const col1 = bx + 40, col2 = bx + boxW - 40;
+    let ly = by + 74;
+
+    ctx.fillStyle = '#64748b';
+    ctx.fillText(`Kill Score:`, col1, ly);
+    ctx.fillStyle = '#06b6d4'; ctx.textAlign = 'right';
+    ctx.fillText(`${r.waveScore - r.clearBonus - r.perfectBonus - r.accuracyBonus}`, col2, ly);
+    ly += 16;
+
+    ctx.textAlign = 'left'; ctx.fillStyle = '#64748b';
+    ctx.fillText(`Wave Clear (${r.wave} x 300):`, col1, ly);
+    ctx.fillStyle = '#3b82f6'; ctx.textAlign = 'right';
+    ctx.fillText(`+${r.clearBonus}`, col2, ly);
+    ly += 16;
+
+    if (r.perfectBonus > 0) {
+        ctx.textAlign = 'left'; ctx.fillStyle = '#22c55e';
+        ctx.fillText(`Perfect Wave Bonus:`, col1, ly);
+        ctx.textAlign = 'right';
+        ctx.fillText(`+${r.perfectBonus}`, col2, ly);
+        ly += 16;
+    }
+    if (r.accuracyBonus > 0) {
+        ctx.textAlign = 'left'; ctx.fillStyle = '#a855f7';
+        ctx.fillText(`Accuracy Bonus (${r.accuracy}%):`, col1, ly);
+        ctx.textAlign = 'right';
+        ctx.fillText(`+${r.accuracyBonus}`, col2, ly);
+        ly += 16;
+    }
+
+    // Total line
+    ctx.strokeStyle = 'rgba(6,182,212,0.3)';
+    ctx.beginPath(); ctx.moveTo(col1, ly - 4); ctx.lineTo(col2, ly - 4); ctx.stroke();
+    ly += 6;
+    ctx.textAlign = 'left'; ctx.fillStyle = '#ffffff'; ctx.font = 'bold 12px Courier New';
+    ctx.fillText(`WAVE SCORE:`, col1, ly);
+    ctx.textAlign = 'right'; ctx.fillStyle = '#f59e0b';
+    ctx.fillText(`${r.waveScore}`, col2, ly);
+    ly += 14;
+
+    // Peak combo + credits earned
+    ctx.font = '10px Courier New';
+    ctx.textAlign = 'center'; ctx.fillStyle = '#64748b';
+    ctx.fillText(`Peak Combo: x${r.peakCombo}  |  Credits: +${r.credits}c  |  Total Score: ${score}`, W/2, ly);
+
+    ctx.globalAlpha  = 1;
+    ctx.textBaseline = 'alphabetic';
+    ctx.textAlign    = 'left';
+}
+
+// ============================================================
+// MAIN GAME LOOP
+// ============================================================
+function gameLoop(timestamp) {
+    const dt = Math.min((timestamp - lastTime) / 16.67, 3); // delta clamped
+    lastTime = timestamp;
+
+    // Screen shake offset
+    let shakeX = 0, shakeY = 0;
+    if (screenShake > 0) {
+        shakeX = (Math.random() - 0.5) * screenShake;
+        shakeY = (Math.random() - 0.5) * screenShake;
+        screenShake = Math.max(0, screenShake - 1);
+    }
+
+    ctx.save();
+    ctx.translate(shakeX, shakeY);
+
+    // Draw static scene
+    drawBackground();
+    drawPath();
+    drawServer();
+    drawTowerSpots();
+    drawTowers();
+
+    // Active game elements
+    packets.forEach(p => drawPacket(p));
+    drawProjectiles();
+    drawParticles();
+    drawFloatingTexts();
+    drawScreenFlash();
+    drawWaveHUD();
+    drawWaveComplete();
+
+    // Overlays
+    if (gameState === STATE_MENU) drawMenu();
+    if (gameState === STATE_OVER) drawGameOver();
+    if (gameState === STATE_WIN)  drawVictory();
+
+    ctx.restore();
+
+    // Logic updates
+    if (gameState === STATE_WAVE) {
+        updatePackets(dt);
+        updateTowers();
+        updateProjectiles();
+        checkWaveComplete();
+    }
+    updateParticles();
+    updateFloatingTexts();
+
+    if (waveCompleteTimer > 0) waveCompleteTimer--;
+    frameCount++;
+
+    rafId = requestAnimationFrame(gameLoop);
+}
+
+// ============================================================
+// INPUT HANDLING
+// ============================================================
+canvas.addEventListener('click', e => {
+    ensureAudio();
+    const rect   = canvas.getBoundingClientRect();
+    const scaleX = W / rect.width;
+    const scaleY = H / rect.height;
+    const mx     = (e.clientX - rect.left) * scaleX;
+    const my     = (e.clientY - rect.top)  * scaleY;
+
+    if (gameState === STATE_MENU) {
+        initGame();
+        return;
+    }
+    if (gameState === STATE_OVER || gameState === STATE_WIN) {
+        initGame();
+        return;
+    }
+    if (gameState !== STATE_PREP) return;
+    if (document.getElementById('subnetChooser').style.display !== 'none') return;
+
+    // Check tower spot clicks
+    let clickedSpot = -1;
+    TOWER_SPOTS.forEach((spot, i) => {
+        const dx = mx - spot.x;
+        const dy = my - spot.y;
+        if (Math.sqrt(dx * dx + dy * dy) <= 24) clickedSpot = i;
+    });
+
+    if (clickedSpot !== -1) {
+        handleSpotClick(clickedSpot);
+    }
+});
+
+canvas.addEventListener('mousemove', e => {
+    const rect   = canvas.getBoundingClientRect();
+    const scaleX = W / rect.width;
+    const scaleY = H / rect.height;
+    const mx     = (e.clientX - rect.left) * scaleX;
+    const my     = (e.clientY - rect.top)  * scaleY;
+
+    hoveredSpot  = -1;
+    hoveredTower = -1;
+    TOWER_SPOTS.forEach((spot, i) => {
+        const dx = mx - spot.x;
+        const dy = my - spot.y;
+        if (Math.sqrt(dx * dx + dy * dy) <= 24) {
+            hoveredSpot = i;
+            if (towers.find(t => t.spotIndex === i)) hoveredTower = i;
+        }
+    });
+    canvas.style.cursor =
+        (hoveredSpot !== -1 && (selectedTowerType || sellMode)) ? 'pointer' :
+        hoveredTower !== -1 ? 'pointer' : 'default';
+});
+
+document.addEventListener('keydown', e => {
+    if (e.code === 'Space') {
+        e.preventDefault();
+        ensureAudio();
+        if (gameState === STATE_MENU || gameState === STATE_OVER || gameState === STATE_WIN) {
+            initGame();
+        } else if (gameState === STATE_PREP) {
+            startNextWave();
+        }
+    }
+    if (e.code === 'KeyS') { toggleSellMode(); }
+    if (e.code === 'KeyM') { toggleMute(); }
+    if (e.code === 'Escape') { cancelPlacement(); }
+});
+
+// ============================================================
+// BOOT
+// ============================================================
+// Init high score display
+document.getElementById('bestDisplay').textContent = highScore;
+
+// Kick off animation loop in menu state
+gameState = STATE_MENU;
+requestAnimationFrame(t => { lastTime = t; rafId = requestAnimationFrame(gameLoop); });
+
+</script>
+
+<script src="../../../components/GameTracker.js"></script>
+<script src="../../../components/GameScoreboard.js"></script>
+<script src="../../../components/AchievementSystem.js"></script>
+<script src="../../../components/FluxCapacitor.js"></script>
+</body>
+</html>
