@@ -61,6 +61,11 @@ const ContentDiscovery = (function() {
         module:       { icon: '📦', label: 'Modules', color: '#e879f9' }
     };
 
+    function catIconHTML(mod) {
+        if (!mod.category) return mod.icon || '📄';
+        return `<img src="assets/images/categories/${mod.category}.webp" alt="" onerror="this.outerHTML='${mod.icon || '📄'}'">`;
+    }
+
     // ========================================
     // AUTO-INIT
     // ========================================
@@ -459,7 +464,7 @@ const ContentDiscovery = (function() {
                     }).join('');
 
                     item.innerHTML = `
-                        <span class="cd-module-icon">${mod.icon || '📄'}</span>
+                        <span class="cd-module-icon">${catIconHTML(mod)}</span>
                         <div class="cd-module-info">
                             <div class="cd-module-title">${highlightTokens(mod.title, query)}</div>
                             <div class="cd-module-desc">${highlightTokens(mod.description || '', query)}</div>
@@ -905,7 +910,7 @@ const ContentDiscovery = (function() {
                     <div class="global-module-list" style="padding-left: 0;">
                         ${localResults.map(m => `
                             <div class="global-module-item" onclick="window.location.href='${m.href}'">
-                                <span class="global-module-icon">${m.icon}</span>
+                                <span class="global-module-icon">${catIconHTML(m)}</span>
                                 <div class="global-module-info">
                                     <div class="global-module-title">${m.title}</div>
                                     <div class="global-module-desc">${m.description}</div>
@@ -949,7 +954,7 @@ const ContentDiscovery = (function() {
                             <div class="global-module-list">
                                 ${group.modules.map(m => `
                                     <div class="global-module-item" onclick="navigateToModule('${m.fullHref}')">
-                                        <span class="global-module-icon">${m.icon}</span>
+                                        <span class="global-module-icon">${catIconHTML(m)}</span>
                                         <div class="global-module-info">
                                             <div class="global-module-title">${m.title}</div>
                                             <div class="global-module-desc">${m.description}</div>
@@ -1048,7 +1053,7 @@ const ContentDiscovery = (function() {
             <div class="start-here-items">
                 ${starters.map(m => `
                     <div class="start-here-item" onclick="if('${m.href}')window.location.href='${m.href}'">
-                        <span class="start-here-item-icon">${m.icon}</span>
+                        <span class="start-here-item-icon">${catIconHTML(m)}</span>
                         <div class="start-here-item-info">
                             <div class="start-here-item-title">${m.title}</div>
                             <div class="start-here-item-type">${getTypeLabel(m.components)}</div>
@@ -1336,6 +1341,15 @@ const ContentDiscovery = (function() {
             .cd-module-icon {
                 font-size: 1.2rem;
                 flex-shrink: 0;
+                display: flex;
+                align-items: center;
+            }
+
+            .cd-module-icon img {
+                width: 28px;
+                height: 28px;
+                border-radius: 5px;
+                object-fit: cover;
             }
 
             .cd-module-info {
@@ -1727,7 +1741,8 @@ const ContentDiscovery = (function() {
                 transform: translateX(4px);
             }
 
-            .global-module-icon { font-size: 1.3rem; flex-shrink: 0; }
+            .global-module-icon { font-size: 1.3rem; flex-shrink: 0; display: flex; align-items: center; }
+            .global-module-icon img { width: 28px; height: 28px; border-radius: 5px; object-fit: cover; }
 
             .global-module-info { flex: 1; min-width: 0; }
 
@@ -1815,7 +1830,8 @@ const ContentDiscovery = (function() {
                 transform: translateX(4px);
             }
 
-            .start-here-item-icon { font-size: 1.3rem; }
+            .start-here-item-icon { font-size: 1.3rem; display: flex; align-items: center; }
+            .start-here-item-icon img { width: 28px; height: 28px; border-radius: 5px; object-fit: cover; }
             .start-here-item-info { flex: 1; }
             .start-here-item-title { font-size: 0.9rem; color: #ddd; margin-bottom: 2px; }
             .start-here-item-type { font-size: 0.7rem; color: #666; }

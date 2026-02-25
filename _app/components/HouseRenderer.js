@@ -505,7 +505,18 @@ const HouseRenderer = (function() {
                 margin-bottom: 12px;
             }
 
-            .module-icon { font-size: 1.4rem; }
+            .module-icon {
+                font-size: 1.4rem;
+                display: flex;
+                align-items: center;
+            }
+
+            .module-icon img {
+                width: 32px;
+                height: 32px;
+                border-radius: 6px;
+                object-fit: cover;
+            }
 
             .module-badges {
                 display: flex;
@@ -1094,9 +1105,12 @@ const HouseRenderer = (function() {
             card.dataset.href = mod.href || '';
 
             const typeBadge = getTypeBadge(mod);
+            const catIcon = mod.category
+                ? `<img src="../../assets/images/categories/${mod.category}.webp" alt="" onerror="this.outerHTML='${mod.icon}'">`
+                : mod.icon;
             card.innerHTML = `
                 <div class="module-header">
-                    <span class="module-icon">${mod.icon}</span>
+                    <span class="module-icon">${catIcon}</span>
                     <div class="module-badges">
                         ${typeBadge}
                         <span class="module-status ${mod.status}">${(mod.status || '').replace('-', ' ')}</span>
