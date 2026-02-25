@@ -210,8 +210,8 @@ const HouseRenderer = (function() {
             }
 
             .hero-icon img {
-                width: 120px;
-                height: 120px;
+                width: 168px;
+                height: 168px;
                 border-radius: 50%;
                 border: 3px solid var(--house-primary);
                 box-shadow: 0 0 40px var(--house-glow), 0 0 80px rgba(0,0,0,0.4);
