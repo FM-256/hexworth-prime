@@ -20,6 +20,7 @@ const NamingValidator = require(path.join(EDUSCAN_DIR, 'validators/syntax/naming
 const HeuristicsValidator = require(path.join(EDUSCAN_DIR, 'validators/syntax/heuristics'));
 const ContentCatalogValidator = require(path.join(EDUSCAN_DIR, 'validators/syntax/content-catalog'));
 const NavigationValidator = require(path.join(EDUSCAN_DIR, 'validators/syntax/navigation'));
+const EmojiValidator = require(path.join(EDUSCAN_DIR, 'validators/syntax/emoji'));
 
 // ── Import expectations ──────────────────────────────────────────────
 const expectations = require('./expectations');
@@ -44,7 +45,8 @@ const validators = [
     new PathValidator({ profile: 'strict', rootPath: ROOT_PATH }),
     new NamingValidator({ rootPath: ROOT_PATH, strictMode: true }),
     new HeuristicsValidator({ profile: 'strict', rootPath: ROOT_PATH }),
-    new NavigationValidator({ profile: 'strict' })
+    new NavigationValidator({ profile: 'strict' }),
+    new EmojiValidator({ rootPath: ROOT_PATH, profile: 'strict' })
 ];
 
 // ── Run ──────────────────────────────────────────────────────────────
