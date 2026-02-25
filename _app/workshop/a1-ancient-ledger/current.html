@@ -289,6 +289,7 @@
             .sidebar { display: none; }
         }
     </style>
+    <script src="../../components/FirebaseAuth.js"></script>
 </head>
 <body>
 
@@ -406,8 +407,13 @@
     // ═══════════════════════════════════════════════════════
 
     const STORAGE_KEY = 'hexworth_ctf_a1';
-    const USER_FLAG = 'flag{4nc13nt_l3dg3r_sql1_d1sc0v3r3d}';
-    const ROOT_FLAG = 'flag{st3ll4r_f0rg3_4ll0c4t10n_c0d3s}';
+
+    // Encoded secrets — not readable in DevTools source
+    const _F = [
+        'ZmxhZ3s0bmMxM250X2wzZGczcl9zcWwxX2Qxc2MwdjNyM2R9',
+        'ZmxhZ3tzdDNsbDRyX2YwcmczXzRsbDBjNHQxMG5fYzBkM3N9'
+    ];
+    function _d(s) { return atob(s); }
 
     let state = load();
 
@@ -469,14 +475,14 @@
             { id: 8, resource: 'Oxygen Generators', quantity: '88 units', habitat: 'Orbital-1' }
         ],
         users: [
-            { id: 1, username: 'admin', password: 'Cr1ms0nD4wn!', role: 'administrator' },
-            { id: 2, username: 'data_scribe', password: 'b4ckd00r_4cc3ss', role: 'scribe' },
-            { id: 3, username: 'viewer', password: 'readonly2024', role: 'readonly' }
+            { id: 1, username: 'admin', password: 'Q3IxbXMwbkQ0d24h', role: 'administrator' },
+            { id: 2, username: 'data_scribe', password: 'YjRja2QwMHJfNGNjM3Nz', role: 'scribe' },
+            { id: 3, username: 'viewer', password: 'cmVhZG9ubHkyMDI0', role: 'readonly' }
         ],
         secrets: [
-            { id: 1, code_name: 'Stellar Forge Alpha', value: ROOT_FLAG },
-            { id: 2, code_name: 'Project Eclipse', value: 'CLASSIFIED-REDACTED' },
-            { id: 3, code_name: 'Omega Protocol', value: 'CLASSIFIED-REDACTED' }
+            { id: 1, code_name: 'Stellar Forge Alpha', value: _F[1] },
+            { id: 2, code_name: 'Project Eclipse', value: 'Q0xBU1NJRklFRC1SRURBQ1RFRA==' },
+            { id: 3, code_name: 'Omega Protocol', value: 'Q0xBU1NJRklFRC1SRURBQ1RFRA==' }
         ],
         schema: {
             tables: ['allocations', 'users', 'stellar_forge_codes'],
@@ -555,7 +561,7 @@
         // 5. LOAD_FILE — read filesystem (user flag)
         if (/load_file/i.test(input)) {
             if (input.includes('user.txt') || input.includes('/home/www-data')) {
-                resultsBody.innerHTML = `<tr><td colspan="4" style="color:#2ecc71;">${USER_FLAG}</td></tr>`;
+                resultsBody.innerHTML = `<tr><td colspan="4" style="color:#2ecc71;">${_d(_F[0])}</td></tr>`;
                 queryMsg.innerHTML = '<div class="success-msg">File contents retrieved from the server filesystem.</div>';
             } else {
                 resultsBody.innerHTML = '';
@@ -665,7 +671,7 @@
         // SELECT from users table
         if (/from\s+users/i.test(selectPart) || (/username/.test(joined) && /password/.test(joined))) {
             resultsBody.innerHTML = DB.users.map(u =>
-                `<tr><td>${u.id}</td><td>${u.username}</td><td>${u.password}</td><td>${u.role}</td></tr>`
+                `<tr><td>${u.id}</td><td>${u.username}</td><td>${_d(u.password)}</td><td>${u.role}</td></tr>`
             ).join('');
             queryMsg.innerHTML = '<div class="success-msg">Credentials extracted from users table! The data_scribe account looks interesting...</div>';
             save();
@@ -677,9 +683,10 @@
             /code_name/.test(joined) || /value/.test(joined)) {
             const fullInput = document.getElementById('searchInput').value;
             if (/stellar_forge/i.test(fullInput)) {
-                resultsBody.innerHTML = DB.secrets.map(s =>
-                    `<tr><td>${s.id}</td><td>${s.code_name}</td><td style="color:${s.value.startsWith('flag{') ? '#2ecc71' : '#555'}">${s.value}</td><td>-</td></tr>`
-                ).join('');
+                resultsBody.innerHTML = DB.secrets.map(s => {
+                    const v = _d(s.value);
+                    return `<tr><td>${s.id}</td><td>${s.code_name}</td><td style="color:${v.startsWith('flag{') ? '#2ecc71' : '#555'}">${v}</td><td>-</td></tr>`;
+                }).join('');
                 queryMsg.innerHTML = '<div class="success-msg">Classified data extracted! The Stellar Forge allocation codes are revealed.</div>';
                 save();
                 return;
@@ -711,7 +718,7 @@
     // FLAG SUBMISSION
     // ═══════════════════════════════════════════════════════
 
-    window.submitFlag = function() {
+    window.submitFlag = async function() {
         const input = document.getElementById('flagInput').value.trim();
         const msg = document.getElementById('flagMsg');
 
@@ -720,27 +727,69 @@
             return;
         }
 
-        if (input === USER_FLAG && !state.userFlag) {
+        // Already captured check
+        if ((input === _d(_F[0]) && state.userFlag) || (input === _d(_F[1]) && state.rootFlag)) {
+            msg.innerHTML = '<div class="info-msg">Flag already submitted.</div>';
+            return;
+        }
+
+        // Try server-side validation via Cloud Function
+        let serverResult = null;
+        if (typeof FirebaseAuth !== 'undefined') {
+            if (!FirebaseAuth.isSignedIn()) {
+                try { await FirebaseAuth.init(); await FirebaseAuth.waitForAuth(); } catch(e) {}
+            }
+            if (FirebaseAuth.isSignedIn()) {
+                try {
+                    if (!state.userFlag) {
+                        const r = await FirebaseAuth.callFunction('validateFlag', {
+                            boxId: 'a1-ancient-ledger', flagId: 'user', submission: input
+                        });
+                        if (r.data.correct) serverResult = 'user';
+                    }
+                    if (!serverResult && !state.rootFlag) {
+                        const r = await FirebaseAuth.callFunction('validateFlag', {
+                            boxId: 'a1-ancient-ledger', flagId: 'root', submission: input
+                        });
+                        if (r.data.correct) serverResult = 'root';
+                    }
+                } catch(err) {
+                    if (err.code === 'functions/resource-exhausted') {
+                        msg.innerHTML = '<div class="error-msg">Too many attempts. Wait 60 seconds.</div>';
+                        return;
+                    }
+                    console.warn('[CTF] Server unavailable:', err.message);
+                }
+            }
+        }
+
+        // Server confirmed user flag
+        if (serverResult === 'user') {
             state.userFlag = true;
             state.score += 100;
             msg.innerHTML = '<div class="success-msg">&#10003; user.txt captured! +100 points</div>';
-            updateScore();
-            checkCompletion();
-            return;
+            updateScore(); checkCompletion(); return;
         }
-
-        if (input === ROOT_FLAG && !state.rootFlag) {
+        // Server confirmed root flag
+        if (serverResult === 'root') {
             state.rootFlag = true;
             state.score += 200;
             msg.innerHTML = '<div class="success-msg">&#10003; root.txt captured! +200 points</div>';
-            updateScore();
-            checkCompletion();
-            return;
+            updateScore(); checkCompletion(); return;
         }
 
-        if ((input === USER_FLAG && state.userFlag) || (input === ROOT_FLAG && state.rootFlag)) {
-            msg.innerHTML = '<div class="info-msg">Flag already submitted.</div>';
-            return;
+        // Offline fallback — encoded comparison
+        if (input === _d(_F[0]) && !state.userFlag) {
+            state.userFlag = true;
+            state.score += 100;
+            msg.innerHTML = '<div class="success-msg">&#10003; user.txt captured! +100 points</div>';
+            updateScore(); checkCompletion(); return;
+        }
+        if (input === _d(_F[1]) && !state.rootFlag) {
+            state.rootFlag = true;
+            state.score += 200;
+            msg.innerHTML = '<div class="success-msg">&#10003; root.txt captured! +200 points</div>';
+            updateScore(); checkCompletion(); return;
         }
 
         // Wrong flag
