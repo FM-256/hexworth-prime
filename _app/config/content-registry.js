@@ -10577,6 +10577,394 @@ const ContentRegistry = {
         },
 
         // ─────────────────────────────────────────────────────────────
+        // DARK ARTS VAULT - EHE (Ethical Hacking Essentials) Course
+        // EC-Council EHEv1: 13 modules, 10 quizzes, 20 labs, 1 final
+        // ─────────────────────────────────────────────────────────────
+
+        'ehe-00': {
+            id: 'ehe-00', title: 'EHE-00: Student Introduction',
+            description: 'Course overview, ethical hacking career paths, lab environment',
+            house: 'dark-arts', type: 'module', difficulty: 'beginner', duration: 20,
+            topics: ['ethical-hacking', 'ehe', 'introduction'],
+            paths: ['ehe-course'],
+            components: { presentation: 'dark-arts/vault/ehe/modules/ehe-00-introduction.module.html' },
+            prerequisites: [],
+            objectives: ['Understand the EHE program structure', 'Identify ethical hacking career paths']
+        },
+        'ehe-01': {
+            id: 'ehe-01', title: 'EHE-01: Information Security Fundamentals',
+            description: 'CIA triad, attack vectors, infosec laws and regulations',
+            house: 'dark-arts', type: 'module', difficulty: 'beginner', duration: 45,
+            topics: ['ethical-hacking', 'ehe', 'information-security', 'cia-triad', 'compliance'],
+            paths: ['ehe-course'],
+            components: { presentation: 'dark-arts/vault/ehe/modules/ehe-01-infosec-fundamentals.module.html' },
+            prerequisites: ['ehe-00'],
+            objectives: ['Explain the CIA triad', 'Classify attack types', 'Identify key infosec regulations']
+        },
+        'ehe-02': {
+            id: 'ehe-02', title: 'EHE-02: Ethical Hacking Fundamentals',
+            description: 'Cyber Kill Chain, hacker classes, hacking phases, ethical hacking tools',
+            house: 'dark-arts', type: 'module', difficulty: 'beginner', duration: 50,
+            topics: ['ethical-hacking', 'ehe', 'kill-chain', 'mitre-attack', 'reconnaissance'],
+            paths: ['ehe-course'],
+            components: { presentation: 'dark-arts/vault/ehe/modules/ehe-02-ethical-hacking-fundamentals.module.html' },
+            prerequisites: ['ehe-01'],
+            objectives: ['Describe the Cyber Kill Chain phases', 'Classify hacker types', 'Explain ethical hacking methodology']
+        },
+        'ehe-03': {
+            id: 'ehe-03', title: 'EHE-03: Threats and Vulnerability Assessment',
+            description: 'Threat sources, malware types, vulnerability classification and lifecycle',
+            house: 'dark-arts', type: 'module', difficulty: 'beginner', duration: 55,
+            topics: ['ethical-hacking', 'ehe', 'malware', 'vulnerabilities', 'threat-assessment'],
+            paths: ['ehe-course'],
+            components: { presentation: 'dark-arts/vault/ehe/modules/ehe-03-threats-vulnerability.module.html' },
+            prerequisites: ['ehe-02'],
+            objectives: ['Classify malware components', 'Explain vulnerability management lifecycle', 'Use CVSS scoring']
+        },
+        'ehe-04': {
+            id: 'ehe-04', title: 'EHE-04: Password Cracking Techniques',
+            description: 'Authentication methods, password attacks, cracking tools and countermeasures',
+            house: 'dark-arts', type: 'module', difficulty: 'intermediate', duration: 40,
+            topics: ['ethical-hacking', 'ehe', 'password-cracking', 'authentication', 'kerberos'],
+            paths: ['ehe-course'],
+            components: { presentation: 'dark-arts/vault/ehe/modules/ehe-04-password-cracking.module.html' },
+            prerequisites: ['ehe-03'],
+            objectives: ['Explain authentication mechanisms', 'Identify password attack types', 'Use cracking tools']
+        },
+        'ehe-05': {
+            id: 'ehe-05', title: 'EHE-05: Social Engineering Techniques',
+            description: 'Social engineering methods, insider threats, identity theft, countermeasures',
+            house: 'dark-arts', type: 'module', difficulty: 'intermediate', duration: 40,
+            topics: ['ethical-hacking', 'ehe', 'social-engineering', 'phishing', 'insider-threats'],
+            paths: ['ehe-course'],
+            components: { presentation: 'dark-arts/vault/ehe/modules/ehe-05-social-engineering.module.html' },
+            prerequisites: ['ehe-03'],
+            objectives: ['Classify social engineering techniques', 'Identify insider threat categories', 'Apply countermeasures']
+        },
+        'ehe-06': {
+            id: 'ehe-06', title: 'EHE-06: Network Level Attacks',
+            description: 'Sniffing, DoS/DDoS, session hijacking, ARP poisoning, countermeasures',
+            house: 'dark-arts', type: 'module', difficulty: 'intermediate', duration: 55,
+            topics: ['ethical-hacking', 'ehe', 'network-attacks', 'dos', 'sniffing', 'session-hijacking'],
+            paths: ['ehe-course'],
+            components: { presentation: 'dark-arts/vault/ehe/modules/ehe-06-network-attacks.module.html' },
+            prerequisites: ['ehe-05'],
+            objectives: ['Explain sniffing and ARP poisoning', 'Classify DoS attack types', 'Describe session hijacking']
+        },
+        'ehe-07': {
+            id: 'ehe-07', title: 'EHE-07: Web Application Attacks',
+            description: 'Web server exploitation, OWASP Top 10, SQL injection, XSS, countermeasures',
+            house: 'dark-arts', type: 'module', difficulty: 'intermediate', duration: 55,
+            topics: ['ethical-hacking', 'ehe', 'web-security', 'sql-injection', 'xss', 'owasp'],
+            paths: ['ehe-course'],
+            components: { presentation: 'dark-arts/vault/ehe/modules/ehe-07-web-app-attacks.module.html' },
+            prerequisites: ['ehe-06'],
+            objectives: ['Identify web server components', 'Explain OWASP Top 10', 'Demonstrate SQL injection types']
+        },
+        'ehe-08': {
+            id: 'ehe-08', title: 'EHE-08: Wireless Attacks',
+            description: 'Wireless encryption, WEP/WPA cracking, Bluetooth threats, countermeasures',
+            house: 'dark-arts', type: 'module', difficulty: 'intermediate', duration: 45,
+            topics: ['ethical-hacking', 'ehe', 'wireless', 'wifi', 'bluetooth', 'aircrack'],
+            paths: ['ehe-course'],
+            components: { presentation: 'dark-arts/vault/ehe/modules/ehe-08-wireless-attacks.module.html' },
+            prerequisites: ['ehe-07'],
+            objectives: ['Compare wireless encryption standards', 'Explain wireless attack techniques', 'Identify Bluetooth threats']
+        },
+        'ehe-09': {
+            id: 'ehe-09', title: 'EHE-09: Mobile Attacks',
+            description: 'Mobile platform attack vectors, rooting/jailbreaking, MDM, security tools',
+            house: 'dark-arts', type: 'module', difficulty: 'intermediate', duration: 45,
+            topics: ['ethical-hacking', 'ehe', 'mobile-security', 'android', 'ios', 'mdm'],
+            paths: ['ehe-course'],
+            components: { presentation: 'dark-arts/vault/ehe/modules/ehe-09-mobile-attacks.module.html' },
+            prerequisites: ['ehe-08'],
+            objectives: ['Identify mobile attack vectors', 'Explain rooting and jailbreaking risks', 'Describe MDM solutions']
+        },
+        'ehe-10': {
+            id: 'ehe-10', title: 'EHE-10: IoT and OT Attacks',
+            description: 'IoT architecture, OT/SCADA systems, IoT/OT threats and countermeasures',
+            house: 'dark-arts', type: 'module', difficulty: 'intermediate', duration: 45,
+            topics: ['ethical-hacking', 'ehe', 'iot', 'ot', 'scada', 'ics'],
+            paths: ['ehe-course'],
+            components: { presentation: 'dark-arts/vault/ehe/modules/ehe-10-iot-ot-attacks.module.html' },
+            prerequisites: ['ehe-09'],
+            objectives: ['Describe IoT architecture layers', 'Identify OT/SCADA vulnerabilities', 'Apply IoT/OT countermeasures']
+        },
+        'ehe-11': {
+            id: 'ehe-11', title: 'EHE-11: Cloud Computing Threats',
+            description: 'Cloud models, container security, S3 enumeration, cloud countermeasures',
+            house: 'dark-arts', type: 'module', difficulty: 'intermediate', duration: 45,
+            topics: ['ethical-hacking', 'ehe', 'cloud-security', 'aws', 'kubernetes', 'containers'],
+            paths: ['ehe-course'],
+            components: { presentation: 'dark-arts/vault/ehe/modules/ehe-11-cloud-threats.module.html' },
+            prerequisites: ['ehe-10'],
+            objectives: ['Compare cloud service models', 'Explain container security', 'Identify cloud attack vectors']
+        },
+        'ehe-12': {
+            id: 'ehe-12', title: 'EHE-12: Penetration Testing Fundamentals',
+            description: 'Pentest strategies, phases, methodologies, guidelines, and reporting',
+            house: 'dark-arts', type: 'module', difficulty: 'intermediate', duration: 45,
+            topics: ['ethical-hacking', 'ehe', 'penetration-testing', 'pentest', 'methodology'],
+            paths: ['ehe-course'],
+            components: { presentation: 'dark-arts/vault/ehe/modules/ehe-12-pentest-fundamentals.module.html' },
+            prerequisites: ['ehe-10'],
+            objectives: ['Compare pentest strategies', 'Describe pentest phases', 'Write a pentest report']
+        },
+
+        // EHE Weekly Quizzes
+        'ehe-week01-quiz': {
+            id: 'ehe-week01-quiz', title: 'EHE Week 1 Quiz: InfoSec Fundamentals',
+            description: '3 questions on CIA triad, attack vectors, and infosec regulations',
+            house: 'dark-arts', type: 'quiz', difficulty: 'beginner', duration: 5,
+            topics: ['ethical-hacking', 'ehe', 'information-security'], paths: ['ehe-course'],
+            components: { quiz: 'dark-arts/vault/ehe/quizzes/ehe-week01-quiz.html' },
+            prerequisites: ['ehe-01'], objectives: ['Score 70% or higher on InfoSec Fundamentals']
+        },
+        'ehe-week02-quiz': {
+            id: 'ehe-week02-quiz', title: 'EHE Week 2 Quiz: Ethical Hacking',
+            description: '3 questions on Cyber Kill Chain, TTPs, and hacker classes',
+            house: 'dark-arts', type: 'quiz', difficulty: 'beginner', duration: 5,
+            topics: ['ethical-hacking', 'ehe', 'kill-chain'], paths: ['ehe-course'],
+            components: { quiz: 'dark-arts/vault/ehe/quizzes/ehe-week02-quiz.html' },
+            prerequisites: ['ehe-02'], objectives: ['Score 70% or higher on Ethical Hacking Fundamentals']
+        },
+        'ehe-week03-quiz': {
+            id: 'ehe-week03-quiz', title: 'EHE Week 3 Quiz: Threats & Vulnerabilities',
+            description: '3 questions on threat sources, malware components, and Trojans',
+            house: 'dark-arts', type: 'quiz', difficulty: 'beginner', duration: 5,
+            topics: ['ethical-hacking', 'ehe', 'malware', 'vulnerabilities'], paths: ['ehe-course'],
+            components: { quiz: 'dark-arts/vault/ehe/quizzes/ehe-week03-quiz.html' },
+            prerequisites: ['ehe-03'], objectives: ['Score 70% or higher on Threats & Vulnerability Assessment']
+        },
+        'ehe-week04-quiz': {
+            id: 'ehe-week04-quiz', title: 'EHE Week 4 Quiz: Passwords & Social Engineering',
+            description: '3 questions on authentication, eavesdropping, and insider threats',
+            house: 'dark-arts', type: 'quiz', difficulty: 'intermediate', duration: 5,
+            topics: ['ethical-hacking', 'ehe', 'password-cracking', 'social-engineering'], paths: ['ehe-course'],
+            components: { quiz: 'dark-arts/vault/ehe/quizzes/ehe-week04-quiz.html' },
+            prerequisites: ['ehe-05'], objectives: ['Score 70% or higher on Password Cracking & Social Engineering']
+        },
+        'ehe-week05-quiz': {
+            id: 'ehe-week05-quiz', title: 'EHE Week 5 Quiz: Network Attacks',
+            description: '3 questions on MAC flooding, Smurf attack, and session desynchronization',
+            house: 'dark-arts', type: 'quiz', difficulty: 'intermediate', duration: 5,
+            topics: ['ethical-hacking', 'ehe', 'network-attacks'], paths: ['ehe-course'],
+            components: { quiz: 'dark-arts/vault/ehe/quizzes/ehe-week05-quiz.html' },
+            prerequisites: ['ehe-06'], objectives: ['Score 70% or higher on Network Level Attacks']
+        },
+        'ehe-week06-quiz': {
+            id: 'ehe-week06-quiz', title: 'EHE Week 6 Quiz: Web App Attacks',
+            description: '3 questions on web servers, injection flaws, and piggybacked queries',
+            house: 'dark-arts', type: 'quiz', difficulty: 'intermediate', duration: 5,
+            topics: ['ethical-hacking', 'ehe', 'web-security', 'sql-injection'], paths: ['ehe-course'],
+            components: { quiz: 'dark-arts/vault/ehe/quizzes/ehe-week06-quiz.html' },
+            prerequisites: ['ehe-07'], objectives: ['Score 70% or higher on Web Application Attacks']
+        },
+        'ehe-week07-quiz': {
+            id: 'ehe-week07-quiz', title: 'EHE Week 7 Quiz: Wireless Attacks',
+            description: '3 questions on WiMAX, jamming devices, and KNOB attack',
+            house: 'dark-arts', type: 'quiz', difficulty: 'intermediate', duration: 5,
+            topics: ['ethical-hacking', 'ehe', 'wireless'], paths: ['ehe-course'],
+            components: { quiz: 'dark-arts/vault/ehe/quizzes/ehe-week07-quiz.html' },
+            prerequisites: ['ehe-08'], objectives: ['Score 70% or higher on Wireless Attacks']
+        },
+        'ehe-week08-quiz': {
+            id: 'ehe-week08-quiz', title: 'EHE Week 8 Quiz: Mobile Attacks',
+            description: '3 questions on rooting, buffer overflow, and mobile security',
+            house: 'dark-arts', type: 'quiz', difficulty: 'intermediate', duration: 5,
+            topics: ['ethical-hacking', 'ehe', 'mobile-security'], paths: ['ehe-course'],
+            components: { quiz: 'dark-arts/vault/ehe/quizzes/ehe-week08-quiz.html' },
+            prerequisites: ['ehe-09'], objectives: ['Score 70% or higher on Mobile Attacks']
+        },
+        'ehe-week09-quiz': {
+            id: 'ehe-week09-quiz', title: 'EHE Week 9 Quiz: IoT & OT Attacks',
+            description: '3 questions on IoT architecture, mobile layer security, and reprogramming attacks',
+            house: 'dark-arts', type: 'quiz', difficulty: 'intermediate', duration: 5,
+            topics: ['ethical-hacking', 'ehe', 'iot', 'ot'], paths: ['ehe-course'],
+            components: { quiz: 'dark-arts/vault/ehe/quizzes/ehe-week09-quiz.html' },
+            prerequisites: ['ehe-10'], objectives: ['Score 70% or higher on IoT & OT Attacks']
+        },
+        'ehe-week10-quiz': {
+            id: 'ehe-week10-quiz', title: 'EHE Week 10 Quiz: Cloud & Pentest',
+            description: '7 questions on cloud computing, Kubernetes, and penetration testing',
+            house: 'dark-arts', type: 'quiz', difficulty: 'intermediate', duration: 10,
+            topics: ['ethical-hacking', 'ehe', 'cloud-security', 'penetration-testing'], paths: ['ehe-course'],
+            components: { quiz: 'dark-arts/vault/ehe/quizzes/ehe-week10-quiz.html' },
+            prerequisites: ['ehe-12'], objectives: ['Score 70% or higher on Cloud Computing & Pentest Fundamentals']
+        },
+        'ehe-final-exam': {
+            id: 'ehe-final-exam', title: 'EHE Comprehensive Final Exam',
+            description: 'All 34 questions covering all 12 modules — 70% to pass',
+            house: 'dark-arts', type: 'quiz', difficulty: 'intermediate', duration: 45,
+            topics: ['ethical-hacking', 'ehe', 'comprehensive-exam'], paths: ['ehe-course'],
+            components: { quiz: 'dark-arts/vault/ehe/quizzes/ehe-final-exam.html' },
+            prerequisites: ['ehe-12'], objectives: ['Score 70% or higher on the comprehensive final exam']
+        },
+
+        // EHE Labs
+        'ehe-lab-footprinting': {
+            id: 'ehe-lab-footprinting', title: 'EHE Lab: Passive Footprinting',
+            description: 'Google dorking + WHOIS lookup simulation',
+            house: 'dark-arts', type: 'lab', difficulty: 'beginner', duration: 30,
+            topics: ['ethical-hacking', 'ehe', 'reconnaissance', 'osint', 'footprinting'], paths: ['ehe-course'],
+            components: { lab: 'dark-arts/vault/ehe/labs/ehe-lab-footprinting.lab.html' },
+            prerequisites: ['ehe-02'], objectives: ['Use Google dork operators', 'Perform WHOIS and DNS lookups']
+        },
+        'ehe-lab-network-scanning': {
+            id: 'ehe-lab-network-scanning', title: 'EHE Lab: Network Scanning',
+            description: 'Nmap terminal simulator for host, port, and OS discovery',
+            house: 'dark-arts', type: 'lab', difficulty: 'beginner', duration: 35,
+            topics: ['ethical-hacking', 'ehe', 'nmap', 'scanning', 'enumeration'], paths: ['ehe-course'],
+            components: { lab: 'dark-arts/vault/ehe/labs/ehe-lab-network-scanning.lab.html' },
+            prerequisites: ['ehe-02'], objectives: ['Perform ping sweeps', 'Use Nmap scan types', 'Detect OS and services']
+        },
+        'ehe-lab-enumeration': {
+            id: 'ehe-lab-enumeration', title: 'EHE Lab: System Enumeration',
+            description: 'NetBIOS/SMB enumeration simulation',
+            house: 'dark-arts', type: 'lab', difficulty: 'beginner', duration: 30,
+            topics: ['ethical-hacking', 'ehe', 'enumeration', 'netbios', 'smb'], paths: ['ehe-course'],
+            components: { lab: 'dark-arts/vault/ehe/labs/ehe-lab-enumeration.lab.html' },
+            prerequisites: ['ehe-02'], objectives: ['Enumerate NetBIOS names', 'List SMB shares and users']
+        },
+        'ehe-lab-trojan-analysis': {
+            id: 'ehe-lab-trojan-analysis', title: 'EHE Lab: Trojan Analysis',
+            description: 'RAT behavior analysis in sandbox environment',
+            house: 'dark-arts', type: 'lab', difficulty: 'intermediate', duration: 30,
+            topics: ['ethical-hacking', 'ehe', 'malware', 'trojan', 'sandbox'], paths: ['ehe-course'],
+            components: { lab: 'dark-arts/vault/ehe/labs/ehe-lab-trojan-analysis.lab.html' },
+            prerequisites: ['ehe-03'], objectives: ['Analyze RAT behavior', 'Identify C2 connections and persistence']
+        },
+        'ehe-lab-virus-creation': {
+            id: 'ehe-lab-virus-creation', title: 'EHE Lab: Virus Construction',
+            description: 'Educational malware component assembly simulator',
+            house: 'dark-arts', type: 'lab', difficulty: 'intermediate', duration: 25,
+            topics: ['ethical-hacking', 'ehe', 'malware', 'virus', 'malware-analysis'], paths: ['ehe-course'],
+            components: { lab: 'dark-arts/vault/ehe/labs/ehe-lab-virus-creation.lab.html' },
+            prerequisites: ['ehe-03'], objectives: ['Understand virus components', 'Classify malware types']
+        },
+        'ehe-lab-vuln-assessment': {
+            id: 'ehe-lab-vuln-assessment', title: 'EHE Lab: Vulnerability Assessment',
+            description: 'OpenVAS-style vulnerability scanner simulation',
+            house: 'dark-arts', type: 'lab', difficulty: 'intermediate', duration: 35,
+            topics: ['ethical-hacking', 'ehe', 'vulnerability-assessment', 'openvas'], paths: ['ehe-course'],
+            components: { lab: 'dark-arts/vault/ehe/labs/ehe-lab-vuln-assessment.lab.html' },
+            prerequisites: ['ehe-03'], objectives: ['Configure and run vulnerability scans', 'Analyze scan results']
+        },
+        'ehe-lab-password-cracking': {
+            id: 'ehe-lab-password-cracking', title: 'EHE Lab: Password Cracking',
+            description: 'Responder/hashcat/John the Ripper simulation',
+            house: 'dark-arts', type: 'lab', difficulty: 'intermediate', duration: 35,
+            topics: ['ethical-hacking', 'ehe', 'password-cracking', 'hashcat', 'john'], paths: ['ehe-course'],
+            components: { lab: 'dark-arts/vault/ehe/labs/ehe-lab-password-cracking.lab.html' },
+            prerequisites: ['ehe-04'], objectives: ['Capture NTLM hashes', 'Crack passwords with multiple tools']
+        },
+        'ehe-lab-password-audit': {
+            id: 'ehe-lab-password-audit', title: 'EHE Lab: Password Auditing',
+            description: 'L0phtCrack and John the Ripper auditing simulation',
+            house: 'dark-arts', type: 'lab', difficulty: 'intermediate', duration: 30,
+            topics: ['ethical-hacking', 'ehe', 'password-audit', 'l0phtcrack'], paths: ['ehe-course'],
+            components: { lab: 'dark-arts/vault/ehe/labs/ehe-lab-password-audit.lab.html' },
+            prerequisites: ['ehe-04'], objectives: ['Audit system passwords', 'Evaluate password policy strength']
+        },
+        'ehe-lab-social-engineering': {
+            id: 'ehe-lab-social-engineering', title: 'EHE Lab: Social Engineering',
+            description: 'SET toolkit credential harvesting simulation',
+            house: 'dark-arts', type: 'lab', difficulty: 'intermediate', duration: 25,
+            topics: ['ethical-hacking', 'ehe', 'social-engineering', 'set', 'phishing'], paths: ['ehe-course'],
+            components: { lab: 'dark-arts/vault/ehe/labs/ehe-lab-social-engineering.lab.html' },
+            prerequisites: ['ehe-05'], objectives: ['Navigate SET menu system', 'Create credential harvester']
+        },
+        'ehe-lab-sniffing': {
+            id: 'ehe-lab-sniffing', title: 'EHE Lab: ARP Poisoning & Sniffing',
+            description: 'Packet capture and ARP spoofing simulation',
+            house: 'dark-arts', type: 'lab', difficulty: 'intermediate', duration: 35,
+            topics: ['ethical-hacking', 'ehe', 'sniffing', 'arp-poisoning', 'wireshark'], paths: ['ehe-course'],
+            components: { lab: 'dark-arts/vault/ehe/labs/ehe-lab-sniffing.lab.html' },
+            prerequisites: ['ehe-06'], objectives: ['Perform ARP poisoning', 'Analyze captured packets']
+        },
+        'ehe-lab-dos-attack': {
+            id: 'ehe-lab-dos-attack', title: 'EHE Lab: DoS Detection & Mitigation',
+            description: 'DoS/DDoS attack detection and mitigation simulator',
+            house: 'dark-arts', type: 'lab', difficulty: 'intermediate', duration: 30,
+            topics: ['ethical-hacking', 'ehe', 'dos', 'ddos', 'mitigation'], paths: ['ehe-course'],
+            components: { lab: 'dark-arts/vault/ehe/labs/ehe-lab-dos-attack.lab.html' },
+            prerequisites: ['ehe-06'], objectives: ['Identify DoS attack types', 'Apply correct mitigations']
+        },
+        'ehe-lab-session-hijacking': {
+            id: 'ehe-lab-session-hijacking', title: 'EHE Lab: Session Hijacking',
+            description: 'Session token analysis and prediction simulation',
+            house: 'dark-arts', type: 'lab', difficulty: 'intermediate', duration: 30,
+            topics: ['ethical-hacking', 'ehe', 'session-hijacking', 'cookies'], paths: ['ehe-course'],
+            components: { lab: 'dark-arts/vault/ehe/labs/ehe-lab-session-hijacking.lab.html' },
+            prerequisites: ['ehe-06'], objectives: ['Analyze session tokens', 'Predict and hijack sessions']
+        },
+        'ehe-lab-web-server-attack': {
+            id: 'ehe-lab-web-server-attack', title: 'EHE Lab: Web Server Attack',
+            description: 'FTP credential cracking and web server exploitation',
+            house: 'dark-arts', type: 'lab', difficulty: 'intermediate', duration: 35,
+            topics: ['ethical-hacking', 'ehe', 'web-server', 'ftp', 'hydra'], paths: ['ehe-course'],
+            components: { lab: 'dark-arts/vault/ehe/labs/ehe-lab-web-server-attack.lab.html' },
+            prerequisites: ['ehe-07'], objectives: ['Crack FTP credentials', 'Discover hidden web directories']
+        },
+        'ehe-lab-sql-injection': {
+            id: 'ehe-lab-sql-injection', title: 'EHE Lab: SQL Injection',
+            description: 'SQL injection discovery and exploitation simulator',
+            house: 'dark-arts', type: 'lab', difficulty: 'intermediate', duration: 40,
+            topics: ['ethical-hacking', 'ehe', 'sql-injection', 'web-security'], paths: ['ehe-course'],
+            components: { lab: 'dark-arts/vault/ehe/labs/ehe-lab-sql-injection.lab.html' },
+            prerequisites: ['ehe-07'], objectives: ['Bypass authentication via SQLi', 'Extract data using UNION injection']
+        },
+        'ehe-lab-xss-attack': {
+            id: 'ehe-lab-xss-attack', title: 'EHE Lab: XSS Attacks',
+            description: 'Cross-site scripting payload crafting simulator',
+            house: 'dark-arts', type: 'lab', difficulty: 'intermediate', duration: 35,
+            topics: ['ethical-hacking', 'ehe', 'xss', 'web-security'], paths: ['ehe-course'],
+            components: { lab: 'dark-arts/vault/ehe/labs/ehe-lab-xss-attack.lab.html' },
+            prerequisites: ['ehe-07'], objectives: ['Exploit reflected, stored, and DOM XSS', 'Craft XSS payloads']
+        },
+        'ehe-lab-wireless-attack': {
+            id: 'ehe-lab-wireless-attack', title: 'EHE Lab: Wireless Attacks',
+            description: 'WPA2 cracking with aircrack-ng suite simulation',
+            house: 'dark-arts', type: 'lab', difficulty: 'intermediate', duration: 35,
+            topics: ['ethical-hacking', 'ehe', 'wireless', 'aircrack', 'wpa'], paths: ['ehe-course'],
+            components: { lab: 'dark-arts/vault/ehe/labs/ehe-lab-wireless-attack.lab.html' },
+            prerequisites: ['ehe-08'], objectives: ['Enable monitor mode', 'Capture and crack WPA2 handshake']
+        },
+        'ehe-lab-mobile-security': {
+            id: 'ehe-lab-mobile-security', title: 'EHE Lab: Mobile Security',
+            description: 'Android APK security analysis simulation',
+            house: 'dark-arts', type: 'lab', difficulty: 'intermediate', duration: 30,
+            topics: ['ethical-hacking', 'ehe', 'mobile-security', 'android', 'apk'], paths: ['ehe-course'],
+            components: { lab: 'dark-arts/vault/ehe/labs/ehe-lab-mobile-security.lab.html' },
+            prerequisites: ['ehe-09'], objectives: ['Analyze APK permissions', 'Find hardcoded credentials']
+        },
+        'ehe-lab-iot-security': {
+            id: 'ehe-lab-iot-security', title: 'EHE Lab: IoT Security',
+            description: 'IoT device discovery and vulnerability scanning simulation',
+            house: 'dark-arts', type: 'lab', difficulty: 'intermediate', duration: 30,
+            topics: ['ethical-hacking', 'ehe', 'iot', 'scanning', 'mqtt'], paths: ['ehe-course'],
+            components: { lab: 'dark-arts/vault/ehe/labs/ehe-lab-iot-security.lab.html' },
+            prerequisites: ['ehe-10'], objectives: ['Discover IoT devices', 'Identify default credentials and open protocols']
+        },
+        'ehe-lab-cloud-security': {
+            id: 'ehe-lab-cloud-security', title: 'EHE Lab: Cloud Security',
+            description: 'S3 bucket enumeration and cloud misconfiguration audit',
+            house: 'dark-arts', type: 'lab', difficulty: 'intermediate', duration: 30,
+            topics: ['ethical-hacking', 'ehe', 'cloud-security', 'aws', 's3'], paths: ['ehe-course'],
+            components: { lab: 'dark-arts/vault/ehe/labs/ehe-lab-cloud-security.lab.html' },
+            prerequisites: ['ehe-11'], objectives: ['Enumerate S3 buckets', 'Identify cloud misconfigurations']
+        },
+        'ehe-lab-pentest-report': {
+            id: 'ehe-lab-pentest-report', title: 'EHE Lab: Pentest Report Builder',
+            description: 'Structured penetration test report builder',
+            house: 'dark-arts', type: 'lab', difficulty: 'intermediate', duration: 45,
+            topics: ['ethical-hacking', 'ehe', 'penetration-testing', 'reporting'], paths: ['ehe-course'],
+            components: { lab: 'dark-arts/vault/ehe/labs/ehe-lab-pentest-report.lab.html' },
+            prerequisites: ['ehe-12'], objectives: ['Write executive summary', 'Document findings with remediation']
+        },
+
+        // ─────────────────────────────────────────────────────────────
         // DARK ARTS VAULT - Offensive Linux Terminal Labs (Sprint L-5)
         // ─────────────────────────────────────────────────────────────
 

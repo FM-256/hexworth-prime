@@ -1,0 +1,1001 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('dark-arts');</script>
+    <!-- Progress & Achievements -->
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lab: IoT Security — EHE | The Vault</title>
+    <style>
+        /* ============================================================
+           RESET & BASE
+        ============================================================ */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            min-height: 100vh;
+            background: #0a0508;
+            font-family: 'Georgia', 'Times New Roman', serif;
+            color: #8a6a9a;
+            overflow-x: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background:
+                radial-gradient(ellipse at 20% 15%, rgba(80, 40, 100, 0.10) 0%, transparent 55%),
+                radial-gradient(ellipse at 80% 85%, rgba(60, 20, 80, 0.07) 0%, transparent 50%);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        /* ============================================================
+           STICKY HEADER
+        ============================================================ */
+        .lab-header {
+            position: sticky; top: 0; z-index: 100;
+            background: rgba(10, 5, 15, 0.97);
+            border-bottom: 1px solid rgba(100, 60, 130, 0.22);
+            backdrop-filter: blur(14px);
+            padding: 14px 32px;
+            display: flex; justify-content: space-between; align-items: center; gap: 16px;
+        }
+        .header-left { display: flex; align-items: center; gap: 18px; min-width: 0; }
+        .back-btn {
+            color: #6a4a7a; text-decoration: none; font-size: 0.76rem; letter-spacing: 0.1em;
+            padding: 6px 14px; border: 1px solid rgba(100, 60, 130, 0.2); border-radius: 4px;
+            transition: all 0.25s; font-family: 'Georgia', serif; white-space: nowrap; flex-shrink: 0;
+        }
+        .back-btn:hover { color: #a855f7; border-color: rgba(147, 51, 234, 0.45); background: rgba(147, 51, 234, 0.06); }
+        .header-title-group { min-width: 0; }
+        .header-label { font-size: 0.62rem; letter-spacing: 0.22em; color: #5a3a6a; text-transform: uppercase; margin-bottom: 2px; }
+        .header-title { font-size: 0.95rem; color: #c09ad0; letter-spacing: 0.04em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .header-right { display: flex; align-items: center; gap: 20px; flex-shrink: 0; }
+        .score-display { display: flex; align-items: center; gap: 8px; font-size: 0.72rem; letter-spacing: 0.1em; color: #6a4a7a; }
+        .score-value { font-size: 1.1rem; color: #a855f7; font-family: 'Courier New', monospace; font-weight: bold; min-width: 40px; text-align: right; transition: color 0.3s; }
+        .score-value.deducted { color: #ef4444; animation: score-flash 0.5s ease; }
+        @keyframes score-flash { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.15); } }
+        .obj-progress-pill { font-size: 0.7rem; letter-spacing: 0.08em; color: #6a4a7a; padding: 5px 12px; border: 1px solid rgba(100, 60, 130, 0.2); border-radius: 20px; font-family: 'Courier New', monospace; }
+        .obj-progress-pill .obj-count { color: #a855f7; font-weight: bold; }
+
+        /* ============================================================
+           BANNERS
+        ============================================================ */
+        .warning-banner {
+            background: rgba(239, 68, 68, 0.05); border: 1px solid rgba(239, 68, 68, 0.30);
+            border-left: 3px solid #ef4444; margin: 20px 24px 0; padding: 12px 18px;
+            border-radius: 4px; display: flex; align-items: flex-start; gap: 12px;
+            position: relative; z-index: 10;
+        }
+        .warning-icon { color: #ef4444; font-size: 0.8rem; letter-spacing: 0.15em; text-transform: uppercase; white-space: nowrap; margin-top: 1px; font-family: 'Courier New', monospace; flex-shrink: 0; }
+        .warning-text { font-size: 0.76rem; color: rgba(239, 68, 68, 0.75); line-height: 1.6; }
+        .success-banner { display: none; margin: 16px 24px 0; padding: 20px 24px; background: rgba(34, 197, 94, 0.06); border: 1px solid rgba(34, 197, 94, 0.30); border-left: 3px solid #22c55e; border-radius: 6px; position: relative; z-index: 10; align-items: center; gap: 20px; }
+        .success-banner.visible { display: flex; animation: slide-in 0.5s ease; }
+        @keyframes slide-in { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+        .success-text-group { flex: 1; }
+        .success-title { font-size: 0.85rem; color: #22c55e; letter-spacing: 0.15em; text-transform: uppercase; margin-bottom: 4px; }
+        .success-sub { font-size: 0.74rem; color: #5a8a6a; line-height: 1.5; }
+        .complete-lab-btn { padding: 11px 24px; background: rgba(34, 197, 94, 0.12); border: 1px solid rgba(34, 197, 94, 0.35); border-radius: 4px; color: #22c55e; font-family: 'Georgia', serif; font-size: 0.78rem; letter-spacing: 0.12em; cursor: pointer; transition: all 0.25s; white-space: nowrap; }
+        .complete-lab-btn:hover { background: rgba(34, 197, 94, 0.20); border-color: rgba(34, 197, 94, 0.55); }
+
+        /* ============================================================
+           MAIN LAYOUT
+        ============================================================ */
+        .lab-body { flex: 1; display: flex; flex-direction: column; padding: 20px 24px 24px; position: relative; z-index: 10; gap: 16px; }
+
+        /* ============================================================
+           NETWORK TOPOLOGY (top half)
+        ============================================================ */
+        .topology-container {
+            background: rgba(10, 5, 15, 0.90);
+            border: 1px solid rgba(100, 60, 130, 0.22);
+            border-radius: 6px;
+            overflow: hidden;
+            flex-shrink: 0;
+        }
+
+        .topology-header {
+            padding: 10px 16px;
+            background: rgba(20, 10, 30, 0.8);
+            border-bottom: 1px solid rgba(100, 60, 130, 0.15);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .topology-title { font-size: 0.65rem; letter-spacing: 0.2em; text-transform: uppercase; color: #6a4a7a; }
+        .network-badge { font-family: 'Courier New', monospace; font-size: 0.65rem; color: #22c55e; padding: 3px 8px; background: rgba(34, 197, 94, 0.07); border: 1px solid rgba(34, 197, 94, 0.2); border-radius: 3px; }
+
+        /* SVG topology canvas */
+        .topology-svg-wrap { padding: 16px; overflow-x: auto; }
+
+        svg.topo { width: 100%; min-width: 720px; height: 200px; }
+
+        /* Device nodes */
+        .device-node { cursor: pointer; }
+        .device-node circle { transition: r 0.2s, fill 0.2s; }
+        .device-node:hover circle { r: 22; }
+        .device-node.undiscovered circle { fill: #1a0e28; stroke: #3a2a4a; }
+        .device-node.discovered circle { fill: #0e1e14; stroke: #22c55e; }
+        .device-node.vulnerable circle { fill: #1e0e0e; stroke: #ef4444; stroke-dasharray: 4 2; }
+        .device-node.compromised circle { fill: #1e0a0a; stroke: #ef4444; animation: pulse-red 1.5s infinite; }
+        .device-node text { font-size: 8px; fill: #5a3a6a; font-family: 'Courier New', monospace; }
+        .device-node.discovered text { fill: #22c55e; }
+        .device-node.vulnerable text { fill: #f59e0b; }
+        .device-node.compromised text { fill: #ef4444; }
+        .device-node .device-label { font-size: 7px; fill: #4a3a5a; }
+
+        @keyframes pulse-red { 0%,100%{stroke-opacity:1;} 50%{stroke-opacity:0.3;} }
+
+        .topo-line { stroke: #2a1a3a; stroke-width: 1; stroke-dasharray: 3 3; }
+        .topo-line.active { stroke: #22c55e; stroke-opacity: 0.4; }
+
+        /* ============================================================
+           BOTTOM SECTION: terminal + sidebar
+        ============================================================ */
+        .bottom-section { display: flex; gap: 18px; flex: 1; min-height: 0; }
+
+        /* ============================================================
+           TERMINAL
+        ============================================================ */
+        .terminal-wrapper { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+
+        .terminal-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: rgba(8, 4, 12, 0.95);
+            border: 1px solid rgba(100, 60, 130, 0.28);
+            border-radius: 6px;
+            overflow: hidden;
+            min-height: 360px;
+        }
+
+        .terminal-topbar { padding: 10px 16px; background: rgba(20, 10, 30, 0.9); border-bottom: 1px solid rgba(100, 60, 130, 0.18); display: flex; align-items: center; gap: 10px; }
+        .term-dot { width: 10px; height: 10px; border-radius: 50%; }
+        .term-dot.red    { background: rgba(239,68,68,0.5); }
+        .term-dot.yellow { background: rgba(234,179,8,0.5); }
+        .term-dot.green  { background: rgba(34,197,94,0.5); }
+        .term-title { font-family: 'Courier New', monospace; font-size: 0.68rem; color: #5a3a6a; letter-spacing: 0.1em; margin-left: 8px; }
+
+        .terminal-output {
+            flex: 1; overflow-y: auto; padding: 16px 20px;
+            font-family: 'Courier New', monospace; font-size: 0.78rem; line-height: 1.65;
+            color: #22c55e; scroll-behavior: smooth;
+        }
+        .terminal-output::-webkit-scrollbar { width: 4px; }
+        .terminal-output::-webkit-scrollbar-thumb { background: rgba(100,60,130,0.4); border-radius: 2px; }
+
+        .term-line { display: block; white-space: pre-wrap; word-break: break-word; }
+        .term-line.prompt    { color: #a855f7; }
+        .term-line.command   { color: #e2d4f0; }
+        .term-line.output    { color: #22c55e; }
+        .term-line.dim       { color: #3a2a4a; }
+        .term-line.info      { color: #6a9ecf; }
+        .term-line.warning   { color: #f59e0b; }
+        .term-line.error     { color: #ef4444; }
+        .term-line.success   { color: #22c55e; }
+        .term-line.result-key { color: #a855f7; }
+        .term-line.result-val { color: #c09ad0; }
+        .term-line.highlight { color: #f0e6ff; background: rgba(147,51,234,0.08); padding: 1px 4px; border-radius: 2px; }
+        .term-line.blank     { display: block; height: 0.5em; }
+        .term-line.objective-unlock { color: #22c55e; background: rgba(34,197,94,0.06); border-left: 2px solid #22c55e; padding: 3px 8px; margin: 2px 0; }
+
+        .terminal-input-line { padding: 10px 20px; border-top: 1px solid rgba(100,60,130,0.15); display: flex; align-items: center; background: rgba(8,4,12,0.98); }
+        .term-prompt-label { font-family: 'Courier New', monospace; font-size: 0.78rem; color: #a855f7; white-space: nowrap; flex-shrink: 0; }
+        .term-input { flex: 1; background: transparent; border: none; outline: none; font-family: 'Courier New', monospace; font-size: 0.78rem; color: #e2d4f0; caret-color: #a855f7; padding: 0 6px; }
+
+        /* ============================================================
+           SIDEBAR
+        ============================================================ */
+        .sidebar { width: 270px; flex-shrink: 0; display: flex; flex-direction: column; gap: 12px; }
+        .sidebar-panel { background: rgba(15, 8, 20, 0.80); border: 1px solid rgba(100, 60, 130, 0.18); border-radius: 6px; overflow: hidden; }
+        .panel-header { padding: 11px 16px; background: rgba(80, 40, 100, 0.12); border-bottom: 1px solid rgba(100, 60, 130, 0.15); display: flex; justify-content: space-between; align-items: center; cursor: pointer; user-select: none; }
+        .panel-header-title { font-size: 0.65rem; letter-spacing: 0.2em; text-transform: uppercase; color: #7a5a8a; }
+        .panel-toggle { font-size: 0.65rem; color: #5a3a6a; transition: transform 0.25s; font-family: 'Courier New', monospace; }
+        .panel-toggle.open { transform: rotate(180deg); }
+        .panel-body { padding: 14px; transition: all 0.3s ease; overflow: hidden; }
+        .panel-body.collapsed { padding-top: 0; padding-bottom: 0; max-height: 0; }
+
+        .objectives-list { display: flex; flex-direction: column; gap: 7px; }
+        .objective-item { display: flex; align-items: flex-start; gap: 8px; padding: 7px 9px; border-radius: 4px; border: 1px solid rgba(100,60,130,0.10); transition: all 0.3s; background: rgba(10,5,15,0.4); }
+        .objective-item.completed { border-color: rgba(34,197,94,0.25); background: rgba(34,197,94,0.04); }
+        .obj-checkbox { width: 14px; height: 14px; border: 1px solid rgba(100,60,130,0.35); border-radius: 2px; flex-shrink: 0; margin-top: 2px; display: flex; align-items: center; justify-content: center; font-family: 'Courier New', monospace; font-size: 0.55rem; color: transparent; transition: all 0.3s; }
+        .objective-item.completed .obj-checkbox { background: rgba(34,197,94,0.15); border-color: #22c55e; color: #22c55e; }
+        .obj-label { font-size: 0.68rem; color: #5a3a6a; line-height: 1.45; transition: color 0.3s; }
+        .objective-item.completed .obj-label { color: #22c55e; }
+
+        .hint-btn { width: 100%; padding: 9px 16px; background: rgba(147,51,234,0.08); border: 1px solid rgba(147,51,234,0.22); border-radius: 4px; color: #a855f7; font-family: 'Georgia', serif; font-size: 0.72rem; letter-spacing: 0.1em; cursor: pointer; transition: all 0.25s; text-align: center; margin-bottom: 8px; }
+        .hint-btn:hover { background: rgba(147,51,234,0.14); border-color: rgba(168,85,247,0.4); }
+        .hint-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+        .hint-cost { font-size: 0.62rem; color: #5a3a6a; text-align: center; }
+        .hint-content { margin-top: 10px; padding: 10px 12px; background: rgba(147,51,234,0.06); border: 1px solid rgba(147,51,234,0.15); border-radius: 4px; font-size: 0.72rem; color: #8a6a9a; line-height: 1.6; display: none; }
+        .hint-content.visible { display: block; }
+        .hint-code { display: block; margin-top: 6px; font-family: 'Courier New', monospace; font-size: 0.68rem; color: #c09ad0; background: rgba(10,5,15,0.5); padding: 5px 8px; border-radius: 3px; border-left: 2px solid #9333ea; word-break: break-all; }
+
+        /* cmd ref */
+        .cmd-ref { font-family: 'Courier New', monospace; font-size: 0.65rem; color: #5a3a6a; line-height: 2; }
+        .cmd-ref span.c { color: #a855f7; }
+
+        @media (max-width: 900px) {
+            .bottom-section { flex-direction: column; }
+            .sidebar { width: 100%; }
+            svg.topo { min-width: 500px; }
+        }
+    </style>
+</head>
+<body>
+
+    <header class="lab-header">
+        <div class="header-left">
+            <a href="../index.html" class="back-btn">&#8592; EHE</a>
+            <div class="header-title-group">
+                <div class="header-label">Lab Exercise</div>
+                <div class="header-title">IoT Security: Smart Building Network — 192.168.10.0/24</div>
+            </div>
+        </div>
+        <div class="header-right">
+            <div class="score-display">
+                <span>SCORE</span>
+                <span class="score-value" id="score-display">100</span>
+            </div>
+            <div class="obj-progress-pill">
+                <span class="obj-count" id="obj-count">0</span>
+                <span>/8 objectives</span>
+            </div>
+        </div>
+    </header>
+
+    <div class="warning-banner">
+        <div class="warning-icon">! WARNING</div>
+        <div class="warning-text">
+            This lab is a <strong>simulated environment</strong> for educational purposes only. All IP addresses, device models, and data are fictional. Scanning or accessing real IoT devices without authorization is illegal under the CFAA and equivalent statutes worldwide.
+        </div>
+    </div>
+
+    <div class="success-banner" id="success-banner">
+        <div class="success-text-group">
+            <div class="success-title">IoT Audit Complete</div>
+            <div class="success-sub">All 8 objectives completed. Final score: <span id="final-score">100</span> pts.</div>
+        </div>
+        <button class="complete-lab-btn" onclick="completeLab()">Complete Lab</button>
+    </div>
+
+    <div class="lab-body">
+
+        <!-- Network Topology -->
+        <div class="topology-container">
+            <div class="topology-header">
+                <span class="topology-title">Network Topology</span>
+                <span class="network-badge">192.168.10.0/24 &mdash; Smart Building Network</span>
+                <span style="font-size:0.62rem;color:#5a3a6a;margin-left:auto;">Run nmap -sn 192.168.10.0/24 to discover devices</span>
+            </div>
+            <div class="topology-svg-wrap">
+                <svg class="topo" id="topo-svg" viewBox="0 0 800 200" xmlns="http://www.w3.org/2000/svg">
+                    <!-- Connection lines (drawn below nodes) -->
+                    <line class="topo-line" id="line-gw-cam1"  x1="80"  y1="100" x2="190" y2="60"/>
+                    <line class="topo-line" id="line-gw-cam2"  x1="80"  y1="100" x2="280" y2="60"/>
+                    <line class="topo-line" id="line-gw-therm" x1="80"  y1="100" x2="370" y2="60"/>
+                    <line class="topo-line" id="line-gw-lock"  x1="80"  y1="100" x2="460" y2="60"/>
+                    <line class="topo-line" id="line-gw-hvac"  x1="80"  y1="100" x2="550" y2="60"/>
+                    <line class="topo-line" id="line-gw-med"   x1="80"  y1="100" x2="640" y2="60"/>
+                    <line class="topo-line" id="line-gw-plc"   x1="80"  y1="100" x2="730" y2="100"/>
+
+                    <!-- Gateway -->
+                    <g class="device-node undiscovered" id="node-gw" onclick="nodeClick('gw')">
+                        <circle cx="80" cy="100" r="20" stroke-width="1.5"/>
+                        <text x="80" y="97" text-anchor="middle" font-weight="bold">GW</text>
+                        <text class="device-label" x="80" y="107" text-anchor="middle">.1</text>
+                        <text class="device-label" x="80" y="130" text-anchor="middle">Gateway</text>
+                    </g>
+
+                    <!-- Camera 1 -->
+                    <g class="device-node undiscovered" id="node-cam1" onclick="nodeClick('cam1')">
+                        <circle cx="190" cy="60" r="18" stroke-width="1.5"/>
+                        <text x="190" y="57" text-anchor="middle">CAM</text>
+                        <text class="device-label" x="190" y="66" text-anchor="middle">.10</text>
+                        <text class="device-label" x="190" y="88" text-anchor="middle">IP Camera</text>
+                    </g>
+
+                    <!-- Camera 2 -->
+                    <g class="device-node undiscovered" id="node-cam2" onclick="nodeClick('cam2')">
+                        <circle cx="280" cy="60" r="18" stroke-width="1.5"/>
+                        <text x="280" y="57" text-anchor="middle">CAM</text>
+                        <text class="device-label" x="280" y="66" text-anchor="middle">.11</text>
+                        <text class="device-label" x="280" y="88" text-anchor="middle">IP Camera</text>
+                    </g>
+
+                    <!-- Thermostat -->
+                    <g class="device-node undiscovered" id="node-therm" onclick="nodeClick('therm')">
+                        <circle cx="370" cy="60" r="18" stroke-width="1.5"/>
+                        <text x="370" y="57" text-anchor="middle">HVAC</text>
+                        <text class="device-label" x="370" y="66" text-anchor="middle">.20</text>
+                        <text class="device-label" x="370" y="88" text-anchor="middle">Thermostat</text>
+                    </g>
+
+                    <!-- Smart Lock -->
+                    <g class="device-node undiscovered" id="node-lock" onclick="nodeClick('lock')">
+                        <circle cx="460" cy="60" r="18" stroke-width="1.5"/>
+                        <text x="460" y="57" text-anchor="middle">LOCK</text>
+                        <text class="device-label" x="460" y="66" text-anchor="middle">.30</text>
+                        <text class="device-label" x="460" y="88" text-anchor="middle">Smart Lock</text>
+                    </g>
+
+                    <!-- HVAC Controller -->
+                    <g class="device-node undiscovered" id="node-hvac" onclick="nodeClick('hvac')">
+                        <circle cx="550" cy="60" r="18" stroke-width="1.5"/>
+                        <text x="550" y="57" text-anchor="middle">BACn</text>
+                        <text class="device-label" x="550" y="66" text-anchor="middle">.40</text>
+                        <text class="device-label" x="550" y="88" text-anchor="middle">HVAC Ctrl</text>
+                    </g>
+
+                    <!-- Medical IoT -->
+                    <g class="device-node undiscovered" id="node-med" onclick="nodeClick('med')">
+                        <circle cx="640" cy="60" r="18" stroke-width="1.5"/>
+                        <text x="640" y="57" text-anchor="middle">MED</text>
+                        <text class="device-label" x="640" y="66" text-anchor="middle">.50</text>
+                        <text class="device-label" x="640" y="88" text-anchor="middle">Patient Mon.</text>
+                    </g>
+
+                    <!-- PLC -->
+                    <g class="device-node undiscovered" id="node-plc" onclick="nodeClick('plc')">
+                        <circle cx="730" cy="100" r="18" stroke-width="1.5"/>
+                        <text x="730" y="97" text-anchor="middle">PLC</text>
+                        <text class="device-label" x="730" y="106" text-anchor="middle">.100</text>
+                        <text class="device-label" x="730" y="128" text-anchor="middle">Siemens S7</text>
+                    </g>
+                </svg>
+            </div>
+        </div>
+
+        <!-- Bottom: Terminal + Sidebar -->
+        <div class="bottom-section">
+
+            <div class="terminal-wrapper">
+                <div class="terminal-container">
+                    <div class="terminal-topbar">
+                        <div class="term-dot red"></div>
+                        <div class="term-dot yellow"></div>
+                        <div class="term-dot green"></div>
+                        <div class="term-title">pentester@kali: ~/iot-lab — Smart Building Audit</div>
+                    </div>
+                    <div class="terminal-output" id="terminal-output" onclick="focusInput()"></div>
+                    <div class="terminal-input-line">
+                        <span class="term-prompt-label">pentester@kali:~$&nbsp;</span>
+                        <input type="text" id="term-input" class="term-input" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="type a command..." aria-label="Terminal input">
+                    </div>
+                </div>
+            </div>
+
+            <div class="sidebar">
+
+                <div class="sidebar-panel">
+                    <div class="panel-header" onclick="togglePanel('obj-panel', this)">
+                        <span class="panel-header-title">Objectives</span>
+                        <span class="panel-toggle open">&#9650;</span>
+                    </div>
+                    <div class="panel-body" id="obj-panel">
+                        <div class="objectives-list">
+                            <div class="objective-item" id="obj-0"><div class="obj-checkbox" id="check-0"></div><div class="obj-label">Discover all IoT devices on the network</div></div>
+                            <div class="objective-item" id="obj-1"><div class="obj-checkbox" id="check-1"></div><div class="obj-label">Identify devices with default credentials</div></div>
+                            <div class="objective-item" id="obj-2"><div class="obj-checkbox" id="check-2"></div><div class="obj-label">Access an IP camera using default creds</div></div>
+                            <div class="objective-item" id="obj-3"><div class="obj-checkbox" id="check-3"></div><div class="obj-label">Find the exposed MQTT broker</div></div>
+                            <div class="objective-item" id="obj-4"><div class="obj-checkbox" id="check-4"></div><div class="obj-label">Read patient data from MQTT topics</div></div>
+                            <div class="objective-item" id="obj-5"><div class="obj-checkbox" id="check-5"></div><div class="obj-label">Access HVAC controller without auth</div></div>
+                            <div class="objective-item" id="obj-6"><div class="obj-checkbox" id="check-6"></div><div class="obj-label">Identify the industrial PLC</div></div>
+                            <div class="objective-item" id="obj-7"><div class="obj-checkbox" id="check-7"></div><div class="obj-label">Generate vulnerability summary</div></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="sidebar-panel">
+                    <div class="panel-header" onclick="togglePanel('hint-panel', this)">
+                        <span class="panel-header-title">Hints</span>
+                        <span class="panel-toggle open">&#9650;</span>
+                    </div>
+                    <div class="panel-body" id="hint-panel">
+                        <button class="hint-btn" id="hint-btn" onclick="showHint()">Reveal Next Hint</button>
+                        <div class="hint-cost" id="hint-cost-label">-5 points per hint &middot; 8 available</div>
+                        <div class="hint-content" id="hint-display"></div>
+                    </div>
+                </div>
+
+                <div class="sidebar-panel">
+                    <div class="panel-header" onclick="togglePanel('cmd-panel', this)">
+                        <span class="panel-header-title">Command Reference</span>
+                        <span class="panel-toggle">&#9650;</span>
+                    </div>
+                    <div class="panel-body collapsed" id="cmd-panel">
+                        <div class="cmd-ref">
+                            <span class="c">nmap -sn</span> &lt;cidr&gt;<br>
+                            <span class="c">nmap -sV</span> &lt;ip&gt;<br>
+                            <span class="c">nmap --script</span> http-default-accounts &lt;ip&gt;<br>
+                            <span class="c">shodan search</span> &lt;keyword&gt;<br>
+                            <span class="c">mqtt-explore</span> &lt;ip&gt;<br>
+                            <span class="c">curl</span> http://&lt;ip&gt;:8080/api/v1/...<br>
+                            <span class="c">modbus-scan</span> &lt;ip&gt;<br>
+                            <span class="c">report</span> &mdash; generate summary<br>
+                            <span class="c">help</span> &mdash; list commands<br>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <script>
+    /* ==============================================================
+       STATE
+    ============================================================== */
+    const state = {
+        score: 100,
+        hintsUsed: 0,
+        objectives: [false, false, false, false, false, false, false, false],
+        history: [],
+        historyIdx: -1,
+        discoveredHosts: new Set(),
+        scannedHosts: new Set(),
+        allDiscovered: false
+    };
+
+    /* ==============================================================
+       DEVICE MAP
+    ============================================================== */
+    const DEVICES = {
+        '192.168.10.1':   { id: 'gw',   label: 'Smart Building Gateway (Schneider Electric)', ports: '80/tcp, 443/tcp, 8443/tcp', vuln: 'Web interface with default admin/admin credentials', creds: null },
+        '192.168.10.10':  { id: 'cam1', label: 'IP Camera — Hikvision DS-2CD2042WD', ports: '80/tcp, 554/tcp (RTSP)', vuln: 'Default credentials active', creds: 'admin/12345' },
+        '192.168.10.11':  { id: 'cam2', label: 'IP Camera — Dahua IPC-HFW1235S', ports: '80/tcp, 554/tcp (RTSP)', vuln: 'Default credentials active', creds: 'admin/admin' },
+        '192.168.10.20':  { id: 'therm', label: 'Smart Thermostat (Nest-compatible)', ports: '80/tcp, 443/tcp, 8080/tcp', vuln: 'Unauthenticated REST API exposed on :8080', creds: null },
+        '192.168.10.30':  { id: 'lock', label: 'Smart Lock Controller (Z-Wave hub)', ports: '4443/tcp', vuln: 'Weak 16-bit encryption, no replay protection', creds: null },
+        '192.168.10.40':  { id: 'hvac', label: 'HVAC BACnet Controller', ports: '47808/udp (BACnet)', vuln: 'No authentication required — full read/write access', creds: null },
+        '192.168.10.50':  { id: 'med',  label: 'Patient Monitor — Philips IntelliVue (IoT)', ports: '80/tcp, 1883/tcp (MQTT)', vuln: 'MQTT broker unauthenticated, patient vitals exposed', creds: 'admin/admin' },
+        '192.168.10.100': { id: 'plc',  label: 'Siemens S7-1200 PLC', ports: '102/tcp (S7comm), 443/tcp', vuln: 'S7comm — no auth required, ladder logic readable', creds: null }
+    };
+
+    const HINTS = [
+        { title: 'Host Discovery', text: 'Use ping sweep to find all devices first.', code: 'nmap -sn 192.168.10.0/24' },
+        { title: 'Default Credentials', text: 'Many IoT vendors ship with known default username/password pairs.', code: 'nmap --script http-default-accounts 192.168.10.10' },
+        { title: 'Camera Access', text: 'Try the default credentials directly against the Hikvision camera.', code: 'nmap --script http-default-accounts 192.168.10.10' },
+        { title: 'MQTT', text: 'The medical monitor runs an MQTT broker on port 1883.', code: 'mqtt-explore 192.168.10.50' },
+        { title: 'HVAC Open API', text: 'The thermostat at .20 has an open REST API. Also check BACnet at .40.', code: 'curl http://192.168.10.20:8080/api/v1/temperature' },
+        { title: 'HVAC Access', text: 'BACnet has no authentication by design in older implementations.', code: 'modbus-scan 192.168.10.40' },
+        { title: 'Industrial PLC', text: 'S7comm is the Siemens proprietary protocol on port 102.', code: 'nmap -sV 192.168.10.100' },
+        { title: 'Report', text: 'Run the report command to generate your vulnerability summary.', code: 'report' }
+    ];
+
+    /* ==============================================================
+       COMMAND RESPONSES
+    ============================================================== */
+    const COMMANDS = {
+        'nmap -sn': (args) => {
+            if (args.includes('192.168.10') || args.includes('10.0/24') || args.includes('10.0')) {
+                return { lines: NMAP_DISCOVERY, objTriggers: [0], nodeUpdate: 'all' };
+            }
+            return { lines: [{ t: 'error', v: 'No route to host: ' + args }] };
+        },
+        'nmap -sv': (args) => {
+            const ip = args.trim();
+            if (DEVICES[ip]) {
+                const d = DEVICES[ip];
+                return { lines: nmapSV(ip, d), objTriggers: [6].filter(() => ip === '192.168.10.100'), nodeUpdate: ip };
+            }
+            return { lines: [{ t: 'warning', v: 'Host ' + ip + ' not reachable or not in scope.' }] };
+        },
+        'nmap --script': (args) => {
+            if (args.includes('192.168.10.10')) {
+                return { lines: NMAP_DEFCREDS_CAM1, objTriggers: [1, 2], nodeUpdate: '192.168.10.10', nodeState: 'vulnerable' };
+            }
+            if (args.includes('192.168.10.11')) {
+                return { lines: NMAP_DEFCREDS_CAM2, objTriggers: [1], nodeUpdate: '192.168.10.11', nodeState: 'vulnerable' };
+            }
+            if (args.includes('192.168.10.50')) {
+                return { lines: NMAP_DEFCREDS_MED, objTriggers: [1], nodeUpdate: '192.168.10.50', nodeState: 'vulnerable' };
+            }
+            return { lines: [{ t: 'warning', v: 'Script: target not in scope or no vulnerability found.' }] };
+        },
+        'shodan': (args) => ({ lines: SHODAN_RESULT, objTriggers: [] }),
+        'mqtt-explore': (args) => {
+            if (args.includes('192.168.10.50') || args.includes('.50')) {
+                return { lines: MQTT_RESULT, objTriggers: [3, 4], nodeUpdate: '192.168.10.50', nodeState: 'compromised' };
+            }
+            return { lines: [{ t: 'error', v: 'Connection refused: ' + args + ':1883' }] };
+        },
+        'curl': (args) => {
+            if (args.includes('192.168.10.20')) {
+                return { lines: CURL_THERM, objTriggers: [] };
+            }
+            return { lines: [{ t: 'error', v: 'curl: (7) Failed to connect to host' }] };
+        },
+        'modbus-scan': (args) => {
+            if (args.includes('192.168.10.40') || args.includes('.40')) {
+                return { lines: BACNET_SCAN, objTriggers: [5], nodeUpdate: '192.168.10.40', nodeState: 'compromised' };
+            }
+            return { lines: [{ t: 'error', v: 'No response from ' + args }] };
+        },
+        'report': () => ({ lines: REPORT_LINES, objTriggers: [7] })
+    };
+
+    /* ==============================================================
+       SIMULATED OUTPUT DATA
+    ============================================================== */
+    const NMAP_DISCOVERY = [
+        { t: 'info',       v: 'Starting Nmap 7.94 — Host Discovery (ping sweep)' },
+        { t: 'dim',        v: '─'.repeat(58) },
+        { t: 'output',     v: 'Nmap scan report for 192.168.10.1' },
+        { t: 'output',     v: 'Host is up (0.003s latency).' },
+        { t: 'result-val', v: 'MAC Address: 00:1A:2B:AA:11:22 (Schneider Electric)' },
+        { t: 'blank',      v: '' },
+        { t: 'output',     v: 'Nmap scan report for 192.168.10.10' },
+        { t: 'output',     v: 'Host is up (0.002s latency).' },
+        { t: 'result-val', v: 'MAC Address: 00:26:E9:C4:55:10 (Hikvision Digital Technology)' },
+        { t: 'blank',      v: '' },
+        { t: 'output',     v: 'Nmap scan report for 192.168.10.11' },
+        { t: 'output',     v: 'Host is up (0.002s latency).' },
+        { t: 'result-val', v: 'MAC Address: E0:50:8B:D2:11:22 (Dahua Technology)' },
+        { t: 'blank',      v: '' },
+        { t: 'output',     v: 'Nmap scan report for 192.168.10.20' },
+        { t: 'output',     v: 'Host is up (0.001s latency).' },
+        { t: 'result-val', v: 'MAC Address: 18:B4:30:F2:A1:BC (Nest Labs)' },
+        { t: 'blank',      v: '' },
+        { t: 'output',     v: 'Nmap scan report for 192.168.10.30' },
+        { t: 'output',     v: 'Host is up (0.004s latency).' },
+        { t: 'result-val', v: 'MAC Address: 00:63:EB:A5:22:33 (Z-Wave Alliance)' },
+        { t: 'blank',      v: '' },
+        { t: 'output',     v: 'Nmap scan report for 192.168.10.40' },
+        { t: 'output',     v: 'Host is up (0.001s latency).' },
+        { t: 'result-val', v: 'MAC Address: 00:30:56:B4:33:44 (Johnson Controls BACnet)' },
+        { t: 'blank',      v: '' },
+        { t: 'output',     v: 'Nmap scan report for 192.168.10.50' },
+        { t: 'output',     v: 'Host is up (0.002s latency).' },
+        { t: 'result-val', v: 'MAC Address: E4:E0:C5:F3:44:55 (Philips Medical Systems)' },
+        { t: 'blank',      v: '' },
+        { t: 'output',     v: 'Nmap scan report for 192.168.10.100' },
+        { t: 'output',     v: 'Host is up (0.001s latency).' },
+        { t: 'result-val', v: 'MAC Address: 00:1C:06:C5:55:66 (Siemens AG)' },
+        { t: 'blank',      v: '' },
+        { t: 'success',    v: '[+] 8 hosts up, 246 hosts down — all IoT devices discovered' }
+    ];
+
+    function nmapSV(ip, d) {
+        return [
+            { t: 'info',       v: `Starting Nmap 7.94 — Service Scan: ${ip}` },
+            { t: 'dim',        v: '─'.repeat(58) },
+            { t: 'output',     v: `Nmap scan report for ${ip}` },
+            { t: 'output',     v: 'Host is up.' },
+            { t: 'blank',      v: '' },
+            { t: 'result-key', v: 'PORT       STATE SERVICE' },
+            ...d.ports.split(', ').map(p => ({ t: 'result-val', v: p + '    open' })),
+            { t: 'blank',      v: '' },
+            { t: 'output',     v: `Device: ${d.label}` },
+            { t: 'warning',    v: `[!] Known vulnerability: ${d.vuln}` }
+        ];
+    }
+
+    const NMAP_DEFCREDS_CAM1 = [
+        { t: 'info',       v: 'Running: nmap --script http-default-accounts 192.168.10.10' },
+        { t: 'dim',        v: '─'.repeat(58) },
+        { t: 'output',     v: 'Host: 192.168.10.10 (Hikvision DS-2CD2042WD)' },
+        { t: 'result-key', v: 'Port 80/tcp — HTTP Default Account Check' },
+        { t: 'error',      v: '  [VULNERABLE] Default credentials found!' },
+        { t: 'result-val', v: '  Username: admin' },
+        { t: 'result-val', v: '  Password: 12345' },
+        { t: 'result-val', v: '  Path:     http://192.168.10.10/ISAPI/Security/userCheck' },
+        { t: 'blank',      v: '' },
+        { t: 'success',    v: '[+] Camera stream accessible: rtsp://admin:12345@192.168.10.10/Streaming/Channels/1' },
+        { t: 'warning',    v: '[!] Live video feed exposed — no additional auth required on RTSP' }
+    ];
+
+    const NMAP_DEFCREDS_CAM2 = [
+        { t: 'info',       v: 'Running: nmap --script http-default-accounts 192.168.10.11' },
+        { t: 'dim',        v: '─'.repeat(58) },
+        { t: 'output',     v: 'Host: 192.168.10.11 (Dahua IPC-HFW1235S)' },
+        { t: 'error',      v: '  [VULNERABLE] Default credentials found!' },
+        { t: 'result-val', v: '  Username: admin / Password: admin' },
+        { t: 'success',    v: '[+] Camera stream: rtsp://admin:admin@192.168.10.11/cam/realmonitor?channel=1' }
+    ];
+
+    const NMAP_DEFCREDS_MED = [
+        { t: 'info',       v: 'Running: nmap --script http-default-accounts 192.168.10.50' },
+        { t: 'dim',        v: '─'.repeat(58) },
+        { t: 'output',     v: 'Host: 192.168.10.50 (Philips IntelliVue Patient Monitor)' },
+        { t: 'error',      v: '  [VULNERABLE] Default credentials on web interface' },
+        { t: 'result-val', v: '  Username: admin / Password: admin' },
+        { t: 'warning',    v: '[!] MQTT broker on port 1883 — no authentication, no TLS' }
+    ];
+
+    const SHODAN_RESULT = [
+        { t: 'info',       v: 'Shodan Search: "Hikvision" — simulated results' },
+        { t: 'dim',        v: '─'.repeat(58) },
+        { t: 'output',     v: 'Total results: 14,283 exposed Hikvision devices globally' },
+        { t: 'blank',      v: '' },
+        { t: 'result-val', v: '  203.x.x.12:80    — Hikvision DS-2CD (United States)   [admin/12345]' },
+        { t: 'result-val', v: '  45.x.x.89:80     — Hikvision DS-2CD (Germany)         [admin/12345]' },
+        { t: 'result-val', v: '  139.x.x.44:80    — Hikvision DS-2CD (Brazil)          [admin/12345]' },
+        { t: 'blank',      v: '' },
+        { t: 'warning',    v: '[!] Thousands of Hikvision cameras publicly exposed with default creds' },
+        { t: 'warning',    v: '[!] Many have been recruited into botnets (Mirai variants)' }
+    ];
+
+    const MQTT_RESULT = [
+        { t: 'info',       v: 'mqtt-explore v2.1 — connecting to 192.168.10.50:1883' },
+        { t: 'dim',        v: '─'.repeat(58) },
+        { t: 'output',     v: 'Connected: no authentication required' },
+        { t: 'output',     v: 'Subscribing to wildcard topic: #' },
+        { t: 'blank',      v: '' },
+        { t: 'result-key', v: 'RECEIVED TOPICS:' },
+        { t: 'result-val', v: '  hospital/ward3/bed12/heartrate      — 78 bpm' },
+        { t: 'result-val', v: '  hospital/ward3/bed12/spo2           — 97%' },
+        { t: 'result-val', v: '  hospital/ward3/bed12/bp             — 122/78 mmHg' },
+        { t: 'result-val', v: '  hospital/ward3/bed12/patient_id     — P-20241104-0042' },
+        { t: 'result-val', v: '  hospital/ward3/bed12/patient_name   — [REDACTED — visible in lab]' },
+        { t: 'result-val', v: '  hospital/ward3/bed12/medication     — Metformin 1000mg' },
+        { t: 'blank',      v: '' },
+        { t: 'error',      v: '[!] CRITICAL: Real-time patient vitals + PII readable without authentication' },
+        { t: 'error',      v: '[!] HIPAA violation — protected health information (PHI) exposed' },
+        { t: 'warning',    v: '[!] Topics also writable — attacker could inject false readings' }
+    ];
+
+    const CURL_THERM = [
+        { t: 'info',       v: 'GET http://192.168.10.20:8080/api/v1/temperature' },
+        { t: 'dim',        v: '─'.repeat(58) },
+        { t: 'result-val', v: '< HTTP/1.1 200 OK' },
+        { t: 'result-val', v: '< Content-Type: application/json' },
+        { t: 'blank',      v: '' },
+        { t: 'output',     v: '{"zone":"main","setpoint":72,"current":71.4,"mode":"heat",' },
+        { t: 'output',     v: ' "schedule":{"wake":"06:00","away":"08:30","home":"17:00"},' },
+        { t: 'output',     v: ' "auth_required":false,"firmware":"2.1.4-debug"}' },
+        { t: 'blank',      v: '' },
+        { t: 'warning',    v: '[!] Open API — no authentication, no rate limiting' },
+        { t: 'warning',    v: '[!] Schedule data reveals occupancy patterns (privacy risk)' }
+    ];
+
+    const BACNET_SCAN = [
+        { t: 'info',       v: 'BACnet/Modbus scan: 192.168.10.40:47808 (UDP)' },
+        { t: 'dim',        v: '─'.repeat(58) },
+        { t: 'output',     v: 'Device: HVAC Controller — Building Automation Unit' },
+        { t: 'output',     v: 'Vendor: Johnson Controls' },
+        { t: 'output',     v: 'Firmware: 3.2.1' },
+        { t: 'blank',      v: '' },
+        { t: 'result-key', v: 'ACCESSIBLE OBJECTS (no auth):' },
+        { t: 'result-val', v: '  Obj 0  DEVICE        — HVAC-MAIN-CTRL' },
+        { t: 'result-val', v: '  Obj 1  ANALOG-VALUE  — Zone1_Temp: 68.4 F  [READ/WRITE]' },
+        { t: 'result-val', v: '  Obj 2  ANALOG-VALUE  — Zone2_Temp: 71.2 F  [READ/WRITE]' },
+        { t: 'result-val', v: '  Obj 3  BINARY-VALUE  — EmergencyShutdown: FALSE  [READ/WRITE]' },
+        { t: 'result-val', v: '  Obj 4  BINARY-VALUE  — SprinklerSystem: FALSE  [READ/WRITE]' },
+        { t: 'blank',      v: '' },
+        { t: 'error',      v: '[!] CRITICAL: EmergencyShutdown and SprinklerSystem writable without auth' },
+        { t: 'error',      v: '[!] Attacker could trigger building emergency systems remotely' }
+    ];
+
+    const REPORT_LINES = [
+        { t: 'info',       v: '=== IoT Security Audit Report — 192.168.10.0/24 ===' },
+        { t: 'dim',        v: '─'.repeat(58) },
+        { t: 'result-key', v: 'Devices Audited: 8' },
+        { t: 'result-key', v: 'Vulnerabilities Found: 14  (4 Critical, 6 High, 4 Medium)' },
+        { t: 'blank',      v: '' },
+        { t: 'error',      v: '[CRITICAL] 192.168.10.10/11 — Default camera credentials (admin/12345, admin/admin)' },
+        { t: 'error',      v: '[CRITICAL] 192.168.10.50   — Unauthenticated MQTT broker exposes patient PHI' },
+        { t: 'error',      v: '[CRITICAL] 192.168.10.40   — BACnet with no auth, critical systems writable' },
+        { t: 'error',      v: '[CRITICAL] 192.168.10.100  — S7comm PLC — no auth, ladder logic exposed' },
+        { t: 'blank',      v: '' },
+        { t: 'warning',    v: '[HIGH]     192.168.10.20   — Open REST API, schedule/occupancy data exposed' },
+        { t: 'warning',    v: '[HIGH]     192.168.10.30   — Weak Z-Wave 16-bit encryption, no replay prot.' },
+        { t: 'warning',    v: '[HIGH]     192.168.10.50   — Medical device with default web credentials' },
+        { t: 'blank',      v: '' },
+        { t: 'result-val', v: 'Immediate Actions Required:' },
+        { t: 'result-val', v: '  1. Change all default credentials immediately' },
+        { t: 'result-val', v: '  2. Isolate medical IoT devices on dedicated VLAN' },
+        { t: 'result-val', v: '  3. Enable MQTT authentication + TLS' },
+        { t: 'result-val', v: '  4. Implement BACnet firewall rules' },
+        { t: 'result-val', v: '  5. Segment OT/ICS from corporate network' },
+        { t: 'blank',      v: '' },
+        { t: 'success',    v: '[+] Report generated. All objectives complete.' }
+    ];
+
+    /* ==============================================================
+       TOPOLOGY INTERACTION
+    ============================================================== */
+    function nodeClick(nodeId) {
+        // Find matching device IP
+        const entry = Object.entries(DEVICES).find(([ip, d]) => d.id === nodeId);
+        if (!entry || !state.discoveredHosts.has(entry[0])) return;
+
+        const [ip, d] = entry;
+        const lines = [
+            { t: 'info',       v: `Device: ${d.label}` },
+            { t: 'result-val', v: `IP:     ${ip}` },
+            { t: 'result-val', v: `Ports:  ${d.ports}` },
+            { t: 'warning',    v: `Vuln:   ${d.vuln}` }
+        ];
+        if (d.creds) lines.push({ t: 'error', v: `Creds:  ${d.creds}` });
+        echoCommand('[topology click: ' + ip + ']');
+        renderLines(lines, 14);
+    }
+
+    function updateNodeState(ip, newState) {
+        const device = DEVICES[ip];
+        if (!device) return;
+        const node = document.getElementById('node-' + device.id);
+        if (node) {
+            node.className = 'device-node ' + newState;
+            state.discoveredHosts.add(ip);
+        }
+        const lineEl = document.getElementById('line-gw-' + device.id);
+        if (lineEl) lineEl.classList.add('active');
+    }
+
+    function markAllDiscovered() {
+        Object.keys(DEVICES).forEach(ip => {
+            updateNodeState(ip, 'discovered');
+            state.discoveredHosts.add(ip);
+        });
+        state.allDiscovered = true;
+    }
+
+    /* ==============================================================
+       TERMINAL ENGINE
+    ============================================================== */
+    const outputEl = document.getElementById('terminal-output');
+    const inputEl  = document.getElementById('term-input');
+
+    function renderLines(lines, delay = 18, onDone = null) {
+        lines.forEach((line, idx) => {
+            setTimeout(() => {
+                const span = document.createElement('span');
+                span.className = `term-line ${line.t}`;
+                span.textContent = (line.t === 'blank') ? '\u00a0' : line.v;
+                outputEl.appendChild(span);
+                outputEl.appendChild(document.createElement('br'));
+                outputEl.scrollTop = outputEl.scrollHeight;
+                if (idx === lines.length - 1 && onDone) setTimeout(onDone, 80);
+            }, idx * delay);
+        });
+    }
+
+    function echoCommand(cmd) {
+        const p = document.createElement('span');
+        p.className = 'term-line prompt';
+        p.textContent = 'pentester@kali:~$ ';
+        const c = document.createElement('span');
+        c.className = 'term-line command';
+        c.textContent = cmd;
+        outputEl.appendChild(p);
+        outputEl.appendChild(c);
+        outputEl.appendChild(document.createElement('br'));
+        outputEl.scrollTop = outputEl.scrollHeight;
+    }
+
+    function blankLine() {
+        outputEl.appendChild(document.createElement('br'));
+    }
+
+    function processCommand(raw) {
+        const trimmed = raw.trim();
+        if (!trimmed) return;
+
+        state.history.unshift(trimmed);
+        if (state.history.length > 50) state.history.pop();
+        state.historyIdx = -1;
+
+        echoCommand(trimmed);
+        blankLine();
+
+        const lower = trimmed.toLowerCase();
+        const parts = lower.split(/\s+/);
+        const cmd = parts[0];
+
+        if (cmd === 'help') { renderLines(HELP_LINES, 12); return; }
+        if (cmd === 'clear') { outputEl.innerHTML = ''; return; }
+        if (cmd === 'objectives') { renderObjectivesList(); return; }
+        if (cmd === 'report') { handleReport(); return; }
+
+        // Match multi-word commands
+        let matched = false;
+        for (const key of Object.keys(COMMANDS)) {
+            if (lower.startsWith(key)) {
+                const args = trimmed.slice(key.length).trim();
+                const result = COMMANDS[key](args);
+                renderLines(result.lines, 16, () => {
+                    if (result.objTriggers) result.objTriggers.forEach(o => completeObjective(o));
+                    if (result.nodeUpdate === 'all') { markAllDiscovered(); }
+                    else if (result.nodeUpdate) { updateNodeState(result.nodeUpdate, result.nodeState || 'discovered'); }
+                    blankLine();
+                });
+                matched = true;
+                break;
+            }
+        }
+
+        if (!matched) {
+            renderLines([
+                { t: 'error', v: `bash: ${cmd}: command not found` },
+                { t: 'dim',   v: 'Type "help" for available commands.' },
+                { t: 'blank', v: '' }
+            ], 14);
+        }
+    }
+
+    function handleReport() {
+        const result = COMMANDS.report();
+        renderLines(result.lines, 16, () => {
+            result.objTriggers.forEach(o => completeObjective(o));
+            blankLine();
+        });
+    }
+
+    const HELP_LINES = [
+        { t: 'info',       v: 'Available Commands — IoT Security Lab' },
+        { t: 'dim',        v: '─'.repeat(58) },
+        { t: 'result-key', v: '  help                              Show this help' },
+        { t: 'result-key', v: '  clear                             Clear terminal' },
+        { t: 'result-key', v: '  objectives                        Show progress' },
+        { t: 'blank',      v: '' },
+        { t: 'result-key', v: '  nmap -sn 192.168.10.0/24          Host discovery' },
+        { t: 'result-key', v: '  nmap -sV <ip>                     Service scan' },
+        { t: 'result-key', v: '  nmap --script http-default-accounts <ip>' },
+        { t: 'result-key', v: '  shodan search "Hikvision"          Shodan OSINT' },
+        { t: 'result-key', v: '  mqtt-explore <ip>                  MQTT subscribe' },
+        { t: 'result-key', v: '  curl http://<ip>:8080/api/v1/temperature' },
+        { t: 'result-key', v: '  modbus-scan <ip>                   BACnet audit' },
+        { t: 'result-key', v: '  report                             Generate summary' },
+        { t: 'blank',      v: '' }
+    ];
+
+    /* ==============================================================
+       OBJECTIVES
+    ============================================================== */
+    function completeObjective(idx) {
+        if (state.objectives[idx]) return;
+        state.objectives[idx] = true;
+        const item = document.getElementById('obj-' + idx);
+        const check = document.getElementById('check-' + idx);
+        if (item) item.classList.add('completed');
+        if (check) check.textContent = 'X';
+        const total = state.objectives.filter(Boolean).length;
+        document.getElementById('obj-count').textContent = total;
+
+        setTimeout(() => {
+            const notif = document.createElement('span');
+            notif.className = 'term-line objective-unlock';
+            notif.textContent = `[OBJECTIVE COMPLETE] #${idx + 1}`;
+            outputEl.appendChild(notif);
+            outputEl.appendChild(document.createElement('br'));
+            outputEl.scrollTop = outputEl.scrollHeight;
+        }, 100);
+
+        if (total === 8) setTimeout(showSuccessBanner, 800);
+    }
+
+    function renderObjectivesList() {
+        const labels = ['Discover all IoT devices', 'Identify default credentials', 'Access camera with default creds', 'Find exposed MQTT broker', 'Read patient MQTT data', 'Access HVAC without auth', 'Identify industrial PLC', 'Generate vulnerability summary'];
+        const lines = [{ t: 'info', v: 'Objectives — IoT Security Lab' }, { t: 'dim', v: '─'.repeat(58) }];
+        labels.forEach((l, i) => {
+            const done = state.objectives[i];
+            lines.push({ t: done ? 'success' : 'dim', v: `  ${done ? '[X]' : '[ ]'} ${i+1}. ${l}` });
+        });
+        lines.push({ t: 'blank', v: '' });
+        lines.push({ t: 'result-key', v: `  Progress: ${state.objectives.filter(Boolean).length}/8` });
+        lines.push({ t: 'blank', v: '' });
+        renderLines(lines, 12);
+    }
+
+    /* ==============================================================
+       HINTS
+    ============================================================== */
+    function showHint() {
+        if (state.hintsUsed >= HINTS.length) return;
+        const hint = HINTS[state.hintsUsed];
+        state.hintsUsed++;
+        state.score = Math.max(0, state.score - 5);
+        const scoreEl = document.getElementById('score-display');
+        scoreEl.textContent = state.score;
+        scoreEl.classList.add('deducted');
+        setTimeout(() => scoreEl.classList.remove('deducted'), 600);
+
+        const display = document.getElementById('hint-display');
+        display.innerHTML = `<strong style="color:#a855f7;font-size:0.7rem">${hint.title}</strong><br>${hint.text}<span class="hint-code">${hint.code}</span>`;
+        display.classList.add('visible');
+        const remaining = HINTS.length - state.hintsUsed;
+        document.getElementById('hint-cost-label').textContent = remaining > 0 ? `-5 points per hint · ${remaining} remaining` : 'All hints used';
+        if (state.hintsUsed >= HINTS.length) document.getElementById('hint-btn').disabled = true;
+    }
+
+    /* ==============================================================
+       SUCCESS + COMPLETION
+    ============================================================== */
+    function showSuccessBanner() {
+        document.getElementById('final-score').textContent = state.score;
+        const banner = document.getElementById('success-banner');
+        banner.classList.add('visible');
+        banner.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        renderLines([
+            { t: 'dim',     v: '═'.repeat(58) },
+            { t: 'success', v: '  ALL OBJECTIVES COMPLETE — IOT AUDIT FINISHED' },
+            { t: 'dim',     v: '═'.repeat(58) },
+            { t: 'blank',   v: '' },
+            { t: 'output',  v: `  Final Score: ${state.score} / 100` },
+            { t: 'blank',   v: '' }
+        ], 20);
+    }
+
+    function completeLab() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('dark-arts', 'ehe-lab-iot-security', { returnUrl: '../index.html' });
+        } else {
+            window.location.href = '../index.html';
+        }
+    }
+
+    /* ==============================================================
+       PANEL TOGGLE + INPUT
+    ============================================================== */
+    function togglePanel(panelId, headerEl) {
+        const panel = document.getElementById(panelId);
+        const toggle = headerEl.querySelector('.panel-toggle');
+        const isOpen = !panel.classList.contains('collapsed');
+        panel.classList.toggle('collapsed', isOpen);
+        toggle.classList.toggle('open', !isOpen);
+    }
+
+    function focusInput() { inputEl.focus(); }
+
+    inputEl.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') {
+            const val = inputEl.value;
+            inputEl.value = '';
+            processCommand(val);
+        } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            if (state.history.length > 0) {
+                state.historyIdx = Math.min(state.historyIdx + 1, state.history.length - 1);
+                inputEl.value = state.history[state.historyIdx] || '';
+            }
+        } else if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            if (state.historyIdx > 0) { state.historyIdx--; inputEl.value = state.history[state.historyIdx] || ''; }
+            else { state.historyIdx = -1; inputEl.value = ''; }
+        } else if (e.key === 'Tab') {
+            e.preventDefault();
+            const partial = inputEl.value;
+            const completions = ['nmap -sn ', 'nmap -sV ', 'nmap --script ', 'mqtt-explore ', 'modbus-scan ', 'curl ', 'shodan ', 'report', 'help', 'clear'];
+            const match = completions.find(c => c.startsWith(partial) && c !== partial);
+            if (match) inputEl.value = match;
+        }
+    });
+
+    /* ==============================================================
+       BOOT
+    ============================================================== */
+    const BOOT_LINES = [
+        { t: 'dim',     v: '─'.repeat(58) },
+        { t: 'info',    v: '  HEXWORTH IoT SECURITY LAB  v1.0' },
+        { t: 'dim',     v: '  Smart Building Network Audit — Educational Environment' },
+        { t: 'dim',     v: '─'.repeat(58) },
+        { t: 'blank',   v: '' },
+        { t: 'output',  v: '  TARGET:    192.168.10.0/24 (Smart Building LAN)' },
+        { t: 'output',  v: '  SCOPE:     8 IoT devices identified in scope' },
+        { t: 'output',  v: '  OBJECTIVE: Discover, enumerate, and document all vulnerabilities' },
+        { t: 'blank',   v: '' },
+        { t: 'warning', v: '  [!] Simulated environment — all data is fictional' },
+        { t: 'blank',   v: '' },
+        { t: 'dim',     v: '  Type "help" for commands. Start with: nmap -sn 192.168.10.0/24' },
+        { t: 'blank',   v: '' }
+    ];
+
+    window.addEventListener('DOMContentLoaded', function() {
+        focusInput();
+        renderLines(BOOT_LINES, 20);
+    });
+    </script>
+
+</body>
+</html>

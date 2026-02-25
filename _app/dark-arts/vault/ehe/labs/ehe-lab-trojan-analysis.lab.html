@@ -1,0 +1,1576 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('dark-arts');</script>
+    <!-- Progress & Achievements -->
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lab: Trojan Analysis — EHE | The Vault</title>
+    <style>
+        /* ============================================================
+           RESET & BASE
+        ============================================================ */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            min-height: 100vh;
+            background: #0a0508;
+            font-family: 'Georgia', 'Times New Roman', serif;
+            color: #8a6a9a;
+            overflow-x: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background:
+                radial-gradient(ellipse at 20% 15%, rgba(80, 40, 100, 0.10) 0%, transparent 55%),
+                radial-gradient(ellipse at 80% 85%, rgba(60, 20, 80, 0.07) 0%, transparent 50%);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        /* ============================================================
+           STICKY HEADER
+        ============================================================ */
+        .lab-header {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            background: rgba(10, 5, 15, 0.97);
+            border-bottom: 1px solid rgba(100, 60, 130, 0.22);
+            backdrop-filter: blur(14px);
+            padding: 14px 32px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 18px;
+            min-width: 0;
+        }
+
+        .back-btn {
+            color: #6a4a7a;
+            text-decoration: none;
+            font-size: 0.76rem;
+            letter-spacing: 0.1em;
+            padding: 6px 14px;
+            border: 1px solid rgba(100, 60, 130, 0.2);
+            border-radius: 4px;
+            transition: all 0.25s;
+            font-family: 'Georgia', serif;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+        .back-btn:hover {
+            color: #a855f7;
+            border-color: rgba(147, 51, 234, 0.45);
+            background: rgba(147, 51, 234, 0.06);
+        }
+
+        .header-title-group { min-width: 0; }
+
+        .header-label {
+            font-size: 0.62rem;
+            letter-spacing: 0.22em;
+            color: #5a3a6a;
+            text-transform: uppercase;
+            margin-bottom: 2px;
+        }
+
+        .header-title {
+            font-size: 0.95rem;
+            color: #c09ad0;
+            letter-spacing: 0.04em;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            flex-shrink: 0;
+        }
+
+        .score-display {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.72rem;
+            letter-spacing: 0.1em;
+            color: #6a4a7a;
+        }
+
+        .score-value {
+            font-size: 1.1rem;
+            color: #a855f7;
+            font-family: 'Courier New', monospace;
+            font-weight: bold;
+            min-width: 40px;
+            text-align: right;
+            transition: color 0.3s;
+        }
+
+        .score-value.deducted {
+            color: #ef4444;
+            animation: score-flash 0.5s ease;
+        }
+
+        @keyframes score-flash {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.15); }
+        }
+
+        .obj-progress-pill {
+            font-size: 0.7rem;
+            letter-spacing: 0.08em;
+            color: #6a4a7a;
+            padding: 5px 12px;
+            border: 1px solid rgba(100, 60, 130, 0.2);
+            border-radius: 20px;
+            font-family: 'Courier New', monospace;
+        }
+
+        .obj-progress-pill .obj-count { color: #a855f7; font-weight: bold; }
+
+        /* ============================================================
+           ETHICAL WARNING BANNER
+        ============================================================ */
+        .warning-banner {
+            background: rgba(239, 68, 68, 0.05);
+            border: 1px solid rgba(239, 68, 68, 0.30);
+            border-left: 3px solid #ef4444;
+            margin: 20px 24px 0;
+            padding: 12px 18px;
+            border-radius: 4px;
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            position: relative;
+            z-index: 10;
+        }
+
+        .warning-icon {
+            color: #ef4444;
+            font-size: 0.8rem;
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            white-space: nowrap;
+            margin-top: 1px;
+            font-family: 'Courier New', monospace;
+            flex-shrink: 0;
+        }
+
+        .warning-text {
+            font-size: 0.76rem;
+            color: rgba(239, 68, 68, 0.75);
+            line-height: 1.6;
+            letter-spacing: 0.02em;
+        }
+
+        /* ============================================================
+           SUCCESS BANNER
+        ============================================================ */
+        .success-banner {
+            display: none;
+            margin: 16px 24px 0;
+            padding: 20px 24px;
+            background: rgba(34, 197, 94, 0.06);
+            border: 1px solid rgba(34, 197, 94, 0.30);
+            border-left: 3px solid #22c55e;
+            border-radius: 6px;
+            position: relative;
+            z-index: 10;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .success-banner.visible {
+            display: flex;
+            animation: slide-in 0.5s ease;
+        }
+
+        @keyframes slide-in {
+            from { opacity: 0; transform: translateY(-10px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+
+        .success-text-group { flex: 1; }
+
+        .success-title {
+            font-size: 0.85rem;
+            color: #22c55e;
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            margin-bottom: 4px;
+        }
+
+        .success-sub {
+            font-size: 0.74rem;
+            color: #5a8a6a;
+            line-height: 1.5;
+        }
+
+        .complete-lab-btn {
+            padding: 11px 24px;
+            background: rgba(34, 197, 94, 0.12);
+            border: 1px solid rgba(34, 197, 94, 0.35);
+            border-radius: 4px;
+            color: #22c55e;
+            font-family: 'Georgia', serif;
+            font-size: 0.78rem;
+            letter-spacing: 0.12em;
+            cursor: pointer;
+            transition: all 0.25s;
+            white-space: nowrap;
+        }
+
+        .complete-lab-btn:hover {
+            background: rgba(34, 197, 94, 0.20);
+            border-color: rgba(34, 197, 94, 0.55);
+        }
+
+        /* ============================================================
+           MAIN LAYOUT
+        ============================================================ */
+        .lab-body {
+            flex: 1;
+            display: flex;
+            gap: 0;
+            padding: 20px 24px 24px;
+            position: relative;
+            z-index: 10;
+            min-height: 0;
+        }
+
+        /* ============================================================
+           OBJECTIVES SIDEBAR
+        ============================================================ */
+        .sidebar {
+            width: 270px;
+            flex-shrink: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+            margin-right: 18px;
+        }
+
+        .sidebar-panel {
+            background: rgba(15, 8, 20, 0.80);
+            border: 1px solid rgba(100, 60, 130, 0.18);
+            border-radius: 6px;
+            overflow: hidden;
+        }
+
+        .panel-header {
+            padding: 11px 16px;
+            background: rgba(80, 40, 100, 0.12);
+            border-bottom: 1px solid rgba(100, 60, 130, 0.15);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .panel-header-title {
+            font-size: 0.65rem;
+            letter-spacing: 0.2em;
+            text-transform: uppercase;
+            color: #7a5a8a;
+        }
+
+        .panel-toggle {
+            font-size: 0.65rem;
+            color: #5a3a6a;
+            transition: transform 0.25s;
+            font-family: 'Courier New', monospace;
+        }
+
+        .panel-toggle.open { transform: rotate(180deg); }
+
+        .panel-body {
+            padding: 14px;
+            transition: all 0.3s ease;
+            overflow: hidden;
+        }
+
+        .panel-body.collapsed {
+            padding-top: 0;
+            padding-bottom: 0;
+            max-height: 0;
+        }
+
+        .objectives-list {
+            display: flex;
+            flex-direction: column;
+            gap: 7px;
+        }
+
+        .objective-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            padding: 7px 10px;
+            border-radius: 4px;
+            border: 1px solid rgba(100, 60, 130, 0.10);
+            transition: all 0.3s;
+            background: rgba(10, 5, 15, 0.4);
+        }
+
+        .objective-item.completed {
+            border-color: rgba(34, 197, 94, 0.25);
+            background: rgba(34, 197, 94, 0.04);
+        }
+
+        .obj-checkbox {
+            width: 14px;
+            height: 14px;
+            border: 1px solid rgba(100, 60, 130, 0.35);
+            border-radius: 2px;
+            flex-shrink: 0;
+            margin-top: 2px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s;
+            font-family: 'Courier New', monospace;
+            font-size: 0.55rem;
+            color: transparent;
+        }
+
+        .objective-item.completed .obj-checkbox {
+            background: rgba(34, 197, 94, 0.15);
+            border-color: #22c55e;
+            color: #22c55e;
+        }
+
+        .obj-label {
+            font-size: 0.7rem;
+            color: #5a3a6a;
+            line-height: 1.5;
+            letter-spacing: 0.02em;
+            transition: color 0.3s;
+        }
+
+        .objective-item.completed .obj-label { color: #22c55e; }
+
+        .phase-badge {
+            font-size: 0.6rem;
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            color: #5a3a6a;
+            margin-bottom: 8px;
+            padding-bottom: 6px;
+            border-bottom: 1px solid rgba(100, 60, 130, 0.10);
+        }
+
+        .phase-progress { margin-top: 4px; }
+
+        .phase-progress-label {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.62rem;
+            color: #5a3a6a;
+            letter-spacing: 0.08em;
+            margin-bottom: 5px;
+        }
+
+        .phase-progress-bar {
+            height: 3px;
+            background: rgba(100, 60, 130, 0.15);
+            border-radius: 2px;
+            overflow: hidden;
+        }
+
+        .phase-progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #6a4a8a, #9333ea);
+            border-radius: 2px;
+            transition: width 0.5s ease;
+        }
+
+        .hint-btn {
+            width: 100%;
+            padding: 9px 16px;
+            background: rgba(147, 51, 234, 0.08);
+            border: 1px solid rgba(147, 51, 234, 0.22);
+            border-radius: 4px;
+            color: #a855f7;
+            font-family: 'Georgia', serif;
+            font-size: 0.72rem;
+            letter-spacing: 0.1em;
+            cursor: pointer;
+            transition: all 0.25s;
+            text-align: center;
+            margin-bottom: 8px;
+        }
+
+        .hint-btn:hover {
+            background: rgba(147, 51, 234, 0.14);
+            border-color: rgba(168, 85, 247, 0.4);
+        }
+
+        .hint-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+        .hint-cost {
+            font-size: 0.62rem;
+            color: #5a3a6a;
+            text-align: center;
+            letter-spacing: 0.05em;
+        }
+
+        .hint-content {
+            margin-top: 10px;
+            padding: 10px 12px;
+            background: rgba(147, 51, 234, 0.06);
+            border: 1px solid rgba(147, 51, 234, 0.15);
+            border-radius: 4px;
+            font-size: 0.72rem;
+            color: #8a6a9a;
+            line-height: 1.6;
+            display: none;
+        }
+
+        .hint-content.visible { display: block; }
+
+        /* ============================================================
+           SANDBOX MAIN AREA (two-panel layout)
+        ============================================================ */
+        .sandbox-wrapper {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            min-width: 0;
+            gap: 14px;
+        }
+
+        /* Top toolbar */
+        .sandbox-toolbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 18px;
+            background: rgba(15, 8, 22, 0.95);
+            border: 1px solid rgba(100, 60, 130, 0.22);
+            border-radius: 6px;
+        }
+
+        .toolbar-left {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .toolbar-label {
+            font-size: 0.65rem;
+            letter-spacing: 0.2em;
+            text-transform: uppercase;
+            color: #5a3a6a;
+        }
+
+        .sandbox-status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.72rem;
+            font-family: 'Courier New', monospace;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #5a3a6a;
+            transition: all 0.4s;
+        }
+
+        .status-dot.idle    { background: #5a3a6a; }
+        .status-dot.running { background: #ef4444; box-shadow: 0 0 6px rgba(239,68,68,0.6); animation: pulse-red 1s infinite; }
+        .status-dot.done    { background: #22c55e; box-shadow: 0 0 6px rgba(34,197,94,0.4); }
+
+        @keyframes pulse-red {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .status-text {
+            color: #8a6a9a;
+            letter-spacing: 0.08em;
+        }
+
+        .execute-btn {
+            padding: 9px 22px;
+            background: rgba(239, 68, 68, 0.10);
+            border: 1px solid rgba(239, 68, 68, 0.35);
+            border-radius: 4px;
+            color: #ef4444;
+            font-family: 'Georgia', serif;
+            font-size: 0.75rem;
+            letter-spacing: 0.12em;
+            cursor: pointer;
+            transition: all 0.25s;
+        }
+
+        .execute-btn:hover {
+            background: rgba(239, 68, 68, 0.18);
+            border-color: rgba(239, 68, 68, 0.55);
+        }
+
+        .execute-btn:disabled {
+            opacity: 0.35;
+            cursor: not-allowed;
+        }
+
+        /* Two-panel sandbox */
+        .sandbox-panels {
+            flex: 1;
+            display: flex;
+            gap: 14px;
+            min-height: 580px;
+        }
+
+        /* Left: Sandbox Monitor */
+        .monitor-panel {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: rgba(8, 4, 12, 0.95);
+            border: 1px solid rgba(100, 60, 130, 0.22);
+            border-radius: 6px;
+            overflow: hidden;
+            min-width: 0;
+        }
+
+        .monitor-topbar {
+            padding: 9px 14px;
+            background: rgba(20, 10, 30, 0.9);
+            border-bottom: 1px solid rgba(100, 60, 130, 0.18);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .term-dot {
+            width: 9px; height: 9px;
+            border-radius: 50%;
+        }
+        .term-dot.red    { background: rgba(239, 68, 68, 0.5); }
+        .term-dot.yellow { background: rgba(234, 179, 8, 0.5); }
+        .term-dot.green  { background: rgba(34, 197, 94, 0.5); }
+
+        .monitor-title {
+            font-family: 'Courier New', monospace;
+            font-size: 0.66rem;
+            color: #5a3a6a;
+            letter-spacing: 0.12em;
+            margin-left: 6px;
+        }
+
+        /* Monitor tabs */
+        .monitor-tabs {
+            display: flex;
+            border-bottom: 1px solid rgba(100, 60, 130, 0.15);
+            background: rgba(12, 6, 18, 0.8);
+        }
+
+        .monitor-tab {
+            padding: 7px 14px;
+            font-size: 0.62rem;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            color: #4a2a5a;
+            border-right: 1px solid rgba(100, 60, 130, 0.10);
+            cursor: pointer;
+            transition: all 0.2s;
+            user-select: none;
+        }
+
+        .monitor-tab:hover { color: #7a5a8a; background: rgba(80, 40, 100, 0.08); }
+        .monitor-tab.active { color: #a855f7; background: rgba(147, 51, 234, 0.08); }
+
+        /* Monitor feed area */
+        .monitor-feed {
+            flex: 1;
+            overflow-y: auto;
+            padding: 14px 16px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.76rem;
+            line-height: 1.7;
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .monitor-feed::-webkit-scrollbar { width: 4px; }
+        .monitor-feed::-webkit-scrollbar-track { background: rgba(10,5,15,0.5); }
+        .monitor-feed::-webkit-scrollbar-thumb { background: rgba(100,60,130,0.4); border-radius: 2px; }
+
+        /* Event rows — clickable IOC items */
+        .event-row {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            padding: 5px 8px;
+            border-radius: 3px;
+            border: 1px solid transparent;
+            transition: all 0.2s;
+            cursor: default;
+        }
+
+        /* Events that are IOCs can be clicked */
+        .event-row.ioc {
+            cursor: pointer;
+        }
+
+        .event-row.ioc:hover {
+            border-color: rgba(239, 68, 68, 0.25);
+            background: rgba(239, 68, 68, 0.04);
+        }
+
+        .event-row.ioc.identified {
+            border-color: rgba(34, 197, 94, 0.30);
+            background: rgba(34, 197, 94, 0.05);
+            cursor: default;
+        }
+
+        .event-row.ioc.identified:hover {
+            border-color: rgba(34, 197, 94, 0.30);
+            background: rgba(34, 197, 94, 0.05);
+        }
+
+        .event-time {
+            color: #4a2a5a;
+            font-size: 0.65rem;
+            white-space: nowrap;
+            flex-shrink: 0;
+            margin-top: 1px;
+        }
+
+        .event-tag {
+            font-size: 0.6rem;
+            letter-spacing: 0.1em;
+            padding: 1px 6px;
+            border-radius: 2px;
+            flex-shrink: 0;
+            margin-top: 2px;
+        }
+
+        .event-tag.proc  { background: rgba(147, 51, 234, 0.15); color: #a855f7; border: 1px solid rgba(147,51,234,0.2); }
+        .event-tag.net   { background: rgba(59, 130, 246, 0.12); color: #60a5fa; border: 1px solid rgba(59,130,246,0.2); }
+        .event-tag.file  { background: rgba(234, 179, 8, 0.12);  color: #fbbf24; border: 1px solid rgba(234,179,8,0.2); }
+        .event-tag.reg   { background: rgba(239, 68, 68, 0.12);  color: #f87171; border: 1px solid rgba(239,68,68,0.2); }
+        .event-tag.sys   { background: rgba(34, 197, 94, 0.10);  color: #4ade80; border: 1px solid rgba(34,197,94,0.15); }
+
+        .event-body { flex: 1; min-width: 0; }
+
+        .event-text {
+            color: #7a5a8a;
+            word-break: break-all;
+        }
+
+        .event-text.suspicious { color: #f87171; }
+        .event-text.normal     { color: #4a3a5a; }
+
+        .ioc-badge {
+            display: none;
+            font-size: 0.58rem;
+            color: #22c55e;
+            letter-spacing: 0.1em;
+            margin-top: 2px;
+        }
+
+        .event-row.ioc.identified .ioc-badge { display: block; }
+
+        .click-hint {
+            font-size: 0.58rem;
+            color: #6a3a4a;
+            letter-spacing: 0.08em;
+            margin-top: 2px;
+            display: none;
+        }
+
+        .event-row.ioc:not(.identified) .click-hint { display: block; }
+
+        /* Idle / waiting state */
+        .monitor-idle {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 14px;
+            color: #3a2a4a;
+            font-family: 'Courier New', monospace;
+            font-size: 0.76rem;
+            letter-spacing: 0.1em;
+        }
+
+        .idle-icon {
+            font-size: 2.5rem;
+            opacity: 0.3;
+            filter: grayscale(1);
+        }
+
+        /* Right: Analysis Toolkit */
+        .toolkit-panel {
+            width: 340px;
+            flex-shrink: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .tool-section {
+            background: rgba(15, 8, 20, 0.80);
+            border: 1px solid rgba(100, 60, 130, 0.18);
+            border-radius: 6px;
+            overflow: hidden;
+        }
+
+        .tool-header {
+            padding: 10px 14px;
+            background: rgba(80, 40, 100, 0.10);
+            border-bottom: 1px solid rgba(100, 60, 130, 0.14);
+            font-size: 0.64rem;
+            letter-spacing: 0.18em;
+            text-transform: uppercase;
+            color: #7a5a8a;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .tool-header-badge {
+            font-size: 0.58rem;
+            padding: 1px 7px;
+            border-radius: 10px;
+            font-family: 'Courier New', monospace;
+            letter-spacing: 0.06em;
+        }
+
+        .tool-header-badge.ioc-found {
+            background: rgba(239, 68, 68, 0.12);
+            color: #f87171;
+            border: 1px solid rgba(239, 68, 68, 0.22);
+        }
+
+        .tool-body { padding: 12px 14px; }
+
+        /* IOC counter row */
+        .ioc-counter {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid rgba(100, 60, 130, 0.10);
+        }
+
+        .ioc-counter-label {
+            font-size: 0.68rem;
+            color: #6a4a7a;
+            letter-spacing: 0.06em;
+        }
+
+        .ioc-counter-value {
+            font-family: 'Courier New', monospace;
+            font-size: 0.9rem;
+            color: #ef4444;
+            font-weight: bold;
+        }
+
+        /* Analysis Report Form */
+        .report-form {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .form-label {
+            font-size: 0.62rem;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            color: #6a4a7a;
+        }
+
+        .form-select,
+        .form-input {
+            background: rgba(8, 4, 12, 0.8);
+            border: 1px solid rgba(100, 60, 130, 0.22);
+            border-radius: 4px;
+            color: #c09ad0;
+            font-family: 'Courier New', monospace;
+            font-size: 0.74rem;
+            padding: 7px 10px;
+            outline: none;
+            transition: border-color 0.2s;
+            width: 100%;
+        }
+
+        .form-select:focus,
+        .form-input:focus {
+            border-color: rgba(147, 51, 234, 0.45);
+        }
+
+        .form-select option { background: #0a0508; }
+
+        .form-select.correct { border-color: rgba(34, 197, 94, 0.45); color: #22c55e; }
+        .form-select.incorrect { border-color: rgba(239, 68, 68, 0.45); color: #ef4444; }
+        .form-input.correct { border-color: rgba(34, 197, 94, 0.45); color: #22c55e; }
+        .form-input.incorrect { border-color: rgba(239, 68, 68, 0.45); color: #ef4444; }
+
+        .submit-report-btn {
+            margin-top: 4px;
+            padding: 9px 18px;
+            background: rgba(147, 51, 234, 0.10);
+            border: 1px solid rgba(147, 51, 234, 0.30);
+            border-radius: 4px;
+            color: #a855f7;
+            font-family: 'Georgia', serif;
+            font-size: 0.74rem;
+            letter-spacing: 0.1em;
+            cursor: pointer;
+            transition: all 0.25s;
+        }
+
+        .submit-report-btn:hover {
+            background: rgba(147, 51, 234, 0.18);
+            border-color: rgba(168, 85, 247, 0.5);
+        }
+
+        .submit-report-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+
+        .report-feedback {
+            margin-top: 8px;
+            font-size: 0.7rem;
+            line-height: 1.5;
+            padding: 8px 10px;
+            border-radius: 4px;
+            display: none;
+        }
+
+        .report-feedback.visible { display: block; }
+        .report-feedback.success { color: #22c55e; background: rgba(34,197,94,0.06); border: 1px solid rgba(34,197,94,0.2); }
+        .report-feedback.error   { color: #f87171; background: rgba(239,68,68,0.06); border: 1px solid rgba(239,68,68,0.2); }
+
+        /* ============================================================
+           RESPONSIVE
+        ============================================================ */
+        @media (max-width: 1100px) {
+            .toolkit-panel { width: 280px; }
+        }
+
+        @media (max-width: 900px) {
+            .lab-body { flex-direction: column; padding: 14px; }
+            .sidebar { width: 100%; margin-right: 0; margin-bottom: 14px; }
+            .sandbox-panels { flex-direction: column; min-height: unset; }
+            .toolkit-panel { width: 100%; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- ============================================================
+         STICKY HEADER
+    ============================================================ -->
+    <header class="lab-header">
+        <div class="header-left">
+            <a href="../index.html" class="back-btn">&#8592; EHE</a>
+            <div class="header-title-group">
+                <div class="header-label">Lab Exercise</div>
+                <div class="header-title">Trojan Analysis: RAT Behavior Sandbox</div>
+            </div>
+        </div>
+        <div class="header-right">
+            <div class="score-display">
+                <span>SCORE</span>
+                <span class="score-value" id="score-display">100</span>
+            </div>
+            <div class="obj-progress-pill">
+                <span class="obj-count" id="obj-count">0</span>
+                <span>/8 objectives</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- ============================================================
+         ETHICAL WARNING BANNER
+    ============================================================ -->
+    <div class="warning-banner">
+        <div class="warning-icon">! WARNING</div>
+        <div class="warning-text">
+            This lab is a <strong>simulated sandbox environment</strong> for educational purposes only.
+            All malware behavior, IP addresses, domains, and file paths are entirely fictional.
+            Do not attempt to replicate these techniques against real systems. Deploying RATs
+            or keyloggers without authorization is a federal crime under the CFAA.
+        </div>
+    </div>
+
+    <!-- ============================================================
+         SUCCESS BANNER
+    ============================================================ -->
+    <div class="success-banner" id="success-banner">
+        <div class="success-text-group">
+            <div class="success-title">Analysis Complete</div>
+            <div class="success-sub">All 8 objectives completed. Final score: <span id="final-score">100</span> pts.</div>
+        </div>
+        <button class="complete-lab-btn" onclick="completeLab()">Complete Lab</button>
+    </div>
+
+    <!-- ============================================================
+         MAIN LAB BODY
+    ============================================================ -->
+    <div class="lab-body">
+
+        <!-- SIDEBAR -->
+        <aside class="sidebar">
+
+            <!-- Objectives Panel -->
+            <div class="sidebar-panel">
+                <div class="panel-header" onclick="togglePanel('obj-panel', this)">
+                    <span class="panel-header-title">Objectives</span>
+                    <span class="panel-toggle open">&#9650;</span>
+                </div>
+                <div class="panel-body" id="obj-panel">
+                    <div class="objectives-list">
+                        <div class="objective-item" id="obj-0">
+                            <div class="obj-checkbox" id="check-0"></div>
+                            <div class="obj-label">Execute the malware sample in sandbox</div>
+                        </div>
+                        <div class="objective-item" id="obj-1">
+                            <div class="obj-checkbox" id="check-1"></div>
+                            <div class="obj-label">Identify the spawned malicious process</div>
+                        </div>
+                        <div class="objective-item" id="obj-2">
+                            <div class="obj-checkbox" id="check-2"></div>
+                            <div class="obj-label">Detect the C2 connection (IP and port)</div>
+                        </div>
+                        <div class="objective-item" id="obj-3">
+                            <div class="obj-checkbox" id="check-3"></div>
+                            <div class="obj-label">Find the dropped files in the system</div>
+                        </div>
+                        <div class="objective-item" id="obj-4">
+                            <div class="obj-checkbox" id="check-4"></div>
+                            <div class="obj-label">Identify the registry persistence mechanism</div>
+                        </div>
+                        <div class="objective-item" id="obj-5">
+                            <div class="obj-checkbox" id="check-5"></div>
+                            <div class="obj-label">Determine the C2 domain name</div>
+                        </div>
+                        <div class="objective-item" id="obj-6">
+                            <div class="obj-checkbox" id="check-6"></div>
+                            <div class="obj-label">Classify the malware type (RAT)</div>
+                        </div>
+                        <div class="objective-item" id="obj-7">
+                            <div class="obj-checkbox" id="check-7"></div>
+                            <div class="obj-label">Complete and submit the analysis report</div>
+                        </div>
+                    </div>
+
+                    <div class="phase-progress" style="margin-top:12px;">
+                        <div class="phase-progress-label">
+                            <span>Progress</span>
+                            <span id="obj-frac">0/8</span>
+                        </div>
+                        <div class="phase-progress-bar">
+                            <div class="phase-progress-fill" id="obj-bar" style="width:0%"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Hints Panel -->
+            <div class="sidebar-panel">
+                <div class="panel-header" onclick="togglePanel('hint-panel', this)">
+                    <span class="panel-header-title">Hints</span>
+                    <span class="panel-toggle open">&#9650;</span>
+                </div>
+                <div class="panel-body" id="hint-panel">
+                    <button class="hint-btn" id="hint-btn" onclick="showHint()">Reveal Next Hint</button>
+                    <div class="hint-cost" id="hint-cost-label">-5 points per hint &middot; 8 available</div>
+                    <div class="hint-content" id="hint-display"></div>
+                </div>
+            </div>
+
+            <!-- IOC Legend -->
+            <div class="sidebar-panel">
+                <div class="panel-header" onclick="togglePanel('legend-panel', this)">
+                    <span class="panel-header-title">IOC Legend</span>
+                    <span class="panel-toggle">&#9650;</span>
+                </div>
+                <div class="panel-body collapsed" id="legend-panel">
+                    <div style="font-size:0.68rem; color:#5a3a6a; line-height:2.1; font-family:'Courier New',monospace;">
+                        <span style="color:#a855f7">PROC</span> — Process events<br>
+                        <span style="color:#60a5fa">NET</span>  — Network connections<br>
+                        <span style="color:#fbbf24">FILE</span> — File system changes<br>
+                        <span style="color:#f87171">REG</span>  — Registry modifications<br>
+                        <span style="color:#4ade80">SYS</span>  — System events<br><br>
+                        <span style="color:#8a6a9a">Click red/suspicious events</span><br>
+                        <span style="color:#8a6a9a">to mark them as IOCs.</span>
+                    </div>
+                </div>
+            </div>
+
+        </aside>
+
+        <!-- SANDBOX MAIN AREA -->
+        <div class="sandbox-wrapper">
+
+            <!-- Toolbar -->
+            <div class="sandbox-toolbar">
+                <div class="toolbar-left">
+                    <div class="toolbar-label">Sandbox Monitor</div>
+                    <div class="sandbox-status">
+                        <div class="status-dot idle" id="status-dot"></div>
+                        <span class="status-text" id="status-text">Awaiting execution</span>
+                    </div>
+                </div>
+                <button class="execute-btn" id="execute-btn" onclick="executeSample()">
+                    Execute Sample: NovaCorp_Invoice.pdf.exe
+                </button>
+            </div>
+
+            <!-- Two panels -->
+            <div class="sandbox-panels">
+
+                <!-- Left: Live Monitor -->
+                <div class="monitor-panel">
+                    <div class="monitor-topbar">
+                        <div class="term-dot red"></div>
+                        <div class="term-dot yellow"></div>
+                        <div class="term-dot green"></div>
+                        <div class="monitor-title">CUCKOO SANDBOX v2.0.7 &mdash; Windows 10 x64 Guest</div>
+                    </div>
+
+                    <div class="monitor-tabs">
+                        <div class="monitor-tab active" onclick="switchMonitorTab('all', this)">All Events</div>
+                        <div class="monitor-tab" onclick="switchMonitorTab('proc', this)">Process</div>
+                        <div class="monitor-tab" onclick="switchMonitorTab('net', this)">Network</div>
+                        <div class="monitor-tab" onclick="switchMonitorTab('file', this)">File</div>
+                        <div class="monitor-tab" onclick="switchMonitorTab('reg', this)">Registry</div>
+                    </div>
+
+                    <!-- Idle state — shown before execution -->
+                    <div class="monitor-idle" id="monitor-idle">
+                        <div class="idle-icon">&#128187;</div>
+                        <div>Sandbox ready. Execute sample to begin analysis.</div>
+                    </div>
+
+                    <!-- Live feed — hidden until execution starts -->
+                    <div class="monitor-feed" id="monitor-feed" style="display:none;"></div>
+                </div>
+
+                <!-- Right: Analysis Toolkit -->
+                <div class="toolkit-panel">
+
+                    <!-- IOC Counter -->
+                    <div class="tool-section">
+                        <div class="tool-header">
+                            IOC Tracker
+                            <span class="tool-header-badge ioc-found" id="ioc-badge">0 found</span>
+                        </div>
+                        <div class="tool-body">
+                            <div class="ioc-counter">
+                                <div class="ioc-counter-label">Indicators of Compromise</div>
+                                <div class="ioc-counter-value" id="ioc-count">0 / 5</div>
+                            </div>
+                            <div style="font-size:0.68rem; color:#5a3a6a; line-height:1.6; font-family:'Courier New',monospace;">
+                                Click suspicious events in the monitor to flag them as IOCs. Identify all 5 to unlock the report form.
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Analysis Report (locked until 5 IOCs found) -->
+                    <div class="tool-section" id="report-section" style="opacity:0.35; pointer-events:none;">
+                        <div class="tool-header">Analysis Report</div>
+                        <div class="tool-body">
+                            <div class="report-form">
+
+                                <div class="form-group">
+                                    <div class="form-label">Malware Type</div>
+                                    <select class="form-select" id="rpt-type">
+                                        <option value="">-- Select classification --</option>
+                                        <option value="rat">Remote Access Trojan (RAT)</option>
+                                        <option value="ransomware">Ransomware</option>
+                                        <option value="rootkit">Rootkit</option>
+                                        <option value="worm">Worm</option>
+                                        <option value="adware">Adware</option>
+                                    </select>
+                                </div>
+
+                                <div class="form-group">
+                                    <div class="form-label">C2 IP Address</div>
+                                    <input type="text" class="form-input" id="rpt-c2ip" placeholder="xxx.xxx.xxx.xx" autocomplete="off" spellcheck="false">
+                                </div>
+
+                                <div class="form-group">
+                                    <div class="form-label">C2 Port</div>
+                                    <input type="text" class="form-input" id="rpt-c2port" placeholder="####" autocomplete="off" spellcheck="false">
+                                </div>
+
+                                <div class="form-group">
+                                    <div class="form-label">Persistence Mechanism</div>
+                                    <select class="form-select" id="rpt-persist">
+                                        <option value="">-- Select mechanism --</option>
+                                        <option value="reg-run">Registry Run key</option>
+                                        <option value="schtask">Scheduled Task</option>
+                                        <option value="service">Windows Service</option>
+                                        <option value="startup">Startup Folder</option>
+                                        <option value="dll">DLL Hijacking</option>
+                                    </select>
+                                </div>
+
+                                <div class="form-group">
+                                    <div class="form-label">Primary Capabilities</div>
+                                    <select class="form-select" id="rpt-caps">
+                                        <option value="">-- Select capabilities --</option>
+                                        <option value="keylog-screenshot">Keylogging + Screenshots</option>
+                                        <option value="encrypt">File Encryption</option>
+                                        <option value="ddos">DDoS Bot</option>
+                                        <option value="spam">Spam Engine</option>
+                                        <option value="crypto">Cryptocurrency Miner</option>
+                                    </select>
+                                </div>
+
+                                <button class="submit-report-btn" id="submit-report-btn" onclick="submitReport()">
+                                    Submit Analysis Report
+                                </button>
+
+                                <div class="report-feedback" id="report-feedback"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+
+    </div><!-- end .lab-body -->
+
+    <!-- ============================================================
+         JAVASCRIPT
+    ============================================================ -->
+    <script>
+    /* ==============================================================
+       GAME STATE
+    ============================================================== */
+    const state = {
+        score: 100,
+        hintsUsed: 0,
+        objectives: [false, false, false, false, false, false, false, false],
+        executed: false,
+        iocFound: 0,
+        iocTotal: 5,
+        reportSubmitted: false,
+        activeTab: 'all'
+    };
+
+    /* ==============================================================
+       HINT DATA
+    ============================================================== */
+    const HINTS = [
+        {
+            title: 'Tip #1 — Execute the Sample',
+            text: 'Click the "Execute Sample" button in the toolbar to launch the malware in the sandbox. Watch the monitor for activity.'
+        },
+        {
+            title: 'Tip #2 — Process Spawning',
+            text: 'RATs commonly hide by spawning processes with names similar to legitimate Windows processes. Look for svchost with an unusual suffix.'
+        },
+        {
+            title: 'Tip #3 — C2 Connection',
+            text: 'The C2 IP will appear in the Network tab as an outbound TCP connection on port 4444, a common Metasploit/RAT default.'
+        },
+        {
+            title: 'Tip #4 — Dropped Files',
+            text: 'Look in the File tab for writes to %APPDATA%\\Microsoft\\ and System32. These are common RAT dropper locations.'
+        },
+        {
+            title: 'Tip #5 — Registry Persistence',
+            text: 'Check the Registry tab for modifications to HKCU\\...\\CurrentVersion\\Run — this is the classic auto-start persistence key.'
+        },
+        {
+            title: 'Tip #6 — C2 Domain',
+            text: 'DNS queries appear in the Network tab. The malware will resolve a domain before connecting to the IP.'
+        },
+        {
+            title: 'Tip #7 — Malware Classification',
+            text: 'A malware with remote control, keylogging, and screenshot capabilities, connecting to a C2 server, is a Remote Access Trojan (RAT).'
+        },
+        {
+            title: 'Tip #8 — Report Form',
+            text: 'C2 IP: 185.220.101.45, Port: 4444, Persistence: Registry Run key, Capabilities: Keylogging + Screenshots.'
+        }
+    ];
+
+    /* ==============================================================
+       SANDBOX EVENTS — the malware behavior timeline
+       ioc: true means the student can click this to flag as IOC
+       objId: which objective this event satisfies when flagged
+    ============================================================== */
+    const SANDBOX_EVENTS = [
+        { t:  0.2, tab: 'proc', tag: 'proc', cls: 'normal',     text: 'PID 4821  sample.exe                       [CREATED]  C:\\Users\\sandbox\\Desktop\\sample.exe',                    ioc: false },
+        { t:  0.5, tab: 'proc', tag: 'proc', cls: 'normal',     text: 'PID 4821  sample.exe                       [LOAD]     kernel32.dll, ntdll.dll, user32.dll',                       ioc: false },
+        { t:  0.8, tab: 'sys',  tag: 'sys',  cls: 'normal',     text: 'API      CreateProcessW                    sample.exe checking system uptime / sandbox artifacts',               ioc: false },
+        { t:  1.2, tab: 'proc', tag: 'proc', cls: 'suspicious', text: 'PID 4821  sample.exe → cmd.exe             [SPAWN]    cmd.exe /c "copy sample.exe %APPDATA%\\Microsoft\\svchost32.exe"',  ioc: true, objId: 1 },
+        { t:  1.8, tab: 'file', tag: 'file', cls: 'suspicious', text: 'WRITE    C:\\Users\\sandbox\\AppData\\Roaming\\Microsoft\\svchost32.exe  [345 KB]',                                ioc: true, objId: 3 },
+        { t:  2.1, tab: 'proc', tag: 'proc', cls: 'suspicious', text: 'PID 5102  svchost32.exe                    [CREATED]  C:\\Users\\sandbox\\AppData\\Roaming\\Microsoft\\svchost32.exe', ioc: false },
+        { t:  2.6, tab: 'net',  tag: 'net',  cls: 'suspicious', text: 'DNS      c2.darkoperator.xyz               → 185.220.101.45  [A record resolved]',                              ioc: true, objId: 5 },
+        { t:  3.0, tab: 'net',  tag: 'net',  cls: 'suspicious', text: 'TCP OUT  185.220.101.45:4444               [ESTABLISHED]  svchost32.exe  → REMOTE_C2',                           ioc: true, objId: 2 },
+        { t:  3.5, tab: 'net',  tag: 'net',  cls: 'suspicious', text: 'BEACON   185.220.101.45:4444               [KEEP-ALIVE] interval: 8s  — Meterpreter-like session',               ioc: false },
+        { t:  4.1, tab: 'file', tag: 'file', cls: 'suspicious', text: 'WRITE    C:\\Windows\\System32\\keylogger.dll  [128 KB]  (shadow drop via WriteFile API)',                       ioc: false },
+        { t:  4.8, tab: 'reg',  tag: 'reg',  cls: 'suspicious', text: 'REG SET  HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run  "WindowsUpdate" = "C:\\...\\svchost32.exe"',    ioc: true, objId: 4 },
+        { t:  5.3, tab: 'sys',  tag: 'sys',  cls: 'normal',     text: 'API      SetWindowsHookExW                 WH_KEYBOARD_LL  — keylogger hook installed',                         ioc: false },
+        { t:  5.8, tab: 'net',  tag: 'net',  cls: 'normal',     text: 'HTTP POST 185.220.101.45:4444              [EXFIL]  keylog_chunk_001.bin  (47 bytes)',                           ioc: false },
+        { t:  6.5, tab: 'sys',  tag: 'sys',  cls: 'normal',     text: 'API      BitBlt / GDI32                    screen capture triggered → frame_001.bmp',                           ioc: false },
+        { t:  7.0, tab: 'net',  tag: 'net',  cls: 'normal',     text: 'HTTP POST 185.220.101.45:4444              [EXFIL]  screenshot_001.bmp  (214 KB)',                               ioc: false },
+        { t:  7.8, tab: 'file', tag: 'file', cls: 'normal',     text: 'READ     C:\\Users\\sandbox\\Documents\\        [DIR ENUM]  listing all document files',                          ioc: false },
+        { t:  8.5, tab: 'reg',  tag: 'reg',  cls: 'normal',     text: 'REG READ HKLM\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion  [OS fingerprint]',                               ioc: false },
+        { t:  9.2, tab: 'net',  tag: 'net',  cls: 'normal',     text: 'HTTP POST 185.220.101.45:4444              [EXFIL]  sysinfo.json  host fingerprint (OS, IP, username)',          ioc: false },
+        { t: 10.0, tab: 'sys',  tag: 'sys',  cls: 'normal',     text: 'ANALYSIS COMPLETE — 10s behavioral window captured. 5 IOCs detected in event stream.',                          ioc: false }
+    ];
+
+    /* ==============================================================
+       DOM REFERENCES
+    ============================================================== */
+    const scoreEl    = document.getElementById('score-display');
+    const objCountEl = document.getElementById('obj-count');
+    const feedEl     = document.getElementById('monitor-feed');
+    const idleEl     = document.getElementById('monitor-idle');
+    const iocCountEl = document.getElementById('ioc-count');
+    const iocBadge   = document.getElementById('ioc-badge');
+
+    /* ==============================================================
+       OBJECTIVE MANAGEMENT
+    ============================================================== */
+    function completeObjective(idx) {
+        if (state.objectives[idx]) return;
+        state.objectives[idx] = true;
+
+        const item  = document.getElementById(`obj-${idx}`);
+        const check = document.getElementById(`check-${idx}`);
+        if (item)  item.classList.add('completed');
+        if (check) check.textContent = 'X';
+
+        const totalDone = state.objectives.filter(Boolean).length;
+        objCountEl.textContent = totalDone;
+
+        document.getElementById('obj-frac').textContent = `${totalDone}/8`;
+        document.getElementById('obj-bar').style.width  = `${(totalDone / 8) * 100}%`;
+
+        if (totalDone === 8) {
+            setTimeout(showSuccessBanner, 600);
+        }
+    }
+
+    /* ==============================================================
+       EXECUTE SAMPLE — launches the simulation timeline
+    ============================================================== */
+    function executeSample() {
+        if (state.executed) return;
+        state.executed = true;
+
+        // Mark obj 0 — executed the sample
+        completeObjective(0);
+
+        // Update UI
+        const btn = document.getElementById('execute-btn');
+        btn.disabled = true;
+        btn.textContent = 'Sample Executing...';
+
+        const dot  = document.getElementById('status-dot');
+        const text = document.getElementById('status-text');
+        dot.className  = 'status-dot running';
+        text.textContent = 'NovaCorp_Invoice.pdf.exe running...';
+
+        // Show feed, hide idle
+        idleEl.style.display = 'none';
+        feedEl.style.display  = 'flex';
+
+        // Schedule each event
+        SANDBOX_EVENTS.forEach((ev, idx) => {
+            setTimeout(() => {
+                addEventRow(ev, idx);
+
+                // Last event — mark done
+                if (idx === SANDBOX_EVENTS.length - 1) {
+                    dot.className  = 'status-dot done';
+                    text.textContent = 'Analysis complete — 5 IOCs detected';
+                    btn.textContent = 'Execution Complete';
+                }
+            }, ev.t * 1000);
+        });
+    }
+
+    /**
+     * Creates and appends an event row to the monitor feed.
+     * IOC rows are clickable.
+     */
+    function addEventRow(ev, idx) {
+        const row = document.createElement('div');
+        row.className = `event-row${ev.ioc ? ' ioc' : ''}`;
+        row.dataset.tab = ev.tab;
+        row.dataset.idx = idx;
+
+        // Apply tab filter visibility
+        if (state.activeTab !== 'all' && ev.tab !== state.activeTab) {
+            row.style.display = 'none';
+        }
+
+        const timeStr = `T+${ev.t.toFixed(1)}s`;
+
+        row.innerHTML = `
+            <span class="event-time">${timeStr}</span>
+            <span class="event-tag ${ev.tag}">${ev.tag.toUpperCase()}</span>
+            <div class="event-body">
+                <div class="event-text ${ev.cls}">${escapeHtml(ev.text)}</div>
+                ${ev.ioc ? '<div class="click-hint">Click to flag as IOC</div><div class="ioc-badge">IOC IDENTIFIED</div>' : ''}
+            </div>
+        `;
+
+        if (ev.ioc) {
+            row.addEventListener('click', () => flagIoc(row, ev));
+        }
+
+        feedEl.appendChild(row);
+        feedEl.scrollTop = feedEl.scrollHeight;
+    }
+
+    /**
+     * Flags an event row as an identified IOC.
+     * Updates the counter and completes relevant objective.
+     */
+    function flagIoc(rowEl, ev) {
+        if (rowEl.classList.contains('identified')) return;
+
+        rowEl.classList.add('identified');
+        state.iocFound++;
+
+        iocCountEl.textContent = `${state.iocFound} / ${state.iocTotal}`;
+        iocBadge.textContent   = `${state.iocFound} found`;
+
+        // Complete the objective tied to this event
+        if (ev.objId !== undefined) {
+            completeObjective(ev.objId);
+        }
+
+        // Unlock report form when all IOCs found
+        if (state.iocFound >= state.iocTotal) {
+            unlockReportForm();
+        }
+    }
+
+    /**
+     * Enables the analysis report form when all IOCs are identified.
+     */
+    function unlockReportForm() {
+        const section = document.getElementById('report-section');
+        section.style.opacity       = '1';
+        section.style.pointerEvents = 'auto';
+        section.style.transition    = 'opacity 0.5s ease';
+    }
+
+    /* ==============================================================
+       MONITOR TAB SWITCHING — filters visible event rows
+    ============================================================== */
+    function switchMonitorTab(tab, tabEl) {
+        state.activeTab = tab;
+
+        // Update tab active state
+        document.querySelectorAll('.monitor-tab').forEach(t => t.classList.remove('active'));
+        tabEl.classList.add('active');
+
+        // Show/hide rows based on tab
+        document.querySelectorAll('.event-row').forEach(row => {
+            if (tab === 'all' || row.dataset.tab === tab) {
+                row.style.display = 'flex';
+            } else {
+                row.style.display = 'none';
+            }
+        });
+    }
+
+    /* ==============================================================
+       REPORT SUBMISSION
+    ============================================================== */
+    function submitReport() {
+        const type    = document.getElementById('rpt-type').value;
+        const c2ip    = document.getElementById('rpt-c2ip').value.trim();
+        const c2port  = document.getElementById('rpt-c2port').value.trim();
+        const persist = document.getElementById('rpt-persist').value;
+        const caps    = document.getElementById('rpt-caps').value;
+
+        const feedback = document.getElementById('report-feedback');
+
+        // Validate all fields filled
+        if (!type || !c2ip || !c2port || !persist || !caps) {
+            showFeedback('All report fields are required before submission.', 'error');
+            return;
+        }
+
+        let errors = [];
+
+        // Check each answer
+        const typeEl    = document.getElementById('rpt-type');
+        const c2ipEl    = document.getElementById('rpt-c2ip');
+        const c2portEl  = document.getElementById('rpt-c2port');
+        const persistEl = document.getElementById('rpt-persist');
+        const capsEl    = document.getElementById('rpt-caps');
+
+        if (type !== 'rat') {
+            errors.push('Malware type incorrect — review the C2 connection and capabilities.');
+            typeEl.classList.add('incorrect'); typeEl.classList.remove('correct');
+        } else {
+            typeEl.classList.add('correct'); typeEl.classList.remove('incorrect');
+        }
+
+        if (c2ip !== '185.220.101.45') {
+            errors.push('C2 IP incorrect — check the Network tab for outbound TCP connections.');
+            c2ipEl.classList.add('incorrect'); c2ipEl.classList.remove('correct');
+        } else {
+            c2ipEl.classList.add('correct'); c2ipEl.classList.remove('incorrect');
+        }
+
+        if (c2port !== '4444') {
+            errors.push('C2 port incorrect — look at the established TCP connection port.');
+            c2portEl.classList.add('incorrect'); c2portEl.classList.remove('correct');
+        } else {
+            c2portEl.classList.add('correct'); c2portEl.classList.remove('incorrect');
+        }
+
+        if (persist !== 'reg-run') {
+            errors.push('Persistence mechanism incorrect — check the Registry tab events.');
+            persistEl.classList.add('incorrect'); persistEl.classList.remove('correct');
+        } else {
+            persistEl.classList.add('correct'); persistEl.classList.remove('incorrect');
+        }
+
+        if (caps !== 'keylog-screenshot') {
+            errors.push('Capabilities incorrect — this RAT uses keylogging and screen capture.');
+            capsEl.classList.add('incorrect'); capsEl.classList.remove('correct');
+        } else {
+            capsEl.classList.add('correct'); capsEl.classList.remove('incorrect');
+        }
+
+        if (errors.length > 0) {
+            // Deduct 5 pts per wrong field
+            const penalty = errors.length * 5;
+            state.score = Math.max(0, state.score - penalty);
+            updateScore();
+            showFeedback(`${errors.length} field(s) incorrect (-${penalty} pts):\n${errors.join('\n')}`, 'error');
+            return;
+        }
+
+        // All correct — complete objectives 6 and 7
+        completeObjective(6); // classify malware
+        completeObjective(7); // complete report
+
+        document.getElementById('submit-report-btn').disabled = true;
+        showFeedback('Report accepted. Classification confirmed: Remote Access Trojan (RAT) with keylogging, screenshot, and C2 exfil capabilities. Persistence via HKCU Run key.', 'success');
+    }
+
+    function showFeedback(msg, type) {
+        const el = document.getElementById('report-feedback');
+        el.textContent = msg;
+        el.className   = `report-feedback visible ${type}`;
+    }
+
+    /* ==============================================================
+       HINTS
+    ============================================================== */
+    function showHint() {
+        if (state.hintsUsed >= HINTS.length) return;
+
+        const hint = HINTS[state.hintsUsed];
+        state.hintsUsed++;
+
+        state.score = Math.max(0, state.score - 5);
+        updateScore();
+
+        const display = document.getElementById('hint-display');
+        display.innerHTML = `<strong style="color:#a855f7;font-size:0.7rem;letter-spacing:0.1em">${hint.title}</strong><br>${hint.text}`;
+        display.classList.add('visible');
+
+        const remaining = HINTS.length - state.hintsUsed;
+        document.getElementById('hint-cost-label').textContent =
+            remaining > 0 ? `-5 points per hint · ${remaining} remaining` : 'All hints used';
+
+        if (state.hintsUsed >= HINTS.length) {
+            document.getElementById('hint-btn').disabled = true;
+        }
+    }
+
+    function updateScore() {
+        scoreEl.textContent = state.score;
+        scoreEl.classList.add('deducted');
+        setTimeout(() => scoreEl.classList.remove('deducted'), 600);
+    }
+
+    /* ==============================================================
+       SUCCESS BANNER + COMPLETION
+    ============================================================== */
+    function showSuccessBanner() {
+        document.getElementById('final-score').textContent = state.score;
+        const banner = document.getElementById('success-banner');
+        banner.classList.add('visible');
+        banner.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+
+    function completeLab() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('dark-arts', 'ehe-lab-trojan-analysis', { returnUrl: '../index.html' });
+        } else {
+            window.location.href = '../index.html';
+        }
+    }
+
+    /* ==============================================================
+       COLLAPSIBLE PANELS
+    ============================================================== */
+    function togglePanel(panelId, headerEl) {
+        const panel  = document.getElementById(panelId);
+        const toggle = headerEl.querySelector('.panel-toggle');
+        const isOpen = !panel.classList.contains('collapsed');
+
+        if (isOpen) {
+            panel.classList.add('collapsed');
+            toggle.classList.remove('open');
+        } else {
+            panel.classList.remove('collapsed');
+            toggle.classList.add('open');
+        }
+    }
+
+    /* ==============================================================
+       UTILITY
+    ============================================================== */
+    function escapeHtml(str) {
+        const d = document.createElement('div');
+        d.appendChild(document.createTextNode(str));
+        return d.innerHTML;
+    }
+    </script>
+
+</body>
+</html>

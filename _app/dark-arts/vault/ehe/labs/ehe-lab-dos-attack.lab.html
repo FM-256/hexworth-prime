@@ -1,0 +1,1710 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('dark-arts');</script>
+    <!-- Progress & Achievements -->
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lab: DoS Detection &amp; Mitigation — EHE | The Vault</title>
+    <style>
+        /* ============================================================
+           RESET & BASE
+        ============================================================ */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            min-height: 100vh;
+            background: #0a0508;
+            font-family: 'Georgia', 'Times New Roman', serif;
+            color: #8a6a9a;
+            overflow-x: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background:
+                radial-gradient(ellipse at 20% 15%, rgba(80, 40, 100, 0.10) 0%, transparent 55%),
+                radial-gradient(ellipse at 80% 85%, rgba(60, 20, 80, 0.07) 0%, transparent 50%);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        /* ============================================================
+           HEADER
+        ============================================================ */
+        .lab-header {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            background: rgba(10, 5, 15, 0.97);
+            border-bottom: 1px solid rgba(100, 60, 130, 0.22);
+            backdrop-filter: blur(14px);
+            padding: 14px 32px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .header-left { display: flex; align-items: center; gap: 18px; min-width: 0; }
+
+        .back-btn {
+            color: #6a4a7a;
+            text-decoration: none;
+            font-size: 0.76rem;
+            letter-spacing: 0.1em;
+            padding: 6px 14px;
+            border: 1px solid rgba(100, 60, 130, 0.2);
+            border-radius: 4px;
+            transition: all 0.25s;
+            font-family: 'Georgia', serif;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+        .back-btn:hover { color: #a855f7; border-color: rgba(147,51,234,0.45); background: rgba(147,51,234,0.06); }
+
+        .header-title-group { min-width: 0; }
+
+        .header-label {
+            font-size: 0.62rem;
+            letter-spacing: 0.22em;
+            color: #5a3a6a;
+            text-transform: uppercase;
+            margin-bottom: 2px;
+        }
+
+        .header-title {
+            font-size: 0.95rem;
+            color: #c09ad0;
+            letter-spacing: 0.04em;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .header-right { display: flex; align-items: center; gap: 20px; flex-shrink: 0; }
+
+        .score-display {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.72rem;
+            letter-spacing: 0.1em;
+            color: #6a4a7a;
+        }
+
+        .score-value {
+            font-size: 1.1rem;
+            color: #a855f7;
+            font-family: 'Courier New', monospace;
+            font-weight: bold;
+            min-width: 40px;
+            text-align: right;
+            transition: color 0.3s;
+        }
+
+        .score-value.deducted {
+            color: #ef4444;
+            animation: score-flash 0.5s ease;
+        }
+
+        @keyframes score-flash {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.15); }
+        }
+
+        .obj-progress-pill {
+            font-size: 0.7rem;
+            letter-spacing: 0.08em;
+            color: #6a4a7a;
+            padding: 5px 12px;
+            border: 1px solid rgba(100, 60, 130, 0.2);
+            border-radius: 20px;
+            font-family: 'Courier New', monospace;
+        }
+
+        .obj-progress-pill .obj-count { color: #a855f7; font-weight: bold; }
+
+        /* ============================================================
+           WARNING BANNER
+        ============================================================ */
+        .warning-banner {
+            background: rgba(239, 68, 68, 0.05);
+            border: 1px solid rgba(239, 68, 68, 0.30);
+            border-left: 3px solid #ef4444;
+            margin: 20px 24px 0;
+            padding: 12px 18px;
+            border-radius: 4px;
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            position: relative;
+            z-index: 10;
+        }
+
+        .warning-icon {
+            color: #ef4444;
+            font-size: 0.8rem;
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            white-space: nowrap;
+            margin-top: 1px;
+            font-family: 'Courier New', monospace;
+            flex-shrink: 0;
+        }
+
+        .warning-text {
+            font-size: 0.76rem;
+            color: rgba(239, 68, 68, 0.75);
+            line-height: 1.6;
+        }
+
+        /* ============================================================
+           SUCCESS BANNER
+        ============================================================ */
+        .success-banner {
+            display: none;
+            margin: 16px 24px 0;
+            padding: 20px 24px;
+            background: rgba(34, 197, 94, 0.06);
+            border: 1px solid rgba(34, 197, 94, 0.30);
+            border-left: 3px solid #22c55e;
+            border-radius: 6px;
+            position: relative;
+            z-index: 10;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .success-banner.visible { display: flex; animation: slide-in 0.5s ease; }
+
+        @keyframes slide-in {
+            from { opacity: 0; transform: translateY(-10px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+
+        .success-text-group { flex: 1; }
+
+        .success-title {
+            font-size: 0.85rem;
+            color: #22c55e;
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            margin-bottom: 4px;
+        }
+
+        .success-sub { font-size: 0.74rem; color: #5a8a6a; line-height: 1.5; }
+
+        .complete-lab-btn {
+            padding: 11px 24px;
+            background: rgba(34, 197, 94, 0.12);
+            border: 1px solid rgba(34, 197, 94, 0.35);
+            border-radius: 4px;
+            color: #22c55e;
+            font-family: 'Georgia', serif;
+            font-size: 0.78rem;
+            letter-spacing: 0.12em;
+            cursor: pointer;
+            transition: all 0.25s;
+            white-space: nowrap;
+        }
+
+        .complete-lab-btn:hover { background: rgba(34,197,94,0.20); border-color: rgba(34,197,94,0.55); }
+
+        /* ============================================================
+           MAIN LAYOUT
+        ============================================================ */
+        .lab-body {
+            flex: 1;
+            display: flex;
+            gap: 0;
+            padding: 20px 24px 24px;
+            position: relative;
+            z-index: 10;
+        }
+
+        /* ============================================================
+           SIDEBAR
+        ============================================================ */
+        .sidebar {
+            width: 260px;
+            flex-shrink: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+            margin-right: 18px;
+        }
+
+        .sidebar-panel {
+            background: rgba(15, 8, 20, 0.80);
+            border: 1px solid rgba(100, 60, 130, 0.18);
+            border-radius: 6px;
+            overflow: hidden;
+        }
+
+        .panel-header {
+            padding: 11px 16px;
+            background: rgba(80, 40, 100, 0.12);
+            border-bottom: 1px solid rgba(100, 60, 130, 0.15);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .panel-header-title {
+            font-size: 0.65rem;
+            letter-spacing: 0.2em;
+            text-transform: uppercase;
+            color: #7a5a8a;
+        }
+
+        .panel-toggle {
+            font-size: 0.65rem;
+            color: #5a3a6a;
+            transition: transform 0.25s;
+            font-family: 'Courier New', monospace;
+        }
+
+        .panel-toggle.open { transform: rotate(180deg); }
+
+        .panel-body {
+            padding: 14px;
+            transition: all 0.3s ease;
+            overflow: hidden;
+        }
+
+        .panel-body.collapsed { padding-top: 0; padding-bottom: 0; max-height: 0; }
+
+        .objectives-list { display: flex; flex-direction: column; gap: 7px; }
+
+        .objective-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            padding: 7px 10px;
+            border-radius: 4px;
+            border: 1px solid rgba(100, 60, 130, 0.10);
+            transition: all 0.3s;
+            background: rgba(10, 5, 15, 0.4);
+        }
+
+        .objective-item.completed {
+            border-color: rgba(34, 197, 94, 0.25);
+            background: rgba(34, 197, 94, 0.04);
+        }
+
+        .obj-checkbox {
+            width: 14px;
+            height: 14px;
+            border: 1px solid rgba(100, 60, 130, 0.35);
+            border-radius: 2px;
+            flex-shrink: 0;
+            margin-top: 2px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Courier New', monospace;
+            font-size: 0.55rem;
+            color: transparent;
+            transition: all 0.3s;
+        }
+
+        .objective-item.completed .obj-checkbox {
+            background: rgba(34, 197, 94, 0.15);
+            border-color: #22c55e;
+            color: #22c55e;
+        }
+
+        .obj-label { font-size: 0.7rem; color: #5a3a6a; line-height: 1.5; transition: color 0.3s; }
+        .objective-item.completed .obj-label { color: #22c55e; }
+
+        .phase-progress { margin-top: 4px; }
+
+        .phase-progress-label {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.62rem;
+            color: #5a3a6a;
+            letter-spacing: 0.08em;
+            margin-bottom: 5px;
+        }
+
+        .phase-progress-bar {
+            height: 3px;
+            background: rgba(100, 60, 130, 0.15);
+            border-radius: 2px;
+            overflow: hidden;
+        }
+
+        .phase-progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #6a4a8a, #9333ea);
+            border-radius: 2px;
+            transition: width 0.5s ease;
+        }
+
+        .hint-btn {
+            width: 100%;
+            padding: 9px 16px;
+            background: rgba(147, 51, 234, 0.08);
+            border: 1px solid rgba(147, 51, 234, 0.22);
+            border-radius: 4px;
+            color: #a855f7;
+            font-family: 'Georgia', serif;
+            font-size: 0.72rem;
+            letter-spacing: 0.1em;
+            cursor: pointer;
+            transition: all 0.25s;
+            text-align: center;
+            margin-bottom: 8px;
+        }
+
+        .hint-btn:hover { background: rgba(147,51,234,0.14); border-color: rgba(168,85,247,0.4); }
+        .hint-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+        .hint-cost { font-size: 0.62rem; color: #5a3a6a; text-align: center; letter-spacing: 0.05em; }
+
+        .hint-content {
+            margin-top: 10px;
+            padding: 10px 12px;
+            background: rgba(147, 51, 234, 0.06);
+            border: 1px solid rgba(147, 51, 234, 0.15);
+            border-radius: 4px;
+            font-size: 0.72rem;
+            color: #8a6a9a;
+            line-height: 1.6;
+            display: none;
+        }
+
+        .hint-content.visible { display: block; }
+
+        /* Wave progress in sidebar */
+        .wave-list { display: flex; flex-direction: column; gap: 6px; }
+
+        .wave-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 6px 10px;
+            border-radius: 4px;
+            border: 1px solid rgba(100, 60, 130, 0.10);
+            background: rgba(10, 5, 15, 0.4);
+            font-size: 0.68rem;
+            font-family: 'Courier New', monospace;
+            transition: all 0.3s;
+        }
+
+        .wave-item.active {
+            border-color: rgba(239, 68, 68, 0.35);
+            background: rgba(239, 68, 68, 0.05);
+        }
+
+        .wave-item.mitigated {
+            border-color: rgba(34, 197, 94, 0.28);
+            background: rgba(34, 197, 94, 0.04);
+            color: #22c55e;
+        }
+
+        .wave-dot {
+            width: 7px; height: 7px;
+            border-radius: 50%;
+            background: rgba(100, 60, 130, 0.3);
+            flex-shrink: 0;
+            transition: all 0.4s;
+        }
+
+        .wave-item.active    .wave-dot { background: #ef4444; box-shadow: 0 0 5px rgba(239,68,68,0.6); animation: pulse-red 1s infinite; }
+        .wave-item.mitigated .wave-dot { background: #22c55e; box-shadow: 0 0 5px rgba(34,197,94,0.4); }
+
+        @keyframes pulse-red { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+        /* ============================================================
+           SOC DASHBOARD (main area)
+        ============================================================ */
+        .soc-wrapper {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            min-width: 0;
+            gap: 14px;
+        }
+
+        /* Top metrics row */
+        .metrics-row {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+        }
+
+        .metric-card {
+            background: rgba(12, 6, 18, 0.92);
+            border: 1px solid rgba(100, 60, 130, 0.18);
+            border-radius: 6px;
+            padding: 14px 16px;
+            position: relative;
+            overflow: hidden;
+            transition: border-color 0.4s;
+        }
+
+        .metric-card.alert { border-color: rgba(239, 68, 68, 0.5); }
+        .metric-card.normal { border-color: rgba(34, 197, 94, 0.35); }
+
+        .metric-card::before {
+            content: '';
+            position: absolute;
+            bottom: 0; left: 0; right: 0;
+            height: 2px;
+            background: linear-gradient(90deg, rgba(147,51,234,0.3), rgba(147,51,234,0.05));
+        }
+
+        .metric-card.alert::before   { background: linear-gradient(90deg, #ef4444, rgba(239,68,68,0.1)); }
+        .metric-card.normal::before  { background: linear-gradient(90deg, #22c55e, rgba(34,197,94,0.1)); }
+
+        .metric-label {
+            font-size: 0.6rem;
+            letter-spacing: 0.18em;
+            text-transform: uppercase;
+            color: #5a3a6a;
+            margin-bottom: 6px;
+        }
+
+        .metric-value {
+            font-size: 1.5rem;
+            color: #c09ad0;
+            font-family: 'Courier New', monospace;
+            font-weight: bold;
+            line-height: 1;
+            transition: color 0.3s;
+        }
+
+        .metric-value.alert-val { color: #ef4444; }
+        .metric-value.normal-val { color: #22c55e; }
+
+        .metric-unit {
+            font-size: 0.62rem;
+            color: #5a3a6a;
+            margin-top: 4px;
+            letter-spacing: 0.06em;
+        }
+
+        /* Center row: graph + alert feed */
+        .center-row {
+            display: flex;
+            gap: 14px;
+            flex: 1;
+            min-height: 0;
+        }
+
+        /* Traffic graph */
+        .graph-section {
+            flex: 1;
+            background: rgba(8, 4, 12, 0.93);
+            border: 1px solid rgba(100, 60, 130, 0.18);
+            border-radius: 6px;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .graph-header {
+            padding: 10px 16px;
+            background: rgba(20, 10, 30, 0.85);
+            border-bottom: 1px solid rgba(100, 60, 130, 0.15);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .graph-title {
+            font-size: 0.64rem;
+            letter-spacing: 0.18em;
+            text-transform: uppercase;
+            color: #6a4a7a;
+        }
+
+        .graph-legend {
+            display: flex;
+            gap: 14px;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 0.6rem;
+            color: #5a3a6a;
+            font-family: 'Courier New', monospace;
+        }
+
+        .legend-dot {
+            width: 8px; height: 8px;
+            border-radius: 50%;
+        }
+
+        .canvas-wrap {
+            flex: 1;
+            padding: 12px;
+            position: relative;
+        }
+
+        #traffic-canvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+
+        /* Alert feed */
+        .alert-feed-section {
+            width: 260px;
+            flex-shrink: 0;
+            background: rgba(8, 4, 12, 0.93);
+            border: 1px solid rgba(100, 60, 130, 0.18);
+            border-radius: 6px;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .alert-feed-header {
+            padding: 10px 14px;
+            background: rgba(20, 10, 30, 0.85);
+            border-bottom: 1px solid rgba(100, 60, 130, 0.15);
+            font-size: 0.64rem;
+            letter-spacing: 0.18em;
+            text-transform: uppercase;
+            color: #6a4a7a;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .alert-blink {
+            width: 6px; height: 6px;
+            border-radius: 50%;
+            background: #ef4444;
+            animation: pulse-red 1s infinite;
+            display: none;
+        }
+
+        .alert-blink.active { display: block; }
+
+        .alert-feed {
+            flex: 1;
+            overflow-y: auto;
+            padding: 10px 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            font-family: 'Courier New', monospace;
+        }
+
+        .alert-feed::-webkit-scrollbar { width: 3px; }
+        .alert-feed::-webkit-scrollbar-thumb { background: rgba(100,60,130,0.3); border-radius: 2px; }
+
+        .alert-entry {
+            padding: 6px 10px;
+            border-radius: 3px;
+            border-left: 2px solid rgba(100, 60, 130, 0.3);
+            background: rgba(15, 8, 20, 0.6);
+            font-size: 0.65rem;
+            line-height: 1.5;
+            animation: fade-in 0.3s ease;
+        }
+
+        @keyframes fade-in { from { opacity: 0; transform: translateX(8px); } to { opacity: 1; transform: translateX(0); } }
+
+        .alert-entry.high   { border-left-color: #ef4444; }
+        .alert-entry.medium { border-left-color: #f59e0b; }
+        .alert-entry.low    { border-left-color: #60a5fa; }
+        .alert-entry.ok     { border-left-color: #22c55e; }
+
+        .alert-time  { color: #4a2a5a; font-size: 0.6rem; }
+        .alert-text  { color: #8a6a9a; margin-top: 2px; }
+        .alert-text.danger { color: #f87171; }
+        .alert-text.ok     { color: #4ade80; }
+
+        /* Bottom row: wave ID + mitigation panel */
+        .bottom-row {
+            display: flex;
+            gap: 14px;
+        }
+
+        /* Wave status panel */
+        .wave-status-panel {
+            flex: 1;
+            background: rgba(12, 6, 18, 0.92);
+            border: 1px solid rgba(100, 60, 130, 0.18);
+            border-radius: 6px;
+            padding: 16px;
+        }
+
+        .wave-status-header {
+            font-size: 0.62rem;
+            letter-spacing: 0.18em;
+            text-transform: uppercase;
+            color: #5a3a6a;
+            margin-bottom: 12px;
+        }
+
+        .wave-title {
+            font-size: 0.95rem;
+            color: #c09ad0;
+            margin-bottom: 6px;
+            font-family: 'Courier New', monospace;
+            letter-spacing: 0.04em;
+        }
+
+        .wave-desc {
+            font-size: 0.72rem;
+            color: #6a4a7a;
+            line-height: 1.6;
+        }
+
+        .wave-mitigated-banner {
+            display: none;
+            margin-top: 10px;
+            padding: 8px 12px;
+            background: rgba(34, 197, 94, 0.06);
+            border: 1px solid rgba(34, 197, 94, 0.28);
+            border-radius: 4px;
+            font-size: 0.72rem;
+            color: #22c55e;
+            font-family: 'Courier New', monospace;
+            letter-spacing: 0.06em;
+        }
+
+        .wave-mitigated-banner.visible { display: block; }
+
+        /* Mitigation panel */
+        .mitigation-panel {
+            width: 340px;
+            flex-shrink: 0;
+            background: rgba(12, 6, 18, 0.92);
+            border: 1px solid rgba(100, 60, 130, 0.18);
+            border-radius: 6px;
+            padding: 16px;
+        }
+
+        .mitigation-header {
+            font-size: 0.62rem;
+            letter-spacing: 0.18em;
+            text-transform: uppercase;
+            color: #5a3a6a;
+            margin-bottom: 12px;
+        }
+
+        .mitigation-form {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .form-label {
+            font-size: 0.62rem;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            color: #6a4a7a;
+        }
+
+        .form-select {
+            background: rgba(8, 4, 12, 0.8);
+            border: 1px solid rgba(100, 60, 130, 0.22);
+            border-radius: 4px;
+            color: #c09ad0;
+            font-family: 'Courier New', monospace;
+            font-size: 0.74rem;
+            padding: 7px 10px;
+            outline: none;
+            transition: border-color 0.2s;
+            width: 100%;
+        }
+
+        .form-select:focus { border-color: rgba(147,51,234,0.45); }
+        .form-select option { background: #0a0508; }
+        .form-select.correct   { border-color: rgba(34,197,94,0.45); color: #22c55e; }
+        .form-select.incorrect { border-color: rgba(239,68,68,0.45); color: #ef4444; }
+
+        .apply-btn {
+            padding: 10px 20px;
+            background: rgba(239, 68, 68, 0.10);
+            border: 1px solid rgba(239, 68, 68, 0.32);
+            border-radius: 4px;
+            color: #ef4444;
+            font-family: 'Georgia', serif;
+            font-size: 0.75rem;
+            letter-spacing: 0.12em;
+            cursor: pointer;
+            transition: all 0.25s;
+        }
+
+        .apply-btn:hover  { background: rgba(239,68,68,0.18); border-color: rgba(239,68,68,0.5); }
+        .apply-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+        .apply-btn.mitigated {
+            background: rgba(34,197,94,0.10);
+            border-color: rgba(34,197,94,0.35);
+            color: #22c55e;
+        }
+
+        .mitigation-feedback {
+            margin-top: 8px;
+            font-size: 0.7rem;
+            line-height: 1.5;
+            padding: 8px 10px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            display: none;
+        }
+
+        .mitigation-feedback.visible { display: block; }
+        .mitigation-feedback.success { color: #22c55e; background: rgba(34,197,94,0.06); border: 1px solid rgba(34,197,94,0.2); }
+        .mitigation-feedback.error   { color: #f87171; background: rgba(239,68,68,0.06); border: 1px solid rgba(239,68,68,0.2); }
+
+        /* Next wave button */
+        .next-wave-btn {
+            display: none;
+            margin-top: 10px;
+            width: 100%;
+            padding: 9px 18px;
+            background: rgba(147,51,234,0.10);
+            border: 1px solid rgba(147,51,234,0.30);
+            border-radius: 4px;
+            color: #a855f7;
+            font-family: 'Georgia', serif;
+            font-size: 0.74rem;
+            letter-spacing: 0.1em;
+            cursor: pointer;
+            transition: all 0.25s;
+        }
+
+        .next-wave-btn:hover { background: rgba(147,51,234,0.18); border-color: rgba(168,85,247,0.5); }
+        .next-wave-btn.visible { display: block; }
+
+        /* ============================================================
+           RESPONSIVE
+        ============================================================ */
+        @media (max-width: 1100px) {
+            .metrics-row { grid-template-columns: repeat(2, 1fr); }
+            .alert-feed-section { width: 220px; }
+            .mitigation-panel { width: 280px; }
+        }
+
+        @media (max-width: 900px) {
+            .lab-body { flex-direction: column; padding: 14px; }
+            .sidebar { width: 100%; margin-right: 0; margin-bottom: 14px; }
+            .center-row { flex-direction: column; }
+            .alert-feed-section { width: 100%; min-height: 150px; }
+            .bottom-row { flex-direction: column; }
+            .mitigation-panel { width: 100%; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- ============================================================
+         STICKY HEADER
+    ============================================================ -->
+    <header class="lab-header">
+        <div class="header-left">
+            <a href="../index.html" class="back-btn">&#8592; EHE</a>
+            <div class="header-title-group">
+                <div class="header-label">Lab Exercise</div>
+                <div class="header-title">DoS Detection &amp; Mitigation: SOC Dashboard</div>
+            </div>
+        </div>
+        <div class="header-right">
+            <div class="score-display">
+                <span>SCORE</span>
+                <span class="score-value" id="score-display">100</span>
+            </div>
+            <div class="obj-progress-pill">
+                <span class="obj-count" id="obj-count">0</span>
+                <span>/8 objectives</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- ============================================================
+         ETHICAL WARNING BANNER
+    ============================================================ -->
+    <div class="warning-banner">
+        <div class="warning-icon">! WARNING</div>
+        <div class="warning-text">
+            This lab is a <strong>simulated SOC environment</strong>. All traffic data, IP addresses, and attack scenarios are fictional.
+            Do not apply these techniques against real networks. Launching DoS/DDoS attacks is a federal crime under
+            the CFAA and equivalent statutes. This simulation is for defensive education only.
+        </div>
+    </div>
+
+    <!-- ============================================================
+         SUCCESS BANNER
+    ============================================================ -->
+    <div class="success-banner" id="success-banner">
+        <div class="success-text-group">
+            <div class="success-title">All Waves Mitigated</div>
+            <div class="success-sub">All 8 objectives completed. Final score: <span id="final-score">100</span> pts.</div>
+        </div>
+        <button class="complete-lab-btn" onclick="completeLab()">Complete Lab</button>
+    </div>
+
+    <!-- ============================================================
+         MAIN LAB BODY
+    ============================================================ -->
+    <div class="lab-body">
+
+        <!-- SIDEBAR -->
+        <aside class="sidebar">
+
+            <!-- Objectives -->
+            <div class="sidebar-panel">
+                <div class="panel-header" onclick="togglePanel('obj-panel', this)">
+                    <span class="panel-header-title">Objectives</span>
+                    <span class="panel-toggle open">&#9650;</span>
+                </div>
+                <div class="panel-body" id="obj-panel">
+                    <div class="objectives-list">
+                        <div class="objective-item" id="obj-0">
+                            <div class="obj-checkbox" id="check-0"></div>
+                            <div class="obj-label">Identify the SYN flood attack</div>
+                        </div>
+                        <div class="objective-item" id="obj-1">
+                            <div class="obj-checkbox" id="check-1"></div>
+                            <div class="obj-label">Mitigate the SYN flood</div>
+                        </div>
+                        <div class="objective-item" id="obj-2">
+                            <div class="obj-checkbox" id="check-2"></div>
+                            <div class="obj-label">Identify the UDP flood attack</div>
+                        </div>
+                        <div class="objective-item" id="obj-3">
+                            <div class="obj-checkbox" id="check-3"></div>
+                            <div class="obj-label">Mitigate the UDP flood</div>
+                        </div>
+                        <div class="objective-item" id="obj-4">
+                            <div class="obj-checkbox" id="check-4"></div>
+                            <div class="obj-label">Identify the HTTP flood (Layer 7) attack</div>
+                        </div>
+                        <div class="objective-item" id="obj-5">
+                            <div class="obj-checkbox" id="check-5"></div>
+                            <div class="obj-label">Mitigate the HTTP flood</div>
+                        </div>
+                        <div class="objective-item" id="obj-6">
+                            <div class="obj-checkbox" id="check-6"></div>
+                            <div class="obj-label">Identify the Smurf attack</div>
+                        </div>
+                        <div class="objective-item" id="obj-7">
+                            <div class="obj-checkbox" id="check-7"></div>
+                            <div class="obj-label">Successfully mitigate all 5 attack waves</div>
+                        </div>
+                    </div>
+                    <div class="phase-progress" style="margin-top:12px;">
+                        <div class="phase-progress-label">
+                            <span>Progress</span>
+                            <span id="obj-frac">0/8</span>
+                        </div>
+                        <div class="phase-progress-bar">
+                            <div class="phase-progress-fill" id="obj-bar" style="width:0%"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Wave Progress -->
+            <div class="sidebar-panel">
+                <div class="panel-header" onclick="togglePanel('wave-panel', this)">
+                    <span class="panel-header-title">Attack Waves</span>
+                    <span class="panel-toggle open">&#9650;</span>
+                </div>
+                <div class="panel-body" id="wave-panel">
+                    <div class="wave-list" id="wave-list"></div>
+                </div>
+            </div>
+
+            <!-- Hints -->
+            <div class="sidebar-panel">
+                <div class="panel-header" onclick="togglePanel('hint-panel', this)">
+                    <span class="panel-header-title">Hints</span>
+                    <span class="panel-toggle open">&#9650;</span>
+                </div>
+                <div class="panel-body" id="hint-panel">
+                    <button class="hint-btn" id="hint-btn" onclick="showHint()">Reveal Next Hint</button>
+                    <div class="hint-cost" id="hint-cost-label">-5 points per hint &middot; 8 available</div>
+                    <div class="hint-content" id="hint-display"></div>
+                </div>
+            </div>
+
+        </aside>
+
+        <!-- SOC DASHBOARD -->
+        <div class="soc-wrapper">
+
+            <!-- Metrics Row -->
+            <div class="metrics-row">
+                <div class="metric-card" id="metric-rps">
+                    <div class="metric-label">Requests / sec</div>
+                    <div class="metric-value" id="val-rps">842</div>
+                    <div class="metric-unit">req/s (normal: ~800)</div>
+                </div>
+                <div class="metric-card" id="metric-bw">
+                    <div class="metric-label">Bandwidth</div>
+                    <div class="metric-value" id="val-bw">98</div>
+                    <div class="metric-unit">Mbps (normal: 100)</div>
+                </div>
+                <div class="metric-card" id="metric-conns">
+                    <div class="metric-label">Active Connections</div>
+                    <div class="metric-value" id="val-conns">312</div>
+                    <div class="metric-unit">sessions</div>
+                </div>
+                <div class="metric-card" id="metric-cpu">
+                    <div class="metric-label">CPU Load</div>
+                    <div class="metric-value" id="val-cpu">14</div>
+                    <div class="metric-unit">%</div>
+                </div>
+            </div>
+
+            <!-- Center Row: Graph + Alert Feed -->
+            <div class="center-row">
+
+                <!-- Traffic Graph -->
+                <div class="graph-section">
+                    <div class="graph-header">
+                        <div class="graph-title">Live Traffic — Inbound Packet Rate</div>
+                        <div class="graph-legend">
+                            <div class="legend-item">
+                                <div class="legend-dot" style="background:#a855f7;"></div>Normal
+                            </div>
+                            <div class="legend-item">
+                                <div class="legend-dot" style="background:#ef4444;"></div>Attack
+                            </div>
+                            <div class="legend-item">
+                                <div class="legend-dot" style="background:#22c55e;"></div>Mitigated
+                            </div>
+                        </div>
+                    </div>
+                    <div class="canvas-wrap">
+                        <canvas id="traffic-canvas"></canvas>
+                    </div>
+                </div>
+
+                <!-- Alert Feed -->
+                <div class="alert-feed-section">
+                    <div class="alert-feed-header">
+                        <div class="alert-blink" id="alert-blink"></div>
+                        Alert Feed
+                    </div>
+                    <div class="alert-feed" id="alert-feed"></div>
+                </div>
+
+            </div>
+
+            <!-- Bottom Row -->
+            <div class="bottom-row">
+
+                <!-- Wave Status -->
+                <div class="wave-status-panel">
+                    <div class="wave-status-header">Current Threat</div>
+                    <div class="wave-title" id="wave-title">Initializing SOC Dashboard...</div>
+                    <div class="wave-desc" id="wave-desc">Monitoring normal traffic. First attack wave incoming.</div>
+                    <div class="wave-mitigated-banner" id="wave-mitigated-banner">
+                        ATTACK MITIGATED — Traffic returning to baseline
+                    </div>
+                </div>
+
+                <!-- Mitigation Panel -->
+                <div class="mitigation-panel">
+                    <div class="mitigation-header">Incident Response</div>
+                    <div class="mitigation-form">
+
+                        <div class="form-group">
+                            <div class="form-label">Attack Identification</div>
+                            <select class="form-select" id="sel-attack">
+                                <option value="">-- Identify attack type --</option>
+                                <option value="syn">SYN Flood</option>
+                                <option value="udp">UDP Flood</option>
+                                <option value="http">HTTP Flood (Layer 7)</option>
+                                <option value="smurf">Smurf Attack (ICMP)</option>
+                                <option value="slowloris">Slowloris</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <div class="form-label">Mitigation Strategy</div>
+                            <select class="form-select" id="sel-mitigation">
+                                <option value="">-- Select countermeasure --</option>
+                                <option value="syn-cookies">SYN cookies + rate limiting</option>
+                                <option value="udp-rate">UDP rate limiting + blackhole routing</option>
+                                <option value="waf-captcha">WAF rules + CAPTCHA + rate limiting</option>
+                                <option value="icmp-filter">Disable directed broadcasts + ingress filtering</option>
+                                <option value="timeout-proxy">Reduce timeout + max conn/IP + reverse proxy</option>
+                            </select>
+                        </div>
+
+                        <button class="apply-btn" id="apply-btn" onclick="applyMitigation()">Apply Mitigation</button>
+
+                        <div class="mitigation-feedback" id="mitigation-feedback"></div>
+
+                        <button class="next-wave-btn" id="next-wave-btn" onclick="advanceWave()">Next Attack Wave</button>
+                    </div>
+                </div>
+
+            </div>
+
+        </div><!-- end soc-wrapper -->
+
+    </div><!-- end lab-body -->
+
+    <!-- ============================================================
+         JAVASCRIPT
+    ============================================================ -->
+    <script>
+    /* ==============================================================
+       GAME STATE
+    ============================================================== */
+    const state = {
+        score: 100,
+        hintsUsed: 0,
+        objectives: [false, false, false, false, false, false, false, false],
+        currentWave: 0,
+        waveMitigated: false,
+        wavesMitigated: 0,
+        graphData: [],
+        graphAttacking: false,
+        graphMitigated: false,
+        animFrame: null,
+        metricInterval: null,
+        alertInterval: null
+    };
+
+    /* ==============================================================
+       ATTACK WAVES DATA
+    ============================================================== */
+    const WAVES = [
+        {
+            id:            'syn',
+            name:          'Wave 1: SYN Flood',
+            desc:          'Detecting high rate of TCP SYN packets from 185.x.x.x. Half-open connections climbing. Server CPU rising as it processes incomplete handshakes.',
+            correctAttack: 'syn',
+            correctMitig:  'syn-cookies',
+            identifyObjId: 0,
+            mitigateObjId: 1,
+            metrics: { rps: 95000, bw: 380, conns: 5200, cpu: 87 },
+            alerts: [
+                { sev: 'high', text: 'High SYN rate from 185.220.44.0/24 — 90,000 pps' },
+                { sev: 'high', text: 'Half-open connections: 5,243 (threshold: 200)' },
+                { sev: 'medium', text: 'TCP backlog queue overflow detected on eth0' },
+                { sev: 'high', text: 'CPU spike: 87% on web01 — possible DoS in progress' }
+            ]
+        },
+        {
+            id:            'udp',
+            name:          'Wave 2: UDP Flood',
+            desc:          'Massive UDP packet storm from multiple source IPs (distributed). Bandwidth saturated at 2.5 Gbps. Legitimate traffic being dropped due to queue overflow.',
+            correctAttack: 'udp',
+            correctMitig:  'udp-rate',
+            identifyObjId: 2,
+            mitigateObjId: 3,
+            metrics: { rps: 280000, bw: 2500, conns: 180, cpu: 44 },
+            alerts: [
+                { sev: 'high', text: 'UDP flood detected — 280,000 pps inbound' },
+                { sev: 'high', text: 'Bandwidth: 2.5 Gbps (normal: 100 Mbps) — 25x spike' },
+                { sev: 'high', text: 'Multiple source IPs — distributed amplification likely' },
+                { sev: 'medium', text: 'UDP port 53/123 amplification pattern detected' }
+            ]
+        },
+        {
+            id:            'http',
+            name:          'Wave 3: HTTP Flood (Layer 7)',
+            desc:          'Application-layer flood targeting /api/search. Request rate spiked to 10,000/sec from a coordinated bot network. Bandwidth appears normal — this is a Layer 7 attack.',
+            correctAttack: 'http',
+            correctMitig:  'waf-captcha',
+            identifyObjId: 4,
+            mitigateObjId: 5,
+            metrics: { rps: 10000, bw: 95, conns: 8800, cpu: 78 },
+            alerts: [
+                { sev: 'high',   text: 'Abnormal GET /api/search requests — 10,000/sec' },
+                { sev: 'medium', text: 'Bot network detected: 3,200 unique IPs, same User-Agent' },
+                { sev: 'high',   text: 'Application worker pool exhausted on app01-app04' },
+                { sev: 'low',    text: 'Bandwidth normal — suspect Layer 7 (HTTP) flood' }
+            ]
+        },
+        {
+            id:            'smurf',
+            name:          'Wave 4: Smurf Attack',
+            desc:          'ICMP echo replies flooding the target from broadcast amplification. Spoofed source IPs disguise the true attacker. Network stack overwhelmed by ICMP responses.',
+            correctAttack: 'smurf',
+            correctMitig:  'icmp-filter',
+            identifyObjId: 6,
+            mitigateObjId: null,
+            metrics: { rps: 45000, bw: 820, conns: 230, cpu: 52 },
+            alerts: [
+                { sev: 'high',   text: 'ICMP echo reply flood — 45,000 pps inbound' },
+                { sev: 'high',   text: 'Spoofed source IPs detected — broadcast amplification' },
+                { sev: 'medium', text: 'Multiple /16 broadcast addresses targeted' },
+                { sev: 'medium', text: 'Ingress filter violation — src IP in RFC 1918 space' }
+            ]
+        },
+        {
+            id:            'slowloris',
+            name:          'Wave 5: Slowloris',
+            desc:          'Slow-rate attack opening many partial HTTP connections, never completing them. Active connections climbing steadily. Bandwidth and requests appear normal — server thread pool depleting.',
+            correctAttack: 'slowloris',
+            correctMitig:  'timeout-proxy',
+            identifyObjId: null,
+            mitigateObjId: null,
+            metrics: { rps: 820, bw: 102, conns: 12000, cpu: 61 },
+            alerts: [
+                { sev: 'high',   text: 'Connection pool exhaustion — 12,000 half-open HTTP' },
+                { sev: 'medium', text: 'Avg request duration: 305 seconds (normal: < 2s)' },
+                { sev: 'high',   text: 'Server worker threads: 0 available / 512 total' },
+                { sev: 'low',    text: 'Low bandwidth + low req rate — Slowloris pattern' }
+            ]
+        }
+    ];
+
+    /* ==============================================================
+       HINTS
+    ============================================================== */
+    const HINTS = [
+        { title: 'SYN Flood Identification',  text: 'A SYN flood shows massive SYN packets with few completions, causing half-open connections to climb. CPU spikes as the OS processes incomplete handshakes.' },
+        { title: 'SYN Flood Mitigation',      text: 'SYN cookies allow the server to validate handshakes without storing state. Rate limiting drops excess SYN packets at the firewall level.' },
+        { title: 'UDP Flood Identification',   text: 'A UDP flood saturates bandwidth with UDP packets. Unlike TCP floods, connections don\'t climb much. Bandwidth is the key indicator.' },
+        { title: 'UDP Flood Mitigation',       text: 'UDP rate limiting at the border router and blackhole routing (RTBH) for the attacker\'s upstream null-routes the attack traffic.' },
+        { title: 'HTTP Flood Identification',  text: 'An HTTP flood targets a specific URL path. Req/sec spikes dramatically, but bandwidth stays near normal because each request is small.' },
+        { title: 'HTTP Flood Mitigation',      text: 'A WAF can detect and block bot patterns. CAPTCHA challenges distinguish bots from humans. Rate limiting per IP prevents sustained flooding.' },
+        { title: 'Smurf Attack',               text: 'A Smurf attack spoofs the victim\'s IP as source and pings broadcast addresses. All devices on that network reply to the victim. Disable directed broadcasts to block it.' },
+        { title: 'Slowloris Identification',   text: 'Slowloris keeps connections open with slow headers. Look for: high active connections, very low bandwidth, near-normal req/sec, and very long connection duration.' }
+    ];
+
+    /* ==============================================================
+       GRAPH ENGINE — canvas-based line chart
+    ============================================================== */
+    const canvas = document.getElementById('traffic-canvas');
+    const ctx    = canvas.getContext('2d');
+
+    const GRAPH_POINTS = 60;   // number of data points visible
+    const NORMAL_BASE  = 0.15; // normalized normal traffic level
+
+    // Initialize graph data with normal-range noise
+    for (let i = 0; i < GRAPH_POINTS; i++) {
+        state.graphData.push(NORMAL_BASE + (Math.random() - 0.5) * 0.05);
+    }
+
+    function resizeCanvas() {
+        const wrap = canvas.parentElement;
+        canvas.width  = wrap.clientWidth;
+        canvas.height = wrap.clientHeight;
+    }
+
+    function drawGraph() {
+        resizeCanvas();
+        const w = canvas.width;
+        const h = canvas.height;
+
+        ctx.clearRect(0, 0, w, h);
+
+        // Grid lines
+        ctx.strokeStyle = 'rgba(100,60,130,0.10)';
+        ctx.lineWidth   = 1;
+        for (let i = 0; i <= 4; i++) {
+            const y = (h * 0.05) + (h * 0.9) * (1 - i / 4);
+            ctx.beginPath();
+            ctx.moveTo(0, y);
+            ctx.lineTo(w, y);
+            ctx.stroke();
+
+            // Y-axis label
+            ctx.fillStyle = 'rgba(90,58,106,0.6)';
+            ctx.font = '9px Courier New';
+            ctx.fillText(`${i * 25}%`, 4, y - 3);
+        }
+
+        // Build the line path
+        const pts = state.graphData;
+        const stepX = w / (pts.length - 1);
+
+        ctx.beginPath();
+        pts.forEach((val, idx) => {
+            const x = idx * stepX;
+            const y = h * 0.95 - val * h * 0.9;
+            if (idx === 0) ctx.moveTo(x, y);
+            else ctx.lineTo(x, y);
+        });
+
+        // Stroke color based on state
+        let lineColor = '#a855f7';
+        if (state.graphMitigated) lineColor = '#22c55e';
+        else if (state.graphAttacking) lineColor = '#ef4444';
+
+        ctx.strokeStyle = lineColor;
+        ctx.lineWidth   = 1.8;
+        ctx.stroke();
+
+        // Fill under the line
+        ctx.lineTo(w, h);
+        ctx.lineTo(0, h);
+        ctx.closePath();
+
+        let fillColor = 'rgba(147,51,234,0.07)';
+        if (state.graphMitigated) fillColor = 'rgba(34,197,94,0.07)';
+        else if (state.graphAttacking) fillColor = 'rgba(239,68,68,0.07)';
+
+        ctx.fillStyle = fillColor;
+        ctx.fill();
+    }
+
+    /**
+     * Advances the graph by one tick, adding a new data point.
+     * The target value determines whether it's normal, attack, or mitigated.
+     */
+    function tickGraph(targetVal) {
+        const last = state.graphData[state.graphData.length - 1];
+        // Lerp toward the target with noise
+        const next = last + (targetVal - last) * 0.25 + (Math.random() - 0.5) * 0.04;
+        state.graphData.push(Math.max(0.01, Math.min(1.0, next)));
+        if (state.graphData.length > GRAPH_POINTS) state.graphData.shift();
+        drawGraph();
+    }
+
+    // Start the graph animation loop
+    function startGraphLoop(targetFn) {
+        if (state.animFrame) cancelAnimationFrame(state.animFrame);
+
+        let lastTick = 0;
+        function loop(ts) {
+            if (ts - lastTick > 250) {
+                tickGraph(targetFn());
+                lastTick = ts;
+            }
+            state.animFrame = requestAnimationFrame(loop);
+        }
+        state.animFrame = requestAnimationFrame(loop);
+    }
+
+    /* ==============================================================
+       METRIC ANIMATION
+       Smoothly updates metric values toward their targets.
+    ============================================================== */
+    let metricTargets = { rps: 842, bw: 98, conns: 312, cpu: 14 };
+    let metricCurrent = { rps: 842, bw: 98, conns: 312, cpu: 14 };
+
+    function setMetricTargets(targets) {
+        metricTargets = { ...targets };
+    }
+
+    function setMetricNormal() {
+        metricTargets = {
+            rps:   800 + Math.floor(Math.random() * 100),
+            bw:    95  + Math.floor(Math.random() * 15),
+            conns: 280 + Math.floor(Math.random() * 80),
+            cpu:   10  + Math.floor(Math.random() * 10)
+        };
+    }
+
+    function animateMetrics() {
+        function step() {
+            const lerp = (a, b) => Math.round(a + (b - a) * 0.12);
+
+            metricCurrent.rps   = lerp(metricCurrent.rps,   metricTargets.rps);
+            metricCurrent.bw    = lerp(metricCurrent.bw,     metricTargets.bw);
+            metricCurrent.conns = lerp(metricCurrent.conns,  metricTargets.conns);
+            metricCurrent.cpu   = lerp(metricCurrent.cpu,    metricTargets.cpu);
+
+            // Format and update DOM
+            document.getElementById('val-rps').textContent   = metricCurrent.rps.toLocaleString();
+            document.getElementById('val-bw').textContent    = metricCurrent.bw.toLocaleString();
+            document.getElementById('val-conns').textContent = metricCurrent.conns.toLocaleString();
+            document.getElementById('val-cpu').textContent   = metricCurrent.cpu;
+
+            // Color cards based on thresholds
+            setMetricAlert('metric-rps',   metricCurrent.rps   > 5000);
+            setMetricAlert('metric-bw',    metricCurrent.bw    > 500);
+            setMetricAlert('metric-conns', metricCurrent.conns > 3000);
+            setMetricAlert('metric-cpu',   metricCurrent.cpu   > 60);
+
+            // Add noise to keep metrics alive
+            metricTargets.rps   += Math.floor((Math.random() - 0.5) * metricTargets.rps * 0.02);
+            metricTargets.bw    += Math.floor((Math.random() - 0.5) * metricTargets.bw  * 0.02);
+            metricTargets.conns += Math.floor((Math.random() - 0.5) * 30);
+            metricTargets.cpu   += Math.floor((Math.random() - 0.5) * 2);
+        }
+
+        if (state.metricInterval) clearInterval(state.metricInterval);
+        state.metricInterval = setInterval(step, 300);
+    }
+
+    function setMetricAlert(id, isAlert) {
+        const card = document.getElementById(id);
+        const val  = card.querySelector('.metric-value');
+        card.classList.toggle('alert', isAlert);
+        card.classList.toggle('normal', !isAlert);
+        val.classList.toggle('alert-val',  isAlert);
+        val.classList.toggle('normal-val', !isAlert);
+    }
+
+    /* ==============================================================
+       ALERT FEED
+    ============================================================== */
+    let alertQueue = [];
+    let alertIdx   = 0;
+
+    function pushAlert(entry) {
+        const feed = document.getElementById('alert-feed');
+        const ts   = new Date().toTimeString().slice(0, 8);
+
+        const el = document.createElement('div');
+        el.className = `alert-entry ${entry.sev}`;
+        el.innerHTML = `<div class="alert-time">${ts}</div><div class="alert-text${entry.sev === 'high' ? ' danger' : ''}">${entry.text}</div>`;
+        feed.appendChild(el);
+        feed.scrollTop = feed.scrollHeight;
+
+        // Keep feed trimmed to last 30 entries
+        while (feed.children.length > 30) feed.removeChild(feed.firstChild);
+    }
+
+    function startAlertFeed(wave) {
+        document.getElementById('alert-blink').classList.add('active');
+
+        // Show wave alerts staggered
+        wave.alerts.forEach((a, i) => {
+            setTimeout(() => pushAlert(a), i * 1400);
+        });
+
+        // Then repeat alerts with random noise
+        if (state.alertInterval) clearInterval(state.alertInterval);
+        state.alertInterval = setInterval(() => {
+            const a = wave.alerts[Math.floor(Math.random() * wave.alerts.length)];
+            pushAlert(a);
+        }, 4000);
+    }
+
+    function stopAlertFeed() {
+        clearInterval(state.alertInterval);
+        document.getElementById('alert-blink').classList.remove('active');
+        pushAlert({ sev: 'ok', text: 'Attack mitigated — traffic normalizing' });
+    }
+
+    /* ==============================================================
+       WAVE MANAGEMENT
+    ============================================================== */
+    function buildWaveList() {
+        const list = document.getElementById('wave-list');
+        WAVES.forEach((w, idx) => {
+            const item = document.createElement('div');
+            item.className = 'wave-item';
+            item.id = `wave-item-${idx}`;
+            item.innerHTML = `<div class="wave-dot"></div><span>${w.name}</span>`;
+            list.appendChild(item);
+        });
+    }
+
+    function setWaveActive(idx) {
+        document.querySelectorAll('.wave-item').forEach((el, i) => {
+            el.classList.remove('active');
+            if (!el.classList.contains('mitigated')) {
+                el.style.color = '';
+            }
+        });
+
+        const item = document.getElementById(`wave-item-${idx}`);
+        if (item) item.classList.add('active');
+    }
+
+    function setWaveMitigated(idx) {
+        const item = document.getElementById(`wave-item-${idx}`);
+        if (item) {
+            item.classList.remove('active');
+            item.classList.add('mitigated');
+        }
+    }
+
+    /**
+     * Loads and activates a wave: updates metrics, graph, alerts, and UI.
+     */
+    function loadWave(idx) {
+        if (idx >= WAVES.length) {
+            finishLab();
+            return;
+        }
+
+        const wave = WAVES[idx];
+        state.waveMitigated = false;
+        state.graphAttacking = true;
+        state.graphMitigated = false;
+
+        // Update wave status panel
+        document.getElementById('wave-title').textContent = wave.name;
+        document.getElementById('wave-desc').textContent  = wave.desc;
+        document.getElementById('wave-mitigated-banner').classList.remove('visible');
+
+        // Reset mitigation UI
+        document.getElementById('sel-attack').value     = '';
+        document.getElementById('sel-mitigation').value = '';
+        document.getElementById('sel-attack').className    = 'form-select';
+        document.getElementById('sel-mitigation').className = 'form-select';
+        document.getElementById('apply-btn').disabled       = false;
+        document.getElementById('apply-btn').className      = 'apply-btn';
+        document.getElementById('apply-btn').textContent    = 'Apply Mitigation';
+        document.getElementById('mitigation-feedback').className = 'mitigation-feedback';
+        document.getElementById('next-wave-btn').className  = 'next-wave-btn';
+
+        // Set metrics to attack levels
+        setMetricTargets(wave.metrics);
+
+        // Graph: attack spike
+        startGraphLoop(() => {
+            if (state.graphMitigated) return NORMAL_BASE + Math.random() * 0.06;
+            if (state.graphAttacking) return 0.65 + Math.random() * 0.30;
+            return NORMAL_BASE + Math.random() * 0.05;
+        });
+
+        // Alerts
+        startAlertFeed(wave);
+
+        // Wave sidebar
+        setWaveActive(idx);
+    }
+
+    /* ==============================================================
+       MITIGATION RESPONSE
+    ============================================================== */
+    function applyMitigation() {
+        const wave     = WAVES[state.currentWave];
+        const selAttk  = document.getElementById('sel-attack').value;
+        const selMitig = document.getElementById('sel-mitigation').value;
+
+        if (!selAttk || !selMitig) {
+            showFeedback('Select both an attack type and a mitigation strategy.', 'error');
+            return;
+        }
+
+        const attackOk = selAttk  === wave.correctAttack;
+        const mitigOk  = selMitig === wave.correctMitig;
+
+        // Validate attack identification
+        const selAEl = document.getElementById('sel-attack');
+        const selMEl = document.getElementById('sel-mitigation');
+
+        if (attackOk) {
+            selAEl.classList.add('correct'); selAEl.classList.remove('incorrect');
+            // Complete identify objective
+            if (wave.identifyObjId !== null) completeObjective(wave.identifyObjId);
+        } else {
+            selAEl.classList.add('incorrect'); selAEl.classList.remove('correct');
+        }
+
+        if (mitigOk) {
+            selMEl.classList.add('correct'); selMEl.classList.remove('incorrect');
+        } else {
+            selMEl.classList.add('incorrect'); selMEl.classList.remove('correct');
+        }
+
+        if (!attackOk || !mitigOk) {
+            // Wrong answer — deduct and hint
+            state.score = Math.max(0, state.score - 5);
+            updateScore();
+
+            const errMsg = [];
+            if (!attackOk) errMsg.push('Attack type incorrect — review the alert feed and metrics.');
+            if (!mitigOk)  errMsg.push('Mitigation incorrect — match the countermeasure to the attack type.');
+            showFeedback(errMsg.join(' '), 'error');
+            return;
+        }
+
+        // Both correct — mitigate
+        state.waveMitigated  = true;
+        state.graphAttacking = false;
+        state.graphMitigated = true;
+        state.wavesMitigated++;
+
+        // Metrics return to normal
+        setMetricNormal();
+
+        // Stop alert feed
+        stopAlertFeed();
+
+        // Update UI
+        document.getElementById('wave-mitigated-banner').classList.add('visible');
+        document.getElementById('apply-btn').disabled   = true;
+        document.getElementById('apply-btn').className  = 'apply-btn mitigated';
+        document.getElementById('apply-btn').textContent = 'Mitigated';
+
+        showFeedback(`Correct. ${getAttackName(selAttk)} mitigated with ${getMitigName(selMitig)}.`, 'success');
+
+        // Complete mitigate objective for this wave
+        if (wave.mitigateObjId !== null) completeObjective(wave.mitigateObjId);
+
+        // Mark sidebar wave done
+        setWaveMitigated(state.currentWave);
+
+        // After wave 3 (all SYN/UDP/HTTP done) — complete Smurf identify if it's wave 4
+        // Obj 7 — all 5 waves mitigated
+        if (state.wavesMitigated >= 5) {
+            completeObjective(7);
+        }
+
+        // Show next wave button if more waves remain
+        if (state.currentWave < WAVES.length - 1) {
+            document.getElementById('next-wave-btn').classList.add('visible');
+        } else {
+            // Last wave
+            setTimeout(finishLab, 1200);
+        }
+    }
+
+    function advanceWave() {
+        state.currentWave++;
+        loadWave(state.currentWave);
+    }
+
+    function finishLab() {
+        completeObjective(7);
+        setTimeout(showSuccessBanner, 600);
+    }
+
+    function getAttackName(key) {
+        const map = { syn: 'SYN Flood', udp: 'UDP Flood', http: 'HTTP Flood', smurf: 'Smurf Attack', slowloris: 'Slowloris' };
+        return map[key] || key;
+    }
+
+    function getMitigName(key) {
+        const map = {
+            'syn-cookies':   'SYN cookies + rate limiting',
+            'udp-rate':      'UDP rate limiting + blackhole routing',
+            'waf-captcha':   'WAF + CAPTCHA + rate limiting',
+            'icmp-filter':   'Disable directed broadcasts + ingress filtering',
+            'timeout-proxy': 'Timeout reduction + reverse proxy'
+        };
+        return map[key] || key;
+    }
+
+    function showFeedback(msg, type) {
+        const el = document.getElementById('mitigation-feedback');
+        el.textContent  = msg;
+        el.className    = `mitigation-feedback visible ${type}`;
+    }
+
+    /* ==============================================================
+       OBJECTIVE MANAGEMENT
+    ============================================================== */
+    function completeObjective(idx) {
+        if (state.objectives[idx]) return;
+        state.objectives[idx] = true;
+
+        const item  = document.getElementById(`obj-${idx}`);
+        const check = document.getElementById(`check-${idx}`);
+        if (item)  item.classList.add('completed');
+        if (check) check.textContent = 'X';
+
+        const totalDone = state.objectives.filter(Boolean).length;
+        document.getElementById('obj-count').textContent = totalDone;
+        document.getElementById('obj-frac').textContent  = `${totalDone}/8`;
+        document.getElementById('obj-bar').style.width   = `${(totalDone / 8) * 100}%`;
+
+        if (totalDone === 8) setTimeout(showSuccessBanner, 600);
+    }
+
+    /* ==============================================================
+       HINTS
+    ============================================================== */
+    function showHint() {
+        if (state.hintsUsed >= HINTS.length) return;
+
+        const hint = HINTS[state.hintsUsed];
+        state.hintsUsed++;
+
+        state.score = Math.max(0, state.score - 5);
+        updateScore();
+
+        const display = document.getElementById('hint-display');
+        display.innerHTML = `<strong style="color:#a855f7;font-size:0.7rem;letter-spacing:0.1em">${hint.title}</strong><br>${hint.text}`;
+        display.classList.add('visible');
+
+        const remaining = HINTS.length - state.hintsUsed;
+        document.getElementById('hint-cost-label').textContent =
+            remaining > 0 ? `-5 points per hint · ${remaining} remaining` : 'All hints used';
+
+        if (state.hintsUsed >= HINTS.length) {
+            document.getElementById('hint-btn').disabled = true;
+        }
+    }
+
+    function updateScore() {
+        const el = document.getElementById('score-display');
+        el.textContent = state.score;
+        el.classList.add('deducted');
+        setTimeout(() => el.classList.remove('deducted'), 600);
+    }
+
+    /* ==============================================================
+       SUCCESS BANNER + COMPLETION
+    ============================================================== */
+    function showSuccessBanner() {
+        document.getElementById('final-score').textContent = state.score;
+        const banner = document.getElementById('success-banner');
+        banner.classList.add('visible');
+        banner.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+
+    function completeLab() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('dark-arts', 'ehe-lab-dos-attack', { returnUrl: '../index.html' });
+        } else {
+            window.location.href = '../index.html';
+        }
+    }
+
+    /* ==============================================================
+       COLLAPSIBLE PANELS
+    ============================================================== */
+    function togglePanel(panelId, headerEl) {
+        const panel  = document.getElementById(panelId);
+        const toggle = headerEl.querySelector('.panel-toggle');
+        const isOpen = !panel.classList.contains('collapsed');
+        if (isOpen) { panel.classList.add('collapsed'); toggle.classList.remove('open'); }
+        else         { panel.classList.remove('collapsed'); toggle.classList.add('open'); }
+    }
+
+    /* ==============================================================
+       INIT — boot the SOC dashboard
+    ============================================================== */
+    window.addEventListener('DOMContentLoaded', function() {
+        buildWaveList();
+        resizeCanvas();
+        drawGraph();
+        animateMetrics();
+
+        // Brief normal period before wave 1 starts
+        pushAlert({ sev: 'low', text: 'SOC dashboard initialized — monitoring inbound traffic' });
+        pushAlert({ sev: 'low', text: 'All systems nominal — baseline established' });
+
+        // Start normal graph
+        startGraphLoop(() => NORMAL_BASE + Math.random() * 0.06);
+
+        setTimeout(() => {
+            pushAlert({ sev: 'medium', text: 'ALERT: Anomalous traffic pattern detected on WAN interface' });
+            setTimeout(() => loadWave(0), 2000);
+        }, 3000);
+    });
+
+    window.addEventListener('resize', () => {
+        resizeCanvas();
+        drawGraph();
+    });
+    </script>
+
+</body>
+</html>

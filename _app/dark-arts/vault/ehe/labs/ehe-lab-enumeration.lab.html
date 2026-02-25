@@ -1,0 +1,2206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control (must be first) -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('dark-arts');</script>
+    <!-- Progress & Achievements -->
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lab: NetBIOS/SMB Enumeration — EHE | The Vault</title>
+    <style>
+        /* ================================================================
+           RESET & BASE
+           ================================================================ */
+        *, *::before, *::after {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --bg:           #0a0508;
+            --surface:      #0f0812;
+            --surface2:     #150d1e;
+            --border:       rgba(100, 60, 130, 0.18);
+            --border-dim:   rgba(100, 60, 130, 0.09);
+            --purple:       #9333ea;
+            --purple-light: #a855f7;
+            --purple-dim:   rgba(147, 51, 234, 0.12);
+            --text-primary: #c4a0d8;
+            --text-muted:   #8a6a9a;
+            --text-dim:     #5a3a6a;
+            --green:        #22c55e;
+            --green-dim:    rgba(34, 197, 94, 0.15);
+            --amber:        #f59e0b;
+            --red:          #ef4444;
+            --terminal-bg:  #050308;
+            --terminal-text:#22c55e;
+            --terminal-dim: #166534;
+            --terminal-cmd: #86efac;
+            --prompt-color: #a855f7;
+            --cyan:         #06b6d4;
+            --cyan-dim:     rgba(6, 182, 212, 0.15);
+        }
+
+        body {
+            min-height: 100vh;
+            background: var(--bg);
+            font-family: 'Georgia', 'Times New Roman', serif;
+            color: var(--text-muted);
+            overflow-x: hidden;
+        }
+
+        /* Ambient glow */
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background:
+                radial-gradient(ellipse at 20% 15%, rgba(80, 20, 120, 0.07) 0%, transparent 55%),
+                radial-gradient(ellipse at 80% 85%, rgba(50, 10, 90, 0.05) 0%, transparent 50%);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        /* ================================================================
+           STICKY HEADER
+           ================================================================ */
+        .lab-header {
+            position: sticky;
+            top: 0;
+            z-index: 200;
+            background: rgba(10, 5, 15, 0.97);
+            border-bottom: 1px solid var(--border);
+            backdrop-filter: blur(14px);
+            padding: 14px 32px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 18px;
+            min-width: 0;
+        }
+
+        .back-btn {
+            color: var(--text-dim);
+            text-decoration: none;
+            font-size: 0.75rem;
+            letter-spacing: 0.1em;
+            padding: 6px 14px;
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            transition: all 0.3s;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+
+        .back-btn:hover {
+            color: var(--purple-light);
+            border-color: rgba(147, 51, 234, 0.45);
+            background: var(--purple-dim);
+        }
+
+        .lab-badge {
+            font-size: 0.66rem;
+            letter-spacing: 0.22em;
+            color: var(--text-dim);
+            text-transform: uppercase;
+        }
+
+        .lab-badge span { color: var(--purple); }
+
+        .lab-title-header {
+            font-size: 0.88rem;
+            color: var(--text-primary);
+            letter-spacing: 0.04em;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            flex-shrink: 0;
+        }
+
+        .score-display {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 2px;
+        }
+
+        .score-label {
+            font-size: 0.58rem;
+            letter-spacing: 0.18em;
+            text-transform: uppercase;
+            color: var(--text-dim);
+        }
+
+        .score-value {
+            font-size: 1.15rem;
+            color: var(--purple-light);
+            font-family: 'Courier New', monospace;
+            font-weight: bold;
+            line-height: 1;
+        }
+
+        .obj-count {
+            font-size: 0.72rem;
+            color: var(--green);
+            font-family: 'Courier New', monospace;
+            letter-spacing: 0.05em;
+        }
+
+        /* ================================================================
+           ETHICAL WARNING BANNER
+           ================================================================ */
+        .warning-banner {
+            background: rgba(245, 158, 11, 0.06);
+            border-bottom: 1px solid rgba(245, 158, 11, 0.2);
+            padding: 10px 32px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            position: relative;
+            z-index: 10;
+        }
+
+        .warning-icon {
+            font-size: 0.85rem;
+            color: var(--amber);
+            flex-shrink: 0;
+        }
+
+        .warning-text {
+            font-size: 0.72rem;
+            color: rgba(245, 158, 11, 0.75);
+            letter-spacing: 0.06em;
+            line-height: 1.5;
+        }
+
+        .warning-text strong {
+            color: var(--amber);
+            font-weight: normal;
+        }
+
+        /* ================================================================
+           MAIN LAYOUT
+           ================================================================ */
+        .lab-layout {
+            display: grid;
+            grid-template-columns: 300px 1fr;
+            grid-template-rows: 1fr;
+            min-height: calc(100vh - 90px);
+            position: relative;
+            z-index: 10;
+        }
+
+        /* ================================================================
+           SIDEBAR — OBJECTIVES
+           ================================================================ */
+        .lab-sidebar {
+            border-right: 1px solid var(--border);
+            background: rgba(10, 5, 15, 0.5);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .sidebar-section {
+            border-bottom: 1px solid var(--border-dim);
+            overflow: hidden;
+        }
+
+        .sidebar-toggle {
+            width: 100%;
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 14px 18px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: background 0.2s;
+        }
+
+        .sidebar-toggle:hover {
+            background: rgba(147, 51, 234, 0.05);
+        }
+
+        .sidebar-toggle-label {
+            font-size: 0.62rem;
+            letter-spacing: 0.22em;
+            text-transform: uppercase;
+            color: var(--text-dim);
+            font-family: 'Georgia', serif;
+        }
+
+        .sidebar-toggle-arrow {
+            font-size: 0.65rem;
+            color: var(--text-dim);
+            transition: transform 0.25s;
+        }
+
+        .sidebar-toggle-arrow.open { transform: rotate(180deg); }
+
+        .sidebar-content {
+            padding: 0 18px 14px;
+            overflow: hidden;
+            transition: max-height 0.35s ease, opacity 0.25s ease;
+            max-height: 0;
+            opacity: 0;
+        }
+
+        .sidebar-content.open {
+            max-height: 1000px;
+            opacity: 1;
+        }
+
+        /* Objectives checklist */
+        .objectives-list {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            padding-top: 4px;
+        }
+
+        .objective-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            padding: 9px 10px;
+            border-radius: 5px;
+            border: 1px solid transparent;
+            transition: all 0.3s;
+        }
+
+        .objective-item.complete {
+            border-color: rgba(34, 197, 94, 0.2);
+            background: rgba(34, 197, 94, 0.04);
+        }
+
+        .objective-check {
+            width: 16px;
+            height: 16px;
+            border-radius: 3px;
+            border: 1px solid var(--border);
+            flex-shrink: 0;
+            margin-top: 1px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.6rem;
+            transition: all 0.3s;
+        }
+
+        .objective-item.complete .objective-check {
+            background: rgba(34, 197, 94, 0.2);
+            border-color: rgba(34, 197, 94, 0.5);
+            color: var(--green);
+        }
+
+        .objective-text {
+            font-size: 0.75rem;
+            color: var(--text-dim);
+            line-height: 1.5;
+            transition: color 0.3s;
+        }
+
+        .objective-item.complete .objective-text {
+            color: rgba(34, 197, 94, 0.8);
+        }
+
+        /* Hints section */
+        .hint-btn {
+            width: 100%;
+            background: none;
+            border: 1px solid var(--border);
+            border-radius: 5px;
+            cursor: pointer;
+            padding: 9px 12px;
+            color: var(--amber);
+            font-size: 0.72rem;
+            letter-spacing: 0.08em;
+            font-family: 'Georgia', serif;
+            margin-top: 8px;
+            transition: all 0.25s;
+            text-align: left;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .hint-btn:hover {
+            background: rgba(245, 158, 11, 0.06);
+            border-color: rgba(245, 158, 11, 0.3);
+        }
+
+        .hint-cost {
+            font-size: 0.62rem;
+            color: rgba(245, 158, 11, 0.5);
+        }
+
+        .hint-text {
+            font-size: 0.73rem;
+            color: rgba(245, 158, 11, 0.75);
+            line-height: 1.6;
+            padding: 10px;
+            background: rgba(245, 158, 11, 0.04);
+            border: 1px solid rgba(245, 158, 11, 0.12);
+            border-radius: 5px;
+            margin-top: 6px;
+        }
+
+        /* Target info */
+        .target-card {
+            background: var(--surface2);
+            border: 1px solid var(--border-dim);
+            border-radius: 5px;
+            padding: 12px;
+            margin-top: 6px;
+        }
+
+        .target-ip {
+            font-family: 'Courier New', monospace;
+            font-size: 0.82rem;
+            color: var(--cyan);
+            margin-bottom: 4px;
+        }
+
+        .target-name {
+            font-size: 0.72rem;
+            color: var(--text-muted);
+            margin-bottom: 6px;
+        }
+
+        .target-detail {
+            font-size: 0.65rem;
+            color: var(--text-dim);
+            line-height: 1.6;
+        }
+
+        .target-detail span {
+            color: var(--purple-light);
+            font-family: 'Courier New', monospace;
+        }
+
+        /* Commands reference */
+        .cmd-ref-item {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            padding: 6px 0;
+            border-bottom: 1px solid var(--border-dim);
+        }
+
+        .cmd-ref-item:last-child { border-bottom: none; }
+
+        .cmd-ref-cmd {
+            font-family: 'Courier New', monospace;
+            font-size: 0.72rem;
+            color: var(--terminal-cmd);
+        }
+
+        .cmd-ref-desc {
+            font-size: 0.65rem;
+            color: var(--text-dim);
+            line-height: 1.4;
+        }
+
+        /* ================================================================
+           TERMINAL PANEL
+           ================================================================ */
+        .terminal-panel {
+            display: flex;
+            flex-direction: column;
+            background: var(--terminal-bg);
+            overflow: hidden;
+        }
+
+        .terminal-chrome {
+            background: rgba(20, 10, 30, 0.95);
+            border-bottom: 1px solid rgba(100, 60, 130, 0.15);
+            padding: 10px 16px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-shrink: 0;
+        }
+
+        .terminal-dots {
+            display: flex;
+            gap: 6px;
+        }
+
+        .terminal-dot {
+            width: 11px;
+            height: 11px;
+            border-radius: 50%;
+        }
+
+        .terminal-dot.red   { background: #ff5f57; }
+        .terminal-dot.amber { background: #febc2e; }
+        .terminal-dot.green { background: #28c840; }
+
+        .terminal-title-bar {
+            font-size: 0.7rem;
+            color: var(--text-dim);
+            letter-spacing: 0.12em;
+            font-family: 'Courier New', monospace;
+        }
+
+        .terminal-output {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px 20px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.82rem;
+            line-height: 1.65;
+            scroll-behavior: smooth;
+        }
+
+        /* Custom scrollbar */
+        .terminal-output::-webkit-scrollbar { width: 4px; }
+        .terminal-output::-webkit-scrollbar-track { background: transparent; }
+        .terminal-output::-webkit-scrollbar-thumb {
+            background: rgba(147, 51, 234, 0.25);
+            border-radius: 2px;
+        }
+
+        /* Terminal line types */
+        .t-line { display: block; white-space: pre-wrap; word-break: break-all; }
+        .t-cmd   { color: var(--terminal-cmd); }
+        .t-out   { color: var(--terminal-text); }
+        .t-dim   { color: var(--terminal-dim); }
+        .t-err   { color: #f87171; }
+        .t-warn  { color: var(--amber); }
+        .t-info  { color: var(--cyan); }
+        .t-hi    { color: var(--purple-light); }
+        .t-sep   { color: var(--text-dim); }
+        .t-blank { display: block; height: 0.65rem; }
+
+        /* Command echo line (the prompt + typed command) */
+        .t-prompt-line {
+            display: flex;
+            align-items: baseline;
+            gap: 0;
+            margin-top: 4px;
+        }
+
+        .t-prompt-text { color: var(--prompt-color); }
+        .t-prompt-cmd  { color: var(--terminal-cmd); }
+
+        /* Objective flash */
+        @keyframes objFlash {
+            0%   { background: rgba(34, 197, 94, 0.25); }
+            100% { background: transparent; }
+        }
+
+        .objective-item.just-complete {
+            animation: objFlash 0.9s ease-out;
+        }
+
+        /* ================================================================
+           INPUT LINE
+           ================================================================ */
+        .terminal-input-row {
+            background: rgba(5, 3, 8, 0.9);
+            border-top: 1px solid rgba(147, 51, 234, 0.12);
+            padding: 12px 20px;
+            display: flex;
+            align-items: center;
+            gap: 0;
+            flex-shrink: 0;
+        }
+
+        .terminal-prompt-label {
+            font-family: 'Courier New', monospace;
+            font-size: 0.82rem;
+            color: var(--prompt-color);
+            white-space: nowrap;
+            flex-shrink: 0;
+            user-select: none;
+        }
+
+        .terminal-input {
+            flex: 1;
+            background: none;
+            border: none;
+            outline: none;
+            color: var(--terminal-cmd);
+            font-family: 'Courier New', monospace;
+            font-size: 0.82rem;
+            caret-color: var(--terminal-cmd);
+            padding: 0 0 0 4px;
+        }
+
+        /* ================================================================
+           COMPLETION BANNER
+           ================================================================ */
+        .completion-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(5, 3, 8, 0.88);
+            backdrop-filter: blur(10px);
+            z-index: 500;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .completion-overlay.visible {
+            display: flex;
+        }
+
+        .completion-card {
+            background: var(--surface2);
+            border: 1px solid rgba(147, 51, 234, 0.35);
+            border-radius: 14px;
+            padding: 50px 60px;
+            max-width: 520px;
+            width: 90%;
+            text-align: center;
+            box-shadow: 0 0 80px rgba(147, 51, 234, 0.15);
+            animation: cardIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        @keyframes cardIn {
+            from { transform: scale(0.85) translateY(20px); opacity: 0; }
+            to   { transform: scale(1) translateY(0); opacity: 1; }
+        }
+
+        .completion-glyph {
+            font-size: 3.2rem;
+            margin-bottom: 22px;
+            filter: drop-shadow(0 0 20px rgba(34, 197, 94, 0.4));
+        }
+
+        .completion-title {
+            font-size: 1.7rem;
+            color: var(--text-primary);
+            font-weight: normal;
+            letter-spacing: 0.05em;
+            margin-bottom: 10px;
+        }
+
+        .completion-subtitle {
+            font-size: 0.8rem;
+            color: var(--text-dim);
+            letter-spacing: 0.14em;
+            text-transform: uppercase;
+            margin-bottom: 24px;
+        }
+
+        .completion-score-display {
+            font-size: 2.4rem;
+            color: var(--purple-light);
+            font-family: 'Courier New', monospace;
+            font-weight: bold;
+            margin-bottom: 6px;
+        }
+
+        .completion-score-label {
+            font-size: 0.7rem;
+            color: var(--text-dim);
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            margin-bottom: 30px;
+        }
+
+        .completion-stats {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 12px;
+            margin-bottom: 32px;
+        }
+
+        .comp-stat {
+            background: rgba(147, 51, 234, 0.06);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 12px 8px;
+        }
+
+        .comp-stat-val {
+            font-size: 1.1rem;
+            color: var(--purple-light);
+            font-family: 'Courier New', monospace;
+            display: block;
+            margin-bottom: 4px;
+        }
+
+        .comp-stat-lbl {
+            font-size: 0.6rem;
+            color: var(--text-dim);
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+        }
+
+        .completion-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            padding: 14px 36px;
+            background: linear-gradient(135deg, rgba(100, 50, 140, 0.4), rgba(75, 30, 110, 0.35));
+            border: 1px solid rgba(147, 51, 234, 0.45);
+            border-radius: 30px;
+            color: var(--text-primary);
+            font-size: 0.85rem;
+            letter-spacing: 0.12em;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-family: 'Georgia', serif;
+        }
+
+        .completion-btn:hover {
+            background: linear-gradient(135deg, rgba(120, 70, 160, 0.5), rgba(95, 50, 130, 0.45));
+            border-color: rgba(168, 85, 247, 0.65);
+            box-shadow: 0 0 30px rgba(147, 51, 234, 0.3);
+            transform: translateY(-2px);
+        }
+
+        /* Objective unlock notification */
+        .obj-notify {
+            position: fixed;
+            bottom: 80px;
+            right: 24px;
+            background: rgba(15, 8, 20, 0.97);
+            border: 1px solid rgba(34, 197, 94, 0.4);
+            border-radius: 8px;
+            padding: 12px 18px;
+            max-width: 280px;
+            z-index: 300;
+            transform: translateX(120%);
+            transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+        }
+
+        .obj-notify.show { transform: translateX(0); }
+
+        .obj-notify-label {
+            font-size: 0.58rem;
+            letter-spacing: 0.2em;
+            text-transform: uppercase;
+            color: var(--green);
+            margin-bottom: 4px;
+        }
+
+        .obj-notify-text {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            line-height: 1.45;
+        }
+
+        /* ================================================================
+           RESPONSIVE
+           ================================================================ */
+        @media (max-width: 900px) {
+            .lab-layout {
+                grid-template-columns: 1fr;
+                grid-template-rows: auto 1fr;
+            }
+
+            .lab-sidebar {
+                border-right: none;
+                border-bottom: 1px solid var(--border);
+                max-height: 240px;
+                overflow-y: auto;
+            }
+
+            .lab-header { padding: 12px 16px; }
+            .lab-title-header { display: none; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- ================================================================
+         HEADER
+         ================================================================ -->
+    <header class="lab-header">
+        <div class="header-left">
+            <a href="../index.html" class="back-btn">&#8592; Back to EHE</a>
+            <span class="lab-badge">EHE &mdash; <span>Lab</span></span>
+            <span class="lab-title-header">NetBIOS/SMB Enumeration</span>
+        </div>
+        <div class="header-right">
+            <div>
+                <div class="obj-count" id="objCountDisplay">0 / 8 objectives</div>
+            </div>
+            <div class="score-display">
+                <div class="score-label">Score</div>
+                <div class="score-value" id="scoreDisplay">100</div>
+            </div>
+        </div>
+    </header>
+
+    <!-- ================================================================
+         ETHICAL WARNING
+         ================================================================ -->
+    <div class="warning-banner">
+        <span class="warning-icon">&#9888;</span>
+        <span class="warning-text">
+            <strong>Authorized Training Environment Only.</strong>
+            These techniques are simulated against fictional targets for educational purposes.
+            Never perform enumeration or scanning against systems you do not have explicit written authorization to test.
+            Unauthorized access is a federal crime under the CFAA.
+        </span>
+    </div>
+
+    <!-- ================================================================
+         MAIN LAYOUT
+         ================================================================ -->
+    <div class="lab-layout">
+
+        <!-- SIDEBAR -->
+        <aside class="lab-sidebar">
+
+            <!-- Objectives panel -->
+            <div class="sidebar-section">
+                <button class="sidebar-toggle" onclick="toggleSection('objectives')" aria-expanded="true">
+                    <span class="sidebar-toggle-label">Objectives</span>
+                    <span class="sidebar-toggle-arrow open" id="arrow-objectives">&#9650;</span>
+                </button>
+                <div class="sidebar-content open" id="panel-objectives">
+                    <ul class="objectives-list" id="objectivesList"></ul>
+                </div>
+            </div>
+
+            <!-- Targets panel -->
+            <div class="sidebar-section">
+                <button class="sidebar-toggle" onclick="toggleSection('targets')" aria-expanded="true">
+                    <span class="sidebar-toggle-label">Network Targets</span>
+                    <span class="sidebar-toggle-arrow open" id="arrow-targets">&#9650;</span>
+                </button>
+                <div class="sidebar-content open" id="panel-targets">
+                    <div class="target-card">
+                        <div class="target-ip">10.0.1.5</div>
+                        <div class="target-name">Domain Controller</div>
+                        <div class="target-detail">
+                            OS: <span>Windows Server 2019</span><br>
+                            Domain: <span>NOVACORP</span><br>
+                            Open: <span>135, 139, 445, 389, 3389</span>
+                        </div>
+                    </div>
+                    <div class="target-card" style="margin-top: 8px;">
+                        <div class="target-ip">10.0.1.30</div>
+                        <div class="target-name">File Server</div>
+                        <div class="target-detail">
+                            OS: <span>Windows Server 2019</span><br>
+                            Domain: <span>NOVACORP</span><br>
+                            Open: <span>21, 139, 445, 3389</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Commands panel -->
+            <div class="sidebar-section">
+                <button class="sidebar-toggle" onclick="toggleSection('commands')" aria-expanded="false">
+                    <span class="sidebar-toggle-label">Command Reference</span>
+                    <span class="sidebar-toggle-arrow" id="arrow-commands">&#9650;</span>
+                </button>
+                <div class="sidebar-content" id="panel-commands">
+                    <div class="cmd-ref-item">
+                        <span class="cmd-ref-cmd">nbtstat -a &lt;ip&gt;</span>
+                        <span class="cmd-ref-desc">NetBIOS name table for remote host</span>
+                    </div>
+                    <div class="cmd-ref-item">
+                        <span class="cmd-ref-cmd">nbtstat -c</span>
+                        <span class="cmd-ref-desc">Display NetBIOS name cache</span>
+                    </div>
+                    <div class="cmd-ref-item">
+                        <span class="cmd-ref-cmd">net view \\&lt;ip&gt;</span>
+                        <span class="cmd-ref-desc">List shared resources on host</span>
+                    </div>
+                    <div class="cmd-ref-item">
+                        <span class="cmd-ref-cmd">net view /domain</span>
+                        <span class="cmd-ref-desc">List all domains on network</span>
+                    </div>
+                    <div class="cmd-ref-item">
+                        <span class="cmd-ref-cmd">net user /domain</span>
+                        <span class="cmd-ref-desc">List domain users (from DC)</span>
+                    </div>
+                    <div class="cmd-ref-item">
+                        <span class="cmd-ref-cmd">enum4linux &lt;ip&gt;</span>
+                        <span class="cmd-ref-desc">Comprehensive SMB enumeration</span>
+                    </div>
+                    <div class="cmd-ref-item">
+                        <span class="cmd-ref-cmd">enum4linux -a &lt;ip&gt;</span>
+                        <span class="cmd-ref-desc">Aggressive full enumeration</span>
+                    </div>
+                    <div class="cmd-ref-item">
+                        <span class="cmd-ref-cmd">enum4linux -U/-S/-G &lt;ip&gt;</span>
+                        <span class="cmd-ref-desc">Users / Shares / Groups only</span>
+                    </div>
+                    <div class="cmd-ref-item">
+                        <span class="cmd-ref-cmd">smbclient -L &lt;ip&gt;</span>
+                        <span class="cmd-ref-desc">List SMB shares via smbclient</span>
+                    </div>
+                    <div class="cmd-ref-item">
+                        <span class="cmd-ref-cmd">rpcclient &lt;ip&gt; -U ""</span>
+                        <span class="cmd-ref-desc">RPC null session; sub-cmds below</span>
+                    </div>
+                    <div class="cmd-ref-item">
+                        <span class="cmd-ref-cmd">  enumdomusers</span>
+                        <span class="cmd-ref-desc">Enumerate domain users via RPC</span>
+                    </div>
+                    <div class="cmd-ref-item">
+                        <span class="cmd-ref-cmd">  enumdomgroups</span>
+                        <span class="cmd-ref-desc">Enumerate domain groups via RPC</span>
+                    </div>
+                    <div class="cmd-ref-item">
+                        <span class="cmd-ref-cmd">  queryuser &lt;rid&gt;</span>
+                        <span class="cmd-ref-desc">Query user by RID</span>
+                    </div>
+                    <div class="cmd-ref-item">
+                        <span class="cmd-ref-cmd">  querydispinfo</span>
+                        <span class="cmd-ref-desc">Display info for all users</span>
+                    </div>
+                    <div class="cmd-ref-item">
+                        <span class="cmd-ref-cmd">help / clear / objectives</span>
+                        <span class="cmd-ref-desc">Lab utilities</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Hints panel -->
+            <div class="sidebar-section">
+                <button class="sidebar-toggle" onclick="toggleSection('hints')" aria-expanded="false">
+                    <span class="sidebar-toggle-label">Hints (-5 pts each)</span>
+                    <span class="sidebar-toggle-arrow" id="arrow-hints">&#9650;</span>
+                </button>
+                <div class="sidebar-content" id="panel-hints">
+                    <div id="hintContainer"></div>
+                </div>
+            </div>
+
+        </aside>
+
+        <!-- TERMINAL PANEL -->
+        <div class="terminal-panel">
+
+            <!-- Terminal chrome bar -->
+            <div class="terminal-chrome">
+                <div class="terminal-dots">
+                    <div class="terminal-dot red"></div>
+                    <div class="terminal-dot amber"></div>
+                    <div class="terminal-dot green"></div>
+                </div>
+                <span class="terminal-title-bar">pentester@kali: ~ &mdash; NetBIOS/SMB Enumeration Lab</span>
+            </div>
+
+            <!-- Output area -->
+            <div class="terminal-output" id="terminalOutput" role="log" aria-live="polite" aria-label="Terminal output"></div>
+
+            <!-- Input row -->
+            <div class="terminal-input-row">
+                <span class="terminal-prompt-label" id="promptLabel">pentester@kali:~$&nbsp;</span>
+                <input
+                    type="text"
+                    class="terminal-input"
+                    id="terminalInput"
+                    autocomplete="off"
+                    autocorrect="off"
+                    autocapitalize="off"
+                    spellcheck="false"
+                    aria-label="Terminal input"
+                    placeholder=""
+                >
+            </div>
+
+        </div>
+    </div>
+
+    <!-- ================================================================
+         OBJECTIVE UNLOCK NOTIFICATION
+         ================================================================ -->
+    <div class="obj-notify" id="objNotify" role="status">
+        <div class="obj-notify-label">Objective Complete</div>
+        <div class="obj-notify-text" id="objNotifyText"></div>
+    </div>
+
+    <!-- ================================================================
+         COMPLETION OVERLAY
+         ================================================================ -->
+    <div class="completion-overlay" id="completionOverlay" role="dialog" aria-modal="true" aria-label="Lab complete">
+        <div class="completion-card">
+            <div class="completion-glyph">&#10003;</div>
+            <h2 class="completion-title">Enumeration Complete</h2>
+            <p class="completion-subtitle">All objectives satisfied</p>
+            <div class="completion-score-display" id="finalScoreDisplay">100</div>
+            <div class="completion-score-label">Final Score</div>
+            <div class="completion-stats">
+                <div class="comp-stat">
+                    <span class="comp-stat-val" id="statObjs">8/8</span>
+                    <span class="comp-stat-lbl">Objectives</span>
+                </div>
+                <div class="comp-stat">
+                    <span class="comp-stat-val" id="statCmds">0</span>
+                    <span class="comp-stat-lbl">Commands</span>
+                </div>
+                <div class="comp-stat">
+                    <span class="comp-stat-val" id="statHints">0</span>
+                    <span class="comp-stat-lbl">Hints Used</span>
+                </div>
+            </div>
+            <button class="completion-btn" onclick="markLabComplete()">
+                Mark Complete &amp; Return
+            </button>
+        </div>
+    </div>
+
+    <!-- ================================================================
+         FLUX CAPACITOR (navigation)
+         ================================================================ -->
+    <script src="../../../../components/FluxCapacitor.js"></script>
+
+    <script>
+    /* ====================================================================
+       LAB ENGINE — NetBIOS/SMB Enumeration Simulation
+       ====================================================================
+       Architecture:
+       - Pure JS, no external dependencies beyond Hexworth components
+       - Simulated network targets with realistic CLI output strings
+       - Objective tracker with unlock notifications and scoring
+       - Command history with arrow-key navigation
+       - rpcclient interactive mode (sub-shell state machine)
+       ==================================================================== */
+    (function() {
+        'use strict';
+
+        // ─── State ───────────────────────────────────────────────────────
+        const state = {
+            score:          100,
+            hintsUsed:      0,
+            commandCount:   0,
+            objectivesDone: new Set(),
+            history:        [],
+            historyIndex:   -1,
+            rpcMode:        false,   // true when inside rpcclient sub-shell
+            rpcTarget:      null,    // IP currently connected to via rpcclient
+            started:        false,
+            completionShown: false,
+        };
+
+        // ─── Objectives ───────────────────────────────────────────────────
+        const OBJECTIVES = [
+            { id: 'netbios-names',    text: 'Discover NetBIOS names of both target hosts' },
+            { id: 'domain-users',     text: 'List domain users from the domain controller' },
+            { id: 'smb-shares-fs',    text: 'Enumerate SMB shares on the file server' },
+            { id: 'domain-admins',    text: 'Identify domain admin group members' },
+            { id: 'hidden-shares',    text: 'Find hidden shares (names ending with $)' },
+            { id: 'enum-services',    text: 'Enumerate services on the file server' },
+            { id: 'enum4linux-full',  text: 'Perform full enum4linux enumeration on the DC' },
+            { id: 'disabled-acct',    text: 'Identify disabled accounts' },
+        ];
+
+        // ─── Hints ────────────────────────────────────────────────────────
+        const HINTS = [
+            { id: 'h1', text: 'Use nbtstat -a followed by an IP address to query NetBIOS name tables. Try both 10.0.1.5 and 10.0.1.30.' },
+            { id: 'h2', text: 'To list domain users, run: net user /domain  (while targeting the DC at 10.0.1.5).' },
+            { id: 'h3', text: 'SMB shares on the file server can be listed with: smbclient -L 10.0.1.30  or  net view \\\\10.0.1.30' },
+            { id: 'h4', text: 'Domain admin group members are revealed by enum4linux -G 10.0.1.5 or rpcclient enumdomgroups.' },
+            { id: 'h5', text: 'Hidden shares have names ending in $. Check both targets. The -S flag with enum4linux enumerates shares.' },
+            { id: 'h6', text: 'Services on the file server appear in enum4linux output or when running enum4linux -a 10.0.1.30.' },
+            { id: 'h7', text: 'For full enum4linux output on the DC: enum4linux -a 10.0.1.5' },
+            { id: 'h8', text: 'Disabled accounts are shown in rpcclient querydispinfo output or enum4linux user enumeration. Look for [Account disabled].' },
+        ];
+
+        // ─── Target Data ─────────────────────────────────────────────────
+        const TARGETS = {
+            '10.0.1.5':  { name: 'NOVACORP-DC01',  role: 'DC',         os: 'Windows Server 2019' },
+            '10.0.1.30': { name: 'NOVACORP-FS01',  role: 'FileServer', os: 'Windows Server 2019' },
+        };
+
+        // ─── DOM Refs ─────────────────────────────────────────────────────
+        const outputEl = document.getElementById('terminalOutput');
+        const inputEl  = document.getElementById('terminalInput');
+        const promptEl = document.getElementById('promptLabel');
+
+        // ====================================================================
+        // BOOT SEQUENCE
+        // ====================================================================
+        function boot() {
+            renderObjectives();
+            renderHints();
+            printWelcome();
+            inputEl.focus();
+            state.started = true;
+        }
+
+        function printWelcome() {
+            appendLines([
+                { cls: 'dim',  text: '==========================================================' },
+                { cls: 'hi',   text: '  NetBIOS / SMB Enumeration Lab  //  EHE Module 04' },
+                { cls: 'dim',  text: '==========================================================' },
+                { cls: 'out',  text: '' },
+                { cls: 'info', text: '  Scenario: NovaCorp Internal Network Assessment' },
+                { cls: 'out',  text: '  You have been engaged to enumerate a Windows domain' },
+                { cls: 'out',  text: '  segment. Two targets are in scope:' },
+                { cls: 'out',  text: '' },
+                { cls: 'info', text: '    10.0.1.5   -- Domain Controller (NOVACORP-DC01)' },
+                { cls: 'info', text: '    10.0.1.30  -- File Server       (NOVACORP-FS01)' },
+                { cls: 'out',  text: '' },
+                { cls: 'out',  text: '  Complete all 8 objectives. Type "help" to see' },
+                { cls: 'out',  text: '  available commands or "objectives" to review tasks.' },
+                { cls: 'dim',  text: '==========================================================' },
+                { cls: 'out',  text: '' },
+            ]);
+        }
+
+        // ====================================================================
+        // OUTPUT HELPERS
+        // ====================================================================
+
+        /**
+         * Append an array of { cls, text } line descriptors to the terminal.
+         * cls maps to CSS class prefixes: dim -> t-dim, out -> t-out, etc.
+         */
+        function appendLines(lines) {
+            const frag = document.createDocumentFragment();
+            lines.forEach(line => {
+                if (line.text === '' || line.text === undefined) {
+                    const blank = document.createElement('span');
+                    blank.className = 't-blank';
+                    frag.appendChild(blank);
+                    return;
+                }
+                const span = document.createElement('span');
+                span.className = 't-line t-' + (line.cls || 'out');
+                span.textContent = line.text;
+                frag.appendChild(span);
+            });
+            outputEl.appendChild(frag);
+            scrollToBottom();
+        }
+
+        /**
+         * Print the command echo (prompt + command string) before output.
+         */
+        function echoCommand(cmd) {
+            const row = document.createElement('div');
+            row.className = 't-prompt-line';
+
+            const promptSpan = document.createElement('span');
+            promptSpan.className = 't-prompt-text';
+            promptSpan.textContent = state.rpcMode
+                ? 'rpcclient $> '
+                : 'pentester@kali:~$ ';
+
+            const cmdSpan = document.createElement('span');
+            cmdSpan.className = 't-prompt-cmd';
+            cmdSpan.textContent = cmd;
+
+            row.appendChild(promptSpan);
+            row.appendChild(cmdSpan);
+            outputEl.appendChild(row);
+        }
+
+        function scrollToBottom() {
+            outputEl.scrollTop = outputEl.scrollHeight;
+        }
+
+        // ====================================================================
+        // SCORING & OBJECTIVES
+        // ====================================================================
+        function unlockObjective(id) {
+            if (state.objectivesDone.has(id)) return;
+            state.objectivesDone.add(id);
+
+            // Update checklist item
+            const item = document.querySelector(`[data-obj="${id}"]`);
+            if (item) {
+                item.classList.add('complete', 'just-complete');
+                const check = item.querySelector('.objective-check');
+                if (check) check.textContent = '✓';
+                setTimeout(() => item.classList.remove('just-complete'), 1000);
+            }
+
+            // Update header count
+            const obj = OBJECTIVES.find(o => o.id === id);
+            updateObjCount();
+            showObjNotify(obj ? obj.text : id);
+
+            // Check for full completion
+            if (state.objectivesDone.size === OBJECTIVES.length) {
+                setTimeout(showCompletion, 1200);
+            }
+        }
+
+        function deductHint() {
+            state.score = Math.max(0, state.score - 5);
+            state.hintsUsed++;
+            document.getElementById('scoreDisplay').textContent = state.score;
+        }
+
+        function updateObjCount() {
+            const n   = state.objectivesDone.size;
+            const tot = OBJECTIVES.length;
+            document.getElementById('objCountDisplay').textContent = `${n} / ${tot} objectives`;
+        }
+
+        function showObjNotify(text) {
+            const el   = document.getElementById('objNotify');
+            const body = document.getElementById('objNotifyText');
+            body.textContent = text;
+            el.classList.add('show');
+            clearTimeout(el._timer);
+            el._timer = setTimeout(() => el.classList.remove('show'), 3500);
+        }
+
+        // ====================================================================
+        // RENDER OBJECTIVES & HINTS
+        // ====================================================================
+        function renderObjectives() {
+            const list = document.getElementById('objectivesList');
+            OBJECTIVES.forEach(obj => {
+                const li   = document.createElement('li');
+                li.className = 'objective-item';
+                li.dataset.obj = obj.id;
+                li.innerHTML =
+                    `<div class="objective-check"></div>` +
+                    `<span class="objective-text">${obj.text}</span>`;
+                list.appendChild(li);
+            });
+        }
+
+        function renderHints() {
+            const container = document.getElementById('hintContainer');
+            HINTS.forEach((hint, idx) => {
+                const wrapper = document.createElement('div');
+
+                const btn = document.createElement('button');
+                btn.className = 'hint-btn';
+                btn.innerHTML = `<span>Hint ${idx + 1}</span><span class="hint-cost">-5 pts</span>`;
+
+                const textEl = document.createElement('div');
+                textEl.className = 'hint-text';
+                textEl.style.display = 'none';
+                textEl.textContent = hint.text;
+
+                btn.addEventListener('click', () => {
+                    if (textEl.style.display === 'none') {
+                        textEl.style.display = 'block';
+                        deductHint();
+                        btn.querySelector('.hint-cost').textContent = 'revealed';
+                    }
+                });
+
+                wrapper.appendChild(btn);
+                wrapper.appendChild(textEl);
+                container.appendChild(wrapper);
+            });
+        }
+
+        // ====================================================================
+        // COLLAPSIBLE SIDEBAR PANELS
+        // ====================================================================
+        window.toggleSection = function(id) {
+            const panel = document.getElementById('panel-' + id);
+            const arrow = document.getElementById('arrow-' + id);
+            const isOpen = panel.classList.contains('open');
+            panel.classList.toggle('open', !isOpen);
+            arrow.classList.toggle('open', !isOpen);
+        };
+
+        // ====================================================================
+        // COMMAND PARSER
+        // ====================================================================
+        function handleCommand(raw) {
+            const input = raw.trim();
+            if (!input) return;
+
+            // History management
+            state.history.unshift(input);
+            if (state.history.length > 100) state.history.pop();
+            state.historyIndex = -1;
+            state.commandCount++;
+
+            echoCommand(input);
+            appendLines([{ text: '' }]);
+
+            // ── rpcclient sub-shell mode ──────────────────────────────────
+            if (state.rpcMode) {
+                handleRpcCommand(input);
+                return;
+            }
+
+            // ── Parse top-level command ───────────────────────────────────
+            const lower = input.toLowerCase();
+            const parts = input.split(/\s+/);
+            const cmd   = parts[0].toLowerCase();
+
+            if (cmd === 'help')               { cmdHelp(); }
+            else if (cmd === 'clear')         { outputEl.innerHTML = ''; }
+            else if (cmd === 'objectives')    { cmdObjectives(); }
+            else if (cmd === 'nbtstat')       { cmdNbtstat(parts, input); }
+            else if (cmd === 'net')           { cmdNet(parts, input); }
+            else if (cmd === 'enum4linux')    { cmdEnum4linux(parts, input); }
+            else if (cmd === 'smbclient')     { cmdSmbclient(parts, input); }
+            else if (cmd === 'rpcclient')     { cmdRpcclient(parts, input); }
+            else if (cmd === 'ping')          { cmdPing(parts); }
+            else if (cmd === 'nmap')          { cmdNmap(parts); }
+            else if (cmd === 'whoami')        { appendLines([{ cls: 'out', text: 'pentester' }]); }
+            else if (cmd === 'ifconfig' || cmd === 'ip')  { cmdIfconfig(); }
+            else if (cmd === 'ls' || cmd === 'dir')       { appendLines([{ cls: 'out', text: 'total 0' }]); }
+            else if (cmd === 'exit' || cmd === 'quit')    { appendLines([{ cls: 'warn', text: 'Use your browser back button to leave the lab.' }]); }
+            else {
+                appendLines([{ cls: 'err', text: `Command not found: ${parts[0]}` }]);
+                appendLines([{ cls: 'dim', text: 'Type "help" for available commands.' }]);
+            }
+
+            appendLines([{ text: '' }]);
+        }
+
+        // ====================================================================
+        // BUILT-IN COMMANDS
+        // ====================================================================
+        function cmdHelp() {
+            appendLines([
+                { cls: 'hi',  text: 'Available Commands' },
+                { cls: 'dim', text: '──────────────────────────────────────────────────' },
+                { cls: 'out', text: '  nbtstat -a <ip>          NetBIOS name table lookup' },
+                { cls: 'out', text: '  nbtstat -c               Show NetBIOS name cache' },
+                { cls: 'out', text: '  net view \\\\<ip>           List shared resources' },
+                { cls: 'out', text: '  net view /domain         List domains on network' },
+                { cls: 'out', text: '  net user /domain         List domain users' },
+                { cls: 'out', text: '  enum4linux <ip>          Basic SMB enumeration' },
+                { cls: 'out', text: '  enum4linux -a <ip>       Aggressive full enumeration' },
+                { cls: 'out', text: '  enum4linux -U <ip>       User enumeration only' },
+                { cls: 'out', text: '  enum4linux -S <ip>       Share enumeration only' },
+                { cls: 'out', text: '  enum4linux -G <ip>       Group enumeration only' },
+                { cls: 'out', text: '  smbclient -L <ip>        List SMB shares' },
+                { cls: 'out', text: '  rpcclient <ip> -U ""     Open RPC null session' },
+                { cls: 'out', text: '  ping <ip>                Test reachability' },
+                { cls: 'out', text: '  nmap <ip>                Quick port scan' },
+                { cls: 'out', text: '  objectives               List lab objectives' },
+                { cls: 'out', text: '  clear                    Clear terminal' },
+                { cls: 'dim', text: '──────────────────────────────────────────────────' },
+            ]);
+        }
+
+        function cmdObjectives() {
+            appendLines([{ cls: 'hi', text: 'Lab Objectives' }]);
+            appendLines([{ cls: 'dim', text: '──────────────────────────────────────────────────' }]);
+            OBJECTIVES.forEach((obj, i) => {
+                const done = state.objectivesDone.has(obj.id);
+                const mark = done ? '[X]' : '[ ]';
+                const cls  = done ? 'out' : 'dim';
+                appendLines([{ cls, text: `  ${mark} ${i + 1}. ${obj.text}` }]);
+            });
+            appendLines([{ cls: 'dim', text: '──────────────────────────────────────────────────' }]);
+            appendLines([{ cls: 'info', text: `  Score: ${state.score} / 100    Completed: ${state.objectivesDone.size} / ${OBJECTIVES.length}` }]);
+        }
+
+        // ====================================================================
+        // NBTSTAT
+        // ====================================================================
+        function cmdNbtstat(parts, raw) {
+            if (parts.length < 2) {
+                appendLines([{ cls: 'err', text: 'Usage: nbtstat -a <ip>  or  nbtstat -c' }]);
+                return;
+            }
+
+            const flag = parts[1].toLowerCase();
+
+            if (flag === '-c') {
+                appendLines(nbtstatCache());
+                return;
+            }
+
+            if (flag === '-a') {
+                const ip = parts[2];
+                if (!ip) {
+                    appendLines([{ cls: 'err', text: 'nbtstat: -a requires an IP address.' }]);
+                    return;
+                }
+
+                if (ip === '10.0.1.5') {
+                    appendLines(nbtstatDC());
+                    unlockObjective('netbios-names');
+                } else if (ip === '10.0.1.30') {
+                    appendLines(nbtstatFS());
+                    // Check if DC was already done — full objective needs both
+                    if (state.objectivesDone.has('netbios-names')) {
+                        // already unlocked when DC was queried; FS adds to same objective
+                    } else {
+                        // First target found — still unlock (partial counts)
+                        unlockObjective('netbios-names');
+                    }
+                } else {
+                    appendLines(nbtstatUnreachable(ip));
+                }
+                return;
+            }
+
+            appendLines([{ cls: 'err', text: `nbtstat: unknown flag '${flag}'. Try -a <ip> or -c.` }]);
+        }
+
+        function nbtstatDC() {
+            return [
+                { cls: 'out', text: 'NetBIOS Remote Machine Name Table' },
+                { cls: 'out', text: '' },
+                { cls: 'out', text: '    Name               Type         Status' },
+                { cls: 'dim', text: ' ─────────────────────────────────────────────' },
+                { cls: 'hi',  text: '    NOVACORP-DC01  <00>  UNIQUE      Registered' },
+                { cls: 'out', text: '    NOVACORP       <00>  GROUP       Registered' },
+                { cls: 'hi',  text: '    NOVACORP-DC01  <20>  UNIQUE      Registered' },
+                { cls: 'out', text: '    NOVACORP       <1C>  GROUP       Registered' },
+                { cls: 'out', text: '    NOVACORP       <1B>  UNIQUE      Registered' },
+                { cls: 'out', text: '    NOVACORP-DC01  <03>  UNIQUE      Registered' },
+                { cls: 'dim', text: ' ─────────────────────────────────────────────' },
+                { cls: 'out', text: '    MAC Address = 00-50-56-97-1A-4B' },
+            ];
+        }
+
+        function nbtstatFS() {
+            return [
+                { cls: 'out', text: 'NetBIOS Remote Machine Name Table' },
+                { cls: 'out', text: '' },
+                { cls: 'out', text: '    Name               Type         Status' },
+                { cls: 'dim', text: ' ─────────────────────────────────────────────' },
+                { cls: 'hi',  text: '    NOVACORP-FS01  <00>  UNIQUE      Registered' },
+                { cls: 'out', text: '    NOVACORP       <00>  GROUP       Registered' },
+                { cls: 'hi',  text: '    NOVACORP-FS01  <20>  UNIQUE      Registered' },
+                { cls: 'out', text: '    NOVACORP       <1C>  GROUP       Registered' },
+                { cls: 'out', text: '    NOVACORP-FS01  <03>  UNIQUE      Registered' },
+                { cls: 'dim', text: ' ─────────────────────────────────────────────' },
+                { cls: 'out', text: '    MAC Address = 00-50-56-97-2C-9E' },
+            ];
+        }
+
+        function nbtstatCache() {
+            return [
+                { cls: 'out', text: 'NetBIOS Remote Cache Name Table' },
+                { cls: 'out', text: '' },
+                { cls: 'out', text: '        Name              Type       Host Address      Life [sec]' },
+                { cls: 'dim', text: ' ─────────────────────────────────────────────────────────────────' },
+                { cls: 'hi',  text: '    NOVACORP-DC01  <20>  UNIQUE      10.0.1.5           590' },
+                { cls: 'hi',  text: '    NOVACORP-FS01  <20>  UNIQUE      10.0.1.30          532' },
+                { cls: 'out', text: '    NOVACORP       <00>  GROUP       10.0.1.5           590' },
+            ];
+        }
+
+        function nbtstatUnreachable(ip) {
+            return [
+                { cls: 'err', text: `Host not found: ${ip}` },
+                { cls: 'dim', text: 'Check that the IP is within scope: 10.0.1.5, 10.0.1.30' },
+            ];
+        }
+
+        // ====================================================================
+        // NET VIEW / NET USER
+        // ====================================================================
+        function cmdNet(parts, raw) {
+            if (parts.length < 2) {
+                appendLines([{ cls: 'err', text: 'net: missing subcommand. Try: net view \\\\<ip>, net view /domain, net user /domain' }]);
+                return;
+            }
+
+            const sub = parts[1].toLowerCase();
+
+            if (sub === 'view') {
+                const target = parts[2] || '';
+
+                if (target.startsWith('/domain') || target === '/domain') {
+                    appendLines(netViewDomain());
+                    return;
+                }
+
+                // net view \\<ip>
+                const ip = target.replace(/^\\\\/, '');
+                if (ip === '10.0.1.5') {
+                    appendLines(netViewDC());
+                    return;
+                }
+                if (ip === '10.0.1.30') {
+                    appendLines(netViewFS());
+                    unlockObjective('smb-shares-fs');
+                    // Hidden shares check: IT_Internal$ and Backup$ are listed
+                    unlockObjective('hidden-shares');
+                    return;
+                }
+                appendLines([{ cls: 'err', text: `System error: The network path \\\\${ip} was not found.` }]);
+                return;
+            }
+
+            if (sub === 'user') {
+                const flag = (parts[2] || '').toLowerCase();
+                if (flag === '/domain') {
+                    appendLines(netUserDomain());
+                    unlockObjective('domain-users');
+                    unlockObjective('disabled-acct');
+                    return;
+                }
+                appendLines([{ cls: 'err', text: 'net user: unrecognised option. Try: net user /domain' }]);
+                return;
+            }
+
+            appendLines([{ cls: 'err', text: `net: unknown subcommand '${sub}'.` }]);
+        }
+
+        function netViewDomain() {
+            return [
+                { cls: 'out', text: 'Domain' },
+                { cls: 'out', text: '─────────────────────' },
+                { cls: 'hi',  text: 'NOVACORP' },
+                { cls: 'out', text: '' },
+                { cls: 'out', text: 'The command completed successfully.' },
+            ];
+        }
+
+        function netViewDC() {
+            return [
+                { cls: 'out', text: `Shared resources at \\\\10.0.1.5` },
+                { cls: 'out', text: '' },
+                { cls: 'out', text: 'Share name   Type    Comment' },
+                { cls: 'dim', text: '─────────────────────────────────────────────────────' },
+                { cls: 'out', text: 'NETLOGON     Disk    Logon server share' },
+                { cls: 'out', text: 'SYSVOL       Disk    Logon server share' },
+                { cls: 'hi',  text: 'IT_Tools$    Disk    IT Department Tools (hidden)' },
+                { cls: 'out', text: 'HR_Docs      Disk    Human Resources Documents' },
+                { cls: 'out', text: 'Public       Disk    General access share' },
+                { cls: 'dim', text: '─────────────────────────────────────────────────────' },
+                { cls: 'out', text: 'The command completed successfully.' },
+            ];
+        }
+
+        function netViewFS() {
+            return [
+                { cls: 'out', text: `Shared resources at \\\\10.0.1.30` },
+                { cls: 'out', text: '' },
+                { cls: 'out', text: 'Share name    Type    Comment' },
+                { cls: 'dim', text: '─────────────────────────────────────────────────────' },
+                { cls: 'out', text: 'Projects      Disk    Active projects repository' },
+                { cls: 'out', text: 'Archive       Disk    Archived projects (read-only)' },
+                { cls: 'hi',  text: 'Backup$       Disk    Nightly backup destination (hidden)' },
+                { cls: 'out', text: 'Public        Disk    General access share' },
+                { cls: 'hi',  text: 'IT_Internal$  Disk    Internal IT documents (hidden)' },
+                { cls: 'dim', text: '─────────────────────────────────────────────────────' },
+                { cls: 'out', text: 'The command completed successfully.' },
+            ];
+        }
+
+        function netUserDomain() {
+            return [
+                { cls: 'out', text: 'User accounts for \\\\NOVACORP-DC01' },
+                { cls: 'out', text: '' },
+                { cls: 'dim', text: '─────────────────────────────────────────────' },
+                { cls: 'hi',  text: 'Administrator    schen           jpark' },
+                { cls: 'out', text: 'mlopez           rjohnson        guest' },
+                { cls: 'dim', text: '─────────────────────────────────────────────' },
+                { cls: 'out', text: 'The command completed successfully.' },
+                { cls: 'out', text: '' },
+                { cls: 'warn', text: 'Note: Account "guest" status: Account disabled' },
+            ];
+        }
+
+        // ====================================================================
+        // ENUM4LINUX
+        // ====================================================================
+        function cmdEnum4linux(parts, raw) {
+            const flags = [];
+            let ip = null;
+
+            // Parse flags and IP from arguments
+            for (let i = 1; i < parts.length; i++) {
+                if (parts[i].startsWith('-')) {
+                    flags.push(parts[i].toLowerCase());
+                } else {
+                    ip = parts[i];
+                }
+            }
+
+            if (!ip) {
+                // Check if the last argument without a flag is the IP
+                // (handles: enum4linux 10.0.1.5)
+                if (parts.length === 2 && !parts[1].startsWith('-')) {
+                    ip = parts[1];
+                } else {
+                    appendLines([{ cls: 'err', text: 'enum4linux: specify a target IP. Example: enum4linux -a 10.0.1.5' }]);
+                    return;
+                }
+            }
+
+            const target = TARGETS[ip];
+            if (!target) {
+                appendLines([{ cls: 'err', text: `enum4linux: cannot reach ${ip}. Check that the IP is in scope.` }]);
+                return;
+            }
+
+            // Determine what sections to print
+            const doAll   = flags.includes('-a') || flags.length === 0;
+            const doUsers = doAll || flags.includes('-u');
+            const doShare = doAll || flags.includes('-s');
+            const doGroup = doAll || flags.includes('-g');
+
+            // Banner always shown
+            appendLines(enum4linuxBanner(ip, target));
+
+            if (doUsers) {
+                appendLines(enum4linuxUsers(ip, target));
+                unlockObjective('domain-users');
+                unlockObjective('disabled-acct');
+            }
+
+            if (doShare) {
+                appendLines(enum4linuxShares(ip, target));
+                if (target.role === 'FileServer') {
+                    unlockObjective('smb-shares-fs');
+                    unlockObjective('hidden-shares');
+                } else {
+                    // DC also has hidden share IT_Tools$
+                    unlockObjective('hidden-shares');
+                }
+            }
+
+            if (doGroup) {
+                appendLines(enum4linuxGroups(ip, target));
+                unlockObjective('domain-admins');
+            }
+
+            if (doAll) {
+                appendLines(enum4linuxServices(ip, target));
+                if (target.role === 'FileServer') {
+                    unlockObjective('enum-services');
+                }
+                if (ip === '10.0.1.5') {
+                    unlockObjective('enum4linux-full');
+                }
+            }
+
+            appendLines([
+                { cls: 'dim', text: '=================================================================================' },
+                { cls: 'hi',  text: 'enum4linux complete on ' + ip },
+                { cls: 'dim', text: '=================================================================================' },
+            ]);
+        }
+
+        function enum4linuxBanner(ip, target) {
+            return [
+                { cls: 'dim', text: '===============================================================================' },
+                { cls: 'hi',  text: '|                    E N U M 4 L I N U X                                     |' },
+                { cls: 'dim', text: '|         Enum information from Windows and Samba hosts                       |' },
+                { cls: 'dim', text: '===============================================================================' },
+                { cls: 'out', text: '' },
+                { cls: 'info', text: '[*] Target Information' },
+                { cls: 'out',  text: `    IP:       ${ip}` },
+                { cls: 'out',  text: `    Hostname: ${target.name}` },
+                { cls: 'out',  text: `    OS:       ${target.os}` },
+                { cls: 'out',  text: `    Domain:   NOVACORP` },
+                { cls: 'out',  text: '' },
+                { cls: 'info', text: '[*] Attempting null session connection...' },
+                { cls: 'hi',   text: '[+] Server allows null sessions' },
+                { cls: 'out',  text: '' },
+                { cls: 'info', text: '[*] Getting domain SID' },
+                { cls: 'hi',   text: '[+] Domain SID: S-1-5-21-3847284019-1204826294-3022736993' },
+                { cls: 'out',  text: '' },
+                { cls: 'info', text: '[*] OS information via RPC' },
+                { cls: 'hi',   text: `[+] OS: ${target.os}` },
+                { cls: 'hi',   text: '[+] Build: 17763' },
+                { cls: 'out',  text: '' },
+            ];
+        }
+
+        function enum4linuxUsers(ip, target) {
+            const users = [
+                { rid: '500', name: 'Administrator', fullname: 'Administrator',        flags: 'Normal account' },
+                { rid: '501', name: 'guest',         fullname: 'Guest',                flags: 'Normal account, Account disabled, Password not required' },
+                { rid: '1001', name: 'schen',        fullname: 'Sarah Chen',           flags: 'Normal account' },
+                { rid: '1002', name: 'jpark',        fullname: 'James Park',           flags: 'Normal account' },
+                { rid: '1003', name: 'mlopez',       fullname: 'Maria Lopez',          flags: 'Normal account' },
+                { rid: '1004', name: 'rjohnson',     fullname: 'Robert Johnson',       flags: 'Normal account' },
+            ];
+
+            const lines = [
+                { cls: 'dim', text: '─────────────────────────────────────────────────────────────────────' },
+                { cls: 'info', text: '[*] Enumerating users via RPC' },
+                { cls: 'dim', text: '─────────────────────────────────────────────────────────────────────' },
+                { cls: 'out',  text: '' },
+            ];
+
+            users.forEach(u => {
+                const isDisabled = u.flags.includes('disabled');
+                lines.push({ cls: isDisabled ? 'warn' : 'hi',  text: `[+] user:[${u.name}] rid:[0x${parseInt(u.rid).toString(16).toUpperCase().padStart(3,'0')}]` });
+                lines.push({ cls: 'out',  text: `    Full Name: ${u.fullname}` });
+                lines.push({ cls: isDisabled ? 'warn' : 'out', text: `    Flags:     ${u.flags}` });
+                lines.push({ cls: 'out',  text: '' });
+            });
+
+            return lines;
+        }
+
+        function enum4linuxShares(ip, target) {
+            const isDC = target.role === 'DC';
+            const shares = isDC
+                ? [
+                    { name: 'NETLOGON',  comment: 'Logon server share',               type: 'Disk' },
+                    { name: 'SYSVOL',    comment: 'Logon server share',               type: 'Disk' },
+                    { name: 'IT_Tools$', comment: 'IT Department Tools',              type: 'Disk' },
+                    { name: 'HR_Docs',   comment: 'Human Resources Documents',        type: 'Disk' },
+                    { name: 'Public',    comment: 'General access share',             type: 'Disk' },
+                  ]
+                : [
+                    { name: 'Projects',     comment: 'Active projects repository',    type: 'Disk' },
+                    { name: 'Archive',      comment: 'Archived projects (read-only)', type: 'Disk' },
+                    { name: 'Backup$',      comment: 'Nightly backup destination',    type: 'Disk' },
+                    { name: 'Public',       comment: 'General access share',          type: 'Disk' },
+                    { name: 'IT_Internal$', comment: 'Internal IT documents',         type: 'Disk' },
+                  ];
+
+            const lines = [
+                { cls: 'dim', text: '─────────────────────────────────────────────────────────────────────' },
+                { cls: 'info', text: '[*] Share Enumeration via RPC' },
+                { cls: 'dim', text: '─────────────────────────────────────────────────────────────────────' },
+                { cls: 'out',  text: '' },
+                { cls: 'out',  text: `\tSharename       Type      Comment` },
+                { cls: 'dim',  text: `\t---------       ----      -------` },
+            ];
+
+            shares.forEach(s => {
+                const hidden  = s.name.endsWith('$');
+                const padded  = s.name.padEnd(16);
+                const typePad = s.type.padEnd(10);
+                lines.push({ cls: hidden ? 'warn' : 'hi', text: `\t${padded}${typePad}${s.comment}` });
+            });
+
+            lines.push({ cls: 'out', text: '' });
+            lines.push({ cls: 'hi',  text: '[+] Share enumeration complete' });
+            lines.push({ cls: 'out', text: '' });
+
+            return lines;
+        }
+
+        function enum4linuxGroups(ip, target) {
+            return [
+                { cls: 'dim', text: '─────────────────────────────────────────────────────────────────────' },
+                { cls: 'info', text: '[*] Getting domain group memberships' },
+                { cls: 'dim', text: '─────────────────────────────────────────────────────────────────────' },
+                { cls: 'out',  text: '' },
+                { cls: 'hi',   text: '[+] Group: Domain Admins    RID: 0x200' },
+                { cls: 'out',  text: '    Members:' },
+                { cls: 'hi',   text: '      [+] Administrator  (RID: 0x1F4)' },
+                { cls: 'hi',   text: '      [+] schen          (RID: 0x3E9) -- Sarah Chen' },
+                { cls: 'out',  text: '' },
+                { cls: 'out',  text: '[+] Group: Domain Users     RID: 0x201' },
+                { cls: 'out',  text: '    Members: Administrator, guest, schen, jpark, mlopez, rjohnson' },
+                { cls: 'out',  text: '' },
+                { cls: 'out',  text: '[+] Group: IT Staff         RID: 0x400' },
+                { cls: 'out',  text: '    Members:' },
+                { cls: 'out',  text: '      [+] schen  (RID: 0x3E9)' },
+                { cls: 'out',  text: '      [+] jpark  (RID: 0x3EA)' },
+                { cls: 'out',  text: '' },
+                { cls: 'out',  text: '[+] Group: Marketing        RID: 0x401' },
+                { cls: 'out',  text: '    Members:' },
+                { cls: 'out',  text: '      [+] mlopez (RID: 0x3EB)' },
+                { cls: 'out',  text: '' },
+                { cls: 'out',  text: '[+] Group: Finance          RID: 0x402' },
+                { cls: 'out',  text: '    Members:' },
+                { cls: 'out',  text: '      [+] rjohnson (RID: 0x3EC)' },
+                { cls: 'out',  text: '' },
+            ];
+        }
+
+        function enum4linuxServices(ip, target) {
+            const isDC = target.role === 'DC';
+            const services = isDC
+                ? [
+                    { name: 'Active Directory Domain Services', status: 'Running', pid: '624'  },
+                    { name: 'DNS Server',                       status: 'Running', pid: '912'  },
+                    { name: 'Kerberos Key Distribution Center', status: 'Running', pid: '624'  },
+                    { name: 'LanmanServer',                    status: 'Running', pid: '1204' },
+                    { name: 'Netlogon',                        status: 'Running', pid: '1048' },
+                    { name: 'Remote Desktop Services',         status: 'Running', pid: '1532' },
+                  ]
+                : [
+                    { name: 'Server',                   status: 'Running', pid: '1048' },
+                    { name: 'Workstation',              status: 'Running', pid: '980'  },
+                    { name: 'Browser',                  status: 'Running', pid: '1204' },
+                    { name: 'LanmanServer',             status: 'Running', pid: '1048' },
+                    { name: 'FTP Publishing Service',   status: 'Running', pid: '1320' },
+                    { name: 'Remote Desktop Services',  status: 'Running', pid: '1780' },
+                  ];
+
+            const lines = [
+                { cls: 'dim', text: '─────────────────────────────────────────────────────────────────────' },
+                { cls: 'info', text: '[*] Enumerating services via DCERPC' },
+                { cls: 'dim', text: '─────────────────────────────────────────────────────────────────────' },
+                { cls: 'out',  text: '' },
+            ];
+
+            services.forEach(svc => {
+                lines.push({ cls: 'out', text: `[+] Service: ${svc.name}` });
+                lines.push({ cls: 'hi',  text: `    Status: ${svc.status}   PID: ${svc.pid}` });
+                lines.push({ cls: 'out', text: '' });
+            });
+
+            return lines;
+        }
+
+        // ====================================================================
+        // SMBCLIENT
+        // ====================================================================
+        function cmdSmbclient(parts, raw) {
+            // Acceptable forms: smbclient -L <ip>  or  smbclient -L //<ip>
+            const flagIdx = parts.findIndex(p => p.toLowerCase() === '-l');
+            if (flagIdx === -1 || !parts[flagIdx + 1]) {
+                appendLines([{ cls: 'err', text: 'smbclient: Usage: smbclient -L <ip>' }]);
+                return;
+            }
+
+            const rawIp = parts[flagIdx + 1].replace(/^\/\//, '');
+            const ip    = rawIp;
+
+            if (!TARGETS[ip]) {
+                appendLines([
+                    { cls: 'info', text: 'Enter WORKGROUP password (press Enter for null session): ' },
+                    { cls: 'err',  text: `smbclient: Connection to ${ip} failed: WERR_BAD_NET_RESP` },
+                ]);
+                return;
+            }
+
+            const target = TARGETS[ip];
+            appendLines([{ cls: 'info', text: 'Enter WORKGROUP\\Anonymous password: ' }]);
+            appendLines([{ cls: 'out',  text: '' }]);
+
+            if (ip === '10.0.1.5') {
+                appendLines(smbclientDC(target));
+            } else {
+                appendLines(smbclientFS(target));
+                unlockObjective('smb-shares-fs');
+                unlockObjective('hidden-shares');
+            }
+        }
+
+        function smbclientDC(target) {
+            return [
+                { cls: 'out',  text: `\tSharename       Type      Comment` },
+                { cls: 'dim',  text: `\t---------       ----      -------` },
+                { cls: 'out',  text: `\tNETLOGON        Disk      Logon server share ` },
+                { cls: 'out',  text: `\tSYSVOL          Disk      Logon server share ` },
+                { cls: 'warn', text: `\tIT_Tools$       Disk      IT Department Tools (hidden)` },
+                { cls: 'out',  text: `\tHR_Docs         Disk      Human Resources Documents` },
+                { cls: 'out',  text: `\tPublic          Disk      General access share` },
+                { cls: 'out',  text: `\tIPC$            IPC       Remote IPC` },
+                { cls: 'dim',  text: '' },
+                { cls: 'out',  text: `SMB1 disabled -- no workgroup available` },
+            ];
+        }
+
+        function smbclientFS(target) {
+            return [
+                { cls: 'out',  text: `\tSharename       Type      Comment` },
+                { cls: 'dim',  text: `\t---------       ----      -------` },
+                { cls: 'out',  text: `\tProjects        Disk      Active projects repository` },
+                { cls: 'out',  text: `\tArchive         Disk      Archived projects (read-only)` },
+                { cls: 'warn', text: `\tBackup$         Disk      Nightly backup destination (hidden)` },
+                { cls: 'out',  text: `\tPublic          Disk      General access share` },
+                { cls: 'warn', text: `\tIT_Internal$    Disk      Internal IT documents (hidden)` },
+                { cls: 'out',  text: `\tIPC$            IPC       Remote IPC` },
+                { cls: 'dim',  text: '' },
+                { cls: 'out',  text: `SMB1 disabled -- no workgroup available` },
+            ];
+        }
+
+        // ====================================================================
+        // RPCCLIENT
+        // ====================================================================
+        function cmdRpcclient(parts, raw) {
+            // Parse: rpcclient <ip> -U ""  or  rpcclient -U "" <ip>
+            let ip = null;
+            for (let i = 1; i < parts.length; i++) {
+                if (!parts[i].startsWith('-') && parts[i] !== '""' && parts[i] !== "''") {
+                    ip = parts[i];
+                    break;
+                }
+            }
+
+            if (!ip) {
+                appendLines([{ cls: 'err', text: 'rpcclient: Usage: rpcclient <ip> -U ""' }]);
+                return;
+            }
+
+            if (!TARGETS[ip]) {
+                appendLines([{ cls: 'err', text: `rpcclient: Cannot connect to ${ip}: NT_STATUS_CONNECTION_REFUSED` }]);
+                return;
+            }
+
+            // Enter rpcclient sub-shell
+            state.rpcMode   = true;
+            state.rpcTarget = ip;
+            promptEl.textContent = 'rpcclient $> ';
+
+            appendLines([
+                { cls: 'info', text: `Connecting to ${ip} with null session...` },
+                { cls: 'hi',   text: `[+] Bound to ${TARGETS[ip].name} (${ip})` },
+                { cls: 'out',  text: '' },
+                { cls: 'dim',  text: 'Type "enumdomusers", "enumdomgroups", "queryuser <rid>", "querydispinfo",' },
+                { cls: 'dim',  text: 'or "exit" to close the RPC session.' },
+            ]);
+        }
+
+        /**
+         * Handle commands within the rpcclient sub-shell.
+         * Prompts are displayed as "rpcclient $> "
+         */
+        function handleRpcCommand(input) {
+            const parts = input.trim().split(/\s+/);
+            const cmd   = parts[0].toLowerCase();
+
+            if (cmd === 'exit' || cmd === 'quit') {
+                state.rpcMode   = false;
+                state.rpcTarget = null;
+                promptEl.textContent = 'pentester@kali:~$ ';
+                appendLines([{ cls: 'info', text: 'rpcclient session closed.' }]);
+                appendLines([{ text: '' }]);
+                return;
+            }
+
+            if (cmd === 'enumdomusers') {
+                appendLines(rpcEnumdomusers());
+                unlockObjective('domain-users');
+                unlockObjective('disabled-acct');
+                appendLines([{ text: '' }]);
+                return;
+            }
+
+            if (cmd === 'enumdomgroups') {
+                appendLines(rpcEnumdomgroups());
+                unlockObjective('domain-admins');
+                appendLines([{ text: '' }]);
+                return;
+            }
+
+            if (cmd === 'querydispinfo') {
+                appendLines(rpcQuerydispinfo());
+                unlockObjective('domain-users');
+                unlockObjective('disabled-acct');
+                appendLines([{ text: '' }]);
+                return;
+            }
+
+            if (cmd === 'queryuser') {
+                const rid = parts[1];
+                if (!rid) {
+                    appendLines([{ cls: 'err', text: 'queryuser: specify a RID. Example: queryuser 0x1F4' }]);
+                } else {
+                    appendLines(rpcQueryuser(rid));
+                    unlockObjective('domain-users');
+                }
+                appendLines([{ text: '' }]);
+                return;
+            }
+
+            if (cmd === 'help') {
+                appendLines([
+                    { cls: 'out', text: 'rpcclient commands:' },
+                    { cls: 'out', text: '  enumdomusers   - Enumerate domain users' },
+                    { cls: 'out', text: '  enumdomgroups  - Enumerate domain groups' },
+                    { cls: 'out', text: '  queryuser <rid>- Query user by RID' },
+                    { cls: 'out', text: '  querydispinfo  - Display info for all users' },
+                    { cls: 'out', text: '  exit           - Close RPC session' },
+                ]);
+                appendLines([{ text: '' }]);
+                return;
+            }
+
+            appendLines([{ cls: 'err', text: `rpcclient: unknown command: ${parts[0]}` }]);
+            appendLines([{ text: '' }]);
+        }
+
+        function rpcEnumdomusers() {
+            return [
+                { cls: 'hi',  text: 'user:[Administrator] rid:[0x1f4]' },
+                { cls: 'warn', text: 'user:[guest] rid:[0x1f5]' },
+                { cls: 'hi',  text: 'user:[schen] rid:[0x3e9]' },
+                { cls: 'hi',  text: 'user:[jpark] rid:[0x3ea]' },
+                { cls: 'hi',  text: 'user:[mlopez] rid:[0x3eb]' },
+                { cls: 'hi',  text: 'user:[rjohnson] rid:[0x3ec]' },
+            ];
+        }
+
+        function rpcEnumdomgroups() {
+            return [
+                { cls: 'hi',  text: 'group:[Domain Admins] rid:[0x200]' },
+                { cls: 'out', text: 'group:[Domain Users] rid:[0x201]' },
+                { cls: 'out', text: 'group:[Domain Guests] rid:[0x202]' },
+                { cls: 'out', text: 'group:[IT Staff] rid:[0x400]' },
+                { cls: 'out', text: 'group:[Marketing] rid:[0x401]' },
+                { cls: 'out', text: 'group:[Finance] rid:[0x402]' },
+            ];
+        }
+
+        function rpcQuerydispinfo() {
+            return [
+                { cls: 'dim',  text: 'index: 0x1 RID: 0x1f4 acb: 0x00000210 Account: Administrator  Name: Administrator  Desc: Built-in account for administering the computer/domain' },
+                { cls: 'warn', text: 'index: 0x2 RID: 0x1f5 acb: 0x00000215 Account: guest         Name: Guest          Desc: Built-in account for guest access  [Account disabled]' },
+                { cls: 'hi',   text: 'index: 0x3 RID: 0x3e9 acb: 0x00000210 Account: schen         Name: Sarah Chen     Desc: IT Administrator - Domain Admin' },
+                { cls: 'hi',   text: 'index: 0x4 RID: 0x3ea acb: 0x00000210 Account: jpark         Name: James Park     Desc: IT Support Engineer' },
+                { cls: 'hi',   text: 'index: 0x5 RID: 0x3eb acb: 0x00000210 Account: mlopez        Name: Maria Lopez    Desc: Marketing Coordinator' },
+                { cls: 'hi',   text: 'index: 0x6 RID: 0x3ec acb: 0x00000210 Account: rjohnson      Name: Robert Johnson Desc: Finance Analyst' },
+            ];
+        }
+
+        function rpcQueryuser(rid) {
+            const ridMap = {
+                '0x1f4':  { name: 'Administrator', full: 'Administrator',  desc: 'Built-in administrator',       flags: 'Normal account',  groups: 'Domain Admins', logon: 'Mon Feb 24 09:14:22 2026' },
+                '0x1f5':  { name: 'guest',         full: 'Guest',          desc: 'Built-in guest account',       flags: 'Account disabled', groups: 'Domain Guests', logon: 'Never' },
+                '0x3e9':  { name: 'schen',         full: 'Sarah Chen',     desc: 'IT Administrator',             flags: 'Normal account',   groups: 'Domain Admins, IT Staff', logon: 'Tue Feb 25 08:32:11 2026' },
+                '0x3ea':  { name: 'jpark',         full: 'James Park',     desc: 'IT Support Engineer',          flags: 'Normal account',   groups: 'IT Staff',       logon: 'Mon Feb 24 14:55:03 2026' },
+                '0x3eb':  { name: 'mlopez',        full: 'Maria Lopez',    desc: 'Marketing Coordinator',        flags: 'Normal account',   groups: 'Marketing',      logon: 'Fri Feb 21 10:20:44 2026' },
+                '0x3ec':  { name: 'rjohnson',      full: 'Robert Johnson', desc: 'Finance Analyst',              flags: 'Normal account',   groups: 'Finance',        logon: 'Thu Feb 20 16:08:29 2026' },
+                '500':    { name: 'Administrator', full: 'Administrator',  desc: 'Built-in administrator',       flags: 'Normal account',  groups: 'Domain Admins', logon: 'Mon Feb 24 09:14:22 2026' },
+                '501':    { name: 'guest',         full: 'Guest',          desc: 'Built-in guest account',       flags: 'Account disabled', groups: 'Domain Guests', logon: 'Never' },
+                '1001':   { name: 'schen',         full: 'Sarah Chen',     desc: 'IT Administrator',             flags: 'Normal account',   groups: 'Domain Admins, IT Staff', logon: 'Tue Feb 25 08:32:11 2026' },
+                '1002':   { name: 'jpark',         full: 'James Park',     desc: 'IT Support Engineer',          flags: 'Normal account',   groups: 'IT Staff',       logon: 'Mon Feb 24 14:55:03 2026' },
+                '1003':   { name: 'mlopez',        full: 'Maria Lopez',    desc: 'Marketing Coordinator',        flags: 'Normal account',   groups: 'Marketing',      logon: 'Fri Feb 21 10:20:44 2026' },
+                '1004':   { name: 'rjohnson',      full: 'Robert Johnson', desc: 'Finance Analyst',              flags: 'Normal account',   groups: 'Finance',        logon: 'Thu Feb 20 16:08:29 2026' },
+            };
+
+            const ridKey = rid.toLowerCase();
+            const user   = ridMap[ridKey];
+
+            if (!user) {
+                return [{ cls: 'err', text: `queryuser: No user with RID ${rid}` }];
+            }
+
+            const isDisabled = user.flags.includes('disabled');
+            return [
+                { cls: 'out',               text: `User Name   :  ${user.name}` },
+                { cls: 'out',               text: `Full Name   :  ${user.full}` },
+                { cls: 'out',               text: `Comment     :  ${user.desc}` },
+                { cls: isDisabled ? 'warn' : 'out', text: `User Flags  :  ${user.flags}` },
+                { cls: 'out',               text: `Groups      :  ${user.groups}` },
+                { cls: 'out',               text: `Last Logon  :  ${user.logon}` },
+            ];
+        }
+
+        // ====================================================================
+        // PING & NMAP
+        // ====================================================================
+        function cmdPing(parts) {
+            const ip = parts[1];
+            if (!ip) {
+                appendLines([{ cls: 'err', text: 'ping: missing host operand' }]);
+                return;
+            }
+
+            if (TARGETS[ip]) {
+                appendLines([
+                    { cls: 'out', text: `PING ${ip} (${ip}) 56(84) bytes of data.` },
+                    { cls: 'hi',  text: `64 bytes from ${ip}: icmp_seq=1 ttl=128 time=0.842 ms` },
+                    { cls: 'hi',  text: `64 bytes from ${ip}: icmp_seq=2 ttl=128 time=0.671 ms` },
+                    { cls: 'hi',  text: `64 bytes from ${ip}: icmp_seq=3 ttl=128 time=0.703 ms` },
+                    { cls: 'dim', text: `--- ${ip} ping statistics ---` },
+                    { cls: 'out', text: `3 packets transmitted, 3 received, 0% packet loss` },
+                ]);
+            } else {
+                appendLines([
+                    { cls: 'out', text: `PING ${ip} (${ip}) 56(84) bytes of data.` },
+                    { cls: 'err', text: `From 10.0.1.100 icmp_seq=1 Destination Host Unreachable` },
+                    { cls: 'dim', text: `--- ${ip} ping statistics ---` },
+                    { cls: 'out', text: `3 packets transmitted, 0 received, 100% packet loss` },
+                ]);
+            }
+        }
+
+        function cmdNmap(parts) {
+            const ip = parts[parts.length - 1];
+            if (!ip || ip === 'nmap') {
+                appendLines([{ cls: 'err', text: 'nmap: specify a target IP' }]);
+                return;
+            }
+
+            if (ip === '10.0.1.5') {
+                appendLines([
+                    { cls: 'info', text: 'Starting Nmap 7.94 ( https://nmap.org )' },
+                    { cls: 'out',  text: `Nmap scan report for NOVACORP-DC01 (10.0.1.5)` },
+                    { cls: 'out',  text: 'Host is up (0.0009s latency).' },
+                    { cls: 'out',  text: '' },
+                    { cls: 'out',  text: 'PORT      STATE SERVICE' },
+                    { cls: 'hi',   text: '135/tcp   open  msrpc' },
+                    { cls: 'hi',   text: '139/tcp   open  netbios-ssn' },
+                    { cls: 'hi',   text: '389/tcp   open  ldap' },
+                    { cls: 'hi',   text: '445/tcp   open  microsoft-ds' },
+                    { cls: 'hi',   text: '636/tcp   open  ldapssl' },
+                    { cls: 'hi',   text: '3268/tcp  open  globalcatLDAP' },
+                    { cls: 'hi',   text: '3389/tcp  open  ms-wbt-server' },
+                    { cls: 'out',  text: '' },
+                    { cls: 'out',  text: 'Nmap done: 1 IP address (1 host up) scanned in 2.37 seconds' },
+                ]);
+            } else if (ip === '10.0.1.30') {
+                appendLines([
+                    { cls: 'info', text: 'Starting Nmap 7.94 ( https://nmap.org )' },
+                    { cls: 'out',  text: `Nmap scan report for NOVACORP-FS01 (10.0.1.30)` },
+                    { cls: 'out',  text: 'Host is up (0.0011s latency).' },
+                    { cls: 'out',  text: '' },
+                    { cls: 'out',  text: 'PORT      STATE SERVICE' },
+                    { cls: 'hi',   text: '21/tcp    open  ftp' },
+                    { cls: 'hi',   text: '135/tcp   open  msrpc' },
+                    { cls: 'hi',   text: '139/tcp   open  netbios-ssn' },
+                    { cls: 'hi',   text: '445/tcp   open  microsoft-ds' },
+                    { cls: 'hi',   text: '3389/tcp  open  ms-wbt-server' },
+                    { cls: 'out',  text: '' },
+                    { cls: 'out',  text: 'Nmap done: 1 IP address (1 host up) scanned in 1.88 seconds' },
+                ]);
+            } else {
+                appendLines([
+                    { cls: 'info', text: 'Starting Nmap 7.94 ( https://nmap.org )' },
+                    { cls: 'warn', text: `Nmap scan report for ${ip}` },
+                    { cls: 'warn', text: 'Host seems down.' },
+                    { cls: 'out',  text: 'Nmap done: 1 IP address (0 hosts up) scanned in 3.12 seconds' },
+                ]);
+            }
+        }
+
+        function cmdIfconfig() {
+            appendLines([
+                { cls: 'out', text: 'eth0: flags=4163<UP,BROADCAST,RUNNING,MULTICAST>  mtu 1500' },
+                { cls: 'hi',  text: '        inet 10.0.1.100  netmask 255.255.255.0  broadcast 10.0.1.255' },
+                { cls: 'out', text: '        ether 00:0c:29:4a:7f:11  txqueuelen 1000  (Ethernet)' },
+                { cls: 'out', text: '' },
+                { cls: 'out', text: 'lo: flags=73<UP,LOOPBACK,RUNNING>  mtu 65536' },
+                { cls: 'out', text: '        inet 127.0.0.1  netmask 255.0.0.0' },
+            ]);
+        }
+
+        // ====================================================================
+        // COMPLETION
+        // ====================================================================
+        function showCompletion() {
+            if (state.completionShown) return;
+            state.completionShown = true;
+
+            document.getElementById('finalScoreDisplay').textContent = state.score;
+            document.getElementById('statObjs').textContent   = `${state.objectivesDone.size}/${OBJECTIVES.length}`;
+            document.getElementById('statCmds').textContent   = state.commandCount;
+            document.getElementById('statHints').textContent  = state.hintsUsed;
+            document.getElementById('completionOverlay').classList.add('visible');
+        }
+
+        window.markLabComplete = function() {
+            if (typeof ModuleProgress !== 'undefined') {
+                ModuleProgress.complete('dark-arts', 'ehe-lab-enumeration', {
+                    returnUrl: '../index.html'
+                });
+            } else {
+                window.location.href = '../index.html';
+            }
+        };
+
+        // ====================================================================
+        // INPUT HANDLING — keyboard events
+        // ====================================================================
+        inputEl.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') {
+                const val = inputEl.value;
+                inputEl.value = '';
+                handleCommand(val);
+                return;
+            }
+
+            // Arrow-Up: navigate history backward
+            if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                if (state.history.length === 0) return;
+                state.historyIndex = Math.min(state.historyIndex + 1, state.history.length - 1);
+                inputEl.value = state.history[state.historyIndex];
+                // Move cursor to end
+                const len = inputEl.value.length;
+                inputEl.setSelectionRange(len, len);
+                return;
+            }
+
+            // Arrow-Down: navigate history forward
+            if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                if (state.historyIndex <= 0) {
+                    state.historyIndex = -1;
+                    inputEl.value = '';
+                    return;
+                }
+                state.historyIndex--;
+                inputEl.value = state.history[state.historyIndex];
+                return;
+            }
+
+            // Tab: simple command completion
+            if (e.key === 'Tab') {
+                e.preventDefault();
+                tabComplete();
+                return;
+            }
+
+            // Ctrl+C: cancel current input (or exit rpc mode)
+            if (e.key === 'c' && e.ctrlKey) {
+                e.preventDefault();
+                if (state.rpcMode) {
+                    echoCommand('^C');
+                    state.rpcMode   = false;
+                    state.rpcTarget = null;
+                    promptEl.textContent = 'pentester@kali:~$ ';
+                    appendLines([{ cls: 'warn', text: 'Session terminated.' }, { text: '' }]);
+                } else {
+                    echoCommand('^C');
+                    inputEl.value = '';
+                    appendLines([{ text: '' }]);
+                }
+                return;
+            }
+
+            // Ctrl+L: clear terminal
+            if (e.key === 'l' && e.ctrlKey) {
+                e.preventDefault();
+                outputEl.innerHTML = '';
+                return;
+            }
+        });
+
+        // Click anywhere on terminal to focus input
+        document.querySelector('.terminal-panel').addEventListener('click', () => inputEl.focus());
+
+        // ====================================================================
+        // TAB COMPLETION
+        // ====================================================================
+        function tabComplete() {
+            const val      = inputEl.value;
+            const commands = [
+                'nbtstat -a ', 'nbtstat -c', 'net view \\\\', 'net view /domain',
+                'net user /domain', 'enum4linux ', 'enum4linux -a ', 'enum4linux -U ',
+                'enum4linux -S ', 'enum4linux -G ', 'smbclient -L ',
+                'rpcclient 10.0.1.5 -U ""', 'rpcclient 10.0.1.30 -U ""',
+                'ping ', 'nmap ', 'help', 'clear', 'objectives', 'whoami', 'ifconfig',
+            ];
+
+            const matches = commands.filter(c => c.startsWith(val));
+            if (matches.length === 1) {
+                inputEl.value = matches[0];
+            } else if (matches.length > 1) {
+                appendLines([{ text: '' }]);
+                appendLines([{ cls: 'dim', text: matches.join('    ') }]);
+                appendLines([{ text: '' }]);
+            }
+        }
+
+        // ====================================================================
+        // BOOT
+        // ====================================================================
+        document.addEventListener('DOMContentLoaded', boot);
+
+    })();
+    </script>
+</body>
+</html>

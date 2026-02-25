@@ -1,0 +1,1270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('dark-arts');</script>
+    <!-- Progress & Achievements -->
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lab: Web Server Attack — EHE | The Vault</title>
+    <style>
+        /* ============================================================
+           RESET & BASE
+        ============================================================ */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            min-height: 100vh;
+            background: #0a0508;
+            font-family: 'Georgia', 'Times New Roman', serif;
+            color: #8a6a9a;
+            overflow-x: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background:
+                radial-gradient(ellipse at 20% 15%, rgba(80, 40, 100, 0.10) 0%, transparent 55%),
+                radial-gradient(ellipse at 80% 85%, rgba(60, 20, 80, 0.07) 0%, transparent 50%);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        /* ============================================================
+           STICKY HEADER
+        ============================================================ */
+        .lab-header {
+            position: sticky; top: 0; z-index: 100;
+            background: rgba(10, 5, 15, 0.97);
+            border-bottom: 1px solid rgba(100, 60, 130, 0.22);
+            backdrop-filter: blur(14px);
+            padding: 14px 32px;
+            display: flex; justify-content: space-between; align-items: center; gap: 16px;
+        }
+
+        .header-left { display: flex; align-items: center; gap: 18px; min-width: 0; }
+        .back-btn {
+            color: #6a4a7a; text-decoration: none; font-size: 0.76rem; letter-spacing: 0.1em;
+            padding: 6px 14px; border: 1px solid rgba(100, 60, 130, 0.2); border-radius: 4px;
+            transition: all 0.25s; font-family: 'Georgia', serif; white-space: nowrap; flex-shrink: 0;
+        }
+        .back-btn:hover { color: #a855f7; border-color: rgba(147, 51, 234, 0.45); background: rgba(147, 51, 234, 0.06); }
+        .header-label { font-size: 0.62rem; letter-spacing: 0.22em; color: #5a3a6a; text-transform: uppercase; margin-bottom: 2px; }
+        .header-title { font-size: 0.95rem; color: #c09ad0; letter-spacing: 0.04em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .header-right { display: flex; align-items: center; gap: 20px; flex-shrink: 0; }
+
+        .score-display { display: flex; align-items: center; gap: 8px; font-size: 0.72rem; letter-spacing: 0.1em; color: #6a4a7a; }
+        .score-value { font-size: 1.1rem; color: #a855f7; font-family: 'Courier New', monospace; font-weight: bold; min-width: 40px; text-align: right; transition: color 0.3s; }
+        .score-value.deducted { color: #ef4444; animation: score-flash 0.5s ease; }
+        @keyframes score-flash { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.15); } }
+
+        .obj-progress-pill { font-size: 0.7rem; letter-spacing: 0.08em; color: #6a4a7a; padding: 5px 12px; border: 1px solid rgba(100, 60, 130, 0.2); border-radius: 20px; font-family: 'Courier New', monospace; }
+        .obj-progress-pill .obj-count { color: #a855f7; font-weight: bold; }
+
+        /* ============================================================
+           ETHICAL WARNING
+        ============================================================ */
+        .warning-banner {
+            background: rgba(239, 68, 68, 0.05); border: 1px solid rgba(239, 68, 68, 0.30);
+            border-left: 3px solid #ef4444; margin: 20px 24px 0; padding: 12px 18px; border-radius: 4px;
+            display: flex; align-items: flex-start; gap: 12px; position: relative; z-index: 10;
+        }
+        .warning-icon { color: #ef4444; font-size: 0.8rem; letter-spacing: 0.15em; text-transform: uppercase; white-space: nowrap; margin-top: 1px; font-family: 'Courier New', monospace; flex-shrink: 0; }
+        .warning-text { font-size: 0.76rem; color: rgba(239, 68, 68, 0.75); line-height: 1.6; letter-spacing: 0.02em; }
+
+        /* ============================================================
+           MAIN LAYOUT
+        ============================================================ */
+        .lab-body { flex: 1; display: flex; gap: 0; padding: 20px 24px 24px; position: relative; z-index: 10; min-height: 0; }
+
+        /* ============================================================
+           SIDEBAR
+        ============================================================ */
+        .sidebar { width: 268px; flex-shrink: 0; display: flex; flex-direction: column; gap: 14px; margin-right: 18px; }
+
+        .sidebar-panel { background: rgba(15, 8, 20, 0.80); border: 1px solid rgba(100, 60, 130, 0.18); border-radius: 6px; overflow: hidden; }
+        .panel-header { padding: 11px 16px; background: rgba(80, 40, 100, 0.12); border-bottom: 1px solid rgba(100, 60, 130, 0.15); display: flex; justify-content: space-between; align-items: center; cursor: pointer; user-select: none; }
+        .panel-header-title { font-size: 0.65rem; letter-spacing: 0.2em; text-transform: uppercase; color: #7a5a8a; }
+        .panel-toggle { font-size: 0.65rem; color: #5a3a6a; transition: transform 0.25s; font-family: 'Courier New', monospace; }
+        .panel-toggle.open { transform: rotate(180deg); }
+        .panel-body { padding: 14px; transition: all 0.3s ease; overflow: hidden; }
+        .panel-body.collapsed { padding-top: 0; padding-bottom: 0; max-height: 0; }
+
+        .objectives-list { display: flex; flex-direction: column; gap: 8px; }
+        .objective-item { display: flex; align-items: flex-start; gap: 10px; padding: 8px 10px; border-radius: 4px; border: 1px solid rgba(100, 60, 130, 0.10); transition: all 0.3s; background: rgba(10, 5, 15, 0.4); }
+        .objective-item.completed { border-color: rgba(34, 197, 94, 0.25); background: rgba(34, 197, 94, 0.04); }
+        .obj-checkbox { width: 14px; height: 14px; border: 1px solid rgba(100, 60, 130, 0.35); border-radius: 2px; flex-shrink: 0; margin-top: 2px; display: flex; align-items: center; justify-content: center; transition: all 0.3s; font-family: 'Courier New', monospace; font-size: 0.55rem; color: transparent; }
+        .objective-item.completed .obj-checkbox { background: rgba(34, 197, 94, 0.15); border-color: #22c55e; color: #22c55e; }
+        .obj-label { font-size: 0.72rem; color: #5a3a6a; line-height: 1.5; letter-spacing: 0.02em; transition: color 0.3s; }
+        .objective-item.completed .obj-label { color: #22c55e; }
+
+        .phase-badge { font-size: 0.6rem; letter-spacing: 0.15em; text-transform: uppercase; color: #5a3a6a; margin-bottom: 8px; padding-bottom: 6px; border-bottom: 1px solid rgba(100, 60, 130, 0.10); }
+
+        .hint-btn { width: 100%; padding: 9px 16px; background: rgba(147, 51, 234, 0.08); border: 1px solid rgba(147, 51, 234, 0.22); border-radius: 4px; color: #a855f7; font-family: 'Georgia', serif; font-size: 0.72rem; letter-spacing: 0.1em; cursor: pointer; transition: all 0.25s; text-align: center; margin-bottom: 8px; }
+        .hint-btn:hover { background: rgba(147, 51, 234, 0.14); border-color: rgba(168, 85, 247, 0.4); }
+        .hint-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+        .hint-cost { font-size: 0.62rem; color: #5a3a6a; text-align: center; letter-spacing: 0.05em; }
+        .hint-content { margin-top: 10px; padding: 10px 12px; background: rgba(147, 51, 234, 0.06); border: 1px solid rgba(147, 51, 234, 0.15); border-radius: 4px; font-size: 0.72rem; color: #8a6a9a; line-height: 1.6; display: none; }
+        .hint-content.visible { display: block; }
+        .hint-code { display: block; margin-top: 6px; font-family: 'Courier New', monospace; font-size: 0.68rem; color: #c09ad0; background: rgba(10, 5, 15, 0.5); padding: 5px 8px; border-radius: 3px; border-left: 2px solid #9333ea; word-break: break-all; }
+
+        .phase-progress { margin-top: 4px; }
+        .phase-progress-label { display: flex; justify-content: space-between; font-size: 0.62rem; color: #5a3a6a; letter-spacing: 0.08em; margin-bottom: 5px; }
+        .phase-progress-bar { height: 3px; background: rgba(100, 60, 130, 0.15); border-radius: 2px; overflow: hidden; }
+        .phase-progress-fill { height: 100%; background: linear-gradient(90deg, #6a4a8a, #9333ea); border-radius: 2px; transition: width 0.5s ease; }
+
+        /* ============================================================
+           TERMINAL
+        ============================================================ */
+        .terminal-wrapper { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+
+        .phase-tabs { display: flex; gap: 0; margin-bottom: -1px; position: relative; z-index: 1; }
+        .phase-tab { padding: 9px 20px; font-size: 0.68rem; letter-spacing: 0.15em; text-transform: uppercase; color: #5a3a6a; border: 1px solid rgba(100, 60, 130, 0.18); border-bottom: none; border-radius: 5px 5px 0 0; cursor: pointer; background: rgba(10, 5, 15, 0.6); transition: all 0.25s; user-select: none; }
+        .phase-tab:hover { color: #8a6a9a; background: rgba(80, 40, 100, 0.12); }
+        .phase-tab.active { color: #a855f7; background: rgba(15, 8, 22, 0.95); border-color: rgba(100, 60, 130, 0.30); }
+        .phase-tab .tab-check { display: inline-block; font-family: 'Courier New', monospace; margin-right: 6px; color: #3a2a4a; font-size: 0.6rem; }
+        .phase-tab.phase-done .tab-check { color: #22c55e; }
+
+        .terminal-container { flex: 1; display: flex; flex-direction: column; background: rgba(8, 4, 12, 0.95); border: 1px solid rgba(100, 60, 130, 0.28); border-radius: 0 6px 6px 6px; overflow: hidden; min-height: 500px; }
+
+        .terminal-topbar { padding: 10px 16px; background: rgba(20, 10, 30, 0.9); border-bottom: 1px solid rgba(100, 60, 130, 0.18); display: flex; align-items: center; gap: 10px; }
+        .term-dot { width: 10px; height: 10px; border-radius: 50%; }
+        .term-dot.red    { background: rgba(239, 68, 68, 0.5); }
+        .term-dot.yellow { background: rgba(234, 179, 8, 0.5); }
+        .term-dot.green  { background: rgba(34, 197, 94, 0.5); }
+        .term-title { font-family: 'Courier New', monospace; font-size: 0.68rem; color: #5a3a6a; letter-spacing: 0.1em; margin-left: 8px; }
+
+        .terminal-output {
+            flex: 1; overflow-y: auto; padding: 18px 20px;
+            font-family: 'Courier New', monospace; font-size: 0.82rem; line-height: 1.65;
+            color: #22c55e; scroll-behavior: smooth;
+        }
+        .terminal-output::-webkit-scrollbar { width: 4px; }
+        .terminal-output::-webkit-scrollbar-track { background: rgba(10, 5, 15, 0.5); }
+        .terminal-output::-webkit-scrollbar-thumb { background: rgba(100, 60, 130, 0.4); border-radius: 2px; }
+
+        .term-line { display: block; white-space: pre-wrap; word-break: break-word; }
+        .term-line.prompt    { color: #a855f7; }
+        .term-line.command   { color: #e2d4f0; }
+        .term-line.output    { color: #22c55e; }
+        .term-line.dim       { color: #3a2a4a; }
+        .term-line.info      { color: #6a9ecf; }
+        .term-line.warning   { color: #f59e0b; }
+        .term-line.error     { color: #ef4444; }
+        .term-line.success   { color: #22c55e; }
+        .term-line.result-key   { color: #a855f7; }
+        .term-line.result-val   { color: #c09ad0; }
+        .term-line.blank     { display: block; height: 0.5em; }
+        .term-line.objective-unlock { color: #22c55e; background: rgba(34, 197, 94, 0.06); border-left: 2px solid #22c55e; padding: 3px 8px; margin: 2px 0; }
+        .term-line.typing { animation: type-in 0.06s ease forwards; }
+        @keyframes type-in { from { opacity: 0; } to { opacity: 1; } }
+
+        .terminal-input-line { padding: 12px 20px; border-top: 1px solid rgba(100, 60, 130, 0.15); display: flex; align-items: center; gap: 0; background: rgba(8, 4, 12, 0.98); }
+        .term-prompt-label { font-family: 'Courier New', monospace; font-size: 0.82rem; color: #a855f7; white-space: nowrap; flex-shrink: 0; }
+        .term-input { flex: 1; background: transparent; border: none; outline: none; font-family: 'Courier New', monospace; font-size: 0.82rem; color: #e2d4f0; caret-color: #a855f7; padding: 0 6px; }
+
+        /* ============================================================
+           SUCCESS BANNER
+        ============================================================ */
+        .success-banner { display: none; margin: 0 24px 20px; padding: 20px 24px; background: rgba(34, 197, 94, 0.06); border: 1px solid rgba(34, 197, 94, 0.30); border-left: 3px solid #22c55e; border-radius: 6px; position: relative; z-index: 10; align-items: center; gap: 20px; }
+        .success-banner.visible { display: flex; animation: slide-in 0.5s ease; }
+        @keyframes slide-in { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+        .success-text-group { flex: 1; }
+        .success-title { font-size: 0.85rem; color: #22c55e; letter-spacing: 0.15em; text-transform: uppercase; margin-bottom: 4px; }
+        .success-sub { font-size: 0.74rem; color: #5a8a6a; line-height: 1.5; }
+        .complete-lab-btn { padding: 11px 24px; background: rgba(34, 197, 94, 0.12); border: 1px solid rgba(34, 197, 94, 0.35); border-radius: 4px; color: #22c55e; font-family: 'Georgia', serif; font-size: 0.78rem; letter-spacing: 0.12em; cursor: pointer; transition: all 0.25s; white-space: nowrap; }
+        .complete-lab-btn:hover { background: rgba(34, 197, 94, 0.20); border-color: rgba(34, 197, 94, 0.55); }
+
+        @media (max-width: 900px) {
+            .lab-body { flex-direction: column; padding: 14px; }
+            .sidebar { width: 100%; margin-right: 0; margin-bottom: 14px; }
+            .phase-tabs { overflow-x: auto; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- HEADER -->
+    <header class="lab-header">
+        <div class="header-left">
+            <a href="../index.html" class="back-btn">&#8592; EHE</a>
+            <div>
+                <div class="header-label">Lab Exercise</div>
+                <div class="header-title">Web Server Attack: FTP Cracking &amp; Server Exploitation</div>
+            </div>
+        </div>
+        <div class="header-right">
+            <div class="score-display"><span>SCORE</span><span class="score-value" id="score-display">100</span></div>
+            <div class="obj-progress-pill"><span class="obj-count" id="obj-count">0</span><span>/8 objectives</span></div>
+        </div>
+    </header>
+
+    <!-- WARNING -->
+    <div class="warning-banner">
+        <div class="warning-icon">! WARNING</div>
+        <div class="warning-text">
+            This lab is a <strong>simulated environment</strong> for educational purposes only.
+            All systems, credentials, and services are fictional. Dictionary attacks and unauthorized
+            server access against real systems are federal crimes under the CFAA and ECPA.
+        </div>
+    </div>
+
+    <!-- SUCCESS BANNER -->
+    <div class="success-banner" id="success-banner">
+        <div class="success-text-group">
+            <div class="success-title">Server Compromised — Lab Complete</div>
+            <div class="success-sub">All 8 objectives completed. Final score: <span id="final-score">100</span> pts.</div>
+        </div>
+        <button class="complete-lab-btn" onclick="completeLab()">Complete Lab</button>
+    </div>
+
+    <!-- MAIN LAB BODY -->
+    <div class="lab-body">
+
+        <!-- SIDEBAR -->
+        <aside class="sidebar">
+            <div class="sidebar-panel">
+                <div class="panel-header" onclick="togglePanel('obj-panel', this)">
+                    <span class="panel-header-title">Objectives</span>
+                    <span class="panel-toggle open">&#9650;</span>
+                </div>
+                <div class="panel-body" id="obj-panel">
+                    <div class="phase-badge">Phase 1 — Reconnaissance</div>
+                    <div class="objectives-list">
+                        <div class="objective-item" id="obj-0"><div class="obj-checkbox" id="check-0"></div><div class="obj-label">Scan the target for open services</div></div>
+                        <div class="objective-item" id="obj-1"><div class="obj-checkbox" id="check-1"></div><div class="obj-label">Identify the FTP service version</div></div>
+                    </div>
+                    <div class="phase-progress" style="margin-top:12px;">
+                        <div class="phase-progress-label"><span>Phase 1</span><span id="p1-frac">0/2</span></div>
+                        <div class="phase-progress-bar"><div class="phase-progress-fill" id="p1-bar" style="width:0%"></div></div>
+                    </div>
+
+                    <div class="phase-badge" style="margin-top:16px;">Phase 2 — Credential Cracking</div>
+                    <div class="objectives-list">
+                        <div class="objective-item" id="obj-2"><div class="obj-checkbox" id="check-2"></div><div class="obj-label">Launch a dictionary attack against FTP</div></div>
+                        <div class="objective-item" id="obj-3"><div class="obj-checkbox" id="check-3"></div><div class="obj-label">Successfully crack FTP credentials</div></div>
+                    </div>
+                    <div class="phase-progress" style="margin-top:12px;">
+                        <div class="phase-progress-label"><span>Phase 2</span><span id="p2-frac">0/2</span></div>
+                        <div class="phase-progress-bar"><div class="phase-progress-fill" id="p2-bar" style="width:0%"></div></div>
+                    </div>
+
+                    <div class="phase-badge" style="margin-top:16px;">Phase 3 — FTP Access</div>
+                    <div class="objectives-list">
+                        <div class="objective-item" id="obj-4"><div class="obj-checkbox" id="check-4"></div><div class="obj-label">Download the database backup via FTP</div></div>
+                        <div class="objective-item" id="obj-5"><div class="obj-checkbox" id="check-5"></div><div class="obj-label">Extract database credentials from config.php</div></div>
+                    </div>
+                    <div class="phase-progress" style="margin-top:12px;">
+                        <div class="phase-progress-label"><span>Phase 3</span><span id="p3-frac">0/2</span></div>
+                        <div class="phase-progress-bar"><div class="phase-progress-fill" id="p3-bar" style="width:0%"></div></div>
+                    </div>
+
+                    <div class="phase-badge" style="margin-top:16px;">Phase 4 — Web Server</div>
+                    <div class="objectives-list">
+                        <div class="objective-item" id="obj-6"><div class="obj-checkbox" id="check-6"></div><div class="obj-label">Discover hidden directories on the web server</div></div>
+                        <div class="objective-item" id="obj-7"><div class="obj-checkbox" id="check-7"></div><div class="obj-label">Find the exposed server-status page</div></div>
+                    </div>
+                    <div class="phase-progress" style="margin-top:12px;">
+                        <div class="phase-progress-label"><span>Phase 4</span><span id="p4-frac">0/2</span></div>
+                        <div class="phase-progress-bar"><div class="phase-progress-fill" id="p4-bar" style="width:0%"></div></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Hints -->
+            <div class="sidebar-panel">
+                <div class="panel-header" onclick="togglePanel('hint-panel', this)">
+                    <span class="panel-header-title">Hints</span>
+                    <span class="panel-toggle open">&#9650;</span>
+                </div>
+                <div class="panel-body" id="hint-panel">
+                    <button class="hint-btn" id="hint-btn" onclick="showHint()">Reveal Next Hint</button>
+                    <div class="hint-cost" id="hint-cost-label">-5 points per hint &middot; 8 available</div>
+                    <div class="hint-content" id="hint-display"></div>
+                </div>
+            </div>
+
+            <!-- Command reference -->
+            <div class="sidebar-panel">
+                <div class="panel-header" onclick="togglePanel('cmd-panel', this)">
+                    <span class="panel-header-title">Command Reference</span>
+                    <span class="panel-toggle">&#9650;</span>
+                </div>
+                <div class="panel-body collapsed" id="cmd-panel">
+                    <div style="font-family:'Courier New',monospace; font-size:0.68rem; color:#5a3a6a; line-height:2.1;">
+                        <span style="color:#a855f7">nmap</span> -sV &lt;ip&gt;<br>
+                        <span style="color:#a855f7">nmap</span> --script ftp-anon &lt;ip&gt;<br>
+                        <span style="color:#a855f7">hydra</span> -L users.txt -P passwords.txt ftp://&lt;ip&gt;<br>
+                        <span style="color:#a855f7">medusa</span> -h &lt;ip&gt; -U users.txt -P passwords.txt -M ftp<br>
+                        <span style="color:#a855f7">ftp</span> &lt;ip&gt; (then: ls, get, cd, pwd, quit)<br>
+                        <span style="color:#a855f7">cat</span> &lt;file&gt;<br>
+                        <span style="color:#a855f7">curl</span> http://&lt;ip&gt;[/path]<br>
+                        <span style="color:#a855f7">dirb</span> http://&lt;ip&gt;<br>
+                        <span style="color:#a855f7">gobuster</span> dir -u http://&lt;ip&gt; -w &lt;wordlist&gt;<br>
+                        <span style="color:#a855f7">help</span> — list all commands<br>
+                        <span style="color:#a855f7">objectives</span> — show progress<br>
+                        <span style="color:#a855f7">clear</span> — clear terminal<br>
+                    </div>
+                </div>
+            </div>
+
+        </aside>
+
+        <!-- TERMINAL -->
+        <div class="terminal-wrapper">
+
+            <div class="phase-tabs">
+                <div class="phase-tab active" id="tab-p1" onclick="switchTab('p1')"><span class="tab-check" id="tc-p1">[ ]</span>Phase 1: Recon</div>
+                <div class="phase-tab" id="tab-p2" onclick="switchTab('p2')"><span class="tab-check" id="tc-p2">[ ]</span>Phase 2: Cracking</div>
+                <div class="phase-tab" id="tab-p3" onclick="switchTab('p3')"><span class="tab-check" id="tc-p3">[ ]</span>Phase 3: FTP</div>
+                <div class="phase-tab" id="tab-p4" onclick="switchTab('p4')"><span class="tab-check" id="tc-p4">[ ]</span>Phase 4: Web Server</div>
+            </div>
+
+            <div class="terminal-container">
+                <div class="terminal-topbar">
+                    <div class="term-dot red"></div>
+                    <div class="term-dot yellow"></div>
+                    <div class="term-dot green"></div>
+                    <div class="term-title" id="term-title">pentester@kali:~ — Phase 1: Reconnaissance</div>
+                </div>
+                <div class="terminal-output" id="terminal-output" onclick="focusInput()"></div>
+                <div class="terminal-input-line">
+                    <span class="term-prompt-label" id="prompt-label">pentester@kali:~$&nbsp;</span>
+                    <input type="text" id="term-input" class="term-input" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="type a command..." aria-label="Terminal input">
+                </div>
+            </div>
+        </div>
+
+    </div><!-- end .lab-body -->
+
+    <script>
+    /* ==============================================================
+       STATE
+    ============================================================== */
+    const state = {
+        score: 100,
+        hintsUsed: 0,
+        objectives: [false, false, false, false, false, false, false, false],
+        history: [],
+        historyIdx: -1,
+        ftpLoggedIn: false,
+        ftpUser: '',
+        inFtp: false,     // tracks whether we're in an ftp sub-session
+        currentTab: 'p1'
+    };
+
+    /* ==============================================================
+       HINTS
+    ============================================================== */
+    const HINTS = [
+        { title: 'Recon Tip — nmap', text: 'Use nmap with the -sV flag to enumerate service versions on the target.', code: 'nmap -sV 10.0.1.30' },
+        { title: 'Recon Tip — FTP anonymous', text: 'Check if the FTP server allows anonymous login with the nmap ftp-anon script.', code: 'nmap --script ftp-anon 10.0.1.30' },
+        { title: 'Hydra Tip', text: 'Hydra syntax for FTP: -L specifies a user list, -P specifies a password list.', code: 'hydra -L users.txt -P passwords.txt ftp://10.0.1.30' },
+        { title: 'Medusa Tip', text: 'Medusa is an alternative credential bruteforcer: -M specifies the module (ftp).', code: 'medusa -h 10.0.1.30 -U users.txt -P passwords.txt -M ftp' },
+        { title: 'FTP Access Tip', text: 'Once you have credentials, connect with ftp, then use ls to list files. Use get to download.', code: 'ftp 10.0.1.30  →  ls  →  get config.php' },
+        { title: 'Config Tip', text: 'After downloading config.php via FTP, use cat to read its contents for DB credentials.', code: 'cat config.php' },
+        { title: 'Dirb Tip', text: 'Dirb brute-forces directories on the web server using a built-in wordlist.', code: 'dirb http://10.0.1.30' },
+        { title: 'Server-status Tip', text: 'Apache server-status is often found at /server-status. Access it with curl.', code: 'curl http://10.0.1.30/server-status' }
+    ];
+
+    /* ==============================================================
+       SIMULATED COMMAND RESPONSES
+    ============================================================== */
+
+    // nmap -sV
+    const NMAP_SV = [
+        { type: 'info',       text: 'Starting Nmap 7.94 ( https://nmap.org ) at 2024-02-18 09:00 UTC' },
+        { type: 'output',     text: 'Nmap scan report for 10.0.1.30' },
+        { type: 'output',     text: 'Host is up (0.0012s latency).' },
+        { type: 'blank',      text: '' },
+        { type: 'result-key', text: 'PORT     STATE SERVICE     VERSION' },
+        { type: 'result-val', text: '21/tcp   open  ftp         vsftpd 3.0.3' },
+        { type: 'result-val', text: '22/tcp   open  ssh         OpenSSH 8.4p1 Debian 5+deb11u1' },
+        { type: 'result-val', text: '80/tcp   open  http        Apache httpd 2.4.54 ((Debian))' },
+        { type: 'result-val', text: '3306/tcp open  mysql       MySQL 8.0.31' },
+        { type: 'result-val', text: '8080/tcp closed http-proxy' },
+        { type: 'blank',      text: '' },
+        { type: 'output',     text: 'Service Info: OSs: Unix, Linux; CPE: cpe:/o:linux:linux_kernel' },
+        { type: 'blank',      text: '' },
+        { type: 'success',    text: '[+] FTP service detected: vsftpd 3.0.3 on port 21' },
+        { type: 'success',    text: '[+] Web server: Apache 2.4.54' },
+        { type: 'success',    text: '[+] MySQL 8.0.31 running — DB credentials may be valuable' },
+        { type: 'dim',        text: 'Nmap done: 1 IP address (1 host up) scanned in 4.32 seconds' },
+    ];
+
+    // nmap --script ftp-anon
+    const NMAP_FTP_ANON = [
+        { type: 'info',    text: 'Starting Nmap 7.94 — running ftp-anon script against 10.0.1.30' },
+        { type: 'blank',   text: '' },
+        { type: 'result-key', text: 'PORT   STATE SERVICE' },
+        { type: 'result-val', text: '21/tcp open  ftp' },
+        { type: 'dim',     text: '|_ftp-anon: Anonymous FTP login allowed: FALSE' },
+        { type: 'blank',   text: '' },
+        { type: 'warning', text: '[!] Anonymous FTP login denied — credentials required' },
+        { type: 'dim',     text: 'Next step: dictionary attack against FTP service' },
+    ];
+
+    // curl http://10.0.1.30
+    const CURL_ROOT = [
+        { type: 'info',   text: '> GET / HTTP/1.1' },
+        { type: 'info',   text: '> Host: 10.0.1.30' },
+        { type: 'dim',    text: '< HTTP/1.1 200 OK' },
+        { type: 'dim',    text: '< Server: Apache/2.4.54 (Debian)' },
+        { type: 'dim',    text: '< X-Powered-By: PHP/8.1.2' },
+        { type: 'dim',    text: '< Content-Type: text/html; charset=UTF-8' },
+        { type: 'blank',  text: '' },
+        { type: 'output', text: '<html>' },
+        { type: 'output', text: '<head><title>CorpWeb Internal Portal</title></head>' },
+        { type: 'output', text: '<body>' },
+        { type: 'output', text: '  <!-- Apache/2.4.54 (Debian) Server at 10.0.1.30 Port 80 -->' },
+        { type: 'output', text: '  <h1>CorpWeb Internal Portal</h1>' },
+        { type: 'output', text: '  <p>Welcome to the CorpWeb internal web portal.</p>' },
+        { type: 'output', text: '  <!-- TODO: remove /backup directory before production -->' },
+        { type: 'output', text: '</body></html>' },
+        { type: 'blank',  text: '' },
+        { type: 'warning', text: '[!] Server header leaks Apache version: Apache/2.4.54' },
+        { type: 'warning', text: '[!] HTML comment reveals /backup directory path' },
+    ];
+
+    // hydra output (streaming simulation)
+    const HYDRA_LINES = [
+        { type: 'info',    text: 'Hydra v9.4 (c) 2022 by van Hauser/THC & David Maciejak' },
+        { type: 'dim',     text: 'Hydra (https://github.com/vanhauser-thc/thc-hydra)' },
+        { type: 'blank',   text: '' },
+        { type: 'output',  text: '[DATA] max 16 tasks per 1 server, overall 16 tasks, 120 login tries (l:6/p:20)' },
+        { type: 'output',  text: '[DATA] attacking ftp://10.0.1.30:21/' },
+        { type: 'dim',     text: '[21][ftp] host: 10.0.1.30   login: admin      password: admin' },
+        { type: 'dim',     text: '[21][ftp] host: 10.0.1.30   login: admin      password: 123456       — FAIL' },
+        { type: 'dim',     text: '[21][ftp] host: 10.0.1.30   login: admin      password: password     — FAIL' },
+        { type: 'dim',     text: '[21][ftp] host: 10.0.1.30   login: jpark      password: 123456       — FAIL' },
+        { type: 'dim',     text: '[21][ftp] host: 10.0.1.30   login: jpark      password: password     — FAIL' },
+        { type: 'dim',     text: '[21][ftp] host: 10.0.1.30   login: jpark      password: password123  — FAIL' },
+        { type: 'dim',     text: '[21][ftp] host: 10.0.1.30   login: schen      password: 123456       — FAIL' },
+        { type: 'dim',     text: '[21][ftp] host: 10.0.1.30   login: root       password: toor         — FAIL' },
+        { type: 'dim',     text: '[21][ftp] host: 10.0.1.30   login: ftp        password: ftp          — FAIL' },
+        { type: 'dim',     text: '[21][ftp] host: 10.0.1.30   login: jpark      password: Welcome1     — FAIL' },
+        { type: 'dim',     text: '[21][ftp] host: 10.0.1.30   login: jpark      password: Summer2023!  — FAIL' },
+        { type: 'blank',   text: '' },
+        { type: 'success', text: '[21][ftp] host: 10.0.1.30   login: jpark      password: Summer2024!' },
+        { type: 'blank',   text: '' },
+        { type: 'output',  text: '1 of 1 target successfully completed, 1 valid password found' },
+        { type: 'success', text: '[+] Credentials found: jpark / Summer2024!' },
+    ];
+
+    // medusa output
+    const MEDUSA_LINES = [
+        { type: 'info',    text: 'Medusa v2.2 [http://www.foofus.net]' },
+        { type: 'blank',   text: '' },
+        { type: 'output',  text: 'ACCOUNT CHECK: [ftp] Host: 10.0.1.30 User: admin Password: admin (1 of 120)' },
+        { type: 'dim',     text: 'ACCOUNT CHECK: [ftp] Host: 10.0.1.30 User: jpark Password: 123456 (2 of 120)' },
+        { type: 'dim',     text: 'ACCOUNT CHECK: [ftp] Host: 10.0.1.30 User: jpark Password: password123 (3 of 120)' },
+        { type: 'dim',     text: 'ACCOUNT CHECK: [ftp] Host: 10.0.1.30 User: schen Password: Summer2024! (4 of 120)' },
+        { type: 'blank',   text: '' },
+        { type: 'success', text: 'ACCOUNT FOUND: [ftp] Host: 10.0.1.30 User: jpark Password: Summer2024! [SUCCESS]' },
+        { type: 'blank',   text: '' },
+        { type: 'success', text: '[+] Credentials found: jpark / Summer2024!' },
+    ];
+
+    // ftp login sequence
+    const FTP_CONNECT = [
+        { type: 'output',  text: 'Connected to 10.0.1.30.' },
+        { type: 'output',  text: '220 (vsFTPd 3.0.3)' },
+        { type: 'output',  text: 'Name (10.0.1.30:pentester): jpark' },
+        { type: 'output',  text: '331 Please specify the password.' },
+        { type: 'output',  text: 'Password: Summer2024!' },
+        { type: 'output',  text: '230 Login successful.' },
+        { type: 'success', text: '[+] FTP authenticated as jpark' },
+        { type: 'output',  text: 'Remote system type is UNIX.' },
+        { type: 'output',  text: 'Using binary mode to transfer files.' },
+    ];
+
+    const FTP_LS = [
+        { type: 'output', text: '200 PORT command successful.' },
+        { type: 'output', text: '150 Here comes the directory listing.' },
+        { type: 'result-val', text: '-rw-r--r--    1 jpark    jpark      428304 Feb 12 14:22 backup.sql' },
+        { type: 'result-val', text: '-rw-r--r--    1 jpark    jpark         512 Feb 10 09:01 config.php' },
+        { type: 'result-val', text: '-rw-r--r--    1 jpark    jpark         128 Jan 22 11:45 .htaccess' },
+        { type: 'result-val', text: '-rw-r--r--    1 jpark    jpark          94 Jan 22 11:44 readme.txt' },
+        { type: 'output', text: '226 Directory send OK.' },
+    ];
+
+    const FTP_GET_BACKUP = [
+        { type: 'output',  text: '200 PORT command successful.' },
+        { type: 'output',  text: '150 Opening BINARY mode data connection for backup.sql (428304 bytes).' },
+        { type: 'output',  text: '226 Transfer complete.' },
+        { type: 'success', text: '[+] backup.sql downloaded (428304 bytes)' },
+        { type: 'dim',     text: 'Local file: /home/pentester/backup.sql' },
+    ];
+
+    const FTP_GET_CONFIG = [
+        { type: 'output',  text: '200 PORT command successful.' },
+        { type: 'output',  text: '150 Opening BINARY mode data connection for config.php (512 bytes).' },
+        { type: 'output',  text: '226 Transfer complete.' },
+        { type: 'success', text: '[+] config.php downloaded (512 bytes)' },
+        { type: 'dim',     text: 'Local file: /home/pentester/config.php' },
+    ];
+
+    const CAT_CONFIG = [
+        { type: 'result-key', text: '<?php' },
+        { type: 'dim',        text: '// CorpWeb Database Configuration' },
+        { type: 'dim',        text: '// WARNING: Do not expose this file publicly' },
+        { type: 'blank',      text: '' },
+        { type: 'result-val', text: "define('DB_HOST', '10.0.1.30');" },
+        { type: 'result-val', text: "define('DB_PORT', '3306');" },
+        { type: 'result-val', text: "define('DB_NAME', 'corpweb_prod');" },
+        { type: 'result-val', text: "define('DB_USER', 'dbuser');" },
+        { type: 'result-val', text: "define('DB_PASS', 'Postgres!99');" },
+        { type: 'blank',      text: '' },
+        { type: 'result-val', text: "$conn = new mysqli(DB_HOST, DB_USER, DB_PASS, DB_NAME, DB_PORT);" },
+        { type: 'result-key', text: '?>' },
+        { type: 'blank',      text: '' },
+        { type: 'error',      text: '[!] CRITICAL: Database credentials exposed in FTP-accessible file' },
+        { type: 'success',    text: '[+] DB Credentials: dbuser / Postgres!99 @ 10.0.1.30:3306/corpweb_prod' },
+    ];
+
+    const CAT_BACKUP_SQL = [
+        { type: 'dim',        text: '-- MySQL dump 8.0.31, for Linux (x86_64)' },
+        { type: 'dim',        text: '-- Host: 10.0.1.30    Database: corpweb_prod' },
+        { type: 'dim',        text: '-- Date: 2024-02-12 14:22:01' },
+        { type: 'blank',      text: '' },
+        { type: 'result-key', text: 'CREATE TABLE `users` (' },
+        { type: 'result-key', text: '  `id` int NOT NULL AUTO_INCREMENT,' },
+        { type: 'result-key', text: '  `username` varchar(64) NOT NULL,' },
+        { type: 'result-key', text: '  `password_hash` varchar(255) NOT NULL,' },
+        { type: 'result-key', text: '  `role` enum(\'admin\',\'user\',\'guest\') NOT NULL DEFAULT \'user\',' },
+        { type: 'result-key', text: '  PRIMARY KEY (`id`)' },
+        { type: 'result-key', text: ');' },
+        { type: 'blank',      text: '' },
+        { type: 'result-val', text: "INSERT INTO `users` VALUES (1,'admin','$2y$10$ZdN9X8f...','admin');" },
+        { type: 'result-val', text: "INSERT INTO `users` VALUES (2,'jpark','$2y$10$XmP7K2q...','admin');" },
+        { type: 'result-val', text: "INSERT INTO `users` VALUES (3,'schen','$2y$10$3kLpP0v...','user');" },
+        { type: 'result-val', text: "INSERT INTO `users` VALUES (4,'mlopez','$2y$10$1nRqX4z...','user');" },
+        { type: 'blank',      text: '' },
+        { type: 'success',    text: '[+] User table extracted — bcrypt hashes available for offline cracking' },
+    ];
+
+    const DIRB_OUT = [
+        { type: 'info',    text: '-----------------' },
+        { type: 'info',    text: 'DIRB v2.22  www.dirb.net' },
+        { type: 'info',    text: 'By The Dark Raver' },
+        { type: 'info',    text: '-----------------' },
+        { type: 'blank',   text: '' },
+        { type: 'output',  text: 'START_TIME: Sun Feb 18 09:25:10 2024' },
+        { type: 'output',  text: 'URL_BASE: http://10.0.1.30/' },
+        { type: 'output',  text: 'WORDLIST_FILE: /usr/share/dirb/wordlists/common.txt' },
+        { type: 'blank',   text: '' },
+        { type: 'output',  text: '-----------------' },
+        { type: 'output',  text: 'GENERATED WORDS: 4612' },
+        { type: 'blank',   text: '' },
+        { type: 'dim',     text: '---- Scanning URL: http://10.0.1.30/ ----' },
+        { type: 'result-val', text: '+ http://10.0.1.30/admin (CODE:301|SIZE:318)' },
+        { type: 'result-val', text: '+ http://10.0.1.30/backup (CODE:301|SIZE:318)' },
+        { type: 'result-val', text: '+ http://10.0.1.30/index.php (CODE:200|SIZE:2241)' },
+        { type: 'result-val', text: '+ http://10.0.1.30/phpmyadmin (CODE:301|SIZE:318)' },
+        { type: 'result-val', text: '+ http://10.0.1.30/server-status (CODE:200|SIZE:6892)' },
+        { type: 'blank',   text: '' },
+        { type: 'success', text: '[+] Hidden directories found: /admin, /backup, /phpmyadmin, /server-status' },
+        { type: 'output',  text: 'END_TIME: Sun Feb 18 09:27:44 2024' },
+        { type: 'output',  text: 'DOWNLOADED: 4612 - FOUND: 5' },
+    ];
+
+    const GOBUSTER_OUT = [
+        { type: 'info',    text: '===============================================================' },
+        { type: 'info',    text: 'Gobuster v3.6' },
+        { type: 'info',    text: 'by OJ Reeves (@TheColonial) & Christian Mehlmauer (@firefart)' },
+        { type: 'info',    text: '===============================================================' },
+        { type: 'output',  text: '[+] Url:                     http://10.0.1.30' },
+        { type: 'output',  text: '[+] Method:                  GET' },
+        { type: 'output',  text: '[+] Wordlist:                /usr/share/wordlists/dirb/common.txt' },
+        { type: 'output',  text: '[+] Status codes:            200,204,301,302,307,401,403' },
+        { type: 'blank',   text: '' },
+        { type: 'result-val', text: '/admin                (Status: 301) [Size: 318] [--> http://10.0.1.30/admin/]' },
+        { type: 'result-val', text: '/backup               (Status: 301) [Size: 318] [--> http://10.0.1.30/backup/]' },
+        { type: 'result-val', text: '/phpmyadmin           (Status: 301) [Size: 318] [--> http://10.0.1.30/phpmyadmin/]' },
+        { type: 'result-val', text: '/server-status        (Status: 200) [Size: 6892]' },
+        { type: 'blank',   text: '' },
+        { type: 'success', text: '[+] Directories found: /admin, /backup, /phpmyadmin, /server-status' },
+    ];
+
+    const CURL_SERVER_STATUS = [
+        { type: 'info',       text: '> GET /server-status HTTP/1.1' },
+        { type: 'dim',        text: '< HTTP/1.1 200 OK' },
+        { type: 'dim',        text: '< Server: Apache/2.4.54 (Debian)' },
+        { type: 'blank',      text: '' },
+        { type: 'result-key', text: 'Apache Server Status for 10.0.1.30' },
+        { type: 'dim',        text: '─'.repeat(55) },
+        { type: 'result-val', text: 'Server Version: Apache/2.4.54 (Debian)' },
+        { type: 'result-val', text: 'Server MPM: prefork' },
+        { type: 'result-val', text: 'Server Built: 2023-03-08T17:32:01' },
+        { type: 'blank',      text: '' },
+        { type: 'result-key', text: 'Current Time: Sun, 18 Feb 2024 09:30:01 UTC' },
+        { type: 'result-key', text: 'Restart Time: Sat, 17 Feb 2024 22:00:00 UTC' },
+        { type: 'result-key', text: 'Server uptime: 11 hours 30 minutes 1 second' },
+        { type: 'blank',      text: '' },
+        { type: 'result-val', text: '1 requests currently being processed, 5 idle workers' },
+        { type: 'blank',      text: '' },
+        { type: 'result-key', text: 'Recent Requests:' },
+        { type: 'result-val', text: '  GET /admin/config.php HTTP/1.1   10.0.1.55    200  0/12/44' },
+        { type: 'result-val', text: '  POST /phpmyadmin/ HTTP/1.1       10.0.1.21    200  1/5/22' },
+        { type: 'result-val', text: '  GET /backup/db_2024.sql HTTP/1.1 10.0.1.50    200  0/8/31' },
+        { type: 'blank',      text: '' },
+        { type: 'error',      text: '[!] CRITICAL: /server-status exposed — leaks internal request history and IPs' },
+        { type: 'success',    text: '[+] Internal IP addresses leaked: 10.0.1.50, 10.0.1.21, 10.0.1.55' },
+    ];
+
+    const CURL_BACKUP = [
+        { type: 'info',   text: '> GET /backup/ HTTP/1.1' },
+        { type: 'dim',    text: '< HTTP/1.1 200 OK' },
+        { type: 'dim',    text: '< Server: Apache/2.4.54 (Debian)' },
+        { type: 'blank',  text: '' },
+        { type: 'result-key', text: 'Index of /backup/' },
+        { type: 'dim',    text: '─'.repeat(55) },
+        { type: 'result-val', text: '[DIR]  Parent Directory                 -' },
+        { type: 'result-val', text: '[   ]  db_backup_2024-02-12.sql  2.1M  12-Feb-2024 14:22' },
+        { type: 'result-val', text: '[   ]  db_backup_2024-01-15.sql  2.0M  15-Jan-2024 09:14' },
+        { type: 'result-val', text: '[   ]  config_old.php              1K   22-Jan-2024 11:45' },
+        { type: 'blank',  text: '' },
+        { type: 'error',  text: '[!] Directory listing enabled — backup files publicly accessible' },
+        { type: 'warning', text: '[!] config_old.php may contain old credentials' },
+    ];
+
+    /* ==============================================================
+       HELP TEXT
+    ============================================================== */
+    const HELP_LINES = [
+        { type: 'info',       text: 'Available Commands — Web Server Attack Lab' },
+        { type: 'dim',        text: '─'.repeat(60) },
+        { type: 'result-key', text: '  help                        Show this help message' },
+        { type: 'result-key', text: '  clear                       Clear the terminal' },
+        { type: 'result-key', text: '  objectives                  Show objective progress' },
+        { type: 'blank',      text: '' },
+        { type: 'result-key', text: '  PHASE 1 — Reconnaissance' },
+        { type: 'dim',        text: '  nmap -sV <ip>               Version scan' },
+        { type: 'dim',        text: '  nmap --script ftp-anon <ip> Check anonymous FTP' },
+        { type: 'dim',        text: '  curl http://<ip>            Fetch web page' },
+        { type: 'blank',      text: '' },
+        { type: 'result-key', text: '  PHASE 2 — Credential Cracking' },
+        { type: 'dim',        text: '  hydra -L users.txt -P passwords.txt ftp://<ip>' },
+        { type: 'dim',        text: '  medusa -h <ip> -U users.txt -P passwords.txt -M ftp' },
+        { type: 'blank',      text: '' },
+        { type: 'result-key', text: '  PHASE 3 — FTP Access' },
+        { type: 'dim',        text: '  ftp <ip>    Connect to FTP (auto-uses cracked creds)' },
+        { type: 'dim',        text: '  ls          List FTP directory (while in FTP)' },
+        { type: 'dim',        text: '  get <file>  Download file from FTP' },
+        { type: 'dim',        text: '  pwd         Print working directory' },
+        { type: 'dim',        text: '  quit        Exit FTP session' },
+        { type: 'dim',        text: '  cat <file>  Read a downloaded file' },
+        { type: 'blank',      text: '' },
+        { type: 'result-key', text: '  PHASE 4 — Web Server Enumeration' },
+        { type: 'dim',        text: '  dirb http://<ip>                Directory brute force' },
+        { type: 'dim',        text: '  gobuster dir -u http://<ip> -w <wordlist>' },
+        { type: 'dim',        text: '  curl http://<ip>/server-status  Server status page' },
+        { type: 'dim',        text: '  curl http://<ip>/backup/        Backup directory' },
+        { type: 'blank',      text: '' },
+    ];
+
+    /* ==============================================================
+       RENDER ENGINE
+    ============================================================== */
+    const outputEl = document.getElementById('terminal-output');
+    const inputEl  = document.getElementById('term-input');
+
+    function renderLines(lines, delay = 16, onDone = null) {
+        lines.forEach((line, idx) => {
+            setTimeout(() => {
+                const span = document.createElement('span');
+                span.className = `term-line ${line.type} typing`;
+                if (line.type === 'blank') { span.innerHTML = '&nbsp;'; }
+                else { span.textContent = line.text; }
+                outputEl.appendChild(span);
+                outputEl.appendChild(document.createElement('br'));
+                outputEl.scrollTop = outputEl.scrollHeight;
+                if (idx === lines.length - 1 && onDone) setTimeout(onDone, 80);
+            }, idx * delay);
+        });
+    }
+
+    function echoCommand(cmd) {
+        const promptStr = state.inFtp ? 'ftp> ' : 'pentester@kali:~$ ';
+        const pSpan = document.createElement('span');
+        pSpan.className = 'term-line prompt';
+        pSpan.textContent = promptStr;
+        const cSpan = document.createElement('span');
+        cSpan.className = 'term-line command';
+        cSpan.textContent = cmd;
+        outputEl.appendChild(pSpan);
+        outputEl.appendChild(cSpan);
+        outputEl.appendChild(document.createElement('br'));
+        outputEl.scrollTop = outputEl.scrollHeight;
+    }
+
+    function blankLine() {
+        outputEl.appendChild(document.createElement('br'));
+    }
+
+    /* ==============================================================
+       COMMAND PARSER
+    ============================================================== */
+    function processCommand(raw) {
+        const trimmed = raw.trim();
+        if (!trimmed) return;
+
+        state.history.unshift(trimmed);
+        if (state.history.length > 80) state.history.pop();
+        state.historyIdx = -1;
+
+        echoCommand(trimmed);
+        blankLine();
+
+        // FTP sub-session mode
+        if (state.inFtp) {
+            handleFtpSubCommand(trimmed);
+            return;
+        }
+
+        const parts = trimmed.split(/\s+/);
+        const cmd   = parts[0].toLowerCase();
+        const args  = parts.slice(1).join(' ');
+
+        switch (cmd) {
+            case 'help':        renderLines(HELP_LINES, 10); break;
+            case 'clear':       outputEl.innerHTML = ''; break;
+            case 'objectives':  renderObjectivesList(); break;
+            case 'nmap':        handleNmap(args, trimmed); break;
+            case 'curl':        handleCurl(args); break;
+            case 'hydra':       handleHydra(trimmed); break;
+            case 'medusa':      handleMedusa(trimmed); break;
+            case 'ftp':         handleFtpConnect(args); break;
+            case 'cat':         handleCat(args); break;
+            case 'dirb':        handleDirb(trimmed); break;
+            case 'gobuster':    handleGobuster(trimmed); break;
+            case 'ls': case 'pwd': case 'get': case 'quit':
+                // These are FTP sub-commands used outside FTP context
+                renderLines([
+                    { type: 'warning', text: `[!] "${cmd}" is an FTP sub-command. Connect to FTP first: ftp 10.0.1.30` },
+                    { type: 'blank',   text: '' },
+                ], 14);
+                break;
+            default:
+                renderLines([
+                    { type: 'error', text: `bash: ${cmd}: command not found` },
+                    { type: 'dim',   text: 'Type "help" for available commands.' },
+                    { type: 'blank', text: '' },
+                ], 14);
+        }
+    }
+
+    /* ==============================================================
+       COMMAND HANDLERS
+    ============================================================== */
+
+    function handleNmap(args, raw) {
+        const lower = raw.toLowerCase();
+
+        // Service version scan
+        if (lower.includes('-sv') && lower.includes('10.0.1.30')) {
+            renderLines(NMAP_SV, 14, () => {
+                completeObjective(0); // scan target
+                completeObjective(1); // FTP version identified
+            });
+            return;
+        }
+
+        // FTP anonymous script
+        if (lower.includes('ftp-anon') && lower.includes('10.0.1.30')) {
+            renderLines(NMAP_FTP_ANON, 14, () => {
+                if (!state.objectives[0]) completeObjective(0);
+            });
+            return;
+        }
+
+        // Generic nmap against target — give partial recon result
+        if (lower.includes('10.0.1.30')) {
+            renderLines([
+                { type: 'info',    text: 'Starting Nmap 7.94 basic scan...' },
+                { type: 'result-val', text: 'PORT   STATE SERVICE' },
+                { type: 'result-val', text: '21/tcp open  ftp' },
+                { type: 'result-val', text: '22/tcp open  ssh' },
+                { type: 'result-val', text: '80/tcp open  http' },
+                { type: 'dim',     text: 'Tip: use -sV to get service versions.' },
+                { type: 'blank',   text: '' },
+            ], 14, () => { if (!state.objectives[0]) completeObjective(0); });
+            return;
+        }
+
+        renderLines([
+            { type: 'error', text: `nmap: target not found in this simulation.` },
+            { type: 'dim',   text: 'Target IP: 10.0.1.30' },
+            { type: 'blank', text: '' },
+        ], 14);
+    }
+
+    function handleCurl(args) {
+        const lower = args.toLowerCase();
+
+        if (lower.includes('server-status')) {
+            renderLines(CURL_SERVER_STATUS, 14, () => {
+                completeObjective(7); // server-status found
+                if (!state.objectives[6]) completeObjective(6);
+            });
+            return;
+        }
+
+        if (lower.includes('/backup')) {
+            renderLines(CURL_BACKUP, 14, () => {
+                if (!state.objectives[6]) completeObjective(6);
+            });
+            return;
+        }
+
+        if (lower.includes('10.0.1.30') && !lower.includes('/')) {
+            renderLines(CURL_ROOT, 14);
+            return;
+        }
+
+        if (lower.includes('10.0.1.30')) {
+            renderLines([
+                { type: 'info',    text: `> GET ${args.replace(/.*10\.0\.1\.30/,'')} HTTP/1.1` },
+                { type: 'dim',     text: '< HTTP/1.1 403 Forbidden' },
+                { type: 'warning', text: '[!] 403 Forbidden — access denied to this path' },
+                { type: 'blank',   text: '' },
+            ], 14);
+            return;
+        }
+
+        renderLines([
+            { type: 'error', text: 'curl: host not reachable in this simulation.' },
+            { type: 'dim',   text: 'Try: curl http://10.0.1.30' },
+            { type: 'blank', text: '' },
+        ], 14);
+    }
+
+    function handleHydra(raw) {
+        const lower = raw.toLowerCase();
+        if (!lower.includes('10.0.1.30') && !lower.includes('ftp')) {
+            renderLines([
+                { type: 'error', text: 'Usage: hydra -L users.txt -P passwords.txt ftp://10.0.1.30' },
+                { type: 'blank', text: '' },
+            ], 14);
+            return;
+        }
+        // Show animated output — slow delay simulates brute force time
+        renderLines(HYDRA_LINES, 60, () => {
+            completeObjective(2); // dictionary attack launched
+            completeObjective(3); // credentials cracked
+        });
+    }
+
+    function handleMedusa(raw) {
+        const lower = raw.toLowerCase();
+        if (!lower.includes('10.0.1.30')) {
+            renderLines([
+                { type: 'error', text: 'Usage: medusa -h 10.0.1.30 -U users.txt -P passwords.txt -M ftp' },
+                { type: 'blank', text: '' },
+            ], 14);
+            return;
+        }
+        renderLines(MEDUSA_LINES, 55, () => {
+            completeObjective(2);
+            completeObjective(3);
+        });
+    }
+
+    function handleFtpConnect(ip) {
+        if (!ip.includes('10.0.1.30') && ip.trim() !== '') {
+            renderLines([
+                { type: 'error', text: `ftp: ${ip}: Name or service not known` },
+                { type: 'dim',   text: 'Target: ftp 10.0.1.30' },
+                { type: 'blank', text: '' },
+            ], 14);
+            return;
+        }
+
+        if (!state.objectives[3]) {
+            // Credentials not cracked yet
+            renderLines([
+                { type: 'output', text: 'Connected to 10.0.1.30.' },
+                { type: 'output', text: '220 (vsFTPd 3.0.3)' },
+                { type: 'output', text: 'Name (10.0.1.30:pentester): ' },
+                { type: 'warning', text: '[!] No credentials cracked yet. Run hydra or medusa first.' },
+                { type: 'output', text: '530 Login incorrect.' },
+                { type: 'output', text: 'Login failed.' },
+                { type: 'blank',  text: '' },
+            ], 14);
+            return;
+        }
+
+        // Successful login
+        state.inFtp = true;
+        document.getElementById('prompt-label').textContent = 'ftp> ';
+        document.getElementById('term-title').textContent = 'ftp — 10.0.1.30 (jpark)';
+
+        renderLines(FTP_CONNECT, 14);
+    }
+
+    function handleFtpSubCommand(raw) {
+        const parts = raw.trim().split(/\s+/);
+        const cmd   = parts[0].toLowerCase();
+
+        switch (cmd) {
+            case 'ls':
+                renderLines(FTP_LS, 14);
+                break;
+
+            case 'pwd':
+                renderLines([
+                    { type: 'output', text: '257 "/home/jpark" is the current directory' },
+                    { type: 'blank',  text: '' },
+                ], 14);
+                break;
+
+            case 'get':
+                if (parts[1] === 'backup.sql') {
+                    renderLines(FTP_GET_BACKUP, 14, () => completeObjective(4));
+                } else if (parts[1] === 'config.php') {
+                    renderLines(FTP_GET_CONFIG, 14);
+                } else if (parts[1] === '.htaccess') {
+                    renderLines([
+                        { type: 'output', text: '150 Opening BINARY mode data connection for .htaccess (128 bytes).' },
+                        { type: 'output', text: '226 Transfer complete.' },
+                        { type: 'dim',    text: 'Contents: Options -Indexes (prevents directory listing on this user dir)' },
+                        { type: 'blank',  text: '' },
+                    ], 14);
+                } else if (parts[1] === 'readme.txt') {
+                    renderLines([
+                        { type: 'output', text: '150 Opening BINARY mode data connection for readme.txt.' },
+                        { type: 'output', text: '226 Transfer complete.' },
+                        { type: 'dim',    text: 'Contents: jpark home directory backup — do not distribute' },
+                        { type: 'blank',  text: '' },
+                    ], 14);
+                } else if (!parts[1]) {
+                    renderLines([
+                        { type: 'error', text: 'Usage: get <filename>' },
+                        { type: 'dim',   text: 'Available: backup.sql  config.php  .htaccess  readme.txt' },
+                        { type: 'blank', text: '' },
+                    ], 14);
+                } else {
+                    renderLines([
+                        { type: 'error', text: `550 ${parts[1]}: No such file or directory` },
+                        { type: 'blank', text: '' },
+                    ], 14);
+                }
+                break;
+
+            case 'cd':
+                renderLines([
+                    { type: 'output', text: `250 Directory successfully changed to ${parts[1] || '/'}` },
+                    { type: 'blank',  text: '' },
+                ], 14);
+                break;
+
+            case 'quit': case 'bye': case 'exit':
+                state.inFtp = false;
+                document.getElementById('prompt-label').textContent = 'pentester@kali:~\u00a0';
+                document.getElementById('term-title').textContent = 'pentester@kali:~ — Web Server Attack Lab';
+                renderLines([
+                    { type: 'output', text: '221 Goodbye.' },
+                    { type: 'blank',  text: '' },
+                ], 14);
+                break;
+
+            case 'help': case '?':
+                renderLines([
+                    { type: 'info',       text: 'FTP sub-commands:' },
+                    { type: 'result-key', text: '  ls           List directory' },
+                    { type: 'result-key', text: '  pwd          Print working directory' },
+                    { type: 'result-key', text: '  get <file>   Download a file' },
+                    { type: 'result-key', text: '  cd <dir>     Change directory' },
+                    { type: 'result-key', text: '  quit         Exit FTP session' },
+                    { type: 'blank',      text: '' },
+                ], 14);
+                break;
+
+            default:
+                renderLines([
+                    { type: 'error', text: `?Invalid command: ${cmd}` },
+                    { type: 'dim',   text: 'Type "help" for FTP commands.' },
+                    { type: 'blank', text: '' },
+                ], 14);
+        }
+    }
+
+    function handleCat(args) {
+        if (!args) {
+            renderLines([{ type: 'error', text: 'Usage: cat <filename>' }, { type: 'blank', text: '' }], 14);
+            return;
+        }
+
+        if (args.includes('config.php')) {
+            // Must have downloaded config.php first
+            renderLines(CAT_CONFIG, 14, () => completeObjective(5));
+            return;
+        }
+
+        if (args.includes('backup.sql')) {
+            renderLines(CAT_BACKUP_SQL, 14);
+            return;
+        }
+
+        renderLines([
+            { type: 'error', text: `cat: ${args}: No such file or directory` },
+            { type: 'dim',   text: 'Download files from FTP first: ftp 10.0.1.30 → get config.php' },
+            { type: 'blank', text: '' },
+        ], 14);
+    }
+
+    function handleDirb(raw) {
+        const lower = raw.toLowerCase();
+        if (!lower.includes('10.0.1.30')) {
+            renderLines([
+                { type: 'error', text: 'Usage: dirb http://10.0.1.30' },
+                { type: 'blank', text: '' },
+            ], 14);
+            return;
+        }
+        renderLines(DIRB_OUT, 22, () => {
+            completeObjective(6); // hidden directories discovered
+        });
+    }
+
+    function handleGobuster(raw) {
+        const lower = raw.toLowerCase();
+        if (!lower.includes('10.0.1.30')) {
+            renderLines([
+                { type: 'error', text: 'Usage: gobuster dir -u http://10.0.1.30 -w /usr/share/wordlists/dirb/common.txt' },
+                { type: 'blank', text: '' },
+            ], 14);
+            return;
+        }
+        renderLines(GOBUSTER_OUT, 18, () => {
+            completeObjective(6);
+        });
+    }
+
+    /* ==============================================================
+       OBJECTIVES
+    ============================================================== */
+    const OBJ_LABELS = [
+        'Target scanned for open services',
+        'FTP service version identified',
+        'Dictionary attack launched',
+        'FTP credentials cracked',
+        'Database backup downloaded via FTP',
+        'Database credentials extracted from config.php',
+        'Hidden web directories discovered',
+        'Exposed /server-status page found'
+    ];
+
+    function renderObjectivesList() {
+        const lines = [
+            { type: 'info',  text: 'Objectives — Web Server Attack Lab' },
+            { type: 'dim',   text: '─'.repeat(60) },
+        ];
+        OBJ_LABELS.forEach((label, idx) => {
+            const done = state.objectives[idx];
+            lines.push({ type: done ? 'success' : 'dim', text: `  ${done ? '[X]' : '[ ]'} ${idx + 1}. ${label}` });
+        });
+        const total = state.objectives.filter(Boolean).length;
+        lines.push({ type: 'blank', text: '' });
+        lines.push({ type: 'result-key', text: `  Progress: ${total}/8 | Score: ${state.score} pts` });
+        lines.push({ type: 'blank', text: '' });
+        renderLines(lines, 10);
+    }
+
+    function completeObjective(idx) {
+        if (state.objectives[idx]) return;
+        state.objectives[idx] = true;
+
+        const item  = document.getElementById('obj-' + idx);
+        const check = document.getElementById('check-' + idx);
+        if (item)  item.classList.add('completed');
+        if (check) check.textContent = 'X';
+
+        const total = state.objectives.filter(Boolean).length;
+        document.getElementById('obj-count').textContent = total;
+
+        updatePhaseBars();
+
+        setTimeout(() => {
+            const notif = document.createElement('span');
+            notif.className = 'term-line objective-unlock';
+            notif.textContent = `[OBJECTIVE COMPLETE] #${idx + 1} — ${OBJ_LABELS[idx]}`;
+            outputEl.appendChild(notif);
+            outputEl.appendChild(document.createElement('br'));
+            blankLine();
+            outputEl.scrollTop = outputEl.scrollHeight;
+        }, 120);
+
+        if (total === 8) setTimeout(showSuccessBanner, 800);
+    }
+
+    function updatePhaseBars() {
+        const ranges = [[0,2],[2,4],[4,6],[6,8]];
+        ranges.forEach(([s, e], i) => {
+            const done = state.objectives.slice(s, e).filter(Boolean).length;
+            const max  = e - s;
+            const id   = 'p' + (i + 1);
+            document.getElementById(id + '-frac').textContent = `${done}/${max}`;
+            document.getElementById(id + '-bar').style.width  = `${(done / max) * 100}%`;
+
+            // Mark phase tab done
+            const tabEl   = document.getElementById('tab-p' + (i + 1));
+            const checkEl = document.getElementById('tc-p' + (i + 1));
+            if (done === max) {
+                tabEl.classList.add('phase-done');
+                checkEl.textContent = '[X] ';
+            }
+        });
+    }
+
+    /* ==============================================================
+       HINTS
+    ============================================================== */
+    function showHint() {
+        if (state.hintsUsed >= HINTS.length) return;
+        const hint = HINTS[state.hintsUsed];
+        state.hintsUsed++;
+
+        state.score = Math.max(0, state.score - 5);
+        const scoreEl = document.getElementById('score-display');
+        scoreEl.textContent = state.score;
+        scoreEl.classList.add('deducted');
+        setTimeout(() => scoreEl.classList.remove('deducted'), 600);
+
+        const display = document.getElementById('hint-display');
+        display.innerHTML = `<strong style="color:#a855f7;font-size:0.7rem;letter-spacing:0.1em">${hint.title}</strong><br>${hint.text}<span class="hint-code">${hint.code}</span>`;
+        display.classList.add('visible');
+
+        const remaining = HINTS.length - state.hintsUsed;
+        document.getElementById('hint-cost-label').textContent = remaining > 0 ? `-5 points per hint · ${remaining} remaining` : 'All hints used';
+        if (state.hintsUsed >= HINTS.length) document.getElementById('hint-btn').disabled = true;
+
+        renderLines([
+            { type: 'warning', text: `[HINT -5 pts] ${hint.title}` },
+            { type: 'dim',     text: `  ${hint.text}` },
+            { type: 'dim',     text: `  Try: ${hint.code}` },
+            { type: 'blank',   text: '' },
+        ], 14);
+    }
+
+    /* ==============================================================
+       SUCCESS / COMPLETION
+    ============================================================== */
+    function showSuccessBanner() {
+        document.getElementById('final-score').textContent = state.score;
+        document.getElementById('success-banner').classList.add('visible');
+        document.getElementById('success-banner').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+
+        renderLines([
+            { type: 'dim',     text: '═'.repeat(60) },
+            { type: 'success', text: '  ALL OBJECTIVES COMPLETE — WEB SERVER COMPROMISED' },
+            { type: 'dim',     text: '═'.repeat(60) },
+            { type: 'blank',   text: '' },
+            { type: 'output',  text: `  Final Score: ${state.score} / 100` },
+            { type: 'output',  text: `  Hints Used:  ${state.hintsUsed}` },
+            { type: 'blank',   text: '' },
+            { type: 'info',    text: '  Click "Complete Lab" to record your progress.' },
+            { type: 'blank',   text: '' },
+        ], 20);
+    }
+
+    function completeLab() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('dark-arts', 'ehe-lab-web-server-attack', { returnUrl: '../index.html' });
+        } else {
+            window.location.href = '../index.html';
+        }
+    }
+
+    /* ==============================================================
+       PHASE TABS
+    ============================================================== */
+    function switchTab(phase) {
+        state.currentTab = phase;
+        ['p1','p2','p3','p4'].forEach(p => document.getElementById('tab-' + p).classList.toggle('active', p === phase));
+        const titles = {
+            p1: 'pentester@kali:~ — Phase 1: Reconnaissance',
+            p2: 'pentester@kali:~ — Phase 2: FTP Credential Cracking',
+            p3: 'pentester@kali:~ — Phase 3: FTP Access & File Exfiltration',
+            p4: 'pentester@kali:~ — Phase 4: Web Server Enumeration'
+        };
+        document.getElementById('term-title').textContent = titles[phase];
+        focusInput();
+    }
+
+    /* ==============================================================
+       COLLAPSIBLE PANELS
+    ============================================================== */
+    function togglePanel(panelId, headerEl) {
+        const panel  = document.getElementById(panelId);
+        const toggle = headerEl.querySelector('.panel-toggle');
+        const isOpen = !panel.classList.contains('collapsed');
+        if (isOpen) { panel.classList.add('collapsed'); toggle.classList.remove('open'); }
+        else         { panel.classList.remove('collapsed'); toggle.classList.add('open'); }
+    }
+
+    /* ==============================================================
+       INPUT HANDLING
+    ============================================================== */
+    inputEl.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') {
+            const val = inputEl.value;
+            inputEl.value = '';
+            processCommand(val);
+        } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            if (state.history.length > 0) {
+                state.historyIdx = Math.min(state.historyIdx + 1, state.history.length - 1);
+                inputEl.value = state.history[state.historyIdx] || '';
+                setTimeout(() => inputEl.setSelectionRange(inputEl.value.length, inputEl.value.length), 0);
+            }
+        } else if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            if (state.historyIdx > 0) { state.historyIdx--; inputEl.value = state.history[state.historyIdx] || ''; }
+            else { state.historyIdx = -1; inputEl.value = ''; }
+        } else if (e.key === 'Tab') {
+            e.preventDefault();
+            const partial = inputEl.value.trim();
+            const completions = ['nmap ', 'curl ', 'hydra ', 'medusa ', 'ftp ', 'cat ', 'dirb ', 'gobuster ', 'help', 'clear', 'objectives', 'ls', 'get ', 'pwd', 'quit'];
+            const match = completions.find(c => c.startsWith(partial) && c !== partial);
+            if (match) inputEl.value = match;
+        }
+    });
+
+    function focusInput() { inputEl.focus(); }
+
+    /* ==============================================================
+       BOOT
+    ============================================================== */
+    const BOOT_LINES = [
+        { type: 'dim',    text: '──────────────────────────────────────────────────────────────' },
+        { type: 'info',   text: '  HEXWORTH ATTACK TERMINAL  v2.4.1' },
+        { type: 'dim',    text: '  Web Server Attack Lab — Educational Environment' },
+        { type: 'dim',    text: '──────────────────────────────────────────────────────────────' },
+        { type: 'blank',  text: '' },
+        { type: 'output', text: '  TARGET:   10.0.1.30 (CorpWeb Internal Server)' },
+        { type: 'output', text: '  ATTACKER: 10.0.1.100 (Kali Linux)' },
+        { type: 'output', text: '  PHASE:    1 of 4 — Reconnaissance' },
+        { type: 'blank',  text: '' },
+        { type: 'warning', text: '  [!] Simulated environment — all data is fictional' },
+        { type: 'blank',  text: '' },
+        { type: 'dim',    text: '  Type "help" to see available commands.' },
+        { type: 'dim',    text: '  Type "objectives" to see your current progress.' },
+        { type: 'blank',  text: '' },
+    ];
+
+    window.addEventListener('DOMContentLoaded', function() {
+        focusInput();
+        renderLines(BOOT_LINES, 20);
+    });
+    </script>
+
+</body>
+</html>

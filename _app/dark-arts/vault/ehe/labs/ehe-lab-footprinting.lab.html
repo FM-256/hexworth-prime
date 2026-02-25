@@ -1,0 +1,1859 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('dark-arts');</script>
+    <!-- Progress & Achievements -->
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lab: Passive Footprinting — EHE | The Vault</title>
+    <style>
+        /* ============================================================
+           RESET & BASE
+        ============================================================ */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            min-height: 100vh;
+            background: #0a0508;
+            font-family: 'Georgia', 'Times New Roman', serif;
+            color: #8a6a9a;
+            overflow-x: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Ambient background glow */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background:
+                radial-gradient(ellipse at 20% 15%, rgba(80, 40, 100, 0.10) 0%, transparent 55%),
+                radial-gradient(ellipse at 80% 85%, rgba(60, 20, 80, 0.07) 0%, transparent 50%);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        /* ============================================================
+           STICKY HEADER
+        ============================================================ */
+        .lab-header {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            background: rgba(10, 5, 15, 0.97);
+            border-bottom: 1px solid rgba(100, 60, 130, 0.22);
+            backdrop-filter: blur(14px);
+            padding: 14px 32px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 18px;
+            min-width: 0;
+        }
+
+        .back-btn {
+            color: #6a4a7a;
+            text-decoration: none;
+            font-size: 0.76rem;
+            letter-spacing: 0.1em;
+            padding: 6px 14px;
+            border: 1px solid rgba(100, 60, 130, 0.2);
+            border-radius: 4px;
+            transition: all 0.25s;
+            font-family: 'Georgia', serif;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+        .back-btn:hover {
+            color: #a855f7;
+            border-color: rgba(147, 51, 234, 0.45);
+            background: rgba(147, 51, 234, 0.06);
+        }
+
+        .header-title-group {
+            min-width: 0;
+        }
+
+        .header-label {
+            font-size: 0.62rem;
+            letter-spacing: 0.22em;
+            color: #5a3a6a;
+            text-transform: uppercase;
+            margin-bottom: 2px;
+        }
+
+        .header-title {
+            font-size: 0.95rem;
+            color: #c09ad0;
+            letter-spacing: 0.04em;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            flex-shrink: 0;
+        }
+
+        /* Score display */
+        .score-display {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.72rem;
+            letter-spacing: 0.1em;
+            color: #6a4a7a;
+        }
+
+        .score-value {
+            font-size: 1.1rem;
+            color: #a855f7;
+            font-family: 'Courier New', monospace;
+            font-weight: bold;
+            min-width: 40px;
+            text-align: right;
+            transition: color 0.3s;
+        }
+
+        .score-value.deducted {
+            color: #ef4444;
+            animation: score-flash 0.5s ease;
+        }
+
+        @keyframes score-flash {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.15); }
+        }
+
+        /* Objective progress pill */
+        .obj-progress-pill {
+            font-size: 0.7rem;
+            letter-spacing: 0.08em;
+            color: #6a4a7a;
+            padding: 5px 12px;
+            border: 1px solid rgba(100, 60, 130, 0.2);
+            border-radius: 20px;
+            font-family: 'Courier New', monospace;
+        }
+
+        .obj-progress-pill .obj-count {
+            color: #a855f7;
+            font-weight: bold;
+        }
+
+        /* ============================================================
+           ETHICAL WARNING BANNER
+        ============================================================ */
+        .warning-banner {
+            background: rgba(239, 68, 68, 0.05);
+            border: 1px solid rgba(239, 68, 68, 0.30);
+            border-left: 3px solid #ef4444;
+            margin: 20px 24px 0;
+            padding: 12px 18px;
+            border-radius: 4px;
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            position: relative;
+            z-index: 10;
+        }
+
+        .warning-icon {
+            color: #ef4444;
+            font-size: 0.8rem;
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            white-space: nowrap;
+            margin-top: 1px;
+            font-family: 'Courier New', monospace;
+            flex-shrink: 0;
+        }
+
+        .warning-text {
+            font-size: 0.76rem;
+            color: rgba(239, 68, 68, 0.75);
+            line-height: 1.6;
+            letter-spacing: 0.02em;
+        }
+
+        /* ============================================================
+           MAIN LAYOUT — sidebar + terminal
+        ============================================================ */
+        .lab-body {
+            flex: 1;
+            display: flex;
+            gap: 0;
+            padding: 20px 24px 24px;
+            position: relative;
+            z-index: 10;
+            min-height: 0;
+        }
+
+        /* ============================================================
+           OBJECTIVES SIDEBAR
+        ============================================================ */
+        .sidebar {
+            width: 280px;
+            flex-shrink: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+            margin-right: 18px;
+        }
+
+        .sidebar-panel {
+            background: rgba(15, 8, 20, 0.80);
+            border: 1px solid rgba(100, 60, 130, 0.18);
+            border-radius: 6px;
+            overflow: hidden;
+        }
+
+        .panel-header {
+            padding: 11px 16px;
+            background: rgba(80, 40, 100, 0.12);
+            border-bottom: 1px solid rgba(100, 60, 130, 0.15);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .panel-header-title {
+            font-size: 0.65rem;
+            letter-spacing: 0.2em;
+            text-transform: uppercase;
+            color: #7a5a8a;
+        }
+
+        .panel-toggle {
+            font-size: 0.65rem;
+            color: #5a3a6a;
+            transition: transform 0.25s;
+            font-family: 'Courier New', monospace;
+        }
+
+        .panel-toggle.open { transform: rotate(180deg); }
+
+        .panel-body {
+            padding: 14px;
+            transition: all 0.3s ease;
+            overflow: hidden;
+        }
+
+        .panel-body.collapsed {
+            padding-top: 0;
+            padding-bottom: 0;
+            max-height: 0;
+        }
+
+        /* Objectives checklist */
+        .objectives-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .objective-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            padding: 8px 10px;
+            border-radius: 4px;
+            border: 1px solid rgba(100, 60, 130, 0.10);
+            transition: all 0.3s;
+            background: rgba(10, 5, 15, 0.4);
+        }
+
+        .objective-item.completed {
+            border-color: rgba(34, 197, 94, 0.25);
+            background: rgba(34, 197, 94, 0.04);
+        }
+
+        .obj-checkbox {
+            width: 14px;
+            height: 14px;
+            border: 1px solid rgba(100, 60, 130, 0.35);
+            border-radius: 2px;
+            flex-shrink: 0;
+            margin-top: 2px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s;
+            font-family: 'Courier New', monospace;
+            font-size: 0.55rem;
+            color: transparent;
+        }
+
+        .objective-item.completed .obj-checkbox {
+            background: rgba(34, 197, 94, 0.15);
+            border-color: #22c55e;
+            color: #22c55e;
+        }
+
+        .obj-label {
+            font-size: 0.72rem;
+            color: #5a3a6a;
+            line-height: 1.5;
+            letter-spacing: 0.02em;
+            transition: color 0.3s;
+        }
+
+        .objective-item.completed .obj-label {
+            color: #22c55e;
+        }
+
+        /* Phase badge */
+        .phase-badge {
+            font-size: 0.6rem;
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            color: #5a3a6a;
+            margin-bottom: 8px;
+            padding-bottom: 6px;
+            border-bottom: 1px solid rgba(100, 60, 130, 0.10);
+        }
+
+        /* Hint panel */
+        .hint-btn {
+            width: 100%;
+            padding: 9px 16px;
+            background: rgba(147, 51, 234, 0.08);
+            border: 1px solid rgba(147, 51, 234, 0.22);
+            border-radius: 4px;
+            color: #a855f7;
+            font-family: 'Georgia', serif;
+            font-size: 0.72rem;
+            letter-spacing: 0.1em;
+            cursor: pointer;
+            transition: all 0.25s;
+            text-align: center;
+            margin-bottom: 8px;
+        }
+
+        .hint-btn:hover {
+            background: rgba(147, 51, 234, 0.14);
+            border-color: rgba(168, 85, 247, 0.4);
+        }
+
+        .hint-btn:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        .hint-cost {
+            font-size: 0.62rem;
+            color: #5a3a6a;
+            text-align: center;
+            letter-spacing: 0.05em;
+        }
+
+        .hint-content {
+            margin-top: 10px;
+            padding: 10px 12px;
+            background: rgba(147, 51, 234, 0.06);
+            border: 1px solid rgba(147, 51, 234, 0.15);
+            border-radius: 4px;
+            font-size: 0.72rem;
+            color: #8a6a9a;
+            line-height: 1.6;
+            display: none;
+        }
+
+        .hint-content.visible { display: block; }
+
+        .hint-code {
+            display: block;
+            margin-top: 6px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.68rem;
+            color: #c09ad0;
+            background: rgba(10, 5, 15, 0.5);
+            padding: 5px 8px;
+            border-radius: 3px;
+            border-left: 2px solid #9333ea;
+            word-break: break-all;
+        }
+
+        /* Phase progress bar */
+        .phase-progress {
+            margin-top: 4px;
+        }
+
+        .phase-progress-label {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.62rem;
+            color: #5a3a6a;
+            letter-spacing: 0.08em;
+            margin-bottom: 5px;
+        }
+
+        .phase-progress-bar {
+            height: 3px;
+            background: rgba(100, 60, 130, 0.15);
+            border-radius: 2px;
+            overflow: hidden;
+        }
+
+        .phase-progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #6a4a8a, #9333ea);
+            border-radius: 2px;
+            transition: width 0.5s ease;
+        }
+
+        /* ============================================================
+           TERMINAL
+        ============================================================ */
+        .terminal-wrapper {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            min-width: 0;
+        }
+
+        /* Phase tabs */
+        .phase-tabs {
+            display: flex;
+            gap: 0;
+            margin-bottom: -1px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .phase-tab {
+            padding: 9px 20px;
+            font-size: 0.68rem;
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            color: #5a3a6a;
+            border: 1px solid rgba(100, 60, 130, 0.18);
+            border-bottom: none;
+            border-radius: 5px 5px 0 0;
+            cursor: pointer;
+            background: rgba(10, 5, 15, 0.6);
+            transition: all 0.25s;
+            user-select: none;
+        }
+
+        .phase-tab:hover {
+            color: #8a6a9a;
+            background: rgba(80, 40, 100, 0.12);
+        }
+
+        .phase-tab.active {
+            color: #a855f7;
+            background: rgba(15, 8, 22, 0.95);
+            border-color: rgba(100, 60, 130, 0.30);
+        }
+
+        .phase-tab .tab-check {
+            display: inline-block;
+            font-family: 'Courier New', monospace;
+            margin-right: 6px;
+            color: #3a2a4a;
+            font-size: 0.6rem;
+        }
+
+        .phase-tab.phase-done .tab-check { color: #22c55e; }
+
+        .terminal-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: rgba(8, 4, 12, 0.95);
+            border: 1px solid rgba(100, 60, 130, 0.28);
+            border-radius: 0 6px 6px 6px;
+            overflow: hidden;
+            min-height: 500px;
+        }
+
+        /* Terminal top bar */
+        .terminal-topbar {
+            padding: 10px 16px;
+            background: rgba(20, 10, 30, 0.9);
+            border-bottom: 1px solid rgba(100, 60, 130, 0.18);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .term-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+        }
+        .term-dot.red    { background: rgba(239, 68, 68, 0.5); }
+        .term-dot.yellow { background: rgba(234, 179, 8, 0.5); }
+        .term-dot.green  { background: rgba(34, 197, 94, 0.5); }
+
+        .term-title {
+            font-family: 'Courier New', monospace;
+            font-size: 0.68rem;
+            color: #5a3a6a;
+            letter-spacing: 0.1em;
+            margin-left: 8px;
+        }
+
+        /* Terminal output area */
+        .terminal-output {
+            flex: 1;
+            overflow-y: auto;
+            padding: 18px 20px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.82rem;
+            line-height: 1.65;
+            color: #22c55e;
+            scroll-behavior: smooth;
+        }
+
+        .terminal-output::-webkit-scrollbar {
+            width: 4px;
+        }
+        .terminal-output::-webkit-scrollbar-track {
+            background: rgba(10, 5, 15, 0.5);
+        }
+        .terminal-output::-webkit-scrollbar-thumb {
+            background: rgba(100, 60, 130, 0.4);
+            border-radius: 2px;
+        }
+
+        /* Output line types */
+        .term-line {
+            display: block;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+
+        .term-line.prompt    { color: #a855f7; }
+        .term-line.command   { color: #e2d4f0; }
+        .term-line.output    { color: #22c55e; }
+        .term-line.dim       { color: #3a2a4a; }
+        .term-line.info      { color: #6a9ecf; }
+        .term-line.warning   { color: #f59e0b; }
+        .term-line.error     { color: #ef4444; }
+        .term-line.success   { color: #22c55e; }
+        .term-line.result-key   { color: #a855f7; }
+        .term-line.result-val   { color: #c09ad0; }
+        .term-line.highlight { color: #f0e6ff; background: rgba(147, 51, 234, 0.08); padding: 1px 4px; border-radius: 2px; }
+        .term-line.blank     { display: block; height: 0.5em; }
+
+        /* Objective unlock notification */
+        .term-line.objective-unlock {
+            color: #22c55e;
+            background: rgba(34, 197, 94, 0.06);
+            border-left: 2px solid #22c55e;
+            padding: 3px 8px;
+            margin: 2px 0;
+        }
+
+        /* URL style in search results */
+        .term-url { color: #6a9ecf; }
+        .term-title-result { color: #c09ad0; font-weight: bold; }
+        .term-snippet { color: #7a6a8a; }
+
+        /* Input line */
+        .terminal-input-line {
+            padding: 12px 20px;
+            border-top: 1px solid rgba(100, 60, 130, 0.15);
+            display: flex;
+            align-items: center;
+            gap: 0;
+            background: rgba(8, 4, 12, 0.98);
+        }
+
+        .term-prompt-label {
+            font-family: 'Courier New', monospace;
+            font-size: 0.82rem;
+            color: #a855f7;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+
+        .term-input {
+            flex: 1;
+            background: transparent;
+            border: none;
+            outline: none;
+            font-family: 'Courier New', monospace;
+            font-size: 0.82rem;
+            color: #e2d4f0;
+            caret-color: #a855f7;
+            padding: 0 6px;
+        }
+
+        /* Blinking cursor indicator */
+        .cursor-blink {
+            display: inline-block;
+            width: 8px;
+            height: 14px;
+            background: #a855f7;
+            animation: blink 1s step-end infinite;
+            vertical-align: middle;
+            margin-left: 1px;
+        }
+
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0; }
+        }
+
+        /* ============================================================
+           SUCCESS BANNER (shown on lab completion)
+        ============================================================ */
+        .success-banner {
+            display: none;
+            margin: 0 24px 20px;
+            padding: 20px 24px;
+            background: rgba(34, 197, 94, 0.06);
+            border: 1px solid rgba(34, 197, 94, 0.30);
+            border-left: 3px solid #22c55e;
+            border-radius: 6px;
+            position: relative;
+            z-index: 10;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .success-banner.visible {
+            display: flex;
+            animation: slide-in 0.5s ease;
+        }
+
+        @keyframes slide-in {
+            from { opacity: 0; transform: translateY(-10px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+
+        .success-text-group {
+            flex: 1;
+        }
+
+        .success-title {
+            font-size: 0.85rem;
+            color: #22c55e;
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            margin-bottom: 4px;
+        }
+
+        .success-sub {
+            font-size: 0.74rem;
+            color: #5a8a6a;
+            line-height: 1.5;
+        }
+
+        .complete-lab-btn {
+            padding: 11px 24px;
+            background: rgba(34, 197, 94, 0.12);
+            border: 1px solid rgba(34, 197, 94, 0.35);
+            border-radius: 4px;
+            color: #22c55e;
+            font-family: 'Georgia', serif;
+            font-size: 0.78rem;
+            letter-spacing: 0.12em;
+            cursor: pointer;
+            transition: all 0.25s;
+            white-space: nowrap;
+        }
+
+        .complete-lab-btn:hover {
+            background: rgba(34, 197, 94, 0.20);
+            border-color: rgba(34, 197, 94, 0.55);
+        }
+
+        /* ============================================================
+           TYPING ANIMATION
+        ============================================================ */
+        @keyframes type-in {
+            from { opacity: 0; }
+            to   { opacity: 1; }
+        }
+
+        .term-line.typing {
+            animation: type-in 0.08s ease forwards;
+        }
+
+        /* ============================================================
+           RESPONSIVE
+        ============================================================ */
+        @media (max-width: 900px) {
+            .lab-body { flex-direction: column; padding: 14px; }
+            .sidebar { width: 100%; margin-right: 0; margin-bottom: 14px; }
+            .phase-tabs { overflow-x: auto; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- ============================================================
+         STICKY HEADER
+    ============================================================ -->
+    <header class="lab-header">
+        <div class="header-left">
+            <a href="../index.html" class="back-btn">&#8592; EHE</a>
+            <div class="header-title-group">
+                <div class="header-label">Lab Exercise</div>
+                <div class="header-title">Passive Footprinting: Google Dorking &amp; WHOIS</div>
+            </div>
+        </div>
+        <div class="header-right">
+            <div class="score-display">
+                <span>SCORE</span>
+                <span class="score-value" id="score-display">100</span>
+            </div>
+            <div class="obj-progress-pill">
+                <span class="obj-count" id="obj-count">0</span>
+                <span>/8 objectives</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- ============================================================
+         ETHICAL WARNING BANNER
+    ============================================================ -->
+    <div class="warning-banner">
+        <div class="warning-icon">! WARNING</div>
+        <div class="warning-text">
+            This lab is a <strong>simulated environment</strong> for educational purposes only.
+            All domains, IP addresses, and company data are fictional. Do not apply these
+            techniques against real systems without explicit written authorization.
+            Unauthorized reconnaissance is illegal under the CFAA and equivalent statutes.
+        </div>
+    </div>
+
+    <!-- ============================================================
+         SUCCESS BANNER (hidden until all objectives complete)
+    ============================================================ -->
+    <div class="success-banner" id="success-banner">
+        <div class="success-text-group">
+            <div class="success-title">Reconnaissance Complete</div>
+            <div class="success-sub" id="success-sub">All 8 objectives completed. Final score: <span id="final-score">100</span> pts.</div>
+        </div>
+        <button class="complete-lab-btn" onclick="completeLab()">Complete Lab</button>
+    </div>
+
+    <!-- ============================================================
+         MAIN LAB BODY
+    ============================================================ -->
+    <div class="lab-body">
+
+        <!-- SIDEBAR: Objectives + Hints -->
+        <aside class="sidebar">
+
+            <!-- Objectives Panel -->
+            <div class="sidebar-panel">
+                <div class="panel-header" onclick="togglePanel('obj-panel', this)">
+                    <span class="panel-header-title">Objectives</span>
+                    <span class="panel-toggle open" id="obj-toggle">&#9650;</span>
+                </div>
+                <div class="panel-body" id="obj-panel">
+                    <!-- Phase 1 objectives -->
+                    <div class="phase-badge">Phase 1 — Google Dorking</div>
+                    <div class="objectives-list">
+                        <div class="objective-item" id="obj-0">
+                            <div class="obj-checkbox" id="check-0"></div>
+                            <div class="obj-label">Find the login portal via Google dorking</div>
+                        </div>
+                        <div class="objective-item" id="obj-1">
+                            <div class="obj-checkbox" id="check-1"></div>
+                            <div class="obj-label">Discover exposed documents (.pdf)</div>
+                        </div>
+                        <div class="objective-item" id="obj-2">
+                            <div class="obj-checkbox" id="check-2"></div>
+                            <div class="obj-label">Find open directory listings</div>
+                        </div>
+                        <div class="objective-item" id="obj-3">
+                            <div class="obj-checkbox" id="check-3"></div>
+                            <div class="obj-label">Extract email addresses from site</div>
+                        </div>
+                        <div class="objective-item" id="obj-4">
+                            <div class="obj-checkbox" id="check-4"></div>
+                            <div class="obj-label">Locate exposed configuration files</div>
+                        </div>
+                    </div>
+
+                    <!-- Progress bar for phase 1 -->
+                    <div class="phase-progress" style="margin-top:12px;">
+                        <div class="phase-progress-label">
+                            <span>Phase 1</span>
+                            <span id="p1-frac">0/5</span>
+                        </div>
+                        <div class="phase-progress-bar">
+                            <div class="phase-progress-fill" id="p1-bar" style="width:0%"></div>
+                        </div>
+                    </div>
+
+                    <div class="phase-badge" style="margin-top:16px;">Phase 2 — WHOIS &amp; DNS</div>
+                    <div class="objectives-list">
+                        <div class="objective-item" id="obj-5">
+                            <div class="obj-checkbox" id="check-5"></div>
+                            <div class="obj-label">WHOIS lookup on novacorp-tech.com</div>
+                        </div>
+                        <div class="objective-item" id="obj-6">
+                            <div class="obj-checkbox" id="check-6"></div>
+                            <div class="obj-label">WHOIS lookup on IP 203.0.113.50</div>
+                        </div>
+                        <div class="objective-item" id="obj-7">
+                            <div class="obj-checkbox" id="check-7"></div>
+                            <div class="obj-label">Resolve DNS records for the domain</div>
+                        </div>
+                    </div>
+
+                    <!-- Progress bar for phase 2 -->
+                    <div class="phase-progress" style="margin-top:12px;">
+                        <div class="phase-progress-label">
+                            <span>Phase 2</span>
+                            <span id="p2-frac">0/3</span>
+                        </div>
+                        <div class="phase-progress-bar">
+                            <div class="phase-progress-fill" id="p2-bar" style="width:0%"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Hints Panel -->
+            <div class="sidebar-panel">
+                <div class="panel-header" onclick="togglePanel('hint-panel', this)">
+                    <span class="panel-header-title">Hints</span>
+                    <span class="panel-toggle open" id="hint-toggle">&#9650;</span>
+                </div>
+                <div class="panel-body" id="hint-panel">
+                    <button class="hint-btn" id="hint-btn" onclick="showHint()">Reveal Next Hint</button>
+                    <div class="hint-cost" id="hint-cost-label">-5 points per hint &middot; 8 available</div>
+                    <div class="hint-content" id="hint-display"></div>
+                </div>
+            </div>
+
+            <!-- Command reference panel -->
+            <div class="sidebar-panel">
+                <div class="panel-header" onclick="togglePanel('cmd-panel', this)">
+                    <span class="panel-header-title">Command Reference</span>
+                    <span class="panel-toggle" id="cmd-toggle">&#9650;</span>
+                </div>
+                <div class="panel-body" id="cmd-panel">
+                    <div style="font-family:'Courier New',monospace; font-size:0.68rem; color:#5a3a6a; line-height:2;">
+                        <span style="color:#a855f7">help</span>            — list commands<br>
+                        <span style="color:#a855f7">clear</span>           — clear terminal<br>
+                        <span style="color:#a855f7">objectives</span>      — show progress<br>
+                        <span style="color:#a855f7">google</span> &lt;query&gt; — run dork search<br>
+                        <span style="color:#a855f7">whois</span> &lt;target&gt; — WHOIS lookup<br>
+                        <span style="color:#a855f7">nslookup</span> &lt;dom&gt; — DNS query<br>
+                        <span style="color:#a855f7">dig</span> &lt;domain&gt;   — DNS query<br>
+                    </div>
+                </div>
+            </div>
+
+        </aside>
+
+        <!-- TERMINAL -->
+        <div class="terminal-wrapper">
+
+            <!-- Phase tabs -->
+            <div class="phase-tabs">
+                <div class="phase-tab active" id="tab-p1" onclick="switchTab('p1')">
+                    <span class="tab-check" id="tab-check-p1">[ ]</span>Phase 1: Dorking
+                </div>
+                <div class="phase-tab" id="tab-p2" onclick="switchTab('p2')">
+                    <span class="tab-check" id="tab-check-p2">[ ]</span>Phase 2: WHOIS/DNS
+                </div>
+            </div>
+
+            <div class="terminal-container">
+                <div class="terminal-topbar">
+                    <div class="term-dot red"></div>
+                    <div class="term-dot yellow"></div>
+                    <div class="term-dot green"></div>
+                    <div class="term-title" id="term-title">recon@kali: ~/footprinting — Phase 1: Google Dorking</div>
+                </div>
+
+                <!-- Scrollable output -->
+                <div class="terminal-output" id="terminal-output" onclick="focusInput()"></div>
+
+                <!-- Input line -->
+                <div class="terminal-input-line">
+                    <span class="term-prompt-label" id="prompt-label">recon@kali:~$&nbsp;</span>
+                    <input
+                        type="text"
+                        id="term-input"
+                        class="term-input"
+                        autocomplete="off"
+                        autocorrect="off"
+                        autocapitalize="off"
+                        spellcheck="false"
+                        placeholder="type a command..."
+                        aria-label="Terminal input"
+                    >
+                </div>
+            </div>
+        </div>
+
+    </div><!-- end .lab-body -->
+
+    <!-- ============================================================
+         JAVASCRIPT
+    ============================================================ -->
+    <script>
+    /* ==============================================================
+       GAME STATE
+    ============================================================== */
+    const state = {
+        score: 100,
+        hintsUsed: 0,
+        objectives: [false, false, false, false, false, false, false, false],
+        history: [],      // command history for up/down navigation
+        historyIdx: -1,
+        currentPhase: 'p1'
+    };
+
+    /* ==============================================================
+       HINT DATA
+       8 hints, each costing 5 points. They are revealed sequentially.
+    ============================================================== */
+    const HINTS = [
+        {
+            title: 'Dorking Tip #1 — Login Pages',
+            text: 'Use the site: operator combined with inurl: to find login pages.',
+            code: 'google site:novacorp-tech.com inurl:login'
+        },
+        {
+            title: 'Dorking Tip #2 — PDF Files',
+            text: 'The filetype: operator restricts results to a specific file extension.',
+            code: 'google site:novacorp-tech.com filetype:pdf'
+        },
+        {
+            title: 'Dorking Tip #3 — Directory Listings',
+            text: 'Open directories typically show "Index of" in the page title.',
+            code: 'google site:novacorp-tech.com intitle:"index of"'
+        },
+        {
+            title: 'Dorking Tip #4 — Email Addresses',
+            text: 'Use intext: with the @ symbol to surface pages containing email addresses.',
+            code: 'google site:novacorp-tech.com intext:@novacorp-tech.com'
+        },
+        {
+            title: 'Dorking Tip #5 — Config Files',
+            text: 'Combine multiple filetype: values with OR to find config/env files.',
+            code: 'google site:novacorp-tech.com filetype:conf OR filetype:env'
+        },
+        {
+            title: 'WHOIS Tip #1 — Domain',
+            text: 'The whois command takes either a domain name or an IP address as its argument.',
+            code: 'whois novacorp-tech.com'
+        },
+        {
+            title: 'WHOIS Tip #2 — IP Address',
+            text: 'Once you have the IP from DNS results, run whois against it to find the ARIN record.',
+            code: 'whois 203.0.113.50'
+        },
+        {
+            title: 'DNS Tip — nslookup / dig',
+            text: 'Both nslookup and dig will resolve A, MX, and NS records for a given domain.',
+            code: 'nslookup novacorp-tech.com'
+        }
+    ];
+
+    /* ==============================================================
+       SIMULATED DATA — NovaCorp Technologies
+    ============================================================== */
+
+    // Google dork result sets, keyed by matched operator pattern
+    const DORK_RESULTS = {
+        login: {
+            objective: 0,
+            lines: [
+                { type: 'info',          text: 'Google Custom Search — Simulated OSINT Query' },
+                { type: 'dim',           text: '─'.repeat(60) },
+                { type: 'output',        text: 'Showing 3 results for: site:novacorp-tech.com inurl:login\n' },
+                { type: 'term-title-result', text: 'NovaCorp Employee Portal Login' },
+                { type: 'term-url',      text: 'https://portal.novacorp-tech.com/login' },
+                { type: 'term-snippet',  text: 'Sign in with your NovaCorp SSO credentials. Username...' },
+                { type: 'blank',         text: '' },
+                { type: 'term-title-result', text: 'NovaCorp IT Helpdesk — Login' },
+                { type: 'term-url',      text: 'https://helpdesk.novacorp-tech.com/login.php' },
+                { type: 'term-snippet',  text: 'Submit support tickets and track requests. Powered by OTRS.' },
+                { type: 'blank',         text: '' },
+                { type: 'term-title-result', text: 'NovaCorp VPN Client Auth' },
+                { type: 'term-url',      text: 'https://vpn.novacorp-tech.com/+webvpn+/index.html' },
+                { type: 'term-snippet',  text: 'Cisco Anyconnect Web VPN — Enter credentials to access internal network.' },
+                { type: 'blank',         text: '' },
+                { type: 'success',       text: '[+] Login portal identified: portal.novacorp-tech.com/login' },
+                { type: 'success',       text: '[+] Additional surfaces: helpdesk, VPN endpoint discovered' },
+            ]
+        },
+        pdf: {
+            objective: 1,
+            lines: [
+                { type: 'info',          text: 'Google Custom Search — Simulated OSINT Query' },
+                { type: 'dim',           text: '─'.repeat(60) },
+                { type: 'output',        text: 'Showing 4 results for: site:novacorp-tech.com filetype:pdf\n' },
+                { type: 'term-title-result', text: 'NovaCorp Q3 2024 Financial Report.pdf' },
+                { type: 'term-url',      text: 'https://www.novacorp-tech.com/ir/NovaCorp_Q3_2024.pdf' },
+                { type: 'term-snippet',  text: 'Quarterly earnings disclosure. Contains revenue, headcount, and strategic...' },
+                { type: 'blank',         text: '' },
+                { type: 'term-title-result', text: 'Network Architecture Overview v2.1.pdf' },
+                { type: 'term-url',      text: 'https://www.novacorp-tech.com/internal/net_arch_v2.1.pdf' },
+                { type: 'term-snippet',  text: 'Internal document — NovaCorp DC topology, VLAN segmentation, border...' },
+                { type: 'blank',         text: '' },
+                { type: 'term-title-result', text: 'Employee Handbook 2024.pdf' },
+                { type: 'term-url',      text: 'https://hr.novacorp-tech.com/docs/handbook_2024.pdf' },
+                { type: 'term-snippet',  text: 'Policies, benefits, org chart. IT Security section pp. 34-41...' },
+                { type: 'blank',         text: '' },
+                { type: 'term-title-result', text: 'Vendor Onboarding Checklist.pdf' },
+                { type: 'term-url',      text: 'https://procurement.novacorp-tech.com/forms/vendor_onboard.pdf' },
+                { type: 'term-snippet',  text: 'Third-party supplier intake form. Includes NovaCorp contact directory.' },
+                { type: 'blank',         text: '' },
+                { type: 'success',       text: '[+] Exposed PDFs found — includes internal network architecture doc' },
+                { type: 'warning',       text: '[!] net_arch_v2.1.pdf is highly sensitive — should NOT be publicly indexed' },
+            ]
+        },
+        dirindex: {
+            objective: 2,
+            lines: [
+                { type: 'info',          text: 'Google Custom Search — Simulated OSINT Query' },
+                { type: 'dim',           text: '─'.repeat(60) },
+                { type: 'output',        text: 'Showing 2 results for: site:novacorp-tech.com intitle:"index of"\n' },
+                { type: 'term-title-result', text: 'Index of /backups/' },
+                { type: 'term-url',      text: 'https://files.novacorp-tech.com/backups/' },
+                { type: 'term-snippet',  text: 'Name | Last modified | Size — Parent Directory — db_backup_2024-11-01...' },
+                { type: 'blank',         text: '' },
+                { type: 'term-title-result', text: 'Index of /uploads/staff/' },
+                { type: 'term-url',      text: 'https://intranet.novacorp-tech.com/uploads/staff/' },
+                { type: 'term-snippet',  text: 'Name | Size — photo_id_chen_s.jpg — resume_john_marks.docx ...' },
+                { type: 'blank',         text: '' },
+                { type: 'success',       text: '[+] Open directory listing at /backups/ — possible database dumps' },
+                { type: 'success',       text: '[+] Staff upload directory exposed — PII risk' },
+                { type: 'warning',       text: '[!] Apache directory listing is misconfigured (Options +Indexes)' },
+            ]
+        },
+        email: {
+            objective: 3,
+            lines: [
+                { type: 'info',          text: 'Google Custom Search — Simulated OSINT Query' },
+                { type: 'dim',           text: '─'.repeat(60) },
+                { type: 'output',        text: 'Showing 5 results for: site:novacorp-tech.com intext:@novacorp-tech.com\n' },
+                { type: 'term-title-result', text: 'NovaCorp — Contact Us' },
+                { type: 'term-url',      text: 'https://www.novacorp-tech.com/contact' },
+                { type: 'term-snippet',  text: '...reach our team at info@novacorp-tech.com or support@novacorp-tech.com' },
+                { type: 'blank',         text: '' },
+                { type: 'term-title-result', text: 'NovaCorp Press Release — 2024 Expansion' },
+                { type: 'term-url',      text: 'https://newsroom.novacorp-tech.com/2024/expansion' },
+                { type: 'term-snippet',  text: 'For media inquiries: press@novacorp-tech.com | s.chen@novacorp-tech.com' },
+                { type: 'blank',         text: '' },
+                { type: 'term-title-result', text: 'Bug Bounty Policy — NovaCorp Security' },
+                { type: 'term-url',      text: 'https://security.novacorp-tech.com/bounty' },
+                { type: 'term-snippet',  text: 'Submit findings to: security@novacorp-tech.com — PGP key available' },
+                { type: 'blank',         text: '' },
+                { type: 'success',       text: '[+] Email addresses harvested:' },
+                { type: 'output',        text: '    info@novacorp-tech.com' },
+                { type: 'output',        text: '    support@novacorp-tech.com' },
+                { type: 'output',        text: '    press@novacorp-tech.com' },
+                { type: 'output',        text: '    s.chen@novacorp-tech.com   <-- likely admin@novacorp-tech.com' },
+                { type: 'output',        text: '    security@novacorp-tech.com' },
+                { type: 'success',       text: '[+] Username pattern identified: [firstname initial].[lastname]' },
+            ]
+        },
+        config: {
+            objective: 4,
+            lines: [
+                { type: 'info',          text: 'Google Custom Search — Simulated OSINT Query' },
+                { type: 'dim',           text: '─'.repeat(60) },
+                { type: 'output',        text: 'Showing 3 results for: site:novacorp-tech.com filetype:conf OR filetype:env\n' },
+                { type: 'term-title-result', text: '.env — NovaCorp API Config (CACHED)' },
+                { type: 'term-url',      text: 'https://dev.novacorp-tech.com/.env' },
+                { type: 'term-snippet',  text: 'APP_ENV=production DB_HOST=10.20.0.11 DB_USER=nova_admin DB_PASS=...' },
+                { type: 'blank',         text: '' },
+                { type: 'term-title-result', text: 'nginx.conf — Web Server Configuration' },
+                { type: 'term-url',      text: 'https://files.novacorp-tech.com/config/nginx.conf' },
+                { type: 'term-snippet',  text: 'server_name novacorp-tech.com; proxy_pass http://10.20.0.5:8080...' },
+                { type: 'blank',         text: '' },
+                { type: 'term-title-result', text: 'db.conf — Database Connection Settings' },
+                { type: 'term-url',      text: 'https://dev.novacorp-tech.com/config/db.conf' },
+                { type: 'term-snippet',  text: 'host = 10.20.0.11 | port = 5432 | dbname = novacore_prod | user =...' },
+                { type: 'blank',         text: '' },
+                { type: 'error',         text: '[!] CRITICAL: .env file exposed — contains DB credentials fragment' },
+                { type: 'error',         text: '[!] Internal IP space leaked: 10.20.0.0/24' },
+                { type: 'success',       text: '[+] Infrastructure fingerprint: Nginx reverse proxy → internal app:8080' },
+            ]
+        }
+    };
+
+    // WHOIS domain result
+    const WHOIS_DOMAIN = [
+        { type: 'info',       text: 'WHOIS lookup: novacorp-tech.com' },
+        { type: 'dim',        text: '─'.repeat(60) },
+        { type: 'output',     text: '   Domain Name: NOVACORP-TECH.COM' },
+        { type: 'output',     text: '   Registry Domain ID: 2389104022_DOMAIN_COM-VRSN' },
+        { type: 'blank',      text: '' },
+        { type: 'result-key', text: '   Registrar WHOIS Server:    whois.namecheap.com' },
+        { type: 'result-key', text: '   Registrar URL:             https://www.namecheap.com' },
+        { type: 'result-key', text: '   Registrar:                 NameCheap, Inc.' },
+        { type: 'result-key', text: '   Registrar IANA ID:         1068' },
+        { type: 'blank',      text: '' },
+        { type: 'result-key', text: '   Creation Date:             2019-03-15T09:22:14Z' },
+        { type: 'result-key', text: '   Updated Date:              2024-02-20T14:05:33Z' },
+        { type: 'result-key', text: '   Registry Expiry Date:      2026-03-15T09:22:14Z' },
+        { type: 'blank',      text: '' },
+        { type: 'result-key', text: '   Domain Status:             clientTransferProhibited' },
+        { type: 'blank',      text: '' },
+        { type: 'result-key', text: '   Name Server:               NS1.CLOUDFLARE.COM' },
+        { type: 'result-key', text: '   Name Server:               NS2.CLOUDFLARE.COM' },
+        { type: 'blank',      text: '' },
+        { type: 'output',     text: '   Registrant Organization:   NovaCorp Technologies Inc.' },
+        { type: 'output',     text: '   Registrant State/Province: Oregon' },
+        { type: 'output',     text: '   Registrant Country:        US' },
+        { type: 'blank',      text: '' },
+        { type: 'result-val', text: '   Admin Name:                Sarah Chen' },
+        { type: 'result-val', text: '   Admin Title:               IT Director' },
+        { type: 'result-val', text: '   Admin Email:               admin@novacorp-tech.com' },
+        { type: 'result-val', text: '   Admin Phone:               +1.5037720091' },
+        { type: 'blank',      text: '' },
+        { type: 'dim',        text: '   DNSSEC: unsigned' },
+        { type: 'dim',        text: '   URL of the ICANN Whois Inaccuracy Complaint Form:' },
+        { type: 'dim',        text: '   https://www.icann.org/wicf/' },
+        { type: 'blank',      text: '' },
+        { type: 'success',    text: '[+] Registrar: NameCheap, Inc.' },
+        { type: 'success',    text: '[+] Admin contact: Sarah Chen (admin@novacorp-tech.com)' },
+        { type: 'success',    text: '[+] Domain expires 2026-03-15 — renewal phishing window identified' },
+        { type: 'success',    text: '[+] Nameservers: Cloudflare (DNS proxying likely active)' },
+    ];
+
+    // WHOIS IP result
+    const WHOIS_IP = [
+        { type: 'info',       text: 'WHOIS lookup: 203.0.113.50 (ARIN)' },
+        { type: 'dim',        text: '─'.repeat(60) },
+        { type: 'output',     text: '' },
+        { type: 'result-key', text: '   NetRange:       203.0.113.0 - 203.0.113.255' },
+        { type: 'result-key', text: '   CIDR:           203.0.113.0/24' },
+        { type: 'result-key', text: '   NetName:        NOVACORP-CLOUD-PDX' },
+        { type: 'blank',      text: '' },
+        { type: 'result-val', text: '   OrgName:        NovaCorp Cloud Services' },
+        { type: 'result-val', text: '   OrgId:          NCS-2019-PDX' },
+        { type: 'result-val', text: '   Address:        1200 NW Naito Parkway, Suite 400' },
+        { type: 'result-val', text: '   City:           Portland' },
+        { type: 'result-val', text: '   StateProv:      OR' },
+        { type: 'result-val', text: '   PostalCode:     97209' },
+        { type: 'result-val', text: '   Country:        US' },
+        { type: 'blank',      text: '' },
+        { type: 'result-key', text: '   RegDate:        2019-05-01' },
+        { type: 'result-key', text: '   Updated:        2023-11-12' },
+        { type: 'blank',      text: '' },
+        { type: 'result-val', text: '   OrgTechHandle:  NCT-ARIN' },
+        { type: 'result-val', text: '   OrgTechName:    NovaCorp NOC' },
+        { type: 'result-val', text: '   OrgTechEmail:   noc@novacorp-tech.com' },
+        { type: 'result-val', text: '   OrgAbuseEmail:  abuse@novacorp-tech.com' },
+        { type: 'blank',      text: '' },
+        { type: 'success',    text: '[+] IP block owned by NovaCorp — self-hosted infrastructure confirmed' },
+        { type: 'success',    text: '[+] Physical location: Portland, OR (datacenter footprint)' },
+        { type: 'success',    text: '[+] NOC contact: noc@novacorp-tech.com — potential social engineering vector' },
+    ];
+
+    // DNS / nslookup / dig result
+    const DNS_RESULT = [
+        { type: 'info',       text: 'DNS resolution: novacorp-tech.com' },
+        { type: 'dim',        text: '─'.repeat(60) },
+        { type: 'output',     text: ';; ->>HEADER<<- opcode: QUERY, status: NOERROR, id: 4821' },
+        { type: 'output',     text: ';; flags: qr rd ra; QUERY: 1, ANSWER: 4, AUTHORITY: 2, ADDITIONAL: 0' },
+        { type: 'blank',      text: '' },
+        { type: 'result-key', text: ';; QUESTION SECTION:' },
+        { type: 'output',     text: ';novacorp-tech.com.          IN  ANY' },
+        { type: 'blank',      text: '' },
+        { type: 'result-key', text: ';; ANSWER SECTION:' },
+        { type: 'result-val', text: 'novacorp-tech.com.   300  IN  A      203.0.113.50' },
+        { type: 'result-val', text: 'novacorp-tech.com.   300  IN  AAAA   2001:db8::1' },
+        { type: 'result-val', text: 'novacorp-tech.com.   3600 IN  MX  10 mail.novacorp-tech.com.' },
+        { type: 'result-val', text: 'novacorp-tech.com.   3600 IN  TXT    "v=spf1 include:_spf.cloudflare.com ~all"' },
+        { type: 'blank',      text: '' },
+        { type: 'result-key', text: ';; AUTHORITY SECTION:' },
+        { type: 'result-val', text: 'novacorp-tech.com.   86400 IN  NS  ns1.cloudflare.com.' },
+        { type: 'result-val', text: 'novacorp-tech.com.   86400 IN  NS  ns2.cloudflare.com.' },
+        { type: 'blank',      text: '' },
+        { type: 'result-key', text: ';; ADDITIONAL SECTION:' },
+        { type: 'result-val', text: 'mail.novacorp-tech.com.  300 IN  A  203.0.113.55' },
+        { type: 'blank',      text: '' },
+        { type: 'dim',        text: ';; Query time: 42 msec' },
+        { type: 'dim',        text: ';; SERVER: 1.1.1.1#53(1.1.1.1)' },
+        { type: 'blank',      text: '' },
+        { type: 'success',    text: '[+] A record: 203.0.113.50  (primary web server)' },
+        { type: 'success',    text: '[+] AAAA record: 2001:db8::1  (IPv6 enabled)' },
+        { type: 'success',    text: '[+] MX: mail.novacorp-tech.com (203.0.113.55) — in-house mail server' },
+        { type: 'success',    text: '[+] SPF record present — phishing more difficult but not impossible' },
+        { type: 'success',    text: '[+] NS: Cloudflare — DNS-level DDoS protection active' },
+    ];
+
+    /* ==============================================================
+       TERMINAL BOOT SEQUENCE
+    ============================================================== */
+    const BOOT_LINES = [
+        { type: 'dim',    text: '──────────────────────────────────────────────────────────────' },
+        { type: 'info',   text: '  HEXWORTH RECON TERMINAL  v2.4.1' },
+        { type: 'dim',    text: '  Passive Footprinting Lab — Educational Environment' },
+        { type: 'dim',    text: '──────────────────────────────────────────────────────────────' },
+        { type: 'blank',  text: '' },
+        { type: 'output', text: '  TARGET:   NovaCorp Technologies (novacorp-tech.com)' },
+        { type: 'output', text: '  MODE:     Passive Reconnaissance (OSINT only)' },
+        { type: 'output', text: '  PHASE:    1 of 2 — Google Dorking' },
+        { type: 'blank',  text: '' },
+        { type: 'warning',text: '  [!] Simulated environment — all data is fictional' },
+        { type: 'blank',  text: '' },
+        { type: 'dim',    text: '  Type "help" to see available commands.' },
+        { type: 'dim',    text: '  Type "objectives" to see your current progress.' },
+        { type: 'blank',  text: '' },
+    ];
+
+    /* ==============================================================
+       HELP TEXT
+    ============================================================== */
+    const HELP_LINES = [
+        { type: 'info',       text: 'Available Commands' },
+        { type: 'dim',        text: '─'.repeat(60) },
+        { type: 'result-key', text: '  help                    Show this help message' },
+        { type: 'result-key', text: '  clear                   Clear the terminal screen' },
+        { type: 'result-key', text: '  objectives              Show objective checklist + progress' },
+        { type: 'blank',      text: '' },
+        { type: 'result-key', text: '  google <query>          Run a simulated Google dork search' },
+        { type: 'dim',        text: '    Operators: site: inurl: filetype: intitle: intext:' },
+        { type: 'dim',        text: '    Example:  google site:novacorp-tech.com inurl:admin' },
+        { type: 'blank',      text: '' },
+        { type: 'result-key', text: '  whois <domain|ip>       WHOIS registration lookup' },
+        { type: 'dim',        text: '    Example:  whois novacorp-tech.com' },
+        { type: 'dim',        text: '    Example:  whois 203.0.113.50' },
+        { type: 'blank',      text: '' },
+        { type: 'result-key', text: '  nslookup <domain>       Resolve DNS records' },
+        { type: 'result-key', text: '  dig <domain>            Resolve DNS records (alternative)' },
+        { type: 'dim',        text: '    Example:  dig novacorp-tech.com' },
+        { type: 'blank',      text: '' },
+    ];
+
+    /* ==============================================================
+       DOM REFERENCES
+    ============================================================== */
+    const outputEl  = document.getElementById('terminal-output');
+    const inputEl   = document.getElementById('term-input');
+    const scoreEl   = document.getElementById('score-display');
+    const objCountEl = document.getElementById('obj-count');
+
+    /* ==============================================================
+       RENDER ENGINE — write lines to terminal
+    ============================================================== */
+
+    /**
+     * Appends an array of { type, text } line objects to the terminal output.
+     * Uses staggered setTimeout for a realistic "streaming" effect.
+     * @param {Array} lines
+     * @param {number} baseDelay — ms between lines
+     * @param {Function} [onDone]
+     */
+    function renderLines(lines, baseDelay = 18, onDone = null) {
+        lines.forEach((line, idx) => {
+            setTimeout(() => {
+                const span = document.createElement('span');
+                span.className = `term-line ${line.type} typing`;
+                // blank lines create vertical space
+                if (line.type === 'blank') {
+                    span.innerHTML = '&nbsp;';
+                } else {
+                    span.textContent = line.text;
+                }
+                outputEl.appendChild(span);
+                outputEl.appendChild(document.createElement('br'));
+                outputEl.scrollTop = outputEl.scrollHeight;
+
+                if (idx === lines.length - 1 && onDone) {
+                    setTimeout(onDone, 80);
+                }
+            }, idx * baseDelay);
+        });
+    }
+
+    /**
+     * Writes a single command echo (prompt + command) to the terminal.
+     * @param {string} cmd
+     */
+    function echoCommand(cmd) {
+        const promptSpan = document.createElement('span');
+        promptSpan.className = 'term-line prompt';
+        promptSpan.textContent = 'recon@kali:~$ ';
+
+        const cmdSpan = document.createElement('span');
+        cmdSpan.className = 'term-line command';
+        cmdSpan.textContent = cmd;
+
+        const br = document.createElement('br');
+
+        outputEl.appendChild(promptSpan);
+        outputEl.appendChild(cmdSpan);
+        outputEl.appendChild(br);
+        outputEl.scrollTop = outputEl.scrollHeight;
+    }
+
+    /**
+     * Outputs a blank separator line.
+     */
+    function blankLine() {
+        const br = document.createElement('br');
+        outputEl.appendChild(br);
+    }
+
+    /* ==============================================================
+       OBJECTIVE MANAGEMENT
+    ============================================================== */
+
+    /**
+     * Marks an objective as complete and updates all UI.
+     * @param {number} idx — 0-indexed objective number
+     */
+    function completeObjective(idx) {
+        if (state.objectives[idx]) return; // already done
+
+        state.objectives[idx] = true;
+
+        // Update checklist item
+        const item = document.getElementById(`obj-${idx}`);
+        const check = document.getElementById(`check-${idx}`);
+        if (item) item.classList.add('completed');
+        if (check) check.textContent = 'X';
+
+        // Update header count
+        const totalDone = state.objectives.filter(Boolean).length;
+        objCountEl.textContent = totalDone;
+
+        // Update phase progress bars
+        updatePhaseBars();
+
+        // Emit unlock notification in terminal
+        setTimeout(() => {
+            const notif = document.createElement('span');
+            notif.className = 'term-line objective-unlock';
+            notif.textContent = `[OBJECTIVE COMPLETE] #${idx + 1} — ${getObjectiveLabel(idx)}`;
+            outputEl.appendChild(notif);
+            outputEl.appendChild(document.createElement('br'));
+            blankLine();
+            outputEl.scrollTop = outputEl.scrollHeight;
+        }, 120);
+
+        // Check if all done
+        if (totalDone === 8) {
+            setTimeout(showSuccessBanner, 800);
+        }
+    }
+
+    /**
+     * Returns the label text for an objective index.
+     */
+    function getObjectiveLabel(idx) {
+        const labels = [
+            'Login portal found',
+            'Exposed documents discovered',
+            'Open directory listings found',
+            'Email addresses extracted',
+            'Configuration files located',
+            'WHOIS lookup on domain complete',
+            'WHOIS lookup on IP complete',
+            'DNS records resolved'
+        ];
+        return labels[idx] || `Objective ${idx + 1}`;
+    }
+
+    /**
+     * Refreshes phase 1 and phase 2 progress bars.
+     */
+    function updatePhaseBars() {
+        const p1done = state.objectives.slice(0, 5).filter(Boolean).length;
+        const p2done = state.objectives.slice(5, 8).filter(Boolean).length;
+
+        document.getElementById('p1-frac').textContent = `${p1done}/5`;
+        document.getElementById('p1-bar').style.width = `${(p1done / 5) * 100}%`;
+
+        document.getElementById('p2-frac').textContent = `${p2done}/3`;
+        document.getElementById('p2-bar').style.width = `${(p2done / 3) * 100}%`;
+
+        // Update phase tab checks
+        if (p1done === 5) {
+            document.getElementById('tab-p1').classList.add('phase-done');
+            document.getElementById('tab-check-p1').textContent = '[X] ';
+        }
+        if (p2done === 3) {
+            document.getElementById('tab-p2').classList.add('phase-done');
+            document.getElementById('tab-check-p2').textContent = '[X] ';
+        }
+    }
+
+    /* ==============================================================
+       COMMAND PARSER
+    ============================================================== */
+
+    /**
+     * Main command dispatcher. Called on Enter keypress.
+     * @param {string} raw — raw input string
+     */
+    function processCommand(raw) {
+        const trimmed = raw.trim();
+        if (!trimmed) return;
+
+        // Add to history
+        state.history.unshift(trimmed);
+        if (state.history.length > 50) state.history.pop();
+        state.historyIdx = -1;
+
+        echoCommand(trimmed);
+        blankLine();
+
+        const parts  = trimmed.split(/\s+/);
+        const cmd    = parts[0].toLowerCase();
+        const args   = parts.slice(1).join(' ');
+
+        switch (cmd) {
+            case 'help':
+                renderLines(HELP_LINES, 12);
+                break;
+
+            case 'clear':
+                outputEl.innerHTML = '';
+                break;
+
+            case 'objectives':
+                renderObjectivesList();
+                break;
+
+            case 'google':
+                handleGoogle(args, trimmed);
+                break;
+
+            case 'whois':
+                handleWhois(args);
+                break;
+
+            case 'nslookup':
+            case 'dig':
+                handleDns(args, cmd);
+                break;
+
+            default:
+                renderLines([
+                    { type: 'error', text: `bash: ${cmd}: command not found` },
+                    { type: 'dim',   text: 'Type "help" to see available commands.' },
+                    { type: 'blank', text: '' },
+                ], 14);
+        }
+    }
+
+    /* ==============================================================
+       COMMAND HANDLERS
+    ============================================================== */
+
+    /**
+     * Handles the `google` command. Parses dork operators and routes
+     * to the correct result set. Accepts flexible operator matching.
+     */
+    function handleGoogle(query, rawInput) {
+        if (!query) {
+            renderLines([
+                { type: 'error', text: 'Usage: google <search query>' },
+                { type: 'dim',   text: 'Example: google site:novacorp-tech.com inurl:login' },
+                { type: 'blank', text: '' },
+            ], 14);
+            return;
+        }
+
+        const q = query.toLowerCase();
+
+        // Must include site: novacorp-tech.com or similar for relevant results
+        const hasSite = q.includes('site:') && (q.includes('novacorp') || q.includes('novacorp-tech'));
+
+        if (!hasSite) {
+            renderLines([
+                { type: 'info',    text: 'Google Search (unrestricted)' },
+                { type: 'dim',     text: '─'.repeat(60) },
+                { type: 'output',  text: `About 1,240,000,000 results (0.42 seconds)` },
+                { type: 'blank',   text: '' },
+                { type: 'dim',     text: 'Results not relevant to target. Use site: to scope to novacorp-tech.com.' },
+                { type: 'blank',   text: '' },
+            ], 14);
+            return;
+        }
+
+        // Determine which objective the query satisfies
+        const hasInurl  = q.includes('inurl:');
+        const hasFiletype = q.includes('filetype:');
+        const hasIntitle = q.includes('intitle:');
+        const hasIntext = q.includes('intext:');
+
+        // Login portal: site: + (inurl:login OR inurl:auth OR inurl:admin)
+        if (hasInurl && (q.includes('login') || q.includes('auth') || q.includes('portal') || q.includes('signin') || q.includes('admin'))) {
+            renderLines(DORK_RESULTS.login.lines, 16, () => completeObjective(0));
+            return;
+        }
+
+        // Exposed PDFs: site: + filetype:pdf
+        if (hasFiletype && q.includes('pdf')) {
+            renderLines(DORK_RESULTS.pdf.lines, 16, () => completeObjective(1));
+            return;
+        }
+
+        // Directory listings: site: + intitle:"index of"
+        if (hasIntitle && (q.includes('index of') || q.includes('index') || q.includes('dir'))) {
+            renderLines(DORK_RESULTS.dirindex.lines, 16, () => completeObjective(2));
+            return;
+        }
+
+        // Emails: site: + intext:@
+        if (hasIntext && (q.includes('@') || q.includes('email') || q.includes('mail') || q.includes('@novacorp'))) {
+            renderLines(DORK_RESULTS.email.lines, 16, () => completeObjective(3));
+            return;
+        }
+
+        // Config files: site: + filetype:conf/env/cfg/ini
+        if (hasFiletype && (q.includes('conf') || q.includes('env') || q.includes('cfg') || q.includes('ini') || q.includes('config'))) {
+            renderLines(DORK_RESULTS.config.lines, 16, () => completeObjective(4));
+            return;
+        }
+
+        // Wildcard site: query without specific operators
+        renderLines([
+            { type: 'info',    text: 'Google Custom Search — Simulated OSINT Query' },
+            { type: 'dim',     text: '─'.repeat(60) },
+            { type: 'output',  text: `Showing general results for: ${query}` },
+            { type: 'blank',   text: '' },
+            { type: 'dim',     text: '  www.novacorp-tech.com                    — Main corporate website' },
+            { type: 'dim',     text: '  blog.novacorp-tech.com                   — Engineering blog' },
+            { type: 'dim',     text: '  careers.novacorp-tech.com                — Job listings' },
+            { type: 'blank',   text: '' },
+            { type: 'warning', text: '[~] General results. Try a more specific dork operator to complete objectives.' },
+            { type: 'dim',     text: '    Useful operators: inurl: filetype: intitle: intext:' },
+            { type: 'blank',   text: '' },
+        ], 14);
+    }
+
+    /**
+     * Handles the `whois` command. Routes to domain or IP result set.
+     */
+    function handleWhois(arg) {
+        if (!arg) {
+            renderLines([
+                { type: 'error', text: 'Usage: whois <domain|ip>' },
+                { type: 'dim',   text: 'Example: whois novacorp-tech.com' },
+                { type: 'blank', text: '' },
+            ], 14);
+            return;
+        }
+
+        const a = arg.toLowerCase().trim();
+
+        // IP lookup
+        if (a === '203.0.113.50' || a.startsWith('203.0.113')) {
+            renderLines(WHOIS_IP, 14, () => completeObjective(6));
+            return;
+        }
+
+        // Domain lookup (novacorp-tech.com or similar)
+        if (a.includes('novacorp') || a === 'novacorp-tech.com') {
+            renderLines(WHOIS_DOMAIN, 14, () => completeObjective(5));
+            return;
+        }
+
+        // Unknown target
+        renderLines([
+            { type: 'info',    text: `WHOIS lookup: ${arg}` },
+            { type: 'dim',     text: '─'.repeat(60) },
+            { type: 'warning', text: `No WHOIS data available for "${arg}" in this simulation.` },
+            { type: 'dim',     text: 'Run WHOIS against novacorp-tech.com or 203.0.113.50' },
+            { type: 'blank',   text: '' },
+        ], 14);
+    }
+
+    /**
+     * Handles `nslookup` and `dig` commands for DNS resolution.
+     */
+    function handleDns(arg, cmd) {
+        if (!arg) {
+            renderLines([
+                { type: 'error', text: `Usage: ${cmd} <domain>` },
+                { type: 'dim',   text: `Example: ${cmd} novacorp-tech.com` },
+                { type: 'blank', text: '' },
+            ], 14);
+            return;
+        }
+
+        const a = arg.toLowerCase().trim();
+
+        if (a.includes('novacorp')) {
+            // Prepend the tool-specific header
+            const header = cmd === 'nslookup'
+                ? [
+                    { type: 'info',   text: `Server:         1.1.1.1` },
+                    { type: 'info',   text: `Address:        1.1.1.1#53` },
+                    { type: 'blank',  text: '' },
+                    { type: 'output', text: `Non-authoritative answer:` },
+                    { type: 'blank',  text: '' },
+                  ]
+                : [
+                    { type: 'info',   text: `; <<>> DiG 9.18.1 <<>> ${arg}` },
+                    { type: 'blank',  text: '' },
+                  ];
+            renderLines([...header, ...DNS_RESULT], 14, () => completeObjective(7));
+            return;
+        }
+
+        renderLines([
+            { type: 'error', text: `${cmd}: can't resolve '${arg}' in this simulation.` },
+            { type: 'dim',   text: 'Try: ' + cmd + ' novacorp-tech.com' },
+            { type: 'blank', text: '' },
+        ], 14);
+    }
+
+    /**
+     * Renders the current objectives checklist inline in the terminal.
+     */
+    function renderObjectivesList() {
+        const labels = [
+            'Find login portal via Google dorking',
+            'Discover exposed documents (.pdf)',
+            'Find open directory listings',
+            'Extract email addresses from site',
+            'Locate exposed configuration files',
+            'Perform WHOIS lookup on domain',
+            'Perform WHOIS lookup on IP (203.0.113.50)',
+            'Resolve DNS records for the domain',
+        ];
+
+        const lines = [
+            { type: 'info',  text: 'Objectives — NovaCorp Passive Footprinting' },
+            { type: 'dim',   text: '─'.repeat(60) },
+            { type: 'blank', text: '' },
+            { type: 'info',  text: 'Phase 1: Google Dorking' },
+        ];
+
+        labels.forEach((label, idx) => {
+            const done   = state.objectives[idx];
+            const prefix = done ? '[X]' : '[ ]';
+            const type   = done ? 'success' : 'dim';
+            if (idx === 5) {
+                lines.push({ type: 'blank', text: '' });
+                lines.push({ type: 'info',  text: 'Phase 2: WHOIS & DNS' });
+            }
+            lines.push({ type, text: `  ${prefix} ${idx + 1}. ${label}` });
+        });
+
+        const totalDone = state.objectives.filter(Boolean).length;
+        lines.push({ type: 'blank',  text: '' });
+        lines.push({ type: 'result-key', text: `  Progress: ${totalDone}/8 objectives complete` });
+        lines.push({ type: 'result-key', text: `  Score:    ${state.score} pts` });
+        lines.push({ type: 'blank',  text: '' });
+
+        renderLines(lines, 12);
+    }
+
+    /* ==============================================================
+       HINTS
+    ============================================================== */
+
+    /**
+     * Reveals the next available hint and deducts 5 points.
+     */
+    function showHint() {
+        if (state.hintsUsed >= HINTS.length) return;
+
+        const hint = HINTS[state.hintsUsed];
+        state.hintsUsed++;
+
+        // Deduct score
+        state.score = Math.max(0, state.score - 5);
+        updateScore();
+
+        // Show hint in sidebar
+        const display = document.getElementById('hint-display');
+        display.innerHTML = `<strong style="color:#a855f7;font-size:0.7rem;letter-spacing:0.1em">${hint.title}</strong><br>${hint.text}<span class="hint-code">${hint.code}</span>`;
+        display.classList.add('visible');
+
+        // Update hint button
+        const remaining = HINTS.length - state.hintsUsed;
+        document.getElementById('hint-cost-label').textContent =
+            remaining > 0
+                ? `-5 points per hint · ${remaining} remaining`
+                : 'All hints used';
+
+        if (state.hintsUsed >= HINTS.length) {
+            document.getElementById('hint-btn').disabled = true;
+        }
+
+        // Echo in terminal as well
+        renderLines([
+            { type: 'warning', text: `[HINT -5 pts] ${hint.title}` },
+            { type: 'dim',     text: `  ${hint.text}` },
+            { type: 'dim',     text: `  Try: ${hint.code}` },
+            { type: 'blank',   text: '' },
+        ], 14);
+    }
+
+    /**
+     * Updates the score display in the header, flashing red on deduction.
+     */
+    function updateScore() {
+        scoreEl.textContent = state.score;
+        scoreEl.classList.add('deducted');
+        setTimeout(() => scoreEl.classList.remove('deducted'), 600);
+    }
+
+    /* ==============================================================
+       SUCCESS BANNER + LAB COMPLETION
+    ============================================================== */
+
+    function showSuccessBanner() {
+        const banner = document.getElementById('success-banner');
+        const finalScoreEl = document.getElementById('final-score');
+        finalScoreEl.textContent = state.score;
+        banner.classList.add('visible');
+        banner.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+
+        // Also print to terminal
+        renderLines([
+            { type: 'dim',     text: '═'.repeat(60) },
+            { type: 'success', text: '  ALL OBJECTIVES COMPLETE — PASSIVE FOOTPRINTING FINISHED' },
+            { type: 'dim',     text: '═'.repeat(60) },
+            { type: 'blank',   text: '' },
+            { type: 'output',  text: `  Final Score: ${state.score} / 100` },
+            { type: 'output',  text: `  Hints Used:  ${state.hintsUsed}` },
+            { type: 'blank',   text: '' },
+            { type: 'info',    text: '  Click "Complete Lab" to record your progress.' },
+            { type: 'blank',   text: '' },
+        ], 20);
+    }
+
+    /**
+     * Calls ModuleProgress.complete to record lab completion and
+     * returns the student to the EHE index.
+     */
+    function completeLab() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('dark-arts', 'ehe-lab-footprinting', {
+                returnUrl: '../index.html'
+            });
+        } else {
+            // Fallback if ModuleProgress not available
+            window.location.href = '../index.html';
+        }
+    }
+
+    /* ==============================================================
+       PHASE TABS
+    ============================================================== */
+
+    /**
+     * Switches the active phase tab and updates terminal title.
+     * Does not clear the terminal — the output is shared.
+     */
+    function switchTab(phase) {
+        state.currentPhase = phase;
+
+        document.getElementById('tab-p1').classList.toggle('active', phase === 'p1');
+        document.getElementById('tab-p2').classList.toggle('active', phase === 'p2');
+
+        const title = document.getElementById('term-title');
+        if (phase === 'p1') {
+            title.textContent = 'recon@kali: ~/footprinting — Phase 1: Google Dorking';
+        } else {
+            title.textContent = 'recon@kali: ~/footprinting — Phase 2: WHOIS / DNS';
+        }
+
+        focusInput();
+    }
+
+    /* ==============================================================
+       COLLAPSIBLE PANELS
+    ============================================================== */
+
+    /**
+     * Toggles a sidebar panel open/closed.
+     * @param {string} panelId
+     * @param {HTMLElement} headerEl — the clicked panel header
+     */
+    function togglePanel(panelId, headerEl) {
+        const panel  = document.getElementById(panelId);
+        const toggle = headerEl.querySelector('.panel-toggle');
+        const isOpen = !panel.classList.contains('collapsed');
+
+        if (isOpen) {
+            panel.classList.add('collapsed');
+            toggle.classList.remove('open');
+        } else {
+            panel.classList.remove('collapsed');
+            toggle.classList.add('open');
+        }
+    }
+
+    /* ==============================================================
+       INPUT HANDLING
+    ============================================================== */
+
+    inputEl.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') {
+            const val = inputEl.value;
+            inputEl.value = '';
+            processCommand(val);
+
+        } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            if (state.history.length > 0) {
+                state.historyIdx = Math.min(state.historyIdx + 1, state.history.length - 1);
+                inputEl.value = state.history[state.historyIdx] || '';
+                // Move cursor to end
+                setTimeout(() => inputEl.setSelectionRange(inputEl.value.length, inputEl.value.length), 0);
+            }
+
+        } else if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            if (state.historyIdx > 0) {
+                state.historyIdx--;
+                inputEl.value = state.history[state.historyIdx] || '';
+            } else {
+                state.historyIdx = -1;
+                inputEl.value = '';
+            }
+
+        } else if (e.key === 'Tab') {
+            // Basic tab completion for known commands
+            e.preventDefault();
+            const partial = inputEl.value.trim();
+            const completions = ['google ', 'whois ', 'nslookup ', 'dig ', 'help', 'clear', 'objectives'];
+            const match = completions.find(c => c.startsWith(partial) && c !== partial);
+            if (match) inputEl.value = match;
+        }
+    });
+
+    /**
+     * Clicking anywhere on the output area focuses the input.
+     */
+    function focusInput() {
+        inputEl.focus();
+    }
+
+    /* ==============================================================
+       BOOT
+    ============================================================== */
+
+    window.addEventListener('DOMContentLoaded', function() {
+        focusInput();
+        renderLines(BOOT_LINES, 22);
+    });
+    </script>
+
+</body>
+</html>

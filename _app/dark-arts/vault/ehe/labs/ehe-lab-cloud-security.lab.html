@@ -1,0 +1,866 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('dark-arts');</script>
+    <!-- Progress & Achievements -->
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lab: Cloud Security — EHE | The Vault</title>
+    <style>
+        /* ============================================================
+           RESET & BASE
+        ============================================================ */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            min-height: 100vh;
+            background: #0a0508;
+            font-family: 'Georgia', 'Times New Roman', serif;
+            color: #8a6a9a;
+            overflow-x: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background:
+                radial-gradient(ellipse at 20% 15%, rgba(80, 40, 100, 0.10) 0%, transparent 55%),
+                radial-gradient(ellipse at 80% 85%, rgba(60, 20, 80, 0.07) 0%, transparent 50%);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        /* ============================================================
+           HEADER
+        ============================================================ */
+        .lab-header {
+            position: sticky; top: 0; z-index: 100;
+            background: rgba(10, 5, 15, 0.97);
+            border-bottom: 1px solid rgba(100, 60, 130, 0.22);
+            backdrop-filter: blur(14px);
+            padding: 14px 32px;
+            display: flex; justify-content: space-between; align-items: center; gap: 16px;
+        }
+        .header-left { display: flex; align-items: center; gap: 18px; min-width: 0; }
+        .back-btn { color: #6a4a7a; text-decoration: none; font-size: 0.76rem; letter-spacing: 0.1em; padding: 6px 14px; border: 1px solid rgba(100, 60, 130, 0.2); border-radius: 4px; transition: all 0.25s; font-family: 'Georgia', serif; white-space: nowrap; flex-shrink: 0; }
+        .back-btn:hover { color: #a855f7; border-color: rgba(147, 51, 234, 0.45); background: rgba(147, 51, 234, 0.06); }
+        .header-title-group { min-width: 0; }
+        .header-label { font-size: 0.62rem; letter-spacing: 0.22em; color: #5a3a6a; text-transform: uppercase; margin-bottom: 2px; }
+        .header-title { font-size: 0.95rem; color: #c09ad0; letter-spacing: 0.04em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .header-right { display: flex; align-items: center; gap: 20px; flex-shrink: 0; }
+        .score-display { display: flex; align-items: center; gap: 8px; font-size: 0.72rem; letter-spacing: 0.1em; color: #6a4a7a; }
+        .score-value { font-size: 1.1rem; color: #a855f7; font-family: 'Courier New', monospace; font-weight: bold; min-width: 40px; text-align: right; transition: color 0.3s; }
+        .score-value.deducted { color: #ef4444; animation: score-flash 0.5s ease; }
+        @keyframes score-flash { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.15); } }
+        .obj-progress-pill { font-size: 0.7rem; letter-spacing: 0.08em; color: #6a4a7a; padding: 5px 12px; border: 1px solid rgba(100, 60, 130, 0.2); border-radius: 20px; font-family: 'Courier New', monospace; }
+        .obj-progress-pill .obj-count { color: #a855f7; font-weight: bold; }
+
+        /* ============================================================
+           BANNERS
+        ============================================================ */
+        .warning-banner { background: rgba(239, 68, 68, 0.05); border: 1px solid rgba(239, 68, 68, 0.30); border-left: 3px solid #ef4444; margin: 20px 24px 0; padding: 12px 18px; border-radius: 4px; display: flex; align-items: flex-start; gap: 12px; position: relative; z-index: 10; }
+        .warning-icon { color: #ef4444; font-size: 0.8rem; letter-spacing: 0.15em; text-transform: uppercase; white-space: nowrap; margin-top: 1px; font-family: 'Courier New', monospace; flex-shrink: 0; }
+        .warning-text { font-size: 0.76rem; color: rgba(239, 68, 68, 0.75); line-height: 1.6; }
+        .success-banner { display: none; margin: 16px 24px 0; padding: 20px 24px; background: rgba(34, 197, 94, 0.06); border: 1px solid rgba(34, 197, 94, 0.30); border-left: 3px solid #22c55e; border-radius: 6px; position: relative; z-index: 10; align-items: center; gap: 20px; }
+        .success-banner.visible { display: flex; animation: slide-in 0.5s ease; }
+        @keyframes slide-in { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+        .success-text-group { flex: 1; }
+        .success-title { font-size: 0.85rem; color: #22c55e; letter-spacing: 0.15em; text-transform: uppercase; margin-bottom: 4px; }
+        .success-sub { font-size: 0.74rem; color: #5a8a6a; line-height: 1.5; }
+        .complete-lab-btn { padding: 11px 24px; background: rgba(34, 197, 94, 0.12); border: 1px solid rgba(34, 197, 94, 0.35); border-radius: 4px; color: #22c55e; font-family: 'Georgia', serif; font-size: 0.78rem; letter-spacing: 0.12em; cursor: pointer; transition: all 0.25s; white-space: nowrap; }
+        .complete-lab-btn:hover { background: rgba(34, 197, 94, 0.20); border-color: rgba(34, 197, 94, 0.55); }
+
+        /* ============================================================
+           MAIN LAYOUT
+        ============================================================ */
+        .lab-body { flex: 1; display: flex; gap: 18px; padding: 20px 24px 24px; position: relative; z-index: 10; }
+
+        /* ============================================================
+           TERMINAL (left/main)
+        ============================================================ */
+        .terminal-wrapper { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+
+        .terminal-container { flex: 1; display: flex; flex-direction: column; background: rgba(8, 4, 12, 0.95); border: 1px solid rgba(100, 60, 130, 0.28); border-radius: 6px; overflow: hidden; min-height: 560px; }
+        .terminal-topbar { padding: 10px 16px; background: rgba(20, 10, 30, 0.9); border-bottom: 1px solid rgba(100, 60, 130, 0.18); display: flex; align-items: center; gap: 10px; }
+        .term-dot { width: 10px; height: 10px; border-radius: 50%; }
+        .term-dot.red    { background: rgba(239,68,68,0.5); }
+        .term-dot.yellow { background: rgba(234,179,8,0.5); }
+        .term-dot.green  { background: rgba(34,197,94,0.5); }
+        .term-title { font-family: 'Courier New', monospace; font-size: 0.68rem; color: #5a3a6a; letter-spacing: 0.1em; margin-left: 8px; }
+
+        .terminal-output { flex: 1; overflow-y: auto; padding: 16px 20px; font-family: 'Courier New', monospace; font-size: 0.80rem; line-height: 1.65; color: #22c55e; scroll-behavior: smooth; }
+        .terminal-output::-webkit-scrollbar { width: 4px; }
+        .terminal-output::-webkit-scrollbar-thumb { background: rgba(100,60,130,0.4); border-radius: 2px; }
+
+        .term-line { display: block; white-space: pre-wrap; word-break: break-word; }
+        .term-line.prompt    { color: #a855f7; }
+        .term-line.command   { color: #e2d4f0; }
+        .term-line.output    { color: #22c55e; }
+        .term-line.dim       { color: #3a2a4a; }
+        .term-line.info      { color: #6a9ecf; }
+        .term-line.warning   { color: #f59e0b; }
+        .term-line.error     { color: #ef4444; }
+        .term-line.success   { color: #22c55e; }
+        .term-line.result-key { color: #a855f7; }
+        .term-line.result-val { color: #c09ad0; }
+        .term-line.highlight { color: #f0e6ff; background: rgba(147,51,234,0.08); padding: 1px 4px; border-radius: 2px; }
+        .term-line.blank     { display: block; height: 0.5em; }
+        .term-line.objective-unlock { color: #22c55e; background: rgba(34,197,94,0.06); border-left: 2px solid #22c55e; padding: 3px 8px; margin: 2px 0; }
+
+        .terminal-input-line { padding: 10px 20px; border-top: 1px solid rgba(100,60,130,0.15); display: flex; align-items: center; background: rgba(8,4,12,0.98); }
+        .term-prompt-label { font-family: 'Courier New', monospace; font-size: 0.80rem; color: #a855f7; white-space: nowrap; flex-shrink: 0; }
+        .term-input { flex: 1; background: transparent; border: none; outline: none; font-family: 'Courier New', monospace; font-size: 0.80rem; color: #e2d4f0; caret-color: #a855f7; padding: 0 6px; }
+
+        /* ============================================================
+           SIDEBAR
+        ============================================================ */
+        .sidebar { width: 278px; flex-shrink: 0; display: flex; flex-direction: column; gap: 12px; }
+        .sidebar-panel { background: rgba(15, 8, 20, 0.80); border: 1px solid rgba(100, 60, 130, 0.18); border-radius: 6px; overflow: hidden; }
+        .panel-header { padding: 11px 16px; background: rgba(80, 40, 100, 0.12); border-bottom: 1px solid rgba(100, 60, 130, 0.15); display: flex; justify-content: space-between; align-items: center; cursor: pointer; user-select: none; }
+        .panel-header-title { font-size: 0.65rem; letter-spacing: 0.2em; text-transform: uppercase; color: #7a5a8a; }
+        .panel-toggle { font-size: 0.65rem; color: #5a3a6a; transition: transform 0.25s; font-family: 'Courier New', monospace; }
+        .panel-toggle.open { transform: rotate(180deg); }
+        .panel-body { padding: 14px; transition: all 0.3s ease; overflow: hidden; }
+        .panel-body.collapsed { padding-top: 0; padding-bottom: 0; max-height: 0; }
+
+        .objectives-list { display: flex; flex-direction: column; gap: 7px; }
+        .objective-item { display: flex; align-items: flex-start; gap: 8px; padding: 7px 9px; border-radius: 4px; border: 1px solid rgba(100,60,130,0.10); transition: all 0.3s; background: rgba(10,5,15,0.4); }
+        .objective-item.completed { border-color: rgba(34,197,94,0.25); background: rgba(34,197,94,0.04); }
+        .obj-checkbox { width: 14px; height: 14px; border: 1px solid rgba(100,60,130,0.35); border-radius: 2px; flex-shrink: 0; margin-top: 2px; display: flex; align-items: center; justify-content: center; font-family: 'Courier New', monospace; font-size: 0.55rem; color: transparent; transition: all 0.3s; }
+        .objective-item.completed .obj-checkbox { background: rgba(34,197,94,0.15); border-color: #22c55e; color: #22c55e; }
+        .obj-label { font-size: 0.68rem; color: #5a3a6a; line-height: 1.45; transition: color 0.3s; }
+        .objective-item.completed .obj-label { color: #22c55e; }
+
+        .hint-btn { width: 100%; padding: 9px 16px; background: rgba(147,51,234,0.08); border: 1px solid rgba(147,51,234,0.22); border-radius: 4px; color: #a855f7; font-family: 'Georgia', serif; font-size: 0.72rem; letter-spacing: 0.1em; cursor: pointer; transition: all 0.25s; text-align: center; margin-bottom: 8px; }
+        .hint-btn:hover { background: rgba(147,51,234,0.14); }
+        .hint-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+        .hint-cost { font-size: 0.62rem; color: #5a3a6a; text-align: center; }
+        .hint-content { margin-top: 10px; padding: 10px 12px; background: rgba(147,51,234,0.06); border: 1px solid rgba(147,51,234,0.15); border-radius: 4px; font-size: 0.72rem; color: #8a6a9a; line-height: 1.6; display: none; }
+        .hint-content.visible { display: block; }
+        .hint-code { display: block; margin-top: 6px; font-family: 'Courier New', monospace; font-size: 0.68rem; color: #c09ad0; background: rgba(10,5,15,0.5); padding: 5px 8px; border-radius: 3px; border-left: 2px solid #9333ea; word-break: break-all; }
+
+        /* Bucket status panel */
+        .bucket-list { display: flex; flex-direction: column; gap: 6px; }
+        .bucket-item { display: flex; align-items: center; gap: 8px; padding: 7px 10px; border-radius: 4px; border: 1px solid rgba(100,60,130,0.10); background: rgba(10,5,15,0.4); transition: all 0.2s; }
+        .bucket-item.found { border-color: rgba(34,197,94,0.22); }
+        .bucket-item.compromised { border-color: rgba(239,68,68,0.25); background: rgba(239,68,68,0.04); }
+        .bucket-icon { font-family: 'Courier New', monospace; font-size: 0.6rem; color: #3a2a4a; width: 14px; flex-shrink: 0; }
+        .bucket-item.found .bucket-icon { color: #22c55e; }
+        .bucket-item.compromised .bucket-icon { color: #ef4444; }
+        .bucket-name { font-family: 'Courier New', monospace; font-size: 0.67rem; color: #5a3a6a; }
+        .bucket-item.found .bucket-name { color: #8a6a9a; }
+        .bucket-item.compromised .bucket-name { color: #c09ad0; }
+        .bucket-status { font-size: 0.55rem; letter-spacing: 0.1em; text-transform: uppercase; margin-left: auto; font-family: 'Courier New', monospace; }
+        .bucket-item.found .bucket-status { color: #22c55e; }
+        .bucket-item.compromised .bucket-status { color: #ef4444; }
+
+        .cmd-ref { font-family: 'Courier New', monospace; font-size: 0.63rem; color: #5a3a6a; line-height: 2; }
+        .cmd-ref .c { color: #a855f7; }
+
+        @media (max-width: 900px) {
+            .lab-body { flex-direction: column; }
+            .sidebar { width: 100%; }
+        }
+    </style>
+</head>
+<body>
+
+    <header class="lab-header">
+        <div class="header-left">
+            <a href="../index.html" class="back-btn">&#8592; EHE</a>
+            <div class="header-title-group">
+                <div class="header-label">Lab Exercise</div>
+                <div class="header-title">Cloud Security: S3 Bucket Enumeration — NovaCorp</div>
+            </div>
+        </div>
+        <div class="header-right">
+            <div class="score-display">
+                <span>SCORE</span>
+                <span class="score-value" id="score-display">100</span>
+            </div>
+            <div class="obj-progress-pill">
+                <span class="obj-count" id="obj-count">0</span>
+                <span>/8 objectives</span>
+            </div>
+        </div>
+    </header>
+
+    <div class="warning-banner">
+        <div class="warning-icon">! WARNING</div>
+        <div class="warning-text">
+            This lab is a <strong>simulated environment</strong> for educational purposes only. All bucket names, credentials, and data are fictional. Accessing real S3 buckets without authorization violates the Computer Fraud and Abuse Act and AWS Terms of Service.
+        </div>
+    </div>
+
+    <div class="success-banner" id="success-banner">
+        <div class="success-text-group">
+            <div class="success-title">Cloud Audit Complete</div>
+            <div class="success-sub">All 8 objectives completed. Final score: <span id="final-score">100</span> pts.</div>
+        </div>
+        <button class="complete-lab-btn" onclick="completeLab()">Complete Lab</button>
+    </div>
+
+    <div class="lab-body">
+
+        <!-- Terminal -->
+        <div class="terminal-wrapper">
+            <div class="terminal-container">
+                <div class="terminal-topbar">
+                    <div class="term-dot red"></div>
+                    <div class="term-dot yellow"></div>
+                    <div class="term-dot green"></div>
+                    <div class="term-title">pentester@kali: ~/cloud-lab — AWS S3 Enumeration</div>
+                </div>
+                <div class="terminal-output" id="terminal-output" onclick="focusInput()"></div>
+                <div class="terminal-input-line">
+                    <span class="term-prompt-label">pentester@kali:~$&nbsp;</span>
+                    <input type="text" id="term-input" class="term-input" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="type a command..." aria-label="Terminal input">
+                </div>
+            </div>
+        </div>
+
+        <!-- Sidebar -->
+        <div class="sidebar">
+
+            <div class="sidebar-panel">
+                <div class="panel-header" onclick="togglePanel('obj-panel', this)">
+                    <span class="panel-header-title">Objectives</span>
+                    <span class="panel-toggle open">&#9650;</span>
+                </div>
+                <div class="panel-body" id="obj-panel">
+                    <div class="objectives-list">
+                        <div class="objective-item" id="obj-0"><div class="obj-checkbox" id="check-0"></div><div class="obj-label">Enumerate S3 buckets for NovaCorp</div></div>
+                        <div class="objective-item" id="obj-1"><div class="obj-checkbox" id="check-1"></div><div class="obj-label">List contents of the public backup bucket</div></div>
+                        <div class="objective-item" id="obj-2"><div class="obj-checkbox" id="check-2"></div><div class="obj-label">List contents of the dev assets bucket</div></div>
+                        <div class="objective-item" id="obj-3"><div class="obj-checkbox" id="check-3"></div><div class="obj-label">Download and examine the .env file</div></div>
+                        <div class="objective-item" id="obj-4"><div class="obj-checkbox" id="check-4"></div><div class="obj-label">Identify exposed AWS credentials</div></div>
+                        <div class="objective-item" id="obj-5"><div class="obj-checkbox" id="check-5"></div><div class="obj-label">Check bucket ACL permissions</div></div>
+                        <div class="objective-item" id="obj-6"><div class="obj-checkbox" id="check-6"></div><div class="obj-label">Attempt access to the private production bucket</div></div>
+                        <div class="objective-item" id="obj-7"><div class="obj-checkbox" id="check-7"></div><div class="obj-label">Document all cloud misconfigurations</div></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="sidebar-panel">
+                <div class="panel-header" onclick="togglePanel('bucket-panel', this)">
+                    <span class="panel-header-title">S3 Buckets Found</span>
+                    <span class="panel-toggle open">&#9650;</span>
+                </div>
+                <div class="panel-body" id="bucket-panel">
+                    <div class="bucket-list">
+                        <div class="bucket-item" id="bucket-backups">
+                            <div class="bucket-icon" id="bucket-icon-backups">?</div>
+                            <div class="bucket-name">novacorp-backups</div>
+                            <div class="bucket-status" id="bucket-status-backups">—</div>
+                        </div>
+                        <div class="bucket-item" id="bucket-dev">
+                            <div class="bucket-icon" id="bucket-icon-dev">?</div>
+                            <div class="bucket-name">novacorp-dev-assets</div>
+                            <div class="bucket-status" id="bucket-status-dev">—</div>
+                        </div>
+                        <div class="bucket-item" id="bucket-prod">
+                            <div class="bucket-icon" id="bucket-icon-prod">?</div>
+                            <div class="bucket-name">novacorp-prod-data</div>
+                            <div class="bucket-status" id="bucket-status-prod">—</div>
+                        </div>
+                        <div class="bucket-item" id="bucket-logs">
+                            <div class="bucket-icon" id="bucket-icon-logs">?</div>
+                            <div class="bucket-name">novacorp-logs</div>
+                            <div class="bucket-status" id="bucket-status-logs">—</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="sidebar-panel">
+                <div class="panel-header" onclick="togglePanel('hint-panel', this)">
+                    <span class="panel-header-title">Hints</span>
+                    <span class="panel-toggle open">&#9650;</span>
+                </div>
+                <div class="panel-body" id="hint-panel">
+                    <button class="hint-btn" id="hint-btn" onclick="showHint()">Reveal Next Hint</button>
+                    <div class="hint-cost" id="hint-cost-label">-5 points per hint &middot; 8 available</div>
+                    <div class="hint-content" id="hint-display"></div>
+                </div>
+            </div>
+
+            <div class="sidebar-panel">
+                <div class="panel-header" onclick="togglePanel('cmd-panel', this)">
+                    <span class="panel-header-title">Command Reference</span>
+                    <span class="panel-toggle">&#9650;</span>
+                </div>
+                <div class="panel-body collapsed" id="cmd-panel">
+                    <div class="cmd-ref">
+                        <span class="c">lazys3</span> &lt;keyword&gt;<br>
+                        <span class="c">aws s3 ls</span> s3://&lt;bucket&gt; --no-sign-request<br>
+                        <span class="c">aws s3 cp</span> s3://&lt;bucket&gt;/&lt;file&gt; . --no-sign-request<br>
+                        <span class="c">aws s3api get-bucket-acl</span> --bucket &lt;name&gt; --no-sign-request<br>
+                        <span class="c">aws s3api get-bucket-policy</span> --bucket &lt;name&gt; --no-sign-request<br>
+                        <span class="c">curl</span> https://&lt;bucket&gt;.s3.amazonaws.com<br>
+                        <span class="c">report</span> — summarize findings<br>
+                        <span class="c">help</span><br>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+    /* ==============================================================
+       STATE
+    ============================================================== */
+    const state = {
+        score: 100,
+        hintsUsed: 0,
+        objectives: [false, false, false, false, false, false, false, false],
+        history: [],
+        historyIdx: -1,
+        bucketsFound: new Set(),
+        envDownloaded: false
+    };
+
+    const HINTS = [
+        { title: 'Bucket Enumeration', text: 'Use lazys3 to discover buckets by keyword.', code: 'lazys3 novacorp' },
+        { title: 'List Public Bucket', text: 'Use AWS CLI without signing to access public buckets.', code: 'aws s3 ls s3://novacorp-backups --no-sign-request' },
+        { title: 'Dev Assets Bucket', text: 'List the development assets bucket for exposed files.', code: 'aws s3 ls s3://novacorp-dev-assets --no-sign-request' },
+        { title: 'Download .env', text: 'Use aws s3 cp to download the exposed .env file.', code: 'aws s3 cp s3://novacorp-dev-assets/.env . --no-sign-request' },
+        { title: 'AWS Credentials', text: 'The .env file contains AWS access keys — look for AKIA prefix.' },
+        { title: 'Check ACL', text: 'Use s3api to inspect the bucket ACL and find public permissions.', code: 'aws s3api get-bucket-acl --bucket novacorp-backups --no-sign-request' },
+        { title: 'Private Bucket', text: 'Test the production bucket — expect access denied.', code: 'aws s3 ls s3://novacorp-prod-data --no-sign-request' },
+        { title: 'Document Findings', text: 'Run the report command to generate a complete summary.', code: 'report' }
+    ];
+
+    /* ==============================================================
+       BUCKET PANEL HELPERS
+    ============================================================== */
+    function markBucket(name, state_) {
+        const idMap = { 'novacorp-backups': 'backups', 'novacorp-dev-assets': 'dev', 'novacorp-prod-data': 'prod', 'novacorp-logs': 'logs' };
+        const id = idMap[name];
+        if (!id) return;
+        const item   = document.getElementById('bucket-' + id);
+        const icon   = document.getElementById('bucket-icon-' + id);
+        const status = document.getElementById('bucket-status-' + id);
+        if (state_ === 'public') {
+            item.classList.add('compromised');
+            icon.textContent = '!';
+            status.textContent = 'PUBLIC';
+        } else if (state_ === 'found') {
+            item.classList.add('found');
+            icon.textContent = 'S';
+            status.textContent = 'FOUND';
+        } else if (state_ === 'private') {
+            item.classList.add('found');
+            icon.textContent = 'L';
+            status.textContent = 'PRIVATE';
+        }
+    }
+
+    /* ==============================================================
+       SIMULATED COMMAND RESPONSES
+    ============================================================== */
+
+    // lazys3 novacorp
+    function cmdLazys3(args) {
+        const kw = args.toLowerCase();
+        if (!kw.includes('novacorp') && !kw.includes('nova')) {
+            return { lines: [{ t:'warning', v:'No buckets found for keyword: ' + args }], objs: [] };
+        }
+        ['novacorp-backups','novacorp-dev-assets','novacorp-prod-data','novacorp-logs'].forEach(b => {
+            state.bucketsFound.add(b);
+            markBucket(b, b.includes('prod') ? 'private' : 'public');
+        });
+        return {
+            lines: [
+                { t:'info',       v:'lazys3 v1.2 — Bucket Permutation Scanner' },
+                { t:'dim',        v:'─'.repeat(58) },
+                { t:'output',     v:'Wordlist: builtin + custom (novacorp variants)' },
+                { t:'blank',      v:'' },
+                { t:'success',    v:'[+] Found: novacorp-backups          (PUBLIC — list + read)' },
+                { t:'success',    v:'[+] Found: novacorp-dev-assets       (PUBLIC — list + read + write)' },
+                { t:'result-val', v:'[?] Found: novacorp-prod-data        (PRIVATE — access denied)' },
+                { t:'success',    v:'[+] Found: novacorp-logs             (PUBLIC — list only)' },
+                { t:'blank',      v:'' },
+                { t:'warning',    v:'[!] 3 of 4 buckets have public access — critical misconfiguration' }
+            ],
+            objs: [0]
+        };
+    }
+
+    // aws s3 ls — dispatch
+    function cmdAwsS3Ls(args) {
+        const a = args.toLowerCase();
+        if (a.includes('novacorp-backups')) {
+            markBucket('novacorp-backups', 'public');
+            return {
+                lines: [
+                    { t:'info',       v:'aws s3 ls s3://novacorp-backups --no-sign-request' },
+                    { t:'dim',        v:'─'.repeat(58) },
+                    { t:'result-val', v:'2024-01-15 09:22:14    42.3 MB  db-backup-2024-01-15.sql.gz' },
+                    { t:'result-val', v:'2024-01-22 14:05:33    18.1 MB  db-backup-2024-01-22.sql.gz' },
+                    { t:'result-val', v:'2024-02-01 08:30:55     4.2 MB  employee-records.csv' },
+                    { t:'result-val', v:'2024-02-14 11:44:02   128.0 KB  config-backup.tar.gz' },
+                    { t:'result-val', v:'2024-02-19 16:12:44    89.5 MB  user-data-export-Q4-2023.zip' },
+                    { t:'blank',      v:'' },
+                    { t:'error',      v:'[!] CRITICAL: Database backups and PII (employee-records.csv) publicly accessible' },
+                    { t:'warning',    v:'[!] user-data-export may contain customer PII — GDPR/CCPA implications' }
+                ],
+                objs: [1]
+            };
+        }
+        if (a.includes('novacorp-dev-assets')) {
+            markBucket('novacorp-dev-assets', 'public');
+            return {
+                lines: [
+                    { t:'info',       v:'aws s3 ls s3://novacorp-dev-assets --no-sign-request' },
+                    { t:'dim',        v:'─'.repeat(58) },
+                    { t:'result-val', v:'2024-02-20 10:11:02      1.4 KB  .env' },
+                    { t:'result-val', v:'2024-02-20 10:11:55    245.0 KB  app.js' },
+                    { t:'result-val', v:'2024-02-20 10:12:00      3.2 KB  package.json' },
+                    { t:'result-val', v:'2024-02-20 10:12:10      8.9 KB  credentials.json' },
+                    { t:'result-val', v:'2024-02-20 10:12:14     22.1 KB  docker-compose.yml' },
+                    { t:'blank',      v:'' },
+                    { t:'error',      v:'[!] CRITICAL: .env file exposed! Use "aws s3 cp" to download it.' },
+                    { t:'warning',    v:'[!] credentials.json also present — likely contains service account keys' }
+                ],
+                objs: [2]
+            };
+        }
+        if (a.includes('novacorp-prod-data')) {
+            markBucket('novacorp-prod-data', 'private');
+            return {
+                lines: [
+                    { t:'info',       v:'aws s3 ls s3://novacorp-prod-data --no-sign-request' },
+                    { t:'dim',        v:'─'.repeat(58) },
+                    { t:'error',      v:'An error occurred (AccessDenied) when calling the ListObjectsV2 operation:' },
+                    { t:'error',      v:'Access Denied' },
+                    { t:'blank',      v:'' },
+                    { t:'result-val', v:'[+] Bucket exists but is PRIVATE — proper access control in place' },
+                    { t:'dim',        v:'    Note: Bucket name confirmed via DNS resolution (NXDOMAIN = does not exist)' }
+                ],
+                objs: [6]
+            };
+        }
+        if (a.includes('novacorp-logs')) {
+            markBucket('novacorp-logs', 'public');
+            return {
+                lines: [
+                    { t:'info',       v:'aws s3 ls s3://novacorp-logs --no-sign-request' },
+                    { t:'dim',        v:'─'.repeat(58) },
+                    { t:'result-val', v:'2024-02-01 00:00:00   CloudTrail/AWSLogs/0123456789012/...' },
+                    { t:'result-val', v:'2024-02-14 00:00:00   vpc-flow-logs/2024-02-14-access.log.gz' },
+                    { t:'result-val', v:'2024-02-19 00:00:00   access-logs/ALB-access-2024-02-19.log' },
+                    { t:'blank',      v:'' },
+                    { t:'warning',    v:'[!] CloudTrail logs publicly readable — reveals AWS account ID and API usage patterns' }
+                ],
+                objs: []
+            };
+        }
+        return { lines: [{ t:'error', v:'Bucket not found or not in scope: ' + args }], objs: [] };
+    }
+
+    // aws s3 cp .env
+    function cmdAwsS3Cp(args) {
+        const a = args.toLowerCase();
+        if (a.includes('.env') && a.includes('novacorp-dev-assets')) {
+            state.envDownloaded = true;
+            return {
+                lines: [
+                    { t:'info',       v:'aws s3 cp s3://novacorp-dev-assets/.env . --no-sign-request' },
+                    { t:'dim',        v:'─'.repeat(58) },
+                    { t:'output',     v:'download: s3://novacorp-dev-assets/.env to ./.env' },
+                    { t:'blank',      v:'' },
+                    { t:'info',       v:'Contents of .env:' },
+                    { t:'dim',        v:'─'.repeat(40) },
+                    { t:'result-val', v:'APP_ENV=production' },
+                    { t:'result-val', v:'APP_DEBUG=true' },
+                    { t:'result-val', v:'DB_HOST=rds.novacorp-internal.com' },
+                    { t:'result-val', v:'DB_PORT=5432' },
+                    { t:'result-val', v:'DB_NAME=novacore_prod' },
+                    { t:'result-val', v:'DB_USER=nova_admin' },
+                    { t:'error',      v:'DB_PASSWORD=NovaCorp2024!ProdDB#9x' },
+                    { t:'blank',      v:'' },
+                    { t:'error',      v:'AWS_ACCESS_KEY_ID=AKIAIOSFODNN7NOVA123' },
+                    { t:'error',      v:'AWS_SECRET_ACCESS_KEY=wJalrXUtnFEMI/K7MDENG/bNovaCorp2024' },
+                    { t:'error',      v:'AWS_DEFAULT_REGION=us-west-2' },
+                    { t:'blank',      v:'' },
+                    { t:'result-val', v:'STRIPE_SECRET_KEY=sk_live_nova_51H8x9eJKLmno1234567890' },
+                    { t:'result-val', v:'SENDGRID_API_KEY=SG.nova_email_abc123' },
+                    { t:'blank',      v:'' },
+                    { t:'error',      v:'[!] CRITICAL: AWS root access keys exposed — full account takeover possible' },
+                    { t:'error',      v:'[!] Production database password exposed' },
+                    { t:'error',      v:'[!] Payment processor (Stripe) key exposed — financial fraud risk' }
+                ],
+                objs: [3, 4]
+            };
+        }
+        if (a.includes('credentials.json') && a.includes('novacorp-dev-assets')) {
+            return {
+                lines: [
+                    { t:'info',       v:'Downloading credentials.json...' },
+                    { t:'error',      v:'{"type":"service_account","project_id":"novacorp-prod",' },
+                    { t:'error',      v:' "private_key_id":"abc123",' },
+                    { t:'error',      v:' "client_email":"novacorp-svc@novacorp-prod.iam.gserviceaccount.com"}' },
+                    { t:'blank',      v:'' },
+                    { t:'warning',    v:'[!] GCP service account key exposed' }
+                ],
+                objs: []
+            };
+        }
+        return { lines: [{ t:'error', v:'An error occurred (AccessDenied): ' + args }], objs: [] };
+    }
+
+    // aws s3api get-bucket-acl
+    function cmdGetBucketAcl(args) {
+        const a = args.toLowerCase();
+        if (a.includes('novacorp-backups') || a.includes('novacorp-dev')) {
+            const bucket = a.includes('novacorp-backups') ? 'novacorp-backups' : 'novacorp-dev-assets';
+            return {
+                lines: [
+                    { t:'info',       v:`aws s3api get-bucket-acl --bucket ${bucket} --no-sign-request` },
+                    { t:'dim',        v:'─'.repeat(58) },
+                    { t:'result-val', v:'{"Owner":{"DisplayName":"novacorp-admin","ID":"a1b2c3..."},' },
+                    { t:'result-val', v:' "Grants": [' },
+                    { t:'result-val', v:'   {"Grantee":{"Type":"CanonicalUser","DisplayName":"novacorp-admin"},' },
+                    { t:'result-val', v:'    "Permission":"FULL_CONTROL"},' },
+                    { t:'error',      v:'   {"Grantee":{"Type":"Group","URI":"http://acs.amazonaws.com/groups/global/AllUsers"},' },
+                    { t:'error',      v:'    "Permission":"READ"}' },
+                    { t:'result-val', v:' ]}' },
+                    { t:'blank',      v:'' },
+                    { t:'error',      v:'[!] AllUsers (public internet) has READ permission — bucket is world-readable' },
+                    { t:'warning',    v:'[!] AWS Block Public Access settings are NOT enabled on this bucket' }
+                ],
+                objs: [5]
+            };
+        }
+        return { lines: [{ t:'error', v:'An error occurred (AccessDenied) for bucket ACL.' }], objs: [] };
+    }
+
+    // aws s3api get-bucket-policy
+    function cmdGetBucketPolicy(args) {
+        const a = args.toLowerCase();
+        if (a.includes('novacorp-logs')) {
+            return {
+                lines: [
+                    { t:'info',       v:'aws s3api get-bucket-policy --bucket novacorp-logs --no-sign-request' },
+                    { t:'dim',        v:'─'.repeat(58) },
+                    { t:'result-val', v:'{"Version":"2012-10-17","Statement":[' },
+                    { t:'result-val', v:'  {"Sid":"PublicReadAccess",' },
+                    { t:'error',      v:'   "Effect":"Allow",' },
+                    { t:'error',      v:'   "Principal":"*",' },
+                    { t:'error',      v:'   "Action":["s3:GetObject","s3:ListBucket"],' },
+                    { t:'result-val', v:'   "Resource":["arn:aws:s3:::novacorp-logs","arn:aws:s3:::novacorp-logs/*"]}' },
+                    { t:'result-val', v:']}' },
+                    { t:'blank',      v:'' },
+                    { t:'error',      v:'[!] Principal:"*" — any entity on the internet can list and read this bucket' },
+                    { t:'warning',    v:'[!] CloudTrail logs are sensitive — they map account activity and IP addresses' }
+                ],
+                objs: [5]
+            };
+        }
+        return { lines: [{ t:'error', v:'No bucket policy or access denied.' }], objs: [] };
+    }
+
+    // curl https://bucket.s3.amazonaws.com
+    function cmdCurl(args) {
+        const a = args.toLowerCase();
+        if (a.includes('novacorp-backups')) {
+            return {
+                lines: [
+                    { t:'info',       v:'curl https://novacorp-backups.s3.amazonaws.com' },
+                    { t:'dim',        v:'─'.repeat(58) },
+                    { t:'output',     v:'<?xml version="1.0" encoding="UTF-8"?>' },
+                    { t:'output',     v:'<ListBucketResult xmlns="http://s3.amazonaws.com/doc/2006-03-01/">' },
+                    { t:'result-val', v:'  <Name>novacorp-backups</Name>' },
+                    { t:'result-val', v:'  <Contents><Key>db-backup-2024-01-15.sql.gz</Key><Size>44367872</Size></Contents>' },
+                    { t:'result-val', v:'  <Contents><Key>employee-records.csv</Key><Size>4398080</Size></Contents>' },
+                    { t:'result-val', v:'  <Contents><Key>config-backup.tar.gz</Key><Size>131072</Size></Contents>' },
+                    { t:'result-val', v:'</ListBucketResult>' },
+                    { t:'blank',      v:'' },
+                    { t:'warning',    v:'[!] Bucket exposed via public URL — no authentication needed to list contents' }
+                ],
+                objs: [1]
+            };
+        }
+        return { lines: [{ t:'error', v:'curl: (403) Forbidden or bucket not accessible.' }], objs: [] };
+    }
+
+    // report
+    function cmdReport() {
+        return {
+            lines: [
+                { t:'info',       v:'=== Cloud Misconfiguration Report — NovaCorp ===' },
+                { t:'dim',        v:'─'.repeat(58) },
+                { t:'result-key', v:'Buckets Audited:    4' },
+                { t:'result-key', v:'Public Buckets:     3 (75%) — CRITICAL' },
+                { t:'result-key', v:'Credentials Found:  YES (AWS + DB + Stripe)' },
+                { t:'blank',      v:'' },
+                { t:'error',      v:'[CRITICAL] novacorp-dev-assets: .env file exposes AWS root credentials' },
+                { t:'error',      v:'[CRITICAL] novacorp-backups: DB backups and employee PII publicly readable' },
+                { t:'error',      v:'[CRITICAL] novacorp-dev-assets: credentials.json exposes GCP service account' },
+                { t:'blank',      v:'' },
+                { t:'warning',    v:'[HIGH]     novacorp-logs: CloudTrail + VPC logs publicly readable' },
+                { t:'warning',    v:'[HIGH]     All public buckets: Block Public Access NOT enabled' },
+                { t:'warning',    v:'[HIGH]     novacorp-backups: Bucket ACL has AllUsers READ permission' },
+                { t:'blank',      v:'' },
+                { t:'result-val', v:'Remediation Steps:' },
+                { t:'result-val', v:'  1. Immediately rotate exposed AWS access keys (AKIA...)' },
+                { t:'result-val', v:'  2. Enable S3 Block Public Access on all buckets' },
+                { t:'result-val', v:'  3. Remove .env and credentials files from S3' },
+                { t:'result-val', v:'  4. Rotate all secrets found in .env file' },
+                { t:'result-val', v:'  5. Enable S3 Object Lock on backup bucket' },
+                { t:'result-val', v:'  6. Implement S3 Inventory + Security Hub findings' },
+                { t:'blank',      v:'' },
+                { t:'success',    v:'[+] Report complete. All cloud misconfigurations documented.' }
+            ],
+            objs: [7]
+        };
+    }
+
+    /* ==============================================================
+       TERMINAL ENGINE
+    ============================================================== */
+    const outputEl = document.getElementById('terminal-output');
+    const inputEl  = document.getElementById('term-input');
+
+    function renderLines(lines, delay = 18, onDone = null) {
+        lines.forEach((line, idx) => {
+            setTimeout(() => {
+                const span = document.createElement('span');
+                span.className = `term-line ${line.t}`;
+                span.textContent = (line.t === 'blank') ? '\u00a0' : line.v;
+                outputEl.appendChild(span);
+                outputEl.appendChild(document.createElement('br'));
+                outputEl.scrollTop = outputEl.scrollHeight;
+                if (idx === lines.length - 1 && onDone) setTimeout(onDone, 80);
+            }, idx * delay);
+        });
+    }
+
+    function echoCommand(cmd) {
+        const p = document.createElement('span');
+        p.className = 'term-line prompt';
+        p.textContent = 'pentester@kali:~$ ';
+        const c = document.createElement('span');
+        c.className = 'term-line command';
+        c.textContent = cmd;
+        outputEl.appendChild(p);
+        outputEl.appendChild(c);
+        outputEl.appendChild(document.createElement('br'));
+        outputEl.scrollTop = outputEl.scrollHeight;
+    }
+
+    function blankLine() { outputEl.appendChild(document.createElement('br')); }
+
+    function dispatchResult(result) {
+        renderLines(result.lines, 16, () => {
+            result.objs.forEach(o => completeObjective(o));
+            blankLine();
+        });
+    }
+
+    function processCommand(raw) {
+        const trimmed = raw.trim();
+        if (!trimmed) return;
+
+        state.history.unshift(trimmed);
+        if (state.history.length > 50) state.history.pop();
+        state.historyIdx = -1;
+
+        echoCommand(trimmed);
+        blankLine();
+
+        const lower = trimmed.toLowerCase();
+
+        if (lower === 'help') { renderLines(HELP_LINES, 12); return; }
+        if (lower === 'clear') { outputEl.innerHTML = ''; return; }
+        if (lower === 'objectives') { renderObjectivesList(); return; }
+        if (lower === 'report') { dispatchResult(cmdReport()); return; }
+
+        if (lower.startsWith('lazys3')) { dispatchResult(cmdLazys3(trimmed.slice(6).trim())); return; }
+        if (lower.startsWith('aws s3 cp')) { dispatchResult(cmdAwsS3Cp(trimmed.slice(9).trim())); return; }
+        if (lower.startsWith('aws s3api get-bucket-policy')) { dispatchResult(cmdGetBucketPolicy(trimmed)); return; }
+        if (lower.startsWith('aws s3api get-bucket-acl'))    { dispatchResult(cmdGetBucketAcl(trimmed));    return; }
+        if (lower.startsWith('aws s3 ls'))  { dispatchResult(cmdAwsS3Ls(trimmed.slice(9).trim())); return; }
+        if (lower.startsWith('curl'))       { dispatchResult(cmdCurl(trimmed.slice(4).trim())); return; }
+
+        renderLines([
+            { t:'error', v:`bash: ${trimmed.split(/\s+/)[0]}: command not found` },
+            { t:'dim',   v:'Type "help" for available commands.' },
+            { t:'blank', v:'' }
+        ], 14);
+    }
+
+    const HELP_LINES = [
+        { t:'info',       v:'Available Commands — Cloud Security Lab' },
+        { t:'dim',        v:'─'.repeat(58) },
+        { t:'result-key', v:'  lazys3 <keyword>                  Enumerate S3 buckets' },
+        { t:'result-key', v:'  aws s3 ls s3://<bucket> --no-sign-request' },
+        { t:'result-key', v:'  aws s3 cp s3://<bucket>/<file> . --no-sign-request' },
+        { t:'result-key', v:'  aws s3api get-bucket-acl --bucket <name> --no-sign-request' },
+        { t:'result-key', v:'  aws s3api get-bucket-policy --bucket <name> --no-sign-request' },
+        { t:'result-key', v:'  curl https://<bucket>.s3.amazonaws.com' },
+        { t:'result-key', v:'  report                            Generate findings summary' },
+        { t:'result-key', v:'  objectives                        Show progress' },
+        { t:'result-key', v:'  clear                             Clear terminal' },
+        { t:'blank',      v:'' },
+        { t:'dim',        v:'  Target: novacorp-tech' },
+        { t:'blank',      v:'' }
+    ];
+
+    /* ==============================================================
+       OBJECTIVES
+    ============================================================== */
+    function completeObjective(idx) {
+        if (state.objectives[idx]) return;
+        state.objectives[idx] = true;
+        const item  = document.getElementById('obj-' + idx);
+        const check = document.getElementById('check-' + idx);
+        if (item) item.classList.add('completed');
+        if (check) check.textContent = 'X';
+        const total = state.objectives.filter(Boolean).length;
+        document.getElementById('obj-count').textContent = total;
+
+        setTimeout(() => {
+            const notif = document.createElement('span');
+            notif.className = 'term-line objective-unlock';
+            notif.textContent = `[OBJECTIVE COMPLETE] #${idx + 1}`;
+            outputEl.appendChild(notif);
+            outputEl.appendChild(document.createElement('br'));
+            outputEl.scrollTop = outputEl.scrollHeight;
+        }, 120);
+
+        if (total === 8) setTimeout(showSuccessBanner, 800);
+    }
+
+    function renderObjectivesList() {
+        const labels = ['Enumerate S3 buckets','List backup bucket','List dev assets bucket','Download .env file','Identify AWS credentials','Check bucket ACL','Attempt private bucket access','Document all misconfigurations'];
+        const lines  = [{ t:'info', v:'Objectives — Cloud Security Lab' }, { t:'dim', v:'─'.repeat(58) }];
+        labels.forEach((l, i) => {
+            const done = state.objectives[i];
+            lines.push({ t: done ? 'success' : 'dim', v: `  ${done ? '[X]' : '[ ]'} ${i+1}. ${l}` });
+        });
+        lines.push({ t:'blank', v:'' });
+        lines.push({ t:'result-key', v:`  Progress: ${state.objectives.filter(Boolean).length}/8` });
+        lines.push({ t:'blank', v:'' });
+        renderLines(lines, 12);
+    }
+
+    /* ==============================================================
+       HINTS
+    ============================================================== */
+    function showHint() {
+        if (state.hintsUsed >= HINTS.length) return;
+        const hint = HINTS[state.hintsUsed];
+        state.hintsUsed++;
+        state.score = Math.max(0, state.score - 5);
+        const scoreEl = document.getElementById('score-display');
+        scoreEl.textContent = state.score;
+        scoreEl.classList.add('deducted');
+        setTimeout(() => scoreEl.classList.remove('deducted'), 600);
+        const display = document.getElementById('hint-display');
+        display.innerHTML = `<strong style="color:#a855f7;font-size:0.7rem">${hint.title}</strong><br>${hint.text}`;
+        if (hint.code) display.innerHTML += `<span class="hint-code">${hint.code}</span>`;
+        display.classList.add('visible');
+        const remaining = HINTS.length - state.hintsUsed;
+        document.getElementById('hint-cost-label').textContent = remaining > 0 ? `-5 points per hint · ${remaining} remaining` : 'All hints used';
+        if (state.hintsUsed >= HINTS.length) document.getElementById('hint-btn').disabled = true;
+    }
+
+    /* ==============================================================
+       SUCCESS + COMPLETION
+    ============================================================== */
+    function showSuccessBanner() {
+        document.getElementById('final-score').textContent = state.score;
+        const banner = document.getElementById('success-banner');
+        banner.classList.add('visible');
+        banner.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        renderLines([
+            { t:'dim',     v:'═'.repeat(58) },
+            { t:'success', v:'  ALL OBJECTIVES COMPLETE — CLOUD AUDIT FINISHED' },
+            { t:'dim',     v:'═'.repeat(58) },
+            { t:'blank',   v:'' },
+            { t:'output',  v:`  Final Score: ${state.score} / 100` },
+            { t:'blank',   v:'' }
+        ], 20);
+    }
+
+    function completeLab() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('dark-arts', 'ehe-lab-cloud-security', { returnUrl: '../index.html' });
+        } else {
+            window.location.href = '../index.html';
+        }
+    }
+
+    /* ==============================================================
+       PANEL TOGGLE + INPUT
+    ============================================================== */
+    function togglePanel(panelId, headerEl) {
+        const panel  = document.getElementById(panelId);
+        const toggle = headerEl.querySelector('.panel-toggle');
+        const isOpen = !panel.classList.contains('collapsed');
+        panel.classList.toggle('collapsed', isOpen);
+        toggle.classList.toggle('open', !isOpen);
+    }
+
+    function focusInput() { inputEl.focus(); }
+
+    inputEl.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') {
+            const val = inputEl.value;
+            inputEl.value = '';
+            processCommand(val);
+        } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            if (state.history.length > 0) {
+                state.historyIdx = Math.min(state.historyIdx + 1, state.history.length - 1);
+                inputEl.value = state.history[state.historyIdx] || '';
+            }
+        } else if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            if (state.historyIdx > 0) { state.historyIdx--; inputEl.value = state.history[state.historyIdx] || ''; }
+            else { state.historyIdx = -1; inputEl.value = ''; }
+        } else if (e.key === 'Tab') {
+            e.preventDefault();
+            const partial = inputEl.value;
+            const completions = ['lazys3 ', 'aws s3 ls ', 'aws s3 cp ', 'aws s3api get-bucket-acl ', 'aws s3api get-bucket-policy ', 'curl ', 'report', 'help', 'clear', 'objectives'];
+            const match = completions.find(c => c.startsWith(partial) && c !== partial);
+            if (match) inputEl.value = match;
+        }
+    });
+
+    /* ==============================================================
+       BOOT
+    ============================================================== */
+    const BOOT_LINES = [
+        { t:'dim',     v:'─'.repeat(58) },
+        { t:'info',    v:'  HEXWORTH CLOUD SECURITY LAB  v1.0' },
+        { t:'dim',     v:'  S3 Bucket Enumeration — Educational Environment' },
+        { t:'dim',     v:'─'.repeat(58) },
+        { t:'blank',   v:'' },
+        { t:'output',  v:'  TARGET:    NovaCorp Technologies (novacorp-tech)' },
+        { t:'output',  v:'  CLOUD:     AWS (Amazon Web Services)' },
+        { t:'output',  v:'  OBJECTIVE: Enumerate S3 buckets, find misconfigs, extract secrets' },
+        { t:'blank',   v:'' },
+        { t:'warning', v:'  [!] Simulated environment — all data is fictional' },
+        { t:'blank',   v:'' },
+        { t:'dim',     v:'  Type "help" for commands. Start with: lazys3 novacorp' },
+        { t:'blank',   v:'' }
+    ];
+
+    window.addEventListener('DOMContentLoaded', function() {
+        focusInput();
+        renderLines(BOOT_LINES, 20);
+    });
+    </script>
+
+</body>
+</html>
