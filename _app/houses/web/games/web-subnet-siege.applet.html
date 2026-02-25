@@ -336,8 +336,10 @@
             </div>
             <div class="lore-section lore-keys">
                 <h3>CONTROLS</h3>
-                <p><span>CLICK</span> Select tower / place</p>
+                <p><span>1-4</span> Select tower type</p>
+                <p><span>CLICK</span> Place on spot</p>
                 <p><span>SPACE</span> Start wave</p>
+                <p><span>F</span> Fast forward (2x)</p>
                 <p><span>S</span> Toggle sell mode</p>
                 <p><span>ESC</span> Cancel placement</p>
                 <p><span>M</span> Toggle sound</p>
@@ -388,26 +390,26 @@
                 <span class="tbtn-name" style="color:#06b6d4;">FIREWALL</span>
                 <span class="tbtn-cost">200c</span>
                 <div class="tbtn-cidr">/26 — 64 IPs</div>
-                <div class="tbtn-stats">Rng:130 | Rate:Med | Dmg:2</div>
+                <div class="tbtn-stats">Rng:130 | Rate:Med | Dmg:2 | Wave 4+</div>
             </button>
             <button class="tower-btn" id="btnIDS" onclick="selectTowerType('ids')">
                 <span class="tbtn-name" style="color:#a855f7;">IDS</span>
                 <span class="tbtn-cost">350c</span>
                 <div class="tbtn-cidr">/28 — 16 IPs</div>
-                <div class="tbtn-stats">Rng:110 | Rate:Fast | Dmg:3</div>
+                <div class="tbtn-stats">Rng:110 | Rate:Fast | Dmg:3 | Wave 6+</div>
             </button>
             <button class="tower-btn" id="btnWAF" onclick="selectTowerType('waf')">
                 <span class="tbtn-name" style="color:#f59e0b;">WAF</span>
                 <span class="tbtn-cost">500c</span>
                 <div class="tbtn-cidr">/30 — 4 IPs</div>
-                <div class="tbtn-stats">Rng:90 | Rate:V.Fast | Dmg:5</div>
+                <div class="tbtn-stats">Rng:110 | Rate:V.Fast | Dmg:5 | Wave 9+</div>
             </button>
             <button id="sellBtn" onclick="toggleSellMode()">[ SELL TOWER (50% refund) ]</button>
             <button id="nextWaveBtn" onclick="startNextWave()" disabled>START WAVE 1</button>
         </div>
     </div>
 
-    <div id="controls">CLICK TOWER TYPE → CLICK SPOT → CHOOSE SUBNET | S=SELL | ESC=CANCEL | M=MUTE</div>
+    <div id="controls">1-4=TOWERS | CLICK SPOT → CHOOSE SUBNET | S=SELL | F=FAST FWD | ESC=CANCEL | M=MUTE</div>
 
 <script>
 // ============================================================
@@ -711,7 +713,7 @@ const TOWER_TYPES = {
     waf: {
         name: 'WAF',
         cidr: 30,
-        range: 90,
+        range: 110,
         fireRate: 30,
         damage: 5,
         cost: 500,
@@ -747,6 +749,7 @@ let waveScore    = 0;
 let peakCombo    = 1;
 let frameCount   = 0;
 let lastWaveResults = null;
+let gameSpeed = 1; // 1 = normal, 2 = fast forward
 
 // Placement state machine
 let selectedTowerType = null;  // key from TOWER_TYPES
@@ -966,13 +969,26 @@ function updateUI() {
     document.getElementById('loreFP').textContent      = waveFP;
     document.getElementById('loreCombo').textContent   = `x${combo}`;
 
-    // Update tower button disabled states
+    // Update tower button disabled states — progressive unlock by wave
+    // Scanner /24: always | Firewall /26: wave 4+ | IDS /28: wave 6+ | WAF /30: wave 9+
+    const TOWER_UNLOCK = { scanner: 0, firewall: 4, ids: 6, waf: 9 };
+    const nextWave = currentWave + (gameState === STATE_WAVE ? 0 : 1); // wave about to play
     Object.entries(TOWER_TYPES).forEach(([key, cfg]) => {
         const btnId = { scanner: 'btnScanner', firewall: 'btnFirewall', ids: 'btnIDS', waf: 'btnWAF' }[key];
         const btn = document.getElementById(btnId);
         if (btn) {
-            btn.disabled = (credits < cfg.cost) || (gameState === STATE_WAVE);
+            const locked = nextWave < TOWER_UNLOCK[key];
+            btn.disabled = locked || (credits < cfg.cost) || (gameState === STATE_WAVE);
             btn.classList.toggle('selected', selectedTowerType === key);
+            // Show lock status
+            const nameEl = btn.querySelector('.tbtn-name');
+            if (locked && nameEl) {
+                btn.title = `Unlocks at Wave ${TOWER_UNLOCK[key]}`;
+                btn.style.opacity = '0.3';
+            } else {
+                btn.title = '';
+                btn.style.opacity = '';
+            }
         }
     });
 
@@ -1390,14 +1406,24 @@ function updateTowers() {
             const dist = Math.sqrt(dx * dx + dy * dy);
             if (dist > tower.range) continue;
 
-            // Check if this packet's IP is in this tower's subnet
-            const inSubnet = isInSubnet(p.ipNum, tower.networkAddr, tower.cidr);
-
-            // Misconfigured towers fire at anything in their range
-            if (inSubnet || tower.misconfigured) {
-                if (dist < bestDist) {
-                    bestDist   = dist;
-                    bestTarget = p;
+            if (tower.misconfigured) {
+                // Misconfigured: only fires at packets matching its wrong subnet
+                // This means it misses real threats AND may hit safe traffic (false positives)
+                const inSubnet = isInSubnet(p.ipNum, tower.networkAddr, tower.cidr);
+                if (inSubnet) {
+                    if (dist < bestDist) {
+                        bestDist   = dist;
+                        bestTarget = p;
+                    }
+                }
+            } else {
+                // Correctly configured: targets any threat packet in range
+                // Works across all waves — the subnet quiz proved competence at placement
+                if (p.isThreat) {
+                    if (dist < bestDist) {
+                        bestDist   = dist;
+                        bestTarget = p;
+                    }
                 }
             }
         }
@@ -1464,8 +1490,12 @@ function updateProjectiles() {
                     waveScore += pts;
                     combo = Math.min(combo + 1, 10);
                     peakCombo = Math.max(peakCombo, combo);
+                    // Credit bounty per kill (scales with wave)
+                    const bounty = 5 + currentWave * 2 + (target.isBoss ? 50 : 0);
+                    credits += bounty;
                     sfxKill();
                     spawnFloatingText(target.x, target.y - 20, `+${pts}`, '#06b6d4');
+                    spawnFloatingText(target.x + 30, target.y - 10, `+${bounty}c`, '#f59e0b');
                     spawnParticles(target.x, target.y, target.isBoss ? '#ff4444' : '#ef4444', target.isBoss ? 25 : 12);
                     if (target.isBoss) {
                         screenShake = 12;
@@ -2059,6 +2089,30 @@ function drawWaveHUD() {
             : `PREP — WAVE ${currentWave + 1} READY`,
         W/2, 17
     );
+
+    // Combo counter (bottom-left of canvas during wave)
+    if (gameState === STATE_WAVE && combo > 1) {
+        const comboAlpha = Math.min(1, 0.5 + combo * 0.08);
+        const comboSize  = Math.min(28, 16 + combo * 1.5);
+        ctx.globalAlpha  = comboAlpha;
+        ctx.fillStyle    = combo >= 8 ? '#f59e0b' : combo >= 5 ? '#a855f7' : '#06b6d4';
+        ctx.shadowColor  = ctx.fillStyle;
+        ctx.shadowBlur   = 12;
+        ctx.font         = `bold ${comboSize}px Courier New`;
+        ctx.textAlign    = 'left';
+        ctx.fillText(`x${combo} COMBO`, 14, H - 16);
+        ctx.shadowBlur   = 0;
+        ctx.globalAlpha  = 1;
+    }
+
+    // Speed indicator (top-right of canvas)
+    if (gameSpeed > 1) {
+        ctx.fillStyle   = '#f59e0b';
+        ctx.font        = 'bold 11px Courier New';
+        ctx.textAlign   = 'right';
+        ctx.fillText(`▶▶ ${gameSpeed}x`, W - 10, 17);
+    }
+
     ctx.textBaseline = 'alphabetic';
     ctx.textAlign    = 'left';
 }
@@ -2193,18 +2247,19 @@ function gameLoop(timestamp) {
 
     ctx.restore();
 
-    // Logic updates
-    if (gameState === STATE_WAVE) {
-        updatePackets(dt);
-        updateTowers();
-        updateProjectiles();
-        checkWaveComplete();
+    // Logic updates (run multiple ticks at 2x speed)
+    for (let tick = 0; tick < gameSpeed; tick++) {
+        if (gameState === STATE_WAVE) {
+            updatePackets(dt);
+            updateTowers();
+            updateProjectiles();
+            checkWaveComplete();
+        }
+        updateParticles();
+        updateFloatingTexts();
+        if (waveCompleteTimer > 0) waveCompleteTimer--;
+        frameCount++;
     }
-    updateParticles();
-    updateFloatingTexts();
-
-    if (waveCompleteTimer > 0) waveCompleteTimer--;
-    frameCount++;
 
     rafId = requestAnimationFrame(gameLoop);
 }
@@ -2278,7 +2333,13 @@ document.addEventListener('keydown', e => {
     }
     if (e.code === 'KeyS') { toggleSellMode(); }
     if (e.code === 'KeyM') { toggleMute(); }
+    if (e.code === 'KeyF') { gameSpeed = gameSpeed === 1 ? 2 : 1; }
     if (e.code === 'Escape') { cancelPlacement(); }
+    // Tower hotkeys: 1=Scanner, 2=Firewall, 3=IDS, 4=WAF
+    if (e.code === 'Digit1') { selectTowerType('scanner'); }
+    if (e.code === 'Digit2') { selectTowerType('firewall'); }
+    if (e.code === 'Digit3') { selectTowerType('ids'); }
+    if (e.code === 'Digit4') { selectTowerType('waf'); }
 });
 
 // ============================================================
