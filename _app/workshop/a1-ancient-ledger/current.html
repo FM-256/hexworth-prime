@@ -408,12 +408,22 @@
 
     const STORAGE_KEY = 'hexworth_ctf_a1';
 
-    // Encoded secrets — not readable in DevTools source
-    const _F = [
-        'ZmxhZ3s0bmMxM250X2wzZGczcl9zcWwxX2Qxc2MwdjNyM2R9',
-        'ZmxhZ3tzdDNsbDRyX2YwcmczXzRsbDBjNHQxMG5fYzBkM3N9'
+    // Obfuscated secrets — XOR-encoded, not base64-decodable via F12
+    const _S = [
+        [60,54,59,61,33,110,52,57,107,105,52,46,5,54,105,62,61,105,40,5,41,43,54,107,5,62,107,41,57,106,44,105,40,105,62,39],
+        [60,54,59,61,33,41,46,105,54,54,110,40,5,60,106,40,61,105,5,110,54,54,106,57,110,46,107,106,52,5,57,106,62,105,41,39]
     ];
-    function _d(s) { return atob(s); }
+    const _K = 0x5A;
+    function _r(a) { return a.map(function(c) { return String.fromCharCode(c ^ _K); }).join(''); }
+    // SHA-256 hashes for offline validation (not reversible)
+    const _H = [
+        '85d63ae06a07b331ad2742ba7e0c00a6678ddbc87da952efff1ade4645574bdc',
+        '4e4cb45fe3ccf5a6110810b135d24b81c08f94000e78782aa6173ddedf795025'
+    ];
+    async function _hash(s) {
+        const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(s));
+        return Array.from(new Uint8Array(buf)).map(function(b) { return b.toString(16).padStart(2, '0'); }).join('');
+    }
 
     let state = load();
 
@@ -475,14 +485,14 @@
             { id: 8, resource: 'Oxygen Generators', quantity: '88 units', habitat: 'Orbital-1' }
         ],
         users: [
-            { id: 1, username: 'admin', password: 'Q3IxbXMwbkQ0d24h', role: 'administrator' },
-            { id: 2, username: 'data_scribe', password: 'YjRja2QwMHJfNGNjM3Nz', role: 'scribe' },
-            { id: 3, username: 'viewer', password: 'cmVhZG9ubHkyMDI0', role: 'readonly' }
+            { id: 1, username: 'admin', password: [25,40,107,55,41,106,52,30,110,45,52,123], role: 'administrator' },
+            { id: 2, username: 'data_scribe', password: [56,110,57,49,62,106,106,40,5,110,57,57,105,41,41], role: 'scribe' },
+            { id: 3, username: 'viewer', password: [40,63,59,62,53,52,54,35,104,106,104,110], role: 'readonly' }
         ],
         secrets: [
-            { id: 1, code_name: 'Stellar Forge Alpha', value: _F[1] },
-            { id: 2, code_name: 'Project Eclipse', value: 'Q0xBU1NJRklFRC1SRURBQ1RFRA==' },
-            { id: 3, code_name: 'Omega Protocol', value: 'Q0xBU1NJRklFRC1SRURBQ1RFRA==' }
+            { id: 1, code_name: 'Stellar Forge Alpha', value: _S[1] },
+            { id: 2, code_name: 'Project Eclipse', value: [25,38,27,9,9,19,16,19,31,30,71,8,31,30,27,25,14,31,30] },
+            { id: 3, code_name: 'Omega Protocol', value: [25,38,27,9,9,19,16,19,31,30,71,8,31,30,27,25,14,31,30] }
         ],
         schema: {
             tables: ['allocations', 'users', 'stellar_forge_codes'],
@@ -561,7 +571,7 @@
         // 5. LOAD_FILE — read filesystem (user flag)
         if (/load_file/i.test(input)) {
             if (input.includes('user.txt') || input.includes('/home/www-data')) {
-                resultsBody.innerHTML = `<tr><td colspan="4" style="color:#2ecc71;">${_d(_F[0])}</td></tr>`;
+                resultsBody.innerHTML = `<tr><td colspan="4" style="color:#2ecc71;">${_r(_S[0])}</td></tr>`;
                 queryMsg.innerHTML = '<div class="success-msg">File contents retrieved from the server filesystem.</div>';
             } else {
                 resultsBody.innerHTML = '';
@@ -671,7 +681,7 @@
         // SELECT from users table
         if (/from\s+users/i.test(selectPart) || (/username/.test(joined) && /password/.test(joined))) {
             resultsBody.innerHTML = DB.users.map(u =>
-                `<tr><td>${u.id}</td><td>${u.username}</td><td>${_d(u.password)}</td><td>${u.role}</td></tr>`
+                `<tr><td>${u.id}</td><td>${u.username}</td><td>${_r(u.password)}</td><td>${u.role}</td></tr>`
             ).join('');
             queryMsg.innerHTML = '<div class="success-msg">Credentials extracted from users table! The data_scribe account looks interesting...</div>';
             save();
@@ -684,7 +694,7 @@
             const fullInput = document.getElementById('searchInput').value;
             if (/stellar_forge/i.test(fullInput)) {
                 resultsBody.innerHTML = DB.secrets.map(s => {
-                    const v = _d(s.value);
+                    const v = _r(s.value);
                     return `<tr><td>${s.id}</td><td>${s.code_name}</td><td style="color:${v.startsWith('flag{') ? '#2ecc71' : '#555'}">${v}</td><td>-</td></tr>`;
                 }).join('');
                 queryMsg.innerHTML = '<div class="success-msg">Classified data extracted! The Stellar Forge allocation codes are revealed.</div>';
@@ -728,7 +738,8 @@
         }
 
         // Already captured check
-        if ((input === _d(_F[0]) && state.userFlag) || (input === _d(_F[1]) && state.rootFlag)) {
+        const inputHash = await _hash(input);
+        if ((inputHash === _H[0] && state.userFlag) || (inputHash === _H[1] && state.rootFlag)) {
             msg.innerHTML = '<div class="info-msg">Flag already submitted.</div>';
             return;
         }
@@ -778,14 +789,14 @@
             updateScore(); checkCompletion(); return;
         }
 
-        // Offline fallback — encoded comparison
-        if (input === _d(_F[0]) && !state.userFlag) {
+        // Offline fallback — hash comparison (not reversible)
+        if (inputHash === _H[0] && !state.userFlag) {
             state.userFlag = true;
             state.score += 100;
             msg.innerHTML = '<div class="success-msg">&#10003; user.txt captured! +100 points</div>';
             updateScore(); checkCompletion(); return;
         }
-        if (input === _d(_F[1]) && !state.rootFlag) {
+        if (inputHash === _H[1] && !state.rootFlag) {
             state.rootFlag = true;
             state.score += 200;
             msg.innerHTML = '<div class="success-msg">&#10003; root.txt captured! +200 points</div>';
