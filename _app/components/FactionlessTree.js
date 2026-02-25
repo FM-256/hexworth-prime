@@ -37,12 +37,18 @@ const FactionlessTree = (function() {
     // BRANCH DEFINITIONS
     // ═══════════════════════════════════════════════════════════════
 
+    const EMBLEM_PATH = '/assets/images/emblems/';
+
+    function emblemImg(houseId, size) {
+        size = size || 22;
+        return `<img src="${EMBLEM_PATH}${houseId}.webp" alt="${houseId}" style="width:${size}px;height:${size}px;border-radius:50%;object-fit:cover;vertical-align:middle;">`;
+    }
+
     const BRANCHES = [
         {
             id: 'recon',
             name: 'Recon',
             houses: ['eye', 'shield'],
-            icons: ['👁️', '🛡️'],
             color: '#c084fc',
             tiers: ['Observer', 'Analyst', 'Sentinel']
         },
@@ -50,7 +56,6 @@ const FactionlessTree = (function() {
             id: 'engineering',
             name: 'Engineering',
             houses: ['forge', 'code'],
-            icons: ['⚒️', '💻'],
             color: '#fbbf24',
             tiers: ['Tinkerer', 'Builder', 'Architect']
         },
@@ -58,7 +63,6 @@ const FactionlessTree = (function() {
             id: 'network',
             name: 'Network',
             houses: ['web', 'cloud'],
-            icons: ['🕸️', '☁️'],
             color: '#60a5fa',
             tiers: ['Connector', 'Navigator', 'Pathfinder']
         },
@@ -66,7 +70,6 @@ const FactionlessTree = (function() {
             id: 'crypto',
             name: 'Crypto',
             houses: ['key', 'script'],
-            icons: ['🔑', '📜'],
             color: '#f472b6',
             tiers: ['Decoder', 'Cipher', 'Cryptarch']
         },
@@ -74,7 +77,6 @@ const FactionlessTree = (function() {
             id: 'operations',
             name: 'Operations',
             houses: ['dark-arts'],
-            icons: ['🌑'],
             color: '#9333ea',
             tiers: ['Operator', 'Strategist', 'Commander'],
             crossHouse: true
@@ -374,7 +376,7 @@ const FactionlessTree = (function() {
                 <div class="ft-branch" style="--branch-color: ${b.color};">
                     <div class="ft-branch-header">
                         <div>
-                            <span class="ft-branch-icons">${b.icons.join(' ')}</span>
+                            <span class="ft-branch-icons">${b.houses.map(h => emblemImg(h, 24)).join(' ')}</span>
                             <span class="ft-branch-name">${b.name}</span>
                         </div>
                         <span class="ft-tier-badge ${badgeClass}">${badgeLabel}</span>
@@ -388,9 +390,9 @@ const FactionlessTree = (function() {
                         <span>${b.progressPercent}%</span>
                     </div>
                     <div class="ft-houses">
-                        ${b.houses.map((h, i) => `
+                        ${b.houses.map(h => `
                             <span class="ft-house-chip">
-                                ${b.icons[i] || ''}
+                                ${emblemImg(h, 16)}
                                 ${h}
                                 <span class="ft-chip-count">${b.houseCounts[h] || 0}</span>
                             </span>

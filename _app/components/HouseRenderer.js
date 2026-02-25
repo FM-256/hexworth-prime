@@ -41,6 +41,30 @@ const HouseRenderer = (function() {
     let profileLoaded = false;
     let instructorLoaded = false;
 
+    // Map path IDs → category icon filenames for path card images
+    const PATH_CATEGORY_MAP = {
+        'aws-ccp': 'aws',
+        'azure-fundamentals': 'fundamentals',
+        'wsa': 'wsa',
+        'security-plus': 'fundamentals',
+        'cysa-plus': 'cysa-plus',
+        'casp-plus': 'architecture',
+        'comptia-linux': 'linux',
+        'zero-to-python': 'python',
+        'devops-fundamentals': 'devops-automation',
+        'linux-mastery': 'linux-admin',
+        'comptia-aplus-core1': 'aplus-core1',
+        'comptia-aplus-core2': 'aplus-core2',
+        'md-100': 'md-100',
+        'md-101': 'windows-os',
+        'security-operations': 'security-operations',
+        'cryptography-track': 'cryptography',
+        'security-plus-crypto': 'crypto-protocols',
+        'aws-developer': 'aws',
+        'comptia-network': 'networking',
+        'ccna': 'networking',
+    };
+
     // ========================================
     // INIT
     // ========================================
@@ -396,7 +420,14 @@ const HouseRenderer = (function() {
                 border-color: var(--house-border);
             }
 
-            .path-icon { font-size: 1.5rem; }
+            .path-icon { font-size: 1.5rem; display: flex; align-items: center; }
+            .path-icon img {
+                width: 40px;
+                height: 40px;
+                border-radius: 8px;
+                object-fit: cover;
+                box-shadow: 0 0 12px var(--house-glow);
+            }
             .path-info { flex: 1; }
 
             .path-name {
@@ -1040,9 +1071,14 @@ const HouseRenderer = (function() {
             return;
         }
 
-        const pathCards = config.paths.map(p => `
+        const pathCards = config.paths.map(p => {
+            const catId = PATH_CATEGORY_MAP[p.id];
+            const iconHTML = catId
+                ? `<img src="/assets/images/categories/${catId}.webp" alt="" onerror="this.outerHTML='${p.icon}'">`
+                : p.icon;
+            return `
             <div class="path-card" data-path-id="${p.id}" data-path-href="${p.href || ''}">
-                <div class="path-icon">${p.icon}</div>
+                <div class="path-icon">${iconHTML}</div>
                 <div class="path-info">
                     <div class="path-name">${p.name}</div>
                     <div class="path-cert">${p.cert}</div>
@@ -1055,7 +1091,7 @@ const HouseRenderer = (function() {
                     <span class="path-progress-text">0%</span>
                 </div>
             </div>
-        `).join('');
+        `;}).join('');
 
         panel.innerHTML = `
             <section class="paths-section">
