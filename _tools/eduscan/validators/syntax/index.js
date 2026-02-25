@@ -19,6 +19,7 @@ const ContentCatalogValidator = require('./content-catalog');
 const DependencyCheckValidator = require('./dependency-check');
 const CSPValidator = require('./csp');
 const NavigationValidator = require('./navigation');
+const EmojiValidator = require('./emoji');
 
 class SyntaxValidator {
     constructor(options = {}) {
@@ -79,6 +80,11 @@ class SyntaxValidator {
             profile: this.profile,
             rootPath: this.rootPath
         });
+        this.emojiValidator = new EmojiValidator({
+            verbose: this.verbose,
+            rootPath: this.rootPath,
+            profile: this.profile
+        });
     }
 
     /**
@@ -105,6 +111,7 @@ class SyntaxValidator {
                 contentCatalogErrors: 0,
                 dependencyErrors: 0,
                 navigationErrors: 0,
+                emojiErrors: 0,
                 // Severity counts (populated at end)
                 bySeverity: {
                     critical: 0,
@@ -168,6 +175,16 @@ class SyntaxValidator {
             }
         }
 
+        // Run Emoji validation on global JS/config files (not per-file)
+        const emojiGlobalIssues = this.emojiValidator.validateGlobal();
+        if (emojiGlobalIssues.length > 0) {
+            results.issues.push(...emojiGlobalIssues);
+            results.summary.emojiErrors += emojiGlobalIssues.length;
+            if (this.verbose) {
+                console.log(`[SYNTAX] Emoji (global): ${emojiGlobalIssues.length} issues`);
+            }
+        }
+
         for (const file of contentFiles) {
             // Only validate HTML files
             if (!file.path.endsWith('.html')) {
@@ -193,6 +210,7 @@ class SyntaxValidator {
             const heuristicIssues = this.heuristicsValidator.validate(fileWithContent);
             const dependencyIssues = this.dependencyCheckValidator.validate(fileWithContent);
             const navIssues = this.navigationValidator.validate(fileWithContent);
+            const emojiIssues = this.emojiValidator.validate(fileWithContent);
 
             // Collect issues
             results.issues.push(...htmlIssues);
@@ -203,6 +221,7 @@ class SyntaxValidator {
             results.issues.push(...heuristicIssues);
             results.issues.push(...dependencyIssues);
             results.issues.push(...navIssues);
+            results.issues.push(...emojiIssues);
 
             // Update counts
             results.summary.htmlErrors += htmlIssues.length;
@@ -213,6 +232,7 @@ class SyntaxValidator {
             results.summary.heuristicErrors += heuristicIssues.length;
             results.summary.dependencyErrors += dependencyIssues.length;
             results.summary.navigationErrors += navIssues.length;
+            results.summary.emojiErrors += emojiIssues.length;
         }
 
         // Post-scan: check for content directories missing index.html

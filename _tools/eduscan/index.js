@@ -394,6 +394,9 @@ class EduScan {
         if (syntax.summary.dependencyErrors > 0) {
             console.log(`    ${c('Deps:', 'red')}     ${syntax.summary.dependencyErrors} missing script dependencies`);
         }
+        if (syntax.summary.emojiErrors > 0) {
+            console.log(`    ${c('Emoji:', 'yellow')}   ${syntax.summary.emojiErrors} orphan emoji (replace with images)`);
+        }
 
         if (syntax.summary.totalIssues === 0) {
             console.log(`    ${c('None!', 'green')} All syntax checks passed.`);
