@@ -63,6 +63,10 @@ const HouseRenderer = (function() {
         'aws-developer': 'aws',
         'comptia-network': 'networking',
         'ccna': 'networking',
+        'feh': 'feh-course',
+        'ehe': 'certifications',
+        'cyberops': 'cyberops',
+        'vault': 'vault',
     };
 
     // ========================================
@@ -708,6 +712,64 @@ const HouseRenderer = (function() {
             .hr-feature-name { font-size: 0.9rem; font-family: 'Segoe UI', sans-serif; font-weight: 600; margin-bottom: 6px; }
             .hr-feature-desc { font-size: 0.72rem; color: #666; font-family: 'Segoe UI', sans-serif; line-height: 1.5; }
 
+            /* Course hub cards in content panel */
+            .hr-hub-section { margin-bottom: 25px; }
+            .hr-hub-title {
+                color: var(--house-primary, #60a5fa);
+                font-family: 'Segoe UI', sans-serif;
+                font-size: 0.85rem;
+                letter-spacing: 0.15em;
+                text-transform: uppercase;
+                margin-bottom: 15px;
+                text-shadow: 0 0 15px var(--house-glow, rgba(96,165,250,0.3));
+            }
+            .hr-hub-grid {
+                display: grid;
+                grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+                gap: 15px;
+            }
+            .hr-hub-card {
+                background: rgba(15, 15, 20, 0.6);
+                border: 1px solid var(--house-border, rgba(96,165,250,0.25));
+                border-radius: 10px;
+                padding: 22px;
+                cursor: pointer;
+                transition: all 0.3s ease;
+                position: relative;
+                overflow: hidden;
+            }
+            .hr-hub-card::before {
+                content: '';
+                position: absolute;
+                top: 0; left: 0; right: 0;
+                height: 2px;
+                background: linear-gradient(90deg, var(--house-primary, #60a5fa), var(--house-accent, #93c5fd));
+                opacity: 0;
+                transition: opacity 0.3s ease;
+            }
+            .hr-hub-card:hover {
+                transform: translateY(-4px);
+                background: rgba(20, 20, 25, 0.8);
+                border-color: var(--house-primary, #60a5fa);
+                box-shadow: 0 0 25px var(--house-glow, rgba(96,165,250,0.2));
+            }
+            .hr-hub-card:hover::before { opacity: 1; }
+            .hr-hub-icon { margin-bottom: 12px; }
+            .hr-hub-icon img { width: 44px; height: 44px; border-radius: 8px; object-fit: cover; }
+            .hr-hub-name {
+                font-size: 0.95rem;
+                color: #ddd;
+                font-family: 'Segoe UI', sans-serif;
+                font-weight: 600;
+                margin-bottom: 5px;
+            }
+            .hr-hub-cert {
+                font-size: 0.72rem;
+                color: var(--house-primary, #60a5fa);
+                font-family: 'Segoe UI', sans-serif;
+                letter-spacing: 0.05em;
+            }
+
             /* Profile panel */
             .hr-profile-grid {
                 display: grid;
@@ -1178,8 +1240,38 @@ const HouseRenderer = (function() {
     function renderContentPanel() {
         const panel = document.getElementById('hr-panel-content');
         const modules = config.modules || [];
+        const paths = config.paths || [];
+
+        // Build course hub cards from paths config
+        let hubHTML = '';
+        if (paths.length > 0) {
+            const hubCards = paths.map(p => {
+                const catId = PATH_CATEGORY_MAP[p.id];
+                const iconSrc = catId
+                    ? `/assets/images/categories/${catId}.webp`
+                    : (p.icon && p.icon.includes('src=') ? p.icon.match(/src="([^"]+)"/)?.[1] || '' : '');
+                const fallback = (p.icon && !p.icon.includes('<')) ? p.icon : '📚';
+                const iconHTML = iconSrc
+                    ? `<img src="${iconSrc}" alt="" onerror="this.outerHTML='${fallback}'">`
+                    : fallback;
+                const href = p.href || `../../path-view.html?house=${config.houseId}&path=${p.id}`;
+                return `
+                    <div class="hr-hub-card" data-href="${href}">
+                        <div class="hr-hub-icon">${iconHTML}</div>
+                        <div class="hr-hub-name">${p.name}</div>
+                        <div class="hr-hub-cert">${p.cert}</div>
+                    </div>`;
+            }).join('');
+
+            hubHTML = `
+                <div class="hr-hub-section">
+                    <h3 class="hr-hub-title">Course Hubs</h3>
+                    <div class="hr-hub-grid">${hubCards}</div>
+                </div>`;
+        }
 
         panel.innerHTML = `
+            ${hubHTML}
             <div class="hr-filter-bar">
                 <input type="text" class="hr-filter-input" id="hrFilterInput"
                        placeholder="Filter modules by title, description, or type..."
@@ -1189,6 +1281,13 @@ const HouseRenderer = (function() {
             <div class="module-grid" id="hrModuleGrid"></div>
             <div class="hr-no-results" id="hrNoResults" style="display:none;">No modules match your filter.</div>
         `;
+
+        // Bind hub card clicks
+        panel.querySelectorAll('.hr-hub-card').forEach(card => {
+            card.addEventListener('click', () => {
+                window.location.href = card.dataset.href;
+            });
+        });
 
         const grid = document.getElementById('hrModuleGrid');
         modules.forEach((mod, idx) => {
