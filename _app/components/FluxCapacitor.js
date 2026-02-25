@@ -48,6 +48,8 @@
         { id: 'matrix', name: 'The Matrix', icon: '🟢', color: '#00ff41', path: 'terminal.html', themeSwitch: 'matrix' }
     ];
 
+    const EMBLEM_PATH = 'assets/images/emblems/';
+
     // ═══════════════════════════════════════════════════════════════
     // STYLES
     // ═══════════════════════════════════════════════════════════════
@@ -259,7 +261,25 @@
         .flux-house-icon {
             font-size: 2rem;
             margin-bottom: 8px;
-            display: block;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 48px;
+        }
+
+        .flux-house-icon img {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 2px solid var(--house-color);
+            box-shadow: 0 0 12px var(--house-glow);
+            transition: box-shadow 0.3s ease, transform 0.3s ease;
+        }
+
+        .flux-house:hover .flux-house-icon img {
+            box-shadow: 0 0 20px var(--house-color), 0 0 40px var(--house-glow);
+            transform: scale(1.1);
         }
 
         .flux-house-name {
@@ -332,6 +352,12 @@
 
             .flux-house-icon {
                 font-size: 1.5rem;
+                height: 40px;
+            }
+
+            .flux-house-icon img {
+                width: 40px;
+                height: 40px;
             }
 
             .flux-btn {
@@ -522,10 +548,15 @@
             if (isHome && !isCurrent) card.classList.add('home');
             if (isLocked) card.classList.add('locked');
 
-            // Icon
+            // Icon (emblem image with emoji fallback)
             const icon = document.createElement('span');
             icon.className = 'flux-house-icon';
-            icon.textContent = house.icon;
+            const emblemSrc = this.basePath + EMBLEM_PATH + house.id + '.webp';
+            const img = document.createElement('img');
+            img.src = emblemSrc;
+            img.alt = house.name;
+            img.onerror = function() { this.parentElement.textContent = house.icon; };
+            icon.appendChild(img);
             card.appendChild(icon);
 
             // Name
