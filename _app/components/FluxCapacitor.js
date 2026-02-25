@@ -568,10 +568,7 @@
             // Click handler
             if (!isCurrent) {
                 card.addEventListener('click', () => {
-                    if (isLocked && house.gatePath) {
-                        // Navigate to gates for gated houses
-                        this.navigateTo(house.gatePath);
-                    } else if (!isLocked) {
+                    if (!isLocked || house.path) {
                         // Theme switch (e.g., entering the Matrix sets theme)
                         if (house.themeSwitch) {
                             localStorage.setItem('hexworth_theme', house.themeSwitch);
