@@ -651,6 +651,63 @@ const HouseRenderer = (function() {
                 margin-bottom: 20px;
             }
 
+            /* Feature cards in Explore panel */
+            .hr-features-section { margin-bottom: 30px; }
+            .hr-features-title {
+                color: var(--house-primary, #60a5fa);
+                font-family: 'Segoe UI', sans-serif;
+                font-size: 0.85rem;
+                letter-spacing: 0.15em;
+                text-transform: uppercase;
+                margin-bottom: 18px;
+                text-shadow: 0 0 15px var(--house-glow, rgba(96,165,250,0.3));
+            }
+            .hr-feature-grid {
+                display: grid;
+                grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+                gap: 15px;
+            }
+            .hr-feature-card {
+                text-decoration: none;
+                background: rgba(15, 15, 20, 0.6);
+                border: 1px solid rgba(255, 255, 255, 0.05);
+                border-radius: 10px;
+                padding: 22px;
+                display: block;
+                transition: all 0.3s ease;
+                position: relative;
+                overflow: hidden;
+            }
+            .hr-feature-card::before {
+                content: '';
+                position: absolute;
+                top: 0; left: 0; right: 0;
+                height: 2px;
+                opacity: 0;
+                transition: opacity 0.3s ease;
+            }
+            .hr-feature-card:hover {
+                transform: translateY(-4px);
+                background: rgba(20, 20, 25, 0.8);
+            }
+            .hr-feature-card:hover::before { opacity: 1; }
+            .hr-feature-card.feat-arena { border-color: rgba(239, 68, 68, 0.25); }
+            .hr-feature-card.feat-arena:hover { border-color: rgba(239, 68, 68, 0.5); box-shadow: 0 0 25px rgba(239, 68, 68, 0.2); }
+            .hr-feature-card.feat-arena::before { background: linear-gradient(90deg, #ef4444, #f87171); }
+            .hr-feature-card.feat-hive { border-color: rgba(234, 179, 8, 0.25); }
+            .hr-feature-card.feat-hive:hover { border-color: rgba(234, 179, 8, 0.5); box-shadow: 0 0 25px rgba(234, 179, 8, 0.2); }
+            .hr-feature-card.feat-hive::before { background: linear-gradient(90deg, #eab308, #fbbf24); }
+            .hr-feature-card.feat-arctic { border-color: rgba(56, 189, 248, 0.25); }
+            .hr-feature-card.feat-arctic:hover { border-color: rgba(56, 189, 248, 0.5); box-shadow: 0 0 25px rgba(56, 189, 248, 0.2); }
+            .hr-feature-card.feat-arctic::before { background: linear-gradient(90deg, #0ea5e9, #38bdf8); }
+            .hr-feature-card.feat-colosseum { border-color: rgba(147, 51, 234, 0.25); }
+            .hr-feature-card.feat-colosseum:hover { border-color: rgba(147, 51, 234, 0.5); box-shadow: 0 0 25px rgba(147, 51, 234, 0.2); }
+            .hr-feature-card.feat-colosseum::before { background: linear-gradient(90deg, #7c3aed, #9333ea); }
+            .hr-feature-icon img { width: 36px; height: 36px; border-radius: 6px; object-fit: cover; }
+            .hr-feature-icon { font-size: 1.6rem; margin-bottom: 10px; }
+            .hr-feature-name { font-size: 0.9rem; font-family: 'Segoe UI', sans-serif; font-weight: 600; margin-bottom: 6px; }
+            .hr-feature-desc { font-size: 0.72rem; color: #666; font-family: 'Segoe UI', sans-serif; line-height: 1.5; }
+
             /* Profile panel */
             .hr-profile-grid {
                 display: grid;
@@ -1258,6 +1315,31 @@ const HouseRenderer = (function() {
     function renderExplorePanel() {
         const panel = document.getElementById('hr-panel-explore');
         panel.innerHTML = `
+            <div class="hr-features-section">
+                <h3 class="hr-features-title">Special Features</h3>
+                <div class="hr-feature-grid">
+                    <a href="/arena/index.html" class="hr-feature-card feat-arena">
+                        <div class="hr-feature-icon"><img src="/assets/images/categories/ctf.webp" alt="" onerror="this.outerHTML='&#9878;'"></div>
+                        <div class="hr-feature-name" style="color:#f87171;">The Arena</div>
+                        <div class="hr-feature-desc">CTF challenges, capture-the-flag competitions, and ranked offensive security drills</div>
+                    </a>
+                    <a href="/hive/index.html" class="hr-feature-card feat-hive">
+                        <div class="hr-feature-icon"><img src="/assets/images/categories/games.webp" alt="" onerror="this.outerHTML='&#9888;'"></div>
+                        <div class="hr-feature-name" style="color:#fbbf24;">The Hive</div>
+                        <div class="hr-feature-desc">Arcade games, combat simulations, and gamified security training</div>
+                    </a>
+                    <a href="/arctic/index.html" class="hr-feature-card feat-arctic">
+                        <div class="hr-feature-icon"><img src="/assets/images/categories/linux.webp" alt="" onerror="this.outerHTML='🐧'"></div>
+                        <div class="hr-feature-name" style="color:#38bdf8;">The Arctic</div>
+                        <div class="hr-feature-desc">Linux terminal training, command-line mastery, and server administration</div>
+                    </a>
+                    <a href="https://colosseum-arena.web.app" target="_blank" rel="noopener" class="hr-feature-card feat-colosseum">
+                        <div class="hr-feature-icon"><img src="/assets/images/emblems/dark-arts.webp" alt="" onerror="this.outerHTML='🏛️'"></div>
+                        <div class="hr-feature-name" style="color:#9333ea;">The Colosseum <span style="font-size:0.6rem;color:#555;font-weight:400;">↗</span></div>
+                        <div class="hr-feature-desc">Incident response card game — live multiplayer cybersecurity battle simulator</div>
+                    </a>
+                </div>
+            </div>
             <div class="hr-explore-info">Search across all houses and content types</div>
             <div id="discoveryAnchor"></div>
         `;
