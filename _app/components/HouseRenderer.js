@@ -48,7 +48,7 @@ const HouseRenderer = (function() {
     function init(cfg) {
         config = cfg;
         if (!config.emblem && config.houseId) {
-            config.emblem = `../../assets/images/emblems/${config.houseId}.webp`;
+            config.emblem = `/assets/images/emblems/${config.houseId}.webp`;
         }
         injectCSS();
         renderPage();
@@ -1106,7 +1106,7 @@ const HouseRenderer = (function() {
 
             const typeBadge = getTypeBadge(mod);
             const catIcon = mod.category
-                ? `<img src="../../assets/images/categories/${mod.category}.webp" alt="" onerror="this.outerHTML='${mod.icon}'">`
+                ? `<img src="/assets/images/categories/${mod.category}.webp" alt="" onerror="this.outerHTML='${mod.icon}'">`
                 : mod.icon;
             card.innerHTML = `
                 <div class="module-header">

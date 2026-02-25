@@ -63,7 +63,7 @@ const ContentDiscovery = (function() {
 
     function catIconHTML(mod) {
         if (!mod.category) return mod.icon || '📄';
-        return `<img src="assets/images/categories/${mod.category}.webp" alt="" onerror="this.outerHTML='${mod.icon || '📄'}'">`;
+        return `<img src="/assets/images/categories/${mod.category}.webp" alt="" onerror="this.outerHTML='${mod.icon || '📄'}'">`;
     }
 
     // ========================================
