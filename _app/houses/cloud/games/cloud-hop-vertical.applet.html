@@ -336,6 +336,25 @@
                 </div>
             </div>
 
+            <div class="section-label">Platform Types</div>
+            <div class="moves-list">
+                <div class="move-row">
+                    <span class="move-icon" style="color: #06b6d4;">&larr;&rarr;</span>
+                    <span class="move-name">Moving</span>
+                    <span class="move-level">L2+</span>
+                </div>
+                <div class="move-row">
+                    <span class="move-icon" style="color: #fbbf24;">&zwnj;&#9889;</span>
+                    <span class="move-name">Flashing</span>
+                    <span class="move-level">L3+</span>
+                </div>
+                <div class="move-row">
+                    <span class="move-icon" style="color: #e879f9;">&#10070;</span>
+                    <span class="move-name">Teleporter</span>
+                    <span class="move-level">L4+</span>
+                </div>
+            </div>
+
             <p style="color: #64748b; font-size: 10px; text-align: center; margin-top: 6px;">Touch: Tap=Jump, Swipe=Move</p>
 
             <div style="text-align: center;">
@@ -396,6 +415,8 @@
         let powerupDuration = 0;
         let comboCount = 0;
         let lastPlatformTime = 0;
+        let nextTeleportPairId = 0;
+        let lastPlatformSides = []; // track last 3 platform screen halves for balancing
 
         // UI State
         let showMovesPanel = false;
@@ -436,11 +457,11 @@
         // Level Definitions
         // Obstacles: firewall(static), cost(chaser), ratelimit(dashed), billing(zigzag), expired_cert(platform trap), ddos(swarm), cryptominer(fast chaser+score drain), outage(dark drift)
         const LEVELS = [
-            { name: 'DEV',          hopsToFlag: 15, speed: 1.5, platformWidth: 120, crumbleChance: 0.05, obstacleChance: 0,     obstacleTypes: [],                                                                    skyTop: [30, 58, 138],  skyBottom: [96, 165, 250],  accent: '#06b6d4', spawnRate: 100 },
-            { name: 'STAGING',      hopsToFlag: 20, speed: 2.2, platformWidth: 100, crumbleChance: 0.10, obstacleChance: 0.008, obstacleTypes: ['firewall'],                                                            skyTop: [80, 40, 10],   skyBottom: [250, 160, 60],  accent: '#f59e0b', spawnRate: 90  },
-            { name: 'PRODUCTION',   hopsToFlag: 25, speed: 2.8, platformWidth: 85,  crumbleChance: 0.15, obstacleChance: 0.012, obstacleTypes: ['firewall', 'cost'],                                                    skyTop: [50, 20, 80],   skyBottom: [140, 80, 200],  accent: '#a855f7', spawnRate: 80  },
-            { name: 'GLOBAL SCALE', hopsToFlag: 30, speed: 3.3, platformWidth: 70,  crumbleChance: 0.18, obstacleChance: 0.018, obstacleTypes: ['firewall', 'cost', 'ratelimit', 'billing', 'expired_cert'],             skyTop: [5, 5, 20],     skyBottom: [20, 20, 60],    accent: '#3b82f6', spawnRate: 70  },
-            { name: 'AUTONOMOUS',   hopsToFlag: 40, speed: 3.8, platformWidth: 60,  crumbleChance: 0.22, obstacleChance: 0.025, obstacleTypes: ['firewall', 'cost', 'ratelimit', 'billing', 'expired_cert', 'ddos', 'cryptominer'],  skyTop: [0, 15, 0],  skyBottom: [10, 40, 15],  accent: '#22c55e', spawnRate: 60  },
+            { name: 'DEV',          hopsToFlag: 15, speed: 1.5, platformWidth: 120, crumbleChance: 0.05, obstacleChance: 0,     obstacleTypes: [],                                                                    skyTop: [30, 58, 138],  skyBottom: [96, 165, 250],  accent: '#06b6d4', spawnRate: 100, platformTypes: [],                                                                                        platformTypeChance: 0    },
+            { name: 'STAGING',      hopsToFlag: 20, speed: 2.2, platformWidth: 100, crumbleChance: 0.10, obstacleChance: 0.008, obstacleTypes: ['firewall'],                                                            skyTop: [80, 40, 10],   skyBottom: [250, 160, 60],  accent: '#f59e0b', spawnRate: 90,  platformTypes: ['moving_lateral'],                                                                       platformTypeChance: 0.15 },
+            { name: 'PRODUCTION',   hopsToFlag: 25, speed: 2.8, platformWidth: 85,  crumbleChance: 0.15, obstacleChance: 0.012, obstacleTypes: ['firewall', 'cost'],                                                    skyTop: [50, 20, 80],   skyBottom: [140, 80, 200],  accent: '#a855f7', spawnRate: 80,  platformTypes: ['moving_lateral', 'moving_vertical', 'flashing'],                                        platformTypeChance: 0.25 },
+            { name: 'GLOBAL SCALE', hopsToFlag: 30, speed: 3.3, platformWidth: 70,  crumbleChance: 0.18, obstacleChance: 0.018, obstacleTypes: ['firewall', 'cost', 'ratelimit', 'billing', 'expired_cert'],             skyTop: [5, 5, 20],     skyBottom: [20, 20, 60],    accent: '#3b82f6', spawnRate: 70,  platformTypes: ['moving_lateral', 'moving_vertical', 'flashing', 'moving_diagonal', 'teleporter'],       platformTypeChance: 0.35 },
+            { name: 'AUTONOMOUS',   hopsToFlag: 40, speed: 3.8, platformWidth: 60,  crumbleChance: 0.22, obstacleChance: 0.025, obstacleTypes: ['firewall', 'cost', 'ratelimit', 'billing', 'expired_cert', 'ddos', 'cryptominer'],  skyTop: [0, 15, 0],  skyBottom: [10, 40, 15],  accent: '#22c55e', spawnRate: 60,  platformTypes: ['moving_lateral', 'moving_vertical', 'flashing', 'moving_diagonal', 'teleporter'],       platformTypeChance: 0.45 },
         ];
 
         // Level State
@@ -468,7 +489,9 @@
                 skyTop: [0, 5 + cycle * 3, 0],
                 skyBottom: [10 + cycle * 5, 15, 10],
                 accent: '#ef4444',
-                spawnRate: Math.max(45, base.spawnRate - cycle * 5)
+                spawnRate: Math.max(45, base.spawnRate - cycle * 5),
+                platformTypes: [...base.platformTypes],
+                platformTypeChance: Math.min(0.60, base.platformTypeChance + cycle * 0.03)
             };
         }
 
@@ -1016,7 +1039,7 @@
 
         // Platform Class
         class Platform {
-            constructor(x, y, width, provider, isFlag = false) {
+            constructor(x, y, width, provider, isFlag = false, type = 'normal') {
                 this.x = x;
                 this.y = y;
                 this.width = width;
@@ -1028,21 +1051,186 @@
                 this.opacity = 1;
                 this.touched = false;
                 this.isFlag = isFlag;
+                this.type = isFlag ? 'normal' : type;
+
+                // Movement properties
+                this.originX = x;
+                this.originY = y;
+                this.moveSpeedX = 0;
+                this.moveSpeedY = 0;
+                this.moveRangeX = 0;
+                this.moveRangeY = 0;
+                this.moveDir = 1;
+                this.moveDirY = 1;
+
+                // Flashing properties
+                this.flashVisible = true;
+                this.flashOnFrames = 80;
+                this.flashOffFrames = 60;
+                this.flashTimer = 80;
+                this.flashWarning = false;
+
+                // Teleporter properties
+                this.teleportPairId = -1;
+                this.teleportGlow = 0;
+            }
+
+            initType(levelIndex) {
+                if (this.type === 'normal' || this.isFlag) return;
+                const speedScale = 1 + levelIndex * 0.15;
+
+                switch (this.type) {
+                    case 'moving_lateral':
+                        this.moveSpeedX = (1.2 + Math.random() * 0.8) * speedScale;
+                        this.moveRangeX = 60 + Math.random() * 40;
+                        this.moveDir = Math.random() > 0.5 ? 1 : -1;
+                        break;
+                    case 'moving_vertical':
+                        this.moveSpeedY = (0.8 + Math.random() * 0.6) * speedScale;
+                        this.moveRangeY = 30 + Math.random() * 20;
+                        this.moveDirY = Math.random() > 0.5 ? 1 : -1;
+                        break;
+                    case 'flashing':
+                        this.flashOnFrames = Math.max(40, 80 - levelIndex * 5);
+                        this.flashOffFrames = Math.max(30, 60 - levelIndex * 5);
+                        this.flashTimer = this.flashOnFrames;
+                        this.flashVisible = true;
+                        this.flashWarning = false;
+                        break;
+                    case 'moving_diagonal':
+                        this.moveSpeedX = (1.0 + Math.random() * 0.6) * speedScale;
+                        this.moveSpeedY = (1.0 + Math.random() * 0.6) * speedScale;
+                        this.moveRangeX = 50 + Math.random() * 30;
+                        this.moveRangeY = 30 + Math.random() * 20;
+                        this.moveDir = Math.random() > 0.5 ? 1 : -1;
+                        this.moveDirY = Math.random() > 0.5 ? 1 : -1;
+                        break;
+                    case 'teleporter':
+                        this.teleportGlow = 0;
+                        break;
+                }
             }
 
             update() {
-                // Vertical mode: no auto-scroll — camera-follow handles movement
-
                 if (this.crumbling) {
                     this.crumbleTimer++;
                     this.opacity = Math.max(0, 1 - this.crumbleTimer / 30);
                     this.y += 2;
+                    return;
+                }
+
+                switch (this.type) {
+                    case 'moving_lateral':
+                        this.x += this.moveSpeedX * this.moveDir;
+                        if (this.x < 10 || this.x + this.width > canvas.width - 10) {
+                            this.moveDir *= -1;
+                            this.x = Math.max(10, Math.min(canvas.width - this.width - 10, this.x));
+                        }
+                        break;
+                    case 'moving_vertical':
+                        this.y += this.moveSpeedY * this.moveDirY;
+                        if (Math.abs(this.y - this.originY) > this.moveRangeY) {
+                            this.moveDirY *= -1;
+                        }
+                        break;
+                    case 'flashing':
+                        this.flashTimer--;
+                        if (this.flashVisible) {
+                            this.flashWarning = this.flashTimer <= 20;
+                            if (this.flashTimer <= 0) {
+                                this.flashVisible = false;
+                                this.flashTimer = this.flashOffFrames;
+                                this.flashWarning = false;
+                            }
+                        } else {
+                            if (this.flashTimer <= 0) {
+                                this.flashVisible = true;
+                                this.flashTimer = this.flashOnFrames;
+                            }
+                        }
+                        break;
+                    case 'moving_diagonal':
+                        this.x += this.moveSpeedX * this.moveDir;
+                        this.y += this.moveSpeedY * this.moveDirY;
+                        if (this.x < 10 || this.x + this.width > canvas.width - 10) {
+                            this.moveDir *= -1;
+                            this.x = Math.max(10, Math.min(canvas.width - this.width - 10, this.x));
+                        }
+                        if (Math.abs(this.y - this.originY) > this.moveRangeY) {
+                            this.moveDirY *= -1;
+                        }
+                        break;
+                    case 'teleporter':
+                        this.teleportGlow = (this.teleportGlow + 0.05) % (Math.PI * 2);
+                        break;
+                }
+            }
+
+            drawCloudShape(cloudColor) {
+                ctx.fillStyle = cloudColor;
+                const cloudHeight = this.height;
+                for (let i = 0; i < 5; i++) {
+                    const puffX = this.x + (i * this.width / 5);
+                    const puffY = this.y + Math.sin(gameFrame * 0.05 + i) * 2;
+                    ctx.fillRect(puffX, puffY, this.width / 5, cloudHeight);
+                }
+                for (let i = 1; i < 4; i++) {
+                    const puffX = this.x + (i * this.width / 4);
+                    ctx.fillRect(puffX, this.y - 4, this.width / 5, 4);
+                }
+            }
+
+            drawTypeIndicator() {
+                if (this.type === 'normal') return;
+                const cx = this.x + this.width / 2;
+                const cy = this.y - 8;
+                ctx.font = 'bold 9px Courier New';
+                ctx.textAlign = 'center';
+
+                switch (this.type) {
+                    case 'moving_lateral':
+                        ctx.fillStyle = '#06b6d4';
+                        ctx.fillText('\u2190\u2192', cx, cy);
+                        break;
+                    case 'moving_vertical':
+                        ctx.fillStyle = '#3b82f6';
+                        ctx.fillText('\u2191\u2193', cx, cy);
+                        break;
+                    case 'flashing':
+                        ctx.fillStyle = '#fbbf24';
+                        ctx.fillText('\u26A1', cx, cy);
+                        break;
+                    case 'moving_diagonal':
+                        ctx.fillStyle = '#6366f1';
+                        ctx.fillText('\u2922\u2923', cx, cy);
+                        break;
+                    case 'teleporter':
+                        ctx.fillStyle = '#e879f9';
+                        ctx.font = 'bold 8px Courier New';
+                        ctx.fillText('WARP', cx, cy);
+                        break;
                 }
             }
 
             draw() {
                 ctx.save();
                 ctx.globalAlpha = this.opacity;
+
+                // Flashing platform: ghost outline when invisible
+                if (this.type === 'flashing' && !this.flashVisible) {
+                    ctx.globalAlpha = 0.15;
+                    ctx.strokeStyle = '#fbbf24';
+                    ctx.setLineDash([4, 4]);
+                    ctx.strokeRect(this.x, this.y, this.width, this.height);
+                    ctx.setLineDash([]);
+                    ctx.restore();
+                    return;
+                }
+
+                // Flashing warning: rapid blink
+                if (this.type === 'flashing' && this.flashWarning) {
+                    ctx.globalAlpha = this.opacity * (Math.sin(gameFrame * 0.8) > 0 ? 1 : 0.3);
+                }
 
                 // Flag platform glow
                 if (this.isFlag) {
@@ -1051,32 +1239,38 @@
                     ctx.shadowBlur = 15 * pulse;
                 }
 
-                // Cloud shape (pixel art)
-                ctx.fillStyle = this.isFlag ? '#fbbf24' : '#ffffff';
-                const cloudHeight = this.height;
+                // Cloud color by type
+                let cloudColor = '#ffffff';
+                if (this.isFlag) cloudColor = '#fbbf24';
+                else if (this.type === 'flashing') cloudColor = '#fef08a';
+                else if (this.type === 'teleporter') cloudColor = '#e879f9';
 
-                // Draw cloud puffs
-                for (let i = 0; i < 5; i++) {
-                    const puffX = this.x + (i * this.width / 5);
-                    const puffY = this.y + Math.sin(gameFrame * 0.05 + i) * 2;
-                    ctx.fillRect(puffX, puffY, this.width / 5, cloudHeight);
-                }
-
-                // Top puffs for fluffy effect
-                for (let i = 1; i < 4; i++) {
-                    const puffX = this.x + (i * this.width / 4);
-                    ctx.fillRect(puffX, this.y - 4, this.width / 5, 4);
-                }
-
+                this.drawCloudShape(cloudColor);
                 ctx.shadowBlur = 0;
+
+                // Teleporter glow rings
+                if (this.type === 'teleporter') {
+                    const cx = this.x + this.width / 2;
+                    const cy = this.y + this.height / 2;
+                    for (let r = 0; r < 2; r++) {
+                        const phase = this.teleportGlow + r * Math.PI;
+                        const ringAlpha = 0.3 + Math.sin(phase) * 0.2;
+                        ctx.save();
+                        ctx.globalAlpha = ringAlpha;
+                        ctx.strokeStyle = '#e879f9';
+                        ctx.lineWidth = 2;
+                        ctx.beginPath();
+                        ctx.ellipse(cx, cy - 4 - r * 6, this.width / 2 + 4, 6 + Math.sin(phase) * 2, 0, 0, Math.PI * 2);
+                        ctx.stroke();
+                        ctx.restore();
+                    }
+                }
 
                 // Provider label or flag marker
                 if (this.isFlag) {
-                    // Flag pole
                     const poleX = this.x + this.width / 2;
                     ctx.fillStyle = '#92400e';
                     ctx.fillRect(poleX - 1, this.y - 28, 3, 28);
-                    // Waving flag
                     const wave = Math.sin(gameFrame * 0.15) * 3;
                     ctx.fillStyle = '#fbbf24';
                     ctx.beginPath();
@@ -1086,7 +1280,6 @@
                     ctx.lineTo(poleX + 2, this.y - 14);
                     ctx.closePath();
                     ctx.fill();
-                    // Checkpoint text
                     ctx.fillStyle = '#92400e';
                     ctx.font = 'bold 8px Courier New';
                     ctx.textAlign = 'center';
@@ -1096,6 +1289,7 @@
                     ctx.font = 'bold 10px Courier New';
                     ctx.textAlign = 'center';
                     ctx.fillText(this.provider, this.x + this.width / 2, this.y + 9);
+                    this.drawTypeIndicator();
                 }
 
                 ctx.restore();
@@ -1587,18 +1781,50 @@
             }
 
             const provider = cloudProviders[Math.floor(Math.random() * cloudProviders.length)];
-            // 40px wider platforms for vertical landing (folded in directly)
             const width = lvl.platformWidth + 40 + Math.floor(Math.random() * 20) - 10;
 
             // Spawn above the highest existing platform at a comfortable jump distance
             const highest = platforms.length > 0 ? Math.min(...platforms.map(p => p.y)) : canvas.height / 2;
-            const gap = 50 + Math.floor(Math.random() * 30); // 50-80px gap (reachable with boosted jump)
-            // Tighter horizontal spread for vertical mode
+            const gap = 50 + Math.floor(Math.random() * 30);
             const lastP = platforms.length > 0 ? platforms.reduce((a, b) => a.y < b.y ? a : b) : null;
             const baseX = lastP ? lastP.x + lastP.width / 2 : canvas.width / 2;
-            const spread = 120; // max horizontal distance from last platform
-            const px = Math.max(10, Math.min(canvas.width - width - 10, baseX - spread + Math.random() * spread * 2));
-            platforms.push(new Platform(px, highest - gap, width, provider));
+
+            // Wider spread with far-reach chance and side balancing
+            let spread = 200;
+            if (Math.random() < 0.20) spread = 280; // far reach
+            // Side balancing: if last 3 on same half, force opposite
+            const screenMid = canvas.width / 2;
+            let rawX = baseX - spread + Math.random() * spread * 2;
+            if (lastPlatformSides.length >= 3) {
+                const allSame = lastPlatformSides.every(s => s === lastPlatformSides[0]);
+                if (allSame) {
+                    rawX = lastPlatformSides[0] === 'left'
+                        ? screenMid + Math.random() * (spread - 20) + 20
+                        : screenMid - Math.random() * (spread - 20) - 20;
+                }
+            }
+            const px = Math.max(10, Math.min(canvas.width - width - 10, rawX));
+            lastPlatformSides.push(px + width / 2 < screenMid ? 'left' : 'right');
+            if (lastPlatformSides.length > 3) lastPlatformSides.shift();
+
+            // Roll for platform type
+            let platType = 'normal';
+            if (lvl.platformTypes.length > 0 && Math.random() < lvl.platformTypeChance) {
+                platType = lvl.platformTypes[Math.floor(Math.random() * lvl.platformTypes.length)];
+                // Teleporter: 20% sub-chance, spawn as pair
+                if (platType === 'teleporter' && Math.random() < 0.20) {
+                    spawnTeleporterPair(px, highest - gap, width, provider);
+                    return;
+                } else if (platType === 'teleporter') {
+                    // Didn't pass sub-chance, fall back to another type or normal
+                    const nonTele = lvl.platformTypes.filter(t => t !== 'teleporter');
+                    platType = nonTele.length > 0 ? nonTele[Math.floor(Math.random() * nonTele.length)] : 'normal';
+                }
+            }
+
+            const plat = new Platform(px, highest - gap, width, provider, false, platType);
+            plat.initType(currentLevel);
+            platforms.push(plat);
         }
 
         // Spawn Flag Platform (checkpoint to next level, vertical mode only)
@@ -1612,6 +1838,26 @@
             const px = Math.max(10, Math.min(canvas.width - width - 10, baseX - 80 + Math.random() * 160));
             platforms.push(new Platform(px, highest - 70, width, provider, true));
             flagSpawned = true;
+        }
+
+        // Spawn Teleporter Pair (entry + exit platform above)
+        function spawnTeleporterPair(entryX, entryY, width, provider) {
+            const pairId = nextTeleportPairId++;
+
+            // Entry platform
+            const entry = new Platform(entryX, entryY, width, provider, false, 'teleporter');
+            entry.teleportPairId = pairId;
+            entry.initType(currentLevel);
+            platforms.push(entry);
+
+            // Exit platform: 120-180px above, offset horizontally
+            const exitGap = 120 + Math.floor(Math.random() * 60);
+            const exitX = Math.max(10, Math.min(canvas.width - width - 10,
+                entryX + (Math.random() - 0.5) * 200));
+            const exit = new Platform(exitX, entryY - exitGap, width, provider, false, 'teleporter');
+            exit.teleportPairId = pairId;
+            exit.initType(currentLevel);
+            platforms.push(exit);
         }
 
         // Level Up
@@ -1708,9 +1954,22 @@
             // Vertical (Doodle Jump style): target platforms above (lower Y)
             platforms.forEach(p => {
                 if (p.crumbling) return;
-                const above = player.y - p.y; // positive = platform is above us
-                if (above < 10 || above > 200) return; // must be above us and reachable
-                const s = -Math.abs(above - 80) - Math.abs(p.x + p.width / 2 - player.x - player.width / 2) * 0.3;
+                // Skip invisible or warning flashing platforms
+                if (p.type === 'flashing' && (!p.flashVisible || p.flashWarning)) return;
+                const above = player.y - p.y;
+                if (above < 10 || above > 200) return;
+
+                // Predict moving platform position 8 frames ahead
+                let predX = p.x;
+                if (p.type === 'moving_lateral' || p.type === 'moving_diagonal') {
+                    predX += p.moveSpeedX * p.moveDir * 8;
+                    predX = Math.max(10, Math.min(canvas.width - p.width - 10, predX));
+                }
+                let predCX = predX + p.width / 2;
+
+                let s = -Math.abs(above - 80) - Math.abs(predCX - player.x - player.width / 2) * 0.3;
+                // Teleporter bonus
+                if (p.type === 'teleporter') s += 30;
                 if (s > bestScore) { bestScore = s; targetPlatform = p; }
             });
 
@@ -1718,11 +1977,15 @@
             keys.left = false;
             keys.right = false;
             if (targetPlatform) {
-                const targetX = targetPlatform.x + targetPlatform.width / 2;
+                // Use predicted position for moving platforms
+                let targetX = targetPlatform.x + targetPlatform.width / 2;
+                if (targetPlatform.type === 'moving_lateral' || targetPlatform.type === 'moving_diagonal') {
+                    targetX = targetPlatform.x + targetPlatform.moveSpeedX * targetPlatform.moveDir * 8 + targetPlatform.width / 2;
+                    targetX = Math.max(10 + targetPlatform.width / 2, Math.min(canvas.width - 10 - targetPlatform.width / 2, targetX));
+                }
                 if (targetX > player.x + player.width + 5) keys.right = true;
                 else if (targetX < player.x - 5) keys.left = true;
             }
-            // No auto-right when no target in vertical mode
 
             // Jump logic: always jump when on a platform (Doodle Jump auto-bounce behavior)
             keys.space = false;
@@ -1935,7 +2198,7 @@
                 player.y = cameraThreshold;
 
                 // Push all world objects down
-                platforms.forEach(p => { p.y += shift; });
+                platforms.forEach(p => { p.y += shift; p.originY += shift; });
                 obstacles.forEach(o => { o.y += shift; });
                 powerups.forEach(p => { p.y += shift; });
                 abilityEffects.forEach(e => { e.y += shift; });
@@ -1956,11 +2219,38 @@
             // Check platform collisions
             player.onPlatform = false;
             platforms.forEach(platform => {
+                // Skip invisible flashing platforms
+                if (platform.type === 'flashing' && !platform.flashVisible) return;
                 if (!platform.crumbling && player.velocityY > 0) {
                     if (checkCollision(player, platform)) {
                         player.y = platform.y - player.height;
-                        // Doodle Jump auto-bounce — strong upward spring on landing
-                        player.velocityY = jumpStrength * 1.4; // -16.8 for higher reach
+
+                        // Teleporter: warp to paired platform
+                        if (platform.type === 'teleporter' && platform.teleportPairId >= 0) {
+                            const pair = platforms.find(p => p !== platform && p.type === 'teleporter' && p.teleportPairId === platform.teleportPairId);
+                            if (pair && pair.y < platform.y) {
+                                player.x = pair.x + pair.width / 2 - player.width / 2;
+                                player.y = pair.y - player.height;
+                                player.velocityY = jumpStrength * 1.6;
+                                for (let i = 0; i < 12; i++) {
+                                    particles.push(new Particle(player.x + player.width / 2, player.y + player.height, '#e879f9'));
+                                }
+                                spawnAbilityEffect(player.x + player.width / 2, player.y + player.height, 'WARP', '#e879f9');
+                                playSound('route53');
+                            } else {
+                                // No valid pair — normal bounce
+                                player.velocityY = jumpStrength * 1.4;
+                            }
+                        } else {
+                            // Normal bounce
+                            player.velocityY = jumpStrength * 1.4;
+                        }
+
+                        // Moving platforms impart horizontal momentum
+                        if (platform.moveSpeedX && platform.moveDir) {
+                            player.velocityX += platform.moveSpeedX * platform.moveDir * 0.5;
+                        }
+
                         player.isJumping = true;
                         if (!demoMode) playSound('jump');
                         player.onPlatform = true;
@@ -2474,6 +2764,8 @@
             jumpWasPressed = false;
             dashWasPressed = false;
             abilityEffects = [];
+            nextTeleportPairId = 0;
+            lastPlatformSides = [];
 
             // Vertical mode player start position
             player.x = 200;
