@@ -1,0 +1,1807 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <!-- Progress Tracking -->
+    <script src="../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Agent Builder Sim - House of the Machine</title>
+    <style>
+        /* ============================================================
+           ROOT VARIABLES & RESET
+           ============================================================ */
+        *, *::before, *::after {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --bg:           #0a0e1a;
+            --bg-card:      #0f1422;
+            --bg-panel:     rgba(15, 20, 34, 0.92);
+            --primary:      #a855f7;
+            --secondary:    #7c3aed;
+            --glow:         rgba(168, 85, 247, 0.35);
+            --glow-sm:      rgba(168, 85, 247, 0.15);
+            --text:         #e2e8f0;
+            --text-muted:   #94a3b8;
+            --success:      #10b981;
+            --warning:      #f59e0b;
+            --danger:       #ef4444;
+            --border:       rgba(168, 85, 247, 0.2);
+            --border-hover: rgba(168, 85, 247, 0.5);
+            --font-mono:    'Courier New', monospace;
+            --transition:   0.2s ease;
+        }
+
+        body {
+            min-height: 100vh;
+            background: var(--bg);
+            color: var(--text);
+            font-family: var(--font-mono);
+            overflow-x: hidden;
+        }
+
+        /* ============================================================
+           HEADER
+           ============================================================ */
+        .header {
+            padding: 14px 28px;
+            background: rgba(10, 14, 26, 0.97);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 200;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+
+        .back-btn {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 7px 14px;
+            background: transparent;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            color: var(--primary);
+            font-family: var(--font-mono);
+            font-size: 0.78rem;
+            cursor: pointer;
+            transition: all var(--transition);
+            text-decoration: none;
+        }
+
+        .back-btn:hover {
+            background: var(--glow-sm);
+            border-color: var(--border-hover);
+        }
+
+        .header-title {
+            font-size: 1.05rem;
+            font-weight: 700;
+            color: var(--primary);
+            letter-spacing: 0.04em;
+            text-shadow: 0 0 18px var(--glow);
+        }
+
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .hud-chip {
+            background: rgba(168, 85, 247, 0.08);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 5px 12px;
+            font-size: 0.75rem;
+            color: var(--text-muted);
+        }
+
+        .hud-chip span {
+            color: var(--primary);
+            font-weight: 700;
+        }
+
+        /* ============================================================
+           MAIN LAYOUT
+           ============================================================ */
+        .main {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 28px 20px 60px;
+            gap: 24px;
+            max-width: 1100px;
+            margin: 0 auto;
+        }
+
+        /* ============================================================
+           SCENARIO CARD
+           ============================================================ */
+        .scenario-card {
+            width: 100%;
+            background: var(--bg-panel);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 22px 28px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .scenario-card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, var(--secondary), var(--primary));
+        }
+
+        .scenario-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 16px;
+            flex-wrap: wrap;
+        }
+
+        .scenario-badge {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .scenario-num {
+            font-size: 0.7rem;
+            color: var(--primary);
+            background: rgba(168, 85, 247, 0.12);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            padding: 3px 8px;
+            letter-spacing: 0.08em;
+        }
+
+        .difficulty-badge {
+            font-size: 0.68rem;
+            padding: 3px 10px;
+            border-radius: 4px;
+            border: 1px solid;
+            letter-spacing: 0.05em;
+        }
+
+        .diff-simple   { color: var(--success);  border-color: var(--success);  background: rgba(16,185,129,0.08); }
+        .diff-medium   { color: var(--warning);   border-color: var(--warning);  background: rgba(245,158,11,0.08); }
+        .diff-complex  { color: #f97316;           border-color: #f97316;          background: rgba(249,115,22,0.08); }
+        .diff-expert   { color: var(--danger);    border-color: var(--danger);   background: rgba(239,68,68,0.08);  }
+
+        .scenario-title {
+            font-size: 1.15rem;
+            color: var(--text);
+            margin-top: 10px;
+            line-height: 1.4;
+        }
+
+        .scenario-description {
+            color: var(--text-muted);
+            font-size: 0.82rem;
+            margin-top: 6px;
+            line-height: 1.6;
+        }
+
+        .timer-bar-wrap {
+            margin-top: 14px;
+        }
+
+        .timer-label {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.72rem;
+            color: var(--text-muted);
+            margin-bottom: 5px;
+        }
+
+        #timer-display {
+            color: var(--primary);
+            font-weight: 700;
+        }
+
+        .timer-bar {
+            height: 4px;
+            background: rgba(168, 85, 247, 0.12);
+            border-radius: 2px;
+            overflow: hidden;
+        }
+
+        .timer-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--secondary), var(--primary));
+            transition: width 1s linear, background 0.5s ease;
+            border-radius: 2px;
+        }
+
+        /* ============================================================
+           COMPONENT COLUMNS
+           ============================================================ */
+        .components-grid {
+            width: 100%;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 16px;
+        }
+
+        .col-panel {
+            background: var(--bg-panel);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        .col-header {
+            padding: 12px 16px;
+            background: rgba(168, 85, 247, 0.06);
+            border-bottom: 1px solid var(--border);
+            font-size: 0.78rem;
+            color: var(--primary);
+            letter-spacing: 0.06em;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .col-header-icon {
+            width: 20px;
+            text-align: center;
+        }
+
+        .col-subtitle {
+            font-size: 0.68rem;
+            color: var(--text-muted);
+            margin-left: auto;
+            letter-spacing: 0;
+        }
+
+        .col-options {
+            padding: 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        /* Component option cards */
+        .option-card {
+            padding: 10px 13px;
+            background: rgba(255,255,255,0.02);
+            border: 1px solid rgba(168, 85, 247, 0.12);
+            border-radius: 7px;
+            cursor: pointer;
+            transition: all var(--transition);
+            position: relative;
+            user-select: none;
+        }
+
+        .option-card:hover {
+            background: rgba(168, 85, 247, 0.07);
+            border-color: rgba(168, 85, 247, 0.35);
+        }
+
+        .option-card.selected {
+            background: rgba(168, 85, 247, 0.14);
+            border-color: var(--primary);
+            box-shadow: 0 0 12px var(--glow);
+        }
+
+        .option-card.selected::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            border-radius: 7px;
+            box-shadow: inset 0 0 0 1px var(--primary);
+            pointer-events: none;
+        }
+
+        .option-name {
+            font-size: 0.82rem;
+            color: var(--text);
+            font-weight: 600;
+        }
+
+        .option-card.selected .option-name {
+            color: var(--primary);
+        }
+
+        .option-tag {
+            display: inline-block;
+            font-size: 0.62rem;
+            padding: 1px 6px;
+            border-radius: 3px;
+            margin-top: 3px;
+            letter-spacing: 0.04em;
+        }
+
+        .tag-expensive  { background: rgba(239,68,68,0.15);  color: #f87171; }
+        .tag-balanced   { background: rgba(168,85,247,0.15); color: var(--primary); }
+        .tag-cheap      { background: rgba(16,185,129,0.15); color: #34d399; }
+        .tag-free       { background: rgba(148,163,184,0.15); color: var(--text-muted); }
+        .tag-none       { background: rgba(148,163,184,0.12); color: var(--text-muted); }
+        .tag-rag        { background: rgba(99,102,241,0.15); color: #818cf8; }
+        .tag-full       { background: rgba(245,158,11,0.15); color: #fbbf24; }
+        .tag-api        { background: rgba(16,185,129,0.12); color: #6ee7b7; }
+
+        .option-desc {
+            font-size: 0.68rem;
+            color: var(--text-muted);
+            margin-top: 4px;
+            line-height: 1.45;
+        }
+
+        /* Tools: multi-select chips */
+        .tools-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            padding: 10px;
+        }
+
+        .tool-chip {
+            padding: 6px 11px;
+            background: rgba(255,255,255,0.02);
+            border: 1px solid rgba(168, 85, 247, 0.12);
+            border-radius: 20px;
+            font-size: 0.72rem;
+            cursor: pointer;
+            transition: all var(--transition);
+            color: var(--text-muted);
+            user-select: none;
+        }
+
+        .tool-chip:hover {
+            border-color: rgba(168, 85, 247, 0.4);
+            color: var(--text);
+        }
+
+        .tool-chip.selected {
+            background: rgba(168, 85, 247, 0.16);
+            border-color: var(--primary);
+            color: var(--primary);
+            box-shadow: 0 0 8px var(--glow-sm);
+        }
+
+        .tools-limit-note {
+            font-size: 0.65rem;
+            color: var(--text-muted);
+            padding: 0 10px 8px;
+        }
+
+        /* Guardrails */
+        .guardrail-chip {
+            padding: 6px 11px;
+            background: rgba(255,255,255,0.02);
+            border: 1px solid rgba(16,185,129,0.15);
+            border-radius: 20px;
+            font-size: 0.72rem;
+            cursor: pointer;
+            transition: all var(--transition);
+            color: var(--text-muted);
+            user-select: none;
+        }
+
+        .guardrail-chip:hover {
+            border-color: rgba(16,185,129,0.4);
+            color: var(--text);
+        }
+
+        .guardrail-chip.selected {
+            background: rgba(16,185,129,0.12);
+            border-color: var(--success);
+            color: var(--success);
+            box-shadow: 0 0 8px rgba(16,185,129,0.2);
+        }
+
+        /* ============================================================
+           ACTIONS ROW
+           ============================================================ */
+        .actions-row {
+            width: 100%;
+            display: flex;
+            justify-content: flex-end;
+            gap: 12px;
+            align-items: center;
+        }
+
+        .validation-hint {
+            font-size: 0.74rem;
+            color: var(--text-muted);
+            flex: 1;
+        }
+
+        .validation-hint.error {
+            color: var(--danger);
+        }
+
+        .btn {
+            padding: 10px 24px;
+            border-radius: 7px;
+            border: 1px solid;
+            font-family: var(--font-mono);
+            font-size: 0.82rem;
+            cursor: pointer;
+            transition: all var(--transition);
+            letter-spacing: 0.04em;
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            border-color: var(--primary);
+            color: #fff;
+            font-weight: 700;
+        }
+
+        .btn-primary:hover {
+            background: #bf80ff;
+            box-shadow: 0 0 20px var(--glow);
+        }
+
+        .btn-primary:disabled {
+            opacity: 0.35;
+            cursor: not-allowed;
+            box-shadow: none;
+        }
+
+        .btn-ghost {
+            background: transparent;
+            border-color: var(--border);
+            color: var(--text-muted);
+        }
+
+        .btn-ghost:hover {
+            border-color: var(--border-hover);
+            color: var(--text);
+        }
+
+        /* ============================================================
+           SCORE REVEAL OVERLAY
+           ============================================================ */
+        .overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(10, 14, 26, 0.88);
+            backdrop-filter: blur(6px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 300;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.35s ease;
+        }
+
+        .overlay.visible {
+            opacity: 1;
+            pointer-events: all;
+        }
+
+        .score-panel {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 36px 44px;
+            max-width: 480px;
+            width: 90%;
+            text-align: center;
+            position: relative;
+            transform: scale(0.9);
+            transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        .overlay.visible .score-panel {
+            transform: scale(1);
+        }
+
+        .score-panel::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            border-radius: 16px;
+            background: radial-gradient(ellipse at 50% 0%, rgba(168,85,247,0.12), transparent 60%);
+            pointer-events: none;
+        }
+
+        .stars-row {
+            font-size: 2.4rem;
+            margin: 10px 0 6px;
+            letter-spacing: 8px;
+        }
+
+        .score-label {
+            font-size: 0.72rem;
+            color: var(--text-muted);
+            letter-spacing: 0.08em;
+            margin-bottom: 4px;
+        }
+
+        .score-points {
+            font-size: 2.8rem;
+            font-weight: 700;
+            color: var(--primary);
+            text-shadow: 0 0 24px var(--glow);
+            line-height: 1;
+        }
+
+        .score-breakdown {
+            margin: 18px 0 0;
+            text-align: left;
+            background: rgba(255,255,255,0.02);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 12px 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 7px;
+        }
+
+        .breakdown-row {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.76rem;
+            color: var(--text-muted);
+        }
+
+        .breakdown-row .val {
+            font-weight: 700;
+        }
+
+        .val.pos { color: var(--success); }
+        .val.neg { color: var(--danger);  }
+        .val.neu { color: var(--text-muted); }
+
+        .streak-banner {
+            margin-top: 14px;
+            padding: 8px 14px;
+            background: rgba(168,85,247,0.1);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            font-size: 0.74rem;
+            color: var(--primary);
+            display: none;
+        }
+
+        .streak-banner.visible { display: block; }
+
+        .feedback-text {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            margin-top: 14px;
+            line-height: 1.6;
+            text-align: left;
+        }
+
+        .score-actions {
+            margin-top: 22px;
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+        }
+
+        /* ============================================================
+           PROGRESS ROW
+           ============================================================ */
+        .progress-row {
+            width: 100%;
+            display: flex;
+            gap: 6px;
+            align-items: center;
+        }
+
+        .progress-dot {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            border: 1px solid rgba(168,85,247,0.18);
+            background: rgba(255,255,255,0.02);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.62rem;
+            color: var(--text-muted);
+            transition: all 0.3s ease;
+            cursor: default;
+        }
+
+        .progress-dot.done-3   { background: var(--primary);  border-color: var(--primary);  color: #fff; box-shadow: 0 0 10px var(--glow); }
+        .progress-dot.done-2   { background: rgba(168,85,247,0.5); border-color: var(--primary); color: #fff; }
+        .progress-dot.done-1   { background: rgba(168,85,247,0.2); border-color: var(--border-hover); color: var(--text-muted); }
+        .progress-dot.current  { border-color: var(--primary); color: var(--primary); animation: pulse-dot 1.4s infinite; }
+
+        @keyframes pulse-dot {
+            0%, 100% { box-shadow: 0 0 0 0 var(--glow); }
+            50%       { box-shadow: 0 0 0 5px rgba(168,85,247,0); }
+        }
+
+        .progress-connector {
+            flex: 1;
+            height: 2px;
+            background: rgba(168,85,247,0.1);
+            border-radius: 1px;
+            max-width: 32px;
+        }
+
+        .total-score-chip {
+            margin-left: auto;
+            padding: 5px 14px;
+            background: rgba(168,85,247,0.1);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            font-size: 0.78rem;
+            color: var(--primary);
+            font-weight: 700;
+        }
+
+        /* ============================================================
+           COMPLETION SCREEN
+           ============================================================ */
+        .completion-screen {
+            width: 100%;
+            background: var(--bg-panel);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 48px 36px;
+            text-align: center;
+            display: none;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .completion-screen.visible { display: block; }
+
+        .completion-screen::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: radial-gradient(ellipse at 50% 20%, rgba(168,85,247,0.1), transparent 65%);
+            pointer-events: none;
+        }
+
+        .completion-title {
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: var(--primary);
+            text-shadow: 0 0 32px var(--glow);
+            margin-bottom: 8px;
+        }
+
+        .completion-sub {
+            font-size: 0.88rem;
+            color: var(--text-muted);
+            margin-bottom: 28px;
+        }
+
+        .final-score-row {
+            display: flex;
+            justify-content: center;
+            gap: 24px;
+            flex-wrap: wrap;
+            margin: 20px 0;
+        }
+
+        .final-stat {
+            background: rgba(255,255,255,0.02);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 16px 24px;
+            min-width: 120px;
+        }
+
+        .final-stat-val {
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--primary);
+            line-height: 1;
+        }
+
+        .final-stat-label {
+            font-size: 0.68rem;
+            color: var(--text-muted);
+            margin-top: 5px;
+            letter-spacing: 0.06em;
+        }
+
+        .grade-badge {
+            display: inline-block;
+            padding: 10px 28px;
+            background: rgba(168,85,247,0.12);
+            border: 2px solid var(--primary);
+            border-radius: 40px;
+            font-size: 1.1rem;
+            color: var(--primary);
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            margin: 16px 0;
+            box-shadow: 0 0 28px var(--glow);
+        }
+
+        /* ============================================================
+           CANVAS (particle background)
+           ============================================================ */
+        #particle-canvas {
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            z-index: 0;
+            opacity: 0.45;
+        }
+
+        .main { position: relative; z-index: 1; }
+        .header { z-index: 200; }
+
+        /* ============================================================
+           MISC UTILITIES
+           ============================================================ */
+        .hidden { display: none !important; }
+
+        .col-panel.tools-panel {
+            grid-column: span 2;
+        }
+
+        @media (max-width: 640px) {
+            .col-panel.tools-panel { grid-column: span 1; }
+            .components-grid { grid-template-columns: 1fr; }
+            .score-panel { padding: 24px 20px; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- Particle canvas background -->
+<canvas id="particle-canvas"></canvas>
+
+<!-- ============================================================
+     HEADER
+     ============================================================ -->
+<header class="header">
+    <div class="header-left">
+        <a href="../index.html" class="back-btn">&#8592; House of the Machine</a>
+        <div class="header-title">AGENT BUILDER SIM</div>
+    </div>
+    <div class="header-right">
+        <div class="hud-chip">Streak <span id="hud-streak">0</span></div>
+        <div class="hud-chip">Stars <span id="hud-stars">0</span>/<span id="hud-stars-max">30</span></div>
+        <div class="hud-chip">Score <span id="hud-score">0</span></div>
+    </div>
+</header>
+
+<!-- ============================================================
+     MAIN GAME AREA
+     ============================================================ -->
+<main class="main" id="game-main">
+
+    <!-- Scenario progress indicators -->
+    <div class="progress-row" id="progress-row"></div>
+
+    <!-- Scenario card -->
+    <div class="scenario-card" id="scenario-card">
+        <div class="scenario-header">
+            <div class="scenario-badge">
+                <div class="scenario-num" id="scn-num">SCENARIO 1 / 10</div>
+                <div class="difficulty-badge" id="scn-diff"></div>
+            </div>
+        </div>
+        <div class="scenario-title" id="scn-title"></div>
+        <div class="scenario-description" id="scn-desc"></div>
+        <div class="timer-bar-wrap">
+            <div class="timer-label">
+                <span>TIME REMAINING</span>
+                <span id="timer-display">--:--</span>
+            </div>
+            <div class="timer-bar">
+                <div class="timer-fill" id="timer-fill" style="width:100%"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Component selection grid -->
+    <div class="components-grid" id="components-grid">
+
+        <!-- Brain column -->
+        <div class="col-panel">
+            <div class="col-header">
+                <span class="col-header-icon">&#129504;</span>
+                BRAIN
+                <span class="col-subtitle">Pick 1 LLM</span>
+            </div>
+            <div class="col-options" id="brain-options"></div>
+        </div>
+
+        <!-- Memory column -->
+        <div class="col-panel">
+            <div class="col-header">
+                <span class="col-header-icon">&#128190;</span>
+                MEMORY
+                <span class="col-subtitle">Pick 1 type</span>
+            </div>
+            <div class="col-options" id="memory-options"></div>
+        </div>
+
+        <!-- Tools column (spans wider) -->
+        <div class="col-panel tools-panel">
+            <div class="col-header">
+                <span class="col-header-icon">&#128296;</span>
+                TOOLS
+                <span class="col-subtitle">Pick 2–4</span>
+            </div>
+            <div class="tools-limit-note" id="tools-note">Select 2 to 4 tools for this agent.</div>
+            <div class="tools-grid" id="tools-options"></div>
+        </div>
+
+        <!-- Guardrails column -->
+        <div class="col-panel">
+            <div class="col-header">
+                <span class="col-header-icon">&#128737;</span>
+                GUARDRAILS
+                <span class="col-subtitle">Optional bonus</span>
+            </div>
+            <div class="tools-limit-note">Add guardrails for bonus points.</div>
+            <div class="tools-grid" id="guardrail-options"></div>
+        </div>
+
+    </div>
+
+    <!-- Submit row -->
+    <div class="actions-row">
+        <div class="validation-hint" id="validation-hint"></div>
+        <button class="btn btn-ghost" id="btn-skip" onclick="Game.skipScenario()">Skip</button>
+        <button class="btn btn-primary" id="btn-submit" onclick="Game.submitAnswer()" disabled>Deploy Agent</button>
+    </div>
+
+    <!-- Completion screen (hidden until all done) -->
+    <div class="completion-screen" id="completion-screen">
+        <div class="completion-title">ALL SCENARIOS COMPLETE</div>
+        <div class="completion-sub">Agent Builder certification achieved.</div>
+        <div class="grade-badge" id="final-grade"></div>
+        <div class="final-score-row" id="final-stats"></div>
+        <button class="btn btn-primary" style="margin-top:24px" onclick="Game.playAgain()">Play Again</button>
+        <a href="../index.html" class="btn btn-ghost" style="margin-top:12px;display:inline-block;">Return to House</a>
+    </div>
+
+</main>
+
+<!-- ============================================================
+     SCORE REVEAL OVERLAY
+     ============================================================ -->
+<div class="overlay" id="score-overlay">
+    <div class="score-panel">
+        <div class="score-label">AGENT DEPLOYED</div>
+        <div class="stars-row" id="overlay-stars"></div>
+        <div class="score-points" id="overlay-points"></div>
+        <div class="score-label" style="margin-top:4px">POINTS</div>
+        <div class="score-breakdown" id="overlay-breakdown"></div>
+        <div class="streak-banner" id="streak-banner">&#9889; STREAK BONUS! +25 pts</div>
+        <div class="feedback-text" id="overlay-feedback"></div>
+        <div class="score-actions">
+            <button class="btn btn-primary" id="btn-next" onclick="Game.nextScenario()">Next Scenario</button>
+        </div>
+    </div>
+</div>
+
+<script>
+/* ================================================================
+   DATA DEFINITIONS
+   ================================================================ */
+
+const BRAINS = [
+    {
+        id: 'gpt4',
+        name: 'GPT-4',
+        tags: ['expensive', 'powerful'],
+        tagClass: 'tag-expensive',
+        tagLabel: 'EXPENSIVE / POWERFUL',
+        desc: 'Best reasoning. High token cost. Ideal for complex, multi-step tasks.',
+        power: 3
+    },
+    {
+        id: 'claude',
+        name: 'Claude',
+        tags: ['balanced'],
+        tagClass: 'tag-balanced',
+        tagLabel: 'BALANCED',
+        desc: 'Strong reasoning, good safety defaults, cost-effective at scale.',
+        power: 2.5
+    },
+    {
+        id: 'gpt35',
+        name: 'GPT-3.5',
+        tags: ['cheap', 'fast'],
+        tagClass: 'tag-cheap',
+        tagLabel: 'CHEAP / FAST',
+        desc: 'Good for simple tasks. Fast latency. May fail complex reasoning.',
+        power: 1.5
+    },
+    {
+        id: 'oss',
+        name: 'Open Source (Llama/Mistral)',
+        tags: ['free', 'limited'],
+        tagClass: 'tag-free',
+        tagLabel: 'FREE / LIMITED',
+        desc: 'Self-hosted, no API cost. Weaker at nuanced instruction following.',
+        power: 1
+    }
+];
+
+const MEMORIES = [
+    {
+        id: 'none',
+        name: 'None',
+        tagClass: 'tag-none',
+        tagLabel: 'STATELESS',
+        desc: 'Each call is independent. No context retained between runs.',
+        level: 0
+    },
+    {
+        id: 'short',
+        name: 'Short-term (Window)',
+        tagClass: 'tag-balanced',
+        tagLabel: 'SESSION',
+        desc: 'Holds recent messages in a sliding window. Lost after session ends.',
+        level: 1
+    },
+    {
+        id: 'rag',
+        name: 'Vector DB (RAG)',
+        tagClass: 'tag-rag',
+        tagLabel: 'RETRIEVAL',
+        desc: 'Semantic search over a knowledge base. High relevance, scalable.',
+        level: 2
+    },
+    {
+        id: 'full',
+        name: 'Full Conversation History',
+        tagClass: 'tag-full',
+        tagLabel: 'PERSISTENT',
+        desc: 'Complete history stored and passed each call. Expensive at scale.',
+        level: 3
+    }
+];
+
+const TOOLS = [
+    { id: 'email',       name: 'Email API',          tagClass: 'tag-api' },
+    { id: 'websearch',   name: 'Web Search',          tagClass: 'tag-api' },
+    { id: 'db',          name: 'Database Query',      tagClass: 'tag-api' },
+    { id: 'slack',       name: 'Slack Integration',   tagClass: 'tag-api' },
+    { id: 'calendar',    name: 'Calendar API',        tagClass: 'tag-api' },
+    { id: 'docs',        name: 'Document Creator',    tagClass: 'tag-api' },
+    { id: 'code',        name: 'Code Executor',       tagClass: 'tag-api' },
+    { id: 'sheets',      name: 'Spreadsheet API',     tagClass: 'tag-api' },
+    { id: 'siem',        name: 'SIEM Query',          tagClass: 'tag-api' },
+    { id: 'ticketing',   name: 'Ticketing System',    tagClass: 'tag-api' },
+    { id: 'scraper',     name: 'Web Scraper',         tagClass: 'tag-api' },
+    { id: 'pdfread',     name: 'PDF Reader',          tagClass: 'tag-api' }
+];
+
+const GUARDRAILS = [
+    { id: 'ratelimit',  name: 'Rate Limiter'       },
+    { id: 'human',      name: 'Human Approval'     },
+    { id: 'pii',        name: 'PII Filter'         },
+    { id: 'escalation', name: 'Escalation Path'    },
+    { id: 'killswitch', name: 'Kill Switch'        }
+];
+
+/* ----------------------------------------------------------------
+   SCENARIO DEFINITIONS
+   Each scenario specifies:
+     - idealBrain: id of preferred brain (power level used for scoring)
+     - minBrainPower: minimum acceptable brain power
+     - maxBrainPower: max (over this = wasteful)
+     - idealMemory: id of ideal memory
+     - requiredTools: must-have tool ids
+     - usefulTools: nice-to-have (small bonus)
+     - recommendedGuardrails: ids (bonus if included)
+     - timeLimit: seconds
+   ---------------------------------------------------------------- */
+const SCENARIOS = [
+    {
+        id: 1,
+        title: 'Auto-respond to meeting requests',
+        description: 'You need an agent that reads incoming emails, identifies meeting requests, and automatically sends polite acknowledgments with availability windows from the user\'s calendar.',
+        difficulty: 'simple',
+        idealBrain: 'gpt35',
+        minBrainPower: 1,
+        maxBrainPower: 2,
+        idealMemory: 'none',
+        requiredTools: ['email', 'calendar'],
+        usefulTools: [],
+        recommendedGuardrails: ['human'],
+        timeLimit: 75
+    },
+    {
+        id: 2,
+        title: 'Summarize daily news articles',
+        description: 'Build an agent that fetches the latest news on a given topic each morning, summarizes key points in bullet form, and emails a digest to a distribution list.',
+        difficulty: 'simple',
+        idealBrain: 'gpt35',
+        minBrainPower: 1,
+        maxBrainPower: 2,
+        idealMemory: 'none',
+        requiredTools: ['websearch', 'email'],
+        usefulTools: ['docs'],
+        recommendedGuardrails: [],
+        timeLimit: 75
+    },
+    {
+        id: 3,
+        title: 'Triage customer support tickets',
+        description: 'The agent must read incoming support tickets, classify them by priority and category, assign to the right team queue, and draft an initial response acknowledging the issue.',
+        difficulty: 'medium',
+        idealBrain: 'claude',
+        minBrainPower: 2,
+        maxBrainPower: 3,
+        idealMemory: 'short',
+        requiredTools: ['email', 'ticketing', 'db'],
+        usefulTools: ['slack'],
+        recommendedGuardrails: ['escalation'],
+        timeLimit: 90
+    },
+    {
+        id: 4,
+        title: 'Research competitor pricing weekly',
+        description: 'Deploy an agent that scrapes competitor product pages and public pricing tables, normalizes the data, and stores it in a spreadsheet for weekly review by the sales team.',
+        difficulty: 'medium',
+        idealBrain: 'gpt35',
+        minBrainPower: 1.5,
+        maxBrainPower: 2.5,
+        idealMemory: 'none',
+        requiredTools: ['scraper', 'sheets', 'websearch'],
+        usefulTools: ['docs'],
+        recommendedGuardrails: ['ratelimit'],
+        timeLimit: 90
+    },
+    {
+        id: 5,
+        title: 'Monitor social media mentions',
+        description: 'The agent watches brand mentions across platforms via API, classifies sentiment, flags negative or crisis-level posts for immediate review, and logs all mentions to a database.',
+        difficulty: 'medium',
+        idealBrain: 'claude',
+        minBrainPower: 2,
+        maxBrainPower: 3,
+        idealMemory: 'short',
+        requiredTools: ['websearch', 'db', 'slack'],
+        usefulTools: ['email'],
+        recommendedGuardrails: ['escalation', 'ratelimit'],
+        timeLimit: 90
+    },
+    {
+        id: 6,
+        title: 'Analyze phishing emails for SOC team',
+        description: 'The agent ingests forwarded suspicious emails, extracts headers, URLs, and attachments metadata, cross-references against threat intel, and outputs a structured triage report to the SOC queue.',
+        difficulty: 'complex',
+        idealBrain: 'claude',
+        minBrainPower: 2,
+        maxBrainPower: 3,
+        idealMemory: 'rag',
+        requiredTools: ['email', 'siem', 'ticketing'],
+        usefulTools: ['db', 'websearch'],
+        recommendedGuardrails: ['human', 'escalation'],
+        timeLimit: 120
+    },
+    {
+        id: 7,
+        title: 'Automate incident response runbooks',
+        description: 'When a SIEM alert fires, the agent executes a structured runbook: isolates affected endpoints via API calls, collects logs, creates an IR ticket, and notifies on-call via Slack — all autonomously.',
+        difficulty: 'complex',
+        idealBrain: 'gpt4',
+        minBrainPower: 2.5,
+        maxBrainPower: 3,
+        idealMemory: 'rag',
+        requiredTools: ['siem', 'ticketing', 'slack', 'code'],
+        usefulTools: ['db'],
+        recommendedGuardrails: ['human', 'killswitch', 'escalation'],
+        timeLimit: 120
+    },
+    {
+        id: 8,
+        title: 'Build quarterly business reports from data',
+        description: 'The agent pulls financial and operational data from multiple databases, runs calculations, generates charts via code execution, and assembles a polished Word/PDF report for leadership.',
+        difficulty: 'complex',
+        idealBrain: 'gpt4',
+        minBrainPower: 2.5,
+        maxBrainPower: 3,
+        idealMemory: 'full',
+        requiredTools: ['db', 'sheets', 'code', 'docs'],
+        usefulTools: ['pdfread'],
+        recommendedGuardrails: ['human'],
+        timeLimit: 120
+    },
+    {
+        id: 9,
+        title: 'Screen job applications for HR',
+        description: 'The agent reads resumes, scores candidates against a job description rubric, filters out unqualified applicants, and drafts personalized rejection or interview-invite emails. Fairness and privacy guardrails are critical.',
+        difficulty: 'complex',
+        idealBrain: 'claude',
+        minBrainPower: 2,
+        maxBrainPower: 3,
+        idealMemory: 'rag',
+        requiredTools: ['pdfread', 'email', 'db'],
+        usefulTools: ['docs'],
+        recommendedGuardrails: ['pii', 'human', 'escalation'],
+        timeLimit: 120
+    },
+    {
+        id: 10,
+        title: 'Full SOC Tier 1 Automation',
+        description: 'Expert level. The agent handles all Tier 1 alert triage: enriches indicators, correlates events across SIEM and ticketing, executes containment scripts, escalates true positives, and self-documents every action in the IR record.',
+        difficulty: 'expert',
+        idealBrain: 'gpt4',
+        minBrainPower: 3,
+        maxBrainPower: 3,
+        idealMemory: 'rag',
+        requiredTools: ['siem', 'ticketing', 'code', 'slack'],
+        usefulTools: ['db', 'email', 'docs'],
+        recommendedGuardrails: ['human', 'killswitch', 'escalation', 'ratelimit'],
+        timeLimit: 150
+    }
+];
+
+/* ================================================================
+   GAME ENGINE
+   ================================================================ */
+const Game = (() => {
+    // Mutable state
+    let state = {
+        scenarioIndex: 0,
+        totalScore: 0,
+        totalStars: 0,
+        streak: 0,
+        results: [],           // per-scenario result records
+        selectedBrain: null,
+        selectedMemory: null,
+        selectedTools: [],
+        selectedGuardrails: [],
+        timerInterval: null,
+        timerSeconds: 0,
+        timerMax: 0,
+        done: false
+    };
+
+    /* ---- internal helpers ---- */
+
+    function clampScore(v, min, max) {
+        return Math.max(min, Math.min(max, v));
+    }
+
+    /* Compute score for current selection against scenario spec */
+    function computeScore(scenario) {
+        const brain  = BRAINS.find(b => b.id === state.selectedBrain);
+        const memory = MEMORIES.find(m => m.id === state.selectedMemory);
+
+        let brainScore  = 0;
+        let memoryScore = 0;
+        let toolScore   = 0;
+        let guardBonus  = 0;
+        let timerBonus  = 0;
+
+        // --- Brain scoring ---
+        // Ideal: full 30 pts. Under-powered or over-powered: deductions.
+        if (brain) {
+            if (brain.id === scenario.idealBrain) {
+                brainScore = 30;
+            } else if (brain.power < scenario.minBrainPower) {
+                // Under-powered: major penalty
+                brainScore = 5;
+            } else if (brain.power > scenario.maxBrainPower) {
+                // Over-powered: wasteful
+                brainScore = 18;
+            } else {
+                // Acceptable but not ideal
+                brainScore = 22;
+            }
+        }
+
+        // --- Memory scoring ---
+        if (memory) {
+            if (memory.id === scenario.idealMemory) {
+                memoryScore = 20;
+            } else {
+                // Penalize by distance from ideal level
+                const idealLevel = MEMORIES.find(m => m.id === scenario.idealMemory).level;
+                const dist = Math.abs(memory.level - idealLevel);
+                memoryScore = Math.max(5, 20 - dist * 6);
+            }
+        }
+
+        // --- Tool scoring: 30 pts base ---
+        const required = scenario.requiredTools;
+        const useful   = scenario.usefulTools;
+        const selected = state.selectedTools;
+
+        const hitRequired = required.filter(t => selected.includes(t));
+        const missRequired = required.filter(t => !selected.includes(t));
+        const hitUseful   = useful.filter(t => selected.includes(t));
+        // Extra tools that are neither required nor useful = minor penalty per
+        const extraTools = selected.filter(t => !required.includes(t) && !useful.includes(t));
+
+        // Base: 30 pts divided by required count per tool, then scale
+        const perRequired = required.length > 0 ? 28 / required.length : 0;
+        toolScore += hitRequired.length * perRequired;
+        toolScore += hitUseful.length * 2;
+        toolScore -= missRequired.length * (perRequired * 0.7);   // missing = penalty
+        toolScore -= extraTools.length * 2;                       // unnecessary = small penalty
+        toolScore = clampScore(Math.round(toolScore), 0, 30);
+
+        // --- Guardrail bonus: up to 20 pts ---
+        const recommended = scenario.recommendedGuardrails;
+        if (recommended.length > 0) {
+            const hitGuard = recommended.filter(g => state.selectedGuardrails.includes(g));
+            guardBonus = Math.round((hitGuard.length / recommended.length) * 20);
+        } else if (state.selectedGuardrails.length === 0) {
+            // None recommended and none added = fine
+            guardBonus = 10;
+        } else {
+            // Guardrails added when none needed: neutral
+            guardBonus = 10;
+        }
+
+        // --- Timer bonus: up to 20 pts ---
+        const elapsed = scenario.timeLimit - state.timerSeconds;
+        const pct = elapsed / scenario.timeLimit;
+        if (pct < 0.3) {
+            timerBonus = 20;
+        } else if (pct < 0.6) {
+            timerBonus = 12;
+        } else if (pct < 0.85) {
+            timerBonus = 5;
+        } else {
+            timerBonus = 0;
+        }
+
+        const raw = brainScore + memoryScore + toolScore + guardBonus + timerBonus;
+        const total = clampScore(raw, 0, 100);
+
+        // Stars: 3 = 85+, 2 = 60+, 1 = any
+        const stars = total >= 85 ? 3 : total >= 60 ? 2 : 1;
+
+        return {
+            total,
+            stars,
+            brainScore,
+            memoryScore,
+            toolScore,
+            guardBonus,
+            timerBonus,
+            hitRequired,
+            missRequired,
+            extraTools,
+            recommended,
+            hitGuard: recommended.filter(g => state.selectedGuardrails.includes(g))
+        };
+    }
+
+    /* Generate human-readable feedback */
+    function buildFeedback(scenario, result) {
+        const lines = [];
+
+        // Brain
+        const brain = BRAINS.find(b => b.id === state.selectedBrain);
+        if (brain.id === scenario.idealBrain) {
+            lines.push(`Correct brain selection. ${brain.name} is well-matched to this task's complexity.`);
+        } else if (brain.power < scenario.minBrainPower) {
+            const ideal = BRAINS.find(b => b.id === scenario.idealBrain);
+            lines.push(`Under-powered brain. ${brain.name} lacks the reasoning depth this task needs. ${ideal.name} would have been better.`);
+        } else if (brain.power > scenario.maxBrainPower) {
+            const ideal = BRAINS.find(b => b.id === scenario.idealBrain);
+            lines.push(`Brain over-spec'd. ${brain.name} works, but is more expensive than needed. ${ideal.name} is the cost-efficient choice here.`);
+        }
+
+        // Tools
+        if (result.missRequired.length > 0) {
+            const names = result.missRequired.map(t => TOOLS.find(x => x.id === t).name).join(', ');
+            lines.push(`Missing critical tools: ${names}. These are required for the agent to function.`);
+        }
+        if (result.extraTools.length > 0 && result.extraTools.length > 1) {
+            lines.push(`${result.extraTools.length} unnecessary tools selected. Keep agents lean — unused integrations add attack surface.`);
+        }
+
+        // Guardrails
+        const rec = scenario.recommendedGuardrails;
+        const missed = rec.filter(g => !state.selectedGuardrails.includes(g));
+        if (missed.length > 0) {
+            const names = missed.map(g => GUARDRAILS.find(x => x.id === g).name).join(', ');
+            lines.push(`Recommended guardrails not added: ${names}. This agent operates without proper oversight controls.`);
+        }
+        if (result.hitGuard.length === rec.length && rec.length > 0) {
+            lines.push('All recommended guardrails in place. Well-governed agent design.');
+        }
+
+        return lines.join(' ');
+    }
+
+    /* ---- Render functions ---- */
+
+    function renderProgressRow() {
+        const row = document.getElementById('progress-row');
+        row.innerHTML = '';
+        SCENARIOS.forEach((s, i) => {
+            if (i > 0) {
+                const conn = document.createElement('div');
+                conn.className = 'progress-connector';
+                row.appendChild(conn);
+            }
+            const dot = document.createElement('div');
+            const result = state.results[i];
+            if (result) {
+                dot.className = `progress-dot done-${result.stars}`;
+                dot.textContent = '★'.repeat(result.stars);
+            } else if (i === state.scenarioIndex && !state.done) {
+                dot.className = 'progress-dot current';
+                dot.textContent = i + 1;
+            } else {
+                dot.className = 'progress-dot';
+                dot.textContent = i + 1;
+            }
+            dot.title = `Scenario ${i + 1}: ${s.title}`;
+            row.appendChild(dot);
+        });
+
+        // Total score chip
+        const chip = document.createElement('div');
+        chip.className = 'total-score-chip';
+        chip.id = 'total-score-chip';
+        chip.textContent = `${state.totalScore} pts`;
+        row.appendChild(chip);
+    }
+
+    function renderBrainOptions() {
+        const container = document.getElementById('brain-options');
+        container.innerHTML = '';
+        BRAINS.forEach(brain => {
+            const card = document.createElement('div');
+            card.className = 'option-card';
+            card.dataset.id = brain.id;
+            card.innerHTML = `
+                <div class="option-name">${brain.name}</div>
+                <span class="option-tag ${brain.tagClass}">${brain.tagLabel}</span>
+                <div class="option-desc">${brain.desc}</div>
+            `;
+            card.addEventListener('click', () => {
+                state.selectedBrain = brain.id;
+                document.querySelectorAll('#brain-options .option-card').forEach(c => c.classList.remove('selected'));
+                card.classList.add('selected');
+                validateSubmit();
+            });
+            container.appendChild(card);
+        });
+    }
+
+    function renderMemoryOptions() {
+        const container = document.getElementById('memory-options');
+        container.innerHTML = '';
+        MEMORIES.forEach(mem => {
+            const card = document.createElement('div');
+            card.className = 'option-card';
+            card.dataset.id = mem.id;
+            card.innerHTML = `
+                <div class="option-name">${mem.name}</div>
+                <span class="option-tag ${mem.tagClass}">${mem.tagLabel}</span>
+                <div class="option-desc">${mem.desc}</div>
+            `;
+            card.addEventListener('click', () => {
+                state.selectedMemory = mem.id;
+                document.querySelectorAll('#memory-options .option-card').forEach(c => c.classList.remove('selected'));
+                card.classList.add('selected');
+                validateSubmit();
+            });
+            container.appendChild(card);
+        });
+    }
+
+    function renderToolOptions() {
+        const container = document.getElementById('tools-options');
+        container.innerHTML = '';
+        TOOLS.forEach(tool => {
+            const chip = document.createElement('div');
+            chip.className = 'tool-chip';
+            chip.dataset.id = tool.id;
+            chip.textContent = tool.name;
+            chip.addEventListener('click', () => {
+                const idx = state.selectedTools.indexOf(tool.id);
+                if (idx > -1) {
+                    state.selectedTools.splice(idx, 1);
+                    chip.classList.remove('selected');
+                } else if (state.selectedTools.length < 4) {
+                    state.selectedTools.push(tool.id);
+                    chip.classList.add('selected');
+                }
+                document.getElementById('tools-note').textContent =
+                    `${state.selectedTools.length}/4 tools selected. (Min: 2, Max: 4)`;
+                validateSubmit();
+            });
+            container.appendChild(chip);
+        });
+    }
+
+    function renderGuardrailOptions() {
+        const container = document.getElementById('guardrail-options');
+        container.innerHTML = '';
+        GUARDRAILS.forEach(g => {
+            const chip = document.createElement('div');
+            chip.className = 'guardrail-chip';
+            chip.dataset.id = g.id;
+            chip.textContent = g.name;
+            chip.addEventListener('click', () => {
+                const idx = state.selectedGuardrails.indexOf(g.id);
+                if (idx > -1) {
+                    state.selectedGuardrails.splice(idx, 1);
+                    chip.classList.remove('selected');
+                } else {
+                    state.selectedGuardrails.push(g.id);
+                    chip.classList.add('selected');
+                }
+            });
+            container.appendChild(chip);
+        });
+    }
+
+    function renderScenario(scenario) {
+        // Metadata
+        document.getElementById('scn-num').textContent = `SCENARIO ${scenario.id} / ${SCENARIOS.length}`;
+        document.getElementById('scn-title').textContent = scenario.title;
+        document.getElementById('scn-desc').textContent  = scenario.description;
+
+        const diffEl = document.getElementById('scn-diff');
+        diffEl.textContent = scenario.difficulty.toUpperCase();
+        diffEl.className = `difficulty-badge diff-${scenario.difficulty}`;
+
+        // Reset selection state
+        state.selectedBrain     = null;
+        state.selectedMemory    = null;
+        state.selectedTools     = [];
+        state.selectedGuardrails = [];
+
+        // Clear UI selections without re-rendering everything
+        document.querySelectorAll('.option-card').forEach(c => c.classList.remove('selected'));
+        document.querySelectorAll('.tool-chip, .guardrail-chip').forEach(c => c.classList.remove('selected'));
+        document.getElementById('tools-note').textContent = 'Select 2 to 4 tools for this agent.';
+
+        document.getElementById('btn-submit').disabled = true;
+        document.getElementById('validation-hint').textContent = '';
+        document.getElementById('validation-hint').classList.remove('error');
+
+        startTimer(scenario.timeLimit);
+        renderProgressRow();
+    }
+
+    function validateSubmit() {
+        const hint = document.getElementById('validation-hint');
+        const btn  = document.getElementById('btn-submit');
+
+        if (!state.selectedBrain) {
+            hint.textContent = 'Select a Brain first.';
+            hint.classList.add('error');
+            btn.disabled = true;
+            return;
+        }
+        if (!state.selectedMemory) {
+            hint.textContent = 'Select a Memory type.';
+            hint.classList.add('error');
+            btn.disabled = true;
+            return;
+        }
+        if (state.selectedTools.length < 2) {
+            hint.textContent = `Select at least 2 tools (${state.selectedTools.length}/2 chosen).`;
+            hint.classList.add('error');
+            btn.disabled = true;
+            return;
+        }
+        hint.textContent = 'Agent config complete. Ready to deploy.';
+        hint.classList.remove('error');
+        btn.disabled = false;
+    }
+
+    /* ---- Timer ---- */
+
+    function startTimer(seconds) {
+        clearInterval(state.timerInterval);
+        state.timerSeconds = seconds;
+        state.timerMax     = seconds;
+        updateTimerDisplay();
+        state.timerInterval = setInterval(() => {
+            state.timerSeconds--;
+            if (state.timerSeconds <= 0) {
+                state.timerSeconds = 0;
+                clearInterval(state.timerInterval);
+                // Auto-submit if valid, else penalize
+                if (!document.getElementById('btn-submit').disabled) {
+                    submitAnswer();
+                } else {
+                    // Force a zero-score submission
+                    showScoreOverlay({ total: 0, stars: 1, brainScore: 0, memoryScore: 0, toolScore: 0, guardBonus: 0, timerBonus: 0, hitRequired: [], missRequired: [], extraTools: [], recommended: [], hitGuard: [] }, true);
+                }
+            }
+            updateTimerDisplay();
+        }, 1000);
+    }
+
+    function updateTimerDisplay() {
+        const s = state.timerSeconds;
+        const m = Math.floor(s / 60);
+        const sec = s % 60;
+        document.getElementById('timer-display').textContent = `${m}:${sec.toString().padStart(2,'0')}`;
+
+        const pct = (s / state.timerMax) * 100;
+        const fill = document.getElementById('timer-fill');
+        fill.style.width = pct + '%';
+
+        // Color shift as time runs low
+        if (pct < 25) {
+            fill.style.background = 'linear-gradient(90deg, #ef4444, #f97316)';
+        } else if (pct < 50) {
+            fill.style.background = 'linear-gradient(90deg, #f59e0b, #fbbf24)';
+        } else {
+            fill.style.background = 'linear-gradient(90deg, #7c3aed, #a855f7)';
+        }
+    }
+
+    /* ---- Score overlay ---- */
+
+    function showScoreOverlay(result, timedOut = false) {
+        clearInterval(state.timerInterval);
+
+        // Store result
+        state.results[state.scenarioIndex] = result;
+        state.totalScore  += result.total;
+        state.totalStars  += result.stars;
+
+        // Streak logic
+        if (result.stars === 3) {
+            state.streak++;
+        } else {
+            state.streak = 0;
+        }
+
+        // Streak bonus: 3 consecutive 3-stars = +25
+        let streakBonus = 0;
+        if (state.streak > 0 && state.streak % 3 === 0) {
+            streakBonus = 25;
+            state.totalScore += streakBonus;
+        }
+
+        // Update HUD
+        document.getElementById('hud-score').textContent  = state.totalScore;
+        document.getElementById('hud-stars').textContent  = state.totalStars;
+        document.getElementById('hud-streak').textContent = state.streak;
+
+        // Fill overlay content
+        document.getElementById('overlay-stars').textContent  = '★'.repeat(result.stars) + '☆'.repeat(3 - result.stars);
+        document.getElementById('overlay-points').textContent = result.total;
+
+        const breakdown = document.getElementById('overlay-breakdown');
+        const rows = [
+            { label: 'Brain selection',  val: result.brainScore,  max: 30 },
+            { label: 'Memory type',      val: result.memoryScore, max: 20 },
+            { label: 'Tools selection',  val: result.toolScore,   max: 30 },
+            { label: 'Guardrails',       val: result.guardBonus,  max: 20 },
+            { label: 'Speed bonus',      val: result.timerBonus,  max: 20 }
+        ];
+        breakdown.innerHTML = rows.map(r => {
+            const cls = r.val >= r.max * 0.8 ? 'pos' : r.val >= r.max * 0.4 ? 'neu' : 'neg';
+            return `<div class="breakdown-row"><span>${r.label}</span><span class="val ${cls}">${r.val} / ${r.max}</span></div>`;
+        }).join('');
+
+        // Streak banner
+        const streakBanner = document.getElementById('streak-banner');
+        if (streakBonus > 0) {
+            streakBanner.classList.add('visible');
+        } else {
+            streakBanner.classList.remove('visible');
+        }
+
+        // Feedback
+        const scenario = SCENARIOS[state.scenarioIndex];
+        const feedbackText = timedOut
+            ? 'Time expired. Agent deployment aborted. Review the scenario requirements and rebuild.'
+            : buildFeedback(scenario, result);
+        document.getElementById('overlay-feedback').textContent = feedbackText;
+
+        // Change next button label for last scenario
+        const btnNext = document.getElementById('btn-next');
+        if (state.scenarioIndex >= SCENARIOS.length - 1) {
+            btnNext.textContent = 'View Final Score';
+        } else {
+            btnNext.textContent = 'Next Scenario';
+        }
+
+        // Show overlay
+        document.getElementById('score-overlay').classList.add('visible');
+    }
+
+    /* ---- Public API ---- */
+
+    function submitAnswer() {
+        if (document.getElementById('btn-submit').disabled) return;
+        const scenario = SCENARIOS[state.scenarioIndex];
+        const result = computeScore(scenario);
+        showScoreOverlay(result, false);
+    }
+
+    function skipScenario() {
+        // Skip scores 0 points for the scenario
+        showScoreOverlay({ total: 0, stars: 1, brainScore: 0, memoryScore: 0, toolScore: 0, guardBonus: 0, timerBonus: 0, hitRequired: [], missRequired: SCENARIOS[state.scenarioIndex].requiredTools, extraTools: [], recommended: SCENARIOS[state.scenarioIndex].recommendedGuardrails, hitGuard: [] }, false);
+    }
+
+    function nextScenario() {
+        document.getElementById('score-overlay').classList.remove('visible');
+        state.scenarioIndex++;
+        if (state.scenarioIndex >= SCENARIOS.length) {
+            showCompletion();
+        } else {
+            renderScenario(SCENARIOS[state.scenarioIndex]);
+        }
+    }
+
+    function showCompletion() {
+        state.done = true;
+        renderProgressRow();
+
+        // Hide game elements
+        document.getElementById('scenario-card').classList.add('hidden');
+        document.getElementById('components-grid').classList.add('hidden');
+        document.getElementById('actions-row') && (document.querySelector('.actions-row').classList.add('hidden'));
+
+        // Grade logic
+        const maxPossible = SCENARIOS.length * 100;
+        const pct = state.totalScore / maxPossible;
+        let grade;
+        if (pct >= 0.92)      grade = 'S — ARCHITECT';
+        else if (pct >= 0.80) grade = 'A — EXPERT';
+        else if (pct >= 0.65) grade = 'B — PROFICIENT';
+        else if (pct >= 0.50) grade = 'C — DEVELOPING';
+        else                  grade = 'D — NEEDS REVIEW';
+
+        document.getElementById('final-grade').textContent = grade;
+
+        // Star summary
+        const threeStars = state.results.filter(r => r && r.stars === 3).length;
+        const twoStars   = state.results.filter(r => r && r.stars === 2).length;
+        const oneStars   = state.results.filter(r => r && r.stars === 1).length;
+
+        document.getElementById('final-stats').innerHTML = `
+            <div class="final-stat">
+                <div class="final-stat-val">${state.totalScore}</div>
+                <div class="final-stat-label">TOTAL POINTS</div>
+            </div>
+            <div class="final-stat">
+                <div class="final-stat-val">${state.totalStars}</div>
+                <div class="final-stat-label">STARS EARNED</div>
+            </div>
+            <div class="final-stat">
+                <div class="final-stat-val">${threeStars}</div>
+                <div class="final-stat-label">3-STAR RUNS</div>
+            </div>
+            <div class="final-stat">
+                <div class="final-stat-val">${Math.round(pct * 100)}%</div>
+                <div class="final-stat-label">ACCURACY</div>
+            </div>
+        `;
+
+        document.getElementById('completion-screen').classList.add('visible');
+
+        // Fire ModuleProgress completion
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('ai', 'ai-agent-builder', { returnUrl: '../index.html' });
+        }
+    }
+
+    function playAgain() {
+        // Reset state
+        state = {
+            scenarioIndex: 0,
+            totalScore: 0,
+            totalStars: 0,
+            streak: 0,
+            results: [],
+            selectedBrain: null,
+            selectedMemory: null,
+            selectedTools: [],
+            selectedGuardrails: [],
+            timerInterval: null,
+            timerSeconds: 0,
+            timerMax: 0,
+            done: false
+        };
+
+        document.getElementById('hud-score').textContent  = 0;
+        document.getElementById('hud-stars').textContent  = 0;
+        document.getElementById('hud-streak').textContent = 0;
+        document.getElementById('completion-screen').classList.remove('visible');
+        document.getElementById('scenario-card').classList.remove('hidden');
+        document.getElementById('components-grid').classList.remove('hidden');
+        document.querySelector('.actions-row').classList.remove('hidden');
+
+        renderScenario(SCENARIOS[0]);
+    }
+
+    function init() {
+        renderBrainOptions();
+        renderMemoryOptions();
+        renderToolOptions();
+        renderGuardrailOptions();
+        renderProgressRow();
+        renderScenario(SCENARIOS[0]);
+    }
+
+    return { init, submitAnswer, skipScenario, nextScenario, playAgain };
+})();
+
+/* ================================================================
+   PARTICLE CANVAS — ambient background effect
+   ================================================================ */
+(function initParticles() {
+    const canvas = document.getElementById('particle-canvas');
+    const ctx = canvas.getContext('2d');
+    let particles = [];
+
+    function resize() {
+        canvas.width  = window.innerWidth;
+        canvas.height = window.innerHeight;
+    }
+
+    function spawnParticle() {
+        return {
+            x:    Math.random() * canvas.width,
+            y:    Math.random() * canvas.height,
+            r:    Math.random() * 1.4 + 0.3,
+            dx:   (Math.random() - 0.5) * 0.3,
+            dy:   (Math.random() - 0.5) * 0.3,
+            a:    Math.random() * 0.5 + 0.1
+        };
+    }
+
+    function initParticlePool() {
+        particles = [];
+        const count = Math.floor((canvas.width * canvas.height) / 12000);
+        for (let i = 0; i < count; i++) particles.push(spawnParticle());
+    }
+
+    function tick() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        particles.forEach(p => {
+            p.x += p.dx;
+            p.y += p.dy;
+            if (p.x < 0) p.x = canvas.width;
+            if (p.x > canvas.width)  p.x = 0;
+            if (p.y < 0) p.y = canvas.height;
+            if (p.y > canvas.height) p.y = 0;
+
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+            ctx.fillStyle = `rgba(168,85,247,${p.a})`;
+            ctx.fill();
+        });
+        requestAnimationFrame(tick);
+    }
+
+    resize();
+    initParticlePool();
+    tick();
+    window.addEventListener('resize', () => { resize(); initParticlePool(); });
+})();
+
+/* ================================================================
+   BOOT
+   ================================================================ */
+window.addEventListener('DOMContentLoaded', () => {
+    Game.init();
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,1681 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control — must load and evaluate before anything else renders -->
+    <script src="../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <!-- Module progress tracking -->
+    <script src="../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Prompt Engineering for Agents - House of the Machine</title>
+    <style>
+        /* ─── Design tokens ──────────────────────────────────────── */
+        :root {
+            --primary:      #a855f7;
+            --secondary:    #7c3aed;
+            --glow:         rgba(168, 85, 247, 0.35);
+            --glow-sm:      rgba(168, 85, 247, 0.15);
+            --bg:           #0a0e1a;
+            --bg-card:      rgba(13, 14, 30, 0.95);
+            --bg-panel:     rgba(168, 85, 247, 0.06);
+            --border:       rgba(168, 85, 247, 0.22);
+            --border-soft:  rgba(168, 85, 247, 0.10);
+            --text:         #e2e8f0;
+            --muted:        #8892a4;
+            --success:      #22c55e;
+            --warning:      #f59e0b;
+            --danger:       #ef4444;
+        }
+
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            overflow-x: hidden;
+            line-height: 1.65;
+        }
+
+        /* Subtle ambient glow in top-left */
+        body::before {
+            content: '';
+            position: fixed;
+            top: -15%;
+            left: -8%;
+            width: 55%;
+            height: 55%;
+            background: radial-gradient(ellipse, rgba(168,85,247,0.06) 0%, transparent 70%);
+            pointer-events: none;
+            animation: ambientPulse 9s ease-in-out infinite alternate;
+        }
+        @keyframes ambientPulse {
+            from { opacity: 0.5; transform: scale(1); }
+            to   { opacity: 1;   transform: scale(1.08); }
+        }
+
+        /* ─── Sticky header ──────────────────────────────────────── */
+        .site-header {
+            position: sticky;
+            top: 0;
+            z-index: 200;
+            background: rgba(10, 14, 26, 0.97);
+            border-bottom: 1px solid var(--border);
+            backdrop-filter: blur(12px);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 28px;
+            height: 56px;
+        }
+        .header-left { display: flex; align-items: center; gap: 14px; }
+        .back-btn {
+            width: 34px; height: 34px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            background: transparent;
+            color: var(--primary);
+            cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 1.1rem;
+            text-decoration: none;
+            transition: background 0.2s, border-color 0.2s;
+        }
+        .back-btn:hover { background: var(--glow-sm); border-color: var(--primary); }
+        .breadcrumb {
+            font-size: 0.78rem; color: var(--muted);
+            display: flex; align-items: center; gap: 6px;
+        }
+        .breadcrumb a { color: var(--primary); text-decoration: none; }
+        .breadcrumb a:hover { text-decoration: underline; }
+        .house-badge {
+            font-size: 0.68rem; letter-spacing: 0.09em;
+            text-transform: uppercase; padding: 3px 11px;
+            background: var(--glow-sm); border: 1px solid var(--border);
+            border-radius: 20px; color: var(--primary);
+        }
+
+        /* ─── Scroll progress bar ────────────────────────────────── */
+        .progress-bar-wrap { height: 3px; background: rgba(255,255,255,0.06); }
+        .progress-bar-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--secondary), var(--primary));
+            width: 0%; transition: width 0.4s ease;
+            box-shadow: 0 0 8px var(--glow);
+        }
+        .progress-label {
+            text-align: center; font-size: 0.72rem;
+            color: var(--muted); padding: 5px 0 0;
+        }
+
+        /* ─── Main layout ────────────────────────────────────────── */
+        .main {
+            max-width: 880px;
+            margin: 0 auto;
+            padding: 40px 24px 100px;
+        }
+
+        /* ─── Module hero ────────────────────────────────────────── */
+        .module-hero {
+            text-align: center;
+            margin-bottom: 52px;
+        }
+        .module-hero .hero-icon {
+            font-size: 3rem; margin-bottom: 16px; display: block;
+            animation: floatIcon 4s ease-in-out infinite;
+        }
+        @keyframes floatIcon {
+            0%, 100% { transform: translateY(0); }
+            50%       { transform: translateY(-8px); }
+        }
+        .module-hero h1 {
+            font-size: 2rem; font-weight: 700;
+            background: linear-gradient(135deg, #fff 30%, var(--primary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 10px;
+        }
+        .module-hero p { color: var(--muted); font-size: 1.05rem; max-width: 540px; margin: 0 auto; }
+
+        /* ─── Content section card ───────────────────────────────── */
+        .content-section {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 30px 32px;
+            margin-bottom: 30px;
+            position: relative;
+            overflow: hidden;
+        }
+        .content-section::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0;
+            width: 4px; height: 100%;
+            background: linear-gradient(180deg, var(--primary), var(--secondary));
+            border-radius: 4px 0 0 4px;
+        }
+        .section-label {
+            font-size: 0.68rem; letter-spacing: 0.12em;
+            text-transform: uppercase; color: var(--primary);
+            margin-bottom: 8px; font-weight: 600;
+        }
+        .section-title {
+            font-size: 1.3rem; font-weight: 700;
+            color: #fff; margin-bottom: 14px;
+        }
+        .section-body { color: var(--text); font-size: 0.97rem; }
+        .section-body p { margin-bottom: 12px; }
+        .section-body strong { color: #fff; }
+        .section-body em { color: var(--primary); font-style: normal; font-weight: 600; }
+
+        /* ─── Comparison two-column grid ─────────────────────────── */
+        .two-col {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            margin-top: 18px;
+        }
+        .compare-card {
+            background: var(--bg-panel);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 18px 20px;
+        }
+        .compare-card .compare-title {
+            font-size: 0.88rem; font-weight: 700;
+            color: var(--primary); margin-bottom: 10px;
+            display: flex; align-items: center; gap: 8px;
+        }
+        .compare-card ul { list-style: none; }
+        .compare-card ul li {
+            font-size: 0.86rem; color: var(--muted);
+            padding: 5px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.04);
+            display: flex; align-items: flex-start; gap: 7px;
+        }
+        .compare-card ul li:last-child { border-bottom: none; }
+        .compare-card ul li::before { content: '▸'; color: var(--primary); flex-shrink: 0; }
+
+        /* ─── Info callout box ───────────────────────────────────── */
+        .callout {
+            background: linear-gradient(135deg, rgba(168,85,247,0.1), rgba(124,58,237,0.07));
+            border: 1px solid rgba(168,85,247,0.3);
+            border-radius: 10px;
+            padding: 18px 22px;
+            margin-top: 18px;
+            font-size: 0.92rem;
+            color: #d8b4fe;
+        }
+        .callout strong { color: #fff; }
+
+        /* ─── Numbered step list ─────────────────────────────────── */
+        .step-list { list-style: none; margin-top: 16px; }
+        .step-list li {
+            display: flex; align-items: flex-start;
+            gap: 14px; padding: 12px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.04);
+        }
+        .step-list li:last-child { border-bottom: none; }
+        .step-num {
+            width: 26px; height: 26px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--secondary), var(--primary));
+            color: #fff; font-size: 0.8rem; font-weight: 700;
+            display: flex; align-items: center; justify-content: center;
+            flex-shrink: 0; margin-top: 1px;
+        }
+        .step-content .step-title { font-size: 0.92rem; font-weight: 700; color: #fff; margin-bottom: 4px; }
+        .step-content .step-desc  { font-size: 0.84rem; color: var(--muted); }
+
+        /* ─── Code block ─────────────────────────────────────────── */
+        .code-block {
+            background: rgba(0, 0, 0, 0.5);
+            border: 1px solid rgba(168,85,247,0.2);
+            border-radius: 8px;
+            padding: 16px 18px;
+            font-family: 'Cascadia Code', 'Fira Code', 'Courier New', monospace;
+            font-size: 0.82rem;
+            color: #c4b5fd;
+            line-height: 1.8;
+            overflow-x: auto;
+            margin-top: 14px;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+        .code-block .cm { color: var(--muted); font-style: italic; }
+        .code-block .ck { color: #93c5fd; }
+        .code-block .cv { color: #86efac; }
+
+        /* ─── Pill tags ──────────────────────────────────────────── */
+        .pill-row { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 12px; }
+        .pill {
+            display: inline-block; font-size: 0.75rem; font-weight: 600;
+            padding: 3px 11px; border-radius: 99px; border: 1px solid;
+        }
+        .pill-purple { background: rgba(168,85,247,0.15); border-color: rgba(168,85,247,0.4); color: #c084fc; }
+        .pill-blue   { background: rgba(96,165,250,0.12); border-color: rgba(96,165,250,0.35); color: #93c5fd; }
+        .pill-green  { background: rgba(34,197,94,0.12);  border-color: rgba(34,197,94,0.35);  color: #86efac; }
+        .pill-amber  { background: rgba(245,158,11,0.12); border-color: rgba(245,158,11,0.35); color: #fcd34d; }
+        .pill-red    { background: rgba(239,68,68,0.12);  border-color: rgba(239,68,68,0.35);  color: #fca5a5; }
+
+        /* ─── Exercise badge + header ─────────────────────────────── */
+        .exercise-header {
+            display: flex; align-items: center;
+            gap: 12px; margin-bottom: 18px;
+        }
+        .exercise-badge {
+            font-size: 0.68rem; font-weight: 700;
+            letter-spacing: 0.1em; text-transform: uppercase;
+            padding: 4px 12px;
+            background: rgba(168,85,247,0.15);
+            border: 1px solid var(--primary);
+            border-radius: 20px; color: var(--primary);
+        }
+        .exercise-title { font-size: 1.2rem; font-weight: 700; color: #fff; }
+        .exercise-subtitle { font-size: 0.88rem; color: var(--muted); margin-bottom: 20px; }
+
+        /* ─── Prompt Workshop ────────────────────────────────────── */
+        /* Stage progress pills at the top of the workshop */
+        .stage-progress {
+            display: flex; gap: 8px; flex-wrap: wrap;
+            margin-bottom: 22px;
+        }
+        .stage-pip {
+            display: flex; align-items: center; gap: 6px;
+            font-size: 0.76rem; font-weight: 600;
+            padding: 5px 12px; border-radius: 20px;
+            border: 1px solid var(--border);
+            color: var(--muted);
+            cursor: default;
+            transition: all 0.25s;
+        }
+        .stage-pip.done     { border-color: var(--success); color: var(--success); background: rgba(34,197,94,0.08); }
+        .stage-pip.current  { border-color: var(--primary); color: var(--primary); background: var(--glow-sm); }
+        .stage-pip .pip-check { font-size: 0.9rem; display: none; }
+        .stage-pip.done .pip-check { display: inline; }
+
+        /* The split before/after layout */
+        .workshop-split {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+        .ws-panel {
+            background: rgba(0,0,0,0.35);
+            border: 1px solid var(--border-soft);
+            border-radius: 10px;
+            padding: 16px 18px;
+        }
+        .ws-panel-label {
+            font-size: 0.7rem; font-weight: 700;
+            letter-spacing: 0.12em; text-transform: uppercase;
+            margin-bottom: 10px;
+        }
+        .ws-panel-label.bad   { color: var(--danger); }
+        .ws-panel-label.good  { color: var(--success); }
+        .ws-prompt-text {
+            font-family: 'Cascadia Code', 'Fira Code', 'Courier New', monospace;
+            font-size: 0.81rem; color: #c4b5fd;
+            line-height: 1.85; white-space: pre-wrap;
+            word-break: break-word; min-height: 160px;
+        }
+        .ws-prompt-text .highlight-add {
+            background: rgba(34,197,94,0.15);
+            border-left: 3px solid var(--success);
+            padding: 2px 6px;
+            border-radius: 0 4px 4px 0;
+            display: block;
+            margin: 2px 0;
+            color: #86efac;
+        }
+
+        /* Stage instruction card */
+        .stage-instruction {
+            background: var(--bg-panel);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 18px 20px;
+            margin-bottom: 18px;
+            animation: fadeIn 0.3s ease;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-6px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        .stage-instruction .inst-num {
+            font-size: 0.7rem; font-weight: 700;
+            letter-spacing: 0.1em; text-transform: uppercase;
+            color: var(--primary); margin-bottom: 6px;
+        }
+        .stage-instruction .inst-title {
+            font-size: 1rem; font-weight: 700;
+            color: #fff; margin-bottom: 8px;
+        }
+        .stage-instruction .inst-body {
+            font-size: 0.88rem; color: var(--muted);
+            margin-bottom: 12px;
+        }
+        .stage-instruction .inst-tip {
+            font-size: 0.82rem; color: var(--warning);
+            background: rgba(245,158,11,0.08);
+            border: 1px solid rgba(245,158,11,0.2);
+            border-radius: 6px; padding: 8px 12px;
+        }
+
+        /* Score dimension badges */
+        .score-row {
+            display: flex; gap: 10px; flex-wrap: wrap;
+            margin-top: 16px;
+        }
+        .score-dim {
+            display: flex; flex-direction: column;
+            align-items: center; gap: 4px;
+            background: var(--bg-panel);
+            border: 1px solid var(--border-soft);
+            border-radius: 8px;
+            padding: 10px 14px; min-width: 90px;
+            transition: border-color 0.3s;
+        }
+        .score-dim.unlocked { border-color: var(--success); }
+        .score-dim .dim-label {
+            font-size: 0.68rem; color: var(--muted);
+            text-transform: uppercase; letter-spacing: 0.08em; font-weight: 600;
+        }
+        .score-dim .dim-value {
+            font-size: 1.4rem; font-weight: 800; color: var(--muted);
+            transition: color 0.3s;
+        }
+        .score-dim.unlocked .dim-value { color: var(--success); }
+        .score-dim .dim-bar {
+            width: 60px; height: 4px;
+            background: rgba(255,255,255,0.07);
+            border-radius: 99px; overflow: hidden;
+        }
+        .score-dim .dim-bar-fill {
+            height: 100%; width: 0%;
+            background: var(--success);
+            border-radius: 99px;
+            transition: width 0.5s ease;
+        }
+
+        /* ─── Template Gallery ───────────────────────────────────── */
+        .template-tabs {
+            display: flex; gap: 8px; flex-wrap: wrap;
+            margin-bottom: 18px;
+        }
+        .tmpl-tab {
+            padding: 7px 16px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            background: transparent;
+            color: var(--muted);
+            cursor: pointer;
+            font-size: 0.84rem; font-weight: 600;
+            transition: all 0.2s;
+        }
+        .tmpl-tab:hover { border-color: var(--primary); color: var(--primary); }
+        .tmpl-tab.active {
+            background: var(--glow-sm);
+            border-color: var(--primary);
+            color: var(--primary);
+        }
+
+        .template-panel { display: none; animation: fadeIn 0.3s ease; }
+        .template-panel.active { display: block; }
+
+        .tmpl-desc {
+            font-size: 0.88rem; color: var(--muted);
+            padding: 10px 14px;
+            background: rgba(0,0,0,0.25);
+            border-left: 3px solid var(--secondary);
+            border-radius: 0 6px 6px 0;
+            margin-bottom: 14px;
+        }
+
+        /* Fill-in-the-blank prompt display */
+        .tmpl-prompt {
+            background: rgba(0,0,0,0.5);
+            border: 1px solid rgba(168,85,247,0.2);
+            border-radius: 8px;
+            padding: 18px 20px;
+            font-family: 'Cascadia Code', 'Fira Code', 'Courier New', monospace;
+            font-size: 0.81rem;
+            color: #c4b5fd;
+            line-height: 1.9;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+        .tmpl-blank {
+            color: var(--warning);
+            background: rgba(245,158,11,0.12);
+            border: 1px dashed rgba(245,158,11,0.35);
+            border-radius: 4px;
+            padding: 1px 6px;
+            font-style: italic;
+        }
+        .tmpl-section-header {
+            color: #93c5fd;
+            font-weight: 700;
+        }
+        .tmpl-comment {
+            color: var(--muted);
+            font-style: italic;
+        }
+
+        /* ─── Quiz section ───────────────────────────────────────── */
+        .quiz-intro {
+            font-size: 0.91rem; color: var(--muted);
+            margin-bottom: 22px;
+        }
+        .quiz-question {
+            background: var(--bg-panel);
+            border: 1px solid var(--border-soft);
+            border-radius: 10px;
+            padding: 20px 22px;
+            margin-bottom: 14px;
+        }
+        .q-num {
+            font-size: 0.72rem; font-weight: 700;
+            color: var(--primary); letter-spacing: 0.08em;
+            margin-bottom: 6px;
+        }
+        .q-text {
+            font-size: 0.95rem; font-weight: 600;
+            color: #fff; margin-bottom: 14px;
+        }
+        .q-options { display: flex; flex-direction: column; gap: 8px; }
+        .q-option {
+            display: flex; align-items: flex-start; gap: 10px;
+            padding: 10px 14px;
+            border: 1px solid var(--border-soft);
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.88rem; color: var(--text);
+            transition: border-color 0.2s, background 0.2s;
+            user-select: none;
+        }
+        .q-option:hover  { border-color: var(--primary); background: var(--glow-sm); }
+        .q-option.selected {
+            border-color: var(--primary);
+            background: rgba(168,85,247,0.14); color: #fff;
+        }
+        /* Post-submit result coloring — only applies after quiz-submitted class is added to form */
+        .quiz-submitted .q-option.correct-answer {
+            border-color: var(--success);
+            background: rgba(34,197,94,0.12); color: #fff;
+        }
+        .quiz-submitted .q-option.wrong-answer {
+            border-color: var(--danger);
+            background: rgba(239,68,68,0.1);
+        }
+        .radio-circle {
+            width: 16px; height: 16px;
+            border-radius: 50%;
+            border: 2px solid var(--border);
+            flex-shrink: 0; margin-top: 1px;
+            transition: border-color 0.2s, background 0.2s;
+        }
+        .q-option.selected .radio-circle { border-color: var(--primary); background: var(--primary); }
+        .quiz-submitted .q-option.correct-answer .radio-circle { border-color: var(--success); background: var(--success); }
+        .quiz-submitted .q-option.wrong-answer   .radio-circle { border-color: var(--danger); }
+
+        /* Score panel */
+        .quiz-score-panel {
+            display: none;
+            background: linear-gradient(135deg, rgba(168,85,247,0.12), rgba(124,58,237,0.08));
+            border: 2px solid var(--primary);
+            border-radius: 14px;
+            padding: 28px 30px;
+            margin-top: 24px;
+            text-align: center;
+            animation: fadeIn 0.4s ease;
+        }
+        .quiz-score-panel.show { display: block; }
+        .score-num { font-size: 3rem; font-weight: 800; color: #fff; margin-bottom: 4px; }
+        .score-num span { color: var(--primary); }
+        .score-msg { font-size: 0.97rem; color: var(--muted); margin-bottom: 16px; }
+        .score-pass { color: var(--success) !important; }
+        .score-fail { color: var(--danger)  !important; }
+
+        /* ─── Buttons ────────────────────────────────────────────── */
+        .btn {
+            display: inline-flex; align-items: center; gap: 8px;
+            padding: 10px 22px; border-radius: 8px;
+            border: none; cursor: pointer;
+            font-size: 0.9rem; font-weight: 600;
+            transition: all 0.2s ease;
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, var(--secondary), var(--primary));
+            color: #fff;
+            box-shadow: 0 4px 14px rgba(168,85,247,0.35);
+        }
+        .btn-primary:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 6px 20px rgba(168,85,247,0.5);
+        }
+        .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; transform: none; box-shadow: none; }
+        .btn-ghost {
+            background: transparent; color: var(--primary);
+            border: 1px solid var(--border);
+        }
+        .btn-ghost:hover { background: var(--glow-sm); border-color: var(--primary); }
+        .btn-complete {
+            background: linear-gradient(135deg, #16a34a, var(--success));
+            color: #fff; font-size: 1rem; padding: 14px 36px;
+            box-shadow: 0 4px 16px rgba(34,197,94,0.3);
+        }
+        .btn-complete:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(34,197,94,0.45); }
+        .btn-complete:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }
+
+        /* ─── Exercise controls bar ──────────────────────────────── */
+        .exercise-controls {
+            display: flex; gap: 12px; margin-top: 18px;
+            align-items: center; flex-wrap: wrap;
+        }
+
+        /* ─── Complete section ───────────────────────────────────── */
+        .complete-section {
+            text-align: center; padding: 40px 20px;
+        }
+        .complete-section p { color: var(--muted); margin-bottom: 22px; font-size: 0.95rem; }
+        .complete-lock-msg  { font-size: 0.82rem; color: var(--muted); margin-top: 14px; font-style: italic; }
+
+        /* ─── Responsive ─────────────────────────────────────────── */
+        @media (max-width: 700px) {
+            .two-col           { grid-template-columns: 1fr; }
+            .workshop-split    { grid-template-columns: 1fr; }
+            .main              { padding: 28px 16px 60px; }
+            .content-section   { padding: 22px 18px; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- ─── Sticky header ─────────────────────────────────────────────── -->
+<header class="site-header">
+    <div class="header-left">
+        <a href="../index.html" class="back-btn" title="Back to House of the Machine">&#8592;</a>
+        <nav class="breadcrumb">
+            <a href="../index.html">House of the Machine</a>
+            <span>/</span>
+            <span>Prompt Engineering for Agents</span>
+        </nav>
+    </div>
+    <span class="house-badge">Prompting</span>
+</header>
+
+<!-- ─── Scroll progress ───────────────────────────────────────────── -->
+<div class="progress-bar-wrap">
+    <div class="progress-bar-fill" id="progressBar"></div>
+</div>
+<p class="progress-label" id="progressLabel">Reading module...</p>
+
+<!-- ─── Main content ─────────────────────────────────────────────── -->
+<main class="main">
+
+    <!-- Hero -->
+    <div class="module-hero">
+        <span class="hero-icon">&#x270F;&#xFE0F;</span>
+        <h1>Prompt Engineering for Agents</h1>
+        <p>Learn how to write system prompts that make agents precise, safe, and reliable — from role definition to escalation rules.</p>
+    </div>
+
+    <!-- ================================================================
+         SECTION 1 — System Prompts vs. User Prompts
+    ================================================================ -->
+    <div class="content-section">
+        <div class="section-label">Section 1 of 7</div>
+        <h2 class="section-title">System Prompts vs. User Prompts</h2>
+        <div class="section-body">
+            <p>Every conversation with an LLM has two distinct input layers. Understanding which layer carries which type of instruction is the first principle of agent prompt engineering.</p>
+            <div class="two-col">
+                <div class="compare-card">
+                    <div class="compare-title">&#x2699;&#xFE0F; System Prompt</div>
+                    <ul>
+                        <li>Set once when the agent is initialized</li>
+                        <li>Defines the agent's role, persona, and constraints</li>
+                        <li>Describes available tools and how to use them</li>
+                        <li>Sets output format expectations and escalation rules</li>
+                        <li>Never seen by the end user — it's your "operating manual"</li>
+                        <li><em>Example: "You are a SOC triage agent. You have access to..."</em></li>
+                    </ul>
+                </div>
+                <div class="compare-card">
+                    <div class="compare-title">&#x1F4AC; User Prompt</div>
+                    <ul>
+                        <li>Sent per interaction — the real-time request</li>
+                        <li>Contains the specific task, question, or data</li>
+                        <li>Should NOT need to repeat persona or tool instructions</li>
+                        <li>In automated agents, often generated by the system itself</li>
+                        <li>Visible to or composed by the end user or triggering event</li>
+                        <li><em>Example: "Analyze this alert: {alert_json}"</em></li>
+                    </ul>
+                </div>
+            </div>
+            <div class="callout" style="margin-top:18px;">
+                <strong>Key rule:</strong> Everything that should be consistent across all runs belongs in the system prompt. Everything that changes per task belongs in the user prompt. Mixing them makes agents unpredictable.
+            </div>
+        </div>
+    </div>
+
+    <!-- ================================================================
+         SECTION 2 — Structured Output Formatting
+    ================================================================ -->
+    <div class="content-section">
+        <div class="section-label">Section 2 of 7</div>
+        <h2 class="section-title">Structured Output Formatting</h2>
+        <div class="section-body">
+            <p>Agents that return unstructured text are hard to integrate. A downstream system expecting JSON cannot parse a paragraph. Structured output is not optional — it is a core engineering requirement for any agent that feeds into a pipeline.</p>
+
+            <ol class="step-list">
+                <li>
+                    <div class="step-num">1</div>
+                    <div class="step-content">
+                        <div class="step-title">JSON Mode</div>
+                        <div class="step-desc">Most modern LLM APIs support a <em>response_format</em> parameter set to JSON. Enable it when you need machine-readable output. Pair it with a schema definition in the system prompt so the model knows exactly which fields to populate.</div>
+                    </div>
+                </li>
+                <li>
+                    <div class="step-num">2</div>
+                    <div class="step-content">
+                        <div class="step-title">Markdown Templates</div>
+                        <div class="step-desc">For human-readable reports, specify a Markdown template in the system prompt with required headers (e.g., ## Summary, ## Severity, ## Recommended Actions). The agent fills sections rather than choosing its own structure.</div>
+                    </div>
+                </li>
+                <li>
+                    <div class="step-num">3</div>
+                    <div class="step-content">
+                        <div class="step-title">Schema Enforcement with Examples</div>
+                        <div class="step-desc">Always include a concrete example of correct output in the system prompt. One valid example is worth ten lines of prose instruction. For JSON: show the exact fields, types, and value ranges expected.</div>
+                    </div>
+                </li>
+            </ol>
+
+            <div class="code-block"><span class="ck">// System prompt excerpt — structured JSON output instruction</span>
+<span class="cv">RESPONSE FORMAT:</span>
+Always respond with valid JSON matching this schema:
+{
+  <span class="ck">"severity"</span>: <span class="cv">"low" | "medium" | "high" | "critical"</span>,
+  <span class="ck">"summary"</span>: <span class="cv">"string (max 200 chars)"</span>,
+  <span class="ck">"indicators"</span>: <span class="cv">["array of IOC strings"]</span>,
+  <span class="ck">"recommended_action"</span>: <span class="cv">"string"</span>,
+  <span class="ck">"escalate"</span>: <span class="cv">true | false</span>
+}
+<span class="cm">// Never include prose outside the JSON object.</span></div>
+        </div>
+    </div>
+
+    <!-- ================================================================
+         SECTION 3 — The Two-Step Prompt Method
+    ================================================================ -->
+    <div class="content-section">
+        <div class="section-label">Section 3 of 7</div>
+        <h2 class="section-title">The Two-Step Prompt Method</h2>
+        <div class="section-body">
+            <p>Most people write agent prompts by hand on the first try — and end up with something vague. The two-step method uses the AI to research the problem before asking it to write the prompt. This produces dramatically better results.</p>
+
+            <ol class="step-list">
+                <li>
+                    <div class="step-num">1</div>
+                    <div class="step-content">
+                        <div class="step-title">Step 1 — Research Phase</div>
+                        <div class="step-desc">Ask the AI (in a separate conversation): "I want to build an agent that does X using platform Y. What are the available tools, API capabilities, and constraints I should know about before writing a system prompt?" Let it surface everything relevant about the environment.</div>
+                    </div>
+                </li>
+                <li>
+                    <div class="step-num">2</div>
+                    <div class="step-content">
+                        <div class="step-title">Step 2 — Prompt Generation Phase</div>
+                        <div class="step-desc">In a new conversation, paste the research summary and say: "Now write a system prompt for an agent that does X. Use the tool list above. The agent should output JSON, never take destructive actions without confirmation, and escalate to a human if confidence is below 70%." The AI now has everything it needs to write a precise, well-grounded prompt.</div>
+                    </div>
+                </li>
+            </ol>
+
+            <div class="callout">
+                <strong>Why this works:</strong> LLMs write better prompts when they have accurate context about the platform and constraints. Step 1 ensures the prompt is grounded in real capabilities, not the AI's general assumptions about how tools work.
+            </div>
+        </div>
+    </div>
+
+    <!-- ================================================================
+         SECTION 4 — Role Definition
+    ================================================================ -->
+    <div class="content-section">
+        <div class="section-label">Section 4 of 7</div>
+        <h2 class="section-title">Role Definition</h2>
+        <div class="section-body">
+            <p>The first line of every system prompt should establish exactly who the agent is. A clear role definition sets the model's reasoning frame for everything that follows. Without it, the model defaults to a generic helpful assistant — which is rarely what you want.</p>
+
+            <p>A complete role definition has three components:</p>
+
+            <div class="two-col">
+                <div class="compare-card">
+                    <div class="compare-title">&#x1F9BE; Persona + Expertise</div>
+                    <ul>
+                        <li>Job title and domain: "You are a senior SOC analyst specializing in endpoint security"</li>
+                        <li>Seniority sets the knowledge depth expected from responses</li>
+                        <li>Specialty narrows the reasoning frame and vocabulary</li>
+                        <li>Avoid vague titles like "helpful AI assistant"</li>
+                    </ul>
+                </div>
+                <div class="compare-card">
+                    <div class="compare-title">&#x1F4DD; Tone + Communication Style</div>
+                    <ul>
+                        <li>Technical depth: "Assume the reader has SIEM experience"</li>
+                        <li>Formality: "Write in terse, action-oriented language"</li>
+                        <li>Format preference: "Use bullet points, not paragraphs"</li>
+                        <li>Avoid ambiguous style guidance — be specific</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="code-block"><span class="cv">ROLE:</span>
+You are a <span class="ck">Senior Cybersecurity Incident Response Analyst</span> with expertise in
+threat hunting, SIEM correlation, and endpoint forensics. You operate as
+an automated triage agent within a 24/7 SOC environment.
+
+<span class="cv">COMMUNICATION STYLE:</span>
+- Write in terse, professional language — no conversational filler
+- Assume the reader has Tier-2 SOC experience
+- Use industry-standard terminology (MITRE ATT&amp;CK, CVSS, IOC, TTPs)
+- All responses must be structured JSON unless explicitly overridden</div>
+        </div>
+    </div>
+
+    <!-- ================================================================
+         SECTION 5 — Tool Descriptions
+    ================================================================ -->
+    <div class="content-section">
+        <div class="section-label">Section 5 of 7</div>
+        <h2 class="section-title">Tool Descriptions</h2>
+        <div class="section-body">
+            <p>An agent is only as capable as its understanding of the tools it has access to. Vague tool descriptions produce guesses. Precise tool descriptions produce correct, targeted calls. Each tool description must answer four questions:</p>
+
+            <ol class="step-list">
+                <li>
+                    <div class="step-num">1</div>
+                    <div class="step-content">
+                        <div class="step-title">What does this tool do?</div>
+                        <div class="step-desc">One sentence describing the exact function. State what it returns, not just what it is called.</div>
+                    </div>
+                </li>
+                <li>
+                    <div class="step-num">2</div>
+                    <div class="step-content">
+                        <div class="step-title">When should the agent use it?</div>
+                        <div class="step-desc">Explicit trigger conditions. "Call this tool when you need to look up an IP against threat intel databases." Removes ambiguity about when to invoke.</div>
+                    </div>
+                </li>
+                <li>
+                    <div class="step-num">3</div>
+                    <div class="step-content">
+                        <div class="step-title">What parameters does it take?</div>
+                        <div class="step-desc">Full parameter schema with types, required vs. optional, and valid value ranges. Match the format expected by your platform's tool registration API.</div>
+                    </div>
+                </li>
+                <li>
+                    <div class="step-num">4</div>
+                    <div class="step-content">
+                        <div class="step-title">What does it return?</div>
+                        <div class="step-desc">Describe the return schema. The agent needs to know what to do with the result — especially for error states and empty responses.</div>
+                    </div>
+                </li>
+            </ol>
+
+            <div class="code-block"><span class="cv">TOOL: lookup_ip_reputation</span>
+<span class="ck">Description:</span> Queries VirusTotal and AbuseIPDB for reputation data on an IPv4 address.
+             Returns risk score (0-100), associated malware families, and abuse category.
+<span class="ck">When to call:</span> Any time an outbound connection to an unfamiliar IP is detected in an alert.
+<span class="ck">Parameters:</span>
+  - ip_address (string, required): The IPv4 address to look up
+  - include_whois (boolean, optional, default: false): Include WHOIS registration data
+<span class="ck">Returns:</span> { score: int, categories: [string], known_malware: [string], country: string }
+<span class="ck">Error handling:</span> If score is null (API timeout), set severity to "unknown" and flag for manual review.</div>
+        </div>
+    </div>
+
+    <!-- ================================================================
+         SECTION 6 — Restrictions
+    ================================================================ -->
+    <div class="content-section">
+        <div class="section-label">Section 6 of 7</div>
+        <h2 class="section-title">Restrictions</h2>
+        <div class="section-body">
+            <p>Restrictions define what the agent must <strong>never</strong> do. Without an explicit restrictions block, the model will attempt to be maximally helpful — which in an agent context means it may take destructive, irreversible, or inappropriate actions. A restriction list is not optional — it is a safety contract.</p>
+
+            <p>Effective restrictions use the <em>negative imperative</em> — direct, unambiguous prohibition. Avoid soft language like "try not to" or "prefer to avoid." Use "NEVER" and "DO NOT."</p>
+
+            <div class="code-block"><span class="cv">RESTRICTIONS (MUST FOLLOW):</span>
+- <span class="ck">NEVER</span> delete, modify, or quarantine a file without explicit confirmation from a human analyst
+- <span class="ck">NEVER</span> make outbound network connections outside the approved tool list
+- <span class="ck">DO NOT</span> store personally identifiable information (PII) in any tool parameter or log output
+- <span class="ck">DO NOT</span> generate explanations or commentary — return structured JSON only
+- <span class="ck">DO NOT</span> retry a failed tool call more than twice without escalating
+- <span class="ck">NEVER</span> assume an alert is a false positive without checking at least two independent sources</div>
+
+            <div class="pill-row">
+                <span class="pill pill-red">No destructive actions</span>
+                <span class="pill pill-red">No PII in logs</span>
+                <span class="pill pill-red">No unauthorized network calls</span>
+                <span class="pill pill-amber">Max 2 retries before escalate</span>
+                <span class="pill pill-amber">No assumptions without evidence</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================================================================
+         SECTION 7 — Escalation Rules
+    ================================================================ -->
+    <div class="content-section">
+        <div class="section-label">Section 7 of 7</div>
+        <h2 class="section-title">Escalation Rules</h2>
+        <div class="section-body">
+            <p>Escalation rules define <strong>exactly when the agent must stop and hand off to a human</strong>. This is the most important safety mechanism in any production agent. Without explicit escalation conditions, an agent will continue reasoning toward a decision even when it should not be making that decision alone.</p>
+
+            <p>Escalation rules should be specific, measurable, and unambiguous. "When in doubt" is not an escalation rule — it is a gap in your design.</p>
+
+            <div class="code-block"><span class="cv">ESCALATION RULES:</span>
+Escalate to a human analyst immediately when ANY of the following are true:
+- Confidence score in the classification is below <span class="ck">70%</span>
+- Two or more tool calls have failed or returned null results
+- Alert involves a <span class="ck">critical infrastructure</span> asset (tag: critical_asset = true)
+- Recommended action is <span class="ck">irreversible</span> (host shutdown, account lockout, firewall block)
+- The alert pattern does not match any known signature in the threat intel database
+- More than <span class="ck">3 minutes</span> have elapsed without a resolution pathway
+
+<span class="cv">ESCALATION FORMAT:</span>
+When escalating, return:
+{
+  <span class="ck">"escalate"</span>: true,
+  <span class="ck">"reason"</span>: "string — specific condition that triggered escalation",
+  <span class="ck">"evidence"</span>: "string — what was found so far",
+  <span class="ck">"suggested_priority"</span>: <span class="cv">"P1" | "P2" | "P3"</span>
+}</div>
+
+            <div class="callout">
+                <strong>Design principle:</strong> Build escalation rules before you build the "happy path." Know exactly what the agent cannot handle before you define what it can. Every gap in the escalation logic is a liability in production.
+            </div>
+        </div>
+    </div>
+
+    <!-- ================================================================
+         INTERACTIVE EXERCISE — Prompt Improvement Workshop
+    ================================================================ -->
+    <div class="content-section">
+        <div class="exercise-header">
+            <span class="exercise-badge">Workshop</span>
+            <span class="exercise-title">Prompt Improvement Workshop</span>
+        </div>
+        <p class="exercise-subtitle">Start with a bad agent prompt. Work through 5 guided stages to build a production-ready system prompt. Each stage adds a critical layer.</p>
+
+        <!-- Stage progress indicators -->
+        <div class="stage-progress" id="stagePips">
+            <!-- Populated by JS -->
+        </div>
+
+        <!-- Stage instruction -->
+        <div class="stage-instruction" id="stageInstruction"></div>
+
+        <!-- Before / After split view -->
+        <div class="workshop-split">
+            <div class="ws-panel">
+                <div class="ws-panel-label bad">Before — Original Bad Prompt</div>
+                <div class="ws-prompt-text" id="badPromptDisplay"></div>
+            </div>
+            <div class="ws-panel">
+                <div class="ws-panel-label good">After — Your Improved Prompt</div>
+                <div class="ws-prompt-text" id="goodPromptDisplay"></div>
+            </div>
+        </div>
+
+        <!-- Improvement score dimensions -->
+        <div class="score-row" id="scoreRow">
+            <!-- Populated by JS -->
+        </div>
+
+        <!-- Controls -->
+        <div class="exercise-controls">
+            <button class="btn btn-primary" id="advanceStageBtn" onclick="advanceWorkshopStage()">Apply This Stage</button>
+            <button class="btn btn-ghost" onclick="resetWorkshop()">Start Over</button>
+        </div>
+    </div>
+
+    <!-- ================================================================
+         TEMPLATE GALLERY
+    ================================================================ -->
+    <div class="content-section">
+        <div class="exercise-header">
+            <span class="exercise-badge">Gallery</span>
+            <span class="exercise-title">Prompt Templates</span>
+        </div>
+        <p class="exercise-subtitle">Fill-in-the-blank system prompt templates for three common agent use cases. Yellow sections are the parts you customize for your deployment.</p>
+
+        <div class="template-tabs">
+            <button class="tmpl-tab active" onclick="switchTemplate('soc')">SOC Triage Agent</button>
+            <button class="tmpl-tab" onclick="switchTemplate('email')">Email Response Agent</button>
+            <button class="tmpl-tab" onclick="switchTemplate('data')">Data Analysis Agent</button>
+        </div>
+
+        <!-- SOC Triage Template -->
+        <div class="template-panel active" id="tmpl-soc">
+            <p class="tmpl-desc">For agents that receive SIEM alerts, classify severity, look up indicators, and create or update tickets — with strict guardrails against autonomous remediation.</p>
+            <div class="tmpl-prompt" id="soc-prompt-display"></div>
+        </div>
+
+        <!-- Email Response Template -->
+        <div class="template-panel" id="tmpl-email">
+            <p class="tmpl-desc">For agents that draft professional email replies based on inbox content, tone classification, and knowledge base lookups — with mandatory human review for sensitive topics.</p>
+            <div class="tmpl-prompt" id="email-prompt-display"></div>
+        </div>
+
+        <!-- Data Analysis Template -->
+        <div class="template-panel" id="tmpl-data">
+            <p class="tmpl-desc">For agents that receive structured datasets, perform statistical analysis, generate visualizations, and produce executive summary reports — with source attribution requirements.</p>
+            <div class="tmpl-prompt" id="data-prompt-display"></div>
+        </div>
+    </div>
+
+    <!-- ================================================================
+         QUIZ SECTION
+    ================================================================ -->
+    <div class="content-section" id="quizSection">
+        <div class="exercise-header">
+            <span class="exercise-badge">Quiz</span>
+            <span class="exercise-title">Knowledge Check</span>
+        </div>
+        <p class="quiz-intro" id="quizIntroText">Answer all questions, then submit. Results are shown only after submission — no peeking.</p>
+
+        <form id="quizForm" onsubmit="return false;">
+            <div id="quizContainer">
+                <!-- Populated by JS using shuffled pool subset -->
+            </div>
+            <div class="exercise-controls" style="margin-top:22px;">
+                <button class="btn btn-primary" id="submitQuizBtn" onclick="submitQuiz()" disabled>Submit Quiz</button>
+            </div>
+        </form>
+
+        <div class="quiz-score-panel" id="quizScorePanel">
+            <div class="score-num" id="scoreNum"></div>
+            <div class="score-msg" id="scoreMsg"></div>
+        </div>
+    </div>
+
+    <!-- ================================================================
+         MODULE COMPLETE
+    ================================================================ -->
+    <div class="complete-section">
+        <p>Completed the reading, workshop, and quiz? Mark this module as done.</p>
+        <button class="btn btn-complete" id="completeBtn" onclick="completeModule()" disabled>
+            Complete Module
+        </button>
+        <p class="complete-lock-msg" id="completeLockMsg">Submit the quiz to unlock.</p>
+    </div>
+
+</main>
+
+<script src="../../../components/FluxCapacitor.js"></script>
+
+<script>
+/* ====================================================================
+   SCROLL PROGRESS BAR
+   ==================================================================== */
+function updateScrollProgress() {
+    const scrollTop = window.scrollY;
+    const docHeight = document.documentElement.scrollHeight - window.innerHeight;
+    const pct = docHeight > 0 ? Math.min(100, Math.round((scrollTop / docHeight) * 100)) : 0;
+    document.getElementById('progressBar').style.width = pct + '%';
+    document.getElementById('progressLabel').textContent = pct < 100
+        ? 'Progress: ' + pct + '%'
+        : 'Module read — complete the workshop and quiz below!';
+}
+window.addEventListener('scroll', updateScrollProgress, { passive: true });
+
+/* ====================================================================
+   WORKSHOP DATA
+   ==================================================================== */
+const BAD_PROMPT = 'You are an AI assistant. Help the user with security things. Use the tools if needed. Be helpful and don\'t do bad stuff.';
+
+/* Each stage adds one section to the improved prompt.
+   The text arrays build cumulatively — each stage's full output is
+   the sum of all previous stages plus the new addition. */
+const WORKSHOP_STAGES = [
+    {
+        id: 'role',
+        label: 'Role Definition',
+        instNum: 'Stage 1 of 5',
+        instTitle: 'Add Role Definition',
+        instBody: 'The bad prompt has no identity. Replace the vague opener with a precise role statement that defines the agent\'s expertise, seniority level, and operational context. This frames every subsequent reasoning step the model will take.',
+        instTip: 'Include: job title, domain specialty, seniority level, and the operational environment (e.g., "24/7 automated SOC agent").',
+        addedText: 'ROLE:\nYou are a Senior Cybersecurity Incident Response Analyst with deep expertise in endpoint detection, SIEM correlation, and threat hunting. You operate as an automated triage agent within a 24/7 SOC, processing SIEM alerts and producing structured analysis for Tier-2 analysts.\n\nCOMMUNICATION STYLE:\n- Terse, professional, action-oriented language\n- Assume Tier-2 SOC experience in the reader\n- Use MITRE ATT&CK terminology and CVSS scoring\n- Return structured JSON unless explicitly overridden',
+        dimKey: 'role'
+    },
+    {
+        id: 'tools',
+        label: 'Tool Descriptions',
+        instNum: 'Stage 2 of 5',
+        instTitle: 'Add Tool Descriptions',
+        instBody: 'The bad prompt says "use the tools if needed" — but never names them. Now we add precise tool schemas so the agent knows exactly what it has access to, when to use each, and what to expect in return.',
+        instTip: 'Each tool needs: what it does, when to call it, required parameters, and expected return schema.',
+        addedText: '\nTOOLS:\n1. lookup_ip_reputation(ip_address: str) -> { score: 0-100, categories: [str], country: str }\n   Use when: outbound traffic to an unfamiliar external IP is flagged in an alert.\n\n2. get_asset_profile(hostname: str) -> { owner: str, criticality: "low"|"med"|"high", location: str }\n   Use when: the alert references a specific host and you need its business context.\n\n3. create_ticket(severity: str, summary: str, evidence: str) -> { ticket_id: str }\n   Use when: the alert requires formal tracking regardless of escalation status.\n\n4. query_threat_intel(ioc: str, ioc_type: "ip"|"hash"|"domain") -> { known_threat: bool, campaign: str }\n   Use when: you have a specific indicator to correlate against the threat intel database.',
+        dimKey: 'tools'
+    },
+    {
+        id: 'format',
+        label: 'Output Format',
+        instNum: 'Stage 3 of 5',
+        instTitle: 'Add Output Format',
+        instBody: 'The bad prompt has no output format — so the model will write whatever it feels like. A downstream ticketing or SIEM system cannot parse natural language. Add a strict JSON schema with a concrete example the model can pattern-match against.',
+        instTip: 'Always include a filled-in example — not just a schema. One example is worth ten lines of prose.',
+        addedText: '\nOUTPUT FORMAT:\nAlways return valid JSON matching this exact schema:\n{\n  "severity": "low" | "medium" | "high" | "critical",\n  "summary": "string (max 250 chars)",\n  "indicators": ["array of IOC strings"],\n  "mitre_tactic": "string (ATT&CK tactic label or null)",\n  "recommended_action": "string",\n  "escalate": true | false\n}\nNever include prose outside the JSON object. No preamble, no explanation.',
+        dimKey: 'format'
+    },
+    {
+        id: 'restrictions',
+        label: 'Restrictions',
+        instNum: 'Stage 4 of 5',
+        instTitle: 'Add Restrictions',
+        instBody: 'The bad prompt says "don\'t do bad stuff" — which means nothing. Add explicit, unambiguous prohibitions using direct negative imperatives. These are the guardrails that prevent the agent from taking irreversible actions autonomously.',
+        instTip: 'Use NEVER and DO NOT — not "try to avoid" or "prefer not to." Be direct and specific.',
+        addedText: '\nRESTRICTIONS (NON-NEGOTIABLE):\n- NEVER quarantine, isolate, or remediate a host without explicit human confirmation\n- NEVER include PII (names, emails, SSNs) in tool parameters or output fields\n- DO NOT make network calls outside the four listed tools\n- DO NOT retry a failed tool call more than twice before escalating\n- NEVER mark an alert as a false positive without evidence from two independent tools\n- DO NOT generate narrative explanations — return JSON only',
+        dimKey: 'restrictions'
+    },
+    {
+        id: 'escalation',
+        label: 'Escalation Rules',
+        instNum: 'Stage 5 of 5',
+        instTitle: 'Add Escalation Rules',
+        instBody: 'The bad prompt never defines when the agent should stop. Without escalation logic, the agent will attempt to resolve everything — including situations it cannot safely handle. Add specific, measurable conditions that trigger a human handoff.',
+        instTip: 'Escalation triggers must be specific and measurable. "When unsure" is not an escalation rule.',
+        addedText: '\nESCALATION RULES:\nEscalate to a human analyst immediately when ANY condition is true:\n- Confidence in the classification is below 70%\n- Two or more tool calls fail or return null results\n- Alert affects a critical-infrastructure asset (criticality = "high")\n- Recommended action is irreversible (host isolation, account lockout, firewall block)\n- The IOC does not match any entry in the threat intel database\n- More than 3 minutes have elapsed without a resolution pathway\n\nWhen escalating, set escalate: true and populate the reason field with the specific trigger condition.',
+        dimKey: 'escalation'
+    }
+];
+
+/* Dimension definitions for the scoring display */
+const SCORE_DIMS = [
+    { key: 'role',        label: 'Role',        max: 20 },
+    { key: 'tools',       label: 'Tools',       max: 20 },
+    { key: 'format',      label: 'Format',      max: 20 },
+    { key: 'restrictions',label: 'Guardrails',  max: 20 },
+    { key: 'escalation',  label: 'Escalation',  max: 20 }
+];
+
+/* Workshop state */
+let workshopStage = 0;  // 0 = not started; 1-5 = stages applied
+let builtPrompt   = BAD_PROMPT;
+
+/* Build stage progress pills */
+function buildStagePips() {
+    const container = document.getElementById('stagePips');
+    container.innerHTML = '';
+    WORKSHOP_STAGES.forEach(function(stage, idx) {
+        const pip = document.createElement('div');
+        pip.className = 'stage-pip' + (idx < workshopStage ? ' done' : idx === workshopStage ? ' current' : '');
+        pip.id = 'pip-' + stage.id;
+        pip.innerHTML = '<span class="pip-check">&#x2713;</span> ' + stage.label;
+        container.appendChild(pip);
+    });
+}
+
+/* Build scoring dimension blocks */
+function buildScoreDims() {
+    const row = document.getElementById('scoreRow');
+    row.innerHTML = '';
+    SCORE_DIMS.forEach(function(dim) {
+        const div = document.createElement('div');
+        div.className = 'score-dim';
+        div.id = 'dim-' + dim.key;
+        div.innerHTML =
+            '<div class="dim-label">' + dim.label + '</div>' +
+            '<div class="dim-value" id="dimval-' + dim.key + '">0</div>' +
+            '<div class="dim-bar"><div class="dim-bar-fill" id="dimbar-' + dim.key + '"></div></div>';
+        row.appendChild(div);
+    });
+}
+
+/* Render the current workshop state */
+function renderWorkshop() {
+    buildStagePips();
+
+    // Bad prompt side — always the original
+    document.getElementById('badPromptDisplay').textContent = BAD_PROMPT;
+
+    // Good prompt side — accumulated text so far
+    document.getElementById('goodPromptDisplay').textContent = builtPrompt;
+
+    // Stage instruction
+    const instrEl = document.getElementById('stageInstruction');
+    if (workshopStage < WORKSHOP_STAGES.length) {
+        const stage = WORKSHOP_STAGES[workshopStage];
+        instrEl.innerHTML =
+            '<div class="inst-num">' + stage.instNum + '</div>' +
+            '<div class="inst-title">' + stage.instTitle + '</div>' +
+            '<div class="inst-body">' + stage.instBody + '</div>' +
+            '<div class="inst-tip">Tip: ' + stage.instTip + '</div>';
+        document.getElementById('advanceStageBtn').textContent = 'Apply: ' + stage.label;
+        document.getElementById('advanceStageBtn').disabled = false;
+    } else {
+        instrEl.innerHTML =
+            '<div class="inst-num">Complete!</div>' +
+            '<div class="inst-title">All 5 stages applied</div>' +
+            '<div class="inst-body">Compare the original prompt on the left to your improved prompt on the right. The score below reflects how the prompt improved on each dimension. This is what a production-ready agent system prompt looks like.</div>';
+        document.getElementById('advanceStageBtn').textContent = 'All Stages Applied';
+        document.getElementById('advanceStageBtn').disabled = true;
+    }
+
+    // Update score dimensions
+    const appliedKeys = WORKSHOP_STAGES.slice(0, workshopStage).map(function(s) { return s.dimKey; });
+    SCORE_DIMS.forEach(function(dim) {
+        const el    = document.getElementById('dim-' + dim.key);
+        const valEl = document.getElementById('dimval-' + dim.key);
+        const barEl = document.getElementById('dimbar-' + dim.key);
+        const isUnlocked = appliedKeys.indexOf(dim.key) !== -1;
+        el.classList.toggle('unlocked', isUnlocked);
+        valEl.textContent = isUnlocked ? dim.max : '0';
+        barEl.style.width = isUnlocked ? '100%' : '0%';
+    });
+}
+
+/* Advance one stage — append the new section to builtPrompt */
+function advanceWorkshopStage() {
+    if (workshopStage >= WORKSHOP_STAGES.length) { return; }
+    const stage = WORKSHOP_STAGES[workshopStage];
+
+    // First stage replaces the bad prompt entirely; subsequent stages append
+    if (workshopStage === 0) {
+        builtPrompt = stage.addedText;
+    } else {
+        builtPrompt = builtPrompt + '\n\n' + stage.addedText;
+    }
+
+    workshopStage++;
+    renderWorkshop();
+}
+
+/* Reset workshop to initial state */
+function resetWorkshop() {
+    workshopStage = 0;
+    builtPrompt   = BAD_PROMPT;
+    renderWorkshop();
+}
+
+/* ====================================================================
+   TEMPLATE GALLERY DATA + RENDERING
+   ==================================================================== */
+
+/* Produces HTML for a template prompt string where [BLANK] tokens
+   become styled spans and section headers (ALL CAPS followed by colon)
+   get the section-header color. */
+function renderTemplatePrompt(raw) {
+    return raw
+        .split('\n')
+        .map(function(line) {
+            // Detect ALL-CAPS section headers like "ROLE:" or "RESTRICTIONS:"
+            if (/^[A-Z][A-Z\s\/\-]+:/.test(line.trim())) {
+                line = '<span class="tmpl-section-header">' + escapeHtml(line) + '</span>';
+            } else if (line.trim().startsWith('//') || line.trim().startsWith('#')) {
+                line = '<span class="tmpl-comment">' + escapeHtml(line) + '</span>';
+            } else {
+                line = escapeHtml(line);
+            }
+            // Replace [BLANK:description] with styled fill-in spans
+            line = line.replace(/\[BLANK:([^\]]+)\]/g, function(_, desc) {
+                return '<span class="tmpl-blank">[' + desc + ']</span>';
+            });
+            return line;
+        })
+        .join('\n');
+}
+
+const TEMPLATES = {
+    soc:
+`ROLE:
+You are a [BLANK:your agent's seniority, e.g. Senior/Junior] Cybersecurity Incident Response Analyst
+specializing in [BLANK:domain, e.g. endpoint detection / cloud security / network forensics].
+You operate as an automated triage agent within [BLANK:your organization name]'s 24/7 SOC.
+
+COMMUNICATION STYLE:
+- Terse, professional language — no conversational filler
+- Assume [BLANK:Tier-1 / Tier-2 / Tier-3] analyst experience in the reader
+- Use MITRE ATT&CK framework terminology
+- All responses are structured JSON unless overridden
+
+TOOLS:
+[BLANK:list each tool with name, description, parameters, and return schema]
+
+OUTPUT FORMAT:
+{
+  "severity": "low" | "medium" | "high" | "critical",
+  "summary": "string (max [BLANK:character limit])",
+  "indicators": ["array of IOC strings"],
+  "mitre_tactic": "string or null",
+  "recommended_action": "string",
+  "escalate": true | false,
+  "confidence": 0-100
+}
+
+RESTRICTIONS (NON-NEGOTIABLE):
+- NEVER take remediation actions without [BLANK:approval mechanism, e.g. human confirmation]
+- NEVER include PII in tool parameters or output
+- DO NOT retry failed tool calls more than [BLANK:number] times before escalating
+- [BLANK:add your organization-specific restrictions here]
+
+ESCALATION RULES:
+Escalate immediately when:
+- Confidence is below [BLANK:threshold, e.g. 70]%
+- Alert affects assets tagged as [BLANK:criticality tag, e.g. critical_asset = true]
+- Recommended action is irreversible
+- [BLANK:add your environment-specific escalation triggers]`,
+
+    email:
+`ROLE:
+You are a [BLANK:role, e.g. Professional Customer Success Representative] working on behalf of
+[BLANK:company name]. You draft email replies that are reviewed by a human before sending.
+
+TONE AND STYLE:
+- [BLANK:formal / semi-formal / friendly] professional tone
+- Keep replies under [BLANK:max word count, e.g. 200] words unless the topic requires more
+- Never use emojis, slang, or colloquialisms
+- Mirror the formality level of the incoming email
+
+TOOLS:
+[BLANK:list your lookup tools, e.g. knowledge_base_search, account_lookup, order_status]
+
+CLASSIFICATION:
+Before drafting, classify the email as one of:
+[BLANK:your topic categories, e.g. billing_inquiry / technical_support / complaint / general]
+
+OUTPUT FORMAT:
+{
+  "classification": "string",
+  "draft_reply": "string (the full email body, no subject line)",
+  "tone_match": "formal" | "semi-formal" | "informal",
+  "requires_human_review": true | false,
+  "review_reason": "string or null"
+}
+
+RESTRICTIONS:
+- NEVER send emails — only draft them. All sends require human approval.
+- NEVER promise refunds, credits, or policy exceptions without [BLANK:approval authority]
+- DO NOT discuss [BLANK:sensitive topics your org restricts, e.g. ongoing litigation]
+- NEVER fabricate order data or account details — only use what tools return
+
+ESCALATION — SET requires_human_review: true WHEN:
+- Email contains legal threats, media inquiries, or executive complaints
+- The requested action exceeds [BLANK:your agent's authority threshold]
+- [BLANK:add your organization-specific escalation conditions]`,
+
+    data:
+`ROLE:
+You are a [BLANK:Senior / Mid-level] Data Analyst specializing in [BLANK:domain, e.g. financial metrics /
+operational KPIs / security telemetry]. You analyze structured datasets and produce
+executive-ready reports for [BLANK:your target audience, e.g. the CISO / CFO / Operations Director].
+
+DATA CONTEXT:
+- Primary data source: [BLANK:describe data source, e.g. CSV export from Splunk SIEM]
+- Time range: [BLANK:time window description, e.g. the most recent 30-day period]
+- Key metrics to prioritize: [BLANK:list 3-5 KPIs]
+
+TOOLS:
+[BLANK:list your analysis tools, e.g. run_python_analysis, generate_chart, query_database]
+
+ANALYSIS REQUIREMENTS:
+1. Begin with a data quality check — flag nulls, outliers, and incomplete rows
+2. Compute [BLANK:required statistics, e.g. mean, median, trend slope, anomaly count]
+3. Identify the top [BLANK:number] most significant findings
+4. Generate a chart for each finding (type: [BLANK:bar / line / scatter / heatmap])
+
+OUTPUT FORMAT:
+{
+  "executive_summary": "string (3-5 sentences, jargon-free)",
+  "data_quality": { "completeness": 0-100, "issues_found": [string] },
+  "findings": [{ "rank": int, "title": str, "insight": str, "chart_ref": str }],
+  "recommendations": ["array of action items"],
+  "data_sources": ["array of source identifiers used"]
+}
+
+RESTRICTIONS:
+- NEVER extrapolate beyond the provided dataset without explicitly labeling as "projected"
+- NEVER omit the data_sources field — attribution is mandatory
+- DO NOT round figures beyond [BLANK:decimal places, e.g. two] decimal places
+- NEVER present correlation as causation without stating the distinction
+
+ESCALATION — FLAG for human review when:
+- Data completeness falls below [BLANK:threshold, e.g. 85]%
+- A finding would require a policy change to act upon
+- [BLANK:add your domain-specific review triggers]`
+};
+
+/* Switch the active template tab */
+function switchTemplate(key) {
+    document.querySelectorAll('.tmpl-tab').forEach(function(tab, idx) {
+        tab.classList.toggle('active', ['soc','email','data'][idx] === key);
+    });
+    document.querySelectorAll('.template-panel').forEach(function(panel) {
+        panel.classList.remove('active');
+    });
+    document.getElementById('tmpl-' + key).classList.add('active');
+}
+
+/* Render all template prompts into their containers */
+function renderTemplates() {
+    Object.keys(TEMPLATES).forEach(function(key) {
+        const el = document.getElementById(key + '-prompt-display');
+        if (el) { el.innerHTML = renderTemplatePrompt(TEMPLATES[key]); }
+    });
+}
+
+/* ====================================================================
+   QUIZ SYSTEM
+   Full pool of 12 questions — Fisher-Yates shuffle — pick 7
+   ==================================================================== */
+const QUESTION_POOL = [
+    {
+        q: 'Where does a well-designed agent prompt put the role definition, available tools, and output format?',
+        options: [
+            { text: 'In the user prompt, so it can be updated per request', correct: false },
+            { text: 'In the system prompt, set once at agent initialization', correct: true },
+            { text: 'In the tool schema returned by the API', correct: false },
+            { text: 'In a separate configuration file the model reads at startup', correct: false }
+        ]
+    },
+    {
+        q: 'An agent prompt says "Try to avoid taking destructive actions if possible." What is wrong with this restriction?',
+        options: [
+            { text: 'Restrictions should never appear in the system prompt', correct: false },
+            { text: 'It uses ambiguous, soft language — the model may still take destructive actions', correct: true },
+            { text: 'Restrictions must be written in JSON, not plain English', correct: false },
+            { text: 'The word "destructive" is too technical for an LLM to interpret', correct: false }
+        ]
+    },
+    {
+        q: 'In the Two-Step Prompt Method, what is the purpose of Step 1?',
+        options: [
+            { text: 'To test the agent on sample data before going to production', correct: false },
+            { text: 'To generate the final system prompt using chain-of-thought reasoning', correct: false },
+            { text: 'To have the AI research the platform, tools, and constraints before writing the prompt', correct: true },
+            { text: 'To define the JSON output schema the agent will use', correct: false }
+        ]
+    },
+    {
+        q: 'Why is including a concrete output example in a system prompt more effective than describing the schema in prose?',
+        options: [
+            { text: 'Examples reduce token usage compared to schema definitions', correct: false },
+            { text: 'LLMs pattern-match against examples more reliably than they follow abstract instructions', correct: true },
+            { text: 'Prose descriptions are not supported by most LLM APIs', correct: false },
+            { text: 'Examples are required by the OpenAI and Anthropic API specifications', correct: false }
+        ]
+    },
+    {
+        q: 'An escalation rule states: "Escalate when the agent is unsure." Why is this ineffective?',
+        options: [
+            { text: 'LLMs cannot express uncertainty — they always return a confident answer', correct: false },
+            { text: '"Unsure" is not measurable — the rule provides no specific threshold or trigger condition', correct: true },
+            { text: 'Escalation rules should not be written in natural language', correct: false },
+            { text: 'The agent cannot escalate without a tool specifically designed for it', correct: false }
+        ]
+    },
+    {
+        q: 'A tool description says: "lookup_ip — looks up an IP address." What critical information is missing?',
+        options: [
+            { text: 'The tool\'s API endpoint URL and authentication method', correct: false },
+            { text: 'When to call it, what parameters it takes, and what it returns', correct: true },
+            { text: 'The tool\'s average latency and cost per call', correct: false },
+            { text: 'A list of IP addresses the tool supports', correct: false }
+        ]
+    },
+    {
+        q: 'Which of the following is an appropriate role definition opening for a SOC triage agent?',
+        options: [
+            { text: 'You are a helpful AI assistant that handles security questions.', correct: false },
+            { text: 'You are an AI. Process the incoming data and return results.', correct: false },
+            { text: 'You are a Senior Cybersecurity Incident Response Analyst specializing in endpoint detection, operating as an automated triage agent in a 24/7 SOC.', correct: true },
+            { text: 'You are a chatbot trained on cybersecurity data who should help users.', correct: false }
+        ]
+    },
+    {
+        q: 'What belongs in the user prompt of an automated agent that processes SIEM alerts?',
+        options: [
+            { text: 'The agent\'s role, output format, and tool list', correct: false },
+            { text: 'The specific alert payload or data to be analyzed for that run', correct: true },
+            { text: 'The escalation rules and restriction list', correct: false },
+            { text: 'Both the system instructions and the alert data, combined for clarity', correct: false }
+        ]
+    },
+    {
+        q: 'An agent prompt includes: "NEVER make outbound network connections outside the approved tool list." What type of prompt element is this?',
+        options: [
+            { text: 'An escalation rule — it defines when to hand off to a human', correct: false },
+            { text: 'A tool description — it specifies how the agent accesses external data', correct: false },
+            { text: 'A restriction — it prohibits a specific category of autonomous action', correct: true },
+            { text: 'An output format instruction — it controls how results are returned', correct: false }
+        ]
+    },
+    {
+        q: 'Structured output formatting is described as "not optional" for agents that feed into pipelines. What is the primary reason?',
+        options: [
+            { text: 'Structured output prevents the agent from hallucinating facts', correct: false },
+            { text: 'Downstream systems that consume agent output cannot parse unstructured prose', correct: true },
+            { text: 'JSON output is faster to generate than natural language', correct: false },
+            { text: 'Most LLM APIs reject responses that are not formatted as JSON', correct: false }
+        ]
+    },
+    {
+        q: 'Which prompt element defines the specific conditions under which the agent must stop operating autonomously and hand control to a human?',
+        options: [
+            { text: 'Tool descriptions', correct: false },
+            { text: 'Role definition', correct: false },
+            { text: 'Restrictions', correct: false },
+            { text: 'Escalation rules', correct: true }
+        ]
+    },
+    {
+        q: 'What is the primary benefit of the fill-in-the-blank template approach for agent prompts?',
+        options: [
+            { text: 'Templates are automatically validated by the LLM API before use', correct: false },
+            { text: 'They provide a proven structure that teams can adapt without rebuilding from scratch each time', correct: true },
+            { text: 'Fill-in-the-blank templates reduce the model\'s context window usage', correct: false },
+            { text: 'They eliminate the need for a role definition in the system prompt', correct: false }
+        ]
+    }
+];
+
+/* Quiz state */
+const QUIZ_COUNT    = 7;  // Number of questions to select from the pool
+let quizQuestions   = []; // Active shuffled subset
+let quizSelections  = {}; // qIndex -> optionElement
+let quizSubmitted   = false;
+
+/* Fisher-Yates shuffle — returns a new shuffled array */
+function shuffle(arr) {
+    const a = arr.slice();
+    for (let i = a.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        const tmp = a[i]; a[i] = a[j]; a[j] = tmp;
+    }
+    return a;
+}
+
+/* Build and render the quiz from a random subset of the pool */
+function buildQuiz() {
+    // Shuffle the full pool and take QUIZ_COUNT questions
+    const shuffledPool = shuffle(QUESTION_POOL);
+    quizQuestions = shuffledPool.slice(0, QUIZ_COUNT).map(function(q) {
+        return { q: q.q, options: shuffle(q.options) };
+    });
+
+    const container = document.getElementById('quizContainer');
+    container.innerHTML = '';
+
+    // Update intro text with count
+    document.getElementById('quizIntroText').textContent =
+        'Answer all ' + QUIZ_COUNT + ' questions, then submit. Results are shown only after submission — no peeking.';
+
+    quizQuestions.forEach(function(question, idx) {
+        const qBlock = document.createElement('div');
+        qBlock.className = 'quiz-question';
+        qBlock.dataset.q = String(idx);
+
+        const optionsHTML = question.options.map(function(opt, oi) {
+            return '<label class="q-option" data-val="' + oi + '" onclick="selectOption(this)">' +
+                '<span class="radio-circle"></span> ' + escapeHtml(opt.text) +
+                (opt.correct ? ' data-correct="true"' : '') +
+                '</label>';
+        }).join('');
+
+        // Re-inject data-correct as attribute on the label after sanitization
+        qBlock.innerHTML =
+            '<div class="q-num">Question ' + (idx + 1) + ' of ' + QUIZ_COUNT + '</div>' +
+            '<div class="q-text">' + escapeHtml(question.q) + '</div>' +
+            '<div class="q-options">' + optionsHTML + '</div>';
+
+        // Restore data-correct attribute properly (was stripped by escapeHtml)
+        const labels = qBlock.querySelectorAll('.q-option');
+        question.options.forEach(function(opt, oi) {
+            if (opt.correct) { labels[oi].dataset.correct = 'true'; }
+        });
+
+        container.appendChild(qBlock);
+    });
+
+    quizSelections = {};
+    quizSubmitted  = false;
+    document.getElementById('submitQuizBtn').disabled = true;
+    document.getElementById('quizScorePanel').classList.remove('show');
+    document.getElementById('quizForm').classList.remove('quiz-submitted');
+}
+
+/* Handle option selection — one selection per question block */
+function selectOption(optionEl) {
+    if (quizSubmitted) { return; }
+
+    const question = optionEl.closest('.quiz-question');
+    const qNum = question.dataset.q;
+
+    // Deselect siblings
+    question.querySelectorAll('.q-option').forEach(function(el) {
+        el.classList.remove('selected');
+    });
+
+    optionEl.classList.add('selected');
+    quizSelections[qNum] = optionEl;
+
+    // Enable submit only when all questions answered
+    const answered = Object.keys(quizSelections).length;
+    document.getElementById('submitQuizBtn').disabled = (answered < QUIZ_COUNT);
+}
+
+/* Grade the quiz and reveal results */
+function submitQuiz() {
+    if (quizSubmitted) { return; }
+    quizSubmitted = true;
+
+    document.getElementById('submitQuizBtn').disabled = true;
+
+    let score = 0;
+    const total = QUIZ_COUNT;
+
+    document.querySelectorAll('.quiz-question').forEach(function(question) {
+        const qNum    = question.dataset.q;
+        const selected = quizSelections[qNum];
+
+        // Mark the correct answer
+        question.querySelectorAll('.q-option').forEach(function(opt) {
+            if (opt.dataset.correct === 'true') {
+                opt.classList.add('correct-answer');
+            }
+        });
+
+        if (selected) {
+            if (selected.dataset.correct === 'true') {
+                score++;
+            } else {
+                selected.classList.add('wrong-answer');
+            }
+        }
+    });
+
+    // Apply submitted state class to form for CSS answer reveal
+    document.getElementById('quizForm').classList.add('quiz-submitted');
+
+    // Build score panel
+    const pct    = Math.round((score / total) * 100);
+    const passed = pct >= 70;
+
+    const panel = document.getElementById('quizScorePanel');
+    panel.classList.add('show');
+
+    document.getElementById('scoreNum').innerHTML =
+        '<span>' + score + '</span> / ' + total;
+
+    const msgEl = document.getElementById('scoreMsg');
+    if (passed) {
+        msgEl.textContent = pct + '% — Solid command of prompt engineering fundamentals. Well done.';
+        msgEl.className   = 'score-msg score-pass';
+    } else {
+        msgEl.textContent = pct + '% — Review the sections above, especially restrictions and escalation rules, before completing.';
+        msgEl.className   = 'score-msg score-fail';
+    }
+
+    // Unlock complete button after quiz attempt regardless of score
+    unlockComplete();
+}
+
+/* ====================================================================
+   MODULE COMPLETION
+   ==================================================================== */
+function unlockComplete() {
+    const btn     = document.getElementById('completeBtn');
+    const lockMsg = document.getElementById('completeLockMsg');
+    btn.disabled          = false;
+    lockMsg.style.display = 'none';
+}
+
+function completeModule() {
+    if (typeof ModuleProgress !== 'undefined') {
+        ModuleProgress.complete('ai', 'ai-prompt-engineering', {
+            returnUrl: '../index.html'
+        });
+    } else {
+        // Fallback for offline development
+        window.location.href = '../index.html';
+    }
+}
+
+/* ====================================================================
+   UTILITY
+   ==================================================================== */
+
+/* Sanitize strings before inserting into innerHTML to prevent XSS */
+function escapeHtml(str) {
+    return String(str)
+        .replace(/&/g,  '&amp;')
+        .replace(/</g,  '&lt;')
+        .replace(/>/g,  '&gt;')
+        .replace(/"/g,  '&quot;')
+        .replace(/'/g,  '&#39;');
+}
+
+/* ====================================================================
+   INITIALIZATION
+   ==================================================================== */
+document.addEventListener('DOMContentLoaded', function() {
+    // Workshop
+    buildScoreDims();
+    renderWorkshop();
+
+    // Template gallery
+    renderTemplates();
+
+    // Quiz
+    buildQuiz();
+});
+</script>
+</body>
+</html>
