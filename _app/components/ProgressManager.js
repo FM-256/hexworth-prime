@@ -178,15 +178,17 @@ class ProgressManager {
     // XP rewards for different activities
     static XP_REWARDS = {
         PRESENTATION_VIEW: 50,     // Viewed a presentation
+        TOOL_EXPLORE: 50,          // Explored a tool/applet
         QUIZ_PASS: 100,            // Quiz score 70-89%
         QUIZ_PERFECT: 200,         // Quiz score 90%+ (first time only, cannot be farmed)
+        BADGE_EARNED: 250,         // Achievement/badge unlocked
+        GATE_CLEARED: 500,         // Dark Arts gate completed
         LAB_COMPLETE: 500,         // Completed a lab exercise
+        GAME_HIGH_SCORE: 1000,     // Beat a personal high score in any game
         MODULE_COMPLETE: 1000,     // All components of a module finished
         COURSE_COMPLETE: 10000,    // All modules in a house path finished
-        GAME_HIGH_SCORE: 1000,     // Beat a personal high score in any game
-        TOOL_EXPLORE: 50,          // Explored a tool/applet
         DAILY_LOGIN: 25
-        // Note: Achievements award their own .points value (see AchievementSystem.js)
+        // Canonical XP values live in XPCalculator.XP_RATES — these are for reference/display
     };
 
     // Level system — uncapped RPG-style quadratic curve
@@ -781,39 +783,43 @@ class ProgressManager {
         const achievements = (typeof AchievementSystem !== 'undefined')
             ? AchievementSystem.getUnlockedAchievements() : [];
 
-        // Reconcile XP from ALL sources:
-        // 1. progress.xp (from hexworth_progress JSON — ProgressManager writes)
-        // 2. hexworth_xp standalone key (80+ games/labs/presentations write directly)
+        // Deterministic XP — always recompute from completion state when XPCalculator is loaded
+        let xp, level;
+        if (typeof XPCalculator !== 'undefined') {
+            const calc = XPCalculator.recalculate();
+            xp = calc.xp;
+            level = calc.level;
+        } else {
+            // Fallback for pages without XPCalculator: keep existing reconciliation
+            const progressXP = (typeof progress.xp === 'number' && isFinite(progress.xp)) ? progress.xp : 0;
+            const standaloneXP = parseInt(localStorage.getItem('hexworth_xp') || '0', 10) || 0;
+            xp = Math.max(progressXP, standaloneXP);
+            level = this.calculateLevel(xp);
+        }
+
+        // Sync computed values back to both stores so pages without XPCalculator
+        // still see correct values.
+        // GUARD: Only write back to hexworth_progress if it has real data (not empty defaults).
         const progressXP = (typeof progress.xp === 'number' && isFinite(progress.xp)) ? progress.xp : 0;
-        const standaloneXP = parseInt(localStorage.getItem('hexworth_xp') || '0', 10) || 0;
-        const xp = Math.max(progressXP, standaloneXP);
-
-        // Recalculate level from reconciled XP (don't trust stored level if XP changed)
-        const computedLevel = this.calculateLevel(xp);
         const storedLevel = (typeof progress.level === 'number' && isFinite(progress.level) && progress.level >= 1) ? progress.level : 1;
-        const level = Math.max(computedLevel, storedLevel);
 
-        // Sync reconciled values back to both stores so they stay aligned.
-        // GUARD: Only write back if progress has real data (not empty defaults).
-        // If hexworth_progress was unreadable, getProgress() returns defaults with
-        // no house data — writing that back would wipe all completions.
-        const hasRealData = (progress.completedModules && progress.completedModules.length > 0)
-            || Object.keys(progress.houses || {}).some(h => {
-                const house = progress.houses[h];
-                return house && (house.modulesCompleted || []).length > 0;
-            })
-            || Object.keys(this.HOUSES).some(h => progress[h] && typeof progress[h] === 'object' && !Array.isArray(progress[h]));
+        if (xp !== progressXP || level !== storedLevel) {
+            const hasRealData = (progress.completedModules && progress.completedModules.length > 0)
+                || Object.keys(progress.houses || {}).some(h => {
+                    const house = progress.houses[h];
+                    return house && (house.modulesCompleted || []).length > 0;
+                })
+                || Object.keys(this.HOUSES).some(h => progress[h] && typeof progress[h] === 'object' && !Array.isArray(progress[h]));
 
-        if ((xp !== progressXP || level !== storedLevel) && hasRealData) {
-            try {
-                progress.xp = xp;
-                progress.level = level;
-                localStorage.setItem(this.STORAGE_KEYS.PROGRESS, JSON.stringify(progress));
-                localStorage.setItem('hexworth_xp', String(xp));
-                localStorage.setItem('hexworth_level', String(level));
-            } catch (e) { /* best-effort sync */ }
-        } else if (xp !== progressXP || level !== storedLevel) {
-            // Only update standalone scalar keys — don't touch hexworth_progress
+            if (hasRealData) {
+                try {
+                    progress.xp = xp;
+                    progress.level = level;
+                    localStorage.setItem(this.STORAGE_KEYS.PROGRESS, JSON.stringify(progress));
+                } catch (e) { /* best-effort sync */ }
+            }
+
+            // Always update standalone scalar keys
             try {
                 localStorage.setItem('hexworth_xp', String(xp));
                 localStorage.setItem('hexworth_level', String(level));

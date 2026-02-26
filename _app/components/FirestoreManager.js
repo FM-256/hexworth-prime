@@ -765,8 +765,9 @@ const FirestoreManager = (function() {
      * Calculate level from XP
      */
     function calculateLevel(xp) {
-        // Level formula: Level = floor(sqrt(xp / 100)) + 1
-        return Math.floor(Math.sqrt((xp || 0) / 100)) + 1;
+        // Unified quadratic formula (matches ProgressManager + XPCalculator)
+        if (!xp || xp <= 0) return 1;
+        return Math.max(1, Math.floor((1 + Math.sqrt(1 + xp / 12.5)) / 2));
     }
 
     /**
@@ -1436,6 +1437,25 @@ const FirestoreManager = (function() {
      * Call this to fix users with 0 XP after initial migration
      */
     async function recalculateXP(uid) {
+        // Delegate to XPCalculator if available (deterministic, canonical)
+        if (typeof XPCalculator !== 'undefined') {
+            const calc = XPCalculator.recalculate();
+            const totalXP = calc.xp;
+
+            console.log('[FirestoreManager] XP recalculated via XPCalculator:', totalXP, calc.breakdown);
+
+            if (typeof FirebaseAuth !== 'undefined' && FirebaseAuth.isSignedIn()) {
+                try {
+                    await FirebaseAuth.callFunction('syncProgress', { xp: totalXP });
+                } catch (err) {
+                    console.warn('[FirestoreManager] XP sync via CF failed:', err.message);
+                }
+            }
+
+            return { success: true, xp: totalXP };
+        }
+
+        // Fallback: inline calculation with corrected XP values
         const localData = getLocalStorageProgress();
         if (!localData) {
             console.log('[FirestoreManager] No localStorage data to calculate XP from');
@@ -1444,34 +1464,34 @@ const FirestoreManager = (function() {
 
         let totalXP = 0;
 
-        // 75 XP per completed module
+        // 50 XP per completed module (PRESENTATION_VIEW rate as conservative default)
         if (Array.isArray(localData.modulesCompleted)) {
-            totalXP += localData.modulesCompleted.length * 75;
+            totalXP += localData.modulesCompleted.length * XP_VALUES.PRESENTATION_VIEW;
         }
 
-        // 15 XP per achievement
+        // 250 XP per achievement (BADGE_EARNED rate)
         if (Array.isArray(localData.achievements)) {
-            totalXP += localData.achievements.length * 15;
+            totalXP += localData.achievements.length * 250;
         }
 
-        // Streak bonus
-        totalXP += (localData.streak || 0) * 10;
+        // Daily login streak (25 XP/day, capped at 365)
+        const streakDays = Math.min(localData.streak || 0, 365);
+        totalXP += streakDays * XP_VALUES.DAILY_LOGIN;
 
-        // Quiz completions (25 XP each)
+        // Quiz completions (100 XP each — QUIZ_PASS rate)
         if (localData.quizzes) {
-            totalXP += Object.keys(localData.quizzes).length * 25;
+            totalXP += Object.keys(localData.quizzes).length * XP_VALUES.QUIZ_PASS;
         }
 
-        // Lab completions (50 XP each)
+        // Lab completions (500 XP each — LAB_COMPLETE rate)
         if (Array.isArray(localData.labsCompleted)) {
-            totalXP += localData.labsCompleted.length * 50;
+            totalXP += localData.labsCompleted.length * XP_VALUES.LAB_COMPLETE;
         }
 
-        console.log('[FirestoreManager] Recalculated XP:', totalXP, {
+        console.log('[FirestoreManager] Recalculated XP (fallback):', totalXP, {
             modules: localData.modulesCompleted?.length || 0,
             achievements: localData.achievements?.length || 0,
-            discoveryPoints,
-            streak: localData.streak || 0,
+            streak: streakDays,
             quizzes: Object.keys(localData.quizzes || {}).length,
             labs: localData.labsCompleted?.length || 0
         });

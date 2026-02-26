@@ -165,8 +165,9 @@ class HouseMembers {
      * Generate member level from XP
      */
     calculateLevel(xp) {
-        // Level formula: level = floor(sqrt(xp / 100))
-        return Math.floor(Math.sqrt(xp / 100)) + 1;
+        // Unified quadratic formula (matches ProgressManager + XPCalculator)
+        if (!xp || xp <= 0) return 1;
+        return Math.max(1, Math.floor((1 + Math.sqrt(1 + xp / 12.5)) / 2));
     }
 
     /**
