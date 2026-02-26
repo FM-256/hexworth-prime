@@ -5009,6 +5009,24 @@ class LearningPaths {
                     duration: '20 min',
                     href: 'houses/ai/presentations/ai-foundations.presentation.html',
                     prerequisites: []
+                },
+                {
+                    id: 'ai-flashcards',
+                    title: 'AI Flashcards',
+                    type: 'tool',
+                    difficulty: 'beginner',
+                    duration: '15 min',
+                    href: 'houses/ai/tools/ai-flashcards.tool.html',
+                    prerequisites: []
+                },
+                {
+                    id: 'ai-foundations-quiz',
+                    title: 'AI Foundations Quiz',
+                    type: 'quiz',
+                    difficulty: 'beginner',
+                    duration: '15 min',
+                    href: 'houses/ai/quizzes/ai-foundations.quiz.html',
+                    prerequisites: ['ai-agent-components']
                 }
             ]
         },
@@ -5072,6 +5090,33 @@ class LearningPaths {
                     duration: '20 min',
                     href: 'houses/ai/tools/ai-prompt-tester.tool.html',
                     prerequisites: ['ai-prompt-engineering']
+                },
+                {
+                    id: 'ai-tokenizer',
+                    title: 'Token Counter & Tokenizer',
+                    type: 'tool',
+                    difficulty: 'beginner',
+                    duration: '10 min',
+                    href: 'houses/ai/tools/ai-tokenizer.tool.html',
+                    prerequisites: []
+                },
+                {
+                    id: 'ai-prompt-engineering-presentation',
+                    title: 'Prompt Engineering (Slides)',
+                    type: 'presentation',
+                    difficulty: 'intermediate',
+                    duration: '25 min',
+                    href: 'houses/ai/presentations/ai-prompt-engineering.presentation.html',
+                    prerequisites: []
+                },
+                {
+                    id: 'ai-builder-quiz',
+                    title: 'Agent Builder Quiz',
+                    type: 'quiz',
+                    difficulty: 'intermediate',
+                    duration: '15 min',
+                    href: 'houses/ai/quizzes/ai-builder.quiz.html',
+                    prerequisites: ['ai-rag-pipeline-lab']
                 }
             ]
         },
@@ -5126,6 +5171,24 @@ class LearningPaths {
                     duration: '20 min',
                     href: 'houses/ai/presentations/ai-safety-guardrails.presentation.html',
                     prerequisites: []
+                },
+                {
+                    id: 'ai-ethics-debate-lab',
+                    title: 'AI Ethics Debate Lab',
+                    type: 'lab',
+                    difficulty: 'intermediate',
+                    duration: '30 min',
+                    href: 'houses/ai/labs/ai-ethics-debate.lab.html',
+                    prerequisites: ['ai-guardrails']
+                },
+                {
+                    id: 'ai-security-quiz',
+                    title: 'AI Security Quiz',
+                    type: 'quiz',
+                    difficulty: 'intermediate',
+                    duration: '15 min',
+                    href: 'houses/ai/quizzes/ai-security.quiz.html',
+                    prerequisites: ['ai-prompt-injection-lab']
                 }
             ]
         }

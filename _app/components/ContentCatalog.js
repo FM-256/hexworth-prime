@@ -1807,6 +1807,17 @@ const ContentCatalog = (function() {
         // AI House — Presentations
         { house: 'ai', id: 'ai-foundations-presentation', title: 'AI Foundations', description: 'Slide deck covering AI agents, LLMs, automation spectrum, and real-world applications', icon: '🎓', status: 'available', components: ['presentation'], href: 'presentations/ai-foundations.presentation.html', category: 'foundations' },
         { house: 'ai', id: 'ai-safety-guardrails-presentation', title: 'AI Safety & Guardrails', description: 'Slide deck on prompt injection defense, human-in-loop patterns, and graduated autonomy', icon: '🛡️', status: 'available', components: ['presentation'], href: 'presentations/ai-safety-guardrails.presentation.html', category: 'safety' },
+        // AI House — Quizzes
+        { house: 'ai', id: 'ai-foundations-quiz', title: 'AI Foundations Quiz', description: 'Test your knowledge of AI agents, the automation rubric, and the 3-component model', icon: '📝', status: 'available', components: ['quiz'], href: 'quizzes/ai-foundations.quiz.html', category: 'foundations' },
+        { house: 'ai', id: 'ai-builder-quiz', title: 'Agent Builder Quiz', description: 'Quiz on no-code platforms, prompt engineering, workflows, and RAG pipelines', icon: '📝', status: 'available', components: ['quiz'], href: 'quizzes/ai-builder.quiz.html', category: 'building' },
+        { house: 'ai', id: 'ai-security-quiz', title: 'AI Security Quiz', description: 'Quiz on SOC automation, guardrails, prompt injection, and AI safety', icon: '📝', status: 'available', components: ['quiz'], href: 'quizzes/ai-security.quiz.html', category: 'safety' },
+        // AI House — Additional Labs
+        { house: 'ai', id: 'ai-ethics-debate-lab', title: 'AI Ethics Debate Lab', description: 'Structured debates on real AI ethics dilemmas — autonomous weapons, hiring bias, deepfakes, and more', icon: '⚖️', status: 'available', components: ['lab'], href: 'labs/ai-ethics-debate.lab.html', category: 'safety' },
+        // AI House — Additional Tools
+        { house: 'ai', id: 'ai-flashcards', title: 'AI Flashcards', description: '60+ flashcards covering AI vocabulary — foundations, architecture, building, and security', icon: '🃏', status: 'available', components: ['tool'], href: 'tools/ai-flashcards.tool.html', category: 'foundations' },
+        { house: 'ai', id: 'ai-tokenizer', title: 'Token Counter & Tokenizer', description: 'Educational tokenizer — see how LLMs break text into tokens, estimate costs across models', icon: '🔢', status: 'available', components: ['tool'], href: 'tools/ai-tokenizer.tool.html', category: 'architecture' },
+        // AI House — Additional Presentations
+        { house: 'ai', id: 'ai-prompt-engineering-presentation', title: 'Prompt Engineering Deep Dive', description: 'Comprehensive slide deck on prompt techniques — zero-shot, few-shot, chain-of-thought, and more', icon: '🎓', status: 'available', components: ['presentation'], href: 'presentations/ai-prompt-engineering.presentation.html', category: 'building' },
         // AI House — Games (additional)
         { house: 'ai', id: 'ai-text-adventure-singularity', title: 'The Singularity Protocol', description: 'Text adventure — investigate a rogue AI agent at Nexus Corp before it is too late', icon: '📖', status: 'available', components: ['game'], href: 'games/ai-text-adventure-singularity.html', category: 'games' },
 
