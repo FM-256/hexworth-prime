@@ -1,0 +1,1985 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <!-- Progress Integration -->
+    <script src="../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>How LLMs Actually Work — House of the Machine | Hexworth Prime</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --accent: #a855f7;
+            --accent-light: #c084fc;
+            --accent-dark: #7c3aed;
+            --accent-glow: rgba(168, 85, 247, 0.35);
+            --bg: #0a0e1a;
+            --bg-card: rgba(16, 12, 32, 0.97);
+            --bg-surface: rgba(25, 18, 50, 0.8);
+            --text-primary: #f0eaf8;
+            --text-secondary: #9d8cbf;
+            --border: rgba(168, 85, 247, 0.25);
+            --success: #22c55e;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --info: #38bdf8;
+        }
+
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: var(--bg);
+            min-height: 100vh;
+            color: var(--text-primary);
+            overflow: hidden;
+        }
+
+        /* ── Top progress bar ── */
+        .progress-bar {
+            position: fixed;
+            top: 0; left: 0;
+            height: 3px;
+            background: linear-gradient(90deg, var(--accent-dark), var(--accent), var(--accent-light));
+            z-index: 1000;
+            transition: width 0.35s ease;
+            box-shadow: 0 0 8px var(--accent-glow);
+        }
+
+        /* ── Back link ── */
+        .back-link {
+            position: fixed;
+            top: 18px; left: 22px;
+            z-index: 900;
+            display: flex;
+            align-items: center;
+            gap: 7px;
+            padding: 7px 16px;
+            border: 1px solid var(--border);
+            border-radius: 7px;
+            background: rgba(10, 8, 22, 0.7);
+            color: var(--accent-light);
+            text-decoration: none;
+            font-size: 0.85rem;
+            font-weight: 500;
+            letter-spacing: 0.03em;
+            transition: background 0.2s, border-color 0.2s;
+            backdrop-filter: blur(6px);
+        }
+
+        .back-link:hover {
+            background: rgba(168, 85, 247, 0.12);
+            border-color: var(--accent);
+        }
+
+        /* ── Slide badge (top-right) ── */
+        .slide-badge {
+            position: fixed;
+            top: 18px; right: 22px;
+            z-index: 900;
+            padding: 7px 16px;
+            border: 1px solid var(--border);
+            border-radius: 7px;
+            background: rgba(10, 8, 22, 0.7);
+            color: var(--text-secondary);
+            font-size: 0.82rem;
+            font-weight: 500;
+            letter-spacing: 0.05em;
+            backdrop-filter: blur(6px);
+        }
+
+        .slide-badge span { color: var(--accent-light); font-weight: 700; }
+
+        /* ── Speaker notes toggle (top-right cluster) ── */
+        .notes-toggle {
+            position: fixed;
+            top: 18px; right: 140px;
+            z-index: 900;
+            padding: 7px 16px;
+            border: 1px solid var(--border);
+            border-radius: 7px;
+            background: rgba(10, 8, 22, 0.7);
+            color: var(--text-secondary);
+            font-size: 0.82rem;
+            font-weight: 500;
+            letter-spacing: 0.05em;
+            cursor: pointer;
+            transition: background 0.2s, border-color 0.2s, color 0.2s;
+            backdrop-filter: blur(6px);
+        }
+
+        .notes-toggle:hover,
+        .notes-toggle.active {
+            background: rgba(168, 85, 247, 0.15);
+            border-color: var(--accent);
+            color: var(--accent-light);
+        }
+
+        /* ── Presentation wrapper ── */
+        .presentation {
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* ── Slide base ── */
+        .slide {
+            display: none;
+            width: 92%;
+            max-width: 1180px;
+            min-height: 78vh;
+            max-height: 84vh;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 18px;
+            padding: 52px 64px 80px;
+            position: relative;
+            overflow-y: auto;
+            box-shadow: 0 24px 64px rgba(0, 0, 0, 0.6), 0 0 0 1px var(--border);
+            animation: slideIn 0.4s ease-out;
+            flex-direction: column;
+        }
+
+        .slide.active { display: flex; }
+
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateX(60px); }
+            to   { opacity: 1; transform: translateX(0); }
+        }
+
+        @keyframes slideInLeft {
+            from { opacity: 0; transform: translateX(-60px); }
+            to   { opacity: 1; transform: translateX(0); }
+        }
+
+        .slide.going-back { animation: slideInLeft 0.4s ease-out; }
+
+        /* ── Typography ── */
+        h1 {
+            font-size: 2.6rem;
+            font-weight: 300;
+            color: var(--text-primary);
+            text-align: center;
+            line-height: 1.25;
+            margin-bottom: 16px;
+        }
+
+        h1 .accent { color: var(--accent); }
+
+        h2 {
+            font-size: 2rem;
+            font-weight: 400;
+            color: var(--text-primary);
+            margin-bottom: 28px;
+            padding-bottom: 14px;
+            border-bottom: 3px solid var(--accent);
+            display: inline-block;
+        }
+
+        h3 { color: var(--accent-light); font-size: 1.2rem; margin: 18px 0 9px; font-weight: 500; }
+
+        p, li {
+            font-size: 1.05rem;
+            line-height: 1.75;
+            color: var(--text-secondary);
+            margin-bottom: 10px;
+        }
+
+        li { color: #c4b5d8; }
+        ul { margin-left: 26px; }
+        strong { color: var(--text-primary); font-weight: 600; }
+
+        code {
+            font-family: 'Courier New', monospace;
+            background: rgba(168, 85, 247, 0.12);
+            border: 1px solid rgba(168, 85, 247, 0.2);
+            border-radius: 4px;
+            padding: 2px 7px;
+            font-size: 0.91em;
+            color: var(--accent-light);
+        }
+
+        /* ── Slide section label ── */
+        .slide-label {
+            font-size: 0.72rem;
+            letter-spacing: 0.14em;
+            text-transform: uppercase;
+            color: var(--accent);
+            font-weight: 600;
+            margin-bottom: 20px;
+            opacity: 0.8;
+        }
+
+        /* ── Title slide layout ── */
+        .title-center {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            gap: 18px;
+        }
+
+        .title-pill {
+            display: inline-block;
+            padding: 6px 20px;
+            border: 1px solid var(--accent);
+            border-radius: 30px;
+            font-size: 0.78rem;
+            letter-spacing: 0.18em;
+            text-transform: uppercase;
+            color: var(--accent-light);
+            background: rgba(168, 85, 247, 0.08);
+            margin-bottom: 8px;
+        }
+
+        .title-tagline {
+            font-size: 1.12rem;
+            color: var(--text-secondary);
+            max-width: 640px;
+            line-height: 1.7;
+        }
+
+        /* ── Grids ── */
+        .grid-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 22px;
+            margin: 22px 0;
+        }
+
+        .grid-3 {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 18px;
+            margin: 22px 0;
+        }
+
+        .grid-4 {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+            margin: 18px 0;
+        }
+
+        /* ── Cards ── */
+        .card {
+            background: var(--bg-surface);
+            border: 1px solid var(--border);
+            border-radius: 13px;
+            padding: 22px;
+            transition: border-color 0.25s, transform 0.25s;
+        }
+
+        .card:hover { border-color: var(--accent); transform: translateY(-2px); }
+        .card h4 { color: var(--accent-light); font-size: 1rem; margin-bottom: 9px; font-weight: 600; }
+        .card p, .card li { font-size: 0.94rem; }
+
+        /* ── Info cards (border-left style) ── */
+        .info-card {
+            background: var(--bg-surface);
+            border-left: 4px solid var(--accent);
+            border-radius: 0 12px 12px 0;
+            padding: 16px 20px;
+            margin: 14px 0;
+        }
+
+        .info-card.danger  { border-left-color: var(--danger); }
+        .info-card.warning { border-left-color: var(--warning); }
+        .info-card.success { border-left-color: var(--success); }
+        .info-card.info    { border-left-color: var(--info); }
+
+        .info-card h4 { color: var(--accent-light); font-size: 0.98rem; margin-bottom: 7px; font-weight: 600; }
+        .info-card.danger  h4 { color: #f87171; }
+        .info-card.warning h4 { color: #fbbf24; }
+        .info-card.success h4 { color: #4ade80; }
+        .info-card.info    h4 { color: #7dd3fc; }
+
+        /* ── Highlight box ── */
+        .highlight {
+            background: linear-gradient(135deg, rgba(168, 85, 247, 0.18), rgba(124, 58, 237, 0.08));
+            border: 1px solid rgba(168, 85, 247, 0.4);
+            border-radius: 14px;
+            padding: 22px 26px;
+            margin: 20px 0;
+        }
+
+        .highlight h4 { color: var(--accent-light); margin-bottom: 10px; font-size: 1.08rem; }
+
+        /* ── Formula / equation ── */
+        .formula {
+            text-align: center;
+            padding: 24px;
+            background: rgba(168, 85, 247, 0.06);
+            border: 1px solid rgba(168, 85, 247, 0.3);
+            border-radius: 12px;
+            margin: 22px 0;
+        }
+
+        .formula .eq {
+            font-size: 1.4rem;
+            font-weight: 300;
+            letter-spacing: 0.04em;
+            color: var(--text-primary);
+            font-family: 'Courier New', monospace;
+        }
+
+        .formula .eq .var { color: var(--accent-light); font-style: italic; }
+        .formula .eq .op  { color: var(--text-secondary); padding: 0 10px; }
+        .formula p { font-size: 0.9rem; color: var(--text-secondary); margin-top: 10px; margin-bottom: 0; }
+
+        /* ── Stat row ── */
+        .stat-row {
+            display: flex;
+            gap: 18px;
+            margin: 20px 0;
+            flex-wrap: wrap;
+        }
+
+        .stat {
+            flex: 1;
+            min-width: 120px;
+            text-align: center;
+            padding: 20px 14px;
+            background: var(--bg-surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+        }
+
+        .stat .num { font-size: 2rem; font-weight: 700; color: var(--accent-light); display: block; }
+        .stat .lbl { font-size: 0.82rem; color: var(--text-secondary); margin-top: 4px; }
+
+        /* ── Check list (arrow bullets) ── */
+        .check-list { list-style: none; padding: 0; }
+
+        .check-list li {
+            padding: 8px 0 8px 28px;
+            position: relative;
+            border-bottom: 1px solid rgba(168, 85, 247, 0.08);
+            color: #c4b5d8;
+            font-size: 0.96rem;
+            margin-bottom: 0;
+        }
+
+        .check-list li:before {
+            content: "▸";
+            position: absolute;
+            left: 0;
+            color: var(--accent);
+            font-size: 0.88rem;
+            top: 10px;
+        }
+
+        /* ── Code block ── */
+        .code-block {
+            background: rgba(0, 0, 0, 0.5);
+            border: 1px solid rgba(168, 85, 247, 0.2);
+            border-radius: 10px;
+            padding: 18px 22px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.88rem;
+            color: #d4c5f0;
+            margin: 16px 0;
+            white-space: pre;
+            overflow-x: auto;
+            line-height: 1.7;
+        }
+
+        .code-block .c-red    { color: #f87171; }
+        .code-block .c-green  { color: #4ade80; }
+        .code-block .c-yellow { color: #fbbf24; }
+        .code-block .c-purple { color: var(--accent-light); }
+        .code-block .c-gray   { color: #6b7280; }
+        .code-block .c-blue   { color: #7dd3fc; }
+
+        /* ── Table ── */
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 18px 0;
+            font-size: 0.94rem;
+        }
+
+        .data-table th {
+            background: rgba(168, 85, 247, 0.18);
+            color: var(--accent-light);
+            padding: 12px 15px;
+            text-align: left;
+            font-size: 0.85rem;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+        }
+
+        .data-table td {
+            padding: 12px 15px;
+            border-bottom: 1px solid var(--border);
+            color: var(--text-secondary);
+        }
+
+        .data-table tr:hover td { background: rgba(168, 85, 247, 0.05); }
+
+        /* ── Takeaway list ── */
+        .takeaway-list { list-style: none; padding: 0; }
+
+        .takeaway-list li {
+            display: flex;
+            align-items: flex-start;
+            gap: 14px;
+            padding: 13px 17px;
+            margin: 9px 0;
+            background: var(--bg-surface);
+            border-left: 3px solid var(--accent);
+            border-radius: 0 10px 10px 0;
+        }
+
+        .takeaway-list li .num {
+            font-size: 1rem;
+            font-weight: 700;
+            color: var(--accent-light);
+            min-width: 22px;
+        }
+
+        .takeaway-list li .text { font-size: 0.97rem; color: #c4b5d8; line-height: 1.6; }
+
+        /* ── End slide ── */
+        .end-center {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            gap: 16px;
+        }
+
+        .complete-btn {
+            margin-top: 12px;
+            padding: 15px 40px;
+            font-size: 1.02rem;
+            font-weight: 600;
+            background: linear-gradient(135deg, var(--accent-dark), var(--accent));
+            color: #fff;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: transform 0.25s, box-shadow 0.25s, opacity 0.25s;
+            box-shadow: 0 4px 20px var(--accent-glow);
+            letter-spacing: 0.03em;
+        }
+
+        .complete-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 32px var(--accent-glow);
+        }
+
+        .complete-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+        /* ── Navigation controls (bottom) ── */
+        .controls {
+            position: fixed;
+            bottom: 26px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            z-index: 900;
+            background: rgba(10, 8, 22, 0.78);
+            padding: 10px 18px;
+            border-radius: 50px;
+            border: 1px solid var(--border);
+            backdrop-filter: blur(10px);
+        }
+
+        .nav-btn {
+            padding: 9px 22px;
+            font-size: 0.9rem;
+            font-weight: 500;
+            border: 1px solid var(--accent);
+            background: transparent;
+            color: var(--accent-light);
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background 0.2s, color 0.2s;
+            letter-spacing: 0.02em;
+        }
+
+        .nav-btn:hover:not(:disabled) {
+            background: rgba(168, 85, 247, 0.2);
+            color: #fff;
+        }
+
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+
+        .slide-counter {
+            font-size: 0.88rem;
+            color: var(--text-secondary);
+            min-width: 70px;
+            text-align: center;
+            letter-spacing: 0.05em;
+        }
+
+        /* ── Speaker notes panel ── */
+        .notes-panel {
+            display: none;
+            position: fixed;
+            bottom: 80px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 92%;
+            max-width: 1180px;
+            background: rgba(8, 5, 18, 0.92);
+            border: 1px solid rgba(168, 85, 247, 0.4);
+            border-radius: 12px;
+            padding: 18px 26px;
+            z-index: 800;
+            backdrop-filter: blur(12px);
+        }
+
+        .notes-panel.visible { display: block; }
+
+        .notes-panel .notes-header {
+            font-size: 0.72rem;
+            letter-spacing: 0.14em;
+            text-transform: uppercase;
+            color: var(--accent);
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .notes-panel .notes-text {
+            font-size: 0.92rem;
+            color: var(--text-secondary);
+            line-height: 1.65;
+        }
+
+        /* ── CSS diagram components ── */
+
+        /* Transformer block diagram */
+        .arch-diagram {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0;
+            margin: 20px auto;
+            max-width: 520px;
+        }
+
+        .arch-block {
+            width: 100%;
+            padding: 12px 20px;
+            text-align: center;
+            border-radius: 8px;
+            font-size: 0.88rem;
+            font-weight: 600;
+            letter-spacing: 0.04em;
+        }
+
+        .arch-arrow {
+            width: 2px;
+            height: 18px;
+            background: rgba(168, 85, 247, 0.5);
+            position: relative;
+        }
+
+        .arch-arrow::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            border-left: 6px solid transparent;
+            border-right: 6px solid transparent;
+            border-top: 8px solid rgba(168, 85, 247, 0.5);
+        }
+
+        .ab-output   { background: rgba(34,197,94,0.15);  border: 1px solid rgba(34,197,94,0.4);  color: #4ade80; }
+        .ab-linear   { background: rgba(168,85,247,0.15); border: 1px solid rgba(168,85,247,0.4); color: var(--accent-light); }
+        .ab-ffn      { background: rgba(56,189,248,0.12); border: 1px solid rgba(56,189,248,0.35); color: #7dd3fc; }
+        .ab-norm     { background: rgba(245,158,11,0.12); border: 1px solid rgba(245,158,11,0.35); color: #fbbf24; }
+        .ab-attn     { background: rgba(168,85,247,0.22); border: 1px solid rgba(168,85,247,0.5); color: #e9d5ff; }
+        .ab-embed    { background: rgba(124,58,237,0.18); border: 1px solid rgba(124,58,237,0.4); color: #c4b5fd; }
+        .ab-input    { background: rgba(99,102,241,0.15); border: 1px solid rgba(99,102,241,0.4); color: #a5b4fc; }
+
+        /* Attention heat-map grid */
+        .attn-grid {
+            display: inline-grid;
+            gap: 3px;
+            margin: 16px auto;
+        }
+
+        .attn-cell {
+            width: 44px;
+            height: 44px;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.68rem;
+            font-weight: 600;
+            color: rgba(255,255,255,0.9);
+        }
+
+        /* Token flow diagram */
+        .token-flow {
+            display: flex;
+            align-items: center;
+            gap: 0;
+            margin: 18px 0;
+            overflow-x: auto;
+        }
+
+        .token-box {
+            padding: 10px 14px;
+            background: var(--bg-surface);
+            border: 1px solid var(--border);
+            border-radius: 7px;
+            font-size: 0.84rem;
+            font-family: 'Courier New', monospace;
+            color: var(--accent-light);
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+
+        .token-arrow {
+            padding: 0 6px;
+            color: rgba(168,85,247,0.5);
+            font-size: 1.1rem;
+            flex-shrink: 0;
+        }
+
+        /* Embedding space visual */
+        .embed-space {
+            position: relative;
+            height: 180px;
+            background: rgba(168,85,247,0.04);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            margin: 16px 0;
+            overflow: hidden;
+        }
+
+        .embed-point {
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            transform: translate(-50%,-50%);
+        }
+
+        .embed-label {
+            position: absolute;
+            font-size: 0.72rem;
+            color: var(--text-secondary);
+            transform: translate(-50%, 6px);
+            white-space: nowrap;
+        }
+
+        /* Scaling law curve placeholder */
+        .scale-bars {
+            display: flex;
+            align-items: flex-end;
+            gap: 12px;
+            height: 120px;
+            padding: 0 10px;
+            margin: 16px 0;
+        }
+
+        .scale-bar-group {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 6px;
+            flex: 1;
+        }
+
+        .scale-bar-fill {
+            width: 100%;
+            background: linear-gradient(180deg, var(--accent-light), var(--accent-dark));
+            border-radius: 4px 4px 0 0;
+            transition: height 0.4s ease;
+        }
+
+        .scale-bar-label {
+            font-size: 0.72rem;
+            color: var(--text-secondary);
+            text-align: center;
+        }
+
+        /* ── Scrollbar ── */
+        .slide::-webkit-scrollbar { width: 5px; }
+        .slide::-webkit-scrollbar-track { background: transparent; }
+        .slide::-webkit-scrollbar-thumb { background: rgba(168,85,247,0.3); border-radius: 3px; }
+
+        /* ── Responsive ── */
+        @media (max-width: 900px) {
+            .slide { padding: 32px 24px 80px; }
+            h1 { font-size: 1.9rem; }
+            h2 { font-size: 1.5rem; }
+            .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; }
+            .stat-row { gap: 10px; }
+            .notes-toggle { display: none; }
+            .attn-cell { width: 34px; height: 34px; font-size: 0.6rem; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- Top progress indicator -->
+<div class="progress-bar" id="progressBar"></div>
+
+<!-- Back navigation -->
+<a class="back-link" href="../index.html">&#8592; AI House</a>
+
+<!-- Speaker notes toggle -->
+<button class="notes-toggle" id="notesToggle" onclick="toggleNotes()" title="Press N">Notes (N)</button>
+
+<!-- Slide position badge -->
+<div class="slide-badge">Slide <span id="slideNum">1</span> / <span id="slideTotal">23</span></div>
+
+<!-- ================================================================
+     PRESENTATION
+================================================================ -->
+<div class="presentation">
+
+<!-- ── Slide 01: Title ── -->
+<div class="slide active" data-notes="Welcome to this deep-dive on LLM internals. By the end of the 23 slides, learners should be able to explain self-attention, describe the training pipeline, and contrast fine-tuning vs RAG vs ICL. Estimated run time: 35-45 minutes with discussion.">
+    <div class="title-center">
+        <div class="title-pill">House of the Machine &nbsp;·&nbsp; Model Architecture</div>
+        <h1><span class="accent">How LLMs Actually Work</span></h1>
+        <p class="title-tagline">A technical tour of large language models — from tokenization and embeddings through self-attention, training, and the frontier of what comes next.</p>
+        <div style="margin-top:24px; display:flex; gap:20px; justify-content:center; flex-wrap:wrap;">
+            <div style="text-align:center; padding:13px 20px; background:var(--bg-surface); border:1px solid var(--border); border-radius:10px;">
+                <div style="font-size:1.7rem; color:var(--accent-light); font-weight:700;">23</div>
+                <div style="font-size:0.78rem; color:var(--text-secondary); margin-top:4px;">Slides</div>
+            </div>
+            <div style="text-align:center; padding:13px 20px; background:var(--bg-surface); border:1px solid var(--border); border-radius:10px;">
+                <div style="font-size:1.7rem; color:var(--accent-light); font-weight:700;">6</div>
+                <div style="font-size:0.78rem; color:var(--text-secondary); margin-top:4px;">Sections</div>
+            </div>
+            <div style="text-align:center; padding:13px 20px; background:var(--bg-surface); border:1px solid var(--border); border-radius:10px;">
+                <div style="font-size:1.7rem; color:var(--accent-light); font-weight:700;">&#8592;&#8594;</div>
+                <div style="font-size:0.78rem; color:var(--text-secondary); margin-top:4px;">Keyboard Nav</div>
+            </div>
+            <div style="text-align:center; padding:13px 20px; background:var(--bg-surface); border:1px solid var(--border); border-radius:10px;">
+                <div style="font-size:1.7rem; color:var(--accent-light); font-weight:700;">N</div>
+                <div style="font-size:0.78rem; color:var(--text-secondary); margin-top:4px;">Speaker Notes</div>
+            </div>
+        </div>
+        <p style="font-size:0.82rem; color:rgba(157,140,191,0.55); margin-top:10px;">House of the Machine &nbsp;&#8250;&nbsp; Presentations &nbsp;&#8250;&nbsp; Model Architecture</p>
+    </div>
+</div>
+
+<!-- ── Slide 02: Timeline ── -->
+<div class="slide" data-notes="RNNs (1986) handled sequences but suffered from vanishing gradients — information from early tokens was lost in long sequences. LSTMs (1997) helped but were slow to train. The 2017 'Attention Is All You Need' paper from Google Brain was the inflection point. By 2018 BERT and GPT proved the architecture at scale.">
+    <div class="slide-label">Section 1 &nbsp;·&nbsp; Origins</div>
+    <h2>From RNNs to Transformers</h2>
+    <p>The path to today's LLMs spans four decades of sequence modelling research. Each architecture solved the previous era's bottleneck — until Transformers solved them all at once.</p>
+
+    <div style="margin: 24px 0; overflow-x: auto;">
+        <div style="display:flex; min-width: 700px; align-items:stretch; gap:0;">
+            <div style="flex:1; background:rgba(99,102,241,0.1); border:1px solid rgba(99,102,241,0.3); border-right:none; padding:16px 14px; text-align:center;">
+                <div style="font-size:0.72rem; font-weight:700; color:#a5b4fc; letter-spacing:0.08em; margin-bottom:6px;">1980s</div>
+                <div style="font-size:0.9rem; font-weight:600; color:var(--text-primary); margin-bottom:6px;">RNNs</div>
+                <div style="font-size:0.8rem; color:var(--text-secondary);">Sequential. Vanishing gradients. Slow.</div>
+            </div>
+            <div style="flex:1; background:rgba(56,189,248,0.08); border:1px solid rgba(56,189,248,0.25); border-right:none; padding:16px 14px; text-align:center;">
+                <div style="font-size:0.72rem; font-weight:700; color:#7dd3fc; letter-spacing:0.08em; margin-bottom:6px;">1997</div>
+                <div style="font-size:0.9rem; font-weight:600; color:var(--text-primary); margin-bottom:6px;">LSTMs</div>
+                <div style="font-size:0.8rem; color:var(--text-secondary);">Gated memory. Better long-range. Still serial.</div>
+            </div>
+            <div style="flex:1; background:rgba(245,158,11,0.08); border:1px solid rgba(245,158,11,0.25); border-right:none; padding:16px 14px; text-align:center;">
+                <div style="font-size:0.72rem; font-weight:700; color:#fbbf24; letter-spacing:0.08em; margin-bottom:6px;">2014–16</div>
+                <div style="font-size:0.9rem; font-weight:600; color:var(--text-primary); margin-bottom:6px;">Seq2Seq + Attention</div>
+                <div style="font-size:0.8rem; color:var(--text-secondary);">Encoder-decoder. Attention as add-on.</div>
+            </div>
+            <div style="flex:1; background:rgba(168,85,247,0.15); border:1px solid rgba(168,85,247,0.45); border-right:none; padding:16px 14px; text-align:center;">
+                <div style="font-size:0.72rem; font-weight:700; color:var(--accent-light); letter-spacing:0.08em; margin-bottom:6px;">2017</div>
+                <div style="font-size:0.9rem; font-weight:600; color:var(--text-primary); margin-bottom:6px;">Transformer</div>
+                <div style="font-size:0.8rem; color:var(--text-secondary);">Attention is all you need. Fully parallel.</div>
+            </div>
+            <div style="flex:1; background:rgba(34,197,94,0.1); border:1px solid rgba(34,197,94,0.3); padding:16px 14px; text-align:center; border-radius:0 6px 6px 0;">
+                <div style="font-size:0.72rem; font-weight:700; color:#4ade80; letter-spacing:0.08em; margin-bottom:6px;">2018–Now</div>
+                <div style="font-size:0.9rem; font-weight:600; color:var(--text-primary); margin-bottom:6px;">GPT / BERT / LLMs</div>
+                <div style="font-size:0.8rem; color:var(--text-secondary);">Scale. Pre-train. Fine-tune. Align.</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="grid-2">
+        <div class="info-card">
+            <h4>The core RNN problem</h4>
+            <p style="font-size:0.93rem;">Processing tokens sequentially meant earlier context was diluted by the time it reached later tokens. Long-range dependencies — "the cat, which sat on the mat that was in the corner, was" — were near-impossible to preserve.</p>
+        </div>
+        <div class="info-card success">
+            <h4>Why Transformers won</h4>
+            <p style="font-size:0.93rem;">Every token can attend to every other token simultaneously. No sequential bottleneck. Fully parallelisable on GPUs. Scales from millions to trillions of parameters with the same architecture.</p>
+        </div>
+    </div>
+</div>
+
+<!-- ── Slide 03: Transformer Architecture ── -->
+<div class="slide" data-notes="The 'Attention Is All You Need' paper (Vaswani et al., 2017) replaced recurrence entirely with self-attention. The original architecture had both encoder and decoder stacks. GPT-style models use only the decoder; BERT uses only the encoder. Emphasise that every modern LLM is built on this foundation.">
+    <div class="slide-label">Section 1 &nbsp;·&nbsp; Origins</div>
+    <h2>The Transformer Architecture</h2>
+    <p>The Transformer processes the entire input sequence in parallel. A stack of identical layers each applies self-attention followed by a feed-forward network, with residual connections and normalisation throughout.</p>
+
+    <div class="grid-2" style="align-items:start;">
+        <div>
+            <div class="arch-diagram">
+                <div class="arch-block ab-output">Output Probabilities (Softmax)</div>
+                <div class="arch-arrow"></div>
+                <div class="arch-block ab-linear">Linear Projection</div>
+                <div class="arch-arrow"></div>
+                <div class="arch-block ab-norm" style="font-size:0.82rem;">LayerNorm + Residual</div>
+                <div class="arch-arrow"></div>
+                <div class="arch-block ab-ffn">Feed-Forward Network</div>
+                <div class="arch-arrow"></div>
+                <div class="arch-block ab-norm" style="font-size:0.82rem;">LayerNorm + Residual</div>
+                <div class="arch-arrow"></div>
+                <div class="arch-block ab-attn">Multi-Head Self-Attention</div>
+                <div class="arch-arrow"></div>
+                <div class="arch-block ab-embed">Token + Positional Embeddings</div>
+                <div class="arch-arrow"></div>
+                <div class="arch-block ab-input">Input Tokens</div>
+            </div>
+        </div>
+        <div>
+            <h3>Key design decisions</h3>
+            <ul class="check-list">
+                <li><strong>Residual connections</strong> let gradients flow through deep stacks without vanishing</li>
+                <li><strong>Layer normalisation</strong> stabilises training at each sub-layer</li>
+                <li><strong>Stacked layers</strong> — GPT-4 uses ~96 layers; each refines representations</li>
+                <li><strong>No recurrence</strong> — processing is fully parallel across the sequence</li>
+                <li><strong>Shared weights</strong> — same layer blueprint repeated N times</li>
+            </ul>
+
+            <div class="highlight" style="margin-top:18px;">
+                <h4>Decoder-only vs Encoder-only</h4>
+                <p style="font-size:0.92rem;">GPT, Claude, Llama — <strong>decoder-only</strong>: generate text left-to-right. BERT — <strong>encoder-only</strong>: builds bidirectional representations for classification/search. T5 — <strong>encoder-decoder</strong>: translation, summarisation.</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ── Slide 04: Self-Attention ── -->
+<div class="slide" data-notes="The Q/K/V formulation is the heart of Transformers. Q=query (what am I looking for?), K=key (what do I have?), V=value (what do I return?). The dot-product between Q and K gives a compatibility score; softmax normalises into weights; the weighted sum of V is the output. Scaling by sqrt(d_k) prevents vanishing gradients in the softmax.">
+    <div class="slide-label">Section 2 &nbsp;·&nbsp; Attention</div>
+    <h2>Self-Attention Mechanism</h2>
+    <p>Self-attention lets every token in a sequence compute a weighted summary of all other tokens. The weights reflect <strong>relevance</strong> — how much each other token should influence the current one's representation.</p>
+
+    <div class="grid-2" style="align-items:start; margin-top:20px;">
+        <div>
+            <h3>The Q, K, V framework</h3>
+            <div class="card" style="margin-bottom:14px;">
+                <h4>Query (Q)</h4>
+                <p style="font-size:0.92rem;">"What information am I looking for?" — the current token's question to the sequence.</p>
+            </div>
+            <div class="card" style="margin-bottom:14px;">
+                <h4>Key (K)</h4>
+                <p style="font-size:0.92rem;">"What do I contain?" — every token advertises its content so queries can find it.</p>
+            </div>
+            <div class="card">
+                <h4>Value (V)</h4>
+                <p style="font-size:0.92rem;">"What do I contribute?" — the actual information passed back once a match is found.</p>
+            </div>
+        </div>
+        <div>
+            <h3>The formula</h3>
+            <div class="formula" style="margin-top:0;">
+                <div class="eq">
+                    Attention(<span class="var">Q</span>,<span class="var">K</span>,<span class="var">V</span>)
+                    <span class="op">=</span>
+                    softmax<span style="color:var(--text-secondary);">(</span><span class="var">QK</span><sup style="font-size:0.7em; color:var(--text-secondary);">T</sup>
+                    <span class="op">/</span>
+                    &radic;<span class="var">d<sub style="font-size:0.65em;">k</sub></span><span style="color:var(--text-secondary);">)</span><span class="var">V</span>
+                </div>
+                <p>Score each key against the query, scale by dimension, normalise, then take a weighted sum of values.</p>
+            </div>
+
+            <!-- Attention heatmap visual -->
+            <h3 style="margin-top:14px;">Attention weights (example)</h3>
+            <p style="font-size:0.85rem; margin-bottom:10px; color:var(--text-secondary);">Token "bank" attends strongly to "river" — resolving ambiguity.</p>
+            <div style="display:flex; gap:8px; justify-content:center;">
+                <div class="attn-grid" style="grid-template-columns: repeat(5, 44px);">
+                    <!-- Row headers are implied by colour intensity -->
+                    <div class="attn-cell" style="background:rgba(168,85,247,0.85);">0.42</div>
+                    <div class="attn-cell" style="background:rgba(168,85,247,0.25);">0.11</div>
+                    <div class="attn-cell" style="background:rgba(168,85,247,0.55);">0.27</div>
+                    <div class="attn-cell" style="background:rgba(168,85,247,0.14);">0.09</div>
+                    <div class="attn-cell" style="background:rgba(168,85,247,0.22);">0.11</div>
+
+                    <div class="attn-cell" style="background:rgba(168,85,247,0.18);">0.08</div>
+                    <div class="attn-cell" style="background:rgba(168,85,247,0.9);">0.61</div>
+                    <div class="attn-cell" style="background:rgba(168,85,247,0.12);">0.06</div>
+                    <div class="attn-cell" style="background:rgba(168,85,247,0.18);">0.14</div>
+                    <div class="attn-cell" style="background:rgba(168,85,247,0.2);">0.11</div>
+
+                    <div class="attn-cell" style="background:rgba(168,85,247,0.3);">0.14</div>
+                    <div class="attn-cell" style="background:rgba(168,85,247,0.15);">0.07</div>
+                    <div class="attn-cell" style="background:rgba(168,85,247,0.75);">0.51</div>
+                    <div class="attn-cell" style="background:rgba(168,85,247,0.2);">0.18</div>
+                    <div class="attn-cell" style="background:rgba(168,85,247,0.18);">0.10</div>
+                </div>
+                <div style="display:flex; flex-direction:column; justify-content:space-around; font-size:0.72rem; color:var(--text-secondary);">
+                    <span>The</span><span>river</span><span>bank</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ── Slide 05: Multi-Head Attention ── -->
+<div class="slide" data-notes="Multi-head attention is the key to representational richness. Different heads specialise: some track syntactic dependencies (subject-verb agreement), others track semantic similarity, others coreference. The parallel heads then concatenate and project back. GPT-3 has 96 heads per layer.">
+    <div class="slide-label">Section 2 &nbsp;·&nbsp; Attention</div>
+    <h2>Multi-Head Attention</h2>
+    <p>Running attention once only captures one type of relationship. Multi-head attention runs <strong>H parallel attention operations</strong>, each learning different relationship patterns, then combines the results.</p>
+
+    <div style="margin:22px 0; display:flex; flex-direction:column; gap:0; align-items:center;">
+        <!-- Input row -->
+        <div style="display:flex; gap:10px; justify-content:center; margin-bottom:8px;">
+            <div style="padding:8px 20px; background:rgba(99,102,241,0.15); border:1px solid rgba(99,102,241,0.4); border-radius:7px; font-size:0.85rem; color:#a5b4fc; font-weight:600;">Input Embeddings</div>
+        </div>
+        <!-- Arrows down to heads -->
+        <div style="display:flex; gap:10px; justify-content:center; margin-bottom:8px;">
+            <div style="font-size:0.7rem; color:rgba(168,85,247,0.5);">&#9660;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&#9660;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&#9660;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&#9660;</div>
+        </div>
+        <!-- Four heads -->
+        <div style="display:flex; gap:12px; justify-content:center; flex-wrap:wrap;">
+            <div style="padding:10px 16px; background:rgba(168,85,247,0.12); border:1px solid rgba(168,85,247,0.35); border-radius:9px; text-align:center; min-width:130px;">
+                <div style="font-size:0.72rem; color:var(--accent); font-weight:700; margin-bottom:4px;">HEAD 1</div>
+                <div style="font-size:0.8rem; color:var(--text-secondary);">Syntax / grammar</div>
+            </div>
+            <div style="padding:10px 16px; background:rgba(56,189,248,0.1); border:1px solid rgba(56,189,248,0.3); border-radius:9px; text-align:center; min-width:130px;">
+                <div style="font-size:0.72rem; color:#7dd3fc; font-weight:700; margin-bottom:4px;">HEAD 2</div>
+                <div style="font-size:0.8rem; color:var(--text-secondary);">Coreference</div>
+            </div>
+            <div style="padding:10px 16px; background:rgba(34,197,94,0.1); border:1px solid rgba(34,197,94,0.3); border-radius:9px; text-align:center; min-width:130px;">
+                <div style="font-size:0.72rem; color:#4ade80; font-weight:700; margin-bottom:4px;">HEAD 3</div>
+                <div style="font-size:0.8rem; color:var(--text-secondary);">Semantic similarity</div>
+            </div>
+            <div style="padding:10px 16px; background:rgba(245,158,11,0.1); border:1px solid rgba(245,158,11,0.3); border-radius:9px; text-align:center; min-width:130px;">
+                <div style="font-size:0.72rem; color:#fbbf24; font-weight:700; margin-bottom:4px;">HEAD H</div>
+                <div style="font-size:0.8rem; color:var(--text-secondary);">Positional relations</div>
+            </div>
+        </div>
+        <!-- Concat arrow -->
+        <div style="font-size:0.7rem; color:rgba(168,85,247,0.5); margin:8px 0;">&#9660; Concatenate &amp; Project &#9660;</div>
+        <div style="padding:8px 24px; background:rgba(34,197,94,0.13); border:1px solid rgba(34,197,94,0.4); border-radius:7px; font-size:0.85rem; color:#4ade80; font-weight:600;">Rich Combined Representation</div>
+    </div>
+
+    <div class="grid-3" style="margin-top:16px;">
+        <div class="card">
+            <h4>Parallelism</h4>
+            <p style="font-size:0.91rem;">All heads compute simultaneously — no sequential dependency. On modern GPUs this maps perfectly to matrix operations.</p>
+        </div>
+        <div class="card">
+            <h4>Dimension split</h4>
+            <p style="font-size:0.91rem;">If model dimension is 1024 and there are 16 heads, each head works in 64 dimensions. Same total compute as single-head attention.</p>
+        </div>
+        <div class="card">
+            <h4>Emergent specialisation</h4>
+            <p style="font-size:0.91rem;">Heads are not told what to learn — they discover their own specialisations during training from the data.</p>
+        </div>
+    </div>
+</div>
+
+<!-- ── Slide 06: Positional Encoding ── -->
+<div class="slide" data-notes="Without positional encoding, 'The cat sat on the mat' and 'The mat sat on the cat' would produce identical attention outputs — order is lost. Sinusoidal encodings from the original paper are fixed; learned positional embeddings (BERT, GPT) are trainable. RoPE (Rotary Position Embedding) is the modern standard used by Llama and others — it encodes relative positions directly in the attention computation.">
+    <div class="slide-label">Section 2 &nbsp;·&nbsp; Attention</div>
+    <h2>Positional Encoding</h2>
+    <p>Attention is order-agnostic by design — it treats the input as a <strong>set</strong>, not a sequence. Positional encodings inject sequence-order information so the model knows token 3 comes before token 7.</p>
+
+    <div class="grid-2" style="margin-top:20px;">
+        <div>
+            <h3>Three main approaches</h3>
+            <div class="info-card" style="margin-bottom:12px;">
+                <h4>Sinusoidal (original Transformer)</h4>
+                <p style="font-size:0.91rem;">Fixed sine/cosine waves at different frequencies. Works at inference on sequences longer than training. Not learned.</p>
+            </div>
+            <div class="info-card info" style="margin-bottom:12px;">
+                <h4>Learned absolute (BERT, GPT-2)</h4>
+                <p style="font-size:0.91rem;">Trainable embedding per position. Simple but hard-limited to context length seen at training time.</p>
+            </div>
+            <div class="info-card success">
+                <h4>RoPE (Llama, modern LLMs)</h4>
+                <p style="font-size:0.91rem;">Rotary Position Embedding — encodes <em>relative</em> position inside the attention score. Naturally extends to longer contexts and is now the de facto standard.</p>
+            </div>
+        </div>
+        <div>
+            <h3>Sinusoidal pattern</h3>
+            <p style="font-size:0.88rem; color:var(--text-secondary);">Each dimension uses a different frequency — low frequencies encode coarse position, high frequencies encode fine position.</p>
+            <div style="margin-top:14px; background:rgba(168,85,247,0.04); border:1px solid var(--border); border-radius:10px; padding:14px; overflow-x:auto;">
+                <div style="display:flex; gap:4px; align-items:flex-end; height:80px; min-width:340px;">
+                    <div style="flex:1; display:flex; flex-direction:column; gap:2px; justify-content:flex-end;">
+                        <div style="height:60px; background:linear-gradient(180deg,rgba(168,85,247,0.9),rgba(124,58,237,0.3)); border-radius:3px 3px 0 0;"></div>
+                        <div style="font-size:0.62rem; color:var(--text-secondary); text-align:center;">pos 0</div>
+                    </div>
+                    <div style="flex:1; display:flex; flex-direction:column; gap:2px; justify-content:flex-end;">
+                        <div style="height:42px; background:linear-gradient(180deg,rgba(168,85,247,0.75),rgba(124,58,237,0.25)); border-radius:3px 3px 0 0;"></div>
+                        <div style="font-size:0.62rem; color:var(--text-secondary); text-align:center;">pos 1</div>
+                    </div>
+                    <div style="flex:1; display:flex; flex-direction:column; gap:2px; justify-content:flex-end;">
+                        <div style="height:20px; background:linear-gradient(180deg,rgba(168,85,247,0.45),rgba(124,58,237,0.15)); border-radius:3px 3px 0 0;"></div>
+                        <div style="font-size:0.62rem; color:var(--text-secondary); text-align:center;">pos 2</div>
+                    </div>
+                    <div style="flex:1; display:flex; flex-direction:column; gap:2px; justify-content:flex-end;">
+                        <div style="height:55px; background:linear-gradient(180deg,rgba(56,189,248,0.7),rgba(56,189,248,0.2)); border-radius:3px 3px 0 0;"></div>
+                        <div style="font-size:0.62rem; color:var(--text-secondary); text-align:center;">pos 3</div>
+                    </div>
+                    <div style="flex:1; display:flex; flex-direction:column; gap:2px; justify-content:flex-end;">
+                        <div style="height:70px; background:linear-gradient(180deg,rgba(56,189,248,0.85),rgba(56,189,248,0.25)); border-radius:3px 3px 0 0;"></div>
+                        <div style="font-size:0.62rem; color:var(--text-secondary); text-align:center;">pos 4</div>
+                    </div>
+                    <div style="flex:1; display:flex; flex-direction:column; gap:2px; justify-content:flex-end;">
+                        <div style="height:35px; background:linear-gradient(180deg,rgba(34,197,94,0.6),rgba(34,197,94,0.2)); border-radius:3px 3px 0 0;"></div>
+                        <div style="font-size:0.62rem; color:var(--text-secondary); text-align:center;">pos 5</div>
+                    </div>
+                    <div style="flex:1; display:flex; flex-direction:column; gap:2px; justify-content:flex-end;">
+                        <div style="height:15px; background:linear-gradient(180deg,rgba(34,197,94,0.4),rgba(34,197,94,0.1)); border-radius:3px 3px 0 0;"></div>
+                        <div style="font-size:0.62rem; color:var(--text-secondary); text-align:center;">pos 6</div>
+                    </div>
+                </div>
+                <div style="font-size:0.72rem; color:var(--text-secondary); text-align:center; margin-top:6px;">Encoding dimension values vary by position and frequency</div>
+            </div>
+
+            <div class="highlight" style="margin-top:14px;">
+                <h4>Why it works</h4>
+                <p style="font-size:0.9rem;">After adding positional encodings to token embeddings, the attention mechanism can infer relative and absolute positions from the pattern of values — no separate positional lookup needed.</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ── Slide 07: Feed-Forward Networks ── -->
+<div class="slide" data-notes="The FFN is the 'memory' of each layer. Research suggests that factual associations are stored in FFN weights — suppressing certain neurons can erase specific factual knowledge. The 4x expansion factor is an empirical choice from the original paper that has largely held. Recent work (e.g., mixture-of-experts) replaces the dense FFN with multiple sparse experts, activating only a subset per token.">
+    <div class="slide-label">Section 2 &nbsp;·&nbsp; Architecture Internals</div>
+    <h2>Feed-Forward Networks</h2>
+    <p>After attention mixes information across tokens, a <strong>position-wise feed-forward network</strong> (FFN) processes each token independently. This is where most of the model's learned knowledge is stored.</p>
+
+    <div class="grid-2" style="margin-top:22px; align-items:start;">
+        <div>
+            <h3>Structure per token</h3>
+            <div style="display:flex; flex-direction:column; align-items:center; gap:0; margin:14px 0;">
+                <div class="arch-block ab-norm" style="width:100%;">Output (d_model = 1024)</div>
+                <div class="arch-arrow"></div>
+                <div class="arch-block" style="width:100%; background:rgba(168,85,247,0.12); border:1px solid rgba(168,85,247,0.35); color:var(--accent-light);">Linear (4096 → 1024)</div>
+                <div class="arch-arrow"></div>
+                <div class="arch-block ab-ffn" style="width:100%;">GELU / ReLU activation</div>
+                <div class="arch-arrow"></div>
+                <div class="arch-block" style="width:100%; background:rgba(168,85,247,0.12); border:1px solid rgba(168,85,247,0.35); color:var(--accent-light);">Linear (1024 → 4096)</div>
+                <div class="arch-arrow"></div>
+                <div class="arch-block ab-attn" style="width:100%;">Input from attention (d_model)</div>
+            </div>
+        </div>
+        <div>
+            <h3>Key properties</h3>
+            <ul class="check-list">
+                <li><strong>4x expansion</strong> — hidden layer is 4× the model dimension, then compressed back</li>
+                <li><strong>No cross-token interaction</strong> — each position processed identically and independently</li>
+                <li><strong>Non-linearity</strong> — GELU activation enables complex function approximation</li>
+                <li><strong>Factual storage</strong> — neuron probing shows factual knowledge encoded in FFN weights</li>
+                <li><strong>SwiGLU variant</strong> — used in Llama, PaLM; replaces single activation with a gated mechanism</li>
+            </ul>
+
+            <div class="info-card warning" style="margin-top:16px;">
+                <h4>Where the parameters live</h4>
+                <p style="font-size:0.91rem;">In a typical LLM, ~66% of parameters are in FFN layers. The attention layers account for ~33%. This is why scaling up mostly means bigger FFNs.</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ── Slide 08: Layer Normalisation ── -->
+<div class="slide" data-notes="Batch norm was the standard in CV but is awkward for variable-length sequences. Layer norm (Ba et al., 2016) normalises across features for a single sample — perfect for NLP. Pre-norm (normalise before the sub-layer, add residual after) is more stable during training than post-norm and is used by GPT-3, Llama, and most modern LLMs. RMS Norm (Llama 2+) drops the mean-centering step, saving compute with no quality loss.">
+    <div class="slide-label">Section 2 &nbsp;·&nbsp; Architecture Internals</div>
+    <h2>Layer Normalisation</h2>
+    <p>Deep networks suffer from <strong>internal covariate shift</strong> — the distribution of activations changes as weights update, making training unstable. Layer normalisation fixes this by re-centring and re-scaling activations at each layer boundary.</p>
+
+    <div class="grid-2" style="margin-top:20px; align-items:start;">
+        <div>
+            <h3>The operation</h3>
+            <div class="formula">
+                <div class="eq" style="font-size:1.1rem;">
+                    <span class="var">y</span><span class="op">=</span>
+                    &gamma; &sdot; (<span class="var">x</span> &minus; &mu;) / &radic;(&sigma;&sup2; + &epsilon;) &plus; &beta;
+                </div>
+                <p>Normalise across the feature dimension for each token. &gamma; and &beta; are learnable scale and shift parameters.</p>
+            </div>
+
+            <h3 style="margin-top:18px;">Pre-norm vs Post-norm</h3>
+            <div class="info-card success">
+                <h4>Pre-LayerNorm (modern default)</h4>
+                <p style="font-size:0.91rem;">Normalise the input <em>before</em> each sub-layer. Add the raw (un-normalised) residual after. More stable gradient flow — used by GPT-3, Llama, Claude.</p>
+            </div>
+            <div class="info-card warning">
+                <h4>Post-LayerNorm (original paper)</h4>
+                <p style="font-size:0.91rem;">Normalise <em>after</em> the sub-layer. Can diverge during training on very deep networks. Requires warm-up learning rate schedules.</p>
+            </div>
+        </div>
+        <div>
+            <h3>Why residual connections matter</h3>
+            <p style="font-size:0.93rem;">Each sub-layer computes <code>output = LayerNorm(x + sublayer(x))</code>. The <code>+ x</code> is the residual connection — it creates a direct path for gradients to flow backward through hundreds of layers without vanishing.</p>
+
+            <div class="highlight" style="margin-top:16px;">
+                <h4>RMS Norm (Llama 2+)</h4>
+                <p style="font-size:0.91rem;">Root Mean Square Normalisation drops the mean-centring step (sets &mu; = 0 implicitly), saving ~20% of normalisation compute with no measurable quality degradation.</p>
+            </div>
+
+            <div class="card" style="margin-top:14px;">
+                <h4>Practical effect</h4>
+                <p style="font-size:0.91rem;">Without LayerNorm, training a 100-layer network diverges within a few thousand steps. With it, 100-layer networks train smoothly to convergence.</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ── Slide 09: Training Process ── -->
+<div class="slide" data-notes="Pre-training on next-token prediction is deceptively simple but insanely powerful. Predicting the next token forces the model to learn grammar, facts, reasoning, and style simultaneously. GPT-3 was trained on ~300B tokens. Llama 3 on 15 trillion tokens. The Common Crawl is the backbone of most training sets — filtered web text. The three-phase view (pre-train → SFT → RLHF) is the standard recipe.">
+    <div class="slide-label">Section 3 &nbsp;·&nbsp; Training</div>
+    <h2>The Training Process</h2>
+    <p>LLM training is a three-phase pipeline. The bulk of the compute — and cost — is in Phase 1, which can run for months on thousands of GPUs.</p>
+
+    <div style="margin:22px 0; display:flex; gap:0; align-items:stretch;">
+        <div style="flex:1; background:rgba(168,85,247,0.12); border:1px solid rgba(168,85,247,0.4); border-right:none; border-radius:10px 0 0 10px; padding:20px 18px;">
+            <div style="font-size:0.72rem; font-weight:700; color:var(--accent); letter-spacing:0.1em; margin-bottom:10px;">PHASE 1</div>
+            <div style="font-size:1.05rem; font-weight:600; color:var(--text-primary); margin-bottom:8px;">Pre-Training</div>
+            <ul class="check-list" style="font-size:0.88rem;">
+                <li>Next-token prediction</li>
+                <li>Trillions of tokens</li>
+                <li>Web, books, code, papers</li>
+                <li>Months on 1000s of GPUs</li>
+                <li>Creates the base model</li>
+            </ul>
+        </div>
+        <div style="flex:1; background:rgba(56,189,248,0.08); border:1px solid rgba(56,189,248,0.3); border-right:none; padding:20px 18px;">
+            <div style="font-size:0.72rem; font-weight:700; color:#7dd3fc; letter-spacing:0.1em; margin-bottom:10px;">PHASE 2</div>
+            <div style="font-size:1.05rem; font-weight:600; color:var(--text-primary); margin-bottom:8px;">Supervised Fine-Tuning</div>
+            <ul class="check-list" style="font-size:0.88rem;">
+                <li>High-quality human examples</li>
+                <li>Instruction-response pairs</li>
+                <li>Thousands to millions of samples</li>
+                <li>Days on dozens of GPUs</li>
+                <li>Teaches format and helpfulness</li>
+            </ul>
+        </div>
+        <div style="flex:1; background:rgba(34,197,94,0.08); border:1px solid rgba(34,197,94,0.3); border-radius:0 10px 10px 0; padding:20px 18px;">
+            <div style="font-size:0.72rem; font-weight:700; color:#4ade80; letter-spacing:0.1em; margin-bottom:10px;">PHASE 3</div>
+            <div style="font-size:1.05rem; font-weight:600; color:var(--text-primary); margin-bottom:8px;">Alignment (RLHF)</div>
+            <ul class="check-list" style="font-size:0.88rem;">
+                <li>Human preference ratings</li>
+                <li>Reward model training</li>
+                <li>PPO / DPO optimisation</li>
+                <li>Removes harmful outputs</li>
+                <li>Creates the chat model</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="stat-row">
+        <div class="stat"><span class="num">15T</span><span class="lbl">tokens, Llama 3 training</span></div>
+        <div class="stat"><span class="num">16K+</span><span class="lbl">H100 GPUs (Llama 3)</span></div>
+        <div class="stat"><span class="num">~$100M</span><span class="lbl">estimated pre-training cost (frontier models)</span></div>
+        <div class="stat"><span class="num">months</span><span class="lbl">to train a single frontier run</span></div>
+    </div>
+</div>
+
+<!-- ── Slide 10: Tokenisation ── -->
+<div class="slide" data-notes="Tokenisation is the often-overlooked foundation. The model never sees raw characters or words — it sees token IDs. BPE starts with individual characters and merges the most frequent adjacent pair repeatedly until a vocabulary size is reached. GPT-4 uses ~100K tokens. One English word is roughly 1.3 tokens on average. Code is often tokenised less efficiently. Non-English languages can be 2-5x less efficient.">
+    <div class="slide-label">Section 3 &nbsp;·&nbsp; Training</div>
+    <h2>Tokenisation</h2>
+    <p>Before a model sees any text, it must be converted to integers. <strong>Tokenisation</strong> is the process of splitting text into discrete units that map to vocabulary entries — not characters, not full words, but sub-word pieces.</p>
+
+    <div class="grid-2" style="margin-top:20px; align-items:start;">
+        <div>
+            <h3>BPE: Byte-Pair Encoding</h3>
+            <p style="font-size:0.93rem;">The most common algorithm. Starts with a character-level vocabulary, then iteratively merges the most frequent adjacent pair of tokens until reaching the target vocabulary size.</p>
+
+            <div class="code-block" style="font-size:0.82rem; white-space:pre-wrap;"># Initial: character-level
+"unhappiness" → [u,n,h,a,p,p,i,n,e,s,s]
+
+# After merges:
+"unhappiness" → [un, hap, p, iness]
+
+# Final token IDs (example):
+"unhappiness" → [428, 5131, 1108]</div>
+
+            <h3 style="margin-top:16px;">Example tokenisation</h3>
+            <div class="token-flow" style="flex-wrap:wrap; gap:6px;">
+                <div class="token-box">The</div>
+                <div class="token-arrow">&#8594;</div>
+                <div class="token-box" style="background:rgba(168,85,247,0.15);">464</div>
+                <div class="token-box">quick</div>
+                <div class="token-arrow">&#8594;</div>
+                <div class="token-box" style="background:rgba(168,85,247,0.15);">4802</div>
+                <div class="token-box">brown</div>
+                <div class="token-arrow">&#8594;</div>
+                <div class="token-box" style="background:rgba(168,85,247,0.15);">7586</div>
+                <div class="token-box">fox</div>
+                <div class="token-arrow">&#8594;</div>
+                <div class="token-box" style="background:rgba(168,85,247,0.15);">21831</div>
+            </div>
+        </div>
+        <div>
+            <h3>Why sub-word tokenisation?</h3>
+            <div class="card" style="margin-bottom:12px;">
+                <h4>Avoids unknown-word problem</h4>
+                <p style="font-size:0.91rem;">Character-level handles any word but loses meaning. Word-level fails on rare words. Sub-word handles both: known words get single tokens, rare words decompose gracefully.</p>
+            </div>
+            <div class="card" style="margin-bottom:12px;">
+                <h4>Vocabulary size trade-off</h4>
+                <p style="font-size:0.91rem;">Larger vocabulary = shorter sequences = faster attention. But larger vocabulary embedding tables use more memory. GPT-4: ~100K vocab. Llama 3: 128K vocab.</p>
+            </div>
+
+            <div class="info-card warning">
+                <h4>Practical gotchas</h4>
+                <ul class="check-list" style="font-size:0.88rem;">
+                    <li>Arithmetic can fail — "100" might be one token but "99" might be two</li>
+                    <li>Leading spaces matter — " apple" and "apple" may be different tokens</li>
+                    <li>Non-English text uses more tokens per word</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+<!-- ── Slide 11: Embeddings ── -->
+<div class="slide" data-notes="Embeddings are the bridge between discrete tokens and continuous vector space. The key intuition: similar words cluster together. 'King - Man + Woman = Queen' is the classic demonstration. Modern LLMs use embeddings of 4096-8192 dimensions. The embedding table is one of the largest parameter blocks — 100K vocab × 4096 dims = ~400M parameters just for embeddings.">
+    <div class="slide-label">Section 3 &nbsp;·&nbsp; Representations</div>
+    <h2>Embeddings: Words as Vectors</h2>
+    <p>Every token is mapped to a high-dimensional vector — its <strong>embedding</strong>. This converts discrete token IDs into continuous representations the model can compute over. Similar tokens cluster together in this space.</p>
+
+    <div class="grid-2" style="margin-top:20px; align-items:start;">
+        <div>
+            <h3>The embedding table</h3>
+            <p style="font-size:0.93rem;">A learned lookup table: vocabulary size × model dimension. Each row is a trainable vector updated during back-propagation.</p>
+            <div class="code-block" style="font-size:0.83rem;">Vocab size:    100,000 tokens
+Model dim:     4,096 dimensions
+Table size:    100K × 4096
+             = 409,600,000 params
+             ≈ 400M parameters</div>
+
+            <h3 style="margin-top:14px;">Classic analogy</h3>
+            <div class="formula" style="margin-top:4px;">
+                <div class="eq" style="font-size:1.1rem;">
+                    <span class="var">king</span>
+                    <span class="op">-</span>
+                    <span class="var">man</span>
+                    <span class="op">+</span>
+                    <span class="var">woman</span>
+                    <span class="op">≈</span>
+                    <span class="var">queen</span>
+                </div>
+                <p>Vector arithmetic reveals semantic structure learned purely from co-occurrence.</p>
+            </div>
+        </div>
+        <div>
+            <h3>2D projection (PCA)</h3>
+            <p style="font-size:0.88rem; color:var(--text-secondary); margin-bottom:10px;">High-dimensional embeddings projected to 2D reveal semantic clusters.</p>
+            <!-- CSS embedding space diagram -->
+            <div class="embed-space">
+                <!-- Animal cluster -->
+                <div class="embed-point" style="background:#a855f7; left:22%; top:30%;"></div>
+                <div class="embed-label" style="left:22%; top:30%; color:#c084fc; font-size:0.68rem;">cat</div>
+                <div class="embed-point" style="background:#a855f7; left:30%; top:38%;"></div>
+                <div class="embed-label" style="left:30%; top:38%; color:#c084fc; font-size:0.68rem;">dog</div>
+                <div class="embed-point" style="background:#a855f7; left:26%; top:50%;"></div>
+                <div class="embed-label" style="left:26%; top:50%; color:#c084fc; font-size:0.68rem;">wolf</div>
+                <!-- Royalty cluster -->
+                <div class="embed-point" style="background:#38bdf8; left:68%; top:25%;"></div>
+                <div class="embed-label" style="left:68%; top:25%; color:#7dd3fc; font-size:0.68rem;">king</div>
+                <div class="embed-point" style="background:#38bdf8; left:76%; top:32%;"></div>
+                <div class="embed-label" style="left:76%; top:32%; color:#7dd3fc; font-size:0.68rem;">queen</div>
+                <div class="embed-point" style="background:#38bdf8; left:72%; top:43%;"></div>
+                <div class="embed-label" style="left:72%; top:43%; color:#7dd3fc; font-size:0.68rem;">prince</div>
+                <!-- Tech cluster -->
+                <div class="embed-point" style="background:#4ade80; left:48%; top:65%;"></div>
+                <div class="embed-label" style="left:48%; top:65%; color:#4ade80; font-size:0.68rem;">python</div>
+                <div class="embed-point" style="background:#4ade80; left:56%; top:72%;"></div>
+                <div class="embed-label" style="left:56%; top:72%; color:#4ade80; font-size:0.68rem;">code</div>
+                <div class="embed-point" style="background:#4ade80; left:52%; top:56%;"></div>
+                <div class="embed-label" style="left:52%; top:56%; color:#4ade80; font-size:0.68rem;">api</div>
+                <!-- Cluster labels -->
+                <div style="position:absolute; left:8%; top:68%; font-size:0.68rem; color:rgba(168,85,247,0.6); font-weight:600;">Animals</div>
+                <div style="position:absolute; left:63%; top:12%; font-size:0.68rem; color:rgba(56,189,248,0.6); font-weight:600;">Royalty</div>
+                <div style="position:absolute; left:44%; top:84%; font-size:0.68rem; color:rgba(34,197,94,0.6); font-weight:600;">Tech</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ── Slide 12: Context Windows ── -->
+<div class="slide" data-notes="Context length is one of the most practically important constraints. Attention is O(n²) in sequence length — doubling the context quadruples the compute. Flash Attention (Dao et al., 2022) made long contexts tractable by fusing the attention kernel. GPT-4 Turbo: 128K tokens. Claude 3.5: 200K tokens. Gemini 1.5 Pro: 1M tokens. The practical challenge: models often 'forget' information from the middle of very long contexts (the 'lost in the middle' problem).">
+    <div class="slide-label">Section 3 &nbsp;·&nbsp; Representations</div>
+    <h2>Context Windows</h2>
+    <p>Every LLM has a <strong>context window</strong> — the maximum number of tokens it can consider at once. Everything outside that window is invisible to the model. This is one of the most consequential practical constraints.</p>
+
+    <div class="grid-2" style="margin-top:20px;">
+        <div>
+            <h3>Why context is expensive</h3>
+            <p style="font-size:0.93rem;">Self-attention computes a score between every pair of tokens. Cost scales <strong>quadratically</strong> with sequence length:</p>
+            <div class="formula">
+                <div class="eq" style="font-size:1.1rem;">Cost <span class="op">∝</span> <span class="var">n</span><sup style="font-size:0.7em;">2</sup> <span class="op">×</span> <span class="var">d</span></div>
+                <p>Double the context = 4× the attention compute. 10× the context = 100×.</p>
+            </div>
+
+            <h3 style="margin-top:14px;">Context window evolution</h3>
+            <table class="data-table" style="font-size:0.88rem;">
+                <thead><tr><th>Model</th><th>Context</th><th>Year</th></tr></thead>
+                <tbody>
+                    <tr><td>GPT-2</td><td>1,024 tokens</td><td>2019</td></tr>
+                    <tr><td>GPT-3</td><td>4,096 tokens</td><td>2020</td></tr>
+                    <tr><td>GPT-4 Turbo</td><td>128,000 tokens</td><td>2023</td></tr>
+                    <tr><td>Claude 3.5</td><td>200,000 tokens</td><td>2024</td></tr>
+                    <tr><td>Gemini 1.5 Pro</td><td>1,000,000 tokens</td><td>2024</td></tr>
+                </tbody>
+            </table>
+        </div>
+        <div>
+            <h3>Practical implications</h3>
+            <div class="info-card" style="margin-bottom:12px;">
+                <h4>Tokens ≈ words</h4>
+                <p style="font-size:0.91rem;">128K tokens ≈ 100,000 words ≈ a full novel. 200K tokens ≈ a large codebase. 1M tokens ≈ a small library.</p>
+            </div>
+            <div class="info-card warning">
+                <h4>Lost in the middle</h4>
+                <p style="font-size:0.91rem;">Research shows models are best at using information near the start and end of the context window. Material buried in the middle is recalled less reliably — even with large windows.</p>
+            </div>
+            <div class="info-card success">
+                <h4>Flash Attention</h4>
+                <p style="font-size:0.91rem;">A fused GPU kernel (Dao et al., 2022) that computes attention without materialising the full n×n matrix in memory. Enables 4-8× longer contexts with the same GPU memory.</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ── Slide 13: Inference / Autoregressive Generation ── -->
+<div class="slide" data-notes="The KV cache is the key performance optimisation at inference time. Without it, every new token would require recomputing attention over the entire prefix — O(n²) work per token generated. With the KV cache, keys and values from past tokens are stored and reused. This is why first-token latency is high (prefill phase) but subsequent tokens are fast (decode phase). The autoregressive nature means errors compound — a wrong early token can derail the entire generation.">
+    <div class="slide-label">Section 4 &nbsp;·&nbsp; Inference</div>
+    <h2>Inference: How Generation Works</h2>
+    <p>At inference time, models generate text <strong>one token at a time</strong>, each time consuming the entire previous context. This autoregressive process is fundamentally sequential — you cannot generate token 5 without tokens 1-4.</p>
+
+    <div style="margin:22px 0;">
+        <!-- Token generation flow -->
+        <h3>The generation loop</h3>
+        <div style="display:flex; flex-direction:column; gap:8px; margin:12px 0;">
+            <div style="display:flex; align-items:center; gap:10px;">
+                <div style="min-width:28px; height:28px; border-radius:50%; background:rgba(168,85,247,0.2); border:1px solid var(--accent); display:flex; align-items:center; justify-content:center; font-size:0.8rem; font-weight:700; color:var(--accent-light);">1</div>
+                <div style="padding:10px 16px; background:var(--bg-surface); border:1px solid var(--border); border-radius:8px; flex:1; font-size:0.91rem; color:var(--text-secondary);">Feed the full context (prompt + generated so far) through the model</div>
+            </div>
+            <div style="display:flex; align-items:center; gap:10px;">
+                <div style="min-width:28px; height:28px; border-radius:50%; background:rgba(168,85,247,0.2); border:1px solid var(--accent); display:flex; align-items:center; justify-content:center; font-size:0.8rem; font-weight:700; color:var(--accent-light);">2</div>
+                <div style="padding:10px 16px; background:var(--bg-surface); border:1px solid var(--border); border-radius:8px; flex:1; font-size:0.91rem; color:var(--text-secondary);">Final layer produces a logit score for every token in the vocabulary (~100K values)</div>
+            </div>
+            <div style="display:flex; align-items:center; gap:10px;">
+                <div style="min-width:28px; height:28px; border-radius:50%; background:rgba(168,85,247,0.2); border:1px solid var(--accent); display:flex; align-items:center; justify-content:center; font-size:0.8rem; font-weight:700; color:var(--accent-light);">3</div>
+                <div style="padding:10px 16px; background:var(--bg-surface); border:1px solid var(--border); border-radius:8px; flex:1; font-size:0.91rem; color:var(--text-secondary);">Apply temperature + sampling strategy to select the next token</div>
+            </div>
+            <div style="display:flex; align-items:center; gap:10px;">
+                <div style="min-width:28px; height:28px; border-radius:50%; background:rgba(168,85,247,0.2); border:1px solid var(--accent); display:flex; align-items:center; justify-content:center; font-size:0.8rem; font-weight:700; color:var(--accent-light);">4</div>
+                <div style="padding:10px 16px; background:var(--bg-surface); border:1px solid var(--border); border-radius:8px; flex:1; font-size:0.91rem; color:var(--text-secondary);">Append the chosen token, repeat until EOS token or max length reached</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="grid-2">
+        <div class="info-card success">
+            <h4>KV Cache</h4>
+            <p style="font-size:0.91rem;">Keys and Values from already-processed tokens are cached. Only the new token needs fresh computation. Reduces decode from O(n²) to O(n) per step — essential for interactive response speeds.</p>
+        </div>
+        <div class="info-card info">
+            <h4>Prefill vs Decode phases</h4>
+            <p style="font-size:0.91rem;"><strong>Prefill</strong>: process the full prompt in parallel (fast, GPU-efficient). <strong>Decode</strong>: generate tokens one at a time (slower, memory-bandwidth-bound). First-token latency reflects prefill; streaming speed reflects decode.</p>
+        </div>
+    </div>
+</div>
+
+<!-- ── Slide 14: Temperature & Sampling ── -->
+<div class="slide" data-notes="Temperature is the most user-visible hyperparameter. At T=0, the model always picks the highest-probability token (greedy decoding) — deterministic but often repetitive. At T=1, probabilities are used as-is. At T>1, the distribution flattens and outputs become more random/creative. Top-k cuts to the k most likely tokens. Top-p (nucleus sampling) is more adaptive — it includes just enough tokens to reach probability mass p. Most production APIs default to top-p=1.0, temperature=1.0.">
+    <div class="slide-label">Section 4 &nbsp;·&nbsp; Inference</div>
+    <h2>Temperature &amp; Sampling</h2>
+    <p>The model outputs a probability distribution over the vocabulary. <strong>Sampling strategies</strong> determine how you select the next token from that distribution — trading off diversity against accuracy.</p>
+
+    <div class="grid-2" style="margin-top:20px; align-items:start;">
+        <div>
+            <h3>Temperature</h3>
+            <p style="font-size:0.93rem;">Divides all logits before the softmax. Controls the sharpness of the distribution:</p>
+            <div class="formula">
+                <div class="eq" style="font-size:1.1rem;">
+                    P(<span class="var">token</span>) <span class="op">=</span> softmax(<span class="var">logit</span> / <span class="var">T</span>)
+                </div>
+            </div>
+
+            <div style="display:flex; gap:10px; margin:14px 0;">
+                <div style="flex:1; padding:12px; background:rgba(34,197,94,0.1); border:1px solid rgba(34,197,94,0.3); border-radius:9px; text-align:center;">
+                    <div style="font-size:1.3rem; color:#4ade80; font-weight:700;">T = 0</div>
+                    <div style="font-size:0.78rem; color:var(--text-secondary); margin-top:4px;">Greedy. Always picks the top token. Deterministic.</div>
+                </div>
+                <div style="flex:1; padding:12px; background:rgba(168,85,247,0.1); border:1px solid rgba(168,85,247,0.3); border-radius:9px; text-align:center;">
+                    <div style="font-size:1.3rem; color:var(--accent-light); font-weight:700;">T = 1</div>
+                    <div style="font-size:0.78rem; color:var(--text-secondary); margin-top:4px;">Balanced. Samples from model's native distribution.</div>
+                </div>
+                <div style="flex:1; padding:12px; background:rgba(245,158,11,0.1); border:1px solid rgba(245,158,11,0.3); border-radius:9px; text-align:center;">
+                    <div style="font-size:1.3rem; color:#fbbf24; font-weight:700;">T = 2</div>
+                    <div style="font-size:0.78rem; color:var(--text-secondary); margin-top:4px;">Creative / chaotic. Unlikely tokens become probable.</div>
+                </div>
+            </div>
+        </div>
+        <div>
+            <h3>Top-k and Top-p (Nucleus)</h3>
+            <div class="card" style="margin-bottom:12px;">
+                <h4>Top-k sampling</h4>
+                <p style="font-size:0.91rem;">Keep only the k highest-probability tokens, redistribute their probability mass, then sample. <code>k=50</code> is common. Simple but inflexible — k is the same regardless of distribution shape.</p>
+            </div>
+            <div class="card" style="margin-bottom:12px;">
+                <h4>Top-p (nucleus) sampling</h4>
+                <p style="font-size:0.91rem;">Keep the smallest set of tokens whose cumulative probability exceeds p (e.g., 0.9). More adaptive: when confident, considers few tokens; when uncertain, considers many. Generally preferred over top-k.</p>
+            </div>
+            <div class="info-card" style="margin-top:4px;">
+                <h4>Typical production settings</h4>
+                <p style="font-size:0.91rem;">Code generation: <code>temperature=0.2</code>, top-p=0.95 (precise). Creative writing: <code>temperature=0.9</code>, top-p=1.0 (varied). Factual QA: <code>temperature=0</code> (deterministic).</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ── Slide 15: Scaling Laws ── -->
+<div class="slide" data-notes="The Chinchilla paper (Hoffmann et al., 2022) overturned the assumption that bigger = always better. It showed GPT-3 was undertrained — the compute budget should be split roughly equally between model size and training tokens. Chinchilla (70B params, 1.4T tokens) outperformed Gopher (280B, 300B tokens) at 4× less compute. The Chinchilla formula: tokens ≈ 20× parameters for compute-optimal training. Llama 3 pushed this further by training 8B params on 15T tokens — far past compute-optimal for better inference efficiency.">
+    <div class="slide-label">Section 4 &nbsp;·&nbsp; Training at Scale</div>
+    <h2>Scaling Laws</h2>
+    <p>Model performance follows predictable <strong>power laws</strong> with respect to model size, training data, and compute. Bigger is generally better — but there are diminishing returns, and the <em>ratio</em> between parameters and tokens matters as much as absolute size.</p>
+
+    <div class="grid-2" style="margin-top:20px; align-items:start;">
+        <div>
+            <h3>The Chinchilla result (2022)</h3>
+            <div class="highlight">
+                <h4>Compute-optimal training</h4>
+                <p style="font-size:0.92rem;">For a given compute budget, you should scale model size and training tokens in roughly <strong>equal proportion</strong>. Most pre-Chinchilla models (including GPT-3) were massively undertrained.</p>
+                <div class="formula" style="margin-top:12px; padding:14px;">
+                    <div class="eq" style="font-size:1rem;">Optimal tokens <span class="op">≈</span> 20 <span class="op">×</span> parameters</div>
+                </div>
+            </div>
+
+            <div class="stat-row" style="margin-top:16px;">
+                <div class="stat"><span class="num">70B</span><span class="lbl">Chinchilla params</span></div>
+                <div class="stat"><span class="num">1.4T</span><span class="lbl">Chinchilla tokens</span></div>
+                <div class="stat"><span class="num">4×</span><span class="lbl">less compute than Gopher (280B)</span></div>
+            </div>
+        </div>
+        <div>
+            <h3>Scaling dimensions</h3>
+            <div class="card" style="margin-bottom:12px;">
+                <h4>Model parameters (N)</h4>
+                <p style="font-size:0.91rem;">More parameters = larger representational capacity. Each 10× increase in N delivers consistent perplexity improvements but with diminishing returns.</p>
+            </div>
+            <div class="card" style="margin-bottom:12px;">
+                <h4>Training tokens (D)</h4>
+                <p style="font-size:0.91rem;">More data = better generalisation. Llama 3 (8B) trained on 15T tokens — 375× the Chinchilla-optimal ratio — to optimise for fast inference.</p>
+            </div>
+            <div class="card">
+                <h4>Compute (C = 6ND)</h4>
+                <p style="font-size:0.91rem;">Total FLOPs ≈ 6 × N × D. Frontier models spend $50–200M per training run. Emergent capabilities appear at unpredictable compute thresholds.</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ── Slide 16: Fine-tuning vs RAG vs ICL ── -->
+<div class="slide" data-notes="The three adaptation strategies each occupy different points in the cost/flexibility/accuracy space. Fine-tuning is expensive to run but produces the most deeply internalised knowledge. RAG is cheap to update (just update the knowledge base) but depends on retrieval quality. ICL requires no training at all — just prompt engineering — but is limited by context window size and doesn't persist learning. Most production systems combine all three.">
+    <div class="slide-label">Section 4 &nbsp;·&nbsp; Adaptation</div>
+    <h2>Fine-Tuning vs RAG vs In-Context Learning</h2>
+    <p>Three strategies exist for making a base LLM useful for a specific domain or task. Each solves the "knowledge gap" problem differently, with distinct cost/latency/quality trade-offs.</p>
+
+    <div class="grid-3" style="margin-top:22px;">
+        <div class="card" style="border-color:rgba(168,85,247,0.5);">
+            <h4 style="color:var(--accent-light); font-size:1.05rem;">Fine-Tuning</h4>
+            <p style="font-size:0.88rem; margin-bottom:10px;">Update the model's weights on a curated dataset. Knowledge is baked into the model permanently.</p>
+            <ul class="check-list" style="font-size:0.85rem;">
+                <li>Best accuracy on narrow tasks</li>
+                <li>Expensive to run (&amp; re-run on updates)</li>
+                <li>Knowledge is frozen at training time</li>
+                <li>Needs labelled data</li>
+            </ul>
+            <div style="margin-top:10px; font-size:0.78rem; color:var(--accent); font-weight:600;">USE WHEN: task-specific style, specialised vocabulary, structured outputs</div>
+        </div>
+        <div class="card" style="border-color:rgba(56,189,248,0.5);">
+            <h4 style="color:#7dd3fc; font-size:1.05rem;">RAG</h4>
+            <p style="font-size:0.88rem; margin-bottom:10px;">Retrieve relevant documents at query time and inject them into the context. Knowledge lives in an external database.</p>
+            <ul class="check-list" style="font-size:0.85rem;">
+                <li>Real-time knowledge updates</li>
+                <li>Citable, verifiable sources</li>
+                <li>Depends on retrieval quality</li>
+                <li>Adds latency</li>
+            </ul>
+            <div style="margin-top:10px; font-size:0.78rem; color:#7dd3fc; font-weight:600;">USE WHEN: enterprise knowledge bases, live data, fact-checking required</div>
+        </div>
+        <div class="card" style="border-color:rgba(34,197,94,0.5);">
+            <h4 style="color:#4ade80; font-size:1.05rem;">In-Context Learning</h4>
+            <p style="font-size:0.88rem; margin-bottom:10px;">Provide examples or instructions directly in the prompt. No training. The model adapts "on the fly".</p>
+            <ul class="check-list" style="font-size:0.85rem;">
+                <li>Zero training cost</li>
+                <li>Instantly updatable</li>
+                <li>Limited by context window</li>
+                <li>Doesn't persist across sessions</li>
+            </ul>
+            <div style="margin-top:10px; font-size:0.78rem; color:#4ade80; font-weight:600;">USE WHEN: rapid prototyping, few-shot tasks, prompt engineering</div>
+        </div>
+    </div>
+
+    <div class="highlight" style="margin-top:18px;">
+        <h4>In practice: combine all three</h4>
+        <p style="font-size:0.92rem;">Production systems typically fine-tune a base model for domain style (SFT), use RAG to inject fresh knowledge, and leverage in-context few-shot examples for format control. These are not mutually exclusive.</p>
+    </div>
+</div>
+
+<!-- ── Slide 17: RLHF and Alignment ── -->
+<div class="slide" data-notes="RLHF was the key innovation in InstructGPT (OpenAI, 2022) that transformed raw base models into helpful assistants. The human feedback loop is expensive — each preference label requires a human to read two responses and pick the better one. The reward model learns to predict human preferences, then PPO nudges the policy to maximise that reward. DPO (Direct Preference Optimisation) removes the RL loop entirely — it directly updates the model using the preference pairs. DPO is simpler, cheaper, and often matches or beats PPO.">
+    <div class="slide-label">Section 4 &nbsp;·&nbsp; Alignment</div>
+    <h2>RLHF and Alignment</h2>
+    <p>A pre-trained LLM will complete any sequence — including harmful ones. <strong>Reinforcement Learning from Human Feedback (RLHF)</strong> shapes the model to be helpful, harmless, and honest by training it to match human preferences.</p>
+
+    <div style="margin:22px 0; display:flex; gap:0; flex-wrap:wrap;">
+        <div style="flex:1; min-width:200px; border:1px solid rgba(168,85,247,0.3); border-right:none; border-radius:10px 0 0 10px; padding:18px; background:rgba(168,85,247,0.06);">
+            <div style="font-size:0.72rem; color:var(--accent); font-weight:700; letter-spacing:0.1em; margin-bottom:8px;">STEP 1</div>
+            <div style="font-size:0.95rem; font-weight:600; color:var(--text-primary); margin-bottom:6px;">Collect Demonstrations</div>
+            <p style="font-size:0.88rem;">Human labellers write ideal responses to prompts. Used to train a supervised fine-tuned (SFT) policy.</p>
+        </div>
+        <div style="flex:1; min-width:200px; border:1px solid rgba(56,189,248,0.3); border-right:none; padding:18px; background:rgba(56,189,248,0.05);">
+            <div style="font-size:0.72rem; color:#7dd3fc; font-weight:700; letter-spacing:0.1em; margin-bottom:8px;">STEP 2</div>
+            <div style="font-size:0.95rem; font-weight:600; color:var(--text-primary); margin-bottom:6px;">Train Reward Model</div>
+            <p style="font-size:0.88rem;">Show labellers pairs of SFT responses. They rank which is better. Train a reward model to predict these preferences.</p>
+        </div>
+        <div style="flex:1; min-width:200px; border:1px solid rgba(34,197,94,0.3); border-radius:0 10px 10px 0; padding:18px; background:rgba(34,197,94,0.05);">
+            <div style="font-size:0.72rem; color:#4ade80; font-weight:700; letter-spacing:0.1em; margin-bottom:8px;">STEP 3</div>
+            <div style="font-size:0.95rem; font-weight:600; color:var(--text-primary); margin-bottom:6px;">RL Optimisation (PPO)</div>
+            <p style="font-size:0.88rem;">Use PPO to maximise reward model score. A KL penalty prevents the model drifting too far from the SFT baseline.</p>
+        </div>
+    </div>
+
+    <div class="grid-2">
+        <div class="info-card success">
+            <h4>DPO: Simpler alternative (2023)</h4>
+            <p style="font-size:0.91rem;">Direct Preference Optimisation removes the reward model entirely. It directly optimises the LLM on preference pairs using a supervised loss. Simpler to implement, more stable, and often matches PPO quality. Most open-source fine-tuned models now use DPO.</p>
+        </div>
+        <div class="info-card warning">
+            <h4>Alignment limitations</h4>
+            <ul class="check-list" style="font-size:0.88rem;">
+                <li>Reward hacking — model finds unexpected ways to maximise reward</li>
+                <li>Sycophancy — models learn to agree with users even when wrong</li>
+                <li>Over-refusal — excessive caution on benign prompts</li>
+                <li>Labeller bias — human preferences are not universal</li>
+            </ul>
+        </div>
+    </div>
+</div>
+
+<!-- ── Slide 18: Model Families ── -->
+<div class="slide" data-notes="The model landscape shifts fast — emphasise the architecture patterns rather than specific versions. GPT and Claude are closed-weight; Llama and Mistral are open-weight (downloadable). This distinction matters enormously for enterprise deployment, compliance, and cost. Mistral's mixture-of-experts approach (Mixtral) achieves GPT-3.5 quality at much lower inference cost. Gemini's native multimodality (trained on text+image+audio from scratch) differs from GPT-4V's post-hoc vision adapter.">
+    <div class="slide-label">Section 5 &nbsp;·&nbsp; The Landscape</div>
+    <h2>Model Families</h2>
+    <p>The frontier is dominated by a handful of architectures from major labs. Understanding the <strong>lineage and design philosophy</strong> of each family helps you choose the right model for the task.</p>
+
+    <table class="data-table" style="margin-top:18px;">
+        <thead>
+            <tr>
+                <th>Family</th>
+                <th>Creator</th>
+                <th>Architecture</th>
+                <th>Access</th>
+                <th>Strength</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td><strong style="color:var(--accent-light);">GPT-4 / o1</strong></td>
+                <td>OpenAI</td>
+                <td>Decoder-only, MoE (likely)</td>
+                <td style="color:#f87171;">Closed</td>
+                <td>Coding, reasoning, broad tasks</td>
+            </tr>
+            <tr>
+                <td><strong style="color:var(--accent-light);">Claude 3.x</strong></td>
+                <td>Anthropic</td>
+                <td>Decoder-only, Constitutional AI</td>
+                <td style="color:#f87171;">Closed</td>
+                <td>Long context, safety, nuanced writing</td>
+            </tr>
+            <tr>
+                <td><strong style="color:#4ade80;">Llama 3.x</strong></td>
+                <td>Meta</td>
+                <td>Decoder-only, GQA, RoPE</td>
+                <td style="color:#4ade80;">Open-weight</td>
+                <td>On-premise, fine-tuning, community</td>
+            </tr>
+            <tr>
+                <td><strong style="color:var(--accent-light);">Gemini 1.5</strong></td>
+                <td>Google DeepMind</td>
+                <td>Decoder-only, native multimodal</td>
+                <td style="color:#f87171;">Closed</td>
+                <td>1M token context, multimodal</td>
+            </tr>
+            <tr>
+                <td><strong style="color:#4ade80;">Mistral / Mixtral</strong></td>
+                <td>Mistral AI</td>
+                <td>Decoder-only, Sparse MoE</td>
+                <td style="color:#4ade80;">Open-weight</td>
+                <td>Efficient inference, cost-per-token</td>
+            </tr>
+            <tr>
+                <td><strong style="color:#7dd3fc;">Qwen / DeepSeek</strong></td>
+                <td>Alibaba / DeepSeek</td>
+                <td>Decoder-only, MLA</td>
+                <td style="color:#4ade80;">Open-weight</td>
+                <td>Multilingual, strong reasoning</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <div class="info-card" style="margin-top:14px;">
+        <h4>Open-weight vs open-source</h4>
+        <p style="font-size:0.91rem;">Open-weight means weights are downloadable but training data and code may be proprietary. True open-source (Apache 2.0) includes weights, code, and training data. Llama models are open-weight with a Meta licence. OLMo (AI2) is the most notable truly open-source frontier model.</p>
+    </div>
+</div>
+
+<!-- ── Slide 19: Multimodal Models ── -->
+<div class="slide" data-notes="Multimodality is achieved differently across model families. GPT-4V uses a vision encoder (based on CLIP) that converts image patches to token-like embeddings, which are concatenated with text tokens and fed to the language model. Gemini was trained natively on multiple modalities from scratch — a fundamentally different approach that may give better cross-modal reasoning. Audio models (Whisper) typically convert audio to a spectrogram and process it with a CNN/Transformer encoder before handing off to the LLM.">
+    <div class="slide-label">Section 5 &nbsp;·&nbsp; The Landscape</div>
+    <h2>Multimodal Models</h2>
+    <p>The next evolution beyond text — models that can perceive and generate across <strong>text, images, audio, and video</strong> in a unified architecture. Modality boundaries are increasingly artificial.</p>
+
+    <div class="grid-3" style="margin-top:20px;">
+        <div class="card">
+            <h4 style="color:#7dd3fc;">Vision</h4>
+            <p style="font-size:0.91rem;">Images are split into patches, each encoded as a vector by a vision encoder (ViT). These patch embeddings are concatenated with text token embeddings and processed by the LLM together.</p>
+            <p style="font-size:0.82rem; color:var(--text-secondary); margin-top:8px;">Models: GPT-4V, Claude 3 Vision, Llama 3.2 Vision</p>
+        </div>
+        <div class="card">
+            <h4 style="color:#fbbf24;">Audio</h4>
+            <p style="font-size:0.91rem;">Audio waveforms → mel spectrograms → Transformer encoder → audio tokens. These can be fed to an LLM for understanding, or decoded from LLM outputs for speech generation.</p>
+            <p style="font-size:0.82rem; color:var(--text-secondary); margin-top:8px;">Models: Whisper (STT), GPT-4o Audio, Gemini Audio</p>
+        </div>
+        <div class="card">
+            <h4 style="color:#4ade80;">Native multimodal</h4>
+            <p style="font-size:0.91rem;">Some models (Gemini 1.5) train on all modalities jointly from the start rather than adapting a text-only model. This enables deeper cross-modal reasoning and interleaved context.</p>
+            <p style="font-size:0.82rem; color:var(--text-secondary); margin-top:8px;">Models: Gemini 1.5, GPT-4o, Reka Core</p>
+        </div>
+    </div>
+
+    <div class="grid-2" style="margin-top:14px;">
+        <div class="info-card">
+            <h4>How vision tokens work</h4>
+            <p style="font-size:0.91rem;">A 336×336 image with 14px patches = 576 patch tokens. These are linearly projected to the LLM's embedding dimension and treated like text tokens. The LLM's attention mechanism then attends over both text and image tokens simultaneously.</p>
+        </div>
+        <div class="info-card info">
+            <h4>Emerging: video and documents</h4>
+            <p style="font-size:0.91rem;">Video = a sequence of image frames. PDFs = text + layout + embedded images. Models like Gemini 1.5 Pro can process full-length video (1M token context = ~1 hour of video at 1fps) and entire codebases.</p>
+        </div>
+    </div>
+</div>
+
+<!-- ── Slide 20: Edge Deployment ── -->
+<div class="slide" data-notes="Quantisation is the single most impactful technique for edge deployment. INT4 quantisation reduces model size ~8× vs FP32 with typically <5% quality degradation on most tasks. llama.cpp made running LLMs on consumer hardware a reality — a quantised 7B model runs at ~15 tok/s on a MacBook Pro M2. Knowledge distillation is about training a smaller model to mimic a larger one — the small model is the 'student', large model the 'teacher'. Microsoft's Phi series achieves impressive reasoning by training a tiny model on very high-quality, synthetic data generated by GPT-4.">
+    <div class="slide-label">Section 5 &nbsp;·&nbsp; Deployment</div>
+    <h2>Edge Deployment: Quantisation &amp; Distillation</h2>
+    <p>Frontier models require data centres. But a growing class of <strong>efficient LLMs</strong> can run on laptops, phones, and embedded devices — using quantisation, distillation, and architectural pruning.</p>
+
+    <div class="grid-2" style="margin-top:20px; align-items:start;">
+        <div>
+            <h3>Quantisation</h3>
+            <p style="font-size:0.93rem;">Reduce the precision of model weights from 32-bit floats to smaller formats. Drastic file size reduction with modest quality loss.</p>
+
+            <table class="data-table" style="margin-top:12px;">
+                <thead><tr><th>Format</th><th>Bits</th><th>Size (7B)</th><th>Quality loss</th></tr></thead>
+                <tbody>
+                    <tr><td>FP32</td><td>32</td><td>~28 GB</td><td style="color:#4ade80;">None</td></tr>
+                    <tr><td>FP16</td><td>16</td><td>~14 GB</td><td style="color:#4ade80;">Negligible</td></tr>
+                    <tr><td>INT8</td><td>8</td><td>~7 GB</td><td style="color:#fbbf24;">Minor</td></tr>
+                    <tr><td>INT4</td><td>4</td><td>~3.5 GB</td><td style="color:#fbbf24;">Moderate</td></tr>
+                    <tr><td>INT2</td><td>2</td><td>~1.75 GB</td><td style="color:#f87171;">Significant</td></tr>
+                </tbody>
+            </table>
+        </div>
+        <div>
+            <h3>Knowledge Distillation</h3>
+            <p style="font-size:0.93rem;">Train a small "student" model to reproduce the outputs (and soft probability distributions) of a large "teacher" model. The student learns to approximate the teacher far better than training on labels alone.</p>
+
+            <div style="display:flex; align-items:center; gap:14px; margin:14px 0; flex-wrap:wrap;">
+                <div style="padding:14px 18px; background:rgba(168,85,247,0.12); border:1px solid rgba(168,85,247,0.4); border-radius:9px; text-align:center; min-width:120px;">
+                    <div style="font-size:0.75rem; color:var(--accent); font-weight:700; margin-bottom:4px;">TEACHER</div>
+                    <div style="font-size:0.95rem; color:var(--text-primary); font-weight:600;">GPT-4 (1.8T params)</div>
+                </div>
+                <div style="color:rgba(168,85,247,0.6); font-size:1.4rem;">&#8594;</div>
+                <div style="padding:14px 18px; background:rgba(34,197,94,0.1); border:1px solid rgba(34,197,94,0.35); border-radius:9px; text-align:center; min-width:120px;">
+                    <div style="font-size:0.75rem; color:#4ade80; font-weight:700; margin-bottom:4px;">STUDENT</div>
+                    <div style="font-size:0.95rem; color:var(--text-primary); font-weight:600;">Phi-3 (3.8B params)</div>
+                </div>
+            </div>
+
+            <div class="info-card success">
+                <h4>Real-world results</h4>
+                <p style="font-size:0.91rem;">Microsoft Phi-3 Mini (3.8B) matches GPT-3.5 on many benchmarks. Apple Intelligence uses on-device 3B models for private tasks. Meta Llama 3.2 1B runs on phones.</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ── Slide 21: Current Limitations ── -->
+<div class="slide" data-notes="Hallucination is the most cited limitation — models generate fluent, confident text that is factually wrong. This stems from the objective: next-token prediction rewards fluency, not accuracy. There is no internal 'I don't know' signal. Reasoning limitations (especially multi-step maths and logic) have improved with chain-of-thought prompting and o1-style test-time compute, but failures persist. The training cutoff means models lack real-time knowledge — RAG is the standard mitigation. Context-window limitations affect long-document tasks despite recent progress.">
+    <div class="slide-label">Section 5 &nbsp;·&nbsp; Limitations</div>
+    <h2>Current Limitations</h2>
+    <p>LLMs are genuinely powerful tools, but understanding where they fail — and why — is essential for safe deployment. These are not bugs that will be patched next week; they are structural properties of the architecture.</p>
+
+    <div class="grid-2" style="margin-top:20px;">
+        <div>
+            <div class="info-card danger" style="margin-bottom:14px;">
+                <h4>Hallucination</h4>
+                <p style="font-size:0.91rem;">Models generate plausible-sounding but factually incorrect text with high confidence. The next-token objective rewards fluency, not truth. The model has no internal fact-check mechanism — it doesn't know what it doesn't know.</p>
+            </div>
+            <div class="info-card danger" style="margin-bottom:14px;">
+                <h4>Reasoning brittleness</h4>
+                <p style="font-size:0.91rem;">Models can solve complex problems in one form but fail on trivially rephrased versions. Multi-step arithmetic, spatial reasoning, and formal logic remain unreliable without external tools or extended "thinking" time.</p>
+            </div>
+            <div class="info-card warning">
+                <h4>Training cutoff</h4>
+                <p style="font-size:0.91rem;">Knowledge is frozen at the training data cutoff. Events after that date are unknown unless retrieved externally. Models may confidently confuse their cutoff date with the present.</p>
+            </div>
+        </div>
+        <div>
+            <div class="info-card warning" style="margin-bottom:14px;">
+                <h4>Context window limits</h4>
+                <p style="font-size:0.91rem;">Despite 200K+ token windows, models still struggle with "lost in the middle" — retrieving information from the centre of very long contexts less reliably than from the edges.</p>
+            </div>
+            <div class="info-card warning" style="margin-bottom:14px;">
+                <h4>No persistent memory</h4>
+                <p style="font-size:0.91rem;">Every session starts from scratch. Without external memory systems, models cannot remember previous conversations, learn user preferences, or accumulate experience over time.</p>
+            </div>
+            <div class="info-card danger">
+                <h4>Bias and toxicity</h4>
+                <p style="font-size:0.91rem;">Training data reflects human-generated content — with all its embedded biases. RLHF reduces but does not eliminate harmful outputs. Jailbreaks can bypass alignment in adversarial conditions.</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ── Slide 22: What's Next ── -->
+<div class="slide" data-notes="Test-time compute scaling (OpenAI o1, DeepSeek R1) is the most significant near-term shift. Instead of scaling training, you scale inference — giving the model more time to 'think' before answering using internal chain-of-thought. Long context (1M+ tokens) changes the RAG vs long-context equation — if you can fit an entire codebase in context, retrieval becomes less necessary. Agent architectures are moving from single-shot Q&A to persistent agents with tool use, memory, and long-horizon planning. Mixture of Experts (MoE) is already in production at scale (Mixtral, likely GPT-4) and will continue to grow as it offers near-dense-model quality at sparse-model cost.">
+    <div class="slide-label">Section 6 &nbsp;·&nbsp; The Frontier</div>
+    <h2>What's Next?</h2>
+    <p>The most significant near-term shifts are not just about making models bigger — they are about changing <em>how</em> models reason, remember, and act in the world.</p>
+
+    <div class="grid-2" style="margin-top:20px; align-items:start;">
+        <div>
+            <div class="card" style="margin-bottom:14px; border-color:rgba(168,85,247,0.5);">
+                <h4>Test-time compute scaling (Reasoning models)</h4>
+                <p style="font-size:0.91rem;">OpenAI o1, DeepSeek R1 — instead of just scaling training, scale <em>inference</em>. Allow the model extended internal chain-of-thought before producing a final answer. Dramatic improvements on maths, coding, and science benchmarks.</p>
+            </div>
+            <div class="card" style="margin-bottom:14px; border-color:rgba(56,189,248,0.5);">
+                <h4>Agentic architectures</h4>
+                <p style="font-size:0.91rem;">From single-shot Q&amp;A to persistent agents with tool use, long-horizon planning, and memory. Multi-agent systems where specialised models collaborate. Computer-use models that can directly operate software.</p>
+            </div>
+            <div class="card" style="border-color:rgba(34,197,94,0.5);">
+                <h4>Long-context and memory</h4>
+                <p style="font-size:0.91rem;">Gemini 1.5's 1M-token context begins to challenge whether RAG is needed at all for many tasks. Coupled with persistent external memory, this enables continuity across sessions and true knowledge accumulation.</p>
+            </div>
+        </div>
+        <div>
+            <div class="card" style="margin-bottom:14px; border-color:rgba(245,158,11,0.5);">
+                <h4>Mixture of Experts (MoE) at scale</h4>
+                <p style="font-size:0.91rem;">Sparse activation: route each token to only 2-8 of 64+ expert FFN modules. Near-dense model quality at 3-5× lower inference cost. Already deployed in Mixtral, almost certainly in GPT-4. Will become the dominant large-scale architecture.</p>
+            </div>
+            <div class="card" style="margin-bottom:14px; border-color:rgba(168,85,247,0.5);">
+                <h4>Multimodal reasoning</h4>
+                <p style="font-size:0.91rem;">True interleaving of text, image, audio, and video tokens in a single unified context. Models that can watch a video, read a document, and write code based on both — simultaneously.</p>
+            </div>
+            <div class="card" style="border-color:rgba(34,197,94,0.5);">
+                <h4>Efficiency and democratisation</h4>
+                <p style="font-size:0.91rem;">Quantisation + distillation + architectures like Mamba (state-space models) are pushing frontier-quality intelligence toward phones and embedded devices — removing the cloud dependency entirely.</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ── Slide 23: Key Takeaways + Complete ── -->
+<div class="slide" data-notes="Wrap up by having learners articulate the flow in their own words: token → embedding → attention → FFN → output. Emphasise that Transformers succeeded because they parallelised, not because they were inherently smarter. The scaling law intuition (more compute + more data = more capability) remains the dominant paradigm but is now being challenged by test-time compute scaling. Limitations are important — responsible deployment requires knowing where the model will fail.">
+    <div class="end-center">
+        <div class="title-pill">Module Complete</div>
+        <h1><span class="accent">Key Takeaways</span></h1>
+
+        <ul class="takeaway-list" style="width:100%; max-width:820px; text-align:left; margin-top:10px;">
+            <li>
+                <span class="num">1</span>
+                <span class="text"><strong>Transformers are parallel, not sequential.</strong> Self-attention lets every token attend to every other token simultaneously — this is why they scale so effectively on GPUs.</span>
+            </li>
+            <li>
+                <span class="num">2</span>
+                <span class="text"><strong>Q, K, V is the core mechanism.</strong> Attention is a weighted lookup: query against keys to get weights, apply to values. Multi-head runs this in parallel across different "relationship types".</span>
+            </li>
+            <li>
+                <span class="num">3</span>
+                <span class="text"><strong>Training has three phases.</strong> Pre-training builds broad knowledge via next-token prediction. SFT teaches format. RLHF/DPO aligns to human preferences. Each phase is essential.</span>
+            </li>
+            <li>
+                <span class="num">4</span>
+                <span class="text"><strong>Scaling laws are real but nuanced.</strong> Bigger model + more tokens = better performance. But the ratio matters — Chinchilla showed most models were undertrained, not underpowered.</span>
+            </li>
+            <li>
+                <span class="num">5</span>
+                <span class="text"><strong>Hallucination is structural, not a bug.</strong> The next-token objective rewards fluency. Without an explicit truth signal, the model has no internal reason to be accurate — mitigation requires external grounding (RAG, tools, verification).</span>
+            </li>
+            <li>
+                <span class="num">6</span>
+                <span class="text"><strong>The frontier is shifting toward reasoning + agency.</strong> Test-time compute, long context, MoE, and agentic architectures are the current research frontiers — not just "bigger pre-training".</span>
+            </li>
+        </ul>
+
+        <div style="display:flex; gap:18px; justify-content:center; flex-wrap:wrap; margin-top:18px;">
+            <div class="card" style="min-width:150px; text-align:center; padding:14px 18px;">
+                <div style="font-size:1.4rem; color:var(--accent-light); font-weight:700;">23</div>
+                <div style="font-size:0.78rem; color:var(--text-secondary); margin-top:4px;">Slides completed</div>
+            </div>
+            <div class="card" style="min-width:150px; text-align:center; padding:14px 18px;">
+                <div style="font-size:1.4rem; color:var(--accent-light); font-weight:700;">6</div>
+                <div style="font-size:0.78rem; color:var(--text-secondary); margin-top:4px;">Sections covered</div>
+            </div>
+            <div class="card" style="min-width:150px; text-align:center; padding:14px 18px;">
+                <div style="font-size:1.4rem; color:#4ade80; font-weight:700;">Ready</div>
+                <div style="font-size:0.78rem; color:var(--text-secondary); margin-top:4px;">To mark complete</div>
+            </div>
+        </div>
+
+        <button class="complete-btn" id="completeBtn" onclick="completeModule()">
+            Mark as Complete
+        </button>
+
+        <div style="margin-top:16px; display:flex; gap:14px; justify-content:center;">
+            <a href="../index.html" style="padding:9px 22px; font-size:0.9rem; border:1px solid var(--border); border-radius:8px; color:var(--text-secondary); text-decoration:none; transition:all 0.2s;" onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent-light)';" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text-secondary)';">
+                &#8592; Back to AI House
+            </a>
+        </div>
+    </div>
+</div>
+
+</div><!-- .presentation -->
+
+<!-- ── Navigation controls ── -->
+<div class="controls">
+    <button class="nav-btn" id="prevBtn" onclick="changeSlide(-1)" disabled>&#8592; Prev</button>
+    <span class="slide-counter" id="counterLabel">1 / 23</span>
+    <button class="nav-btn" id="nextBtn" onclick="changeSlide(1)">Next &#8594;</button>
+</div>
+
+<!-- ── Speaker notes panel ── -->
+<div class="notes-panel" id="notesPanel">
+    <div class="notes-header">Speaker Notes</div>
+    <div class="notes-text" id="notesText"></div>
+</div>
+
+<script>
+    // ── State ──────────────────────────────────────────────────────────────
+    var currentSlide = 0;
+    var notesVisible = false;
+    var goingBack = false;
+    var slides = document.querySelectorAll('.slide');
+    var totalSlides = slides.length;
+
+    document.getElementById('slideTotal').textContent = totalSlides;
+
+    // ── Show a specific slide ──────────────────────────────────────────────
+    function showSlide(n) {
+        n = Math.max(0, Math.min(n, totalSlides - 1));
+        goingBack = (n < currentSlide);
+
+        slides.forEach(function(s) { s.classList.remove('active', 'going-back'); });
+        currentSlide = n;
+
+        var active = slides[currentSlide];
+        if (goingBack) { active.classList.add('going-back'); }
+        active.classList.add('active');
+        // Scroll to top of slide on change
+        active.scrollTop = 0;
+
+        // Update progress bar
+        var pct = ((currentSlide + 1) / totalSlides) * 100;
+        document.getElementById('progressBar').style.width = pct + '%';
+
+        // Update counters
+        document.getElementById('slideNum').textContent = currentSlide + 1;
+        document.getElementById('counterLabel').textContent = (currentSlide + 1) + ' / ' + totalSlides;
+
+        // Button states
+        document.getElementById('prevBtn').disabled = (currentSlide === 0);
+        var isLast = currentSlide === totalSlides - 1;
+        document.getElementById('nextBtn').style.display = isLast ? 'none' : '';
+
+        // Update speaker notes
+        updateNotes();
+    }
+
+    function changeSlide(dir) { showSlide(currentSlide + dir); }
+
+    // ── Speaker notes ──────────────────────────────────────────────────────
+    function updateNotes() {
+        var note = slides[currentSlide].getAttribute('data-notes') || 'No notes for this slide.';
+        document.getElementById('notesText').textContent = note;
+    }
+
+    function toggleNotes() {
+        notesVisible = !notesVisible;
+        var panel = document.getElementById('notesPanel');
+        var btn   = document.getElementById('notesToggle');
+        panel.classList.toggle('visible', notesVisible);
+        btn.classList.toggle('active', notesVisible);
+        btn.textContent = notesVisible ? 'Notes ON (N)' : 'Notes (N)';
+    }
+
+    // ── Keyboard navigation ────────────────────────────────────────────────
+    document.addEventListener('keydown', function(e) {
+        if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') { return; }
+        switch (e.key) {
+            case 'ArrowRight':
+            case ' ':
+                e.preventDefault();
+                if (currentSlide < totalSlides - 1) { changeSlide(1); }
+                break;
+            case 'ArrowLeft':
+                if (currentSlide > 0) { changeSlide(-1); }
+                break;
+            case 'Home':
+                showSlide(0);
+                break;
+            case 'End':
+                showSlide(totalSlides - 1);
+                break;
+            case 'n':
+            case 'N':
+                toggleNotes();
+                break;
+        }
+    });
+
+    // ── Module completion ──────────────────────────────────────────────────
+    function completeModule() {
+        var btn = document.getElementById('completeBtn');
+        btn.disabled = true;
+        btn.textContent = 'Completing...';
+
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('ai', 'ai-model-architecture-presentation', {
+                returnUrl: '../index.html'
+            });
+        } else {
+            setTimeout(function() { window.location.href = '../index.html'; }, 800);
+        }
+    }
+
+    // ── Initialise ─────────────────────────────────────────────────────────
+    showSlide(0);
+</script>
+</body>
+</html>
