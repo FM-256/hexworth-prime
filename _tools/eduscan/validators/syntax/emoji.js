@@ -10,6 +10,7 @@
  *   EMOJI-001  (low)     Emoji in icon: JS property
  *   EMOJI-002  (low)     Emoji in HTML badge/header icon elements
  *   EMOJI-003  (warning) Emoji in inline HTML near known UI patterns
+ *   EMOJI-004  (medium)  Emoji in hero/emblem container (should be <img>)
  */
 
 const fs = require('fs');
@@ -60,6 +61,17 @@ const UI_CONTAINER_CLASSES = [
     'stat-icon'
 ];
 
+// Hero/emblem container classes that should use <img> not emoji (EMOJI-004)
+const HERO_ICON_CLASSES = [
+    'course-icon',
+    'hero-icon',
+    'hero-logo',
+    'welcome-icon',
+    'module-icon',
+    'review-icon',
+    'district-hero-icon'
+];
+
 class EmojiValidator {
     constructor(options = {}) {
         this.verbose = options.verbose || false;
@@ -102,6 +114,7 @@ class EmojiValidator {
         issues.push(...this.checkScriptBlocks(content, filePath));
         issues.push(...this.checkBadgeIcons(content, filePath));
         issues.push(...this.checkUIContainers(content, filePath));
+        issues.push(...this.checkHeroIcons(content, filePath));
 
         return issues;
     }
@@ -206,6 +219,45 @@ class EmojiValidator {
                     fix: this.suggestFix(filePath, innerText)
                 });
             }
+        }
+
+        return issues;
+    }
+
+    /**
+     * EMOJI-004: Emoji in hero/emblem containers (should be <img>)
+     * Matches course-icon, hero-icon, hero-logo, welcome-icon, module-icon, etc.
+     * These containers should use emblem images, not raw emoji.
+     */
+    checkHeroIcons(content, filePath) {
+        const issues = [];
+        const classPattern = HERO_ICON_CLASSES.map(c => c.replace(/-/g, '\\-')).join('|');
+        // Match both class="hero-icon">emoji and class="hero-icon">&#12345; (HTML entities)
+        const heroRe = new RegExp(
+            `class="[^"]*(?:${classPattern})[^"]*"[^>]*>([^<]{0,100})`,
+            'gi'
+        );
+        let match;
+
+        while ((match = heroRe.exec(content)) !== null) {
+            const innerText = match[1];
+            // Check for real emoji chars or HTML numeric entities (&#128246; etc)
+            const hasEmojiChar = EMOJI_RE.test(innerText);
+            const hasHtmlEntity = /&#\d{4,6};/.test(innerText);
+            if (!hasEmojiChar && !hasHtmlEntity) continue;
+            if (this.isInsideOnerror(content, match.index)) continue;
+
+            const emoji = hasEmojiChar ? this.extractEmoji(innerText) : innerText.trim();
+            const line = this.getLineNumber(content, match.index);
+            issues.push({
+                code: 'EMOJI-004',
+                severity: 'medium',
+                category: 'emoji',
+                message: `Emoji "${emoji}" in hero/emblem container — replace with <img src="/assets/images/emblems/...">`,
+                file: filePath,
+                line,
+                fix: this.suggestFix(filePath, innerText)
+            });
         }
 
         return issues;
