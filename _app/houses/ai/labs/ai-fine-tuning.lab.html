@@ -1,0 +1,2445 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Model Fine-Tuning Lab - House of the Machine</title>
+    <style>
+        /* ===== RESET & ROOT ===== */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --house-primary: #a855f7;
+            --house-secondary: #7c3aed;
+            --house-glow: rgba(168, 85, 247, 0.35);
+            --house-glow-soft: rgba(168, 85, 247, 0.12);
+            --house-border: rgba(168, 85, 247, 0.25);
+
+            --bg-dark: #0a0e1a;
+            --bg-card: rgba(14, 18, 32, 0.9);
+            --bg-input: rgba(8, 11, 22, 0.85);
+            --bg-elevated: rgba(20, 24, 42, 0.95);
+
+            --text-primary: #e2e8f0;
+            --text-muted: #8892a4;
+            --text-code: #c4b5fd;
+
+            --success: #22c55e;
+            --success-soft: rgba(34, 197, 94, 0.12);
+            --warning: #f59e0b;
+            --warning-soft: rgba(245, 158, 11, 0.12);
+            --danger: #ef4444;
+            --danger-soft: rgba(239, 68, 68, 0.12);
+            --info: #38bdf8;
+            --info-soft: rgba(56, 189, 248, 0.1);
+
+            --border-subtle: rgba(255, 255, 255, 0.06);
+            --radius: 10px;
+            --radius-sm: 6px;
+        }
+
+        body {
+            min-height: 100vh;
+            background: var(--bg-dark);
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            color: var(--text-primary);
+            overflow-x: hidden;
+        }
+
+        /* ===== HEADER ===== */
+        .lab-header {
+            position: sticky;
+            top: 0;
+            z-index: 200;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 14px 28px;
+            background: rgba(10, 14, 26, 0.97);
+            border-bottom: 1px solid var(--house-border);
+            backdrop-filter: blur(10px);
+        }
+
+        .header-left { display: flex; align-items: center; gap: 14px; }
+
+        .back-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 34px;
+            height: 34px;
+            border-radius: 8px;
+            border: 1px solid var(--house-border);
+            background: transparent;
+            color: var(--house-primary);
+            cursor: pointer;
+            font-size: 1rem;
+            transition: background 0.2s;
+            text-decoration: none;
+        }
+        .back-btn:hover { background: var(--house-glow-soft); }
+
+        .breadcrumb {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .breadcrumb a { color: var(--text-muted); text-decoration: none; transition: color 0.2s; }
+        .breadcrumb a:hover { color: var(--house-primary); }
+        .breadcrumb .sep { opacity: 0.4; }
+        .breadcrumb .current { color: var(--house-primary); }
+
+        .header-right { display: flex; align-items: center; gap: 12px; }
+
+        .phase-counter { font-size: 0.8rem; color: var(--text-muted); }
+        .phase-counter span { color: var(--house-primary); font-weight: 600; }
+
+        .house-badge {
+            font-size: 0.65rem;
+            letter-spacing: 0.1em;
+            padding: 3px 10px;
+            background: rgba(168, 85, 247, 0.12);
+            border: 1px solid var(--house-border);
+            border-radius: 20px;
+            color: var(--house-primary);
+            text-transform: uppercase;
+        }
+
+        /* ===== MAIN CONTAINER ===== */
+        .container {
+            max-width: 1080px;
+            margin: 0 auto;
+            padding: 36px 24px 80px;
+        }
+
+        /* ===== INTRO ===== */
+        .intro { text-align: center; margin-bottom: 36px; }
+
+        .intro-icon { font-size: 2.8rem; margin-bottom: 14px; display: block; }
+
+        .intro-title {
+            font-size: 1.9rem;
+            font-weight: 300;
+            margin-bottom: 10px;
+            background: linear-gradient(135deg, #e2e8f0, var(--house-primary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .intro-subtitle {
+            color: var(--text-muted);
+            max-width: 700px;
+            margin: 0 auto;
+            line-height: 1.7;
+            font-size: 0.95rem;
+        }
+
+        /* ===== PHASE RAIL ===== */
+        .phase-rail {
+            display: flex;
+            align-items: center;
+            gap: 0;
+            margin-bottom: 32px;
+            background: var(--bg-card);
+            border: 1px solid var(--house-border);
+            border-radius: 12px;
+            padding: 16px 20px;
+            overflow-x: auto;
+        }
+
+        .rail-step { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+
+        .rail-dot {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            border: 2px solid rgba(255,255,255,0.12);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.7rem;
+            font-weight: 700;
+            color: var(--text-muted);
+            background: rgba(255,255,255,0.04);
+            transition: all 0.3s;
+            flex-shrink: 0;
+            cursor: default;
+        }
+        .rail-dot.active {
+            border-color: var(--house-primary);
+            background: rgba(168, 85, 247, 0.2);
+            color: var(--house-primary);
+            box-shadow: 0 0 12px var(--house-glow);
+        }
+        .rail-dot.done {
+            border-color: var(--success);
+            background: rgba(34, 197, 94, 0.15);
+            color: var(--success);
+        }
+
+        .rail-label {
+            font-size: 0.72rem;
+            color: var(--text-muted);
+            white-space: nowrap;
+        }
+        .rail-label.active { color: var(--house-primary); font-weight: 600; }
+        .rail-label.done { color: var(--success); }
+
+        .rail-connector {
+            flex: 1;
+            min-width: 18px;
+            height: 1px;
+            background: rgba(255,255,255,0.1);
+            margin: 0 4px;
+        }
+        .rail-connector.done { background: rgba(34, 197, 94, 0.4); }
+
+        /* ===== PHASE PANELS ===== */
+        .phase-panel { display: none; }
+        .phase-panel.active { display: block; }
+
+        .phase-card {
+            background: var(--bg-card);
+            border: 1px solid var(--house-border);
+            border-radius: var(--radius);
+            padding: 28px;
+            margin-bottom: 20px;
+        }
+
+        .phase-header {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            margin-bottom: 20px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid var(--border-subtle);
+        }
+
+        .phase-num {
+            width: 38px;
+            height: 38px;
+            border-radius: 50%;
+            background: rgba(168, 85, 247, 0.15);
+            border: 1px solid var(--house-border);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.85rem;
+            font-weight: 700;
+            color: var(--house-primary);
+            flex-shrink: 0;
+        }
+
+        .phase-title-block .phase-title {
+            font-size: 1.15rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+        .phase-title-block .phase-desc {
+            font-size: 0.82rem;
+            color: var(--text-muted);
+            margin-top: 3px;
+        }
+
+        /* ===== GENERIC HELPERS ===== */
+        .section-label {
+            font-size: 0.72rem;
+            font-weight: 700;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            color: var(--house-primary);
+            margin-bottom: 10px;
+        }
+
+        .info-box {
+            background: var(--info-soft);
+            border: 1px solid rgba(56, 189, 248, 0.2);
+            border-radius: var(--radius-sm);
+            padding: 12px 16px;
+            font-size: 0.85rem;
+            color: var(--info);
+            line-height: 1.6;
+            margin-bottom: 16px;
+        }
+
+        .tip-box {
+            background: var(--warning-soft);
+            border: 1px solid rgba(245, 158, 11, 0.25);
+            border-radius: var(--radius-sm);
+            padding: 12px 16px;
+            font-size: 0.82rem;
+            color: var(--warning);
+            line-height: 1.6;
+            margin-top: 14px;
+        }
+
+        .success-box {
+            background: var(--success-soft);
+            border: 1px solid rgba(34, 197, 94, 0.25);
+            border-radius: var(--radius-sm);
+            padding: 12px 16px;
+            font-size: 0.85rem;
+            color: var(--success);
+            line-height: 1.6;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            padding: 10px 20px;
+            border-radius: var(--radius-sm);
+            border: none;
+            font-size: 0.88rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .btn:disabled { opacity: 0.38; cursor: not-allowed; }
+
+        .btn-primary {
+            background: var(--house-primary);
+            color: #fff;
+        }
+        .btn-primary:hover:not(:disabled) {
+            background: var(--house-secondary);
+            box-shadow: 0 0 16px var(--house-glow);
+        }
+
+        .btn-outline {
+            background: transparent;
+            color: var(--house-primary);
+            border: 1px solid var(--house-border);
+        }
+        .btn-outline:hover:not(:disabled) { background: var(--house-glow-soft); }
+
+        .btn-success {
+            background: var(--success);
+            color: #000;
+        }
+        .btn-success:hover:not(:disabled) { background: #16a34a; }
+
+        .complete-row {
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            gap: 12px;
+            margin-top: 24px;
+            padding-top: 18px;
+            border-top: 1px solid var(--border-subtle);
+        }
+
+        .complete-hint { font-size: 0.78rem; color: var(--text-muted); }
+
+        /* ===== PHASE 1 — DATA PREP ===== */
+        .qa-source-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+        @media (max-width: 640px) { .qa-source-grid { grid-template-columns: 1fr; } }
+
+        .qa-source-card {
+            background: var(--bg-input);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-sm);
+            padding: 14px;
+            cursor: grab;
+            transition: border-color 0.2s, box-shadow 0.2s;
+            user-select: none;
+        }
+        .qa-source-card:hover {
+            border-color: var(--house-primary);
+            box-shadow: 0 0 10px var(--house-glow-soft);
+        }
+        .qa-source-card.dragging { opacity: 0.5; cursor: grabbing; }
+        .qa-source-card .tag {
+            font-size: 0.65rem;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: var(--house-primary);
+            margin-bottom: 6px;
+        }
+        .qa-source-card .qa-q { font-size: 0.82rem; color: var(--text-primary); margin-bottom: 4px; }
+        .qa-source-card .qa-a { font-size: 0.78rem; color: var(--text-muted); }
+
+        .jsonl-builder {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 12px;
+            margin-bottom: 18px;
+        }
+        @media (max-width: 720px) { .jsonl-builder { grid-template-columns: 1fr; } }
+
+        .jsonl-slot {
+            background: var(--bg-input);
+            border: 2px dashed rgba(168, 85, 247, 0.3);
+            border-radius: var(--radius-sm);
+            padding: 14px;
+            min-height: 100px;
+            transition: border-color 0.2s, background 0.2s;
+        }
+        .jsonl-slot.drag-over {
+            border-color: var(--house-primary);
+            background: var(--house-glow-soft);
+        }
+        .jsonl-slot.filled {
+            border-style: solid;
+            border-color: rgba(34, 197, 94, 0.4);
+        }
+        .jsonl-slot-label {
+            font-size: 0.68rem;
+            font-weight: 700;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            color: var(--house-primary);
+            margin-bottom: 8px;
+        }
+        .jsonl-slot-content { font-size: 0.78rem; color: var(--text-muted); line-height: 1.5; }
+        .jsonl-slot.filled .jsonl-slot-content { color: var(--text-primary); }
+        .jsonl-slot-hint { font-size: 0.72rem; color: rgba(168,85,247,0.5); font-style: italic; }
+
+        .jsonl-output-wrap {
+            background: #060910;
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-sm);
+            padding: 16px;
+            font-family: 'Consolas', 'Courier New', monospace;
+            font-size: 0.78rem;
+            line-height: 1.7;
+            color: var(--text-muted);
+            min-height: 80px;
+            position: relative;
+            overflow-x: auto;
+        }
+        .jsonl-output-wrap .key { color: #c4b5fd; }
+        .jsonl-output-wrap .str { color: #86efac; }
+        .jsonl-output-wrap .brace { color: var(--text-muted); }
+
+        .jsonl-progress {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 14px;
+        }
+        .jsonl-pip {
+            width: 28px;
+            height: 5px;
+            border-radius: 3px;
+            background: rgba(255,255,255,0.08);
+            transition: background 0.3s;
+        }
+        .jsonl-pip.done { background: var(--success); }
+
+        /* ===== PHASE 2 — HYPERPARAMETERS ===== */
+        .param-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        @media (max-width: 640px) { .param-grid { grid-template-columns: 1fr; } }
+
+        .param-block { display: flex; flex-direction: column; gap: 8px; }
+
+        .param-label-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+        }
+        .param-name { font-size: 0.85rem; font-weight: 600; color: var(--text-primary); }
+        .param-val {
+            font-size: 0.88rem;
+            font-weight: 700;
+            color: var(--house-primary);
+            font-family: 'Consolas', monospace;
+        }
+        .param-hint { font-size: 0.72rem; color: var(--text-muted); line-height: 1.5; }
+
+        input[type="range"] {
+            -webkit-appearance: none;
+            width: 100%;
+            height: 5px;
+            border-radius: 3px;
+            background: rgba(255,255,255,0.1);
+            outline: none;
+            cursor: pointer;
+        }
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: var(--house-primary);
+            box-shadow: 0 0 8px var(--house-glow);
+            cursor: pointer;
+        }
+        input[type="range"]::-moz-range-thumb {
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: var(--house-primary);
+            border: none;
+            cursor: pointer;
+        }
+
+        .batch-pills {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        .batch-pill {
+            padding: 6px 16px;
+            border-radius: 20px;
+            border: 1px solid var(--house-border);
+            background: transparent;
+            color: var(--text-muted);
+            font-size: 0.82rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .batch-pill.selected {
+            background: rgba(168, 85, 247, 0.2);
+            border-color: var(--house-primary);
+            color: var(--house-primary);
+        }
+
+        .estimate-card {
+            background: var(--bg-elevated);
+            border: 1px solid var(--house-border);
+            border-radius: var(--radius-sm);
+            padding: 18px 22px;
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 16px;
+            margin-top: 4px;
+        }
+        @media (max-width: 520px) { .estimate-card { grid-template-columns: 1fr 1fr; } }
+
+        .est-item { text-align: center; }
+        .est-val {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--house-primary);
+            display: block;
+            font-family: 'Consolas', monospace;
+        }
+        .est-label { font-size: 0.72rem; color: var(--text-muted); margin-top: 3px; }
+
+        /* ===== PHASE 3 — TRAINING SIMULATION ===== */
+        .training-controls {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .training-status-bar {
+            background: var(--bg-input);
+            border: 1px solid var(--house-border);
+            border-radius: var(--radius-sm);
+            padding: 16px 20px;
+            margin-bottom: 18px;
+        }
+
+        .training-progress-label {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            margin-bottom: 8px;
+        }
+
+        .progress-track {
+            height: 8px;
+            background: rgba(255,255,255,0.07);
+            border-radius: 4px;
+            overflow: hidden;
+            margin-bottom: 10px;
+        }
+        .progress-fill {
+            height: 100%;
+            border-radius: 4px;
+            background: linear-gradient(90deg, var(--house-secondary), var(--house-primary));
+            transition: width 0.3s ease;
+            box-shadow: 0 0 10px var(--house-glow);
+        }
+
+        .training-meta {
+            display: flex;
+            gap: 18px;
+            font-size: 0.78rem;
+            color: var(--text-muted);
+            flex-wrap: wrap;
+        }
+        .training-meta strong { color: var(--house-primary); }
+
+        /* SVG Loss Chart */
+        .chart-wrap {
+            background: #060910;
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-sm);
+            padding: 16px;
+            margin-bottom: 18px;
+        }
+        .chart-title {
+            font-size: 0.78rem;
+            color: var(--text-muted);
+            margin-bottom: 10px;
+            display: flex;
+            gap: 16px;
+            align-items: center;
+        }
+        .legend-dot {
+            display: inline-block;
+            width: 10px;
+            height: 3px;
+            border-radius: 2px;
+            margin-right: 4px;
+            vertical-align: middle;
+        }
+
+        #lossChart { width: 100%; height: 220px; display: block; }
+
+        .log-feed {
+            background: #060910;
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-sm);
+            padding: 14px 16px;
+            font-family: 'Consolas', monospace;
+            font-size: 0.76rem;
+            color: var(--text-muted);
+            height: 130px;
+            overflow-y: auto;
+            line-height: 1.7;
+        }
+        .log-feed .log-ok { color: var(--success); }
+        .log-feed .log-warn { color: var(--warning); }
+        .log-feed .log-epoch { color: var(--house-primary); }
+
+        /* ===== PHASE 4 — EVALUATION ===== */
+        .eval-prompt-selector {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 18px;
+            flex-wrap: wrap;
+        }
+        .eval-prompt-pill {
+            padding: 6px 14px;
+            border-radius: 20px;
+            border: 1px solid var(--house-border);
+            background: transparent;
+            color: var(--text-muted);
+            font-size: 0.8rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .eval-prompt-pill.active {
+            background: rgba(168,85,247,0.18);
+            border-color: var(--house-primary);
+            color: var(--house-primary);
+        }
+
+        .eval-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            margin-bottom: 18px;
+        }
+        @media (max-width: 680px) { .eval-grid { grid-template-columns: 1fr; } }
+
+        .eval-model-card {
+            background: var(--bg-input);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-sm);
+            padding: 16px;
+        }
+        .eval-model-label {
+            font-size: 0.7rem;
+            font-weight: 700;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            margin-bottom: 8px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid var(--border-subtle);
+        }
+        .eval-model-label.base { color: var(--text-muted); }
+        .eval-model-label.tuned { color: var(--house-primary); }
+
+        .eval-prompt-display {
+            font-size: 0.8rem;
+            color: var(--info);
+            font-style: italic;
+            margin-bottom: 10px;
+            padding: 8px 10px;
+            background: var(--info-soft);
+            border-radius: 4px;
+        }
+
+        .eval-response {
+            font-size: 0.83rem;
+            color: var(--text-primary);
+            line-height: 1.7;
+        }
+
+        .vote-row {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            margin-top: 14px;
+        }
+        .vote-btn {
+            flex: 1;
+            padding: 10px;
+            border-radius: var(--radius-sm);
+            border: 1px solid var(--border-subtle);
+            background: transparent;
+            color: var(--text-muted);
+            cursor: pointer;
+            font-size: 0.82rem;
+            transition: all 0.2s;
+            text-align: center;
+        }
+        .vote-btn:hover { border-color: var(--house-primary); color: var(--house-primary); }
+        .vote-btn.selected-base { background: var(--warning-soft); border-color: var(--warning); color: var(--warning); }
+        .vote-btn.selected-tuned { background: var(--success-soft); border-color: var(--success); color: var(--success); }
+
+        .eval-scoreboard {
+            background: var(--bg-elevated);
+            border: 1px solid var(--house-border);
+            border-radius: var(--radius-sm);
+            padding: 14px 18px;
+        }
+        .eval-score-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+        .eval-score-bar-wrap { flex: 1; height: 6px; background: rgba(255,255,255,0.07); border-radius: 3px; margin: 0 10px; overflow: hidden; }
+        .eval-score-bar-fill { height: 100%; border-radius: 3px; transition: width 0.4s; }
+
+        /* ===== PHASE 5 — COST-BENEFIT ===== */
+        .cost-calc-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 18px;
+            margin-bottom: 20px;
+        }
+        @media (max-width: 640px) { .cost-calc-grid { grid-template-columns: 1fr; } }
+
+        .cost-panel {
+            background: var(--bg-input);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-sm);
+            padding: 16px;
+        }
+        .cost-panel-title {
+            font-size: 0.8rem;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            margin-bottom: 14px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid var(--border-subtle);
+        }
+
+        .cost-input-row {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-bottom: 12px;
+        }
+        .cost-input-label { font-size: 0.78rem; color: var(--text-muted); margin-bottom: 4px; }
+        .cost-input {
+            background: var(--bg-elevated);
+            border: 1px solid var(--border-subtle);
+            border-radius: 4px;
+            padding: 7px 10px;
+            color: var(--text-primary);
+            font-size: 0.85rem;
+            width: 100%;
+        }
+        .cost-input:focus { outline: none; border-color: var(--house-primary); }
+
+        .cost-result {
+            font-size: 1.3rem;
+            font-weight: 700;
+            color: var(--house-primary);
+            font-family: 'Consolas', monospace;
+            margin-top: 8px;
+        }
+        .cost-result-label { font-size: 0.72rem; color: var(--text-muted); }
+
+        .verdict-card {
+            background: var(--bg-elevated);
+            border: 1px solid var(--house-border);
+            border-radius: var(--radius-sm);
+            padding: 16px 20px;
+            margin-bottom: 18px;
+        }
+        .verdict-bar {
+            height: 10px;
+            background: rgba(255,255,255,0.06);
+            border-radius: 5px;
+            overflow: hidden;
+            margin: 10px 0;
+        }
+        .verdict-fill {
+            height: 100%;
+            border-radius: 5px;
+            transition: width 0.5s ease;
+        }
+
+        /* Decision tree quiz */
+        .quiz-block {
+            background: var(--bg-input);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-sm);
+            padding: 16px;
+            margin-bottom: 12px;
+        }
+        .quiz-q { font-size: 0.88rem; color: var(--text-primary); margin-bottom: 12px; font-weight: 500; }
+        .quiz-options { display: flex; flex-direction: column; gap: 8px; }
+        .quiz-opt {
+            padding: 10px 14px;
+            border-radius: 6px;
+            border: 1px solid var(--border-subtle);
+            background: transparent;
+            color: var(--text-muted);
+            cursor: pointer;
+            font-size: 0.82rem;
+            text-align: left;
+            transition: all 0.2s;
+        }
+        .quiz-opt:hover { border-color: var(--house-primary); color: var(--house-primary); }
+        .quiz-opt.correct { background: var(--success-soft); border-color: var(--success); color: var(--success); }
+        .quiz-opt.wrong { background: var(--danger-soft); border-color: var(--danger); color: var(--danger); }
+        .quiz-opt.disabled { cursor: not-allowed; opacity: 0.5; }
+        .quiz-feedback { font-size: 0.8rem; color: var(--text-muted); margin-top: 8px; line-height: 1.55; display: none; }
+        .quiz-feedback.show { display: block; }
+
+        /* ===== PHASE 6 — DEPLOYMENT ===== */
+        .deploy-strategy-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 14px;
+            margin-bottom: 20px;
+        }
+        @media (max-width: 640px) { .deploy-strategy-grid { grid-template-columns: 1fr; } }
+
+        .deploy-card {
+            background: var(--bg-input);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-sm);
+            padding: 18px 16px;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-align: center;
+        }
+        .deploy-card:hover { border-color: var(--house-primary); }
+        .deploy-card.selected {
+            border-color: var(--house-primary);
+            background: rgba(168,85,247,0.1);
+            box-shadow: 0 0 14px var(--house-glow-soft);
+        }
+        .deploy-card-icon { font-size: 1.8rem; margin-bottom: 10px; display: block; }
+        .deploy-card-name { font-size: 0.88rem; font-weight: 600; color: var(--text-primary); margin-bottom: 4px; }
+        .deploy-card-desc { font-size: 0.75rem; color: var(--text-muted); line-height: 1.5; }
+
+        .config-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 14px;
+            margin-bottom: 16px;
+        }
+        @media (max-width: 560px) { .config-grid { grid-template-columns: 1fr; } }
+
+        .config-block { display: flex; flex-direction: column; gap: 6px; }
+        .config-label { font-size: 0.78rem; color: var(--text-muted); }
+        .config-select, .config-input {
+            background: var(--bg-input);
+            border: 1px solid var(--border-subtle);
+            border-radius: 4px;
+            padding: 8px 10px;
+            color: var(--text-primary);
+            font-size: 0.83rem;
+        }
+        .config-select:focus, .config-input:focus { outline: none; border-color: var(--house-primary); }
+
+        .toggle-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 0;
+            border-bottom: 1px solid var(--border-subtle);
+        }
+        .toggle-label { font-size: 0.83rem; color: var(--text-primary); }
+        .toggle-sublabel { font-size: 0.72rem; color: var(--text-muted); }
+
+        .toggle-switch {
+            position: relative;
+            width: 40px;
+            height: 22px;
+            flex-shrink: 0;
+        }
+        .toggle-switch input { opacity: 0; width: 0; height: 0; }
+        .toggle-slider {
+            position: absolute;
+            inset: 0;
+            background: rgba(255,255,255,0.1);
+            border-radius: 11px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .toggle-slider::before {
+            content: '';
+            position: absolute;
+            width: 16px;
+            height: 16px;
+            left: 3px;
+            top: 3px;
+            background: #fff;
+            border-radius: 50%;
+            transition: transform 0.2s;
+        }
+        .toggle-switch input:checked + .toggle-slider { background: var(--house-primary); }
+        .toggle-switch input:checked + .toggle-slider::before { transform: translateX(18px); }
+
+        .deploy-summary {
+            background: #060910;
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-sm);
+            padding: 16px;
+            font-family: 'Consolas', monospace;
+            font-size: 0.79rem;
+            color: var(--text-muted);
+            line-height: 1.8;
+        }
+        .deploy-summary .key { color: #c4b5fd; }
+        .deploy-summary .val { color: #86efac; }
+
+        /* ===== COMPLETION BANNER ===== */
+        .completion-banner {
+            display: none;
+            text-align: center;
+            background: var(--bg-card);
+            border: 1px solid rgba(34, 197, 94, 0.3);
+            border-radius: var(--radius);
+            padding: 48px 32px;
+            margin-top: 20px;
+        }
+        .completion-banner.show { display: block; }
+
+        .completion-icon { font-size: 3.5rem; margin-bottom: 16px; display: block; }
+        .completion-title {
+            font-size: 1.7rem;
+            font-weight: 300;
+            background: linear-gradient(135deg, var(--success), var(--house-primary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 10px;
+        }
+        .completion-sub { font-size: 0.9rem; color: var(--text-muted); margin-bottom: 28px; line-height: 1.6; }
+
+        .completion-stats {
+            display: flex;
+            justify-content: center;
+            gap: 32px;
+            margin-bottom: 28px;
+            flex-wrap: wrap;
+        }
+        .cstat-val { display: block; font-size: 2rem; font-weight: 700; color: var(--house-primary); }
+        .cstat-label { font-size: 0.75rem; color: var(--text-muted); margin-top: 2px; }
+
+        /* ===== SCROLLBAR ===== */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: rgba(168,85,247,0.3); border-radius: 3px; }
+
+        /* ===== PULSE ANIMATION ===== */
+        @keyframes pulse-glow {
+            0%, 100% { box-shadow: 0 0 6px var(--house-glow); }
+            50% { box-shadow: 0 0 20px var(--house-glow), 0 0 40px rgba(168,85,247,0.15); }
+        }
+        .pulsing { animation: pulse-glow 2s ease-in-out infinite; }
+
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+        .fade-in { animation: fadeIn 0.35s ease forwards; }
+    </style>
+</head>
+<body>
+
+<!-- ===== HEADER ===== -->
+<header class="lab-header">
+    <div class="header-left">
+        <a href="../index.html" class="back-btn" title="Back to AI House">&#8592;</a>
+        <div>
+            <nav class="breadcrumb">
+                <a href="../../index.html">Houses</a>
+                <span class="sep">/</span>
+                <a href="../index.html">House of the Machine</a>
+                <span class="sep">/</span>
+                <a href="../index.html#labs">Labs</a>
+                <span class="sep">/</span>
+                <span class="current">Fine-Tuning Lab</span>
+            </nav>
+        </div>
+    </div>
+    <div class="header-right">
+        <span class="phase-counter">Phase <span id="headerPhaseNum">1</span> of 6</span>
+        <span class="house-badge">AI House</span>
+    </div>
+</header>
+
+<!-- ===== MAIN ===== -->
+<main class="container">
+
+    <!-- Intro -->
+    <div class="intro">
+        <span class="intro-icon">&#9881;</span>
+        <h1 class="intro-title">Model Fine-Tuning Lab</h1>
+        <p class="intro-subtitle">Walk through the complete lifecycle of fine-tuning a language model — from formatting training data through deployment decisions. Each phase builds on the last.</p>
+    </div>
+
+    <!-- Phase Rail -->
+    <div class="phase-rail" id="phaseRail" aria-label="Lab phases">
+        <!-- built by JS -->
+    </div>
+
+    <!-- =========================================================
+         PHASE 1 — DATA PREPARATION
+    ========================================================= -->
+    <div class="phase-panel active" id="phase-1">
+        <div class="phase-card fade-in">
+            <div class="phase-header">
+                <div class="phase-num">1</div>
+                <div class="phase-title-block">
+                    <div class="phase-title">Data Preparation</div>
+                    <div class="phase-desc">Convert raw Q&amp;A pairs into the JSONL chat format used by fine-tuning APIs.</div>
+                </div>
+            </div>
+
+            <div class="info-box">
+                Fine-tuning requires training data in a specific format. For chat models, each example is a JSON object with a <code>messages</code> array containing <strong>system</strong>, <strong>user</strong>, and <strong>assistant</strong> turns. Drag each raw data card into the correct slot below.
+            </div>
+
+            <div class="section-label">Step 1 — Build 3 training examples</div>
+
+            <!-- Progress pips -->
+            <div class="jsonl-progress" id="jsonlPips">
+                <div class="jsonl-pip" id="pip-0"></div>
+                <div class="jsonl-pip" id="pip-1"></div>
+                <div class="jsonl-pip" id="pip-2"></div>
+            </div>
+
+            <!-- Example selector -->
+            <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;">
+                <button class="batch-pill selected" onclick="selectExample(0)" id="exBtn-0">Example 1</button>
+                <button class="batch-pill" onclick="selectExample(1)" id="exBtn-1">Example 2</button>
+                <button class="batch-pill" onclick="selectExample(2)" id="exBtn-2">Example 3</button>
+                <button class="btn btn-outline" style="padding:6px 14px;font-size:0.78rem;" onclick="resetCurrentExample()">Reset</button>
+            </div>
+
+            <!-- Source cards (drag source) -->
+            <div class="section-label">Raw source data — drag into slots</div>
+            <div class="qa-source-grid" id="sourceCards">
+                <!-- rendered by JS -->
+            </div>
+
+            <!-- JSONL slots -->
+            <div class="section-label" style="margin-top:16px;">JSONL message slots — drop here</div>
+            <div class="jsonl-builder">
+                <div class="jsonl-slot" id="slot-system" data-role="system">
+                    <div class="jsonl-slot-label">system</div>
+                    <div class="jsonl-slot-content" id="slot-system-content">
+                        <span class="jsonl-slot-hint">Drop the system instruction here</span>
+                    </div>
+                </div>
+                <div class="jsonl-slot" id="slot-user" data-role="user">
+                    <div class="jsonl-slot-label">user</div>
+                    <div class="jsonl-slot-content" id="slot-user-content">
+                        <span class="jsonl-slot-hint">Drop the user question here</span>
+                    </div>
+                </div>
+                <div class="jsonl-slot" id="slot-assistant" data-role="assistant">
+                    <div class="jsonl-slot-label">assistant</div>
+                    <div class="jsonl-slot-content" id="slot-assistant-content">
+                        <span class="jsonl-slot-hint">Drop the ideal answer here</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Live JSONL preview -->
+            <div class="section-label">Live JSONL output</div>
+            <div class="jsonl-output-wrap" id="jsonlPreview">
+                <span style="color:rgba(255,255,255,0.2);font-style:italic;">Waiting for all three slots to be filled...</span>
+            </div>
+
+            <div class="tip-box">
+                <strong>Format note:</strong> Each line of a .jsonl file is a self-contained JSON object. Fine-tuning APIs like OpenAI, Anthropic, and Vertex AI all accept slight variations of this format — but the core "messages" structure is universal.
+            </div>
+
+            <div class="complete-row">
+                <span class="complete-hint" id="p1Hint">Fill all 3 examples to continue</span>
+                <button class="btn btn-primary" id="p1NextBtn" disabled onclick="completePhase(1)">Next Phase &#8594;</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- =========================================================
+         PHASE 2 — HYPERPARAMETER SELECTION
+    ========================================================= -->
+    <div class="phase-panel" id="phase-2">
+        <div class="phase-card fade-in">
+            <div class="phase-header">
+                <div class="phase-num">2</div>
+                <div class="phase-title-block">
+                    <div class="phase-title">Hyperparameter Selection</div>
+                    <div class="phase-desc">Tune the knobs that control how the model learns. Each choice has a direct cost and quality trade-off.</div>
+                </div>
+            </div>
+
+            <div class="info-box">
+                Hyperparameters are set before training begins and cannot be changed mid-run. The right combination depends on dataset size, task complexity, and your budget.
+            </div>
+
+            <div class="param-grid">
+                <!-- Learning Rate -->
+                <div class="param-block">
+                    <div class="param-label-row">
+                        <span class="param-name">Learning Rate</span>
+                        <span class="param-val" id="lrVal">1e-4</span>
+                    </div>
+                    <input type="range" id="lrSlider" min="1" max="50" value="10" oninput="updateHyperparams()">
+                    <div class="param-hint">Controls how aggressively the model updates weights each step. Too high = unstable training; too low = slow convergence or getting stuck.</div>
+                </div>
+
+                <!-- Epochs -->
+                <div class="param-block">
+                    <div class="param-label-row">
+                        <span class="param-name">Epochs</span>
+                        <span class="param-val" id="epochsVal">3</span>
+                    </div>
+                    <input type="range" id="epochsSlider" min="1" max="10" value="3" oninput="updateHyperparams()">
+                    <div class="param-hint">Number of full passes over the training dataset. More epochs = more learning, but risks overfitting on small datasets.</div>
+                </div>
+
+                <!-- Warmup Steps -->
+                <div class="param-block">
+                    <div class="param-label-row">
+                        <span class="param-name">Warmup Steps</span>
+                        <span class="param-val" id="warmupVal">50</span>
+                    </div>
+                    <input type="range" id="warmupSlider" min="0" max="200" step="10" value="50" oninput="updateHyperparams()">
+                    <div class="param-hint">Linearly increase LR from 0 for the first N steps. Prevents catastrophic early updates on pretrained weights.</div>
+                </div>
+
+                <!-- Batch Size -->
+                <div class="param-block">
+                    <div class="param-label-row">
+                        <span class="param-name">Batch Size</span>
+                        <span class="param-val" id="batchVal">8</span>
+                    </div>
+                    <div class="batch-pills" id="batchPills">
+                        <button class="batch-pill" data-val="4" onclick="selectBatch(4)">4</button>
+                        <button class="batch-pill selected" data-val="8" onclick="selectBatch(8)">8</button>
+                        <button class="batch-pill" data-val="16" onclick="selectBatch(16)">16</button>
+                        <button class="batch-pill" data-val="32" onclick="selectBatch(32)">32</button>
+                    </div>
+                    <div class="param-hint">Samples processed per gradient update. Larger batches train faster but require more GPU memory and may reduce generalization.</div>
+                </div>
+            </div>
+
+            <!-- Cost/Time Estimates -->
+            <div class="section-label">Estimated Training Metrics</div>
+            <div class="estimate-card">
+                <div class="est-item">
+                    <span class="est-val" id="estTime">--</span>
+                    <div class="est-label">Est. Training Time</div>
+                </div>
+                <div class="est-item">
+                    <span class="est-val" id="estCost">--</span>
+                    <div class="est-label">Est. GPU Cost (USD)</div>
+                </div>
+                <div class="est-item">
+                    <span class="est-val" id="estSteps">--</span>
+                    <div class="est-label">Total Steps</div>
+                </div>
+            </div>
+
+            <div class="tip-box" id="hpTip">
+                Adjust parameters to see how they affect training cost and time.
+            </div>
+
+            <div class="complete-row">
+                <span class="complete-hint">Adjust at least one parameter to continue</span>
+                <button class="btn btn-primary" id="p2NextBtn" disabled onclick="completePhase(2)">Start Training &#8594;</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- =========================================================
+         PHASE 3 — TRAINING SIMULATION
+    ========================================================= -->
+    <div class="phase-panel" id="phase-3">
+        <div class="phase-card fade-in">
+            <div class="phase-header">
+                <div class="phase-num">3</div>
+                <div class="phase-title-block">
+                    <div class="phase-title">Training Simulation</div>
+                    <div class="phase-desc">Watch the model learn. Monitor train vs. validation loss to detect overfitting.</div>
+                </div>
+            </div>
+
+            <div class="info-box">
+                Training loss decreasing is expected. The danger sign is when <strong style="color:var(--warning)">validation loss stops decreasing or starts rising</strong> while train loss keeps falling — that's overfitting. Your chosen hyperparameters shape this curve.
+            </div>
+
+            <div class="training-controls">
+                <button class="btn btn-primary pulsing" id="trainStartBtn" onclick="startTraining()">Run Training</button>
+                <button class="btn btn-outline" id="trainResetBtn" onclick="resetTraining()" disabled>Reset</button>
+                <span id="trainStatusText" style="font-size:0.82rem;color:var(--text-muted);align-self:center;"></span>
+            </div>
+
+            <!-- Progress bar -->
+            <div class="training-status-bar">
+                <div class="training-progress-label">
+                    <span id="trainEpochLabel">Epoch 0 / <span id="trainEpochTotal">0</span></span>
+                    <span id="trainPct">0%</span>
+                </div>
+                <div class="progress-track">
+                    <div class="progress-fill" id="trainProgressFill" style="width:0%"></div>
+                </div>
+                <div class="training-meta">
+                    <span>Train Loss: <strong id="metaTrainLoss">--</strong></span>
+                    <span>Val Loss: <strong id="metaValLoss">--</strong></span>
+                    <span>Step: <strong id="metaStep">0</strong> / <strong id="metaTotalSteps">--</strong></span>
+                    <span>LR: <strong id="metaLR">--</strong></span>
+                </div>
+            </div>
+
+            <!-- Loss Chart -->
+            <div class="chart-wrap">
+                <div class="chart-title">
+                    <span>
+                        <span class="legend-dot" style="background:var(--house-primary);"></span>
+                        Train Loss
+                    </span>
+                    <span>
+                        <span class="legend-dot" style="background:var(--warning);"></span>
+                        Validation Loss
+                    </span>
+                </div>
+                <svg id="lossChart" viewBox="0 0 800 220" preserveAspectRatio="xMidYMid meet">
+                    <!-- Grid lines -->
+                    <line x1="60" y1="10" x2="60" y2="190" stroke="rgba(255,255,255,0.07)" stroke-width="1"/>
+                    <line x1="60" y1="190" x2="790" y2="190" stroke="rgba(255,255,255,0.07)" stroke-width="1"/>
+                    <!-- Y-axis labels -->
+                    <text x="50" y="14" text-anchor="end" fill="#8892a4" font-size="11">3.0</text>
+                    <text x="50" y="58" text-anchor="end" fill="#8892a4" font-size="11">2.2</text>
+                    <text x="50" y="103" text-anchor="end" fill="#8892a4" font-size="11">1.5</text>
+                    <text x="50" y="148" text-anchor="end" fill="#8892a4" font-size="11">0.8</text>
+                    <text x="50" y="193" text-anchor="end" fill="#8892a4" font-size="11">0.0</text>
+                    <!-- Horizontal grid -->
+                    <line x1="60" y1="55" x2="790" y2="55" stroke="rgba(255,255,255,0.04)" stroke-width="1" stroke-dasharray="4,4"/>
+                    <line x1="60" y1="100" x2="790" y2="100" stroke="rgba(255,255,255,0.04)" stroke-width="1" stroke-dasharray="4,4"/>
+                    <line x1="60" y1="145" x2="790" y2="145" stroke="rgba(255,255,255,0.04)" stroke-width="1" stroke-dasharray="4,4"/>
+                    <!-- Loss polylines (populated by JS) -->
+                    <polyline id="chartTrainLine" points="" fill="none" stroke="#a855f7" stroke-width="2.5" stroke-linejoin="round"/>
+                    <polyline id="chartValLine" points="" fill="none" stroke="#f59e0b" stroke-width="2" stroke-linejoin="round" stroke-dasharray="5,3"/>
+                </svg>
+            </div>
+
+            <!-- Log feed -->
+            <div class="section-label">Training Log</div>
+            <div class="log-feed" id="logFeed">
+                <span style="color:rgba(255,255,255,0.2)">Training log will appear here...</span>
+            </div>
+
+            <div id="overfit-warning" style="display:none;" class="tip-box" style="margin-top:14px;">
+                <strong>Overfitting detected:</strong> Validation loss increased while training loss continued to fall. Consider reducing epochs or adding regularization.
+            </div>
+
+            <div class="complete-row">
+                <span class="complete-hint" id="p3Hint">Run training to continue</span>
+                <button class="btn btn-primary" id="p3NextBtn" disabled onclick="completePhase(3)">Evaluate Model &#8594;</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- =========================================================
+         PHASE 4 — EVALUATION
+    ========================================================= -->
+    <div class="phase-panel" id="phase-4">
+        <div class="phase-card fade-in">
+            <div class="phase-header">
+                <div class="phase-num">4</div>
+                <div class="phase-title-block">
+                    <div class="phase-title">Evaluation</div>
+                    <div class="phase-desc">Compare base model vs. fine-tuned model on held-out test prompts. Rate which response is better.</div>
+                </div>
+            </div>
+
+            <div class="info-box">
+                Human preference evaluation (often called "red-teaming" or "preference labeling") is a key signal for judging fine-tuning quality. Rate each prompt pair to build a scorecard.
+            </div>
+
+            <!-- Prompt selector -->
+            <div class="section-label">Select a test prompt</div>
+            <div class="eval-prompt-selector" id="evalPromptSelector">
+                <!-- built by JS -->
+            </div>
+
+            <!-- Side-by-side comparison -->
+            <div class="eval-grid">
+                <div class="eval-model-card">
+                    <div class="eval-model-label base">Base Model (GPT-3.5 style)</div>
+                    <div class="eval-prompt-display" id="evalPromptDisplay">--</div>
+                    <div class="eval-response" id="baseResponse">--</div>
+                </div>
+                <div class="eval-model-card">
+                    <div class="eval-model-label tuned">Fine-Tuned Model</div>
+                    <div class="eval-prompt-display" id="evalPromptDisplay2">--</div>
+                    <div class="eval-response" id="tunedResponse">--</div>
+                </div>
+            </div>
+
+            <!-- Vote buttons -->
+            <div class="vote-row" id="voteRow">
+                <button class="vote-btn" id="voteBase" onclick="castVote('base')">Base Model is better</button>
+                <span style="font-size:0.8rem;color:var(--text-muted);">Choose one</span>
+                <button class="vote-btn" id="voteTuned" onclick="castVote('tuned')">Fine-Tuned is better</button>
+            </div>
+
+            <!-- Scoreboard -->
+            <div class="section-label" style="margin-top:20px;">Evaluation Scoreboard</div>
+            <div class="eval-scoreboard" id="evalScoreboard">
+                <!-- built by JS -->
+            </div>
+
+            <div class="complete-row">
+                <span class="complete-hint" id="p4Hint">Rate all 5 prompts to continue</span>
+                <button class="btn btn-primary" id="p4NextBtn" disabled onclick="completePhase(4)">Cost Analysis &#8594;</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- =========================================================
+         PHASE 5 — COST-BENEFIT ANALYSIS
+    ========================================================= -->
+    <div class="phase-panel" id="phase-5">
+        <div class="phase-card fade-in">
+            <div class="phase-header">
+                <div class="phase-num">5</div>
+                <div class="phase-title-block">
+                    <div class="phase-title">Cost-Benefit Analysis</div>
+                    <div class="phase-desc">When does fine-tuning make financial sense vs. prompt engineering?</div>
+                </div>
+            </div>
+
+            <div class="info-box">
+                Fine-tuning has a one-time training cost but reduces per-inference cost (shorter prompts). Prompt engineering is zero-cost upfront but pays the "prompt tax" on every single call.
+            </div>
+
+            <div class="cost-calc-grid">
+                <!-- Fine-tuning approach -->
+                <div class="cost-panel">
+                    <div class="cost-panel-title" style="color:var(--house-primary);">Fine-Tuning Approach</div>
+                    <div class="cost-input-row">
+                        <div>
+                            <div class="cost-input-label">One-time training cost ($)</div>
+                            <input class="cost-input" type="number" id="ftTrainCost" value="120" oninput="updateCostCalc()">
+                        </div>
+                        <div>
+                            <div class="cost-input-label">Monthly API calls (thousands)</div>
+                            <input class="cost-input" type="number" id="ftCalls" value="500" oninput="updateCostCalc()">
+                        </div>
+                        <div>
+                            <div class="cost-input-label">Cost per 1K tokens (inference, $)</div>
+                            <input class="cost-input" type="number" id="ftTokenCost" value="0.004" step="0.001" oninput="updateCostCalc()">
+                        </div>
+                        <div>
+                            <div class="cost-input-label">Avg tokens per call (shorter system prompt)</div>
+                            <input class="cost-input" type="number" id="ftTokensPerCall" value="200" oninput="updateCostCalc()">
+                        </div>
+                    </div>
+                    <div class="cost-result-label">Monthly cost (month 1)</div>
+                    <div class="cost-result" id="ftMonthly1">--</div>
+                    <div class="cost-result-label" style="margin-top:10px;">Monthly cost (month 2+)</div>
+                    <div class="cost-result" id="ftMonthly2">--</div>
+                </div>
+
+                <!-- Prompt engineering approach -->
+                <div class="cost-panel">
+                    <div class="cost-panel-title" style="color:var(--warning);">Prompt Engineering Approach</div>
+                    <div class="cost-input-row">
+                        <div>
+                            <div class="cost-input-label">One-time setup cost ($)</div>
+                            <input class="cost-input" type="number" id="peSetupCost" value="0" oninput="updateCostCalc()">
+                        </div>
+                        <div>
+                            <div class="cost-input-label">Monthly API calls (thousands)</div>
+                            <input class="cost-input" type="number" id="peCalls" value="500" oninput="updateCostCalc()">
+                        </div>
+                        <div>
+                            <div class="cost-input-label">Cost per 1K tokens (inference, $)</div>
+                            <input class="cost-input" type="number" id="peTokenCost" value="0.004" step="0.001" oninput="updateCostCalc()">
+                        </div>
+                        <div>
+                            <div class="cost-input-label">Avg tokens per call (long system prompt)</div>
+                            <input class="cost-input" type="number" id="peTokensPerCall" value="600" oninput="updateCostCalc()">
+                        </div>
+                    </div>
+                    <div class="cost-result-label">Monthly cost</div>
+                    <div class="cost-result" id="peMonthly">--</div>
+                    <div class="cost-result-label" style="margin-top:10px;">Breakeven point</div>
+                    <div class="cost-result" id="breakevenMonths" style="font-size:1rem;">--</div>
+                </div>
+            </div>
+
+            <!-- Verdict bar -->
+            <div class="verdict-card" id="verdictCard">
+                <div style="font-size:0.85rem;font-weight:600;color:var(--text-primary);margin-bottom:6px;">Monthly savings with fine-tuning (after breakeven)</div>
+                <div class="verdict-bar">
+                    <div class="verdict-fill" id="verdictFill" style="width:0%;background:var(--success);"></div>
+                </div>
+                <div id="verdictText" style="font-size:0.82rem;color:var(--text-muted);"></div>
+            </div>
+
+            <!-- Decision Tree Quiz -->
+            <div class="section-label">Decision Tree Quiz</div>
+            <div id="quizBlocks">
+                <!-- built by JS -->
+            </div>
+
+            <div class="complete-row">
+                <span class="complete-hint" id="p5Hint">Answer all quiz questions to continue</span>
+                <button class="btn btn-primary" id="p5NextBtn" disabled onclick="completePhase(5)">Configure Deployment &#8594;</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- =========================================================
+         PHASE 6 — DEPLOYMENT
+    ========================================================= -->
+    <div class="phase-panel" id="phase-6">
+        <div class="phase-card fade-in">
+            <div class="phase-header">
+                <div class="phase-num">6</div>
+                <div class="phase-title-block">
+                    <div class="phase-title">Deployment Configuration</div>
+                    <div class="phase-desc">Choose a deployment strategy and configure rate limits, monitoring, and fallback behavior.</div>
+                </div>
+            </div>
+
+            <div class="info-box">
+                Deploying a fine-tuned model involves more than uploading weights. You need to decide where it runs, how you handle failures, and how you measure drift in production.
+            </div>
+
+            <!-- Strategy selection -->
+            <div class="section-label">Choose Deployment Strategy</div>
+            <div class="deploy-strategy-grid">
+                <div class="deploy-card selected" id="strat-api" onclick="selectStrategy('api')">
+                    <span class="deploy-card-icon">&#9729;</span>
+                    <div class="deploy-card-name">Managed API Endpoint</div>
+                    <div class="deploy-card-desc">Host via OpenAI, Together AI, or Replicate. Zero ops overhead, pay per token.</div>
+                </div>
+                <div class="deploy-card" id="strat-self" onclick="selectStrategy('self')">
+                    <span class="deploy-card-icon">&#128250;</span>
+                    <div class="deploy-card-name">Self-Hosted GPU</div>
+                    <div class="deploy-card-desc">Run on your own GPU instances (vLLM, Ollama). Maximum control, highest ops cost.</div>
+                </div>
+                <div class="deploy-card" id="strat-serverless" onclick="selectStrategy('serverless')">
+                    <span class="deploy-card-icon">&#9889;</span>
+                    <div class="deploy-card-name">Serverless Inference</div>
+                    <div class="deploy-card-desc">Cold-start on demand (Modal, Banana, Runpod serverless). No idle cost, latency spikes.</div>
+                </div>
+            </div>
+
+            <!-- Configuration -->
+            <div class="section-label">Runtime Configuration</div>
+            <div class="config-grid">
+                <div class="config-block">
+                    <div class="config-label">Rate limit (requests / minute)</div>
+                    <input class="config-input" type="number" id="cfgRateLimit" value="60" oninput="updateDeploySummary()">
+                </div>
+                <div class="config-block">
+                    <div class="config-label">Max tokens per response</div>
+                    <input class="config-input" type="number" id="cfgMaxTokens" value="512" oninput="updateDeploySummary()">
+                </div>
+                <div class="config-block">
+                    <div class="config-label">Timeout (seconds)</div>
+                    <input class="config-input" type="number" id="cfgTimeout" value="30" oninput="updateDeploySummary()">
+                </div>
+                <div class="config-block">
+                    <div class="config-label">Temperature at inference</div>
+                    <input class="config-input" type="number" id="cfgTemp" value="0.3" step="0.1" min="0" max="2" oninput="updateDeploySummary()">
+                </div>
+            </div>
+
+            <!-- Toggles -->
+            <div style="margin-bottom:18px;">
+                <div class="toggle-row">
+                    <div>
+                        <div class="toggle-label">Fallback to Base Model</div>
+                        <div class="toggle-sublabel">Automatically use the base model if fine-tuned endpoint fails</div>
+                    </div>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="togFallback" checked onchange="updateDeploySummary()">
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+                <div class="toggle-row">
+                    <div>
+                        <div class="toggle-label">Response Logging</div>
+                        <div class="toggle-sublabel">Log prompts and responses for drift detection and future fine-tuning</div>
+                    </div>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="togLogging" checked onchange="updateDeploySummary()">
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+                <div class="toggle-row">
+                    <div>
+                        <div class="toggle-label">Guardrail Filter</div>
+                        <div class="toggle-sublabel">Run a lightweight classifier to block policy-violating outputs</div>
+                    </div>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="togGuardrail" onchange="updateDeploySummary()">
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+            </div>
+
+            <!-- Config summary -->
+            <div class="section-label">Generated Deployment Config</div>
+            <div class="deploy-summary" id="deploySummary">
+                <!-- rendered by JS -->
+            </div>
+
+            <div class="complete-row">
+                <span class="complete-hint">Configure your deployment and deploy</span>
+                <button class="btn btn-success" id="p6DeployBtn" onclick="completeLab()">Deploy Model</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- =========================================================
+         COMPLETION BANNER
+    ========================================================= -->
+    <div class="completion-banner" id="completionBanner">
+        <span class="completion-icon">&#10003;</span>
+        <div class="completion-title">Fine-Tuning Lab Complete</div>
+        <p class="completion-sub">You walked through the full fine-tuning lifecycle — from raw data formatting to production deployment configuration.</p>
+        <div class="completion-stats">
+            <div>
+                <span class="cstat-val">6</span>
+                <div class="cstat-label">Phases Completed</div>
+            </div>
+            <div>
+                <span class="cstat-val" id="cstatExamples">3</span>
+                <div class="cstat-label">Training Examples Built</div>
+            </div>
+            <div>
+                <span class="cstat-val" id="cstatVotes">5</span>
+                <div class="cstat-label">Prompts Evaluated</div>
+            </div>
+        </div>
+        <button class="btn btn-primary" style="font-size:0.95rem;padding:12px 28px;" onclick="finishLab()">Return to AI House</button>
+    </div>
+
+</main>
+
+<script>
+// =============================================================
+// STATE
+// =============================================================
+const STATE = {
+    currentPhase: 1,
+    completedPhases: new Set(),
+    // Phase 1
+    examples: [
+        { system: null, user: null, assistant: null },
+        { system: null, user: null, assistant: null },
+        { system: null, user: null, assistant: null }
+    ],
+    activeExample: 0,
+    // Phase 2
+    lr: 1e-4,
+    epochs: 3,
+    warmup: 50,
+    batch: 8,
+    hyperChanged: false,
+    // Phase 3
+    trainingDone: false,
+    trainData: { trainLoss: [], valLoss: [] },
+    trainingTimer: null,
+    // Phase 4
+    votes: {},
+    activeEvalPrompt: 0,
+    // Phase 5
+    quizAnswered: {},
+    // Phase 6
+    strategy: 'api'
+};
+
+// =============================================================
+// PHASE RAIL
+// =============================================================
+const PHASE_LABELS = [
+    'Data Prep', 'Hyperparams', 'Training', 'Evaluation', 'Cost-Benefit', 'Deployment'
+];
+
+function buildRail() {
+    const rail = document.getElementById('phaseRail');
+    rail.innerHTML = '';
+    PHASE_LABELS.forEach((label, i) => {
+        const num = i + 1;
+        const isDone = STATE.completedPhases.has(num);
+        const isActive = STATE.currentPhase === num;
+
+        const step = document.createElement('div');
+        step.className = 'rail-step';
+
+        const dot = document.createElement('div');
+        dot.className = 'rail-dot' + (isDone ? ' done' : isActive ? ' active' : '');
+        dot.textContent = isDone ? '\u2713' : num;
+        dot.title = label;
+
+        const lbl = document.createElement('div');
+        lbl.className = 'rail-label' + (isDone ? ' done' : isActive ? ' active' : '');
+        lbl.textContent = label;
+
+        step.appendChild(dot);
+        step.appendChild(lbl);
+        rail.appendChild(step);
+
+        if (i < PHASE_LABELS.length - 1) {
+            const conn = document.createElement('div');
+            conn.className = 'rail-connector' + (isDone ? ' done' : '');
+            rail.appendChild(conn);
+        }
+    });
+
+    document.getElementById('headerPhaseNum').textContent = STATE.currentPhase;
+}
+
+function goToPhase(num) {
+    document.querySelectorAll('.phase-panel').forEach(p => p.classList.remove('active'));
+    const panel = document.getElementById('phase-' + num);
+    if (panel) {
+        panel.classList.add('active');
+        panel.querySelector('.phase-card').classList.remove('fade-in');
+        void panel.querySelector('.phase-card').offsetWidth; // reflow
+        panel.querySelector('.phase-card').classList.add('fade-in');
+    }
+    STATE.currentPhase = num;
+    buildRail();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function completePhase(num) {
+    STATE.completedPhases.add(num);
+    goToPhase(num + 1);
+    // Phase-specific init on arrival
+    if (num + 1 === 3) initTrainingPhase();
+    if (num + 1 === 4) initEvalPhase();
+    if (num + 1 === 5) initCostPhase();
+    if (num + 1 === 6) initDeployPhase();
+}
+
+// =============================================================
+// PHASE 1 — DATA PREPARATION
+// =============================================================
+const TRAINING_EXAMPLES = [
+    {
+        // Example 1: IT support bot
+        sources: [
+            { role: 'system',    tag: 'System Instruction',  q: 'You are a helpful IT support assistant for Acme Corp. Answer questions about company software and hardware.', a: '' },
+            { role: 'user',      tag: 'User Question',       q: 'My laptop won\'t connect to the VPN. What should I check first?', a: '' },
+            { role: 'assistant', tag: 'Ideal Answer',        q: 'Start by checking if the Pulse Secure client is running (look in the system tray). If it shows "Disconnected", click Connect and enter your Active Directory credentials. If it still fails, try restarting the network adapter: open Device Manager > Network Adapters > right-click your adapter > Disable, then Enable.', a: '' }
+        ]
+    },
+    {
+        // Example 2: Medical coding assistant
+        sources: [
+            { role: 'system',    tag: 'System Instruction',  q: 'You are a medical coding assistant. Provide ICD-10-CM codes based on clinical documentation. Always include the code and its description.', a: '' },
+            { role: 'user',      tag: 'User Question',       q: 'Patient presents with type 2 diabetes mellitus with diabetic peripheral angiopathy without gangrene.', a: '' },
+            { role: 'assistant', tag: 'Ideal Answer',        q: 'ICD-10-CM Code: E11.51 — Type 2 diabetes mellitus with diabetic peripheral angiopathy without gangrene. This code captures the specific complication (peripheral angiopathy) and the absence of gangrene, which is clinically and billing-relevant.', a: '' }
+        ]
+    },
+    {
+        // Example 3: Legal contract reviewer
+        sources: [
+            { role: 'system',    tag: 'System Instruction',  q: 'You are a contract review assistant for a legal team. Identify risky clauses and suggest plain-language alternatives. Be precise and cite clause numbers.', a: '' },
+            { role: 'user',      tag: 'User Question',       q: 'Review this indemnification clause: "Vendor shall indemnify Client against any and all claims arising from use of the software, without limitation."', a: '' },
+            { role: 'assistant', tag: 'Ideal Answer',        q: 'Risk: Unlimited indemnification exposure on Vendor is unusual and likely unenforceable. Suggested revision: "Vendor shall indemnify Client against third-party claims directly arising from Vendor\'s gross negligence or willful misconduct, up to the aggregate fees paid in the preceding 12 months." This caps liability and limits trigger to Vendor fault.', a: '' }
+        ]
+    }
+];
+
+function buildSourceCards(exIdx) {
+    const container = document.getElementById('sourceCards');
+    container.innerHTML = '';
+    TRAINING_EXAMPLES[exIdx].sources.forEach((src, i) => {
+        const card = document.createElement('div');
+        card.className = 'qa-source-card';
+        card.draggable = true;
+        card.dataset.role = src.role;
+        card.dataset.idx = i;
+        card.innerHTML = `
+            <div class="tag">${src.tag}</div>
+            <div class="qa-q">${src.q}</div>
+        `;
+
+        card.addEventListener('dragstart', e => {
+            e.dataTransfer.setData('text/plain', JSON.stringify({ role: src.role, text: src.q }));
+            card.classList.add('dragging');
+        });
+        card.addEventListener('dragend', () => card.classList.remove('dragging'));
+
+        // Touch drag support (simple tap-to-fill)
+        card.addEventListener('click', () => autoFillSlot(src.role, src.q));
+
+        container.appendChild(card);
+    });
+}
+
+function autoFillSlot(role, text) {
+    fillSlot(role, text);
+}
+
+function setupDropSlots() {
+    ['system', 'user', 'assistant'].forEach(role => {
+        const slot = document.getElementById('slot-' + role);
+        slot.addEventListener('dragover', e => {
+            e.preventDefault();
+            slot.classList.add('drag-over');
+        });
+        slot.addEventListener('dragleave', () => slot.classList.remove('drag-over'));
+        slot.addEventListener('drop', e => {
+            e.preventDefault();
+            slot.classList.remove('drag-over');
+            const data = JSON.parse(e.dataTransfer.getData('text/plain'));
+            fillSlot(data.role, data.text);
+        });
+    });
+}
+
+function fillSlot(role, text) {
+    const ex = STATE.examples[STATE.activeExample];
+    // Allow drop into any slot regardless of card's native role
+    // but auto-match the correct slot
+    ex[role] = text;
+
+    const contentEl = document.getElementById('slot-' + role + '-content');
+    contentEl.textContent = text;
+    document.getElementById('slot-' + role).classList.add('filled');
+
+    updateJsonlPreview();
+    checkExampleComplete();
+}
+
+function updateJsonlPreview() {
+    const ex = STATE.examples[STATE.activeExample];
+    const preview = document.getElementById('jsonlPreview');
+
+    if (!ex.system && !ex.user && !ex.assistant) {
+        preview.innerHTML = '<span style="color:rgba(255,255,255,0.2);font-style:italic;">Waiting for all three slots to be filled...</span>';
+        return;
+    }
+
+    const messages = [];
+    if (ex.system) messages.push({ role: 'system', content: ex.system });
+    if (ex.user)   messages.push({ role: 'user', content: ex.user });
+    if (ex.assistant) messages.push({ role: 'assistant', content: ex.assistant });
+
+    function hl(s) {
+        return `<span class="str">"${s.length > 60 ? s.slice(0, 60) + '...' : s}"</span>`;
+    }
+
+    let html = `<span class="brace">{</span>\n`;
+    html += `  <span class="key">"messages"</span>: <span class="brace">[</span>\n`;
+    messages.forEach((m, i) => {
+        html += `    <span class="brace">{</span>`;
+        html += `<span class="key">"role"</span>: <span class="str">"${m.role}"</span>, `;
+        html += `<span class="key">"content"</span>: ${hl(m.content)}`;
+        html += `<span class="brace">}</span>${i < messages.length - 1 ? ',' : ''}\n`;
+    });
+    html += `  <span class="brace">]</span>\n<span class="brace">}</span>`;
+    preview.innerHTML = html;
+}
+
+function checkExampleComplete() {
+    const ex = STATE.examples[STATE.activeExample];
+    if (ex.system && ex.user && ex.assistant) {
+        document.getElementById('pip-' + STATE.activeExample).classList.add('done');
+        document.getElementById('exBtn-' + STATE.activeExample).classList.add('selected');
+    }
+    // Check all 3 done
+    const allDone = STATE.examples.every(e => e.system && e.user && e.assistant);
+    document.getElementById('p1NextBtn').disabled = !allDone;
+    document.getElementById('p1Hint').textContent = allDone
+        ? 'All examples complete!'
+        : `Fill all 3 examples to continue (${STATE.examples.filter(e => e.system && e.user && e.assistant).length}/3 done)`;
+}
+
+function selectExample(idx) {
+    STATE.activeExample = idx;
+    // Update pills
+    document.querySelectorAll('[id^="exBtn-"]').forEach((b, i) => {
+        b.className = 'batch-pill' + (i === idx ? ' selected' : '');
+        if (STATE.examples[i].system && STATE.examples[i].user && STATE.examples[i].assistant) {
+            b.classList.add('selected');
+        }
+    });
+    document.getElementById('exBtn-' + idx).classList.add('selected');
+
+    buildSourceCards(idx);
+    // Restore slot contents
+    const ex = STATE.examples[idx];
+    ['system', 'user', 'assistant'].forEach(role => {
+        const slot = document.getElementById('slot-' + role);
+        const content = document.getElementById('slot-' + role + '-content');
+        if (ex[role]) {
+            content.textContent = ex[role];
+            slot.classList.add('filled');
+        } else {
+            content.innerHTML = `<span class="jsonl-slot-hint">Drop the ${role === 'assistant' ? 'ideal answer' : role === 'system' ? 'system instruction' : 'user question'} here</span>`;
+            slot.classList.remove('filled');
+        }
+    });
+    updateJsonlPreview();
+}
+
+function resetCurrentExample() {
+    const idx = STATE.activeExample;
+    STATE.examples[idx] = { system: null, user: null, assistant: null };
+    document.getElementById('pip-' + idx).classList.remove('done');
+    selectExample(idx);
+    checkExampleComplete();
+}
+
+// =============================================================
+// PHASE 2 — HYPERPARAMETERS
+// =============================================================
+// Map slider value (1-50) to learning rate 1e-5 to 5e-4
+function sliderToLR(v) {
+    const logMin = Math.log10(1e-5);
+    const logMax = Math.log10(5e-4);
+    const t = (v - 1) / 49;
+    return Math.pow(10, logMin + t * (logMax - logMin));
+}
+
+function formatLR(lr) {
+    if (lr < 1e-4) return (lr * 1e5).toFixed(1) + 'e-5';
+    return (lr * 1e4).toFixed(1) + 'e-4';
+}
+
+function selectBatch(val) {
+    STATE.batch = val;
+    document.getElementById('batchVal').textContent = val;
+    document.querySelectorAll('.batch-pill').forEach(p => {
+        p.classList.toggle('selected', parseInt(p.dataset.val) === val);
+    });
+    updateHyperparams();
+}
+
+function updateHyperparams() {
+    const lrRaw = parseInt(document.getElementById('lrSlider').value);
+    STATE.lr = sliderToLR(lrRaw);
+    STATE.epochs = parseInt(document.getElementById('epochsSlider').value);
+    STATE.warmup = parseInt(document.getElementById('warmupSlider').value);
+    STATE.hyperChanged = true;
+
+    document.getElementById('lrVal').textContent = formatLR(STATE.lr);
+    document.getElementById('epochsVal').textContent = STATE.epochs;
+    document.getElementById('warmupVal').textContent = STATE.warmup;
+
+    // Estimates — based on synthetic 500-sample dataset, 7B model on A100
+    const samplesPerEpoch = 500;
+    const stepsPerEpoch = Math.ceil(samplesPerEpoch / STATE.batch);
+    const totalSteps = stepsPerEpoch * STATE.epochs;
+    const timePerStepSec = 0.08; // ~80ms per step on A100 for 7B
+    const totalTimeSec = totalSteps * timePerStepSec + STATE.warmup * timePerStepSec;
+    const totalTimeMin = Math.round(totalTimeSec / 60);
+    const gpuCostPerHr = 2.40; // A100 ~$2.40/hr
+    const costUSD = ((totalTimeSec / 3600) * gpuCostPerHr).toFixed(2);
+
+    document.getElementById('estTime').textContent = totalTimeMin < 60
+        ? totalTimeMin + 'm'
+        : (totalTimeMin / 60).toFixed(1) + 'h';
+    document.getElementById('estCost').textContent = '$' + costUSD;
+    document.getElementById('estSteps').textContent = totalSteps.toLocaleString();
+
+    // Tip
+    const tip = document.getElementById('hpTip');
+    if (STATE.lr > 2e-4 && STATE.epochs > 6) {
+        tip.textContent = 'High learning rate + many epochs is a recipe for overfitting or divergence on small datasets. Consider reducing epochs to 3-4.';
+        tip.style.borderColor = 'rgba(239,68,68,0.3)';
+        tip.style.background = 'rgba(239,68,68,0.08)';
+        tip.style.color = 'var(--danger)';
+    } else if (STATE.lr < 5e-5) {
+        tip.textContent = 'Very low learning rate may cause slow convergence. The model may not learn enough from the training data within the allotted epochs.';
+        tip.style.borderColor = 'rgba(245,158,11,0.25)';
+        tip.style.background = 'var(--warning-soft)';
+        tip.style.color = 'var(--warning)';
+    } else {
+        tip.textContent = 'Settings look reasonable. A learning rate of 1e-4 to 2e-4 with 3-5 epochs works well for most fine-tuning jobs on 500-2000 examples.';
+        tip.style.borderColor = 'rgba(34,197,94,0.25)';
+        tip.style.background = 'var(--success-soft)';
+        tip.style.color = 'var(--success)';
+    }
+
+    document.getElementById('p2NextBtn').disabled = false;
+}
+
+// =============================================================
+// PHASE 3 — TRAINING SIMULATION
+// =============================================================
+function initTrainingPhase() {
+    document.getElementById('trainEpochTotal').textContent = STATE.epochs;
+    document.getElementById('metaTotalSteps').textContent =
+        (Math.ceil(500 / STATE.batch) * STATE.epochs).toLocaleString();
+    document.getElementById('metaLR').textContent = formatLR(STATE.lr);
+}
+
+function generateLossCurve(epochs, lr, batch) {
+    // Simulate realistic loss curves with noise
+    const trainPoints = [];
+    const valPoints = [];
+    const totalSteps = Math.ceil(500 / batch) * epochs;
+    const stepsPerEpoch = Math.ceil(500 / batch);
+
+    // Starting loss ~2.4, converge toward 0.2-0.6 depending on LR/epochs
+    const targetTrain = 0.18 + Math.random() * 0.12;
+    // Val loss bottoms out then may overfit
+    const overfitThreshold = Math.min(epochs, 5); // overfitting starts after epoch 5
+    const targetVal = targetTrain + 0.08 + Math.random() * 0.06;
+
+    for (let step = 0; step <= totalSteps; step++) {
+        const epochFrac = step / totalSteps;
+        const noise = (Math.random() - 0.5) * 0.06;
+
+        // Warmup effect: first warmup steps show slower improvement
+        const warmupFrac = Math.min(1, step / Math.max(STATE.warmup, 1));
+        const effectiveLR = lr * warmupFrac;
+        const lrBoost = effectiveLR / lr;
+
+        // Train loss: exponential decay with noise
+        const trainLoss = 2.4 * Math.exp(-3.5 * epochFrac * lrBoost * (lr / 1e-4) * 0.6) + targetTrain + noise;
+
+        // Val loss: similar but with potential overfitting uptick after epoch 5
+        let valNoise = (Math.random() - 0.5) * 0.08;
+        let valLoss;
+        const currentEpoch = step / stepsPerEpoch;
+
+        if (currentEpoch > overfitThreshold && epochs > 6) {
+            // Overfitting: val loss starts climbing
+            const overfit = (currentEpoch - overfitThreshold) * 0.05;
+            valLoss = 2.4 * Math.exp(-2.8 * epochFrac * lrBoost * (lr / 1e-4) * 0.5) + targetVal + valNoise + overfit;
+        } else {
+            valLoss = 2.4 * Math.exp(-2.8 * epochFrac * lrBoost * (lr / 1e-4) * 0.5) + targetVal + valNoise;
+        }
+
+        trainPoints.push({ step, loss: Math.max(0.05, Math.min(2.8, trainLoss)) });
+        valPoints.push({ step, loss: Math.max(0.05, Math.min(2.9, valLoss)) });
+    }
+    return { trainPoints, valPoints, totalSteps };
+}
+
+let trainingInterval = null;
+let chartTrainPts = [];
+let chartValPts = [];
+let allTrainPts = [];
+let allValPts = [];
+let chartStep = 0;
+let totalChartSteps = 0;
+
+function startTraining() {
+    if (trainingInterval) return;
+
+    document.getElementById('trainStartBtn').disabled = true;
+    document.getElementById('trainStartBtn').classList.remove('pulsing');
+    document.getElementById('trainResetBtn').disabled = false;
+    document.getElementById('logFeed').innerHTML = '';
+
+    const { trainPoints, valPoints, totalSteps } = generateLossCurve(STATE.epochs, STATE.lr, STATE.batch);
+    allTrainPts = trainPoints;
+    allValPts = valPoints;
+    totalChartSteps = totalSteps;
+    chartTrainPts = [];
+    chartValPts = [];
+    chartStep = 0;
+
+    STATE.trainData.trainLoss = [];
+    STATE.trainData.valLoss = [];
+
+    const stepsPerEpoch = Math.ceil(500 / STATE.batch);
+    // Animate at ~30 frames/sec, compress steps for speed
+    const stepsPerFrame = Math.max(1, Math.floor(totalSteps / 180));
+
+    trainingInterval = setInterval(() => {
+        for (let i = 0; i < stepsPerFrame && chartStep < totalChartSteps; i++) {
+            chartTrainPts.push(allTrainPts[chartStep]);
+            chartValPts.push(allValPts[chartStep]);
+            chartStep++;
+        }
+
+        const pct = chartStep / totalChartSteps;
+        const currentEpoch = Math.floor(chartStep / stepsPerEpoch) + 1;
+        const currentTrain = allTrainPts[chartStep - 1]?.loss ?? 0;
+        const currentVal = allValPts[chartStep - 1]?.loss ?? 0;
+
+        // UI updates
+        document.getElementById('trainProgressFill').style.width = (pct * 100).toFixed(1) + '%';
+        document.getElementById('trainPct').textContent = Math.round(pct * 100) + '%';
+        document.getElementById('trainEpochLabel').textContent =
+            `Epoch ${Math.min(currentEpoch, STATE.epochs)} / ${STATE.epochs}`;
+        document.getElementById('metaStep').textContent = chartStep.toLocaleString();
+        document.getElementById('metaTrainLoss').textContent = currentTrain.toFixed(4);
+        document.getElementById('metaValLoss').textContent = currentVal.toFixed(4);
+
+        // Log per epoch
+        if (chartStep % stepsPerEpoch < stepsPerFrame) {
+            const epochNum = Math.min(currentEpoch, STATE.epochs);
+            appendLog(`<span class="log-epoch">[Epoch ${epochNum}/${STATE.epochs}]</span> step=${chartStep.toLocaleString()} train_loss=${currentTrain.toFixed(4)} val_loss=${currentVal.toFixed(4)}`);
+            STATE.trainData.trainLoss.push(currentTrain);
+            STATE.trainData.valLoss.push(currentVal);
+        }
+
+        drawChart();
+
+        if (chartStep >= totalChartSteps) {
+            clearInterval(trainingInterval);
+            trainingInterval = null;
+            STATE.trainingDone = true;
+            document.getElementById('trainStatusText').textContent = 'Training complete.';
+            document.getElementById('p3NextBtn').disabled = false;
+            document.getElementById('p3Hint').textContent = 'Training complete. Ready to evaluate.';
+            appendLog('<span class="log-ok">Training finished. Model checkpoint saved.</span>');
+
+            // Check for overfitting
+            const losses = STATE.trainData.valLoss;
+            if (losses.length >= 3) {
+                const last3 = losses.slice(-3);
+                const increasing = last3[2] > last3[0];
+                if (increasing && STATE.epochs > 5) {
+                    document.getElementById('overfit-warning').style.display = 'block';
+                    appendLog('<span class="log-warn">Warning: Validation loss trend is upward — signs of overfitting detected.</span>');
+                }
+            }
+        }
+    }, 33);
+}
+
+function appendLog(html) {
+    const feed = document.getElementById('logFeed');
+    feed.innerHTML += html + '\n';
+    feed.scrollTop = feed.scrollHeight;
+}
+
+function resetTraining() {
+    if (trainingInterval) { clearInterval(trainingInterval); trainingInterval = null; }
+    STATE.trainingDone = false;
+    chartTrainPts = []; chartValPts = []; chartStep = 0;
+    document.getElementById('trainProgressFill').style.width = '0%';
+    document.getElementById('trainPct').textContent = '0%';
+    document.getElementById('trainEpochLabel').textContent = 'Epoch 0 / ' + STATE.epochs;
+    document.getElementById('metaStep').textContent = '0';
+    document.getElementById('metaTrainLoss').textContent = '--';
+    document.getElementById('metaValLoss').textContent = '--';
+    document.getElementById('logFeed').innerHTML = '<span style="color:rgba(255,255,255,0.2)">Training log will appear here...</span>';
+    document.getElementById('trainStartBtn').disabled = false;
+    document.getElementById('trainStartBtn').classList.add('pulsing');
+    document.getElementById('trainResetBtn').disabled = true;
+    document.getElementById('trainStatusText').textContent = '';
+    document.getElementById('p3NextBtn').disabled = true;
+    document.getElementById('p3Hint').textContent = 'Run training to continue';
+    document.getElementById('overfit-warning').style.display = 'none';
+    document.getElementById('chartTrainLine').setAttribute('points', '');
+    document.getElementById('chartValLine').setAttribute('points', '');
+}
+
+// Loss value (0-3.0) to SVG Y coordinate (190 at 0, 10 at 3.0)
+function lossToY(loss) { return 190 - (loss / 3.0) * 180; }
+
+function drawChart() {
+    const svgWidth = 730; // 790 - 60 (left margin)
+    const leftMargin = 60;
+
+    function toPoints(pts) {
+        if (!pts.length) return '';
+        return pts.map((p, i) => {
+            const x = leftMargin + (i / (totalChartSteps || 1)) * svgWidth;
+            const y = lossToY(p.loss);
+            return `${x.toFixed(1)},${y.toFixed(1)}`;
+        }).join(' ');
+    }
+
+    document.getElementById('chartTrainLine').setAttribute('points', toPoints(chartTrainPts));
+    document.getElementById('chartValLine').setAttribute('points', toPoints(chartValPts));
+}
+
+// =============================================================
+// PHASE 4 — EVALUATION
+// =============================================================
+const EVAL_PROMPTS = [
+    {
+        label: 'VPN Help',
+        prompt: 'My laptop won\'t connect to the VPN. What should I check first?',
+        base: 'There could be several reasons your VPN is not working. You should check your internet connection first. Then verify your credentials are correct. You may also want to restart your computer or contact IT support for further assistance.',
+        tuned: 'Start by checking if the Pulse Secure client is running (system tray). Click Connect and enter your Active Directory credentials. If it still fails, open Device Manager > Network Adapters > right-click your adapter > Disable, then Enable. Still stuck? Submit a ticket at help.acme.internal with your device name.'
+    },
+    {
+        label: 'ICD-10 Code',
+        prompt: 'Patient: type 2 diabetes with peripheral angiopathy, no gangrene. Provide the ICD-10-CM code.',
+        base: 'Type 2 diabetes mellitus is coded under the E11 category in ICD-10-CM. There are several subcodes depending on complications. You will want to look up the specific complication to find the right code. Consulting a medical coder would be advisable.',
+        tuned: 'E11.51 — Type 2 diabetes mellitus with diabetic peripheral angiopathy without gangrene. Document the absence of gangrene explicitly in the chart note, as it changes the code from E11.52 (with gangrene) and affects DRG assignment.'
+    },
+    {
+        label: 'Contract Risk',
+        prompt: 'Assess risk: "Vendor shall indemnify Client against any and all claims arising from use of the software, without limitation."',
+        base: 'This clause looks like it involves indemnification. Indemnification clauses are common in contracts but should be reviewed carefully. The phrase "without limitation" could be significant. You should have a lawyer review this clause for potential risks.',
+        tuned: 'High risk. "Without limitation" creates uncapped indemnification exposure — Vendor takes on unlimited liability for any third-party claim tied to software use. Recommended revision: cap at 12-month aggregate fees paid and narrow trigger to Vendor\'s direct gross negligence or willful misconduct.'
+    },
+    {
+        label: 'Software Reset',
+        prompt: 'How do I reset my Acme CRM password?',
+        base: 'Password resets are typically handled through your account settings or an IT help desk. Look for a "Forgot Password" link on the login page, or contact your administrator for assistance with resetting your credentials.',
+        tuned: 'Go to crm.acme.internal/reset, enter your corporate email, and click "Send Reset Link." Check your Acme email (not personal) — the link expires in 15 minutes. If you don\'t receive it within 2 minutes, check your Spam folder or call the IT Help Desk at x4357.'
+    },
+    {
+        label: 'Liability Cap',
+        prompt: 'A contract says: "Liability limited to fees paid in the prior month." Is this standard?',
+        base: 'Liability caps are standard contractual provisions. They limit the amount one party can recover from another. Whether this is "standard" depends on the industry and the size of the contract. You should evaluate whether this amount is sufficient for your risk exposure.',
+        tuned: 'Below-market. A 1-month trailing cap is aggressive — industry standard is 12 months of fees paid. For SaaS contracts over $100K ARR, negotiate upward to 12 months. Carve out IP infringement, data breaches, and gross negligence from the cap entirely, as these carry disproportionate tail risk.'
+    }
+];
+
+function initEvalPhase() {
+    STATE.votes = {};
+    buildEvalSelector();
+    buildEvalScoreboard();
+    loadEvalPrompt(0);
+}
+
+function buildEvalSelector() {
+    const sel = document.getElementById('evalPromptSelector');
+    sel.innerHTML = '';
+    EVAL_PROMPTS.forEach((p, i) => {
+        const pill = document.createElement('button');
+        pill.className = 'eval-prompt-pill' + (i === 0 ? ' active' : '');
+        pill.textContent = p.label;
+        pill.onclick = () => loadEvalPrompt(i);
+        pill.id = 'evalPill-' + i;
+        sel.appendChild(pill);
+    });
+}
+
+function loadEvalPrompt(idx) {
+    STATE.activeEvalPrompt = idx;
+    document.querySelectorAll('.eval-prompt-pill').forEach((p, i) => {
+        p.classList.toggle('active', i === idx);
+    });
+
+    const ep = EVAL_PROMPTS[idx];
+    document.getElementById('evalPromptDisplay').textContent = ep.prompt;
+    document.getElementById('evalPromptDisplay2').textContent = ep.prompt;
+    document.getElementById('baseResponse').textContent = ep.base;
+    document.getElementById('tunedResponse').textContent = ep.tuned;
+
+    // Restore vote state
+    const vb = document.getElementById('voteBase');
+    const vt = document.getElementById('voteTuned');
+    vb.className = 'vote-btn';
+    vt.className = 'vote-btn';
+    if (STATE.votes[idx] === 'base') vb.classList.add('selected-base');
+    if (STATE.votes[idx] === 'tuned') vt.classList.add('selected-tuned');
+}
+
+function castVote(choice) {
+    const idx = STATE.activeEvalPrompt;
+    STATE.votes[idx] = choice;
+    loadEvalPrompt(idx);
+    buildEvalScoreboard();
+
+    // Auto-advance to next unvoted prompt
+    const unvoted = EVAL_PROMPTS.findIndex((_, i) => !STATE.votes[i]);
+    if (unvoted !== -1) loadEvalPrompt(unvoted);
+
+    const allVoted = Object.keys(STATE.votes).length === EVAL_PROMPTS.length;
+    document.getElementById('p4NextBtn').disabled = !allVoted;
+    document.getElementById('p4Hint').textContent = allVoted
+        ? 'All prompts rated!'
+        : `Rate all 5 prompts (${Object.keys(STATE.votes).length}/5 done)`;
+}
+
+function buildEvalScoreboard() {
+    const board = document.getElementById('evalScoreboard');
+    const tunedWins = Object.values(STATE.votes).filter(v => v === 'tuned').length;
+    const baseWins = Object.values(STATE.votes).filter(v => v === 'base').length;
+    const total = tunedWins + baseWins;
+
+    const tunedPct = total ? Math.round((tunedWins / total) * 100) : 0;
+    const basePct = total ? Math.round((baseWins / total) * 100) : 0;
+
+    board.innerHTML = `
+        <div class="eval-score-row" style="margin-bottom:10px;">
+            <span style="font-size:0.78rem;color:var(--house-primary);width:90px;">Fine-Tuned</span>
+            <div class="eval-score-bar-wrap">
+                <div class="eval-score-bar-fill" style="width:${tunedPct}%;background:var(--success);"></div>
+            </div>
+            <span style="font-size:0.82rem;color:var(--success);width:50px;text-align:right;">${tunedWins}/${total || 5} wins</span>
+        </div>
+        <div class="eval-score-row">
+            <span style="font-size:0.78rem;color:var(--text-muted);width:90px;">Base Model</span>
+            <div class="eval-score-bar-wrap">
+                <div class="eval-score-bar-fill" style="width:${basePct}%;background:var(--warning);"></div>
+            </div>
+            <span style="font-size:0.82rem;color:var(--warning);width:50px;text-align:right;">${baseWins}/${total || 5} wins</span>
+        </div>
+        ${total === 5 ? `<div style="margin-top:12px;font-size:0.82rem;color:var(--text-muted);">
+            ${tunedWins >= 4 ? 'Strong result: fine-tuning clearly improved domain-specific responses. The model learned to cite specifics, use proper tooling, and omit hedging language.' :
+              tunedWins >= 2 ? 'Mixed result: fine-tuning helped on some prompts. Consider reviewing training examples where base model performed better.' :
+              'The base model competed well. This may indicate the fine-tuning dataset was too small, too noisy, or the domain too close to pre-training data.'}
+        </div>` : ''}
+    `;
+}
+
+// =============================================================
+// PHASE 5 — COST-BENEFIT ANALYSIS
+// =============================================================
+const DECISION_QUIZ = [
+    {
+        q: 'Your company processes 50,000 API calls per day with a 1,500-token system prompt. What is the primary argument for fine-tuning?',
+        opts: [
+            { text: 'Fine-tuning always produces better quality', correct: false, feedback: 'Not always true — quality depends on training data quality and the specific task.' },
+            { text: 'You pay the "prompt tax" 50,000 times per day, making fine-tuning break even quickly', correct: true, feedback: 'Correct. At high volume, even small token reductions per call accumulate into significant savings. The fixed training cost amortizes rapidly.' },
+            { text: 'Fine-tuned models run faster', correct: false, feedback: 'Latency is usually similar — the model size is the same, only the weights differ.' },
+            { text: 'You avoid rate limits', correct: false, feedback: 'Rate limits apply based on model tier, not whether it\'s fine-tuned.' }
+        ]
+    },
+    {
+        q: 'A startup has 200 daily API calls and needs a specialized writing style. Which approach is better?',
+        opts: [
+            { text: 'Fine-tuning immediately — always more capable', correct: false, feedback: 'At 200 calls/day, training cost rarely amortizes. Start with prompt engineering.' },
+            { text: 'Prompt engineering with a well-crafted system prompt and few-shot examples', correct: true, feedback: 'Correct. Low volume means the training cost never amortizes. Prompt engineering is zero upfront cost and can achieve 90% of fine-tuning quality for style tasks.' },
+            { text: 'Use a bigger base model instead', correct: false, feedback: 'Bigger models cost more per token — not the right lever here.' },
+            { text: 'Neither works for writing style', correct: false, feedback: 'Both approaches work for style — prompt engineering is simply the better economic choice at this volume.' }
+        ]
+    },
+    {
+        q: 'Which scenario is the strongest justification for fine-tuning over prompt engineering?',
+        opts: [
+            { text: 'You want the model to say "please" more often', correct: false, feedback: 'A simple system prompt instruction handles this — no training needed.' },
+            { text: 'The model must use proprietary internal terminology that is not in its training data', correct: true, feedback: 'Correct. Terms and concepts the base model has never seen cannot be injected efficiently through prompts alone. Fine-tuning bakes the vocabulary into weights.' },
+            { text: 'You want longer responses', correct: false, feedback: 'Response length is easily controlled via max_tokens or instruction in the system prompt.' },
+            { text: 'You need the model to be available 24/7', correct: false, feedback: 'Availability is an infrastructure concern, not a fine-tuning concern.' }
+        ]
+    }
+];
+
+function initCostPhase() {
+    STATE.quizAnswered = {};
+    updateCostCalc();
+    buildQuiz();
+}
+
+function updateCostCalc() {
+    const ftTrain = parseFloat(document.getElementById('ftTrainCost').value) || 0;
+    const ftCalls = parseFloat(document.getElementById('ftCalls').value) * 1000 || 0;
+    const ftTokenCost = parseFloat(document.getElementById('ftTokenCost').value) || 0;
+    const ftTokens = parseFloat(document.getElementById('ftTokensPerCall').value) || 0;
+
+    const peCalls = parseFloat(document.getElementById('peCalls').value) * 1000 || 0;
+    const peTokenCost = parseFloat(document.getElementById('peTokenCost').value) || 0;
+    const peTokens = parseFloat(document.getElementById('peTokensPerCall').value) || 0;
+    const peSetup = parseFloat(document.getElementById('peSetupCost').value) || 0;
+
+    const ftInference = (ftCalls * ftTokens / 1000) * ftTokenCost;
+    const peInference = (peCalls * peTokens / 1000) * peTokenCost;
+
+    const ftMonth1 = ftTrain + ftInference;
+    const ftMonthN = ftInference;
+    const peMonth = peSetup + peInference;
+
+    document.getElementById('ftMonthly1').textContent = '$' + ftMonth1.toFixed(2);
+    document.getElementById('ftMonthly2').textContent = '$' + ftMonthN.toFixed(2);
+    document.getElementById('peMonthly').textContent = '$' + peMonth.toFixed(2);
+
+    // Breakeven: when does cumulative FT savings = training cost?
+    const monthlySaving = peMonth - ftMonthN;
+    if (monthlySaving <= 0) {
+        document.getElementById('breakevenMonths').textContent = 'Never (PE cheaper)';
+        document.getElementById('verdictText').textContent = 'With these settings, prompt engineering is the more cost-effective choice indefinitely.';
+        document.getElementById('verdictFill').style.width = '0%';
+    } else {
+        const breakeven = ftTrain / monthlySaving;
+        document.getElementById('breakevenMonths').textContent = breakeven.toFixed(1) + ' months';
+        const savingPct = Math.min(100, (monthlySaving / peMonth) * 100);
+        document.getElementById('verdictFill').style.width = savingPct.toFixed(1) + '%';
+        document.getElementById('verdictText').textContent =
+            `Fine-tuning saves $${monthlySaving.toFixed(2)}/month after breakeven (${breakeven.toFixed(1)} months). Annual savings: $${(monthlySaving * 12).toFixed(2)}.`;
+    }
+}
+
+function buildQuiz() {
+    const container = document.getElementById('quizBlocks');
+    container.innerHTML = '';
+    DECISION_QUIZ.forEach((q, qi) => {
+        const block = document.createElement('div');
+        block.className = 'quiz-block';
+        block.id = 'qblock-' + qi;
+
+        const qText = document.createElement('div');
+        qText.className = 'quiz-q';
+        qText.textContent = `Q${qi + 1}: ${q.q}`;
+
+        const opts = document.createElement('div');
+        opts.className = 'quiz-options';
+        q.opts.forEach((opt, oi) => {
+            const btn = document.createElement('button');
+            btn.className = 'quiz-opt';
+            btn.textContent = opt.text;
+            btn.onclick = () => answerQuiz(qi, oi);
+            opts.appendChild(btn);
+        });
+
+        const feedback = document.createElement('div');
+        feedback.className = 'quiz-feedback';
+        feedback.id = 'qfeedback-' + qi;
+
+        block.appendChild(qText);
+        block.appendChild(opts);
+        block.appendChild(feedback);
+        container.appendChild(block);
+    });
+}
+
+function answerQuiz(qi, oi) {
+    if (STATE.quizAnswered[qi] !== undefined) return;
+    STATE.quizAnswered[qi] = oi;
+
+    const q = DECISION_QUIZ[qi];
+    const block = document.getElementById('qblock-' + qi);
+    const btns = block.querySelectorAll('.quiz-opt');
+    const feedback = document.getElementById('qfeedback-' + qi);
+
+    btns.forEach((btn, i) => {
+        btn.classList.add('disabled');
+        if (i === oi) {
+            btn.classList.add(q.opts[oi].correct ? 'correct' : 'wrong');
+        }
+        if (!q.opts[oi].correct && q.opts[i].correct) {
+            btn.classList.add('correct');
+        }
+    });
+
+    feedback.textContent = q.opts[oi].feedback;
+    feedback.classList.add('show');
+
+    const allAnswered = Object.keys(STATE.quizAnswered).length === DECISION_QUIZ.length;
+    document.getElementById('p5NextBtn').disabled = !allAnswered;
+    document.getElementById('p5Hint').textContent = allAnswered
+        ? 'All questions answered!'
+        : `Answer all 3 questions (${Object.keys(STATE.quizAnswered).length}/3 done)`;
+}
+
+// =============================================================
+// PHASE 6 — DEPLOYMENT
+// =============================================================
+function initDeployPhase() {
+    updateDeploySummary();
+}
+
+function selectStrategy(key) {
+    STATE.strategy = key;
+    ['api', 'self', 'serverless'].forEach(s => {
+        document.getElementById('strat-' + s).classList.toggle('selected', s === key);
+    });
+    updateDeploySummary();
+}
+
+function updateDeploySummary() {
+    const rateLimit = document.getElementById('cfgRateLimit').value;
+    const maxTok = document.getElementById('cfgMaxTokens').value;
+    const timeout = document.getElementById('cfgTimeout').value;
+    const temp = document.getElementById('cfgTemp').value;
+    const fallback = document.getElementById('togFallback').checked;
+    const logging = document.getElementById('togLogging').checked;
+    const guardrail = document.getElementById('togGuardrail').checked;
+
+    const strategyNames = {
+        api: 'managed_api_endpoint',
+        self: 'self_hosted_gpu',
+        serverless: 'serverless_inference'
+    };
+
+    const baseModels = {
+        api: 'gpt-3.5-turbo',
+        self: 'mistral-7b-instruct-v0.2',
+        serverless: 'llama-3-8b-instruct'
+    };
+
+    const html = `<span class="key">deployment_strategy</span>: <span class="val">"${strategyNames[STATE.strategy]}"</span>
+<span class="key">model</span>: <span class="val">"acme-support-ft-v1"</span>
+<span class="key">base_model_fallback</span>: <span class="val">"${baseModels[STATE.strategy]}"</span>
+<span class="key">rate_limit_rpm</span>: <span class="val">${rateLimit}</span>
+<span class="key">max_tokens</span>: <span class="val">${maxTok}</span>
+<span class="key">timeout_sec</span>: <span class="val">${timeout}</span>
+<span class="key">temperature</span>: <span class="val">${parseFloat(temp).toFixed(1)}</span>
+<span class="key">fallback_on_error</span>: <span class="val">${fallback}</span>
+<span class="key">response_logging</span>: <span class="val">${logging}</span>
+<span class="key">guardrail_filter</span>: <span class="val">${guardrail}</span>`;
+
+    document.getElementById('deploySummary').innerHTML = html;
+}
+
+// =============================================================
+// COMPLETION
+// =============================================================
+function completeLab() {
+    document.querySelectorAll('.phase-panel').forEach(p => p.classList.remove('active'));
+    STATE.completedPhases.add(6);
+    buildRail();
+
+    document.getElementById('completionBanner').classList.add('show');
+    document.getElementById('cstatVotes').textContent = Object.keys(STATE.votes).length;
+
+    if (typeof ModuleProgress !== 'undefined') {
+        ModuleProgress.complete('ai', 'ai-fine-tuning-lab', { completedPhases: 6 });
+    }
+
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function finishLab() {
+    if (typeof ModuleProgress !== 'undefined') {
+        ModuleProgress.complete('ai', 'ai-fine-tuning-lab', { returnUrl: '../index.html' });
+    } else {
+        window.location.href = '../index.html';
+    }
+}
+
+// =============================================================
+// INIT
+// =============================================================
+buildRail();
+buildSourceCards(0);
+setupDropSlots();
+updateHyperparams();
+updateCostCalc();
+updateDeploySummary();
+</script>
+</body>
+</html>
