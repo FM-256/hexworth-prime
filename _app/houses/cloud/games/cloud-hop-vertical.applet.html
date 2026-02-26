@@ -471,11 +471,11 @@
         // Level Definitions
         // Obstacles: firewall(static), cost(chaser), ratelimit(dashed), billing(zigzag), expired_cert(platform trap), ddos(swarm), cryptominer(fast chaser+score drain), outage(dark drift)
         const LEVELS = [
-            { name: 'DEV',          hopsToFlag: 15, speed: 1.5, platformWidth: 120, crumbleChance: 0.05, obstacleChance: 0,     obstacleTypes: [],                                                                    skyTop: [30, 58, 138],  skyBottom: [96, 165, 250],  accent: '#06b6d4', spawnRate: 100, bounceForce: 1.1,  platformTypes: [],                                                                                        platformTypeChance: 0    },
-            { name: 'STAGING',      hopsToFlag: 20, speed: 2.2, platformWidth: 100, crumbleChance: 0.10, obstacleChance: 0.008, obstacleTypes: ['firewall'],                                                            skyTop: [80, 40, 10],   skyBottom: [250, 160, 60],  accent: '#f59e0b', spawnRate: 90,  bounceForce: 1.2,  platformTypes: ['moving_lateral'],                                                                       platformTypeChance: 0.15 },
+            { name: 'DEV',          hopsToFlag: 15, speed: 1.5, platformWidth: 120, crumbleChance: 0.05, obstacleChance: 0,     obstacleTypes: [],                                                                    skyTop: [30, 58, 138],  skyBottom: [96, 165, 250],  accent: '#06b6d4', spawnRate: 100, bounceForce: 1.2,  platformTypes: [],                                                                                        platformTypeChance: 0    },
+            { name: 'STAGING',      hopsToFlag: 20, speed: 2.2, platformWidth: 100, crumbleChance: 0.10, obstacleChance: 0.008, obstacleTypes: ['firewall'],                                                            skyTop: [80, 40, 10],   skyBottom: [250, 160, 60],  accent: '#f59e0b', spawnRate: 90,  bounceForce: 1.25, platformTypes: ['moving_lateral'],                                                                       platformTypeChance: 0.15 },
             { name: 'PRODUCTION',   hopsToFlag: 25, speed: 2.8, platformWidth: 85,  crumbleChance: 0.15, obstacleChance: 0.012, obstacleTypes: ['firewall', 'cost'],                                                    skyTop: [50, 20, 80],   skyBottom: [140, 80, 200],  accent: '#a855f7', spawnRate: 80,  bounceForce: 1.3,  platformTypes: ['moving_lateral', 'moving_vertical', 'flashing'],                                        platformTypeChance: 0.25 },
-            { name: 'GLOBAL SCALE', hopsToFlag: 30, speed: 3.3, platformWidth: 70,  crumbleChance: 0.18, obstacleChance: 0.018, obstacleTypes: ['firewall', 'cost', 'ratelimit', 'billing', 'expired_cert'],             skyTop: [5, 5, 20],     skyBottom: [20, 20, 60],    accent: '#3b82f6', spawnRate: 70,  bounceForce: 1.4,  platformTypes: ['moving_lateral', 'moving_vertical', 'flashing', 'moving_diagonal', 'teleporter'],       platformTypeChance: 0.35 },
-            { name: 'AUTONOMOUS',   hopsToFlag: 40, speed: 3.8, platformWidth: 60,  crumbleChance: 0.22, obstacleChance: 0.025, obstacleTypes: ['firewall', 'cost', 'ratelimit', 'billing', 'expired_cert', 'ddos', 'cryptominer'],  skyTop: [0, 15, 0],  skyBottom: [10, 40, 15],  accent: '#22c55e', spawnRate: 60,  bounceForce: 1.45, platformTypes: ['moving_lateral', 'moving_vertical', 'flashing', 'moving_diagonal', 'teleporter'],       platformTypeChance: 0.45 },
+            { name: 'GLOBAL SCALE', hopsToFlag: 30, speed: 3.3, platformWidth: 70,  crumbleChance: 0.18, obstacleChance: 0.018, obstacleTypes: ['firewall', 'cost', 'ratelimit', 'billing', 'expired_cert'],             skyTop: [5, 5, 20],     skyBottom: [20, 20, 60],    accent: '#3b82f6', spawnRate: 70,  bounceForce: 1.35, platformTypes: ['moving_lateral', 'moving_vertical', 'flashing', 'moving_diagonal', 'teleporter'],       platformTypeChance: 0.35 },
+            { name: 'AUTONOMOUS',   hopsToFlag: 40, speed: 3.8, platformWidth: 60,  crumbleChance: 0.22, obstacleChance: 0.025, obstacleTypes: ['firewall', 'cost', 'ratelimit', 'billing', 'expired_cert', 'ddos', 'cryptominer'],  skyTop: [0, 15, 0],  skyBottom: [10, 40, 15],  accent: '#22c55e', spawnRate: 60,  bounceForce: 1.4,  platformTypes: ['moving_lateral', 'moving_vertical', 'flashing', 'moving_diagonal', 'teleporter'],       platformTypeChance: 0.45 },
         ];
 
         // Level State
@@ -1804,9 +1804,9 @@
             const lastP = platforms.length > 0 ? platforms.reduce((a, b) => a.y < b.y ? a : b) : null;
             const baseX = lastP ? lastP.x + lastP.width / 2 : canvas.width / 2;
 
-            // Wider spread with far-reach chance and side balancing
-            let spread = 200;
-            if (Math.random() < 0.20) spread = 280; // far reach
+            // Spread scales with level — tighter at DEV, wider at higher levels
+            let spread = Math.min(200, 120 + currentLevel * 20);
+            if (currentLevel >= 2 && Math.random() < 0.20) spread += 80; // far reach at L3+
             // Side balancing: if last 3 on same half, force opposite
             const screenMid = canvas.width / 2;
             let rawX = baseX - spread + Math.random() * spread * 2;
@@ -2355,19 +2355,21 @@
                 }
             }
 
-            // Update platforms
-            platforms.forEach(platform => platform.update());
-            // Give more buffer before removing platforms below screen in vertical mode
-            platforms = platforms.filter(p => p.y < canvas.height + 200 && p.opacity > 0);
+            // Update platforms (freeze during respawn to preserve world state)
+            if (!respawnCountdown) {
+                platforms.forEach(platform => platform.update());
+                // Give more buffer before removing platforms below screen in vertical mode
+                platforms = platforms.filter(p => p.y < canvas.height + 200 && p.opacity > 0);
 
-            // Spawn platforms — camera-follow mode: spawn above screen when needed
-            platformSpawnTimer++;
-            const highestPlatform = platforms.length > 0
-                ? Math.min(...platforms.map(p => p.y))
-                : canvas.height;
-            // Keep platforms available above the viewport
-            if (highestPlatform > -50) {
-                spawnPlatform();
+                // Spawn platforms — camera-follow mode: spawn above screen when needed
+                platformSpawnTimer++;
+                const highestPlatform = platforms.length > 0
+                    ? Math.min(...platforms.map(p => p.y))
+                    : canvas.height;
+                // Keep platforms available above the viewport
+                if (highestPlatform > -50) {
+                    spawnPlatform();
+                }
             }
 
             // Obstacles & powerups (only during actual play)
