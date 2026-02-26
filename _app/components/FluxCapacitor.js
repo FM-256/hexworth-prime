@@ -44,6 +44,7 @@
         { id: 'code', name: 'Code', icon: '💻', color: '#4ade80', path: 'houses/code/index.html' },
         { id: 'key', name: 'Key', icon: '🔑', color: '#f472b6', path: 'houses/key/index.html' },
         { id: 'eye', name: 'Eye', icon: '👁️', color: '#c084fc', path: 'houses/eye/index.html' },
+        { id: 'ai', name: 'Machine', icon: '🤖', color: '#a855f7', path: 'houses/ai/index.html' },
         { id: 'dark-arts', name: 'Dark Arts', icon: '💀', color: '#6b21a8', path: 'houses/dark-arts/index.html' },
         { id: 'matrix', name: 'The Matrix', icon: '🟢', color: '#00ff41', path: 'terminal.html', themeSwitch: 'matrix' }
     ];
