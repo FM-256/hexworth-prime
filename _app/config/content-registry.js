@@ -13182,6 +13182,22 @@ const ContentRegistry = {
             prerequisites: [],
             objectives: []
         },
+        'cloud-hop-vertical': {
+            id: 'cloud-hop-vertical',
+            title: 'Cloud Hop: Vertical',
+            description: 'Cloud Hop Vertical — ascending platformer for cloud house',
+            house: 'cloud',
+            type: 'applet',
+            difficulty: 'beginner',
+            duration: 25,
+            topics: ['cloud', 'hop', 'infrastructure'],
+            paths: ['cse'],
+            components: {
+                applet: 'houses/cloud/games/cloud-hop-vertical.applet.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
         'cloud-ps': {
             id: 'cloud-ps',
             title: 'WSA M01 PowerShell Lab',
