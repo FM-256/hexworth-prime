@@ -12,6 +12,7 @@
  *       moduleId: 'm01',
  *       title: 'Server Installation & Configuration',
  *       nextModule: '../m02-active-directory/cloud-presentation.module.html',
+ *       displayCount: 10,   // QC-8: question pooling (draw N from larger bank, null = all)
  *       questions: [ { question: '...', options: ['A','B','C','D'], correct: 1, explanation: '...' } ]
  *   });
  */
@@ -25,7 +26,19 @@ const WSAQuiz = (() => {
 
     function init(cfg) {
         config = cfg;
-        shuffledQuestions = cfg.questions.map(q => shuffleQuestion(q));
+
+        // QC-8: Question pooling — shuffle full bank, then draw displayCount
+        let pool = [...cfg.questions];
+        // Fisher-Yates shuffle the question order
+        for (let i = pool.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [pool[i], pool[j]] = [pool[j], pool[i]];
+        }
+        if (cfg.displayCount && pool.length > cfg.displayCount) {
+            pool = pool.slice(0, cfg.displayCount);
+        }
+
+        shuffledQuestions = pool.map(q => shuffleQuestion(q));
         userAnswers = new Array(shuffledQuestions.length).fill(null);
         submitted = false;
         reviewMode = false;
@@ -268,7 +281,16 @@ const WSAQuiz = (() => {
     }
 
     function retake() {
-        shuffledQuestions = config.questions.map(q => shuffleQuestion(q));
+        // QC-8: Re-pool and re-shuffle on retake
+        let pool = [...config.questions];
+        for (let i = pool.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [pool[i], pool[j]] = [pool[j], pool[i]];
+        }
+        if (config.displayCount && pool.length > config.displayCount) {
+            pool = pool.slice(0, config.displayCount);
+        }
+        shuffledQuestions = pool.map(q => shuffleQuestion(q));
         userAnswers = new Array(shuffledQuestions.length).fill(null);
         submitted = false;
         reviewMode = false;

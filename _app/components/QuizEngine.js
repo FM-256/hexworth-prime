@@ -8,8 +8,9 @@
  *       description: 'Test your knowledge of security fundamentals',
  *       questions: [...],
  *       passingScore: 70,
- *       showFeedback: true,
+ *       showFeedback: false,      // Anti-cheat: no immediate feedback (deferred to results)
  *       randomize: true,
+ *       displayCount: 10,         // Question pooling: draw N from larger bank
  *       timeLimit: null, // seconds, or null for untimed
  *       achievement: 'shield-cia-master',
  *       onComplete: (results) => { ... }
@@ -25,8 +26,9 @@ class QuizEngine {
             description: config.description || '',
             questions: config.questions || [],
             passingScore: config.passingScore || 70,
-            showFeedback: config.showFeedback !== false,
+            showFeedback: config.showFeedback === true ? true : false,  // QC-8: default OFF, deferred to results
             randomize: config.randomize !== false,
+            displayCount: config.displayCount || null,  // QC-8: question pooling (null = use all)
             timeLimit: config.timeLimit || null,
             achievement: config.achievement || null,
             retryAllowed: config.retryAllowed !== false,
@@ -100,18 +102,32 @@ class QuizEngine {
             attempts: this.state.attempts + 1
         };
 
-        // Randomize questions if enabled
+        // Deep-clone to avoid mutating originals
+        let pool = this.originalQuestions.map(q => ({
+            ...q,
+            options: [...q.options]
+        }));
+
+        // Randomize question order if enabled
         if (this.config.randomize) {
-            this.config.questions = this.shuffleArray([...this.originalQuestions]);
-            // Also randomize answer options for each question
-            this.config.questions.forEach(q => {
-                if (q.options && !q.preserveOrder) {
-                    const correctAnswer = q.options[q.correct];
-                    q.options = this.shuffleArray([...q.options]);
-                    q.correct = q.options.indexOf(correctAnswer);
-                }
-            });
+            pool = this.shuffleArray(pool);
         }
+
+        // QC-8: Question pooling — draw displayCount from the larger bank
+        if (this.config.displayCount && pool.length > this.config.displayCount) {
+            pool = pool.slice(0, this.config.displayCount);
+        }
+
+        // QC-8: Fisher-Yates answer rotation — ALWAYS enforced (anti-cheat)
+        pool.forEach(q => {
+            if (q.options && !q.preserveOrder) {
+                const correctAnswer = q.options[q.correct];
+                q.options = this.shuffleArray([...q.options]);
+                q.correct = q.options.indexOf(correctAnswer);
+            }
+        });
+
+        this.config.questions = pool;
 
         this.render();
         this.startTimer();
@@ -229,7 +245,7 @@ class QuizEngine {
 
                 <div class="quiz-footer">
                     <div class="quiz-score-preview">
-                        Score: ${this.state.score}/${this.state.currentQuestion}
+                        ${this.config.showFeedback ? `Score: ${this.state.score}/${this.state.currentQuestion}` : `Answered: ${this.state.currentQuestion}/${this.config.questions.length}`}
                     </div>
                 </div>
             </div>
