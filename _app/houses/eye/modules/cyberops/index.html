@@ -817,37 +817,114 @@
         ];
 
         // ==================== PROGRESS MANAGEMENT ====================
-        const STORAGE_KEY = 'cyberops200201';
-
-        function getProgress() {
-            const stored = localStorage.getItem(STORAGE_KEY);
-            if (stored) {
-                return JSON.parse(stored);
+        // Per-week localStorage keys used by each week's module page
+        const WEEK_KEYS = {
+            1: {
+                // Week 1 uses cyberops_week1_progress JSON with completed[] array
+                check: function() {
+                    try {
+                        const raw = localStorage.getItem('cyberops_week1_progress');
+                        if (!raw) return { moduleComplete: false, evalComplete: false, evalScore: 0 };
+                        const p = JSON.parse(raw);
+                        return {
+                            moduleComplete: Array.isArray(p.completed) && p.completed.length >= 15,
+                            evalComplete: p.evaluationPassed === true,
+                            evalScore: p.evaluationScore || 0
+                        };
+                    } catch(e) { return { moduleComplete: false, evalComplete: false, evalScore: 0 }; }
+                }
+            },
+            2: {
+                // Week 2: 12 topics + 8 labs via individual data-keys
+                topics: ['cyberops_attack_surface_vuln','cyberops_nsm_data_types','cyberops_data_visibility',
+                         'cyberops_tcpdump_netflow','cyberops_firewall_data','cyberops_content_filtering',
+                         'cyberops_app_visibility','cyberops_network_attacks','cyberops_web_attacks',
+                         'cyberops_social_engineering','cyberops_evasion','cyberops_certificates'],
+                labs: ['cyberops_lab_powershell','cyberops_lab_task_manager','cyberops_lab_system_resources',
+                       'cyberops_lab_text_files','cyberops_lab_linux_shell','cyberops_lab_linux_servers',
+                       'cyberops_lab_log_files','cyberops_lab_permissions'],
+                evalKey: 'cyberops_week2_evaluation'
+            },
+            3: {
+                // Week 3: 7 topics + 6 labs
+                topics: ['cyberops_endpoint_attacks','cyberops_windows_components','cyberops_ubuntu_components',
+                         'cyberops_attribution','cyberops_evidence_types','cyberops_disk_images','cyberops_malware_output'],
+                labs: ['cyberops_lab_tracing_route','cyberops_lab_wireshark_intro','cyberops_lab_verify_ip',
+                       'cyberops_lab_wireshark_ethernet','cyberops_lab_tcp_handshake','cyberops_lab_exploring_nmap'],
+                evalKey: 'cyberops_week3_evaluation'
+            },
+            4: {
+                // Week 4: 8 topics + 5 labs
+                topics: ['cyberops_topic_intrusion_events','cyberops_topic_source_technologies','cyberops_topic_firewall_operations',
+                         'cyberops_topic_traffic_analysis','cyberops_topic_tcp_stream','cyberops_topic_intrusion_elements',
+                         'cyberops_topic_artifact_elements','cyberops_topic_regular_expressions'],
+                labs: ['cyberops_lab_wireshark_udp_dns','cyberops_lab_wireshark_tcp_udp','cyberops_lab_wireshark_http_https',
+                       'cyberops_lab_packet_flow','cyberops_lab_acl_demo'],
+                evalKey: 'cyberops_week4_evaluation'
+            },
+            5: {
+                // Week 5: 7 topics + 5 labs
+                topics: ['cyberops_topic_nist_800_86','cyberops_topic_forensic_elements','cyberops_topic_security_policy',
+                         'cyberops_topic_protected_data','cyberops_topic_soc_metrics','cyberops_topic_network_profiling',
+                         'cyberops_topic_irp_elements'],
+                labs: ['cyberops_lab_whats_going_on','cyberops_lab_logging_network_activity','cyberops_lab_dns_traffic',
+                       'cyberops_lab_mysql_attack','cyberops_lab_server_logs'],
+                evalKey: 'cyberops_week5_evaluation'
+            },
+            6: {
+                // Week 6: 0 topics, 8 labs (all hands-on)
+                topics: [],
+                labs: ['cyberops_lab_hashing_openssl','cyberops_lab_symmetric_encryption','cyberops_lab_asymmetric_encryption',
+                       'cyberops_lab_digital_signatures','cyberops_lab_certificate_stores','cyberops_lab_tls_ssl_analysis',
+                       'cyberops_lab_vpn_fundamentals','cyberops_lab_wireshark_crypto'],
+                evalKey: 'cyberops_week6_evaluation'
+            },
+            7: {
+                // Week 7: 0 topics, 8 labs (capstone)
+                topics: [],
+                labs: ['cyberops_lab_snort_rules','cyberops_lab_pcap_forensics','cyberops_lab_threat_actor_profiling',
+                       'cyberops_lab_incident_handling','cyberops_lab_log_correlation','cyberops_lab_memory_forensics',
+                       'cyberops_lab_network_forensics','cyberops_lab_chain_of_custody'],
+                evalKey: 'cyberops_week7_evaluation'
             }
-            return {
-                weeks: {},
-                startedAt: null,
-                lastAccessedAt: null
-            };
-        }
-
-        function saveProgress(progress) {
-            progress.lastAccessedAt = new Date().toISOString();
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(progress));
-        }
+        };
 
         function getWeekProgress(weekId) {
-            const progress = getProgress();
-            return progress.weeks[weekId] || {
-                moduleComplete: false,
-                evalComplete: false,
-                evalScore: 0
-            };
+            // Week 1 has a custom check
+            if (WEEK_KEYS[weekId] && WEEK_KEYS[weekId].check) {
+                return WEEK_KEYS[weekId].check();
+            }
+
+            const config = WEEK_KEYS[weekId];
+            if (!config) return { moduleComplete: false, evalComplete: false, evalScore: 0 };
+
+            // Check all topics + labs via individual localStorage keys
+            const allKeys = [...(config.topics || []), ...(config.labs || [])];
+            const completedCount = allKeys.filter(k => localStorage.getItem(k) === 'completed').length;
+            const moduleComplete = allKeys.length > 0 && completedCount >= allKeys.length;
+
+            // Check evaluation
+            const evalVal = localStorage.getItem(config.evalKey);
+            const evalComplete = evalVal === 'completed' || evalVal === 'passed';
+
+            return { moduleComplete, evalComplete, evalScore: 0 };
+        }
+
+        // Week 8 (final assessment) — no per-key tracking yet, check CompletionStamp
+        function getFinalProgress() {
+            return { moduleComplete: false, evalComplete: false, evalScore: 0 };
         }
 
         function resetProgress() {
-            if (confirm('Are you sure you want to reset all progress? This cannot be undone.')) {
-                localStorage.removeItem(STORAGE_KEY);
+            if (confirm('Are you sure you want to reset all CyberOps progress? This cannot be undone.')) {
+                // Clear week 1 composite key
+                localStorage.removeItem('cyberops_week1_progress');
+                // Clear all individual topic/lab keys
+                for (const [id, config] of Object.entries(WEEK_KEYS)) {
+                    if (config.topics) config.topics.forEach(k => localStorage.removeItem(k));
+                    if (config.labs) config.labs.forEach(k => localStorage.removeItem(k));
+                    if (config.evalKey) localStorage.removeItem(config.evalKey);
+                }
                 location.reload();
             }
         }
@@ -855,7 +932,6 @@
         // ==================== RENDER ====================
         function renderWeeks() {
             const grid = document.getElementById('weekGrid');
-            const progress = getProgress();
             let completedCount = 0;
             let currentWeek = 1;
 
