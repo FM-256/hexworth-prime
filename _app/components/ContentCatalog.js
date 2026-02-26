@@ -1820,8 +1820,12 @@ const ContentCatalog = (function() {
         // AI House — Additional Presentations
         { house: 'ai', id: 'ai-prompt-engineering-presentation', title: 'Prompt Engineering Deep Dive', description: 'Comprehensive slide deck on prompt techniques — zero-shot, few-shot, chain-of-thought, and more', icon: '🎓', status: 'available', components: ['presentation'], href: 'presentations/ai-prompt-engineering.presentation.html', category: 'building' },
         { house: 'ai', id: 'ai-model-architecture-presentation', title: 'How LLMs Actually Work', description: 'Deep dive into transformer architecture, attention, training, and inference — with visual diagrams', icon: '🧬', status: 'available', components: ['presentation'], href: 'presentations/ai-model-architecture.presentation.html', category: 'foundations' },
+        { house: 'ai', id: 'ai-deployment-presentation', title: 'AI Deployment & MLOps', description: 'Slide deck on deploying AI — APIs, edge inference, monitoring, scaling, and cost management', icon: '🚀', status: 'available', components: ['presentation'], href: 'presentations/ai-deployment.presentation.html', category: 'building' },
+        // AI House — Additional Tools
+        { house: 'ai', id: 'ai-benchmark-explorer', title: 'AI Benchmark Explorer', description: 'Compare LLM benchmarks — MMLU, HumanEval, GSM8K, and more across models', icon: '📊', status: 'available', components: ['tool'], href: 'tools/ai-benchmark-explorer.tool.html', category: 'architecture' },
         // AI House — Games (additional)
         { house: 'ai', id: 'ai-text-adventure-singularity', title: 'The Singularity Protocol', description: 'Text adventure — investigate a rogue AI agent at Nexus Corp before it is too late', icon: '📖', status: 'available', components: ['game'], href: 'games/ai-text-adventure-singularity.html', category: 'games' },
+        { house: 'ai', id: 'ai-red-team-challenge', title: 'Red Team Challenge', description: 'Attack an AI system — find prompt injections, jailbreaks, and data leaks to score points', icon: '🎯', status: 'available', components: ['game'], href: 'games/ai-red-team-challenge.applet.html', category: 'games' },
 
     ];
 
