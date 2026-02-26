@@ -4973,6 +4973,7 @@ class LearningPaths {
             description: 'Agent concepts, the automation rubric, and the 3-component model',
             icon: '🧠',
             color: '#a855f7',
+            courseHref: 'houses/ai/index.html',
             modules: [
                 {
                     id: 'ai-what-are-agents',
@@ -5054,6 +5055,7 @@ class LearningPaths {
             description: 'No-code platforms, prompt engineering, and building real agents',
             icon: '🔧',
             color: '#a855f7',
+            courseHref: 'houses/ai/index.html',
             modules: [
                 {
                     id: 'ai-nocode-platforms',
@@ -5180,6 +5182,7 @@ class LearningPaths {
             description: 'SOC agents, guardrails, and responsible AI deployment',
             icon: '🛡️',
             color: '#a855f7',
+            courseHref: 'houses/ai/index.html',
             modules: [
                 {
                     id: 'ai-soc-automation',
