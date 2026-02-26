@@ -1329,6 +1329,17 @@ const FirestoreManager = (function() {
                 } catch (syncErr) {
                     console.warn('[FirestoreManager] Cloud sync failed, data saved locally:', syncErr.message);
                 }
+
+                // Also write XP + level directly to Firestore user doc
+                // (CF may use Math.max server-side and refuse to lower XP)
+                try {
+                    await setUserProfile(uid, {
+                        xp: mergedXP,
+                        level: calculateLevel(mergedXP)
+                    });
+                } catch (e) {
+                    console.warn('[FirestoreManager] Direct XP write failed:', e.message);
+                }
             }
 
             // 8. Restore bulk sync blob from other devices, THEN write updated state
