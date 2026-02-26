@@ -12,6 +12,7 @@
  * - HEUR-004: console.log in inline scripts (production hygiene)
  * - HEUR-005: Duplicate script includes (same src on multiple <script> tags)
  * - HEUR-006: Hardcoded relative href in shared JS renderer (fragile back links)
+ * - HEUR-007: Code block CSS missing white-space: pre/pre-wrap (commands render as paragraph)
  */
 
 const fs = require('fs');
@@ -76,6 +77,7 @@ class HeuristicsValidator {
         issues.push(...this.checkDuplicateScriptSrc(file));
         issues.push(...this.checkUnguardedParseInt(file));
         issues.push(...this.checkUnguardedLocalStorageArithmetic(file));
+        issues.push(...this.checkCodeBlockWhitespace(file));
 
         // Filter out allowlisted issues
         return issues.filter(issue => !this.isAllowlisted(file.path, issue.code));
@@ -472,6 +474,64 @@ class HeuristicsValidator {
                     file: `components/${filename}`,
                     line,
                     fix: `Use absolute path from site root (e.g., /houses/shield/index.html) instead of relative path`
+                });
+            }
+        }
+
+        return issues;
+    }
+
+    /**
+     * HEUR-007: Code block CSS missing white-space: pre or pre-wrap
+     *
+     * Detects <style> blocks that define .code-block (or similar code container
+     * classes) using monospace font-family but without white-space: pre or
+     * pre-wrap. Without this property, browsers collapse newlines and the
+     * multi-line command content renders as a single paragraph.
+     */
+    checkCodeBlockWhitespace(file) {
+        const issues = [];
+        const content = file.content;
+
+        // Only check HTML files with inline <style> blocks
+        if (!content.includes('<style>') && !content.includes('<style ')) return issues;
+
+        // Extract all <style> blocks
+        const stylePattern = /<style[^>]*>([\s\S]*?)<\/style>/gi;
+        let styleMatch;
+
+        while ((styleMatch = stylePattern.exec(content)) !== null) {
+            const styleContent = styleMatch[1];
+            const styleStartPos = styleMatch.index;
+
+            // Find CSS rules that look like code/command containers:
+            // .code-block, .code-block-sm, .command-block, .terminal-code, etc.
+            const rulePattern = /\.(code-block(?:-\w+)?|command-block|terminal-code)\s*\{([^}]+)\}/g;
+            let ruleMatch;
+
+            while ((ruleMatch = rulePattern.exec(styleContent)) !== null) {
+                const className = ruleMatch[1];
+                const ruleBody = ruleMatch[2];
+
+                // Check for monospace font (confirms this is a code container)
+                const hasMonospace = /font-family\s*:.*monospace/i.test(ruleBody);
+                if (!hasMonospace) continue;
+
+                // Check for white-space: pre or pre-wrap
+                const hasWhiteSpace = /white-space\s*:\s*pre(?:-wrap)?/i.test(ruleBody);
+                if (hasWhiteSpace) continue;
+
+                // This is a code block with monospace but no white-space preservation
+                const line = this.getLineNumber(content, styleStartPos + ruleMatch.index);
+
+                issues.push({
+                    code: 'HEUR-007',
+                    severity: 'medium',
+                    category: 'heuristic',
+                    message: `.${className} uses monospace font but missing white-space: pre-wrap — multi-line code/commands will render as a single paragraph`,
+                    file: file.path,
+                    line,
+                    fix: `Add 'white-space: pre-wrap;' to the .${className} CSS rule`
                 });
             }
         }
