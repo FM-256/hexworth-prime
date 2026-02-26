@@ -1,0 +1,1841 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <!-- Progress Integration -->
+    <script src="../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Deployment: Prototype to Production | House of the Machine</title>
+    <style>
+        /* ── Reset & Root ── */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --accent:        #a855f7;
+            --accent-light:  #c084fc;
+            --accent-dark:   #7c3aed;
+            --accent-glow:   rgba(168, 85, 247, 0.35);
+            --accent-subtle: rgba(168, 85, 247, 0.08);
+            --bg:            #0a0e1a;
+            --bg-card:       rgba(16, 12, 32, 0.95);
+            --bg-surface:    rgba(25, 18, 50, 0.8);
+            --text-primary:  #f0eaf8;
+            --text-secondary:#9d8cbf;
+            --border:        rgba(168, 85, 247, 0.25);
+            --success:       #22c55e;
+            --warning:       #f59e0b;
+            --danger:        #ef4444;
+            --info:          #38bdf8;
+            --orange:        #fb923c;
+        }
+
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: var(--bg);
+            min-height: 100vh;
+            color: var(--text-primary);
+            /* Lock body scroll — slide scrolls internally */
+            overflow: hidden;
+        }
+
+        /* ── Top progress bar ── */
+        .progress-bar {
+            position: fixed;
+            top: 0; left: 0;
+            height: 3px;
+            background: linear-gradient(90deg, var(--accent-dark), var(--accent), var(--accent-light));
+            z-index: 1000;
+            transition: width 0.35s ease;
+            box-shadow: 0 0 8px var(--accent-glow);
+        }
+
+        /* ── Breadcrumb (top-left) ── */
+        .breadcrumb {
+            position: fixed;
+            top: 18px; left: 22px;
+            z-index: 900;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 7px 16px;
+            border: 1px solid var(--border);
+            border-radius: 7px;
+            background: rgba(10, 8, 22, 0.75);
+            backdrop-filter: blur(6px);
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            white-space: nowrap;
+        }
+
+        .breadcrumb a {
+            color: var(--accent-light);
+            text-decoration: none;
+            transition: color 0.2s;
+        }
+
+        .breadcrumb a:hover { color: #fff; }
+
+        .breadcrumb .sep {
+            color: rgba(168, 85, 247, 0.4);
+            font-size: 0.7rem;
+        }
+
+        .breadcrumb .current {
+            color: var(--text-secondary);
+        }
+
+        /* ── Slide counter badge (top-right) ── */
+        .slide-badge {
+            position: fixed;
+            top: 18px; right: 22px;
+            z-index: 900;
+            padding: 7px 16px;
+            border: 1px solid var(--border);
+            border-radius: 7px;
+            background: rgba(10, 8, 22, 0.75);
+            color: var(--text-secondary);
+            font-size: 0.82rem;
+            font-weight: 500;
+            letter-spacing: 0.05em;
+            backdrop-filter: blur(6px);
+        }
+
+        .slide-badge span { color: var(--accent-light); font-weight: 700; }
+
+        /* ── Speaker notes toggle hint (top-center) ── */
+        .notes-hint {
+            position: fixed;
+            top: 18px; left: 50%;
+            transform: translateX(-50%);
+            z-index: 900;
+            padding: 5px 14px;
+            border: 1px solid rgba(168, 85, 247, 0.18);
+            border-radius: 20px;
+            background: rgba(10, 8, 22, 0.65);
+            color: rgba(157, 140, 191, 0.7);
+            font-size: 0.75rem;
+            letter-spacing: 0.06em;
+            backdrop-filter: blur(4px);
+            pointer-events: none;
+            transition: opacity 0.3s;
+        }
+
+        /* ── Speaker notes panel ── */
+        .notes-panel {
+            position: fixed;
+            bottom: 0; left: 0; right: 0;
+            z-index: 800;
+            background: rgba(6, 4, 16, 0.96);
+            border-top: 2px solid var(--accent-dark);
+            padding: 16px 28px 22px;
+            transform: translateY(100%);
+            transition: transform 0.3s ease;
+            max-height: 38vh;
+            overflow-y: auto;
+            backdrop-filter: blur(10px);
+        }
+
+        .notes-panel.visible { transform: translateY(0); }
+
+        .notes-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 10px;
+        }
+
+        .notes-header .notes-label {
+            font-size: 0.72rem;
+            letter-spacing: 0.14em;
+            text-transform: uppercase;
+            color: var(--accent);
+            font-weight: 600;
+        }
+
+        .notes-close {
+            background: none;
+            border: 1px solid var(--border);
+            color: var(--text-secondary);
+            font-size: 0.82rem;
+            padding: 3px 10px;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .notes-close:hover { border-color: var(--accent); color: var(--accent-light); }
+
+        .notes-text {
+            font-size: 0.95rem;
+            line-height: 1.75;
+            color: #b8a8d8;
+        }
+
+        .notes-text strong { color: var(--text-primary); }
+        .notes-text em { color: var(--accent-light); font-style: normal; }
+
+        /* ── Presentation viewport ── */
+        .presentation {
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* ── Slide base ── */
+        .slide {
+            display: none;
+            width: 92%;
+            max-width: 1180px;
+            min-height: 78vh;
+            max-height: 84vh;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 18px;
+            padding: 52px 64px 80px;
+            position: relative;
+            overflow-y: auto;
+            box-shadow:
+                0 24px 64px rgba(0, 0, 0, 0.65),
+                0 0 0 1px var(--border),
+                inset 0 1px 0 rgba(168, 85, 247, 0.1);
+            animation: slideIn 0.38s cubic-bezier(0.22, 1, 0.36, 1);
+        }
+
+        .slide.active { display: flex; flex-direction: column; }
+
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateX(55px); }
+            to   { opacity: 1; transform: translateX(0); }
+        }
+
+        @keyframes slideInLeft {
+            from { opacity: 0; transform: translateX(-55px); }
+            to   { opacity: 1; transform: translateX(0); }
+        }
+
+        .slide.reverse { animation: slideInLeft 0.38s cubic-bezier(0.22, 1, 0.36, 1); }
+
+        /* Scrollbar styling */
+        .slide::-webkit-scrollbar { width: 5px; }
+        .slide::-webkit-scrollbar-track { background: transparent; }
+        .slide::-webkit-scrollbar-thumb { background: rgba(168, 85, 247, 0.3); border-radius: 3px; }
+
+        /* ── Section label ── */
+        .slide-label {
+            font-size: 0.72rem;
+            letter-spacing: 0.14em;
+            text-transform: uppercase;
+            color: var(--accent);
+            font-weight: 600;
+            margin-bottom: 22px;
+            opacity: 0.85;
+        }
+
+        /* ── Typography ── */
+        h1 {
+            font-size: 2.6rem;
+            font-weight: 300;
+            color: var(--text-primary);
+            text-align: center;
+            line-height: 1.25;
+            margin-bottom: 18px;
+        }
+
+        h1 .accent { color: var(--accent); }
+        h1 .accent-light { color: var(--accent-light); }
+
+        h2 {
+            font-size: 1.9rem;
+            font-weight: 400;
+            color: var(--text-primary);
+            margin-bottom: 26px;
+            padding-bottom: 14px;
+            border-bottom: 2px solid var(--accent-dark);
+            display: inline-block;
+        }
+
+        h3 {
+            color: var(--accent-light);
+            font-size: 1.15rem;
+            margin: 18px 0 10px;
+            font-weight: 500;
+        }
+
+        p, li {
+            font-size: 1.05rem;
+            line-height: 1.75;
+            color: var(--text-secondary);
+            margin-bottom: 10px;
+        }
+
+        li { color: #c4b5d8; }
+
+        ul { margin-left: 26px; }
+
+        ul li::marker { color: var(--accent); }
+
+        strong { color: var(--text-primary); font-weight: 600; }
+
+        code {
+            font-family: 'Courier New', monospace;
+            background: rgba(168, 85, 247, 0.12);
+            border: 1px solid rgba(168, 85, 247, 0.22);
+            border-radius: 4px;
+            padding: 2px 7px;
+            font-size: 0.9em;
+            color: var(--accent-light);
+        }
+
+        /* ── Title slide layout ── */
+        .title-center {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            gap: 16px;
+        }
+
+        .title-pill {
+            display: inline-block;
+            padding: 6px 20px;
+            border: 1px solid var(--accent);
+            border-radius: 30px;
+            font-size: 0.78rem;
+            letter-spacing: 0.18em;
+            text-transform: uppercase;
+            color: var(--accent-light);
+            background: rgba(168, 85, 247, 0.08);
+        }
+
+        .title-tagline {
+            font-size: 1.12rem;
+            color: var(--text-secondary);
+            max-width: 680px;
+            line-height: 1.7;
+        }
+
+        /* ── Grid layouts ── */
+        .grid-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin: 20px 0;
+        }
+
+        .grid-3 {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 18px;
+            margin: 20px 0;
+        }
+
+        .grid-4 {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+            margin: 20px 0;
+        }
+
+        /* ── Card ── */
+        .card {
+            background: var(--bg-surface);
+            border: 1px solid var(--border);
+            border-radius: 13px;
+            padding: 22px;
+            transition: border-color 0.25s, transform 0.25s;
+        }
+
+        .card:hover { border-color: var(--accent); transform: translateY(-3px); }
+
+        .card h4 { color: var(--accent-light); font-size: 1rem; margin-bottom: 10px; font-weight: 600; }
+        .card p, .card li { font-size: 0.95rem; }
+
+        /* ── Info card (left-border accent) ── */
+        .info-card {
+            background: var(--bg-surface);
+            border-left: 4px solid var(--accent);
+            border-radius: 0 12px 12px 0;
+            padding: 16px 20px;
+            margin: 14px 0;
+        }
+
+        .info-card.danger  { border-left-color: var(--danger); }
+        .info-card.warning { border-left-color: var(--warning); }
+        .info-card.success { border-left-color: var(--success); }
+        .info-card.info    { border-left-color: var(--info); }
+        .info-card.orange  { border-left-color: var(--orange); }
+
+        .info-card h4 { color: var(--accent-light); font-size: 0.98rem; margin-bottom: 8px; font-weight: 600; }
+        .info-card.danger  h4 { color: #f87171; }
+        .info-card.warning h4 { color: #fbbf24; }
+        .info-card.success h4 { color: #4ade80; }
+        .info-card.info    h4 { color: #7dd3fc; }
+        .info-card.orange  h4 { color: #fb923c; }
+
+        /* ── Highlight box ── */
+        .highlight {
+            background: linear-gradient(135deg, rgba(168, 85, 247, 0.14), rgba(124, 58, 237, 0.06));
+            border: 1px solid rgba(168, 85, 247, 0.38);
+            border-radius: 13px;
+            padding: 22px 26px;
+            margin: 20px 0;
+        }
+
+        .highlight h4 { color: var(--accent-light); margin-bottom: 10px; font-size: 1.05rem; }
+
+        /* ── Code block ── */
+        .code-block {
+            background: rgba(0, 0, 0, 0.55);
+            border: 1px solid rgba(168, 85, 247, 0.2);
+            border-radius: 10px;
+            padding: 18px 22px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.88rem;
+            color: #d4c5f0;
+            margin: 16px 0;
+            white-space: pre;
+            overflow-x: auto;
+            line-height: 1.7;
+        }
+
+        .code-block .c-red    { color: #f87171; }
+        .code-block .c-green  { color: #4ade80; }
+        .code-block .c-yellow { color: #fbbf24; }
+        .code-block .c-purple { color: var(--accent-light); }
+        .code-block .c-gray   { color: #6b7280; }
+        .code-block .c-blue   { color: #7dd3fc; }
+        .code-block .c-orange { color: #fb923c; }
+
+        /* ── Check list ── */
+        .check-list { list-style: none; padding: 0; }
+
+        .check-list li {
+            padding: 8px 0 8px 28px;
+            position: relative;
+            border-bottom: 1px solid rgba(168, 85, 247, 0.07);
+            font-size: 0.97rem;
+            color: #c4b5d8;
+        }
+
+        .check-list li:last-child { border-bottom: none; }
+
+        .check-list li::before {
+            content: "▸";
+            position: absolute;
+            left: 0;
+            color: var(--accent);
+            font-size: 0.85rem;
+            top: 10px;
+        }
+
+        /* ── Stat row ── */
+        .stat-row {
+            display: flex;
+            gap: 18px;
+            margin: 20px 0;
+            flex-wrap: wrap;
+        }
+
+        .stat {
+            flex: 1;
+            min-width: 130px;
+            text-align: center;
+            padding: 20px 14px;
+            background: var(--bg-surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+        }
+
+        .stat .num { font-size: 2rem; font-weight: 700; color: var(--accent-light); display: block; }
+        .stat .lbl { font-size: 0.83rem; color: var(--text-secondary); margin-top: 4px; line-height: 1.4; }
+
+        /* ── Takeaway list ── */
+        .takeaway-list { list-style: none; padding: 0; }
+
+        .takeaway-list li {
+            display: flex;
+            align-items: flex-start;
+            gap: 14px;
+            padding: 13px 18px;
+            margin: 9px 0;
+            background: var(--bg-surface);
+            border-left: 3px solid var(--accent);
+            border-radius: 0 10px 10px 0;
+        }
+
+        .takeaway-list li .marker {
+            font-size: 1rem;
+            font-weight: 700;
+            color: var(--accent);
+            min-width: 26px;
+            padding-top: 2px;
+        }
+
+        .takeaway-list li .text { font-size: 0.98rem; color: #c4b5d8; line-height: 1.65; }
+
+        /* ── Architecture diagram (CSS-based) ── */
+        .arch-diagram {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            margin: 18px 0;
+        }
+
+        .arch-layer {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .arch-label {
+            font-size: 0.72rem;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: var(--accent);
+            font-weight: 600;
+            min-width: 90px;
+            text-align: right;
+        }
+
+        .arch-row {
+            display: flex;
+            flex: 1;
+            gap: 6px;
+        }
+
+        .arch-box {
+            flex: 1;
+            padding: 10px 8px;
+            text-align: center;
+            border-radius: 8px;
+            font-size: 0.8rem;
+            font-weight: 500;
+            border: 1px solid transparent;
+            transition: transform 0.2s;
+            cursor: default;
+        }
+
+        .arch-box:hover { transform: translateY(-2px); }
+
+        .arch-box.layer-client   { background: rgba(168, 85, 247, 0.12); border-color: rgba(168, 85, 247, 0.35); color: var(--accent-light); }
+        .arch-box.layer-gateway  { background: rgba(56, 189, 248, 0.1);  border-color: rgba(56, 189, 248, 0.3);  color: #7dd3fc; }
+        .arch-box.layer-app      { background: rgba(34, 197, 94, 0.1);   border-color: rgba(34, 197, 94, 0.3);   color: #4ade80; }
+        .arch-box.layer-model    { background: rgba(251, 146, 60, 0.1);  border-color: rgba(251, 146, 60, 0.3);  color: #fb923c; }
+        .arch-box.layer-data     { background: rgba(245, 158, 11, 0.1);  border-color: rgba(245, 158, 11, 0.3);  color: #fbbf24; }
+        .arch-box.layer-obs      { background: rgba(239, 68, 68, 0.08);  border-color: rgba(239, 68, 68, 0.25);  color: #f87171; }
+        .arch-box.layer-neutral  { background: rgba(157, 140, 191, 0.1); border-color: rgba(157, 140, 191, 0.25); color: #c4b5d8; }
+
+        .arch-arrow {
+            text-align: center;
+            color: var(--accent-dark);
+            font-size: 0.85rem;
+            padding: 2px 0;
+        }
+
+        /* ── Comparison table ── */
+        .comp-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 16px 0;
+        }
+
+        .comp-table th {
+            background: rgba(168, 85, 247, 0.18);
+            color: var(--accent-light);
+            padding: 11px 14px;
+            text-align: left;
+            font-size: 0.85rem;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+        }
+
+        .comp-table th:first-child { border-radius: 8px 0 0 0; }
+        .comp-table th:last-child  { border-radius: 0 8px 0 0; }
+
+        .comp-table td {
+            padding: 11px 14px;
+            border-bottom: 1px solid var(--border);
+            font-size: 0.95rem;
+            color: var(--text-secondary);
+        }
+
+        .comp-table tr:hover td { background: rgba(168, 85, 247, 0.05); }
+
+        .comp-table .td-green  { color: #4ade80; font-weight: 600; }
+        .comp-table .td-red    { color: #f87171; font-weight: 600; }
+        .comp-table .td-yellow { color: #fbbf24; font-weight: 600; }
+
+        /* ── Flow pipeline (horizontal) ── */
+        .pipeline {
+            display: flex;
+            align-items: stretch;
+            gap: 0;
+            margin: 22px 0;
+            overflow-x: auto;
+        }
+
+        .pipe-step {
+            flex: 1;
+            min-width: 100px;
+            background: var(--accent-subtle);
+            border: 1px solid var(--border);
+            border-right: none;
+            padding: 16px 10px;
+            text-align: center;
+            position: relative;
+        }
+
+        .pipe-step:first-child { border-radius: 8px 0 0 8px; }
+        .pipe-step:last-child  { border-radius: 0 8px 8px 0; border-right: 1px solid var(--border); }
+
+        .pipe-step:not(:last-child)::after {
+            content: "▶";
+            position: absolute;
+            right: -10px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--accent);
+            font-size: 0.85rem;
+            z-index: 1;
+            background: var(--bg-card);
+            padding: 2px 0;
+        }
+
+        .pipe-step:hover { background: rgba(168, 85, 247, 0.14); }
+
+        .pipe-step .step-num {
+            font-size: 0.65rem;
+            letter-spacing: 0.1em;
+            color: var(--accent);
+            font-weight: 700;
+            margin-bottom: 5px;
+            text-transform: uppercase;
+        }
+
+        .pipe-step .step-name {
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            line-height: 1.35;
+        }
+
+        .pipe-step .step-desc {
+            font-size: 0.76rem;
+            color: var(--text-secondary);
+            margin-top: 5px;
+            line-height: 1.4;
+        }
+
+        /* ── Scale diagram ── */
+        .scale-bar {
+            height: 8px;
+            border-radius: 4px;
+            background: linear-gradient(90deg, var(--accent-dark), var(--accent), var(--accent-light));
+            margin: 6px 0 12px;
+            box-shadow: 0 0 6px var(--accent-glow);
+        }
+
+        /* ── Formula ── */
+        .formula {
+            text-align: center;
+            padding: 24px;
+            background: var(--accent-subtle);
+            border: 1px solid rgba(168, 85, 247, 0.3);
+            border-radius: 12px;
+            margin: 20px 0;
+        }
+
+        .formula .eq {
+            font-size: 1.35rem;
+            font-weight: 300;
+            letter-spacing: 0.03em;
+            color: var(--text-primary);
+        }
+
+        .formula .eq .var { color: var(--accent-light); font-style: italic; }
+        .formula .eq .op  { color: var(--text-secondary); padding: 0 8px; }
+        .formula p { font-size: 0.9rem; color: var(--text-secondary); margin-top: 12px; }
+
+        /* ── End slide ── */
+        .end-center {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            gap: 16px;
+        }
+
+        .complete-btn {
+            margin-top: 14px;
+            padding: 15px 40px;
+            font-size: 1rem;
+            font-weight: 600;
+            background: linear-gradient(135deg, var(--accent-dark), var(--accent));
+            color: #fff;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: transform 0.25s, box-shadow 0.25s, opacity 0.25s;
+            box-shadow: 0 4px 20px var(--accent-glow);
+            letter-spacing: 0.03em;
+        }
+
+        .complete-btn:hover { transform: translateY(-3px); box-shadow: 0 8px 32px var(--accent-glow); }
+        .complete-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+        /* ── Bottom navigation controls ── */
+        .controls {
+            position: fixed;
+            bottom: 24px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            z-index: 900;
+            background: rgba(10, 8, 22, 0.82);
+            padding: 9px 18px;
+            border-radius: 50px;
+            border: 1px solid var(--border);
+            backdrop-filter: blur(10px);
+        }
+
+        .nav-btn {
+            padding: 8px 20px;
+            font-size: 0.88rem;
+            font-weight: 500;
+            border: 1px solid var(--accent);
+            background: transparent;
+            color: var(--accent-light);
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background 0.2s, color 0.2s;
+            letter-spacing: 0.02em;
+        }
+
+        .nav-btn:hover:not(:disabled) {
+            background: rgba(168, 85, 247, 0.18);
+            color: #fff;
+        }
+
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+
+        .slide-counter {
+            font-size: 0.86rem;
+            color: var(--text-secondary);
+            min-width: 68px;
+            text-align: center;
+            letter-spacing: 0.05em;
+        }
+
+        /* ── Responsive ── */
+        @media (max-width: 900px) {
+            .slide { padding: 32px 24px 80px; }
+            h1 { font-size: 1.9rem; }
+            h2 { font-size: 1.45rem; }
+            .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; }
+            .stat-row { gap: 10px; }
+            .pipeline { flex-wrap: wrap; }
+            .breadcrumb .bc-middle { display: none; }
+            .notes-hint { display: none; }
+        }
+
+        @media (max-width: 600px) {
+            .breadcrumb { font-size: 0.72rem; padding: 6px 12px; }
+            .slide-badge { top: 14px; right: 14px; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Top progress indicator -->
+    <div class="progress-bar" id="progressBar" style="width:5%"></div>
+
+    <!-- Breadcrumb navigation -->
+    <nav class="breadcrumb" aria-label="Breadcrumb">
+        <a href="../index.html">House of the Machine</a>
+        <span class="sep bc-middle">&#8250;</span>
+        <span class="bc-middle" style="color:var(--text-secondary);">Presentations</span>
+        <span class="sep">&#8250;</span>
+        <span class="current">Deployment Strategies</span>
+    </nav>
+
+    <!-- Slide position badge -->
+    <div class="slide-badge">Slide <span id="slideNum">1</span> / <span id="slideTotal">21</span></div>
+
+    <!-- Speaker notes hint -->
+    <div class="notes-hint" id="notesHint">N — Speaker Notes</div>
+
+    <!-- ============================================================
+         PRESENTATION
+    ============================================================ -->
+    <div class="presentation">
+
+        <!-- ── Slide 1: Title ── -->
+        <div class="slide active" data-notes="Welcome to AI Deployment Strategies. This presentation covers the full lifecycle of taking an AI system from a working prototype to a reliable, scalable, production system. The gap between 'it works on my laptop' and 'it serves 10,000 users reliably' is where most AI projects fail. We will go through every major decision point in that journey.">
+            <div class="title-center">
+                <div class="title-pill">House of the Machine &nbsp;·&nbsp; Deployment Track</div>
+                <h1><span class="accent">AI Deployment</span><br><span style="font-weight:200; font-size:2rem;">Prototype to Production</span></h1>
+                <p class="title-tagline">Every AI system that works in a notebook faces the same gauntlet: infrastructure decisions, cost tradeoffs, reliability engineering, and compliance requirements. This presentation navigates all of it.</p>
+                <div style="margin-top:24px; display:flex; gap:20px; justify-content:center; flex-wrap:wrap;">
+                    <div style="text-align:center; padding:14px 20px; background:var(--bg-surface); border:1px solid var(--border); border-radius:10px;">
+                        <div style="font-size:1.7rem; font-weight:700; color:var(--accent-light);">20</div>
+                        <div style="font-size:0.78rem; color:var(--text-secondary); margin-top:3px;">Slides</div>
+                    </div>
+                    <div style="text-align:center; padding:14px 20px; background:var(--bg-surface); border:1px solid var(--border); border-radius:10px;">
+                        <div style="font-size:1.7rem; font-weight:700; color:var(--accent-light);">7</div>
+                        <div style="font-size:0.78rem; color:var(--text-secondary); margin-top:3px;">Sections</div>
+                    </div>
+                    <div style="text-align:center; padding:14px 20px; background:var(--bg-surface); border:1px solid var(--border); border-radius:10px;">
+                        <div style="font-size:1.7rem; font-weight:700; color:var(--accent-light);">&#8592;N&#8594;</div>
+                        <div style="font-size:0.78rem; color:var(--text-secondary); margin-top:3px;">Nav Keys</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ── Slide 2: The Deployment Gap ── -->
+        <div class="slide" data-notes="The 90% figure comes from repeated industry surveys (Gartner, VentureBeat, MIT). Prototypes optimize for accuracy. Production systems must also optimize for latency, cost, uptime, security, and compliance — simultaneously. Each of those dimensions is a trap that swallows unprepared teams. Key talking point: a prototype that scores 94% on your eval set and a production system that answers 94% of real users correctly are fundamentally different engineering problems.">
+            <div class="slide-label">Section 1 &nbsp;·&nbsp; The Deployment Problem</div>
+            <h2>The Deployment Gap</h2>
+            <p>Industry surveys consistently find that <strong>87–90% of AI models never make it to production</strong>. Of those that do, many are quietly decommissioned within 12 months. The prototype worked — so what went wrong?</p>
+
+            <div class="stat-row" style="margin-top:20px;">
+                <div class="stat">
+                    <span class="num" style="color:#f87171;">90%</span>
+                    <div class="lbl">of AI prototypes fail to reach production</div>
+                </div>
+                <div class="stat">
+                    <span class="num" style="color:#fbbf24;">50%</span>
+                    <div class="lbl">of production deployments miss their performance targets</div>
+                </div>
+                <div class="stat">
+                    <span class="num" style="color:#4ade80;">2–6×</span>
+                    <div class="lbl">typical cost overrun from prototype to scaled system</div>
+                </div>
+            </div>
+
+            <div class="grid-2" style="margin-top:8px;">
+                <div class="info-card danger">
+                    <h4>Why prototypes fail in production</h4>
+                    <ul class="check-list">
+                        <li>Data in prod is messier than eval data</li>
+                        <li>Latency requirements were never specified</li>
+                        <li>Costs scale non-linearly with traffic</li>
+                        <li>Model outputs are not deterministic</li>
+                        <li>No fallback when the model is down</li>
+                    </ul>
+                </div>
+                <div class="info-card success">
+                    <h4>What production-ready AI looks like</h4>
+                    <ul class="check-list">
+                        <li>Defined SLAs (latency p50/p99, uptime)</li>
+                        <li>Cost budget with alerting</li>
+                        <li>Graceful degradation path</li>
+                        <li>Observability from day one</li>
+                        <li>Human-in-the-loop for edge cases</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- ── Slide 3: API-First vs Self-Hosted ── -->
+        <div class="slide" data-notes="This is the first major architectural fork every team hits. API-first means you call a third-party model via HTTP — OpenAI, Anthropic, Google. Self-hosted means you run the model yourself. The decision is not just technical: it involves data residency laws, vendor lock-in risk, and operational capacity. Most teams should start API-first and only migrate to self-hosted when they have the scale and the ops maturity to justify it.">
+            <div class="slide-label">Section 2 &nbsp;·&nbsp; Infrastructure Choices</div>
+            <h2>API-First vs. Self-Hosted</h2>
+            <p>The first architectural decision is whether you call a cloud AI API or run your own model. This choice cascades into cost structure, latency, data privacy, and operational complexity.</p>
+
+            <table class="comp-table" style="margin-top:16px;">
+                <thead>
+                    <tr>
+                        <th>Dimension</th>
+                        <th>API-First (OpenAI, Anthropic, etc.)</th>
+                        <th>Self-Hosted (Ollama, vLLM, TGI)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>Time to deploy</strong></td>
+                        <td class="td-green">Hours</td>
+                        <td class="td-yellow">Days–Weeks</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Ops overhead</strong></td>
+                        <td class="td-green">Minimal</td>
+                        <td class="td-red">High — GPU infra, updates, scaling</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Data privacy</strong></td>
+                        <td class="td-red">Data leaves your boundary</td>
+                        <td class="td-green">Data stays on-prem / in your VPC</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Cost at scale</strong></td>
+                        <td class="td-red">Linear with token volume</td>
+                        <td class="td-green">Fixed infra cost, drops per-token</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Model quality ceiling</strong></td>
+                        <td class="td-green">Latest frontier models</td>
+                        <td class="td-yellow">Open models (often 6–18 months behind)</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Vendor dependency</strong></td>
+                        <td class="td-red">High — API changes, pricing changes</td>
+                        <td class="td-green">Own your stack</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <div class="highlight">
+                <h4>Decision heuristic</h4>
+                <p>Start API-first. Migrate to self-hosted when: (1) you process more than ~20M tokens/day, (2) data residency requires it, or (3) you need a capability not available in any hosted API.</p>
+            </div>
+        </div>
+
+        <!-- ── Slide 4: OpenAI / Anthropic API Deployment ── -->
+        <div class="slide" data-notes="Key pricing anchors as of 2025: GPT-4o is roughly $2.50/$10 per 1M input/output tokens. Claude 3.5 Sonnet is $3/$15. For comparison, GPT-4o-mini is $0.15/$0.60. The jump from GPT-4o-mini to GPT-4o is a 16x cost increase. Always benchmark whether the cheaper model is 'good enough' for your use case. The Tier system (OpenAI) means new accounts start at lower rate limits — you cannot burst to production traffic on day one.">
+            <div class="slide-label">Section 2 &nbsp;·&nbsp; Infrastructure Choices</div>
+            <h2>OpenAI / Anthropic API Deployment</h2>
+            <p>Managed APIs are the fastest path to production. Understanding their pricing model and operational limits is essential for cost control.</p>
+
+            <div class="grid-2" style="margin-top:16px;">
+                <div>
+                    <div class="card">
+                        <h4 style="color:#4ade80;">Strengths</h4>
+                        <ul class="check-list">
+                            <li>No GPU procurement or management</li>
+                            <li>Access to frontier models immediately</li>
+                            <li>Built-in redundancy and uptime SLAs</li>
+                            <li>Rate limit tiers scale automatically</li>
+                            <li>Fine-tuning APIs available</li>
+                        </ul>
+                    </div>
+                </div>
+                <div>
+                    <div class="card">
+                        <h4 style="color:#f87171;">Risks</h4>
+                        <ul class="check-list">
+                            <li>Prompts and completions leave your boundary</li>
+                            <li>Price changes outside your control</li>
+                            <li>Rate limits can block production traffic</li>
+                            <li>Model deprecations require re-evals</li>
+                            <li>Outages are third-party incidents</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <div class="code-block"><span class="c-gray"># Estimated cost for 1M daily active users × 500 tokens/request</span>
+<span class="c-blue">GPT-4o-mini</span>   500M tokens/day  @ $0.15/1M input   = <span class="c-green">$75/day</span>
+<span class="c-blue">GPT-4o</span>        500M tokens/day  @ $2.50/1M input   = <span class="c-yellow">$1,250/day</span>
+<span class="c-blue">Claude Sonnet</span> 500M tokens/day  @ $3.00/1M input   = <span class="c-yellow">$1,500/day</span>
+<span class="c-gray"># Always benchmark cheapest model that meets your quality bar first</span></div>
+        </div>
+
+        <!-- ── Slide 5: Self-Hosted Models ── -->
+        <div class="slide" data-notes="Ollama is the easiest on-ramp for local/dev self-hosting. vLLM is the production-grade choice — it uses PagedAttention for GPU memory efficiency and achieves much higher throughput than naive serving. Text Generation Inference (TGI, by Hugging Face) is the other common production option. Quantization (covered later) is essential on self-hosted to fit larger models into available GPU memory. Key operational skill: managing CUDA out-of-memory errors in production.">
+            <div class="slide-label">Section 2 &nbsp;·&nbsp; Infrastructure Choices</div>
+            <h2>Self-Hosted Models</h2>
+            <p>Running models on your own infrastructure gives you full data control and predictable costs at scale — at the cost of significant operational complexity.</p>
+
+            <div class="grid-3" style="margin-top:16px;">
+                <div class="card">
+                    <h4>Ollama</h4>
+                    <p>Local-first model runner. Single binary, supports most popular open models. Ideal for development, small teams, and air-gapped environments.</p>
+                    <div style="margin-top:10px; font-size:0.82rem; color:#4ade80;">Best for: Dev / Air-gap</div>
+                </div>
+                <div class="card">
+                    <h4>vLLM</h4>
+                    <p>Production inference server using <strong>PagedAttention</strong> for efficient GPU memory management. Significantly higher throughput than naive model serving.</p>
+                    <div style="margin-top:10px; font-size:0.82rem; color:#fbbf24;">Best for: High-throughput prod</div>
+                </div>
+                <div class="card">
+                    <h4>Text Generation Inference (TGI)</h4>
+                    <p>Hugging Face's production serving toolkit. Strong ecosystem integration, supports continuous batching, tensor parallelism across GPUs.</p>
+                    <div style="margin-top:10px; font-size:0.82rem; color:#7dd3fc;">Best for: HuggingFace ecosystem</div>
+                </div>
+            </div>
+
+            <div class="highlight">
+                <h4>Self-hosted cost break-even point</h4>
+                <p>A single A100 80GB GPU costs ~$3–4/hr on-demand (AWS p4d, GCP a2). At GPT-4o-mini pricing, you break even at roughly <strong>25–30M input tokens per day</strong>. Below that threshold, APIs are usually cheaper when you include ops overhead.</p>
+            </div>
+        </div>
+
+        <!-- ── Slide 6: Serverless AI ── -->
+        <div class="slide" data-notes="Serverless is attractive because you pay only for what you use and scale from zero automatically. But it introduces cold start latency — the first request after an idle period spins up a container. For AI workloads, cold starts can be 5–30 seconds, which is often unacceptable. Modal and similar GPU-serverless platforms handle this better than Lambda/Cloud Functions for compute-intensive AI, because they keep warm instances and have purpose-built GPU scheduling. Lambda is great for lightweight pre/post-processing around an API call.">
+            <div class="slide-label">Section 2 &nbsp;·&nbsp; Infrastructure Choices</div>
+            <h2>Serverless AI</h2>
+            <p>Serverless platforms eliminate infrastructure management and charge only for actual compute time. They are ideal for low-to-medium traffic with spiky patterns.</p>
+
+            <div class="grid-2" style="margin-top:16px;">
+                <div class="info-card info">
+                    <h4>AWS Lambda / GCP Cloud Functions</h4>
+                    <ul class="check-list">
+                        <li>Best for: lightweight AI orchestration, pre/post-processing</li>
+                        <li>Max runtime: 15 min (Lambda), no GPU support natively</li>
+                        <li>Cold start: 200ms–3s (Go/Python)</li>
+                        <li>Cost model: per-invocation + GB-seconds</li>
+                    </ul>
+                </div>
+                <div class="info-card" style="border-left-color: var(--orange);">
+                    <h4>Modal / RunPod / Replicate</h4>
+                    <ul class="check-list">
+                        <li>GPU-native serverless — run inference with no infra setup</li>
+                        <li>Modal keeps warm containers to reduce cold starts</li>
+                        <li>Scale to zero, scale to thousands on demand</li>
+                        <li>Cost model: GPU-seconds (A10G ~$0.31/hr billed by second)</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="info-card warning">
+                <h4>Cold start problem</h4>
+                <p>A serverless function loading a 7B model from scratch takes 15–30 seconds. Mitigation strategies: keep-warm pings, model caching at the container layer (bake model weights into the image), and hybrid routing (serverless for burst, always-on for baseline).</p>
+            </div>
+        </div>
+
+        <!-- ── Slide 7: Kubernetes + GPU Clusters ── -->
+        <div class="slide" data-notes="Kubernetes is the standard for production AI at scale. The GPU scheduling complexity is the hardest part — native Kubernetes doesn't know about GPU memory fragmentation. Key tools: NVIDIA Device Plugin for K8s, and NVIDIA MIG (Multi-Instance GPU) which lets you split one A100 into up to 7 independent GPU instances. Karpenter (AWS) or Autopilot (GKE) handle node auto-scaling for GPU pools. The Horizontal Pod Autoscaler works on custom metrics like GPU utilization or queue depth.">
+            <div class="slide-label">Section 2 &nbsp;·&nbsp; Infrastructure Choices</div>
+            <h2>Kubernetes + GPU Clusters</h2>
+            <p>For sustained high-throughput AI workloads, Kubernetes with GPU node pools provides the most flexibility — and the highest operational ceiling to clear.</p>
+
+            <!-- CSS architecture diagram -->
+            <div class="arch-diagram" style="margin-top:18px;">
+                <div class="arch-layer">
+                    <div class="arch-label">Clients</div>
+                    <div class="arch-row">
+                        <div class="arch-box layer-client">Web App</div>
+                        <div class="arch-box layer-client">Mobile</div>
+                        <div class="arch-box layer-client">API Consumers</div>
+                        <div class="arch-box layer-client">Internal Tools</div>
+                    </div>
+                </div>
+                <div class="arch-arrow">&#9660;</div>
+                <div class="arch-layer">
+                    <div class="arch-label">Gateway</div>
+                    <div class="arch-row">
+                        <div class="arch-box layer-gateway">Ingress / API Gateway (Kong, NGINX)</div>
+                        <div class="arch-box layer-gateway">Auth + Rate Limiting</div>
+                        <div class="arch-box layer-gateway">Load Balancer</div>
+                    </div>
+                </div>
+                <div class="arch-arrow">&#9660;</div>
+                <div class="arch-layer">
+                    <div class="arch-label">App Layer</div>
+                    <div class="arch-row">
+                        <div class="arch-box layer-app">AI Orchestration Pod</div>
+                        <div class="arch-box layer-app">RAG Service Pod</div>
+                        <div class="arch-box layer-app">Eval Worker Pod</div>
+                    </div>
+                </div>
+                <div class="arch-arrow">&#9660;</div>
+                <div class="arch-layer">
+                    <div class="arch-label">Model Layer</div>
+                    <div class="arch-row">
+                        <div class="arch-box layer-model">vLLM / TGI Pod (GPU Node)</div>
+                        <div class="arch-box layer-model">Embedding Service</div>
+                        <div class="arch-box layer-model">HPA (GPU utilization)</div>
+                    </div>
+                </div>
+                <div class="arch-arrow">&#9660;</div>
+                <div class="arch-layer">
+                    <div class="arch-label">Data / Obs</div>
+                    <div class="arch-row">
+                        <div class="arch-box layer-data">Vector DB</div>
+                        <div class="arch-box layer-data">Object Store (weights)</div>
+                        <div class="arch-box layer-obs">Prometheus / Grafana</div>
+                        <div class="arch-box layer-obs">Trace Collector</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ── Slide 8: Quantization & Model Optimization ── -->
+        <div class="slide" data-notes="Quantization is reducing the precision of the model's weights — from 32-bit floats to 16-bit, 8-bit, or even 4-bit integers. The tradeoff: smaller model, less GPU memory required, faster inference — at a small accuracy cost. GPTQ and AWQ are popular post-training quantization methods. GGUF is the format used by llama.cpp / Ollama for CPU-friendly quantization. Key insight: a 4-bit Llama-3 70B model fits in 40GB GPU memory — about the same as a full-precision 7B model. Speculative decoding is a different technique: use a small 'draft' model to propose tokens, then verify with the large model in parallel — huge latency wins.">
+            <div class="slide-label">Section 3 &nbsp;·&nbsp; Performance Engineering</div>
+            <h2>Quantization &amp; Model Optimization</h2>
+            <p>Running full-precision models in production is often unnecessary and expensive. These techniques reduce inference cost without significantly degrading quality.</p>
+
+            <div class="grid-2" style="margin-top:16px;">
+                <div>
+                    <h3 style="margin-top:0;">Weight Quantization</h3>
+                    <table class="comp-table">
+                        <thead>
+                            <tr><th>Precision</th><th>Memory (7B)</th><th>Quality loss</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>FP32 (full)</td><td>28 GB</td><td class="td-green">None</td></tr>
+                            <tr><td>FP16 / BF16</td><td>14 GB</td><td class="td-green">Minimal</td></tr>
+                            <tr><td>INT8 (GPTQ)</td><td>7 GB</td><td class="td-yellow">Small (~0.5%)</td></tr>
+                            <tr><td>INT4 (AWQ)</td><td>3.5 GB</td><td class="td-yellow">Moderate (~1–2%)</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div>
+                    <h3 style="margin-top:0;">Other Optimization Techniques</h3>
+                    <div class="info-card" style="margin-top:0;">
+                        <h4>Speculative Decoding</h4>
+                        <p style="font-size:0.93rem;">Draft model generates candidate tokens; large model verifies in parallel. 2–4x speedup with identical output quality.</p>
+                    </div>
+                    <div class="info-card info">
+                        <h4>Continuous Batching</h4>
+                        <p style="font-size:0.93rem;">Process multiple requests in the same forward pass. vLLM's core feature — dramatically improves GPU utilization under concurrent load.</p>
+                    </div>
+                    <div class="info-card warning">
+                        <h4>KV-Cache Optimization</h4>
+                        <p style="font-size:0.93rem;">PagedAttention (vLLM) manages KV-cache like virtual memory — eliminates memory waste from fragmentation in long-context workloads.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ── Slide 9: Caching Strategies ── -->
+        <div class="slide" data-notes="Caching is one of the highest-leverage optimizations for LLM deployments. The simplest form is exact-match caching: hash the exact prompt, return cached response. Works well for FAQ-style applications where the same prompt recurs frequently. Semantic caching is more sophisticated: embed the incoming prompt, find the nearest cached prompt by cosine similarity, return that response if similarity exceeds a threshold. GPTCache is an open-source library for this. Prefix caching (KV-cache reuse) is done at the model layer — if multiple requests share a long system prompt, the model can cache the KV state for that prefix rather than recomputing it.">
+            <div class="slide-label">Section 3 &nbsp;·&nbsp; Performance Engineering</div>
+            <h2>Caching Strategies</h2>
+            <p>AI inference is expensive. Caching correct responses and reusing computation is often the single highest-ROI optimization after model selection.</p>
+
+            <div class="grid-3" style="margin-top:16px;">
+                <div class="card">
+                    <h4>Exact-Match Cache</h4>
+                    <p>Hash the full prompt. Return cached response on hit. Effective for repetitive queries (FAQs, structured reports). Zero computation cost on cache hit.</p>
+                    <div style="margin-top:10px; font-size:0.8rem; color:var(--text-secondary);">Cache key: <code>SHA256(system + user)</code></div>
+                    <div style="margin-top:6px; font-size:0.8rem; color:#4ade80;">Hit rates: 20–60% for structured apps</div>
+                </div>
+                <div class="card">
+                    <h4>Semantic Cache</h4>
+                    <p>Embed the prompt. Find nearest neighbor in a vector store. Return cached response if similarity &gt; threshold (typically 0.97+). Catches paraphrased identical queries.</p>
+                    <div style="margin-top:10px; font-size:0.8rem; color:var(--text-secondary);">Tools: GPTCache, Redis Vector, Qdrant</div>
+                    <div style="margin-top:6px; font-size:0.8rem; color:#fbbf24;">Latency: adds ~10–30ms for lookup</div>
+                </div>
+                <div class="card">
+                    <h4>Prefix Cache (KV Reuse)</h4>
+                    <p>Cache the KV-attention state for shared prompt prefixes (long system prompts). Subsequent requests skip recomputing those tokens entirely.</p>
+                    <div style="margin-top:10px; font-size:0.8rem; color:var(--text-secondary);">Native in: vLLM, TGI, Anthropic API</div>
+                    <div style="margin-top:6px; font-size:0.8rem; color:#4ade80;">Reduces prompt cost 50–90% on repeat prefix</div>
+                </div>
+            </div>
+
+            <div class="highlight" style="margin-top:8px;">
+                <h4>Cache invalidation in AI</h4>
+                <p>Unlike deterministic APIs, AI caches must account for model version changes (a new model produces different outputs for the same prompt), user context drift, and time-sensitivity of responses. Always namespace cache keys by model version.</p>
+            </div>
+        </div>
+
+        <!-- ── Slide 10: Rate Limiting & Throttling ── -->
+        <div class="slide" data-notes="Rate limiting protects both the upstream model provider and your own infrastructure. Without it, a single runaway client or a bot can exhaust your API budget in minutes. Two planes to think about: inbound (requests coming into your system) and outbound (calls your system makes to the model API). Token-bucket and leaky-bucket are the two classic algorithms — token-bucket allows short bursts, leaky-bucket enforces a smooth output rate. For outbound rate limiting to OpenAI/Anthropic, you must also implement exponential backoff with jitter on 429 responses — do not retry immediately.">
+            <div class="slide-label">Section 3 &nbsp;·&nbsp; Performance Engineering</div>
+            <h2>Rate Limiting &amp; Throttling</h2>
+            <p>Rate limiting protects your infrastructure from abuse and protects your cost budget. AI applications have two rate-limiting planes to manage simultaneously.</p>
+
+            <div class="grid-2" style="margin-top:16px;">
+                <div class="info-card info">
+                    <h4>Inbound: Client Rate Limits</h4>
+                    <ul class="check-list">
+                        <li>Per-user or per-API-key request quotas</li>
+                        <li>Token-based limits (not just request count)</li>
+                        <li>Sliding window more user-friendly than fixed window</li>
+                        <li>Implement at gateway layer (Kong, NGINX, Envoy)</li>
+                        <li>Return 429 with <code>Retry-After</code> header</li>
+                    </ul>
+                </div>
+                <div class="info-card warning">
+                    <h4>Outbound: Provider Rate Limits</h4>
+                    <ul class="check-list">
+                        <li>OpenAI Tier system: RPM, TPM, RPD limits</li>
+                        <li>Implement exponential backoff with jitter on 429s</li>
+                        <li>Queue with priority lanes (premium users first)</li>
+                        <li>Track remaining rate limit headers per response</li>
+                        <li>Multi-key rotation for higher throughput</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="code-block"><span class="c-gray"># Exponential backoff with jitter (outbound 429 handling)</span>
+<span class="c-purple">def</span> retry_with_backoff(fn, max_retries=5):
+    <span class="c-blue">for</span> attempt <span class="c-blue">in</span> range(max_retries):
+        <span class="c-blue">try</span>:
+            <span class="c-blue">return</span> fn()
+        <span class="c-blue">except</span> RateLimitError:
+            wait = (2 ** attempt) + random.uniform(0, 1)  <span class="c-gray"># jitter</span>
+            time.sleep(min(wait, 60))                      <span class="c-gray"># cap at 60s</span>
+    <span class="c-red">raise</span> MaxRetriesExceeded()</div>
+        </div>
+
+        <!-- ── Slide 11: Monitoring & Observability ── -->
+        <div class="slide" data-notes="The classic observability pillars are logs, metrics, and traces. For AI, you need a fourth: evals. Evals are automated quality assessments of model outputs — they catch when model behavior drifts without an obvious error. LangSmith is LangChain's observability platform and captures the full chain of LLM calls with inputs/outputs. Arize Phoenix is open-source and excellent for embedding drift detection and hallucination monitoring. The most important metric to track in production is not latency or cost — it's 'did the AI actually help the user accomplish their goal'. That requires a combination of implicit signals (session length, retry rate) and explicit feedback (thumbs up/down).">
+            <div class="slide-label">Section 4 &nbsp;·&nbsp; Operations</div>
+            <h2>Monitoring &amp; Observability</h2>
+            <p>Traditional application monitoring is insufficient for AI. LLM systems require a fourth observability pillar beyond logs, metrics, and traces: <strong>evals</strong>.</p>
+
+            <div class="grid-2" style="margin-top:16px;">
+                <div>
+                    <div class="card" style="margin-bottom:16px;">
+                        <h4>Infrastructure Metrics</h4>
+                        <ul class="check-list">
+                            <li>Request latency (p50, p95, p99)</li>
+                            <li>Tokens per second (TPS) / throughput</li>
+                            <li>GPU memory utilization per node</li>
+                            <li>Cache hit rate (exact + semantic)</li>
+                            <li>Cost per request (tokens × price)</li>
+                        </ul>
+                    </div>
+                    <div class="card">
+                        <h4>AI-Specific Metrics</h4>
+                        <ul class="check-list">
+                            <li>Hallucination rate (via eval pipeline)</li>
+                            <li>Answer relevance score</li>
+                            <li>Guardrail trigger rate</li>
+                            <li>Output length distribution</li>
+                            <li>Model refusal rate</li>
+                        </ul>
+                    </div>
+                </div>
+                <div>
+                    <div class="info-card" style="margin-top:0;">
+                        <h4>LangSmith</h4>
+                        <p style="font-size:0.93rem;">LangChain's tracing platform. Captures full LLM call chains with inputs, outputs, latency, cost. Supports prompt version comparison and dataset-driven evals.</p>
+                    </div>
+                    <div class="info-card info">
+                        <h4>Arize Phoenix</h4>
+                        <p style="font-size:0.93rem;">Open-source LLM observability. Embedding drift detection, RAG retrieval quality, hallucination scoring. Connects to OpenInference traces.</p>
+                    </div>
+                    <div class="info-card success">
+                        <h4>Custom Eval Pipelines</h4>
+                        <p style="font-size:0.93rem;">Use a judge LLM (GPT-4o or Claude Sonnet) to score production outputs on correctness, relevance, and safety daily. Alert when scores drop.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ── Slide 12: A/B Testing AI Responses ── -->
+        <div class="slide" data-notes="A/B testing AI is fundamentally different from A/B testing a button color. The thing you're testing (a prompt, a model, a RAG configuration) produces different outputs for every user, and the 'correct' output is often subjective. You need both quantitative metrics (task completion, retention, cost) and qualitative evals (LLM-as-judge scores). Shadow mode is underused: route a percentage of traffic to the new model, log its outputs, but don't show them to users yet — evaluate offline before deciding to promote. This avoids exposing users to potentially worse outputs during evaluation.">
+            <div class="slide-label">Section 4 &nbsp;·&nbsp; Operations</div>
+            <h2>A/B Testing AI Responses</h2>
+            <p>A/B testing in AI is more complex than feature flags — you are evaluating non-deterministic outputs across multiple quality dimensions simultaneously.</p>
+
+            <div class="pipeline" style="margin-top:20px;">
+                <div class="pipe-step">
+                    <div class="step-num">01</div>
+                    <div class="step-name">Define Metrics</div>
+                    <div class="step-desc">Task completion, latency, cost, quality score</div>
+                </div>
+                <div class="pipe-step">
+                    <div class="step-num">02</div>
+                    <div class="step-name">Traffic Split</div>
+                    <div class="step-desc">Route % of users to variant A vs variant B</div>
+                </div>
+                <div class="pipe-step">
+                    <div class="step-num">03</div>
+                    <div class="step-name">Log Outputs</div>
+                    <div class="step-desc">Capture full prompt + response for both variants</div>
+                </div>
+                <div class="pipe-step">
+                    <div class="step-num">04</div>
+                    <div class="step-name">Eval Pipeline</div>
+                    <div class="step-desc">Judge LLM scores both variants on quality rubric</div>
+                </div>
+                <div class="pipe-step">
+                    <div class="step-num">05</div>
+                    <div class="step-name">Decide</div>
+                    <div class="step-desc">Promote, rollback, or iterate based on data</div>
+                </div>
+            </div>
+
+            <div class="grid-2" style="margin-top:4px;">
+                <div class="info-card success">
+                    <h4>Shadow Mode Testing</h4>
+                    <p style="font-size:0.93rem;">Route production traffic to both models simultaneously. Show users only the existing model's response. Evaluate the challenger's outputs offline before any promotion decision. Zero user impact during evaluation.</p>
+                </div>
+                <div class="info-card warning">
+                    <h4>Common A/B Testing Mistakes</h4>
+                    <ul class="check-list" style="font-size:0.9rem;">
+                        <li>Using only implicit signals (ignores silent failures)</li>
+                        <li>Stopping too early (LLM quality has high variance)</li>
+                        <li>Not holding model version constant in the control</li>
+                        <li>Ignoring cost as a success metric</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- ── Slide 13: Fallback & Graceful Degradation ── -->
+        <div class="slide" data-notes="AI services fail. The OpenAI API has had multiple major outages — some lasting hours. If your product has no fallback strategy, those outages become your outages. The hierarchy of fallbacks: (1) retry with exponential backoff, (2) switch to a backup model or provider, (3) serve a cached/static response, (4) degrade to a non-AI experience, (5) show a helpful error message. The key architectural principle is 'circuit breaker' pattern: after N consecutive failures, stop calling the downstream service and go directly to fallback — don't keep hammering a broken dependency.">
+            <div class="slide-label">Section 4 &nbsp;·&nbsp; Operations</div>
+            <h2>Fallback &amp; Graceful Degradation</h2>
+            <p>Production AI systems must function — or fail gracefully — when a model provider is unreachable, rate-limited, or producing poor outputs. No model has 100% uptime.</p>
+
+            <div class="arch-diagram" style="margin-top:20px;">
+                <div class="arch-layer">
+                    <div class="arch-label" style="min-width:110px;">Request</div>
+                    <div class="arch-row">
+                        <div class="arch-box layer-client">Incoming Request</div>
+                        <div class="arch-box layer-gateway">Circuit Breaker Check</div>
+                        <div class="arch-box" style="flex:0.5;"></div>
+                    </div>
+                </div>
+                <div class="arch-arrow">&#9660;</div>
+                <div class="arch-layer">
+                    <div class="arch-label" style="min-width:110px;">Tier 1</div>
+                    <div class="arch-row">
+                        <div class="arch-box layer-app">Primary Model (e.g. GPT-4o)</div>
+                        <div class="arch-box layer-neutral" style="font-size:0.75rem;">Success? Return.</div>
+                        <div class="arch-box layer-obs" style="font-size:0.75rem;">Fail? &#8594; Tier 2</div>
+                    </div>
+                </div>
+                <div class="arch-arrow">&#9660; (on failure)</div>
+                <div class="arch-layer">
+                    <div class="arch-label" style="min-width:110px;">Tier 2</div>
+                    <div class="arch-row">
+                        <div class="arch-box layer-model">Fallback Model (e.g. Claude Haiku)</div>
+                        <div class="arch-box layer-neutral" style="font-size:0.75rem;">Success? Return.</div>
+                        <div class="arch-box layer-obs" style="font-size:0.75rem;">Fail? &#8594; Tier 3</div>
+                    </div>
+                </div>
+                <div class="arch-arrow">&#9660; (on failure)</div>
+                <div class="arch-layer">
+                    <div class="arch-label" style="min-width:110px;">Tier 3</div>
+                    <div class="arch-row">
+                        <div class="arch-box layer-data">Semantic Cache Lookup</div>
+                        <div class="arch-box layer-data">Static Response / Template</div>
+                        <div class="arch-box layer-obs">Graceful Error Message</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="info-card warning" style="margin-top:8px;">
+                <h4>Circuit breaker thresholds</h4>
+                <p style="font-size:0.93rem;">Open the circuit (stop calling primary) after 5 consecutive errors or error rate &gt; 50% in a 10-second window. Re-probe with a single request every 30 seconds. Close on success.</p>
+            </div>
+        </div>
+
+        <!-- ── Slide 14: Cost Management ── -->
+        <div class="slide" data-notes="AI costs have a uniquely dangerous property: they can spike without warning. A prompt injection that causes the model to generate very long outputs, a loop in your agent that calls the API recursively, or simply a traffic surge — all can cause your OpenAI bill to spike by 100x in an hour. Hard limits (max_tokens, per-user daily budgets, emergency kill switches) are not optional. The routing pattern (use a cheap model for easy queries, expensive model only for hard ones) can cut costs 70–80% with minimal quality loss. PromptLayer and LangSmith both offer cost tracking per call.">
+            <div class="slide-label">Section 4 &nbsp;·&nbsp; Operations</div>
+            <h2>Cost Management</h2>
+            <p>AI inference costs are highly elastic — they scale directly with usage and can spike unexpectedly. Treat cost management as a first-class engineering concern from day one.</p>
+
+            <div class="grid-2" style="margin-top:16px;">
+                <div>
+                    <div class="card" style="margin-bottom:14px;">
+                        <h4>Hard Limits (Non-Negotiable)</h4>
+                        <ul class="check-list">
+                            <li>Set <code>max_tokens</code> on every API call</li>
+                            <li>Per-user daily token budget with hard cutoff</li>
+                            <li>Monthly spend alert at 50%, 80%, 100%</li>
+                            <li>Emergency kill switch per tenant/feature</li>
+                        </ul>
+                    </div>
+                    <div class="card">
+                        <h4>Cost Attribution</h4>
+                        <ul class="check-list">
+                            <li>Tag every API call with feature + user segment</li>
+                            <li>Track cost per feature, not just total cost</li>
+                            <li>Surface cost in internal dashboards weekly</li>
+                            <li>Include AI cost in product pricing model</li>
+                        </ul>
+                    </div>
+                </div>
+                <div>
+                    <div class="info-card success">
+                        <h4>Model Routing (Biggest Lever)</h4>
+                        <p style="font-size:0.93rem;">Classify query complexity before sending to model. Route simple queries (FAQ, short summaries) to GPT-4o-mini. Reserve frontier models for complex, high-value tasks only. Typical result: <strong>60–80% cost reduction</strong>.</p>
+                    </div>
+                    <div class="formula" style="padding:16px; margin-top:14px;">
+                        <div class="eq">
+                            <span class="var">Cost</span>
+                            <span class="op">=</span>
+                            (<span class="var">p_cheap</span> <span class="op">×</span> <span class="var">rate_cheap</span>)
+                            <span class="op">+</span>
+                            (<span class="var">p_expensive</span> <span class="op">×</span> <span class="var">rate_expensive</span>)
+                        </div>
+                        <p>Where p_cheap + p_expensive = 1.0 (routing probability)</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ── Slide 15: Security in Production ── -->
+        <div class="slide" data-notes="API key security is the number-one operational security failure in AI deployments. Keys committed to git repos, hardcoded in client-side JavaScript, or shared across environments are the most common root causes. Rotation policy: keys should never be older than 90 days, and must be rotated immediately on suspected compromise. Prompt filtering has two jobs: detect injection attempts (block) and detect PII in outputs (redact). Microsoft Presidio is excellent for PII detection in model outputs. Output length limits are also a security control — they prevent output amplification attacks.">
+            <div class="slide-label">Section 5 &nbsp;·&nbsp; Security &amp; Compliance</div>
+            <h2>Security in Production</h2>
+            <p>Deploying AI introduces an attack surface that traditional applications do not have. Most of these threats are preventable with disciplined operational security.</p>
+
+            <div class="grid-3" style="margin-top:16px;">
+                <div class="card">
+                    <h4>API Key Management</h4>
+                    <ul class="check-list">
+                        <li>Never hardcode keys in source code</li>
+                        <li>Use secrets managers (AWS Secrets Manager, Vault)</li>
+                        <li>Rotate keys every 90 days minimum</li>
+                        <li>Separate keys per environment (dev/staging/prod)</li>
+                        <li>Scope keys with minimum required permissions</li>
+                    </ul>
+                </div>
+                <div class="card">
+                    <h4>Prompt Filtering</h4>
+                    <ul class="check-list">
+                        <li>Block known injection patterns at gateway</li>
+                        <li>Length limits on input (prevent token stuffing)</li>
+                        <li>Detect and block PII in user input before model</li>
+                        <li>Output filtering: redact SSN/email/credit card</li>
+                        <li>Tools: Microsoft Presidio, LlamaGuard</li>
+                    </ul>
+                </div>
+                <div class="card">
+                    <h4>Network Security</h4>
+                    <ul class="check-list">
+                        <li>AI API calls from VPC private subnets only</li>
+                        <li>mTLS between internal services</li>
+                        <li>WAF in front of public AI endpoints</li>
+                        <li>Block model provider IPs from direct public access</li>
+                        <li>VPC endpoints / Private Link where available</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="info-card danger" style="margin-top:4px;">
+                <h4>Most common AI security incidents</h4>
+                <p style="font-size:0.93rem;">In order of frequency: (1) API key leaked in frontend JS or git history, (2) prompt injection via user-controlled input, (3) excessive agency — AI agent given broader tool access than needed, (4) PII exfiltration via output that wasn't filtered.</p>
+            </div>
+        </div>
+
+        <!-- ── Slide 16: Compliance ── -->
+        <div class="slide" data-notes="GDPR compliance for AI has three non-obvious requirements: (1) if you send user data to an AI API, that API provider is a data processor and you need a Data Processing Agreement (DPA) — OpenAI and Anthropic both offer these, (2) if the AI makes decisions that significantly affect individuals (credit, hiring, medical), GDPR Article 22 gives subjects the right to human review, (3) data residency — the EU AI Act and GDPR require knowing where data is processed, not just stored. Audit logging for AI means logging prompt + completion + timestamp + user ID + model version. Immutable logs in S3 with Object Lock satisfy most compliance frameworks.">
+            <div class="slide-label">Section 5 &nbsp;·&nbsp; Security &amp; Compliance</div>
+            <h2>Compliance</h2>
+            <p>AI deployments intersect with GDPR, HIPAA, SOC 2, and emerging AI-specific regulations. Compliance must be designed in — retrofitting is exponentially more expensive.</p>
+
+            <div class="grid-2" style="margin-top:16px;">
+                <div class="info-card info">
+                    <h4>GDPR Considerations</h4>
+                    <ul class="check-list">
+                        <li>Data Processing Agreement (DPA) with every AI API vendor</li>
+                        <li>Legal basis for processing (consent or legitimate interest)</li>
+                        <li>Right to erasure: can you delete user data from model context?</li>
+                        <li>Automated decision-making disclosure (Article 22)</li>
+                        <li>Data residency: verify where prompts are processed and logged</li>
+                    </ul>
+                </div>
+                <div class="info-card warning">
+                    <h4>Data Residency</h4>
+                    <ul class="check-list">
+                        <li>OpenAI: US by default; EU offering via Azure OpenAI</li>
+                        <li>Anthropic: US-East by default; EU via Bedrock</li>
+                        <li>Self-hosted eliminates residency concerns entirely</li>
+                        <li>Check if your provider logs prompts (opt-out if so)</li>
+                        <li>Document the data flow for every AI touchpoint</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="info-card success" style="margin-top:0;">
+                <h4>Audit Logging Requirements</h4>
+                <p style="font-size:0.93rem;">For every AI inference event log: timestamp, user ID (hashed if needed), model version, input token count, output token count, latency, guardrail flags triggered. Store in immutable log sink (S3 Object Lock, Splunk). Retain per regulatory requirement (typically 1–7 years).</p>
+            </div>
+
+            <div class="info-card orange" style="margin-top:0;">
+                <h4>EU AI Act (2025+)</h4>
+                <p style="font-size:0.93rem;">High-risk AI systems (credit scoring, hiring, critical infrastructure) require conformity assessments, risk management systems, and human oversight mechanisms. GPAI (general-purpose AI) models above capability thresholds must publish technical documentation.</p>
+            </div>
+        </div>
+
+        <!-- ── Slide 17: Scaling Patterns ── -->
+        <div class="slide" data-notes="The fundamental scaling challenge for AI is that inference is stateful and expensive in a way that stateless web services are not. A typical web request takes <1ms of compute. A 1000-token LLM request takes 200–2000ms of GPU compute. You can't just spin up 100x more instances and handle 100x more traffic — GPU availability has a lead time, and GPU memory sets a hard limit on batch size. Event-driven (queue-based) architecture is the right pattern: requests go into a queue, GPU workers pull from the queue. This decouples request arrival rate from processing rate and smooths out spikes. Autoscaling triggers: queue depth is a better signal than CPU for AI workers.">
+            <div class="slide-label">Section 6 &nbsp;·&nbsp; Scaling</div>
+            <h2>Scaling Patterns</h2>
+            <p>AI inference scales differently from traditional web services. GPU availability and memory constraints require architecture decisions that typical auto-scaling ignores.</p>
+
+            <div class="grid-3" style="margin-top:16px;">
+                <div class="card">
+                    <h4>Horizontal Scaling</h4>
+                    <p>Add more model-serving replicas. Each replica needs its own GPU(s). Works well with stateless inference. <strong>Bottleneck</strong>: GPU availability and lead time (hours to days for cloud GPU instances).</p>
+                    <div style="margin-top:10px;">
+                        <div class="scale-bar" style="width:85%;"></div>
+                        <div style="font-size:0.78rem; color:var(--text-secondary);">Best for: sustained high throughput</div>
+                    </div>
+                </div>
+                <div class="card">
+                    <h4>Vertical Scaling</h4>
+                    <p>Move to larger GPU instances (A10G &#8594; A100 &#8594; H100). Larger memory allows larger batch sizes = better GPU utilization. <strong>Ceiling</strong>: H100 80GB is currently the largest single-GPU option.</p>
+                    <div style="margin-top:10px;">
+                        <div class="scale-bar" style="width:55%;"></div>
+                        <div style="font-size:0.78rem; color:var(--text-secondary);">Best for: large model fitting</div>
+                    </div>
+                </div>
+                <div class="card">
+                    <h4>Queue-Driven Auto-Scale</h4>
+                    <p>Requests enter a work queue. GPU workers pull from queue. Autoscale worker count based on queue depth, not CPU/RAM. This is the correct pattern for AI inference under variable load.</p>
+                    <div style="margin-top:10px;">
+                        <div class="scale-bar" style="width:95%;"></div>
+                        <div style="font-size:0.78rem; color:var(--text-secondary);">Best for: production AI workloads</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="highlight" style="margin-top:8px;">
+                <h4>Scale-to-zero for cost efficiency</h4>
+                <p>For workloads with predictable off-hours (internal tools, batch jobs), scale GPU workers to zero overnight. Use a warm-up probe to spin up before business hours. Combine with serverless burst capacity for unexpected spikes.</p>
+            </div>
+        </div>
+
+        <!-- ── Slide 18: CI/CD for AI ── -->
+        <div class="slide" data-notes="Traditional CI/CD catches syntax errors and logical regressions in deterministic code. For AI systems, you need an eval pipeline in CI: run your eval suite against the new prompt or model change, compare scores to baseline, fail the PR if quality drops below threshold. Prompt versioning is critical — treat prompts as code. Store them in git with semantic versioning. The eval-as-gate pattern: your CI pipeline calls the model with a fixed eval dataset, scores responses with a judge model, and only allows merge if the mean score meets the quality bar. This prevents regressions from silently shipping.">
+            <div class="slide-label">Section 6 &nbsp;·&nbsp; Scaling</div>
+            <h2>CI/CD for AI</h2>
+            <p>Shipping changes to AI systems requires continuous evaluation pipelines, not just unit tests. Every prompt change, model update, or RAG configuration change must be evaluated before merge.</p>
+
+            <div class="pipeline" style="margin-top:20px;">
+                <div class="pipe-step">
+                    <div class="step-num">PR Opened</div>
+                    <div class="step-name">Prompt / Model Change</div>
+                    <div class="step-desc">Change to prompt, RAG config, model version</div>
+                </div>
+                <div class="pipe-step">
+                    <div class="step-num">CI Trigger</div>
+                    <div class="step-name">Eval Dataset Run</div>
+                    <div class="step-desc">Run fixed golden dataset against new config</div>
+                </div>
+                <div class="pipe-step">
+                    <div class="step-num">Judge LLM</div>
+                    <div class="step-name">Score Responses</div>
+                    <div class="step-desc">Correctness, relevance, safety scored automatically</div>
+                </div>
+                <div class="pipe-step">
+                    <div class="step-num">Gate Check</div>
+                    <div class="step-name">Pass / Fail</div>
+                    <div class="step-desc">Score delta vs baseline; fail if regression detected</div>
+                </div>
+                <div class="pipe-step">
+                    <div class="step-num">Deploy</div>
+                    <div class="step-name">Canary Release</div>
+                    <div class="step-desc">5% &#8594; 25% &#8594; 100% traffic rollout</div>
+                </div>
+            </div>
+
+            <div class="grid-2" style="margin-top:4px;">
+                <div class="info-card success">
+                    <h4>Prompt Versioning</h4>
+                    <p style="font-size:0.93rem;">Store all prompts in version control as plain files or YAML. Tag versions with semantic versioning. Never edit production prompts directly — all changes go through PR + eval gate.</p>
+                    <div style="margin-top:8px; font-family:monospace; font-size:0.82rem; color:var(--accent-light);">prompts/summarize.v2.3.yaml</div>
+                </div>
+                <div class="info-card info">
+                    <h4>Eval Dataset Management</h4>
+                    <p style="font-size:0.93rem;">Golden evals should be curated by domain experts, not auto-generated. Add new cases when production incidents occur. Target: 200–500 eval examples per major use case for statistical significance.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- ── Slide 19: Real-World Architecture ── -->
+        <div class="slide" data-notes="This is the full production stack for a RAG-based AI application serving real users. Walk through each layer from top to bottom. The key point: every layer has a dedicated responsibility and can be scaled, replaced, or swapped independently. The observability layer is horizontal — it touches every other layer. The eval pipeline runs asynchronously and feeds back into the prompt repository. Most teams build this incrementally — they start with just the App Layer calling the Model Layer, and add the other layers as they scale and encounter problems.">
+            <div class="slide-label">Section 7 &nbsp;·&nbsp; Reference Architecture</div>
+            <h2>Real-World Production Architecture</h2>
+            <p>A complete AI deployment stack for a RAG-based application at production scale. Each layer has an independent scaling and failure domain.</p>
+
+            <div class="arch-diagram" style="margin-top:14px;">
+                <div class="arch-layer">
+                    <div class="arch-label" style="font-size:0.65rem;">Clients</div>
+                    <div class="arch-row">
+                        <div class="arch-box layer-client">Web / Mobile</div>
+                        <div class="arch-box layer-client">Partner APIs</div>
+                        <div class="arch-box layer-client">Internal Tools</div>
+                    </div>
+                </div>
+                <div class="arch-arrow">&#9660;</div>
+                <div class="arch-layer">
+                    <div class="arch-label" style="font-size:0.65rem;">Gateway</div>
+                    <div class="arch-row">
+                        <div class="arch-box layer-gateway">Auth (JWT / API Key)</div>
+                        <div class="arch-box layer-gateway">Rate Limiter</div>
+                        <div class="arch-box layer-gateway">Prompt Filter / WAF</div>
+                        <div class="arch-box layer-gateway">Cache Layer (Redis)</div>
+                    </div>
+                </div>
+                <div class="arch-arrow">&#9660;</div>
+                <div class="arch-layer">
+                    <div class="arch-label" style="font-size:0.65rem;">Orchestration</div>
+                    <div class="arch-row">
+                        <div class="arch-box layer-app">Query Classifier</div>
+                        <div class="arch-box layer-app">RAG Retrieval</div>
+                        <div class="arch-box layer-app">Context Builder</div>
+                        <div class="arch-box layer-app">Model Router</div>
+                    </div>
+                </div>
+                <div class="arch-arrow">&#9660;</div>
+                <div class="arch-layer">
+                    <div class="arch-label" style="font-size:0.65rem;">Inference</div>
+                    <div class="arch-row">
+                        <div class="arch-box layer-model">Primary Model</div>
+                        <div class="arch-box layer-model">Fallback Model</div>
+                        <div class="arch-box layer-model">Embedding Service</div>
+                        <div class="arch-box layer-model">Reranker</div>
+                    </div>
+                </div>
+                <div class="arch-arrow">&#9660;</div>
+                <div class="arch-layer">
+                    <div class="arch-label" style="font-size:0.65rem;">Data</div>
+                    <div class="arch-row">
+                        <div class="arch-box layer-data">Vector DB (Qdrant)</div>
+                        <div class="arch-box layer-data">Document Store</div>
+                        <div class="arch-box layer-data">Model Weights (S3)</div>
+                    </div>
+                </div>
+                <div class="arch-arrow">&#9660;</div>
+                <div class="arch-layer">
+                    <div class="arch-label" style="font-size:0.65rem;">Observability</div>
+                    <div class="arch-row">
+                        <div class="arch-box layer-obs">Traces (LangSmith)</div>
+                        <div class="arch-box layer-obs">Metrics (Prometheus)</div>
+                        <div class="arch-box layer-obs">Eval Pipeline (nightly)</div>
+                        <div class="arch-box layer-obs">Cost Dashboard</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ── Slide 20: Key Takeaways ── -->
+        <div class="slide" data-notes="Summarize the key decisions and principles: start API-first and self-host only when scale or compliance demand it; build observability from day one not as an afterthought; treat cost as a first-class product metric; design your fallback path before your happy path; put AI changes through an eval pipeline just like code changes go through tests. The teams that succeed in production AI are not the ones with the best model — they are the ones with the best operational practices around whatever model they deploy.">
+            <div class="slide-label">Section 7 &nbsp;·&nbsp; Wrap-Up</div>
+            <h2>Key Takeaways</h2>
+
+            <ul class="takeaway-list" style="margin-top:18px;">
+                <li>
+                    <span class="marker">01</span>
+                    <span class="text"><strong>Start API-first.</strong> Managed APIs minimize time-to-production. Migrate to self-hosted only when token volume exceeds ~25M/day or data residency demands it — not before.</span>
+                </li>
+                <li>
+                    <span class="marker">02</span>
+                    <span class="text"><strong>Observability is not optional.</strong> Standard APM is insufficient for AI. You need evals, LLM traces, cost attribution, and quality metrics from the first production request.</span>
+                </li>
+                <li>
+                    <span class="marker">03</span>
+                    <span class="text"><strong>Design your fallback path before your happy path.</strong> Circuit breakers, model fallbacks, and cached responses must be in place before launch — not added after the first outage.</span>
+                </li>
+                <li>
+                    <span class="marker">04</span>
+                    <span class="text"><strong>Treat prompts as code.</strong> Version-control every prompt, require eval-gated PRs for prompt changes, and maintain a golden eval dataset that grows with every production incident.</span>
+                </li>
+                <li>
+                    <span class="marker">05</span>
+                    <span class="text"><strong>Cost is a product metric.</strong> Set hard token budgets, alert at 80% spend, and route cheap queries to cheap models. Model routing alone can cut AI infrastructure cost by 60–80%.</span>
+                </li>
+                <li>
+                    <span class="marker">06</span>
+                    <span class="text"><strong>Compliance must be designed in.</strong> DPAs, audit logs, data residency, and PII filtering cannot be retrofitted at scale. Address them in the architecture phase, not after a regulatory audit.</span>
+                </li>
+            </ul>
+        </div>
+
+        <!-- ── Slide 21: Completion ── -->
+        <div class="slide" data-notes="End of presentation. Encourage learners to review the architecture diagram on the previous slide and think about which components their current or next project is missing. The most common gaps: no eval pipeline, no fallback strategy, and no cost attribution.">
+            <div class="end-center">
+                <div class="title-pill">Presentation Complete</div>
+                <h1><span class="accent">AI Deployment</span><br><span style="font-weight:200; font-size:1.9rem;">Prototype to Production</span></h1>
+                <p class="title-tagline">You have covered the full deployment lifecycle: infrastructure choices, performance engineering, operations, security, compliance, scaling, and CI/CD for AI systems.</p>
+
+                <div style="display:flex; gap:18px; justify-content:center; flex-wrap:wrap; margin-top:10px;">
+                    <div class="card" style="min-width:140px; text-align:center;">
+                        <div style="font-size:1.4rem; color:var(--accent-light); margin-bottom:5px;">7</div>
+                        <div style="font-size:0.8rem; color:var(--text-secondary);">Sections covered</div>
+                    </div>
+                    <div class="card" style="min-width:140px; text-align:center;">
+                        <div style="font-size:1.4rem; color:var(--accent-light); margin-bottom:5px;">20</div>
+                        <div style="font-size:0.8rem; color:var(--text-secondary);">Slides completed</div>
+                    </div>
+                    <div class="card" style="min-width:140px; text-align:center;">
+                        <div style="font-size:1.4rem; color:#4ade80; margin-bottom:5px;">Ready</div>
+                        <div style="font-size:0.8rem; color:var(--text-secondary);">To mark complete</div>
+                    </div>
+                </div>
+
+                <button class="complete-btn" id="completeBtn" onclick="completeModule()">
+                    Mark as Complete
+                </button>
+
+                <div style="margin-top:20px; display:flex; gap:14px; justify-content:center;">
+                    <a href="../index.html"
+                       style="padding:9px 22px; font-size:0.9rem; border:1px solid var(--border); border-radius:8px; color:var(--text-secondary); text-decoration:none; transition:all 0.2s;"
+                       onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent-light)';"
+                       onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text-secondary)';">
+                        &#8592; Back to AI House
+                    </a>
+                </div>
+            </div>
+        </div>
+
+    </div><!-- .presentation -->
+
+    <!-- ── Speaker notes panel ── -->
+    <div class="notes-panel" id="notesPanel" role="complementary" aria-label="Speaker notes">
+        <div class="notes-header">
+            <span class="notes-label">Speaker Notes</span>
+            <button class="notes-close" onclick="toggleNotes()" aria-label="Close notes">Close (N)</button>
+        </div>
+        <div class="notes-text" id="notesText"></div>
+    </div>
+
+    <!-- ── Bottom navigation ── -->
+    <div class="controls" role="navigation" aria-label="Slide navigation">
+        <button class="nav-btn" id="prevBtn" onclick="changeSlide(-1)" disabled>&#8592; Prev</button>
+        <span class="slide-counter" id="counterLabel" aria-live="polite">1 / 21</span>
+        <button class="nav-btn" id="nextBtn" onclick="changeSlide(1)">Next &#8594;</button>
+    </div>
+
+    <script>
+        // ── State ──────────────────────────────────────────────────────────────
+        var currentSlide = 0;
+        var notesVisible = false;
+        var slideDirection = 'forward'; // track direction for animation
+        var slides = document.querySelectorAll('.slide');
+        var totalSlides = slides.length;
+
+        // Update the total badge from actual DOM count
+        document.getElementById('slideTotal').textContent = totalSlides;
+        document.getElementById('counterLabel').textContent = '1 / ' + totalSlides;
+
+        // ── Show slide ─────────────────────────────────────────────────────────
+        function showSlide(n) {
+            // Clamp to valid range
+            n = Math.max(0, Math.min(n, totalSlides - 1));
+
+            var previousSlide = currentSlide;
+
+            // Remove active from all slides
+            slides.forEach(function(s) {
+                s.classList.remove('active');
+                s.classList.remove('reverse');
+            });
+
+            currentSlide = n;
+            slides[currentSlide].classList.add('active');
+
+            // Apply reverse animation class when going backwards
+            if (n < previousSlide) {
+                slides[currentSlide].classList.add('reverse');
+            }
+
+            // Progress bar (percentage of slides viewed)
+            var pct = ((currentSlide + 1) / totalSlides) * 100;
+            document.getElementById('progressBar').style.width = pct + '%';
+
+            // Update slide counter
+            document.getElementById('slideNum').textContent = currentSlide + 1;
+            document.getElementById('counterLabel').textContent = (currentSlide + 1) + ' / ' + totalSlides;
+
+            // Prev button state
+            document.getElementById('prevBtn').disabled = (currentSlide === 0);
+
+            // Hide Next on last slide (completion button serves that role)
+            var isLast = (currentSlide === totalSlides - 1);
+            document.getElementById('nextBtn').style.display = isLast ? 'none' : '';
+
+            // Update speaker notes content
+            updateNotes();
+
+            // Scroll slide to top on each navigation
+            slides[currentSlide].scrollTop = 0;
+        }
+
+        function changeSlide(direction) {
+            showSlide(currentSlide + direction);
+        }
+
+        // ── Speaker notes ──────────────────────────────────────────────────────
+        function updateNotes() {
+            var notesText = slides[currentSlide].getAttribute('data-notes') || 'No speaker notes for this slide.';
+            document.getElementById('notesText').textContent = notesText;
+        }
+
+        function toggleNotes() {
+            notesVisible = !notesVisible;
+            var panel = document.getElementById('notesPanel');
+            if (notesVisible) {
+                panel.classList.add('visible');
+                updateNotes();
+            } else {
+                panel.classList.remove('visible');
+            }
+        }
+
+        // ── Keyboard navigation ────────────────────────────────────────────────
+        document.addEventListener('keydown', function(e) {
+            // Don't intercept when typing in an input or textarea
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') { return; }
+
+            switch (e.key) {
+                case 'ArrowRight':
+                case 'ArrowDown':
+                    e.preventDefault();
+                    if (currentSlide < totalSlides - 1) { changeSlide(1); }
+                    break;
+                case 'ArrowLeft':
+                case 'ArrowUp':
+                    e.preventDefault();
+                    if (currentSlide > 0) { changeSlide(-1); }
+                    break;
+                case ' ':
+                    // Space bar advances forward
+                    e.preventDefault();
+                    if (currentSlide < totalSlides - 1) { changeSlide(1); }
+                    break;
+                case 'n':
+                case 'N':
+                    // Toggle speaker notes
+                    toggleNotes();
+                    break;
+                case 'Home':
+                    showSlide(0);
+                    break;
+                case 'End':
+                    showSlide(totalSlides - 1);
+                    break;
+                case 'Escape':
+                    // Close notes panel if open
+                    if (notesVisible) { toggleNotes(); }
+                    break;
+            }
+        });
+
+        // ── Module completion ──────────────────────────────────────────────────
+        function completeModule() {
+            var btn = document.getElementById('completeBtn');
+            btn.disabled = true;
+            btn.textContent = 'Completing...';
+
+            if (typeof ModuleProgress !== 'undefined') {
+                ModuleProgress.complete('ai', 'ai-deployment-presentation', {
+                    returnUrl: '../index.html'
+                });
+            } else {
+                // Fallback: navigate back to AI House index
+                setTimeout(function() {
+                    window.location.href = '../index.html';
+                }, 800);
+            }
+        }
+
+        // ── Initialize ─────────────────────────────────────────────────────────
+        showSlide(0);
+
+        // Fade out the keyboard hint after 4 seconds
+        setTimeout(function() {
+            var hint = document.getElementById('notesHint');
+            if (hint) { hint.style.opacity = '0'; }
+        }, 4000);
+    </script>
+
+    <script src="../../../components/FluxCapacitor.js"></script>
+</body>
+</html>
