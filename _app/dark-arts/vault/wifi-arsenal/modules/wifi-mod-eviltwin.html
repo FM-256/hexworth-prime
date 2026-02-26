@@ -1,0 +1,1509 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('dark-arts');</script>
+    <!-- Progress & Achievements -->
+    <script src="../../../../../components/AchievementManager.js"></script>
+    <script src="../../../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WiFi Arsenal Module 06: Evil Twin &amp; Credential Harvesting - The Vault</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            min-height: 100vh;
+            background: #0a0508;
+            font-family: 'Georgia', 'Times New Roman', serif;
+            color: #8a6a9a;
+            line-height: 1.7;
+            overflow-x: hidden;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background:
+                radial-gradient(ellipse at 15% 40%, rgba(80, 40, 100, 0.08) 0%, transparent 50%),
+                radial-gradient(ellipse at 85% 60%, rgba(60, 20, 80, 0.06) 0%, transparent 50%);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .scroll-progress {
+            position: fixed; top: 0; left: 0;
+            height: 3px;
+            background: linear-gradient(90deg, #9333ea, #a855f7);
+            z-index: 200; transition: width 0.1s linear; width: 0%;
+        }
+
+        .module-header {
+            background: rgba(10, 5, 15, 0.95);
+            border-bottom: 1px solid rgba(100, 60, 130, 0.2);
+            padding: 18px 40px;
+            display: flex; justify-content: space-between; align-items: center;
+            position: sticky; top: 0; z-index: 100;
+            backdrop-filter: blur(10px);
+        }
+
+        .header-left { display: flex; align-items: center; gap: 15px; }
+
+        .back-btn {
+            background: rgba(80, 40, 100, 0.2);
+            border: 1px solid rgba(100, 60, 130, 0.3);
+            color: #9a7aaa; padding: 7px 14px; border-radius: 4px;
+            font-size: 0.8rem; text-decoration: none;
+            transition: all 0.3s ease; font-family: 'Georgia', serif;
+        }
+
+        .back-btn:hover {
+            background: rgba(100, 60, 130, 0.3);
+            border-color: rgba(147, 51, 234, 0.5); color: #c4a0d8;
+        }
+
+        .module-label { font-size: 0.75rem; color: #6a4a7a; letter-spacing: 0.2em; text-transform: uppercase; }
+
+        .header-right { display: flex; align-items: center; gap: 12px; font-size: 0.75rem; color: #6a4a7a; }
+
+        .progress-bar-mini {
+            width: 120px; height: 4px;
+            background: rgba(60, 30, 80, 0.3); border-radius: 2px; overflow: hidden;
+        }
+
+        .progress-bar-mini .fill {
+            height: 100%; background: linear-gradient(90deg, #9333ea, #a855f7);
+            width: 0%; transition: width 0.5s ease;
+        }
+
+        .module-content {
+            max-width: 1100px; margin: 0 auto; padding: 40px;
+            position: relative; z-index: 10;
+        }
+
+        .intro-section { text-align: center; padding: 50px 0 60px; }
+
+        .intro-icon {
+            font-size: 3.5rem; margin-bottom: 20px;
+            filter: drop-shadow(0 0 20px rgba(147, 51, 234, 0.3));
+        }
+
+        .intro-title { font-size: 2.4rem; color: #c4a0d8; margin-bottom: 12px; font-weight: 400; letter-spacing: 0.05em; }
+        .intro-meta { font-size: 0.75rem; color: #6a4a7a; letter-spacing: 0.25em; text-transform: uppercase; margin-bottom: 20px; }
+        .intro-subtitle { font-size: 1rem; color: #8a6a9a; max-width: 720px; margin: 0 auto; line-height: 1.8; }
+
+        .module-stats { display: flex; justify-content: center; gap: 25px; margin-top: 30px; flex-wrap: wrap; }
+
+        .stat-pill {
+            padding: 8px 18px;
+            background: rgba(60, 30, 80, 0.15);
+            border: 1px solid rgba(100, 60, 130, 0.2);
+            border-radius: 20px; font-size: 0.75rem; color: #7a5a8a; letter-spacing: 0.1em;
+        }
+
+        .section {
+            margin-bottom: 80px; opacity: 0; transform: translateY(30px);
+            transition: opacity 0.6s ease, transform 0.6s ease;
+        }
+
+        .section.visible { opacity: 1; transform: translateY(0); }
+
+        .section-number { font-size: 0.65rem; color: #6a4a7a; letter-spacing: 0.35em; text-transform: uppercase; margin-bottom: 8px; }
+
+        .section-title {
+            font-size: 1.9rem; color: #c4a0d8; margin-bottom: 20px; font-weight: 400;
+            display: flex; align-items: center; gap: 15px;
+            border-bottom: 1px solid rgba(100, 60, 130, 0.15); padding-bottom: 15px;
+        }
+
+        .section-icon { font-size: 1.6rem; opacity: 0.75; }
+
+        .section-body { color: #a080b0; font-size: 0.97rem; }
+        .section-body p { margin-bottom: 16px; }
+        .section-body ul { list-style: none; padding-left: 20px; margin-bottom: 16px; }
+        .section-body li { margin-bottom: 10px; position: relative; padding-left: 20px; }
+        .section-body li::before { content: '▸'; position: absolute; left: 0; color: #7a5a8a; }
+
+        /* Standards table */
+        .standards-table {
+            width: 100%; border-collapse: collapse; margin: 24px 0; font-size: 0.87rem;
+        }
+
+        .standards-table th {
+            background: rgba(40, 20, 60, 0.5); color: #c4a0d8; padding: 12px 16px;
+            text-align: left; font-weight: normal; letter-spacing: 0.1em;
+            font-size: 0.78rem; text-transform: uppercase;
+            border-bottom: 1px solid rgba(100, 60, 130, 0.2);
+        }
+
+        .standards-table td {
+            padding: 12px 16px; color: #9a7aaa;
+            border-bottom: 1px solid rgba(100, 60, 130, 0.08); vertical-align: top;
+        }
+
+        .standards-table tr:hover td { background: rgba(40, 20, 60, 0.2); }
+        .standards-table .std-name { color: #c4a0d8; font-family: 'Courier New', monospace; font-size: 0.9rem; }
+
+        .badge {
+            display: inline-block; padding: 2px 8px; border-radius: 10px;
+            font-size: 0.65rem; letter-spacing: 0.08em; text-transform: uppercase;
+        }
+
+        .badge-legacy { background: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.3); }
+        .badge-weak { background: rgba(234, 179, 8, 0.15); color: #facc15; border: 1px solid rgba(234, 179, 8, 0.3); }
+        .badge-current { background: rgba(34, 197, 94, 0.15); color: #4ade80; border: 1px solid rgba(34, 197, 94, 0.3); }
+        .badge-latest { background: rgba(147, 51, 234, 0.2); color: #c084fc; border: 1px solid rgba(147, 51, 234, 0.3); }
+
+        .concept-grid {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 18px; margin: 28px 0;
+        }
+
+        .concept-card {
+            background: rgba(15, 8, 20, 0.6);
+            border: 1px solid rgba(100, 60, 130, 0.15);
+            border-radius: 8px; padding: 22px; transition: all 0.3s ease;
+        }
+
+        .concept-card:hover {
+            transform: translateY(-4px); border-color: rgba(147, 51, 234, 0.35);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+        }
+
+        .concept-card-icon { font-size: 1.8rem; margin-bottom: 12px; }
+        .concept-card-title { font-size: 1rem; color: #c4a0d8; margin-bottom: 8px; }
+        .concept-card-body { font-size: 0.85rem; color: #8a6a9a; line-height: 1.6; }
+
+        .concept-tag {
+            display: inline-block; margin-top: 10px; padding: 3px 10px;
+            background: rgba(80, 40, 100, 0.3); border-radius: 12px;
+            font-size: 0.65rem; color: #9333ea; letter-spacing: 0.1em; text-transform: uppercase;
+        }
+
+        .callout {
+            border-radius: 8px; padding: 20px 24px; margin: 24px 0;
+            display: flex; gap: 16px; align-items: flex-start;
+        }
+
+        .callout-info { background: rgba(40, 20, 60, 0.4); border-left: 3px solid #9333ea; }
+        .callout-warning { background: rgba(60, 40, 10, 0.4); border-left: 3px solid #ca8a04; }
+        .callout-danger { background: rgba(60, 20, 20, 0.4); border-left: 3px solid #dc2626; }
+        .callout-tip { background: rgba(20, 50, 30, 0.4); border-left: 3px solid #16a34a; }
+
+        .callout-icon { font-size: 1.3rem; flex-shrink: 0; margin-top: 1px; }
+        .callout-title { font-size: 0.8rem; letter-spacing: 0.15em; text-transform: uppercase; margin-bottom: 6px; }
+        .callout-info .callout-title { color: #a855f7; }
+        .callout-warning .callout-title { color: #eab308; }
+        .callout-danger .callout-title { color: #ef4444; }
+        .callout-tip .callout-title { color: #22c55e; }
+        .callout-text { font-size: 0.9rem; color: #9a7aaa; line-height: 1.65; }
+
+        .detail-section {
+            border: 1px solid rgba(100, 60, 130, 0.15); border-radius: 8px;
+            margin: 12px 0; overflow: hidden;
+        }
+
+        .detail-header {
+            padding: 16px 20px; background: rgba(15, 8, 20, 0.6);
+            cursor: pointer; display: flex; justify-content: space-between; align-items: center;
+            transition: background 0.3s ease; user-select: none;
+        }
+
+        .detail-header:hover { background: rgba(40, 20, 60, 0.5); }
+
+        .detail-header-left { display: flex; align-items: center; gap: 12px; }
+        .detail-header-icon { font-size: 1rem; opacity: 0.75; }
+        .detail-header-title { font-size: 0.95rem; color: #c4a0d8; }
+        .detail-header-subtitle { font-size: 0.75rem; color: #6a4a7a; margin-top: 2px; }
+        .detail-toggle { color: #7a5a8a; font-size: 0.8rem; transition: transform 0.3s ease; }
+        .detail-toggle.open { transform: rotate(180deg); }
+
+        .detail-body {
+            display: none; padding: 20px 24px; background: rgba(10, 5, 15, 0.4);
+            border-top: 1px solid rgba(100, 60, 130, 0.1);
+            color: #9a7aaa; font-size: 0.9rem; line-height: 1.7;
+        }
+
+        .detail-body.open { display: block; }
+        .detail-body p { margin-bottom: 12px; }
+        .detail-body ul { list-style: none; padding-left: 20px; }
+        .detail-body li { margin-bottom: 8px; position: relative; padding-left: 18px; }
+        .detail-body li::before { content: '▸'; position: absolute; left: 0; color: #7a5a8a; }
+
+        /* Tool cards */
+        .tool-grid {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 16px; margin: 20px 0;
+        }
+
+        .tool-card {
+            background: rgba(15, 8, 20, 0.6);
+            border: 1px solid rgba(100, 60, 130, 0.15);
+            border-radius: 8px; padding: 20px; transition: all 0.3s ease;
+        }
+
+        .tool-card:hover { border-color: rgba(147, 51, 234, 0.3); }
+
+        .tool-name {
+            font-size: 0.95rem; color: #c4a0d8; margin-bottom: 4px;
+            font-family: 'Courier New', monospace;
+        }
+
+        .tool-role {
+            font-size: 0.68rem; color: #9333ea; letter-spacing: 0.12em;
+            text-transform: uppercase; margin-bottom: 10px;
+        }
+
+        .tool-desc { font-size: 0.84rem; color: #8a6a9a; line-height: 1.6; }
+
+        .code-block {
+            background: rgba(5, 2, 10, 0.8);
+            border: 1px solid rgba(100, 60, 130, 0.2);
+            border-radius: 6px; padding: 16px 20px; margin: 16px 0;
+            font-family: 'Courier New', monospace; font-size: 0.84rem;
+            color: #b090c0; overflow-x: auto; line-height: 1.6;
+        }
+
+        .code-block .kw { color: #a855f7; }
+        .code-block .str { color: #86efac; }
+        .code-block .comment { color: #6a4a7a; font-style: italic; }
+        .code-block .flag { color: #fbbf24; }
+        .code-block .out { color: #7dd3fc; }
+
+        .two-col {
+            display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin: 20px 0;
+        }
+
+        .col-card {
+            background: rgba(15, 8, 20, 0.6);
+            border: 1px solid rgba(100, 60, 130, 0.15); border-radius: 8px; padding: 22px;
+        }
+
+        .col-card h3 {
+            font-size: 1rem; color: #c4a0d8; margin-bottom: 12px;
+            display: flex; align-items: center; gap: 8px;
+        }
+
+        .col-card ul { list-style: none; padding: 0; }
+        .col-card li {
+            font-size: 0.88rem; color: #8a6a9a; padding: 6px 0;
+            border-bottom: 1px solid rgba(100, 60, 130, 0.08);
+            display: flex; align-items: flex-start; gap: 8px;
+        }
+        .col-card li:last-child { border-bottom: none; }
+        .li-marker { color: #9333ea; flex-shrink: 0; }
+
+        /* Attack flow steps */
+        .flow-steps {
+            display: flex; flex-direction: column; gap: 0; margin: 28px 0;
+            position: relative;
+        }
+
+        .flow-step {
+            display: flex; gap: 20px; position: relative;
+            padding-bottom: 32px;
+        }
+
+        .flow-step:last-child { padding-bottom: 0; }
+
+        .flow-step-left {
+            display: flex; flex-direction: column; align-items: center; flex-shrink: 0;
+        }
+
+        .flow-step-num {
+            width: 36px; height: 36px; border-radius: 50%;
+            background: rgba(80, 40, 100, 0.4); border: 1px solid rgba(147, 51, 234, 0.4);
+            display: flex; align-items: center; justify-content: center;
+            font-size: 0.8rem; color: #a855f7; font-family: 'Courier New', monospace;
+            flex-shrink: 0; z-index: 1;
+        }
+
+        .flow-step-line {
+            width: 1px; flex: 1; min-height: 20px;
+            background: linear-gradient(to bottom, rgba(147, 51, 234, 0.3), rgba(100, 60, 130, 0.1));
+            margin-top: 4px;
+        }
+
+        .flow-step:last-child .flow-step-line { display: none; }
+
+        .flow-step-content {
+            flex: 1; background: rgba(15, 8, 20, 0.6);
+            border: 1px solid rgba(100, 60, 130, 0.15); border-radius: 8px; padding: 20px;
+            transition: all 0.3s ease;
+        }
+
+        .flow-step-content:hover { border-color: rgba(147, 51, 234, 0.3); }
+
+        .flow-step-title { font-size: 1rem; color: #c4a0d8; margin-bottom: 8px; }
+        .flow-step-body { font-size: 0.87rem; color: #8a6a9a; line-height: 1.65; }
+        .flow-step-tech {
+            margin-top: 10px; padding: 10px 14px;
+            background: rgba(5, 2, 10, 0.6); border-radius: 4px;
+            font-family: 'Courier New', monospace; font-size: 0.78rem; color: #9a7aaa;
+            border-left: 2px solid rgba(147, 51, 234, 0.3);
+        }
+
+        /* Severity / risk badges */
+        .severity-badge {
+            display: inline-block; padding: 2px 10px; border-radius: 12px;
+            font-size: 0.65rem; letter-spacing: 0.1em; text-transform: uppercase;
+        }
+
+        .sev-critical { background: rgba(220, 38, 38, 0.2); color: #ef4444; border: 1px solid rgba(220, 38, 38, 0.3); }
+        .sev-high { background: rgba(249, 115, 22, 0.2); color: #fb923c; border: 1px solid rgba(249, 115, 22, 0.3); }
+        .sev-medium { background: rgba(202, 138, 4, 0.2); color: #eab308; border: 1px solid rgba(202, 138, 4, 0.3); }
+
+        .discussion-section {
+            background: linear-gradient(135deg, rgba(40, 20, 60, 0.3), rgba(30, 15, 50, 0.4));
+            border: 1px solid rgba(100, 60, 130, 0.25); border-radius: 10px; padding: 30px; margin: 40px 0;
+        }
+
+        .discussion-title {
+            font-size: 1.1rem; color: #c4a0d8; margin-bottom: 20px;
+            display: flex; align-items: center; gap: 10px;
+        }
+
+        .prompt-list { list-style: none; padding: 0; }
+
+        .prompt-item {
+            padding: 14px 18px; background: rgba(15, 8, 20, 0.5);
+            border: 1px solid rgba(100, 60, 130, 0.12); border-radius: 6px;
+            margin-bottom: 10px; font-size: 0.9rem; color: #9a7aaa;
+            line-height: 1.6; display: flex; gap: 12px;
+        }
+
+        .prompt-num {
+            color: #9333ea; font-size: 0.8rem;
+            font-family: 'Courier New', monospace; flex-shrink: 0; padding-top: 2px;
+        }
+
+        .takeaway-grid {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px; margin: 24px 0;
+        }
+
+        .takeaway-card {
+            background: rgba(15, 8, 20, 0.6); border: 1px solid rgba(100, 60, 130, 0.15);
+            border-radius: 8px; padding: 20px; text-align: center;
+        }
+
+        .takeaway-icon { font-size: 2rem; margin-bottom: 10px; }
+        .takeaway-title { font-size: 0.85rem; color: #c4a0d8; margin-bottom: 6px; }
+        .takeaway-desc { font-size: 0.78rem; color: #7a5a8a; line-height: 1.5; }
+
+        .completion-section {
+            text-align: center; padding: 60px 40px;
+            background: linear-gradient(135deg, rgba(40, 20, 60, 0.3), rgba(30, 15, 50, 0.4));
+            border: 1px solid rgba(100, 60, 130, 0.3); border-radius: 12px; margin: 60px 0 40px;
+        }
+
+        .completion-icon { font-size: 3.5rem; margin-bottom: 20px; }
+        .completion-title { font-size: 1.8rem; color: #c4a0d8; margin-bottom: 12px; font-weight: 400; }
+        .completion-text { color: #8a6a9a; font-size: 0.95rem; max-width: 560px; margin: 0 auto 30px; line-height: 1.8; }
+
+        .completion-btn {
+            display: inline-flex; align-items: center; gap: 10px; padding: 14px 36px;
+            background: linear-gradient(135deg, #7c3aed, #9333ea); border: none; border-radius: 8px;
+            color: #f3e8ff; font-size: 1rem; cursor: pointer; font-family: 'Georgia', serif;
+            letter-spacing: 0.05em; transition: all 0.3s ease; box-shadow: 0 4px 20px rgba(147, 51, 234, 0.3);
+        }
+
+        .completion-btn:hover {
+            background: linear-gradient(135deg, #6d28d9, #7c3aed);
+            box-shadow: 0 6px 30px rgba(147, 51, 234, 0.45); transform: translateY(-2px);
+        }
+
+        @media (max-width: 768px) {
+            .module-header { padding: 15px 20px; }
+            .module-content { padding: 20px; }
+            .two-col { grid-template-columns: 1fr; }
+            .flow-step { flex-direction: column; }
+            .flow-step-left { flex-direction: row; }
+            .flow-step-line { width: 20px; height: 1px; min-height: unset; flex: unset; margin-top: 0; margin-left: 4px; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="scroll-progress" id="scrollProgress"></div>
+
+<header class="module-header">
+    <div class="header-left">
+        <a href="../index.html" class="back-btn">&#8592; Back to Course</a>
+        <div>
+            <div class="module-label">WiFi Arsenal &middot; Module 06</div>
+        </div>
+    </div>
+    <div class="header-right">
+        <span>Reading Progress</span>
+        <div class="progress-bar-mini">
+            <div class="fill" id="readingFill"></div>
+        </div>
+    </div>
+</header>
+
+<main class="module-content">
+
+    <!-- Hero -->
+    <div class="intro-section">
+        <div class="intro-icon">&#127918;</div>
+        <h1 class="intro-title">Evil Twin &amp; Credential Harvesting</h1>
+        <div class="intro-meta">WiFi Arsenal &bull; Module 06 &bull; Evil Twin Attacks</div>
+        <p class="intro-subtitle">
+            An evil twin access point exploits the most fundamental trust assumption in wireless networking:
+            clients authenticate to a network name, not to a verified infrastructure identity. By broadcasting
+            a stronger signal under a legitimate SSID, an attacker forces client association, captures
+            enterprise credentials via rogue RADIUS servers, and harvests cleartext passwords through
+            deceptive captive portals — all without breaking a single byte of cryptography.
+        </p>
+        <div class="module-stats">
+            <div class="stat-pill">EAPHammer</div>
+            <div class="stat-pill">wifiphisher</div>
+            <div class="stat-pill">NetNTLM Capture</div>
+            <div class="stat-pill">Captive Portals</div>
+            <div class="stat-pill">~25 min read</div>
+        </div>
+    </div>
+
+    <!-- Section 1: Evil Twin Theory -->
+    <div class="section" id="s1">
+        <div class="section-number">Section 01</div>
+        <h2 class="section-title">
+            <span class="section-icon">&#128483;</span>
+            Evil Twin Theory
+        </h2>
+        <div class="section-body">
+            <p>
+                The evil twin attack is not a cryptographic attack. It does not break WPA2 or exploit
+                a protocol vulnerability in the traditional sense. It exploits a design assumption baked
+                into every wireless client since the beginning of 802.11: that a network name (SSID) is
+                a sufficient identifier for a trusted network. Because the 802.11 specification has no
+                mechanism for clients to verify the authenticity of an access point by default, any device
+                broadcasting the correct SSID can receive client association attempts.
+            </p>
+            <p>
+                When a client's preferred network list (PNL) contains an SSID, and a beacon advertising
+                that SSID appears with a stronger received signal strength indicator (RSSI), the client
+                operating system will seamlessly disconnect from the weaker legitimate AP and associate
+                with the attacker's rogue AP. This happens automatically, silently, and in many cases
+                without any user notification whatsoever.
+            </p>
+
+            <div class="concept-grid">
+                <div class="concept-card">
+                    <div class="concept-card-icon">&#128268;</div>
+                    <div class="concept-card-title">SSID Trust Model</div>
+                    <div class="concept-card-body">
+                        Clients store network profiles by SSID. The 802.11 standard imposes no requirement
+                        for AP authentication before client association in WPA-Personal mode. Any AP
+                        broadcasting a known SSID with adequate signal can receive connection attempts.
+                        This is a specification-level design choice, not an implementation bug.
+                    </div>
+                    <span class="concept-tag">Trust Assumption</span>
+                </div>
+                <div class="concept-card">
+                    <div class="concept-card-icon">&#128225;</div>
+                    <div class="concept-card-title">Signal Strength Advantage</div>
+                    <div class="concept-card-body">
+                        802.11 clients prefer the AP with the highest RSSI for a given SSID. An attacker
+                        with directional antenna hardware positioned between a client and the legitimate AP
+                        can achieve a dominant signal advantage. High-gain USB adapters (e.g., Alfa AWUS036ACH)
+                        with appropriate antennas routinely outperform enterprise APs at short range.
+                    </div>
+                    <span class="concept-tag">RF Physics</span>
+                </div>
+                <div class="concept-card">
+                    <div class="concept-card-icon">&#9889;</div>
+                    <div class="concept-card-title">Deauthentication Assist</div>
+                    <div class="concept-card-body">
+                        On WPA2 networks without Protected Management Frames (PMF), the attacker can
+                        accelerate client migration by injecting forged deauthentication frames targeting
+                        the legitimate AP's BSSID. Clients forcibly disconnected from the real AP will
+                        immediately scan and associate with the strongest available matching SSID — the
+                        rogue AP.
+                    </div>
+                    <span class="concept-tag">Active Assist</span>
+                </div>
+                <div class="concept-card">
+                    <div class="concept-card-icon">&#128275;</div>
+                    <div class="concept-card-title">WPA-Personal Attack Surface</div>
+                    <div class="concept-card-body">
+                        Against WPA-Personal networks, the evil twin becomes a captive portal platform.
+                        The rogue AP cannot supply the correct PSK for client authentication (the attacker
+                        does not know it). Instead, attacks focus on phishing the PSK via fake login
+                        portals, or harvesting credentials from unencrypted HTTP traffic routed through
+                        the attacker's AP after clients connect to an open clone.
+                    </div>
+                    <span class="concept-tag">WPA-Personal</span>
+                </div>
+                <div class="concept-card">
+                    <div class="concept-card-icon">&#128272;</div>
+                    <div class="concept-card-title">WPA-Enterprise Attack Surface</div>
+                    <div class="concept-card-body">
+                        Against WPA-Enterprise (802.1X), the evil twin becomes far more dangerous. Enterprise
+                        clients transmit their domain credentials during EAP authentication. A rogue RADIUS
+                        server on the evil twin captures the full EAP exchange, including NetNTLM challenge/response
+                        hashes that can be cracked offline. This is the primary target of EAPHammer.
+                    </div>
+                    <span class="concept-tag">WPA-Enterprise</span>
+                </div>
+                <div class="concept-card">
+                    <div class="concept-card-icon">&#128100;</div>
+                    <div class="concept-card-title">Auto-Connect Behaviour</div>
+                    <div class="concept-card-body">
+                        Windows, macOS, iOS, and Android all implement automatic reconnection to known
+                        SSIDs. On Windows, domain-joined devices may probe for corporate SSIDs in background
+                        even when the device is not actively used. This means an evil twin can capture
+                        enterprise authentication attempts from devices that are simply powered on and in range,
+                        with no user action required.
+                    </div>
+                    <span class="concept-tag">OS Behaviour</span>
+                </div>
+            </div>
+
+            <div class="callout callout-warning">
+                <span class="callout-icon">&#9888;</span>
+                <div class="callout-content">
+                    <div class="callout-title">Open vs. Secured Evil Twin</div>
+                    <div class="callout-text">
+                        An evil twin can broadcast as an open (no encryption) network or as a WPA2 network.
+                        Open evil twins are simpler to deploy and capture all client traffic in cleartext, but
+                        clients may receive OS warnings or fail to auto-connect if the legitimate network requires
+                        WPA2. WPA2 evil twins require the attacker to know the correct PSK to allow clients to
+                        complete authentication — making them less viable for traffic interception but effective
+                        when combined with phishing portals that collect the PSK first.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 2: EAPHammer — Enterprise Attack -->
+    <div class="section" id="s2">
+        <div class="section-number">Section 02</div>
+        <h2 class="section-title">
+            <span class="section-icon">&#128272;</span>
+            EAPHammer: Enterprise Attack
+        </h2>
+        <div class="section-body">
+            <p>
+                EAPHammer, developed by s0lst1c3, is the de facto standard tool for 802.1X evil twin
+                attacks against enterprise wireless networks. It automates the creation of a rogue access
+                point with a full rogue RADIUS server, captures EAP authentication exchanges from connecting
+                enterprise clients, and dumps NetNTLM hashes for offline cracking — all from a single
+                command-line invocation.
+            </p>
+
+            <div class="callout callout-info">
+                <span class="callout-icon">&#8505;</span>
+                <div class="callout-content">
+                    <div class="callout-title">802.1X and EAP Authentication Flow</div>
+                    <div class="callout-text">
+                        WPA-Enterprise requires every connecting client to authenticate to a RADIUS server
+                        before being granted network access. The client (supplicant) exchanges EAP messages
+                        with the AP (authenticator), which proxies them to the RADIUS server (authentication
+                        server). EAP types include PEAP (tunnelled MSCHAPv2), EAP-TTLS, and EAP-TLS.
+                        In PEAP/MSCHAPv2 — the most common enterprise configuration — the client sends
+                        domain credentials (username + NT hash response) inside a TLS tunnel to the
+                        RADIUS server. A rogue RADIUS server can terminate that tunnel and extract the
+                        inner MSCHAPv2 exchange, yielding the NetNTLM hash.
+                    </div>
+                </div>
+            </div>
+
+            <p>
+                EAPHammer's rogue RADIUS server presents a self-signed certificate and relies on the
+                fact that most enterprise wireless supplicants are misconfigured — they accept any
+                server certificate rather than validating against a pinned CA. When a domain-joined
+                Windows device probes for the corporate SSID and connects to the evil twin, it sends
+                its PEAP/MSCHAPv2 credentials to the rogue RADIUS, which logs the NetNTLM hash.
+            </p>
+
+            <div class="code-block">
+<span class="comment"># Prerequisites: hostapd-wpe, python3, certificates</span>
+<span class="comment"># Generate self-signed certificate for the rogue RADIUS server</span>
+python3 eaphammer.py <span class="flag">--cert-wizard</span>
+
+<span class="comment"># Launch evil twin against WPA-Enterprise target</span>
+<span class="comment"># -e = target SSID to impersonate</span>
+<span class="comment"># --creds = enable credential capture mode</span>
+<span class="comment"># --interface = wireless interface to use</span>
+python3 eaphammer.py \
+    <span class="flag">-e</span> <span class="str">"CorpWiFi"</span> \
+    <span class="flag">--creds</span> \
+    <span class="flag">--interface</span> wlan0 \
+    <span class="flag">--auth</span> wpa-eap \
+    <span class="flag">--wpa-version</span> 2
+            </div>
+
+            <p>
+                The <span style="color:#fbbf24; font-family: 'Courier New', monospace;">--creds</span> flag
+                instructs EAPHammer to enable the credential harvesting subsystem, which configures the rogue
+                RADIUS to log all authentication attempts and write captured hashes to the output file.
+                The tool supports targeting specific EAP types — <span style="color:#fbbf24; font-family: 'Courier New', monospace;">--auth peap</span>,
+                <span style="color:#fbbf24; font-family: 'Courier New', monospace;">--auth eap-ttls</span> —
+                and can perform both passive capture and active GTC downgrade attacks that attempt to
+                coerce clients into sending credentials in a weaker, more easily cracked form.
+            </p>
+
+            <div class="detail-section">
+                <div class="detail-header" onclick="toggleDetail(this)">
+                    <div class="detail-header-left">
+                        <span class="detail-header-icon">&#128196;</span>
+                        <div>
+                            <div class="detail-header-title">Hash Output and File Locations</div>
+                            <div class="detail-header-subtitle">Where EAPHammer writes captured credentials</div>
+                        </div>
+                    </div>
+                    <span class="detail-toggle">&#9660;</span>
+                </div>
+                <div class="detail-body">
+                    <p>
+                        EAPHammer writes captured hashes to <span style="color:#c4a0d8; font-family:'Courier New',monospace;">loot/</span>
+                        in the working directory. The primary output files are:
+                    </p>
+                    <ul>
+                        <li><span style="color:#c4a0d8; font-family:'Courier New',monospace;">loot/wpa_hashes.txt</span> — MSCHAPv2 challenge/response pairs in hashcat-compatible format (hash type 5500 for NetNTLMv1, 5600 for NetNTLMv2)</li>
+                        <li><span style="color:#c4a0d8; font-family:'Courier New',monospace;">loot/credentials.txt</span> — any cleartext credentials captured from GTC downgrade attacks or EAP-TTLS/PAP</li>
+                        <li><span style="color:#c4a0d8; font-family:'Courier New',monospace;">hostapd-wpe.log</span> — full hostapd log including raw EAP exchange bytes for forensic analysis</li>
+                    </ul>
+                    <p>
+                        The MSCHAPv2 challenge/response format output is directly usable with hashcat:
+                        <span style="color:#c4a0d8; font-family:'Courier New',monospace;">username:::challenge:response:hash</span>.
+                        This format maps directly to hashcat mode -m 5600 for NetNTLMv2.
+                    </p>
+                </div>
+            </div>
+
+            <div class="detail-section">
+                <div class="detail-header" onclick="toggleDetail(this)">
+                    <div class="detail-header-left">
+                        <span class="detail-header-icon">&#128200;</span>
+                        <div>
+                            <div class="detail-header-title">Why Domain-Joined Devices Are Vulnerable</div>
+                            <div class="detail-header-subtitle">Windows supplicant behaviour and misconfiguration</div>
+                        </div>
+                    </div>
+                    <span class="detail-toggle">&#9660;</span>
+                </div>
+                <div class="detail-body">
+                    <p>
+                        Domain-joined Windows devices configured for WPA-Enterprise use Windows' built-in
+                        supplicant (wlansvc). By default, the supplicant is configured to validate the
+                        RADIUS server's certificate — but it validates against the Windows certificate store,
+                        which may contain the organisation's internal CA. The critical misconfiguration is
+                        when administrators configure the supplicant to accept any certificate, or fail
+                        to pin the server certificate to the specific enterprise CA.
+                    </p>
+                    <p>
+                        Additionally, domain-joined devices send authentication using the machine account
+                        or the currently logged-in user's domain credentials. When a device probes for
+                        the corporate SSID and connects to an evil twin, Windows will automatically
+                        send credentials without any user prompt — the user may not see any indication
+                        that authentication occurred against a rogue server.
+                    </p>
+                    <ul>
+                        <li>Machine account authentication occurs even when no user is logged in, as the device probes for the corporate network in the background</li>
+                        <li>PEAP with MSCHAPv2 is the default Windows enterprise wireless configuration — and MSCHAPv2 hashes are crackable with GPU hardware</li>
+                        <li>EAP-TLS (certificate-based mutual authentication) would prevent this attack, but requires PKI deployment and client certificate management</li>
+                        <li>Supplicant misconfiguration is endemic — Group Policy settings for certificate validation are frequently omitted or incorrectly applied</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="detail-section">
+                <div class="detail-header" onclick="toggleDetail(this)">
+                    <div class="detail-header-left">
+                        <span class="detail-header-icon">&#128736;</span>
+                        <div>
+                            <div class="detail-header-title">EAPHammer Additional Capabilities</div>
+                            <div class="detail-header-subtitle">GTC downgrade, SSID targeting, channel selection</div>
+                        </div>
+                    </div>
+                    <span class="detail-toggle">&#9660;</span>
+                </div>
+                <div class="detail-body">
+                    <p>
+                        Beyond basic credential capture, EAPHammer supports a GTC downgrade attack
+                        (<span style="color:#c4a0d8; font-family:'Courier New',monospace;">--auth eap-gtc</span>)
+                        that attempts to negotiate EAP-GTC with connecting clients. EAP-GTC transmits
+                        the user's password in cleartext inside the TLS tunnel — if the client accepts
+                        the downgrade, the rogue RADIUS receives the password in plaintext rather than
+                        as an MSCHAPv2 hash, eliminating the need for offline cracking entirely.
+                    </p>
+                    <ul>
+                        <li><span style="color:#c4a0d8; font-family:'Courier New',monospace;">--channel</span> — specify target channel to match the legitimate AP</li>
+                        <li><span style="color:#c4a0d8; font-family:'Courier New',monospace;">--bssid</span> — spoof the legitimate AP's MAC address for higher credibility</li>
+                        <li><span style="color:#c4a0d8; font-family:'Courier New',monospace;">--pmf-disable</span> — disable Protected Management Frames to allow deauthentication injection</li>
+                        <li><span style="color:#c4a0d8; font-family:'Courier New',monospace;">--karma</span> — respond to all probe requests with matching SSID beacons (catch-all mode)</li>
+                        <li><span style="color:#c4a0d8; font-family:'Courier New',monospace;">--loud</span> — broadcast beacons continuously to maximise signal presence</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 3: Attack Flow — Enterprise Evil Twin -->
+    <div class="section" id="s3">
+        <div class="section-number">Section 03</div>
+        <h2 class="section-title">
+            <span class="section-icon">&#128260;</span>
+            Attack Flow: Enterprise Evil Twin
+        </h2>
+        <div class="section-body">
+            <p>
+                The enterprise evil twin attack follows a precise four-stage sequence. Each stage builds
+                on the previous — the rogue AP must be operational before clients can connect, and
+                clients must connect before hashes can be captured. The RADIUS challenge/response
+                mechanism that makes WPA-Enterprise authentication work is precisely what exposes
+                credentials to a rogue server.
+            </p>
+
+            <div class="flow-steps">
+
+                <div class="flow-step">
+                    <div class="flow-step-left">
+                        <div class="flow-step-num">01</div>
+                        <div class="flow-step-line"></div>
+                    </div>
+                    <div class="flow-step-content">
+                        <div class="flow-step-title">Create Rogue Access Point</div>
+                        <div class="flow-step-body">
+                            EAPHammer configures hostapd with the target SSID, channel, and WPA-Enterprise
+                            (802.1X) security mode. A rogue RADIUS server starts locally, configured to
+                            accept all authentication attempts and log the full EAP exchange. A self-signed
+                            certificate is generated or loaded to terminate the TLS tunnel that PEAP
+                            requires. The wireless interface begins broadcasting beacons that are
+                            indistinguishable from the legitimate AP to any 802.11 scanning tool.
+                        </div>
+                        <div class="flow-step-tech">
+                            hostapd-wpe starts on wlan0 | RADIUS binds to 127.0.0.1:1812 | Beacons broadcast every 100ms
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flow-step">
+                    <div class="flow-step-left">
+                        <div class="flow-step-num">02</div>
+                        <div class="flow-step-line"></div>
+                    </div>
+                    <div class="flow-step-content">
+                        <div class="flow-step-title">Client Auto-Connects</div>
+                        <div class="flow-step-body">
+                            A domain-joined Windows device within RF range has the corporate SSID in its
+                            Preferred Network List. When it detects a beacon with that SSID at sufficient
+                            signal strength, Windows initiates 802.11 association. If the rogue AP's
+                            RSSI exceeds the legitimate AP's RSSI at the client's location, the
+                            client will prefer the rogue AP. Optional deauthentication injection against
+                            the legitimate AP's BSSID accelerates client migration by forcibly disconnecting
+                            clients from the real network.
+                        </div>
+                        <div class="flow-step-tech">
+                            Client sends 802.11 Association Request | AP responds with Association Response | EAP-Identity Request initiated
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flow-step">
+                    <div class="flow-step-left">
+                        <div class="flow-step-num">03</div>
+                        <div class="flow-step-line"></div>
+                    </div>
+                    <div class="flow-step-content">
+                        <div class="flow-step-title">NetNTLM Hash Captured</div>
+                        <div class="flow-step-body">
+                            The client's supplicant initiates EAP authentication. In PEAP, a TLS tunnel
+                            is established to the rogue RADIUS using the attacker's self-signed certificate.
+                            The client accepts the certificate (due to supplicant misconfiguration) and
+                            sends the inner MSCHAPv2 authentication — username, NT challenge (from RADIUS),
+                            and NT response (derived from the user's NT hash using the challenge). The
+                            rogue RADIUS logs the challenge/response pair: this is the NetNTLM hash.
+                        </div>
+                        <div class="flow-step-tech">
+                            EAP-Identity: domain\username | TLS tunnel established | MSCHAPv2: NT-Challenge + NT-Response captured | Written to loot/wpa_hashes.txt
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flow-step">
+                    <div class="flow-step-left">
+                        <div class="flow-step-num">04</div>
+                        <div class="flow-step-line"></div>
+                    </div>
+                    <div class="flow-step-content">
+                        <div class="flow-step-title">Offline Cracking</div>
+                        <div class="flow-step-body">
+                            The captured NetNTLM hash is passed to hashcat for offline dictionary or
+                            brute-force cracking. NetNTLMv2 (hashcat mode 5600) is computationally
+                            expensive but feasible with GPU hardware — a modern GPU cluster can test
+                            hundreds of millions of candidates per second. A weak or dictionary-based
+                            domain password can be recovered in minutes to hours. Recovered passwords
+                            represent full domain credentials usable for lateral movement, VPN access,
+                            email, and Active Directory enumeration.
+                        </div>
+                        <div class="flow-step-tech">
+                            hashcat -m 5600 loot/wpa_hashes.txt rockyou.txt | Recovered: domain\jsmith:Summer2024! | AD compromise initiated
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <div class="callout callout-danger">
+                <span class="callout-icon">&#9888;</span>
+                <div class="callout-content">
+                    <div class="callout-title">NetNTLMv1 vs NetNTLMv2</div>
+                    <div class="callout-text">
+                        NetNTLMv1 uses a static 8-byte challenge and a 24-byte DES-based response derived from
+                        the NT hash. It is extremely weak — specialised cracking services can recover the
+                        underlying NT hash from a NetNTLMv1 response in seconds using rainbow tables (crack.sh).
+                        NetNTLMv2 uses a variable client challenge and HMAC-MD5, making it substantially
+                        harder to crack. If the target network uses a configuration that permits NTLMv1 fallback,
+                        EAPHammer can negotiate it to produce the weaker hash. Default Windows Server 2019+
+                        configurations restrict to NTLMv2, but legacy infrastructure often permits NTLMv1.
+                    </div>
+                </div>
+            </div>
+
+            <table class="standards-table">
+                <thead>
+                    <tr>
+                        <th>Hash Type</th>
+                        <th>Algorithm</th>
+                        <th>Hashcat Mode</th>
+                        <th>Crack Speed (RTX 4090)</th>
+                        <th>Risk Level</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td class="std-name">NetNTLMv1</td>
+                        <td>DES-based, 24-byte response</td>
+                        <td>5500</td>
+                        <td>~70 GH/s</td>
+                        <td><span class="severity-badge sev-critical">Critical</span></td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">NetNTLMv1+ESS</td>
+                        <td>Extended Session Security</td>
+                        <td>5500</td>
+                        <td>~70 GH/s</td>
+                        <td><span class="severity-badge sev-critical">Critical</span></td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">NetNTLMv2</td>
+                        <td>HMAC-MD5, variable challenge</td>
+                        <td>5600</td>
+                        <td>~1.5 GH/s</td>
+                        <td><span class="severity-badge sev-high">High</span></td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">PEAP-GTC (cleartext)</td>
+                        <td>Plaintext inside TLS tunnel</td>
+                        <td>N/A — recovered directly</td>
+                        <td>Instant</td>
+                        <td><span class="severity-badge sev-critical">Critical</span></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Section 4: wifiphisher — Captive Portal Attacks -->
+    <div class="section" id="s4">
+        <div class="section-number">Section 04</div>
+        <h2 class="section-title">
+            <span class="section-icon">&#127760;</span>
+            wifiphisher: Captive Portal Attacks
+        </h2>
+        <div class="section-body">
+            <p>
+                wifiphisher targets WPA-Personal networks where credential capture via rogue RADIUS is
+                not possible. It creates an evil twin access point, forces client deauthentication from
+                the legitimate AP, and serves a convincing fake captive portal to victims who connect.
+                The victim is asked to re-enter their Wi-Fi password under a plausible pretext — a firmware
+                update notification, a router configuration page, or a network login form. Credentials
+                are transmitted in cleartext via HTTP to the attacker's listening server.
+            </p>
+
+            <div class="callout callout-info">
+                <span class="callout-icon">&#8505;</span>
+                <div class="callout-content">
+                    <div class="callout-title">How Captive Portals Work</div>
+                    <div class="callout-text">
+                        A captive portal is a web page that intercepts all HTTP traffic from a newly connected
+                        client before granting full network access. When a client connects to wifiphisher's
+                        rogue AP, it receives a DHCP lease. The AP's DHCP server hands out the attacker's
+                        machine as the default gateway and DNS server. DNS queries resolve to the attacker's
+                        IP, and all HTTP traffic is intercepted by an iptables redirect rule to the local
+                        web server. The client's OS captive portal detection triggers, automatically opening
+                        a browser window showing the phishing page — exactly mimicking the behaviour of a
+                        legitimate hotel or coffee shop login portal.
+                    </div>
+                </div>
+            </div>
+
+            <p>
+                wifiphisher bundles several phishing scenario templates and supports custom templates.
+                The <span style="color:#fbbf24; font-family:'Courier New',monospace;">wifi_connect</span>
+                template mimics a router firmware update page, presenting a Wi-Fi password prompt that
+                matches the router's real SSID. From the victim's perspective, this is indistinguishable
+                from a legitimate router maintenance notification.
+            </p>
+
+            <div class="code-block">
+<span class="comment"># Basic evil twin with wifi_connect phishing template</span>
+<span class="comment"># -e = target SSID</span>
+<span class="comment"># -p = phishing scenario template</span>
+<span class="comment"># -kB = create a WPA2-based evil twin (kills connected clients)</span>
+sudo wifiphisher \
+    <span class="flag">-e</span> <span class="str">"HomeNetwork"</span> \
+    <span class="flag">-p</span> wifi_connect \
+    <span class="flag">-kB</span>
+
+<span class="comment"># Target a specific AP by BSSID with custom interface</span>
+sudo wifiphisher \
+    <span class="flag">--essid</span> <span class="str">"CoffeeShopWiFi"</span> \
+    <span class="flag">--phishing-pages-directory</span> /custom/templates/ \
+    <span class="flag">-p</span> firmware-upgrade \
+    <span class="flag">--jamminginterface</span> wlan1 \
+    <span class="flag">--apinterface</span> wlan0
+            </div>
+
+            <div class="concept-grid">
+                <div class="concept-card">
+                    <div class="concept-card-icon">&#128247;</div>
+                    <div class="concept-card-title">Victim Connection Flow</div>
+                    <div class="concept-card-body">
+                        wifiphisher deauthenticates the victim from the real AP using wlan1 in monitor
+                        mode. The victim's device detects the evil twin via wlan0 and connects. DHCP
+                        assigns the attacker's IP as gateway and DNS server. The victim's captive portal
+                        detection mechanism opens the phishing page automatically in the default browser.
+                    </div>
+                    <span class="concept-tag">Attack Chain</span>
+                </div>
+                <div class="concept-card">
+                    <div class="concept-card-icon">&#128196;</div>
+                    <div class="concept-card-title">Template Library</div>
+                    <div class="concept-card-body">
+                        Built-in templates: <span style="font-family:'Courier New',monospace; color:#c4a0d8;">wifi_connect</span> (firmware update prompt),
+                        <span style="font-family:'Courier New',monospace; color:#c4a0d8;">oauth-login</span> (fake OAuth page),
+                        <span style="font-family:'Courier New',monospace; color:#c4a0d8;">plugin_update</span> (browser plugin prompt),
+                        <span style="font-family:'Courier New',monospace; color:#c4a0d8;">network-manager</span> (Linux NetworkManager clone).
+                        Custom templates use a simple HTML + Python info.py format.
+                    </div>
+                    <span class="concept-tag">Phishing Templates</span>
+                </div>
+                <div class="concept-card">
+                    <div class="concept-card-icon">&#128202;</div>
+                    <div class="concept-card-title">HTTP Credential Panel</div>
+                    <div class="concept-card-body">
+                        wifiphisher runs an embedded web server that captures POST data from the phishing
+                        form. Submitted credentials appear in the terminal in real time and are logged to
+                        <span style="font-family:'Courier New',monospace; color:#c4a0d8;">/tmp/wifiphisher-webserver.log</span>.
+                        Once credentials are submitted, wifiphisher can optionally restore internet
+                        access to reduce suspicion.
+                    </div>
+                    <span class="concept-tag">Credential Capture</span>
+                </div>
+                <div class="concept-card">
+                    <div class="concept-card-icon">&#128736;</div>
+                    <div class="concept-card-title">Dual Interface Requirement</div>
+                    <div class="concept-card-body">
+                        Effective deployment requires two wireless interfaces: one for continuous deauthentication
+                        of the legitimate AP (<span style="font-family:'Courier New',monospace; color:#c4a0d8;">--jamminginterface</span>)
+                        and one for the rogue AP and HTTP credential server (<span style="font-family:'Courier New',monospace; color:#c4a0d8;">--apinterface</span>).
+                        Single-interface mode is possible but leaves the victim able to reconnect to the
+                        real AP.
+                    </div>
+                    <span class="concept-tag">Hardware</span>
+                </div>
+            </div>
+
+            <div class="detail-section">
+                <div class="detail-header" onclick="toggleDetail(this)">
+                    <div class="detail-header-left">
+                        <span class="detail-header-icon">&#128196;</span>
+                        <div>
+                            <div class="detail-header-title">Building a Custom wifiphisher Template</div>
+                            <div class="detail-header-subtitle">Structure of a phishing scenario directory</div>
+                        </div>
+                    </div>
+                    <span class="detail-toggle">&#9660;</span>
+                </div>
+                <div class="detail-body">
+                    <p>
+                        Each wifiphisher template lives in its own directory under
+                        <span style="color:#c4a0d8; font-family:'Courier New',monospace;">wifiphisher/data/phishing-pages/</span>.
+                        A template requires three files:
+                    </p>
+                    <ul>
+                        <li><span style="color:#c4a0d8; font-family:'Courier New',monospace;">info.py</span> — Python module defining the template name, description, and required fields (e.g., password input name)</li>
+                        <li><span style="color:#c4a0d8; font-family:'Courier New',monospace;">index.html</span> — The phishing page HTML, served as the captive portal</li>
+                        <li><span style="color:#c4a0d8; font-family:'Courier New',monospace;">static/</span> — CSS, images, and JavaScript assets to make the page convincing</li>
+                    </ul>
+                    <p>
+                        The most effective templates mimic the actual router admin interface of the target
+                        AP's manufacturer. Since SSID broadcasts include no manufacturer information by
+                        default, the attacker must identify the AP model via probe response OUI lookups
+                        or visual reconnaissance, then serve a matching template.
+                    </p>
+                </div>
+            </div>
+
+            <div class="detail-section">
+                <div class="detail-header" onclick="toggleDetail(this)">
+                    <div class="detail-header-left">
+                        <span class="detail-header-icon">&#9993;</span>
+                        <div>
+                            <div class="detail-header-title">OS Captive Portal Detection Mechanisms</div>
+                            <div class="detail-header-subtitle">How each OS triggers the browser automatically</div>
+                        </div>
+                    </div>
+                    <span class="detail-toggle">&#9660;</span>
+                </div>
+                <div class="detail-body">
+                    <p>
+                        Every major OS uses a captive portal detection probe to determine whether a network
+                        requires authentication. The probe is an HTTP GET to a well-known URL — if the
+                        response is the expected content, the network is considered open. If it redirects
+                        or returns unexpected content, the OS opens the captive portal browser automatically.
+                    </p>
+                    <ul>
+                        <li><strong style="color:#c4a0d8;">Windows:</strong> GET to <span style="font-family:'Courier New',monospace;">http://www.msftconnecttest.com/connecttest.txt</span> — expects "Microsoft Connect Test"</li>
+                        <li><strong style="color:#c4a0d8;">macOS/iOS:</strong> GET to <span style="font-family:'Courier New',monospace;">http://captive.apple.com/hotspot-detect.html</span> — expects specific HTML content</li>
+                        <li><strong style="color:#c4a0d8;">Android:</strong> GET to <span style="font-family:'Courier New',monospace;">http://connectivitycheck.gstatic.com/generate_204</span> — expects HTTP 204 No Content</li>
+                        <li><strong style="color:#c4a0d8;">Linux (NetworkManager):</strong> GET to <span style="font-family:'Courier New',monospace;">http://nmcheck.gnome.org/check_network_status.txt</span></li>
+                    </ul>
+                    <p>
+                        wifiphisher intercepts all of these probes via iptables redirect and serves the
+                        phishing page in their place, triggering the OS to automatically open the browser
+                        window for the victim — no user action required beyond connecting to the rogue AP.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 5: Credential Post-Exploitation -->
+    <div class="section" id="s5">
+        <div class="section-number">Section 05</div>
+        <h2 class="section-title">
+            <span class="section-icon">&#128081;</span>
+            Credential Post-Exploitation
+        </h2>
+        <div class="section-body">
+            <p>
+                Captured credentials — whether NetNTLM hashes from EAPHammer or cleartext passwords
+                from wifiphisher — are not an end point. They are an entry point. The value of wireless
+                credential harvesting lies entirely in what those credentials unlock: domain access, email
+                inboxes, VPN sessions, cloud platforms, and the lateral movement pathways that connect
+                them. Understanding the post-exploitation chain is essential both for conducting realistic
+                penetration tests and for designing defenses that limit blast radius when credentials
+                are compromised.
+            </p>
+
+            <div class="two-col">
+                <div class="col-card">
+                    <h3>&#128296; NetNTLM Hash Cracking</h3>
+                    <ul>
+                        <li><span class="li-marker">▸</span>Pass captured hash file to hashcat with appropriate mode: <span style="font-family:'Courier New',monospace; color:#c4a0d8;">-m 5600</span> for NetNTLMv2</li>
+                        <li><span class="li-marker">▸</span>Start with rockyou.txt + corporate rules (append year, capitalise, append special chars)</li>
+                        <li><span class="li-marker">▸</span>For NetNTLMv1 hashes, submit to crack.sh for near-instant NTLM hash extraction via rainbow tables</li>
+                        <li><span class="li-marker">▸</span>Once NTLM hash is recovered (not just NetNTLM), it can be used for Pass-the-Hash attacks without knowing the plaintext</li>
+                        <li><span class="li-marker">▸</span>GPU rigs: RTX 4090 achieves ~1.5 GH/s on NetNTLMv2; cloud GPU clusters (AWS p4d) scale further</li>
+                    </ul>
+                </div>
+                <div class="col-card">
+                    <h3>&#128196; Cleartext Credential Usage</h3>
+                    <ul>
+                        <li><span class="li-marker">▸</span>Test against corporate VPN endpoints immediately — VPN credentials are high-value targets</li>
+                        <li><span class="li-marker">▸</span>Enumerate email (OWA, M365) with captured credentials — email access enables business email compromise and further phishing</li>
+                        <li><span class="li-marker">▸</span>Check credential reuse against Citrix, Remote Desktop, SharePoint, and cloud portals (Azure AD, AWS SSO)</li>
+                        <li><span class="li-marker">▸</span>Password spraying: if one user reuses a corporate standard password format, others may too</li>
+                        <li><span class="li-marker">▸</span>Attempt LDAP bind to enumerate Active Directory structure with recovered domain credentials</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="code-block">
+<span class="comment"># Crack NetNTLMv2 hashes with hashcat</span>
+hashcat <span class="flag">-m 5600</span> loot/wpa_hashes.txt /wordlists/rockyou.txt \
+    <span class="flag">-r</span> /usr/share/hashcat/rules/best64.rule \
+    <span class="flag">--status --status-timer</span> 10
+
+<span class="comment"># After cracking — verify domain credentials with CrackMapExec</span>
+crackmapexec smb 192.168.1.0/24 \
+    <span class="flag">-u</span> <span class="str">"jsmith"</span> \
+    <span class="flag">-p</span> <span class="str">"Summer2024!"</span> \
+    <span class="flag">-d</span> <span class="str">"CORP"</span>
+
+<span class="comment"># Enumerate AD with BloodHound via recovered credentials</span>
+bloodhound-python <span class="flag">-u</span> jsmith <span class="flag">-p</span> <span class="str">'Summer2024!'</span> \
+    <span class="flag">-d</span> corp.local <span class="flag">-c all</span> \
+    <span class="flag">--dns-tcp -ns</span> 192.168.1.10
+            </div>
+
+            <div class="detail-section">
+                <div class="detail-header" onclick="toggleDetail(this)">
+                    <div class="detail-header-left">
+                        <span class="detail-header-icon">&#128279;</span>
+                        <div>
+                            <div class="detail-header-title">Active Directory Compromise Chain</div>
+                            <div class="detail-header-subtitle">From wireless hash to domain controller</div>
+                        </div>
+                    </div>
+                    <span class="detail-toggle">&#9660;</span>
+                </div>
+                <div class="detail-body">
+                    <p>
+                        A single recovered domain credential can initiate a complete Active Directory compromise
+                        chain. The typical escalation path from wireless credential capture to domain admin is:
+                    </p>
+                    <ul>
+                        <li><strong style="color:#c4a0d8;">Step 1 — Validate credentials:</strong> CrackMapExec or Impacket's smbclient confirms domain credential validity against SMB on any domain-joined host</li>
+                        <li><strong style="color:#c4a0d8;">Step 2 — Enumerate AD:</strong> BloodHound with the recovered credentials maps all users, groups, GPOs, and attack paths to privileged accounts</li>
+                        <li><strong style="color:#c4a0d8;">Step 3 — Identify attack paths:</strong> BloodHound shortest path analysis reveals if the compromised account has GenericAll, WriteDACL, or other misconfigured ACLs that enable privilege escalation</li>
+                        <li><strong style="color:#c4a0d8;">Step 4 — Kerberoasting:</strong> Domain credentials enable Kerberoasting — requesting TGS tickets for SPN-registered service accounts and cracking them offline</li>
+                        <li><strong style="color:#c4a0d8;">Step 5 — Lateral movement:</strong> Pass-the-Hash, Pass-the-Ticket, or over-the-hash techniques move from the initial foothold to higher-privileged hosts</li>
+                        <li><strong style="color:#c4a0d8;">Step 6 — Domain Admin:</strong> A path from any misconfigured ACL or vulnerable service account reaches DA, enabling DCSync and credential dumping from all AD accounts</li>
+                    </ul>
+                    <p>
+                        The entire chain from captured NetNTLMv2 hash to domain admin — in a misconfigured
+                        enterprise environment — can take under two hours on an engagement.
+                    </p>
+                </div>
+            </div>
+
+            <div class="callout callout-warning">
+                <span class="callout-icon">&#9888;</span>
+                <div class="callout-content">
+                    <div class="callout-title">Scope and Reporting</div>
+                    <div class="callout-text">
+                        In a penetration test, credential harvesting from wireless attacks must be explicitly
+                        in scope. Capturing live domain credentials constitutes access to privileged data
+                        even if the credentials are not used. All captured hashes and cleartext credentials
+                        must be documented, handled securely, and destroyed post-engagement per the rules
+                        of engagement. Never use captured credentials outside the authorized scope — doing
+                        so crosses the boundary from authorised testing into criminal activity.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 6: Defenses Against Evil Twins -->
+    <div class="section" id="s6">
+        <div class="section-number">Section 06</div>
+        <h2 class="section-title">
+            <span class="section-icon">&#128737;</span>
+            Defenses Against Evil Twins
+        </h2>
+        <div class="section-body">
+            <p>
+                Defending against evil twin attacks requires layered controls across the authentication
+                protocol, client configuration, network monitoring, and user awareness dimensions. No
+                single control is sufficient — EAP-TLS eliminates hash capture but does not prevent
+                captive portal phishing. WIDS detects rogue APs but cannot prevent credential submission
+                by an already-connected client. Defense-in-depth is the only viable approach.
+            </p>
+
+            <div class="concept-grid">
+                <div class="concept-card">
+                    <div class="concept-card-icon">&#128196;</div>
+                    <div class="concept-card-title">EAP-TLS Mutual Authentication</div>
+                    <div class="concept-card-body">
+                        EAP-TLS replaces password-based authentication with mutual certificate authentication.
+                        Both the client and the RADIUS server present certificates. A rogue RADIUS cannot
+                        present a valid client-trusted certificate without compromising the enterprise CA.
+                        Client certificates are tied to the device — even if credentials are phished, they
+                        cannot be used without the device's private key. This is the only authentication
+                        mechanism that completely eliminates the EAPHammer threat.
+                    </div>
+                    <span class="concept-tag">Primary Defense</span>
+                </div>
+                <div class="concept-card">
+                    <div class="concept-card-icon">&#128274;</div>
+                    <div class="concept-card-title">Certificate Pinning (Supplicant)</div>
+                    <div class="concept-card-body">
+                        For organisations that cannot immediately deploy EAP-TLS, configuring supplicants
+                        to pin the RADIUS server certificate to the enterprise CA is the next best option.
+                        Via Group Policy (Windows) or MDM profile (macOS/iOS/Android), the 802.1X profile
+                        can specify the exact server certificate common name or CA certificate thumbprint
+                        that must match. A rogue RADIUS certificate will be rejected, preventing the TLS
+                        tunnel from establishing.
+                    </div>
+                    <span class="concept-tag">Supplicant Config</span>
+                </div>
+                <div class="concept-card">
+                    <div class="concept-card-icon">&#128200;</div>
+                    <div class="concept-card-title">WIDS / WIPS Monitoring</div>
+                    <div class="concept-card-body">
+                        Wireless Intrusion Detection Systems continuously monitor the RF environment for
+                        rogue APs broadcasting managed SSIDs. A WIDS alert should fire within seconds
+                        of an evil twin going active. WIPS can actively contain by sending deauth frames
+                        to clients attempting to associate with the rogue BSSID. Enterprise WLAN platforms
+                        (Cisco, Aruba, Ruckus) include integrated WIDS capabilities.
+                    </div>
+                    <span class="concept-tag">Detection</span>
+                </div>
+                <div class="concept-card">
+                    <div class="concept-card-icon">&#128683;</div>
+                    <div class="concept-card-title">Network Profile Management</div>
+                    <div class="concept-card-body">
+                        Remove stale SSIDs from device preferred network lists. A device carrying dozens
+                        of remembered SSIDs from hotels, conferences, and coffee shops is a walking karma
+                        attack target — it probes for all of them continuously. MDM policy can restrict
+                        the PNL to corporate-approved SSIDs only, eliminating the probe-based attack
+                        surface for non-corporate SSIDs.
+                    </div>
+                    <span class="concept-tag">Endpoint</span>
+                </div>
+                <div class="concept-card">
+                    <div class="concept-card-icon">&#128101;</div>
+                    <div class="concept-card-title">Employee Training</div>
+                    <div class="concept-card-body">
+                        Users must understand that a router will never ask for a Wi-Fi password through
+                        a captive portal. Training should cover: rejecting unexpected password prompts,
+                        using VPN on all non-corporate networks, recognising the warning signs of captive
+                        portal phishing (unexpected browser popup, password input, unfamiliar page), and
+                        reporting suspicious network behaviour to IT security.
+                    </div>
+                    <span class="concept-tag">Human Layer</span>
+                </div>
+                <div class="concept-card">
+                    <div class="concept-card-icon">&#127895;</div>
+                    <div class="concept-card-title">802.11w PMF Enforcement</div>
+                    <div class="concept-card-body">
+                        Protected Management Frames (WPA3 mandatory, optional in WPA2) authenticate
+                        and encrypt 802.11 management frames including deauthentication and disassociation
+                        frames. With PMF enabled, forged deauth frames from a rogue source are discarded
+                        by the client — removing the attacker's ability to forcibly migrate clients to
+                        the evil twin. PMF alone does not prevent voluntary association with a rogue AP.
+                    </div>
+                    <span class="concept-tag">Protocol</span>
+                </div>
+            </div>
+
+            <table class="standards-table">
+                <thead>
+                    <tr>
+                        <th>Defense</th>
+                        <th>Blocks EAPHammer</th>
+                        <th>Blocks wifiphisher</th>
+                        <th>Deployment Complexity</th>
+                        <th>Notes</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td class="std-name">EAP-TLS</td>
+                        <td><span class="badge badge-current">Yes</span></td>
+                        <td><span class="badge badge-weak">Partial</span></td>
+                        <td>High — requires PKI</td>
+                        <td>Eliminates hash capture; does not prevent captive portal display</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">Server Cert Pinning</td>
+                        <td><span class="badge badge-current">Yes</span></td>
+                        <td><span class="badge badge-legacy">No</span></td>
+                        <td>Medium — GPO/MDM required</td>
+                        <td>Most impactful change for PEAP/MSCHAPv2 environments</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">802.11w PMF</td>
+                        <td><span class="badge badge-weak">Partial</span></td>
+                        <td><span class="badge badge-weak">Partial</span></td>
+                        <td>Low — AP config change</td>
+                        <td>Prevents deauth injection; voluntary association still possible</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">WIDS/WIPS</td>
+                        <td><span class="badge badge-weak">Detection only</span></td>
+                        <td><span class="badge badge-weak">Detection only</span></td>
+                        <td>Medium — WLAN infrastructure</td>
+                        <td>Detects and can contain rogue APs; response time matters</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">MDM PNL Restriction</td>
+                        <td><span class="badge badge-weak">Partial</span></td>
+                        <td><span class="badge badge-weak">Partial</span></td>
+                        <td>Low — MDM profile</td>
+                        <td>Reduces probe-based attack surface; does not prevent targeted attacks</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">Always-on VPN</td>
+                        <td><span class="badge badge-legacy">No</span></td>
+                        <td><span class="badge badge-current">Yes</span></td>
+                        <td>Medium — VPN infrastructure</td>
+                        <td>Encrypts all traffic through rogue AP; prevents traffic interception</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">Employee Training</td>
+                        <td><span class="badge badge-legacy">No</span></td>
+                        <td><span class="badge badge-weak">Partial</span></td>
+                        <td>Low — ongoing program</td>
+                        <td>Reduces phishing success rate; cannot prevent automated attacks</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <div class="callout callout-tip">
+                <span class="callout-icon">&#10003;</span>
+                <div class="callout-content">
+                    <div class="callout-title">Recommended Baseline for Enterprise Wireless</div>
+                    <div class="callout-text">
+                        Deploy EAP-TLS with machine certificates issued by the enterprise PKI. Configure
+                        supplicants via Group Policy to pin the RADIUS server certificate to the internal CA
+                        and reject untrusted certificates without prompting users. Enable 802.11w PMF on all
+                        WPA2/WPA3 SSIDs. Deploy WIDS with alerting. Enforce always-on VPN for devices
+                        connecting from non-corporate networks. Restrict PNL to corporate SSIDs via MDM.
+                        Conduct annual phishing simulation exercises that include Wi-Fi captive portal
+                        scenarios. No single control is sufficient — this combination addresses all known
+                        evil twin attack vectors.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Key Takeaways -->
+    <div class="section" id="s7">
+        <div class="section-number">Section 07</div>
+        <h2 class="section-title">
+            <span class="section-icon">&#9889;</span>
+            Key Takeaways
+        </h2>
+        <div class="section-body">
+            <div class="takeaway-grid">
+                <div class="takeaway-card">
+                    <div class="takeaway-icon">&#128483;</div>
+                    <div class="takeaway-title">SSID Is Not Identity</div>
+                    <div class="takeaway-desc">Clients authenticate to a name, not a verified infrastructure entity. In the absence of mutual authentication, any AP broadcasting the right SSID can impersonate any network. This is a fundamental 802.11 design limitation.</div>
+                </div>
+                <div class="takeaway-card">
+                    <div class="takeaway-icon">&#128272;</div>
+                    <div class="takeaway-title">PEAP + Misconfig = Hash Leak</div>
+                    <div class="takeaway-desc">PEAP/MSCHAPv2 with an unconfigured supplicant is essentially credential exposure on demand. A rogue RADIUS with a self-signed certificate receives full NetNTLM hashes from every domain-joined device that probes for the corporate SSID.</div>
+                </div>
+                <div class="takeaway-card">
+                    <div class="takeaway-icon">&#127760;</div>
+                    <div class="takeaway-title">Portals Exploit Expectation</div>
+                    <div class="takeaway-desc">Captive portals are so common in public spaces that users have been trained to enter credentials whenever a browser popup appears. wifiphisher exploits this conditioned behaviour — the attack surface is human psychology as much as wireless protocol design.</div>
+                </div>
+                <div class="takeaway-card">
+                    <div class="takeaway-icon">&#128081;</div>
+                    <div class="takeaway-title">One Hash, Full Domain</div>
+                    <div class="takeaway-desc">A single recovered NetNTLMv2 hash from a domain user represents a path to Active Directory compromise. Wireless credential harvesting is not a perimeter attack — it is an AD intrusion with radio frequency as the initial access vector.</div>
+                </div>
+                <div class="takeaway-card">
+                    <div class="takeaway-icon">&#128196;</div>
+                    <div class="takeaway-title">EAP-TLS Is the Answer</div>
+                    <div class="takeaway-desc">Certificate-based mutual authentication removes the credential from the wireless authentication exchange entirely. There is no hash to capture, no password to phish. EAP-TLS with a properly managed PKI is the definitive enterprise wireless authentication architecture.</div>
+                </div>
+                <div class="takeaway-card">
+                    <div class="takeaway-icon">&#128200;</div>
+                    <div class="takeaway-title">Detection Requires Instrumentation</div>
+                    <div class="takeaway-desc">An evil twin operates silently in the RF environment. Without WIDS monitoring and alerting, an enterprise can be actively exploited for hours without any log entry appearing in traditional network security tooling. Wireless visibility requires dedicated instrumentation.</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Discussion -->
+    <div class="section" id="discuss">
+        <div class="discussion-section">
+            <div class="discussion-title">
+                <span>&#128172;</span>
+                Discussion Prompts
+            </div>
+            <ul class="prompt-list">
+                <li class="prompt-item">
+                    <span class="prompt-num">01</span>
+                    Evil twin attacks exploit the fundamental SSID trust model — clients remember network names and auto-connect. Design a defense-in-depth strategy for a 500-employee company where staff frequently work from hotels and coffee shops. Address both the enterprise wireless authentication layer and the remote/public Wi-Fi exposure. Which controls would you prioritise first, and why?
+                </li>
+                <li class="prompt-item">
+                    <span class="prompt-num">02</span>
+                    EAPHammer captures NetNTLM hashes from enterprise 802.1X authentication attempts when supplicants are misconfigured to accept untrusted RADIUS certificates. What specific EAP configuration changes on the client side — via Group Policy or MDM profile — would prevent hash disclosure to a rogue RADIUS server, and how would you validate those controls are correctly applied across a fleet of 1,000 domain-joined endpoints?
+                </li>
+                <li class="prompt-item">
+                    <span class="prompt-num">03</span>
+                    wifiphisher uses social engineering via fake captive portals that mimic router firmware update pages. If you were designing a security awareness training program, how would you safely demonstrate this attack to employees without conducting it against live infrastructure? What observable behaviours would you want employees to recognise and report?
+                </li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- Completion -->
+    <div class="section" id="completion">
+        <div class="completion-section">
+            <div class="completion-icon">&#10003;</div>
+            <h2 class="completion-title">Module Complete</h2>
+            <p class="completion-text">
+                You have examined the SSID trust model that makes evil twin attacks viable, the EAPHammer
+                enterprise credential capture workflow targeting PEAP/MSCHAPv2 and rogue RADIUS, the
+                detailed four-stage enterprise attack flow from rogue AP creation to NetNTLM cracking,
+                wifiphisher's captive portal phishing technique and OS detection mechanisms, post-exploitation
+                pathways from wireless hashes to Active Directory compromise, and the layered defensive
+                architecture — EAP-TLS, supplicant pinning, PMF, WIDS, and always-on VPN — required to
+                address the full evil twin threat surface.
+            </p>
+            <button class="completion-btn" onclick="completeModule()">
+                <span>&#10003;</span>
+                Complete Module 06
+            </button>
+        </div>
+    </div>
+
+</main>
+
+<script>
+    // Scroll progress bar — updates both the top bar and the mini bar in the header
+    function updateScrollProgress() {
+        const scrollTop = window.scrollY;
+        const docHeight = document.documentElement.scrollHeight - window.innerHeight;
+        const pct = docHeight > 0 ? (scrollTop / docHeight) * 100 : 0;
+        document.getElementById('scrollProgress').style.width = pct + '%';
+        document.getElementById('readingFill').style.width = pct + '%';
+    }
+
+    window.addEventListener('scroll', updateScrollProgress, { passive: true });
+
+    // Section fade-in via IntersectionObserver — triggers when section enters viewport
+    function initScrollAnimation() {
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) entry.target.classList.add('visible');
+            });
+        }, { threshold: 0.08 });
+
+        document.querySelectorAll('.section').forEach(s => observer.observe(s));
+    }
+
+    // Expandable detail sections — toggles body visibility and rotates chevron
+    function toggleDetail(header) {
+        const body = header.nextElementSibling;
+        const toggle = header.querySelector('.detail-toggle');
+        const isOpen = body.classList.contains('open');
+        body.classList.toggle('open', !isOpen);
+        toggle.classList.toggle('open', !isOpen);
+    }
+
+    // Module completion — delegates to ModuleProgress component if available
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('dark-arts', 'wifi-mod-eviltwin', {
+                returnUrl: '../index.html'
+            });
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        initScrollAnimation();
+    });
+</script>
+
+</body>
+</html>

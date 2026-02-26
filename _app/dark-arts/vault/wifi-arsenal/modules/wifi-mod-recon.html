@@ -1,0 +1,1658 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('dark-arts');</script>
+    <!-- Progress & Achievements -->
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WiFi Arsenal Module 02: Reconnaissance & Discovery - The Vault</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            min-height: 100vh;
+            background: #0a0508;
+            font-family: 'Georgia', 'Times New Roman', serif;
+            color: #8a6a9a;
+            line-height: 1.7;
+            overflow-x: hidden;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background:
+                radial-gradient(ellipse at 15% 40%, rgba(80, 40, 100, 0.08) 0%, transparent 50%),
+                radial-gradient(ellipse at 85% 60%, rgba(60, 20, 80, 0.06) 0%, transparent 50%);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .scroll-progress {
+            position: fixed; top: 0; left: 0;
+            height: 3px;
+            background: linear-gradient(90deg, #9333ea, #a855f7);
+            z-index: 200; transition: width 0.1s linear; width: 0%;
+        }
+
+        .module-header {
+            background: rgba(10, 5, 15, 0.95);
+            border-bottom: 1px solid rgba(100, 60, 130, 0.2);
+            padding: 18px 40px;
+            display: flex; justify-content: space-between; align-items: center;
+            position: sticky; top: 0; z-index: 100;
+            backdrop-filter: blur(10px);
+        }
+
+        .header-left { display: flex; align-items: center; gap: 15px; }
+
+        .back-btn {
+            background: rgba(80, 40, 100, 0.2);
+            border: 1px solid rgba(100, 60, 130, 0.3);
+            color: #9a7aaa; padding: 7px 14px; border-radius: 4px;
+            font-size: 0.8rem; text-decoration: none;
+            transition: all 0.3s ease; font-family: 'Georgia', serif;
+        }
+
+        .back-btn:hover {
+            background: rgba(100, 60, 130, 0.3);
+            border-color: rgba(147, 51, 234, 0.5); color: #c4a0d8;
+        }
+
+        .module-label { font-size: 0.75rem; color: #6a4a7a; letter-spacing: 0.2em; text-transform: uppercase; }
+
+        .header-right { display: flex; align-items: center; gap: 12px; font-size: 0.75rem; color: #6a4a7a; }
+
+        .progress-bar-mini {
+            width: 120px; height: 4px;
+            background: rgba(60, 30, 80, 0.3); border-radius: 2px; overflow: hidden;
+        }
+
+        .progress-bar-mini .fill {
+            height: 100%; background: linear-gradient(90deg, #9333ea, #a855f7);
+            width: 0%; transition: width 0.5s ease;
+        }
+
+        .module-content {
+            max-width: 1100px; margin: 0 auto; padding: 40px;
+            position: relative; z-index: 10;
+        }
+
+        .intro-section { text-align: center; padding: 50px 0 60px; }
+
+        .intro-icon {
+            font-size: 3.5rem; margin-bottom: 20px;
+            filter: drop-shadow(0 0 20px rgba(147, 51, 234, 0.3));
+        }
+
+        .intro-title { font-size: 2.4rem; color: #c4a0d8; margin-bottom: 12px; font-weight: 400; letter-spacing: 0.05em; }
+        .intro-meta { font-size: 0.75rem; color: #6a4a7a; letter-spacing: 0.25em; text-transform: uppercase; margin-bottom: 20px; }
+        .intro-subtitle { font-size: 1rem; color: #8a6a9a; max-width: 720px; margin: 0 auto; line-height: 1.8; }
+
+        .module-stats { display: flex; justify-content: center; gap: 25px; margin-top: 30px; flex-wrap: wrap; }
+
+        .stat-pill {
+            padding: 8px 18px;
+            background: rgba(60, 30, 80, 0.15);
+            border: 1px solid rgba(100, 60, 130, 0.2);
+            border-radius: 20px; font-size: 0.75rem; color: #7a5a8a; letter-spacing: 0.1em;
+        }
+
+        .section {
+            margin-bottom: 80px; opacity: 0; transform: translateY(30px);
+            transition: opacity 0.6s ease, transform 0.6s ease;
+        }
+
+        .section.visible { opacity: 1; transform: translateY(0); }
+
+        .section-number { font-size: 0.65rem; color: #6a4a7a; letter-spacing: 0.35em; text-transform: uppercase; margin-bottom: 8px; }
+
+        .section-title {
+            font-size: 1.9rem; color: #c4a0d8; margin-bottom: 20px; font-weight: 400;
+            display: flex; align-items: center; gap: 15px;
+            border-bottom: 1px solid rgba(100, 60, 130, 0.15); padding-bottom: 15px;
+        }
+
+        .section-icon { font-size: 1.6rem; opacity: 0.75; }
+
+        .section-body { color: #a080b0; font-size: 0.97rem; }
+        .section-body p { margin-bottom: 16px; }
+        .section-body ul { list-style: none; padding-left: 20px; margin-bottom: 16px; }
+        .section-body li { margin-bottom: 10px; position: relative; padding-left: 20px; }
+        .section-body li::before { content: '▸'; position: absolute; left: 0; color: #7a5a8a; }
+
+        /* Standards table */
+        .standards-table {
+            width: 100%; border-collapse: collapse; margin: 24px 0; font-size: 0.87rem;
+        }
+
+        .standards-table th {
+            background: rgba(40, 20, 60, 0.5); color: #c4a0d8; padding: 12px 16px;
+            text-align: left; font-weight: normal; letter-spacing: 0.1em;
+            font-size: 0.78rem; text-transform: uppercase;
+            border-bottom: 1px solid rgba(100, 60, 130, 0.2);
+        }
+
+        .standards-table td {
+            padding: 12px 16px; color: #9a7aaa;
+            border-bottom: 1px solid rgba(100, 60, 130, 0.08); vertical-align: top;
+        }
+
+        .standards-table tr:hover td { background: rgba(40, 20, 60, 0.2); }
+        .standards-table .std-name { color: #c4a0d8; font-family: 'Courier New', monospace; font-size: 0.9rem; }
+
+        .badge {
+            display: inline-block; padding: 2px 8px; border-radius: 10px;
+            font-size: 0.65rem; letter-spacing: 0.08em; text-transform: uppercase;
+        }
+
+        .badge-passive { background: rgba(34, 197, 94, 0.15); color: #4ade80; border: 1px solid rgba(34, 197, 94, 0.3); }
+        .badge-active { background: rgba(249, 115, 22, 0.2); color: #fb923c; border: 1px solid rgba(249, 115, 22, 0.3); }
+        .badge-caution { background: rgba(234, 179, 8, 0.15); color: #facc15; border: 1px solid rgba(234, 179, 8, 0.3); }
+        .badge-illegal { background: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.3); }
+        .badge-tool { background: rgba(147, 51, 234, 0.2); color: #c084fc; border: 1px solid rgba(147, 51, 234, 0.3); }
+
+        .concept-grid {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 18px; margin: 28px 0;
+        }
+
+        .concept-card {
+            background: rgba(15, 8, 20, 0.6);
+            border: 1px solid rgba(100, 60, 130, 0.15);
+            border-radius: 8px; padding: 22px; transition: all 0.3s ease;
+        }
+
+        .concept-card:hover {
+            transform: translateY(-4px); border-color: rgba(147, 51, 234, 0.35);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+        }
+
+        .concept-card-icon { font-size: 1.8rem; margin-bottom: 12px; }
+        .concept-card-title { font-size: 1rem; color: #c4a0d8; margin-bottom: 8px; }
+        .concept-card-body { font-size: 0.85rem; color: #8a6a9a; line-height: 1.6; }
+
+        .concept-tag {
+            display: inline-block; margin-top: 10px; padding: 3px 10px;
+            background: rgba(80, 40, 100, 0.3); border-radius: 12px;
+            font-size: 0.65rem; color: #9333ea; letter-spacing: 0.1em; text-transform: uppercase;
+        }
+
+        .callout {
+            border-radius: 8px; padding: 20px 24px; margin: 24px 0;
+            display: flex; gap: 16px; align-items: flex-start;
+        }
+
+        .callout-info { background: rgba(40, 20, 60, 0.4); border-left: 3px solid #9333ea; }
+        .callout-warning { background: rgba(60, 40, 10, 0.4); border-left: 3px solid #ca8a04; }
+        .callout-danger { background: rgba(60, 20, 20, 0.4); border-left: 3px solid #dc2626; }
+        .callout-tip { background: rgba(20, 50, 30, 0.4); border-left: 3px solid #16a34a; }
+
+        .callout-icon { font-size: 1.3rem; flex-shrink: 0; margin-top: 1px; }
+        .callout-title { font-size: 0.8rem; letter-spacing: 0.15em; text-transform: uppercase; margin-bottom: 6px; }
+        .callout-info .callout-title { color: #a855f7; }
+        .callout-warning .callout-title { color: #eab308; }
+        .callout-danger .callout-title { color: #ef4444; }
+        .callout-tip .callout-title { color: #22c55e; }
+        .callout-text { font-size: 0.9rem; color: #9a7aaa; line-height: 1.65; }
+
+        .detail-section {
+            border: 1px solid rgba(100, 60, 130, 0.15); border-radius: 8px;
+            margin: 12px 0; overflow: hidden;
+        }
+
+        .detail-header {
+            padding: 16px 20px; background: rgba(15, 8, 20, 0.6);
+            cursor: pointer; display: flex; justify-content: space-between; align-items: center;
+            transition: background 0.3s ease; user-select: none;
+        }
+
+        .detail-header:hover { background: rgba(40, 20, 60, 0.5); }
+
+        .detail-header-left { display: flex; align-items: center; gap: 12px; }
+        .detail-header-icon { font-size: 1rem; opacity: 0.75; }
+        .detail-header-title { font-size: 0.95rem; color: #c4a0d8; }
+        .detail-header-subtitle { font-size: 0.75rem; color: #6a4a7a; margin-top: 2px; }
+        .detail-toggle { color: #7a5a8a; font-size: 0.8rem; transition: transform 0.3s ease; }
+        .detail-toggle.open { transform: rotate(180deg); }
+
+        .detail-body {
+            display: none; padding: 20px 24px; background: rgba(10, 5, 15, 0.4);
+            border-top: 1px solid rgba(100, 60, 130, 0.1);
+            color: #9a7aaa; font-size: 0.9rem; line-height: 1.7;
+        }
+
+        .detail-body.open { display: block; }
+        .detail-body p { margin-bottom: 12px; }
+        .detail-body ul { list-style: none; padding-left: 20px; }
+        .detail-body li { margin-bottom: 8px; position: relative; padding-left: 18px; }
+        .detail-body li::before { content: '▸'; position: absolute; left: 0; color: #7a5a8a; }
+
+        /* Tool cards */
+        .tool-grid {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 16px; margin: 20px 0;
+        }
+
+        .tool-card {
+            background: rgba(15, 8, 20, 0.6);
+            border: 1px solid rgba(100, 60, 130, 0.15);
+            border-radius: 8px; padding: 20px; transition: all 0.3s ease;
+        }
+
+        .tool-card:hover { border-color: rgba(147, 51, 234, 0.3); }
+
+        .tool-name {
+            font-size: 0.95rem; color: #c4a0d8; margin-bottom: 4px;
+            font-family: 'Courier New', monospace;
+        }
+
+        .tool-role {
+            font-size: 0.68rem; color: #9333ea; letter-spacing: 0.12em;
+            text-transform: uppercase; margin-bottom: 10px;
+        }
+
+        .tool-desc { font-size: 0.84rem; color: #8a6a9a; line-height: 1.6; }
+
+        .code-block {
+            background: rgba(5, 2, 10, 0.8);
+            border: 1px solid rgba(100, 60, 130, 0.2);
+            border-radius: 6px; padding: 16px 20px; margin: 16px 0;
+            font-family: 'Courier New', monospace; font-size: 0.84rem;
+            color: #b090c0; overflow-x: auto; line-height: 1.6;
+        }
+
+        .code-block .kw { color: #a855f7; }
+        .code-block .str { color: #86efac; }
+        .code-block .comment { color: #6a4a7a; font-style: italic; }
+        .code-block .flag { color: #fbbf24; }
+
+        .two-col {
+            display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin: 20px 0;
+        }
+
+        .col-card {
+            background: rgba(15, 8, 20, 0.6);
+            border: 1px solid rgba(100, 60, 130, 0.15); border-radius: 8px; padding: 22px;
+        }
+
+        .col-card h3 {
+            font-size: 1rem; color: #c4a0d8; margin-bottom: 12px;
+            display: flex; align-items: center; gap: 8px;
+        }
+
+        .col-card ul { list-style: none; padding: 0; }
+        .col-card li {
+            font-size: 0.88rem; color: #8a6a9a; padding: 6px 0;
+            border-bottom: 1px solid rgba(100, 60, 130, 0.08);
+            display: flex; align-items: flex-start; gap: 8px;
+        }
+        .col-card li:last-child { border-bottom: none; }
+        .li-marker { color: #9333ea; flex-shrink: 0; }
+
+        .discussion-section {
+            background: linear-gradient(135deg, rgba(40, 20, 60, 0.3), rgba(30, 15, 50, 0.4));
+            border: 1px solid rgba(100, 60, 130, 0.25); border-radius: 10px; padding: 30px; margin: 40px 0;
+        }
+
+        .discussion-title {
+            font-size: 1.1rem; color: #c4a0d8; margin-bottom: 20px;
+            display: flex; align-items: center; gap: 10px;
+        }
+
+        .prompt-list { list-style: none; padding: 0; }
+
+        .prompt-item {
+            padding: 14px 18px; background: rgba(15, 8, 20, 0.5);
+            border: 1px solid rgba(100, 60, 130, 0.12); border-radius: 6px;
+            margin-bottom: 10px; font-size: 0.9rem; color: #9a7aaa;
+            line-height: 1.6; display: flex; gap: 12px;
+        }
+
+        .prompt-num {
+            color: #9333ea; font-size: 0.8rem;
+            font-family: 'Courier New', monospace; flex-shrink: 0; padding-top: 2px;
+        }
+
+        .takeaway-grid {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px; margin: 24px 0;
+        }
+
+        .takeaway-card {
+            background: rgba(15, 8, 20, 0.6); border: 1px solid rgba(100, 60, 130, 0.15);
+            border-radius: 8px; padding: 20px; text-align: center;
+        }
+
+        .takeaway-icon { font-size: 2rem; margin-bottom: 10px; }
+        .takeaway-title { font-size: 0.85rem; color: #c4a0d8; margin-bottom: 6px; }
+        .takeaway-desc { font-size: 0.78rem; color: #7a5a8a; line-height: 1.5; }
+
+        /* Column output table for airodump display */
+        .column-table {
+            width: 100%; border-collapse: collapse; margin: 20px 0; font-size: 0.85rem;
+        }
+
+        .column-table th {
+            background: rgba(40, 20, 60, 0.5); color: #c4a0d8; padding: 10px 14px;
+            text-align: left; font-weight: normal; letter-spacing: 0.1em;
+            font-size: 0.75rem; text-transform: uppercase;
+            border-bottom: 1px solid rgba(100, 60, 130, 0.2);
+            font-family: 'Courier New', monospace;
+        }
+
+        .column-table td {
+            padding: 10px 14px; color: #9a7aaa;
+            border-bottom: 1px solid rgba(100, 60, 130, 0.08); vertical-align: top;
+        }
+
+        .column-table tr:hover td { background: rgba(40, 20, 60, 0.2); }
+        .column-table .col-name { color: #c4a0d8; font-family: 'Courier New', monospace; font-size: 0.88rem; }
+        .column-table .col-example { font-family: 'Courier New', monospace; color: #86efac; font-size: 0.82rem; }
+
+        /* Signal strength visualization */
+        .signal-grid {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 14px; margin: 20px 0;
+        }
+
+        .signal-card {
+            background: rgba(15, 8, 20, 0.6);
+            border: 1px solid rgba(100, 60, 130, 0.15);
+            border-radius: 8px; padding: 18px; transition: all 0.3s ease;
+        }
+
+        .signal-card:hover { border-color: rgba(147, 51, 234, 0.3); }
+
+        .signal-value {
+            font-family: 'Courier New', monospace; font-size: 1.4rem;
+            margin-bottom: 6px;
+        }
+
+        .signal-label { font-size: 0.75rem; color: #7a5a8a; margin-bottom: 8px; letter-spacing: 0.1em; text-transform: uppercase; }
+        .signal-desc { font-size: 0.82rem; color: #8a6a9a; line-height: 1.5; }
+        .signal-bar { height: 4px; border-radius: 2px; margin-top: 10px; }
+
+        .completion-section {
+            text-align: center; padding: 60px 40px;
+            background: linear-gradient(135deg, rgba(40, 20, 60, 0.3), rgba(30, 15, 50, 0.4));
+            border: 1px solid rgba(100, 60, 130, 0.3); border-radius: 12px; margin: 60px 0 40px;
+        }
+
+        .completion-icon { font-size: 3.5rem; margin-bottom: 20px; }
+        .completion-title { font-size: 1.8rem; color: #c4a0d8; margin-bottom: 12px; font-weight: 400; }
+        .completion-text { color: #8a6a9a; font-size: 0.95rem; max-width: 560px; margin: 0 auto 30px; line-height: 1.8; }
+
+        .completion-btn {
+            display: inline-flex; align-items: center; gap: 10px; padding: 14px 36px;
+            background: linear-gradient(135deg, #7c3aed, #9333ea); border: none; border-radius: 8px;
+            color: #f3e8ff; font-size: 1rem; cursor: pointer; font-family: 'Georgia', serif;
+            letter-spacing: 0.05em; transition: all 0.3s ease; box-shadow: 0 4px 20px rgba(147, 51, 234, 0.3);
+        }
+
+        .completion-btn:hover {
+            background: linear-gradient(135deg, #6d28d9, #7c3aed);
+            box-shadow: 0 6px 30px rgba(147, 51, 234, 0.45); transform: translateY(-2px);
+        }
+
+        @media (max-width: 768px) {
+            .module-header { padding: 15px 20px; }
+            .module-content { padding: 20px; }
+            .two-col { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="scroll-progress" id="scrollProgress"></div>
+
+<header class="module-header">
+    <div class="header-left">
+        <a href="../index.html" class="back-btn">&#8592; Back to Course</a>
+        <div>
+            <div class="module-label">WiFi Arsenal &middot; Module 02</div>
+        </div>
+    </div>
+    <div class="header-right">
+        <span>Reading Progress</span>
+        <div class="progress-bar-mini">
+            <div class="fill" id="readingFill"></div>
+        </div>
+    </div>
+</header>
+
+<main class="module-content">
+
+    <!-- Hero -->
+    <div class="intro-section">
+        <div class="intro-icon">&#128225;</div>
+        <h1 class="intro-title">Reconnaissance &amp; Discovery</h1>
+        <div class="intro-meta">WiFi Arsenal &bull; Module 02 &bull; Wireless Recon</div>
+        <p class="intro-subtitle">
+            Before any wireless assessment begins, the attacker must see the battlefield. Reconnaissance
+            transforms invisible radio frequency activity into actionable intelligence: which networks are
+            present, which clients are connected, what encryption protocols are in use, and which targets
+            are worth pursuing. This module builds the foundational skills for systematic wireless
+            reconnaissance using the full spectrum of available tooling.
+        </p>
+        <div class="module-stats">
+            <div class="stat-pill">Monitor Mode</div>
+            <div class="stat-pill">airodump-ng</div>
+            <div class="stat-pill">bettercap</div>
+            <div class="stat-pill">Hidden SSIDs</div>
+            <div class="stat-pill">~20 min read</div>
+        </div>
+    </div>
+
+    <!-- Section 1: The Reconnaissance Mindset -->
+    <div class="section" id="s1">
+        <div class="section-number">Section 01</div>
+        <h2 class="section-title">
+            <span class="section-icon">&#128270;</span>
+            The Reconnaissance Mindset
+        </h2>
+        <div class="section-body">
+            <p>
+                Wireless reconnaissance is the practice of systematically gathering intelligence about the
+                802.11 radio frequency environment before conducting any active engagement. In a well-executed
+                assessment, recon is not a single step — it is an ongoing discipline that informs every
+                subsequent decision. A target network discovered during passive monitoring tells you the
+                encryption type, approximate signal strength, client device count, and channel occupancy.
+                That intelligence shapes everything from wordlist selection to physical positioning.
+            </p>
+            <p>
+                The most critical distinction in wireless recon is the boundary between passive and active
+                techniques. Passive reconnaissance involves listening without transmitting — your adapter
+                receives frames but never sends any. Active reconnaissance involves transmitting probe
+                requests, deauthentication frames, or other traffic to elicit responses. This distinction
+                has both technical and legal consequences.
+            </p>
+
+            <div class="two-col">
+                <div class="col-card">
+                    <h3>&#128065; Passive Reconnaissance</h3>
+                    <ul>
+                        <li><span class="li-marker">▸</span>No frames transmitted — RF-silent</li>
+                        <li><span class="li-marker">▸</span>Captures beacons, probe responses, data frames</li>
+                        <li><span class="li-marker">▸</span>Undetectable by WIDS systems in many configurations</li>
+                        <li><span class="li-marker">▸</span>Legal grey area: capturing broadcast traffic</li>
+                        <li><span class="li-marker">▸</span>Cannot discover hidden SSIDs without client traffic</li>
+                        <li><span class="li-marker">▸</span>Tools: airodump-ng (no injection), Kismet, tcpdump</li>
+                    </ul>
+                </div>
+                <div class="col-card">
+                    <h3>&#9889; Active Reconnaissance</h3>
+                    <ul>
+                        <li><span class="li-marker">▸</span>Transmits probe requests, deauth frames, beacons</li>
+                        <li><span class="li-marker">▸</span>Can reveal hidden SSIDs via forced probe responses</li>
+                        <li><span class="li-marker">▸</span>Detectable by WIDS — leaves evidence in RF environment</li>
+                        <li><span class="li-marker">▸</span>Requires explicit authorization to perform legally</li>
+                        <li><span class="li-marker">▸</span>Faster intelligence gathering but higher risk profile</li>
+                        <li><span class="li-marker">▸</span>Tools: aireplay-ng, bettercap (active modules)</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="concept-grid">
+                <div class="concept-card">
+                    <div class="concept-card-icon">&#128065;</div>
+                    <div class="concept-card-title">OPSEC During Recon</div>
+                    <div class="concept-card-body">
+                        Operational security begins before the first packet is captured. Use a dedicated
+                        assessment adapter with MAC address randomization. Remove or disable adapters not in
+                        use. In sensitive engagements, conduct initial passive recon from a vehicle at
+                        perimeter distance to avoid physical detection.
+                    </div>
+                    <span class="concept-tag">Discipline</span>
+                </div>
+                <div class="concept-card">
+                    <div class="concept-card-icon">&#128203;</div>
+                    <div class="concept-card-title">Scope Discipline</div>
+                    <div class="concept-card-body">
+                        A wireless scan in a dense urban environment will reveal dozens of networks beyond
+                        your authorized scope. Rigorous scope documentation — including specific BSSIDs
+                        and SSID patterns — prevents accidental engagement of out-of-scope systems and
+                        protects both the assessor and the client legally.
+                    </div>
+                    <span class="concept-tag">Methodology</span>
+                </div>
+                <div class="concept-card">
+                    <div class="concept-card-icon">&#9878;</div>
+                    <div class="concept-card-title">Legal Framework</div>
+                    <div class="concept-card-body">
+                        Even passive interception of encrypted wireless frames may violate the Electronic
+                        Communications Privacy Act (ECPA) in the US, the Computer Misuse Act in the UK,
+                        or equivalent statutes. Obtain explicit written authorization that specifies the
+                        techniques authorized, not just the target systems.
+                    </div>
+                    <span class="concept-tag">Authorization</span>
+                </div>
+                <div class="concept-card">
+                    <div class="concept-card-icon">&#128207;</div>
+                    <div class="concept-card-title">Hardware Selection</div>
+                    <div class="concept-card-body">
+                        Not all wireless adapters support monitor mode or packet injection. Assessment
+                        work requires an adapter with a chipset explicitly supported by the Linux
+                        mac80211 subsystem — Atheros, Ralink, and Realtek chipsets are commonly used.
+                        The Alfa AWUS036ACH is a field-standard choice for its dual-band capability
+                        and robust injection support.
+                    </div>
+                    <span class="concept-tag">Equipment</span>
+                </div>
+            </div>
+
+            <div class="callout callout-warning">
+                <span class="callout-icon">&#9888;</span>
+                <div class="callout-content">
+                    <div class="callout-title">The Authorization Problem</div>
+                    <div class="callout-text">
+                        Passive wireless reconnaissance (listening only) captures data about every device
+                        in range — including devices, networks, and individuals with no relationship to
+                        your authorized target. In a shared office building, a single airodump-ng session
+                        may capture client MAC addresses, device fingerprints, and traffic patterns from
+                        dozens of third-party organizations. Document this risk in your engagement scope
+                        and rules of engagement before proceeding.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 2: Monitor Mode Fundamentals -->
+    <div class="section" id="s2">
+        <div class="section-number">Section 02</div>
+        <h2 class="section-title">
+            <span class="section-icon">&#128246;</span>
+            Monitor Mode Fundamentals
+        </h2>
+        <div class="section-body">
+            <p>
+                Wireless network interfaces operate in different modes that control which frames the kernel
+                passes to userspace. Understanding these modes is not optional background knowledge — it
+                directly determines what data you can capture and what attacks you can execute.
+            </p>
+
+            <div class="concept-grid">
+                <div class="concept-card">
+                    <div class="concept-card-icon">&#128268;</div>
+                    <div class="concept-card-title">Managed Mode</div>
+                    <div class="concept-card-body">
+                        The default operating mode for client devices. The NIC associates with an access
+                        point (or works as a standalone client). The kernel 802.11 stack filters out all
+                        frames not addressed to the adapter's own MAC address. You cannot capture other
+                        devices' traffic in this mode.
+                    </div>
+                    <span class="concept-tag">Default</span>
+                </div>
+                <div class="concept-card">
+                    <div class="concept-card-icon">&#128225;</div>
+                    <div class="concept-card-title">Monitor Mode</div>
+                    <div class="concept-card-body">
+                        The NIC captures all 802.11 frames in range regardless of BSSID, destination MAC,
+                        or association state. The kernel passes raw 802.11 frames (including management,
+                        control, and data frames) directly to the capture interface. This is the mode
+                        required for all wireless assessment operations.
+                    </div>
+                    <span class="concept-tag">Assessment Required</span>
+                </div>
+                <div class="concept-card">
+                    <div class="concept-card-icon">&#128268;</div>
+                    <div class="concept-card-title">Promiscuous Mode</div>
+                    <div class="concept-card-body">
+                        Often confused with monitor mode. Promiscuous mode applies to wired (Ethernet)
+                        interfaces and allows capture of all frames on the connected segment — not filtered
+                        by destination MAC. On wireless adapters, promiscuous mode does not provide
+                        monitor mode capability. The distinction matters when reviewing tcpdump flags.
+                    </div>
+                    <span class="concept-tag">Ethernet Concept</span>
+                </div>
+                <div class="concept-card">
+                    <div class="concept-card-icon">&#128736;</div>
+                    <div class="concept-card-title">Master Mode (AP)</div>
+                    <div class="concept-card-body">
+                        Configures the adapter to act as an access point, broadcasting beacons and
+                        managing client associations. Used for evil twin attacks, rogue AP deployment,
+                        and captive portal scenarios. Requires hostapd in practice for full AP
+                        functionality, or bettercap's ap module for rapid setup.
+                    </div>
+                    <span class="concept-tag">AP Emulation</span>
+                </div>
+            </div>
+
+            <h3 style="color: #c4a0d8; font-size: 1.1rem; font-weight: 400; margin: 28px 0 16px;">Enabling Monitor Mode with airmon-ng</h3>
+
+            <p>
+                The <code style="font-family: 'Courier New', monospace; color: #c4a0d8;">airmon-ng</code> utility
+                manages monitor mode on wireless interfaces. On modern Kali Linux systems, airmon-ng wraps
+                the underlying <code style="font-family: 'Courier New', monospace; color: #c4a0d8;">iw</code>
+                and <code style="font-family: 'Courier New', monospace; color: #c4a0d8;">ip</code> commands,
+                handling interface creation, naming, and interference process management automatically.
+            </p>
+
+            <div class="detail-section">
+                <div class="detail-header" onclick="toggleDetail(this)">
+                    <div class="detail-header-left">
+                        <span class="detail-header-icon">&#128246;</span>
+                        <div>
+                            <div class="detail-header-title">Step 1 — Identify Your Wireless Interface</div>
+                            <div class="detail-header-subtitle">Enumerate adapters and verify chipset support</div>
+                        </div>
+                    </div>
+                    <span class="detail-toggle">&#9660;</span>
+                </div>
+                <div class="detail-body">
+                    <p>Before enabling monitor mode, identify the interface name and confirm it supports injection. Interface names vary: wlan0, wlan1, wlp2s0, wlx... depending on the adapter and system configuration.</p>
+                    <div class="code-block">
+<span class="comment"># List all wireless interfaces with driver and chipset info</span>
+$ <span class="kw">airmon-ng</span>
+
+PHY     Interface   Driver          Chipset
+phy0    wlan0       rt2800usb       Ralink Technology, Corp. RT2870/RT3070
+phy1    wlan1       ath9k_htc       Qualcomm Atheros Communications AR9271
+
+<span class="comment"># Also check with iw for supported modes</span>
+$ <span class="kw">iw</span> <span class="flag">list</span> | grep -A 8 <span class="str">"Supported interface modes"</span>
+    Supported interface modes:
+         * IBSS
+         * managed
+         * AP
+         * monitor          <span class="comment"># Must be present</span>
+         * P2P-client
+         * P2P-GO
+                    </div>
+                </div>
+            </div>
+
+            <div class="detail-section">
+                <div class="detail-header" onclick="toggleDetail(this)">
+                    <div class="detail-header-left">
+                        <span class="detail-header-icon">&#9889;</span>
+                        <div>
+                            <div class="detail-header-title">Step 2 — Kill Interfering Processes</div>
+                            <div class="detail-header-subtitle">NetworkManager, wpa_supplicant, and dhclient can disrupt monitor mode</div>
+                        </div>
+                    </div>
+                    <span class="detail-toggle">&#9660;</span>
+                </div>
+                <div class="detail-body">
+                    <p>
+                        System services that manage wireless connectivity — particularly NetworkManager and
+                        wpa_supplicant — actively manage the adapter and will interfere with monitor mode by
+                        periodically reasserting managed mode or sending probe requests. airmon-ng detects
+                        these processes and can terminate them automatically.
+                    </p>
+                    <div class="code-block">
+<span class="comment"># Check for interfering processes</span>
+$ <span class="kw">sudo airmon-ng check</span>
+
+Found 3 processes that could cause trouble.
+PID     Name
+718     NetworkManager
+892     wpa_supplicant
+1204    dhclient
+
+<span class="comment"># Kill all interfering processes automatically</span>
+$ <span class="kw">sudo airmon-ng check kill</span>
+
+Killing these processes:
+    PID Name
+    718 NetworkManager
+    892 wpa_supplicant
+   1204 dhclient
+                    </div>
+                    <p>
+                        Note that killing NetworkManager will drop any active wired or wireless connections on
+                        the system. On a remote assessment box accessed via SSH over a separate wired interface,
+                        this is acceptable. Killing NetworkManager on a system with only wireless connectivity
+                        will terminate your session.
+                    </p>
+                </div>
+            </div>
+
+            <div class="detail-section">
+                <div class="detail-header" onclick="toggleDetail(this)">
+                    <div class="detail-header-left">
+                        <span class="detail-header-icon">&#128246;</span>
+                        <div>
+                            <div class="detail-header-title">Step 3 — Start Monitor Mode</div>
+                            <div class="detail-header-subtitle">Create the monitor interface (wlan0mon)</div>
+                        </div>
+                    </div>
+                    <span class="detail-toggle">&#9660;</span>
+                </div>
+                <div class="detail-body">
+                    <div class="code-block">
+<span class="comment"># Enable monitor mode — creates wlan0mon virtual interface</span>
+$ <span class="kw">sudo airmon-ng start</span> wlan0
+
+PHY     Interface   Driver          Chipset
+phy0    wlan0       rt2800usb       Ralink Technology Corp. RT2870
+
+                    (mac80211 monitor mode vif enabled for [phy0]wlan0 on [phy0]wlan0mon)
+                    (mac80211 station mode vif disabled for [phy0]wlan0)
+
+<span class="comment"># Start on a specific channel (reduces channel-hop overhead)</span>
+$ <span class="kw">sudo airmon-ng start</span> wlan0 <span class="flag">6</span>
+                    </div>
+                    <p>On some systems and drivers, airmon-ng may rename the interface differently. Always confirm the resulting interface name from the command output before proceeding.</p>
+                </div>
+            </div>
+
+            <div class="detail-section">
+                <div class="detail-header" onclick="toggleDetail(this)">
+                    <div class="detail-header-left">
+                        <span class="detail-header-icon">&#10003;</span>
+                        <div>
+                            <div class="detail-header-title">Step 4 — Verify Monitor Mode with iwconfig</div>
+                            <div class="detail-header-subtitle">Confirm the interface is in the correct mode</div>
+                        </div>
+                    </div>
+                    <span class="detail-toggle">&#9660;</span>
+                </div>
+                <div class="detail-body">
+                    <div class="code-block">
+<span class="comment"># Verify mode with iwconfig (legacy but reliable)</span>
+$ <span class="kw">iwconfig</span> wlan0mon
+
+wlan0mon  IEEE 802.11  Mode:<span class="str">Monitor</span>  Frequency:2.412 GHz  Tx-Power=20 dBm
+          Retry short  limit:7   RTS thr:off   Fragment thr:off
+          Power Management:off
+
+<span class="comment"># Or use the modern iw command</span>
+$ <span class="kw">iw</span> dev wlan0mon info
+
+Interface wlan0mon
+    ifindex 5
+    wdev 0x100000001
+    addr 00:c0:ca:97:d2:4a
+    type <span class="str">monitor</span>
+    wiphy 0
+    channel 6 (2437 MHz), width: 20 MHz, center1: 2437 MHz
+                    </div>
+                    <p>Confirm the Mode field reads "Monitor". If it reads "Managed", the monitor interface was not created correctly — re-run airmon-ng or attempt the manual method via iw set type monitor.</p>
+                </div>
+            </div>
+
+            <div class="detail-section">
+                <div class="detail-header" onclick="toggleDetail(this)">
+                    <div class="detail-header-left">
+                        <span class="detail-header-icon">&#128683;</span>
+                        <div>
+                            <div class="detail-header-title">Stopping Monitor Mode</div>
+                            <div class="detail-header-subtitle">Restore the interface to managed mode cleanly</div>
+                        </div>
+                    </div>
+                    <span class="detail-toggle">&#9660;</span>
+                </div>
+                <div class="detail-body">
+                    <div class="code-block">
+<span class="comment"># Stop monitor mode and restore the managed interface</span>
+$ <span class="kw">sudo airmon-ng stop</span> wlan0mon
+
+PHY     Interface   Driver          Chipset
+phy0    wlan0mon    rt2800usb       Ralink Technology Corp. RT2870
+
+                    (mac80211 monitor mode vif disabled for [phy0]wlan0mon)
+                    (mac80211 station mode vif enabled for [phy0]wlan0)
+
+<span class="comment"># Restart NetworkManager if you killed it earlier</span>
+$ <span class="kw">sudo systemctl start</span> NetworkManager
+                    </div>
+                </div>
+            </div>
+
+            <div class="callout callout-tip">
+                <span class="callout-icon">&#10003;</span>
+                <div class="callout-content">
+                    <div class="callout-title">Manual Method with iw</div>
+                    <div class="callout-text">
+                        If airmon-ng fails (common with newer kernels or unusual driver configurations),
+                        you can enable monitor mode manually: bring the interface down with
+                        <code style="font-family: 'Courier New', monospace; color: #c4a0d8;">ip link set wlan0 down</code>,
+                        set the type with <code style="font-family: 'Courier New', monospace; color: #c4a0d8;">iw dev wlan0 set type monitor</code>,
+                        then bring it back up with <code style="font-family: 'Courier New', monospace; color: #c4a0d8;">ip link set wlan0 up</code>.
+                        This approach does not rename the interface and preserves the original name.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 3: Network Discovery with airodump-ng -->
+    <div class="section" id="s3">
+        <div class="section-number">Section 03</div>
+        <h2 class="section-title">
+            <span class="section-icon">&#128200;</span>
+            Network Discovery with airodump-ng
+        </h2>
+        <div class="section-body">
+            <p>
+                airodump-ng is the wireless packet capture component of the Aircrack-ng suite. In its
+                default configuration it performs channel hopping across all 2.4 GHz and 5 GHz channels,
+                displaying discovered access points and associated client devices in real time. Its output
+                is dense with information that requires careful interpretation.
+            </p>
+
+            <h3 style="color: #c4a0d8; font-size: 1.05rem; font-weight: 400; margin: 24px 0 14px;">Basic Scan — Channel Hopping Mode</h3>
+
+            <div class="code-block">
+<span class="comment"># Start a broad scan across all channels</span>
+$ <span class="kw">sudo airodump-ng</span> wlan0mon
+
+<span class="comment"># Limit to 2.4 GHz band only (faster channel cycling)</span>
+$ <span class="kw">sudo airodump-ng</span> <span class="flag">--band bg</span> wlan0mon
+
+<span class="comment"># Include 5 GHz channels (requires dual-band adapter)</span>
+$ <span class="kw">sudo airodump-ng</span> <span class="flag">--band abg</span> wlan0mon
+            </div>
+
+            <h3 style="color: #c4a0d8; font-size: 1.05rem; font-weight: 400; margin: 24px 0 14px;">Reading the Output — AP Table Columns Explained</h3>
+
+            <p>The airodump-ng display is split into two sections: the upper table lists access points,
+            the lower table lists stations (client devices). Each column carries specific intelligence value.</p>
+
+            <table class="column-table">
+                <thead>
+                    <tr>
+                        <th>Column</th>
+                        <th>Example Value</th>
+                        <th>What It Tells You</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td class="col-name">BSSID</td>
+                        <td class="col-example">AA:BB:CC:DD:EE:FF</td>
+                        <td>The MAC address of the access point radio. The OUI (first 3 octets) identifies the hardware vendor — useful for fingerprinting AP manufacturer and model families.</td>
+                    </tr>
+                    <tr>
+                        <td class="col-name">PWR</td>
+                        <td class="col-example">-62</td>
+                        <td>Received signal strength in dBm. Higher (less negative) is stronger. -30 to -50: excellent, close range. -60 to -75: good. -80 to -90: marginal. Below -90: unreliable. Used to estimate physical distance and select optimal attack position.</td>
+                    </tr>
+                    <tr>
+                        <td class="col-name">Beacons</td>
+                        <td class="col-example">1842</td>
+                        <td>Number of beacon frames captured from this AP. APs broadcast beacons approximately 10 times per second. A high beacon count confirms sustained proximity and reception quality. Low counts may indicate intermittent reception or a distant AP.</td>
+                    </tr>
+                    <tr>
+                        <td class="col-name">#Data</td>
+                        <td class="col-example">247</td>
+                        <td>Count of data frames captured. Higher values indicate active clients generating traffic — both more opportunity to capture handshakes and more IV data if WEP is in use. A value of 0 with associated clients suggests they are idle.</td>
+                    </tr>
+                    <tr>
+                        <td class="col-name">#/s</td>
+                        <td class="col-example">18</td>
+                        <td>Data frames captured per second — real-time traffic rate. Useful for identifying active sessions and estimating when WEP IVs will accumulate to crackable counts.</td>
+                    </tr>
+                    <tr>
+                        <td class="col-name">CH</td>
+                        <td class="col-example">6</td>
+                        <td>The 802.11 channel the AP is operating on. 2.4 GHz non-overlapping channels: 1, 6, 11. 5 GHz channels: 36, 40, 44, 48, 52... (varies by region). Channel congestion analysis reveals overlapping networks that may cause interference during assessment.</td>
+                    </tr>
+                    <tr>
+                        <td class="col-name">MB</td>
+                        <td class="col-example">54e</td>
+                        <td>Maximum link speed supported by the AP. Indicates 802.11 standard generation. The 'e' suffix indicates short preamble support. Dot (.) indicates WPS enabled. Used to infer approximate 802.11 standard (11n, 11ac, 11ax) and attack surface.</td>
+                    </tr>
+                    <tr>
+                        <td class="col-name">ENC</td>
+                        <td class="col-example">WPA2</td>
+                        <td>Encryption protocol: OPN (open), WEP, WPA, WPA2, WPA3, or WPA2/WPA3 (transition mode). Immediately identifies attack feasibility — OPN requires no credential attacks; WEP is trivially crackable; WPA2-PSK is handshake-attackable; WPA3 requires different techniques.</td>
+                    </tr>
+                    <tr>
+                        <td class="col-name">CIPHER</td>
+                        <td class="col-example">CCMP</td>
+                        <td>The specific cipher in use: CCMP (AES), TKIP, or WRAP. TKIP networks running WPA2 are running in compatibility mode and are weaker than AES/CCMP. GCMP indicates WPA3.</td>
+                    </tr>
+                    <tr>
+                        <td class="col-name">AUTH</td>
+                        <td class="col-example">PSK</td>
+                        <td>Authentication method: PSK (pre-shared key / personal mode) or MGT (802.1X enterprise). PSK networks are the primary target for handshake-based cracking. MGT requires different attack vectors (evil twin, RADIUS capture).</td>
+                    </tr>
+                    <tr>
+                        <td class="col-name">ESSID</td>
+                        <td class="col-example">CorpNet_5G</td>
+                        <td>The human-readable network name. A blank or &lt;length: 0&gt; entry indicates a hidden SSID network (SSID is not broadcast in beacons). ESSID naming patterns often reveal organizational structure, site names, or IT naming conventions useful for OSINT correlation.</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h3 style="color: #c4a0d8; font-size: 1.05rem; font-weight: 400; margin: 28px 0 14px;">Targeted Capture — Locking to a Single Network</h3>
+
+            <p>
+                After identifying a target from the broad scan, lock airodump-ng to that network's specific
+                channel and BSSID. This eliminates channel-hop lag and captures all frames — including
+                the 4-way handshake — more reliably. Always write captures to disk for offline analysis.
+            </p>
+
+            <div class="code-block">
+<span class="comment"># Lock to target BSSID on channel 6, write to capture files</span>
+$ <span class="kw">sudo airodump-ng</span> \
+    <span class="flag">--bssid</span> <span class="str">AA:BB:CC:DD:EE:FF</span> \
+    <span class="flag">--channel</span> <span class="str">6</span> \
+    <span class="flag">--write</span> <span class="str">target_capture</span> \
+    wlan0mon
+
+<span class="comment"># Output files created:</span>
+<span class="comment"># target_capture-01.cap      — raw 802.11 frames (pcap format)</span>
+<span class="comment"># target_capture-01.csv      — AP and client summary data</span>
+<span class="comment"># target_capture-01.kismet.csv — Kismet-compatible format</span>
+<span class="comment"># target_capture-01.kismet.netxml — Kismet XML format</span>
+
+<span class="comment"># Capture only EAPOL/handshake frames (reduces file size)</span>
+$ <span class="kw">sudo airodump-ng</span> \
+    <span class="flag">--bssid</span> <span class="str">AA:BB:CC:DD:EE:FF</span> \
+    <span class="flag">-c</span> <span class="str">6</span> \
+    <span class="flag">--output-format</span> <span class="str">pcap</span> \
+    <span class="flag">-w</span> <span class="str">handshake_only</span> \
+    wlan0mon
+            </div>
+
+            <h3 style="color: #c4a0d8; font-size: 1.05rem; font-weight: 400; margin: 28px 0 14px;">Client Association Tracking</h3>
+
+            <p>
+                The lower section of the airodump-ng display shows client stations. This data is equally
+                valuable to the AP table — it reveals which devices are associated with which network,
+                and which devices are probing for networks they previously connected to.
+            </p>
+
+            <div class="code-block">
+<span class="comment"># Station table format</span>
+STATION           PWR    Rate    Lost  Frames  Notes   Probes
+B4:F0:AB:12:34:56 -71    54 -54    0     892          CorpNet_5G
+C8:A7:2F:98:76:54 -83     1 - 1    0      14          Starbucks_WiFi, home_network
+                            <span class="comment">               ↑ Probe requests reveal previously connected SSIDs</span>
+
+<span class="comment"># Unassociated clients (STATION with BSSID = "(not associated)")</span>
+<span class="comment"># These devices are actively sending probe requests — fingerprint them</span>
+            </div>
+
+            <div class="callout callout-info">
+                <span class="callout-icon">&#8505;</span>
+                <div class="callout-content">
+                    <div class="callout-title">Probe Requests as Intelligence</div>
+                    <div class="callout-text">
+                        Client devices send probe requests containing the SSIDs of previously connected
+                        networks when searching for known networks. This creates a passive intelligence
+                        opportunity: an unassociated client probing for "CompanyVPN_Guest" or
+                        "HomeOffice_Net" reveals previous locations and network memberships without any
+                        active scanning on your part. This is the mechanism that karma/MANA attacks
+                        exploit for evil twin association.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 4: Alternative Recon — bettercap -->
+    <div class="section" id="s4">
+        <div class="section-number">Section 04</div>
+        <h2 class="section-title">
+            <span class="section-icon">&#128736;</span>
+            Alternative Recon: bettercap
+        </h2>
+        <div class="section-body">
+            <p>
+                bettercap is a modern, modular network attack framework that has largely superseded older
+                tools like ettercap for active network manipulation. Its WiFi module provides a clean,
+                interactive interface for wireless reconnaissance that is architecturally superior to the
+                Aircrack-ng suite for some assessment workflows — particularly when you need real-time
+                filtering, scripting, or integration with other bettercap attack modules in a single session.
+            </p>
+
+            <div class="two-col">
+                <div class="col-card">
+                    <h3>&#128200; bettercap Advantages</h3>
+                    <ul>
+                        <li><span class="li-marker">▸</span>Interactive console with live filtering</li>
+                        <li><span class="li-marker">▸</span>Module system integrates WiFi + ARP + HTTP in one session</li>
+                        <li><span class="li-marker">▸</span>Built-in scripting with caplets (.cap files)</li>
+                        <li><span class="li-marker">▸</span>REST API for programmatic control</li>
+                        <li><span class="li-marker">▸</span>Web UI for visual monitoring</li>
+                        <li><span class="li-marker">▸</span>Active development and maintenance (2024+)</li>
+                    </ul>
+                </div>
+                <div class="col-card">
+                    <h3>&#128200; airodump-ng Advantages</h3>
+                    <ul>
+                        <li><span class="li-marker">▸</span>Lower overhead — single-purpose, fast</li>
+                        <li><span class="li-marker">▸</span>Better passive capture fidelity in some drivers</li>
+                        <li><span class="li-marker">▸</span>Handshake capture tightly integrated with aircrack-ng</li>
+                        <li><span class="li-marker">▸</span>Simpler to script in bash pipelines</li>
+                        <li><span class="li-marker">▸</span>More granular channel control options</li>
+                        <li><span class="li-marker">▸</span>Industry standard — universally recognized output format</li>
+                    </ul>
+                </div>
+            </div>
+
+            <h3 style="color: #c4a0d8; font-size: 1.05rem; font-weight: 400; margin: 28px 0 14px;">Starting bettercap for WiFi Reconnaissance</h3>
+
+            <div class="code-block">
+<span class="comment"># Launch bettercap with the monitor-mode interface</span>
+$ <span class="kw">sudo bettercap</span> <span class="flag">-iface</span> wlan0mon
+
+bettercap v2.32.0 (built for linux amd64) [type 'help' for a list of commands]
+
+<span class="comment"># Enable the WiFi module</span>
+<span class="str">172.16.0.1</span> &gt;&gt; <span class="kw">wifi.recon on</span>
+
+[00:14:22] [wifi.ap.new] wifi access point <span class="str">CorpNet_Primary</span> detected as AA:BB:CC:DD:EE:01 (Cisco Systems)
+[00:14:23] [wifi.ap.new] wifi access point <span class="str">CorpNet_Guest</span> detected as AA:BB:CC:DD:EE:02 (Cisco Systems)
+[00:14:24] [wifi.client.new] new station <span class="str">B4:F0:AB:12:34:56</span> detected for <span class="str">CorpNet_Primary</span>
+            </div>
+
+            <div class="code-block">
+<span class="comment"># Display discovered access points in tabular format</span>
+<span class="str">172.16.0.1</span> &gt;&gt; <span class="kw">wifi.show</span>
+
+┌──────────────────────┬───────────────────┬─────┬──────┬────────┬───────────────────┐
+│         BSSID        │       SSID        │ CH  │ PWR  │  ENC   │     Clients       │
+├──────────────────────┼───────────────────┼─────┼──────┼────────┼───────────────────┤
+│ AA:BB:CC:DD:EE:01    │ CorpNet_Primary   │  6  │ -58  │ WPA2   │ 12                │
+│ AA:BB:CC:DD:EE:02    │ CorpNet_Guest     │  6  │ -61  │ WPA2   │  4                │
+│ AA:BB:CC:DD:EE:03    │                   │ 11  │ -74  │ WPA2   │  1                │  &lt;-- hidden SSID
+└──────────────────────┴───────────────────┴─────┴──────┴────────┴───────────────────┘
+            </div>
+
+            <h3 style="color: #c4a0d8; font-size: 1.05rem; font-weight: 400; margin: 28px 0 14px;">Channel Filtering and Targeting</h3>
+
+            <div class="code-block">
+<span class="comment"># Lock recon to a single channel (reduces dwell time on others)</span>
+<span class="str">172.16.0.1</span> &gt;&gt; <span class="kw">set wifi.recon.channel</span> <span class="str">6</span>
+<span class="str">172.16.0.1</span> &gt;&gt; <span class="kw">wifi.recon on</span>
+
+<span class="comment"># Filter wifi.show output to specific BSSID</span>
+<span class="str">172.16.0.1</span> &gt;&gt; <span class="kw">set wifi.show.filter</span> <span class="str">AA:BB:CC:DD:EE:01</span>
+<span class="str">172.16.0.1</span> &gt;&gt; <span class="kw">wifi.show</span>
+
+<span class="comment"># Sort by signal strength (find closest/strongest APs first)</span>
+<span class="str">172.16.0.1</span> &gt;&gt; <span class="kw">set wifi.show.sort</span> <span class="str">rssi asc</span>
+<span class="str">172.16.0.1</span> &gt;&gt; <span class="kw">wifi.show</span>
+
+<span class="comment"># Show associated clients for a specific AP</span>
+<span class="str">172.16.0.1</span> &gt;&gt; <span class="kw">wifi.show.wpa</span> AA:BB:CC:DD:EE:01
+            </div>
+
+            <h3 style="color: #c4a0d8; font-size: 1.05rem; font-weight: 400; margin: 28px 0 14px;">bettercap Caplets — Scripted Reconnaissance</h3>
+
+            <p>
+                Caplets are bettercap's scripting format. A recon caplet can automate the full initial
+                discovery phase, reducing manual interaction and standardizing the reconnaissance workflow
+                across assessments.
+            </p>
+
+            <div class="code-block">
+<span class="comment"># wifi-recon.cap — standardized recon caplet</span>
+<span class="kw">set</span> $ <span class="str">{restapi.username}</span> admin
+<span class="kw">set</span> $ <span class="str">{restapi.password}</span> password
+
+<span class="comment"># Enable the REST API for external tooling integration</span>
+<span class="kw">api.rest on</span>
+
+<span class="comment"># Start WiFi recon in dual-band mode</span>
+<span class="kw">set wifi.recon.channel</span> <span class="str">0</span>
+<span class="kw">wifi.recon on</span>
+
+<span class="comment"># Sort by signal strength, refresh every 5 seconds</span>
+<span class="kw">set wifi.show.sort</span> <span class="str">rssi asc</span>
+<span class="kw">set ticker.commands</span> <span class="str">"clear; wifi.show"</span>
+<span class="kw">set ticker.period</span> <span class="str">5</span>
+<span class="kw">ticker on</span>
+
+<span class="comment"># Run the caplet: sudo bettercap -iface wlan0mon -caplet wifi-recon.cap</span>
+            </div>
+
+            <div class="callout callout-info">
+                <span class="callout-icon">&#8505;</span>
+                <div class="callout-content">
+                    <div class="callout-title">When to Choose bettercap over airodump-ng</div>
+                    <div class="callout-text">
+                        Choose bettercap when you need to chain wireless recon with other attack phases
+                        in a single session — for example, conducting WiFi recon while simultaneously
+                        running ARP spoofing or DNS spoofing on a network you have access to. Choose
+                        airodump-ng when you need maximum capture fidelity for handshake collection,
+                        are working with a wordlist cracking workflow, or need to produce output files
+                        in a format expected by downstream tools like aircrack-ng or hashcat.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 5: Hidden SSID Detection -->
+    <div class="section" id="s5">
+        <div class="section-number">Section 05</div>
+        <h2 class="section-title">
+            <span class="section-icon">&#128272;</span>
+            Hidden SSID Detection
+        </h2>
+        <div class="section-body">
+            <p>
+                Hidden SSIDs — also called cloaked or non-broadcasting networks — are access points
+                configured to omit the ESSID field from beacon frames. The AP still transmits beacons
+                (it must, to maintain timing synchronization), but the ESSID field is filled with null
+                bytes or has a reported length of zero. Network administrators deploy this configuration
+                believing it provides additional security through obscurity.
+            </p>
+            <p>
+                It does not. The SSID is revealed in multiple other frame types that cannot be suppressed
+                without breaking 802.11 association entirely. Understanding why SSID hiding fails requires
+                understanding the full 802.11 association flow.
+            </p>
+
+            <div class="callout callout-danger">
+                <span class="callout-icon">&#9888;</span>
+                <div class="callout-content">
+                    <div class="callout-title">SSID Hiding Is Security Theater</div>
+                    <div class="callout-text">
+                        A hidden SSID network is visible to any attacker within radio range within seconds
+                        of a legitimate client connecting. Probe request frames, probe response frames, and
+                        association request frames all contain the plaintext SSID in cleartext — these frames
+                        are never encrypted regardless of the network's encryption configuration. SSID hiding
+                        adds zero meaningful security against a wireless-capable attacker and may actually
+                        create privacy problems for clients (forced to broadcast probe requests for the hidden
+                        SSID everywhere they go).
+                    </div>
+                </div>
+            </div>
+
+            <h3 style="color: #c4a0d8; font-size: 1.05rem; font-weight: 400; margin: 28px 0 14px;">Why the SSID Cannot Stay Hidden</h3>
+
+            <div class="concept-grid">
+                <div class="concept-card">
+                    <div class="concept-card-icon">&#128225;</div>
+                    <div class="concept-card-title">Beacon Frames (Blank ESSID)</div>
+                    <div class="concept-card-body">
+                        The AP continues to transmit beacons roughly 10 times per second. The ESSID
+                        information element is present but contains null bytes or zero length. airodump-ng
+                        shows this as blank ESSID or &lt;length: N&gt; where N is the real SSID length —
+                        giving you the password length as a bonus data point.
+                    </div>
+                    <span class="concept-tag">Visible Immediately</span>
+                </div>
+                <div class="concept-card">
+                    <div class="concept-card-icon">&#128101;</div>
+                    <div class="concept-card-title">Probe Request Frames</div>
+                    <div class="concept-card-body">
+                        Client devices that have previously connected to a hidden SSID network must
+                        transmit directed probe requests — broadcast frames containing the plaintext
+                        SSID — to locate the hidden AP. Every device connected to the network leaks
+                        the SSID passively whenever it searches for the network.
+                    </div>
+                    <span class="concept-tag">Client Leaks SSID</span>
+                </div>
+                <div class="concept-card">
+                    <div class="concept-card-icon">&#128226;</div>
+                    <div class="concept-card-title">Probe Response Frames</div>
+                    <div class="concept-card-body">
+                        When an AP receives a directed probe request for its SSID, it responds with a
+                        probe response frame that includes the plaintext SSID. An attacker monitoring
+                        the channel sees this exchange and recovers the SSID without any active attack
+                        — purely from passive monitoring of legitimate client activity.
+                    </div>
+                    <span class="concept-tag">AP Responds in Clear</span>
+                </div>
+                <div class="concept-card">
+                    <div class="concept-card-icon">&#128279;</div>
+                    <div class="concept-card-title">Association Request Frames</div>
+                    <div class="concept-card-body">
+                        During the 802.11 association process, the client sends an association request
+                        frame that contains the SSID in plaintext. This occurs every time a device
+                        connects to the network — on startup, after sleep, after roaming. These frames
+                        are unencrypted even on WPA3 networks.
+                    </div>
+                    <span class="concept-tag">Every Association Leaks</span>
+                </div>
+            </div>
+
+            <h3 style="color: #c4a0d8; font-size: 1.05rem; font-weight: 400; margin: 28px 0 14px;">Passive Detection — Wait for Client Activity</h3>
+
+            <div class="code-block">
+<span class="comment"># Run airodump-ng and watch for probe requests from clients</span>
+$ <span class="kw">sudo airodump-ng</span> wlan0mon
+
+<span class="comment"># In the AP table, the hidden network appears as:</span>
+BSSID              PWR  Beacons  #Data  CH  ENC   ESSID
+AA:BB:CC:DD:EE:03  -74      892     12  11  WPA2  <span class="str">&lt;length:  9&gt;</span>
+                                                   <span class="comment">↑ SSID is 9 characters — captured even without the SSID itself</span>
+
+<span class="comment"># In the station table, watch for directed probe requests</span>
+STATION           PWR  Rate  Lost  Frames  Probes
+C8:A7:2F:98:76:54 -78   11e-11e  0    44  <span class="str">HiddenNet</span>
+                                           <span class="comment">↑ Client revealed the SSID in its probe request</span>
+            </div>
+
+            <h3 style="color: #c4a0d8; font-size: 1.05rem; font-weight: 400; margin: 28px 0 14px;">Active Detection — Forced Deauthentication</h3>
+
+            <p>
+                If no clients are currently connected or probing, you can force SSID revelation by
+                sending a deauthentication frame to a client associated with the hidden AP. The client
+                will disconnect and immediately attempt to reconnect — sending probe request and
+                association request frames that expose the hidden SSID in plaintext.
+            </p>
+
+            <div class="callout callout-warning">
+                <span class="callout-icon">&#9888;</span>
+                <div class="callout-content">
+                    <div class="callout-title">Active Technique — Requires Authorization</div>
+                    <div class="callout-text">
+                        Sending deauthentication frames is an active attack. It disrupts the target
+                        client's connectivity, is detectable by WIDS systems, and requires explicit
+                        authorization in your scope of work. Do not perform this against unconfirmed
+                        in-scope networks — confirming the target BSSID belongs to your authorized scope
+                        is mandatory before any active frame injection.
+                    </div>
+                </div>
+            </div>
+
+            <div class="code-block">
+<span class="comment"># Step 1: Lock airodump-ng to the hidden AP's channel</span>
+<span class="comment"># and record the BSSID of an associated client from the station table</span>
+$ <span class="kw">sudo airodump-ng</span> <span class="flag">--bssid</span> <span class="str">AA:BB:CC:DD:EE:03</span> <span class="flag">-c</span> <span class="str">11</span> wlan0mon
+
+<span class="comment"># Step 2: In a second terminal, send targeted deauth to the associated client</span>
+<span class="comment"># -0 = deauth attack, 3 = send 3 deauth frames, -a = AP BSSID, -c = client MAC</span>
+$ <span class="kw">sudo aireplay-ng</span> \
+    <span class="flag">-0</span> <span class="str">3</span> \
+    <span class="flag">-a</span> <span class="str">AA:BB:CC:DD:EE:03</span> \
+    <span class="flag">-c</span> <span class="str">C8:A7:2F:98:76:54</span> \
+    wlan0mon
+
+<span class="comment"># Step 3: Watch the airodump-ng output — the SSID will appear</span>
+<span class="comment"># in the Probes column as the client reconnects</span>
+BSSID              PWR  Beacons  ESSID
+AA:BB:CC:DD:EE:03  -74      896  <span class="str">HiddenNet</span>    <span class="comment">&lt;-- SSID revealed after client reconnect</span>
+            </div>
+
+            <div class="detail-section">
+                <div class="detail-header" onclick="toggleDetail(this)">
+                    <div class="detail-header-left">
+                        <span class="detail-header-icon">&#128270;</span>
+                        <div>
+                            <div class="detail-header-title">Using bettercap for Hidden SSID Discovery</div>
+                            <div class="detail-header-subtitle">Integrated passive and active detection workflow</div>
+                        </div>
+                    </div>
+                    <span class="detail-toggle">&#9660;</span>
+                </div>
+                <div class="detail-body">
+                    <p>bettercap's WiFi module displays hidden networks and can automate the deauth-based SSID revelation process with fewer manual steps than the airodump-ng + aireplay-ng workflow.</p>
+                    <div class="code-block">
+<span class="comment"># In bettercap console — enable recon</span>
+<span class="str">172.16.0.1</span> &gt;&gt; <span class="kw">wifi.recon on</span>
+
+<span class="comment"># wifi.show will display hidden networks with (hidden) notation</span>
+<span class="str">172.16.0.1</span> &gt;&gt; <span class="kw">wifi.show</span>
+
+<span class="comment"># Send deauth to reveal hidden SSID</span>
+<span class="comment"># wifi.deauth [bssid] — deauths all clients on the target AP</span>
+<span class="str">172.16.0.1</span> &gt;&gt; <span class="kw">wifi.deauth</span> AA:BB:CC:DD:EE:03
+
+<span class="comment"># After reconnection, run wifi.show again — SSID populated</span>
+<span class="str">172.16.0.1</span> &gt;&gt; <span class="kw">wifi.show</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="detail-section">
+                <div class="detail-header" onclick="toggleDetail(this)">
+                    <div class="detail-header-left">
+                        <span class="detail-header-icon">&#128202;</span>
+                        <div>
+                            <div class="detail-header-title">Probe Request Analysis with Wireshark</div>
+                            <div class="detail-header-subtitle">Manual frame inspection for SSID extraction from pcap</div>
+                        </div>
+                    </div>
+                    <span class="detail-toggle">&#9660;</span>
+                </div>
+                <div class="detail-body">
+                    <p>
+                        When reviewing airodump-ng capture files offline, Wireshark's 802.11 dissector
+                        can filter probe requests and association frames to extract SSIDs that may not
+                        have appeared in the live airodump-ng display.
+                    </p>
+                    <div class="code-block">
+<span class="comment"># Wireshark display filter — all probe request frames</span>
+wlan.fc.type_subtype == <span class="str">0x0004</span>
+
+<span class="comment"># Filter for probe requests containing SSID information elements</span>
+wlan.ssid <span class="kw">and</span> wlan.fc.type_subtype == <span class="str">0x0004</span>
+
+<span class="comment"># From tshark (CLI Wireshark) — extract SSIDs from probe requests in a pcap</span>
+$ <span class="kw">tshark</span> <span class="flag">-r</span> target_capture-01.cap \
+    <span class="flag">-Y</span> <span class="str">"wlan.fc.type_subtype == 0x0004"</span> \
+    <span class="flag">-T</span> fields \
+    <span class="flag">-e</span> <span class="str">wlan.sa</span> \
+    <span class="flag">-e</span> <span class="str">wlan.ssid</span> | sort -u
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 6: Signal Analysis & Target Selection -->
+    <div class="section" id="s6">
+        <div class="section-number">Section 06</div>
+        <h2 class="section-title">
+            <span class="section-icon">&#128267;</span>
+            Signal Analysis &amp; Target Selection
+        </h2>
+        <div class="section-body">
+            <p>
+                Raw reconnaissance data requires interpretation before it becomes actionable intelligence.
+                Signal strength values, channel assignments, and client counts all inform the prioritization
+                and logistics of a wireless assessment. Understanding how to read this data prevents wasted
+                effort pursuing targets that are physically inaccessible or technically unsuitable.
+            </p>
+
+            <h3 style="color: #c4a0d8; font-size: 1.05rem; font-weight: 400; margin: 24px 0 16px;">Interpreting PWR (Signal Strength) Values</h3>
+
+            <p>
+                The PWR column in airodump-ng shows received signal strength in dBm (decibels relative to
+                one milliwatt). These values are negative — closer to zero means stronger signal. The scale
+                is logarithmic: a 3 dBm difference represents approximately double the signal power.
+            </p>
+
+            <div class="signal-grid">
+                <div class="signal-card">
+                    <div class="signal-value" style="color: #4ade80;">-30 dBm</div>
+                    <div class="signal-label">Exceptional</div>
+                    <div class="signal-desc">You are within meters of the AP. All attacks are feasible. Capture quality is excellent.</div>
+                    <div class="signal-bar" style="background: #4ade80; width: 100%;"></div>
+                </div>
+                <div class="signal-card">
+                    <div class="signal-value" style="color: #86efac;">-50 dBm</div>
+                    <div class="signal-label">Strong</div>
+                    <div class="signal-desc">Excellent working range. Reliable capture. Well within injection distance for all techniques.</div>
+                    <div class="signal-bar" style="background: #86efac; width: 80%;"></div>
+                </div>
+                <div class="signal-card">
+                    <div class="signal-value" style="color: #fbbf24;">-65 dBm</div>
+                    <div class="signal-label">Good</div>
+                    <div class="signal-desc">Reliable capture with minor packet loss. Injection should work. Typical outdoor assessment range.</div>
+                    <div class="signal-bar" style="background: #fbbf24; width: 60%;"></div>
+                </div>
+                <div class="signal-card">
+                    <div class="signal-value" style="color: #fb923c;">-75 dBm</div>
+                    <div class="signal-label">Marginal</div>
+                    <div class="signal-desc">Intermittent capture. Injection success rate drops significantly. Move closer before attacking.</div>
+                    <div class="signal-bar" style="background: #fb923c; width: 40%;"></div>
+                </div>
+                <div class="signal-card">
+                    <div class="signal-value" style="color: #ef4444;">-85 dBm</div>
+                    <div class="signal-label">Weak</div>
+                    <div class="signal-desc">Poor capture quality. Injection likely to fail. Target may be out of effective attack range.</div>
+                    <div class="signal-bar" style="background: #ef4444; width: 20%;"></div>
+                </div>
+                <div class="signal-card">
+                    <div class="signal-value" style="color: #7a5a8a;">-1 dBm</div>
+                    <div class="signal-label">Unknown</div>
+                    <div class="signal-desc">A value of -1 in airodump-ng means the driver did not report signal strength for this frame. Not a real measurement.</div>
+                    <div class="signal-bar" style="background: #7a5a8a; width: 10%;"></div>
+                </div>
+            </div>
+
+            <h3 style="color: #c4a0d8; font-size: 1.05rem; font-weight: 400; margin: 28px 0 14px;">Channel Congestion Analysis</h3>
+
+            <p>
+                In the 2.4 GHz band, only three channels are truly non-overlapping: 1, 6, and 11.
+                All other channels overlap with at least two neighbors, causing co-channel and adjacent-channel
+                interference. A heavily congested channel reduces capture quality and injection reliability.
+            </p>
+
+            <div class="code-block">
+<span class="comment"># Count networks per channel from airodump-ng CSV output</span>
+$ <span class="kw">awk</span> <span class="flag">-F,</span> <span class="str">'NR>2 && $4!="" {print $4}'</span> airodump-01.csv | \
+    sort | uniq -c | sort -rn
+
+     14  6        <span class="comment"># Channel 6 is extremely congested — 14 competing networks</span>
+      8  1        <span class="comment"># Channel 1 has 8 networks</span>
+      5  11       <span class="comment"># Channel 11 is least congested</span>
+      3  36       <span class="comment"># 5 GHz channels are much less congested</span>
+
+<span class="comment"># If your target is on a congested channel, consider:</span>
+<span class="comment"># 1. Increasing adapter TX power (within legal limits)</span>
+<span class="comment"># 2. Moving physically closer to the target</span>
+<span class="comment"># 3. Using a directional antenna to reduce interference from competing networks</span>
+            </div>
+
+            <h3 style="color: #c4a0d8; font-size: 1.05rem; font-weight: 400; margin: 28px 0 14px;">Target Prioritization Framework</h3>
+
+            <div class="detail-section">
+                <div class="detail-header" onclick="toggleDetail(this)">
+                    <div class="detail-header-left">
+                        <span class="detail-header-icon">&#9889;</span>
+                        <div>
+                            <div class="detail-header-title">High-Value Target Indicators</div>
+                            <div class="detail-header-subtitle">What makes a network worth prioritizing in an assessment</div>
+                        </div>
+                    </div>
+                    <span class="detail-toggle">&#9660;</span>
+                </div>
+                <div class="detail-body">
+                    <ul>
+                        <li><strong style="color:#c4a0d8;">WPA2-PSK with active clients</strong> — Deauth and capture the 4-way handshake; high-value if the PSK is weak</li>
+                        <li><strong style="color:#c4a0d8;">WEP encryption</strong> — Immediate critical finding; recoverable in minutes regardless of key complexity</li>
+                        <li><strong style="color:#c4a0d8;">Open (OPN) network</strong> — All traffic in cleartext; immediate credential and session interception possible</li>
+                        <li><strong style="color:#c4a0d8;">WPA2-PSK with signal above -65 dBm</strong> — Reliable attack range; injection and handshake capture highly feasible</li>
+                        <li><strong style="color:#c4a0d8;">Multiple clients associated</strong> — More opportunities for handshake capture; also more traffic for passive intelligence</li>
+                        <li><strong style="color:#c4a0d8;">Organizational SSID naming patterns</strong> — "CorpNet", "Internal", "Mgmt" suggest access to internal network segments rather than guest VLANs</li>
+                        <li><strong style="color:#c4a0d8;">Hidden SSID with known clients</strong> — Suggests a network the organization is actively trying to conceal; may be a management or OOB network</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="detail-section">
+                <div class="detail-header" onclick="toggleDetail(this)">
+                    <div class="detail-header-left">
+                        <span class="detail-header-icon">&#128683;</span>
+                        <div>
+                            <div class="detail-header-title">Lower-Priority or Out-of-Scope Indicators</div>
+                            <div class="detail-header-subtitle">Targets to document but deprioritize or avoid</div>
+                        </div>
+                    </div>
+                    <span class="detail-toggle">&#9660;</span>
+                </div>
+                <div class="detail-body">
+                    <ul>
+                        <li><strong style="color:#c4a0d8;">Signal below -80 dBm</strong> — Likely out of practical attack range; move closer or treat as out-of-scope</li>
+                        <li><strong style="color:#c4a0d8;">WPA3 (non-transition mode) with no clients</strong> — Dragonfly handshake attack requires online brute-force; high complexity, low ROI without active clients</li>
+                        <li><strong style="color:#c4a0d8;">ISP/carrier hotspot SSIDs</strong> — "xfinitywifi", "NETGEAR-Guest" — typically third-party networks; confirm scope before touching</li>
+                        <li><strong style="color:#c4a0d8;">Zero data frames, zero clients, very high beacons</strong> — AP may be a honeypot or WIDS sensor; unusual traffic patterns warrant investigation before engagement</li>
+                        <li><strong style="color:#c4a0d8;">EAP/MGT auth without captive portal</strong> — Requires RADIUS credential capture via evil twin; more complex than PSK attacks; separate planning needed</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="detail-section">
+                <div class="detail-header" onclick="toggleDetail(this)">
+                    <div class="detail-header-left">
+                        <span class="detail-header-icon">&#128207;</span>
+                        <div>
+                            <div class="detail-header-title">Directional Antennas for Extended Range</div>
+                            <div class="detail-header-subtitle">Yagi and panel antennas for perimeter assessment</div>
+                        </div>
+                    </div>
+                    <span class="detail-toggle">&#9660;</span>
+                </div>
+                <div class="detail-body">
+                    <p>
+                        Omnidirectional antennas (standard on most adapters) radiate and receive in all
+                        directions. Directional antennas — Yagi, panel, parabolic dish — concentrate RF
+                        energy in a narrow beam. For perimeter assessments from a vehicle or adjacent building,
+                        directional antennas can extend effective range from 100 meters to 500 meters or more.
+                    </p>
+                    <ul>
+                        <li><strong style="color:#c4a0d8;">Yagi antenna (8-18 dBi)</strong> — High gain, narrow beam. Ideal for point-to-point targeting from long range.</li>
+                        <li><strong style="color:#c4a0d8;">Panel antenna (8-14 dBi)</strong> — Moderately directional with wider beam than Yagi. Balances coverage with gain.</li>
+                        <li><strong style="color:#c4a0d8;">Parabolic dish (24+ dBi)</strong> — Maximum gain for kilometer-range assessments. Used in specialist long-range scenarios.</li>
+                        <li><strong style="color:#c4a0d8;">Omnidirectional stick (5-9 dBi)</strong> — All-directions reception with modest gain improvement. Best for dense urban environments.</li>
+                    </ul>
+                    <p>
+                        A directional antenna paired with an assessment adapter can achieve effective signal
+                        improvement equivalent to moving significantly closer to the target. A 9 dBi gain
+                        antenna effectively triples your perceived signal strength — turning a -85 dBm marginal
+                        reading into a -76 dBm workable signal.
+                    </p>
+                </div>
+            </div>
+
+            <div class="callout callout-tip">
+                <span class="callout-icon">&#10003;</span>
+                <div class="callout-content">
+                    <div class="callout-title">Reconnaissance Documentation Discipline</div>
+                    <div class="callout-text">
+                        Every wireless assessment should begin with a structured recon capture saved to
+                        disk. Write airodump-ng output with the --write flag from the start of recon,
+                        not after target selection. Early captures may contain transient clients, handshakes,
+                        or probe requests that disappear from the live display. The CSV output serves
+                        as your assessment log and deliverable evidence of network conditions at time
+                        of assessment.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 7: Key Takeaways -->
+    <div class="section" id="s7">
+        <div class="section-number">Section 07</div>
+        <h2 class="section-title">
+            <span class="section-icon">&#9889;</span>
+            Key Takeaways
+        </h2>
+        <div class="section-body">
+            <div class="takeaway-grid">
+                <div class="takeaway-card">
+                    <div class="takeaway-icon">&#128065;</div>
+                    <div class="takeaway-title">Passive First, Always</div>
+                    <div class="takeaway-desc">Complete passive reconnaissance before any active technique. Passive recon is safer, undetectable in most WIDS configurations, and sufficient to identify most targets.</div>
+                </div>
+                <div class="takeaway-card">
+                    <div class="takeaway-icon">&#128246;</div>
+                    <div class="takeaway-title">Monitor Mode is the Foundation</div>
+                    <div class="takeaway-desc">Every wireless assessment technique requires monitor mode. Verify it correctly before proceeding. A misconfigured adapter produces useless data and wastes engagement time.</div>
+                </div>
+                <div class="takeaway-card">
+                    <div class="takeaway-icon">&#128200;</div>
+                    <div class="takeaway-title">Read the Full airodump-ng Output</div>
+                    <div class="takeaway-desc">The station table is as valuable as the AP table. Probe requests, client counts, and data rates reveal intelligence that BSSID listings alone cannot provide.</div>
+                </div>
+                <div class="takeaway-card">
+                    <div class="takeaway-icon">&#128272;</div>
+                    <div class="takeaway-title">Hidden SSIDs Are Not Hidden</div>
+                    <div class="takeaway-desc">Any network with active clients is discoverable within minutes of passive monitoring. SSID hiding is a documentation-worthy finding: the client believes they have additional security controls but they do not.</div>
+                </div>
+                <div class="takeaway-card">
+                    <div class="takeaway-icon">&#128267;</div>
+                    <div class="takeaway-title">Signal Strength Drives Logistics</div>
+                    <div class="takeaway-desc">PWR values determine physical positioning requirements. Do not attempt injection attacks against targets below -80 dBm — move closer or use directional antenna before investing time in an attack that will fail due to signal margin.</div>
+                </div>
+                <div class="takeaway-card">
+                    <div class="takeaway-icon">&#128203;</div>
+                    <div class="takeaway-title">Write Everything to Disk</div>
+                    <div class="takeaway-desc">Always run airodump-ng with --write from the start of recon. Transient events — spontaneous handshakes, probe requests from passing devices — cannot be recaptured if missed in the live display.</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Discussion Prompts -->
+    <div class="section" id="discuss">
+        <div class="discussion-section">
+            <div class="discussion-title">
+                <span>&#128172;</span>
+                Discussion Prompts
+            </div>
+            <ul class="prompt-list">
+                <li class="prompt-item">
+                    <span class="prompt-num">01</span>
+                    Passive wireless reconnaissance (listening only) captures data about every device in range. An airodump-ng session in a shared office building will collect MAC addresses, probe histories, and client counts from every network visible from that location — including organizations with no relationship to your authorized target. Should passive wireless reconnaissance capability require explicit authorization even though no active attack is being performed, and how should this be addressed in a rules of engagement document?
+                </li>
+                <li class="prompt-item">
+                    <span class="prompt-num">02</span>
+                    An airodump-ng scan of your engagement scope building reveals 47 networks. Three have hidden SSIDs — one with a signal of -58 dBm and two active clients, one with -71 dBm and no visible clients, and one with -84 dBm and no clients. Describe your prioritization and approach to identifying these networks, including which detection method you would use for each, and assess whether hidden SSIDs represent a meaningfully higher security risk than visible networks in this context.
+                </li>
+                <li class="prompt-item">
+                    <span class="prompt-num">03</span>
+                    bettercap offers a more modern, modular approach to wireless reconnaissance compared to the aircrack-ng suite — interactive console, REST API, caplet scripting, and multi-protocol integration in a single session. In what specific assessment scenarios would you choose bettercap over airodump-ng as your primary recon tool, and in what scenarios would the aircrack-ng suite remain the better choice? Consider operational security, tool noise, capture fidelity, and downstream toolchain requirements in your answer.
+                </li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- Completion -->
+    <div class="section" id="completion">
+        <div class="completion-section">
+            <div class="completion-icon">&#10003;</div>
+            <h2 class="completion-title">Module Complete</h2>
+            <p class="completion-text">
+                You have covered the reconnaissance mindset and OPSEC discipline, monitor mode operation
+                from interface identification through verification, airodump-ng output interpretation
+                across all AP and station table columns, bettercap as an alternative recon framework,
+                the mechanics of hidden SSID detection via both passive and active methods, and signal
+                analysis principles for target prioritization and physical positioning.
+            </p>
+            <button class="completion-btn" onclick="completeModule()">
+                <span>&#10003;</span>
+                Complete Module 02
+            </button>
+        </div>
+    </div>
+
+</main>
+
+<script>
+    // Scroll progress bar — updates both the fixed top bar and the mini bar in the header
+    function updateScrollProgress() {
+        const scrollTop = window.scrollY;
+        const docHeight = document.documentElement.scrollHeight - window.innerHeight;
+        const pct = docHeight > 0 ? (scrollTop / docHeight) * 100 : 0;
+        document.getElementById('scrollProgress').style.width = pct + '%';
+        document.getElementById('readingFill').style.width = pct + '%';
+    }
+
+    window.addEventListener('scroll', updateScrollProgress, { passive: true });
+
+    // Section fade-in via IntersectionObserver — adds 'visible' class when section enters viewport
+    function initScrollAnimation() {
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) entry.target.classList.add('visible');
+            });
+        }, { threshold: 0.08 });
+
+        document.querySelectorAll('.section').forEach(s => observer.observe(s));
+    }
+
+    // Expandable detail sections — toggles open/closed state on header click
+    function toggleDetail(header) {
+        const body = header.nextElementSibling;
+        const toggle = header.querySelector('.detail-toggle');
+        const isOpen = body.classList.contains('open');
+        body.classList.toggle('open', !isOpen);
+        toggle.classList.toggle('open', !isOpen);
+    }
+
+    // Module completion — delegates to ModuleProgress if available, falls back gracefully
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('dark-arts', 'wifi-mod-recon', {
+                returnUrl: '../index.html'
+            });
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        initScrollAnimation();
+    });
+</script>
+
+</body>
+</html>

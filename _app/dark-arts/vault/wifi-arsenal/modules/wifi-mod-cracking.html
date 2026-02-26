@@ -1,0 +1,1683 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('dark-arts');</script>
+    <!-- Progress & Achievements -->
+    <script src="../../../../../components/AchievementManager.js"></script>
+    <script src="../../../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WiFi Arsenal Module 04: Password Cracking - The Vault</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            min-height: 100vh;
+            background: #0a0508;
+            font-family: 'Georgia', 'Times New Roman', serif;
+            color: #8a6a9a;
+            line-height: 1.7;
+            overflow-x: hidden;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background:
+                radial-gradient(ellipse at 15% 40%, rgba(80, 40, 100, 0.08) 0%, transparent 50%),
+                radial-gradient(ellipse at 85% 60%, rgba(60, 20, 80, 0.06) 0%, transparent 50%);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .scroll-progress {
+            position: fixed; top: 0; left: 0;
+            height: 3px;
+            background: linear-gradient(90deg, #9333ea, #a855f7);
+            z-index: 200; transition: width 0.1s linear; width: 0%;
+        }
+
+        .module-header {
+            background: rgba(10, 5, 15, 0.95);
+            border-bottom: 1px solid rgba(100, 60, 130, 0.2);
+            padding: 18px 40px;
+            display: flex; justify-content: space-between; align-items: center;
+            position: sticky; top: 0; z-index: 100;
+            backdrop-filter: blur(10px);
+        }
+
+        .header-left { display: flex; align-items: center; gap: 15px; }
+
+        .back-btn {
+            background: rgba(80, 40, 100, 0.2);
+            border: 1px solid rgba(100, 60, 130, 0.3);
+            color: #9a7aaa; padding: 7px 14px; border-radius: 4px;
+            font-size: 0.8rem; text-decoration: none;
+            transition: all 0.3s ease; font-family: 'Georgia', serif;
+        }
+
+        .back-btn:hover {
+            background: rgba(100, 60, 130, 0.3);
+            border-color: rgba(147, 51, 234, 0.5); color: #c4a0d8;
+        }
+
+        .module-label { font-size: 0.75rem; color: #6a4a7a; letter-spacing: 0.2em; text-transform: uppercase; }
+
+        .header-right { display: flex; align-items: center; gap: 12px; font-size: 0.75rem; color: #6a4a7a; }
+
+        .progress-bar-mini {
+            width: 120px; height: 4px;
+            background: rgba(60, 30, 80, 0.3); border-radius: 2px; overflow: hidden;
+        }
+
+        .progress-bar-mini .fill {
+            height: 100%; background: linear-gradient(90deg, #9333ea, #a855f7);
+            width: 0%; transition: width 0.5s ease;
+        }
+
+        .module-content {
+            max-width: 1100px; margin: 0 auto; padding: 40px;
+            position: relative; z-index: 10;
+        }
+
+        .intro-section { text-align: center; padding: 50px 0 60px; }
+
+        .intro-icon {
+            font-size: 3.5rem; margin-bottom: 20px;
+            filter: drop-shadow(0 0 20px rgba(147, 51, 234, 0.3));
+        }
+
+        .intro-title { font-size: 2.4rem; color: #c4a0d8; margin-bottom: 12px; font-weight: 400; letter-spacing: 0.05em; }
+        .intro-meta { font-size: 0.75rem; color: #6a4a7a; letter-spacing: 0.25em; text-transform: uppercase; margin-bottom: 20px; }
+        .intro-subtitle { font-size: 1rem; color: #8a6a9a; max-width: 720px; margin: 0 auto; line-height: 1.8; }
+
+        .module-stats { display: flex; justify-content: center; gap: 25px; margin-top: 30px; flex-wrap: wrap; }
+
+        .stat-pill {
+            padding: 8px 18px;
+            background: rgba(60, 30, 80, 0.15);
+            border: 1px solid rgba(100, 60, 130, 0.2);
+            border-radius: 20px; font-size: 0.75rem; color: #7a5a8a; letter-spacing: 0.1em;
+        }
+
+        .section {
+            margin-bottom: 80px; opacity: 0; transform: translateY(30px);
+            transition: opacity 0.6s ease, transform 0.6s ease;
+        }
+
+        .section.visible { opacity: 1; transform: translateY(0); }
+
+        .section-number { font-size: 0.65rem; color: #6a4a7a; letter-spacing: 0.35em; text-transform: uppercase; margin-bottom: 8px; }
+
+        .section-title {
+            font-size: 1.9rem; color: #c4a0d8; margin-bottom: 20px; font-weight: 400;
+            display: flex; align-items: center; gap: 15px;
+            border-bottom: 1px solid rgba(100, 60, 130, 0.15); padding-bottom: 15px;
+        }
+
+        .section-icon { font-size: 1.6rem; opacity: 0.75; }
+
+        .section-body { color: #a080b0; font-size: 0.97rem; }
+        .section-body p { margin-bottom: 16px; }
+        .section-body ul { list-style: none; padding-left: 20px; margin-bottom: 16px; }
+        .section-body li { margin-bottom: 10px; position: relative; padding-left: 20px; }
+        .section-body li::before { content: '▸'; position: absolute; left: 0; color: #7a5a8a; }
+
+        /* Standards / comparison table */
+        .standards-table {
+            width: 100%; border-collapse: collapse; margin: 24px 0; font-size: 0.87rem;
+        }
+
+        .standards-table th {
+            background: rgba(40, 20, 60, 0.5); color: #c4a0d8; padding: 12px 16px;
+            text-align: left; font-weight: normal; letter-spacing: 0.1em;
+            font-size: 0.78rem; text-transform: uppercase;
+            border-bottom: 1px solid rgba(100, 60, 130, 0.2);
+        }
+
+        .standards-table td {
+            padding: 12px 16px; color: #9a7aaa;
+            border-bottom: 1px solid rgba(100, 60, 130, 0.08); vertical-align: top;
+        }
+
+        .standards-table tr:hover td { background: rgba(40, 20, 60, 0.2); }
+        .standards-table .std-name { color: #c4a0d8; font-family: 'Courier New', monospace; font-size: 0.9rem; }
+
+        .badge {
+            display: inline-block; padding: 2px 8px; border-radius: 10px;
+            font-size: 0.65rem; letter-spacing: 0.08em; text-transform: uppercase;
+        }
+
+        .badge-legacy { background: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.3); }
+        .badge-weak { background: rgba(234, 179, 8, 0.15); color: #facc15; border: 1px solid rgba(234, 179, 8, 0.3); }
+        .badge-current { background: rgba(34, 197, 94, 0.15); color: #4ade80; border: 1px solid rgba(34, 197, 94, 0.3); }
+        .badge-latest { background: rgba(147, 51, 234, 0.2); color: #c084fc; border: 1px solid rgba(147, 51, 234, 0.3); }
+
+        .concept-grid {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 18px; margin: 28px 0;
+        }
+
+        .concept-card {
+            background: rgba(15, 8, 20, 0.6);
+            border: 1px solid rgba(100, 60, 130, 0.15);
+            border-radius: 8px; padding: 22px; transition: all 0.3s ease;
+        }
+
+        .concept-card:hover {
+            transform: translateY(-4px); border-color: rgba(147, 51, 234, 0.35);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+        }
+
+        .concept-card-icon { font-size: 1.8rem; margin-bottom: 12px; }
+        .concept-card-title { font-size: 1rem; color: #c4a0d8; margin-bottom: 8px; }
+        .concept-card-body { font-size: 0.85rem; color: #8a6a9a; line-height: 1.6; }
+
+        .concept-tag {
+            display: inline-block; margin-top: 10px; padding: 3px 10px;
+            background: rgba(80, 40, 100, 0.3); border-radius: 12px;
+            font-size: 0.65rem; color: #9333ea; letter-spacing: 0.1em; text-transform: uppercase;
+        }
+
+        .callout {
+            border-radius: 8px; padding: 20px 24px; margin: 24px 0;
+            display: flex; gap: 16px; align-items: flex-start;
+        }
+
+        .callout-info { background: rgba(40, 20, 60, 0.4); border-left: 3px solid #9333ea; }
+        .callout-warning { background: rgba(60, 40, 10, 0.4); border-left: 3px solid #ca8a04; }
+        .callout-danger { background: rgba(60, 20, 20, 0.4); border-left: 3px solid #dc2626; }
+        .callout-tip { background: rgba(20, 50, 30, 0.4); border-left: 3px solid #16a34a; }
+
+        .callout-icon { font-size: 1.3rem; flex-shrink: 0; margin-top: 1px; }
+        .callout-title { font-size: 0.8rem; letter-spacing: 0.15em; text-transform: uppercase; margin-bottom: 6px; }
+        .callout-info .callout-title { color: #a855f7; }
+        .callout-warning .callout-title { color: #eab308; }
+        .callout-danger .callout-title { color: #ef4444; }
+        .callout-tip .callout-title { color: #22c55e; }
+        .callout-text { font-size: 0.9rem; color: #9a7aaa; line-height: 1.65; }
+
+        .detail-section {
+            border: 1px solid rgba(100, 60, 130, 0.15); border-radius: 8px;
+            margin: 12px 0; overflow: hidden;
+        }
+
+        .detail-header {
+            padding: 16px 20px; background: rgba(15, 8, 20, 0.6);
+            cursor: pointer; display: flex; justify-content: space-between; align-items: center;
+            transition: background 0.3s ease; user-select: none;
+        }
+
+        .detail-header:hover { background: rgba(40, 20, 60, 0.5); }
+
+        .detail-header-left { display: flex; align-items: center; gap: 12px; }
+        .detail-header-icon { font-size: 1rem; opacity: 0.75; }
+        .detail-header-title { font-size: 0.95rem; color: #c4a0d8; }
+        .detail-header-subtitle { font-size: 0.75rem; color: #6a4a7a; margin-top: 2px; }
+        .detail-toggle { color: #7a5a8a; font-size: 0.8rem; transition: transform 0.3s ease; }
+        .detail-toggle.open { transform: rotate(180deg); }
+
+        .detail-body {
+            display: none; padding: 20px 24px; background: rgba(10, 5, 15, 0.4);
+            border-top: 1px solid rgba(100, 60, 130, 0.1);
+            color: #9a7aaa; font-size: 0.9rem; line-height: 1.7;
+        }
+
+        .detail-body.open { display: block; }
+        .detail-body p { margin-bottom: 12px; }
+        .detail-body ul { list-style: none; padding-left: 20px; }
+        .detail-body li { margin-bottom: 8px; position: relative; padding-left: 18px; }
+        .detail-body li::before { content: '▸'; position: absolute; left: 0; color: #7a5a8a; }
+
+        /* Tool cards */
+        .tool-grid {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 16px; margin: 20px 0;
+        }
+
+        .tool-card {
+            background: rgba(15, 8, 20, 0.6);
+            border: 1px solid rgba(100, 60, 130, 0.15);
+            border-radius: 8px; padding: 20px; transition: all 0.3s ease;
+        }
+
+        .tool-card:hover { border-color: rgba(147, 51, 234, 0.3); }
+
+        .tool-name {
+            font-size: 0.95rem; color: #c4a0d8; margin-bottom: 4px;
+            font-family: 'Courier New', monospace;
+        }
+
+        .tool-role {
+            font-size: 0.68rem; color: #9333ea; letter-spacing: 0.12em;
+            text-transform: uppercase; margin-bottom: 10px;
+        }
+
+        .tool-desc { font-size: 0.84rem; color: #8a6a9a; line-height: 1.6; }
+
+        .code-block {
+            background: rgba(5, 2, 10, 0.8);
+            border: 1px solid rgba(100, 60, 130, 0.2);
+            border-radius: 6px; padding: 16px 20px; margin: 16px 0;
+            font-family: 'Courier New', monospace; font-size: 0.84rem;
+            color: #b090c0; overflow-x: auto; line-height: 1.6;
+        }
+
+        .code-block .kw { color: #a855f7; }
+        .code-block .str { color: #86efac; }
+        .code-block .comment { color: #6a4a7a; font-style: italic; }
+        .code-block .flag { color: #fbbf24; }
+        .code-block .num { color: #f97316; }
+        .code-block .out { color: #4ade80; }
+
+        .two-col {
+            display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin: 20px 0;
+        }
+
+        .col-card {
+            background: rgba(15, 8, 20, 0.6);
+            border: 1px solid rgba(100, 60, 130, 0.15); border-radius: 8px; padding: 22px;
+        }
+
+        .col-card h3 {
+            font-size: 1rem; color: #c4a0d8; margin-bottom: 12px;
+            display: flex; align-items: center; gap: 8px;
+        }
+
+        .col-card ul { list-style: none; padding: 0; }
+        .col-card li {
+            font-size: 0.88rem; color: #8a6a9a; padding: 6px 0;
+            border-bottom: 1px solid rgba(100, 60, 130, 0.08);
+            display: flex; align-items: flex-start; gap: 8px;
+        }
+        .col-card li:last-child { border-bottom: none; }
+        .li-marker { color: #9333ea; flex-shrink: 0; }
+
+        /* Speed benchmark bars */
+        .bench-grid { margin: 20px 0; }
+
+        .bench-row {
+            display: flex; align-items: center; gap: 16px;
+            padding: 10px 0; border-bottom: 1px solid rgba(100, 60, 130, 0.08);
+        }
+
+        .bench-label {
+            width: 160px; font-size: 0.82rem; color: #9a7aaa;
+            font-family: 'Courier New', monospace; flex-shrink: 0;
+        }
+
+        .bench-bar-wrap {
+            flex: 1; height: 8px; background: rgba(40, 20, 60, 0.4); border-radius: 4px; overflow: hidden;
+        }
+
+        .bench-bar { height: 100%; border-radius: 4px; transition: width 1s ease; }
+        .bench-bar-gpu { background: linear-gradient(90deg, #7c3aed, #a855f7); }
+        .bench-bar-mid { background: linear-gradient(90deg, #ca8a04, #eab308); }
+        .bench-bar-low { background: linear-gradient(90deg, #6b7280, #9ca3af); }
+
+        .bench-value { font-size: 0.78rem; color: #7a5a8a; width: 110px; text-align: right; flex-shrink: 0; }
+
+        /* Mask charset table */
+        .charset-grid {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+            gap: 12px; margin: 20px 0;
+        }
+
+        .charset-card {
+            background: rgba(15, 8, 20, 0.6);
+            border: 1px solid rgba(100, 60, 130, 0.15);
+            border-radius: 6px; padding: 14px 16px;
+        }
+
+        .charset-token {
+            font-family: 'Courier New', monospace; font-size: 1.1rem;
+            color: #fbbf24; margin-bottom: 6px;
+        }
+
+        .charset-name { font-size: 0.78rem; color: #c4a0d8; margin-bottom: 4px; }
+        .charset-example { font-size: 0.72rem; color: #6a4a7a; font-family: 'Courier New', monospace; }
+
+        .discussion-section {
+            background: linear-gradient(135deg, rgba(40, 20, 60, 0.3), rgba(30, 15, 50, 0.4));
+            border: 1px solid rgba(100, 60, 130, 0.25); border-radius: 10px; padding: 30px; margin: 40px 0;
+        }
+
+        .discussion-title {
+            font-size: 1.1rem; color: #c4a0d8; margin-bottom: 20px;
+            display: flex; align-items: center; gap: 10px;
+        }
+
+        .prompt-list { list-style: none; padding: 0; }
+
+        .prompt-item {
+            padding: 14px 18px; background: rgba(15, 8, 20, 0.5);
+            border: 1px solid rgba(100, 60, 130, 0.12); border-radius: 6px;
+            margin-bottom: 10px; font-size: 0.9rem; color: #9a7aaa;
+            line-height: 1.6; display: flex; gap: 12px;
+        }
+
+        .prompt-num {
+            color: #9333ea; font-size: 0.8rem;
+            font-family: 'Courier New', monospace; flex-shrink: 0; padding-top: 2px;
+        }
+
+        .takeaway-grid {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px; margin: 24px 0;
+        }
+
+        .takeaway-card {
+            background: rgba(15, 8, 20, 0.6); border: 1px solid rgba(100, 60, 130, 0.15);
+            border-radius: 8px; padding: 20px; text-align: center;
+        }
+
+        .takeaway-icon { font-size: 2rem; margin-bottom: 10px; }
+        .takeaway-title { font-size: 0.85rem; color: #c4a0d8; margin-bottom: 6px; }
+        .takeaway-desc { font-size: 0.78rem; color: #7a5a8a; line-height: 1.5; }
+
+        .completion-section {
+            text-align: center; padding: 60px 40px;
+            background: linear-gradient(135deg, rgba(40, 20, 60, 0.3), rgba(30, 15, 50, 0.4));
+            border: 1px solid rgba(100, 60, 130, 0.3); border-radius: 12px; margin: 60px 0 40px;
+        }
+
+        .completion-icon { font-size: 3.5rem; margin-bottom: 20px; }
+        .completion-title { font-size: 1.8rem; color: #c4a0d8; margin-bottom: 12px; font-weight: 400; }
+        .completion-text { color: #8a6a9a; font-size: 0.95rem; max-width: 560px; margin: 0 auto 30px; line-height: 1.8; }
+
+        .completion-btn {
+            display: inline-flex; align-items: center; gap: 10px; padding: 14px 36px;
+            background: linear-gradient(135deg, #7c3aed, #9333ea); border: none; border-radius: 8px;
+            color: #f3e8ff; font-size: 1rem; cursor: pointer; font-family: 'Georgia', serif;
+            letter-spacing: 0.05em; transition: all 0.3s ease; box-shadow: 0 4px 20px rgba(147, 51, 234, 0.3);
+        }
+
+        .completion-btn:hover {
+            background: linear-gradient(135deg, #6d28d9, #7c3aed);
+            box-shadow: 0 6px 30px rgba(147, 51, 234, 0.45); transform: translateY(-2px);
+        }
+
+        /* Rule-file list styling */
+        .rule-list {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 12px; margin: 20px 0;
+        }
+
+        .rule-card {
+            background: rgba(15, 8, 20, 0.6);
+            border: 1px solid rgba(100, 60, 130, 0.15);
+            border-radius: 6px; padding: 16px;
+        }
+
+        .rule-filename {
+            font-family: 'Courier New', monospace; font-size: 0.85rem;
+            color: #fbbf24; margin-bottom: 6px;
+        }
+
+        .rule-desc { font-size: 0.8rem; color: #7a5a8a; line-height: 1.5; }
+
+        /* Math formula styling */
+        .math-block {
+            background: rgba(5, 2, 10, 0.8);
+            border: 1px solid rgba(100, 60, 130, 0.2);
+            border-radius: 6px; padding: 20px 24px; margin: 16px 0;
+            font-family: 'Courier New', monospace; font-size: 0.88rem;
+            color: #c4a0d8; line-height: 2;
+        }
+
+        .math-var { color: #fbbf24; }
+        .math-result { color: #4ade80; font-weight: bold; }
+        .math-note { color: #6a4a7a; font-style: italic; font-family: 'Georgia', serif; font-size: 0.82rem; }
+
+        @media (max-width: 768px) {
+            .module-header { padding: 15px 20px; }
+            .module-content { padding: 20px; }
+            .two-col { grid-template-columns: 1fr; }
+            .bench-label { width: 110px; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="scroll-progress" id="scrollProgress"></div>
+
+<header class="module-header">
+    <div class="header-left">
+        <a href="../index.html" class="back-btn">&#8592; Back to Course</a>
+        <div>
+            <div class="module-label">WiFi Arsenal &middot; Module 04</div>
+        </div>
+    </div>
+    <div class="header-right">
+        <span>Reading Progress</span>
+        <div class="progress-bar-mini">
+            <div class="fill" id="readingFill"></div>
+        </div>
+    </div>
+</header>
+
+<main class="module-content">
+
+    <!-- Hero -->
+    <div class="intro-section">
+        <div class="intro-icon">&#128273;</div>
+        <h1 class="intro-title">Password Cracking</h1>
+        <div class="intro-meta">WiFi Arsenal &bull; Module 04 &bull; Password Cracking</div>
+        <p class="intro-subtitle">
+            A captured WPA2 handshake is not a password — it is an offline oracle. Given the handshake,
+            an attacker can test billions of candidate passwords per second without ever touching the target
+            network again. This module examines the full cracking pipeline: from CPU-based dictionary attacks
+            with aircrack-ng through GPU-accelerated hashcat campaigns, to mask-driven John the Ripper
+            sessions and the wordlist engineering that determines whether any of it succeeds.
+        </p>
+        <div class="module-stats">
+            <div class="stat-pill">aircrack-ng</div>
+            <div class="stat-pill">hashcat</div>
+            <div class="stat-pill">John the Ripper</div>
+            <div class="stat-pill">GPU Acceleration</div>
+            <div class="stat-pill">~30 min read</div>
+        </div>
+    </div>
+
+    <!-- Section 1: Offline Cracking Theory -->
+    <div class="section" id="s1">
+        <div class="section-number">Section 01</div>
+        <h2 class="section-title">
+            <span class="section-icon">&#128202;</span>
+            Offline Cracking Theory
+        </h2>
+        <div class="section-body">
+            <p>
+                When a client authenticates to a WPA2 Personal network, the access point and client perform
+                a 4-way EAPOL handshake to negotiate a session key. This handshake cryptographically binds
+                the PSK (pre-shared key, i.e., the network password) to the session without revealing the
+                PSK directly. An attacker who captures all four EAPOL frames — or even just messages 1 and 2
+                via the PMKID technique — possesses everything needed to verify password guesses entirely
+                offline.
+            </p>
+
+            <div class="concept-grid">
+                <div class="concept-card">
+                    <div class="concept-card-icon">&#128203;</div>
+                    <div class="concept-card-title">PBKDF2-SHA1 Key Derivation</div>
+                    <div class="concept-card-body">
+                        The PSK is not used directly. WPA2 derives the PMK (Pairwise Master Key) using
+                        PBKDF2-SHA1 with the network SSID as the salt and 4,096 iterations. This deliberate
+                        computational cost was intended to slow brute-force — but GPUs can parallelize
+                        this work across thousands of cores simultaneously.
+                    </div>
+                    <span class="concept-tag">Key Derivation</span>
+                </div>
+                <div class="concept-card">
+                    <div class="concept-card-icon">&#128295;</div>
+                    <div class="concept-card-title">The PMK-to-PTK Chain</div>
+                    <div class="concept-card-body">
+                        PMK + AP Nonce (ANonce) + Client Nonce (SNonce) + both MAC addresses feed into
+                        a PRF (Pseudorandom Function) to produce the PTK (Pairwise Transient Key). The
+                        MIC (Message Integrity Code) field in EAPOL message 2 is computed from the PTK.
+                        If a candidate password produces the correct MIC, the password is confirmed.
+                    </div>
+                    <span class="concept-tag">Handshake Verification</span>
+                </div>
+                <div class="concept-card">
+                    <div class="concept-card-icon">&#9889;</div>
+                    <div class="concept-card-title">GPU Advantage</div>
+                    <div class="concept-card-body">
+                        A modern GPU (e.g., RTX 4090) can compute approximately 1,100,000 WPA2 PMK
+                        derivations per second — versus roughly 35,000 per second on a high-end CPU.
+                        That is a 30x speed difference on a single consumer card. Cracking rigs with
+                        eight GPUs reach 8-9 million candidates per second.
+                    </div>
+                    <span class="concept-tag">Compute Throughput</span>
+                </div>
+                <div class="concept-card">
+                    <div class="concept-card-icon">&#128196;</div>
+                    <div class="concept-card-title">PMKID Attack (2018)</div>
+                    <div class="concept-card-body">
+                        Jens Steube (hashcat author) discovered that the PMKID — derived from the PMK —
+                        is broadcast in the first EAPOL frame. An attacker can obtain a crackable value
+                        from a single frame without needing to deauthenticate any client or wait for a
+                        device to connect. Captured with hcxdumptool.
+                    </div>
+                    <span class="concept-tag">Clientless Capture</span>
+                </div>
+            </div>
+
+            <div class="callout callout-info">
+                <span class="callout-icon">&#8505;</span>
+                <div class="callout-content">
+                    <div class="callout-title">Why "Offline" Matters</div>
+                    <div class="callout-text">
+                        Online attacks against a WPA2 network would be rate-limited by association delays,
+                        network timeouts, and potentially lockout policies on the AP. Offline attacks have
+                        no such constraints — the only limit is the attacker's hardware. A password that
+                        would take years to brute-force online can be tested in minutes offline if it
+                        appears in a wordlist or matches a common pattern. This asymmetry fundamentally
+                        changes the minimum viable password length.
+                    </div>
+                </div>
+            </div>
+
+            <div class="callout callout-warning">
+                <span class="callout-icon">&#9888;</span>
+                <div class="callout-content">
+                    <div class="callout-title">WPA3 SAE Closes This Vulnerability Class</div>
+                    <div class="callout-text">
+                        WPA3-Personal uses the SAE (Simultaneous Authentication of Equals) handshake,
+                        which does not produce a capturable, offline-verifiable value. Each authentication
+                        attempt requires interaction with the AP. This converts the attack from offline
+                        brute-force to rate-limited online guessing — a fundamental improvement that
+                        makes dictionary attacks computationally infeasible regardless of GPU power.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 2: aircrack-ng Dictionary Attacks -->
+    <div class="section" id="s2">
+        <div class="section-number">Section 02</div>
+        <h2 class="section-title">
+            <span class="section-icon">&#128272;</span>
+            aircrack-ng Dictionary Attacks
+        </h2>
+        <div class="section-body">
+            <p>
+                aircrack-ng is the cracking component of the Aircrack-ng suite and operates natively on
+                <code style="font-family:'Courier New',monospace; color:#c4a0d8;">.cap</code> files
+                captured by airodump-ng without any format conversion. It uses the host CPU, which
+                limits raw throughput compared to GPU tools, but makes it the fastest option for quick
+                wordlist passes on captured handshakes in the field.
+            </p>
+
+            <h3 style="color:#c4a0d8; font-size:1.05rem; margin: 24px 0 12px; font-weight:400;">
+                Basic Dictionary Attack
+            </h3>
+
+            <div class="code-block">
+<span class="comment"># Full syntax: aircrack-ng [options] &lt;capture_file&gt;</span>
+$ aircrack-ng <span class="flag">-w</span> <span class="str">/usr/share/wordlists/rockyou.txt</span> capture-01.cap
+
+<span class="comment"># Output: aircrack-ng scans for WPA handshakes in the .cap file</span>
+<span class="comment"># If multiple networks are found, it will prompt you to select one</span>
+
+<span class="comment"># Target a specific network by BSSID to skip the selection prompt</span>
+$ aircrack-ng <span class="flag">-w</span> <span class="str">/usr/share/wordlists/rockyou.txt</span> \
+              <span class="flag">-b</span> <span class="str">AA:BB:CC:DD:EE:FF</span> capture-01.cap
+            </div>
+
+            <h3 style="color:#c4a0d8; font-size:1.05rem; margin: 24px 0 12px; font-weight:400;">
+                Targeting Multiple BSSIDs and Multiple Captures
+            </h3>
+
+            <div class="code-block">
+<span class="comment"># Pass multiple capture files: aircrack-ng merges them automatically</span>
+$ aircrack-ng <span class="flag">-w</span> wordlist.txt capture-01.cap capture-02.cap
+
+<span class="comment"># Target a specific BSSID across several capture sessions</span>
+$ aircrack-ng <span class="flag">-w</span> wordlist.txt <span class="flag">-b</span> <span class="str">AA:BB:CC:DD:EE:FF</span> *.cap
+
+<span class="comment"># Successful output example:</span>
+                                                  <span class="out">KEY FOUND! [ securepass2024 ]</span>
+
+      Master Key     : A1 B2 C3 D4 E5 F6 07 08 09 0A 0B 0C 0D 0E 0F 10
+                       11 12 13 14 15 16 17 18 19 1A 1B 1C 1D 1E 1F 20
+
+      Transient Key  : ...
+<span class="comment"># Cracking speed shown in the bottom-right of the live status display</span>
+            </div>
+
+            <h3 style="color:#c4a0d8; font-size:1.05rem; margin: 24px 0 12px; font-weight:400;">
+                Wordlist Selection Strategy
+            </h3>
+
+            <p>
+                The wordlist choice determines whether aircrack-ng finds the password. A common
+                mistake is running a massive wordlist on a CPU tool — aircrack-ng's throughput
+                on WPA2 is typically 1,000–4,000 PMKs per second. The math matters:
+            </p>
+
+            <div class="math-block">
+<span class="math-var">rockyou.txt</span>     = 14,344,391 passwords
+<span class="math-var">aircrack-ng</span>     = ~3,000 PMKs/sec (mid-range CPU)
+<span class="math-var">Time to exhaust</span> = 14,344,391 / 3,000 = <span class="math-result">~4,781 seconds (~80 minutes)</span>
+
+<span class="math-note">; A larger wordlist (e.g., 1 billion entries) would require ~3.9 days on the same CPU.</span>
+<span class="math-note">; For large wordlists, switch to hashcat on GPU before committing to a full run.</span>
+            </div>
+
+            <div class="two-col">
+                <div class="col-card">
+                    <h3>&#9989; Good Wordlist Candidates for aircrack-ng</h3>
+                    <ul>
+                        <li><span class="li-marker">▸</span> rockyou.txt — 14M real-world passwords, fast to exhaust</li>
+                        <li><span class="li-marker">▸</span> Custom OSINT wordlists (CeWL-generated, target-specific)</li>
+                        <li><span class="li-marker">▸</span> Short targeted lists (company name + year variants)</li>
+                        <li><span class="li-marker">▸</span> Default router password lists (Netgear, ASUS, TP-Link defaults)</li>
+                        <li><span class="li-marker">▸</span> Residential ISP default passphrase patterns</li>
+                    </ul>
+                </div>
+                <div class="col-card">
+                    <h3>&#10060; Poor Choices for CPU-Only aircrack-ng</h3>
+                    <ul>
+                        <li><span class="li-marker">▸</span> Combined wordlists &gt; 500M entries — time cost prohibitive</li>
+                        <li><span class="li-marker">▸</span> Full brute-force character spaces — use hashcat masks instead</li>
+                        <li><span class="li-marker">▸</span> Unsorted/undeduped wordlists — wastes cycles on duplicates</li>
+                        <li><span class="li-marker">▸</span> Wordlists with non-WPA-valid entries (&lt;8 or &gt;63 chars)</li>
+                        <li><span class="li-marker">▸</span> Rule-based expansion — no rule engine in aircrack-ng</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="callout callout-tip">
+                <span class="callout-icon">&#10003;</span>
+                <div class="callout-content">
+                    <div class="callout-title">Pre-filter for WPA Length Requirements</div>
+                    <div class="callout-text">
+                        WPA2 passwords must be 8–63 characters. Any wordlist entry outside this range
+                        is automatically skipped but still consumes parse time. Pre-filter your wordlist
+                        with:
+                        <span style="font-family:'Courier New',monospace; color:#c4a0d8; display:block; margin-top:8px;">
+                            awk 'length &gt;= 8 &amp;&amp; length &lt;= 63' rockyou.txt &gt; rockyou-wpa.txt
+                        </span>
+                        This typically reduces rockyou.txt from 14.3M to approximately 9.8M entries,
+                        saving ~30% of crack time.
+                    </div>
+                </div>
+            </div>
+
+            <div class="detail-section">
+                <div class="detail-header" onclick="toggleDetail(this)">
+                    <div class="detail-header-left">
+                        <span class="detail-header-icon">&#128196;</span>
+                        <div>
+                            <div class="detail-header-title">Full aircrack-ng Flag Reference</div>
+                            <div class="detail-header-subtitle">All flags relevant to WPA2 cracking operations</div>
+                        </div>
+                    </div>
+                    <span class="detail-toggle">&#9660;</span>
+                </div>
+                <div class="detail-body">
+                    <table class="standards-table">
+                        <thead>
+                            <tr>
+                                <th>Flag</th>
+                                <th>Purpose</th>
+                                <th>Example</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td class="std-name">-w &lt;file&gt;</td>
+                                <td>Wordlist file path (use - to read from stdin)</td>
+                                <td><code style="font-family:'Courier New',monospace; color:#c4a0d8;">-w /usr/share/wordlists/rockyou.txt</code></td>
+                            </tr>
+                            <tr>
+                                <td class="std-name">-b &lt;bssid&gt;</td>
+                                <td>Target specific network by MAC address</td>
+                                <td><code style="font-family:'Courier New',monospace; color:#c4a0d8;">-b AA:BB:CC:DD:EE:FF</code></td>
+                            </tr>
+                            <tr>
+                                <td class="std-name">-e &lt;ssid&gt;</td>
+                                <td>Target by SSID (ESSID) name</td>
+                                <td><code style="font-family:'Courier New',monospace; color:#c4a0d8;">-e "CorpWiFi"</code></td>
+                            </tr>
+                            <tr>
+                                <td class="std-name">-l &lt;file&gt;</td>
+                                <td>Write found key to a file</td>
+                                <td><code style="font-family:'Courier New',monospace; color:#c4a0d8;">-l found_key.txt</code></td>
+                            </tr>
+                            <tr>
+                                <td class="std-name">-q</td>
+                                <td>Quiet mode — suppress most output, only print key if found</td>
+                                <td><code style="font-family:'Courier New',monospace; color:#c4a0d8;">-q</code></td>
+                            </tr>
+                            <tr>
+                                <td class="std-name">-p &lt;n&gt;</td>
+                                <td>Spawn n CPU threads (default: 1)</td>
+                                <td><code style="font-family:'Courier New',monospace; color:#c4a0d8;">-p 8</code></td>
+                            </tr>
+                            <tr>
+                                <td class="std-name">--bssid</td>
+                                <td>Long-form alias for -b</td>
+                                <td><code style="font-family:'Courier New',monospace; color:#c4a0d8;">--bssid AA:BB:CC:DD:EE:FF</code></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    <p>
+                        The <code style="font-family:'Courier New',monospace; color:#c4a0d8;">-p</code> flag enables multi-threading.
+                        On a modern 8-core CPU, <code style="font-family:'Courier New',monospace; color:#c4a0d8;">-p 8</code> can
+                        roughly double or triple effective throughput compared to single-threaded mode — though
+                        the per-thread cost of PBKDF2 computation means gains are not perfectly linear.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 3: hashcat GPU Acceleration -->
+    <div class="section" id="s3">
+        <div class="section-number">Section 03</div>
+        <h2 class="section-title">
+            <span class="section-icon">&#9889;</span>
+            hashcat GPU Acceleration
+        </h2>
+        <div class="section-body">
+            <p>
+                hashcat is the industry-standard GPU-accelerated password recovery tool and is the
+                correct choice whenever speed matters. For WPA2, hashcat requires the handshake to be
+                converted from the native <code style="font-family:'Courier New',monospace; color:#c4a0d8;">.cap</code>
+                format to the <code style="font-family:'Courier New',monospace; color:#c4a0d8;">.hc22000</code>
+                format used by hash mode 22000.
+            </p>
+
+            <h3 style="color:#c4a0d8; font-size:1.05rem; margin: 24px 0 12px; font-weight:400;">
+                Step 1: Format Conversion with hcxpcapngtool
+            </h3>
+
+            <div class="code-block">
+<span class="comment"># Convert airodump-ng .cap capture to hashcat's WPA format</span>
+$ hcxpcapngtool <span class="flag">-o</span> handshake.hc22000 capture-01.cap
+
+<span class="comment"># Verbose conversion — shows how many valid handshakes/PMKIDs extracted</span>
+$ hcxpcapngtool <span class="flag">-o</span> handshake.hc22000 <span class="flag">--all</span> capture-01.cap
+
+<span class="comment"># Verify the converted file contains usable data</span>
+$ wc <span class="flag">-l</span> handshake.hc22000
+<span class="out">3 handshake.hc22000</span>
+<span class="comment"># Each line = one crackable hash (PMKID or EAPOL handshake pair)</span>
+            </div>
+
+            <h3 style="color:#c4a0d8; font-size:1.05rem; margin: 24px 0 12px; font-weight:400;">
+                Mode 22000: Attack Modes
+            </h3>
+
+            <div class="code-block">
+<span class="comment">## Attack Mode -a 0: Straight dictionary attack</span>
+$ hashcat <span class="flag">-m</span> <span class="num">22000</span> <span class="flag">-a</span> <span class="num">0</span> handshake.hc22000 <span class="str">/usr/share/wordlists/rockyou.txt</span>
+
+<span class="comment">## Attack Mode -a 3: Brute-force mask attack (8-digit numeric passphrase)</span>
+$ hashcat <span class="flag">-m</span> <span class="num">22000</span> <span class="flag">-a</span> <span class="num">3</span> handshake.hc22000 <span class="str">?d?d?d?d?d?d?d?d</span>
+
+<span class="comment">## Attack Mode -a 0 -r: Dictionary + rule-based transformations</span>
+$ hashcat <span class="flag">-m</span> <span class="num">22000</span> <span class="flag">-a</span> <span class="num">0</span> <span class="flag">-r</span> <span class="str">/usr/share/hashcat/rules/best64.rule</span> \
+          handshake.hc22000 rockyou.txt
+
+<span class="comment">## Attack Mode -a 6: Hybrid wordlist + mask (appends mask to each wordlist word)</span>
+$ hashcat <span class="flag">-m</span> <span class="num">22000</span> <span class="flag">-a</span> <span class="num">6</span> handshake.hc22000 rockyou.txt <span class="str">?d?d?d?d</span>
+<span class="comment"># Generates: password1234, letmein2024, admin9999, etc.</span>
+            </div>
+
+            <h3 style="color:#c4a0d8; font-size:1.05rem; margin: 24px 0 12px; font-weight:400;">
+                Potfile Management
+            </h3>
+
+            <div class="code-block">
+<span class="comment"># hashcat automatically stores cracked hashes in ~/.hashcat/hashcat.potfile</span>
+<span class="comment"># Use --potfile-path to redirect to a project-specific file</span>
+$ hashcat <span class="flag">-m</span> <span class="num">22000</span> <span class="flag">-a</span> <span class="num">0</span> \
+          <span class="flag">--potfile-path</span> <span class="str">./project.pot</span> \
+          handshake.hc22000 rockyou.txt
+
+<span class="comment"># Display previously cracked passwords from the potfile</span>
+$ hashcat <span class="flag">-m</span> <span class="num">22000</span> <span class="flag">--show</span> \
+          <span class="flag">--potfile-path</span> <span class="str">./project.pot</span> \
+          handshake.hc22000
+
+<span class="comment"># Disable potfile entirely (for isolated testing)</span>
+$ hashcat <span class="flag">-m</span> <span class="num">22000</span> <span class="flag">--potfile-disable</span> handshake.hc22000 wordlist.txt
+
+<span class="comment"># Resume an interrupted session</span>
+$ hashcat <span class="flag">--session</span> <span class="str">corp_audit</span> <span class="flag">--restore</span>
+            </div>
+
+            <h3 style="color:#c4a0d8; font-size:1.05rem; margin: 24px 0 12px; font-weight:400;">
+                Benchmarking Your Hardware
+            </h3>
+
+            <div class="code-block">
+<span class="comment"># Benchmark all supported modes (takes several minutes)</span>
+$ hashcat <span class="flag">-b</span>
+
+<span class="comment"># Benchmark only WPA2 mode</span>
+$ hashcat <span class="flag">-b</span> <span class="flag">-m</span> <span class="num">22000</span>
+
+<span class="comment"># Example output on RTX 4090:</span>
+<span class="out">Hashmode: 22000 - WPA-PBKDF2-PMKID+EAPOL</span>
+<span class="out">Speed.#1.........: 1126.7 kH/s (47.56ms) @ Accel:64 Loops:64 Thr:512 Vec:1</span>
+            </div>
+
+            <h3 style="color:#c4a0d8; font-size:1.05rem; margin: 24px 0 12px; font-weight:400;">
+                GPU Benchmark Comparison (WPA2 / Mode 22000)
+            </h3>
+
+            <div class="bench-grid">
+                <div class="bench-row">
+                    <div class="bench-label">RTX 4090</div>
+                    <div class="bench-bar-wrap"><div class="bench-bar bench-bar-gpu" style="width:100%;"></div></div>
+                    <div class="bench-value">~1,100 kH/s</div>
+                </div>
+                <div class="bench-row">
+                    <div class="bench-label">RTX 3090</div>
+                    <div class="bench-bar-wrap"><div class="bench-bar bench-bar-gpu" style="width:68%;"></div></div>
+                    <div class="bench-value">~750 kH/s</div>
+                </div>
+                <div class="bench-row">
+                    <div class="bench-label">RTX 3080</div>
+                    <div class="bench-bar-wrap"><div class="bench-bar bench-bar-gpu" style="width:55%;"></div></div>
+                    <div class="bench-value">~600 kH/s</div>
+                </div>
+                <div class="bench-row">
+                    <div class="bench-label">RX 6800 XT</div>
+                    <div class="bench-bar-wrap"><div class="bench-bar bench-bar-mid" style="width:48%;"></div></div>
+                    <div class="bench-value">~530 kH/s</div>
+                </div>
+                <div class="bench-row">
+                    <div class="bench-label">RTX 2070</div>
+                    <div class="bench-bar-wrap"><div class="bench-bar bench-bar-mid" style="width:35%;"></div></div>
+                    <div class="bench-value">~380 kH/s</div>
+                </div>
+                <div class="bench-row">
+                    <div class="bench-label">i9-13900K (CPU)</div>
+                    <div class="bench-bar-wrap"><div class="bench-bar bench-bar-low" style="width:4%;"></div></div>
+                    <div class="bench-value">~42 kH/s</div>
+                </div>
+                <div class="bench-row">
+                    <div class="bench-label">i7-10750H (CPU)</div>
+                    <div class="bench-bar-wrap"><div class="bench-bar bench-bar-low" style="width:2.5%;"></div></div>
+                    <div class="bench-value">~27 kH/s</div>
+                </div>
+            </div>
+
+            <div class="callout callout-info">
+                <span class="callout-icon">&#8505;</span>
+                <div class="callout-content">
+                    <div class="callout-title">Why hashcat Mode 22000 Replaced Mode 2500</div>
+                    <div class="callout-text">
+                        Prior to hashcat 6.0, WPA2 was handled by mode 2500 (PMKID) and mode 16800
+                        (EAPOL pairs). Mode 22000 was introduced to unify both attack vectors into a
+                        single hash type that can handle PMKID captures, full 4-way handshakes, and
+                        partial handshakes in one session. The hcxpcapngtool utility generates the
+                        22000-format file from any combination of packet sources. Old .hccapx files
+                        from mode 2500 are no longer compatible — use hcxpcapngtool to regenerate.
+                    </div>
+                </div>
+            </div>
+
+            <div class="detail-section">
+                <div class="detail-header" onclick="toggleDetail(this)">
+                    <div class="detail-header-left">
+                        <span class="detail-header-icon">&#128736;</span>
+                        <div>
+                            <div class="detail-header-title">hashcat Performance Tuning Flags</div>
+                            <div class="detail-header-subtitle">Optimize throughput and stability on different hardware</div>
+                        </div>
+                    </div>
+                    <span class="detail-toggle">&#9660;</span>
+                </div>
+                <div class="detail-body">
+                    <ul>
+                        <li><strong style="color:#c4a0d8; font-family:'Courier New',monospace;">--workload-profile N</strong> — 1 (Low), 2 (Default), 3 (High), 4 (Nightmare). Higher profiles use more GPU time but may cause display lag or desktop instability on non-headless systems.</li>
+                        <li><strong style="color:#c4a0d8; font-family:'Courier New',monospace;">--kernel-accel N</strong> — Number of compute units to use in parallel. Increase for better throughput; reduce if getting kernel errors.</li>
+                        <li><strong style="color:#c4a0d8; font-family:'Courier New',monospace;">--kernel-loops N</strong> — Inner loop count per kernel invocation. Higher values increase GPU utilization but raise temperature.</li>
+                        <li><strong style="color:#c4a0d8; font-family:'Courier New',monospace;">--optimized-kernel-enable</strong> — Enables legacy optimized kernels, sometimes faster on older hardware but limits max password length to 32 characters.</li>
+                        <li><strong style="color:#c4a0d8; font-family:'Courier New',monospace;">-D 2</strong> — Use only GPU (Device type 2). Omit CPU from compute to avoid splitting resources on hybrid systems.</li>
+                        <li><strong style="color:#c4a0d8; font-family:'Courier New',monospace;">--status --status-timer 10</strong> — Print status every 10 seconds — useful for monitoring long-running sessions in scripts.</li>
+                        <li><strong style="color:#c4a0d8; font-family:'Courier New',monospace;">--session &lt;name&gt;</strong> — Name the session for restore capability if the job is interrupted.</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 4: John the Ripper -->
+    <div class="section" id="s4">
+        <div class="section-number">Section 04</div>
+        <h2 class="section-title">
+            <span class="section-icon">&#128481;</span>
+            John the Ripper
+        </h2>
+        <div class="section-body">
+            <p>
+                John the Ripper (JtR) is a general-purpose password cracker with a long history and
+                broad format support. In the WiFi cracking context, its most relevant application is
+                cracking <strong style="color:#c4a0d8;">NetNTLM hashes</strong> captured from clients
+                that connect to an evil twin AP running a rogue WPA-Enterprise server (e.g., hostapd-wpe
+                or FreeRADIUS-WPE). These hashes are of a fundamentally different type than WPA2 PMKs
+                and represent Windows domain credentials rather than the Wi-Fi password itself.
+            </p>
+
+            <div class="callout callout-warning">
+                <span class="callout-icon">&#9888;</span>
+                <div class="callout-content">
+                    <div class="callout-title">Context: WPA-Enterprise Evil Twin Capture</div>
+                    <div class="callout-text">
+                        When a Windows client connects to a rogue WPA-Enterprise network, it may
+                        automatically send MSCHAPv2 (NetNTLMv2) credentials for the domain user
+                        currently logged in. Capturing these hashes enables John or hashcat to
+                        recover the plaintext domain password — a much higher-value credential
+                        than a Wi-Fi PSK. This technique is documented in the WiFi Arsenal as
+                        part of evil twin module coverage.
+                    </div>
+                </div>
+            </div>
+
+            <h3 style="color:#c4a0d8; font-size:1.05rem; margin: 24px 0 12px; font-weight:400;">
+                NetNTLM Hash Cracking
+            </h3>
+
+            <div class="code-block">
+<span class="comment"># Crack NetNTLM hashes from hostapd-wpe capture log</span>
+<span class="comment"># Format in the WPE log: username:$NETNTLM$&lt;hash&gt;</span>
+
+<span class="comment"># Basic dictionary attack against NetNTLM format</span>
+$ john <span class="flag">--format=</span><span class="str">netntlm</span> <span class="flag">--wordlist=</span><span class="str">/usr/share/wordlists/rockyou.txt</span> \
+       captured_hashes.txt
+
+<span class="comment"># NetNTLMv2 (more common in modern environments)</span>
+$ john <span class="flag">--format=</span><span class="str">netntlmv2</span> <span class="flag">--wordlist=</span><span class="str">rockyou.txt</span> captured_hashes.txt
+
+<span class="comment"># Show cracked passwords after a session completes</span>
+$ john <span class="flag">--show</span> <span class="flag">--format=</span><span class="str">netntlm</span> captured_hashes.txt
+
+<span class="comment"># Example output:</span>
+<span class="out">jsmith:Summer2024!</span>
+<span class="out">adavis:Welcome1</span>
+<span class="out">2 password hashes cracked, 1 left</span>
+            </div>
+
+            <h3 style="color:#c4a0d8; font-size:1.05rem; margin: 24px 0 12px; font-weight:400;">
+                Mask Attacks with John
+            </h3>
+
+            <div class="code-block">
+<span class="comment"># Mask attack using --mask (John's incremental-style mask mode)</span>
+<span class="comment"># Charset placeholders: ?d=digit, ?l=lowercase, ?u=uppercase, ?s=special, ?a=all</span>
+
+<span class="comment"># Common corporate policy: 8+ chars, at least one uppercase, one digit</span>
+$ john <span class="flag">--mask=</span><span class="str">?u?l?l?l?l?l?d?d</span> <span class="flag">--format=</span><span class="str">netntlm</span> captured_hashes.txt
+
+<span class="comment"># Variable-length mask: try all 8-12 character lowercase+digit combinations</span>
+$ john <span class="flag">--mask=</span><span class="str">?a?a?a?a?a?a?a?a</span> <span class="flag">--min-length=8</span> <span class="flag">--max-length=</span><span class="num">12</span> \
+       <span class="flag">--format=</span><span class="str">netntlm</span> captured_hashes.txt
+
+<span class="comment"># Target a specific known pattern (company name + 4 digits)</span>
+<span class="comment"># Use a hybrid wordlist + mask approach via --pipe</span>
+$ echo "Acme" | john <span class="flag">--pipe</span> <span class="flag">--mask=</span><span class="str">Acme?d?d?d?d</span> \
+                <span class="flag">--format=</span><span class="str">netntlm</span> captured_hashes.txt
+            </div>
+
+            <h3 style="color:#c4a0d8; font-size:1.05rem; margin: 24px 0 12px; font-weight:400;">
+                Incremental Mode and Session Management
+            </h3>
+
+            <div class="code-block">
+<span class="comment"># Incremental mode: John's built-in brute force with Markov chain ordering</span>
+<span class="comment"># Tries more statistically likely combinations first</span>
+$ john <span class="flag">--incremental=</span><span class="str">Alpha</span> <span class="flag">--format=</span><span class="str">netntlm</span> captured_hashes.txt
+
+<span class="comment"># Named incremental modes: Lower, Upper, Alpha, Digits, Alnum, ASCII</span>
+$ john <span class="flag">--incremental=</span><span class="str">Alnum</span> captured_hashes.txt   <span class="comment"># a-z, A-Z, 0-9</span>
+$ john <span class="flag">--incremental=</span><span class="str">Digits</span> captured_hashes.txt  <span class="comment"># digits only</span>
+
+<span class="comment"># Session management: name a long-running session for later resumption</span>
+$ john <span class="flag">--session=</span><span class="str">corp_crack</span> <span class="flag">--wordlist=</span><span class="str">rockyou.txt</span> \
+       <span class="flag">--format=</span><span class="str">netntlm</span> captured_hashes.txt
+
+<span class="comment"># Resume an interrupted session (John saves checkpoint every 10 minutes)</span>
+$ john <span class="flag">--restore=</span><span class="str">corp_crack</span>
+
+<span class="comment"># List all active/suspended sessions</span>
+$ john <span class="flag">--list=</span><span class="str">sessions</span>
+            </div>
+
+            <h3 style="color:#c4a0d8; font-size:1.05rem; margin: 24px 0 12px; font-weight:400;">
+                John Mask Charset Reference
+            </h3>
+
+            <div class="charset-grid">
+                <div class="charset-card">
+                    <div class="charset-token">?d</div>
+                    <div class="charset-name">Digits</div>
+                    <div class="charset-example">0123456789</div>
+                </div>
+                <div class="charset-card">
+                    <div class="charset-token">?l</div>
+                    <div class="charset-name">Lowercase</div>
+                    <div class="charset-example">abcdefghijklmnopqrstuvwxyz</div>
+                </div>
+                <div class="charset-card">
+                    <div class="charset-token">?u</div>
+                    <div class="charset-name">Uppercase</div>
+                    <div class="charset-example">ABCDEFGHIJKLMNOPQRSTUVWXYZ</div>
+                </div>
+                <div class="charset-card">
+                    <div class="charset-token">?s</div>
+                    <div class="charset-name">Special</div>
+                    <div class="charset-example">!@#$%^&amp;*()_+-=[]{}|;':",&lt;&gt;?/</div>
+                </div>
+                <div class="charset-card">
+                    <div class="charset-token">?a</div>
+                    <div class="charset-name">All printable</div>
+                    <div class="charset-example">?l + ?u + ?d + ?s combined</div>
+                </div>
+                <div class="charset-card">
+                    <div class="charset-token">?b</div>
+                    <div class="charset-name">Binary (0x00-0xFF)</div>
+                    <div class="charset-example">All 256 byte values</div>
+                </div>
+            </div>
+
+            <div class="callout callout-info">
+                <span class="callout-icon">&#8505;</span>
+                <div class="callout-content">
+                    <div class="callout-title">John vs hashcat for WPA2 PMK Cracking</div>
+                    <div class="callout-text">
+                        John the Ripper supports WPA2 via the <code style="font-family:'Courier New',monospace; color:#c4a0d8;">wpapsk</code>
+                        format, but its GPU acceleration is less mature and typically slower than hashcat
+                        for PBKDF2-based hashes. For WPA2 PSK recovery, hashcat is the preferred tool.
+                        John's primary value in a WiFi engagement is cracking NetNTLM hashes from
+                        WPA-Enterprise captures, where it is fully competitive with hashcat
+                        (NetNTLM is a faster hash function with much less compute overhead per candidate).
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 5: Wordlist Engineering -->
+    <div class="section" id="s5">
+        <div class="section-number">Section 05</div>
+        <h2 class="section-title">
+            <span class="section-icon">&#128218;</span>
+            Wordlist Engineering
+        </h2>
+        <div class="section-body">
+            <p>
+                The effectiveness of a dictionary attack is bounded entirely by wordlist quality. A
+                billion-candidate wordlist that does not contain the target password yields nothing.
+                A 10,000-entry targeted list built from OSINT about the target organization may crack
+                the password in seconds. Wordlist engineering is the craft of constructing candidate
+                lists that maximize hit probability against a specific target.
+            </p>
+
+            <h3 style="color:#c4a0d8; font-size:1.05rem; margin: 24px 0 12px; font-weight:400;">
+                rockyou.txt: Anatomy of the Standard Baseline
+            </h3>
+
+            <div class="detail-section">
+                <div class="detail-header" onclick="toggleDetail(this)">
+                    <div class="detail-header-left">
+                        <span class="detail-header-icon">&#128196;</span>
+                        <div>
+                            <div class="detail-header-title">What Is rockyou.txt?</div>
+                            <div class="detail-header-subtitle">Origin, composition, and limitations of the standard wordlist</div>
+                        </div>
+                    </div>
+                    <span class="detail-toggle">&#9660;</span>
+                </div>
+                <div class="detail-body">
+                    <p>
+                        In 2009, RockYou — a social media application developer — suffered a breach that
+                        exposed 32 million user account records stored in plaintext. The resulting password
+                        dump was sorted by frequency and published, becoming the de-facto standard password
+                        wordlist for security research. The version distributed with Kali Linux contains
+                        approximately 14,344,391 unique passwords after deduplication.
+                    </p>
+                    <p>
+                        Top patterns in rockyou.txt reflect 2009-era consumer password behavior:
+                        numeric sequences (123456, 12345678), keyboard walks (qwerty, abc123),
+                        first names (michael, jessica), common words (password, iloveyou), and
+                        simple substitutions (p@ssw0rd). Despite being from 2009, it remains
+                        effective because the underlying human password selection patterns have
+                        not meaningfully changed.
+                    </p>
+                    <p>
+                        Limitations: rockyou.txt contains no passwords longer than approximately
+                        20 characters, limited non-English entries, and essentially no passphrases.
+                        Against targets with enforced password policies (12+ chars, complexity requirements),
+                        its raw hit rate drops significantly without rule augmentation.
+                    </p>
+                </div>
+            </div>
+
+            <h3 style="color:#c4a0d8; font-size:1.05rem; margin: 24px 0 12px; font-weight:400;">
+                Creating Targeted Wordlists
+            </h3>
+
+            <div class="concept-grid">
+                <div class="concept-card">
+                    <div class="concept-card-icon">&#127760;</div>
+                    <div class="concept-card-title">CeWL — Website Wordlist Generator</div>
+                    <div class="concept-card-body">
+                        CeWL (Custom Word List generator) spiders a target website and extracts words
+                        meeting a minimum length threshold. For corporate targets, this captures product
+                        names, department names, executive names, taglines, and industry terminology —
+                        all common password ingredients.
+                    </div>
+                    <span class="concept-tag">OSINT-Driven</span>
+                </div>
+                <div class="concept-card">
+                    <div class="concept-card-icon">&#128196;</div>
+                    <div class="concept-card-title">crunch — Pattern-Based Generation</div>
+                    <div class="concept-card-body">
+                        crunch generates wordlists from defined character sets and length ranges.
+                        Useful for attacking known-pattern passwords: "8 characters, starts with
+                        capital, ends with two digits." Generates all permutations, so output
+                        can be enormous — pipe directly to hashcat rather than saving to disk.
+                    </div>
+                    <span class="concept-tag">Exhaustive Generation</span>
+                </div>
+                <div class="concept-card">
+                    <div class="concept-card-icon">&#128203;</div>
+                    <div class="concept-card-title">OSINT Manual Wordlists</div>
+                    <div class="concept-card-body">
+                        LinkedIn, public company directories, annual reports, and press releases
+                        reveal employee names, office locations, founding dates, and product launches.
+                        Combine these into a seed wordlist and apply rules. A founding year (e.g.,
+                        1989), the CEO's surname, and the company's ticker symbol cover a surprising
+                        fraction of corporate Wi-Fi passwords.
+                    </div>
+                    <span class="concept-tag">Intelligence-Led</span>
+                </div>
+                <div class="concept-card">
+                    <div class="concept-card-icon">&#128268;</div>
+                    <div class="concept-card-title">Breach Correlation</div>
+                    <div class="concept-card-body">
+                        Password analysis tools like PACK (Password Analysis and Cracking Kit)
+                        can analyze a breach dump associated with the target domain to identify
+                        the organization's specific password patterns — character counts, special
+                        character positions, prefix/suffix habits — then generate targeted masks.
+                    </div>
+                    <span class="concept-tag">Pattern Analysis</span>
+                </div>
+            </div>
+
+            <div class="code-block">
+<span class="comment"># CeWL: spider target website, min word length 6, output to wordlist</span>
+$ cewl <span class="flag">-d</span> <span class="num">3</span> <span class="flag">-m</span> <span class="num">6</span> <span class="flag">-w</span> <span class="str">corp_words.txt</span> https://www.targetcorp.com
+
+<span class="comment"># Include email addresses found on the site</span>
+$ cewl <span class="flag">-d</span> <span class="num">2</span> <span class="flag">-m</span> <span class="num">6</span> <span class="flag">--email</span> <span class="flag">-w</span> <span class="str">corp_full.txt</span> https://www.targetcorp.com
+
+<span class="comment"># crunch: generate all 8-char passwords from lowercase + digits</span>
+$ crunch <span class="num">8</span> <span class="num">8</span> <span class="str">abcdefghijklmnopqrstuvwxyz0123456789</span> <span class="flag">-o</span> <span class="str">8char.txt</span>
+<span class="comment"># WARNING: above produces ~2.8 trillion entries — use --stdout | hashcat instead</span>
+
+<span class="comment"># crunch piped directly to hashcat to avoid disk storage</span>
+$ crunch <span class="num">8</span> <span class="num">8</span> <span class="str">abcdefghijklmnopqrstuvwxyz0123456789</span> <span class="flag">--stdout</span> | \
+  hashcat <span class="flag">-m</span> <span class="num">22000</span> <span class="flag">--stdin</span> handshake.hc22000
+            </div>
+
+            <h3 style="color:#c4a0d8; font-size:1.05rem; margin: 24px 0 12px; font-weight:400;">
+                Rule Files: Amplifying Wordlists
+            </h3>
+
+            <p>
+                Rule-based attacks apply transformation rules to each wordlist entry, generating
+                thousands of variants per base word. hashcat and John both support rule files.
+                A single 14M-entry wordlist with best64.rule generates approximately 896M candidates
+                (14M &times; 64 rules) without storing anything additional on disk.
+            </p>
+
+            <div class="rule-list">
+                <div class="rule-card">
+                    <div class="rule-filename">best64.rule</div>
+                    <div class="rule-desc">64 high-yield rules derived from password pattern research. Covers capitalization, digit appending, common substitutions (a→@, e→3, o→0), reversal, and duplication. Best general-purpose starting point.</div>
+                </div>
+                <div class="rule-card">
+                    <div class="rule-filename">dive.rule</div>
+                    <div class="rule-desc">99,000+ rules for maximum coverage. Substantially slower but exhaustive — covers every common leet-speak substitution, prefix/suffix pattern, and transformation. Use only with GPU cracking rigs.</div>
+                </div>
+                <div class="rule-card">
+                    <div class="rule-filename">rockyou-30000.rule</div>
+                    <div class="rule-desc">30,000 rules derived from analyzing rockyou.txt for actual mutation patterns. Statistically grounded — rules match real user behavior. More effective than random comprehensive rules for human-selected passwords.</div>
+                </div>
+                <div class="rule-card">
+                    <div class="rule-filename">corporate.rule (custom)</div>
+                    <div class="rule-desc">Craft target-specific rules: append current year ($2$0$2$5), capitalize first letter (c), append ! ($!), prepend "Corp" (^p^r^o^C), toggle case variants. Build from observed policy requirements.</div>
+                </div>
+            </div>
+
+            <div class="code-block">
+<span class="comment"># hashcat rule file syntax examples (write to custom.rule)</span>
+<span class="comment"># Each rule modifies the candidate word; one rule per line</span>
+
+c          <span class="comment"># Capitalize first letter: password → Password</span>
+u          <span class="comment"># Uppercase all:           password → PASSWORD</span>
+$1         <span class="comment"># Append "1":              password → password1</span>
+$!         <span class="comment"># Append "!":              password → password!</span>
+$2$0$2$5   <span class="comment"># Append "2025":          password → password2025</span>
+^C^o^r^p   <span class="comment"># Prepend "Corp":          password → Corppassword</span>
+sa@        <span class="comment"># Substitute a→@:         password → p@ssword</span>
+se3        <span class="comment"># Substitute e→3:         secret → s3cr3t</span>
+r          <span class="comment"># Reverse:                password → drowssap</span>
+d          <span class="comment"># Duplicate:              pass → passpass</span>
+
+<span class="comment"># Apply custom rule file to rockyou with hashcat</span>
+$ hashcat <span class="flag">-m</span> <span class="num">22000</span> <span class="flag">-a</span> <span class="num">0</span> <span class="flag">-r</span> <span class="str">custom.rule</span> handshake.hc22000 rockyou.txt
+            </div>
+
+            <h3 style="color:#c4a0d8; font-size:1.05rem; margin: 24px 0 12px; font-weight:400;">
+                Password Patterns by Industry
+            </h3>
+
+            <table class="standards-table">
+                <thead>
+                    <tr>
+                        <th>Industry</th>
+                        <th>Common Password Patterns</th>
+                        <th>Effective Attack Strategy</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td style="color:#c4a0d8;">Healthcare</td>
+                        <td>Hospital name + year, department abbreviations, medical terms, nurse/doctor names. Compliance fatigue leads to minimal-complexity passwords meeting the letter of policy.</td>
+                        <td>CeWL on organization website, breach data from medical sector, mask with seasonal rotations (Q1, Q2, Spring2024).</td>
+                    </tr>
+                    <tr>
+                        <td style="color:#c4a0d8;">Financial Services</td>
+                        <td>Ticker symbols, fund names, financial jargon, city names, founding year. Strong policy enforcement means more complex but often predictable substitutions.</td>
+                        <td>OSINT-generated seed + dive.rule, target company name variants, executive name + department.</td>
+                    </tr>
+                    <tr>
+                        <td style="color:#c4a0d8;">Manufacturing / Industrial</td>
+                        <td>Product names, plant location, equipment model numbers, shift codes. Default vendor passwords for legacy infrastructure (often unchanged).</td>
+                        <td>Default password lists for Siemens, Honeywell, Rockwell. Plant name + 4 digits. rockyou + best64.</td>
+                    </tr>
+                    <tr>
+                        <td style="color:#c4a0d8;">Small Business (Retail, SMB)</td>
+                        <td>Business name, owner's name, address components, phone number, founding year. ISP-generated default passphrases (predictable format per ISP).</td>
+                        <td>ISP default passphrase wordlists, business address digits, CeWL on business website, simple rockyou pass.</td>
+                    </tr>
+                    <tr>
+                        <td style="color:#c4a0d8;">Education</td>
+                        <td>University name, sports team mascot, graduation year, department codes. Student-heavy populations with minimal password security culture.</td>
+                        <td>Institution name + current year, sports mascot + digits, rockyou, best64 rules. Very high hit rate.</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Section 6: Tool Comparison Matrix -->
+    <div class="section" id="s6">
+        <div class="section-number">Section 06</div>
+        <h2 class="section-title">
+            <span class="section-icon">&#128200;</span>
+            Tool Comparison Matrix
+        </h2>
+        <div class="section-body">
+            <p>
+                The three cracking tools covered in this module serve overlapping but distinct use cases.
+                Selecting the right tool for the task — or combining them in sequence — determines both
+                speed and success probability. The table below compares them across the dimensions that
+                matter for practical WiFi engagements.
+            </p>
+
+            <table class="standards-table">
+                <thead>
+                    <tr>
+                        <th>Attribute</th>
+                        <th>aircrack-ng</th>
+                        <th>hashcat</th>
+                        <th>John the Ripper</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td style="color:#c4a0d8;">Processing Unit</td>
+                        <td>CPU only</td>
+                        <td>GPU-primary (also CPU)</td>
+                        <td>CPU-primary (GPU via OpenCL plugin)</td>
+                    </tr>
+                    <tr>
+                        <td style="color:#c4a0d8;">WPA2 Speed (typical)</td>
+                        <td>1,000–35,000 PMK/s</td>
+                        <td>100,000–1,100,000 PMK/s</td>
+                        <td>2,000–40,000 PMK/s</td>
+                    </tr>
+                    <tr>
+                        <td style="color:#c4a0d8;">Native Input Format</td>
+                        <td>.cap / .pcap (direct)</td>
+                        <td>.hc22000 (via hcxpcapngtool)</td>
+                        <td>.hccap / wpapsk (conversion required)</td>
+                    </tr>
+                    <tr>
+                        <td style="color:#c4a0d8;">WPA2 Attack Modes</td>
+                        <td>Dictionary only</td>
+                        <td>Dictionary, brute-force, mask, rule-based, hybrid, combinator, PRINCE</td>
+                        <td>Dictionary, mask, incremental, rule-based</td>
+                    </tr>
+                    <tr>
+                        <td style="color:#c4a0d8;">Rule Engine</td>
+                        <td>None</td>
+                        <td>Full rule language (best64, dive, 99,000+ rules)</td>
+                        <td>Full rule language (compatible subset with hashcat)</td>
+                    </tr>
+                    <tr>
+                        <td style="color:#c4a0d8;">NetNTLM Support</td>
+                        <td>None</td>
+                        <td>Yes (mode 5500 / 5600)</td>
+                        <td>Yes (--format=netntlm / netntlmv2)</td>
+                    </tr>
+                    <tr>
+                        <td style="color:#c4a0d8;">PMKID Attack</td>
+                        <td>Yes (native)</td>
+                        <td>Yes (via hc22000 format)</td>
+                        <td>No</td>
+                    </tr>
+                    <tr>
+                        <td style="color:#c4a0d8;">Session Resume</td>
+                        <td>No (restarts from beginning)</td>
+                        <td>Yes (--session / --restore)</td>
+                        <td>Yes (--restore=&lt;session&gt;)</td>
+                    </tr>
+                    <tr>
+                        <td style="color:#c4a0d8;">Potfile / Log</td>
+                        <td>None built-in</td>
+                        <td>hashcat.potfile (automatic)</td>
+                        <td>john.pot (automatic)</td>
+                    </tr>
+                    <tr>
+                        <td style="color:#c4a0d8;">Setup Complexity</td>
+                        <td>Low — part of aircrack-ng suite, no config needed</td>
+                        <td>Medium — requires GPU drivers, OpenCL/CUDA, format conversion</td>
+                        <td>Low-Medium — wide format support, complex config for advanced features</td>
+                    </tr>
+                    <tr>
+                        <td style="color:#c4a0d8;">Best For</td>
+                        <td>Quick field check; small wordlists; no GPU available; capture verification</td>
+                        <td>Production cracking; large wordlists; rule-based attacks; mask brute-force; any serious campaign</td>
+                        <td>NetNTLM from evil twin; incremental mode; session management; mixed format engagements</td>
+                    </tr>
+                    <tr>
+                        <td style="color:#c4a0d8;">Combinator Attack</td>
+                        <td>No</td>
+                        <td>Yes (-a 1): combine two wordlists (word1+word2)</td>
+                        <td>No (workaround via pipes)</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h3 style="color:#c4a0d8; font-size:1.05rem; margin: 28px 0 16px; font-weight:400;">
+                Recommended Cracking Workflow
+            </h3>
+
+            <div class="concept-grid">
+                <div class="concept-card">
+                    <div class="concept-card-icon">&#49;&#65039;&#8419;</div>
+                    <div class="concept-card-title">Phase 1: Quick Triage (aircrack-ng)</div>
+                    <div class="concept-card-body">
+                        Run aircrack-ng with rockyou.txt immediately after capture to check for
+                        trivial passwords. If the network uses a default ISP passphrase or the
+                        owner chose "password123", this catches it in minutes without needing
+                        GPU hardware or format conversion.
+                    </div>
+                    <span class="concept-tag">Field / Immediate</span>
+                </div>
+                <div class="concept-card">
+                    <div class="concept-card-icon">&#50;&#65039;&#8419;</div>
+                    <div class="concept-card-title">Phase 2: GPU Dictionary + Rules (hashcat)</div>
+                    <div class="concept-card-body">
+                        Convert to hc22000 format and run hashcat with rockyou + best64.rule,
+                        then rockyou + dive.rule. Follow with target-specific wordlists from CeWL
+                        and OSINT. This phase exhausts all realistic dictionary candidates.
+                    </div>
+                    <span class="concept-tag">Primary Cracking</span>
+                </div>
+                <div class="concept-card">
+                    <div class="concept-card-icon">&#51;&#65039;&#8419;</div>
+                    <div class="concept-card-title">Phase 3: Mask Brute-Force (hashcat)</div>
+                    <div class="concept-card-body">
+                        If dictionary fails, move to targeted mask attacks based on known or
+                        suspected policy: 8-char alphanumeric, 10-char mixed case with digits,
+                        pattern-constrained masks derived from policy documents. Start narrow
+                        and expand.
+                    </div>
+                    <span class="concept-tag">Exhaustive Fallback</span>
+                </div>
+                <div class="concept-card">
+                    <div class="concept-card-icon">&#52;&#65039;&#8419;</div>
+                    <div class="concept-card-title">Phase 4: NetNTLM via Evil Twin (John)</div>
+                    <div class="concept-card-body">
+                        If WPA-Enterprise is in scope, pivot to evil twin with hostapd-wpe
+                        to capture MSCHAPv2 hashes. Crack NetNTLMv2 with John or hashcat mode 5600.
+                        Domain credentials recovered this way have higher value than the Wi-Fi
+                        PSK itself.
+                    </div>
+                    <span class="concept-tag">Enterprise Pivot</span>
+                </div>
+            </div>
+
+            <div class="callout callout-danger">
+                <span class="callout-icon">&#9888;</span>
+                <div class="callout-content">
+                    <div class="callout-title">Legal and Ethical Boundaries</div>
+                    <div class="callout-text">
+                        Password cracking against any network or hash you do not own or have explicit
+                        written authorization to test is a criminal offense under the Computer Fraud
+                        and Abuse Act (US), the Computer Misuse Act (UK), and equivalent statutes in
+                        all major jurisdictions. Offline cracking of a captured handshake carries
+                        the same legal exposure as online access attempts. All techniques in this
+                        module must be practiced exclusively in authorized lab environments or against
+                        infrastructure for which you hold a valid, scoped penetration test agreement.
+                    </div>
+                </div>
+            </div>
+
+            <div class="detail-section">
+                <div class="detail-header" onclick="toggleDetail(this)">
+                    <div class="detail-header-left">
+                        <span class="detail-header-icon">&#128736;</span>
+                        <div>
+                            <div class="detail-header-title">hashcat -a 1: Combinator Attack Deep Dive</div>
+                            <div class="detail-header-subtitle">Combining two wordlists for compound password recovery</div>
+                        </div>
+                    </div>
+                    <span class="detail-toggle">&#9660;</span>
+                </div>
+                <div class="detail-body">
+                    <p>
+                        The combinator attack (<code style="font-family:'Courier New',monospace; color:#c4a0d8;">-a 1</code>)
+                        takes two wordlists and concatenates every entry from list 1 with every entry
+                        from list 2. This is effective for targeting compound passwords like
+                        "SummerHoliday", "BlueMonkey2024", or "CorrectHorseBatteryStaple".
+                    </p>
+
+                    <div class="code-block" style="margin: 12px 0;">
+<span class="comment"># Combinator: join every word from list1 with every word from list2</span>
+$ hashcat <span class="flag">-m</span> <span class="num">22000</span> <span class="flag">-a</span> <span class="num">1</span> handshake.hc22000 words1.txt words2.txt
+
+<span class="comment"># Apply rules to each side of the combination</span>
+$ hashcat <span class="flag">-m</span> <span class="num">22000</span> <span class="flag">-a</span> <span class="num">1</span> \
+          <span class="flag">--rules-left</span> <span class="str">capitalize.rule</span> \
+          <span class="flag">--rules-right</span> <span class="str">append_digits.rule</span> \
+          handshake.hc22000 words1.txt words2.txt
+<span class="comment"># Generates: Summer+Holiday, Summer+2024, Blue+Monkey, etc.</span>
+                    </div>
+                    <p>
+                        Combinator output grows as the product of both list sizes. Two lists of 1,000
+                        entries each generate 1,000,000 candidates — two lists of 100,000 entries each
+                        generate 10 billion candidates. Manage list sizes accordingly.
+                    </p>
+                </div>
+            </div>
+
+            <div class="detail-section">
+                <div class="detail-header" onclick="toggleDetail(this)">
+                    <div class="detail-header-left">
+                        <span class="detail-header-icon">&#128268;</span>
+                        <div>
+                            <div class="detail-header-title">PRINCE Attack Mode</div>
+                            <div class="detail-header-subtitle">Probabilistic chain word generation for complex passphrases</div>
+                        </div>
+                    </div>
+                    <span class="detail-toggle">&#9660;</span>
+                </div>
+                <div class="detail-body">
+                    <p>
+                        PRINCE (PRobability INfinite Chained Elements) is a word-chaining algorithm
+                        developed by Jens Steube (the hashcat author) specifically for cracking
+                        passphrases. Unlike dictionary attacks, PRINCE chains 1–N words from an
+                        input wordlist to build candidates of arbitrary complexity — "correct horse
+                        battery staple" type passwords.
+                    </p>
+                    <div class="code-block" style="margin: 12px 0;">
+<span class="comment"># hashcat PRINCE attack (-a 6 mode uses a PRINCE-like wordlist+mask hybrid)</span>
+<span class="comment"># Pure PRINCE mode typically requires princeprocessor as a stdin source</span>
+$ princeprocessor <span class="flag">--pw-min=12</span> <span class="flag">--pw-max=20</span> <span class="flag">--elem-cnt-min=2</span> \
+                  wordlist.txt | hashcat <span class="flag">-m</span> <span class="num">22000</span> <span class="flag">--stdin</span> handshake.hc22000
+                    </div>
+                    <p>
+                        PRINCE is most useful when you suspect the target is using a passphrase
+                        derived from common words — a practice encouraged by NIST SP 800-63B
+                        (which recommends length over complexity). It is computationally
+                        expensive for long passphrases but very effective against 2–4 word combinations.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 7: Key Takeaways -->
+    <div class="section" id="s7">
+        <div class="section-number">Section 07</div>
+        <h2 class="section-title">
+            <span class="section-icon">&#9889;</span>
+            Key Takeaways
+        </h2>
+        <div class="section-body">
+            <div class="takeaway-grid">
+                <div class="takeaway-card">
+                    <div class="takeaway-icon">&#128273;</div>
+                    <div class="takeaway-title">Capture Once, Crack Offline</div>
+                    <div class="takeaway-desc">A WPA2 handshake or PMKID is a permanent, offline-crackable asset. Every candidate password can be verified against it without the target network's knowledge or involvement.</div>
+                </div>
+                <div class="takeaway-card">
+                    <div class="takeaway-icon">&#9889;</div>
+                    <div class="takeaway-title">GPU Is the Only Viable Speed</div>
+                    <div class="takeaway-desc">CPU cracking against WPA2 is 25–50x slower than GPU. For anything beyond a trivial wordlist check, hashcat with a consumer GPU is the minimum viable cracking environment.</div>
+                </div>
+                <div class="takeaway-card">
+                    <div class="takeaway-icon">&#128218;</div>
+                    <div class="takeaway-title">Wordlist Quality Beats Quantity</div>
+                    <div class="takeaway-desc">A targeted 10,000-entry OSINT wordlist outperforms a generic 1-billion-entry list against a specific target. Invest in wordlist engineering before burning GPU hours on irrelevant candidates.</div>
+                </div>
+                <div class="takeaway-card">
+                    <div class="takeaway-icon">&#128270;</div>
+                    <div class="takeaway-title">Rules Multiply Without Storage</div>
+                    <div class="takeaway-desc">Rule-based attacks amplify a modest wordlist by 64x (best64) to 99,000x (dive) without generating intermediate files. Rules are the highest ROI technique after initial wordlist selection.</div>
+                </div>
+                <div class="takeaway-card">
+                    <div class="takeaway-icon">&#128274;</div>
+                    <div class="takeaway-title">20+ Characters Defeats Current Hardware</div>
+                    <div class="takeaway-desc">A random 20-character passphrase from the full printable ASCII character set would require more compute than exists on Earth to brute-force. Length is the definitive defense against offline attacks.</div>
+                </div>
+                <div class="takeaway-card">
+                    <div class="takeaway-icon">&#128275;</div>
+                    <div class="takeaway-title">WPA3 SAE Ends Offline Cracking</div>
+                    <div class="takeaway-desc">No WPA3-SAE handshake value enables offline verification. Migrating from WPA2-Personal to WPA3-Personal is the only technical control that eliminates this attack class entirely — not stronger passwords, not longer passwords.</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Discussion -->
+    <div class="section" id="discuss">
+        <div class="discussion-section">
+            <div class="discussion-title">
+                <span>&#128172;</span>
+                Discussion Prompts
+            </div>
+            <ul class="prompt-list">
+                <li class="prompt-item">
+                    <span class="prompt-num">01</span>
+                    A modern GPU can test approximately 500,000 WPA2 passwords per second. Calculate the time required to brute-force: (a) an 8-character lowercase-only password — 26^8 = 208,827,064,576 candidates; (b) a 12-character mixed-case password — 52^12 = 390,877,006,486,250,192,896 candidates; (c) a 20-character random passphrase from lowercase + digits — 36^20 candidates. What minimum password length and character set would you recommend for a WPA2 network used in a small medical practice, given that the practice will not be migrating to WPA3 for 18 months?
+                </li>
+                <li class="prompt-item">
+                    <span class="prompt-num">02</span>
+                    Rule-based attacks in hashcat can transform a wordlist of 14 million entries into nearly 900 million candidates using best64.rule. Design a custom rule strategy targeting a corporate environment where you have determined (via OSINT) that the password policy requires 8+ characters, at least one uppercase letter, and at least one digit. The company was founded in 1997 and is headquartered in Chicago. What specific rules would you author, and what base wordlist would you seed them from?
+                </li>
+                <li class="prompt-item">
+                    <span class="prompt-num">03</span>
+                    The rockyou.txt wordlist contains approximately 14 million passwords from a 2009 breach. Despite being 17 years old, it remains one of the most effective cracking wordlists in active use. What does this reveal about human password selection behavior, and what does it imply about the long-term effectiveness of password complexity policies as a security control? Is the answer "better password education" or "remove passwords entirely," and what is the evidence for your position?
+                </li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- Completion -->
+    <div class="section" id="completion">
+        <div class="completion-section">
+            <div class="completion-icon">&#10003;</div>
+            <h2 class="completion-title">Module Complete</h2>
+            <p class="completion-text">
+                You have examined the theory behind offline WPA2 cracking, the PBKDF2-SHA1 key derivation
+                that makes it costly but feasible, CPU-based dictionary attacks with aircrack-ng,
+                GPU-accelerated campaigns with hashcat across all major attack modes, NetNTLM hash
+                cracking with John the Ripper, the wordlist engineering discipline that determines
+                campaign success, and the comparative strengths of all three tools across real-world
+                engagement scenarios.
+            </p>
+            <button class="completion-btn" onclick="completeModule()">
+                <span>&#10003;</span>
+                Complete Module 04
+            </button>
+        </div>
+    </div>
+
+</main>
+
+<script>
+    // Scroll progress bar — updates the top progress line and the mini bar in the header
+    function updateScrollProgress() {
+        const scrollTop = window.scrollY;
+        const docHeight = document.documentElement.scrollHeight - window.innerHeight;
+        const pct = docHeight > 0 ? (scrollTop / docHeight) * 100 : 0;
+        document.getElementById('scrollProgress').style.width = pct + '%';
+        document.getElementById('readingFill').style.width = pct + '%';
+    }
+
+    window.addEventListener('scroll', updateScrollProgress, { passive: true });
+
+    // Section fade-in via IntersectionObserver — each .section fades up when it enters the viewport
+    function initScrollAnimation() {
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) entry.target.classList.add('visible');
+            });
+        }, { threshold: 0.08 });
+
+        document.querySelectorAll('.section').forEach(s => observer.observe(s));
+    }
+
+    // Expandable detail-section accordion toggle
+    function toggleDetail(header) {
+        const body = header.nextElementSibling;
+        const toggle = header.querySelector('.detail-toggle');
+        const isOpen = body.classList.contains('open');
+        body.classList.toggle('open', !isOpen);
+        toggle.classList.toggle('open', !isOpen);
+    }
+
+    // Module completion — delegates to ModuleProgress component
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('dark-arts', 'wifi-mod-cracking', {
+                returnUrl: '../index.html'
+            });
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        initScrollAnimation();
+    });
+</script>
+
+</body>
+</html>

@@ -1,0 +1,1432 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('dark-arts');</script>
+    <!-- Progress & Achievements -->
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WiFi Arsenal Module 05: WEP Exploitation - The Vault</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            min-height: 100vh;
+            background: #0a0508;
+            font-family: 'Georgia', 'Times New Roman', serif;
+            color: #8a6a9a;
+            line-height: 1.7;
+            overflow-x: hidden;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background:
+                radial-gradient(ellipse at 15% 40%, rgba(80, 40, 100, 0.08) 0%, transparent 50%),
+                radial-gradient(ellipse at 85% 60%, rgba(60, 20, 80, 0.06) 0%, transparent 50%);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .scroll-progress {
+            position: fixed; top: 0; left: 0;
+            height: 3px;
+            background: linear-gradient(90deg, #9333ea, #a855f7);
+            z-index: 200; transition: width 0.1s linear; width: 0%;
+        }
+
+        .module-header {
+            background: rgba(10, 5, 15, 0.95);
+            border-bottom: 1px solid rgba(100, 60, 130, 0.2);
+            padding: 18px 40px;
+            display: flex; justify-content: space-between; align-items: center;
+            position: sticky; top: 0; z-index: 100;
+            backdrop-filter: blur(10px);
+        }
+
+        .header-left { display: flex; align-items: center; gap: 15px; }
+
+        .back-btn {
+            background: rgba(80, 40, 100, 0.2);
+            border: 1px solid rgba(100, 60, 130, 0.3);
+            color: #9a7aaa; padding: 7px 14px; border-radius: 4px;
+            font-size: 0.8rem; text-decoration: none;
+            transition: all 0.3s ease; font-family: 'Georgia', serif;
+        }
+
+        .back-btn:hover {
+            background: rgba(100, 60, 130, 0.3);
+            border-color: rgba(147, 51, 234, 0.5); color: #c4a0d8;
+        }
+
+        .module-label { font-size: 0.75rem; color: #6a4a7a; letter-spacing: 0.2em; text-transform: uppercase; }
+
+        .header-right { display: flex; align-items: center; gap: 12px; font-size: 0.75rem; color: #6a4a7a; }
+
+        .progress-bar-mini {
+            width: 120px; height: 4px;
+            background: rgba(60, 30, 80, 0.3); border-radius: 2px; overflow: hidden;
+        }
+
+        .progress-bar-mini .fill {
+            height: 100%; background: linear-gradient(90deg, #9333ea, #a855f7);
+            width: 0%; transition: width 0.5s ease;
+        }
+
+        .module-content {
+            max-width: 1100px; margin: 0 auto; padding: 40px;
+            position: relative; z-index: 10;
+        }
+
+        .intro-section { text-align: center; padding: 50px 0 60px; }
+
+        .intro-icon {
+            font-size: 3.5rem; margin-bottom: 20px;
+            filter: drop-shadow(0 0 20px rgba(147, 51, 234, 0.3));
+        }
+
+        .intro-title { font-size: 2.4rem; color: #c4a0d8; margin-bottom: 12px; font-weight: 400; letter-spacing: 0.05em; }
+        .intro-meta { font-size: 0.75rem; color: #6a4a7a; letter-spacing: 0.25em; text-transform: uppercase; margin-bottom: 20px; }
+        .intro-subtitle { font-size: 1rem; color: #8a6a9a; max-width: 720px; margin: 0 auto; line-height: 1.8; }
+
+        .module-stats { display: flex; justify-content: center; gap: 25px; margin-top: 30px; flex-wrap: wrap; }
+
+        .stat-pill {
+            padding: 8px 18px;
+            background: rgba(60, 30, 80, 0.15);
+            border: 1px solid rgba(100, 60, 130, 0.2);
+            border-radius: 20px; font-size: 0.75rem; color: #7a5a8a; letter-spacing: 0.1em;
+        }
+
+        .section {
+            margin-bottom: 80px; opacity: 0; transform: translateY(30px);
+            transition: opacity 0.6s ease, transform 0.6s ease;
+        }
+
+        .section.visible { opacity: 1; transform: translateY(0); }
+
+        .section-number { font-size: 0.65rem; color: #6a4a7a; letter-spacing: 0.35em; text-transform: uppercase; margin-bottom: 8px; }
+
+        .section-title {
+            font-size: 1.9rem; color: #c4a0d8; margin-bottom: 20px; font-weight: 400;
+            display: flex; align-items: center; gap: 15px;
+            border-bottom: 1px solid rgba(100, 60, 130, 0.15); padding-bottom: 15px;
+        }
+
+        .section-icon { font-size: 1.6rem; opacity: 0.75; }
+
+        .section-body { color: #a080b0; font-size: 0.97rem; }
+        .section-body p { margin-bottom: 16px; }
+        .section-body ul { list-style: none; padding-left: 20px; margin-bottom: 16px; }
+        .section-body li { margin-bottom: 10px; position: relative; padding-left: 20px; }
+        .section-body li::before { content: '▸'; position: absolute; left: 0; color: #7a5a8a; }
+
+        /* Standards table */
+        .standards-table {
+            width: 100%; border-collapse: collapse; margin: 24px 0; font-size: 0.87rem;
+        }
+
+        .standards-table th {
+            background: rgba(40, 20, 60, 0.5); color: #c4a0d8; padding: 12px 16px;
+            text-align: left; font-weight: normal; letter-spacing: 0.1em;
+            font-size: 0.78rem; text-transform: uppercase;
+            border-bottom: 1px solid rgba(100, 60, 130, 0.2);
+        }
+
+        .standards-table td {
+            padding: 12px 16px; color: #9a7aaa;
+            border-bottom: 1px solid rgba(100, 60, 130, 0.08); vertical-align: top;
+        }
+
+        .standards-table tr:hover td { background: rgba(40, 20, 60, 0.2); }
+        .standards-table .std-name { color: #c4a0d8; font-family: 'Courier New', monospace; font-size: 0.9rem; }
+
+        .badge {
+            display: inline-block; padding: 2px 8px; border-radius: 10px;
+            font-size: 0.65rem; letter-spacing: 0.08em; text-transform: uppercase;
+        }
+
+        .badge-legacy { background: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.3); }
+        .badge-weak { background: rgba(234, 179, 8, 0.15); color: #facc15; border: 1px solid rgba(234, 179, 8, 0.3); }
+        .badge-current { background: rgba(34, 197, 94, 0.15); color: #4ade80; border: 1px solid rgba(34, 197, 94, 0.3); }
+        .badge-latest { background: rgba(147, 51, 234, 0.2); color: #c084fc; border: 1px solid rgba(147, 51, 234, 0.3); }
+
+        /* Concept grid */
+        .concept-grid {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 18px; margin: 28px 0;
+        }
+
+        .concept-card {
+            background: rgba(15, 8, 20, 0.6);
+            border: 1px solid rgba(100, 60, 130, 0.15);
+            border-radius: 8px; padding: 22px; transition: all 0.3s ease;
+        }
+
+        .concept-card:hover {
+            transform: translateY(-4px); border-color: rgba(147, 51, 234, 0.35);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+        }
+
+        .concept-card-icon { font-size: 1.8rem; margin-bottom: 12px; }
+        .concept-card-title { font-size: 1rem; color: #c4a0d8; margin-bottom: 8px; }
+        .concept-card-body { font-size: 0.85rem; color: #8a6a9a; line-height: 1.6; }
+
+        .concept-tag {
+            display: inline-block; margin-top: 10px; padding: 3px 10px;
+            background: rgba(80, 40, 100, 0.3); border-radius: 12px;
+            font-size: 0.65rem; color: #9333ea; letter-spacing: 0.1em; text-transform: uppercase;
+        }
+
+        /* Callouts */
+        .callout {
+            border-radius: 8px; padding: 20px 24px; margin: 24px 0;
+            display: flex; gap: 16px; align-items: flex-start;
+        }
+
+        .callout-info { background: rgba(40, 20, 60, 0.4); border-left: 3px solid #9333ea; }
+        .callout-warning { background: rgba(60, 40, 10, 0.4); border-left: 3px solid #ca8a04; }
+        .callout-danger { background: rgba(60, 20, 20, 0.4); border-left: 3px solid #dc2626; }
+        .callout-tip { background: rgba(20, 50, 30, 0.4); border-left: 3px solid #16a34a; }
+
+        .callout-icon { font-size: 1.3rem; flex-shrink: 0; margin-top: 1px; }
+        .callout-title { font-size: 0.8rem; letter-spacing: 0.15em; text-transform: uppercase; margin-bottom: 6px; }
+        .callout-info .callout-title { color: #a855f7; }
+        .callout-warning .callout-title { color: #eab308; }
+        .callout-danger .callout-title { color: #ef4444; }
+        .callout-tip .callout-title { color: #22c55e; }
+        .callout-text { font-size: 0.9rem; color: #9a7aaa; line-height: 1.65; }
+
+        /* Expandable detail sections */
+        .detail-section {
+            border: 1px solid rgba(100, 60, 130, 0.15); border-radius: 8px;
+            margin: 12px 0; overflow: hidden;
+        }
+
+        .detail-header {
+            padding: 16px 20px; background: rgba(15, 8, 20, 0.6);
+            cursor: pointer; display: flex; justify-content: space-between; align-items: center;
+            transition: background 0.3s ease; user-select: none;
+        }
+
+        .detail-header:hover { background: rgba(40, 20, 60, 0.5); }
+
+        .detail-header-left { display: flex; align-items: center; gap: 12px; }
+        .detail-header-icon { font-size: 1rem; opacity: 0.75; }
+        .detail-header-title { font-size: 0.95rem; color: #c4a0d8; }
+        .detail-header-subtitle { font-size: 0.75rem; color: #6a4a7a; margin-top: 2px; }
+        .detail-toggle { color: #7a5a8a; font-size: 0.8rem; transition: transform 0.3s ease; }
+        .detail-toggle.open { transform: rotate(180deg); }
+
+        .detail-body {
+            display: none; padding: 20px 24px; background: rgba(10, 5, 15, 0.4);
+            border-top: 1px solid rgba(100, 60, 130, 0.1);
+            color: #9a7aaa; font-size: 0.9rem; line-height: 1.7;
+        }
+
+        .detail-body.open { display: block; }
+        .detail-body p { margin-bottom: 12px; }
+        .detail-body ul { list-style: none; padding-left: 20px; }
+        .detail-body li { margin-bottom: 8px; position: relative; padding-left: 18px; }
+        .detail-body li::before { content: '▸'; position: absolute; left: 0; color: #7a5a8a; }
+
+        /* Code blocks */
+        .code-block {
+            background: rgba(5, 2, 10, 0.8);
+            border: 1px solid rgba(100, 60, 130, 0.2);
+            border-radius: 6px; padding: 16px 20px; margin: 16px 0;
+            font-family: 'Courier New', monospace; font-size: 0.84rem;
+            color: #b090c0; overflow-x: auto; line-height: 1.6;
+        }
+
+        .code-block .kw { color: #a855f7; }
+        .code-block .str { color: #86efac; }
+        .code-block .comment { color: #6a4a7a; font-style: italic; }
+        .code-block .flag { color: #fbbf24; }
+        .code-block .out { color: #4ade80; }
+        .code-block .label { color: #f87171; }
+
+        /* Two-column layout */
+        .two-col {
+            display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin: 20px 0;
+        }
+
+        .col-card {
+            background: rgba(15, 8, 20, 0.6);
+            border: 1px solid rgba(100, 60, 130, 0.15); border-radius: 8px; padding: 22px;
+        }
+
+        .col-card h3 {
+            font-size: 1rem; color: #c4a0d8; margin-bottom: 12px;
+            display: flex; align-items: center; gap: 8px;
+        }
+
+        .col-card ul { list-style: none; padding: 0; }
+        .col-card li {
+            font-size: 0.88rem; color: #8a6a9a; padding: 6px 0;
+            border-bottom: 1px solid rgba(100, 60, 130, 0.08);
+            display: flex; align-items: flex-start; gap: 8px;
+        }
+        .col-card li:last-child { border-bottom: none; }
+        .li-marker { color: #9333ea; flex-shrink: 0; }
+
+        /* Math highlight for inline formulas */
+        .math-inline {
+            font-family: 'Courier New', monospace; font-size: 0.9em;
+            background: rgba(40, 20, 60, 0.4); padding: 2px 7px; border-radius: 4px;
+            color: #c4a0d8;
+        }
+
+        /* Timeline for attack history */
+        .timeline { margin: 28px 0; }
+
+        .timeline-item {
+            display: flex; gap: 20px; margin-bottom: 16px; align-items: flex-start;
+        }
+
+        .timeline-year {
+            font-family: 'Courier New', monospace; font-size: 0.85rem; color: #9333ea;
+            min-width: 48px; padding-top: 2px; flex-shrink: 0;
+        }
+
+        .timeline-bar {
+            display: flex; flex-direction: column; align-items: center; flex-shrink: 0;
+        }
+
+        .timeline-dot {
+            width: 10px; height: 10px; background: #9333ea; border-radius: 50%;
+            border: 2px solid rgba(147, 51, 234, 0.4); flex-shrink: 0; margin-top: 5px;
+        }
+
+        .timeline-line {
+            width: 1px; flex: 1; background: rgba(100, 60, 130, 0.2); margin-top: 4px; min-height: 20px;
+        }
+
+        .timeline-content {
+            flex: 1; padding-bottom: 8px;
+        }
+
+        .timeline-event { font-size: 0.9rem; color: #c4a0d8; margin-bottom: 4px; }
+        .timeline-desc { font-size: 0.82rem; color: #7a5a8a; line-height: 1.5; }
+
+        /* IV probability visual */
+        .probability-bar-wrap {
+            margin: 20px 0;
+        }
+
+        .prob-label {
+            display: flex; justify-content: space-between; font-size: 0.78rem;
+            color: #7a5a8a; margin-bottom: 6px; font-family: 'Courier New', monospace;
+        }
+
+        .prob-bar-outer {
+            height: 12px; background: rgba(40, 20, 60, 0.3);
+            border-radius: 6px; overflow: hidden; border: 1px solid rgba(100, 60, 130, 0.15);
+        }
+
+        .prob-bar-fill {
+            height: 100%; border-radius: 6px;
+            background: linear-gradient(90deg, #9333ea, #ef4444);
+        }
+
+        /* Attack comparison table */
+        .attack-compare {
+            width: 100%; border-collapse: collapse; margin: 24px 0; font-size: 0.85rem;
+        }
+
+        .attack-compare th {
+            background: rgba(40, 20, 60, 0.5); color: #c4a0d8; padding: 11px 14px;
+            text-align: left; font-weight: normal; letter-spacing: 0.08em;
+            font-size: 0.75rem; text-transform: uppercase;
+            border-bottom: 1px solid rgba(100, 60, 130, 0.2);
+        }
+
+        .attack-compare td {
+            padding: 11px 14px; color: #9a7aaa;
+            border-bottom: 1px solid rgba(100, 60, 130, 0.08); vertical-align: top;
+        }
+
+        .attack-compare tr:hover td { background: rgba(40, 20, 60, 0.2); }
+        .attack-compare .atk-name { color: #c4a0d8; font-family: 'Courier New', monospace; }
+
+        /* Discussion section */
+        .discussion-section {
+            background: linear-gradient(135deg, rgba(40, 20, 60, 0.3), rgba(30, 15, 50, 0.4));
+            border: 1px solid rgba(100, 60, 130, 0.25); border-radius: 10px; padding: 30px; margin: 40px 0;
+        }
+
+        .discussion-title {
+            font-size: 1.1rem; color: #c4a0d8; margin-bottom: 20px;
+            display: flex; align-items: center; gap: 10px;
+        }
+
+        .prompt-list { list-style: none; padding: 0; }
+
+        .prompt-item {
+            padding: 14px 18px; background: rgba(15, 8, 20, 0.5);
+            border: 1px solid rgba(100, 60, 130, 0.12); border-radius: 6px;
+            margin-bottom: 10px; font-size: 0.9rem; color: #9a7aaa;
+            line-height: 1.6; display: flex; gap: 12px;
+        }
+
+        .prompt-num {
+            color: #9333ea; font-size: 0.8rem;
+            font-family: 'Courier New', monospace; flex-shrink: 0; padding-top: 2px;
+        }
+
+        /* Takeaway grid */
+        .takeaway-grid {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px; margin: 24px 0;
+        }
+
+        .takeaway-card {
+            background: rgba(15, 8, 20, 0.6); border: 1px solid rgba(100, 60, 130, 0.15);
+            border-radius: 8px; padding: 20px; text-align: center;
+        }
+
+        .takeaway-icon { font-size: 2rem; margin-bottom: 10px; }
+        .takeaway-title { font-size: 0.85rem; color: #c4a0d8; margin-bottom: 6px; }
+        .takeaway-desc { font-size: 0.78rem; color: #7a5a8a; line-height: 1.5; }
+
+        /* Completion section */
+        .completion-section {
+            text-align: center; padding: 60px 40px;
+            background: linear-gradient(135deg, rgba(40, 20, 60, 0.3), rgba(30, 15, 50, 0.4));
+            border: 1px solid rgba(100, 60, 130, 0.3); border-radius: 12px; margin: 60px 0 40px;
+        }
+
+        .completion-icon { font-size: 3.5rem; margin-bottom: 20px; }
+        .completion-title { font-size: 1.8rem; color: #c4a0d8; margin-bottom: 12px; font-weight: 400; }
+        .completion-text { color: #8a6a9a; font-size: 0.95rem; max-width: 560px; margin: 0 auto 30px; line-height: 1.8; }
+
+        .completion-btn {
+            display: inline-flex; align-items: center; gap: 10px; padding: 14px 36px;
+            background: linear-gradient(135deg, #7c3aed, #9333ea); border: none; border-radius: 8px;
+            color: #f3e8ff; font-size: 1rem; cursor: pointer; font-family: 'Georgia', serif;
+            letter-spacing: 0.05em; transition: all 0.3s ease; box-shadow: 0 4px 20px rgba(147, 51, 234, 0.3);
+        }
+
+        .completion-btn:hover {
+            background: linear-gradient(135deg, #6d28d9, #7c3aed);
+            box-shadow: 0 6px 30px rgba(147, 51, 234, 0.45); transform: translateY(-2px);
+        }
+
+        @media (max-width: 768px) {
+            .module-header { padding: 15px 20px; }
+            .module-content { padding: 20px; }
+            .two-col { grid-template-columns: 1fr; }
+            .timeline-item { gap: 12px; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="scroll-progress" id="scrollProgress"></div>
+
+<header class="module-header">
+    <div class="header-left">
+        <a href="../index.html" class="back-btn">&#8592; Back to Course</a>
+        <div>
+            <div class="module-label">WiFi Arsenal &middot; Module 05</div>
+        </div>
+    </div>
+    <div class="header-right">
+        <span>Reading Progress</span>
+        <div class="progress-bar-mini">
+            <div class="fill" id="readingFill"></div>
+        </div>
+    </div>
+</header>
+
+<main class="module-content">
+
+    <!-- Hero -->
+    <div class="intro-section">
+        <div class="intro-icon">&#128275;</div>
+        <h1 class="intro-title">WEP Exploitation</h1>
+        <div class="intro-meta">WiFi Arsenal &bull; Module 05 &bull; WEP Exploitation</div>
+        <p class="intro-subtitle">
+            Wired Equivalent Privacy was ratified as an IEEE standard in 1999 and mathematically broken by 2001.
+            Today, a complete WEP key recovery from a live network takes under 60 seconds with commodity hardware.
+            This module dissects the cryptographic failures in WEP's design, the statistical attacks that exploit
+            them, the precise workflow for capturing and recovering keys, and why WEP devices still appear in
+            production networks in 2026.
+        </p>
+        <div class="module-stats">
+            <div class="stat-pill">RC4 Cipher</div>
+            <div class="stat-pill">24-bit IVs</div>
+            <div class="stat-pill">PTW Attack</div>
+            <div class="stat-pill">&lt; 60 Seconds</div>
+            <div class="stat-pill">~20 min read</div>
+        </div>
+    </div>
+
+    <!-- Section 1: Why WEP Is Broken -->
+    <div class="section" id="s1">
+        <div class="section-number">Section 01</div>
+        <h2 class="section-title">
+            <span class="section-icon">&#128274;</span>
+            Why WEP Is Broken
+        </h2>
+        <div class="section-body">
+            <p>
+                WEP (Wired Equivalent Privacy) was defined in the original IEEE 802.11 standard in 1997 and
+                ratified in 1999. Its design goal was to provide the same level of privacy as a wired LAN
+                — that is, to prevent casual eavesdropping. It failed at this goal almost immediately. To
+                understand why, you need to understand both the cipher it uses and how the protocol
+                applies that cipher.
+            </p>
+
+            <div class="concept-grid">
+                <div class="concept-card">
+                    <div class="concept-card-icon">&#128256;</div>
+                    <div class="concept-card-title">RC4 Stream Cipher</div>
+                    <div class="concept-card-body">
+                        RC4 is a stream cipher that generates a pseudo-random keystream from a seed key.
+                        That keystream is XOR'd with plaintext to produce ciphertext. The cipher itself
+                        is not inherently catastrophic — RC4 was widely used in SSL/TLS for years. The
+                        problem is how WEP applies it, not the cipher in isolation.
+                    </div>
+                    <span class="concept-tag">Stream Cipher</span>
+                </div>
+                <div class="concept-card">
+                    <div class="concept-card-icon">&#128202;</div>
+                    <div class="concept-card-title">24-Bit IV Space</div>
+                    <div class="concept-card-body">
+                        WEP prepends a 24-bit Initialization Vector (IV) to the WEP key before seeding
+                        RC4. The IV changes per-packet to prevent keystream reuse. But 24 bits allows only
+                        16,777,216 possible values. On a busy network, this space is exhausted in minutes,
+                        guaranteeing IV collisions.
+                    </div>
+                    <span class="concept-tag">Fatal Constraint</span>
+                </div>
+                <div class="concept-card">
+                    <div class="concept-card-icon">&#9889;</div>
+                    <div class="concept-card-title">The Birthday Problem</div>
+                    <div class="concept-card-body">
+                        The birthday paradox tells us that in a space of N values, collisions become
+                        likely after roughly sqrt(N) samples. For a 24-bit IV space (N = 16.7M), collisions
+                        become probable after approximately 4,096 packets. Two packets encrypted with the
+                        same IV produce XOR-recoverable plaintext.
+                    </div>
+                    <span class="concept-tag">Probability Theory</span>
+                </div>
+                <div class="concept-card">
+                    <div class="concept-card-icon">&#128203;</div>
+                    <div class="concept-card-title">Weak IVs</div>
+                    <div class="concept-card-body">
+                        A subset of all possible IVs, known as "weak IVs," cause the RC4 key scheduling
+                        algorithm (KSA) to leak key bytes into early keystream output. Fluhrer, Mantin,
+                        and Shamir identified these in 2001. Statistical analysis across many packets
+                        encrypted with weak IVs recovers key bytes one at a time.
+                    </div>
+                    <span class="concept-tag">KSA Vulnerability</span>
+                </div>
+                <div class="concept-card">
+                    <div class="concept-card-icon">&#128101;</div>
+                    <div class="concept-card-title">No Key Management</div>
+                    <div class="concept-card-body">
+                        WEP uses a single static shared key. There is no per-session key derivation,
+                        no forward secrecy, and no mechanism to rotate keys automatically. Once the
+                        WEP key is recovered, every historical capture can be decrypted and the key
+                        remains valid until manually changed on every device.
+                    </div>
+                    <span class="concept-tag">Design Failure</span>
+                </div>
+                <div class="concept-card">
+                    <div class="concept-card-icon">&#128268;</div>
+                    <div class="concept-card-title">Broken Integrity Check</div>
+                    <div class="concept-card-body">
+                        WEP uses CRC-32 as its integrity check value (ICV). CRC-32 is not a cryptographic
+                        MAC — it is a linear error-detection code. An attacker who knows some plaintext can
+                        flip bits in a ciphertext frame and compute a valid CRC-32, allowing undetected
+                        packet modification even without knowing the WEP key.
+                    </div>
+                    <span class="concept-tag">Integrity Failure</span>
+                </div>
+            </div>
+
+            <h3 style="color:#c4a0d8; font-size:1rem; font-weight:normal; margin: 28px 0 16px; letter-spacing:0.05em;">Timeline of WEP's Destruction</h3>
+
+            <div class="timeline">
+                <div class="timeline-item">
+                    <div class="timeline-year">1997</div>
+                    <div class="timeline-bar">
+                        <div class="timeline-dot"></div>
+                        <div class="timeline-line"></div>
+                    </div>
+                    <div class="timeline-content">
+                        <div class="timeline-event">IEEE 802.11 Standard Published</div>
+                        <div class="timeline-desc">WEP included as the optional privacy mechanism. RC4 with a 40-bit key (later extended to 104-bit). 24-bit IV concatenated with key before KSA. The cryptographic community was not deeply consulted in the design process.</div>
+                    </div>
+                </div>
+                <div class="timeline-item">
+                    <div class="timeline-year">1999</div>
+                    <div class="timeline-bar">
+                        <div class="timeline-dot"></div>
+                        <div class="timeline-line"></div>
+                    </div>
+                    <div class="timeline-content">
+                        <div class="timeline-event">IEEE 802.11b Ratified — WEP Becomes Mainstream</div>
+                        <div class="timeline-desc">Wi-Fi begins mass-market adoption. WEP is deployed widely in homes, businesses, and hotspots. The 40-bit key export restriction (US law at the time) made the original WEP even weaker.</div>
+                    </div>
+                </div>
+                <div class="timeline-item">
+                    <div class="timeline-year">2001</div>
+                    <div class="timeline-bar">
+                        <div class="timeline-dot"></div>
+                        <div class="timeline-line"></div>
+                    </div>
+                    <div class="timeline-content">
+                        <div class="timeline-event">FMS Attack Published (Fluhrer, Mantin, Shamir)</div>
+                        <div class="timeline-desc">"Weaknesses in the Key Scheduling Algorithm of RC4" — the paper that shattered WEP. FMS identified a class of weak IVs that cause the RC4 KSA to leak key bytes. By collecting packets encrypted with these weak IVs and performing statistical analysis, the key can be recovered one byte at a time. Required approximately 4-6 million packets for 128-bit WEP.</div>
+                    </div>
+                </div>
+                <div class="timeline-item">
+                    <div class="timeline-year">2004</div>
+                    <div class="timeline-bar">
+                        <div class="timeline-dot"></div>
+                        <div class="timeline-line"></div>
+                    </div>
+                    <div class="timeline-content">
+                        <div class="timeline-event">KoreK Attacks Reduce IV Requirement</div>
+                        <div class="timeline-desc">An anonymous researcher known as KoreK published 17 new statistical attacks against WEP on SourceForge. These attacks reduced the number of IVs required for key recovery from millions to approximately 500,000. The Aircrack tool implemented KoreK attacks and made WEP cracking practical for non-specialists.</div>
+                    </div>
+                </div>
+                <div class="timeline-item">
+                    <div class="timeline-year">2007</div>
+                    <div class="timeline-bar">
+                        <div class="timeline-dot"></div>
+                        <div class="timeline-line"></div>
+                    </div>
+                    <div class="timeline-content">
+                        <div class="timeline-event">PTW Attack — Key Recovery in Under 60 Seconds</div>
+                        <div class="timeline-desc">Pyshkin, Tews, and Weinmann published an improved attack that reduced the IV requirement to approximately 40,000 packets for high success probability. Combined with traffic injection to accelerate IV collection, a 104-bit WEP key could now be recovered in under 60 seconds with consumer hardware. Implemented in aircrack-ng 0.9.</div>
+                    </div>
+                </div>
+                <div class="timeline-item">
+                    <div class="timeline-year">2004&ndash;</div>
+                    <div class="timeline-bar">
+                        <div class="timeline-dot"></div>
+                    </div>
+                    <div class="timeline-content">
+                        <div class="timeline-event">WEP Deprecated — Still Found in the Wild</div>
+                        <div class="timeline-desc">The Wi-Fi Alliance stops certifying WEP equipment in 2004. The IEEE formally retires WEP in 2004 with the 802.11i amendment. Despite this, WEP devices continue to operate in industrial facilities, hospitals, retail locations, and legacy embedded systems through 2026.</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 2: The IV Problem -->
+    <div class="section" id="s2">
+        <div class="section-number">Section 02</div>
+        <h2 class="section-title">
+            <span class="section-icon">&#128202;</span>
+            The IV Problem
+        </h2>
+        <div class="section-body">
+            <p>
+                The Initialization Vector is central to WEP's cryptographic design — and its single most
+                catastrophic flaw. Understanding the IV problem requires understanding both why IVs exist
+                and why WEP's implementation of them is mathematically indefensible.
+            </p>
+
+            <div class="callout callout-info">
+                <span class="callout-icon">&#8505;</span>
+                <div class="callout-content">
+                    <div class="callout-title">Why Stream Ciphers Need IVs</div>
+                    <div class="callout-text">
+                        A stream cipher like RC4 generates a deterministic keystream from a given key — the
+                        same key always produces the same keystream. If two plaintexts are encrypted with
+                        the same keystream, XOR-ing the ciphertexts eliminates the keystream entirely,
+                        leaving <span class="math-inline">C1 XOR C2 = P1 XOR P2</span>. An attacker with
+                        known plaintext for one message can recover the other. IVs solve this by varying
+                        the seed so each packet uses a unique keystream. WEP's 24-bit IV is simply too
+                        small to make this variation meaningful.
+                    </div>
+                </div>
+            </div>
+
+            <h3 style="color:#c4a0d8; font-size:1rem; font-weight:normal; margin: 24px 0 12px;">Collision Probability by Packet Count</h3>
+
+            <div class="probability-bar-wrap">
+                <div class="prob-label"><span>~5,000 packets</span><span>~6% collision probability</span></div>
+                <div class="prob-bar-outer"><div class="prob-bar-fill" style="width:6%;"></div></div>
+            </div>
+            <div class="probability-bar-wrap">
+                <div class="prob-label"><span>~10,000 packets</span><span>~23% collision probability</span></div>
+                <div class="prob-bar-outer"><div class="prob-bar-fill" style="width:23%;"></div></div>
+            </div>
+            <div class="probability-bar-wrap">
+                <div class="prob-label"><span>~25,000 packets</span><span>~58% collision probability</span></div>
+                <div class="prob-bar-outer"><div class="prob-bar-fill" style="width:58%;"></div></div>
+            </div>
+            <div class="probability-bar-wrap">
+                <div class="prob-label"><span>~40,000 packets</span><span>~79% collision probability</span></div>
+                <div class="prob-bar-outer"><div class="prob-bar-fill" style="width:79%;"></div></div>
+            </div>
+            <div class="probability-bar-wrap">
+                <div class="prob-label"><span>~100,000 packets</span><span>~97% collision probability</span></div>
+                <div class="prob-bar-outer"><div class="prob-bar-fill" style="width:97%;"></div></div>
+            </div>
+
+            <div class="detail-section">
+                <div class="detail-header" onclick="toggleDetail(this)">
+                    <div class="detail-header-left">
+                        <span class="detail-header-icon">&#128203;</span>
+                        <div>
+                            <div class="detail-header-title">Weak IVs vs. Strong IVs</div>
+                            <div class="detail-header-subtitle">Not all IV values are equally dangerous — but enough are</div>
+                        </div>
+                    </div>
+                    <span class="detail-toggle">&#9660;</span>
+                </div>
+                <div class="detail-body">
+                    <p>
+                        Fluhrer, Mantin, and Shamir identified a specific class of IVs that cause the RC4 Key
+                        Scheduling Algorithm to produce biased output. These "weak IVs" have the form
+                        <span class="math-inline">(A+3, N-1, X)</span> where A is the key byte index under
+                        attack and X is any value. For a 104-bit key (13 bytes), there are 13 sets of weak
+                        IVs, each allowing statistical recovery of one key byte.
+                    </p>
+                    <p>
+                        Approximately 1 in every 256 randomly chosen IVs is "weak" in the FMS sense. The
+                        original FMS attack required collecting approximately 4-6 million total packets to
+                        obtain enough weak IVs for each key byte. Hardware was slower in 2001, making this
+                        take hours — by 2003, widespread broadband and faster hardware made FMS practical.
+                    </p>
+                    <ul>
+                        <li>Weak IV: The IV leaks information about key bytes through biased first byte of keystream</li>
+                        <li>Strong IV: The IV produces no statistically exploitable keystream bias</li>
+                        <li>An IV cannot be evaluated as "safe" at the time of transmission — the attacker accumulates all IVs and filters for weak ones</li>
+                        <li>KoreK (2004) generalized beyond the FMS weak IV definition, making all IVs partially exploitable</li>
+                        <li>PTW (2007) further generalized: the attack uses all captured IVs, not just weak ones, drastically reducing requirements</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="detail-section">
+                <div class="detail-header" onclick="toggleDetail(this)">
+                    <div class="detail-header-left">
+                        <span class="detail-header-icon">&#128256;</span>
+                        <div>
+                            <div class="detail-header-title">How Statistical Analysis Extracts Key Bytes</div>
+                            <div class="detail-header-subtitle">The mechanism behind FMS and PTW key recovery</div>
+                        </div>
+                    </div>
+                    <span class="detail-toggle">&#9660;</span>
+                </div>
+                <div class="detail-body">
+                    <p>
+                        For each key byte position, the FMS attack collects all packets encrypted with weak
+                        IVs targeting that byte. For each such packet, the attacker XOR-decrypts the first
+                        byte of payload (which is known for LLC SNAP headers) with the first keystream byte
+                        (observable in the ciphertext). This yields a candidate for the key byte.
+                    </p>
+                    <p>
+                        Because the RC4 KSA is biased for weak IVs, the correct key byte candidate appears
+                        more frequently than random noise. With enough samples, statistical voting — counting
+                        which candidate value appears most often — recovers the correct byte with high
+                        probability. PTW improves this by using the entire keystream prefix (not just the
+                        first byte) and applying a maximum likelihood statistical framework across all IVs.
+                    </p>
+                    <p>
+                        The attacker does not need to know any plaintext beyond the first two bytes of
+                        each decrypted frame. LLC SNAP headers (0xAA 0xAA) provide this automatically
+                        in virtually every real 802.11 data frame, meaning the attack requires no
+                        additional information beyond passively captured packets.
+                    </p>
+                </div>
+            </div>
+
+            <div class="detail-section">
+                <div class="detail-header" onclick="toggleDetail(this)">
+                    <div class="detail-header-left">
+                        <span class="detail-header-icon">&#128272;</span>
+                        <div>
+                            <div class="detail-header-title">64-Bit vs. 128-Bit WEP</div>
+                            <div class="detail-header-subtitle">Why "128-bit WEP" does not mean 128-bit security</div>
+                        </div>
+                    </div>
+                    <span class="detail-toggle">&#9660;</span>
+                </div>
+                <div class="detail-body">
+                    <p>
+                        WEP is marketed as either "64-bit" or "128-bit" (sometimes called "256-bit" by some
+                        vendors). These numbers include the 24-bit IV. The effective secret key is only:
+                    </p>
+                    <ul>
+                        <li><strong style="color:#c4a0d8;">64-bit WEP</strong>: 40-bit secret key (5 bytes) + 24-bit IV</li>
+                        <li><strong style="color:#c4a0d8;">128-bit WEP</strong>: 104-bit secret key (13 bytes) + 24-bit IV</li>
+                        <li><strong style="color:#c4a0d8;">256-bit WEP</strong>: 232-bit secret key (29 bytes) + 24-bit IV</li>
+                    </ul>
+                    <p>
+                        The PTW attack requires approximately 40,000 IVs for 64-bit WEP and approximately
+                        85,000 IVs for 128-bit WEP at 95% success probability. The difference in cracking
+                        time between 64-bit and 128-bit WEP is measured in seconds — not hours or days.
+                        "128-bit WEP" provides no meaningful additional security over 64-bit WEP against
+                        modern statistical attacks.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 3: WEP Attack Workflow -->
+    <div class="section" id="s3">
+        <div class="section-number">Section 03</div>
+        <h2 class="section-title">
+            <span class="section-icon">&#128299;</span>
+            WEP Attack Workflow
+        </h2>
+        <div class="section-body">
+            <p>
+                The complete WEP attack workflow uses the Aircrack-ng suite, standard in Kali Linux. Each
+                tool handles a discrete phase: interface management, passive capture, and key recovery.
+                The following assumes a wireless adapter that supports monitor mode and packet injection
+                (such as an Alfa AWUS036NHA with the Atheros AR9271 chipset).
+            </p>
+
+            <div class="callout callout-danger">
+                <span class="callout-icon">&#9888;</span>
+                <div class="callout-content">
+                    <div class="callout-title">Authorized Testing Only</div>
+                    <div class="callout-text">
+                        Executing this workflow against any network you do not own or have explicit written
+                        authorization to test is a criminal offense under the Computer Fraud and Abuse Act
+                        (US), Computer Misuse Act (UK), and equivalent statutes globally. All practical
+                        work must be performed in an isolated lab environment with equipment you control.
+                    </div>
+                </div>
+            </div>
+
+            <h3 style="color:#c4a0d8; font-size:1rem; font-weight:normal; margin: 24px 0 12px; letter-spacing:0.05em;">Step 1 — Enable Monitor Mode</h3>
+            <p>
+                The wireless adapter must be placed into monitor mode so it captures all 802.11 frames
+                regardless of destination, not just frames addressed to the host machine.
+            </p>
+            <div class="code-block">
+<span class="comment"># Kill processes that may interfere with monitor mode</span>
+$ sudo airmon-ng check kill
+
+<span class="comment"># Enable monitor mode — creates interface wlan0mon</span>
+$ sudo airmon-ng start wlan0
+
+<span class="comment"># Verify monitor mode is active</span>
+$ iwconfig wlan0mon
+wlan0mon  IEEE 802.11  Mode:<span class="out">Monitor</span>  Frequency:2.462 GHz
+            </div>
+
+            <h3 style="color:#c4a0d8; font-size:1rem; font-weight:normal; margin: 24px 0 12px; letter-spacing:0.05em;">Step 2 — Scan for WEP Networks</h3>
+            <p>
+                airodump-ng displays all nearby access points with their BSSID, channel, encryption
+                type, and associated clients. WEP targets will show <span class="math-inline">ENC=WEP</span>
+                in the output.
+            </p>
+            <div class="code-block">
+$ airodump-ng wlan0mon
+
+ BSSID              PWR  Beacons  #Data  CH  ENC   CIPHER  AUTH  ESSID
+ <span class="label">AA:BB:CC:DD:EE:FF</span>  -62      142     18   6  <span class="out">WEP</span>   WEP     OPN   TargetNet
+ 11:22:33:44:55:66  -78       89      3  11  WPA2  CCMP    PSK   HomeNet
+ <span class="comment"># ENC=WEP identifies the target — note BSSID and channel</span>
+            </div>
+
+            <h3 style="color:#c4a0d8; font-size:1rem; font-weight:normal; margin: 24px 0 12px; letter-spacing:0.05em;">Step 3 — Lock On Target and Capture IVs</h3>
+            <p>
+                Lock airodump-ng onto the target BSSID and channel, writing all captured packets to a file.
+                Every captured data frame contains an IV that may contribute to key recovery.
+            </p>
+            <div class="code-block">
+<span class="comment"># Lock to target: channel 6, BSSID AA:BB:CC:DD:EE:FF, output to capture.cap</span>
+$ airodump-ng <span class="flag">-c 6</span> <span class="flag">--bssid AA:BB:CC:DD:EE:FF</span> <span class="flag">-w capture</span> wlan0mon
+
+ CH  6 ][ Elapsed: 2 mins ][ 2026-02-26 14:22
+
+ BSSID              PWR  RXQ  Beacons  #Data  #/s  CH  ENC   ESSID
+ AA:BB:CC:DD:EE:FF  -62  100     1440   3217   42   6  WEP   TargetNet
+
+ STATION            PWR  Rate  Lost  Frames  Notes
+ DE:AD:BE:EF:01:02  -71  54-48    0    3102
+            </div>
+
+            <div class="callout callout-info">
+                <span class="callout-icon">&#8505;</span>
+                <div class="callout-content">
+                    <div class="callout-title">IV Count Targets</div>
+                    <div class="callout-text">
+                        Watch the #Data column — this is your IV count. PTW typically needs 40,000-85,000
+                        IVs for reliable key recovery against 64-bit and 128-bit WEP respectively. On an
+                        idle network, passive capture alone may take 30+ minutes to accumulate enough IVs.
+                        Traffic injection (Section 4) accelerates this dramatically.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 4: Traffic Injection & Acceleration -->
+    <div class="section" id="s4">
+        <div class="section-number">Section 04</div>
+        <h2 class="section-title">
+            <span class="section-icon">&#128256;</span>
+            Traffic Injection &amp; Acceleration
+        </h2>
+        <div class="section-body">
+            <p>
+                Passive capture is limited by actual network traffic. A lightly-loaded WEP network may
+                generate only a few hundred data frames per minute, making IV collection painfully slow.
+                Several injection-based techniques dramatically accelerate IV collection by generating
+                or replaying traffic that the AP encrypts with new IVs.
+            </p>
+
+            <div class="detail-section">
+                <div class="detail-header" onclick="toggleDetail(this)">
+                    <div class="detail-header-left">
+                        <span class="detail-header-icon">&#128200;</span>
+                        <div>
+                            <div class="detail-header-title">iperf Traffic Generation</div>
+                            <div class="detail-header-subtitle">Using legitimate traffic tools to saturate IV collection</div>
+                        </div>
+                    </div>
+                    <span class="detail-toggle">&#9660;</span>
+                </div>
+                <div class="detail-body">
+                    <p>
+                        In lab environments where you control devices on the target WEP network, iperf
+                        provides a simple way to generate high-volume traffic. Each UDP packet sent over
+                        the WEP network is encrypted by the AP with a new IV, giving the attacker fresh
+                        material. The goal is to push past 25,000 IVs rapidly.
+                    </p>
+                    <div class="code-block">
+<span class="comment"># On host1 (connected to WEP network) — start iperf UDP server</span>
+$ iperf3 <span class="flag">-s</span>
+
+<span class="comment"># On host2 (also on WEP network) — UDP flood toward host1</span>
+<span class="comment"># -u: UDP  -b: bandwidth  -t: duration (seconds)  -l: packet length</span>
+$ iperf3 <span class="flag">-c</span> 192.168.1.100 <span class="flag">-u -b 10M -t 60 -l 1400</span>
+
+<span class="comment"># Watch #Data in airodump-ng — should climb rapidly</span>
+<span class="comment"># Target: 25,000+ IVs within a few minutes under load</span>
+                    </div>
+                    <p>
+                        At 10 Mbps with 1400-byte UDP payloads, you generate approximately 893 packets/second.
+                        After 60 seconds, that is approximately 53,580 additional data frames — well past
+                        the PTW threshold for 64-bit WEP recovery.
+                    </p>
+                </div>
+            </div>
+
+            <div class="detail-section">
+                <div class="detail-header" onclick="toggleDetail(this)">
+                    <div class="detail-header-left">
+                        <span class="detail-header-icon">&#127968;</span>
+                        <div>
+                            <div class="detail-header-title">ARP Replay Attack (aireplay-ng -3)</div>
+                            <div class="detail-header-subtitle">The most reliable IV acceleration technique against live targets</div>
+                        </div>
+                    </div>
+                    <span class="detail-toggle">&#9660;</span>
+                </div>
+                <div class="detail-body">
+                    <p>
+                        ARP replay is the standard acceleration technique for WEP attacks against live
+                        networks. ARP requests (broadcast frames) are captured and replayed — each replay
+                        causes the AP to encrypt a new copy with a fresh IV and broadcast it back. ARP
+                        frames are short (28 bytes) and the AP must respond, making this highly efficient.
+                    </p>
+                    <div class="code-block">
+<span class="comment"># Step 1: Fake authentication with the AP (required before injection)</span>
+$ aireplay-ng <span class="flag">-1 0 -a</span> AA:BB:CC:DD:EE:FF <span class="flag">-h</span> OUR_MAC wlan0mon
+<span class="out">Association successful :-)</span>
+
+<span class="comment"># Step 2: Start ARP request replay — wait for an ARP packet, then loop</span>
+$ aireplay-ng <span class="flag">-3 -b</span> AA:BB:CC:DD:EE:FF <span class="flag">-h</span> OUR_MAC wlan0mon
+<span class="out">Saving ARP requests in replay_arp-1234-140000.cap</span>
+<span class="out">You should also start airodump-ng to capture replies.</span>
+<span class="out">Read 1 packets (got 1 ARP request and 0 ACKs), sent 428 packets (500 pps)...</span>
+
+<span class="comment"># airodump-ng #Data column should now climb at 400-600 IVs/second</span>
+                    </div>
+                    <p>
+                        At 500 packets per second, 40,000 IVs accumulate in approximately 80 seconds.
+                        Combined with aircrack-ng running in parallel, key recovery typically completes
+                        within 2-3 minutes of starting ARP replay.
+                    </p>
+                </div>
+            </div>
+
+            <div class="detail-section">
+                <div class="detail-header" onclick="toggleDetail(this)">
+                    <div class="detail-header-left">
+                        <span class="detail-header-icon">&#9986;</span>
+                        <div>
+                            <div class="detail-header-title">Chopchop Attack (aireplay-ng -4)</div>
+                            <div class="detail-header-subtitle">Decrypt one packet without knowing the key</div>
+                        </div>
+                    </div>
+                    <span class="detail-toggle">&#9660;</span>
+                </div>
+                <div class="detail-body">
+                    <p>
+                        The chopchop attack (Koreman &amp; MacAulay, 2004) exploits the weak CRC-32 integrity
+                        check to decrypt a WEP-encrypted packet one byte at a time, without knowing the WEP
+                        key. The attacker guesses the last byte of the payload, recalculates the CRC, transmits
+                        the modified packet to the AP, and observes whether the AP retransmits it (correct guess)
+                        or discards it (incorrect guess). After at most 256 guesses per byte, the full plaintext
+                        is recovered.
+                    </p>
+                    <div class="code-block">
+<span class="comment"># Chopchop: interactively decrypt a captured packet</span>
+$ aireplay-ng <span class="flag">-4 -b</span> AA:BB:CC:DD:EE:FF <span class="flag">-h</span> OUR_MAC wlan0mon
+<span class="out">Use this packet ? y</span>
+<span class="out">Saving chosen packet in replay_dec-1234-140122.cap</span>
+<span class="out">Offset  85 (100% done) | xor = 0x3A | pt = 0x00 |  203 frames written</span>
+<span class="out">Sent 203 packets, current guess: 0x00</span>
+<span class="comment"># Once complete: use packetforge-ng to craft ARP request from keystream</span>
+$ packetforge-ng <span class="flag">-0 -a</span> AP_MAC <span class="flag">-h</span> OUR_MAC <span class="flag">-k</span> 255.255.255.255 \
+  <span class="flag">-l</span> 255.255.255.255 <span class="flag">-y</span> replay_dec.xor <span class="flag">-w</span> arp_crafted.cap
+                    </div>
+                </div>
+            </div>
+
+            <div class="detail-section">
+                <div class="detail-header" onclick="toggleDetail(this)">
+                    <div class="detail-header-left">
+                        <span class="detail-header-icon">&#128256;</span>
+                        <div>
+                            <div class="detail-header-title">Fragmentation Attack (aireplay-ng -5)</div>
+                            <div class="detail-header-subtitle">Obtain keystream bytes without decrypting a full frame</div>
+                        </div>
+                    </div>
+                    <span class="detail-toggle">&#9660;</span>
+                </div>
+                <div class="detail-body">
+                    <p>
+                        The fragmentation attack recovers up to 1,500 bytes of PRGA (keystream) without
+                        needing to decrypt a complete packet. The attacker captures one data frame, extracts
+                        one known plaintext byte (LLC SNAP header), and uses it to construct a keystream byte.
+                        By transmitting carefully crafted fragmented packets and observing AP responses, the
+                        keystream can be extended iteratively to 1,500 bytes.
+                    </p>
+                    <p>
+                        The recovered keystream can then be used with packetforge-ng to forge arbitrary
+                        packets (such as ARP requests) that the AP will encrypt and broadcast — generating
+                        high-volume IV material for aircrack-ng without requiring any associated clients.
+                        The fragmentation attack is particularly useful when no active clients are present.
+                    </p>
+                    <div class="code-block">
+$ aireplay-ng <span class="flag">-5 -b</span> AA:BB:CC:DD:EE:FF <span class="flag">-h</span> OUR_MAC wlan0mon
+<span class="out">Size: 68, FromDS: 1, ToDS: 0 (WEP)</span>
+<span class="out">BSSID  =  AA:BB:CC:DD:EE:FF</span>
+<span class="out">Use this packet ? y</span>
+<span class="out">Saving keystream in fragment-1234-140300.xor</span>
+<span class="out">Now you can build a packet with packetforge-ng out of that 1500 bytes keystream</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 5: Statistical Key Recovery -->
+    <div class="section" id="s5">
+        <div class="section-number">Section 05</div>
+        <h2 class="section-title">
+            <span class="section-icon">&#128273;</span>
+            Statistical Key Recovery
+        </h2>
+        <div class="section-body">
+            <p>
+                aircrack-ng reads the captured .cap file, extracts all WEP IVs, and applies the PTW
+                statistical attack to recover the key. The process can run in parallel while airodump-ng
+                is still capturing — aircrack-ng will automatically re-attempt with more IVs as the
+                cap file grows.
+            </p>
+
+            <div class="code-block">
+<span class="comment"># Run aircrack-ng against the capture file — can run while capturing</span>
+$ aircrack-ng <span class="flag">-b</span> AA:BB:CC:DD:EE:FF capture-01.cap
+
+                                 Aircrack-ng 1.7
+
+      [00:00:03] Tested 2453 keys (got 47821 IVs)
+
+   KB    depth   byte(vote)
+    0    0/  1   <span class="out">3E(57600)</span> 12(51200) 9A(50432) 7C(49664) 1B(49152)
+    1    0/  1   <span class="out">A7(58368)</span> 2F(51968) C4(51200) 88(49920) D1(49408)
+    2    0/  1   <span class="out">4C(56320)</span> 7A(52480) 3B(50688) 0E(50176) 91(49152)
+    3    0/  1   <span class="out">B1(57856)</span> 55(52224) 09(51456) CC(50432) 6F(49664)
+    4    0/  1   <span class="out">F2(58112)</span> 2A(51200) 7D(50944) 8C(50176) 3E(49408)
+
+                 <span class="out">KEY FOUND! [ 3E:A7:4C:B1:F2 ]</span>
+    Decrypted correctly: <span class="out">100%</span>
+            </div>
+
+            <h3 style="color:#c4a0d8; font-size:1rem; font-weight:normal; margin: 24px 0 16px; letter-spacing:0.05em;">Attack Comparison: FMS vs. KoreK vs. PTW</h3>
+
+            <table class="attack-compare">
+                <thead>
+                    <tr>
+                        <th>Attack</th>
+                        <th>Year</th>
+                        <th>IVs Required (64-bit WEP)</th>
+                        <th>IVs Required (128-bit WEP)</th>
+                        <th>Method</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td class="atk-name">FMS</td>
+                        <td>2001</td>
+                        <td>4&ndash;6 million</td>
+                        <td>~6 million</td>
+                        <td>Weak IVs only; statistical bias in first keystream byte from KSA vulnerability</td>
+                    </tr>
+                    <tr>
+                        <td class="atk-name">KoreK</td>
+                        <td>2004</td>
+                        <td>~200,000</td>
+                        <td>~500,000</td>
+                        <td>17 new statistical distinguishers; exploits all IVs not just weak ones; implemented in early aircrack</td>
+                    </tr>
+                    <tr>
+                        <td class="atk-name">PTW</td>
+                        <td>2007</td>
+                        <td>~20,000 (85% probability)</td>
+                        <td>~40,000 (95% probability)</td>
+                        <td>Maximum likelihood framework using first two keystream bytes; all IVs contribute; aircrack-ng default</td>
+                    </tr>
+                    <tr>
+                        <td class="atk-name">PTW (injected)</td>
+                        <td>2007+</td>
+                        <td>&lt; 60 seconds</td>
+                        <td>&lt; 3 minutes</td>
+                        <td>PTW + ARP replay injection; accumulates required IVs in under one minute on most hardware</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <div class="detail-section">
+                <div class="detail-header" onclick="toggleDetail(this)">
+                    <div class="detail-header-left">
+                        <span class="detail-header-icon">&#128200;</span>
+                        <div>
+                            <div class="detail-header-title">Reading aircrack-ng Output</div>
+                            <div class="detail-header-subtitle">Understanding vote tables and depth columns</div>
+                        </div>
+                    </div>
+                    <span class="detail-toggle">&#9660;</span>
+                </div>
+                <div class="detail-body">
+                    <p>
+                        The aircrack-ng output table shows the statistical vote breakdown for each key byte (KB):
+                    </p>
+                    <ul>
+                        <li><strong style="color:#c4a0d8;">KB</strong>: Key byte index (0 through N-1, where N is key length in bytes)</li>
+                        <li><strong style="color:#c4a0d8;">depth</strong>: How far down the candidate list the correct byte is (0/1 means top candidate) — if depth is not 0/1, more IVs are needed</li>
+                        <li><strong style="color:#c4a0d8;">byte(vote)</strong>: Candidate byte value and its vote count — the byte with the highest votes is the most probable correct key byte</li>
+                        <li><strong style="color:#c4a0d8;">KEY FOUND!</strong>: All key bytes resolved; the bracketed hex values are the WEP key in hex</li>
+                        <li><strong style="color:#c4a0d8;">Decrypted correctly: 100%</strong>: Verification that the recovered key successfully decrypts captured packets</li>
+                    </ul>
+                    <p>
+                        If aircrack-ng fails, it exits with "Failed. Next try with 5000 more IVs." — indicating
+                        you need to collect more packets. Continue capture/injection and re-run; or use the
+                        <span class="math-inline">-n</span> flag to specify key length if the default detection fails.
+                    </p>
+                </div>
+            </div>
+
+            <div class="callout callout-tip">
+                <span class="callout-icon">&#10003;</span>
+                <div class="callout-content">
+                    <div class="callout-title">Using the Recovered Key to Decrypt Traffic</div>
+                    <div class="callout-text">
+                        Once the WEP key is recovered, all captured traffic (including the capture file used
+                        for cracking) can be fully decrypted. In Wireshark: Edit > Preferences > Protocols >
+                        IEEE 802.11 > Decryption keys. Add the recovered key as type "wep" in the format
+                        <span class="math-inline">3E:A7:4C:B1:F2</span>. Wireshark will retroactively decrypt
+                        all WEP-encrypted frames in the capture, exposing plaintext HTTP, DNS, credentials,
+                        and any other unencrypted layer-7 traffic.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 6: WEP in 2026 — Legacy Risk -->
+    <div class="section" id="s6">
+        <div class="section-number">Section 06</div>
+        <h2 class="section-title">
+            <span class="section-icon">&#9888;</span>
+            WEP in 2026: Legacy Risk
+        </h2>
+        <div class="section-body">
+            <p>
+                WEP was deprecated by the Wi-Fi Alliance in 2004 and removed from the IEEE 802.11
+                standard in 2012. Yet WEP-protected networks continue to appear in enterprise wireless
+                audits, industrial environments, and healthcare facilities in 2026. Understanding why
+                WEP persists — and how to address it when found — is a practical skill for any
+                wireless security practitioner.
+            </p>
+
+            <h3 style="color:#c4a0d8; font-size:1rem; font-weight:normal; margin: 24px 0 16px; letter-spacing:0.05em;">Where WEP Is Still Found</h3>
+
+            <div class="concept-grid">
+                <div class="concept-card" style="border-color: rgba(239,68,68,0.2);">
+                    <div class="concept-card-icon">&#127973;</div>
+                    <div class="concept-card-title">Legacy Medical Devices</div>
+                    <div class="concept-card-body">
+                        Wireless patient monitors, infusion pumps, and telemetry systems from pre-2010 can
+                        only speak WEP. Firmware is either unavailable, proprietary, or its modification
+                        would void FDA clearance. Many hospitals operate these devices on isolated
+                        "medical device VLANs" that are still reachable from shared wireless infrastructure.
+                    </div>
+                    <span class="concept-tag">Healthcare</span>
+                </div>
+                <div class="concept-card" style="border-color: rgba(239,68,68,0.2);">
+                    <div class="concept-card-icon">&#129520;</div>
+                    <div class="concept-card-title">Industrial &amp; ICS Equipment</div>
+                    <div class="concept-card-body">
+                        Programmable logic controllers (PLCs), wireless SCADA sensors, and proprietary
+                        industrial handhelds from 2003-2010 often have hardcoded WEP support with no
+                        upgrade path. Replacement requires engineering redesign, factory recertification,
+                        and capital expenditure that may exceed seven figures for large facilities.
+                    </div>
+                    <span class="concept-tag">Industrial</span>
+                </div>
+                <div class="concept-card" style="border-color: rgba(239,68,68,0.2);">
+                    <div class="concept-card-icon">&#128219;</div>
+                    <div class="concept-card-title">Legacy POS Terminals</div>
+                    <div class="concept-card-body">
+                        Older retail point-of-sale terminals and barcode scanners may only support WEP.
+                        These systems process payment card data — a WEP network carrying PCI DSS in-scope
+                        traffic is a critical compliance failure (PCI DSS explicitly prohibits WEP).
+                        Discovered WEP POS systems result in automatic non-compliance findings.
+                    </div>
+                    <span class="concept-tag">Retail / PCI</span>
+                </div>
+                <div class="concept-card" style="border-color: rgba(239,68,68,0.2);">
+                    <div class="concept-card-icon">&#128190;</div>
+                    <div class="concept-card-title">Embedded &amp; IoT Devices</div>
+                    <div class="concept-card-body">
+                        Early wireless camera systems, HVAC controllers, building management systems, and
+                        other embedded appliances ship with fixed wireless chipsets that support only WEP.
+                        Manufacturers are often dissolved or unsupportive; firmware updates are nonexistent.
+                        These devices are frequently forgotten after deployment.
+                    </div>
+                    <span class="concept-tag">IoT / Embedded</span>
+                </div>
+            </div>
+
+            <h3 style="color:#c4a0d8; font-size:1rem; font-weight:normal; margin: 28px 0 16px; letter-spacing:0.05em;">Risk Assessment: WEP Network Found on Audit</h3>
+
+            <table class="standards-table">
+                <thead>
+                    <tr>
+                        <th>Factor</th>
+                        <th>Low Risk Scenario</th>
+                        <th>High Risk Scenario</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td class="std-name">Data Sensitivity</td>
+                        <td>Non-sensitive telemetry only (temperature readings, occupancy sensors)</td>
+                        <td>PII, PHI, payment card data, credentials, or proprietary IP</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">Network Isolation</td>
+                        <td>Fully air-gapped, no path to corporate LAN or internet</td>
+                        <td>Connected to corporate VLAN with routing to sensitive systems</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">Physical Access</td>
+                        <td>Secured facility with strict physical perimeter controls</td>
+                        <td>Publicly accessible building, parking lot within RF range, open campus</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">Regulatory Scope</td>
+                        <td>Not subject to PCI DSS, HIPAA, or other frameworks prohibiting WEP</td>
+                        <td>In scope for PCI DSS (automatic fail), HIPAA, NIST 800-53, or ISO 27001</td>
+                    </tr>
+                    <tr>
+                        <td class="std-name">Attacker Proximity</td>
+                        <td>Remote facility with no public access and security patrols</td>
+                        <td>Urban location; attacker can park within 100m; high-gain antennas extend range further</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h3 style="color:#c4a0d8; font-size:1rem; font-weight:normal; margin: 28px 0 16px; letter-spacing:0.05em;">Remediation Strategies When Replacement Is Not Immediate</h3>
+
+            <div class="two-col">
+                <div class="col-card">
+                    <h3>&#128274; Network Isolation Controls</h3>
+                    <ul>
+                        <li><span class="li-marker">▸</span> Place WEP devices on a dedicated VLAN with no routing to corporate segments</li>
+                        <li><span class="li-marker">▸</span> Implement stateful firewall rules: WEP VLAN may only reach specific destination IPs/ports required for device function</li>
+                        <li><span class="li-marker">▸</span> Enable WIDS monitoring on the WEP SSID to detect association anomalies or rogue clients</li>
+                        <li><span class="li-marker">▸</span> Limit the WEP AP transmit power to minimum usable level — reduces attack radius</li>
+                    </ul>
+                </div>
+                <div class="col-card">
+                    <h3>&#128270; Detection &amp; Monitoring</h3>
+                    <ul>
+                        <li><span class="li-marker">▸</span> Log all client MACs associating with the WEP SSID — any unknown MAC is an indicator of compromise</li>
+                        <li><span class="li-marker">▸</span> Monitor for unusual association counts (ARP replay produces anomalously high frame rates)</li>
+                        <li><span class="li-marker">▸</span> Alert on deauthentication frame spikes — may indicate an attacker capturing handshakes or injecting</li>
+                        <li><span class="li-marker">▸</span> Periodic RF spectrum monitoring to detect high-gain antenna proximity attacks</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="callout callout-warning">
+                <span class="callout-icon">&#9888;</span>
+                <div class="callout-content">
+                    <div class="callout-title">Detection in Enterprise Wireless Audits</div>
+                    <div class="callout-text">
+                        During a wireless site survey, WEP networks are immediately visible in airodump-ng,
+                        Kismet, and commercial WIDS systems. In a penetration test scope that includes wireless,
+                        any WEP network discovered is an automatic critical finding requiring immediate disclosure
+                        to the client, regardless of whether key recovery is demonstrated. Document the BSSID,
+                        SSID, location (GPS or building floor/room), estimated RF coverage area, and any
+                        associated client MACs observed during the survey window.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Key Takeaways -->
+    <div class="section" id="s7">
+        <div class="section-number">Section 07</div>
+        <h2 class="section-title">
+            <span class="section-icon">&#9889;</span>
+            Key Takeaways
+        </h2>
+        <div class="section-body">
+            <div class="takeaway-grid">
+                <div class="takeaway-card">
+                    <div class="takeaway-icon">&#128274;</div>
+                    <div class="takeaway-title">WEP Is Not Encryption</div>
+                    <div class="takeaway-desc">A WEP-protected network provides no meaningful confidentiality. Treat any WEP network as equivalent to an open network for risk and compliance purposes.</div>
+                </div>
+                <div class="takeaway-card">
+                    <div class="takeaway-icon">&#128202;</div>
+                    <div class="takeaway-title">24-Bit IVs Are Catastrophic</div>
+                    <div class="takeaway-desc">The 16.7 million IV space guarantees reuse within minutes on any busy network. IV reuse is the mathematical foundation for every WEP attack — the cipher itself is secondary.</div>
+                </div>
+                <div class="takeaway-card">
+                    <div class="takeaway-icon">&#128299;</div>
+                    <div class="takeaway-title">PTW Takes Under 60 Seconds</div>
+                    <div class="takeaway-desc">With ARP replay injection and the PTW attack in aircrack-ng, 128-bit WEP key recovery from a live network takes under three minutes on consumer hardware. The skill barrier is near zero.</div>
+                </div>
+                <div class="takeaway-card">
+                    <div class="takeaway-icon">&#127973;</div>
+                    <div class="takeaway-title">WEP Still Exists in Production</div>
+                    <div class="takeaway-desc">Legacy medical devices, ICS equipment, and embedded systems keep WEP alive in 2026. Knowing how to find, assess, and mitigate WEP risk is a practical skill for enterprise auditors.</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Discussion -->
+    <div class="section" id="discuss">
+        <div class="discussion-section">
+            <div class="discussion-title">
+                <span>&#128172;</span>
+                Discussion Prompts
+            </div>
+            <ul class="prompt-list">
+                <li class="prompt-item">
+                    <span class="prompt-num">01</span>
+                    WEP was ratified as an IEEE standard in 1999 and broken by 2001. What failures in the standards development process allowed a cryptographically weak protocol to be standardized, and how have subsequent standards (WPA2, WPA3) addressed these process failures? Consider the role of export restrictions, timeline pressure, and the absence of formal cryptographic review in your analysis.
+                </li>
+                <li class="prompt-item">
+                    <span class="prompt-num">02</span>
+                    Despite being broken for over 20 years, WEP networks are still found in the wild on medical devices, industrial control systems, and legacy POS terminals. Design a risk mitigation strategy for an organization that discovers WEP-only devices on their network that cannot be upgraded. Your strategy should address network isolation, monitoring, compensating controls, regulatory compliance (HIPAA or PCI DSS as applicable), and a remediation roadmap with realistic timelines.
+                </li>
+                <li class="prompt-item">
+                    <span class="prompt-num">03</span>
+                    The PTW attack can recover a WEP key from approximately 40,000 captured packets in under 60 seconds. If you were briefing a non-technical executive on why WEP must be eliminated from the organization's network, how would you communicate this risk without the technical details? What analogies, metrics, or business-language framings would be most effective for driving an immediate remediation decision?
+                </li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- Completion -->
+    <div class="section" id="completion">
+        <div class="completion-section">
+            <div class="completion-icon">&#10003;</div>
+            <h2 class="completion-title">Module Complete</h2>
+            <p class="completion-text">
+                You have examined WEP's cryptographic design and the RC4 IV vulnerability that breaks it,
+                the mathematical basis for IV collisions and statistical key recovery, the FMS, KoreK,
+                and PTW attack progression, the full attack workflow from monitor mode through key recovery,
+                traffic injection techniques for accelerating IV collection, and the real-world persistence
+                of WEP in production environments with practical mitigation strategies.
+            </p>
+            <button class="completion-btn" onclick="completeModule()">
+                <span>&#10003;</span>
+                Complete Module 05
+            </button>
+        </div>
+    </div>
+
+</main>
+
+<script>
+    // Scroll progress bar — updates the top gradient bar and mini header bar
+    function updateScrollProgress() {
+        const scrollTop = window.scrollY;
+        const docHeight = document.documentElement.scrollHeight - window.innerHeight;
+        const pct = docHeight > 0 ? (scrollTop / docHeight) * 100 : 0;
+        document.getElementById('scrollProgress').style.width = pct + '%';
+        document.getElementById('readingFill').style.width = pct + '%';
+    }
+
+    window.addEventListener('scroll', updateScrollProgress, { passive: true });
+
+    // Section fade-in using IntersectionObserver for performance
+    function initScrollAnimation() {
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) entry.target.classList.add('visible');
+            });
+        }, { threshold: 0.08 });
+
+        document.querySelectorAll('.section').forEach(s => observer.observe(s));
+    }
+
+    // Toggle expandable detail sections — manages open/close state and arrow rotation
+    function toggleDetail(header) {
+        const body = header.nextElementSibling;
+        const toggle = header.querySelector('.detail-toggle');
+        const isOpen = body.classList.contains('open');
+        body.classList.toggle('open', !isOpen);
+        toggle.classList.toggle('open', !isOpen);
+    }
+
+    // Module completion — delegates to ModuleProgress component for progress tracking
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('dark-arts', 'wifi-mod-wep', {
+                returnUrl: '../index.html'
+            });
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        initScrollAnimation();
+    });
+</script>
+
+</body>
+</html>

