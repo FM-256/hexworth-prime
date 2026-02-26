@@ -1037,8 +1037,11 @@ const FirestoreManager = (function() {
                 localStorage.setItem(LOCALSTORAGE_KEYS.quizScores, JSON.stringify(profile.quizzes));
             }
 
-            // Restore XP and streak
-            if (profile.xp) {
+            // Restore XP — use deterministic calculator if available, else cloud value
+            if (typeof XPCalculator !== 'undefined') {
+                const calc = XPCalculator.recalculate();
+                localStorage.setItem(LOCALSTORAGE_KEYS.xp, calc.xp.toString());
+            } else if (profile.xp) {
                 localStorage.setItem(LOCALSTORAGE_KEYS.xp, profile.xp.toString());
             }
 
@@ -1239,9 +1242,15 @@ const FirestoreManager = (function() {
                 });
             });
 
-            // 5. Merge scalar values (take max)
-            const localXP = parseInt(localStorage.getItem(LOCALSTORAGE_KEYS.xp) || '0');
-            const mergedXP = Math.max(cloudProfile.xp || 0, localXP);
+            // 5. Merge scalar values
+            // Use deterministic XPCalculator if available (overrides both cloud and local)
+            let mergedXP;
+            if (typeof XPCalculator !== 'undefined') {
+                mergedXP = XPCalculator.recalculate().xp;
+            } else {
+                const localXP = parseInt(localStorage.getItem(LOCALSTORAGE_KEYS.xp) || '0');
+                mergedXP = Math.max(cloudProfile.xp || 0, localXP);
+            }
 
             const localStreak = parseInt(localStorage.getItem(LOCALSTORAGE_KEYS.streak) || '0');
             const mergedStreak = Math.max(cloudProfile.streak || 0, localStreak);
