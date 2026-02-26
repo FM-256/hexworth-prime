@@ -1,0 +1,2330 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Build a RAG Pipeline - House of the Machine</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --house-primary: #a855f7;
+            --house-secondary: #7c3aed;
+            --house-glow: rgba(168, 85, 247, 0.35);
+            --house-bg: rgba(168, 85, 247, 0.06);
+            --house-border: rgba(168, 85, 247, 0.25);
+            --bg-dark: #0a0e1a;
+            --bg-card: rgba(14, 18, 32, 0.9);
+            --bg-elevated: rgba(20, 24, 42, 0.95);
+            --text-primary: #e2e8f0;
+            --text-muted: #8892a4;
+            --success: #22c55e;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --info: #38bdf8;
+        }
+
+        body {
+            min-height: 100vh;
+            background: var(--bg-dark);
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            color: var(--text-primary);
+            overflow-x: hidden;
+        }
+
+        /* ── Header ── */
+        .lab-header {
+            padding: 16px 28px;
+            background: rgba(10, 14, 26, 0.97);
+            border-bottom: 1px solid var(--house-border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 200;
+            backdrop-filter: blur(8px);
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+
+        .back-btn {
+            width: 34px;
+            height: 34px;
+            border-radius: 8px;
+            border: 1px solid var(--house-border);
+            background: transparent;
+            color: var(--house-primary);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1rem;
+            transition: background 0.2s;
+            text-decoration: none;
+        }
+
+        .back-btn:hover { background: var(--house-bg); }
+
+        .lab-title {
+            font-size: 0.95rem;
+            font-weight: 500;
+            color: var(--text-primary);
+        }
+
+        .house-badge {
+            font-size: 0.65rem;
+            letter-spacing: 0.1em;
+            padding: 3px 10px;
+            background: rgba(168, 85, 247, 0.12);
+            border: 1px solid var(--house-border);
+            border-radius: 20px;
+            color: var(--house-primary);
+            text-transform: uppercase;
+        }
+
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .stage-counter {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+        }
+
+        .stage-counter span {
+            color: var(--house-primary);
+            font-weight: 600;
+        }
+
+        /* ── Container ── */
+        .container {
+            max-width: 1060px;
+            margin: 0 auto;
+            padding: 36px 28px 60px;
+        }
+
+        /* ── Intro ── */
+        .intro {
+            text-align: center;
+            margin-bottom: 36px;
+        }
+
+        .intro-icon {
+            font-size: 2.8rem;
+            margin-bottom: 12px;
+            display: block;
+        }
+
+        .intro-title {
+            font-size: 1.9rem;
+            font-weight: 300;
+            margin-bottom: 10px;
+            background: linear-gradient(135deg, #e2e8f0, var(--house-primary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .intro-subtitle {
+            color: var(--text-muted);
+            max-width: 680px;
+            margin: 0 auto;
+            line-height: 1.65;
+            font-size: 0.95rem;
+        }
+
+        /* ── Stage Progress Rail ── */
+        .stage-rail {
+            display: flex;
+            align-items: center;
+            gap: 0;
+            margin-bottom: 32px;
+            background: var(--bg-card);
+            border: 1px solid var(--house-border);
+            border-radius: 12px;
+            padding: 16px 20px;
+            overflow-x: auto;
+        }
+
+        .rail-step {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-shrink: 0;
+        }
+
+        .rail-dot {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            border: 2px solid rgba(255,255,255,0.12);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.7rem;
+            font-weight: 700;
+            color: var(--text-muted);
+            background: rgba(255,255,255,0.04);
+            transition: all 0.3s;
+            cursor: pointer;
+            flex-shrink: 0;
+        }
+
+        .rail-dot.active {
+            border-color: var(--house-primary);
+            background: rgba(168, 85, 247, 0.2);
+            color: var(--house-primary);
+            box-shadow: 0 0 10px var(--house-glow);
+        }
+
+        .rail-dot.done {
+            border-color: var(--success);
+            background: rgba(34, 197, 94, 0.15);
+            color: var(--success);
+        }
+
+        .rail-label {
+            font-size: 0.72rem;
+            color: var(--text-muted);
+            white-space: nowrap;
+        }
+
+        .rail-label.active { color: var(--house-primary); }
+        .rail-label.done { color: var(--success); }
+
+        .rail-connector {
+            flex: 1;
+            min-width: 20px;
+            height: 2px;
+            background: rgba(255,255,255,0.08);
+            margin: 0 6px;
+            border-radius: 1px;
+        }
+
+        .rail-connector.done { background: var(--success); }
+
+        /* ── Stage Panel ── */
+        .stage-panel {
+            display: none;
+        }
+
+        .stage-panel.active {
+            display: block;
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(8px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* ── Card ── */
+        .card {
+            background: var(--bg-card);
+            border: 1px solid var(--house-border);
+            border-radius: 12px;
+            padding: 28px;
+            margin-bottom: 20px;
+        }
+
+        .card-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: var(--house-primary);
+        }
+
+        .card-sub {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            line-height: 1.6;
+            margin-bottom: 18px;
+        }
+
+        /* ── Stage Header ── */
+        .stage-header {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            margin-bottom: 22px;
+        }
+
+        .stage-num {
+            width: 44px;
+            height: 44px;
+            border-radius: 10px;
+            background: linear-gradient(135deg, var(--house-primary), var(--house-secondary));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: #fff;
+            flex-shrink: 0;
+        }
+
+        .stage-meta h2 {
+            font-size: 1.3rem;
+            font-weight: 600;
+        }
+
+        .stage-meta p {
+            font-size: 0.83rem;
+            color: var(--text-muted);
+            margin-top: 2px;
+        }
+
+        /* ── Document Library ── */
+        .doc-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+
+        .doc-card {
+            background: var(--bg-elevated);
+            border: 2px solid rgba(255,255,255,0.06);
+            border-radius: 10px;
+            padding: 16px;
+            cursor: pointer;
+            transition: all 0.2s;
+            position: relative;
+            user-select: none;
+        }
+
+        .doc-card:hover {
+            border-color: var(--house-primary);
+            background: var(--house-bg);
+        }
+
+        .doc-card.selected {
+            border-color: var(--house-primary);
+            background: rgba(168, 85, 247, 0.1);
+            box-shadow: 0 0 12px rgba(168, 85, 247, 0.2);
+        }
+
+        .doc-card.selected::after {
+            content: 'Selected';
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            font-size: 0.6rem;
+            background: var(--house-primary);
+            color: #fff;
+            padding: 2px 7px;
+            border-radius: 10px;
+            letter-spacing: 0.05em;
+        }
+
+        .doc-icon {
+            font-size: 1.6rem;
+            margin-bottom: 8px;
+            display: block;
+        }
+
+        .doc-name {
+            font-size: 0.82rem;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        .doc-desc {
+            font-size: 0.72rem;
+            color: var(--text-muted);
+            line-height: 1.4;
+        }
+
+        /* ── Ingest Visualizer ── */
+        .ingest-visual {
+            background: var(--bg-elevated);
+            border: 1px solid var(--house-border);
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 18px;
+            min-height: 100px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-wrap: wrap;
+            gap: 8px;
+            position: relative;
+        }
+
+        .ingest-label {
+            position: absolute;
+            top: -10px;
+            left: 14px;
+            font-size: 0.7rem;
+            background: var(--bg-dark);
+            padding: 0 6px;
+            color: var(--text-muted);
+            letter-spacing: 0.08em;
+        }
+
+        .ingest-doc-pill {
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 500;
+            animation: popIn 0.3s ease;
+        }
+
+        @keyframes popIn {
+            from { transform: scale(0.7); opacity: 0; }
+            to { transform: scale(1); opacity: 1; }
+        }
+
+        .ingest-placeholder {
+            color: var(--text-muted);
+            font-size: 0.82rem;
+            font-style: italic;
+        }
+
+        /* ── Chunking Settings ── */
+        .settings-row {
+            display: flex;
+            gap: 16px;
+            margin-bottom: 18px;
+            flex-wrap: wrap;
+        }
+
+        .setting-group {
+            flex: 1;
+            min-width: 160px;
+        }
+
+        .setting-label {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            margin-bottom: 6px;
+            display: block;
+            letter-spacing: 0.05em;
+        }
+
+        .setting-select {
+            width: 100%;
+            background: var(--bg-elevated);
+            border: 1px solid var(--house-border);
+            border-radius: 8px;
+            padding: 8px 12px;
+            color: var(--text-primary);
+            font-size: 0.85rem;
+            cursor: pointer;
+            appearance: none;
+            -webkit-appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%238892a4'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 10px center;
+        }
+
+        .setting-select:focus {
+            outline: none;
+            border-color: var(--house-primary);
+        }
+
+        /* ── Chunk Visualization ── */
+        .chunk-display {
+            background: var(--bg-elevated);
+            border: 1px solid var(--house-border);
+            border-radius: 10px;
+            padding: 18px;
+            margin-bottom: 18px;
+            min-height: 80px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            align-items: flex-start;
+            position: relative;
+        }
+
+        .chunk-pill {
+            padding: 5px 10px;
+            border-radius: 6px;
+            font-size: 0.7rem;
+            line-height: 1.3;
+            max-width: 160px;
+            word-break: break-word;
+            position: relative;
+            cursor: default;
+            transition: transform 0.15s;
+        }
+
+        .chunk-pill:hover { transform: scale(1.04); }
+
+        .chunk-pill .overlap-indicator {
+            position: absolute;
+            top: -4px;
+            right: -4px;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--warning);
+            border: 1px solid var(--bg-dark);
+        }
+
+        .chunk-stat {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+            font-size: 0.78rem;
+            color: var(--text-muted);
+        }
+
+        .chunk-stat span { color: var(--house-primary); font-weight: 600; }
+
+        /* ── Scatter Plot ── */
+        .scatter-container {
+            position: relative;
+            margin-bottom: 18px;
+        }
+
+        #embeddingCanvas {
+            display: block;
+            border-radius: 10px;
+            border: 1px solid var(--house-border);
+            background: var(--bg-elevated);
+            cursor: crosshair;
+            width: 100%;
+            max-width: 700px;
+        }
+
+        .scatter-tooltip {
+            position: fixed;
+            background: rgba(10, 14, 26, 0.97);
+            border: 1px solid var(--house-border);
+            border-radius: 8px;
+            padding: 10px 14px;
+            font-size: 0.75rem;
+            max-width: 260px;
+            line-height: 1.5;
+            pointer-events: none;
+            display: none;
+            z-index: 500;
+            color: var(--text-primary);
+        }
+
+        .scatter-legend {
+            display: flex;
+            gap: 14px;
+            flex-wrap: wrap;
+            font-size: 0.72rem;
+            margin-top: 10px;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            color: var(--text-muted);
+        }
+
+        .legend-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+        }
+
+        /* ── Query Input ── */
+        .query-area {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 14px;
+        }
+
+        .query-input {
+            flex: 1;
+            background: var(--bg-elevated);
+            border: 1px solid var(--house-border);
+            border-radius: 8px;
+            padding: 10px 14px;
+            color: var(--text-primary);
+            font-size: 0.88rem;
+            font-family: inherit;
+        }
+
+        .query-input:focus {
+            outline: none;
+            border-color: var(--house-primary);
+            box-shadow: 0 0 0 2px rgba(168, 85, 247, 0.15);
+        }
+
+        .query-input::placeholder { color: var(--text-muted); }
+
+        .btn {
+            padding: 10px 20px;
+            border-radius: 8px;
+            border: none;
+            cursor: pointer;
+            font-size: 0.85rem;
+            font-weight: 600;
+            transition: all 0.2s;
+            font-family: inherit;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--house-primary), var(--house-secondary));
+            color: #fff;
+        }
+
+        .btn-primary:hover { opacity: 0.88; transform: translateY(-1px); }
+
+        .btn-primary:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-secondary {
+            background: transparent;
+            border: 1px solid var(--house-border);
+            color: var(--house-primary);
+        }
+
+        .btn-secondary:hover { background: var(--house-bg); }
+
+        .btn-success {
+            background: linear-gradient(135deg, var(--success), #16a34a);
+            color: #fff;
+        }
+
+        .btn-success:hover { opacity: 0.88; }
+
+        /* ── Chunk Retrieval List ── */
+        .retrieval-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-bottom: 18px;
+        }
+
+        .retrieval-item {
+            background: var(--bg-elevated);
+            border: 1px solid rgba(255,255,255,0.06);
+            border-radius: 8px;
+            padding: 12px 14px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            transition: all 0.25s;
+        }
+
+        .retrieval-item.highlighted {
+            border-color: var(--house-primary);
+            background: rgba(168, 85, 247, 0.08);
+        }
+
+        .score-bar-wrap {
+            width: 80px;
+            flex-shrink: 0;
+        }
+
+        .score-bar {
+            height: 5px;
+            border-radius: 3px;
+            background: var(--house-primary);
+            transition: width 0.4s ease;
+        }
+
+        .score-val {
+            font-size: 0.7rem;
+            color: var(--text-muted);
+            margin-top: 3px;
+        }
+
+        .retrieval-text {
+            flex: 1;
+            font-size: 0.78rem;
+            color: var(--text-muted);
+            line-height: 1.45;
+        }
+
+        .retrieval-text.selected { color: var(--text-primary); }
+
+        .rank-badge {
+            width: 22px;
+            height: 22px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.65rem;
+            font-weight: 700;
+            flex-shrink: 0;
+        }
+
+        /* ── Generation Panel ── */
+        .gen-layout {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            margin-bottom: 18px;
+        }
+
+        @media (max-width: 680px) {
+            .gen-layout { grid-template-columns: 1fr; }
+        }
+
+        .gen-box {
+            background: var(--bg-elevated);
+            border: 1px solid var(--house-border);
+            border-radius: 10px;
+            padding: 16px;
+        }
+
+        .gen-box-title {
+            font-size: 0.75rem;
+            font-weight: 600;
+            letter-spacing: 0.08em;
+            margin-bottom: 10px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid rgba(255,255,255,0.06);
+        }
+
+        .gen-box-title.rag-title { color: var(--success); }
+        .gen-box-title.norag-title { color: var(--danger); }
+
+        .gen-response {
+            font-size: 0.8rem;
+            line-height: 1.6;
+            color: var(--text-primary);
+        }
+
+        .gen-response .citation {
+            color: var(--house-primary);
+            font-size: 0.7rem;
+        }
+
+        .gen-response .hallucination {
+            background: rgba(239, 68, 68, 0.15);
+            border-bottom: 1px dashed var(--danger);
+            padding: 0 2px;
+        }
+
+        .prompt-preview {
+            background: rgba(0,0,0,0.3);
+            border: 1px solid rgba(255,255,255,0.06);
+            border-radius: 8px;
+            padding: 12px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.72rem;
+            line-height: 1.6;
+            color: var(--text-muted);
+            white-space: pre-wrap;
+            max-height: 220px;
+            overflow-y: auto;
+            margin-bottom: 14px;
+        }
+
+        .prompt-preview .prompt-system { color: #38bdf8; }
+        .prompt-preview .prompt-context { color: var(--house-primary); }
+        .prompt-preview .prompt-user { color: var(--warning); }
+
+        /* ── Optimization Challenge ── */
+        .opt-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 14px;
+            margin-bottom: 18px;
+        }
+
+        @media (max-width: 620px) {
+            .opt-grid { grid-template-columns: 1fr; }
+        }
+
+        .opt-question {
+            background: var(--bg-elevated);
+            border: 1px solid rgba(255,255,255,0.06);
+            border-radius: 10px;
+            padding: 14px;
+        }
+
+        .opt-q-text {
+            font-size: 0.8rem;
+            margin-bottom: 10px;
+            line-height: 1.45;
+        }
+
+        .opt-score-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-top: 8px;
+        }
+
+        .opt-score-bar {
+            flex: 1;
+            height: 6px;
+            background: rgba(255,255,255,0.08);
+            border-radius: 3px;
+            overflow: hidden;
+        }
+
+        .opt-score-fill {
+            height: 100%;
+            border-radius: 3px;
+            transition: width 0.5s ease;
+        }
+
+        .opt-score-val {
+            font-size: 0.7rem;
+            font-weight: 700;
+            min-width: 32px;
+            text-align: right;
+        }
+
+        /* ── Info Callout ── */
+        .callout {
+            border-radius: 8px;
+            padding: 12px 16px;
+            font-size: 0.8rem;
+            line-height: 1.55;
+            margin-bottom: 16px;
+            border-left: 3px solid;
+        }
+
+        .callout-info {
+            background: rgba(56, 189, 248, 0.08);
+            border-color: var(--info);
+            color: #a5d8f7;
+        }
+
+        .callout-warning {
+            background: rgba(245, 158, 11, 0.08);
+            border-color: var(--warning);
+            color: #fcd34d;
+        }
+
+        .callout-success {
+            background: rgba(34, 197, 94, 0.08);
+            border-color: var(--success);
+            color: #86efac;
+        }
+
+        /* ── Nav Buttons ── */
+        .stage-nav {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 24px;
+            padding-top: 18px;
+            border-top: 1px solid rgba(255,255,255,0.06);
+        }
+
+        /* ── Completion Banner ── */
+        .completion-banner {
+            display: none;
+            text-align: center;
+            padding: 50px 28px;
+        }
+
+        .completion-banner.show { display: block; }
+
+        .completion-icon {
+            font-size: 4rem;
+            margin-bottom: 16px;
+        }
+
+        .completion-title {
+            font-size: 2rem;
+            font-weight: 300;
+            margin-bottom: 10px;
+            background: linear-gradient(135deg, #e2e8f0, var(--house-primary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .completion-sub {
+            color: var(--text-muted);
+            font-size: 0.9rem;
+            max-width: 520px;
+            margin: 0 auto 28px;
+            line-height: 1.65;
+        }
+
+        .score-summary {
+            display: inline-flex;
+            gap: 28px;
+            background: var(--bg-card);
+            border: 1px solid var(--house-border);
+            border-radius: 12px;
+            padding: 18px 32px;
+            margin-bottom: 28px;
+        }
+
+        .score-item {
+            text-align: center;
+        }
+
+        .score-item-val {
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: var(--house-primary);
+            line-height: 1;
+        }
+
+        .score-item-label {
+            font-size: 0.72rem;
+            color: var(--text-muted);
+            margin-top: 4px;
+        }
+
+        /* ── Topk Selector ── */
+        .topk-options {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 14px;
+        }
+
+        .topk-btn {
+            padding: 6px 18px;
+            border-radius: 20px;
+            border: 1px solid var(--house-border);
+            background: transparent;
+            color: var(--text-muted);
+            cursor: pointer;
+            font-size: 0.8rem;
+            font-family: inherit;
+            transition: all 0.2s;
+        }
+
+        .topk-btn.active {
+            background: rgba(168, 85, 247, 0.15);
+            border-color: var(--house-primary);
+            color: var(--house-primary);
+        }
+
+        /* ── Eval Checklist ── */
+        .eval-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-bottom: 18px;
+        }
+
+        .eval-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            background: var(--bg-elevated);
+            border: 1px solid rgba(255,255,255,0.06);
+            border-radius: 8px;
+            padding: 12px 14px;
+        }
+
+        .eval-check {
+            width: 18px;
+            height: 18px;
+            accent-color: var(--house-primary);
+            cursor: pointer;
+            flex-shrink: 0;
+            margin-top: 1px;
+        }
+
+        .eval-text {
+            font-size: 0.82rem;
+            line-height: 1.45;
+            color: var(--text-primary);
+        }
+
+        /* ── Temperature Slider ── */
+        .slider-row {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+
+        input[type="range"] {
+            flex: 1;
+            accent-color: var(--house-primary);
+            cursor: pointer;
+        }
+
+        .slider-val {
+            min-width: 36px;
+            text-align: right;
+            font-size: 0.85rem;
+            color: var(--house-primary);
+            font-weight: 600;
+        }
+
+        /* ── Loading Dots ── */
+        .loading-dots {
+            display: inline-flex;
+            gap: 4px;
+            align-items: center;
+        }
+
+        .loading-dots span {
+            width: 5px;
+            height: 5px;
+            border-radius: 50%;
+            background: var(--house-primary);
+            animation: blink 1.2s infinite;
+        }
+
+        .loading-dots span:nth-child(2) { animation-delay: 0.2s; }
+        .loading-dots span:nth-child(3) { animation-delay: 0.4s; }
+
+        @keyframes blink {
+            0%, 80%, 100% { opacity: 0.2; }
+            40% { opacity: 1; }
+        }
+
+        /* ── Scrollbar ── */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: rgba(168,85,247,0.3); border-radius: 3px; }
+    </style>
+</head>
+<body>
+
+<!-- ── Header ── -->
+<header class="lab-header">
+    <div class="header-left">
+        <a href="../index.html" class="back-btn" title="Back to House of the Machine">&#8592;</a>
+        <div class="lab-title">Build a RAG Pipeline</div>
+        <span class="house-badge">AI Lab</span>
+    </div>
+    <div class="header-right">
+        <div class="stage-counter">Stage <span id="currentStageLabel">1</span> of 6</div>
+    </div>
+</header>
+
+<!-- ── Tooltip for scatter plot ── -->
+<div class="scatter-tooltip" id="scatterTooltip"></div>
+
+<div class="container">
+
+    <!-- Intro -->
+    <div class="intro">
+        <span class="intro-icon">&#x1F9E0;</span>
+        <h1 class="intro-title">Build a RAG Pipeline</h1>
+        <p class="intro-subtitle">
+            Retrieval Augmented Generation grounds language model responses in real documents
+            rather than relying on training data alone. Walk through each stage — ingest, chunk,
+            embed, retrieve, generate, and optimize — with live simulations and visual feedback.
+        </p>
+    </div>
+
+    <!-- Stage Progress Rail -->
+    <div class="stage-rail" id="stageRail"></div>
+
+    <!-- ======================================================
+         STAGE 1: Document Ingestion
+    ====================================================== -->
+    <div class="stage-panel active" id="stage-1">
+        <div class="stage-header">
+            <div class="stage-num">1</div>
+            <div class="stage-meta">
+                <h2>Document Ingestion</h2>
+                <p>Select which security policy documents to load into the document store</p>
+            </div>
+        </div>
+
+        <div class="callout callout-info">
+            RAG systems begin by ingesting a corpus of documents. The quality and relevance of your
+            document library directly determines what the model can answer accurately. Select the
+            documents you want your pipeline to have access to.
+        </div>
+
+        <div class="card">
+            <div class="card-title">Document Library</div>
+            <div class="card-sub">Click documents to select them for ingestion. Select at least 3 to continue.</div>
+            <div class="doc-grid" id="docGrid"></div>
+        </div>
+
+        <div class="card">
+            <div class="card-title">Document Store</div>
+            <div class="card-sub">Ingested documents appear here. These become your retrieval corpus.</div>
+            <div class="ingest-visual" id="ingestVisual">
+                <span class="ingest-label">DOCUMENT STORE</span>
+                <span class="ingest-placeholder">No documents ingested yet</span>
+            </div>
+            <div class="chunk-stat" id="ingestStats" style="margin-top:10px;">
+                <div>Documents: <span id="docCount">0</span></div>
+                <div>Est. tokens: <span id="tokenCount">0</span></div>
+                <div>Paragraphs: <span id="paraCount">0</span></div>
+            </div>
+        </div>
+
+        <div class="stage-nav">
+            <div></div>
+            <button class="btn btn-primary" id="stage1Next" onclick="goToStage(2)" disabled>
+                Ingest Documents &rarr;
+            </button>
+        </div>
+    </div>
+
+    <!-- ======================================================
+         STAGE 2: Chunking
+    ====================================================== -->
+    <div class="stage-panel" id="stage-2">
+        <div class="stage-header">
+            <div class="stage-num">2</div>
+            <div class="stage-meta">
+                <h2>Chunking Strategy</h2>
+                <p>Split documents into retrieval units — choose chunk size and overlap</p>
+            </div>
+        </div>
+
+        <div class="callout callout-warning">
+            Chunk size is one of the most impactful tuning decisions in a RAG system. Chunks that
+            are too small lose surrounding context. Chunks that are too large dilute relevance and
+            may exceed the model's context window.
+        </div>
+
+        <div class="card">
+            <div class="card-title">Chunking Settings</div>
+            <div class="settings-row">
+                <div class="setting-group">
+                    <label class="setting-label">CHUNK SIZE (TOKENS)</label>
+                    <select class="setting-select" id="chunkSize" onchange="renderChunks()">
+                        <option value="128">128 tokens — small, precise</option>
+                        <option value="256" selected>256 tokens — balanced</option>
+                        <option value="512">512 tokens — large, contextual</option>
+                    </select>
+                </div>
+                <div class="setting-group">
+                    <label class="setting-label">CHUNK OVERLAP (TOKENS)</label>
+                    <select class="setting-select" id="chunkOverlap" onchange="renderChunks()">
+                        <option value="0">0 tokens — no overlap</option>
+                        <option value="64" selected>64 tokens — moderate</option>
+                        <option value="128">128 tokens — heavy overlap</option>
+                    </select>
+                </div>
+                <div class="setting-group">
+                    <label class="setting-label">SPLIT STRATEGY</label>
+                    <select class="setting-select" id="splitStrategy" onchange="renderChunks()">
+                        <option value="sentence">Sentence boundary</option>
+                        <option value="paragraph" selected>Paragraph boundary</option>
+                        <option value="fixed">Fixed token count</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-title">Chunk Visualization</div>
+            <div class="card-sub">Each colored block is a chunk. The yellow dot indicates overlapping content shared with the adjacent chunk.</div>
+            <div class="chunk-display" id="chunkDisplay">
+                <span style="color:var(--text-muted);font-size:0.82rem;">Run chunking to see output</span>
+            </div>
+            <div class="chunk-stat" id="chunkStats">
+                <div>Total chunks: <span id="totalChunks">0</span></div>
+                <div>Avg chunk size: <span id="avgChunkSize">0</span> tokens</div>
+                <div>Overlap ratio: <span id="overlapRatio">0%</span></div>
+            </div>
+        </div>
+
+        <div class="callout callout-info" id="chunkAdvice"></div>
+
+        <div class="stage-nav">
+            <button class="btn btn-secondary" onclick="goToStage(1)">&larr; Back</button>
+            <button class="btn btn-primary" onclick="goToStage(3)">Generate Embeddings &rarr;</button>
+        </div>
+    </div>
+
+    <!-- ======================================================
+         STAGE 3: Embedding
+    ====================================================== -->
+    <div class="stage-panel" id="stage-3">
+        <div class="stage-header">
+            <div class="stage-num">3</div>
+            <div class="stage-meta">
+                <h2>Vector Embedding</h2>
+                <p>Each chunk is converted to a numeric vector that captures semantic meaning</p>
+            </div>
+        </div>
+
+        <div class="callout callout-info">
+            An embedding model maps text to a high-dimensional vector space. Semantically similar
+            text ends up near each other in that space. Below is a 2D projection — in reality
+            embeddings typically have 768 to 3072 dimensions.
+        </div>
+
+        <div class="card">
+            <div class="card-title">Embedding Model</div>
+            <div class="settings-row">
+                <div class="setting-group">
+                    <label class="setting-label">MODEL</label>
+                    <select class="setting-select" id="embedModel" onchange="runEmbedding()">
+                        <option value="ada">text-embedding-ada-002 (1536 dims)</option>
+                        <option value="small" selected>text-embedding-3-small (1536 dims)</option>
+                        <option value="large">text-embedding-3-large (3072 dims)</option>
+                    </select>
+                </div>
+                <div class="setting-group" style="display:flex;align-items:flex-end;">
+                    <button class="btn btn-primary" onclick="runEmbedding()" style="width:100%;">
+                        Run Embedding
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-title">2D Semantic Map</div>
+            <div class="card-sub">Points clustered together share semantic similarity. Hover to inspect chunk text.</div>
+            <div class="scatter-container">
+                <canvas id="embeddingCanvas" width="700" height="360"></canvas>
+            </div>
+            <div class="scatter-legend" id="scatterLegend"></div>
+        </div>
+
+        <div class="callout callout-success" id="embedStats" style="display:none;">
+            Embedding complete. <span id="embedCount">0</span> vectors stored in the vector index.
+            Average cosine similarity within topic clusters: <span id="embedSim">0.82</span>.
+        </div>
+
+        <div class="stage-nav">
+            <button class="btn btn-secondary" onclick="goToStage(2)">&larr; Back</button>
+            <button class="btn btn-primary" id="stage3Next" onclick="goToStage(4)" disabled>
+                Query the Index &rarr;
+            </button>
+        </div>
+    </div>
+
+    <!-- ======================================================
+         STAGE 4: Query & Retrieval
+    ====================================================== -->
+    <div class="stage-panel" id="stage-4">
+        <div class="stage-header">
+            <div class="stage-num">4</div>
+            <div class="stage-meta">
+                <h2>Query &amp; Retrieval</h2>
+                <p>Submit a natural language query and retrieve the most relevant chunks</p>
+            </div>
+        </div>
+
+        <div class="callout callout-info">
+            At query time the user question is also embedded, then the vector index finds the K
+            nearest chunks by cosine similarity. Higher K gives more context but risks dilution
+            with off-topic material.
+        </div>
+
+        <div class="card">
+            <div class="card-title">Search</div>
+            <div class="card-sub">Try one of the preset questions or type your own.</div>
+
+            <div style="display:flex;flex-wrap:wrap;gap:7px;margin-bottom:12px;" id="presetQueries"></div>
+
+            <div class="query-area">
+                <input type="text" class="query-input" id="queryInput"
+                    placeholder="e.g. What is the password policy requirement?">
+                <button class="btn btn-primary" onclick="runRetrieval()">Search</button>
+            </div>
+
+            <div style="display:flex;align-items:center;gap:14px;margin-bottom:4px;flex-wrap:wrap;">
+                <span style="font-size:0.78rem;color:var(--text-muted);">Top-K:</span>
+                <div class="topk-options" id="topkOptions">
+                    <button class="topk-btn" onclick="setTopK(3,this)">K = 3</button>
+                    <button class="topk-btn active" onclick="setTopK(5,this)">K = 5</button>
+                    <button class="topk-btn" onclick="setTopK(10,this)">K = 10</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="card" id="retrievalResults" style="display:none;">
+            <div class="card-title">Retrieval Results</div>
+            <div class="card-sub" id="retrievalMeta"></div>
+            <div class="retrieval-list" id="retrievalList"></div>
+            <div class="callout callout-warning" id="retrievalInsight" style="margin-bottom:0;"></div>
+        </div>
+
+        <div class="stage-nav">
+            <button class="btn btn-secondary" onclick="goToStage(3)">&larr; Back</button>
+            <button class="btn btn-primary" id="stage4Next" onclick="goToStage(5)" disabled>
+                Generate Response &rarr;
+            </button>
+        </div>
+    </div>
+
+    <!-- ======================================================
+         STAGE 5: Generation
+    ====================================================== -->
+    <div class="stage-panel" id="stage-5">
+        <div class="stage-header">
+            <div class="stage-num">5</div>
+            <div class="stage-meta">
+                <h2>Response Generation</h2>
+                <p>Compare grounded RAG output against hallucinated baseline</p>
+            </div>
+        </div>
+
+        <div class="callout callout-info">
+            The retrieved chunks are injected into the LLM system prompt as context. The model is
+            instructed to answer only from that context. Compare the RAG response (grounded) with
+            a baseline response that has no retrieval (prone to hallucination).
+        </div>
+
+        <div class="card">
+            <div class="card-title">Constructed Prompt</div>
+            <div class="card-sub">This is what gets sent to the language model.</div>
+            <div class="prompt-preview" id="promptPreview">Run a retrieval in Stage 4 first.</div>
+        </div>
+
+        <div class="card">
+            <button class="btn btn-primary" id="genBtn" onclick="generateResponses()" style="margin-bottom:16px;">
+                Generate Responses
+            </button>
+            <div class="gen-layout" id="genLayout" style="display:none;">
+                <div class="gen-box">
+                    <div class="gen-box-title rag-title">WITH RAG (Grounded)</div>
+                    <div class="gen-response" id="ragResponse"></div>
+                </div>
+                <div class="gen-box">
+                    <div class="gen-box-title norag-title">WITHOUT RAG (Baseline)</div>
+                    <div class="gen-response" id="noragResponse"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card" id="evalCard" style="display:none;">
+            <div class="card-title">Evaluate the RAG Response</div>
+            <div class="card-sub">Check each criterion that the RAG response satisfies:</div>
+            <div class="eval-list" id="evalList"></div>
+            <button class="btn btn-success" id="evalSubmit" onclick="submitEval()">Submit Evaluation</button>
+        </div>
+
+        <div class="stage-nav">
+            <button class="btn btn-secondary" onclick="goToStage(4)">&larr; Back</button>
+            <button class="btn btn-primary" id="stage5Next" onclick="goToStage(6)" disabled>
+                Optimization Challenge &rarr;
+            </button>
+        </div>
+    </div>
+
+    <!-- ======================================================
+         STAGE 6: Optimization Challenge
+    ====================================================== -->
+    <div class="stage-panel" id="stage-6">
+        <div class="stage-header">
+            <div class="stage-num">6</div>
+            <div class="stage-meta">
+                <h2>Optimization Challenge</h2>
+                <p>Tune chunk size, overlap, top-K, and temperature to maximize answer quality</p>
+            </div>
+        </div>
+
+        <div class="callout callout-warning">
+            There is no single best configuration. Different query types favor different settings.
+            Factual lookups need small precise chunks. Summarization needs large chunks with
+            higher K. Adjust the controls and run all 5 questions to see your accuracy score.
+        </div>
+
+        <div class="card">
+            <div class="card-title">Pipeline Tuning Controls</div>
+            <div class="settings-row">
+                <div class="setting-group">
+                    <label class="setting-label">CHUNK SIZE</label>
+                    <select class="setting-select" id="optChunkSize">
+                        <option value="128">128 tokens</option>
+                        <option value="256" selected>256 tokens</option>
+                        <option value="512">512 tokens</option>
+                    </select>
+                </div>
+                <div class="setting-group">
+                    <label class="setting-label">OVERLAP</label>
+                    <select class="setting-select" id="optOverlap">
+                        <option value="0">0 tokens</option>
+                        <option value="64" selected>64 tokens</option>
+                        <option value="128">128 tokens</option>
+                    </select>
+                </div>
+                <div class="setting-group">
+                    <label class="setting-label">TOP-K</label>
+                    <select class="setting-select" id="optTopK">
+                        <option value="3">K = 3</option>
+                        <option value="5" selected>K = 5</option>
+                        <option value="10">K = 10</option>
+                    </select>
+                </div>
+                <div class="setting-group">
+                    <label class="setting-label">TEMPERATURE: <span id="tempVal">0.2</span></label>
+                    <div class="slider-row">
+                        <input type="range" min="0" max="1" step="0.1" value="0.2" id="optTemp"
+                            oninput="document.getElementById('tempVal').textContent = this.value">
+                    </div>
+                </div>
+            </div>
+            <button class="btn btn-primary" onclick="runOptimization()" style="margin-top:6px;">
+                Run All Questions
+            </button>
+        </div>
+
+        <div class="card" id="optResultsCard" style="display:none;">
+            <div class="card-title">Question Results</div>
+            <div class="opt-grid" id="optGrid"></div>
+            <div class="callout callout-success" id="optSummary"></div>
+        </div>
+
+        <div class="card" id="optInsightCard" style="display:none;">
+            <div class="card-title">What Did You Learn?</div>
+            <div style="font-size:0.85rem;line-height:1.7;color:var(--text-muted);" id="optInsight"></div>
+        </div>
+
+        <div class="stage-nav">
+            <button class="btn btn-secondary" onclick="goToStage(5)">&larr; Back</button>
+            <button class="btn btn-success" id="stage6Complete" onclick="completeLab()" disabled>
+                Complete Lab
+            </button>
+        </div>
+    </div>
+
+    <!-- ======================================================
+         COMPLETION
+    ====================================================== -->
+    <div class="completion-banner" id="completionBanner">
+        <div class="completion-icon">&#x1F3C6;</div>
+        <h1 class="completion-title">Pipeline Complete</h1>
+        <p class="completion-sub">
+            You built a full RAG pipeline from ingestion through optimization. You understand how
+            chunk size, overlap, top-K, and retrieval quality shape LLM output grounding.
+        </p>
+        <div class="score-summary" id="finalScoreSummary"></div>
+        <br>
+        <button class="btn btn-success" onclick="finishLab()">
+            &#x2713; Mark Complete &amp; Return to House
+        </button>
+    </div>
+
+</div><!-- /container -->
+
+<script>
+    // =========================================================
+    // DATA: Security Policy Document Library
+    // =========================================================
+    const DOCS = [
+        {
+            id: 'pwd',
+            name: 'Password Policy',
+            icon: '&#x1F510;',
+            color: '#a855f7',
+            desc: 'Authentication requirements',
+            tokens: 420,
+            paragraphs: [
+                'All user accounts must have passwords of at least 14 characters. Passwords must contain uppercase letters, lowercase letters, numbers, and at least one special character. Common dictionary words and patterns are prohibited.',
+                'Password rotation is required every 90 days for standard users and every 30 days for privileged accounts. Previous 12 passwords cannot be reused. Multi-factor authentication is mandatory for all remote access sessions.',
+                'Account lockout triggers after 5 consecutive failed login attempts. Lockout duration is 30 minutes for standard users and requires administrator intervention for privileged accounts. All lockout events must be logged to the SIEM.',
+                'Service accounts must use certificate-based authentication where supported. Shared accounts are prohibited except for emergency break-glass scenarios. All shared account usage must be justified and logged within 4 hours.'
+            ]
+        },
+        {
+            id: 'data',
+            name: 'Data Classification',
+            icon: '&#x1F4C2;',
+            color: '#38bdf8',
+            desc: 'Data handling and labeling',
+            tokens: 390,
+            paragraphs: [
+                'All organizational data must be classified into one of four tiers: Public, Internal, Confidential, or Restricted. Classification is assigned by the data owner at creation time and must be reviewed annually.',
+                'Restricted data includes PII, PCI-DSS card data, PHI, and trade secrets. Restricted data must be encrypted at rest using AES-256 and in transit using TLS 1.3 or higher. Access is limited to personnel with documented business need.',
+                'Internal data covers operational documents, internal communications, and non-sensitive business records. This tier requires basic access controls and must not be shared on public channels without explicit approval from a data steward.',
+                'Data retention periods are defined per classification: Public data is retained indefinitely, Internal for 5 years, Confidential for 7 years, and Restricted for the longer of regulatory requirement or 10 years.'
+            ]
+        },
+        {
+            id: 'ir',
+            name: 'Incident Response',
+            icon: '&#x1F6A8;',
+            color: '#ef4444',
+            desc: 'IR procedures and SLAs',
+            tokens: 450,
+            paragraphs: [
+                'All suspected security incidents must be reported to the Security Operations Center within 1 hour of detection. Initial triage must be completed within 4 hours. Critical incidents involving data exfiltration or ransomware require immediate executive notification.',
+                'Incidents are categorized by severity from P1 (critical) to P4 (informational). P1 incidents require continuous 24/7 response until containment. P2 incidents must be contained within 8 business hours. P3 and P4 incidents follow standard SLA of 5 business days.',
+                'Forensic evidence must be collected before any remediation actions are taken on compromised systems. Chain of custody documentation is mandatory. Memory captures, disk images, and log exports must be stored in the designated forensic evidence repository.',
+                'Post-incident reviews are required for all P1 and P2 events within 72 hours of closure. Reviews must include root cause analysis, timeline reconstruction, detection gaps, and a remediation action plan with owners and due dates.'
+            ]
+        },
+        {
+            id: 'net',
+            name: 'Network Security',
+            icon: '&#x1F5A7;',
+            color: '#22c55e',
+            desc: 'Network controls and segmentation',
+            tokens: 410,
+            paragraphs: [
+                'All network traffic must traverse centrally managed firewalls. Default deny rules are enforced on all perimeter and internal segment boundaries. Any exception requires written justification, risk owner approval, and a defined expiration date.',
+                'Network segments are defined based on data classification and system criticality. Production, development, and management networks are strictly isolated. Lateral movement between segments requires explicit firewall rules with time-bounded access.',
+                'All remote access must use organization-approved VPN with split-tunnel disabled. VPN sessions expire after 8 hours of idle time. Personal devices must pass endpoint compliance checks before VPN access is granted.',
+                'DNS traffic from internal hosts must route through internal resolvers only. DNS-over-HTTPS is blocked at the perimeter. All DNS queries are logged and retained for 90 days. Anomalous domain query patterns trigger automated SOC alerts.'
+            ]
+        },
+        {
+            id: 'patch',
+            name: 'Vulnerability Management',
+            icon: '&#x1F6E1;',
+            color: '#f59e0b',
+            desc: 'Patching timelines and scanning',
+            tokens: 380,
+            paragraphs: [
+                'All production systems must be scanned for vulnerabilities on a weekly basis using authenticated scans. Critical-severity findings must be remediated within 7 days of detection. High-severity findings have a 30-day SLA. Medium findings must be resolved within 90 days.',
+                'Patch management follows a phased rollout: development environment receives patches within 48 hours of release. Staging receives patches after 72 hours of validated development deployment. Production patching occurs within the defined maintenance window.',
+                'Zero-day vulnerabilities and CISA KEV entries require emergency patching regardless of maintenance windows. Emergency changes require CISO approval and must be completed within 24 hours of the organization being made aware of active exploitation.',
+                'Exceptions to patching SLAs must be documented with a risk acceptance signed by the asset owner and CISO. Exception records include compensating controls, residual risk rating, and a maximum exception duration of 90 days.'
+            ]
+        }
+    ];
+
+    // =========================================================
+    // DATA: Preset queries for Stage 4
+    // =========================================================
+    const PRESET_QUERIES = [
+        'What is the password rotation requirement?',
+        'How are P1 incidents handled?',
+        'What encryption standard is required for restricted data?',
+        'What is the critical vulnerability patching SLA?',
+        'What happens after 5 failed login attempts?'
+    ];
+
+    // =========================================================
+    // DATA: Optimization challenge questions
+    // =========================================================
+    const OPT_QUESTIONS = [
+        {
+            q: 'What is the minimum password length?',
+            ideal: { chunkSize: '128', overlap: '0', topK: '3', tempMax: 0.3 },
+            type: 'factual',
+            answer: '14 characters'
+        },
+        {
+            q: 'Describe the full data lifecycle from classification to retention.',
+            ideal: { chunkSize: '512', overlap: '128', topK: '10', tempMax: 0.5 },
+            type: 'summary',
+            answer: 'Four tiers, retention 5-10 years per class'
+        },
+        {
+            q: 'What is the SLA for patching CISA KEV entries?',
+            ideal: { chunkSize: '128', overlap: '64', topK: '3', tempMax: 0.3 },
+            type: 'factual',
+            answer: '24 hours'
+        },
+        {
+            q: 'How are network access exceptions approved and managed?',
+            ideal: { chunkSize: '256', overlap: '64', topK: '5', tempMax: 0.4 },
+            type: 'procedural',
+            answer: 'Written justification, risk owner, expiration date'
+        },
+        {
+            q: 'What are the forensic evidence requirements during an incident?',
+            ideal: { chunkSize: '256', overlap: '64', topK: '5', tempMax: 0.4 },
+            type: 'procedural',
+            answer: 'Collected before remediation, chain of custody mandatory'
+        }
+    ];
+
+    // =========================================================
+    // RAG Generation templates (simulated)
+    // =========================================================
+    const RAG_RESPONSES = {
+        'password': '<strong>Password policy requirements:</strong> Passwords must be at least 14 characters and include uppercase, lowercase, numbers, and a special character. Rotation is required every 90 days for standard users and every 30 days for privileged accounts. MFA is mandatory for remote access. <span class="citation">[Source: Password Policy, para. 1-2]</span>',
+        'incident': '<strong>P1 incident handling:</strong> P1 incidents require continuous 24/7 response until containment. Executive notification is immediate for exfiltration or ransomware. Post-incident review is required within 72 hours of closure, including root cause analysis and remediation action plan. <span class="citation">[Source: Incident Response Policy, para. 2, 4]</span>',
+        'encryption': '<strong>Restricted data encryption:</strong> Restricted data must be encrypted at rest using AES-256 and in transit using TLS 1.3 or higher. Access is limited to personnel with documented business need. <span class="citation">[Source: Data Classification Policy, para. 2]</span>',
+        'patching': '<strong>Critical vulnerability SLA:</strong> Critical-severity findings must be remediated within 7 days of detection. CISA KEV entries require emergency patching within 24 hours regardless of maintenance windows, with CISO approval. <span class="citation">[Source: Vulnerability Management Policy, para. 1, 3]</span>',
+        'lockout': '<strong>Account lockout policy:</strong> Account lockout triggers after 5 consecutive failed login attempts. Standard users are locked for 30 minutes. Privileged account lockout requires administrator intervention. All lockout events are logged to the SIEM. <span class="citation">[Source: Password Policy, para. 3]</span>',
+        'default': 'Based on the retrieved policy documents, the relevant sections cover access controls, data handling requirements, and incident response procedures. The retrieved context provides grounded guidance specific to your query. <span class="citation">[Source: Multiple policy documents]</span>'
+    };
+
+    const NORAG_RESPONSES = {
+        'password': 'Password policies typically require at least <span class="hallucination">8 characters</span> and complexity rules. Rotation is often every <span class="hallucination">6 months</span>. MFA is <span class="hallucination">optional in most enterprise environments</span>. Best practice suggests using a password manager.',
+        'incident': 'Incident response generally follows the NIST framework: Prepare, Detect, Contain, Eradicate, Recover. P1 incidents should be resolved <span class="hallucination">within 24 hours typically</span>. <span class="hallucination">Most organizations do not require executive notification unless a breach is confirmed</span>.',
+        'encryption': 'Sensitive data should generally be encrypted. <span class="hallucination">AES-128 is sufficient for most use cases</span>. TLS <span class="hallucination">1.2 is widely accepted</span> as the current standard for data in transit. Access controls depend on organizational policy.',
+        'patching': 'Critical patches should generally be applied <span class="hallucination">within 30 days</span> per industry standards. <span class="hallucination">CISA KEV entries follow the same SLA as other critical findings</span>. Emergency patching is rare and usually reserved for active attacks.',
+        'lockout': 'Account lockout is a common security control. Typical thresholds are <span class="hallucination">3 to 10 attempts</span> depending on risk appetite. <span class="hallucination">Lockout periods of 15 minutes</span> are standard. Not all lockout events require logging in smaller environments.',
+        'default': '<span class="hallucination">Based on general best practices</span>, organizations typically handle this through standard security frameworks. The specific policy details you\'re asking about <span class="hallucination">are usually documented in InfoSec policies that vary widely by organization</span>.'
+    };
+
+    // =========================================================
+    // STATE
+    // =========================================================
+    const state = {
+        currentStage: 1,
+        completedStages: new Set(),
+        selectedDocs: new Set(),
+        chunks: [],
+        embedPoints: [],
+        embedDone: false,
+        topK: 5,
+        lastQuery: '',
+        lastRetrievedChunks: [],
+        evalChecked: 0,
+        optScore: 0,
+        optRuns: 0
+    };
+
+    // =========================================================
+    // STAGE RAIL
+    // =========================================================
+    const STAGE_LABELS = [
+        'Ingest', 'Chunk', 'Embed', 'Retrieve', 'Generate', 'Optimize'
+    ];
+
+    function buildRail() {
+        const rail = document.getElementById('stageRail');
+        rail.innerHTML = '';
+        STAGE_LABELS.forEach((label, i) => {
+            const num = i + 1;
+            const isDone = state.completedStages.has(num);
+            const isActive = state.currentStage === num;
+
+            const step = document.createElement('div');
+            step.className = 'rail-step';
+
+            const dot = document.createElement('div');
+            dot.className = 'rail-dot' + (isActive ? ' active' : '') + (isDone ? ' done' : '');
+            dot.textContent = isDone ? '✓' : num;
+            dot.onclick = () => { if (isDone || num <= state.currentStage) goToStage(num); };
+
+            const lbl = document.createElement('div');
+            lbl.className = 'rail-label' + (isActive ? ' active' : '') + (isDone ? ' done' : '');
+            lbl.textContent = label;
+
+            step.appendChild(dot);
+            step.appendChild(lbl);
+            rail.appendChild(step);
+
+            if (i < STAGE_LABELS.length - 1) {
+                const conn = document.createElement('div');
+                conn.className = 'rail-connector' + (isDone ? ' done' : '');
+                rail.appendChild(conn);
+            }
+        });
+    }
+
+    function goToStage(n) {
+        if (n > 6) return;
+        // Mark current as completed when advancing
+        if (n > state.currentStage) {
+            state.completedStages.add(state.currentStage);
+        }
+        state.currentStage = n;
+
+        document.querySelectorAll('.stage-panel').forEach(p => p.classList.remove('active'));
+        const target = document.getElementById('stage-' + n);
+        if (target) target.classList.add('active');
+
+        document.getElementById('currentStageLabel').textContent = n;
+        buildRail();
+
+        // Stage-specific setup on entry
+        if (n === 2) { renderChunks(); }
+        if (n === 3) { drawEmbedding(); }
+        if (n === 5) { buildPromptPreview(); }
+    }
+
+    // =========================================================
+    // STAGE 1: Document Ingestion
+    // =========================================================
+    function buildDocGrid() {
+        const grid = document.getElementById('docGrid');
+        DOCS.forEach(doc => {
+            const card = document.createElement('div');
+            card.className = 'doc-card';
+            card.id = 'doc-' + doc.id;
+            card.innerHTML = `
+                <span class="doc-icon">${doc.icon}</span>
+                <div class="doc-name">${doc.name}</div>
+                <div class="doc-desc">${doc.desc}</div>
+            `;
+            card.onclick = () => toggleDoc(doc.id, card);
+            grid.appendChild(card);
+        });
+    }
+
+    function toggleDoc(id, card) {
+        if (state.selectedDocs.has(id)) {
+            state.selectedDocs.delete(id);
+            card.classList.remove('selected');
+        } else {
+            state.selectedDocs.add(id);
+            card.classList.add('selected');
+        }
+        updateIngestVisual();
+    }
+
+    function updateIngestVisual() {
+        const visual = document.getElementById('ingestVisual');
+        const placeholder = visual.querySelector('.ingest-placeholder');
+        const selected = Array.from(state.selectedDocs);
+
+        // Remove old pills (keep label and placeholder)
+        visual.querySelectorAll('.ingest-doc-pill').forEach(p => p.remove());
+
+        if (selected.length === 0) {
+            if (placeholder) placeholder.style.display = 'block';
+        } else {
+            if (placeholder) placeholder.style.display = 'none';
+            selected.forEach(id => {
+                const doc = DOCS.find(d => d.id === id);
+                const pill = document.createElement('div');
+                pill.className = 'ingest-doc-pill';
+                pill.style.background = doc.color + '22';
+                pill.style.border = '1px solid ' + doc.color + '55';
+                pill.style.color = doc.color;
+                pill.innerHTML = doc.icon + ' ' + doc.name;
+                visual.appendChild(pill);
+            });
+        }
+
+        // Update stats
+        const totalTokens = selected.reduce((s, id) => s + (DOCS.find(d => d.id === id)?.tokens || 0), 0);
+        const totalParas = selected.reduce((s, id) => s + (DOCS.find(d => d.id === id)?.paragraphs.length || 0), 0);
+        document.getElementById('docCount').textContent = selected.length;
+        document.getElementById('tokenCount').textContent = totalTokens.toLocaleString();
+        document.getElementById('paraCount').textContent = totalParas;
+
+        // Enable next button at 3+ docs
+        document.getElementById('stage1Next').disabled = selected.length < 3;
+    }
+
+    // =========================================================
+    // STAGE 2: Chunking
+    // =========================================================
+    // Chunk color palette (cycling by document source)
+    const CHUNK_COLORS = [
+        ['#a855f7', '#7c3aed'],
+        ['#38bdf8', '#0284c7'],
+        ['#ef4444', '#b91c1c'],
+        ['#22c55e', '#16a34a'],
+        ['#f59e0b', '#d97706']
+    ];
+
+    function renderChunks() {
+        const chunkSize = parseInt(document.getElementById('chunkSize').value);
+        const overlap = parseInt(document.getElementById('chunkOverlap').value);
+
+        state.chunks = [];
+        let colorIdx = 0;
+
+        Array.from(state.selectedDocs).forEach(id => {
+            const doc = DOCS.find(d => d.id === id);
+            const color = CHUNK_COLORS[colorIdx % CHUNK_COLORS.length];
+            colorIdx++;
+
+            // Simulate splitting paragraphs into chunks based on size
+            doc.paragraphs.forEach((para, pIdx) => {
+                // Approximate paragraph into segments based on chunk size
+                const words = para.split(' ');
+                const wordsPerChunk = Math.max(5, Math.round(chunkSize / 5));
+                const overlapWords = Math.round(overlap / 5);
+
+                let start = 0;
+                while (start < words.length) {
+                    const end = Math.min(start + wordsPerChunk, words.length);
+                    const chunkText = words.slice(start, end).join(' ');
+                    state.chunks.push({
+                        text: chunkText,
+                        docId: id,
+                        docName: doc.name,
+                        color: color,
+                        hasOverlap: overlap > 0 && start > 0,
+                        paraIdx: pIdx
+                    });
+                    if (end === words.length) break;
+                    start = end - overlapWords;
+                    if (start <= 0) start = end; // prevent infinite loop on 0 overlap
+                }
+            });
+        });
+
+        renderChunkDisplay(chunkSize, overlap);
+        updateChunkAdvice(chunkSize, overlap);
+    }
+
+    function renderChunkDisplay(chunkSize, overlap) {
+        const display = document.getElementById('chunkDisplay');
+        display.innerHTML = '';
+
+        state.chunks.forEach((chunk, i) => {
+            const pill = document.createElement('div');
+            pill.className = 'chunk-pill';
+            pill.style.background = chunk.color[0] + '18';
+            pill.style.border = '1px solid ' + chunk.color[0] + '44';
+            pill.style.color = chunk.color[0];
+            pill.textContent = chunk.text.length > 55 ? chunk.text.slice(0, 55) + '...' : chunk.text;
+            pill.title = chunk.docName + ': ' + chunk.text;
+
+            if (chunk.hasOverlap) {
+                const dot = document.createElement('div');
+                dot.className = 'overlap-indicator';
+                dot.title = 'Overlaps with previous chunk';
+                pill.appendChild(dot);
+            }
+
+            display.appendChild(pill);
+        });
+
+        // Stats
+        const overlapRatio = overlap > 0 ? Math.round((overlap / chunkSize) * 100) : 0;
+        document.getElementById('totalChunks').textContent = state.chunks.length;
+        document.getElementById('avgChunkSize').textContent = chunkSize;
+        document.getElementById('overlapRatio').textContent = overlapRatio + '%';
+    }
+
+    function updateChunkAdvice(chunkSize, overlap) {
+        const advice = document.getElementById('chunkAdvice');
+        let msg = '';
+        if (chunkSize === 128) {
+            msg = 'Small chunks (128 tokens): Good for precise fact retrieval. Risk: sentence fragments lose surrounding context, hurting comprehension. Best for FAQ-style queries.';
+        } else if (chunkSize === 256) {
+            msg = 'Balanced chunks (256 tokens): The most versatile setting. Enough context to answer procedural questions while remaining precise enough for factual lookups.';
+        } else {
+            msg = 'Large chunks (512 tokens): Better for summarization and multi-step reasoning. Risk: a single retrieved chunk may contain multiple topics, reducing retrieval precision.';
+        }
+        if (overlap > 0) {
+            msg += ' Overlap (' + overlap + ' tokens) reduces the risk of splitting a fact across chunk boundaries.';
+        }
+        advice.textContent = msg;
+    }
+
+    // =========================================================
+    // STAGE 3: Embedding (Canvas scatter plot)
+    // =========================================================
+    // Assign semantic cluster positions per document
+    const DOC_CLUSTER_CENTERS = {
+        pwd:   { x: 0.20, y: 0.25 },
+        data:  { x: 0.75, y: 0.20 },
+        ir:    { x: 0.80, y: 0.70 },
+        net:   { x: 0.25, y: 0.75 },
+        patch: { x: 0.55, y: 0.50 }
+    };
+
+    function buildEmbedPoints() {
+        state.embedPoints = [];
+        state.chunks.forEach((chunk, i) => {
+            const center = DOC_CLUSTER_CENTERS[chunk.docId] || { x: 0.5, y: 0.5 };
+            // Scatter around cluster center
+            const angle = (i * 137.5 * Math.PI) / 180; // golden angle for spread
+            const r = 0.05 + Math.random() * 0.10;
+            state.embedPoints.push({
+                x: Math.min(0.95, Math.max(0.05, center.x + Math.cos(angle) * r)),
+                y: Math.min(0.95, Math.max(0.05, center.y + Math.sin(angle) * r)),
+                color: chunk.color[0],
+                text: chunk.text,
+                docName: chunk.docName,
+                retrieved: false
+            });
+        });
+    }
+
+    function drawEmbedding() {
+        if (state.chunks.length === 0) renderChunks();
+
+        const canvas = document.getElementById('embeddingCanvas');
+        const ctx = canvas.getContext('2d');
+        const W = canvas.width;
+        const H = canvas.height;
+
+        buildEmbedPoints();
+
+        ctx.clearRect(0, 0, W, H);
+
+        // Background grid
+        ctx.strokeStyle = 'rgba(255,255,255,0.04)';
+        ctx.lineWidth = 1;
+        for (let x = 0; x <= W; x += 50) {
+            ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke();
+        }
+        for (let y = 0; y <= H; y += 50) {
+            ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke();
+        }
+
+        // Axis labels
+        ctx.fillStyle = 'rgba(136,146,164,0.6)';
+        ctx.font = '11px system-ui';
+        ctx.fillText('Dimension 1 (projected)', W / 2 - 60, H - 8);
+        ctx.save();
+        ctx.translate(12, H / 2 + 50);
+        ctx.rotate(-Math.PI / 2);
+        ctx.fillText('Dimension 2 (projected)', 0, 0);
+        ctx.restore();
+
+        // Draw cluster hulls (rough convex areas)
+        const docGroups = {};
+        state.embedPoints.forEach((pt, i) => {
+            const chunk = state.chunks[i];
+            if (!docGroups[chunk.docId]) docGroups[chunk.docId] = [];
+            docGroups[chunk.docId].push(pt);
+        });
+
+        Object.values(docGroups).forEach(pts => {
+            if (pts.length < 2) return;
+            const color = pts[0].color;
+            const cx = pts.reduce((s, p) => s + p.x * W, 0) / pts.length;
+            const cy = pts.reduce((s, p) => s + p.y * H, 0) / pts.length;
+            const maxR = Math.max(...pts.map(p => Math.hypot(p.x * W - cx, p.y * H - cy))) + 18;
+
+            const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, maxR);
+            grad.addColorStop(0, color + '18');
+            grad.addColorStop(1, 'transparent');
+            ctx.beginPath();
+            ctx.arc(cx, cy, maxR, 0, Math.PI * 2);
+            ctx.fillStyle = grad;
+            ctx.fill();
+        });
+
+        // Draw points
+        state.embedPoints.forEach(pt => {
+            const px = pt.x * W;
+            const py = pt.y * H;
+            const radius = pt.retrieved ? 8 : 5;
+
+            // Glow
+            if (pt.retrieved) {
+                const glow = ctx.createRadialGradient(px, py, 0, px, py, 14);
+                glow.addColorStop(0, '#a855f744');
+                glow.addColorStop(1, 'transparent');
+                ctx.beginPath();
+                ctx.arc(px, py, 14, 0, Math.PI * 2);
+                ctx.fillStyle = glow;
+                ctx.fill();
+            }
+
+            ctx.beginPath();
+            ctx.arc(px, py, radius, 0, Math.PI * 2);
+            ctx.fillStyle = pt.color + (pt.retrieved ? 'ff' : 'cc');
+            ctx.fill();
+
+            if (pt.retrieved) {
+                ctx.strokeStyle = '#ffffff88';
+                ctx.lineWidth = 1.5;
+                ctx.stroke();
+            }
+        });
+
+        document.getElementById('embedStats').style.display = 'block';
+        document.getElementById('embedCount').textContent = state.embedPoints.length;
+        document.getElementById('embedSim').textContent = (0.78 + Math.random() * 0.10).toFixed(2);
+
+        state.embedDone = true;
+        document.getElementById('stage3Next').disabled = false;
+
+        buildScatterLegend();
+        attachCanvasHover();
+    }
+
+    function buildScatterLegend() {
+        const legend = document.getElementById('scatterLegend');
+        legend.innerHTML = '';
+        const seen = new Set();
+        state.chunks.forEach((chunk, i) => {
+            if (seen.has(chunk.docId)) return;
+            seen.add(chunk.docId);
+            const doc = DOCS.find(d => d.id === chunk.docId);
+            const item = document.createElement('div');
+            item.className = 'legend-item';
+            item.innerHTML = `<div class="legend-dot" style="background:${chunk.color[0]}"></div>${doc.name}`;
+            legend.appendChild(item);
+        });
+    }
+
+    function attachCanvasHover() {
+        const canvas = document.getElementById('embeddingCanvas');
+        const tooltip = document.getElementById('scatterTooltip');
+
+        canvas.onmousemove = (e) => {
+            const rect = canvas.getBoundingClientRect();
+            const scaleX = canvas.width / rect.width;
+            const scaleY = canvas.height / rect.height;
+            const mx = (e.clientX - rect.left) * scaleX;
+            const my = (e.clientY - rect.top) * scaleY;
+
+            let closest = null;
+            let closestDist = Infinity;
+            state.embedPoints.forEach((pt, i) => {
+                const dist = Math.hypot(pt.x * canvas.width - mx, pt.y * canvas.height - my);
+                if (dist < closestDist) { closestDist = dist; closest = { pt, i }; }
+            });
+
+            if (closest && closestDist < 20) {
+                tooltip.style.display = 'block';
+                tooltip.style.left = (e.clientX + 14) + 'px';
+                tooltip.style.top = (e.clientY - 10) + 'px';
+                tooltip.innerHTML = `<strong style="color:${closest.pt.color}">${closest.pt.docName}</strong><br>${closest.pt.text.slice(0, 120)}${closest.pt.text.length > 120 ? '...' : ''}`;
+            } else {
+                tooltip.style.display = 'none';
+            }
+        };
+
+        canvas.onmouseleave = () => { tooltip.style.display = 'none'; };
+    }
+
+    function runEmbedding() {
+        // Brief loading state
+        const btn = document.querySelector('#stage-3 .btn-primary');
+        btn.textContent = 'Embedding';
+        btn.disabled = true;
+        btn.innerHTML = 'Embedding <span class="loading-dots"><span></span><span></span><span></span></span>';
+
+        setTimeout(() => {
+            drawEmbedding();
+            btn.innerHTML = 'Re-run Embedding';
+            btn.disabled = false;
+        }, 900);
+    }
+
+    // =========================================================
+    // STAGE 4: Query & Retrieval
+    // =========================================================
+    function buildPresetQueries() {
+        const container = document.getElementById('presetQueries');
+        PRESET_QUERIES.forEach(q => {
+            const btn = document.createElement('button');
+            btn.className = 'btn btn-secondary';
+            btn.style.fontSize = '0.75rem';
+            btn.style.padding = '6px 12px';
+            btn.textContent = q;
+            btn.onclick = () => {
+                document.getElementById('queryInput').value = q;
+                runRetrieval();
+            };
+            container.appendChild(btn);
+        });
+    }
+
+    function setTopK(k, btn) {
+        state.topK = k;
+        document.querySelectorAll('.topk-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+    }
+
+    function runRetrieval() {
+        const query = document.getElementById('queryInput').value.trim();
+        if (!query) return;
+        state.lastQuery = query;
+
+        // Determine query key for response templates
+        const ql = query.toLowerCase();
+        let qKey = 'default';
+        if (ql.includes('password') || ql.includes('lockout') || ql.includes('login')) qKey = ql.includes('lockout') || ql.includes('failed') ? 'lockout' : 'password';
+        if (ql.includes('incident') || ql.includes('p1') || ql.includes('p2')) qKey = 'incident';
+        if (ql.includes('encrypt') || ql.includes('restricted') || ql.includes('classification')) qKey = 'encryption';
+        if (ql.includes('patch') || ql.includes('cisa') || ql.includes('vulnerab')) qKey = 'patching';
+        if (ql.includes('lockout') || ql.includes('failed')) qKey = 'lockout';
+        state.lastQueryKey = qKey;
+
+        // Simulate cosine similarity scores
+        const scored = state.chunks.map((chunk, i) => {
+            // Bias score toward relevant document for keyword matches
+            const relevantDocIds = getRelevantDocIds(ql);
+            const baseScore = relevantDocIds.includes(chunk.docId)
+                ? 0.65 + Math.random() * 0.30
+                : 0.15 + Math.random() * 0.35;
+            return { chunk, idx: i, score: Math.min(0.99, baseScore) };
+        });
+
+        scored.sort((a, b) => b.score - a.score);
+        const topK = scored.slice(0, state.topK);
+
+        // Mark retrieved on embed points
+        state.embedPoints.forEach(pt => pt.retrieved = false);
+        topK.forEach(item => {
+            if (state.embedPoints[item.idx]) state.embedPoints[item.idx].retrieved = true;
+        });
+
+        if (state.embedDone) drawEmbedding();
+
+        state.lastRetrievedChunks = topK;
+        renderRetrievalResults(topK, query);
+        document.getElementById('stage4Next').disabled = false;
+    }
+
+    function getRelevantDocIds(query) {
+        if (query.includes('password') || query.includes('lockout') || query.includes('mfa') || query.includes('login') || query.includes('failed')) return ['pwd'];
+        if (query.includes('data') || query.includes('classif') || query.includes('encrypt') || query.includes('restricted') || query.includes('retention')) return ['data'];
+        if (query.includes('incident') || query.includes('p1') || query.includes('forensic') || query.includes('sla')) return ['ir'];
+        if (query.includes('network') || query.includes('vpn') || query.includes('firewall') || query.includes('dns')) return ['net'];
+        if (query.includes('patch') || query.includes('vulner') || query.includes('cisa') || query.includes('remedia')) return ['patch'];
+        return [];
+    }
+
+    function renderRetrievalResults(topK, query) {
+        const card = document.getElementById('retrievalResults');
+        const list = document.getElementById('retrievalList');
+        const meta = document.getElementById('retrievalMeta');
+        const insight = document.getElementById('retrievalInsight');
+
+        card.style.display = 'block';
+        meta.textContent = `Retrieved ${topK.length} chunks from ${state.chunks.length} total for query: "${query}"`;
+        list.innerHTML = '';
+
+        const rankColors = ['#f59e0b', '#94a3b8', '#cd7f32'];
+
+        topK.forEach((item, rank) => {
+            const isTop = rank < 3;
+            const div = document.createElement('div');
+            div.className = 'retrieval-item' + (isTop ? ' highlighted' : '');
+
+            const rankBadge = document.createElement('div');
+            rankBadge.className = 'rank-badge';
+            rankBadge.style.background = rankColors[rank] ? rankColors[rank] + '22' : 'rgba(255,255,255,0.06)';
+            rankBadge.style.color = rankColors[rank] || 'var(--text-muted)';
+            rankBadge.style.border = '1px solid ' + (rankColors[rank] || 'rgba(255,255,255,0.1)');
+            rankBadge.textContent = '#' + (rank + 1);
+
+            const scoreWrap = document.createElement('div');
+            scoreWrap.className = 'score-bar-wrap';
+            scoreWrap.innerHTML = `
+                <div class="score-bar" style="width:${Math.round(item.score * 100)}%"></div>
+                <div class="score-val">sim: ${item.score.toFixed(3)}</div>
+            `;
+
+            const text = document.createElement('div');
+            text.className = 'retrieval-text' + (isTop ? ' selected' : '');
+            text.innerHTML = `<strong style="color:var(--text-muted);font-size:0.68rem;">${item.chunk.docName}</strong><br>${item.chunk.text.slice(0, 130)}${item.chunk.text.length > 130 ? '...' : ''}`;
+
+            div.appendChild(rankBadge);
+            div.appendChild(scoreWrap);
+            div.appendChild(text);
+            list.appendChild(div);
+        });
+
+        // K-specific insight
+        if (state.topK === 3) {
+            insight.textContent = 'K=3: Only the 3 most relevant chunks are used. Precise but may miss supporting context spread across other documents.';
+        } else if (state.topK === 5) {
+            insight.textContent = 'K=5: A balanced retrieval. Covers the main topic plus adjacent context, while avoiding excessive noise from lower-ranked chunks.';
+        } else {
+            insight.textContent = 'K=10: Maximum context. Useful when the answer spans multiple sections, but lower-ranked chunks (score < 0.40) may introduce irrelevant content.';
+        }
+    }
+
+    // =========================================================
+    // STAGE 5: Generation
+    // =========================================================
+    function buildPromptPreview() {
+        const preview = document.getElementById('promptPreview');
+        if (!state.lastQuery) {
+            preview.innerHTML = '<span style="color:var(--text-muted)">No query submitted yet. Go back to Stage 4 and run a search first.</span>';
+            return;
+        }
+
+        const contextSnippets = state.lastRetrievedChunks
+            .slice(0, 3)
+            .map((item, i) => `[${i + 1}] (${item.chunk.docName}) ${item.chunk.text.slice(0, 80)}...`)
+            .join('\n');
+
+        preview.innerHTML =
+            '<span class="prompt-system">SYSTEM: You are a security policy assistant. Answer ONLY from the provided context. ' +
+            'If the context does not contain the answer, say "This information is not in the provided documents." ' +
+            'Cite the source document for each claim.</span>\n\n' +
+            '<span class="prompt-context">CONTEXT:\n' + contextSnippets + '</span>\n\n' +
+            '<span class="prompt-user">USER: ' + state.lastQuery + '</span>';
+    }
+
+    function generateResponses() {
+        const btn = document.getElementById('genBtn');
+        btn.innerHTML = 'Generating <span class="loading-dots"><span></span><span></span><span></span></span>';
+        btn.disabled = true;
+
+        setTimeout(() => {
+            const qKey = state.lastQueryKey || 'default';
+            const ragResp = RAG_RESPONSES[qKey] || RAG_RESPONSES['default'];
+            const noragResp = NORAG_RESPONSES[qKey] || NORAG_RESPONSES['default'];
+
+            document.getElementById('ragResponse').innerHTML = ragResp;
+            document.getElementById('noragResponse').innerHTML = noragResp;
+
+            document.getElementById('genLayout').style.display = 'grid';
+            btn.textContent = 'Regenerate';
+            btn.disabled = false;
+
+            buildEvalChecklist();
+            document.getElementById('evalCard').style.display = 'block';
+        }, 1200);
+    }
+
+    const EVAL_CRITERIA = [
+        'The RAG response answers the question directly',
+        'The response cites a specific source document',
+        'No hallucinated statistics or thresholds appear in the RAG response',
+        'The baseline response contains at least one inaccurate claim (highlighted)',
+        'The RAG response stays within the scope of the retrieved context'
+    ];
+
+    function buildEvalChecklist() {
+        const list = document.getElementById('evalList');
+        list.innerHTML = '';
+        EVAL_CRITERIA.forEach((criterion, i) => {
+            const item = document.createElement('div');
+            item.className = 'eval-item';
+            item.innerHTML = `
+                <input type="checkbox" class="eval-check" id="eval-${i}" onchange="countEval()">
+                <label class="eval-text" for="eval-${i}">${criterion}</label>
+            `;
+            list.appendChild(item);
+        });
+    }
+
+    function countEval() {
+        state.evalChecked = document.querySelectorAll('.eval-check:checked').length;
+    }
+
+    function submitEval() {
+        if (state.evalChecked < 3) {
+            alert('Review all five criteria carefully before submitting. Check at least 3 that apply.');
+            return;
+        }
+        document.getElementById('evalSubmit').textContent = 'Evaluation Submitted';
+        document.getElementById('evalSubmit').disabled = true;
+        document.getElementById('evalSubmit').style.background = 'var(--success)';
+        document.getElementById('stage5Next').disabled = false;
+    }
+
+    // =========================================================
+    // STAGE 6: Optimization Challenge
+    // =========================================================
+    function scoreQuestion(question, chunkSize, overlap, topK, temp) {
+        // Scoring heuristic based on distance from ideal settings
+        const ideal = question.ideal;
+        let score = 100;
+
+        // Chunk size match
+        if (chunkSize !== ideal.chunkSize) score -= (chunkSize === '512' && ideal.chunkSize === '128') ? 30 : 15;
+        // Overlap match
+        if (overlap !== ideal.overlap) score -= 10;
+        // TopK match
+        if (topK !== ideal.topK) score -= (parseInt(topK) > parseInt(ideal.topK) * 2) ? 20 : 10;
+        // Temperature
+        if (parseFloat(temp) > ideal.tempMax) score -= Math.round((parseFloat(temp) - ideal.tempMax) * 40);
+
+        return Math.max(0, Math.min(100, score + Math.round(Math.random() * 10 - 5)));
+    }
+
+    function runOptimization() {
+        const chunkSize = document.getElementById('optChunkSize').value;
+        const overlap = document.getElementById('optOverlap').value;
+        const topK = document.getElementById('optTopK').value;
+        const temp = document.getElementById('optTemp').value;
+
+        state.optRuns++;
+
+        const scores = OPT_QUESTIONS.map(q => scoreQuestion(q, chunkSize, overlap, topK, temp));
+        state.optScore = Math.round(scores.reduce((a, b) => a + b, 0) / scores.length);
+
+        renderOptResults(scores, chunkSize, overlap, topK, temp);
+    }
+
+    function renderOptResults(scores, chunkSize, overlap, topK, temp) {
+        const card = document.getElementById('optResultsCard');
+        const grid = document.getElementById('optGrid');
+        const summary = document.getElementById('optSummary');
+        const insightCard = document.getElementById('optInsightCard');
+        const insight = document.getElementById('optInsight');
+
+        card.style.display = 'block';
+        grid.innerHTML = '';
+
+        scores.forEach((score, i) => {
+            const q = OPT_QUESTIONS[i];
+            const color = score >= 80 ? 'var(--success)' : score >= 60 ? 'var(--warning)' : 'var(--danger)';
+            const div = document.createElement('div');
+            div.className = 'opt-question';
+            div.innerHTML = `
+                <div class="opt-q-text"><strong>Q${i + 1}:</strong> ${q.q}</div>
+                <div style="font-size:0.7rem;color:var(--text-muted);margin-bottom:6px;">Type: ${q.type} | Ideal answer: ${q.answer}</div>
+                <div class="opt-score-row">
+                    <div class="opt-score-bar">
+                        <div class="opt-score-fill" style="width:${score}%;background:${color}"></div>
+                    </div>
+                    <div class="opt-score-val" style="color:${color}">${score}%</div>
+                </div>
+            `;
+            grid.appendChild(div);
+        });
+
+        const avgColor = state.optScore >= 80 ? 'var(--success)' : state.optScore >= 60 ? 'var(--warning)' : 'var(--danger)';
+        summary.innerHTML = `Average accuracy score: <strong style="color:${avgColor}">${state.optScore}%</strong>  (run #${state.optRuns}).
+            Settings: chunk=${chunkSize}, overlap=${overlap}, K=${topK}, temp=${temp}.`;
+
+        // Show insight after first run
+        insightCard.style.display = 'block';
+        insight.innerHTML = buildOptInsight(scores, chunkSize, overlap, topK, temp);
+
+        if (state.optScore >= 60) {
+            document.getElementById('stage6Complete').disabled = false;
+        }
+    }
+
+    function buildOptInsight(scores, chunkSize, overlap, topK, temp) {
+        const lines = [];
+        if (scores[0] < 70) lines.push('<strong>Q1 (factual lookup)</strong> — Small chunks and low K work best for single-fact retrieval. Try chunk=128, K=3.');
+        if (scores[1] < 70) lines.push('<strong>Q2 (summarization)</strong> — Broad questions need large chunks and high K to capture the full picture. Try chunk=512, K=10.');
+        if (scores[2] < 70) lines.push('<strong>Q3 (precise SLA)</strong> — Specific figures require small precise chunks. Try chunk=128, overlap=64, K=3.');
+        if (scores[3] < 70) lines.push('<strong>Q4 (procedural)</strong> — Multi-step procedures span several paragraphs. Try chunk=256, overlap=64, K=5.');
+        if (scores[4] < 70) lines.push('<strong>Q5 (forensic procedure)</strong> — Similar to procedural: chunk=256, K=5 captures sequential steps well.');
+        if (parseFloat(temp) > 0.5) lines.push('<strong>Temperature</strong> — High temperature (&gt;0.5) increases creative variation, which is harmful for factual policy questions. Keep it below 0.3 for grounded retrieval.');
+
+        if (lines.length === 0) {
+            return 'Excellent tuning. Your settings are well-matched to the query types in this document library. In production, consider query routing: detect the query type first, then apply the optimal settings dynamically.';
+        }
+        return lines.join('<br><br>') + '<br><br>Key insight: <em>No single configuration wins across all query types</em>. Production RAG systems use query classification to dynamically select chunk strategy per request.';
+    }
+
+    // =========================================================
+    // COMPLETION
+    // =========================================================
+    function completeLab() {
+        // Hide all stage panels, show completion
+        document.querySelectorAll('.stage-panel').forEach(p => p.classList.remove('active'));
+        document.getElementById('completionBanner').classList.add('show');
+
+        // Summary stats
+        const summary = document.getElementById('finalScoreSummary');
+        summary.innerHTML = `
+            <div class="score-item">
+                <div class="score-item-val">${state.selectedDocs.size}</div>
+                <div class="score-item-label">Documents Ingested</div>
+            </div>
+            <div class="score-item">
+                <div class="score-item-val">${state.chunks.length}</div>
+                <div class="score-item-label">Chunks Created</div>
+            </div>
+            <div class="score-item">
+                <div class="score-item-val">${state.embedPoints.length}</div>
+                <div class="score-item-label">Vectors Indexed</div>
+            </div>
+            <div class="score-item">
+                <div class="score-item-val">${state.optScore}%</div>
+                <div class="score-item-label">Optimization Score</div>
+            </div>
+        `;
+
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function finishLab() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('ai', 'ai-rag-pipeline-lab', { returnUrl: '../index.html' });
+        } else {
+            window.location.href = '../index.html';
+        }
+    }
+
+    // =========================================================
+    // INIT
+    // =========================================================
+    buildRail();
+    buildDocGrid();
+    buildPresetQueries();
+</script>
+
+</body>
+</html>

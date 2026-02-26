@@ -1,0 +1,1616 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <!-- Module Progress tracking -->
+    <script src="../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LLM Comparison Calculator - House of the Machine</title>
+    <style>
+        /* ─── Design tokens ─────────────────────────────────────────── */
+        :root {
+            --primary:   #a855f7;
+            --secondary: #7c3aed;
+            --glow:      rgba(168, 85, 247, 0.35);
+            --glow-sm:   rgba(168, 85, 247, 0.15);
+            --bg:        #0a0e1a;
+            --bg-card:   rgba(13, 14, 30, 0.92);
+            --bg-panel:  rgba(168, 85, 247, 0.06);
+            --border:    rgba(168, 85, 247, 0.22);
+            --text:      #e2e8f0;
+            --muted:     #8892a4;
+            --success:   #22c55e;
+            --warning:   #f59e0b;
+            --danger:    #ef4444;
+            --info:      #38bdf8;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            overflow-x: hidden;
+            line-height: 1.65;
+        }
+
+        /* ─── Ambient background pulse ───────────────────────────────── */
+        body::before {
+            content: '';
+            position: fixed;
+            top: -20%;
+            left: -10%;
+            width: 60%;
+            height: 60%;
+            background: radial-gradient(ellipse, rgba(168,85,247,0.07) 0%, transparent 70%);
+            pointer-events: none;
+            animation: ambientPulse 8s ease-in-out infinite alternate;
+        }
+        @keyframes ambientPulse {
+            from { opacity: 0.5; transform: scale(1); }
+            to   { opacity: 1;   transform: scale(1.1); }
+        }
+
+        /* ─── Sticky header ──────────────────────────────────────────── */
+        .site-header {
+            position: sticky;
+            top: 0;
+            z-index: 200;
+            background: rgba(10, 14, 26, 0.97);
+            border-bottom: 1px solid var(--border);
+            backdrop-filter: blur(12px);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 28px;
+            height: 56px;
+        }
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+        .back-btn {
+            width: 34px;
+            height: 34px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            background: transparent;
+            color: var(--primary);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.1rem;
+            transition: background 0.2s, border-color 0.2s;
+            text-decoration: none;
+        }
+        .back-btn:hover { background: var(--glow-sm); border-color: var(--primary); }
+        .breadcrumb {
+            font-size: 0.78rem;
+            color: var(--muted);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .breadcrumb span { color: var(--primary); font-weight: 600; }
+        .header-badge {
+            font-size: 0.7rem;
+            padding: 3px 10px;
+            border-radius: 20px;
+            border: 1px solid var(--border);
+            color: var(--primary);
+            background: var(--bg-panel);
+            letter-spacing: 0.05em;
+        }
+
+        /* ─── Main layout ────────────────────────────────────────────── */
+        .page-wrap {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 40px 24px 80px;
+        }
+
+        .page-hero {
+            text-align: center;
+            margin-bottom: 48px;
+        }
+        .page-hero h1 {
+            font-size: clamp(1.6rem, 4vw, 2.4rem);
+            font-weight: 700;
+            color: var(--text);
+            margin-bottom: 10px;
+        }
+        .page-hero h1 span { color: var(--primary); }
+        .page-hero p {
+            color: var(--muted);
+            font-size: 1rem;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        /* ─── Tab navigation ─────────────────────────────────────────── */
+        .tab-nav {
+            display: flex;
+            gap: 4px;
+            background: rgba(255,255,255,0.04);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 4px;
+            margin-bottom: 36px;
+            overflow-x: auto;
+        }
+        .tab-btn {
+            flex: 1;
+            min-width: 120px;
+            padding: 10px 16px;
+            border: none;
+            background: transparent;
+            color: var(--muted);
+            font-size: 0.85rem;
+            font-weight: 600;
+            border-radius: 9px;
+            cursor: pointer;
+            transition: all 0.2s;
+            white-space: nowrap;
+            text-align: center;
+        }
+        .tab-btn:hover { color: var(--text); background: var(--glow-sm); }
+        .tab-btn.active {
+            background: var(--primary);
+            color: #fff;
+            box-shadow: 0 0 16px var(--glow);
+        }
+
+        /* ─── Panel visibility ───────────────────────────────────────── */
+        .tab-panel { display: none; }
+        .tab-panel.active { display: block; }
+
+        /* ─── Section headings ───────────────────────────────────────── */
+        .section-title {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: var(--primary);
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .section-title::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: var(--border);
+        }
+
+        /* ─── Card / panel base ──────────────────────────────────────── */
+        .card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 24px;
+            margin-bottom: 20px;
+        }
+        .card-sm {
+            background: var(--bg-panel);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 16px;
+        }
+
+        /* ─── MODEL DATABASE TABLE ───────────────────────────────────── */
+        .filter-bar {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 18px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        .filter-bar select,
+        .filter-bar input {
+            background: rgba(255,255,255,0.05);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--text);
+            padding: 7px 12px;
+            font-size: 0.82rem;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+        .filter-bar select:focus,
+        .filter-bar input:focus { border-color: var(--primary); }
+        .filter-bar select option { background: #1a1a2e; }
+        .filter-label {
+            font-size: 0.78rem;
+            color: var(--muted);
+            font-weight: 600;
+        }
+
+        .table-wrap { overflow-x: auto; border-radius: 10px; }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.82rem;
+        }
+        thead th {
+            background: rgba(168,85,247,0.12);
+            color: var(--primary);
+            font-weight: 700;
+            padding: 11px 14px;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+            white-space: nowrap;
+            cursor: pointer;
+            user-select: none;
+        }
+        thead th:hover { background: rgba(168,85,247,0.2); }
+        thead th .sort-icon { margin-left: 4px; opacity: 0.5; font-size: 0.7rem; }
+        thead th.sorted .sort-icon { opacity: 1; color: var(--primary); }
+        tbody tr {
+            border-bottom: 1px solid rgba(168,85,247,0.08);
+            transition: background 0.15s;
+        }
+        tbody tr:hover { background: rgba(168,85,247,0.07); }
+        tbody td { padding: 10px 14px; color: var(--text); vertical-align: middle; }
+
+        .provider-badge {
+            display: inline-block;
+            font-size: 0.68rem;
+            font-weight: 700;
+            padding: 2px 8px;
+            border-radius: 20px;
+            letter-spacing: 0.04em;
+        }
+        .badge-openai  { background: rgba(16,185,129,0.15); color: #10b981; border: 1px solid rgba(16,185,129,0.3); }
+        .badge-anthropic { background: rgba(251,146,60,0.15); color: #fb923c; border: 1px solid rgba(251,146,60,0.3); }
+        .badge-google  { background: rgba(56,189,248,0.15); color: #38bdf8; border: 1px solid rgba(56,189,248,0.3); }
+        .badge-meta    { background: rgba(59,130,246,0.15); color: #3b82f6; border: 1px solid rgba(59,130,246,0.3); }
+        .badge-mistral { background: rgba(251,191,36,0.15); color: #fbbf24; border: 1px solid rgba(251,191,36,0.3); }
+        .badge-microsoft { background: rgba(99,102,241,0.15); color: #818cf8; border: 1px solid rgba(99,102,241,0.3); }
+        .badge-alibaba { background: rgba(239,68,68,0.15); color: #f87171; border: 1px solid rgba(239,68,68,0.3); }
+
+        .tier-dot {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            margin-right: 6px;
+        }
+        .tier-excellent { background: var(--success); }
+        .tier-good      { background: var(--warning); }
+        .tier-fair      { background: var(--danger); }
+
+        .oss-tag {
+            font-size: 0.68rem;
+            padding: 2px 7px;
+            border-radius: 4px;
+            font-weight: 700;
+        }
+        .oss-yes { background: rgba(34,197,94,0.15); color: var(--success); }
+        .oss-no  { background: rgba(148,163,184,0.1); color: var(--muted); }
+
+        /* ─── USE CASE MATCHER ───────────────────────────────────────── */
+        .matcher-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+        @media (max-width: 680px) { .matcher-grid { grid-template-columns: 1fr; } }
+
+        .matcher-group label {
+            display: block;
+            font-size: 0.78rem;
+            font-weight: 700;
+            color: var(--primary);
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+        }
+        .option-pills {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+        .pill-btn {
+            padding: 6px 14px;
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            background: transparent;
+            color: var(--muted);
+            font-size: 0.78rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.18s;
+        }
+        .pill-btn:hover { border-color: var(--primary); color: var(--primary); }
+        .pill-btn.selected {
+            background: var(--primary);
+            border-color: var(--primary);
+            color: #fff;
+            box-shadow: 0 0 10px var(--glow);
+        }
+
+        .match-btn {
+            width: 100%;
+            padding: 13px;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            border: none;
+            border-radius: 10px;
+            color: #fff;
+            font-size: 0.92rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: opacity 0.2s, transform 0.15s;
+            margin-bottom: 24px;
+        }
+        .match-btn:hover { opacity: 0.9; transform: translateY(-1px); }
+
+        .recommendations {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 14px;
+        }
+        .rec-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 18px;
+            position: relative;
+            overflow: hidden;
+            transition: border-color 0.2s;
+        }
+        .rec-card:hover { border-color: var(--primary); }
+        .rec-rank {
+            position: absolute;
+            top: 12px;
+            right: 14px;
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.75rem;
+            font-weight: 900;
+        }
+        .rank-1 { background: rgba(251,191,36,0.2); color: #fbbf24; border: 1px solid rgba(251,191,36,0.4); }
+        .rank-2 { background: rgba(148,163,184,0.15); color: #94a3b8; border: 1px solid rgba(148,163,184,0.3); }
+        .rank-3 { background: rgba(180,120,80,0.15); color: #cd7f32; border: 1px solid rgba(180,120,80,0.3); }
+
+        .rec-model-name {
+            font-size: 1rem;
+            font-weight: 700;
+            color: var(--text);
+            margin-bottom: 4px;
+        }
+        .rec-provider { font-size: 0.75rem; color: var(--muted); margin-bottom: 10px; }
+        .rec-reasons { list-style: none; }
+        .rec-reasons li {
+            font-size: 0.78rem;
+            color: var(--muted);
+            padding: 2px 0;
+            padding-left: 16px;
+            position: relative;
+        }
+        .rec-reasons li::before {
+            content: '+';
+            position: absolute;
+            left: 0;
+            color: var(--success);
+            font-weight: 700;
+        }
+        .rec-score {
+            margin-top: 12px;
+            font-size: 0.72rem;
+            color: var(--primary);
+            font-weight: 700;
+        }
+
+        /* ─── COST CALCULATOR ────────────────────────────────────────── */
+        .calc-inputs {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+        @media (max-width: 580px) { .calc-inputs { grid-template-columns: 1fr; } }
+
+        .input-group label {
+            display: block;
+            font-size: 0.78rem;
+            font-weight: 700;
+            color: var(--primary);
+            margin-bottom: 6px;
+        }
+        .input-group input {
+            width: 100%;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--text);
+            padding: 9px 12px;
+            font-size: 0.88rem;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+        .input-group input:focus { border-color: var(--primary); }
+        .input-group .hint { font-size: 0.7rem; color: var(--muted); margin-top: 4px; }
+
+        .calc-results { margin-top: 8px; }
+        .cost-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 8px 0;
+            border-bottom: 1px solid rgba(168,85,247,0.08);
+        }
+        .cost-model-name {
+            width: 160px;
+            font-size: 0.82rem;
+            font-weight: 600;
+            color: var(--text);
+            flex-shrink: 0;
+        }
+        .cost-bar-wrap {
+            flex: 1;
+            height: 20px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+        .cost-bar {
+            height: 100%;
+            border-radius: 4px;
+            transition: width 0.5s ease;
+        }
+        .cost-value {
+            width: 90px;
+            text-align: right;
+            font-size: 0.8rem;
+            font-weight: 700;
+            color: var(--text);
+            flex-shrink: 0;
+        }
+        .cost-free { color: var(--success); }
+
+        /* ─── RADAR CHART ────────────────────────────────────────────── */
+        .radar-controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 24px;
+            flex-wrap: wrap;
+            align-items: flex-start;
+        }
+        .model-select-group {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+        .model-select-group label {
+            font-size: 0.74rem;
+            color: var(--primary);
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        .model-select-group select {
+            background: rgba(255,255,255,0.05);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--text);
+            padding: 7px 12px;
+            font-size: 0.82rem;
+            outline: none;
+            min-width: 170px;
+            transition: border-color 0.2s;
+        }
+        .model-select-group select:focus { border-color: var(--primary); }
+        .model-select-group select option { background: #1a1a2e; }
+
+        .radar-layout {
+            display: grid;
+            grid-template-columns: 1fr auto;
+            gap: 24px;
+            align-items: start;
+        }
+        @media (max-width: 760px) { .radar-layout { grid-template-columns: 1fr; } }
+
+        #radarCanvas {
+            display: block;
+            max-width: 100%;
+        }
+
+        .spec-cards {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            min-width: 220px;
+        }
+        .spec-card {
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 14px;
+            background: var(--bg-card);
+        }
+        .spec-card-title {
+            font-size: 0.82rem;
+            font-weight: 700;
+            margin-bottom: 10px;
+        }
+        .spec-row {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.75rem;
+            padding: 3px 0;
+            border-bottom: 1px solid rgba(168,85,247,0.07);
+        }
+        .spec-row:last-child { border-bottom: none; }
+        .spec-key { color: var(--muted); }
+        .spec-val { color: var(--text); font-weight: 600; }
+
+        /* ─── DECISION TREE ──────────────────────────────────────────── */
+        .tree-wrap {
+            padding: 8px 0;
+        }
+        .tree-node {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 14px 18px;
+            margin-bottom: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .tree-node:hover { border-color: var(--primary); background: var(--bg-panel); }
+        .tree-node.open { border-color: var(--primary); }
+        .tree-node .node-q {
+            font-size: 0.88rem;
+            font-weight: 600;
+            color: var(--text);
+        }
+        .tree-node .chevron {
+            color: var(--primary);
+            transition: transform 0.2s;
+            font-size: 0.8rem;
+        }
+        .tree-node.open .chevron { transform: rotate(90deg); }
+
+        .tree-branches {
+            display: none;
+            padding-left: 24px;
+            border-left: 2px solid var(--border);
+            margin-left: 16px;
+            margin-bottom: 8px;
+        }
+        .tree-branches.visible { display: block; }
+
+        .tree-branch {
+            padding: 8px 12px;
+            border-radius: 8px;
+            margin: 6px 0;
+            border: 1px solid transparent;
+            transition: all 0.15s;
+            cursor: pointer;
+        }
+        .tree-branch:hover { border-color: var(--border); background: var(--bg-panel); }
+
+        .branch-label {
+            font-size: 0.8rem;
+            font-weight: 700;
+            margin-bottom: 2px;
+        }
+        .branch-yes .branch-label { color: var(--success); }
+        .branch-no  .branch-label { color: var(--danger); }
+        .branch-maybe .branch-label { color: var(--warning); }
+
+        .branch-result {
+            font-size: 0.78rem;
+            color: var(--muted);
+        }
+        .branch-result strong { color: var(--primary); }
+
+        /* ─── Complete button ────────────────────────────────────────── */
+        .complete-section {
+            text-align: center;
+            margin-top: 48px;
+            padding: 32px;
+            background: var(--bg-panel);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+        }
+        .complete-section h3 {
+            font-size: 1.1rem;
+            color: var(--text);
+            margin-bottom: 8px;
+        }
+        .complete-section p {
+            color: var(--muted);
+            font-size: 0.85rem;
+            margin-bottom: 20px;
+        }
+        .complete-btn {
+            padding: 12px 36px;
+            background: linear-gradient(135deg, var(--success), #16a34a);
+            border: none;
+            border-radius: 10px;
+            color: #fff;
+            font-size: 0.92rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: opacity 0.2s, transform 0.15s;
+            box-shadow: 0 0 20px rgba(34,197,94,0.3);
+        }
+        .complete-btn:hover { opacity: 0.9; transform: translateY(-2px); }
+        .complete-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+        /* ─── Responsive table text ──────────────────────────────────── */
+        @media (max-width: 860px) {
+            table { font-size: 0.75rem; }
+            tbody td, thead th { padding: 8px 10px; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- ─── Header ──────────────────────────────────────────────────────── -->
+<header class="site-header">
+    <div class="header-left">
+        <a href="../index.html" class="back-btn" title="Back to AI House">&#8592;</a>
+        <div class="breadcrumb">
+            House of the Machine &rsaquo; <span>LLM Comparison Calculator</span>
+        </div>
+    </div>
+    <div class="header-badge">Reference Tool</div>
+</header>
+
+<!-- ─── Page body ────────────────────────────────────────────────────── -->
+<main class="page-wrap">
+
+    <div class="page-hero">
+        <h1>LLM <span>Comparison</span> Calculator</h1>
+        <p>Compare large language models across cost, capability, and context. Find the right model for your use case.</p>
+    </div>
+
+    <!-- Tab navigation -->
+    <nav class="tab-nav">
+        <button class="tab-btn active" data-tab="database">Model Database</button>
+        <button class="tab-btn" data-tab="matcher">Use Case Matcher</button>
+        <button class="tab-btn" data-tab="cost">Cost Calculator</button>
+        <button class="tab-btn" data-tab="radar">Radar Comparison</button>
+        <button class="tab-btn" data-tab="decision">Decision Framework</button>
+    </nav>
+
+    <!-- ─── TAB: Model Database ──────────────────────────────────────── -->
+    <section class="tab-panel active" id="tab-database">
+        <div class="card">
+            <div class="section-title">All Models</div>
+
+            <div class="filter-bar">
+                <span class="filter-label">Provider:</span>
+                <select id="filterProvider">
+                    <option value="">All</option>
+                    <option value="OpenAI">OpenAI</option>
+                    <option value="Anthropic">Anthropic</option>
+                    <option value="Google">Google</option>
+                    <option value="Meta">Meta</option>
+                    <option value="Mistral">Mistral</option>
+                    <option value="Microsoft">Microsoft</option>
+                    <option value="Alibaba">Alibaba</option>
+                </select>
+                <span class="filter-label">Open Source:</span>
+                <select id="filterOSS">
+                    <option value="">All</option>
+                    <option value="Yes">Open Source</option>
+                    <option value="No">Proprietary</option>
+                </select>
+                <span class="filter-label">Reasoning:</span>
+                <select id="filterReasoning">
+                    <option value="">All</option>
+                    <option value="Excellent">Excellent</option>
+                    <option value="Good">Good</option>
+                    <option value="Fair">Fair</option>
+                </select>
+            </div>
+
+            <div class="table-wrap">
+                <table id="modelTable">
+                    <thead>
+                        <tr>
+                            <th data-col="name">Model <span class="sort-icon">&#9650;</span></th>
+                            <th data-col="provider">Provider <span class="sort-icon">&#9650;</span></th>
+                            <th data-col="context">Context <span class="sort-icon">&#9650;</span></th>
+                            <th data-col="inputPrice">Input $/1M <span class="sort-icon">&#9650;</span></th>
+                            <th data-col="outputPrice">Output $/1M <span class="sort-icon">&#9650;</span></th>
+                            <th data-col="reasoning">Reasoning <span class="sort-icon">&#9650;</span></th>
+                            <th data-col="speed">Speed <span class="sort-icon">&#9650;</span></th>
+                            <th data-col="openSource">Open Source <span class="sort-icon">&#9650;</span></th>
+                        </tr>
+                    </thead>
+                    <tbody id="tableBody"></tbody>
+                </table>
+            </div>
+        </div>
+    </section>
+
+    <!-- ─── TAB: Use Case Matcher ────────────────────────────────────── -->
+    <section class="tab-panel" id="tab-matcher">
+        <div class="card">
+            <div class="section-title">Define Your Requirements</div>
+            <div class="matcher-grid">
+
+                <div class="matcher-group">
+                    <label>Task Complexity</label>
+                    <div class="option-pills" data-group="complexity">
+                        <button class="pill-btn selected" data-val="simple">Simple</button>
+                        <button class="pill-btn" data-val="medium">Medium</button>
+                        <button class="pill-btn" data-val="complex">Complex</button>
+                    </div>
+                </div>
+
+                <div class="matcher-group">
+                    <label>Monthly Budget</label>
+                    <div class="option-pills" data-group="budget">
+                        <button class="pill-btn selected" data-val="low">&lt; $50</button>
+                        <button class="pill-btn" data-val="medium">$50-500</button>
+                        <button class="pill-btn" data-val="high">$500+</button>
+                        <button class="pill-btn" data-val="unlimited">Unlimited</button>
+                    </div>
+                </div>
+
+                <div class="matcher-group">
+                    <label>Speed Requirement</label>
+                    <div class="option-pills" data-group="speed">
+                        <button class="pill-btn selected" data-val="realtime">Real-time</button>
+                        <button class="pill-btn" data-val="nearrealtime">Near Real-time</button>
+                        <button class="pill-btn" data-val="batch">Batch OK</button>
+                    </div>
+                </div>
+
+                <div class="matcher-group">
+                    <label>Data Sensitivity</label>
+                    <div class="option-pills" data-group="sensitivity">
+                        <button class="pill-btn selected" data-val="public">Public</button>
+                        <button class="pill-btn" data-val="internal">Internal</button>
+                        <button class="pill-btn" data-val="confidential">Confidential</button>
+                        <button class="pill-btn" data-val="classified">Classified</button>
+                    </div>
+                </div>
+
+                <div class="matcher-group">
+                    <label>Context Length Needed</label>
+                    <div class="option-pills" data-group="context">
+                        <button class="pill-btn selected" data-val="short">Short (&lt;8K)</button>
+                        <button class="pill-btn" data-val="medium">Medium (8K-128K)</button>
+                        <button class="pill-btn" data-val="long">Long (128K-200K)</button>
+                        <button class="pill-btn" data-val="massive">Massive (1M+)</button>
+                    </div>
+                </div>
+
+                <div class="matcher-group">
+                    <label>Open Source Preference</label>
+                    <div class="option-pills" data-group="oss">
+                        <button class="pill-btn selected" data-val="no">Not Required</button>
+                        <button class="pill-btn" data-val="prefer">Prefer OSS</button>
+                        <button class="pill-btn" data-val="required">Required</button>
+                    </div>
+                </div>
+
+            </div>
+            <button class="match-btn" id="runMatcher">Find Best Models</button>
+        </div>
+
+        <div class="section-title">Top Recommendations</div>
+        <div class="recommendations" id="recommendations">
+            <div class="card-sm" style="color:var(--muted); font-size:0.85rem;">
+                Set your requirements above and click "Find Best Models" to see recommendations.
+            </div>
+        </div>
+    </section>
+
+    <!-- ─── TAB: Cost Calculator ─────────────────────────────────────── -->
+    <section class="tab-panel" id="tab-cost">
+        <div class="card">
+            <div class="section-title">Usage Inputs</div>
+            <div class="calc-inputs">
+                <div class="input-group">
+                    <label>Tokens per Request (avg)</label>
+                    <input type="number" id="tokensPerReq" value="2000" min="100" max="1000000">
+                    <div class="hint">Input + output tokens combined</div>
+                </div>
+                <div class="input-group">
+                    <label>Requests per Day</label>
+                    <input type="number" id="reqsPerDay" value="500" min="1" max="1000000">
+                    <div class="hint">Average daily API calls</div>
+                </div>
+                <div class="input-group">
+                    <label>Input/Output Split (%)</label>
+                    <input type="number" id="inputSplit" value="40" min="10" max="90">
+                    <div class="hint">% of tokens that are input (rest are output)</div>
+                </div>
+                <div class="input-group">
+                    <label>Working Days per Month</label>
+                    <input type="number" id="daysPerMonth" value="22" min="1" max="31">
+                    <div class="hint">Used for monthly cost projection</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="section-title">Monthly Cost Estimate by Model</div>
+            <div class="calc-results" id="costResults">
+                <div style="color:var(--muted); font-size:0.85rem;">Adjust inputs above — results update automatically.</div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ─── TAB: Radar Comparison ────────────────────────────────────── -->
+    <section class="tab-panel" id="tab-radar">
+        <div class="card">
+            <div class="section-title">Select Models to Compare</div>
+            <div class="radar-controls" id="radarSelects"></div>
+        </div>
+        <div class="card">
+            <div class="radar-layout">
+                <canvas id="radarCanvas" width="420" height="380"></canvas>
+                <div class="spec-cards" id="specCards"></div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ─── TAB: Decision Framework ──────────────────────────────────── -->
+    <section class="tab-panel" id="tab-decision">
+        <div class="card">
+            <div class="section-title">LLM Selection Decision Tree</div>
+            <p style="color:var(--muted); font-size:0.85rem; margin-bottom:20px;">
+                Click each question to expand the decision branches. Follow the path that matches your situation.
+            </p>
+            <div class="tree-wrap" id="decisionTree"></div>
+        </div>
+    </section>
+
+    <!-- ─── Completion section ───────────────────────────────────────── -->
+    <div class="complete-section">
+        <h3>Reference Tool Explored</h3>
+        <p>Mark this tool as complete once you have reviewed all four sections and understand how to select an LLM for a given use case.</p>
+        <button class="complete-btn" id="completeBtn">Mark Complete</button>
+    </div>
+
+</main>
+
+<script>
+/* ═══════════════════════════════════════════════════════════════════
+   MODEL DATABASE
+   All pricing in $/1M tokens. Free* = self-hosted compute costs.
+   Radar scores: Reasoning, Speed, Cost, Context, Safety, Multilingual
+   Scale: 1-10
+═══════════════════════════════════════════════════════════════════ */
+const MODELS = [
+    {
+        id: 'gpt4o',
+        name: 'GPT-4o',
+        provider: 'OpenAI',
+        context: 128000,
+        contextLabel: '128K',
+        inputPrice: 2.50,
+        outputPrice: 10.00,
+        reasoning: 'Excellent',
+        speed: 'Fast',
+        openSource: 'No',
+        scores: { Reasoning: 9, Speed: 7, Cost: 4, Context: 7, Safety: 8, Multilingual: 9 }
+    },
+    {
+        id: 'gpt4omini',
+        name: 'GPT-4o mini',
+        provider: 'OpenAI',
+        context: 128000,
+        contextLabel: '128K',
+        inputPrice: 0.15,
+        outputPrice: 0.60,
+        reasoning: 'Good',
+        speed: 'Very Fast',
+        openSource: 'No',
+        scores: { Reasoning: 7, Speed: 9, Cost: 9, Context: 7, Safety: 8, Multilingual: 8 }
+    },
+    {
+        id: 'claude35sonnet',
+        name: 'Claude 3.5 Sonnet',
+        provider: 'Anthropic',
+        context: 200000,
+        contextLabel: '200K',
+        inputPrice: 3.00,
+        outputPrice: 15.00,
+        reasoning: 'Excellent',
+        speed: 'Fast',
+        openSource: 'No',
+        scores: { Reasoning: 9, Speed: 7, Cost: 3, Context: 9, Safety: 10, Multilingual: 8 }
+    },
+    {
+        id: 'claudehaiku',
+        name: 'Claude Haiku',
+        provider: 'Anthropic',
+        context: 200000,
+        contextLabel: '200K',
+        inputPrice: 0.25,
+        outputPrice: 1.25,
+        reasoning: 'Good',
+        speed: 'Very Fast',
+        openSource: 'No',
+        scores: { Reasoning: 7, Speed: 9, Cost: 8, Context: 9, Safety: 10, Multilingual: 7 }
+    },
+    {
+        id: 'gemini15pro',
+        name: 'Gemini 1.5 Pro',
+        provider: 'Google',
+        context: 1000000,
+        contextLabel: '1M',
+        inputPrice: 3.50,
+        outputPrice: 10.50,
+        reasoning: 'Excellent',
+        speed: 'Medium',
+        openSource: 'No',
+        scores: { Reasoning: 8, Speed: 5, Cost: 3, Context: 10, Safety: 8, Multilingual: 9 }
+    },
+    {
+        id: 'geminiflash',
+        name: 'Gemini Flash',
+        provider: 'Google',
+        context: 1000000,
+        contextLabel: '1M',
+        inputPrice: 0.15,
+        outputPrice: 0.60,
+        reasoning: 'Good',
+        speed: 'Very Fast',
+        openSource: 'No',
+        scores: { Reasoning: 7, Speed: 9, Cost: 9, Context: 10, Safety: 8, Multilingual: 8 }
+    },
+    {
+        id: 'llama3_70b',
+        name: 'LLaMA 3 70B',
+        provider: 'Meta',
+        context: 8000,
+        contextLabel: '8K',
+        inputPrice: null,
+        outputPrice: null,
+        reasoning: 'Good',
+        speed: 'Slow',
+        openSource: 'Yes',
+        scores: { Reasoning: 7, Speed: 3, Cost: 10, Context: 2, Safety: 6, Multilingual: 6 }
+    },
+    {
+        id: 'llama3_8b',
+        name: 'LLaMA 3 8B',
+        provider: 'Meta',
+        context: 8000,
+        contextLabel: '8K',
+        inputPrice: null,
+        outputPrice: null,
+        reasoning: 'Fair',
+        speed: 'Fast',
+        openSource: 'Yes',
+        scores: { Reasoning: 5, Speed: 8, Cost: 10, Context: 2, Safety: 5, Multilingual: 5 }
+    },
+    {
+        id: 'mistrallarge',
+        name: 'Mistral Large',
+        provider: 'Mistral',
+        context: 128000,
+        contextLabel: '128K',
+        inputPrice: 2.00,
+        outputPrice: 6.00,
+        reasoning: 'Good',
+        speed: 'Fast',
+        openSource: 'No',
+        scores: { Reasoning: 7, Speed: 7, Cost: 5, Context: 7, Safety: 7, Multilingual: 8 }
+    },
+    {
+        id: 'mixtral8x7b',
+        name: 'Mixtral 8x7B',
+        provider: 'Mistral',
+        context: 32000,
+        contextLabel: '32K',
+        inputPrice: null,
+        outputPrice: null,
+        reasoning: 'Good',
+        speed: 'Medium',
+        openSource: 'Yes',
+        scores: { Reasoning: 7, Speed: 5, Cost: 10, Context: 4, Safety: 6, Multilingual: 7 }
+    },
+    {
+        id: 'phi3',
+        name: 'Phi-3',
+        provider: 'Microsoft',
+        context: 128000,
+        contextLabel: '128K',
+        inputPrice: null,
+        outputPrice: null,
+        reasoning: 'Fair',
+        speed: 'Fast',
+        openSource: 'Yes',
+        scores: { Reasoning: 6, Speed: 8, Cost: 10, Context: 7, Safety: 7, Multilingual: 5 }
+    },
+    {
+        id: 'qwen25_72b',
+        name: 'Qwen 2.5 72B',
+        provider: 'Alibaba',
+        context: 128000,
+        contextLabel: '128K',
+        inputPrice: null,
+        outputPrice: null,
+        reasoning: 'Good',
+        speed: 'Medium',
+        openSource: 'Yes',
+        scores: { Reasoning: 7, Speed: 5, Cost: 10, Context: 7, Safety: 6, Multilingual: 9 }
+    }
+];
+
+/* Provider badge CSS class mapping */
+const PROVIDER_CLASSES = {
+    'OpenAI': 'badge-openai',
+    'Anthropic': 'badge-anthropic',
+    'Google': 'badge-google',
+    'Meta': 'badge-meta',
+    'Mistral': 'badge-mistral',
+    'Microsoft': 'badge-microsoft',
+    'Alibaba': 'badge-alibaba'
+};
+
+/* Bar colours for cost chart — cycles through these */
+const BAR_COLORS = [
+    '#a855f7','#38bdf8','#22c55e','#f59e0b','#fb923c',
+    '#f87171','#818cf8','#34d399','#fbbf24','#e879f9',
+    '#94a3b8','#60a5fa'
+];
+
+/* ═══════════════════════════════════════════════════════════════════
+   UTILITY HELPERS
+═══════════════════════════════════════════════════════════════════ */
+function fmtPrice(val) {
+    if (val === null) return '<span class="cost-free">Free*</span>';
+    return '$' + val.toFixed(2);
+}
+
+function reasoningDot(tier) {
+    const cls = { Excellent: 'tier-excellent', Good: 'tier-good', Fair: 'tier-fair' };
+    return `<span class="tier-dot ${cls[tier] || ''}"></span>${tier}`;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   TAB SWITCHING
+═══════════════════════════════════════════════════════════════════ */
+(function initTabs() {
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+            btn.classList.add('active');
+            const panelId = 'tab-' + btn.dataset.tab;
+            document.getElementById(panelId).classList.add('active');
+            /* Redraw radar when that tab becomes visible */
+            if (btn.dataset.tab === 'radar') drawRadar();
+            if (btn.dataset.tab === 'cost') renderCostChart();
+        });
+    });
+})();
+
+/* ═══════════════════════════════════════════════════════════════════
+   MODEL DATABASE — render + filter + sort
+═══════════════════════════════════════════════════════════════════ */
+let sortCol = 'name';
+let sortAsc = true;
+
+function getFilteredModels() {
+    const provider = document.getElementById('filterProvider').value;
+    const oss      = document.getElementById('filterOSS').value;
+    const reason   = document.getElementById('filterReasoning').value;
+
+    return MODELS.filter(m => {
+        if (provider && m.provider !== provider) return false;
+        if (oss      && m.openSource !== oss)    return false;
+        if (reason   && m.reasoning !== reason)  return false;
+        return true;
+    }).sort((a, b) => {
+        let av = a[sortCol], bv = b[sortCol];
+        /* Null (free) prices sort to bottom when ascending */
+        if (av === null) av = sortAsc ? Infinity : -Infinity;
+        if (bv === null) bv = sortAsc ? Infinity : -Infinity;
+        if (typeof av === 'string') av = av.toLowerCase();
+        if (typeof bv === 'string') bv = bv.toLowerCase();
+        if (av < bv) return sortAsc ? -1 : 1;
+        if (av > bv) return sortAsc ? 1 : -1;
+        return 0;
+    });
+}
+
+function renderTable() {
+    const rows = getFilteredModels();
+    const tbody = document.getElementById('tableBody');
+    tbody.innerHTML = rows.map(m => `
+        <tr>
+            <td><strong>${m.name}</strong></td>
+            <td><span class="provider-badge ${PROVIDER_CLASSES[m.provider]}">${m.provider}</span></td>
+            <td>${m.contextLabel}</td>
+            <td>${m.inputPrice !== null ? '$' + m.inputPrice.toFixed(2) : '<span class="cost-free">Free*</span>'}</td>
+            <td>${m.outputPrice !== null ? '$' + m.outputPrice.toFixed(2) : '<span class="cost-free">Free*</span>'}</td>
+            <td>${reasoningDot(m.reasoning)}</td>
+            <td>${m.speed}</td>
+            <td><span class="oss-tag ${m.openSource === 'Yes' ? 'oss-yes' : 'oss-no'}">${m.openSource}</span></td>
+        </tr>
+    `).join('');
+}
+
+/* Column sort click handler */
+document.querySelectorAll('#modelTable thead th[data-col]').forEach(th => {
+    th.addEventListener('click', () => {
+        const col = th.dataset.col;
+        if (sortCol === col) { sortAsc = !sortAsc; }
+        else { sortCol = col; sortAsc = true; }
+        document.querySelectorAll('#modelTable thead th').forEach(t => t.classList.remove('sorted'));
+        th.classList.add('sorted');
+        th.querySelector('.sort-icon').textContent = sortAsc ? '▲' : '▼';
+        renderTable();
+    });
+});
+
+/* Filter change handlers */
+['filterProvider','filterOSS','filterReasoning'].forEach(id => {
+    document.getElementById(id).addEventListener('change', renderTable);
+});
+
+renderTable();
+
+/* ═══════════════════════════════════════════════════════════════════
+   USE CASE MATCHER
+═══════════════════════════════════════════════════════════════════ */
+const selections = {
+    complexity: 'simple',
+    budget: 'low',
+    speed: 'realtime',
+    sensitivity: 'public',
+    context: 'short',
+    oss: 'no'
+};
+
+/* Pill button group logic — only one selected per group */
+document.querySelectorAll('.option-pills').forEach(group => {
+    group.querySelectorAll('.pill-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            group.querySelectorAll('.pill-btn').forEach(b => b.classList.remove('selected'));
+            btn.classList.add('selected');
+            selections[group.dataset.group] = btn.dataset.val;
+        });
+    });
+});
+
+function scoreModel(model, sel) {
+    let score = 0;
+    const reasons = [];
+
+    /* Complexity → reasoning requirement */
+    if (sel.complexity === 'complex') {
+        if (model.reasoning === 'Excellent') { score += 30; reasons.push('Excellent reasoning for complex tasks'); }
+        else if (model.reasoning === 'Good')  { score += 15; }
+        else { score -= 10; }
+    } else if (sel.complexity === 'medium') {
+        if (model.reasoning !== 'Fair') { score += 15; reasons.push('Sufficient reasoning capability'); }
+    } else {
+        score += 10;
+        reasons.push('Any model handles simple tasks');
+    }
+
+    /* Budget */
+    const maxMonthly = { low: 50, medium: 500, high: 5000, unlimited: Infinity }[sel.budget];
+    if (model.inputPrice === null) {
+        score += 25;
+        reasons.push('Self-hosted — no API cost');
+    } else {
+        /* Rough monthly estimate at 1M tokens/day input, 0.5M output */
+        const est = (model.inputPrice * 30) + (model.outputPrice * 15);
+        if (est <= maxMonthly) { score += 20; reasons.push('Fits your budget'); }
+        else if (sel.budget === 'unlimited') { score += 10; }
+        else { score -= 15; }
+    }
+
+    /* Speed */
+    const speedScore = { 'Very Fast': 4, 'Fast': 3, 'Medium': 2, 'Slow': 1 }[model.speed];
+    const speedNeed  = { 'realtime': 3, 'nearrealtime': 2, 'batch': 1 }[sel.speed];
+    if (speedScore >= speedNeed + 1) { score += 15; reasons.push('Faster than required'); }
+    else if (speedScore >= speedNeed) { score += 10; reasons.push('Speed meets requirements'); }
+    else { score -= 20; }
+
+    /* Data sensitivity → OSS / local requirement */
+    if (sel.sensitivity === 'classified' || sel.sensitivity === 'confidential') {
+        if (model.openSource === 'Yes') { score += 25; reasons.push('Can be self-hosted for data isolation'); }
+        else { score -= 20; }
+    } else if (sel.sensitivity === 'internal') {
+        if (model.openSource === 'Yes') { score += 10; }
+        else { score += 5; reasons.push('Reputable provider with DPA options'); }
+    } else {
+        score += 5;
+    }
+
+    /* Context length */
+    const ctxNeed = { short: 8000, medium: 128000, long: 200000, massive: 1000000 }[sel.context];
+    if (model.context >= ctxNeed) { score += 15; reasons.push('Context window meets requirement'); }
+    else { score -= 25; }
+
+    /* OSS preference */
+    if (sel.oss === 'required' && model.openSource !== 'Yes') { score -= 50; }
+    else if (sel.oss === 'prefer' && model.openSource === 'Yes') { score += 10; reasons.push('Open source — full control'); }
+
+    return { score, reasons: reasons.slice(0, 3) };
+}
+
+document.getElementById('runMatcher').addEventListener('click', () => {
+    const scored = MODELS.map(m => {
+        const { score, reasons } = scoreModel(m, selections);
+        return { model: m, score, reasons };
+    }).sort((a, b) => b.score - a.score).slice(0, 3);
+
+    const container = document.getElementById('recommendations');
+    const rankClasses = ['rank-1', 'rank-2', 'rank-3'];
+    const rankLabels  = ['#1', '#2', '#3'];
+
+    container.innerHTML = scored.map((item, i) => `
+        <div class="rec-card">
+            <div class="rec-rank ${rankClasses[i]}">${rankLabels[i]}</div>
+            <div class="rec-model-name">${item.model.name}</div>
+            <div class="rec-provider">
+                <span class="provider-badge ${PROVIDER_CLASSES[item.model.provider]}">${item.model.provider}</span>
+            </div>
+            <ul class="rec-reasons">
+                ${item.reasons.map(r => `<li>${r}</li>`).join('')}
+            </ul>
+            <div class="rec-score">Match Score: ${item.score} pts</div>
+        </div>
+    `).join('');
+});
+
+/* ═══════════════════════════════════════════════════════════════════
+   COST CALCULATOR
+═══════════════════════════════════════════════════════════════════ */
+function calcMonthlyCost(model, tokensPerReq, reqsPerDay, inputPct, daysPerMonth) {
+    if (model.inputPrice === null) return null; /* free/self-hosted */
+    const totalTokensPerMonth = tokensPerReq * reqsPerDay * daysPerMonth;
+    const inputTokens  = totalTokensPerMonth * (inputPct / 100);
+    const outputTokens = totalTokensPerMonth * (1 - inputPct / 100);
+    return (inputTokens / 1_000_000) * model.inputPrice
+         + (outputTokens / 1_000_000) * model.outputPrice;
+}
+
+function renderCostChart() {
+    const tokensPerReq  = Math.max(100, parseInt(document.getElementById('tokensPerReq').value)  || 2000);
+    const reqsPerDay    = Math.max(1,   parseInt(document.getElementById('reqsPerDay').value)    || 500);
+    const inputSplit    = Math.min(90, Math.max(10, parseInt(document.getElementById('inputSplit').value) || 40));
+    const daysPerMonth  = Math.min(31, Math.max(1,  parseInt(document.getElementById('daysPerMonth').value) || 22));
+
+    const costs = MODELS.map((m, i) => ({
+        model: m,
+        cost: calcMonthlyCost(m, tokensPerReq, reqsPerDay, inputSplit, daysPerMonth),
+        color: BAR_COLORS[i % BAR_COLORS.length]
+    })).sort((a, b) => {
+        /* Free models go to end; paid sorted ascending */
+        if (a.cost === null && b.cost === null) return 0;
+        if (a.cost === null) return 1;
+        if (b.cost === null) return -1;
+        return a.cost - b.cost;
+    });
+
+    const maxCost = Math.max(...costs.filter(c => c.cost !== null).map(c => c.cost), 1);
+
+    const container = document.getElementById('costResults');
+    container.innerHTML = costs.map(item => {
+        const pct = item.cost !== null ? Math.round((item.cost / maxCost) * 100) : 0;
+        const label = item.cost !== null
+            ? '$' + item.cost.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+            : 'Free*';
+        const valClass = item.cost === null ? 'cost-free' : '';
+        return `
+            <div class="cost-row">
+                <div class="cost-model-name">${item.model.name}</div>
+                <div class="cost-bar-wrap">
+                    <div class="cost-bar" style="width:${pct}%; background:${item.color};"></div>
+                </div>
+                <div class="cost-value ${valClass}">${label}</div>
+            </div>
+        `;
+    }).join('');
+}
+
+/* Live-update on input change */
+['tokensPerReq','reqsPerDay','inputSplit','daysPerMonth'].forEach(id => {
+    document.getElementById(id).addEventListener('input', renderCostChart);
+});
+
+renderCostChart();
+
+/* ═══════════════════════════════════════════════════════════════════
+   RADAR CHART — Canvas-based spider chart
+═══════════════════════════════════════════════════════════════════ */
+const RADAR_AXES = ['Reasoning','Speed','Cost','Context','Safety','Multilingual'];
+const RADAR_COLORS = [
+    { stroke: '#a855f7', fill: 'rgba(168,85,247,0.15)' },
+    { stroke: '#38bdf8', fill: 'rgba(56,189,248,0.12)' },
+    { stroke: '#22c55e', fill: 'rgba(34,197,94,0.12)' }
+];
+
+/* Build the three model dropdowns */
+(function buildRadarSelects() {
+    const container = document.getElementById('radarSelects');
+    const defaults = ['gpt4o', 'claude35sonnet', 'gemini15pro'];
+    for (let i = 0; i < 3; i++) {
+        const wrap = document.createElement('div');
+        wrap.className = 'model-select-group';
+        const lbl = document.createElement('label');
+        lbl.textContent = 'Model ' + (i + 1);
+        lbl.style.color = RADAR_COLORS[i].stroke;
+        const sel = document.createElement('select');
+        sel.id = 'radarModel' + i;
+        MODELS.forEach(m => {
+            const opt = document.createElement('option');
+            opt.value = m.id;
+            opt.textContent = m.name;
+            if (m.id === defaults[i]) opt.selected = true;
+            sel.appendChild(opt);
+        });
+        sel.addEventListener('change', () => { drawRadar(); renderSpecCards(); });
+        wrap.appendChild(lbl);
+        wrap.appendChild(sel);
+        container.appendChild(wrap);
+    }
+})();
+
+function getSelectedRadarModels() {
+    return [0, 1, 2].map(i => {
+        const id = document.getElementById('radarModel' + i).value;
+        return MODELS.find(m => m.id === id);
+    });
+}
+
+function drawRadar() {
+    const canvas = document.getElementById('radarCanvas');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    const W = canvas.width;
+    const H = canvas.height;
+    ctx.clearRect(0, 0, W, H);
+
+    const cx = W / 2;
+    const cy = H / 2 + 10;
+    const R  = Math.min(W, H) * 0.36;
+    const N  = RADAR_AXES.length;
+    const angleStep = (Math.PI * 2) / N;
+
+    /* Draw grid rings */
+    for (let ring = 1; ring <= 5; ring++) {
+        const r = (R / 5) * ring;
+        ctx.beginPath();
+        for (let i = 0; i < N; i++) {
+            const angle = -Math.PI / 2 + i * angleStep;
+            const x = cx + r * Math.cos(angle);
+            const y = cy + r * Math.sin(angle);
+            i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+        }
+        ctx.closePath();
+        ctx.strokeStyle = 'rgba(168,85,247,0.15)';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+    }
+
+    /* Draw axis lines and labels */
+    RADAR_AXES.forEach((axis, i) => {
+        const angle = -Math.PI / 2 + i * angleStep;
+        const x = cx + R * Math.cos(angle);
+        const y = cy + R * Math.sin(angle);
+        ctx.beginPath();
+        ctx.moveTo(cx, cy);
+        ctx.lineTo(x, y);
+        ctx.strokeStyle = 'rgba(168,85,247,0.2)';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+
+        /* Label positioning — push outward with padding */
+        const lx = cx + (R + 22) * Math.cos(angle);
+        const ly = cy + (R + 22) * Math.sin(angle);
+        ctx.fillStyle = '#8892a4';
+        ctx.font = '11px Segoe UI, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(axis, lx, ly);
+    });
+
+    /* Draw each model polygon */
+    const models = getSelectedRadarModels();
+    models.forEach((model, mi) => {
+        if (!model) return;
+        const color = RADAR_COLORS[mi];
+        ctx.beginPath();
+        RADAR_AXES.forEach((axis, i) => {
+            const val   = (model.scores[axis] || 0) / 10;
+            const angle = -Math.PI / 2 + i * angleStep;
+            const x = cx + R * val * Math.cos(angle);
+            const y = cy + R * val * Math.sin(angle);
+            i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+        });
+        ctx.closePath();
+        ctx.fillStyle   = color.fill;
+        ctx.strokeStyle = color.stroke;
+        ctx.lineWidth   = 2;
+        ctx.fill();
+        ctx.stroke();
+    });
+}
+
+function renderSpecCards() {
+    const container = document.getElementById('specCards');
+    const models = getSelectedRadarModels();
+    container.innerHTML = models.map((m, i) => {
+        if (!m) return '';
+        const color = RADAR_COLORS[i].stroke;
+        return `
+            <div class="spec-card" style="border-color:${color}33;">
+                <div class="spec-card-title" style="color:${color};">${m.name}</div>
+                <div class="spec-row"><span class="spec-key">Provider</span><span class="spec-val">${m.provider}</span></div>
+                <div class="spec-row"><span class="spec-key">Context</span><span class="spec-val">${m.contextLabel}</span></div>
+                <div class="spec-row"><span class="spec-key">Input / 1M</span><span class="spec-val">${m.inputPrice !== null ? '$' + m.inputPrice.toFixed(2) : 'Free*'}</span></div>
+                <div class="spec-row"><span class="spec-key">Output / 1M</span><span class="spec-val">${m.outputPrice !== null ? '$' + m.outputPrice.toFixed(2) : 'Free*'}</span></div>
+                <div class="spec-row"><span class="spec-key">Reasoning</span><span class="spec-val">${m.reasoning}</span></div>
+                <div class="spec-row"><span class="spec-key">Speed</span><span class="spec-val">${m.speed}</span></div>
+                <div class="spec-row"><span class="spec-key">Open Source</span><span class="spec-val">${m.openSource}</span></div>
+            </div>
+        `;
+    }).join('');
+}
+
+/* Initial render of spec cards */
+renderSpecCards();
+
+/* ═══════════════════════════════════════════════════════════════════
+   DECISION TREE
+═══════════════════════════════════════════════════════════════════ */
+const TREE_DATA = [
+    {
+        question: 'Is your data sensitive, confidential, or regulated (HIPAA, GDPR, classified)?',
+        branches: [
+            {
+                label: 'Yes — sensitive data',
+                cls: 'branch-yes',
+                result: 'Prioritize <strong>self-hosted open-source models</strong>: LLaMA 3 70B, Mixtral 8x7B, Phi-3, or Qwen 2.5 72B. Data never leaves your infrastructure.'
+            },
+            {
+                label: 'No — public or internal only',
+                cls: 'branch-no',
+                result: 'Any provider is acceptable. Proceed to the next question to narrow by budget and speed.'
+            }
+        ]
+    },
+    {
+        question: 'Is your monthly API budget under $100?',
+        branches: [
+            {
+                label: 'Yes — tight budget',
+                cls: 'branch-yes',
+                result: 'Use <strong>mini / flash tier models</strong>: GPT-4o mini ($0.15/$0.60), Gemini Flash ($0.15/$0.60), or Claude Haiku ($0.25/$1.25). Very capable for most tasks at 10-20x lower cost.'
+            },
+            {
+                label: 'No — budget is flexible',
+                cls: 'branch-no',
+                result: 'Full-capability models are accessible. Consider GPT-4o, Claude 3.5 Sonnet, or Gemini 1.5 Pro depending on your other requirements.'
+            }
+        ]
+    },
+    {
+        question: 'Does your use case require processing very long documents (100K+ tokens)?',
+        branches: [
+            {
+                label: 'Yes — long context required',
+                cls: 'branch-yes',
+                result: 'Use <strong>Gemini 1.5 Pro (1M ctx)</strong> for extreme length, or <strong>Claude 3.5 Sonnet / Haiku (200K ctx)</strong> for large document analysis. GPT-4o and others top out at 128K.'
+            },
+            {
+                label: 'No — short to medium context',
+                cls: 'branch-no',
+                result: 'All models are suitable for context. Filter by speed and reasoning instead.'
+            }
+        ]
+    },
+    {
+        question: 'Is response latency critical (user-facing real-time chat or API)?',
+        branches: [
+            {
+                label: 'Yes — sub-second latency needed',
+                cls: 'branch-yes',
+                result: '<strong>GPT-4o mini</strong> or <strong>Gemini Flash</strong> are the fastest proprietary options. For self-hosted speed, LLaMA 3 8B on A100 GPU delivers fast inference.'
+            },
+            {
+                label: 'No — batch or async processing',
+                cls: 'branch-no',
+                result: 'Speed is not a constraint. Prioritize reasoning quality: <strong>GPT-4o, Claude 3.5 Sonnet, or Gemini 1.5 Pro</strong> for complex analytical tasks.'
+            }
+        ]
+    },
+    {
+        question: 'Do you need to customize, fine-tune, or inspect the model weights?',
+        branches: [
+            {
+                label: 'Yes — fine-tuning or full control',
+                cls: 'branch-yes',
+                result: 'Only <strong>open-source models</strong> allow weight access: LLaMA 3 (70B or 8B), Mixtral 8x7B, Phi-3, or Qwen 2.5. You can fine-tune on domain-specific data.'
+            },
+            {
+                label: 'No — API access is sufficient',
+                cls: 'branch-no',
+                result: 'Proprietary APIs (OpenAI, Anthropic, Google) offer the best performance-per-dollar without infrastructure overhead. OpenAI also offers fine-tuning via API for GPT models.'
+            }
+        ]
+    },
+    {
+        question: 'Is multilingual support (non-English languages) a primary requirement?',
+        branches: [
+            {
+                label: 'Yes — strong multilingual needed',
+                cls: 'branch-yes',
+                result: '<strong>Gemini 1.5 Pro</strong> and <strong>GPT-4o</strong> lead in multilingual benchmarks. <strong>Qwen 2.5 72B</strong> excels in Asian languages. Claude performs well on European languages.'
+            },
+            {
+                label: 'No — English-primary',
+                cls: 'branch-no',
+                result: 'All major models perform well in English. Choose based on cost, speed, and reasoning requirements.'
+            }
+        ]
+    }
+];
+
+(function buildDecisionTree() {
+    const container = document.getElementById('decisionTree');
+    TREE_DATA.forEach((node, idx) => {
+        /* Question node */
+        const nodeEl = document.createElement('div');
+        nodeEl.className = 'tree-node';
+        nodeEl.innerHTML = `
+            <div class="node-q">Q${idx + 1}: ${node.question}</div>
+            <span class="chevron">&#9654;</span>
+        `;
+
+        /* Branch container */
+        const branchEl = document.createElement('div');
+        branchEl.className = 'tree-branches';
+        branchEl.innerHTML = node.branches.map(b => `
+            <div class="tree-branch ${b.cls}">
+                <div class="branch-label">${b.label}</div>
+                <div class="branch-result">${b.result}</div>
+            </div>
+        `).join('');
+
+        /* Toggle open/close */
+        nodeEl.addEventListener('click', () => {
+            const isOpen = nodeEl.classList.contains('open');
+            nodeEl.classList.toggle('open', !isOpen);
+            branchEl.classList.toggle('visible', !isOpen);
+        });
+
+        container.appendChild(nodeEl);
+        container.appendChild(branchEl);
+    });
+})();
+
+/* ═══════════════════════════════════════════════════════════════════
+   COMPLETION
+═══════════════════════════════════════════════════════════════════ */
+document.getElementById('completeBtn').addEventListener('click', function () {
+    this.disabled = true;
+    this.textContent = 'Saving...';
+    ModuleProgress.complete('ai', 'ai-llm-comparison', { returnUrl: '../index.html' });
+});
+</script>
+
+</body>
+</html>

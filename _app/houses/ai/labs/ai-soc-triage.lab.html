@@ -1,0 +1,1696 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control: require sorted (enrolled) status -->
+    <script src="../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SOC Alert Triage Agent Lab - House of the Machine</title>
+    <script src="../../../components/ModuleProgress.js"></script>
+    <style>
+        /* ===== CSS CUSTOM PROPERTIES (AI House palette) ===== */
+        :root {
+            --bg-primary:    #0a0e1a;
+            --bg-secondary:  #111827;
+            --bg-card:       #1a1f35;
+            --bg-input:      #0f1628;
+            --primary:       #a855f7;
+            --primary-dim:   rgba(168, 85, 247, 0.15);
+            --primary-glow:  rgba(168, 85, 247, 0.35);
+            --secondary:     #7c3aed;
+            --text-primary:  #e2e8f0;
+            --text-muted:    #94a3b8;
+            --border:        rgba(168, 85, 247, 0.2);
+            --success:       #22c55e;
+            --success-dim:   rgba(34, 197, 94, 0.12);
+            --warning:       #f59e0b;
+            --warning-dim:   rgba(245, 158, 11, 0.12);
+            --danger:        #ef4444;
+            --danger-dim:    rgba(239, 68, 68, 0.12);
+            --info:          #38bdf8;
+            --info-dim:      rgba(56, 189, 248, 0.12);
+            --radius-sm:     6px;
+            --radius-md:     10px;
+            --radius-lg:     16px;
+            --transition:    0.2s ease;
+        }
+
+        /* ===== RESET ===== */
+        *, *::before, *::after {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            line-height: 1.6;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* ===== STICKY HEADER ===== */
+        .lab-header {
+            position: sticky;
+            top: 0;
+            z-index: 200;
+            background: rgba(10, 14, 26, 0.96);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--border);
+            padding: 14px 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+
+        .back-btn {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 7px 14px;
+            background: var(--primary-dim);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            color: var(--primary);
+            text-decoration: none;
+            font-size: 0.82rem;
+            font-weight: 600;
+            letter-spacing: 0.04em;
+            transition: var(--transition);
+        }
+
+        .back-btn:hover {
+            background: rgba(168, 85, 247, 0.25);
+            border-color: var(--primary);
+        }
+
+        .lab-title {
+            font-size: 0.95rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .lab-badge {
+            font-size: 0.68rem;
+            padding: 3px 10px;
+            background: var(--primary-dim);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            color: var(--primary);
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+        }
+
+        /* Phase progress pills in header */
+        .phase-pills {
+            display: flex;
+            gap: 6px;
+        }
+
+        .phase-pill {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            border: 2px solid var(--border);
+            background: var(--bg-card);
+            color: var(--text-muted);
+            font-size: 0.72rem;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: var(--transition);
+        }
+
+        .phase-pill.active {
+            border-color: var(--primary);
+            color: var(--primary);
+            background: var(--primary-dim);
+            box-shadow: 0 0 8px var(--primary-glow);
+        }
+
+        .phase-pill.done {
+            border-color: var(--success);
+            background: var(--success-dim);
+            color: var(--success);
+        }
+
+        /* ===== MAIN LAYOUT ===== */
+        .main-wrap {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 36px 24px 60px;
+        }
+
+        /* ===== INTRO BANNER ===== */
+        .intro-banner {
+            background: linear-gradient(135deg, var(--bg-card) 0%, #1e1040 100%);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            padding: 32px;
+            margin-bottom: 32px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .intro-banner::before {
+            content: '';
+            position: absolute;
+            top: -40px; right: -40px;
+            width: 180px; height: 180px;
+            background: radial-gradient(circle, var(--primary-glow) 0%, transparent 70%);
+            pointer-events: none;
+        }
+
+        .intro-icon {
+            font-size: 2.4rem;
+            margin-bottom: 12px;
+        }
+
+        .intro-title {
+            font-size: 1.7rem;
+            font-weight: 300;
+            margin-bottom: 8px;
+            background: linear-gradient(135deg, #fff 30%, var(--primary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .intro-desc {
+            color: var(--text-muted);
+            max-width: 680px;
+            font-size: 0.93rem;
+        }
+
+        /* ===== PHASE SECTION ===== */
+        .phase-section {
+            margin-bottom: 28px;
+        }
+
+        /* Initially hidden; shown when phase is active */
+        .phase-section.hidden {
+            display: none;
+        }
+
+        .phase-header {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            margin-bottom: 18px;
+        }
+
+        .phase-number {
+            width: 38px;
+            height: 38px;
+            border-radius: 50%;
+            background: var(--primary-dim);
+            border: 2px solid var(--primary);
+            color: var(--primary);
+            font-size: 0.85rem;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            box-shadow: 0 0 10px var(--primary-glow);
+        }
+
+        .phase-info h2 {
+            font-size: 1.1rem;
+            font-weight: 600;
+        }
+
+        .phase-info p {
+            color: var(--text-muted);
+            font-size: 0.83rem;
+            margin-top: 2px;
+        }
+
+        /* ===== CARD (generic panel) ===== */
+        .card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-md);
+            padding: 22px;
+            margin-bottom: 16px;
+        }
+
+        .card-title {
+            font-size: 0.88rem;
+            font-weight: 600;
+            color: var(--primary);
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            margin-bottom: 14px;
+        }
+
+        /* ===== RULE BUILDER — Phase 1 ===== */
+        .rule-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 14px;
+        }
+
+        @media (max-width: 640px) {
+            .rule-grid { grid-template-columns: 1fr; }
+        }
+
+        .rule-card {
+            background: var(--bg-input);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-md);
+            padding: 16px;
+            transition: border-color var(--transition);
+        }
+
+        .rule-card:hover {
+            border-color: rgba(168, 85, 247, 0.4);
+        }
+
+        .rule-number {
+            font-size: 0.72rem;
+            color: var(--primary);
+            font-weight: 700;
+            letter-spacing: 0.1em;
+            margin-bottom: 10px;
+        }
+
+        .rule-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-bottom: 10px;
+        }
+
+        .rule-row label {
+            font-size: 0.78rem;
+            color: var(--text-muted);
+            min-width: 90px;
+        }
+
+        .rule-select {
+            flex: 1;
+            min-width: 0;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            color: var(--text-primary);
+            font-size: 0.8rem;
+            padding: 5px 8px;
+            cursor: pointer;
+            outline: none;
+            transition: border-color var(--transition);
+        }
+
+        .rule-select:focus, .rule-select:hover {
+            border-color: var(--primary);
+        }
+
+        .rule-action-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-top: 8px;
+            padding-top: 8px;
+            border-top: 1px solid var(--border);
+        }
+
+        .rule-action-row label {
+            font-size: 0.78rem;
+            color: var(--text-muted);
+        }
+
+        .severity-badge {
+            font-size: 0.72rem;
+            font-weight: 700;
+            padding: 2px 10px;
+            border-radius: 12px;
+            letter-spacing: 0.06em;
+        }
+
+        .sev-critical { background: var(--danger-dim);  color: var(--danger);  border: 1px solid rgba(239,68,68,0.3); }
+        .sev-high     { background: rgba(251,146,60,.12); color: #fb923c; border: 1px solid rgba(251,146,60,0.3); }
+        .sev-medium   { background: var(--warning-dim); color: var(--warning); border: 1px solid rgba(245,158,11,0.3); }
+        .sev-low      { background: var(--info-dim);    color: var(--info);    border: 1px solid rgba(56,189,248,0.3); }
+        .sev-info     { background: rgba(148,163,184,.1); color: var(--text-muted); border: 1px solid rgba(148,163,184,0.2); }
+
+        /* ===== ENRICHMENT — Phase 2 ===== */
+        .enrichment-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.83rem;
+        }
+
+        .enrichment-table th {
+            text-align: left;
+            padding: 8px 12px;
+            color: var(--text-muted);
+            font-weight: 600;
+            font-size: 0.75rem;
+            letter-spacing: 0.06em;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .enrichment-table td {
+            padding: 9px 12px;
+            border-bottom: 1px solid rgba(168,85,247,0.08);
+            vertical-align: middle;
+        }
+
+        .enrichment-table tr:last-child td { border-bottom: none; }
+
+        .enrichment-check-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .enrich-toggle {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            padding: 4px 10px;
+            background: var(--bg-input);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 0.76rem;
+            color: var(--text-muted);
+            transition: var(--transition);
+            user-select: none;
+        }
+
+        .enrich-toggle input { display: none; }
+
+        .enrich-toggle.selected {
+            background: var(--primary-dim);
+            border-color: var(--primary);
+            color: var(--primary);
+        }
+
+        /* Credit budget display */
+        .budget-bar-wrap {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-top: 14px;
+        }
+
+        .budget-label {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            white-space: nowrap;
+        }
+
+        .budget-bar-bg {
+            flex: 1;
+            height: 8px;
+            background: rgba(255,255,255,0.08);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .budget-bar-fill {
+            height: 100%;
+            border-radius: 4px;
+            background: linear-gradient(90deg, var(--success), var(--warning));
+            transition: width 0.4s ease;
+        }
+
+        .budget-bar-fill.over {
+            background: var(--danger);
+        }
+
+        .budget-count {
+            font-size: 0.82rem;
+            font-weight: 700;
+            min-width: 80px;
+            text-align: right;
+        }
+
+        /* ===== RESPONSE MATRIX — Phase 3 ===== */
+        .response-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+            gap: 12px;
+        }
+
+        .response-cell {
+            background: var(--bg-input);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            padding: 12px;
+        }
+
+        .response-cell-title {
+            font-size: 0.74rem;
+            font-weight: 600;
+            color: var(--text-muted);
+            margin-bottom: 8px;
+            letter-spacing: 0.05em;
+        }
+
+        /* ===== AGENT RUN — Phase 4 ===== */
+        .run-controls {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .alert-feed {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .alert-row {
+            background: var(--bg-input);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            padding: 14px 16px;
+            display: grid;
+            grid-template-columns: 1fr 110px 140px 150px;
+            gap: 12px;
+            align-items: center;
+            opacity: 0.35;
+            transition: opacity 0.3s ease, border-color 0.3s ease;
+            font-size: 0.82rem;
+        }
+
+        @media (max-width: 700px) {
+            .alert-row { grid-template-columns: 1fr; }
+        }
+
+        .alert-row.processing {
+            opacity: 1;
+            border-color: var(--primary);
+            animation: pulse-border 1s ease infinite alternate;
+        }
+
+        .alert-row.done {
+            opacity: 1;
+            border-color: rgba(168,85,247,0.25);
+        }
+
+        @keyframes pulse-border {
+            from { box-shadow: 0 0 0 0 var(--primary-glow); }
+            to   { box-shadow: 0 0 0 4px transparent; }
+        }
+
+        .alert-meta { display: flex; flex-direction: column; gap: 2px; }
+        .alert-id   { font-size: 0.7rem; color: var(--text-muted); font-family: monospace; }
+        .alert-desc { font-weight: 500; color: var(--text-primary); }
+        .alert-src  { font-size: 0.75rem; color: var(--text-muted); }
+
+        .alert-sev-cell  { text-align: center; }
+        .alert-enrich-cell { font-size: 0.74rem; color: var(--info); }
+        .alert-response-cell { font-size: 0.74rem; }
+
+        .response-action {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 0.72rem;
+            font-weight: 600;
+        }
+
+        .resp-block    { background: var(--danger-dim);  color: var(--danger); }
+        .resp-quarant  { background: rgba(251,146,60,.12); color: #fb923c; }
+        .resp-disable  { background: var(--warning-dim); color: var(--warning); }
+        .resp-escalate { background: var(--primary-dim); color: var(--primary); }
+        .resp-ticket   { background: var(--info-dim);    color: var(--info); }
+        .resp-ignore   { background: rgba(148,163,184,.1); color: var(--text-muted); }
+        .resp-unknown  { background: rgba(148,163,184,.1); color: var(--text-muted); }
+
+        /* ===== SCORECARD — Phase 5 ===== */
+        .scorecard-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 14px;
+            margin-bottom: 24px;
+        }
+
+        .score-stat {
+            background: var(--bg-input);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-md);
+            padding: 18px 16px;
+            text-align: center;
+        }
+
+        .score-value {
+            font-size: 2rem;
+            font-weight: 700;
+            line-height: 1;
+            margin-bottom: 6px;
+        }
+
+        .score-label {
+            font-size: 0.74rem;
+            color: var(--text-muted);
+            letter-spacing: 0.04em;
+        }
+
+        .score-good    { color: var(--success); }
+        .score-warn    { color: var(--warning); }
+        .score-bad     { color: var(--danger); }
+        .score-neutral { color: var(--info); }
+
+        .problem-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-bottom: 20px;
+        }
+
+        .problem-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            padding: 10px 14px;
+            background: var(--danger-dim);
+            border: 1px solid rgba(239,68,68,0.2);
+            border-radius: var(--radius-sm);
+            font-size: 0.82rem;
+        }
+
+        .problem-icon { color: var(--danger); font-size: 0.9rem; flex-shrink: 0; }
+        .problem-text { color: var(--text-primary); }
+
+        /* ===== ACCURACY METER ===== */
+        .accuracy-ring-wrap {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin: 18px 0;
+        }
+
+        .accuracy-ring {
+            position: relative;
+            width: 120px;
+            height: 120px;
+        }
+
+        .accuracy-ring svg {
+            transform: rotate(-90deg);
+        }
+
+        .accuracy-ring .ring-bg {
+            fill: none;
+            stroke: rgba(255,255,255,0.07);
+            stroke-width: 10;
+        }
+
+        .accuracy-ring .ring-fill {
+            fill: none;
+            stroke-width: 10;
+            stroke-linecap: round;
+            transition: stroke-dashoffset 1s ease;
+        }
+
+        .accuracy-ring .ring-label {
+            position: absolute;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 1.4rem;
+            font-weight: 700;
+        }
+
+        .accuracy-subtitle {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            margin-top: 6px;
+        }
+
+        /* ===== BUTTONS ===== */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 9px 20px;
+            border-radius: var(--radius-sm);
+            font-size: 0.83rem;
+            font-weight: 600;
+            cursor: pointer;
+            border: none;
+            outline: none;
+            transition: var(--transition);
+            letter-spacing: 0.04em;
+        }
+
+        .btn:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            color: #fff;
+        }
+
+        .btn-primary:not(:disabled):hover {
+            filter: brightness(1.12);
+            box-shadow: 0 4px 16px var(--primary-glow);
+        }
+
+        .btn-outline {
+            background: transparent;
+            border: 1px solid var(--border);
+            color: var(--primary);
+        }
+
+        .btn-outline:not(:disabled):hover {
+            background: var(--primary-dim);
+            border-color: var(--primary);
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, #16a34a, var(--success));
+            color: #fff;
+        }
+
+        .btn-success:not(:disabled):hover {
+            filter: brightness(1.1);
+            box-shadow: 0 4px 14px rgba(34,197,94,0.35);
+        }
+
+        /* ===== COMPLETE BANNER ===== */
+        .complete-banner {
+            display: none;
+            text-align: center;
+            background: linear-gradient(135deg, var(--bg-card) 0%, #1a2840 100%);
+            border: 1px solid rgba(34,197,94,0.3);
+            border-radius: var(--radius-lg);
+            padding: 40px 32px;
+            margin-top: 24px;
+        }
+
+        .complete-banner.visible { display: block; }
+
+        .complete-icon { font-size: 3rem; margin-bottom: 12px; }
+        .complete-title {
+            font-size: 1.5rem;
+            font-weight: 300;
+            margin-bottom: 8px;
+            color: var(--success);
+        }
+
+        .complete-desc {
+            color: var(--text-muted);
+            font-size: 0.88rem;
+            margin-bottom: 24px;
+        }
+
+        /* ===== MISC HELPERS ===== */
+        .info-box {
+            background: var(--info-dim);
+            border: 1px solid rgba(56,189,248,0.25);
+            border-radius: var(--radius-sm);
+            padding: 10px 14px;
+            font-size: 0.8rem;
+            color: var(--info);
+            margin-bottom: 14px;
+        }
+
+        .warn-box {
+            background: var(--warning-dim);
+            border: 1px solid rgba(245,158,11,0.25);
+            border-radius: var(--radius-sm);
+            padding: 10px 14px;
+            font-size: 0.8rem;
+            color: var(--warning);
+            margin-bottom: 14px;
+        }
+
+        .success-box {
+            background: var(--success-dim);
+            border: 1px solid rgba(34,197,94,0.25);
+            border-radius: var(--radius-sm);
+            padding: 10px 14px;
+            font-size: 0.8rem;
+            color: var(--success);
+            margin-top: 14px;
+        }
+
+        .phase-nav {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .divider {
+            border: none;
+            border-top: 1px solid var(--border);
+            margin: 20px 0;
+        }
+
+        /* Progress bar (per phase) */
+        .mini-progress {
+            height: 4px;
+            background: rgba(255,255,255,0.07);
+            border-radius: 2px;
+            overflow: hidden;
+            margin-top: 6px;
+        }
+
+        .mini-progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--primary), var(--secondary));
+            border-radius: 2px;
+            transition: width 0.5s ease;
+        }
+
+        /* Spinner for run animation */
+        .spinner {
+            width: 14px;
+            height: 14px;
+            border: 2px solid rgba(168,85,247,0.3);
+            border-top-color: var(--primary);
+            border-radius: 50%;
+            animation: spin 0.6s linear infinite;
+            display: inline-block;
+        }
+
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* Target threshold annotation */
+        .threshold-line {
+            font-size: 0.76rem;
+            color: var(--text-muted);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .threshold-line::before {
+            content: '';
+            display: inline-block;
+            width: 16px;
+            height: 2px;
+            background: var(--success);
+            border-radius: 1px;
+        }
+    </style>
+</head>
+<body>
+
+<!-- ===== STICKY HEADER ===== -->
+<header class="lab-header">
+    <div class="header-left">
+        <a href="../index.html" class="back-btn">&#8592; AI House</a>
+        <span class="lab-title">SOC Alert Triage Agent</span>
+        <span class="lab-badge">Lab</span>
+    </div>
+    <div class="phase-pills" id="phase-pills" aria-label="Phase progress">
+        <div class="phase-pill active" id="pill-1" title="Phase 1: Classification Rules">1</div>
+        <div class="phase-pill"        id="pill-2" title="Phase 2: Enrichment Actions">2</div>
+        <div class="phase-pill"        id="pill-3" title="Phase 3: Response Recommendations">3</div>
+        <div class="phase-pill"        id="pill-4" title="Phase 4: Run Agent">4</div>
+        <div class="phase-pill"        id="pill-5" title="Phase 5: Evaluate & Tune">5</div>
+    </div>
+</header>
+
+<!-- ===== MAIN ===== -->
+<main class="main-wrap">
+
+    <!-- Intro -->
+    <div class="intro-banner">
+        <div class="intro-icon" aria-hidden="true">&#9673;</div>
+        <h1 class="intro-title">SOC Alert Triage Agent Lab</h1>
+        <p class="intro-desc">
+            You are building a simulated AI triage agent for a Security Operations Center.
+            Configure its classification rules, enrichment strategy, and response recommendations.
+            Then feed it 15 real-world alerts and see how well your configuration performs.
+        </p>
+    </div>
+
+    <!-- ===================================================================
+         PHASE 1 — Configure Alert Classification Rules
+    =================================================================== -->
+    <section class="phase-section" id="phase-1">
+        <div class="phase-header">
+            <div class="phase-number">1</div>
+            <div class="phase-info">
+                <h2>Configure Alert Classification Rules</h2>
+                <p>Define 8 IF-condition THEN-severity rules. The agent evaluates rules top to bottom and applies the first match.</p>
+            </div>
+        </div>
+
+        <div class="info-box">
+            Configure each rule by selecting the conditions. The agent uses the FIRST matching rule. Order matters — put higher-priority checks first.
+        </div>
+
+        <div class="card">
+            <div class="card-title">Rule Builder</div>
+            <div class="rule-grid" id="rule-grid">
+                <!-- Rules injected by JS -->
+            </div>
+        </div>
+
+        <div class="phase-nav">
+            <button class="btn btn-primary" id="phase1-next" onclick="nextPhase(1)">
+                Save Rules &amp; Continue &#8594;
+            </button>
+        </div>
+    </section>
+
+    <!-- ===================================================================
+         PHASE 2 — Configure Enrichment Actions
+    =================================================================== -->
+    <section class="phase-section hidden" id="phase-2">
+        <div class="phase-header">
+            <div class="phase-number">2</div>
+            <div class="phase-info">
+                <h2>Configure Enrichment Actions</h2>
+                <p>For each severity level, select which enrichment lookups the agent should run. You have a budget of 20 API credits per alert.</p>
+            </div>
+        </div>
+
+        <div class="info-box">
+            Each enrichment costs credits (shown below). Higher severity alerts justify more enrichment, but be careful: over-enriching low-severity alerts burns budget that could be used elsewhere.
+        </div>
+
+        <div class="card">
+            <div class="card-title">Enrichment Budget: <span id="budget-display">0 / 20 credits per alert (average)</span></div>
+
+            <table class="enrichment-table">
+                <thead>
+                    <tr>
+                        <th>Severity</th>
+                        <th>Select Enrichment Actions (click to toggle)</th>
+                    </tr>
+                </thead>
+                <tbody id="enrichment-tbody">
+                    <!-- Rows injected by JS -->
+                </tbody>
+            </table>
+
+            <div class="budget-bar-wrap">
+                <span class="budget-label">Avg. Credits Used:</span>
+                <div class="budget-bar-bg">
+                    <div class="budget-bar-fill" id="budget-bar" style="width:0%"></div>
+                </div>
+                <span class="budget-count" id="budget-count">0 / 20</span>
+            </div>
+        </div>
+
+        <div class="phase-nav">
+            <button class="btn btn-outline" onclick="prevPhase(2)">&#8592; Back</button>
+            <button class="btn btn-primary" onclick="nextPhase(2)">Save Enrichment &amp; Continue &#8594;</button>
+        </div>
+    </section>
+
+    <!-- ===================================================================
+         PHASE 3 — Configure Response Recommendations
+    =================================================================== -->
+    <section class="phase-section hidden" id="phase-3">
+        <div class="phase-header">
+            <div class="phase-number">3</div>
+            <div class="phase-info">
+                <h2>Configure Response Recommendations</h2>
+                <p>For each severity level, choose the automated response the agent recommends to the analyst.</p>
+            </div>
+        </div>
+
+        <div class="warn-box">
+            Edge cases: Internal IPs should never be automatically blocked. VPN ranges and known-good services should route to ticket creation rather than quarantine.
+        </div>
+
+        <div class="card">
+            <div class="card-title">Response Matrix</div>
+            <div class="response-grid" id="response-grid">
+                <!-- Cells injected by JS -->
+            </div>
+        </div>
+
+        <div class="phase-nav">
+            <button class="btn btn-outline" onclick="prevPhase(3)">&#8592; Back</button>
+            <button class="btn btn-primary" onclick="nextPhase(3)">Lock Config &amp; Continue &#8594;</button>
+        </div>
+    </section>
+
+    <!-- ===================================================================
+         PHASE 4 — Run the Agent
+    =================================================================== -->
+    <section class="phase-section hidden" id="phase-4">
+        <div class="phase-header">
+            <div class="phase-number">4</div>
+            <div class="phase-info">
+                <h2>Run the Agent</h2>
+                <p>Feed 15 real-world SOC alerts through your configured agent. Watch it classify, enrich, and respond to each one in real time.</p>
+            </div>
+        </div>
+
+        <div class="run-controls">
+            <button class="btn btn-primary" id="run-btn" onclick="runAgent()">
+                &#9654; Start Agent Run
+            </button>
+            <button class="btn btn-outline" id="reset-run-btn" onclick="resetRun()" disabled>
+                &#8635; Reset
+            </button>
+        </div>
+
+        <div class="alert-feed" id="alert-feed" role="list">
+            <!-- Alert rows injected by JS -->
+        </div>
+
+        <div class="phase-nav" id="phase4-nav" style="display:none;">
+            <button class="btn btn-primary" onclick="nextPhase(4)">View Scorecard &#8594;</button>
+        </div>
+    </section>
+
+    <!-- ===================================================================
+         PHASE 5 — Evaluate & Tune
+    =================================================================== -->
+    <section class="phase-section hidden" id="phase-5">
+        <div class="phase-header">
+            <div class="phase-number">5</div>
+            <div class="phase-info">
+                <h2>Evaluate &amp; Tune</h2>
+                <p>Review your agent's performance. Target: 90%+ true positive rate with under 10% false positive rate.</p>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-title">Performance Scorecard</div>
+            <div class="scorecard-grid" id="scorecard-grid">
+                <!-- Stats injected by JS -->
+            </div>
+
+            <!-- Accuracy ring -->
+            <div class="accuracy-ring-wrap">
+                <div class="accuracy-ring" id="accuracy-ring-wrap">
+                    <svg width="120" height="120" viewBox="0 0 120 120">
+                        <circle class="ring-bg"   cx="60" cy="60" r="52"></circle>
+                        <circle class="ring-fill" cx="60" cy="60" r="52"
+                                id="ring-fill"
+                                stroke-dasharray="326.7"
+                                stroke-dashoffset="326.7"
+                                stroke="#22c55e"></circle>
+                    </svg>
+                    <div class="ring-label" id="ring-label">0%</div>
+                </div>
+                <div class="accuracy-subtitle">Overall Accuracy</div>
+                <div class="threshold-line" style="margin-top:6px;">Target: 90%+ accuracy</div>
+            </div>
+        </div>
+
+        <div class="card" id="problems-card">
+            <div class="card-title">Issues Identified</div>
+            <div class="problem-list" id="problem-list">
+                <!-- Problem items injected by JS -->
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-title">Tune Your Rules</div>
+            <p style="color:var(--text-muted); font-size:0.84rem; margin-bottom:14px;">
+                Adjust your rules based on the identified issues, then re-run the agent to improve accuracy.
+            </p>
+            <div style="display:flex; gap:10px; flex-wrap:wrap;">
+                <button class="btn btn-outline" onclick="goToPhase(1)">&#9998; Edit Classification Rules</button>
+                <button class="btn btn-outline" onclick="goToPhase(2)">&#9998; Edit Enrichment</button>
+                <button class="btn btn-outline" onclick="goToPhase(3)">&#9998; Edit Responses</button>
+                <button class="btn btn-primary" onclick="goToPhase(4)">&#9654; Re-run Agent</button>
+            </div>
+        </div>
+
+        <!-- Complete banner -->
+        <div class="complete-banner" id="complete-banner">
+            <div class="complete-icon" aria-hidden="true">&#10003;</div>
+            <h2 class="complete-title">Lab Complete</h2>
+            <p class="complete-desc">
+                You have successfully configured and tuned a simulated SOC triage agent,
+                demonstrating how AI can assist human analysts through automated classification,
+                enrichment, and response recommendation.
+            </p>
+            <button class="btn btn-success" onclick="finishLab()">
+                Finish Lab &amp; Return to AI House
+            </button>
+        </div>
+    </section>
+
+</main>
+
+<!-- ===== JAVASCRIPT ===== -->
+<script>
+'use strict';
+
+/* ========================================================
+   DATA DEFINITIONS
+======================================================== */
+
+const SEVERITIES = ['Critical', 'High', 'Medium', 'Low', 'Info'];
+
+/* Conditions available in the rule builder */
+const CONDITIONS = {
+    source:     { label: 'Source',       options: ['any', 'external', 'internal', 'vpn', 'cloud'] },
+    alertType:  { label: 'Alert Type',   options: ['any', 'malware', 'brute-force', 'phishing', 'dlp', 'recon', 'anomaly'] },
+    timeOfDay:  { label: 'Time of Day',  options: ['any', 'business-hours', 'after-hours', 'weekend'] },
+    repeatCount:{ label: 'Repeat Count', options: ['any', 'first-occurrence', '2-5x', '6-10x', '10x+'] }
+};
+
+/* Default rule configuration (editable by student) */
+const DEFAULT_RULES = [
+    { source: 'external',  alertType: 'malware',       timeOfDay: 'any',            repeatCount: 'any',           action: 'Critical' },
+    { source: 'any',       alertType: 'malware',        timeOfDay: 'after-hours',    repeatCount: 'any',           action: 'Critical' },
+    { source: 'external',  alertType: 'brute-force',    timeOfDay: 'any',            repeatCount: '10x+',          action: 'High'     },
+    { source: 'external',  alertType: 'phishing',       timeOfDay: 'any',            repeatCount: 'any',           action: 'High'     },
+    { source: 'internal',  alertType: 'dlp',            timeOfDay: 'after-hours',    repeatCount: 'any',           action: 'High'     },
+    { source: 'any',       alertType: 'recon',          timeOfDay: 'any',            repeatCount: 'first-occurrence', action: 'Medium' },
+    { source: 'internal',  alertType: 'brute-force',    timeOfDay: 'business-hours', repeatCount: 'any',           action: 'Low'      },
+    { source: 'any',       alertType: 'anomaly',        timeOfDay: 'any',            repeatCount: 'any',           action: 'Info'     }
+];
+
+/* Enrichment options and their credit costs */
+const ENRICHMENTS = [
+    { id: 'ip-vt',     label: 'IP Reputation (VirusTotal)', cost: 3 },
+    { id: 'ip-abuse',  label: 'IP Reputation (AbuseIPDB)',  cost: 2 },
+    { id: 'hash-vt',   label: 'Hash Lookup (VirusTotal)',   cost: 3 },
+    { id: 'whois',     label: 'Domain WHOIS',               cost: 1 },
+    { id: 'geoip',     label: 'Geo-IP Location',            cost: 1 },
+    { id: 'ad-user',   label: 'AD Account Status',          cost: 2 },
+    { id: 'hist-corr', label: 'Historical Correlation',     cost: 4 }
+];
+
+/* Default enrichment selections per severity */
+const DEFAULT_ENRICHMENTS = {
+    Critical: ['ip-vt', 'hash-vt', 'ad-user', 'hist-corr'],
+    High:     ['ip-vt', 'ip-abuse', 'whois', 'hist-corr'],
+    Medium:   ['ip-abuse', 'geoip'],
+    Low:      ['geoip'],
+    Info:     []
+};
+
+/* Response options */
+const RESPONSE_OPTIONS = [
+    { value: 'block',     label: 'Block IP',         cls: 'resp-block'    },
+    { value: 'quarantine',label: 'Quarantine Host',  cls: 'resp-quarant'  },
+    { value: 'disable',   label: 'Disable Account',  cls: 'resp-disable'  },
+    { value: 'escalate',  label: 'Escalate Tier 2',  cls: 'resp-escalate' },
+    { value: 'ticket',    label: 'Create Ticket',    cls: 'resp-ticket'   },
+    { value: 'ignore',    label: 'Ignore',           cls: 'resp-ignore'   }
+];
+
+/* Default responses per severity */
+const DEFAULT_RESPONSES = {
+    Critical: 'quarantine',
+    High:     'escalate',
+    Medium:   'ticket',
+    Low:      'ticket',
+    Info:     'ignore'
+};
+
+/* ---- The 15 test alerts ---- */
+const ALERTS = [
+    /* id, desc, source, alertType, timeOfDay, repeatCount, isTP, expectedSev, notes */
+    { id:'ALT-001', desc:'Ransomware payload detected on workstation',  source:'external', alertType:'malware',      timeOfDay:'business-hours', repeatCount:'first-occurrence', isTP:true,  expectedSev:'Critical', note:'True positive - direct hit on rule 1' },
+    { id:'ALT-002', desc:'SSH brute-force from known-bad IP (142 attempts)', source:'external', alertType:'brute-force', timeOfDay:'after-hours', repeatCount:'10x+', isTP:true, expectedSev:'High', note:'True positive - high repeat from external' },
+    { id:'ALT-003', desc:'Spear-phishing email bypassed spam filter', source:'external', alertType:'phishing',  timeOfDay:'business-hours', repeatCount:'first-occurrence', isTP:true,  expectedSev:'High',   note:'True positive - phishing from external' },
+    { id:'ALT-004', desc:'DLP triggered: file copied to personal USB after hours', source:'internal', alertType:'dlp',    timeOfDay:'after-hours', repeatCount:'first-occurrence', isTP:true, expectedSev:'High', note:'True positive - insider after-hours DLP' },
+    { id:'ALT-005', desc:'Port scan detected from internet-facing host', source:'external', alertType:'recon',    timeOfDay:'business-hours', repeatCount:'first-occurrence', isTP:true,  expectedSev:'Medium', note:'True positive - external recon' },
+    { id:'ALT-006', desc:'Internal user login failure (3 attempts, forgot password)', source:'internal', alertType:'brute-force', timeOfDay:'business-hours', repeatCount:'2-5x', isTP:false, expectedSev:'Low', note:'False positive - normal helpdesk scenario' },
+    { id:'ALT-007', desc:'Anomalous traffic pattern from printer (telemetry noise)', source:'internal', alertType:'anomaly',  timeOfDay:'business-hours', repeatCount:'any', isTP:false, expectedSev:'Info', note:'False positive - printer telemetry' },
+    { id:'ALT-008', desc:'Malware C2 beacon detected at 3am from VPN user', source:'vpn', alertType:'malware', timeOfDay:'after-hours', repeatCount:'6-10x', isTP:true, expectedSev:'Critical', note:'True positive - VPN user C2 activity. Test: VPN treated as external?' },
+    { id:'ALT-009', desc:'Phishing link clicked on cloud proxy', source:'cloud', alertType:'phishing', timeOfDay:'business-hours', repeatCount:'first-occurrence', isTP:true, expectedSev:'High', note:'True positive - cloud-sourced phishing' },
+    { id:'ALT-010', desc:'DLP: internal document sent internally (routine report)', source:'internal', alertType:'dlp',  timeOfDay:'business-hours', repeatCount:'first-occurrence', isTP:false, expectedSev:'Low', note:'False positive - business hours DLP, no after-hours trigger' },
+    { id:'ALT-011', desc:'Brute-force sweep against public SSH (10x+ attempts)', source:'external', alertType:'brute-force', timeOfDay:'weekend', repeatCount:'10x+', isTP:true, expectedSev:'High', note:'True positive - weekend brute-force' },
+    { id:'ALT-012', desc:'Recon scan repeated over 6 hours (8 hits)', source:'external', alertType:'recon', timeOfDay:'after-hours', repeatCount:'6-10x', isTP:true, expectedSev:'High', note:'Edge case - repeated recon should escalate. Test: does rule 6 catch this?' },
+    { id:'ALT-013', desc:'Known-good security scanner (Qualys) flagged', source:'external', alertType:'recon', timeOfDay:'business-hours', repeatCount:'2-5x', isTP:false, expectedSev:'Info', note:'False positive - authorized scanner. Tests over-escalation.' },
+    { id:'ALT-014', desc:'Malware detected on isolated test VM (lab network)', source:'internal', alertType:'malware', timeOfDay:'business-hours', repeatCount:'first-occurrence', isTP:true, expectedSev:'Critical', note:'True positive - malware regardless of source' },
+    { id:'ALT-015', desc:'Mass phishing campaign: 42 mailboxes targeted simultaneously', source:'external', alertType:'phishing', timeOfDay:'business-hours', repeatCount:'10x+', isTP:true, expectedSev:'Critical', note:'True positive - mass campaign. Test: phishing rule catches high-repeat.' }
+];
+
+/* ========================================================
+   APPLICATION STATE
+======================================================== */
+
+let state = {
+    currentPhase: 1,
+    rules: DEFAULT_RULES.map(r => ({ ...r })),       /* mutable copies */
+    enrichments: JSON.parse(JSON.stringify(DEFAULT_ENRICHMENTS)),
+    responses: { ...DEFAULT_RESPONSES },
+    runResults: [],
+    runComplete: false,
+    labCompleted: false
+};
+
+/* ========================================================
+   PHASE NAVIGATION
+======================================================== */
+
+function nextPhase(fromPhase) {
+    goToPhase(fromPhase + 1);
+}
+
+function prevPhase(fromPhase) {
+    goToPhase(fromPhase - 1);
+}
+
+function goToPhase(phaseNum) {
+    /* Save state from departing phase */
+    if (state.currentPhase === 1) saveRulesFromDOM();
+    if (state.currentPhase === 2) saveEnrichmentFromDOM();
+    if (state.currentPhase === 3) saveResponsesFromDOM();
+
+    /* Hide all phases */
+    document.querySelectorAll('.phase-section').forEach(s => s.classList.add('hidden'));
+
+    /* Show target phase */
+    const target = document.getElementById('phase-' + phaseNum);
+    if (target) target.classList.remove('hidden');
+
+    state.currentPhase = phaseNum;
+    updatePills();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+
+    /* If going to phase 4, rebuild the alert feed */
+    if (phaseNum === 4) buildAlertFeed();
+    /* If going to phase 5, rebuild scorecard */
+    if (phaseNum === 5) buildScorecard();
+}
+
+function updatePills() {
+    for (let i = 1; i <= 5; i++) {
+        const pill = document.getElementById('pill-' + i);
+        pill.classList.remove('active', 'done');
+        if (i < state.currentPhase)  pill.classList.add('done');
+        if (i === state.currentPhase) pill.classList.add('active');
+    }
+}
+
+/* ========================================================
+   PHASE 1 — RULE BUILDER
+======================================================== */
+
+function buildRuleGrid() {
+    const grid = document.getElementById('rule-grid');
+    grid.innerHTML = '';
+
+    state.rules.forEach((rule, idx) => {
+        const card = document.createElement('div');
+        card.className = 'rule-card';
+        card.innerHTML = `
+            <div class="rule-number">RULE ${idx + 1}</div>
+            ${buildConditionRow('source',      idx, rule.source)}
+            ${buildConditionRow('alertType',   idx, rule.alertType)}
+            ${buildConditionRow('timeOfDay',   idx, rule.timeOfDay)}
+            ${buildConditionRow('repeatCount', idx, rule.repeatCount)}
+            <div class="rule-action-row">
+                <label>THEN classify as:</label>
+                <select class="rule-select" id="rule-${idx}-action" onchange="updateRuleSeverityBadge(${idx})">
+                    ${SEVERITIES.map(s => `<option value="${s}" ${rule.action === s ? 'selected' : ''}>${s}</option>`).join('')}
+                </select>
+                <span class="severity-badge ${severityClass(rule.action)}" id="rule-${idx}-badge">${rule.action}</span>
+            </div>
+        `;
+        grid.appendChild(card);
+    });
+}
+
+function buildConditionRow(condKey, ruleIdx, currentValue) {
+    const cond = CONDITIONS[condKey];
+    return `
+        <div class="rule-row">
+            <label>IF ${cond.label}:</label>
+            <select class="rule-select" id="rule-${ruleIdx}-${condKey}">
+                ${cond.options.map(opt => `<option value="${opt}" ${currentValue === opt ? 'selected' : ''}>${opt}</option>`).join('')}
+            </select>
+        </div>
+    `;
+}
+
+function updateRuleSeverityBadge(idx) {
+    const sel   = document.getElementById('rule-' + idx + '-action');
+    const badge = document.getElementById('rule-' + idx + '-badge');
+    badge.textContent = sel.value;
+    badge.className   = 'severity-badge ' + severityClass(sel.value);
+}
+
+function saveRulesFromDOM() {
+    state.rules = state.rules.map((_, idx) => ({
+        source:      document.getElementById('rule-' + idx + '-source')?.value      || 'any',
+        alertType:   document.getElementById('rule-' + idx + '-alertType')?.value   || 'any',
+        timeOfDay:   document.getElementById('rule-' + idx + '-timeOfDay')?.value   || 'any',
+        repeatCount: document.getElementById('rule-' + idx + '-repeatCount')?.value || 'any',
+        action:      document.getElementById('rule-' + idx + '-action')?.value      || 'Medium'
+    }));
+}
+
+/* ========================================================
+   PHASE 2 — ENRICHMENT BUILDER
+======================================================== */
+
+function buildEnrichmentTable() {
+    const tbody = document.getElementById('enrichment-tbody');
+    tbody.innerHTML = '';
+
+    SEVERITIES.forEach(sev => {
+        const tr = document.createElement('tr');
+        const selectedSet = new Set(state.enrichments[sev] || []);
+
+        const togglesHtml = ENRICHMENTS.map(e => {
+            const isSelected = selectedSet.has(e.id);
+            return `
+                <label class="enrich-toggle ${isSelected ? 'selected' : ''}"
+                       id="toggle-${sev}-${e.id}"
+                       onclick="toggleEnrichment('${sev}', '${e.id}', this)">
+                    <input type="checkbox" ${isSelected ? 'checked' : ''}>
+                    ${e.label} <span style="opacity:0.6;">(${e.cost}cr)</span>
+                </label>
+            `;
+        }).join('');
+
+        tr.innerHTML = `
+            <td><span class="severity-badge ${severityClass(sev)}">${sev}</span></td>
+            <td><div class="enrichment-check-group">${togglesHtml}</div></td>
+        `;
+        tbody.appendChild(tr);
+    });
+
+    updateBudgetDisplay();
+}
+
+function toggleEnrichment(sev, enrichId, labelEl) {
+    const arr = state.enrichments[sev] || [];
+    const idx = arr.indexOf(enrichId);
+    if (idx === -1) {
+        state.enrichments[sev] = [...arr, enrichId];
+        labelEl.classList.add('selected');
+    } else {
+        state.enrichments[sev] = arr.filter(id => id !== enrichId);
+        labelEl.classList.remove('selected');
+    }
+    updateBudgetDisplay();
+}
+
+function updateBudgetDisplay() {
+    /* Calculate weighted average credits across severities */
+    const sevWeights = { Critical: 3, High: 4, Medium: 5, Low: 2, Info: 1 };
+    let totalWeighted = 0;
+    let totalWeight   = 0;
+
+    SEVERITIES.forEach(sev => {
+        const credits = (state.enrichments[sev] || []).reduce((sum, id) => {
+            const e = ENRICHMENTS.find(x => x.id === id);
+            return sum + (e ? e.cost : 0);
+        }, 0);
+        totalWeighted += credits * sevWeights[sev];
+        totalWeight   += sevWeights[sev];
+    });
+
+    const avg  = totalWeight > 0 ? Math.round(totalWeighted / totalWeight) : 0;
+    const pct  = Math.min((avg / 20) * 100, 100);
+    const over = avg > 20;
+
+    document.getElementById('budget-display').textContent = `${avg} / 20 credits per alert (weighted avg)`;
+    document.getElementById('budget-bar').style.width    = pct + '%';
+    document.getElementById('budget-bar').classList.toggle('over', over);
+    document.getElementById('budget-count').textContent  = avg + ' / 20';
+    document.getElementById('budget-count').style.color  = over ? 'var(--danger)' : 'var(--success)';
+}
+
+function saveEnrichmentFromDOM() {
+    /* State is already updated live via toggleEnrichment */
+}
+
+/* ========================================================
+   PHASE 3 — RESPONSE MATRIX
+======================================================== */
+
+function buildResponseGrid() {
+    const grid = document.getElementById('response-grid');
+    grid.innerHTML = '';
+
+    SEVERITIES.forEach(sev => {
+        const cell = document.createElement('div');
+        cell.className = 'response-cell';
+
+        const optionsHtml = RESPONSE_OPTIONS.map(opt => {
+            const isSelected = state.responses[sev] === opt.value;
+            return `<option value="${opt.value}" ${isSelected ? 'selected' : ''}>${opt.label}</option>`;
+        }).join('');
+
+        cell.innerHTML = `
+            <div class="response-cell-title">
+                <span class="severity-badge ${severityClass(sev)}">${sev}</span>
+            </div>
+            <select class="rule-select" id="resp-${sev}" style="width:100%;margin-top:8px;"
+                    onchange="previewResponseAction('${sev}', this.value)">
+                ${optionsHtml}
+            </select>
+            <div id="resp-preview-${sev}" style="margin-top:8px;font-size:0.74rem;color:var(--text-muted);">
+                ${getResponseLabel(state.responses[sev])}
+            </div>
+        `;
+        grid.appendChild(cell);
+    });
+}
+
+function previewResponseAction(sev, value) {
+    const preview = document.getElementById('resp-preview-' + sev);
+    preview.textContent = getResponseLabel(value);
+}
+
+function saveResponsesFromDOM() {
+    SEVERITIES.forEach(sev => {
+        const sel = document.getElementById('resp-' + sev);
+        if (sel) state.responses[sev] = sel.value;
+    });
+}
+
+function getResponseLabel(value) {
+    const opt = RESPONSE_OPTIONS.find(o => o.value === value);
+    return opt ? opt.label : '—';
+}
+
+/* ========================================================
+   PHASE 4 — RUN THE AGENT
+======================================================== */
+
+function buildAlertFeed() {
+    const feed = document.getElementById('alert-feed');
+    feed.innerHTML = '';
+    state.runResults = [];
+    state.runComplete = false;
+    document.getElementById('phase4-nav').style.display = 'none';
+    document.getElementById('run-btn').disabled    = false;
+    document.getElementById('reset-run-btn').disabled = true;
+
+    ALERTS.forEach((alert, idx) => {
+        const row = document.createElement('div');
+        row.className  = 'alert-row';
+        row.id         = 'alert-row-' + idx;
+        row.setAttribute('role', 'listitem');
+        row.innerHTML  = `
+            <div class="alert-meta">
+                <span class="alert-id">${alert.id}</span>
+                <span class="alert-desc">${sanitize(alert.desc)}</span>
+                <span class="alert-src">${alert.source} &bull; ${alert.alertType} &bull; ${alert.timeOfDay}</span>
+            </div>
+            <div class="alert-sev-cell" id="sev-${idx}">—</div>
+            <div class="alert-enrich-cell" id="enrich-${idx}">—</div>
+            <div class="alert-response-cell" id="resp-${idx}">—</div>
+        `;
+        feed.appendChild(row);
+    });
+}
+
+async function runAgent() {
+    document.getElementById('run-btn').disabled     = true;
+    document.getElementById('reset-run-btn').disabled = false;
+
+    for (let i = 0; i < ALERTS.length; i++) {
+        await processAlert(i);
+        await sleep(420);
+    }
+
+    state.runComplete = true;
+    document.getElementById('phase4-nav').style.display = 'flex';
+}
+
+async function processAlert(idx) {
+    const alert = ALERTS[idx];
+    const row   = document.getElementById('alert-row-' + idx);
+
+    /* Animate: mark as processing */
+    row.classList.add('processing');
+    await sleep(300);
+
+    /* === CLASSIFICATION ENGINE ===
+       Evaluate rules in order; use first match.
+       'any' condition always matches. */
+    let severity = 'Info'; /* fallback */
+    for (const rule of state.rules) {
+        const matchSrc   = rule.source      === 'any' || rule.source      === alert.source;
+        const matchType  = rule.alertType   === 'any' || rule.alertType   === alert.alertType;
+        const matchTime  = rule.timeOfDay   === 'any' || rule.timeOfDay   === alert.timeOfDay;
+        const matchCount = rule.repeatCount === 'any' || rule.repeatCount === alert.repeatCount;
+        if (matchSrc && matchType && matchTime && matchCount) {
+            severity = rule.action;
+            break;
+        }
+    }
+
+    await sleep(250);
+
+    /* Update severity cell */
+    document.getElementById('sev-' + idx).innerHTML =
+        `<span class="severity-badge ${severityClass(severity)}">${severity}</span>`;
+
+    await sleep(200);
+
+    /* === ENRICHMENT ENGINE ===
+       List what enrichments would run for this severity. */
+    const enrichList = state.enrichments[severity] || [];
+    const enrichLabels = enrichList.map(id => {
+        const e = ENRICHMENTS.find(x => x.id === id);
+        return e ? e.label.split(' ')[0] : id;
+    });
+
+    document.getElementById('enrich-' + idx).textContent =
+        enrichLabels.length > 0 ? enrichLabels.join(', ') : 'None';
+
+    await sleep(250);
+
+    /* === RESPONSE ENGINE ===
+       Apply response for this severity. */
+    const responseValue = state.responses[severity] || 'ticket';
+    const responseOpt   = RESPONSE_OPTIONS.find(o => o.value === responseValue);
+
+    document.getElementById('resp-' + idx).innerHTML =
+        `<span class="response-action ${responseOpt ? responseOpt.cls : 'resp-unknown'}">
+            ${responseOpt ? responseOpt.label : responseValue}
+        </span>`;
+
+    /* Store result for scoring */
+    state.runResults.push({
+        alert,
+        assignedSev:   severity,
+        enrichActions: enrichList,
+        responseValue
+    });
+
+    /* Mark done */
+    row.classList.remove('processing');
+    row.classList.add('done');
+}
+
+function resetRun() {
+    buildAlertFeed();
+}
+
+/* ========================================================
+   PHASE 5 — SCORECARD
+======================================================== */
+
+function buildScorecard() {
+    if (!state.runComplete || state.runResults.length === 0) {
+        document.getElementById('scorecard-grid').innerHTML =
+            '<p style="color:var(--text-muted);font-size:0.85rem;">No run data — please run the agent first.</p>';
+        return;
+    }
+
+    /* Evaluate each result against expected behaviour */
+    const evalResults = state.runResults.map(r => evaluateResult(r));
+
+    const tp   = evalResults.filter(e => e.isTP  && e.handled).length;
+    const fp   = evalResults.filter(e => !e.isTP && e.escalated).length;
+    const fn   = evalResults.filter(e => e.isTP  && !e.handled).length;
+    const oe   = evalResults.filter(e => e.overEscalated).length;
+    const total = evalResults.length;
+
+    const tpRate  = total > 0 ? Math.round((tp / ALERTS.filter(a => a.isTP).length) * 100) : 0;
+    const fpRate  = total > 0 ? Math.round((fp / ALERTS.filter(a => !a.isTP).length) * 100) : 0;
+    const accuracy= total > 0 ? Math.round(((tp + (total - ALERTS.filter(a => a.isTP).length - fp)) / total) * 100) : 0;
+
+    /* Render stats */
+    const grid = document.getElementById('scorecard-grid');
+    grid.innerHTML = `
+        <div class="score-stat">
+            <div class="score-value score-good">${tpRate}%</div>
+            <div class="score-label">True Positive Rate</div>
+        </div>
+        <div class="score-stat">
+            <div class="score-value ${fpRate > 10 ? 'score-bad' : 'score-good'}">${fpRate}%</div>
+            <div class="score-label">False Positive Rate</div>
+        </div>
+        <div class="score-stat">
+            <div class="score-value score-warn">${fn}</div>
+            <div class="score-label">Missed Threats</div>
+        </div>
+        <div class="score-stat">
+            <div class="score-value score-neutral">${oe}</div>
+            <div class="score-label">Over-Escalations</div>
+        </div>
+        <div class="score-stat">
+            <div class="score-value ${accuracy >= 90 ? 'score-good' : accuracy >= 70 ? 'score-warn' : 'score-bad'}">${accuracy}%</div>
+            <div class="score-label">Overall Accuracy</div>
+        </div>
+    `;
+
+    /* Accuracy ring */
+    const circumference = 326.7;
+    const offset = circumference - (accuracy / 100) * circumference;
+    const ringFill  = document.getElementById('ring-fill');
+    const ringLabel = document.getElementById('ring-label');
+
+    ringFill.style.stroke          = accuracy >= 90 ? '#22c55e' : accuracy >= 70 ? '#f59e0b' : '#ef4444';
+    ringFill.style.strokeDashoffset = circumference; /* start at 0 */
+    ringLabel.textContent           = accuracy + '%';
+    ringLabel.style.color           = accuracy >= 90 ? 'var(--success)' : accuracy >= 70 ? 'var(--warning)' : 'var(--danger)';
+
+    /* Animate ring fill after a brief delay */
+    setTimeout(() => {
+        ringFill.style.strokeDashoffset = offset;
+    }, 100);
+
+    /* Build problem list */
+    buildProblemList(evalResults, tpRate, fpRate, fn, oe, accuracy);
+
+    /* Show completion if target hit */
+    const targetMet = accuracy >= 90 && fpRate <= 10;
+    if (targetMet && !state.labCompleted) {
+        document.getElementById('complete-banner').classList.add('visible');
+    }
+}
+
+function evaluateResult(result) {
+    const { alert, assignedSev, responseValue } = result;
+
+    /* Severity score: was the classification reasonable? */
+    const sevRank = { Critical: 5, High: 4, Medium: 3, Low: 2, Info: 1 };
+    const assigned = sevRank[assignedSev] || 1;
+    const expected = sevRank[alert.expectedSev] || 1;
+
+    /* Considered "handled" if assigned severity is at least one tier of expected */
+    const handled = alert.isTP && assigned >= (expected - 1);
+
+    /* Considered "escalated" if a non-threat was given a response that triggers action */
+    const actionResponses = ['block', 'quarantine', 'disable', 'escalate'];
+    const escalated = actionResponses.includes(responseValue);
+
+    /* Over-escalated: false positive that got actioned */
+    const overEscalated = !alert.isTP && escalated;
+
+    /* Missed: true positive that was classified too low or ignored */
+    const missed = alert.isTP && (assigned < expected - 1 || responseValue === 'ignore');
+
+    return { alert, assignedSev, responseValue, handled, escalated, overEscalated, missed };
+}
+
+function buildProblemList(evalResults, tpRate, fpRate, fn, oe, accuracy) {
+    const list = document.getElementById('problem-list');
+    list.innerHTML = '';
+    const problems = [];
+
+    if (tpRate < 90) {
+        problems.push(`True positive rate is ${tpRate}% (target: 90%+). Check that your malware, phishing, and brute-force rules cover all combinations of source and time of day.`);
+    }
+
+    if (fpRate > 10) {
+        problems.push(`False positive rate is ${fpRate}% (target: below 10%). Your rules may be too broad — consider tightening the source or repeat count conditions.`);
+    }
+
+    if (fn > 0) {
+        const missedAlerts = evalResults.filter(e => e.missed).map(e => e.alert.id).join(', ');
+        problems.push(`Missed ${fn} real threat(s): ${missedAlerts}. Review rules for edge cases like VPN-sourced malware, cloud phishing, and high-repeat recon.`);
+    }
+
+    if (oe > 0) {
+        const overEsc = evalResults.filter(e => e.overEscalated).map(e => e.alert.id).join(', ');
+        problems.push(`Over-escalated ${oe} false positive(s): ${overEsc}. Consider adding conditions to prevent actioning on first-occurrence internal alerts.`);
+    }
+
+    /* Alert-specific edge case hints */
+    const c2VPN = evalResults.find(e => e.alert.id === 'ALT-008');
+    if (c2VPN && c2VPN.assignedSev === 'Info') {
+        problems.push('ALT-008: VPN C2 beacon was classified as Info. VPN traffic should be treated as external for malware alerts — adjust your source condition.');
+    }
+
+    const scanner = evalResults.find(e => e.alert.id === 'ALT-013');
+    if (scanner && scanner.escalated) {
+        problems.push('ALT-013: Authorized scanner was escalated. Consider adding an Info-level catch for low-repeat external recon during business hours.');
+    }
+
+    if (problems.length === 0) {
+        list.innerHTML = `<div class="success-box" style="margin:0;">No critical issues detected. Your configuration is performing well — consider tuning further to catch ALT-012 edge cases.</div>`;
+        return;
+    }
+
+    problems.forEach(p => {
+        const item = document.createElement('div');
+        item.className = 'problem-item';
+        item.innerHTML = `<span class="problem-icon">&#9679;</span><span class="problem-text">${sanitize(p)}</span>`;
+        list.appendChild(item);
+    });
+}
+
+/* ========================================================
+   COMPLETION
+======================================================== */
+
+function finishLab() {
+    state.labCompleted = true;
+    if (typeof ModuleProgress !== 'undefined') {
+        ModuleProgress.complete('ai', 'ai-soc-triage-lab', { returnUrl: '../index.html' });
+    } else {
+        window.location.href = '../index.html';
+    }
+}
+
+/* ========================================================
+   UTILITY HELPERS
+======================================================== */
+
+function severityClass(sev) {
+    const map = {
+        Critical: 'sev-critical',
+        High:     'sev-high',
+        Medium:   'sev-medium',
+        Low:      'sev-low',
+        Info:     'sev-info'
+    };
+    return map[sev] || 'sev-info';
+}
+
+function sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+/* Sanitize plain text for safe insertion into DOM */
+function sanitize(str) {
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+}
+
+/* ========================================================
+   INIT — build all phases on load
+======================================================== */
+
+document.addEventListener('DOMContentLoaded', function () {
+    buildRuleGrid();
+    buildEnrichmentTable();
+    buildResponseGrid();
+    buildAlertFeed();
+    updatePills();
+});
+</script>
+
+</body>
+</html>
