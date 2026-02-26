@@ -1055,8 +1055,8 @@
             }
 
             update() {
-                if (scrollMode === 'vertical') this.y += speed;
-                else this.x -= speed;
+                if (scrollMode !== 'vertical') this.x -= speed;
+                // Vertical mode: no auto-scroll — camera-follow handles movement
 
                 if (this.crumbling) {
                     this.crumbleTimer++;
@@ -1159,8 +1159,8 @@
 
             update() {
                 this.age++;
-                if (scrollMode === 'vertical') this.y += this.speed;
-                else this.x -= this.speed;
+                if (scrollMode !== 'vertical') this.x -= this.speed;
+                // Vertical mode: no auto-scroll — camera-follow handles movement
 
                 if (this.type === 'cost') {
                     // Cost spike chases player (slow)
@@ -1377,8 +1377,8 @@
             }
 
             update() {
-                if (scrollMode === 'vertical') this.y += speed;
-                else this.x -= speed;
+                if (scrollMode !== 'vertical') this.x -= speed;
+                // Vertical mode: no auto-scroll — camera-follow handles movement
                 this.bobOffset = Math.sin(gameFrame * 0.1) * 3;
             }
 
@@ -1639,7 +1639,10 @@
             const provider = cloudProviders[Math.floor(Math.random() * cloudProviders.length)];
             const width = lvl.platformWidth + Math.floor(Math.random() * 20) - 10;
             if (scrollMode === 'vertical') {
-                platforms.push(new Platform(getReachableX(), -20, width, provider));
+                // Spawn above the highest existing platform at a jumpable distance
+                const highest = platforms.length > 0 ? Math.min(...platforms.map(p => p.y)) : canvas.height / 2;
+                const gap = 60 + Math.floor(Math.random() * 40); // 60-100px gap between platforms
+                platforms.push(new Platform(getReachableX(), highest - gap, width, provider));
             } else {
                 platforms.push(new Platform(canvas.width, getReachableY(), width, provider));
             }
@@ -1651,7 +1654,8 @@
             const provider = cloudProviders[Math.floor(Math.random() * cloudProviders.length)];
             const width = lvl.platformWidth + 40;
             if (scrollMode === 'vertical') {
-                platforms.push(new Platform(getReachableX(), -20, width, provider, true));
+                const highest = platforms.length > 0 ? Math.min(...platforms.map(p => p.y)) : canvas.height / 2;
+                platforms.push(new Platform(getReachableX(), highest - 80, width, provider, true));
             } else {
                 platforms.push(new Platform(canvas.width, getReachableY(), width, provider, true));
             }
@@ -1705,7 +1709,7 @@
             // Some types spawn from screen edge, not on platforms
             if (type === 'billing' || type === 'outage') {
                 if (scrollMode === 'vertical') {
-                    obstacles.push(new Obstacle(80 + Math.random() * (canvas.width - 200), -40, type));
+                    obstacles.push(new Obstacle(80 + Math.random() * (canvas.width - 200), -60, type));
                 } else {
                     obstacles.push(new Obstacle(canvas.width + 20, 80 + Math.random() * (canvas.height - 200), type));
                 }
@@ -1761,12 +1765,12 @@
             let bestScore = -Infinity;
 
             if (scrollMode === 'vertical') {
-                // Vertical: target platforms above (lower Y) that are reachable by jumping
+                // Vertical (Doodle Jump style): target platforms above (lower Y)
                 platforms.forEach(p => {
                     if (p.crumbling) return;
-                    const above = player.y - p.y;
-                    if (above < -30) return;
-                    const s = -Math.abs(above - 100) - Math.abs(p.x + p.width / 2 - player.x - player.width / 2) * 0.5;
+                    const above = player.y - p.y; // positive = platform is above us
+                    if (above < 10 || above > 200) return; // must be above us and reachable
+                    const s = -Math.abs(above - 80) - Math.abs(p.x + p.width / 2 - player.x - player.width / 2) * 0.3;
                     if (s > bestScore) { bestScore = s; targetPlatform = p; }
                 });
             } else {
@@ -1803,8 +1807,8 @@
                 );
 
                 if (scrollMode === 'vertical') {
-                    // Jump when platform nears bottom of screen (about to scroll off)
-                    if (!current || current.y > canvas.height - 120 || current.crumbling) {
+                    // Always jump when on a platform (Doodle Jump auto-bounce behavior)
+                    if (!current || current.crumbling || player.onPlatform) {
                         keys.space = true; keys.up = true;
                     } else if (targetPlatform && targetPlatform !== current) {
                         keys.space = true; keys.up = true;
@@ -1916,13 +1920,12 @@
                 const lvl = getCurrentLevel();
                 speed = lvl.speed + (activePowerup === 'cdn' ? 1.5 : 0);
 
-                if (gameFrame % 60 === 0) {
-                    score += (currentLevel + 1); // Level multiplier
+                if (scrollMode !== 'vertical' && gameFrame % 60 === 0) {
+                    score += (currentLevel + 1); // Level multiplier (horizontal only — vertical scores by altitude)
                     document.getElementById('score').textContent = score;
-
-                    if (score >= 500 && !localStorage.getItem('game_cloudhop_xp_awarded')) {
-                        awardXP();
-                    }
+                }
+                if (score >= 500 && !localStorage.getItem('game_cloudhop_xp_awarded')) {
+                    awardXP();
                 }
             } else if (worldFrozen || gameOverFreeze) {
                 speed = 0;
@@ -1983,7 +1986,10 @@
 
                 // Route 53 — snap to nearest platform (Level 5+, DOWN+SPACE while falling)
                 if (keys.down && jumpJustPressed && !player.onPlatform && route53Ready && currentLevel >= 4 && !demoMode) {
-                    const nearest = platforms.filter(p => !p.crumbling && p.y > player.y && p.x < player.x + 200 && p.x + p.width > player.x - 50)
+                    // In vertical mode, snap to nearest platform below (higher Y); in horizontal, ahead
+                    const nearest = platforms.filter(p => !p.crumbling &&
+                        (scrollMode === 'vertical' ? p.y > player.y : p.y > player.y) &&
+                        p.x < player.x + 200 && p.x + p.width > player.x - 50)
                         .sort((a, b) => Math.abs(a.y - player.y) - Math.abs(b.y - player.y))[0];
                     if (nearest) {
                         player.x = nearest.x + nearest.width / 2 - player.width / 2;
@@ -2020,6 +2026,30 @@
                 player.velocityY += gravity;
             }
             player.y += player.velocityY;
+
+            // Camera-follow for vertical mode (Doodle Jump style)
+            // When player rises above the camera threshold, push everything down
+            if (scrollMode === 'vertical') {
+                const cameraThreshold = canvas.height / 3; // upper third triggers scroll
+                if (player.y < cameraThreshold) {
+                    const shift = cameraThreshold - player.y;
+                    player.y = cameraThreshold;
+
+                    // Push all world objects down
+                    platforms.forEach(p => { p.y += shift; });
+                    obstacles.forEach(o => { o.y += shift; });
+                    powerups.forEach(p => { p.y += shift; });
+                    abilityEffects.forEach(e => { e.y += shift; });
+                    particles.forEach(p => { p.y += shift; });
+
+                    // Score based on altitude gained
+                    if (!demoMode && !countdownActive) {
+                        const altitudePoints = Math.floor(shift);
+                        score += altitudePoints;
+                        document.getElementById('score').textContent = score;
+                    }
+                }
+            }
 
             // Update ability effects
             abilityEffects.forEach(e => { e.life--; e.y -= 1.5; });
@@ -2128,10 +2158,21 @@
             // Spawn platforms
             platformSpawnTimer++;
             const lvl = getCurrentLevel();
-            const rate = (demoMode || countdownActive) ? 90 : lvl.spawnRate;
-            if (platformSpawnTimer > rate) {
-                spawnPlatform();
-                platformSpawnTimer = 0;
+            if (scrollMode === 'vertical') {
+                // Camera-follow mode: spawn platforms above screen when needed
+                const highestPlatform = platforms.length > 0
+                    ? Math.min(...platforms.map(p => p.y))
+                    : canvas.height;
+                // Keep platforms available above the viewport
+                if (highestPlatform > -50) {
+                    spawnPlatform();
+                }
+            } else {
+                const rate = (demoMode || countdownActive) ? 90 : lvl.spawnRate;
+                if (platformSpawnTimer > rate) {
+                    spawnPlatform();
+                    platformSpawnTimer = 0;
+                }
             }
 
             // Obstacles & powerups (only during actual play)
@@ -2571,10 +2612,11 @@
 
             // Spawn generous runway of platforms
             if (scrollMode === 'vertical') {
-                for (let i = 0; i < 7; i++) {
+                // Doodle Jump style: ground platform + staircase upward
+                for (let i = 0; i < 8; i++) {
                     const provider = cloudProviders[i % 3];
-                    const x = 80 + ((i * 97) % (canvas.width - LEVELS[0].platformWidth - 60));
-                    platforms.push(new Platform(x, 480 - i * 75, LEVELS[0].platformWidth, provider));
+                    const x = 60 + ((i * 113) % (canvas.width - LEVELS[0].platformWidth - 40));
+                    platforms.push(new Platform(x, 520 - i * 70, LEVELS[0].platformWidth, provider));
                 }
             } else {
                 for (let i = 0; i < 7; i++) {
@@ -2723,12 +2765,12 @@
 
             if (scrollMode === 'vertical') {
                 player.x = 200;
-                player.y = 400;
-                // Seed platforms ascending vertically (spread upward from player)
-                for (let i = 0; i < 6; i++) {
+                player.y = 450;
+                // Seed platforms staircase upward for demo
+                for (let i = 0; i < 8; i++) {
                     const provider = cloudProviders[i % 3];
-                    const x = 100 + Math.sin(i * 1.5) * 200 + 200;
-                    platforms.push(new Platform(x, 450 - i * 90, 100, provider));
+                    const x = 80 + Math.sin(i * 1.2) * 200 + 200;
+                    platforms.push(new Platform(x, 500 - i * 70, 100, provider));
                 }
             } else {
                 player.x = 100;
