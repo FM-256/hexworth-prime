@@ -86,6 +86,14 @@ const ContentCatalog = (function() {
             color: '#9333ea',
             description: 'Offensive Security & Ethical Hacking',
             basePath: 'houses/dark-arts/'
+        },
+        ai: {
+            id: 'ai',
+            name: 'House of the Machine',
+            icon: '🤖',
+            color: '#a855f7',
+            description: 'AI & Intelligent Automation',
+            basePath: 'houses/ai/'
         }
     };
 
@@ -1776,6 +1784,17 @@ const ContentCatalog = (function() {
         { house: 'script', id: 'script-log-analysis', title: 'Log Analysis Visualizer', description: 'Interactive log parsing and analysis: pattern matching, filtering, and anomaly detection', icon: '⚙️', status: 'available', components: ['applet'], href: 'applets/script-log-analysis.applet.html', category: 'sysadmin' },
         { house: 'script', id: 'script-backup-strategies', title: 'Backup Strategies Visualizer', description: 'Compare backup strategies: full, incremental, differential, and rotation schemes', icon: '⚙️', status: 'available', components: ['applet'], href: 'applets/script-backup-strategies.applet.html', category: 'sysadmin' },
         { house: 'script', id: 'script-reporting-automation', title: 'Reporting Automation', description: 'Automate report generation: data collection, formatting, scheduling, and output delivery', icon: '⚙️', status: 'available', components: ['applet'], href: 'applets/script-reporting-automation.applet.html', category: 'sysadmin' },
+
+        // ═══════════════════════════════════════════════════════════════════
+        // HOUSE OF THE MACHINE - AI & Intelligent Automation
+        // ═══════════════════════════════════════════════════════════════════
+        { house: 'ai', id: 'ai-what-are-agents', title: 'What Are AI Agents?', description: 'Agent vs Chatbot vs Automation — the 3-component model: Brain, Memory, Tools', icon: '🧠', status: 'available', components: ['applet', 'quiz'], href: 'modules/ai-what-are-agents.applet.html', category: 'foundations' },
+        { house: 'ai', id: 'ai-automation-rubric', title: 'The Automation Rubric', description: 'Evaluate which tasks are worth automating — frequency, complexity, precision tiers', icon: '📋', status: 'available', components: ['applet', 'quiz'], href: 'modules/ai-automation-rubric.applet.html', category: 'foundations' },
+        { house: 'ai', id: 'ai-agent-components', title: 'Agent Components Deep Dive', description: 'Brain (LLMs), Memory (RAG, vector DBs), Tools (APIs, code execution) — the perceive-reason-act loop', icon: '🏗️', status: 'available', components: ['applet'], href: 'modules/ai-agent-components.applet.html', category: 'architecture' },
+        { house: 'ai', id: 'ai-nocode-platforms', title: 'No-Code Agent Platforms', description: 'Build agents with Zapier and N8N — visual workflows, triggers, and tool connections', icon: '🔧', status: 'available', components: ['applet'], href: 'modules/ai-nocode-platforms.applet.html', category: 'building' },
+        { house: 'ai', id: 'ai-prompt-engineering', title: 'Prompt Engineering for Agents', description: 'System prompts, structured output, the two-step method, role definition', icon: '✍️', status: 'available', components: ['applet', 'quiz'], href: 'modules/ai-prompt-engineering.applet.html', category: 'building' },
+        { house: 'ai', id: 'ai-soc-automation', title: 'SOC Agent Automation', description: 'Alert triage, threat intel enrichment, phishing analysis, IR runbook agents', icon: '🛡️', status: 'available', components: ['applet'], href: 'modules/ai-soc-automation.applet.html', category: 'cybersecurity' },
+        { house: 'ai', id: 'ai-guardrails', title: 'Guardrails & Graduated Autonomy', description: 'Prompt injection defense, human-in-loop patterns, rate limits, metrics tracking', icon: '🚧', status: 'available', components: ['applet', 'quiz'], href: 'modules/ai-guardrails.applet.html', category: 'safety' },
 
     ];
 
