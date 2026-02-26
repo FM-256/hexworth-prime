@@ -26,17 +26,14 @@ const XPCalculator = (function () {
         TOOL_EXPLORE: 50,
         QUIZ_PASS: 100,        // 70-89%
         QUIZ_PERFECT: 200,     // 90%+
-        BADGE_EARNED: 250,
         GATE_CLEARED: 500,
         LAB_COMPLETE: 500,
-        GAME_HIGH_SCORE: 1000,
+        GAME_PLAYED: 100,      // flat rate per unique game with a recorded score
         MODULE_COMPLETE: 1000,
         COURSE_COMPLETE: 10000,
         DAILY_LOGIN: 25
+        // Badges use their own .points values (10-500 per badge, defined in AchievementSystem)
     };
-
-    // Tiered game rank XP
-    const RANK_XP = [1000, 750, 500, 250, 100]; // #1-#5
 
     // Max daily login days for XP cap
     const MAX_LOGIN_DAYS = 365;
@@ -281,61 +278,60 @@ const XPCalculator = (function () {
     }
 
     /**
-     * Read hexworth_game_tracker and sum tiered RANK_XP for top-5 placements.
-     * Only counts unique game entries (not per-session).
+     * Read hexworth_game_tracker and award flat GAME_PLAYED XP per unique game.
      */
     function _countGameXP(breakdown) {
         try {
             const raw = localStorage.getItem('hexworth_game_tracker');
             if (!raw) return;
             const tracker = JSON.parse(raw);
+            if (typeof tracker !== 'object' || tracker === null) return;
 
-            // GameTracker stores per-game data keyed by gameId
-            // Each game entry has a bestScore/highScore and potentially a rank from Firestore
-            // For local-only calculation, we count each unique game with a recorded score
-            // as a placement (tiered by relative performance isn't possible locally,
-            // so we award base GAME_HIGH_SCORE for each game with a high score)
             let gamesWithScores = 0;
 
-            if (typeof tracker === 'object' && tracker !== null) {
-                for (const gameId of Object.keys(tracker)) {
-                    const game = tracker[gameId];
-                    if (!game || typeof game !== 'object') continue;
-                    // Check if this game has a recorded score
-                    if (game.bestScore > 0 || game.highScore > 0 ||
-                        game.bestTime > 0 || game.wins > 0 ||
-                        game.result === 'success') {
-                        gamesWithScores++;
-                    }
+            for (const gameId of Object.keys(tracker)) {
+                const game = tracker[gameId];
+                if (!game || typeof game !== 'object') continue;
+                if (game.bestScore > 0 || game.highScore > 0 ||
+                    game.bestTime > 0 || game.wins > 0 ||
+                    game.result === 'success') {
+                    gamesWithScores++;
                 }
             }
 
-            // Award tiered XP: first 5 games get decreasing tiers, rest get base
-            for (let i = 0; i < gamesWithScores; i++) {
-                const tierXP = i < RANK_XP.length ? RANK_XP[i] : RANK_XP[RANK_XP.length - 1];
-                breakdown.games += tierXP;
-                breakdown._counts.games++;
-            }
+            breakdown.games = gamesWithScores * XP_RATES.GAME_PLAYED;
+            breakdown._counts.games = gamesWithScores;
         } catch (e) {
             // Silent fail — game XP is a bonus, not critical
         }
     }
 
     /**
-     * Count achievement/badge XP from AchievementSystem.
+     * Count achievement/badge XP using each badge's own .points value.
+     * Delegates to AchievementSystem.getTotalPoints() when available.
      */
     function _countBadgeXP(breakdown) {
+        let totalPoints = 0;
         let badgeCount = 0;
 
-        if (typeof AchievementSystem !== 'undefined' && AchievementSystem.getUnlockedAchievements) {
-            badgeCount = AchievementSystem.getUnlockedAchievements().length;
+        // Primary: AchievementSystem has per-badge point values (10-500 each)
+        if (typeof AchievementSystem !== 'undefined' && AchievementSystem.getTotalPoints) {
+            totalPoints = AchievementSystem.getTotalPoints() || 0;
+            badgeCount = (AchievementSystem.getUnlockedAchievements
+                ? AchievementSystem.getUnlockedAchievements().length : 0);
         } else {
-            // Fallback: read directly from localStorage
+            // Fallback: read from localStorage, estimate conservatively
             try {
                 const raw = localStorage.getItem('hexworth_achievements');
                 if (raw) {
                     const parsed = JSON.parse(raw);
-                    badgeCount = Array.isArray(parsed) ? parsed.length : 0;
+                    if (Array.isArray(parsed)) {
+                        badgeCount = parsed.length;
+                        // Sum points if stored with objects, else estimate 50 avg
+                        totalPoints = parsed.reduce((sum, a) => {
+                            return sum + (typeof a === 'object' && a ? (a.points || 50) : 50);
+                        }, 0);
+                    }
                 }
             } catch (e) { /* ignore */ }
 
@@ -345,13 +341,18 @@ const XPCalculator = (function () {
                 if (v2Raw) {
                     const v2 = JSON.parse(v2Raw);
                     if (v2 && v2.unlocked) {
-                        badgeCount = Math.max(badgeCount, Object.keys(v2.unlocked).length);
+                        const v2Count = Object.keys(v2.unlocked).length;
+                        if (v2Count > badgeCount) {
+                            badgeCount = v2Count;
+                            // v2 doesn't store points inline — estimate 50 avg per badge
+                            totalPoints = v2Count * 50;
+                        }
                     }
                 }
             } catch (e) { /* ignore */ }
         }
 
-        breakdown.badges = badgeCount * XP_RATES.BADGE_EARNED;
+        breakdown.badges = totalPoints;
         breakdown._counts.badges = badgeCount;
     }
 
@@ -452,7 +453,6 @@ const XPCalculator = (function () {
     // Public API
     return {
         XP_RATES,
-        RANK_XP,
         recalculate,
         calculateLevel,
         getLevelTier

@@ -181,14 +181,14 @@ class ProgressManager {
         TOOL_EXPLORE: 50,          // Explored a tool/applet
         QUIZ_PASS: 100,            // Quiz score 70-89%
         QUIZ_PERFECT: 200,         // Quiz score 90%+ (first time only, cannot be farmed)
-        BADGE_EARNED: 250,         // Achievement/badge unlocked
         GATE_CLEARED: 500,         // Dark Arts gate completed
         LAB_COMPLETE: 500,         // Completed a lab exercise
-        GAME_HIGH_SCORE: 1000,     // Beat a personal high score in any game
+        GAME_PLAYED: 100,          // Unique game with a recorded score
         MODULE_COMPLETE: 1000,     // All components of a module finished
         COURSE_COMPLETE: 10000,    // All modules in a house path finished
         DAILY_LOGIN: 25
-        // Canonical XP values live in XPCalculator.XP_RATES — these are for reference/display
+        // Badges use their own .points values (10-500 per badge, see AchievementSystem)
+        // Canonical XP values live in XPCalculator.XP_RATES
     };
 
     // Level system — uncapped RPG-style quadratic curve
