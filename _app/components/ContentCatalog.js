@@ -1802,6 +1802,11 @@ const ContentCatalog = (function() {
         { house: 'ai', id: 'ai-agent-workflow-lab', title: 'Build an Agent Workflow', description: 'Visual workflow builder — connect triggers, brain, memory, tools, and guardrails', icon: '🔄', status: 'available', components: ['lab'], href: 'labs/ai-agent-workflow.lab.html', category: 'building' },
         // AI House — Tools
         { house: 'ai', id: 'ai-llm-comparison', title: 'LLM Comparison Calculator', description: 'Compare 12+ models on cost, speed, context, and capability — find the right brain for your agent', icon: '📊', status: 'available', components: ['tool'], href: 'tools/ai-llm-comparison.tool.html', category: 'architecture' },
+        { house: 'ai', id: 'ai-cost-calculator', title: 'AI Cost Calculator', description: 'Estimate API costs for your AI agent — tokens, models, and monthly spend projections', icon: '💰', status: 'available', components: ['tool'], href: 'tools/ai-cost-calculator.tool.html', category: 'building' },
+        { house: 'ai', id: 'ai-prompt-tester', title: 'Prompt Tester', description: 'Test and iterate prompts — compare outputs, measure quality, optimize for your use case', icon: '🧪', status: 'available', components: ['tool'], href: 'tools/ai-prompt-tester.tool.html', category: 'building' },
+        // AI House — Presentations
+        { house: 'ai', id: 'ai-foundations-presentation', title: 'AI Foundations', description: 'Slide deck covering AI agents, LLMs, automation spectrum, and real-world applications', icon: '🎓', status: 'available', components: ['presentation'], href: 'presentations/ai-foundations.presentation.html', category: 'foundations' },
+        { house: 'ai', id: 'ai-safety-guardrails-presentation', title: 'AI Safety & Guardrails', description: 'Slide deck on prompt injection defense, human-in-loop patterns, and graduated autonomy', icon: '🛡️', status: 'available', components: ['presentation'], href: 'presentations/ai-safety-guardrails.presentation.html', category: 'safety' },
         // AI House — Games (additional)
         { house: 'ai', id: 'ai-text-adventure-singularity', title: 'The Singularity Protocol', description: 'Text adventure — investigate a rogue AI agent at Nexus Corp before it is too late', icon: '📖', status: 'available', components: ['game'], href: 'games/ai-text-adventure-singularity.html', category: 'games' },
 

@@ -5000,6 +5000,15 @@ class LearningPaths {
                     duration: '35 min',
                     href: 'houses/ai/modules/ai-agent-components.applet.html',
                     prerequisites: ['ai-automation-rubric']
+                },
+                {
+                    id: 'ai-foundations-presentation',
+                    title: 'AI Foundations (Slides)',
+                    type: 'presentation',
+                    difficulty: 'beginner',
+                    duration: '20 min',
+                    href: 'houses/ai/presentations/ai-foundations.presentation.html',
+                    prerequisites: []
                 }
             ]
         },
@@ -5045,6 +5054,24 @@ class LearningPaths {
                     duration: '45 min',
                     href: 'houses/ai/labs/ai-rag-pipeline.lab.html',
                     prerequisites: ['ai-agent-workflow-lab']
+                },
+                {
+                    id: 'ai-cost-calculator',
+                    title: 'AI Cost Calculator',
+                    type: 'tool',
+                    difficulty: 'beginner',
+                    duration: '15 min',
+                    href: 'houses/ai/tools/ai-cost-calculator.tool.html',
+                    prerequisites: []
+                },
+                {
+                    id: 'ai-prompt-tester',
+                    title: 'Prompt Tester',
+                    type: 'tool',
+                    difficulty: 'intermediate',
+                    duration: '20 min',
+                    href: 'houses/ai/tools/ai-prompt-tester.tool.html',
+                    prerequisites: ['ai-prompt-engineering']
                 }
             ]
         },
@@ -5090,6 +5117,15 @@ class LearningPaths {
                     duration: '40 min',
                     href: 'houses/ai/labs/ai-prompt-injection.lab.html',
                     prerequisites: ['ai-guardrails']
+                },
+                {
+                    id: 'ai-safety-guardrails-presentation',
+                    title: 'AI Safety & Guardrails (Slides)',
+                    type: 'presentation',
+                    difficulty: 'intermediate',
+                    duration: '20 min',
+                    href: 'houses/ai/presentations/ai-safety-guardrails.presentation.html',
+                    prerequisites: []
                 }
             ]
         }
