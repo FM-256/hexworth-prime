@@ -78,7 +78,8 @@ const FirestoreManager = (function() {
         'hexworth_sync_queue', 'hexworth_version_cache', 'hexworth_start_times',
         'hexworth_github_token', 'hexworth_github_client_id', 'hexworth_github_gist_id',
         'hexworth_enrolled_classes', 'glitch_firefly_spawned',
-        'hexworth_hed_log', 'hexworth_hed_enabled', 'hexworth_hed_pending'
+        'hexworth_hed_log', 'hexworth_hed_enabled', 'hexworth_hed_pending',
+        'hexworth_xp', 'hexworth_level'  // Derived by XPCalculator — never sync raw values
     ]);
     const SYNC_EXCLUDED_PREFIXES = [
         'hexworth_house_tab_', 'skill-tree-', 'clh031-panel-',
