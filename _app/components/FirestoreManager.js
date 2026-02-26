@@ -249,6 +249,8 @@ const FirestoreManager = (function() {
             let merged = 0;
             for (const [key, value] of Object.entries(data)) {
                 if (typeof value !== 'string') continue;
+                // Skip excluded keys (derived values like hexworth_xp/level)
+                if (!_isSyncableKey(key)) continue;
                 const local = localStorage.getItem(key);
                 if (local === null) {
                     // Key missing locally — restore from cloud
@@ -1331,22 +1333,34 @@ const FirestoreManager = (function() {
                     console.warn('[FirestoreManager] Cloud sync failed, data saved locally:', syncErr.message);
                 }
 
-                // Also write XP + level directly to Firestore user doc
-                // (CF may use Math.max server-side and refuse to lower XP)
-                try {
-                    await setUserProfile(uid, {
-                        xp: mergedXP,
-                        level: calculateLevel(mergedXP)
-                    });
-                } catch (e) {
-                    console.warn('[FirestoreManager] Direct XP write failed:', e.message);
-                }
+                // XP is written to Firestore in step 9 after all sync operations complete
             }
 
             // 8. Restore bulk sync blob from other devices, THEN write updated state
             const blobRestored = await _restoreSyncBlob(uid);
             addedToLocal += blobRestored;
             await _writeSyncBlob(uid);
+
+            // 9. Final XP correction — sync blob deep merge may have restored inflated
+            // xp/level inside hexworth_progress JSON. Re-assert deterministic values.
+            if (typeof XPCalculator !== 'undefined') {
+                const finalCalc = XPCalculator.recalculate();
+                localStorage.setItem(LOCALSTORAGE_KEYS.xp, finalCalc.xp.toString());
+                localStorage.setItem('hexworth_level', finalCalc.level.toString());
+                // Also fix xp/level inside hexworth_progress if it was inflated by merge
+                try {
+                    const hp = JSON.parse(localStorage.getItem(LOCALSTORAGE_KEYS.progress) || '{}');
+                    if (hp.xp !== finalCalc.xp || hp.level !== finalCalc.level) {
+                        hp.xp = finalCalc.xp;
+                        hp.level = finalCalc.level;
+                        localStorage.setItem(LOCALSTORAGE_KEYS.progress, JSON.stringify(hp));
+                    }
+                } catch (e) { /* best-effort */ }
+                // Write corrected XP to Firestore user doc
+                try {
+                    await setUserProfile(uid, { xp: finalCalc.xp, level: finalCalc.level });
+                } catch (e) { /* best-effort */ }
+            }
 
             console.log(`[FirestoreManager] Bidirectional sync complete: +${addedToLocal} to local, +${addedToCloud} to cloud`);
 
