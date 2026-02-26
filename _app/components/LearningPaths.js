@@ -4962,6 +4962,136 @@ class LearningPaths {
                     prerequisites: ['secops-hunting-quiz']
                 }
             ]
+        },
+
+        // ═══════════════════════════════════════════════════════════
+        // AI HOUSE — House of the Machine
+        // ═══════════════════════════════════════════════════════════
+
+        'ai-foundations': {
+            name: 'AI Foundations',
+            description: 'Agent concepts, the automation rubric, and the 3-component model',
+            icon: '🧠',
+            color: '#a855f7',
+            modules: [
+                {
+                    id: 'ai-what-are-agents',
+                    title: 'What Are AI Agents?',
+                    type: 'applet',
+                    difficulty: 'beginner',
+                    duration: '25 min',
+                    href: 'houses/ai/modules/ai-what-are-agents.applet.html',
+                    prerequisites: []
+                },
+                {
+                    id: 'ai-automation-rubric',
+                    title: 'The Automation Rubric',
+                    type: 'applet',
+                    difficulty: 'beginner',
+                    duration: '30 min',
+                    href: 'houses/ai/modules/ai-automation-rubric.applet.html',
+                    prerequisites: ['ai-what-are-agents']
+                },
+                {
+                    id: 'ai-agent-components',
+                    title: 'Agent Components Deep Dive',
+                    type: 'applet',
+                    difficulty: 'intermediate',
+                    duration: '35 min',
+                    href: 'houses/ai/modules/ai-agent-components.applet.html',
+                    prerequisites: ['ai-automation-rubric']
+                }
+            ]
+        },
+
+        'ai-builder': {
+            name: 'Agent Builder',
+            description: 'No-code platforms, prompt engineering, and building real agents',
+            icon: '🔧',
+            color: '#a855f7',
+            modules: [
+                {
+                    id: 'ai-nocode-platforms',
+                    title: 'No-Code Agent Platforms',
+                    type: 'applet',
+                    difficulty: 'intermediate',
+                    duration: '35 min',
+                    href: 'houses/ai/modules/ai-nocode-platforms.applet.html',
+                    prerequisites: []
+                },
+                {
+                    id: 'ai-prompt-engineering',
+                    title: 'Prompt Engineering for Agents',
+                    type: 'applet',
+                    difficulty: 'intermediate',
+                    duration: '30 min',
+                    href: 'houses/ai/modules/ai-prompt-engineering.applet.html',
+                    prerequisites: ['ai-nocode-platforms']
+                },
+                {
+                    id: 'ai-agent-workflow-lab',
+                    title: 'Build an Agent Workflow',
+                    type: 'lab',
+                    difficulty: 'intermediate',
+                    duration: '40 min',
+                    href: 'houses/ai/labs/ai-agent-workflow.lab.html',
+                    prerequisites: ['ai-prompt-engineering']
+                },
+                {
+                    id: 'ai-rag-pipeline-lab',
+                    title: 'Build a RAG Pipeline',
+                    type: 'lab',
+                    difficulty: 'advanced',
+                    duration: '45 min',
+                    href: 'houses/ai/labs/ai-rag-pipeline.lab.html',
+                    prerequisites: ['ai-agent-workflow-lab']
+                }
+            ]
+        },
+
+        'ai-security': {
+            name: 'Security Automation',
+            description: 'SOC agents, guardrails, and responsible AI deployment',
+            icon: '🛡️',
+            color: '#a855f7',
+            modules: [
+                {
+                    id: 'ai-soc-automation',
+                    title: 'SOC Agent Automation',
+                    type: 'applet',
+                    difficulty: 'intermediate',
+                    duration: '35 min',
+                    href: 'houses/ai/modules/ai-soc-automation.applet.html',
+                    prerequisites: []
+                },
+                {
+                    id: 'ai-soc-triage-lab',
+                    title: 'SOC Triage Agent Lab',
+                    type: 'lab',
+                    difficulty: 'advanced',
+                    duration: '45 min',
+                    href: 'houses/ai/labs/ai-soc-triage.lab.html',
+                    prerequisites: ['ai-soc-automation']
+                },
+                {
+                    id: 'ai-guardrails',
+                    title: 'Guardrails & Graduated Autonomy',
+                    type: 'applet',
+                    difficulty: 'intermediate',
+                    duration: '30 min',
+                    href: 'houses/ai/modules/ai-guardrails.applet.html',
+                    prerequisites: ['ai-soc-automation']
+                },
+                {
+                    id: 'ai-prompt-injection-lab',
+                    title: 'Prompt Injection Lab',
+                    type: 'lab',
+                    difficulty: 'advanced',
+                    duration: '40 min',
+                    href: 'houses/ai/labs/ai-prompt-injection.lab.html',
+                    prerequisites: ['ai-guardrails']
+                }
+            ]
         }
     };
 

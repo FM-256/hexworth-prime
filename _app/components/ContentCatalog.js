@@ -1795,6 +1795,15 @@ const ContentCatalog = (function() {
         { house: 'ai', id: 'ai-prompt-engineering', title: 'Prompt Engineering for Agents', description: 'System prompts, structured output, the two-step method, role definition', icon: '✍️', status: 'available', components: ['applet', 'quiz'], href: 'modules/ai-prompt-engineering.applet.html', category: 'building' },
         { house: 'ai', id: 'ai-soc-automation', title: 'SOC Agent Automation', description: 'Alert triage, threat intel enrichment, phishing analysis, IR runbook agents', icon: '🛡️', status: 'available', components: ['applet'], href: 'modules/ai-soc-automation.applet.html', category: 'cybersecurity' },
         { house: 'ai', id: 'ai-guardrails', title: 'Guardrails & Graduated Autonomy', description: 'Prompt injection defense, human-in-loop patterns, rate limits, metrics tracking', icon: '🚧', status: 'available', components: ['applet', 'quiz'], href: 'modules/ai-guardrails.applet.html', category: 'safety' },
+        // AI House — Labs
+        { house: 'ai', id: 'ai-prompt-injection-lab', title: 'Prompt Injection Lab', description: 'Hands-on attack and defense — craft injections, build sanitizers, test output filters', icon: '💉', status: 'available', components: ['lab'], href: 'labs/ai-prompt-injection.lab.html', category: 'safety' },
+        { house: 'ai', id: 'ai-rag-pipeline-lab', title: 'Build a RAG Pipeline', description: 'Document ingestion, chunking, embedding, retrieval, and generation — step by step', icon: '🔗', status: 'available', components: ['lab'], href: 'labs/ai-rag-pipeline.lab.html', category: 'architecture' },
+        { house: 'ai', id: 'ai-soc-triage-lab', title: 'SOC Triage Agent Lab', description: 'Configure classification rules, enrichment actions, and response recommendations for a live agent', icon: '🎯', status: 'available', components: ['lab'], href: 'labs/ai-soc-triage.lab.html', category: 'cybersecurity' },
+        { house: 'ai', id: 'ai-agent-workflow-lab', title: 'Build an Agent Workflow', description: 'Visual workflow builder — connect triggers, brain, memory, tools, and guardrails', icon: '🔄', status: 'available', components: ['lab'], href: 'labs/ai-agent-workflow.lab.html', category: 'building' },
+        // AI House — Tools
+        { house: 'ai', id: 'ai-llm-comparison', title: 'LLM Comparison Calculator', description: 'Compare 12+ models on cost, speed, context, and capability — find the right brain for your agent', icon: '📊', status: 'available', components: ['tool'], href: 'tools/ai-llm-comparison.tool.html', category: 'architecture' },
+        // AI House — Games (additional)
+        { house: 'ai', id: 'ai-text-adventure-singularity', title: 'The Singularity Protocol', description: 'Text adventure — investigate a rogue AI agent at Nexus Corp before it is too late', icon: '📖', status: 'available', components: ['game'], href: 'games/ai-text-adventure-singularity.html', category: 'games' },
 
     ];
 
