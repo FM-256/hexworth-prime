@@ -381,6 +381,7 @@
 
             <div id="gameOverScreen" class="hidden">
                 <h1>DOWNTIME!</h1>
+                <div id="deathReason" style="color: #ef4444; font-size: 13px; margin-bottom: 6px; font-style: italic;"></div>
                 <div id="finalLevel" style="color: #06b6d4; font-size: 18px; margin-bottom: 8px;"></div>
                 <div id="finalScore" style="color: #fbbf24; font-size: 32px; margin: 12px 0;">0</div>
                 <p id="newHighScore" class="hidden" style="color: #fbbf24; font-size: 20px;">New High Score!</p>
@@ -417,6 +418,19 @@
         let lastPlatformTime = 0;
         let nextTeleportPairId = 0;
         let lastPlatformSides = []; // track last 3 platform screen halves for balancing
+        let lastDeathReason = '';
+
+        const DEATH_REASONS = {
+            fall:         'Service unreachable — lost all endpoints',
+            firewall:     'Blocked by firewall rules',
+            cost:         'Cost spike caught you — budget exceeded',
+            ratelimit:    'Rate limited — 429 Too Many Requests',
+            billing:      'Surprise billing invoice — account suspended',
+            expired_cert: 'Your certs expired — connection refused',
+            ddos:         'DDoS attack overwhelmed defenses',
+            cryptominer:  'Cryptominer hijacked your CPU',
+            outage:       'Caught in a regional outage',
+        };
 
         // UI State
         let showMovesPanel = false;
@@ -2335,7 +2349,7 @@
                     player.velocityX = 0;
                 } else {
                     playSound('fall');
-                    loseLife();
+                    loseLife(DEATH_REASONS.fall);
                 }
             }
 
@@ -2391,7 +2405,7 @@
                                     particles.push(new Particle(player.x + player.width / 2, player.y + player.height / 2, '#22c55e'));
                                 }
                             } else {
-                                loseLife();
+                                loseLife(DEATH_REASONS[obstacle.type] || 'Hit by obstacle');
                                 obstacles.splice(obstacles.indexOf(obstacle), 1);
                                 for (let i = 0; i < 10; i++) {
                                     particles.push(new Particle(player.x + player.width / 2, player.y + player.height / 2, '#ef4444'));
@@ -2452,7 +2466,8 @@
         }
 
         // Lose Life — cinematic respawn (vertical safe platform selection)
-        function loseLife() {
+        function loseLife(reason) {
+            lastDeathReason = reason || 'Unknown failure';
             lives--;
             document.getElementById('lives').textContent = lives;
             comboCount = 0;
@@ -2626,6 +2641,15 @@
             ctx.font = 'bold 14px Courier New';
             ctx.fillStyle = '#06b6d4';
             ctx.fillText(respawnCountdown ? 'RESPAWNING' : 'THE PRIME', cx, lightY - 10);
+
+            // Death reason during respawn
+            if (respawnCountdown && lastDeathReason && countdownPhase <= 2) {
+                ctx.font = '12px Courier New';
+                ctx.fillStyle = '#ef4444';
+                ctx.globalAlpha = 0.9;
+                ctx.fillText(lastDeathReason, cx, cy + lightH / 2 + 50);
+                ctx.globalAlpha = 1;
+            }
         }
 
         // Draw Game
@@ -2820,6 +2844,7 @@
             if (typeof GameTracker !== 'undefined') GameTracker.record('cloudhop-vertical', { score: score, result: 'failure' });
 
             const lvl = getCurrentLevel();
+            document.getElementById('deathReason').textContent = lastDeathReason;
             document.getElementById('finalLevel').textContent = `Reached: ${lvl.name} (Level ${currentLevel + 1})`;
             document.getElementById('finalLevel').style.color = lvl.accent;
             document.getElementById('finalScore').textContent = `Score: ${score}`;
