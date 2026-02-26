@@ -5029,6 +5029,15 @@ class LearningPaths {
                     prerequisites: ['ai-what-are-agents']
                 },
                 {
+                    id: 'ai-agent-patterns-presentation',
+                    title: 'Agent Patterns (Slides)',
+                    type: 'presentation',
+                    difficulty: 'intermediate',
+                    duration: '30 min',
+                    href: 'houses/ai/presentations/ai-agent-patterns.presentation.html',
+                    prerequisites: ['ai-agent-components']
+                },
+                {
                     id: 'ai-foundations-quiz',
                     title: 'AI Foundations Quiz',
                     type: 'quiz',
@@ -5119,6 +5128,42 @@ class LearningPaths {
                     prerequisites: []
                 },
                 {
+                    id: 'ai-vector-database-lab',
+                    title: 'Vector Database Lab',
+                    type: 'lab',
+                    difficulty: 'advanced',
+                    duration: '40 min',
+                    href: 'houses/ai/labs/ai-vector-database.lab.html',
+                    prerequisites: ['ai-rag-pipeline-lab']
+                },
+                {
+                    id: 'ai-fine-tuning-lab',
+                    title: 'Fine-Tuning Lab',
+                    type: 'lab',
+                    difficulty: 'advanced',
+                    duration: '45 min',
+                    href: 'houses/ai/labs/ai-fine-tuning.lab.html',
+                    prerequisites: ['ai-rag-pipeline-lab']
+                },
+                {
+                    id: 'ai-benchmark-explorer',
+                    title: 'AI Benchmark Explorer',
+                    type: 'tool',
+                    difficulty: 'intermediate',
+                    duration: '15 min',
+                    href: 'houses/ai/tools/ai-benchmark-explorer.tool.html',
+                    prerequisites: []
+                },
+                {
+                    id: 'ai-deployment-presentation',
+                    title: 'Deployment & MLOps (Slides)',
+                    type: 'presentation',
+                    difficulty: 'advanced',
+                    duration: '25 min',
+                    href: 'houses/ai/presentations/ai-deployment.presentation.html',
+                    prerequisites: []
+                },
+                {
                     id: 'ai-builder-quiz',
                     title: 'Agent Builder Quiz',
                     type: 'quiz',
@@ -5189,6 +5234,15 @@ class LearningPaths {
                     duration: '30 min',
                     href: 'houses/ai/labs/ai-ethics-debate.lab.html',
                     prerequisites: ['ai-guardrails']
+                },
+                {
+                    id: 'ai-red-team-challenge',
+                    title: 'Red Team Challenge',
+                    type: 'game',
+                    difficulty: 'advanced',
+                    duration: '30 min',
+                    href: 'houses/ai/games/ai-red-team-challenge.applet.html',
+                    prerequisites: ['ai-prompt-injection-lab']
                 },
                 {
                     id: 'ai-security-quiz',
