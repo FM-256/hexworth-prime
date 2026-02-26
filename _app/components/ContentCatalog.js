@@ -1818,6 +1818,7 @@ const ContentCatalog = (function() {
         { house: 'ai', id: 'ai-tokenizer', title: 'Token Counter & Tokenizer', description: 'Educational tokenizer — see how LLMs break text into tokens, estimate costs across models', icon: '🔢', status: 'available', components: ['tool'], href: 'tools/ai-tokenizer.tool.html', category: 'architecture' },
         // AI House — Additional Presentations
         { house: 'ai', id: 'ai-prompt-engineering-presentation', title: 'Prompt Engineering Deep Dive', description: 'Comprehensive slide deck on prompt techniques — zero-shot, few-shot, chain-of-thought, and more', icon: '🎓', status: 'available', components: ['presentation'], href: 'presentations/ai-prompt-engineering.presentation.html', category: 'building' },
+        { house: 'ai', id: 'ai-model-architecture-presentation', title: 'How LLMs Actually Work', description: 'Deep dive into transformer architecture, attention, training, and inference — with visual diagrams', icon: '🧬', status: 'available', components: ['presentation'], href: 'presentations/ai-model-architecture.presentation.html', category: 'foundations' },
         // AI House — Games (additional)
         { house: 'ai', id: 'ai-text-adventure-singularity', title: 'The Singularity Protocol', description: 'Text adventure — investigate a rogue AI agent at Nexus Corp before it is too late', icon: '📖', status: 'available', components: ['game'], href: 'games/ai-text-adventure-singularity.html', category: 'games' },
 

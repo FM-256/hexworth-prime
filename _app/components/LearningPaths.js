@@ -5020,6 +5020,15 @@ class LearningPaths {
                     prerequisites: []
                 },
                 {
+                    id: 'ai-model-architecture-presentation',
+                    title: 'How LLMs Work (Slides)',
+                    type: 'presentation',
+                    difficulty: 'intermediate',
+                    duration: '25 min',
+                    href: 'houses/ai/presentations/ai-model-architecture.presentation.html',
+                    prerequisites: ['ai-what-are-agents']
+                },
+                {
                     id: 'ai-foundations-quiz',
                     title: 'AI Foundations Quiz',
                     type: 'quiz',
